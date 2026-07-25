@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+dist
+.wrangler
+.next-preview*.log
+.next-dev*.log
+*.tsbuildinfo
+.env*
+!.env.example
+npm-debug.log*
