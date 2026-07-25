@@ -116,7 +116,7 @@ button:disabled { cursor: not-allowed; }
 .environment span { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 .notification { position: relative; }.notification span { position: absolute; inset-block-start: 4px; inset-inline-end: 3px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 99px; color: white; background: var(--danger); font-size: 9px; }
 .profile { display: flex; align-items: center; gap: 9px; padding-inline-start: 8px; }.avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--teal); background: var(--teal-soft); font-weight: 700; }
-.profile-photo { background: url("/waleed-profile.jpg") center / cover no-repeat; }
+.profile-photo { background: url("/download.png") center / cover no-repeat; }
 .profile strong, .profile small { display: block; white-space: nowrap; }.profile strong { font-size: 12px; }.profile small { color: var(--text-muted); font-size: 10px; }
 .mobile-menu, .mobile-overlay { display: none; }
 .page { max-width: 1600px; margin: 0 auto; padding: 30px 28px 56px; }
