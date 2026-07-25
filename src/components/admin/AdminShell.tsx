@@ -49,7 +49,7 @@ function Sidebar({ compact, mobile, close }: { compact: boolean; mobile?: boolea
     <aside className={`sidebar ${compact ? "sidebar-compact" : ""} ${mobile ? "sidebar-mobile" : ""}`}>
       <div className="brand">
         <span className="brand-mark">م</span>
-        {!compact && <div><strong>مساريفي</strong><small>لوحة الإدارة</small></div>}
+        {!compact && <div><strong>مصاريفي</strong><small>لوحة الإدارة</small></div>}
         {mobile && <button className="icon-button sidebar-close" onClick={close} aria-label="إغلاق القائمة"><X size={20} /></button>}
       </div>
       <nav aria-label="التنقل الرئيسي">
@@ -112,7 +112,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
             </button>
             <button className="icon-button notification" aria-label="الإشعارات"><Bell size={19} /><span>3</span></button>
-            <div className="profile"><div className="avatar">سن</div><div><strong>سارة النعيمي</strong><small>مسؤولة عمليات</small></div></div>
+            <div className="profile"><div className="avatar profile-photo" role="img" aria-label="صورة Walled" /><div><strong>Walled</strong><small>مسؤول عمليات</small></div></div>
           </div>
         </header>
         <main>{children}</main>

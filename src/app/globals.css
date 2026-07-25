@@ -116,6 +116,7 @@ button:disabled { cursor: not-allowed; }
 .environment span { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 .notification { position: relative; }.notification span { position: absolute; inset-block-start: 4px; inset-inline-end: 3px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 99px; color: white; background: var(--danger); font-size: 9px; }
 .profile { display: flex; align-items: center; gap: 9px; padding-inline-start: 8px; }.avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--teal); background: var(--teal-soft); font-weight: 700; }
+.profile-photo { background: url("/waleed-profile.jpg") center / cover no-repeat; }
 .profile strong, .profile small { display: block; white-space: nowrap; }.profile strong { font-size: 12px; }.profile small { color: var(--text-muted); font-size: 10px; }
 .mobile-menu, .mobile-overlay { display: none; }
 .page { max-width: 1600px; margin: 0 auto; padding: 30px 28px 56px; }
@@ -175,6 +176,13 @@ button:disabled { cursor: not-allowed; }
 }
 @media (max-width: 899px) {
   .sidebar:not(.sidebar-mobile) { display: none; }.admin-main, .shell-compact .admin-main { margin-inline-start: 0; }.mobile-menu { display: inline-grid; }.mobile-overlay { position: fixed; inset: 0; z-index: 50; display: block; background: rgba(9,18,16,.48); }.sidebar-mobile { display: flex; width: min(320px, 88vw); box-shadow: var(--shadow); }.sidebar-close { margin-inline-start: auto; }
+  .sidebar-mobile .brand > div,
+  .sidebar-mobile .nav-group > p,
+  .sidebar-mobile .nav-item span,
+  .sidebar-mobile .nav-item small,
+  .sidebar-mobile .nav-arrow { display: block; }
+  .sidebar-mobile .sidebar-note { display: flex; }
+  .sidebar-mobile .nav-item { justify-content: flex-start; }
   .topbar { padding-inline: 16px; }.profile > div:not(.avatar), .environment, .global-search kbd { display: none; }.global-search { width: min(42vw, 320px); }
   .page { padding: 24px 18px 48px; }.section-grid, .section-grid.equal { grid-template-columns: 1fr; }.page-header { align-items: flex-start; flex-direction: column; }.page-actions { width: 100%; }
   .health-row { grid-template-columns: minmax(150px, 1fr) repeat(2, minmax(75px, .7fr)); }.health-row .health-cell:nth-child(4), .health-row .health-cell:nth-child(5) { display: none; }

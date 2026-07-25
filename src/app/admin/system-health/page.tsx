@@ -13,7 +13,7 @@ export default function SystemHealthPage() {
   const [lastCheck, setLastCheck] = useState("منذ دقيقة");
   return (
     <div className="page">
-      <PageHeader eyebrow="المنصة / صحة النظام" title="صحة النظام" description="مراقبة خدمات مساريفي ومزوديها. جميع القياسات تجريبية ومخصصة للعرض." actions={<><span className="environment"><span/> الإنتاج</span><button className="button" onClick={() => setLastCheck("الآن")}><RefreshCw size={16}/><span>فحص الآن</span></button></>} />
+      <PageHeader eyebrow="المنصة / صحة النظام" title="صحة النظام" description="مراقبة خدمات مصاريفي ومزوديها. جميع القياسات تجريبية ومخصصة للعرض." actions={<><span className="environment"><span/> الإنتاج</span><button className="button" onClick={() => setLastCheck("الآن")}><RefreshCw size={16}/><span>فحص الآن</span></button></>} />
       <div className="summary-strip">{[
         ["الخدمات العاملة","9 / 12"],["الخدمات المتراجعة","2"],["الحوادث النشطة","2"],["متوسط استجابة API","118 ms"],["معدل الخطأ","0.08%"],["قائمة الانتظار","1,284"],
       ].map(([label,value]) => <div className="summary-item" key={label}><small>{label}</small><strong className="numbers">{value}</strong></div>)}</div>

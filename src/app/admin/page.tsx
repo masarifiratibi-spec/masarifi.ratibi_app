@@ -14,7 +14,7 @@ export default function OverviewPage() {
     <div className="page">
       <PageHeader
         eyebrow="المنصة / نظرة عامة"
-        title="صباح الخير، سارة"
+        title="صباح الخير، Waleed"
         description="ملخص تشغيلي لما يحتاج انتباه فريق الإدارة اليوم. جميع البيانات المعروضة تجريبية."
         actions={<><select className="select" value={range} onChange={(event) => setRange(event.target.value as DateRange)} aria-label="النطاق الزمني"><option value="7d">آخر 7 أيام</option><option value="30d">آخر 30 يوماً</option><option value="90d">آخر 90 يوماً</option></select><button className="button" onClick={() => setRefreshed("منذ لحظات")}><RefreshCw size={16} /><span>تحديث</span></button></>}
       />

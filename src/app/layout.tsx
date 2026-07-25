@@ -3,12 +3,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://masarifi-admin-prototype.sites.openai.com"),
-  title: "مساريفي | لوحة الإدارة",
-  description: "نموذج عرض تشغيلي لمنصة مساريفي",
+  title: "مصاريفي | لوحة الإدارة",
+  description: "نموذج عرض تشغيلي لمنصة مصاريفي",
   openGraph: {
-    title: "مساريفي | لوحة الإدارة",
-    description: "نموذج عرض تشغيلي عربي لمنصة مساريفي",
-    images: [{ url: "/og.png", width: 1673, height: 941, alt: "مساريفي — لوحة الإدارة" }],
+    title: "مصاريفي | لوحة الإدارة",
+    description: "نموذج عرض تشغيلي عربي لمنصة مصاريفي",
+    images: [{ url: "/og.png", width: 1673, height: 941, alt: "مصاريفي — لوحة الإدارة" }],
   },
 };
 
