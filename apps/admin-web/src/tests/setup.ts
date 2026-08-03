@@ -1,0 +1,29 @@
+import { afterAll, afterEach, beforeAll } from "vitest";
+import { mockServer } from "@/mocks/server";
+import { resetPhase2MockState } from "@/mocks/phase2-state";
+import { resetPhase5AiState } from "@/mocks/phase5-ai-state";
+import { resetState as resetPhase6CommunicationsState } from "@/mocks/phase6-communications-state";
+import { resetPhase7SecurityState } from "@/mocks/phase7-security-state";
+import { resetPhase8SystemHealthState } from "@/mocks/phase8-system-health-state";
+import { resetPhase9GovernanceState } from "@/mocks/phase9-governance-state";
+
+beforeAll(() => {
+  mockServer.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  mockServer.resetHandlers();
+  resetPhase2MockState();
+  resetPhase5AiState();
+  resetPhase6CommunicationsState();
+  resetPhase7SecurityState();
+  resetPhase8SystemHealthState();
+  resetPhase9GovernanceState();
+  document.body.replaceChildren();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
+
+afterAll(() => {
+  mockServer.close();
+});

@@ -1,0 +1,1113 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin System Health and Jobs Mock Contract
+  version: 0.1.0
+  description: >
+    Proposed frontend contract for Phase 8. It defines mock HTTP behavior only;
+    no backend, telemetry collector, provider, Redis, BullMQ, worker, scheduler,
+    storage, monitoring, incident, or production job operation is implemented.
+servers:
+  - url: /api/v1/admin
+
+paths:
+  /system-health/overview:
+    get:
+      operationId: getHealthOverview
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Role-projected service health overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthOverview'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /system-health/api:
+    get:
+      operationId: getApiMonitoring
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Safe API monitoring metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiMonitoring'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /system-health/database:
+    get:
+      operationId: getDatabaseMonitoring
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Safe database monitoring metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseMonitoring'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /system-health/storage:
+    get:
+      operationId: getStorageMonitoring
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Safe storage monitoring metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageMonitoring'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /system-health/providers:
+    get:
+      operationId: listProviderHealth
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/ProviderCategory'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/HealthStatus'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [status, latency, error_rate, last_check]
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: Role-projected external-provider health page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderHealthPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /jobs/queues:
+    get:
+      operationId: listQueueHealth
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Scenario'
+        - name: queue
+          in: query
+          schema:
+            $ref: '#/components/schemas/QueueKey'
+      responses:
+        '200':
+          description: Role-projected queue snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [range, queues, freshness]
+                properties:
+                  range:
+                    $ref: '#/components/schemas/OperationalRange'
+                  queues:
+                    type: array
+                    maxItems: 7
+                    items:
+                      $ref: '#/components/schemas/QueueSnapshot'
+                  freshness:
+                    $ref: '#/components/schemas/Freshness'
+                  partialReason:
+                    type: [string, 'null']
+                    maxLength: 240
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /jobs/runs:
+    get:
+      operationId: listJobRuns
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+        - name: queue
+          in: query
+          schema:
+            $ref: '#/components/schemas/QueueKey'
+        - name: state
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobState'
+        - name: appVersion
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [started_at, duration, attempt, state]
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: Role-projected job-run page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRunPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /jobs/runs/{jobRunId}:
+    get:
+      operationId: getJobRun
+      parameters:
+        - $ref: '#/components/parameters/JobRunId'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Role-projected safe job detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRunDetail'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /jobs/runs/{jobRunId}/retry:
+    post:
+      operationId: retryJobRun
+      parameters:
+        - $ref: '#/components/parameters/JobRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobActionRequest'
+      responses:
+        '200':
+          description: Original Failed run and one linked Waiting attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryJobResult'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /jobs/runs/{jobRunId}/cancel:
+    post:
+      operationId: cancelJobRun
+      parameters:
+        - $ref: '#/components/parameters/JobRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobActionRequest'
+      responses:
+        '200':
+          description: Cancelled Waiting or Delayed run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelJobResult'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /jobs/scheduled:
+    get:
+      operationId: listScheduledJobs
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+        - name: queue
+          in: query
+          schema:
+            $ref: '#/components/schemas/QueueKey'
+        - name: enabled
+          in: query
+          schema:
+            type: boolean
+        - name: lastState
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobState'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [job_name, next_run, last_run, last_state]
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: Read-only role-projected schedule page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledJobPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+components:
+  parameters:
+    Range:
+      name: range
+      in: query
+      schema:
+        $ref: '#/components/schemas/OperationalRange'
+    Platform:
+      name: platform
+      in: query
+      schema:
+        type: string
+        enum: [all, ios, android]
+        default: all
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 120
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        enum: [25, 50, 100]
+        default: 25
+    SortOrder:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    Scenario:
+      name: __scenario
+      in: query
+      description: Development-only MSW scenario selector
+      schema:
+        type: string
+        maxLength: 64
+    JobRunId:
+      name: jobRunId
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 64
+        pattern: '^JOB-[A-Za-z0-9-]+$'
+
+  responses:
+    SafeError:
+      description: Safe validation, permission, conflict, unavailable, or internal error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OperationalApiError'
+
+  schemas:
+    OperationalRange:
+      type: string
+      enum: [1h, 24h, 7d, 30d]
+      default: 24h
+
+    AccessProjection:
+      type: string
+      enum: [full, domain, linked_status]
+
+    PlatformOrigin:
+      type: string
+      enum: [ios, android, unknown]
+
+    HealthStatus:
+      type: string
+      enum: [operational, degraded, partial_outage, major_outage, maintenance, unknown]
+
+    Freshness:
+      type: object
+      additionalProperties: false
+      required: [observedAt, staleAt, state]
+      properties:
+        observedAt:
+          type: string
+          format: date-time
+        staleAt:
+          type: string
+          format: date-time
+        state:
+          type: string
+          enum: [fresh, stale, unknown]
+        sourceLabel:
+          type: string
+          maxLength: 80
+
+    MetricValue:
+      type: object
+      additionalProperties: false
+      required: [key, label, value, unit, semantic, completeness, freshness]
+      properties:
+        key:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{0,63}$'
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        value:
+          type: [number, 'null']
+        unit:
+          type: string
+          enum: [count, percent, milliseconds, seconds, bytes, ratio]
+        semantic:
+          type: string
+          enum: [snapshot, selected_range]
+        completeness:
+          type: string
+          enum: [complete, partial, unavailable, not_applicable]
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        trend:
+          type: [number, 'null']
+        summary:
+          type: string
+          maxLength: 240
+
+    TimeSeriesPoint:
+      type: object
+      additionalProperties: false
+      required: [at, value]
+      properties:
+        at:
+          type: string
+          format: date-time
+        value:
+          type: [number, 'null']
+        platform:
+          $ref: '#/components/schemas/PlatformOrigin'
+
+    PlatformOperationalBreakdown:
+      type: object
+      additionalProperties: false
+      required: [total, ios, android, semantic, completeness]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        ios:
+          type: integer
+          minimum: 0
+        android:
+          type: integer
+          minimum: 0
+        unknown:
+          type: integer
+          minimum: 0
+        semantic:
+          type: string
+          enum: [events, jobs, requests, failures, unique_customers]
+        completeness:
+          type: string
+          enum: [complete, partial, unavailable]
+
+    SafeReference:
+      type: object
+      additionalProperties: false
+      required: [id, kind, label]
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        kind:
+          type: string
+          enum: [service, provider, queue, job, schedule, incident, audit, domain_record]
+        label:
+          type: string
+          maxLength: 120
+        href:
+          type: string
+          maxLength: 200
+
+    ServiceHealthSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, category, status, uptime, latency, errorRate, freshness]
+      properties:
+        id:
+          type: string
+          pattern: '^SVC-[A-Za-z0-9-]+$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        category:
+          type: string
+          enum: [api, database, auth, storage, cache, workers, payments, ai, email, push, exchange_rates, monitoring]
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        uptime:
+          $ref: '#/components/schemas/MetricValue'
+        latency:
+          $ref: '#/components/schemas/MetricValue'
+        errorRate:
+          $ref: '#/components/schemas/MetricValue'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        lastIncident:
+          anyOf:
+            - $ref: '#/components/schemas/SafeReference'
+            - type: 'null'
+        impactSummary:
+          type: string
+          maxLength: 240
+        platformImpact:
+          $ref: '#/components/schemas/PlatformOperationalBreakdown'
+
+    HealthOverview:
+      type: object
+      additionalProperties: false
+      required: [range, summary, services, freshness, partial]
+      properties:
+        range:
+          $ref: '#/components/schemas/OperationalRange'
+        summary:
+          type: string
+          maxLength: 240
+        services:
+          type: array
+          minItems: 12
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/ServiceHealthSummary'
+        attention:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/SafeReference'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        partial:
+          type: boolean
+        partialReason:
+          type: [string, 'null']
+          maxLength: 240
+
+    EndpointGroup:
+      type: object
+      additionalProperties: false
+      required: [routePattern, requestVolume, errorRate, p95Latency]
+      properties:
+        routePattern:
+          type: string
+          minLength: 1
+          maxLength: 160
+        requestVolume:
+          $ref: '#/components/schemas/MetricValue'
+        errorRate:
+          $ref: '#/components/schemas/MetricValue'
+        p95Latency:
+          $ref: '#/components/schemas/MetricValue'
+        statusCodeGroup:
+          type: string
+          enum: [2xx, 3xx, 4xx, 5xx, mixed]
+
+    StatusCodeCount:
+      type: object
+      additionalProperties: false
+      required: [group, count]
+      properties:
+        group:
+          type: string
+          enum: [2xx, 3xx, 4xx, 5xx]
+        count:
+          type: integer
+          minimum: 0
+
+    ApiMonitoring:
+      type: object
+      additionalProperties: false
+      required: [range, requestVolume, errorRate, latency, series, endpoints, statusCodes, freshness]
+      properties:
+        range:
+          $ref: '#/components/schemas/OperationalRange'
+        requestVolume:
+          $ref: '#/components/schemas/MetricValue'
+        errorRate:
+          $ref: '#/components/schemas/MetricValue'
+        latency:
+          $ref: '#/components/schemas/MetricValue'
+        series:
+          type: array
+          maxItems: 720
+          items:
+            $ref: '#/components/schemas/TimeSeriesPoint'
+        endpoints:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/EndpointGroup'
+        statusCodes:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/StatusCodeCount'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        partialReason:
+          type: [string, 'null']
+          maxLength: 240
+
+    SlowQueryGroup:
+      type: object
+      additionalProperties: false
+      required: [label, operation, count, p95Duration]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 80
+        operation:
+          type: string
+          enum: [select, insert, update, delete, maintenance, unknown]
+        count:
+          $ref: '#/components/schemas/MetricValue'
+        p95Duration:
+          $ref: '#/components/schemas/MetricValue'
+
+    DatabaseMonitoring:
+      type: object
+      additionalProperties: false
+      required: [range, connectionUsage, queryLatency, storageUsage, slowQueries, backupState, recoveryState, freshness]
+      properties:
+        range:
+          $ref: '#/components/schemas/OperationalRange'
+        connectionUsage:
+          $ref: '#/components/schemas/MetricValue'
+        queryLatency:
+          $ref: '#/components/schemas/MetricValue'
+        storageUsage:
+          $ref: '#/components/schemas/MetricValue'
+        slowQueries:
+          type: array
+          maxItems: 30
+          items:
+            $ref: '#/components/schemas/SlowQueryGroup'
+        backupState:
+          type: string
+          enum: [healthy, delayed, failed, unavailable]
+        recoveryState:
+          type: string
+          enum: [healthy, degraded, unavailable, not_applicable]
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        incident:
+          anyOf:
+            - $ref: '#/components/schemas/SafeReference'
+            - type: 'null'
+
+    StorageMonitoring:
+      type: object
+      additionalProperties: false
+      required: [range, storageUsage, uploadCount, failedUploads, temporaryFiles, cleanupState, freshness]
+      properties:
+        range:
+          $ref: '#/components/schemas/OperationalRange'
+        storageUsage:
+          $ref: '#/components/schemas/MetricValue'
+        uploadCount:
+          $ref: '#/components/schemas/MetricValue'
+        failedUploads:
+          $ref: '#/components/schemas/MetricValue'
+        temporaryFiles:
+          $ref: '#/components/schemas/MetricValue'
+        cleanupState:
+          type: string
+          enum: [healthy, delayed, failed, unavailable]
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        incident:
+          anyOf:
+            - $ref: '#/components/schemas/SafeReference'
+            - type: 'null'
+
+    ProviderCategory:
+      type: string
+      enum: [stripe, ai, email, push, exchange_rates]
+
+    FallbackState:
+      type: string
+      enum: [active, available, unavailable, not_applicable, unknown]
+
+    ProviderHealthSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, category, status, latency, errorRate, lastSuccessAt, freshness, capabilities, fallbackState, projection]
+      properties:
+        id:
+          type: string
+          pattern: '^PRV-[A-Za-z0-9-]+$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        category:
+          $ref: '#/components/schemas/ProviderCategory'
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latency:
+          $ref: '#/components/schemas/MetricValue'
+        errorRate:
+          $ref: '#/components/schemas/MetricValue'
+        lastSuccessAt:
+          type: string
+          format: date-time
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        capabilities:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            maxLength: 80
+        fallbackState:
+          $ref: '#/components/schemas/FallbackState'
+        safeErrorCode:
+          type: [string, 'null']
+          maxLength: 64
+        safeErrorSummary:
+          type: [string, 'null']
+          maxLength: 240
+        platformImpact:
+          $ref: '#/components/schemas/PlatformOperationalBreakdown'
+        projection:
+          $ref: '#/components/schemas/AccessProjection'
+
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    ProviderHealthPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, range, freshness]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ProviderHealthSummary'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+        range:
+          $ref: '#/components/schemas/OperationalRange'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+
+    QueueKey:
+      type: string
+      enum: [imports, ai_processing, notifications, reports, data_exports, account_deletion, subscription_reconciliation]
+
+    JobState:
+      type: string
+      enum: [waiting, active, completed, failed, delayed, cancelled, unknown]
+
+    QueueCounters:
+      type: object
+      additionalProperties: false
+      required: [waiting, active, completed, failed, delayed, retried]
+      properties:
+        waiting:
+          type: integer
+          minimum: 0
+        active:
+          type: integer
+          minimum: 0
+        completed:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        delayed:
+          type: integer
+          minimum: 0
+        retried:
+          type: integer
+          minimum: 0
+
+    QueueSnapshot:
+      type: object
+      additionalProperties: false
+      required: [key, label, counters, oldestWaitingSeconds, throughput, failureRate, lastProcessedAt, freshness, backlogState, projection]
+      properties:
+        key:
+          $ref: '#/components/schemas/QueueKey'
+        label:
+          type: string
+          minLength: 1
+          maxLength: 80
+        counters:
+          $ref: '#/components/schemas/QueueCounters'
+        oldestWaitingSeconds:
+          type: [integer, 'null']
+          minimum: 0
+        throughput:
+          $ref: '#/components/schemas/MetricValue'
+        failureRate:
+          $ref: '#/components/schemas/MetricValue'
+        lastProcessedAt:
+          type: [string, 'null']
+          format: date-time
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        backlogState:
+          type: string
+          enum: [normal, elevated, critical, unavailable]
+        platformImpact:
+          $ref: '#/components/schemas/PlatformOperationalBreakdown'
+        projection:
+          $ref: '#/components/schemas/AccessProjection'
+
+    JobRunSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, queue, state, attempt, startedAt, durationSeconds, correlationId, version, projection]
+      properties:
+        id:
+          type: string
+          pattern: '^JOB-[A-Za-z0-9-]+$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        queue:
+          $ref: '#/components/schemas/QueueKey'
+        state:
+          $ref: '#/components/schemas/JobState'
+        attempt:
+          type: integer
+          minimum: 1
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+        durationSeconds:
+          type: [number, 'null']
+          minimum: 0
+        safeErrorCode:
+          type: [string, 'null']
+          maxLength: 64
+        safeErrorSummary:
+          type: [string, 'null']
+          maxLength: 240
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        platform:
+          anyOf:
+            - $ref: '#/components/schemas/PlatformOrigin'
+            - type: 'null'
+        appVersion:
+          type: [string, 'null']
+          maxLength: 32
+        version:
+          type: integer
+          minimum: 1
+        retryOfJobRunId:
+          type: [string, 'null']
+          maxLength: 64
+        projection:
+          $ref: '#/components/schemas/AccessProjection'
+
+    SafeMetadataEntry:
+      type: object
+      additionalProperties: false
+      required: [key, label, value]
+      properties:
+        key:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{0,63}$'
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        value:
+          type: [string, number, boolean, 'null']
+
+    JobTimelineEntry:
+      type: object
+      additionalProperties: false
+      required: [event, at, summary]
+      properties:
+        event:
+          type: string
+          enum: [queued, started, completed, failed, delayed, retry_requested, cancelled]
+        at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 240
+        linkedJobRunId:
+          type: [string, 'null']
+          maxLength: 64
+
+    JobRunDetail:
+      type: object
+      additionalProperties: false
+      required: [run, metadata, timeline, linkedAttempts, allowedActions, auditExpectations]
+      properties:
+        run:
+          $ref: '#/components/schemas/JobRunSummary'
+        metadata:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/SafeMetadataEntry'
+        timeline:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/JobTimelineEntry'
+        linkedAttempts:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/SafeReference'
+        allowedActions:
+          type: array
+          maxItems: 2
+          uniqueItems: true
+          items:
+            type: string
+            enum: [retry, cancel]
+        auditExpectations:
+          type: array
+          maxItems: 2
+          items:
+            type: string
+            enum: [job.retry_requested, job.cancel_requested]
+
+    JobRunPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, range, freshness]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/JobRunSummary'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+        range:
+          $ref: '#/components/schemas/OperationalRange'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+
+    JobActionRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, reason, submissionKey]
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 500
+        submissionKey:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9_-]+$'
+
+    ActionOutcome:
+      type: object
+      additionalProperties: false
+      required: [status, message, at, correlationId, auditReference]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 240
+        at:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+          maxLength: 64
+        auditReference:
+          type: string
+          pattern: '^AUD-[A-Za-z0-9-]+$'
+
+    RetryJobResult:
+      type: object
+      additionalProperties: false
+      required: [sourceRun, linkedRun, queue, outcome]
+      properties:
+        sourceRun:
+          $ref: '#/components/schemas/JobRunSummary'
+        linkedRun:
+          $ref: '#/components/schemas/JobRunSummary'
+        queue:
+          $ref: '#/components/schemas/QueueSnapshot'
+        outcome:
+          $ref: '#/components/schemas/ActionOutcome'
+
+    CancelJobResult:
+      type: object
+      additionalProperties: false
+      required: [run, queue, outcome]
+      properties:
+        run:
+          $ref: '#/components/schemas/JobRunSummary'
+        queue:
+          $ref: '#/components/schemas/QueueSnapshot'
+        outcome:
+          $ref: '#/components/schemas/ActionOutcome'
+
+    ScheduledJobSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, queue, scheduleLabel, lastState, enabled, freshness, projection]
+      properties:
+        id:
+          type: string
+          pattern: '^SCH-[A-Za-z0-9-]+$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        queue:
+          $ref: '#/components/schemas/QueueKey'
+        scheduleLabel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        lastRun:
+          anyOf:
+            - $ref: '#/components/schemas/SafeReference'
+            - type: 'null'
+        lastRunAt:
+          type: [string, 'null']
+          format: date-time
+        nextRunAt:
+          type: [string, 'null']
+          format: date-time
+        lastState:
+          $ref: '#/components/schemas/JobState'
+        enabled:
+          type: boolean
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        projection:
+          $ref: '#/components/schemas/AccessProjection'
+
+    ScheduledJobPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, freshness]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ScheduledJobSummary'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+
+    OperationalApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message, retryable, correlationId]
+      properties:
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          enum: [unauthorized, forbidden, not_found, validation_error, conflict, stale_version, duplicate_submission, ineligible_transition, rate_limited, provider_unavailable, internal_error]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 240
+        fieldErrors:
+          type: object
+          propertyNames:
+            enum: [range, platform, search, page, pageSize, queue, state, appVersion, expectedVersion, reason, submissionKey]
+          additionalProperties:
+            type: array
+            maxItems: 5
+            items:
+              type: string
+              maxLength: 160
+        retryable:
+          type: boolean
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 64

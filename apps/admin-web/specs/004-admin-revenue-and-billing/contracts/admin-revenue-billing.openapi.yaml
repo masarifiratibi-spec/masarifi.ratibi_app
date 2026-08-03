@@ -1,0 +1,902 @@
+openapi: 3.0.3
+info:
+  title: Masarifi Admin Revenue and Billing Mock Contract
+  version: 0.1.0
+  description: >
+    Proposed frontend-only Phase 3 contract. It is replaceable by the future
+    NestJS API and performs no real billing or provider operation.
+servers:
+  - url: /api/v1/admin/billing
+paths:
+  /subscriptions/overview:
+    get:
+      operationId: getSubscriptionOverview
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Currency'
+      responses:
+        '200':
+          $ref: '#/components/responses/SubscriptionOverview'
+        default:
+          $ref: '#/components/responses/Error'
+  /subscriptions:
+    get:
+      operationId: listSubscriptions
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Currency'
+      responses:
+        '200':
+          description: Paginated subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionsPage'
+        default:
+          $ref: '#/components/responses/Error'
+  /subscriptions/{subscriptionId}:
+    get:
+      operationId: getSubscription
+      parameters:
+        - $ref: '#/components/parameters/SubscriptionId'
+      responses:
+        '200':
+          description: Subscription detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionDetail'
+        default:
+          $ref: '#/components/responses/Error'
+  /subscriptions/{subscriptionId}/action:
+    post:
+      operationId: actOnSubscription
+      parameters:
+        - $ref: '#/components/parameters/SubscriptionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ActionResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /plans:
+    get:
+      operationId: listPlans
+      responses:
+        '200':
+          description: Billing plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlanDetail'
+        default:
+          $ref: '#/components/responses/Error'
+  /plans/{planId}:
+    post:
+      operationId: updatePlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/SafeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanMutationRequest'
+      responses:
+        '200':
+          description: Updated simulated plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanDetail'
+        default:
+          $ref: '#/components/responses/Error'
+  /promotional-codes:
+    get:
+      operationId: listPromotionalCodes
+      responses:
+        '200':
+          description: Promotional codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromotionalCodeDetail'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createPromotionalCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionalCodeMutationRequest'
+      responses:
+        '200':
+          description: Created simulated promotion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromotionalCodeDetail'
+        default:
+          $ref: '#/components/responses/Error'
+  /promotional-codes/{codeId}:
+    post:
+      operationId: updatePromotionalCode
+      parameters:
+        - name: codeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/SafeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionalCodeMutationRequest'
+      responses:
+        '200':
+          description: Updated simulated promotion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromotionalCodeDetail'
+        default:
+          $ref: '#/components/responses/Error'
+  /payments/overview:
+    get:
+      operationId: getPaymentsOverview
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Currency'
+      responses:
+        '200':
+          description: Payment overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentsOverview'
+        default:
+          $ref: '#/components/responses/Error'
+  /payment-events:
+    get:
+      operationId: listPaymentEvents
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Currency'
+      responses:
+        '200':
+          description: Paginated payment events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentEventsPage'
+        default:
+          $ref: '#/components/responses/Error'
+  /payment-events/{eventId}:
+    get:
+      operationId: getPaymentEvent
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/SafeId'
+      responses:
+        '200':
+          description: Sanitized payment event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentEventDetail'
+        default:
+          $ref: '#/components/responses/Error'
+  /failed-payments:
+    get:
+      operationId: listFailedPayments
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Currency'
+      responses:
+        '200':
+          description: Paginated payment failures
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FailedPaymentsPage'
+        default:
+          $ref: '#/components/responses/Error'
+  /failed-payments/{failureId}/action:
+    post:
+      operationId: actOnFailedPayment
+      parameters:
+        - name: failureId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/SafeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FailedPaymentActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ActionResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /reconciliation:
+    get:
+      operationId: listReconciliationIssues
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Platform'
+      responses:
+        '200':
+          description: Paginated reconciliation issues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationPage'
+        default:
+          $ref: '#/components/responses/Error'
+  /reconciliation/{issueId}/action:
+    post:
+      operationId: actOnReconciliationIssue
+      parameters:
+        - name: issueId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/SafeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ActionResult'
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    Period:
+      name: period
+      in: query
+      schema:
+        type: string
+        enum: [7d, 30d, 90d]
+        default: 30d
+    Platform:
+      name: platform
+      in: query
+      schema:
+        $ref: '#/components/schemas/Platform'
+    Currency:
+      name: currency
+      in: query
+      schema:
+        $ref: '#/components/schemas/Currency'
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 100
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    SubscriptionId:
+      name: subscriptionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SafeId'
+  responses:
+    SubscriptionOverview:
+      description: Subscription and revenue overview
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SubscriptionOverview'
+    ActionResult:
+      description: Simulated action result
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BillingActionResult'
+    Error:
+      description: Safe API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+  schemas:
+    SafeId:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{3,80}$'
+    Currency:
+      type: string
+      enum: [AED, SAR]
+    Platform:
+      type: string
+      enum: [all, ios, android, multi_platform, unattributed]
+    Money:
+      type: object
+      additionalProperties: false
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          $ref: '#/components/schemas/Currency'
+    MaskedCustomer:
+      type: object
+      additionalProperties: false
+      required: [customerId, displayName, maskedEmail, platform]
+      properties:
+        customerId:
+          $ref: '#/components/schemas/SafeId'
+        displayName:
+          type: string
+          maxLength: 100
+        maskedEmail:
+          type: string
+          maxLength: 160
+        platform:
+          $ref: '#/components/schemas/Platform'
+    SubscriptionOverview:
+      type: object
+      additionalProperties: false
+      required: [period, freshnessAt, kpis, currencyGroups, platformBreakdown]
+      properties:
+        period:
+          type: string
+          enum: [7d, 30d, 90d]
+        freshnessAt:
+          type: string
+          format: date-time
+        partial:
+          type: boolean
+        kpis:
+          type: object
+          additionalProperties:
+            type: number
+        currencyGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Money'
+        platformBreakdown:
+          type: array
+          items:
+            type: object
+            required: [platform, uniqueSubscriptions, revenue]
+            properties:
+              platform:
+                $ref: '#/components/schemas/Platform'
+              uniqueSubscriptions:
+                type: integer
+                minimum: 0
+              revenue:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Money'
+    SubscriptionListItem:
+      type: object
+      additionalProperties: false
+      required: [id, customer, plan, status, provider, amount, paymentStatus, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        customer:
+          $ref: '#/components/schemas/MaskedCustomer'
+        plan:
+          type: string
+        status:
+          type: string
+          enum: [trialing, active, past_due, cancel_at_period_end, cancelled, expired, suspended]
+        provider:
+          type: string
+        renewalDate:
+          type: string
+          format: date-time
+          nullable: true
+        amount:
+          $ref: '#/components/schemas/Money'
+        paymentStatus:
+          type: string
+        permittedActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionAction'
+    SubscriptionDetail:
+      allOf:
+        - $ref: '#/components/schemas/SubscriptionListItem'
+        - type: object
+          required: [billingInterval, limits, safeProviderReferences, billingEvents, planChangeHistory, expectedState]
+          properties:
+            billingInterval:
+              type: string
+              enum: [monthly, yearly, none]
+            limits:
+              type: object
+              additionalProperties:
+                type: integer
+                minimum: 0
+            safeProviderReferences:
+              type: array
+              items:
+                $ref: '#/components/schemas/SafeId'
+            billingEvents:
+              type: array
+              items:
+                type: object
+            planChangeHistory:
+              type: array
+              items:
+                type: object
+            expectedState:
+              type: string
+    SubscriptionAction:
+      type: string
+      enum: [change_plan, set_cancel_at_period_end, clear_cancel_at_period_end, resume, record_internal_note]
+    SubscriptionActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason, expectedCurrentState, confirmationToken]
+      properties:
+        action:
+          $ref: '#/components/schemas/SubscriptionAction'
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        targetPlanId:
+          $ref: '#/components/schemas/SafeId'
+        effectiveTiming:
+          type: string
+          enum: [immediate, period_end]
+        note:
+          type: string
+          maxLength: 1000
+        expectedCurrentState:
+          type: string
+        confirmationToken:
+          type: string
+          minLength: 1
+          maxLength: 120
+    PlanDetail:
+      type: object
+      additionalProperties: false
+      required: [id, name, price, interval, limits, active, providerPriceLabel, updatedAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        name:
+          type: string
+          enum: [Free, Basic, Premium]
+        price:
+          $ref: '#/components/schemas/Money'
+        interval:
+          type: string
+          enum: [monthly, yearly, none]
+        limits:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        active:
+          type: boolean
+        providerPriceLabel:
+          type: string
+          maxLength: 100
+        updatedAt:
+          type: string
+          format: date-time
+    PlanMutationRequest:
+      type: object
+      additionalProperties: false
+      required: [price, interval, limits, active, providerPriceLabel, reason, confirmationToken]
+      properties:
+        price:
+          $ref: '#/components/schemas/Money'
+        interval:
+          type: string
+          enum: [monthly, yearly, none]
+        limits:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        active:
+          type: boolean
+        providerPriceLabel:
+          type: string
+          maxLength: 100
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        confirmationToken:
+          type: string
+    PromotionalCodeDetail:
+      type: object
+      additionalProperties: false
+      required: [id, code, discountKind, discountValue, duration, redemptionCount, status, eligiblePlanIds]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        code:
+          type: string
+          pattern: '^[A-Z0-9_-]{3,32}$'
+        discountKind:
+          type: string
+          enum: [percentage, fixed]
+        discountValue:
+          type: number
+          exclusiveMinimum: 0
+        duration:
+          type: string
+          enum: [once, repeating, forever]
+        redemptionCount:
+          type: integer
+          minimum: 0
+        redemptionLimit:
+          type: integer
+          minimum: 1
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [draft, active, expired, exhausted, disabled]
+        eligiblePlanIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/SafeId'
+    PromotionalCodeMutationRequest:
+      allOf:
+        - $ref: '#/components/schemas/PromotionalCodeDetail'
+        - type: object
+          required: [reason, confirmationToken]
+          properties:
+            reason:
+              type: string
+              minLength: 3
+              maxLength: 500
+            confirmationToken:
+              type: string
+    PaymentsOverview:
+      type: object
+      additionalProperties: false
+      required: [period, freshnessAt, currencyGroups, reconciliationCount]
+      properties:
+        period:
+          type: string
+          enum: [7d, 30d, 90d]
+        freshnessAt:
+          type: string
+          format: date-time
+        currencyGroups:
+          type: array
+          items:
+            type: object
+            required: [currency, successful, failed, refunded, disputed, pending]
+            properties:
+              currency:
+                $ref: '#/components/schemas/Currency'
+              successful:
+                type: number
+              failed:
+                type: number
+              refunded:
+                type: number
+              disputed:
+                type: number
+              pending:
+                type: number
+        reconciliationCount:
+          type: integer
+          minimum: 0
+    SanitizedPaymentPayloadPreview:
+      type: object
+      additionalProperties: false
+      required: [eventId, eventType, status, receivedAt, amount, subscriptionReference, retryCount]
+      properties:
+        eventId:
+          $ref: '#/components/schemas/SafeId'
+        eventType:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          maxLength: 40
+        receivedAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+        amount:
+          $ref: '#/components/schemas/Money'
+        subscriptionReference:
+          $ref: '#/components/schemas/SafeId'
+        retryCount:
+          type: integer
+          minimum: 0
+        providerErrorCode:
+          type: string
+          maxLength: 80
+        providerErrorMessage:
+          type: string
+          maxLength: 300
+    PaymentEventListItem:
+      type: object
+      required: [id, customer, subscriptionId, eventType, amount, provider, status, receivedAt, retryCount]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        customer:
+          $ref: '#/components/schemas/MaskedCustomer'
+        subscriptionId:
+          $ref: '#/components/schemas/SafeId'
+        eventType:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Money'
+        provider:
+          type: string
+        status:
+          type: string
+        receivedAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+        retryCount:
+          type: integer
+          minimum: 0
+    PaymentEventDetail:
+      allOf:
+        - $ref: '#/components/schemas/PaymentEventListItem'
+        - type: object
+          required: [timeline, payloadPreview, retryHistory]
+          properties:
+            timeline:
+              type: array
+              items:
+                type: object
+            payloadPreview:
+              $ref: '#/components/schemas/SanitizedPaymentPayloadPreview'
+            retryHistory:
+              type: array
+              items:
+                type: object
+    FailedPaymentItem:
+      type: object
+      required: [id, customer, plan, failedAmount, reason, attemptCount, status, expectedState]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        customer:
+          $ref: '#/components/schemas/MaskedCustomer'
+        plan:
+          type: string
+        failedAmount:
+          $ref: '#/components/schemas/Money'
+        reason:
+          type: string
+        attemptCount:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [open, reviewed, retry_handoff_prepared, customer_contact_handoff, provider_recovered, resolved]
+        expectedState:
+          type: string
+    FailedPaymentActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason, scope, expectedCurrentState, confirmationToken]
+      properties:
+        action:
+          type: string
+          enum: [mark_reviewed, prepare_retry_handoff, record_customer_contact_handoff, mark_provider_recovered]
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        scope:
+          type: string
+          maxLength: 120
+        expectedCurrentState:
+          type: string
+        confirmationToken:
+          type: string
+    ReconciliationItem:
+      type: object
+      required: [id, internalStatus, providerStatus, difference, recommendedAction, severity, ageSeconds, providerFreshness, status, expectedState]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        internalStatus:
+          type: string
+        providerStatus:
+          type: string
+        difference:
+          type: string
+        recommendedAction:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        ageSeconds:
+          type: integer
+          minimum: 0
+        providerFreshness:
+          type: string
+          enum: [fresh, stale, unavailable]
+        status:
+          type: string
+          enum: [open, reviewing, resolved, blocked, stale]
+        expectedState:
+          type: string
+    ReconciliationActionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, reason, expectedIssueState, providerFreshness, confirmationToken]
+      properties:
+        decision:
+          type: string
+          enum: [mark_reviewing, accept_internal, accept_provider, defer, mark_resolved]
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        expectedIssueState:
+          type: string
+        providerFreshness:
+          type: string
+          enum: [fresh, stale, unavailable]
+        confirmationToken:
+          type: string
+    BillingActionResult:
+      type: object
+      additionalProperties: false
+      required: [id, previousState, currentState, outcome, timestamp, message]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        previousState:
+          type: string
+        currentState:
+          type: string
+        outcome:
+          type: string
+          enum: [simulated_success, conflict, forbidden, rejected]
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+          maxLength: 300
+        plannedAuditReference:
+          $ref: '#/components/schemas/SafeId'
+    PageMeta:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    SubscriptionsPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionListItem'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+    PaymentEventsPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentEventListItem'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+    FailedPaymentsPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailedPaymentItem'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+    ReconciliationPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReconciliationItem'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+        code:
+          type: string
+          maxLength: 80
+        message:
+          type: string
+          maxLength: 300
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+        correlationId:
+          $ref: '#/components/schemas/SafeId'

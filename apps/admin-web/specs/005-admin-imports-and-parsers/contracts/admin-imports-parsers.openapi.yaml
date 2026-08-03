@@ -1,0 +1,2087 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin Imports and Parsers Mock Contract
+  version: 0.1.0
+  description: |
+    Proposed frontend-only Phase 4 contract. It is replaceable by the future
+    NestJS API and performs no real import, parsing, transaction, file, bank,
+    queue, or deployment operation. Every operation may return the documented
+    safe ApiError for validation, forbidden, not-found, gone, conflict,
+    rate-limit, unavailable, or internal-error outcomes.
+servers:
+  - url: /
+tags:
+  - name: Import Overview and Sessions
+  - name: Import Exception Triage
+  - name: Parser Coverage and Senders
+  - name: Parser Rules Tests and Versions
+  - name: Merchant and Category Rules
+
+paths:
+  /api/v1/admin/imports/overview:
+    get:
+      tags: [Import Overview and Sessions]
+      operationId: getImportOverview
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Import operational overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportOverview'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/sessions:
+    get:
+      tags: [Import Overview and Sessions]
+      operationId: listImportSessions
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/BankIdQuery'
+        - $ref: '#/components/parameters/ParserVersionIdQuery'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated import sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSessionsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/sessions/{importId}:
+    get:
+      tags: [Import Overview and Sessions]
+      operationId: getImportSession
+      parameters:
+        - $ref: '#/components/parameters/ImportId'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Permission-projected import-session detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSessionDetailProjection'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/sessions/{importId}/retry-handoff:
+    post:
+      tags: [Import Overview and Sessions]
+      operationId: createImportRetryHandoff
+      parameters:
+        - $ref: '#/components/parameters/ImportId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRetryHandoffRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ImportAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/failures:
+    get:
+      tags: [Import Exception Triage]
+      operationId: listFailedImports
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/BankIdQuery'
+        - $ref: '#/components/parameters/ParserVersionIdQuery'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated failed imports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FailedImportsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/failures/{failureId}/action:
+    post:
+      tags: [Import Exception Triage]
+      operationId: actOnFailedImport
+      parameters:
+        - $ref: '#/components/parameters/FailureId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FailedImportActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ImportAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/low-confidence:
+    get:
+      tags: [Import Exception Triage]
+      operationId: listLowConfidenceItems
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated low-confidence items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LowConfidencePage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/low-confidence/{itemId}/review:
+    post:
+      tags: [Import Exception Triage]
+      operationId: reviewLowConfidenceItem
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfidenceReviewRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ImportAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/duplicates:
+    get:
+      tags: [Import Exception Triage]
+      operationId: listDuplicateCandidates
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated duplicate candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateCandidatesPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/duplicates/{candidateId}/resolve:
+    post:
+      tags: [Import Exception Triage]
+      operationId: resolveDuplicateCandidate
+      parameters:
+        - $ref: '#/components/parameters/CandidateId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuplicateResolutionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ImportAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/unsupported-formats:
+    get:
+      tags: [Import Exception Triage]
+      operationId: listUnsupportedFormats
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated unsupported formats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedFormatsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/imports/unsupported-formats/{formatId}/action:
+    post:
+      tags: [Import Exception Triage]
+      operationId: actOnUnsupportedFormat
+      parameters:
+        - $ref: '#/components/parameters/FormatId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnsupportedFormatActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ImportAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/banks:
+    get:
+      tags: [Parser Coverage and Senders]
+      operationId: listSupportedBanks
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Country'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated bank coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BanksPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/banks/{bankId}:
+    get:
+      tags: [Parser Coverage and Senders]
+      operationId: getBankDetail
+      parameters:
+        - $ref: '#/components/parameters/BankId'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Permission-projected bank detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankDetailProjection'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/senders:
+    get:
+      tags: [Parser Coverage and Senders]
+      operationId: listSenders
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/BankIdQuery'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated sender rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendersPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/senders/{senderId}/action:
+    post:
+      tags: [Parser Coverage and Senders]
+      operationId: actOnSender
+      parameters:
+        - $ref: '#/components/parameters/SenderId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SenderActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ParserAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/rules:
+    get:
+      tags: [Parser Rules Tests and Versions]
+      operationId: listParserRules
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/BankIdQuery'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated parser rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParserRulesPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/rules/{ruleId}:
+    get:
+      tags: [Parser Rules Tests and Versions]
+      operationId: getParserRule
+      parameters:
+        - $ref: '#/components/parameters/RuleId'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Parser rule detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParserRuleDetail'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/rules/{ruleId}/test-preview:
+    post:
+      tags: [Parser Rules Tests and Versions]
+      operationId: previewParserRule
+      parameters:
+        - $ref: '#/components/parameters/RuleId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParserTestPreviewRequest'
+      responses:
+        '200':
+          description: Deterministic fictional parser preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParserTestPreviewResult'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/rules/{ruleId}/action:
+    post:
+      tags: [Parser Rules Tests and Versions]
+      operationId: actOnParserRule
+      parameters:
+        - $ref: '#/components/parameters/RuleId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParserRuleActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ParserAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/test-cases:
+    get:
+      tags: [Parser Rules Tests and Versions]
+      operationId: listParserTestCases
+      parameters:
+        - $ref: '#/components/parameters/RuleIdQuery'
+        - $ref: '#/components/parameters/ParserVersionIdQuery'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated parser test cases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParserTestCasesPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/versions:
+    get:
+      tags: [Parser Rules Tests and Versions]
+      operationId: listParserVersions
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated parser versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParserVersionsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/versions/{versionId}/action:
+    post:
+      tags: [Parser Rules Tests and Versions]
+      operationId: actOnParserVersion
+      parameters:
+        - $ref: '#/components/parameters/VersionId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParserVersionActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ParserAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/merchant-rules:
+    get:
+      tags: [Merchant and Category Rules]
+      operationId: listMerchantRules
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Country'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated merchant rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantRulesPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/merchant-rules/{ruleId}/action:
+    post:
+      tags: [Merchant and Category Rules]
+      operationId: actOnMerchantRule
+      parameters:
+        - $ref: '#/components/parameters/MerchantRuleId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantRuleActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ParserAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/category-rules:
+    get:
+      tags: [Merchant and Category Rules]
+      operationId: listCategoryRules
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated category rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRulesPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/parsers/category-rules/{ruleId}/action:
+    post:
+      tags: [Merchant and Category Rules]
+      operationId: actOnCategoryRule
+      parameters:
+        - $ref: '#/components/parameters/CategoryRuleId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRuleActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ParserAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+components:
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 120
+    Period:
+      name: period
+      in: query
+      schema:
+        type: string
+        enum: [7d, 30d, 90d]
+        default: 30d
+    Platform:
+      name: platform
+      in: query
+      schema:
+        $ref: '#/components/schemas/PlatformScope'
+    Source:
+      name: source
+      in: query
+      schema:
+        $ref: '#/components/schemas/ImportSource'
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+        maxLength: 48
+    Country:
+      name: country
+      in: query
+      schema:
+        type: string
+        pattern: '^[A-Z]{2}$'
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        enum: [25, 50, 100]
+        default: 25
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        maxLength: 48
+    Order:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+    Scenario:
+      name: __scenario
+      in: query
+      description: Development-only deterministic mock scenario.
+      schema:
+        type: string
+        maxLength: 48
+    BankIdQuery:
+      name: bankId
+      in: query
+      schema:
+        $ref: '#/components/schemas/BankId'
+    ParserVersionIdQuery:
+      name: parserVersionId
+      in: query
+      schema:
+        $ref: '#/components/schemas/VersionId'
+    RuleIdQuery:
+      name: ruleId
+      in: query
+      schema:
+        $ref: '#/components/schemas/ParserRuleId'
+    ImportId:
+      name: importId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ImportId'
+    FailureId:
+      name: failureId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/FailureId'
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ItemId'
+    CandidateId:
+      name: candidateId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CandidateId'
+    FormatId:
+      name: formatId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/FormatId'
+    BankId:
+      name: bankId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/BankId'
+    SenderId:
+      name: senderId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SenderId'
+    RuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ParserRuleId'
+    MerchantRuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/MerchantRuleId'
+    CategoryRuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CategoryRuleId'
+    VersionId:
+      name: versionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/VersionId'
+
+  responses:
+    SafeError:
+      description: Safe validation, forbidden, not-found, gone, conflict, rate-limit, unavailable, or internal error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ImportAction:
+      description: Simulated import action result
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ActionResult'
+    ParserAction:
+      description: Simulated parser or rule action result
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ActionResult'
+
+  schemas:
+    SafeId:
+      type: string
+      minLength: 3
+      maxLength: 48
+      pattern: '^[A-Z][A-Z0-9_-]{2,47}$'
+    ImportId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^IMP-[A-Z0-9_-]{1,44}$'
+    FailureId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^IFL-[A-Z0-9_-]{1,44}$'
+    ItemId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^ITM-[A-Z0-9_-]{1,44}$'
+    CandidateId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^DUP-[A-Z0-9_-]{1,44}$'
+    FormatId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^FMT-[A-Z0-9_-]{1,44}$'
+    BankId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^BNK-[A-Z0-9_-]{1,44}$'
+    SenderId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^SND-[A-Z0-9_-]{1,44}$'
+    ParserRuleId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^PRL-[A-Z0-9_-]{1,44}$'
+    MerchantRuleId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^MR-[A-Z0-9_-]{1,44}$'
+    CategoryRuleId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^CR-[A-Z0-9_-]{1,44}$'
+    VersionId:
+      allOf:
+        - $ref: '#/components/schemas/SafeId'
+      pattern: '^PV-[A-Z0-9_-]{1,44}$'
+    PlatformScope:
+      type: string
+      enum: [all, android, ios, unknown]
+    ImportSource:
+      type: string
+      enum:
+        - android_sms
+        - android_notification
+        - ios_shortcut
+        - ios_app_intent
+        - ios_share_extension
+        - screenshot
+        - receipt
+        - csv
+        - pdf_statement
+        - voice
+        - manual
+    AccessLevel:
+      type: string
+      enum: [full, limited, context]
+    PermissionAction:
+      type: string
+      maxLength: 64
+    Timestamp:
+      type: string
+      format: date-time
+    MaskedText:
+      type: string
+      minLength: 1
+      maxLength: 120
+    Reason:
+      type: string
+      minLength: 1
+      maxLength: 500
+    ConfirmationToken:
+      type: string
+      minLength: 8
+      maxLength: 80
+    RegionState:
+      type: string
+      enum: [ready, empty, partial, unavailable]
+    AuditReference:
+      type: object
+      additionalProperties: false
+      required: [id, event, occurredAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        event:
+          type: string
+          maxLength: 120
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+          enum: [400, 401, 403, 404, 409, 410, 429, 500, 502, 503]
+        code:
+          type: string
+          enum:
+            - validation_error
+            - forbidden
+            - not_found
+            - conflict
+            - session_expired
+            - gone
+            - rate_limited
+            - provider_unavailable
+            - internal_error
+        message:
+          type: string
+          maxLength: 240
+        fieldErrors:
+          type: object
+          maxProperties: 20
+          additionalProperties:
+            type: array
+            maxItems: 5
+            items:
+              type: string
+              maxLength: 160
+        correlationId:
+          $ref: '#/components/schemas/SafeId'
+
+    Metric:
+      type: object
+      additionalProperties: false
+      required: [key, label, value, unit, platform, deduplicationState]
+      properties:
+        key:
+          type: string
+          maxLength: 80
+        label:
+          type: string
+          maxLength: 120
+        value:
+          type: number
+        unit:
+          type: string
+          enum: [sessions, items, failures, duplicates, unsupported, banks, percent, duration_ms, customers]
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        deduplicationState:
+          type: string
+          enum: [authoritative, non_duplicated_events, unavailable]
+    ChartPoint:
+      type: object
+      additionalProperties: false
+      required: [label, value]
+      properties:
+        label:
+          type: string
+          maxLength: 120
+        value:
+          type: number
+        secondaryValue:
+          type: number
+    ImportOverview:
+      type: object
+      additionalProperties: false
+      required: [period, freshness, accessLevel, metrics, sourceDistribution, failureTrend, processingTime, bankCoverageState, parserPerformanceState]
+      properties:
+        period:
+          type: string
+          enum: [7d, 30d, 90d]
+        freshness:
+          $ref: '#/components/schemas/Timestamp'
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        metrics:
+          type: array
+          minItems: 8
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Metric'
+        sourceDistribution:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+        failureTrend:
+          type: array
+          maxItems: 120
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+        processingTime:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+        bankCoverageState:
+          $ref: '#/components/schemas/RegionState'
+        parserPerformanceState:
+          $ref: '#/components/schemas/RegionState'
+
+    ImportSessionListItem:
+      type: object
+      additionalProperties: false
+      required: [id, customer, source, platform, status, totalItems, successfulItems, failedItems, parserVersion, startedAt, durationMs, accessLevel, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/ImportId'
+        customer:
+          $ref: '#/components/schemas/MaskedText'
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        status:
+          type: string
+          enum: [received, processing, succeeded, partial, pending_review, failed, unsupported]
+        totalItems:
+          type: integer
+          minimum: 0
+        successfulItems:
+          type: integer
+          minimum: 0
+        failedItems:
+          type: integer
+          minimum: 0
+        parserVersion:
+          type: string
+          maxLength: 48
+        startedAt:
+          $ref: '#/components/schemas/Timestamp'
+        durationMs:
+          type: integer
+          minimum: 0
+        bank:
+          $ref: '#/components/schemas/MaskedText'
+        appVersion:
+          type: string
+          maxLength: 32
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        permittedActions:
+          type: array
+          uniqueItems: true
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/PermissionAction'
+    ImportSessionsPage:
+      $ref: '#/components/schemas/PaginatedImportSessions'
+    PaginatedImportSessions:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ImportSessionListItem'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    SanitizedExtractionPreview:
+      type: object
+      additionalProperties: false
+      required: [source, bankSender, transactionType, currency, coarseDate, merchantCategory, confidence, warnings, omissionLabels]
+      properties:
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        bankSender:
+          $ref: '#/components/schemas/MaskedText'
+        transactionType:
+          type: string
+          enum: [income, expense, transfer, refund, unknown]
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        coarseDate:
+          type: string
+          format: date
+        merchantCategory:
+          $ref: '#/components/schemas/MaskedText'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        warnings:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 160
+        omissionLabels:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 80
+    TimelineItem:
+      type: object
+      additionalProperties: false
+      required: [label, occurredAt, status]
+      properties:
+        label:
+          type: string
+          maxLength: 120
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+        status:
+          type: string
+          maxLength: 48
+    ImportSessionFullDetail:
+      type: object
+      additionalProperties: false
+      required: [accessLevel, session, timeline, itemSummary, duplicateCount, preview, expectedState, auditReferences]
+      properties:
+        accessLevel:
+          const: full
+        session:
+          $ref: '#/components/schemas/ImportSessionListItem'
+        timeline:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/TimelineItem'
+        itemSummary:
+          type: string
+          maxLength: 240
+        duplicateCount:
+          type: integer
+          minimum: 0
+        preview:
+          $ref: '#/components/schemas/SanitizedExtractionPreview'
+        expectedState:
+          type: string
+          maxLength: 48
+        auditReferences:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/AuditReference'
+    ImportSessionLimitedDetail:
+      type: object
+      additionalProperties: false
+      required: [accessLevel, session, timeline]
+      properties:
+        accessLevel:
+          const: limited
+        session:
+          $ref: '#/components/schemas/ImportSessionListItem'
+        timeline:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/TimelineItem'
+    ImportSessionContextDetail:
+      type: object
+      additionalProperties: false
+      required: [accessLevel, id, status, platform, occurredAt]
+      properties:
+        accessLevel:
+          const: context
+        id:
+          $ref: '#/components/schemas/ImportId'
+        status:
+          type: string
+          maxLength: 48
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+    ImportSessionDetailProjection:
+      oneOf:
+        - $ref: '#/components/schemas/ImportSessionFullDetail'
+        - $ref: '#/components/schemas/ImportSessionLimitedDetail'
+        - $ref: '#/components/schemas/ImportSessionContextDetail'
+      discriminator:
+        propertyName: accessLevel
+
+    FailedImportItem:
+      type: object
+      additionalProperties: false
+      required: [id, importId, customer, source, platform, failureReason, severity, occurredAt, state, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/FailureId'
+        importId:
+          $ref: '#/components/schemas/ImportId'
+        customer:
+          $ref: '#/components/schemas/MaskedText'
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        bank:
+          $ref: '#/components/schemas/MaskedText'
+        parserVersion:
+          type: string
+          maxLength: 48
+        appVersion:
+          type: string
+          maxLength: 32
+        failureReason:
+          type: string
+          maxLength: 160
+        severity:
+          type: string
+          enum: [info, low, medium, high, critical]
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+        state:
+          type: string
+          enum: [open, retry_handoff, parser_issue_assigned, unsupported, rule_draft_handoff, reviewed]
+        permittedActions:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: string
+    LowConfidenceItem:
+      type: object
+      additionalProperties: false
+      required: [id, importId, source, platform, suggestedMerchant, suggestedCategory, confidence, reviewEligible, maskedSummary, state, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/ItemId'
+        importId:
+          $ref: '#/components/schemas/ImportId'
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        suggestedMerchant:
+          $ref: '#/components/schemas/MaskedText'
+        suggestedCategory:
+          $ref: '#/components/schemas/MaskedText'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        reviewEligible:
+          type: boolean
+        maskedSummary:
+          $ref: '#/components/schemas/MaskedText'
+        state:
+          type: string
+          enum: [pending, accepted, corrected, deferred, unsupported]
+        permittedActions:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            enum: [accept_suggestion, correct_merchant_category, defer, mark_unsupported]
+    DuplicateCandidate:
+      type: object
+      additionalProperties: false
+      required: [id, importId, importedItemSummary, existingTransactionSummary, matchScore, matchReasons, state, userDecisionState, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/CandidateId'
+        importId:
+          $ref: '#/components/schemas/ImportId'
+        importedItemSummary:
+          $ref: '#/components/schemas/MaskedText'
+        existingTransactionSummary:
+          $ref: '#/components/schemas/MaskedText'
+        matchScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        matchReasons:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 120
+        state:
+          type: string
+          enum: [pending, confirmed_duplicate, rejected_match, deferred]
+        userDecisionState:
+          type: string
+          enum: [none, accepted, rejected]
+        permittedActions:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum: [confirm_duplicate, reject_match, defer]
+    UnsupportedFormatItem:
+      type: object
+      additionalProperties: false
+      required: [id, sender, bank, country, platform, frequency, firstDetected, lastDetected, preview, state, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/FormatId'
+        sender:
+          $ref: '#/components/schemas/MaskedText'
+        bank:
+          $ref: '#/components/schemas/MaskedText'
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        frequency:
+          type: integer
+          minimum: 1
+        firstDetected:
+          $ref: '#/components/schemas/Timestamp'
+        lastDetected:
+          $ref: '#/components/schemas/Timestamp'
+        preview:
+          $ref: '#/components/schemas/SanitizedExtractionPreview'
+        state:
+          type: string
+          enum: [detected, assigned, unsupported, rule_draft_handoff, deferred]
+        permittedActions:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            enum: [assign_bank_sender, mark_unsupported, create_rule_handoff, defer]
+
+    FailedImportsPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/FailedImportItem'
+    LowConfidencePage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/LowConfidenceItem'
+    DuplicateCandidatesPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/DuplicateCandidate'
+    UnsupportedFormatsPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/UnsupportedFormatItem'
+    PageBase:
+      type: object
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    BankCoverageItem:
+      type: object
+      additionalProperties: false
+      required: [id, nameAr, nameEn, country, supportedSources, senderCount, activeRuleCount, successRate, lastParserUpdate, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/BankId'
+        nameAr:
+          type: string
+          maxLength: 120
+        nameEn:
+          type: string
+          maxLength: 120
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        supportedSources:
+          type: array
+          uniqueItems: true
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/ImportSource'
+        senderCount:
+          type: integer
+          minimum: 0
+        activeRuleCount:
+          type: integer
+          minimum: 0
+        successRate:
+          type: number
+          minimum: 0
+          maximum: 1
+        lastParserUpdate:
+          $ref: '#/components/schemas/Timestamp'
+        status:
+          type: string
+          enum: [active, limited, review, unsupported]
+    BanksPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/BankCoverageItem'
+    BankDetailFull:
+      type: object
+      additionalProperties: false
+      required: [accessLevel, bank, senders, templateSummaries, parserRules, testSummary, performanceSummary, versions, regionStates]
+      properties:
+        accessLevel:
+          const: full
+        bank:
+          $ref: '#/components/schemas/BankCoverageItem'
+        senders:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SenderRule'
+        templateSummaries:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/MaskedText'
+        parserRules:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ParserRuleSummary'
+        testSummary:
+          type: string
+          maxLength: 240
+        performanceSummary:
+          type: string
+          maxLength: 240
+        versions:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ParserVersion'
+        regionStates:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/RegionState'
+    BankDetailContext:
+      type: object
+      additionalProperties: false
+      required: [accessLevel, bank, performanceSummary]
+      properties:
+        accessLevel:
+          enum: [limited, context]
+        bank:
+          $ref: '#/components/schemas/BankCoverageItem'
+        performanceSummary:
+          type: string
+          maxLength: 240
+    BankDetailProjection:
+      oneOf:
+        - $ref: '#/components/schemas/BankDetailFull'
+        - $ref: '#/components/schemas/BankDetailContext'
+      discriminator:
+        propertyName: accessLevel
+
+    SenderRule:
+      type: object
+      additionalProperties: false
+      required: [id, sender, bankId, platform, language, pattern, status, lastSeen, revision, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/SenderId'
+        sender:
+          type: string
+          maxLength: 120
+        bankId:
+          $ref: '#/components/schemas/BankId'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        language:
+          type: string
+          enum: [ar, en]
+        pattern:
+          type: string
+          maxLength: 256
+        status:
+          type: string
+          enum: [active, inactive, review]
+        lastSeen:
+          $ref: '#/components/schemas/Timestamp'
+        revision:
+          type: integer
+          minimum: 1
+        permittedActions:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum: [update, activate, deactivate]
+    SendersPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/SenderRule'
+
+    MatchCondition:
+      type: object
+      additionalProperties: false
+      required: [field, operator, operand, caseSensitive]
+      properties:
+        field:
+          type: string
+          enum: [sender, body, subject, source_label]
+        operator:
+          type: string
+          enum: [equals, contains, starts_with, safe_pattern]
+        operand:
+          type: string
+          maxLength: 256
+        caseSensitive:
+          type: boolean
+    CaptureField:
+      type: object
+      additionalProperties: false
+      required: [sourceSegment, targetField, selector, required]
+      properties:
+        sourceSegment:
+          type: string
+          enum: [body, subject, filename, metadata]
+        targetField:
+          type: string
+          enum: [transaction_type, currency, date, merchant, category, masked_amount]
+        selector:
+          type: string
+          maxLength: 256
+        required:
+          type: boolean
+    NormalizationTransform:
+      type: object
+      additionalProperties: false
+      required: [operator]
+      properties:
+        operator:
+          type: string
+          enum: [trim, normalize_digits, normalize_currency, normalize_date, map_literal, lowercase_latin]
+        argument:
+          type: string
+          maxLength: 120
+    OutputMapping:
+      type: object
+      additionalProperties: false
+      required: [targetField, source, required]
+      properties:
+        targetField:
+          type: string
+          enum: [transaction_type, currency, date, merchant, category, masked_amount]
+        source:
+          type: string
+          maxLength: 120
+        required:
+          type: boolean
+    ParserRuleDefinition:
+      type: object
+      additionalProperties: false
+      description: Serialized UTF-8 representation must not exceed 8 KiB.
+      required: [conditions, captures, transforms, mappings]
+      properties:
+        conditions:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/MatchCondition'
+        captures:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/CaptureField'
+        transforms:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/NormalizationTransform'
+        mappings:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/OutputMapping'
+    ParserRuleSummaryFields:
+      type: object
+      required: [id, name, bankId, language, priority, version, status, successRate, updatedAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/ParserRuleId'
+        name:
+          type: string
+          maxLength: 120
+        bankId:
+          $ref: '#/components/schemas/BankId'
+        senderId:
+          $ref: '#/components/schemas/SenderId'
+        language:
+          type: string
+          enum: [ar, en]
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        version:
+          type: string
+          maxLength: 48
+        status:
+          type: string
+          enum: [draft, active, inactive]
+        successRate:
+          type: number
+          minimum: 0
+          maximum: 1
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    ParserRuleSummary:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/ParserRuleSummaryFields'
+    ParserRuleDetail:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/ParserRuleSummaryFields'
+        - type: object
+          required: [scope, definition, revision, permittedActions]
+          properties:
+            scope:
+              type: string
+              maxLength: 120
+            definition:
+              $ref: '#/components/schemas/ParserRuleDefinition'
+            revision:
+              type: integer
+              minimum: 1
+            permittedActions:
+              type: array
+              maxItems: 3
+              uniqueItems: true
+              items:
+                type: string
+                enum: [save_draft, activate, deactivate]
+    ParserRulesPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/ParserRuleSummary'
+
+    FictionalParserSample:
+      type: object
+      additionalProperties: false
+      description: Sample input must not exceed 4 KiB UTF-8; expected output must not exceed 8 KiB UTF-8.
+      required: [isFictional, source, input, expectedOutput]
+      properties:
+        isFictional:
+          const: true
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        input:
+          type: string
+        expectedOutput:
+          $ref: '#/components/schemas/NormalizedFictionalOutput'
+    NormalizedFictionalOutput:
+      type: object
+      additionalProperties: false
+      properties:
+        transactionType:
+          type: string
+          enum: [income, expense, transfer, refund, unknown]
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        merchant:
+          type: string
+          maxLength: 120
+        category:
+          type: string
+          maxLength: 120
+    ParserTestPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [definition, sample, expectedRevision]
+      properties:
+        definition:
+          $ref: '#/components/schemas/ParserRuleDefinition'
+        sample:
+          $ref: '#/components/schemas/FictionalParserSample'
+        expectedRevision:
+          type: integer
+          minimum: 1
+    ParserTestPreviewResult:
+      type: object
+      additionalProperties: false
+      required: [id, isFictional, expectedOutput, actualOutput, differences, passed, diagnostics]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        isFictional:
+          const: true
+        expectedOutput:
+          $ref: '#/components/schemas/NormalizedFictionalOutput'
+        actualOutput:
+          $ref: '#/components/schemas/NormalizedFictionalOutput'
+        differences:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 160
+        passed:
+          type: boolean
+        diagnostics:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 160
+    ParserTestCase:
+      type: object
+      additionalProperties: false
+      required: [id, name, source, required, enabled, sampleSummary, passed, versionId, ruleId]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafeId'
+        name:
+          type: string
+          maxLength: 120
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        required:
+          type: boolean
+        enabled:
+          type: boolean
+        sampleSummary:
+          $ref: '#/components/schemas/MaskedText'
+        passed:
+          type: boolean
+        versionId:
+          $ref: '#/components/schemas/VersionId'
+        ruleId:
+          $ref: '#/components/schemas/ParserRuleId'
+    ParserTestCasesPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/ParserTestCase'
+    ParserVersion:
+      type: object
+      additionalProperties: false
+      required: [id, version, scope, status, ruleCount, enabledRequiredTests, passedRequiredTests, passRate, revision, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/VersionId'
+        version:
+          type: string
+          maxLength: 48
+        scope:
+          type: string
+          maxLength: 120
+        status:
+          type: string
+          enum: [draft, testing, active, retired]
+        releasedBy:
+          $ref: '#/components/schemas/MaskedText'
+        releasedAt:
+          $ref: '#/components/schemas/Timestamp'
+        ruleCount:
+          type: integer
+          minimum: 0
+        enabledRequiredTests:
+          type: integer
+          minimum: 0
+        passedRequiredTests:
+          type: integer
+          minimum: 0
+        passRate:
+          type: number
+          minimum: 0
+          maximum: 1
+        revision:
+          type: integer
+          minimum: 1
+        permittedActions:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            enum: [begin_testing, activate, retire, rollback]
+    ParserVersionsPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/ParserVersion'
+
+    MerchantRule:
+      type: object
+      additionalProperties: false
+      required: [id, canonicalMerchant, aliases, categoryId, country, priority, scope, status, revision, updatedAt, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/MerchantRuleId'
+        canonicalMerchant:
+          type: string
+          maxLength: 120
+        aliases:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            maxLength: 120
+        categoryId:
+          $ref: '#/components/schemas/SafeId'
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        scope:
+          type: string
+          enum: [global, country, bank]
+        status:
+          type: string
+          enum: [active, inactive, review]
+        revision:
+          type: integer
+          minimum: 1
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        permittedActions:
+          type: array
+          maxItems: 4
+          items:
+            type: string
+            enum: [create, update, activate, deactivate]
+    CategoryRule:
+      type: object
+      additionalProperties: false
+      required: [id, pattern, categoryId, confidence, userOverrideCount, accuracy, priority, status, revision, updatedAt, permittedActions]
+      properties:
+        id:
+          $ref: '#/components/schemas/CategoryRuleId'
+        pattern:
+          type: string
+          maxLength: 256
+        categoryId:
+          $ref: '#/components/schemas/SafeId'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        userOverrideCount:
+          type: integer
+          minimum: 0
+        accuracy:
+          type: number
+          minimum: 0
+          maximum: 1
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        status:
+          type: string
+          enum: [active, inactive, review]
+        revision:
+          type: integer
+          minimum: 1
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        permittedActions:
+          type: array
+          maxItems: 4
+          items:
+            type: string
+            enum: [create, update, activate, deactivate]
+    MerchantRulesPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/MerchantRule'
+    CategoryRulesPage:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/CategoryRule'
+
+    CommandBase:
+      type: object
+      required: [reason, expectedState, confirmationToken]
+      properties:
+        reason:
+          $ref: '#/components/schemas/Reason'
+        expectedState:
+          type: string
+          maxLength: 48
+        expectedRevision:
+          type: integer
+          minimum: 1
+        confirmationToken:
+          $ref: '#/components/schemas/ConfirmationToken'
+    ImportRetryHandoffRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+    FailedImportActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [retry_handoff, assign_parser_issue, mark_unsupported, create_rule_handoff, add_note]
+    ConfidenceReviewRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [accept_suggestion, correct_merchant_category, defer, mark_unsupported]
+            merchant:
+              type: string
+              maxLength: 120
+            categoryId:
+              $ref: '#/components/schemas/SafeId'
+    DuplicateResolutionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [confirm_duplicate, reject_match, defer]
+    UnsupportedFormatActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [assign_bank_sender, mark_unsupported, create_rule_handoff, defer]
+            bankId:
+              $ref: '#/components/schemas/BankId'
+            senderId:
+              $ref: '#/components/schemas/SenderId'
+    SenderActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [update, activate, deactivate]
+            proposal:
+              $ref: '#/components/schemas/SenderRule'
+    ParserRuleActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [save_draft, activate, deactivate]
+            proposal:
+              $ref: '#/components/schemas/ParserRuleDetail'
+    ParserVersionActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [begin_testing, activate, retire, rollback]
+            rollbackSourceVersionId:
+              $ref: '#/components/schemas/VersionId'
+    MerchantRuleActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [create, update, activate, deactivate]
+            proposal:
+              $ref: '#/components/schemas/MerchantRule'
+    CategoryRuleActionRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/CommandBase'
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              enum: [create, update, activate, deactivate]
+            proposal:
+              $ref: '#/components/schemas/CategoryRule'
+    ActionResult:
+      type: object
+      additionalProperties: false
+      required: [targetId, previousState, currentState, outcome, occurredAt, message, auditReference]
+      properties:
+        targetId:
+          $ref: '#/components/schemas/SafeId'
+        previousState:
+          type: string
+          maxLength: 48
+        currentState:
+          type: string
+          maxLength: 48
+        outcome:
+          type: string
+          enum: [success, partial, rejected, conflict]
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+        message:
+          type: string
+          maxLength: 240
+        conflictMetadata:
+          type: object
+          additionalProperties: false
+          properties:
+            expectedState:
+              type: string
+              maxLength: 48
+            actualState:
+              type: string
+              maxLength: 48
+        createdDraftId:
+          $ref: '#/components/schemas/SafeId'
+        auditReference:
+          $ref: '#/components/schemas/AuditReference'

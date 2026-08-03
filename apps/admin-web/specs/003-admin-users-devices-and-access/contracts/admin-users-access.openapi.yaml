@@ -1,0 +1,1847 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin Users and Controlled Access Frontend Contract
+  version: 0.1.0
+  description: >
+    Replaceable frontend/MSW contract for Phase 2 Spec 003. It defines
+    privacy-safe projections and mock operations only; it does not create a
+    backend, production identity, or authorization boundary.
+servers:
+  - url: /
+    description: Same-origin frontend mock boundary
+tags:
+  - name: Admin Users
+  - name: Controlled Access
+
+paths:
+  /api/v1/admin/users:
+    get:
+      tags: [Admin Users]
+      operationId: listAdminUsers
+      summary: List unique privacy-safe customers
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/AccountStatus"
+        - $ref: "#/components/parameters/Plan"
+        - $ref: "#/components/parameters/Country"
+        - $ref: "#/components/parameters/Language"
+        - $ref: "#/components/parameters/RegisteredFrom"
+        - $ref: "#/components/parameters/RegisteredTo"
+        - $ref: "#/components/parameters/LastActiveFrom"
+        - $ref: "#/components/parameters/LastActiveTo"
+        - $ref: "#/components/parameters/PlatformFilter"
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/Verification"
+        - $ref: "#/components/parameters/Risk"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Paginated unique customer summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+        "503":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/bulk-actions:
+    post:
+      tags: [Admin Users]
+      operationId: runAdminUserBulkAction
+      summary: Apply an action to explicitly selected customers
+      parameters:
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserBulkActionRequest"
+      responses:
+        "200":
+          description: Complete or partial bulk outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBulkActionResult"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}:
+    get:
+      tags: [Admin Users]
+      operationId: getAdminUserProfile
+      summary: Get a privacy-safe customer profile
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Privacy-safe profile summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileSummary"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/devices:
+    get:
+      tags: [Admin Users]
+      operationId: listAdminUserDevices
+      summary: List sanitized registered devices
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Device summaries and additive counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDevicesResponse"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/sessions:
+    get:
+      tags: [Admin Users]
+      operationId: listAdminUserSessions
+      summary: List sanitized customer sessions
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Session summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSessionsResponse"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/suspend:
+    post:
+      tags: [Admin Users]
+      operationId: suspendAdminUser
+      summary: Suspend a customer after scoped confirmation
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuspendUserRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/UserActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/reactivate:
+    post:
+      tags: [Admin Users]
+      operationId: reactivateAdminUser
+      summary: Reactivate a suspended customer
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactivateUserRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/UserActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/verification:
+    post:
+      tags: [Admin Users]
+      operationId: updateAdminUserVerification
+      summary: Update the customer verification state
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVerificationRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/UserActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/devices/{deviceId}/revoke:
+    post:
+      tags: [Admin Users]
+      operationId: revokeAdminUserDevice
+      summary: Revoke one registered device
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/DeviceId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeDeviceRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/DeviceActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/users/{userId}/sessions/revoke:
+    post:
+      tags: [Admin Users]
+      operationId: revokeAdminUserSessions
+      summary: Revoke selected or all active sessions
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeSessionsRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/SessionActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/access-requests:
+    get:
+      tags: [Controlled Access]
+      operationId: listAdminAccessRequests
+      summary: List requests visible to the simulated operator
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/AccessStatus"
+        - $ref: "#/components/parameters/Assignee"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Paginated access-request summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRequestsPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+    post:
+      tags: [Controlled Access]
+      operationId: createAdminAccessRequest
+      summary: Request narrow time-limited support access
+      parameters:
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccessRequest"
+      responses:
+        "201":
+          description: Pending access request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRequestDetail"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/access-requests/{requestId}:
+    get:
+      tags: [Controlled Access]
+      operationId: getAdminAccessRequest
+      summary: Get request, masking, and lifecycle details
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Controlled access request detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRequestDetail"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/access-requests/{requestId}/decision:
+    post:
+      tags: [Controlled Access]
+      operationId: decideAdminAccessRequest
+      summary: Approve with equal/reduced scope or reject
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessDecisionRequest"
+      responses:
+        "200":
+          description: Updated access request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRequestDetail"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/access-requests/{requestId}/revoke:
+    post:
+      tags: [Controlled Access]
+      operationId: revokeAdminAccessRequest
+      summary: Revoke approved or active access
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeAccessRequest"
+      responses:
+        "200":
+          description: Revoked access request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRequestDetail"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/access-requests/{requestId}/workspace:
+    get:
+      tags: [Controlled Access]
+      operationId: getAdminTemporaryWorkspace
+      summary: Get only the active assignee-bound workspace projection
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Active masked and scope-limited workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemporaryWorkspace"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "410":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/access-requests/{requestId}/end:
+    post:
+      tags: [Controlled Access]
+      operationId: endAdminTemporaryAccess
+      summary: End the assignee's active access
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/MockRole"
+        - $ref: "#/components/parameters/Scenario"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndTemporaryAccessRequest"
+      responses:
+        "200":
+          description: Access ended and workspace invalidated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndTemporaryAccessResult"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+        "422":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+
+components:
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/UserId"
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/DeviceId"
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/AccessRequestId"
+    Search:
+      name: query
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    AccountStatus:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/AccountStatus"
+    Plan:
+      name: plan
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/Plan"
+    Country:
+      name: country
+      in: query
+      required: false
+      schema:
+        enum: [SA, AE]
+    Language:
+      name: language
+      in: query
+      required: false
+      schema:
+        enum: [ar, en]
+    RegisteredFrom:
+      name: registeredFrom
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    RegisteredTo:
+      name: registeredTo
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    LastActiveFrom:
+      name: lastActiveFrom
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    LastActiveTo:
+      name: lastActiveTo
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    PlatformFilter:
+      name: platform
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/PlatformFilter"
+    AppVersion:
+      name: appVersion
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+    Verification:
+      name: verification
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/VerificationState"
+    Risk:
+      name: risk
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/RiskLevel"
+    Sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        enum: [name, registeredAt, lastActive, risk]
+        default: lastActive
+    Order:
+      name: order
+      in: query
+      required: false
+      schema:
+        enum: [asc, desc]
+        default: desc
+    AccessStatus:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/AccessStatus"
+    Assignee:
+      name: assignee
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 48
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        enum: [25, 50, 100]
+        default: 25
+    MockRole:
+      name: role
+      in: query
+      required: false
+      description: >
+        Development-only role simulation. A future backend derives identity and
+        authorization from its authenticated server context and ignores this
+        client-supplied value. The mock maps each role to one stable fictional
+        Admin actor ID for requester, approver, and assignee checks.
+      schema:
+        $ref: "#/components/schemas/AdminRole"
+    Scenario:
+      name: __scenario
+      in: query
+      required: false
+      description: Development-only mock scenario selector.
+      schema:
+        type: string
+        maxLength: 40
+
+  responses:
+    SafeError:
+      description: Safe error without stack, secret, or private payload
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    UserActionSuccess:
+      description: Validated customer/device/session action result
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UserActionResult"
+    DeviceActionSuccess:
+      description: Validated device revocation result
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DeviceActionResult"
+    SessionActionSuccess:
+      description: Validated session revocation result
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SessionActionResult"
+
+  schemas:
+    UserId:
+      type: string
+      pattern: "^USR-[A-Z0-9-]{1,44}$"
+      maxLength: 48
+    DeviceId:
+      type: string
+      pattern: "^DEV-[A-Z0-9-]{1,44}$"
+      maxLength: 48
+    SessionId:
+      type: string
+      pattern: "^SES-[A-Z0-9-]{1,44}$"
+      maxLength: 48
+    AccessRequestId:
+      type: string
+      pattern: "^ACC-[A-Z0-9-]{1,44}$"
+      maxLength: 48
+    TicketId:
+      type: string
+      pattern: "^TKT-[A-Z0-9-]{1,44}$"
+      maxLength: 48
+    AuditReference:
+      type: string
+      pattern: "^AUD-[A-Z0-9-]{1,44}$"
+      maxLength: 48
+    AdminRole:
+      type: string
+      enum:
+        - super-admin
+        - support-agent
+        - billing-operator
+        - import-operator
+        - ai-operator
+        - content-manager
+        - security-administrator
+    Platform:
+      type: string
+      enum: [ios, android]
+    PlatformFilter:
+      type: string
+      enum: [all, ios, android, multi]
+      default: all
+    AccountStatus:
+      type: string
+      enum: [active, suspended, pending]
+    VerificationState:
+      type: string
+      enum: [verified, pending]
+    RiskLevel:
+      type: string
+      enum: [low, medium, high]
+    Plan:
+      type: string
+      enum: [Free, Basic, Premium]
+    CapabilityState:
+      type: string
+      enum: [enabled, disabled, denied, unavailable, unknown, not-applicable]
+    DeviceState:
+      type: string
+      enum: [active, revoked]
+    SessionState:
+      type: string
+      enum: [active, expired, revoked]
+    AccessStatus:
+      type: string
+      enum: [pending, approved, active, expired, rejected, revoked]
+    AccessScope:
+      type: string
+      enum:
+        - profile-contact
+        - account-status
+        - device-diagnostics
+        - session-diagnostics
+        - subscription-summary
+        - import-summary
+    RegionAvailability:
+      type: string
+      enum: [available, empty, partial, stale, unavailable, forbidden]
+    RegionState:
+      type: object
+      additionalProperties: false
+      required: [availability]
+      properties:
+        availability:
+          $ref: "#/components/schemas/RegionAvailability"
+        message:
+          type: string
+          maxLength: 240
+        retryable:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    AdminUserListItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - displayName
+        - maskedEmail
+        - country
+        - language
+        - primaryPlatform
+        - registeredPlatforms
+        - iosDeviceCount
+        - androidDeviceCount
+        - totalDeviceCount
+        - plan
+        - status
+        - verification
+        - registeredAt
+        - lastActiveAt
+        - risk
+      properties:
+        id:
+          $ref: "#/components/schemas/UserId"
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        maskedEmail:
+          type: string
+          pattern: "^[^@]*\\*{3}[^@]*@example\\.test$"
+          maxLength: 160
+        country:
+          enum: [SA, AE]
+        language:
+          enum: [ar, en]
+        primaryPlatform:
+          $ref: "#/components/schemas/Platform"
+        registeredPlatforms:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Platform"
+        iosDeviceCount:
+          type: integer
+          minimum: 0
+        androidDeviceCount:
+          type: integer
+          minimum: 0
+        totalDeviceCount:
+          type: integer
+          minimum: 0
+        plan:
+          $ref: "#/components/schemas/Plan"
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        verification:
+          $ref: "#/components/schemas/VerificationState"
+        registeredAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+        risk:
+          $ref: "#/components/schemas/RiskLevel"
+    AdminUsersPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pagination
+        - uniqueCustomersTotal
+        - iosCustomers
+        - androidCustomers
+        - multiPlatformCustomers
+        - region
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AdminUserListItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        uniqueCustomersTotal:
+          type: integer
+          minimum: 0
+        iosCustomers:
+          type: integer
+          minimum: 0
+        androidCustomers:
+          type: integer
+          minimum: 0
+        multiPlatformCustomers:
+          type: integer
+          minimum: 0
+        region:
+          $ref: "#/components/schemas/RegionState"
+
+    RiskSummary:
+      type: object
+      additionalProperties: false
+      required: [level, label, updatedAt, signalsCount]
+      properties:
+        level:
+          $ref: "#/components/schemas/RiskLevel"
+        label:
+          type: string
+          minLength: 1
+          maxLength: 100
+        updatedAt:
+          type: string
+          format: date-time
+        signalsCount:
+          type: integer
+          minimum: 0
+    UserAggregates:
+      type: object
+      additionalProperties: false
+      required:
+        - accountsCount
+        - transactionsCount
+        - goalsCount
+        - activeDebtsCount
+        - importSourcesCount
+        - lastSyncAt
+      properties:
+        accountsCount:
+          type: integer
+          minimum: 0
+        transactionsCount:
+          type: integer
+          minimum: 0
+        goalsCount:
+          type: integer
+          minimum: 0
+        activeDebtsCount:
+          type: integer
+          minimum: 0
+        importSourcesCount:
+          type: integer
+          minimum: 0
+        lastSyncAt:
+          type: [string, "null"]
+          format: date-time
+    UserProfileSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - displayName
+        - maskedEmail
+        - country
+        - language
+        - currency
+        - timezone
+        - registeredAt
+        - lastActiveAt
+        - lastActivityByPlatform
+        - status
+        - onboardingStatus
+        - verification
+        - risk
+        - primaryPlatform
+        - registeredPlatforms
+        - currentPlan
+        - aggregates
+        - region
+      properties:
+        id:
+          $ref: "#/components/schemas/UserId"
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        maskedEmail:
+          type: string
+          pattern: "^[^@]*\\*{3}[^@]*@example\\.test$"
+          maxLength: 160
+        country:
+          enum: [SA, AE]
+        language:
+          enum: [ar, en]
+        currency:
+          enum: [SAR, AED]
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        registeredAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+        lastActivityByPlatform:
+          type: object
+          additionalProperties: false
+          properties:
+            ios:
+              type: string
+              format: date-time
+            android:
+              type: string
+              format: date-time
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        onboardingStatus:
+          enum: [complete, incomplete]
+        verification:
+          $ref: "#/components/schemas/VerificationState"
+        risk:
+          $ref: "#/components/schemas/RiskSummary"
+        primaryPlatform:
+          $ref: "#/components/schemas/Platform"
+        registeredPlatforms:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Platform"
+        currentPlan:
+          $ref: "#/components/schemas/Plan"
+        aggregates:
+          $ref: "#/components/schemas/UserAggregates"
+        region:
+          $ref: "#/components/schemas/RegionState"
+
+    UserDevice:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - userId
+        - safeLabel
+        - platform
+        - osVersion
+        - appVersion
+        - lastSeenAt
+        - pushState
+        - shortcutState
+        - shareExtensionState
+        - smsTrackingState
+        - notificationListenerState
+        - backgroundState
+        - sessionState
+        - state
+        - revokedAt
+      properties:
+        id:
+          $ref: "#/components/schemas/DeviceId"
+        userId:
+          $ref: "#/components/schemas/UserId"
+        safeLabel:
+          type: string
+          minLength: 1
+          maxLength: 80
+        platform:
+          $ref: "#/components/schemas/Platform"
+        osVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+        appVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+        lastSeenAt:
+          type: string
+          format: date-time
+        pushState:
+          $ref: "#/components/schemas/CapabilityState"
+        shortcutState:
+          $ref: "#/components/schemas/CapabilityState"
+        shareExtensionState:
+          $ref: "#/components/schemas/CapabilityState"
+        smsTrackingState:
+          $ref: "#/components/schemas/CapabilityState"
+        notificationListenerState:
+          $ref: "#/components/schemas/CapabilityState"
+        backgroundState:
+          $ref: "#/components/schemas/CapabilityState"
+        sessionState:
+          enum: [active, none, revoked]
+        state:
+          $ref: "#/components/schemas/DeviceState"
+        revokedAt:
+          type: [string, "null"]
+          format: date-time
+    UserDevicesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - iosDeviceCount
+        - androidDeviceCount
+        - totalDeviceCount
+        - activeDeviceCount
+        - revokedDeviceCount
+        - region
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/UserDevice"
+        iosDeviceCount:
+          type: integer
+          minimum: 0
+        androidDeviceCount:
+          type: integer
+          minimum: 0
+        totalDeviceCount:
+          type: integer
+          minimum: 0
+        activeDeviceCount:
+          type: integer
+          minimum: 0
+        revokedDeviceCount:
+          type: integer
+          minimum: 0
+        region:
+          $ref: "#/components/schemas/RegionState"
+
+    UserSession:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - userId
+        - deviceId
+        - safeDeviceLabel
+        - platform
+        - coarseRegion
+        - startedAt
+        - lastActivityAt
+        - state
+        - risk
+        - isCurrentAdminVisibleSession
+        - revokedAt
+      properties:
+        id:
+          $ref: "#/components/schemas/SessionId"
+        userId:
+          $ref: "#/components/schemas/UserId"
+        deviceId:
+          $ref: "#/components/schemas/DeviceId"
+        safeDeviceLabel:
+          type: string
+          minLength: 1
+          maxLength: 80
+        platform:
+          $ref: "#/components/schemas/Platform"
+        coarseRegion:
+          type: string
+          minLength: 1
+          maxLength: 80
+        startedAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+        state:
+          $ref: "#/components/schemas/SessionState"
+        risk:
+          $ref: "#/components/schemas/RiskLevel"
+        isCurrentAdminVisibleSession:
+          type: boolean
+        revokedAt:
+          type: [string, "null"]
+          format: date-time
+    UserSessionsResponse:
+      type: object
+      additionalProperties: false
+      required: [items, activeCount, expiredCount, revokedCount, region]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/UserSession"
+        activeCount:
+          type: integer
+          minimum: 0
+        expiredCount:
+          type: integer
+          minimum: 0
+        revokedCount:
+          type: integer
+          minimum: 0
+        region:
+          $ref: "#/components/schemas/RegionState"
+
+    SuspendUserRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, durationDays, internalNote, notifyUser]
+      properties:
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 200
+        durationDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+        internalNote:
+          type: string
+          maxLength: 500
+        notifyUser:
+          type: boolean
+    ReactivateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, internalNote]
+      properties:
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 200
+        internalNote:
+          type: string
+          maxLength: 500
+    UpdateVerificationRequest:
+      type: object
+      additionalProperties: false
+      required: [nextState, reason]
+      properties:
+        nextState:
+          $ref: "#/components/schemas/VerificationState"
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 200
+    RevokeReasonRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+    RevokeDeviceRequest:
+      $ref: "#/components/schemas/RevokeReasonRequest"
+    RevokeAccessRequest:
+      $ref: "#/components/schemas/RevokeReasonRequest"
+    RevokeSessionsRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, sessionIds, reason]
+      properties:
+        scope:
+          enum: [selected, all]
+        sessionIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SessionId"
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 200
+    UserActionResult:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - action
+        - previousState
+        - currentState
+        - outcome
+        - affectedCount
+        - occurredAt
+        - message
+        - auditReference
+      properties:
+        userId:
+          $ref: "#/components/schemas/UserId"
+        action:
+          enum: [suspend, reactivate, verification, revoke-device, revoke-sessions]
+        previousState:
+          type: string
+          maxLength: 40
+        currentState:
+          type: string
+          maxLength: 40
+        outcome:
+          enum: [success, partial]
+        affectedCount:
+          type: integer
+          minimum: 0
+        occurredAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+          maxLength: 200
+        auditReference:
+          $ref: "#/components/schemas/AuditReference"
+    DeviceActionResult:
+      $ref: "#/components/schemas/UserActionResult"
+    SessionActionResult:
+      $ref: "#/components/schemas/UserActionResult"
+    UserBulkActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action, userIds]
+      properties:
+        action:
+          enum: [export-summary, suspend, reactivate, force-logout, notification-handoff]
+        userIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/UserId"
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 200
+        durationDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+        notifyUser:
+          type: boolean
+    BulkFailure:
+      type: object
+      additionalProperties: false
+      required: [userId, code, message]
+      properties:
+        userId:
+          $ref: "#/components/schemas/UserId"
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+        message:
+          type: string
+          minLength: 1
+          maxLength: 200
+    UserBulkActionResult:
+      type: object
+      additionalProperties: false
+      required:
+        - requestedCount
+        - eligibleCount
+        - succeededCount
+        - failedCount
+        - failures
+        - auditReference
+      properties:
+        requestedCount:
+          type: integer
+          minimum: 1
+        eligibleCount:
+          type: integer
+          minimum: 0
+        succeededCount:
+          type: integer
+          minimum: 0
+        failedCount:
+          type: integer
+          minimum: 0
+        failures:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/BulkFailure"
+        auditReference:
+          $ref: "#/components/schemas/AuditReference"
+
+    AccessRequestSummary:
+      type: object
+      required:
+        - id
+        - userId
+        - maskedCustomerLabel
+        - supportTicketId
+        - requestedBy
+        - assignee
+        - requestedScope
+        - approvedScope
+        - reasonSummary
+        - status
+        - createdAt
+        - startsAt
+        - expiresAt
+        - approvedBy
+      properties:
+        id:
+          $ref: "#/components/schemas/AccessRequestId"
+        userId:
+          $ref: "#/components/schemas/UserId"
+        maskedCustomerLabel:
+          type: string
+          minLength: 1
+          maxLength: 160
+        supportTicketId:
+          $ref: "#/components/schemas/TicketId"
+        requestedBy:
+          type: string
+          minLength: 1
+          maxLength: 80
+        assignee:
+          type: string
+          minLength: 1
+          maxLength: 80
+        requestedScope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AccessScope"
+        approvedScope:
+          type: [array, "null"]
+          maxItems: 6
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AccessScope"
+        reasonSummary:
+          type: string
+          minLength: 1
+          maxLength: 160
+        status:
+          $ref: "#/components/schemas/AccessStatus"
+        createdAt:
+          type: string
+          format: date-time
+        startsAt:
+          type: [string, "null"]
+          format: date-time
+        expiresAt:
+          type: [string, "null"]
+          format: date-time
+        approvedBy:
+          type: [string, "null"]
+          maxLength: 80
+    AccessRequestsPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AccessRequestSummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    CreateAccessRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - supportTicketId
+        - assignee
+        - reason
+        - requestedScope
+        - maskingRequired
+        - durationMinutes
+        - customerApprovalRequired
+      properties:
+        userId:
+          $ref: "#/components/schemas/UserId"
+        supportTicketId:
+          $ref: "#/components/schemas/TicketId"
+        assignee:
+          type: string
+          minLength: 1
+          maxLength: 80
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 500
+        requestedScope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AccessScope"
+        maskingRequired:
+          const: true
+        durationMinutes:
+          type: integer
+          minimum: 5
+          maximum: 60
+          default: 30
+        customerApprovalRequired:
+          type: boolean
+    AccessDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, reason]
+      properties:
+        decision:
+          enum: [approve, reject]
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+        approvedScope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AccessScope"
+        durationMinutes:
+          type: integer
+          minimum: 5
+          maximum: 60
+        startsAt:
+          type: string
+          format: date-time
+    AccessTimelineItem:
+      type: object
+      additionalProperties: false
+      required: [id, event, actor, occurredAt, summary, auditReference]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 48
+        event:
+          enum: [created, approved, rejected, active, revoked, expired, ended]
+        actor:
+          type: string
+          minLength: 1
+          maxLength: 80
+        occurredAt:
+          type: string
+          format: date-time
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 240
+        auditReference:
+          $ref: "#/components/schemas/AuditReference"
+    MaskedCustomerSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - displayName
+        - maskedEmail
+        - status
+        - primaryPlatform
+        - registeredPlatforms
+        - risk
+      properties:
+        userId:
+          $ref: "#/components/schemas/UserId"
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        maskedEmail:
+          type: string
+          pattern: "^[^@]*\\*{3}[^@]*@example\\.test$"
+          maxLength: 160
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        primaryPlatform:
+          $ref: "#/components/schemas/Platform"
+        registeredPlatforms:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Platform"
+        risk:
+          $ref: "#/components/schemas/RiskLevel"
+    AccessRequestDetail:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: "#/components/schemas/AccessRequestSummary"
+        - type: object
+          required:
+            - ticketSummary
+            - customerSummary
+            - reason
+            - requestedDurationMinutes
+            - approvedDurationMinutes
+            - maskingRules
+            - customerApprovalRequired
+            - customerApprovalState
+            - timeline
+            - region
+          properties:
+            ticketSummary:
+              type: string
+              minLength: 1
+              maxLength: 300
+            customerSummary:
+              $ref: "#/components/schemas/MaskedCustomerSummary"
+            reason:
+              type: string
+              minLength: 10
+              maxLength: 500
+            requestedDurationMinutes:
+              type: integer
+              minimum: 5
+              maximum: 60
+            approvedDurationMinutes:
+              type: [integer, "null"]
+              minimum: 5
+              maximum: 60
+            maskingRules:
+              type: array
+              minItems: 1
+              maxItems: 12
+              uniqueItems: true
+              items:
+                type: string
+                minLength: 1
+                maxLength: 160
+            customerApprovalRequired:
+              type: boolean
+            customerApprovalState:
+              enum: [not-required, pending, received]
+            timeline:
+              type: array
+              maxItems: 50
+              items:
+                $ref: "#/components/schemas/AccessTimelineItem"
+            region:
+              $ref: "#/components/schemas/RegionState"
+
+    WorkspaceField:
+      type: object
+      additionalProperties: false
+      required: [label, value, classification]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 100
+        value:
+          type: [string, integer]
+        classification:
+          enum: [masked, aggregate, status]
+    WorkspaceSection:
+      type: object
+      additionalProperties: false
+      required: [scope, title, fields]
+      properties:
+        scope:
+          $ref: "#/components/schemas/AccessScope"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        fields:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/WorkspaceField"
+    TemporaryWorkspace:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - supportTicketId
+        - assignee
+        - status
+        - approvedScope
+        - startsAt
+        - expiresAt
+        - accessNotice
+        - auditIndicator
+        - sections
+        - region
+      properties:
+        requestId:
+          $ref: "#/components/schemas/AccessRequestId"
+        supportTicketId:
+          $ref: "#/components/schemas/TicketId"
+        assignee:
+          type: string
+          minLength: 1
+          maxLength: 80
+        status:
+          const: active
+        approvedScope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AccessScope"
+        startsAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        accessNotice:
+          type: string
+          minLength: 1
+          maxLength: 240
+        auditIndicator:
+          type: string
+          minLength: 1
+          maxLength: 80
+        sections:
+          type: array
+          minItems: 1
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/WorkspaceSection"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    EndTemporaryAccessRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+    EndTemporaryAccessResult:
+      type: object
+      additionalProperties: false
+      required: [requestId, status, endedAt, auditReference, message]
+      properties:
+        requestId:
+          $ref: "#/components/schemas/AccessRequestId"
+        status:
+          const: revoked
+        endedAt:
+          type: string
+          format: date-time
+        auditReference:
+          $ref: "#/components/schemas/AuditReference"
+        message:
+          type: string
+          minLength: 1
+          maxLength: 200
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+          enum: [400, 401, 403, 404, 409, 410, 422, 429, 500, 503]
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+        message:
+          type: string
+          minLength: 1
+          maxLength: 240
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            maxItems: 5
+            items:
+              type: string
+              minLength: 1
+              maxLength: 160
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 64
