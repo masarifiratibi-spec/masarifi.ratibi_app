@@ -1,0 +1,391 @@
+import type { ChartPoint, ImportRecord, Metric } from "@/types/admin";
+import type {
+  ImportOverview,
+  ImportSessionDetail,
+  OperationalRecord,
+  Phase4Resource,
+  SanitizedExtractionPreview,
+} from "@/features/imports/contracts";
+
+export const importMetrics: Metric[] = [
+  { label: "totalImports", value: "384,620", change: 9.4 },
+  { label: "successful", value: "366,482", change: 10.1 },
+  { label: "failed", value: "7,240", change: 2.8, tone: "attention" },
+  { label: "partial", value: "4,916" }, { label: "pendingReview", value: "1,284" },
+  { label: "duplicateCandidates", value: "2,118" }, { label: "unsupportedFormats", value: "640" },
+  { label: "averageProcessingTime", value: "1.8" },
+];
+
+export const importSourceVolume: ChartPoint[] = [
+  { name: "SMS", current: 84, secondary: 4 }, { name: "notifications", current: 68, secondary: 3 },
+  { name: "Shortcut", current: 44, secondary: 2 }, { name: "images", current: 36, secondary: 6 },
+  { name: "CSV", current: 27, secondary: 1 }, { name: "PDF", current: 22, secondary: 3 },
+];
+
+export const failureTrend: ChartPoint[] = [
+  { name: "jul20", current: 1.4 }, { name: "jul21", current: 1.2 },
+  { name: "jul22", current: 1.7 }, { name: "jul23", current: 1.5 },
+  { name: "jul24", current: 2.1 }, { name: "jul25", current: 2.8 },
+];
+
+export const failedImports: ImportRecord[] = [
+  { id: "IMP-77241", user: "USR-10***", source: "Android SMS", bank: "بنك سعودي — عينة", platform: "Android", failureType: "تنسيق غير معروف", parserVersion: "v3.18.2", attempts: 3, severity: "high", time: "2026-07-25T08:21:00+03:00", status: "failed", appVersion: "4.8.1", sanitizedResult: "تعذر تحديد حقل المبلغ بعد إزالة المحتوى الحساس." },
+  { id: "IMP-77236", user: "USR-09***", source: "Receipt image", bank: "غير محدد", platform: "iOS", failureType: "جودة صورة منخفضة", parserVersion: "vision-2.4", attempts: 2, severity: "medium", time: "2026-07-25T07:58:00+03:00", status: "review", appVersion: "4.8.2", sanitizedResult: "تم استخراج التاريخ والتاجر، والمبلغ يحتاج مراجعة." },
+  { id: "IMP-77210", user: "USR-08***", source: "PDF statement", bank: "بنك إماراتي — عينة", platform: "iOS", failureType: "PDF محمي", parserVersion: "pdf-1.9", attempts: 1, severity: "low", time: "2026-07-25T06:44:00+03:00", status: "unsupported", appVersion: "4.7.9", sanitizedResult: "لم تتم قراءة محتوى الملف المحمي." },
+  { id: "IMP-77192", user: "USR-10***", source: "Android notification", bank: "بنك سعودي — عينة", platform: "Android", failureType: "قاعدة محلل قديمة", parserVersion: "v3.17.8", attempts: 4, severity: "critical", time: "2026-07-25T05:32:00+03:00", status: "failed", appVersion: "4.8.0", sanitizedResult: "تغير قالب الإشعار؛ لم تُحفظ أي بيانات مالية." },
+];
+
+export const sourceSuccess = [
+  { label: "Android SMS", value: 96 },
+  { label: "notifications", value: 97 },
+  { label: "iOS Shortcut", value: 98 },
+  { label: "receipts", value: 88 },
+  { label: "CSV", value: 99 },
+];
+
+export const processingTimes = [
+  { label: "SMS", value: "0.4", width: 18 },
+  { label: "notifications", value: "0.6", width: 26 },
+  { label: "CSV", value: "1.2", width: 48 },
+  { label: "PDF", value: "3.8", width: 78 },
+  { label: "images", value: "4.6", width: 94 },
+];
+
+const fixedUpdatedAt = "2026-07-29T09:30:00+03:00";
+
+const safePreview: SanitizedExtractionPreview = {
+  source: "android_sms",
+  maskedBankSender: "مصرف سعودي — عينة",
+  direction: "outgoing",
+  transactionType: "purchase",
+  currency: "SAR",
+  coarseDate: "2026-07-28",
+  maskedMerchant: "متجر ***",
+  maskedCategory: "تسوق",
+  confidence: 0.86,
+  warnings: ["تم إخفاء القيم المالية"],
+  omissionLabels: ["المبلغ", "الرصيد", "رقم الحساب"],
+};
+
+function record(
+  input: Omit<OperationalRecord, "updatedAt" | "accessLevel" | "revision">,
+): OperationalRecord {
+  return {
+    ...input,
+    updatedAt: fixedUpdatedAt,
+    accessLevel: "full",
+    revision: 1,
+  };
+}
+
+export const phase4OverviewFixtures: Record<"all" | "android" | "ios", ImportOverview> = {
+  all: {
+    platform: "all",
+    uniqueCustomers: 128_420,
+    uniqueCustomerSemantics: "authoritative",
+    totalSessions: 384_620,
+    totalItems: 510_480,
+    failedSessions: 7_240,
+    highestFailureSource: "screenshot",
+    eventDeduplication: "non_duplicated_events",
+    region: { availability: "available" },
+  },
+  android: {
+    platform: "android",
+    uniqueCustomers: 82_100,
+    uniqueCustomerSemantics: "authoritative",
+    totalSessions: 246_110,
+    totalItems: 330_210,
+    failedSessions: 4_290,
+    highestFailureSource: "android_notification",
+    eventDeduplication: "non_duplicated_events",
+    region: { availability: "available" },
+  },
+  ios: {
+    platform: "ios",
+    uniqueCustomers: 59_780,
+    uniqueCustomerSemantics: "authoritative",
+    totalSessions: 138_510,
+    totalItems: 180_270,
+    failedSessions: 2_950,
+    highestFailureSource: "screenshot",
+    eventDeduplication: "non_duplicated_events",
+    region: { availability: "available" },
+  },
+};
+
+export const phase4Records: Record<Phase4Resource, OperationalRecord[]> = {
+  sessions: [
+    record({
+      id: "IMP-77241",
+      kind: "sessions",
+      title: "جلسة استيراد Android",
+      secondary: "USR-10*** · 5 عناصر",
+      status: "failed",
+      platform: "android",
+      source: "android_sms",
+      bank: "مصرف سعودي — عينة",
+      version: "PV-3182",
+      appVersion: "4.8.1",
+      actions: ["view_detail", "retry_handoff"],
+      preview: safePreview,
+    }),
+    record({
+      id: "IMP-77236",
+      kind: "sessions",
+      title: "جلسة استيراد iOS",
+      secondary: "USR-09*** · 3 عناصر",
+      status: "partial",
+      platform: "ios",
+      source: "screenshot",
+      bank: "غير محدد",
+      version: "PV-3181",
+      appVersion: "4.8.2",
+      actions: ["view_detail"],
+      warnings: ["عنصر واحد بانتظار المراجعة"],
+      preview: { ...safePreview, source: "screenshot", currency: "AED" },
+    }),
+  ],
+  failures: [
+    record({
+      id: "IFL-001",
+      kind: "failures",
+      title: "تنسيق مرسل غير معروف",
+      secondary: "IMP-77241 · USR-10***",
+      status: "open",
+      platform: "android",
+      source: "android_sms",
+      bank: "مصرف سعودي — عينة",
+      version: "PV-3182",
+      appVersion: "4.8.1",
+      actions: ["retry_handoff", "assign_parser_issue", "mark_unsupported"],
+      preview: safePreview,
+    }),
+  ],
+  "low-confidence": [
+    record({
+      id: "IFL-LC-001",
+      kind: "low-confidence",
+      title: "اقتراح تاجر منخفض الثقة",
+      secondary: "متجر *** · اقتراح من الخادم",
+      status: "pending",
+      platform: "ios",
+      source: "receipt",
+      confidence: 0.54,
+      actions: ["accept_suggestion", "correct_merchant", "correct_category", "defer", "mark_unsupported"],
+      preview: { ...safePreview, source: "receipt", currency: "AED", confidence: 0.54 },
+    }),
+  ],
+  duplicates: [
+    record({
+      id: "DUP-001",
+      kind: "duplicates",
+      title: "مرشح تكرار",
+      secondary: "IMP-77236 · الحدث الأصلي محفوظ",
+      status: "pending",
+      platform: "ios",
+      source: "screenshot",
+      confidence: 0.91,
+      actions: ["confirm_duplicate", "reject_match", "defer"],
+      preview: { ...safePreview, source: "screenshot", currency: "AED", confidence: 0.91 },
+    }),
+  ],
+  unsupported: [
+    record({
+      id: "FMT-001",
+      kind: "unsupported",
+      title: "تنسيق إشعار غير مدعوم",
+      secondary: "مرسل *** · السعودية",
+      status: "detected",
+      platform: "android",
+      source: "android_notification",
+      bank: "مصرف سعودي — عينة",
+      actions: ["assign_parser_issue", "mark_unsupported", "create_rule_draft_handoff", "defer"],
+      preview: { ...safePreview, source: "android_notification" },
+    }),
+  ],
+  banks: [
+    record({
+      id: "BNK-001",
+      kind: "banks",
+      title: "مصرف سعودي — عينة",
+      secondary: "السعودية · SMS وإشعارات",
+      status: "supported",
+      platform: "all",
+      actions: ["view_detail"],
+      warnings: ["تغطية الصور محدودة"],
+    }),
+    record({
+      id: "BNK-002",
+      kind: "banks",
+      title: "مصرف إماراتي — عينة",
+      secondary: "الإمارات · Shortcut وصور",
+      status: "supported",
+      platform: "ios",
+      actions: ["view_detail"],
+    }),
+  ],
+  senders: [
+    record({
+      id: "SND-001",
+      kind: "senders",
+      title: "BANK-DEMO",
+      secondary: "مصرف سعودي — عينة",
+      status: "active",
+      platform: "android",
+      source: "android_sms",
+      language: "ar",
+      pattern: "^BANK-DEMO$",
+      senderId: "SND-001",
+      actions: ["save", "deactivate"],
+    }),
+    record({
+      id: "SND-002",
+      kind: "senders",
+      title: "ALT-DEMO",
+      secondary: "مصرف سعودي — عينة",
+      status: "review",
+      platform: "android",
+      source: "android_notification",
+      language: "ar",
+      pattern: "^ALT-DEMO$",
+      senderId: "SND-002",
+      actions: ["save", "activate"],
+    }),
+  ],
+  "parser-rules": [
+    record({
+      id: "PRL-001",
+      kind: "parser-rules",
+      title: "قاعدة مشتريات SMS",
+      secondary: "BANK-DEMO · العربية",
+      status: "active",
+      platform: "android",
+      source: "android_sms",
+      bank: "مصرف سعودي — عينة",
+      language: "ar",
+      version: "PV-3182",
+      priority: 10,
+      actions: ["test", "save", "deactivate"],
+      definition: {
+        matches: [{ field: "sender", operator: "equals", value: "BANK-DEMO" }],
+        captures: [
+          { field: "merchant", sourceGroup: "merchant" },
+          { field: "currency", sourceGroup: "currency" },
+        ],
+        normalizations: [
+          { field: "merchant", operation: "trim" },
+          { field: "currency", operation: "uppercase" },
+        ],
+        mappings: [
+          { sourceField: "merchant", targetField: "merchant" },
+          { sourceField: "currency", targetField: "currency" },
+        ],
+      },
+      fictionalSample: "FICTIONAL: عملية شراء تجريبية من متجر عينة بعملة SAR",
+      requiredTestsPassed: true,
+    }),
+  ],
+  "test-cases": [
+    record({
+      id: "PTC-001",
+      kind: "test-cases",
+      title: "اختبار شراء تجريبي",
+      secondary: "عينة محلية خيالية لا تخص عميلاً",
+      status: "passed",
+      platform: "android",
+      source: "android_sms",
+      version: "PV-3182",
+      actions: [],
+      fictionalSample: "FICTIONAL: BANK-DEMO purchase merchant-demo SAR",
+      requiredTestsPassed: true,
+    }),
+  ],
+  versions: [
+    record({
+      id: "PV-3183",
+      kind: "versions",
+      title: "الإصدار 3.18.3",
+      secondary: "مسودة نطاق SMS السعودي",
+      status: "draft",
+      version: "3.18.3",
+      scope: "saudi-android-sms",
+      actions: ["test"],
+      requiredTestsPassed: false,
+    }),
+    record({
+      id: "PV-3182",
+      kind: "versions",
+      title: "الإصدار 3.18.2",
+      secondary: "الإصدار النشط لنطاق SMS السعودي",
+      status: "active",
+      version: "3.18.2",
+      scope: "saudi-android-sms",
+      actions: ["retire", "rollback"],
+      requiredTestsPassed: true,
+    }),
+  ],
+  "merchant-rules": [
+    record({
+      id: "MR-001",
+      kind: "merchant-rules",
+      title: "متجر العينة",
+      secondary: "توحيد أسماء التجار الخيالية",
+      status: "active",
+      scope: "global",
+      aliases: ["متجر تجريبي", "DEMO STORE"],
+      categoryId: "CR-FOOD",
+      country: "SA",
+      actions: ["save", "deactivate"],
+    }),
+  ],
+  "category-rules": [
+    record({
+      id: "CR-001",
+      kind: "category-rules",
+      title: "قاعدة تصنيف التسوق",
+      secondary: "مطابقة آمنة لنطاق تجريبي",
+      status: "active",
+      confidence: 0.88,
+      scope: "global",
+      pattern: "demo-store",
+      categoryId: "CR-FOOD",
+      actions: ["save", "deactivate"],
+    }),
+    record({
+      id: "CR-002",
+      kind: "category-rules",
+      title: "قاعدة تصنيف النقل",
+      secondary: "مطابقة آمنة لنطاق تنقل تجريبي",
+      status: "review",
+      confidence: 0.74,
+      scope: "global",
+      pattern: "demo-transport",
+      categoryId: "CR-TRANSPORT",
+      actions: ["save", "activate"],
+    }),
+  ],
+};
+
+export const phase4SessionDetails: Record<string, ImportSessionDetail> = {
+  "IMP-77241": {
+    ...phase4Records.sessions[0],
+    kind: "sessions",
+    timeline: [
+      { label: "استلام المصدر وتنقيته", timestamp: "2026-07-29T09:20:00+03:00", status: "completed" },
+      { label: "تشغيل المحلل المحدد", timestamp: "2026-07-29T09:21:00+03:00", status: "completed" },
+      { label: "تسجيل سبب الفشل الآمن", timestamp: "2026-07-29T09:22:00+03:00", status: "failed" },
+    ],
+    totalItems: 5,
+    successfulItems: 2,
+    failedItems: 3,
+    expectedCurrentState: "failed",
+    auditReferences: [
+      {
+        eventId: "AUD-IMP-001",
+        eventName: "admin.import.failed",
+        timestamp: "2026-07-29T09:22:00+03:00",
+      },
+    ],
+  },
+};

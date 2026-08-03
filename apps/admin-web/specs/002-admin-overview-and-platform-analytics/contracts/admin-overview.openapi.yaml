@@ -1,0 +1,750 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin Overview Frontend Contract
+  version: 0.1.0
+  description: >
+    Replaceable frontend/MSW contract for Phase 1 Spec 002. This document does
+    not create a backend implementation or production authorization boundary.
+servers:
+  - url: /
+    description: Same-origin frontend mock boundary
+tags:
+  - name: Admin Overview
+
+paths:
+  /api/v1/admin/overview:
+    get:
+      tags: [Admin Overview]
+      operationId: getAdminOverview
+      summary: Get selected-scope KPIs and global operational health
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Period"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Valid aggregated summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewSummaryResponse"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+        "503":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/overview/platform-analytics:
+    get:
+      tags: [Admin Overview]
+      operationId: getAdminPlatformAnalytics
+      summary: Get aggregated customer and platform analytics
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Period"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Valid selected-scope platform analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformAnalyticsResponse"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+        "503":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/overview/activity:
+    get:
+      tags: [Admin Overview]
+      operationId: getAdminOverviewActivity
+      summary: Get bounded sanitized operational activity
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Period"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Paginated activity projection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityResponse"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+        "503":
+          $ref: "#/components/responses/SafeError"
+
+  /api/v1/admin/attention:
+    get:
+      tags: [Admin Overview]
+      operationId: getAdminAttention
+      summary: Get permission-filtered operational attention items
+      description: >
+        The role query value exists only for development mock simulation.
+        Future production authorization derives identity and permissions from
+        the authenticated server context.
+      parameters:
+        - $ref: "#/components/parameters/Role"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Period"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        "200":
+          description: Paginated attention projection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttentionResponse"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "429":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+        "503":
+          $ref: "#/components/responses/SafeError"
+
+components:
+  parameters:
+    Platform:
+      name: platform
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/PlatformFilter"
+      description: Defaults to all.
+    Period:
+      name: period
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/ReportingPeriod"
+      description: Defaults to 30d.
+    Locale:
+      name: locale
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [ar, en]
+        default: ar
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 25
+        default: 10
+    Scenario:
+      name: __scenario
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 50
+      description: Development and test only.
+    Role:
+      name: role
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/AdminRole"
+      description: Development-only mock role; not a production authority.
+
+  responses:
+    SafeError:
+      description: Safe normalized error without raw exception or private data
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+  schemas:
+    PlatformFilter:
+      type: string
+      enum: [all, ios, android]
+      default: all
+
+    PlatformScope:
+      type: string
+      enum: [all, ios, android, global, unknown]
+
+    ReportingPeriod:
+      type: string
+      enum: [7d, 30d, 90d]
+      default: 30d
+
+    AdminRole:
+      type: string
+      enum:
+        - super-admin
+        - support-agent
+        - billing-operator
+        - import-operator
+        - ai-operator
+        - content-manager
+        - security-administrator
+
+    PermissionKey:
+      type: string
+      enum:
+        - admin.overview.read
+        - users.read
+        - imports.read
+        - system-health.read
+        - global-search.use
+        - attention.read
+
+    ApprovedRoute:
+      type: string
+      enum:
+        - /admin
+        - /admin/users
+        - /admin/imports
+        - /admin/system-health
+
+    MetricKind:
+      type: string
+      enum:
+        - unique-customers
+        - devices
+        - events
+        - imports
+        - requests
+        - payments
+        - tickets
+        - currency
+
+    DataFreshness:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [fresh, stale, partial, unavailable]
+        asOf:
+          type: string
+          format: date-time
+        warning:
+          type: string
+          minLength: 1
+          maxLength: 240
+
+    OverviewQuery:
+      type: object
+      additionalProperties: false
+      required: [platform, period, locale]
+      properties:
+        platform:
+          $ref: "#/components/schemas/PlatformFilter"
+        period:
+          $ref: "#/components/schemas/ReportingPeriod"
+        locale:
+          type: string
+          enum: [ar, en]
+
+    OverviewMetric:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - numericValue
+        - formattedValue
+        - kind
+        - platformScope
+        - period
+        - freshness
+        - tone
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        numericValue:
+          type: number
+          minimum: 0
+        formattedValue:
+          type: string
+          minLength: 1
+          maxLength: 80
+        kind:
+          $ref: "#/components/schemas/MetricKind"
+        platformScope:
+          $ref: "#/components/schemas/PlatformScope"
+        period:
+          $ref: "#/components/schemas/ReportingPeriod"
+        freshness:
+          $ref: "#/components/schemas/DataFreshness"
+        change:
+          type: number
+        tone:
+          type: string
+          enum: [neutral, positive, negative, warning, premium]
+        note:
+          type: string
+          maxLength: 240
+
+    CustomerPlatformBreakdown:
+      type: object
+      additionalProperties: false
+      required:
+        - uniqueCustomersTotal
+        - iosCustomers
+        - androidCustomers
+        - iosOnlyCustomers
+        - androidOnlyCustomers
+        - multiPlatformCustomers
+        - activeCustomersTotal
+        - activeIosCustomers
+        - activeAndroidCustomers
+        - newCustomersTotal
+        - newIosCustomers
+        - newAndroidCustomers
+        - period
+        - freshness
+      properties:
+        uniqueCustomersTotal: { type: integer, minimum: 0 }
+        iosCustomers: { type: integer, minimum: 0 }
+        androidCustomers: { type: integer, minimum: 0 }
+        iosOnlyCustomers: { type: integer, minimum: 0 }
+        androidOnlyCustomers: { type: integer, minimum: 0 }
+        multiPlatformCustomers: { type: integer, minimum: 0 }
+        activeCustomersTotal: { type: integer, minimum: 0 }
+        activeIosCustomers: { type: integer, minimum: 0 }
+        activeAndroidCustomers: { type: integer, minimum: 0 }
+        newCustomersTotal: { type: integer, minimum: 0 }
+        newIosCustomers: { type: integer, minimum: 0 }
+        newAndroidCustomers: { type: integer, minimum: 0 }
+        period:
+          $ref: "#/components/schemas/ReportingPeriod"
+        freshness:
+          $ref: "#/components/schemas/DataFreshness"
+      description: >
+        Enforce in Zod: iosOnly + androidOnly + multiPlatform = unique total;
+        iOS = iosOnly + multiPlatform; Android = androidOnly + multiPlatform;
+        active total is authoritative and no greater than the sum of overlapping
+        active audiences; new total = new iOS + new Android.
+
+    TrendPoint:
+      type: object
+      additionalProperties: false
+      required: [timestamp, value]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+        comparisonValue:
+          type: number
+
+    TrendSeries:
+      type: object
+      additionalProperties: false
+      required: [id, label, kind, unit, period, platformScope, points, summary]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 100 }
+        label: { type: string, minLength: 1, maxLength: 120 }
+        kind:
+          $ref: "#/components/schemas/MetricKind"
+        unit: { type: string, minLength: 1, maxLength: 40 }
+        period:
+          $ref: "#/components/schemas/ReportingPeriod"
+        platformScope:
+          $ref: "#/components/schemas/PlatformScope"
+        points:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/TrendPoint"
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    AppVersionDistributionItem:
+      type: object
+      additionalProperties: false
+      required: [platform, version, supportState, deviceCount, share, unattributed]
+      properties:
+        platform:
+          type: string
+          enum: [ios, android, unknown]
+        version: { type: string, minLength: 1, maxLength: 40 }
+        supportState:
+          type: string
+          enum: [current, supported-older, unsupported, unknown]
+        customerCount: { type: integer, minimum: 0 }
+        deviceCount: { type: integer, minimum: 0 }
+        share: { type: number, minimum: 0, maximum: 1 }
+        unattributed: { type: boolean }
+
+    CapabilityAdoptionMetric:
+      type: object
+      additionalProperties: false
+      required: [platform, capability, eligiblePopulation, enabledPopulation, rate, period, caveat]
+      properties:
+        platform:
+          type: string
+          enum: [ios, android]
+        capability:
+          type: string
+          enum: [shortcut, share-extension, sms-tracking, notification-listener]
+        eligiblePopulation: { type: integer, minimum: 0 }
+        enabledPopulation: { type: integer, minimum: 0 }
+        rate: { type: number, minimum: 0, maximum: 1 }
+        period:
+          $ref: "#/components/schemas/ReportingPeriod"
+        caveat: { type: string, minLength: 1, maxLength: 240 }
+
+    DeviceDistributionItem:
+      type: object
+      additionalProperties: false
+      required: [platform, category, deviceCount, share]
+      properties:
+        platform:
+          type: string
+          enum: [ios, android, unknown]
+        category: { type: string, minLength: 1, maxLength: 80 }
+        deviceCount: { type: integer, minimum: 0 }
+        share: { type: number, minimum: 0, maximum: 1 }
+
+    PlatformOperationalMetric:
+      type: object
+      additionalProperties: false
+      required: [id, kind, platformScope, total, period, freshness]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 100 }
+        kind:
+          type: string
+          enum: [imports, events, requests, tickets]
+        platformScope:
+          $ref: "#/components/schemas/PlatformScope"
+        total: { type: integer, minimum: 0 }
+        successful: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        rate: { type: number, minimum: 0, maximum: 1 }
+        period:
+          $ref: "#/components/schemas/ReportingPeriod"
+        freshness:
+          $ref: "#/components/schemas/DataFreshness"
+
+    SubscriptionRevenueSummary:
+      type: object
+      additionalProperties: false
+      required: [paidCustomers, freeCustomers, recurringRevenue, currency, distribution, revenueTrend, freshness]
+      properties:
+        paidCustomers: { type: integer, minimum: 0 }
+        freeCustomers: { type: integer, minimum: 0 }
+        recurringRevenue: { type: number, minimum: 0 }
+        currency:
+          type: string
+          enum: [SAR, AED]
+        distribution:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [plan, customers, share]
+            properties:
+              plan: { type: string, minLength: 1, maxLength: 80 }
+              customers: { type: integer, minimum: 0 }
+              share: { type: number, minimum: 0, maximum: 1 }
+        revenueTrend:
+          $ref: "#/components/schemas/TrendSeries"
+        freshness:
+          $ref: "#/components/schemas/DataFreshness"
+
+    ServiceHealthSummary:
+      type: object
+      additionalProperties: false
+      required: [service, status, platformScope, uptime, latencyMs, errorRate, lastCheckedAt, freshness]
+      properties:
+        service:
+          type: string
+          enum: [api, database, cache, worker, storage, payment-webhook, ai-provider, push-notification]
+        status:
+          type: string
+          enum: [operational, degraded, partial-outage, major-outage, maintenance]
+        platformScope:
+          const: global
+        uptime: { type: number, minimum: 0, maximum: 1 }
+        latencyMs: { type: number, minimum: 0 }
+        errorRate: { type: number, minimum: 0, maximum: 1 }
+        lastCheckedAt: { type: string, format: date-time }
+        freshness:
+          $ref: "#/components/schemas/DataFreshness"
+
+    OverviewRegionState:
+      type: object
+      additionalProperties: false
+      required: [region, availability, retryable]
+      properties:
+        region:
+          type: string
+          enum: [metrics, customers, revenue, adoption, imports, support, health, attention, activity]
+        availability:
+          type: string
+          enum: [available, empty, stale, partial, unavailable, forbidden]
+        message: { type: string, minLength: 1, maxLength: 240 }
+        lastSuccessfulAt: { type: string, format: date-time }
+        retryable: { type: boolean }
+
+    OverviewSummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [query, metrics, subscriptionRevenue, operationalMetrics, serviceHealth, regions, freshness]
+      properties:
+        query:
+          $ref: "#/components/schemas/OverviewQuery"
+        metrics:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/OverviewMetric"
+        subscriptionRevenue:
+          $ref: "#/components/schemas/SubscriptionRevenueSummary"
+        operationalMetrics:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/PlatformOperationalMetric"
+        serviceHealth:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ServiceHealthSummary"
+        regions:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/OverviewRegionState"
+        freshness:
+          $ref: "#/components/schemas/DataFreshness"
+
+    PlatformAnalyticsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - query
+        - customers
+        - userGrowth
+        - dailyActiveUsers
+        - monthlyActiveUsers
+        - versions
+        - capabilities
+        - devices
+        - imports
+        - support
+        - comparisonTrends
+        - errorRateTrend
+        - regions
+      properties:
+        query:
+          $ref: "#/components/schemas/OverviewQuery"
+        customers:
+          $ref: "#/components/schemas/CustomerPlatformBreakdown"
+        userGrowth:
+          $ref: "#/components/schemas/TrendSeries"
+        dailyActiveUsers:
+          $ref: "#/components/schemas/TrendSeries"
+        monthlyActiveUsers:
+          $ref: "#/components/schemas/TrendSeries"
+        versions:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/AppVersionDistributionItem"
+        capabilities:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/CapabilityAdoptionMetric"
+        devices:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/DeviceDistributionItem"
+        imports:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/PlatformOperationalMetric"
+        support:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/PlatformOperationalMetric"
+        comparisonTrends:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/TrendSeries"
+        errorRateTrend:
+          $ref: "#/components/schemas/TrendSeries"
+        regions:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/OverviewRegionState"
+
+    OverviewActivityItem:
+      type: object
+      additionalProperties: false
+      required: [id, eventType, summary, occurredAt, platformScope, permission]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 100 }
+        eventType:
+          type: string
+          enum: [customer-registration, subscription-upgrade, webhook-failure, parser-rule-update, admin-role-change, support-access-approval, account-deletion-completed]
+        summary: { type: string, minLength: 1, maxLength: 240 }
+        occurredAt: { type: string, format: date-time }
+        platformScope:
+          $ref: "#/components/schemas/PlatformScope"
+        permission:
+          $ref: "#/components/schemas/PermissionKey"
+        destination:
+          $ref: "#/components/schemas/ApprovedRoute"
+
+    AttentionItem:
+      type: object
+      additionalProperties: false
+      required: [id, type, severity, summary, occurredAt, platformScope, permission]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 100 }
+        type:
+          type: string
+          enum: [incident, payment, import, ai-provider, queue, security, account-deletion, support]
+        severity:
+          type: string
+          enum: [info, low, medium, high, critical]
+        summary: { type: string, minLength: 1, maxLength: 240 }
+        occurredAt: { type: string, format: date-time }
+        platformScope:
+          $ref: "#/components/schemas/PlatformScope"
+        permission:
+          $ref: "#/components/schemas/PermissionKey"
+        destination:
+          $ref: "#/components/schemas/ApprovedRoute"
+
+    ActivityResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, totalItems, totalPages, region]
+      properties:
+        items:
+          type: array
+          maxItems: 25
+          items:
+            $ref: "#/components/schemas/OverviewActivityItem"
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 25 }
+        totalItems: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+        region:
+          $ref: "#/components/schemas/OverviewRegionState"
+
+    AttentionResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, totalItems, totalPages, region]
+      properties:
+        items:
+          type: array
+          maxItems: 25
+          description: >
+            Ordered by severity descending, occurredAt descending, then id
+            ascending after validation and permission filtering.
+          items:
+            $ref: "#/components/schemas/AttentionItem"
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 25 }
+        totalItems: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+        region:
+          $ref: "#/components/schemas/OverviewRegionState"
+
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+        message:
+          type: string
+          minLength: 1
+          maxLength: 240
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+              maxLength: 120
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 100

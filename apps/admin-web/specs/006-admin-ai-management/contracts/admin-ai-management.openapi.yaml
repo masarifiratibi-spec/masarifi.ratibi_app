@@ -1,0 +1,1533 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin AI Management Mock Contract
+  version: 0.1.0
+  description: |
+    Proposed frontend-only Phase 5 contract. It is replaceable by the future
+    NestJS API and performs no real provider, model, prompt, routing, safety,
+    queue, customer-content, or credential operation. All protected content is
+    structurally excluded. Every operation may return SafeError.
+servers:
+  - url: /
+tags:
+  - name: AI Overview
+  - name: Providers and Models
+  - name: Prompts
+  - name: Usage and Failures
+  - name: Reports and Safety
+
+paths:
+  /api/v1/admin/ai/overview:
+    get:
+      tags: [AI Overview]
+      operationId: getAiOverview
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/ProviderIdQuery'
+        - $ref: '#/components/parameters/ModelIdQuery'
+        - $ref: '#/components/parameters/Plan'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Permission-projected AI operational overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiOverview'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/providers:
+    get:
+      tags: [Providers and Models]
+      operationId: listAiProviders
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated provider summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiProvidersPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/providers/{providerId}:
+    get:
+      tags: [Providers and Models]
+      operationId: getAiProvider
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Permission-projected provider detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiProviderDetail'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/providers/{providerId}/actions:
+    post:
+      tags: [Providers and Models]
+      operationId: actOnAiProvider
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AiAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/models:
+    get:
+      tags: [Providers and Models]
+      operationId: listAiModels
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/ProviderIdQuery'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated model summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiModelsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/models/{modelId}/actions:
+    post:
+      tags: [Providers and Models]
+      operationId: actOnAiModel
+      parameters:
+        - $ref: '#/components/parameters/ModelId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AiAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/prompts:
+    get:
+      tags: [Prompts]
+      operationId: listAiPrompts
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated prompt-version summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiPromptsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/prompts/{promptId}:
+    get:
+      tags: [Prompts]
+      operationId: getAiPrompt
+      parameters:
+        - $ref: '#/components/parameters/PromptId'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Sanitized fictional prompt-version detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiPromptDetail'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/prompts/{promptId}/actions:
+    post:
+      tags: [Prompts]
+      operationId: actOnAiPrompt
+      parameters:
+        - $ref: '#/components/parameters/PromptId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AiAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/usage:
+    get:
+      tags: [Usage and Failures]
+      operationId: listAiUsage
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/ProviderIdQuery'
+        - $ref: '#/components/parameters/ModelIdQuery'
+        - $ref: '#/components/parameters/Plan'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated AI usage metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiUsagePage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/failures:
+    get:
+      tags: [Usage and Failures]
+      operationId: listAiFailures
+      parameters:
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/ProviderIdQuery'
+        - $ref: '#/components/parameters/ModelIdQuery'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated AI failure metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiFailuresPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/failures/{failureId}/actions:
+    post:
+      tags: [Usage and Failures]
+      operationId: actOnAiFailure
+      parameters:
+        - $ref: '#/components/parameters/FailureId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FailureActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AiAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/reports:
+    get:
+      tags: [Reports and Safety]
+      operationId: listAiResponseReports
+      parameters:
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Severity'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated permission-projected response reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiReportsPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/reports/{reportId}/actions:
+    post:
+      tags: [Reports and Safety]
+      operationId: actOnAiResponseReport
+      parameters:
+        - $ref: '#/components/parameters/ReportId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AiAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/safety-rules:
+    get:
+      tags: [Reports and Safety]
+      operationId: listAiSafetyRules
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Feature'
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Severity'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200':
+          description: Paginated safety-rule summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSafetyRulesPage'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+  /api/v1/admin/ai/safety-rules/{ruleId}/actions:
+    post:
+      tags: [Reports and Safety]
+      operationId: actOnAiSafetyRule
+      parameters:
+        - $ref: '#/components/parameters/SafetyRuleId'
+        - $ref: '#/components/parameters/Scenario'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SafetyRuleActionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AiAction'
+        default:
+          $ref: '#/components/responses/SafeError'
+
+components:
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 120
+    Period:
+      name: period
+      in: query
+      schema:
+        type: string
+        enum: [7d, 30d, 90d]
+        default: 30d
+    Platform:
+      name: platform
+      in: query
+      schema:
+        $ref: '#/components/schemas/PlatformScope'
+    Feature:
+      name: feature
+      in: query
+      schema:
+        $ref: '#/components/schemas/AiFeature'
+    Locale:
+      name: locale
+      in: query
+      schema:
+        $ref: '#/components/schemas/LocaleScope'
+    Plan:
+      name: plan
+      in: query
+      schema:
+        type: string
+        enum: [free, basic, premium]
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+        maxLength: 40
+    Severity:
+      name: severity
+      in: query
+      schema:
+        $ref: '#/components/schemas/Severity'
+    DateFrom:
+      name: dateFrom
+      in: query
+      schema:
+        type: string
+        format: date
+    DateTo:
+      name: dateTo
+      in: query
+      schema:
+        type: string
+        format: date
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        enum: [25, 50, 100]
+        default: 25
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum: [name, status, updatedAt, severity, cost, latency, feature, provider, model, time]
+    Order:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+    Scenario:
+      name: __scenario
+      in: query
+      schema:
+        type: string
+        enum:
+          - success
+          - loading
+          - slow
+          - large
+          - empty
+          - partial
+          - unauthorized
+          - forbidden
+          - not-found
+          - expired
+          - validation
+          - conflict
+          - rate-limited
+          - unavailable
+          - unsafe-response
+          - masking-violation
+          - duplicate-pending
+          - internal-error
+    ProviderId:
+      name: providerId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ProviderId'
+    ProviderIdQuery:
+      name: providerId
+      in: query
+      schema:
+        $ref: '#/components/schemas/ProviderId'
+    ModelId:
+      name: modelId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ModelId'
+    ModelIdQuery:
+      name: modelId
+      in: query
+      schema:
+        $ref: '#/components/schemas/ModelId'
+    PromptId:
+      name: promptId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PromptId'
+    FailureId:
+      name: failureId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/FailureId'
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ReportId'
+    SafetyRuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SafetyRuleId'
+
+  responses:
+    SafeError:
+      description: Safe validation, permission, conflict, rate-limit, unavailable, or internal error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    AiAction:
+      description: Simulated action result
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AiActionResult'
+
+  schemas:
+    ProviderId:
+      type: string
+      maxLength: 48
+      pattern: '^AIP-[A-Za-z0-9-]{1,44}$'
+    ModelId:
+      type: string
+      maxLength: 48
+      pattern: '^AIM-[A-Za-z0-9-]{1,44}$'
+    PromptId:
+      type: string
+      maxLength: 48
+      pattern: '^AIPR-[A-Za-z0-9-]{1,43}$'
+    UsageId:
+      type: string
+      maxLength: 48
+      pattern: '^AIU-[A-Za-z0-9-]{1,44}$'
+    FailureId:
+      type: string
+      maxLength: 48
+      pattern: '^AIF-[A-Za-z0-9-]{1,44}$'
+    ReportId:
+      type: string
+      maxLength: 48
+      pattern: '^AIR-[A-Za-z0-9-]{1,44}$'
+    SafetyRuleId:
+      type: string
+      maxLength: 48
+      pattern: '^AIS-[A-Za-z0-9-]{1,44}$'
+    PlatformScope:
+      type: string
+      enum: [all, ios, android, unknown]
+      default: all
+    LocaleScope:
+      type: string
+      enum: [ar, en]
+    AiFeature:
+      type: string
+      enum:
+        - receipt_analysis
+        - screenshot_analysis
+        - voice_parsing
+        - categorization
+        - financial_assistant
+        - spending_insights
+        - budget_suggestions
+        - behavior_analysis
+        - report_explanation
+    AccessLevel:
+      type: string
+      enum: [full, aggregate, context]
+    Severity:
+      type: string
+      enum: [info, low, medium, high, critical]
+    Timestamp:
+      type: string
+      format: date-time
+    RegionState:
+      type: object
+      additionalProperties: false
+      required: [availability]
+      properties:
+        availability:
+          type: string
+          enum: [available, empty, stale, partial, unavailable, forbidden]
+        message:
+          type: string
+          maxLength: 240
+        retryable:
+          type: boolean
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          maximum: 100
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    MoneyEstimate:
+      type: object
+      additionalProperties: false
+      required: [amount, currency, estimated, freshness]
+      properties:
+        amount:
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]{1,6})?$'
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        estimated:
+          const: true
+        freshness:
+          $ref: '#/components/schemas/Timestamp'
+        normalizedAmount:
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]{1,6})?$'
+        normalizedCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        conversionTimestamp:
+          $ref: '#/components/schemas/Timestamp'
+    AuditReference:
+      type: object
+      additionalProperties: false
+      required: [eventId, eventName, timestamp]
+      properties:
+        eventId:
+          type: string
+          pattern: '^AIA-[A-Za-z0-9-]{1,44}$'
+          maxLength: 48
+        eventName:
+          type: string
+          maxLength: 120
+        timestamp:
+          $ref: '#/components/schemas/Timestamp'
+    SafeMetric:
+      type: object
+      additionalProperties: false
+      required: [key, label, value, unit, platform, denominator, freshness]
+      properties:
+        key:
+          type: string
+          maxLength: 80
+        label:
+          type: string
+          maxLength: 120
+        value:
+          type: number
+          minimum: 0
+        unit:
+          type: string
+          enum: [requests, attempts, failures, reports, percent, duration_ms, input_units, output_units, customers, estimated_cost]
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        denominator:
+          type: string
+          enum: [original_requests, attempts, failures, reports, customers]
+        freshness:
+          $ref: '#/components/schemas/Timestamp'
+        cost:
+          $ref: '#/components/schemas/MoneyEstimate'
+    ChartPoint:
+      type: object
+      additionalProperties: false
+      required: [label, value]
+      properties:
+        label:
+          type: string
+          maxLength: 120
+        value:
+          type: number
+          minimum: 0
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        feature:
+          $ref: '#/components/schemas/AiFeature'
+    AiOverview:
+      type: object
+      additionalProperties: false
+      required: [platform, period, metrics, featureDistribution, requestTrend, costByCurrency, regions, accessLevel, freshness]
+      properties:
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        period:
+          type: string
+          enum: [7d, 30d, 90d]
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/SafeMetric'
+          maxItems: 20
+        featureDistribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+          maxItems: 50
+        requestTrend:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+          maxItems: 100
+        costByCurrency:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoneyEstimate'
+          maxItems: 10
+        regions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/RegionState'
+          maxProperties: 12
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        freshness:
+          $ref: '#/components/schemas/Timestamp'
+    FallbackRoute:
+      type: object
+      additionalProperties: false
+      required: [feature, locale, priority, providerId, modelId, status, compatible, terminalEligible]
+      properties:
+        feature:
+          $ref: '#/components/schemas/AiFeature'
+        locale:
+          $ref: '#/components/schemas/LocaleScope'
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 20
+        providerId:
+          $ref: '#/components/schemas/ProviderId'
+        modelId:
+          $ref: '#/components/schemas/ModelId'
+        status:
+          type: string
+          enum: [enabled, disabled]
+        compatible:
+          type: boolean
+        terminalEligible:
+          type: boolean
+    AiProviderSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, health, defaultModelId, features, locales, averageLatencyMs, failureRate, estimatedCost, fallbackPriorities, rateLimitState, freshness, revision, accessLevel, actions]
+      properties:
+        id:
+          $ref: '#/components/schemas/ProviderId'
+        name:
+          type: string
+          maxLength: 120
+        health:
+          type: string
+          enum: [healthy, degraded, partial_outage, unavailable]
+          description: Authoritative contract value
+        defaultModelId:
+          $ref: '#/components/schemas/ModelId'
+        features:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/AiFeature'
+        locales:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/LocaleScope'
+        averageLatencyMs:
+          type: integer
+          minimum: 0
+        failureRate:
+          type: number
+          minimum: 0
+          maximum: 1
+        estimatedCost:
+          $ref: '#/components/schemas/MoneyEstimate'
+        fallbackPriorities:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 20
+          maxItems: 20
+        rateLimitState:
+          type: string
+          enum: [normal, nearing_limit, limited, unavailable]
+        freshness:
+          $ref: '#/components/schemas/Timestamp'
+        revision:
+          type: integer
+          minimum: 1
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [update_fallback, activate, deactivate]
+    AiProviderDetail:
+      type: object
+      additionalProperties: false
+      required: [summary, models, fallbackRoutes, healthTrend, errorTrend, costTrend, regions]
+      properties:
+        summary:
+          $ref: '#/components/schemas/AiProviderSummary'
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiModelSummary'
+          maxItems: 100
+        fallbackRoutes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FallbackRoute'
+          maxItems: 180
+        healthTrend:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+          maxItems: 100
+        errorTrend:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+          maxItems: 100
+        costTrend:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartPoint'
+          maxItems: 100
+        regions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/RegionState'
+          maxProperties: 8
+    AiModelSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, providerId, features, locales, assignments, inputLimit, inputCost, outputCost, status, version, eligible, revision, actions]
+      properties:
+        id:
+          $ref: '#/components/schemas/ModelId'
+        name:
+          type: string
+          maxLength: 120
+        providerId:
+          $ref: '#/components/schemas/ProviderId'
+        features:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/AiFeature'
+        locales:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/LocaleScope'
+        assignments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [feature, locale, primary]
+            properties:
+              feature:
+                $ref: '#/components/schemas/AiFeature'
+              locale:
+                $ref: '#/components/schemas/LocaleScope'
+              primary:
+                type: boolean
+          maxItems: 18
+        inputLimit:
+          type: integer
+          minimum: 1
+        inputCost:
+          $ref: '#/components/schemas/MoneyEstimate'
+        outputCost:
+          $ref: '#/components/schemas/MoneyEstimate'
+        status:
+          type: string
+          enum: [active, limited, inactive, unavailable]
+        version:
+          type: string
+          maxLength: 40
+        eligible:
+          type: boolean
+          description: Authoritative contract value
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [assign, unassign, activate, deactivate]
+    PromptTest:
+      type: object
+      additionalProperties: false
+      required: [id, name, isFictional, required, enabled, result]
+      properties:
+        id:
+          type: string
+          maxLength: 48
+        name:
+          type: string
+          maxLength: 120
+        isFictional:
+          const: true
+        required:
+          type: boolean
+        enabled:
+          type: boolean
+        result:
+          type: string
+          enum: [passed, failed, blocked]
+          description: Authoritative contract value
+        sanitizedInputSummary:
+          type: string
+          maxLength: 500
+    AiPromptSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, feature, locale, scope, status, createdBy, updatedAt, successMetric, requiredTestsPassed, eligible, revision, actions]
+      properties:
+        id:
+          $ref: '#/components/schemas/PromptId'
+        name:
+          type: string
+          maxLength: 120
+        feature:
+          $ref: '#/components/schemas/AiFeature'
+        locale:
+          $ref: '#/components/schemas/LocaleScope'
+        scope:
+          type: string
+          maxLength: 120
+        status:
+          type: string
+          enum: [draft, testing, active, retired]
+        createdBy:
+          type: string
+          maxLength: 120
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        successMetric:
+          type: string
+          maxLength: 160
+        requiredTestsPassed:
+          type: boolean
+        eligible:
+          type: boolean
+          description: Authoritative contract value
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [begin_testing, activate, retire, rollback]
+    AiPromptDetail:
+      type: object
+      additionalProperties: false
+      required: [summary, sanitizedPreview, variables, outputSchema, validationRules, history, tests, omissionLabels]
+      properties:
+        summary:
+          $ref: '#/components/schemas/AiPromptSummary'
+        sanitizedPreview:
+          type: string
+          maxLength: 4096
+        variables:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, type, required]
+            properties:
+              name:
+                type: string
+                pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
+              type:
+                type: string
+                enum: [string, number, boolean, object, array]
+              required:
+                type: boolean
+          maxItems: 40
+        outputSchema:
+          type: object
+          additionalProperties: false
+          required: [name, version, fields]
+          properties:
+            name:
+              type: string
+              maxLength: 120
+            version:
+              type: string
+              maxLength: 40
+            fields:
+              type: array
+              items:
+                type: string
+                pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
+              maxItems: 50
+        validationRules:
+          type: array
+          items:
+            type: string
+            maxLength: 160
+          maxItems: 30
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptId'
+          maxItems: 100
+        tests:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptTest'
+          maxItems: 100
+        omissionLabels:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 20
+    AiUsageRecord:
+      type: object
+      additionalProperties: false
+      required: [id, originalRequestRef, maskedUserRef, feature, providerId, modelId, platform, locale, plan, inputUnits, outputUnits, estimatedCost, status, attemptCount, fallbackCount, occurredAt, accessLevel]
+      properties:
+        id:
+          $ref: '#/components/schemas/UsageId'
+        originalRequestRef:
+          type: string
+          maxLength: 48
+        maskedUserRef:
+          type: string
+          maxLength: 48
+        feature:
+          $ref: '#/components/schemas/AiFeature'
+        providerId:
+          $ref: '#/components/schemas/ProviderId'
+        modelId:
+          $ref: '#/components/schemas/ModelId'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        locale:
+          $ref: '#/components/schemas/LocaleScope'
+        plan:
+          type: string
+          enum: [free, basic, premium]
+        inputUnits:
+          type: integer
+          minimum: 0
+        outputUnits:
+          type: integer
+          minimum: 0
+        estimatedCost:
+          $ref: '#/components/schemas/MoneyEstimate'
+        status:
+          type: string
+          enum: [succeeded, failed, partial, blocked]
+        attemptCount:
+          type: integer
+          minimum: 1
+        fallbackCount:
+          type: integer
+          minimum: 0
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+    AiFailureRecord:
+      type: object
+      additionalProperties: false
+      required: [id, originalRequestRef, feature, providerId, modelId, platform, locale, errorCode, errorClass, attemptCount, fallbackOutcome, impact, state, correlationRef, occurredAt, updatedAt, revision, actions]
+      properties:
+        id:
+          $ref: '#/components/schemas/FailureId'
+        originalRequestRef:
+          type: string
+          maxLength: 48
+        feature:
+          $ref: '#/components/schemas/AiFeature'
+        providerId:
+          $ref: '#/components/schemas/ProviderId'
+        modelId:
+          $ref: '#/components/schemas/ModelId'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        locale:
+          $ref: '#/components/schemas/LocaleScope'
+        errorCode:
+          type: string
+          maxLength: 80
+        errorClass:
+          type: string
+          enum: [validation, provider, timeout, rate_limit, safety, unavailable, internal]
+        attemptCount:
+          type: integer
+          minimum: 1
+        fallbackOutcome:
+          type: string
+          enum: [not_used, succeeded, failed, unavailable]
+        impact:
+          type: string
+          enum: [none, low, medium, high, critical]
+          description: Authoritative contract value
+        state:
+          type: string
+          enum: [open, acknowledged, assigned, resolved, escalated, reopened]
+        correlationRef:
+          type: string
+          maxLength: 48
+        occurredAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [acknowledge, assign, resolve, reopen, escalate]
+    AiResponseReport:
+      type: object
+      additionalProperties: false
+      required: [id, maskedUserRef, feature, modelId, promptId, platform, locale, reason, severity, omissionLabels, status, createdAt, updatedAt, revision, actions]
+      properties:
+        id:
+          $ref: '#/components/schemas/ReportId'
+        maskedUserRef:
+          type: string
+          maxLength: 48
+        feature:
+          $ref: '#/components/schemas/AiFeature'
+        modelId:
+          $ref: '#/components/schemas/ModelId'
+        promptId:
+          $ref: '#/components/schemas/PromptId'
+        platform:
+          $ref: '#/components/schemas/PlatformScope'
+        locale:
+          $ref: '#/components/schemas/LocaleScope'
+        reason:
+          type: string
+          maxLength: 120
+        severity:
+          $ref: '#/components/schemas/Severity'
+        sanitizedExcerpt:
+          type: string
+          maxLength: 280
+          description: Future-backend-sanitized allowlisted excerpt; never raw content
+        omissionLabels:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 20
+        status:
+          type: string
+          enum: [new, in_review, confirmed_issue, no_issue, escalated, duplicate, reopened]
+        reviewer:
+          type: string
+          maxLength: 120
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [confirm_issue, mark_no_issue, escalate, mark_duplicate, reopen]
+    SafetyCondition:
+      type: object
+      additionalProperties: false
+      required: [field, operator, value]
+      properties:
+        field:
+          type: string
+          enum: [feature, locale, authoritative_classification, safety_label]
+        operator:
+          type: string
+          enum: [equals, contains_label, exceeds_authoritative_threshold, classification_in]
+        value:
+          type: string
+          maxLength: 160
+    SafetyOutcome:
+      type: object
+      additionalProperties: false
+      required: [action, label]
+      properties:
+        action:
+          type: string
+          enum: [block, require_review, redact, warn, route_fallback]
+        label:
+          type: string
+          maxLength: 160
+    AiSafetyRule:
+      type: object
+      additionalProperties: false
+      required: [id, name, features, locales, severity, status, conditions, outcomes, triggerCount, requiredCoverage, eligible, revision, actions]
+      properties:
+        id:
+          $ref: '#/components/schemas/SafetyRuleId'
+        name:
+          type: string
+          maxLength: 120
+        features:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/AiFeature'
+        locales:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/LocaleScope'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        status:
+          type: string
+          enum: [draft, active, inactive, retired]
+        conditions:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/SafetyCondition'
+        outcomes:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/SafetyOutcome'
+        triggerCount:
+          type: integer
+          minimum: 0
+        lastTriggeredAt:
+          $ref: '#/components/schemas/Timestamp'
+        requiredCoverage:
+          type: boolean
+        eligible:
+          type: boolean
+          description: Authoritative contract value
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [save_draft, activate, deactivate, retire]
+    AiProvidersPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiProviderSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    AiModelsPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiModelSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    AiPromptsPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiPromptSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    AiUsagePage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, costByCurrency, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiUsageRecord'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        costByCurrency:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoneyEstimate'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    AiFailuresPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiFailureRecord'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    AiReportsPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiResponseReport'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    AiSafetyRulesPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiSafetyRule'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        region:
+          $ref: '#/components/schemas/RegionState'
+    ActionBase:
+      type: object
+      additionalProperties: false
+      required: [reason, expectedState, expectedRevision, confirmationToken]
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+        expectedState:
+          type: string
+          maxLength: 40
+        expectedRevision:
+          type: integer
+          minimum: 1
+        confirmationToken:
+          const: CONFIRM-SPEC-006
+    ProviderActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: '#/components/schemas/ActionBase'
+        action:
+          type: string
+          enum: [update_fallback, activate, deactivate]
+        fallbackRoutes:
+          type: array
+          maxItems: 180
+          items:
+            $ref: '#/components/schemas/FallbackRoute'
+    ModelActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: '#/components/schemas/ActionBase'
+        action:
+          type: string
+          enum: [assign, unassign, activate, deactivate]
+        assignment:
+          type: object
+          additionalProperties: false
+          properties:
+            feature:
+              $ref: '#/components/schemas/AiFeature'
+            locale:
+              $ref: '#/components/schemas/LocaleScope'
+    PromptActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: '#/components/schemas/ActionBase'
+        action:
+          type: string
+          enum: [begin_testing, activate, retire, rollback]
+        historicalPromptId:
+          $ref: '#/components/schemas/PromptId'
+    FailureActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: '#/components/schemas/ActionBase'
+        action:
+          type: string
+          enum: [acknowledge, assign, resolve, reopen, escalate]
+    ReportActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: '#/components/schemas/ActionBase'
+        action:
+          type: string
+          enum: [confirm_issue, mark_no_issue, escalate, mark_duplicate, reopen]
+        duplicateOf:
+          $ref: '#/components/schemas/ReportId'
+    SafetyRuleActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: '#/components/schemas/ActionBase'
+        action:
+          type: string
+          enum: [save_draft, activate, deactivate, retire]
+        proposal:
+          $ref: '#/components/schemas/AiSafetyRule'
+    AiActionResult:
+      type: object
+      additionalProperties: false
+      required: [affectedId, previousState, currentState, outcome, timestamp, message, auditReference]
+      properties:
+        affectedId:
+          type: string
+          maxLength: 48
+        previousState:
+          type: string
+          maxLength: 40
+        currentState:
+          type: string
+          maxLength: 40
+        outcome:
+          type: string
+          enum: [success, rejected, conflict]
+        timestamp:
+          $ref: '#/components/schemas/Timestamp'
+        message:
+          type: string
+          maxLength: 240
+        createdDraftId:
+          $ref: '#/components/schemas/PromptId'
+        auditReference:
+          $ref: '#/components/schemas/AuditReference'
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          maxLength: 80
+        message:
+          type: string
+          maxLength: 240
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            maxItems: 10
+            items:
+              type: string
+              maxLength: 160
+          maxProperties: 30
+        correlationId:
+          type: string
+          maxLength: 48

@@ -1,0 +1,56 @@
+{
+  "name": "masarifi-admin-prototype",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "build:sites": "vinext build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "^7.83.0",
+    "recharts": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@playwright/test": "^1.62.0",
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "jsdom": "^30.0.0",
+    "msw": "^2.15.0",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "vitest": "^4.1.10",
+    "wrangler": "4.92.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

@@ -1,0 +1,2210 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin Support, Content, and Notifications Mock Contract
+  version: 0.1.0
+  description: >
+    Proposed frontend contract for Phase 6. It defines mock HTTP behavior only;
+    no backend, provider, storage, queue, file transfer, or delivery is implemented.
+servers:
+  - url: /api/v1/admin
+
+paths:
+  /support/overview:
+    get:
+      operationId: getSupportOverview
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Period"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Privacy-safe support metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportOverview"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "401":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "500":
+          $ref: "#/components/responses/SafeError"
+
+  /support/tickets:
+    get:
+      operationId: listSupportTickets
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/TicketState"
+        - name: priority
+          in: query
+          schema:
+            $ref: "#/components/schemas/TicketPriority"
+        - name: assignedAgent
+          in: query
+          schema:
+            type: string
+            maxLength: 48
+        - name: type
+          in: query
+          schema:
+            type: string
+            maxLength: 80
+        - name: categoryId
+          in: query
+          schema:
+            $ref: "#/components/schemas/SupportCategoryId"
+        - name: appVersion
+          in: query
+          schema:
+            type: string
+            maxLength: 40
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/SortOrder"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, updated_at, priority, sla]
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Role-projected ticket page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /support/tickets/{ticketId}:
+    get:
+      operationId: getSupportTicket
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Sanitized ticket detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketDetail"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+
+  /support/tickets/{ticketId}/actions:
+    post:
+      operationId: actOnSupportTicket
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /support/categories:
+    get:
+      operationId: listSupportCategories
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Support categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportCategoryPage"
+        "403":
+          $ref: "#/components/responses/SafeError"
+    post:
+      operationId: createSupportCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportCategorySaveRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /support/categories/{categoryId}/actions:
+    post:
+      operationId: actOnSupportCategory
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportCategoryActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /feedback:
+    get:
+      operationId: listFeedback
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [general, bug, feature_request, ai, import]
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/FeedbackState"
+        - name: appVersion
+          in: query
+          schema:
+            type: string
+            maxLength: 40
+        - name: rating
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/SortOrder"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Feedback overview and page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /feedback/{feedbackId}:
+    get:
+      operationId: getFeedback
+      parameters:
+        - $ref: "#/components/parameters/FeedbackId"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Sanitized feedback detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackDetail"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+
+  /feedback/{feedbackId}/actions:
+    post:
+      operationId: actOnFeedback
+      parameters:
+        - $ref: "#/components/parameters/FeedbackId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /feedback/abuse-reports:
+    get:
+      operationId: listAbuseReports
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/AbuseState"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Restricted abuse-report page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbuseReportPage"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /feedback/abuse-reports/{reportId}/actions:
+    post:
+      operationId: actOnAbuseReport
+      parameters:
+        - $ref: "#/components/parameters/AbuseReportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AbuseActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /content/{collection}:
+    get:
+      operationId: listContent
+      parameters:
+        - $ref: "#/components/parameters/ContentCollection"
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Scenario"
+        - name: locale
+          in: query
+          schema:
+            $ref: "#/components/schemas/Locale"
+        - name: categoryId
+          in: query
+          schema:
+            $ref: "#/components/schemas/CategoryId"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ContentState"
+        - $ref: "#/components/parameters/SortOrder"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Content collection page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+    post:
+      operationId: createContent
+      parameters:
+        - $ref: "#/components/parameters/ContentCollection"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentSaveRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /content/{collection}/{itemId}:
+    get:
+      operationId: getContent
+      parameters:
+        - $ref: "#/components/parameters/ContentCollection"
+        - $ref: "#/components/parameters/ContentItemId"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Content item detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+
+  /content/{collection}/{itemId}/actions:
+    post:
+      operationId: actOnContent
+      parameters:
+        - $ref: "#/components/parameters/ContentCollection"
+        - $ref: "#/components/parameters/ContentItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /communications/templates:
+    get:
+      operationId: listTemplates
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Scenario"
+        - name: channel
+          in: query
+          schema:
+            $ref: "#/components/schemas/Channel"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Template page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplatePage"
+        "403":
+          $ref: "#/components/responses/SafeError"
+    post:
+      operationId: createTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateSaveRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /communications/templates/{templateId}/actions:
+    post:
+      operationId: actOnTemplate
+      parameters:
+        - $ref: "#/components/parameters/TemplateId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/overview:
+    get:
+      operationId: getNotificationOverview
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Period"
+        - $ref: "#/components/parameters/Scenario"
+        - name: channel
+          in: query
+          schema:
+            $ref: "#/components/schemas/Channel"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Notification outcome metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationOverview"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/audience-preview:
+    post:
+      operationId: previewNotificationAudience
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudiencePreviewRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Authoritative aggregate audience preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceSummary"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/campaigns:
+    get:
+      operationId: listCampaigns
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Scenario"
+        - name: channel
+          in: query
+          schema:
+            $ref: "#/components/schemas/Channel"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/CampaignState"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Campaign page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+    post:
+      operationId: createCampaignDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignDraftRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/campaigns/{campaignId}:
+    get:
+      operationId: getCampaign
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Campaign detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "404":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/campaigns/{campaignId}/actions:
+    post:
+      operationId: actOnCampaign
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignActionRequest"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          $ref: "#/components/responses/ActionSuccess"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+        "409":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/transactional:
+    get:
+      operationId: listTransactionalTemplates
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Scenario"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Transactional template page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplatePage"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+  /notifications/delivery-logs:
+    get:
+      operationId: listDeliveryLogs
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Scenario"
+        - name: channel
+          in: query
+          schema:
+            $ref: "#/components/schemas/Channel"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/DeliveryState"
+        - name: templateId
+          in: query
+          schema:
+            $ref: "#/components/schemas/TemplateId"
+        - name: campaignId
+          in: query
+          schema:
+            $ref: "#/components/schemas/CampaignId"
+        - name: failureClass
+          in: query
+          schema:
+            type: string
+            enum: [none, consent, token, provider, validation, rate_limit, unavailable, internal]
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/SortOrder"
+      responses:
+        default:
+          $ref: "#/components/responses/SafeError"
+        "200":
+          description: Privacy-safe delivery log page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryLogPage"
+        "400":
+          $ref: "#/components/responses/SafeError"
+        "403":
+          $ref: "#/components/responses/SafeError"
+
+components:
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 120
+    Platform:
+      name: platform
+      in: query
+      schema:
+        $ref: "#/components/schemas/Platform"
+    Period:
+      name: period
+      in: query
+      schema:
+        type: string
+        enum: [7d, 30d, 90d]
+        default: 30d
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        enum: [25, 50, 100]
+        default: 25
+    DateFrom:
+      name: dateFrom
+      in: query
+      schema:
+        type: string
+        format: date
+    DateTo:
+      name: dateTo
+      in: query
+      schema:
+        type: string
+        format: date
+    SortOrder:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    Scenario:
+      name: __scenario
+      in: query
+      schema:
+        type: string
+        enum: [default, empty, large, slow, partial, unauthorized, forbidden, not-found, validation, conflict, rate-limited, unavailable, error]
+    TicketId:
+      name: ticketId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/TicketId"
+    FeedbackId:
+      name: feedbackId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/FeedbackId"
+    AbuseReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/AbuseReportId"
+    CategoryId:
+      name: categoryId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/SupportCategoryId"
+    ContentCollection:
+      name: collection
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ContentCollection"
+    ContentItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ContentItemId"
+    TemplateId:
+      name: templateId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/TemplateId"
+    CampaignId:
+      name: campaignId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/CampaignId"
+
+  responses:
+    SafeError:
+      description: Safe bounded error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ActionSuccess:
+      description: Deterministic mock action result
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ActionResult"
+
+  schemas:
+    Timestamp:
+      type: string
+      format: date-time
+    Platform:
+      type: string
+      enum: [all, ios, android, unknown]
+    Locale:
+      type: string
+      enum: [ar, en]
+    Channel:
+      type: string
+      enum: [email, push, in_app]
+    AccessLevel:
+      type: string
+      enum: [full, aggregate, linked, restricted]
+    TicketId:
+      type: string
+      pattern: "^TKT-[A-Z0-9-]{1,44}$"
+    FeedbackId:
+      type: string
+      pattern: "^FDB-[A-Z0-9-]{1,44}$"
+    AbuseReportId:
+      type: string
+      pattern: "^ABR-[A-Z0-9-]{1,44}$"
+    SupportCategoryId:
+      type: string
+      pattern: "^SUPC-[A-Z0-9-]{1,43}$"
+    CategoryId:
+      type: string
+      pattern: "^CAT-[A-Z0-9-]{1,44}$"
+    ContentItemId:
+      type: string
+      pattern: "^(CNT|CAT)-[A-Z0-9-]{1,43}$"
+    TemplateId:
+      type: string
+      pattern: "^TPL-[A-Z0-9-]{1,44}$"
+    CampaignId:
+      type: string
+      pattern: "^CMP-[A-Z0-9-]{1,44}$"
+    MaskedReference:
+      type: string
+      maxLength: 48
+      pattern: "^[A-Z]{2,8}-MASK-[A-Z0-9-]{1,32}$"
+    ContentCollection:
+      type: string
+      enum: [default_categories, financial_tips, faqs, onboarding, help_center, announcements]
+    TicketPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+    TicketState:
+      type: string
+      enum: [new, open, awaiting_customer, awaiting_agent, resolved, closed]
+    FeedbackState:
+      type: string
+      enum: [new, under_review, planned, linked, resolved, dismissed, closed]
+    AbuseState:
+      type: string
+      enum: [new, investigating, escalated, resolved, dismissed]
+    ContentState:
+      type: string
+      enum: [draft, published, retired]
+    TemplateState:
+      type: string
+      enum: [draft, active, retired]
+    CampaignState:
+      type: string
+      enum: [draft, scheduled, sending, paused, completed, cancelled, failed]
+    DeliveryState:
+      type: string
+      enum: [queued, attempted, delivered, opened, failed, excluded]
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    RegionState:
+      type: object
+      additionalProperties: false
+      required: [status, updatedAt]
+      properties:
+        status:
+          type: string
+          enum: [ready, empty, partial, unavailable]
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        message:
+          type: string
+          maxLength: 240
+    Metric:
+      type: object
+      additionalProperties: false
+      required: [key, value, unit, updatedAt]
+      properties:
+        key:
+          type: string
+          maxLength: 80
+        value:
+          type: number
+          minimum: 0
+        unit:
+          type: string
+          maxLength: 40
+        numerator:
+          type: number
+          minimum: 0
+        denominator:
+          type: number
+          minimum: 0
+        unavailableReason:
+          type: string
+          maxLength: 160
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+    AttachmentMetadata:
+      type: object
+      additionalProperties: false
+      required: [id, safeFilename, mediaType, declaredSizeBytes, scanState, previewEligible]
+      properties:
+        id:
+          type: string
+          pattern: "^ATT-[A-Z0-9-]{1,44}$"
+        safeFilename:
+          type: string
+          maxLength: 160
+          pattern: "^[^/\\\\\\x00-\\x1F]+$"
+        mediaType:
+          type: string
+          enum: [application/pdf, image/png, image/jpeg, text/plain]
+        declaredSizeBytes:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+        scanState:
+          type: string
+          enum: [safe, rejected, unavailable]
+        previewEligible:
+          type: boolean
+    ActionContext:
+      type: object
+      additionalProperties: false
+      required: [reason, expectedState, expectedRevision, confirmationToken]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        expectedState:
+          type: string
+          enum:
+            - new
+            - open
+            - awaiting_customer
+            - awaiting_agent
+            - resolved
+            - closed
+            - under_review
+            - planned
+            - linked
+            - dismissed
+            - investigating
+            - escalated
+            - active
+            - inactive
+            - retired
+            - draft
+            - published
+            - scheduled
+            - sending
+            - paused
+            - completed
+            - cancelled
+            - failed
+        expectedRevision:
+          type: integer
+          minimum: 1
+        confirmationToken:
+          const: CONFIRM-SPEC-007
+    ActionResult:
+      type: object
+      additionalProperties: false
+      required: [resourceId, previousState, currentState, outcome, timestamp, message, auditReference]
+      properties:
+        resourceId:
+          type: string
+          maxLength: 48
+        previousState:
+          type: string
+          maxLength: 40
+        currentState:
+          type: string
+          maxLength: 40
+        outcome:
+          type: string
+          enum: [success, rejected, conflict]
+        timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        message:
+          type: string
+          maxLength: 240
+        auditReference:
+          type: string
+          pattern: "^AUD-[A-Z0-9-]{1,44}$"
+    SupportOverview:
+      type: object
+      additionalProperties: false
+      required: [platform, period, metrics, charts, region]
+      properties:
+        platform:
+          $ref: "#/components/schemas/Platform"
+        period:
+          type: string
+          enum: [7d, 30d, 90d]
+        metrics:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Metric"
+        charts:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/Metric"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    TicketSummary:
+      type: object
+      additionalProperties: false
+      required: [id, maskedUserRef, subject, type, priority, status, owningTeamId, platform, appVersion, createdAt, updatedAt, slaState, revision, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/TicketId"
+        maskedUserRef:
+          $ref: "#/components/schemas/MaskedReference"
+        subject:
+          type: string
+          maxLength: 160
+        type:
+          type: string
+          maxLength: 80
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        status:
+          $ref: "#/components/schemas/TicketState"
+        owningTeamId:
+          type: string
+          maxLength: 48
+        assignedAgentRef:
+          type: string
+          maxLength: 48
+        platform:
+          $ref: "#/components/schemas/Platform"
+        appVersion:
+          type: string
+          maxLength: 40
+        osVersion:
+          type: string
+          maxLength: 40
+        featureContext:
+          type: string
+          maxLength: 80
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        slaState:
+          type: string
+          enum: [healthy, warning, breached]
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [assign, set_priority, reply, add_note, await_customer, await_agent, resolve, close, reopen]
+        accessRequestEligible:
+          type: boolean
+    SupportMessage:
+      type: object
+      additionalProperties: false
+      required: [id, authorKind, visibility, locale, text, createdAt]
+      properties:
+        id:
+          type: string
+          maxLength: 48
+        authorKind:
+          type: string
+          enum: [customer, support_agent, system]
+        visibility:
+          type: string
+          enum: [customer, internal]
+        locale:
+          $ref: "#/components/schemas/Locale"
+        text:
+          type: string
+          maxLength: 8192
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+    TicketDetail:
+      type: object
+      additionalProperties: false
+      required: [summary, messages, internalNotes, attachments, activity, linkedReferences, omissions, accessLevel]
+      properties:
+        summary:
+          $ref: "#/components/schemas/TicketSummary"
+        messages:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/SupportMessage"
+        internalNotes:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            maxLength: 2048
+        attachments:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/AttachmentMetadata"
+        activity:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            maxLength: 240
+        linkedReferences:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 48
+        omissions:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 80
+        accessLevel:
+          $ref: "#/components/schemas/AccessLevel"
+    TicketPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    TicketActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [assign, set_priority, reply, add_note, await_customer, await_agent, resolve, close, reopen]
+        owningTeamId:
+          type: string
+          maxLength: 48
+        assignedAgentRef:
+          type: string
+          maxLength: 48
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        visibility:
+          type: string
+          enum: [customer, internal]
+        text:
+          type: string
+          maxLength: 8192
+      allOf:
+        - if:
+            properties:
+              action:
+                const: assign
+          then:
+            required: [owningTeamId]
+        - if:
+            properties:
+              action:
+                const: set_priority
+          then:
+            required: [priority]
+        - if:
+            properties:
+              action:
+                const: reply
+          then:
+            required: [visibility, text]
+            properties:
+              visibility:
+                const: customer
+        - if:
+            properties:
+              action:
+                const: add_note
+          then:
+            required: [visibility, text]
+            properties:
+              visibility:
+                const: internal
+              text:
+                maxLength: 2048
+    SupportCategory:
+      type: object
+      additionalProperties: false
+      required: [id, key, labels, allowedTicketTypes, sortOrder, status, usageCount, revision, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/SupportCategoryId"
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        labels:
+          $ref: "#/components/schemas/LocalizedLabels"
+        allowedTicketTypes:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            maxLength: 80
+        sortOrder:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [active, inactive, retired]
+        usageCount:
+          type: integer
+          minimum: 0
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [update, activate, deactivate, retire]
+    SupportCategoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportCategory"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    SupportCategorySaveRequest:
+      type: object
+      additionalProperties: false
+      required: [key, labels, allowedTicketTypes, sortOrder]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        labels:
+          $ref: "#/components/schemas/LocalizedLabels"
+        allowedTicketTypes:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            maxLength: 80
+        sortOrder:
+          type: integer
+          minimum: 0
+    SupportCategoryActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [update, activate, deactivate, retire]
+        proposal:
+          $ref: "#/components/schemas/SupportCategorySaveRequest"
+        replacementId:
+          $ref: "#/components/schemas/SupportCategoryId"
+    FeedbackSummary:
+      type: object
+      additionalProperties: false
+      required: [id, maskedUserRef, type, message, platform, appVersion, osVersion, deviceContext, status, createdAt, updatedAt, revision, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/FeedbackId"
+        maskedUserRef:
+          $ref: "#/components/schemas/MaskedReference"
+        type:
+          type: string
+          enum: [general, bug, feature_request, ai, import]
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        message:
+          type: string
+          maxLength: 8192
+        platform:
+          $ref: "#/components/schemas/Platform"
+        appVersion:
+          type: string
+          maxLength: 40
+        osVersion:
+          type: string
+          maxLength: 40
+        deviceContext:
+          type: string
+          maxLength: 120
+        status:
+          $ref: "#/components/schemas/FeedbackState"
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [review, plan, link_ticket, link_content, resolve, dismiss, close]
+    FeedbackDetail:
+      type: object
+      additionalProperties: false
+      required: [id, maskedUserRef, type, message, platform, appVersion, osVersion, deviceContext, status, createdAt, updatedAt, revision, actions, attachments, linkedReferences, internalNotes]
+      properties:
+        id:
+          $ref: "#/components/schemas/FeedbackId"
+        maskedUserRef:
+          $ref: "#/components/schemas/MaskedReference"
+        type:
+          type: string
+          enum: [general, bug, feature_request, ai, import]
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        message:
+          type: string
+          maxLength: 8192
+        platform:
+          $ref: "#/components/schemas/Platform"
+        appVersion:
+          type: string
+          maxLength: 40
+        osVersion:
+          type: string
+          maxLength: 40
+        deviceContext:
+          type: string
+          maxLength: 120
+        status:
+          $ref: "#/components/schemas/FeedbackState"
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [review, plan, link_ticket, link_content, resolve, dismiss, close]
+        attachments:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/AttachmentMetadata"
+        linkedReferences:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 48
+        internalNotes:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            maxLength: 2048
+    FeedbackPage:
+      type: object
+      additionalProperties: false
+      required: [metrics, items, pagination, region]
+      properties:
+        metrics:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Metric"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedbackSummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    FeedbackActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [review, plan, link_ticket, link_content, resolve, dismiss, close]
+        linkTargetId:
+          type: string
+          maxLength: 48
+      allOf:
+        - if:
+            properties:
+              action:
+                enum: [link_ticket, link_content]
+          then:
+            required: [linkTargetId]
+    AbuseReport:
+      type: object
+      additionalProperties: false
+      required: [id, reporterRef, targetRef, type, severity, evidenceSummary, status, createdAt, updatedAt, revision, actions, accessLevel]
+      properties:
+        id:
+          $ref: "#/components/schemas/AbuseReportId"
+        reporterRef:
+          $ref: "#/components/schemas/MaskedReference"
+        targetRef:
+          $ref: "#/components/schemas/MaskedReference"
+        type:
+          type: string
+          maxLength: 80
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        evidenceSummary:
+          type: string
+          maxLength: 2048
+        status:
+          $ref: "#/components/schemas/AbuseState"
+        reviewerRef:
+          type: string
+          maxLength: 48
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [investigate, assign, escalate, resolve, dismiss, reopen]
+        accessLevel:
+          $ref: "#/components/schemas/AccessLevel"
+    AbuseReportPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AbuseReport"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    AbuseActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [investigate, assign, escalate, resolve, dismiss, reopen]
+        reviewerRef:
+          type: string
+          maxLength: 48
+      allOf:
+        - if:
+            properties:
+              action:
+                const: assign
+          then:
+            required: [reviewerRef]
+    LocalizedLabel:
+      type: object
+      additionalProperties: false
+      required: [locale, label]
+      properties:
+        locale:
+          $ref: "#/components/schemas/Locale"
+        label:
+          type: string
+          maxLength: 120
+    LocalizedLabels:
+      type: array
+      minItems: 2
+      maxItems: 2
+      uniqueItems: true
+      items:
+        $ref: "#/components/schemas/LocalizedLabel"
+    LocalizedVariant:
+      type: object
+      additionalProperties: false
+      required: [locale, title, body]
+      properties:
+        locale:
+          $ref: "#/components/schemas/Locale"
+        title:
+          type: string
+          maxLength: 160
+        body:
+          type: string
+          maxLength: 16384
+    LocalizedVariants:
+      type: array
+      minItems: 1
+      maxItems: 2
+      uniqueItems: true
+      items:
+        $ref: "#/components/schemas/LocalizedVariant"
+    ContentItem:
+      type: object
+      additionalProperties: false
+      required: [id, collection, key, variants, audienceLocales, platforms, status, sortOrder, usageCount, updatedAt, revision, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/ContentItemId"
+        collection:
+          $ref: "#/components/schemas/ContentCollection"
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        variants:
+          $ref: "#/components/schemas/LocalizedVariants"
+        audienceLocales:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        singleLanguageReason:
+          type: string
+          minLength: 1
+          maxLength: 240
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [ios, android, shared]
+        parentId:
+          $ref: "#/components/schemas/ContentItemId"
+        transactionType:
+          type: string
+          enum: [income, expense, transfer]
+        audienceKey:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        iconToken:
+          type: string
+          pattern: "^[a-z][a-z0-9-]{1,79}$"
+        colorToken:
+          type: string
+          pattern: "^--[a-z][a-z0-9-]{1,77}$"
+        sortOrder:
+          type: integer
+          minimum: 0
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        startAt:
+          $ref: "#/components/schemas/Timestamp"
+        endAt:
+          $ref: "#/components/schemas/Timestamp"
+        status:
+          $ref: "#/components/schemas/ContentState"
+        usageCount:
+          type: integer
+          minimum: 0
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [update, publish, retire]
+      allOf:
+        - if:
+            properties:
+              variants:
+                maxItems: 1
+          then:
+            required: [singleLanguageReason]
+            properties:
+              audienceLocales:
+                maxItems: 1
+    ContentPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    ContentSaveRequest:
+      type: object
+      additionalProperties: false
+      required: [key, variants, audienceLocales, platforms]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        variants:
+          $ref: "#/components/schemas/LocalizedVariants"
+        audienceLocales:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        singleLanguageReason:
+          type: string
+          minLength: 1
+          maxLength: 240
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [ios, android, shared]
+        parentId:
+          $ref: "#/components/schemas/ContentItemId"
+        transactionType:
+          type: string
+          enum: [income, expense, transfer]
+        audienceKey:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        iconToken:
+          type: string
+          pattern: "^[a-z][a-z0-9-]{1,79}$"
+        colorToken:
+          type: string
+          pattern: "^--[a-z][a-z0-9-]{1,77}$"
+        sortOrder:
+          type: integer
+          minimum: 0
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        startAt:
+          $ref: "#/components/schemas/Timestamp"
+        endAt:
+          $ref: "#/components/schemas/Timestamp"
+      allOf:
+        - if:
+            properties:
+              variants:
+                maxItems: 1
+          then:
+            required: [singleLanguageReason]
+            properties:
+              audienceLocales:
+                maxItems: 1
+    ContentActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [update, publish, retire]
+        proposal:
+          $ref: "#/components/schemas/ContentSaveRequest"
+        replacementId:
+          $ref: "#/components/schemas/ContentItemId"
+      allOf:
+        - if:
+            properties:
+              action:
+                const: update
+          then:
+            required: [proposal]
+    NotificationTemplate:
+      type: object
+      additionalProperties: false
+      required: [id, key, channel, trigger, variants, audienceLocales, platforms, placeholders, status, revision, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/TemplateId"
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        channel:
+          $ref: "#/components/schemas/Channel"
+        trigger:
+          type: string
+          maxLength: 80
+        variants:
+          $ref: "#/components/schemas/LocalizedVariants"
+        audienceLocales:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        singleLanguageReason:
+          type: string
+          minLength: 1
+          maxLength: 240
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [ios, android, shared]
+        placeholders:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items:
+            type: string
+            pattern: "^[A-Za-z][A-Za-z0-9_]{0,39}$"
+        status:
+          $ref: "#/components/schemas/TemplateState"
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [update, activate, retire]
+      allOf:
+        - if:
+            properties:
+              variants:
+                maxItems: 1
+          then:
+            required: [singleLanguageReason]
+            properties:
+              audienceLocales:
+                maxItems: 1
+    TemplatePage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationTemplate"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    TemplateSaveRequest:
+      type: object
+      additionalProperties: false
+      required: [key, channel, trigger, variants, audienceLocales, platforms]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{1,63}$"
+        channel:
+          $ref: "#/components/schemas/Channel"
+        trigger:
+          type: string
+          maxLength: 80
+        variants:
+          $ref: "#/components/schemas/LocalizedVariants"
+        audienceLocales:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        singleLanguageReason:
+          type: string
+          minLength: 1
+          maxLength: 240
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [ios, android, shared]
+      allOf:
+        - if:
+            properties:
+              variants:
+                maxItems: 1
+          then:
+            required: [singleLanguageReason]
+            properties:
+              audienceLocales:
+                maxItems: 1
+    TemplateActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [update, activate, retire]
+        proposal:
+          $ref: "#/components/schemas/TemplateSaveRequest"
+        replacementId:
+          $ref: "#/components/schemas/TemplateId"
+      allOf:
+        - if:
+            properties:
+              action:
+                const: update
+          then:
+            required: [proposal]
+    NotificationOverview:
+      type: object
+      additionalProperties: false
+      required: [platform, period, metrics, region]
+      properties:
+        platform:
+          $ref: "#/components/schemas/Platform"
+        period:
+          type: string
+          enum: [7d, 30d, 90d]
+        channel:
+          $ref: "#/components/schemas/Channel"
+        metrics:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/Metric"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    AudiencePreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [platform, locales, plans, activity]
+      properties:
+        platform:
+          $ref: "#/components/schemas/Platform"
+        locales:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        plans:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [free, basic, premium]
+        activity:
+          type: string
+          enum: [all, active, inactive]
+    AudienceSummary:
+      type: object
+      additionalProperties: false
+      required: [previewId, version, targetedUnique, eligible, excluded, optedOut, invalidTokens, ios, android, multiPlatform, unknown]
+      properties:
+        previewId:
+          type: string
+          pattern: "^AUP-[A-Z0-9-]{1,44}$"
+        version:
+          type: integer
+          minimum: 1
+        targetedUnique:
+          type: integer
+          minimum: 0
+        eligible:
+          type: integer
+          minimum: 0
+        excluded:
+          type: integer
+          minimum: 0
+        optedOut:
+          type: integer
+          minimum: 0
+        invalidTokens:
+          type: integer
+          minimum: 0
+        ios:
+          type: integer
+          minimum: 0
+        android:
+          type: integer
+          minimum: 0
+        multiPlatform:
+          type: integer
+          minimum: 0
+        unknown:
+          type: integer
+          minimum: 0
+    Campaign:
+      type: object
+      additionalProperties: false
+      required: [id, name, channel, templateId, templateRevision, platforms, locales, audience, scheduleMode, status, metrics, auditReference, updatedAt, revision, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/CampaignId"
+        name:
+          type: string
+          maxLength: 120
+        channel:
+          $ref: "#/components/schemas/Channel"
+        templateId:
+          $ref: "#/components/schemas/TemplateId"
+        templateRevision:
+          type: integer
+          minimum: 1
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [ios, android, shared]
+        locales:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        audience:
+          $ref: "#/components/schemas/AudienceSummary"
+        scheduleMode:
+          type: string
+          enum: [send_now, scheduled]
+        scheduledAt:
+          $ref: "#/components/schemas/Timestamp"
+        status:
+          $ref: "#/components/schemas/CampaignState"
+        metrics:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Metric"
+        auditReference:
+          type: string
+          pattern: "^AUD-[A-Z0-9-]{1,44}$"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+        revision:
+          type: integer
+          minimum: 1
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [schedule, send_now, pause, resume, cancel]
+    CampaignPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Campaign"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    CampaignDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [name, channel, templateId, templateRevision, platforms, locales, audiencePreviewId, audienceVersion, scheduleMode]
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        channel:
+          $ref: "#/components/schemas/Channel"
+        templateId:
+          $ref: "#/components/schemas/TemplateId"
+        templateRevision:
+          type: integer
+          minimum: 1
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum: [ios, android, shared]
+        locales:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Locale"
+        audiencePreviewId:
+          type: string
+          pattern: "^AUP-[A-Z0-9-]{1,44}$"
+        audienceVersion:
+          type: integer
+          minimum: 1
+        scheduleMode:
+          type: string
+          enum: [send_now, scheduled]
+        scheduledAt:
+          $ref: "#/components/schemas/Timestamp"
+      allOf:
+        - if:
+            properties:
+              scheduleMode:
+                const: scheduled
+          then:
+            required: [scheduledAt]
+    CampaignActionRequest:
+      type: object
+      additionalProperties: false
+      required: [context, action, audiencePreviewId, audienceVersion, templateRevision]
+      properties:
+        context:
+          $ref: "#/components/schemas/ActionContext"
+        action:
+          type: string
+          enum: [schedule, send_now, pause, resume, cancel]
+        audiencePreviewId:
+          type: string
+          pattern: "^AUP-[A-Z0-9-]{1,44}$"
+        audienceVersion:
+          type: integer
+          minimum: 1
+        templateRevision:
+          type: integer
+          minimum: 1
+        scheduledAt:
+          $ref: "#/components/schemas/Timestamp"
+      allOf:
+        - if:
+            properties:
+              action:
+                const: schedule
+          then:
+            required: [scheduledAt]
+    DeliveryLogRecord:
+      type: object
+      additionalProperties: false
+      required: [id, maskedUserRef, channel, templateId, platform, status]
+      properties:
+        id:
+          type: string
+          pattern: "^DLV-[A-Z0-9-]{1,44}$"
+        maskedUserRef:
+          $ref: "#/components/schemas/MaskedReference"
+        channel:
+          $ref: "#/components/schemas/Channel"
+        templateId:
+          $ref: "#/components/schemas/TemplateId"
+        campaignId:
+          $ref: "#/components/schemas/CampaignId"
+        platform:
+          $ref: "#/components/schemas/Platform"
+        status:
+          $ref: "#/components/schemas/DeliveryState"
+        attemptedAt:
+          $ref: "#/components/schemas/Timestamp"
+        deliveredAt:
+          $ref: "#/components/schemas/Timestamp"
+        openedAt:
+          $ref: "#/components/schemas/Timestamp"
+        failureClass:
+          type: string
+          enum: [none, consent, token, provider, validation, rate_limit, unavailable, internal]
+        failureCode:
+          type: string
+          maxLength: 80
+        correlationRef:
+          type: string
+          maxLength: 48
+    DeliveryLogPage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination, region]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryLogRecord"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        region:
+          $ref: "#/components/schemas/RegionState"
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          maxLength: 80
+        message:
+          type: string
+          maxLength: 240
+        fieldErrors:
+          type: object
+          maxProperties: 30
+          additionalProperties:
+            type: array
+            maxItems: 10
+            items:
+              type: string
+              maxLength: 160
+        correlationId:
+          type: string
+          maxLength: 48

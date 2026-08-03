@@ -1,0 +1,830 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Admin Foundation Mock Contracts
+  version: 0.1.0
+  description: >
+    Proposed frontend contracts for Spec 001. These endpoints are implemented
+    by Mock Service Worker now and aligned to future NestJS capabilities.
+servers:
+  - url: /
+paths:
+  /api/v1/admin/session:
+    get:
+      operationId: getAdminSession
+      responses:
+        "200":
+          description: Fictional development-only Admin session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/navigation:
+    get:
+      operationId: getAdminNavigation
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: Permission-filtered Phase 0 navigation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminNavigationResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/admin/attention:
+    get:
+      operationId: listAttentionItems
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Platform"
+      responses:
+        "200":
+          description: Permission-filtered attention items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAttentionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/search:
+    get:
+      operationId: searchAdminFoundation
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: entityType
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/SearchEntityType"
+          style: form
+          explode: true
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Grouped results for Phase 0 entities only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSearchResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/overview:
+    get:
+      operationId: getAdminOverview
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+      responses:
+        "200":
+          description: Existing approved Overview page data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/users:
+    get:
+      operationId: listAdminUsers
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, pending]
+        - name: plan
+          in: query
+          schema:
+            type: string
+            enum: [Free, Basic, Premium]
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated masked users for the approved Users page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedUsersResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/imports:
+    get:
+      operationId: getAdminImports
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: source
+          in: query
+          schema:
+            type: string
+            maxLength: 50
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Existing approved Imports page data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportsResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/system-health:
+    get:
+      operationId: getAdminSystemHealth
+      responses:
+        "200":
+          description: Existing approved System Health page data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemHealthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/v1/admin/platform-options:
+    get:
+      operationId: getPlatformOptions
+      responses:
+        "200":
+          description: Stable platform filter options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformOptionsResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+components:
+  parameters:
+    Locale:
+      name: locale
+      in: query
+      schema:
+        type: string
+        enum: [ar, en]
+        default: ar
+    Platform:
+      name: platform
+      in: query
+      schema:
+        $ref: "#/components/schemas/PlatformFilter"
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        enum: [25, 50, 100]
+        default: 25
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: Simulated session is absent or expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: Simulated role lacks the required Phase 0 permission
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    RateLimited:
+      description: Simulated rate-limited state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    InternalError:
+      description: Safe internal-error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+  schemas:
+    AdminRole:
+      type: string
+      enum:
+        - super-admin
+        - support-agent
+        - billing-operator
+        - import-operator
+        - ai-operator
+        - content-manager
+        - security-administrator
+    PermissionKey:
+      type: string
+      enum:
+        - admin.overview.read
+        - users.read
+        - imports.read
+        - system-health.read
+        - global-search.use
+        - attention.read
+    EnvironmentName:
+      type: string
+      enum: [production, staging, development]
+    PlatformFilter:
+      type: string
+      enum: [all, ios, android]
+      default: all
+    AdminSessionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - adminId
+        - displayName
+        - role
+        - permissions
+        - environment
+        - locale
+        - direction
+        - theme
+        - expiresAt
+        - developmentOnly
+      properties:
+        adminId:
+          type: string
+          minLength: 1
+        displayName:
+          type: string
+          minLength: 1
+        role:
+          $ref: "#/components/schemas/AdminRole"
+        permissions:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/PermissionKey"
+        environment:
+          $ref: "#/components/schemas/EnvironmentName"
+        locale:
+          type: string
+          enum: [ar, en]
+        direction:
+          type: string
+          enum: [rtl, ltr]
+        theme:
+          type: string
+          enum: [light, dark]
+        expiresAt:
+          type: string
+          format: date-time
+        developmentOnly:
+          type: boolean
+          const: true
+    NavigationItem:
+      type: object
+      additionalProperties: false
+      required: [id, labelKey, iconKey, availability]
+      properties:
+        id:
+          type: string
+        labelKey:
+          type: string
+        route:
+          type: [string, "null"]
+        iconKey:
+          type: string
+        permission:
+          oneOf:
+            - $ref: "#/components/schemas/PermissionKey"
+            - type: "null"
+        availability:
+          type: string
+          enum: [active, planned, denied]
+        attentionCount:
+          type: integer
+          minimum: 0
+    NavigationGroup:
+      type: object
+      additionalProperties: false
+      required: [id, labelKey, items]
+      properties:
+        id:
+          type: string
+        labelKey:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NavigationItem"
+    AdminNavigationResponse:
+      type: object
+      additionalProperties: false
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/NavigationGroup"
+    Severity:
+      type: string
+      enum: [info, low, medium, high, critical]
+    AttentionItem:
+      type: object
+      additionalProperties: false
+      required: [id, type, severity, summary, occurredAt, route, permission]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [incident, notification, job]
+        severity:
+          $ref: "#/components/schemas/Severity"
+        summary:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        route:
+          type: string
+        permission:
+          $ref: "#/components/schemas/PermissionKey"
+        platform:
+          $ref: "#/components/schemas/PlatformFilter"
+    SearchEntityType:
+      type: string
+      enum: [navigation, user, import, system-health]
+    GlobalSearchResult:
+      type: object
+      additionalProperties: false
+      required: [id, entityType, primaryLabel, route, permission]
+      properties:
+        id:
+          type: string
+        entityType:
+          $ref: "#/components/schemas/SearchEntityType"
+        primaryLabel:
+          type: string
+        secondaryLabel:
+          type: string
+        route:
+          type: string
+        permission:
+          $ref: "#/components/schemas/PermissionKey"
+    PlatformOption:
+      type: object
+      additionalProperties: false
+      required: [value, labelKey, isDefault]
+      properties:
+        value:
+          $ref: "#/components/schemas/PlatformFilter"
+        labelKey:
+          type: string
+        isDefault:
+          type: boolean
+    PlatformOptionsResponse:
+      type: object
+      additionalProperties: false
+      required: [options]
+      properties:
+        options:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/PlatformOption"
+    Metric:
+      type: object
+      additionalProperties: false
+      required: [label, value]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        change:
+          type: number
+        note:
+          type: string
+        tone:
+          type: string
+          enum: [default, attention, premium]
+    ChartPoint:
+      type: object
+      additionalProperties: false
+      required: [name, current]
+      properties:
+        name:
+          type: string
+        current:
+          type: number
+        previous:
+          type: number
+        secondary:
+          type: number
+    ActivityItem:
+      type: object
+      additionalProperties: false
+      required: [id, label, occurredAt]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+    UserRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+        - country
+        - platform
+        - plan
+        - status
+        - verification
+        - risk
+        - registeredAt
+        - lastActive
+        - language
+        - currency
+        - timezone
+        - appVersion
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          description: Masked fictional email only
+        country:
+          type: string
+        platform:
+          type: string
+          enum: [iOS, Android]
+        plan:
+          type: string
+          enum: [Free, Basic, Premium]
+        status:
+          type: string
+          enum: [active, suspended, pending]
+        verification:
+          type: string
+          enum: [verified, pending]
+        risk:
+          type: string
+          enum: [low, medium, high]
+        registeredAt:
+          type: string
+          format: date
+        lastActive:
+          type: string
+          format: date-time
+        language:
+          type: string
+        currency:
+          type: string
+          enum: [SAR, AED]
+        timezone:
+          type: string
+        appVersion:
+          type: string
+        accounts:
+          type: integer
+          minimum: 0
+        transactions:
+          type: integer
+          minimum: 0
+        goals:
+          type: integer
+          minimum: 0
+        lastSync:
+          type: string
+          format: date-time
+        importSources:
+          type: integer
+          minimum: 0
+    ImportRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - user
+        - source
+        - bank
+        - platform
+        - failureType
+        - parserVersion
+        - attempts
+        - severity
+        - time
+        - status
+        - appVersion
+        - sanitizedResult
+      properties:
+        id:
+          type: string
+        user:
+          type: string
+          description: Masked fictional user identifier
+        source:
+          type: string
+        bank:
+          type: string
+        platform:
+          type: string
+          enum: [iOS, Android]
+        failureType:
+          type: string
+        parserVersion:
+          type: string
+        attempts:
+          type: integer
+          minimum: 0
+        severity:
+          $ref: "#/components/schemas/Severity"
+        time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [failed, review, unsupported]
+        appVersion:
+          type: string
+        sanitizedResult:
+          type: string
+    ServiceHealth:
+      type: object
+      additionalProperties: false
+      required: [name, status, uptime, latency, errorRate, lastIncident, lastCheck]
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [operational, degraded, partial-outage, major-outage, maintenance]
+        uptime:
+          type: string
+        latency:
+          type: string
+        errorRate:
+          type: string
+        lastIncident:
+          type: string
+        lastCheck:
+          type: string
+    Incident:
+      type: object
+      additionalProperties: false
+      required: [id, severity, service, title, detail, startedAt, status, affectedArea, timeline]
+      properties:
+        id:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        service:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        affectedArea:
+          type: string
+        timeline:
+          type: array
+          items:
+            type: string
+    OverviewResponse:
+      type: object
+      additionalProperties: false
+      required: [metrics, attention, services, userGrowth, importVolume, recentActivity]
+      properties:
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Metric"
+        attention:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttentionItem"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceHealth"
+        userGrowth:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+        importVolume:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityItem"
+    PaginatedUsersResponse:
+      type: object
+      additionalProperties: false
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserRecord"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    ImportsResponse:
+      type: object
+      additionalProperties: false
+      required: [metrics, failureTrend, sourceVolume, failedImports, pagination]
+      properties:
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Metric"
+        failureTrend:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+        sourceVolume:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+        failedImports:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRecord"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    SystemHealthResponse:
+      type: object
+      additionalProperties: false
+      required: [services, incidents, latencyTrend, requestVolume]
+      properties:
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceHealth"
+        incidents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Incident"
+        latencyTrend:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+        requestVolume:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          enum: [25, 50, 100]
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    PaginatedAttentionResponse:
+      type: object
+      additionalProperties: false
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttentionItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    PaginatedSearchResponse:
+      type: object
+      additionalProperties: false
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GlobalSearchResult"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        correlationId:
+          type: string
