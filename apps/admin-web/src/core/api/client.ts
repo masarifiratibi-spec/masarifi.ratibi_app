@@ -49,9 +49,7 @@ export async function requestJson<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   try {
-    const mocksEnabled =
-      process.env.NODE_ENV !== "production"
-      || process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+    const mocksEnabled = process.env.NEXT_PUBLIC_ENABLE_MOCKS !== "false";
     const developmentScenario =
       mocksEnabled && typeof window !== "undefined"
         ? window.sessionStorage.getItem("admin-mock-scenario")
