@@ -36,12 +36,15 @@
     "**/*.tsx",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-     "node_modules",
-    "vite.config.ts",
-    "build/**/*",
-    ".openai/**/*",
-    ".wrangler/**/*",
-    "dist/**/*"
-  ]
+
+  
+"exclude": [
+  "node_modules",
+  "vite.config.ts",
+  "build/**/*",
+  ".openai/**/*",
+  ".wrangler/**/*",
+  "dist/**/*"
+]
+
 }

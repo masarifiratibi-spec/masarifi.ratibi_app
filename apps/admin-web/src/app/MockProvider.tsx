@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 
 export function MockProvider({ children }: { children: React.ReactNode }) {
-  const enabled = process.env.NODE_ENV === "development"
-    || process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+  const enabled = process.env.NEXT_PUBLIC_ENABLE_MOCKS !== "false";
   const [ready, setReady] = useState(!enabled);
 
   useEffect(() => {
