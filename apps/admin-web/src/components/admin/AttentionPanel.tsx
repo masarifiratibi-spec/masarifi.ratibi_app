@@ -16,8 +16,6 @@ export function AttentionPanel({ role, defaultOpen = false }: { role: AdminRole;
   const items = attention.data?.items ?? [];
   const count = attention.data?.totalItems ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const touchStartY = useRef<number>(0);
-  const isDragging = useRef(false);
 
   // Detect mobile breakpoint
   useEffect(() => {
@@ -40,35 +38,10 @@ export function AttentionPanel({ role, defaultOpen = false }: { role: AdminRole;
     return () => { document.body.style.overflow = ""; };
   }, [open, isMobile]);
 
-  // Touch handlers for swipe to close
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    isDragging.current = true;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - touchStartY.current;
-    
-    // Swipe up or down significantly to close
-    if (Math.abs(deltaY) > 50) {
-      isDragging.current = false;
-      setOpen(false);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    isDragging.current = false;
-  };
-
   const panel = (
     <aside 
       className={`attention-panel${isMobile ? " attention-panel-mobile" : ""}${isMobile && open ? " open" : ""}`} 
       aria-label="التنبيهات التشغيلية"
-      onTouchStart={isMobile ? handleTouchStart : undefined}
-      onTouchMove={isMobile ? handleTouchMove : undefined}
-      onTouchEnd={isMobile ? handleTouchEnd : undefined}
     >
       <div className="panel-heading">
         <strong>التنبيهات التشغيلية</strong>
@@ -117,7 +90,6 @@ export function AttentionPanel({ role, defaultOpen = false }: { role: AdminRole;
           <div
             aria-hidden="true"
             className="attention-panel-backdrop"
-            onClick={() => setOpen(false)}
           />
           {panel}
         </>,

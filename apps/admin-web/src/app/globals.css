@@ -1219,6 +1219,9 @@ pre {
     opacity: 0;
     transform: translateY(-8px);
     transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .attention-panel-mobile.open {
     opacity: 1;
@@ -1234,12 +1237,16 @@ pre {
   }
   .attention-panel-mobile .panel-heading {
     border-radius: 12px 12px 0 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    flex-shrink: 0;
   }
   .attention-panel-mobile .attention-panel-list {
     padding: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    flex: 1;
+    min-height: 0;
   }
   .attention-panel-mobile .attention-summary,
   .attention-panel-mobile a {
