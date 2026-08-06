@@ -1,0 +1,86 @@
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
+import { loadPreferences } from './secure-preferences';
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn()
+}));
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn()
+}));
+
+const getItemAsync = jest.mocked(SecureStore.getItemAsync);
+const getAsyncStorageItem = jest.mocked(AsyncStorage.getItem);
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+describe('loadPreferences', () => {
+  it.each([
+    ['empty object', '{}'],
+    ['unsupported locale', '{"locale":"fr"}'],
+    ['invalid field types', '{"hideBalances":"yes","baseCurrencyCode":"RIYAL"}']
+  ])('falls back to complete defaults for %s', async (_case, stored) => {
+    getItemAsync.mockResolvedValue(stored);
+
+    await expect(loadPreferences()).resolves.toEqual({
+      locale: 'ar',
+      direction: 'rtl',
+      theme: 'system',
+      hideBalances: false,
+      baseCurrencyCode: 'SAR',
+      reducedMotion: false
+    });
+  });
+
+  it('loads a complete valid preference record', async () => {
+    getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        locale: 'en',
+        theme: 'dark',
+        hideBalances: true,
+        baseCurrencyCode: 'USD',
+        reducedMotion: true
+      })
+    );
+
+    await expect(loadPreferences()).resolves.toMatchObject({
+      locale: 'en',
+      direction: 'ltr',
+      theme: 'dark',
+      hideBalances: true,
+      baseCurrencyCode: 'USD',
+      reducedMotion: true
+    });
+  });
+
+  it('uses AsyncStorage on web where SecureStore is unavailable', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web'
+    });
+    getAsyncStorageItem.mockResolvedValue(null);
+
+    try {
+      await loadPreferences();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform
+      });
+    }
+
+    expect(getAsyncStorageItem).toHaveBeenCalledWith('masarifi.preferences');
+    expect(getItemAsync).not.toHaveBeenCalled();
+  });
+});

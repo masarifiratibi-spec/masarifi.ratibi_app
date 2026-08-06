@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Masarifi",
+    "slug": "masarifi-mobile",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "scheme": "masarifi",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1C3934"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.masarifi.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1C3934"
+      },
+      "package": "com.masarifi.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a6cc51cf-3b15-4a78-8ef1-927fdd265824"
+      }
+    }
+  }
+}
