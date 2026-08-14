@@ -19,12 +19,14 @@ for (const file of sourceFiles) {
     /(?:sk-[a-z0-9_-]{16,}|(?:api[_-]?key|client[_-]?secret)\s*[:=]\s*['"][^'"]+)/gi,
     'production secret'
   );
-  reportMatches(
-    file,
-    source,
-    /(?:analytics|track|logEvent)[^\n]*(?:amount|balance|accountId)/gi,
-    'sensitive analytics payload'
-  );
+  if (!relative.includes('/localization/messages/')) {
+    reportMatches(
+      file,
+      source,
+      /(?:analytics\.\w+|\btrack|\blogEvent)\s*\([^\n]*(?:amount|balance|accountId)\b/gi,
+      'sensitive analytics payload'
+    );
+  }
 
   if (relative.endsWith('.test.ts') || relative.endsWith('.test.tsx')) continue;
   inspectAst(file, source);
@@ -62,7 +64,7 @@ function inspectAst(file, source) {
       ts.isStringLiteral(node.moduleSpecifier)
     ) {
       if (
-        /camera|receipt|investment|openai|stripe|supabase/i.test(
+        /(?:^|[-/@])(camera|investment|openai|stripe|supabase)(?:$|[-/])/i.test(
           node.moduleSpecifier.text
         )
       ) {
@@ -74,7 +76,11 @@ function inspectAst(file, source) {
         );
       }
     }
-    if (ts.isJsxText(node) && /[\p{L}]/u.test(node.text)) {
+    if (
+      ts.isJsxText(node) &&
+      /[\p{L}]/u.test(node.text) &&
+      !isLocalizationKey(node.text.trim())
+    ) {
       addFinding(file, sourceFile, node, 'hard-coded JSX text');
     }
     if (
@@ -82,7 +88,10 @@ function inspectAst(file, source) {
       node.initializer &&
       isUserFacingAttribute(node)
     ) {
-      if (ts.isStringLiteral(node.initializer)) {
+      if (
+        ts.isStringLiteral(node.initializer) &&
+        !isLocalizationKey(node.initializer.text)
+      ) {
         addFinding(file, sourceFile, node, 'hard-coded accessibility string');
       }
     }
@@ -96,6 +105,10 @@ function isUserFacingAttribute(node) {
   return ['accessibilityLabel', 'title', 'placeholder'].includes(
     node.name.text
   );
+}
+
+function isLocalizationKey(value) {
+  return /^[a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9_-]+)+$/.test(value);
 }
 
 function reportMatches(file, source, pattern, label) {

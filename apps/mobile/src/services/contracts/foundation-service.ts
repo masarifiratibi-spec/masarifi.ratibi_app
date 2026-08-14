@@ -20,6 +20,47 @@ import type {
   ReportingCurrency,
   UserPreferences
 } from '@/domain/foundation';
+import type { CapabilityContractMetadata } from './capability-contract';
+
+export const platformCapabilityServiceCapability: CapabilityContractMetadata = {
+  capability: 'foundation.platform-capabilities',
+  majorVersion: 1,
+  owner: 'foundation',
+  providerKinds: ['mock'],
+  unavailableOutcome: 'foundation.capability.unavailable'
+};
+
+export const financialSummaryServiceCapability: CapabilityContractMetadata = {
+  capability: 'foundation.financial-summary',
+  majorVersion: 1,
+  owner: 'foundation',
+  providerKinds: ['mock'],
+  unavailableOutcome: 'foundation.summary.unavailable'
+};
+
+export const financialChangeServiceCapability: CapabilityContractMetadata = {
+  capability: 'foundation.financial-change',
+  majorVersion: 1,
+  owner: 'foundation',
+  providerKinds: ['mock'],
+  unavailableOutcome: 'foundation.change.unavailable'
+};
+
+export const offlineEntryRepositoryCapability: CapabilityContractMetadata = {
+  capability: 'foundation.offline-entry',
+  majorVersion: 1,
+  owner: 'foundation',
+  providerKinds: ['mock'],
+  unavailableOutcome: 'foundation.offline.unavailable'
+};
+
+export const capabilityCatalogServiceCapability: CapabilityContractMetadata = {
+  capability: 'foundation.capability-catalog',
+  majorVersion: 1,
+  owner: 'foundation',
+  providerKinds: ['mock'],
+  unavailableOutcome: 'foundation.catalog.unavailable'
+};
 
 // ─── Platform capability service ─────────────────────────────────────────────
 

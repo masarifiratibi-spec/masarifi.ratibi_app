@@ -17,6 +17,7 @@ import {
   type UserPreferences
 } from '@/domain/foundation';
 import { loadPreferences, savePreferences } from '@/storage/secure-preferences';
+import { changeLocale } from '@/localization/i18n';
 
 interface PreferenceState extends UserPreferences {
   hydrated: boolean;
@@ -25,7 +26,9 @@ interface PreferenceState extends UserPreferences {
   setTheme: (theme: ThemePreference) => void;
   toggleHideBalances: () => void;
   setBaseCurrencyCode: (code: string) => void;
+  setTimeZone: (timeZone: string) => void;
   setReducedMotion: (reduced: boolean) => void;
+  updateApplicationPreferences: (patch: Partial<Pick<UserPreferences, 'firstDayOfWeek' | 'defaultAccountId' | 'transactionDefaultType' | 'dashboardSections' | 'voiceEnabled' | 'trackingPersonalization' | 'assistantPersonalization' | 'analyticsEnabled'>>) => void;
 }
 
 export const usePreferenceStore = create<PreferenceState>((set, get) => ({
@@ -34,11 +37,13 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
 
   hydrate: async () => {
     const loaded = await loadPreferences();
+    changeLocale(loaded.locale);
     set({ ...loaded, hydrated: true });
   },
 
   setLocale: (locale) => {
     const next = { ...get(), locale, direction: directionForLocale(locale) };
+    changeLocale(locale);
     set(next);
     void persist(next);
   },
@@ -61,8 +66,19 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
     void persist(next);
   },
 
+  setTimeZone: (timeZone) => {
+    const next = { ...get(), timeZone };
+    set(next);
+    void persist(next);
+  },
+
   setReducedMotion: (reducedMotion) => {
     const next = { ...get(), reducedMotion };
+    set(next);
+    void persist(next);
+  },
+  updateApplicationPreferences: (patch) => {
+    const next = { ...get(), ...patch };
     set(next);
     void persist(next);
   }
@@ -75,6 +91,15 @@ function persist(state: PreferenceState): Promise<void> {
     theme: state.theme,
     hideBalances: state.hideBalances,
     baseCurrencyCode: state.baseCurrencyCode,
-    reducedMotion: state.reducedMotion
+    timeZone: state.timeZone,
+    reducedMotion: state.reducedMotion,
+    firstDayOfWeek: state.firstDayOfWeek,
+    defaultAccountId: state.defaultAccountId,
+    transactionDefaultType: state.transactionDefaultType,
+    dashboardSections: state.dashboardSections,
+    voiceEnabled: state.voiceEnabled,
+    trackingPersonalization: state.trackingPersonalization,
+    assistantPersonalization: state.assistantPersonalization,
+    analyticsEnabled: state.analyticsEnabled
   });
 }

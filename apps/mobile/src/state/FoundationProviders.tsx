@@ -7,28 +7,37 @@
  * never by reading raw tokens directly. Constitution Principle V.
  */
 
-import React, { useEffect, type ReactNode } from 'react';
+import React, { useEffect, useMemo, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resolveTheme } from '@/design-system/theme';
 import type { ResolvedTheme } from '@/design-system/theme';
 import { initI18n, changeLocale } from '@/localization/i18n';
 import { ThemeContext, type ThemeContextValue } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
+import { SensitiveVisibilityProvider } from './SensitiveVisibilityProvider';
 
 initI18n();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      gcTime: process.env.NODE_ENV === 'test' ? Infinity : 5 * 60_000,
       retry: false,
       staleTime: Infinity
     }
   }
 });
 
-export function FoundationProviders({ children }: { children: ReactNode }) {
+export function FoundationProviders({
+  children,
+  client = queryClient
+}: {
+  children: ReactNode;
+  client?: QueryClient;
+}) {
   const locale = usePreferenceStore((state) => state.locale);
   const themePreference = usePreferenceStore((state) => state.theme);
   const direction = usePreferenceStore((state) => state.direction);
@@ -41,17 +50,38 @@ export function FoundationProviders({ children }: { children: ReactNode }) {
     }
   }, [hydrate, hydrated]);
 
-  changeLocale(locale);
+  useEffect(() => {
+    changeLocale(locale);
+  }, [locale]);
 
-  const resolved: ResolvedTheme = resolveTheme(themePreference);
-  const themeValue: ThemeContextValue = { theme: resolved };
+  const resolved: ResolvedTheme = useMemo(
+    () => resolveTheme(themePreference),
+    [themePreference]
+  );
+  const themeValue: ThemeContextValue = useMemo(
+    () => ({ theme: resolved }),
+    [resolved]
+  );
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={client}>
       <ThemeContext.Provider value={themeValue}>
-        <View testID="foundation-direction-root" style={{ flex: 1, direction }}>
-          {children}
-        </View>
+        <StatusBar
+          backgroundColor={resolved.colors.background}
+          style={resolved.mode === 'dark' ? 'light' : 'dark'}
+        />
+        <SensitiveVisibilityProvider>
+          <SafeAreaView
+            testID="foundation-direction-root"
+            style={{
+              backgroundColor: resolved.colors.background,
+              flex: 1,
+              direction
+            }}
+          >
+            {children}
+          </SafeAreaView>
+        </SensitiveVisibilityProvider>
       </ThemeContext.Provider>
     </QueryClientProvider>
   );

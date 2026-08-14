@@ -1,0 +1,9 @@
+﻿
+>       android.permission.READ_SMS
+        android.permission.SYSTEM_ALERT_WINDOW
+>         android.permission.READ_SMS: granted=true, flags=[ 
+USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|RESTRICTION_INSTALLER_EXEMPT]
+          android.permission.READ_EXTERNAL_STORAGE: granted=false, flags=[ 
+USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|RESTRICTION_INSTALLER_EXEMPT]
+
+

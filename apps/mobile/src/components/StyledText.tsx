@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 
 import { useTheme } from '@/state/theme-context';
-import { usePreferenceStore } from '@/state/preferences';
+import { currentLocale, translateDynamic } from '@/localization/i18n';
+import { fontFamilyForLocale } from '@/design-system/typography';
 
 type Variant = keyof ReturnType<typeof variantStyles>;
 
@@ -30,18 +31,32 @@ export function StyledText({
   ...rest
 }: StyledTextProps) {
   const theme = useTheme();
-  const direction = usePreferenceStore((state) => state.direction);
   const base = variantStyles(theme.typography)[variant];
+  const children = typeof rest.children === 'string'
+    ? translateDynamic(rest.children)
+    : rest.children;
   return (
     <Text
       style={[
         base,
-        { color: theme.colors.textPrimary, writingDirection: direction },
+        {
+          color: theme.colors.textPrimary,
+          flexShrink: 1,
+          fontFamily: fontFamilyForLocale(
+            currentLocale(),
+            weightForVariant(variant)
+          ),
+          writingDirection: 'auto'
+        },
         style
       ]}
-      {...withDerivedAccessibilityLabel(rest)}
+      {...withDerivedAccessibilityLabel({ ...rest, children })}
     />
   );
+}
+
+function weightForVariant(variant: Variant) {
+  return variant === 'caption' || variant === 'body' ? 'regular' : 'bold';
 }
 
 /**
@@ -50,7 +65,7 @@ export function StyledText({
  * screen readers always announce the visible text.
  */
 function withDerivedAccessibilityLabel(rest: TextProps): TextProps {
-  if (rest.accessibilityLabel) {
+  if (rest.accessible === false || rest.accessibilityLabel) {
     return rest;
   }
   const children = rest.children;
@@ -62,11 +77,11 @@ function withDerivedAccessibilityLabel(rest: TextProps): TextProps {
 
 function variantStyles(t: ReturnType<typeof useTheme>['typography']) {
   return {
-    caption: { fontSize: t.caption },
-    body: { fontSize: t.body },
-    subtitle: { fontSize: t.subtitle },
-    title: { fontSize: t.title, fontWeight: '700' as const },
-    headline: { fontSize: t.headline, fontWeight: '700' as const },
-    amount: { fontSize: t.amount, fontWeight: '700' as const }
+    caption: t.caption,
+    body: t.body,
+    subtitle: t.subtitle,
+    title: t.title,
+    headline: t.headline,
+    amount: t.amount
   };
 }

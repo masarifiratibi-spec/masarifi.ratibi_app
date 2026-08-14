@@ -1,0 +1,93 @@
+import React from 'react';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  type TextInputProps,
+  View
+} from 'react-native';
+
+import { useTheme } from '@/state/theme-context';
+import { translateDynamic } from '@/localization/i18n';
+
+type FormFieldVariant = 'text' | 'phone' | 'otp' | 'search' | 'amount';
+
+export interface FormFieldProps extends TextInputProps {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  variant?: FormFieldVariant;
+  helperText?: string;
+  errorText?: string;
+}
+
+export function FormField({
+  label,
+  variant = 'text',
+  helperText,
+  errorText,
+  style,
+  ...props
+}: FormFieldProps) {
+  const theme = useTheme();
+  const localizedLabel = translateDynamic(label);
+  const localizedHelper = helperText ? translateDynamic(helperText) : undefined;
+  const localizedError = errorText ? translateDynamic(errorText) : undefined;
+  const keyboardType =
+    variant === 'amount'
+      ? 'decimal-pad'
+      : variant === 'phone' || variant === 'otp'
+        ? 'number-pad'
+        : variant === 'search'
+          ? 'web-search'
+          : 'default';
+
+  return (
+    <View style={styles.stack}>
+      <Text style={[styles.label, { color: theme.colors.textPrimary }]}>
+        {localizedLabel}
+      </Text>
+      <TextInput
+        accessibilityLabel={localizedLabel}
+        keyboardType={keyboardType}
+        style={[
+          styles.input,
+          {
+            borderColor: errorText
+              ? theme.colors.status.danger
+              : theme.colors.border,
+            color: theme.colors.textPrimary
+          },
+          style
+        ]}
+        {...props}
+      />
+      {localizedHelper ? (
+        <Text style={{ color: theme.colors.textSecondary }}>{localizedHelper}</Text>
+      ) : null}
+      {localizedError ? (
+        <Text
+          accessibilityRole="alert"
+          style={{ color: theme.colors.status.danger }}
+        >
+          {localizedError}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  stack: {
+    gap: 6
+  },
+  label: {
+    fontWeight: '600'
+  },
+  input: {
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 48,
+    paddingHorizontal: 12
+  }
+});

@@ -1,7 +1,10 @@
 import '@testing-library/jest-native/extend-expect';
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
+import { changeLocale } from '@/localization/i18n';
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+
+afterEach(() => changeLocale('ar'));
 
 // React Native's setup happens via jest-expo preset. This file adds only the
 // shared matchers and test-environment adjustments consumed by the foundation

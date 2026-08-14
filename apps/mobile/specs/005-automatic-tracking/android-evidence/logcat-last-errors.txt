@@ -1,0 +1,153 @@
+﻿
+08-09 12:22:02.676  1774  4963 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.704  1774  1812 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.708  8648  8648 I InsetsController: onStateChanged: 
+host=com.masarifi.mobile/com.masarifi.mobile.MainActivity, from=android.view.ViewRootImpl.onInsetsStateChanged:3038, 
+state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2340), mDisplayCutout=DisplayCutout{insets=Rect(0, 100 - 0, 0) 
+waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(470, 0 - 610, 100), 
+Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 
+physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={2.8125} cutoutSpec={M 0,0 H -24.88888888888889 V 
+35.55555555555556 H 24.88888888888889 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} 
+sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=118, center=Point(118, 
+118)}, RoundedCorner{position=TopRight, radius=118, center=Point(962, 118)}, RoundedCorner{position=BottomRight, 
+radius=118, center=Point(962, 2222)}, RoundedCorner{position=BottomLeft, radius=118, center=Point(118, 2222)}]}  
+mRoundedCornerFrame=Rect(0, 0 - 1080, 2340), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(596, 0 
+- 720, 100) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 
+physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {a7a20001 
+mType=navigationBars mFrame=[0,2298][1080,2340] mAttachedInsets=null mVisible=true mFlags=SUPPRESS_SCRIM 
+mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {a7a20004 mType=systemGestures mFrame=[0,0][84,2340] 
+mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT mBoundingRects=null}, InsetsSource: {a7a20005 
+mType=mandatorySystemGestures mFrame=[0,2250][1080,2340] mAttachedInsets=null mVisible=true mFlags= mSideHint=BOTTOM 
+mBoundingRects=null}, InsetsSource: {a7a20006 mType=tappableElement mFrame=[0,0][0,0] mAttachedInsets=null 
+mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {a7a20024 mType=systemGestures 
+mFrame=[996,0][1080,2340] mAttachedInsets=null mVisible=true mFlags= mSideHint=RIGHT mBoundingRects=null}, 
+InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mAttachedInsets=null mVisible=false mFlags=INVALID mSideHint=NONE 
+mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,100] mAttachedInsets=null mVisible=true 
+mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {19370000 mType=statusBars mFrame=[0,0][1080,100] 
+mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {19370005 
+mType=mandatorySystemGestures mFrame=[0,0][1080,134] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP 
+mBoundingRects=null}, InsetsSource: {19370006 mType=tappableElement mFrame=[0,0][1080,100] mAttachedInsets=null 
+mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+08-09 12:22:02.713  1774  1811 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.718  1774  4305 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.720  1774  4963 I WindowManager: Relayout Window{ac987d8 u0 com.masarifi.mobile}: viewVisibility=0 
+req=1080x2198 ty=2038 d0
+08-09 12:22:02.721  1774  4963 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.735  1774  2403 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.739  1774  4963 D WindowManager: finishDrawingWindow: Window{ac987d8 u0 com.masarifi.mobile} 
+mDrawState=DRAW_PENDING seqId=7
+08-09 12:22:02.739  1774  4963 D WindowManager: Clear waiting to handle resizing w=Window{ac987d8 u0 
+com.masarifi.mobile}, caller=com.android.server.wm.WindowState$$ExternalSyntheticLambda0.accept:32 
+com.android.server.wm.WindowState.finishDrawing:279 com.android.server.wm.Session.finishDrawing:146 
+android.view.IWindowSession$Stub.onTransact:906 com.android.server.wm.Session.onTransact:1 
+08-09 12:22:02.739  1774  4963 D WindowManager: executeDrawHandlers, seqId=7, h.mSeqId=7, win=Window{ac987d8 u0 
+com.masarifi.mobile}
+08-09 12:22:02.739  1774  4963 D WindowManager: finishDrawing, 
+postDrawTransaction=syncBuffer_VRI[]@eb95611#58_seqId<7>, syncTransaction=null, pendingTransaction=null, 
+w=Window{ac987d8 u0 com.masarifi.mobile}
+08-09 12:22:02.741  1774  1812 V WindowManager: performShowLocked: mDrawState=HAS_DRAWN in Window{ac987d8 u0 
+com.masarifi.mobile}
+08-09 12:22:02.741  1774  1812 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.742  1774  4963 I WindowManager: Relayout Window{21ade42 u0 
+com.masarifi.mobile/com.masarifi.mobile.MainActivity}: viewVisibility=0 req=1080x2340 ty=1 d0
+08-09 12:22:02.744  1774  4963 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.759  1774  1812 D BLASTSyncEngine: SyncGroup 3114:  Unfinished container: Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} mSyncState=2
+08-09 12:22:02.770  1774  2403 D WindowManager: finishDrawingWindow: Window{21ade42 u0 
+com.masarifi.mobile/com.masarifi.mobile.MainActivity} mDrawState=DRAW_PENDING seqId=0
+08-09 12:22:02.771  1774  1812 V WindowManager: performShowLocked: mDrawState=HAS_DRAWN in Window{21ade42 u0 
+com.masarifi.mobile/com.masarifi.mobile.MainActivity}
+08-09 12:22:02.773  8648  8648 I InsetsController: onStateChanged: 
+host=com.masarifi.mobile/com.masarifi.mobile.MainActivity, from=android.view.ViewRootImpl.onInsetsStateChanged:3038, 
+state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2340), mDisplayCutout=DisplayCutout{insets=Rect(0, 100 - 0, 0) 
+waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(470, 0 - 610, 100), 
+Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 
+physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={2.8125} cutoutSpec={M 0,0 H -24.88888888888889 V 
+35.55555555555556 H 24.88888888888889 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} 
+sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=118, center=Point(118, 
+118)}, RoundedCorner{position=TopRight, radius=118, center=Point(962, 118)}, RoundedCorner{position=BottomRight, 
+radius=118, center=Point(962, 2222)}, RoundedCorner{position=BottomLeft, radius=118, center=Point(118, 2222)}]}  
+mRoundedCornerFrame=Rect(0, 0 - 1080, 2340), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 
+- 1080, 100) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 
+physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {a7a20001 
+mType=navigationBars mFrame=[0,2298][1080,2340] mAttachedInsets=null mVisible=true mFlags=SUPPRESS_SCRIM 
+mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {a7a20004 mType=systemGestures mFrame=[0,0][84,2340] 
+mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT mBoundingRects=null}, InsetsSource: {a7a20005 
+mType=mandatorySystemGestures mFrame=[0,2250][1080,2340] mAttachedInsets=null mVisible=true mFlags= mSideHint=BOTTOM 
+mBoundingRects=null}, InsetsSource: {a7a20006 mType=tappableElement mFrame=[0,0][0,0] mAttachedInsets=null 
+mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {a7a20024 mType=systemGestures 
+mFrame=[996,0][1080,2340] mAttachedInsets=null mVisible=true mFlags= mSideHint=RIGHT mBoundingRects=null}, 
+InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mAttachedInsets=null mVisible=false mFlags=INVALID mSideHint=NONE 
+mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,100] mAttachedInsets=null mVisible=true 
+mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {19370000 mType=statusBars mFrame=[0,0][1080,100] 
+mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {19370005 
+mType=mandatorySystemGestures mFrame=[0,0][1080,134] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP 
+mBoundingRects=null}, InsetsSource: {19370006 mType=tappableElement mFrame=[0,0][1080,100] mAttachedInsets=null 
+mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+08-09 12:22:02.778  1252  1252 I BufferQueueProducer: 
+[com.masarifi.mobile/com.masarifi.mobile.MainActivity$_8648#78416](this:0xb400007ae7de26b0,id:-1,api:0,p:-1,c:1252) 
+queueBuffer: fps=0.72 dur=4144.90 max=4111.73 min=11.03
+08-09 12:22:02.789  1774  4963 D WindowManager: finishDrawingWindow: Window{ac987d8 u0 com.masarifi.mobile} 
+mDrawState=HAS_DRAWN seqId=7
+08-09 12:22:02.803  1774  3086 D WindowManager: finishDrawingWindow: Window{21ade42 u0 
+com.masarifi.mobile/com.masarifi.mobile.MainActivity} mDrawState=HAS_DRAWN seqId=0
+08-09 12:22:02.833  8648  8648 I InsetsSourceConsumer: applyRequestedVisibilityToControl: visible=true, 
+type=navigationBars, host=com.masarifi.mobile/com.masarifi.mobile.MainActivity
+08-09 12:22:02.834  1774  1812 D ChangeTransitionController:    ChangeInfo{1a0a1bc container=ActivityRecord{185908855 
+u0 com.masarifi.mobile/.MainActivity t535} flags=0x0}
+08-09 12:22:02.834  1774  1812 D ChangeTransitionController:    ChangeInfo{101849a container=Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} flags=0x0}
+08-09 12:22:02.834  1774  1812 V WindowManager: Start calculating TransitionInfo based on participants: 
+{WindowToken{3d60271 type=2000 android.os.BinderProxy@fb16ffb}, WindowToken{6fc3da9 type=2019 
+android.os.BinderProxy@7313a73}, WindowToken{8c586bb type=2038 android.os.BinderProxy@c36774a}, 
+ActivityRecord{185908855 u0 com.masarifi.mobile/.MainActivity t535}, Display{#0 state=ON size=1080x2340 ROTATION_0}, 
+Task{d126a0b #535 type=standard A=10351:com.masarifi.mobile}}
+08-09 12:22:02.834  1774  1812 V WindowManager:   Final targets: [ChangeInfo{22b4c90 container=WindowToken{6fc3da9 
+type=2019 android.os.BinderProxy@7313a73} flags=0x0}, ChangeInfo{3354f42 container=WindowToken{3d60271 type=2000 
+android.os.BinderProxy@fb16ffb} flags=0x0}, ChangeInfo{6cd1d8e container=WindowToken{8c586bb type=2038 
+android.os.BinderProxy@c36774a} flags=0x0}, ChangeInfo{101849a container=Task{d126a0b #535 type=standard 
+A=10351:com.masarifi.mobile} flags=0x10}, ChangeInfo{ae50b53 container=DefaultTaskDisplayArea_d0@84259213 flags=0x10}, 
+ChangeInfo{e2b09af container=WindowedMagnification:0:31@157195185 flags=0x0}, ChangeInfo{6145545 container=Display{#0 
+state=ON size=1080x2340 ROTATION_0} flags=0x0}]
+08-09 12:22:02.840  1774  1812 I SurfaceControlRegistry: show, t=syncBuffer_VRI[NavigationBar0]@41d371c#95_seqId<7>, 
+syncBuffer_VRI[]@eb95611#58_seqId<7> StartTransaction_SyncId<3114> sc=ActivityRecord{185908855 u0 
+com.masarifi.mobile/.MainActivity t535}#78360, caller=android.view.SurfaceControl$Transaction.show:3679 
+com.android.server.wm.Transition.onTransactionReady:2078 com.android.server.wm.BLASTSyncEngine$SyncGroup.finishNow:261 
+com.android.server.wm.BLASTSyncEngine.onSurfacePlacement:263 
+com.android.server.wm.RootWindowContainer.performSurfacePlacement:1105 
+com.android.server.wm.WindowSurfacePlacer.performSurfacePlacement:163 
+08-09 12:22:02.842  1774  1812 V WindowManager:         {WCT{RemoteToken{84103db Task{d126a0b #535 type=standard 
+A=10351:com.masarifi.mobile}}} m=CHANGE f=NONE p=WCT{RemoteToken{28ff685 DefaultTaskDisplayArea_d0@84259213}} 
+leash=Surface(name=Task=535#78346)/@0x6f054d5 sb=Rect(0, 0 - 720, 1280) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 
+2340) d=0 taskParent=-1 winMode=1 userId=0 inset=Rect(0, 100 - 0, 42)},
+08-09 12:22:02.848  1774  1808 V WindowManager:         {WCT{RemoteToken{84103db Task{d126a0b #535 type=standard 
+A=10351:com.masarifi.mobile}}} m=CHANGE f=NONE p=WCT{RemoteToken{28ff685 DefaultTaskDisplayArea_d0@84259213}} 
+leash=Surface(name=Task=535#78346)/@0x6f054d5 sb=Rect(0, 0 - 720, 1280) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 
+2340) d=0 taskParent=-1 winMode=1 userId=0 inset=Rect(0, 100 - 0, 42)},
+08-09 12:22:02.867  1252  1252 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{ImeContainer#15 parentId=78360 
+relativeParentId=78415 z=1} 2 children}] RelativeParent to LayerHierarchy{RequestedLayerState{21ade42 
+com.masarifi.mobile/com.masarifi.mobile.MainActivity#78415 parentId=78360} 3 children}
+08-09 12:22:02.894  1252  1252 D SurfaceFlinger:        DEVICE |           37142877175880 | 00002102 | RGBA_8888    |  
+  0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.masarifi.mobile/com.masarifi.mobile.MainActivity$_8648#78416 
+(53)
+08-09 12:22:03.004  1252  1252 D SurfaceFlinger:        DEVICE |           37142877175880 | 00002102 | RGBA_8888    |  
+  0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.masarifi.mobile/com.masarifi.mobile.MainActivity$_8648#78416 
+(53)
+08-09 12:22:03.009  1774  4963 V WindowManager:    ChangeInfo{1a0a1bc container=ActivityRecord{185908855 u0 
+com.masarifi.mobile/.MainActivity t535} flags=0x0}
+08-09 12:22:03.009  1774  4963 V WindowManager:    ChangeInfo{101849a container=Task{d126a0b #535 type=standard 
+A=10351:com.masarifi.mobile} flags=0x10}
+08-09 12:22:03.012  1774  4963 D ChangeTransitionController:    ChangeInfo{1a0a1bc container=ActivityRecord{185908855 
+u0 com.masarifi.mobile/.MainActivity t535} flags=0x0}
+08-09 12:22:03.012  1774  4963 D ChangeTransitionController:    ChangeInfo{101849a container=Task{d126a0b #535 
+type=standard A=10351:com.masarifi.mobile} flags=0x10}
+
+

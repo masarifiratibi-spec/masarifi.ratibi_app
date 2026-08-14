@@ -1,0 +1,7 @@
+﻿Starting: Intent { act=android.intent.action.VIEW dat=masarifi://tracking/... pkg=com.masarifi.mobile }
+Status: ok
+LaunchState: COLD
+Activity: com.masarifi.mobile/expo.modules.devlauncher.launcher.DevLauncherActivity
+TotalTime: 1048
+WaitTime: 1055
+Complete

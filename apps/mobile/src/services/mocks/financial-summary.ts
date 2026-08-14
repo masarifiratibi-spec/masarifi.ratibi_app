@@ -6,7 +6,12 @@
  * prove the position panel communicates clarity in each state.
  */
 
-import type { FinancialSummary } from '@/services/contracts/foundation-service';
+import {
+  financialSummaryServiceCapability,
+  type FinancialSummary,
+  type FinancialSummaryService
+} from '@/services/contracts/foundation-service';
+import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 
 function currency(
   amount: number,
@@ -58,3 +63,20 @@ export const summaries = {
   empty: emptySummary,
   partial: partialSummary
 };
+
+export function createMockFinancialSummaryService(
+  summary: FinancialSummary = populatedSummary
+): CapabilityProviderHandle<FinancialSummaryService> {
+  return {
+    metadata: {
+      id: 'mock-financial-summary',
+      capability: financialSummaryServiceCapability.capability,
+      majorVersion: financialSummaryServiceCapability.majorVersion,
+      kind: 'mock',
+      availability: 'available'
+    },
+    async getSummary() {
+      return summary;
+    }
+  };
+}
