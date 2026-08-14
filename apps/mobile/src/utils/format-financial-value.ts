@@ -42,6 +42,16 @@ export function formatDate(timestamp: number, locale: Locale): string {
   }).format(new Date(timestamp));
 }
 
+export function formatDateTime(timestamp: number, locale: Locale): string {
+  return new Intl.DateTimeFormat(LATIN_NUMERAL_LOCALES[locale], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(timestamp));
+}
+
 export function formatEstimatedAggregateLabel(
   amount: number,
   sourceCurrencyCode: string,

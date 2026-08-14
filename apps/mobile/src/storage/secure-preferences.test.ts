@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 import { loadPreferences } from './secure-preferences';
+import { buildPreferences } from '@/domain/foundation';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
@@ -32,14 +33,15 @@ describe('loadPreferences', () => {
   ])('falls back to complete defaults for %s', async (_case, stored) => {
     getItemAsync.mockResolvedValue(stored);
 
-    await expect(loadPreferences()).resolves.toEqual({
+    await expect(loadPreferences()).resolves.toEqual(buildPreferences({
       locale: 'ar',
       direction: 'rtl',
       theme: 'system',
-      hideBalances: false,
+      hideBalances: true,
       baseCurrencyCode: 'SAR',
+      timeZone: 'Asia/Riyadh',
       reducedMotion: false
-    });
+    }));
   });
 
   it('loads a complete valid preference record', async () => {
@@ -48,6 +50,26 @@ describe('loadPreferences', () => {
         locale: 'en',
         theme: 'dark',
         hideBalances: true,
+        baseCurrencyCode: 'USD',
+        reducedMotion: true
+      })
+    );
+
+    await expect(loadPreferences()).resolves.toMatchObject({
+      locale: 'en',
+      direction: 'ltr',
+      theme: 'dark',
+      hideBalances: true,
+      baseCurrencyCode: 'USD',
+      reducedMotion: true
+    });
+  });
+
+  it('defaults first-use balances to hidden and preserves older stored choices', async () => {
+    getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        locale: 'en',
+        theme: 'dark',
         baseCurrencyCode: 'USD',
         reducedMotion: true
       })

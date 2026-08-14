@@ -1,69 +1,40 @@
-/**
- * Foundation validation menu.
- *
- * Temporary entry route listing the four validation harness routes. This is
- * NOT a production dashboard; each route proves one foundation contract. Scope
- * Contract §11 prohibits production screens in this feature.
- */
-
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Redirect } from 'expo-router';
 
-import { useTheme } from '@/state/theme-context';
+import { StateView } from '@/design-system/components/feedback/StateView';
+import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
-import { StyledText } from '@/components/StyledText';
-import { MenuLink } from '@/components/MenuLink';
-import type { MessageKey } from '@/localization/messages/en';
+import { useAppShellStore } from '@/state/app-shell';
+import { usePreferenceStore } from '@/state/preferences';
 
-const ROUTES: readonly { href: string; titleKey: MessageKey }[] = [
-  { href: '/foundation/position', titleKey: 'nav.position' },
-  { href: '/foundation/capture', titleKey: 'nav.capture' },
-  { href: '/foundation/trust', titleKey: 'nav.trust' },
-  { href: '/foundation/accessibility', titleKey: 'nav.accessibility' }
-];
+/**
+ * Entry route. Uses the mount-safe <Redirect> instead of an imperative
+ * router.replace() inside useEffect — imperative navigation from the initial
+ * route fires before the Root Layout navigator is committed, which raised
+ * "Attempted to navigate before mounting the Root Layout component". The
+ * <Redirect> element is evaluated by Expo Router during render, so it never
+ * races the navigator mount. While the shell is hydrating, stay on a loading
+ * view (destination '/index').
+ */
+export default function AppEntry() {
+  const shellHydrated = useAppShellStore((state) => state.hydrated);
+  const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
+  const session = useAppShellStore((state) => state.session);
+  const onboarding = useAppShellStore((state) => state.onboarding);
+  const pendingDestination = useAppShellStore((state) => state.pendingDestination);
+  const privacyLock = useAppShellStore((state) => state.privacyLock);
 
-export default function ValidationMenu() {
-  const theme = useTheme();
+  const destination = resolveEntryRoute({
+    hydrated: shellHydrated && preferencesHydrated,
+    session,
+    onboarding,
+    pendingDestination,
+    privacyLock
+  });
 
-  return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.content}
-    >
-      <StyledText variant="title" style={styles.title}>
-        {translate('app.foundationTitle')}
-      </StyledText>
-      <StyledText variant="body" style={styles.intro}>
-        {translate('app.foundationIntro')}
-      </StyledText>
-
-      <View style={styles.list}>
-        {ROUTES.map((route) => (
-          <Link key={route.href} href={route.href} asChild>
-            <MenuLink label={translate(route.titleKey)} />
-          </Link>
-        ))}
-      </View>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1
-  },
-  content: {
-    padding: 16,
-    gap: 12
-  },
-  title: {
-    marginTop: 8
-  },
-  intro: {
-    marginBottom: 8
-  },
-  list: {
-    gap: 8
+  if (destination !== '/index') {
+    return <Redirect href={destination} />;
   }
-});
+
+  return <StateView state="loading" title={translate('appShell.state.loading')} />;
+}

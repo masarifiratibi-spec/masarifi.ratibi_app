@@ -306,7 +306,7 @@ function ActionButton({
       <Text
         style={{
           color: primary ? theme.colors.textInverse : theme.colors.textPrimary,
-          fontSize: theme.typography.body
+          fontSize: theme.typography.body.fontSize
         }}
       >
         {label}

@@ -17,6 +17,8 @@ import {
   type PlatformCapability
 } from '@/domain/foundation';
 import type { PlatformCapabilityService } from '@/services/contracts/foundation-service';
+import { platformCapabilityServiceCapability } from '@/services/contracts/foundation-service';
+import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { InvalidTransitionError } from '@/storage/errors';
 
 const disableSms: PermissionAction = {
@@ -75,7 +77,7 @@ const androidSmsCapture: CaptureMethod = {
 
 export function buildAndroidCapabilities(
   initialPermission: PermissionStatus = 'not_requested'
-): PlatformCapabilityService {
+): CapabilityProviderHandle<PlatformCapabilityService> {
   const androidSms: PlatformCapability = {
     id: 'sms-tracking',
     platform: 'android',
@@ -85,14 +87,28 @@ export function buildAndroidCapabilities(
   };
 
   return {
+    metadata: {
+      id: 'mock-android-platform-capabilities',
+      capability: platformCapabilityServiceCapability.capability,
+      majorVersion: platformCapabilityServiceCapability.majorVersion,
+      kind: 'mock',
+      availability: 'available'
+    },
     listCapabilities: () => [androidSms],
     listPermissions: () => [smsPermission(initialPermission)],
     listCaptureMethods: () => [androidSmsCapture, manualCapture, voiceCapture]
   };
 }
 
-export function buildIosCapabilities(): PlatformCapabilityService {
+export function buildIosCapabilities(): CapabilityProviderHandle<PlatformCapabilityService> {
   return {
+    metadata: {
+      id: 'mock-ios-platform-capabilities',
+      capability: platformCapabilityServiceCapability.capability,
+      majorVersion: platformCapabilityServiceCapability.majorVersion,
+      kind: 'mock',
+      availability: 'available'
+    },
     listCapabilities: () => [],
     listPermissions: () => [],
     listCaptureMethods: () => [manualCapture, voiceCapture]

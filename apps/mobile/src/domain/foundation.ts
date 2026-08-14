@@ -206,7 +206,16 @@ export interface UserPreferences {
   theme: ThemePreference;
   hideBalances: boolean;
   baseCurrencyCode: string;
+  timeZone: string;
   reducedMotion: boolean;
+  firstDayOfWeek: 'sunday' | 'monday' | 'saturday';
+  defaultAccountId: string | null;
+  transactionDefaultType: 'expense' | 'income';
+  dashboardSections: ('balance' | 'transactions' | 'budgets' | 'goals' | 'reports')[];
+  voiceEnabled: boolean;
+  trackingPersonalization: boolean;
+  assistantPersonalization: boolean;
+  analyticsEnabled: boolean;
 }
 
 export function buildPreferences(
@@ -216,9 +225,18 @@ export function buildPreferences(
     locale: 'ar',
     direction: 'rtl',
     theme: 'system',
-    hideBalances: false,
+    hideBalances: true,
     baseCurrencyCode: 'SAR',
-    reducedMotion: false
+    timeZone: 'Asia/Riyadh',
+    reducedMotion: false,
+    firstDayOfWeek: 'sunday',
+    defaultAccountId: null,
+    transactionDefaultType: 'expense',
+    dashboardSections: ['balance', 'transactions', 'budgets', 'goals', 'reports'],
+    voiceEnabled: true,
+    trackingPersonalization: true,
+    assistantPersonalization: true,
+    analyticsEnabled: true
   };
   const merged = { ...defaults, ...overrides };
   // Direction is derived from locale; never store an inconsistent pair.

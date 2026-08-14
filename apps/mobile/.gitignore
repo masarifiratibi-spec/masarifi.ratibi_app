@@ -36,5 +36,10 @@ Thumbs.db
 # Test artifacts
 coverage/
 
+# SPEC-010 transient evidence captures
+specs/010-frontend-quality/evidence/**/*.raw.log
+specs/010-frontend-quality/evidence/**/*.tmp.dump
+specs/010-frontend-quality/evidence/**/*.unsafe.txt
+
 # Spec Kit generated memory (keep constitution; ignore ephemeral cache)
 .specify/memory/*.cache.json

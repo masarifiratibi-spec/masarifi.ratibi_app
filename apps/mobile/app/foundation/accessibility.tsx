@@ -7,8 +7,7 @@
  */
 
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
 import { AccessibilityStateGallery } from '@/features/foundation/AccessibilityStateGallery';
 import { useTheme } from '@/state/theme-context';
@@ -16,11 +15,11 @@ import { useTheme } from '@/state/theme-context';
 export default function AccessibilityHarness() {
   const theme = useTheme();
   return (
-    <SafeAreaView
+    <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <AccessibilityStateGallery />
-    </SafeAreaView>
+    </View>
   );
 }
 

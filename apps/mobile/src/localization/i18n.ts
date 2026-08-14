@@ -20,6 +20,7 @@ const CATALOGS: Record<Locale, MessageCatalog> = { en, ar };
 
 export const SUPPORTED_LOCALES: readonly Locale[] = ['ar', 'en'];
 export const DEFAULT_LOCALE: Locale = 'ar';
+export type { MessageKey };
 
 let initialized = false;
 
@@ -53,6 +54,18 @@ export function translate(key: MessageKey, locale?: Locale): string {
     return catalog[key] ?? key;
   }
   return i18next.t(key) ?? key;
+}
+
+export function translateDynamic(
+  key: string,
+  values: Record<string, string | number | boolean> = {},
+  locale: Locale = currentLocale()
+): string {
+  const template = (CATALOGS[locale] as Record<string, string>)[key] ?? key;
+  return Object.entries(values).reduce(
+    (message, [name, value]) => message.replaceAll(`{{${name}}}`, String(value)),
+    template
+  );
 }
 
 export function currentLocale(): Locale {

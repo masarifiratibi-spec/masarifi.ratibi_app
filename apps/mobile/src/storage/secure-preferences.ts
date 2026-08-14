@@ -25,15 +25,33 @@ interface PersistedPreferences {
   theme: ThemePreference;
   hideBalances: boolean;
   baseCurrencyCode: string;
+  timeZone: string;
   reducedMotion: boolean;
+  firstDayOfWeek: UserPreferences['firstDayOfWeek'];
+  defaultAccountId: string | null;
+  transactionDefaultType: UserPreferences['transactionDefaultType'];
+  dashboardSections: UserPreferences['dashboardSections'];
+  voiceEnabled: boolean;
+  trackingPersonalization: boolean;
+  assistantPersonalization: boolean;
+  analyticsEnabled: boolean;
 }
 
 const persistedPreferencesSchema = z.object({
-  locale: z.enum(['ar', 'en']),
-  theme: z.enum(['light', 'dark', 'system']),
-  hideBalances: z.boolean(),
-  baseCurrencyCode: z.string().regex(/^[A-Z]{3}$/),
-  reducedMotion: z.boolean()
+  locale: z.enum(['ar', 'en']).optional(),
+  theme: z.enum(['light', 'dark', 'system']).optional(),
+  hideBalances: z.boolean().optional(),
+  baseCurrencyCode: z.string().regex(/^[A-Z]{3}$/).optional(),
+  timeZone: z.string().optional(),
+  reducedMotion: z.boolean().optional(),
+  firstDayOfWeek: z.enum(['sunday', 'monday', 'saturday']).optional(),
+  defaultAccountId: z.string().nullable().optional(),
+  transactionDefaultType: z.enum(['expense', 'income']).optional(),
+  dashboardSections: z.array(z.enum(['balance', 'transactions', 'budgets', 'goals', 'reports'])).optional(),
+  voiceEnabled: z.boolean().optional(),
+  trackingPersonalization: z.boolean().optional(),
+  assistantPersonalization: z.boolean().optional(),
+  analyticsEnabled: z.boolean().optional()
 });
 
 export async function loadPreferences(): Promise<UserPreferences> {
@@ -52,7 +70,16 @@ export async function savePreferences(
     theme: preferences.theme,
     hideBalances: preferences.hideBalances,
     baseCurrencyCode: preferences.baseCurrencyCode,
-    reducedMotion: preferences.reducedMotion
+    timeZone: preferences.timeZone,
+    reducedMotion: preferences.reducedMotion,
+    firstDayOfWeek: preferences.firstDayOfWeek,
+    defaultAccountId: preferences.defaultAccountId,
+    transactionDefaultType: preferences.transactionDefaultType,
+    dashboardSections: preferences.dashboardSections,
+    voiceEnabled: preferences.voiceEnabled,
+    trackingPersonalization: preferences.trackingPersonalization,
+    assistantPersonalization: preferences.assistantPersonalization,
+    analyticsEnabled: preferences.analyticsEnabled
   };
   const serialized = JSON.stringify(persisted);
   if (Platform.OS === 'web') {

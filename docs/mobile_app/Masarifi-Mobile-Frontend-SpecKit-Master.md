@@ -450,7 +450,7 @@ The mobile experience must feel calm, premium, trustworthy, modern, and easy to 
 The mobile application must preserve:
 
 - Dark teal as the main brand anchor.
-- Warm, calm neutral surfaces.
+- Clean neutral surfaces inspired by the Admin Dashboard, with warm cream reserved for small branded or premium accents.
 - Restrained premium accent usage.
 - Light borders.
 - Simple cards.

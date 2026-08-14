@@ -1,0 +1,155 @@
+import { emptyTransactionFilters } from '@/domain/core-finance';
+import {
+  fixtureAccounts,
+  fixtureCategories,
+  fixtureTransactions,
+  makeConflict
+} from '@/test-utils/core-finance-fixtures';
+import { CoreFinanceRepository } from './core-finance-repository';
+
+function repository() {
+  return new CoreFinanceRepository({
+    accounts: fixtureAccounts,
+    categories: fixtureCategories,
+    transactions: fixtureTransactions.slice(0, 10)
+  });
+}
+
+it('keeps one default account and derives balances from the ledger', () => {
+  const repo = repository();
+  const created = repo.saveAccount({
+    name: 'Cash',
+    type: 'cash',
+    currencyCode: 'SAR',
+    openingBalanceMinor: 10_000,
+    isDefault: true
+  });
+  expect(repo.listAccounts().filter((item) => item.isDefault)).toEqual([
+    created
+  ]);
+  expect(repo.accountBalance('account-bank')).not.toBe(
+    fixtureAccounts[0].openingBalanceMinor
+  );
+});
+
+it('paginates without duplicate records', () => {
+  const repo = repository();
+  const first = repo.listTransactions(emptyTransactionFilters, null, 4);
+  const second = repo.listTransactions(
+    emptyTransactionFilters,
+    first.nextCursor,
+    4
+  );
+  expect(
+    new Set([...first.items, ...second.items].map((item) => item.id)).size
+  ).toBe(8);
+});
+
+it('persists and discards drafts', () => {
+  const repo = repository();
+  repo.saveDraft({
+    id: 'draft',
+    transactionType: 'expense',
+    amountText: '10',
+    accountId: null,
+    destinationAccountId: null,
+    categoryId: null,
+    merchant: null,
+    notes: null,
+    occurredAt: null,
+    status: 'editing',
+    updatedAt: 0
+  });
+  expect(repo.loadDraft('draft')?.amountText).toBe('10');
+  repo.discardDraft('draft');
+  expect(repo.loadDraft('draft')).toBeNull();
+});
+
+it('rejects archived references before writing a transaction', () => {
+  const repo = repository();
+  const before = repo.allTransactions().length;
+  expect(() =>
+    repo.saveTransaction({
+      type: 'expense',
+      amountMinor: 100,
+      currencyCode: 'SAR',
+      accountId: 'account-archived',
+      categoryId: 'food',
+      title: 'Blocked',
+      occurredAt: 1
+    })
+  ).toThrow('archived');
+  expect(repo.allTransactions()).toHaveLength(before);
+});
+
+it('deletes with a persisted deadline and rejects late undo', () => {
+  const repo = repository();
+  const deleted = repo.deleteTransaction('transaction-0', 1000);
+  expect(deleted.undoExpiresAt).toBe(31_000);
+  expect(() => repo.undoDelete('transaction-0', 31_001)).toThrow('expired');
+});
+
+it('preserves both conflict snapshots until explicit supported resolution', () => {
+  const repo = repository();
+  const conflict = makeConflict(repo.requireTransaction('transaction-0'));
+  repo.addConflict(conflict);
+  const before = repo.allTransactions().length;
+  expect(repo.requireConflict(conflict.id)).toMatchObject({
+    localSnapshot: conflict.localSnapshot,
+    laterSnapshot: conflict.laterSnapshot,
+    status: 'pending',
+    resolution: null
+  });
+  expect(() => repo.resolveConflict(conflict.id, 'keep_both')).toThrow('validation');
+  expect(repo.allTransactions()).toHaveLength(before);
+  expect(repo.requireConflict(conflict.id)).toMatchObject({ status: 'pending', resolution: null });
+
+  const resolved = repo.resolveConflict(conflict.id, 'keep_later');
+  expect(resolved.title).toBe(conflict.laterSnapshot.title);
+  expect(repo.requireConflict(conflict.id)).toMatchObject({
+    localSnapshot: conflict.localSnapshot,
+    laterSnapshot: conflict.laterSnapshot,
+    status: 'resolved',
+    resolution: 'keep_later'
+  });
+});
+
+it('merges categories and reclassifies all source records atomically', () => {
+  const repo = repository();
+  const source = repo.requireTransaction('transaction-1').categoryId!;
+  repo.mergeCategory(source, 'other-income');
+  expect(repo.requireCategory(source).status).toBe('merged');
+  expect(
+    repo.allTransactions().filter((item) => item.categoryId === source)
+  ).toHaveLength(0);
+});
+
+it('rolls back a staged planning ledger write when planning fails', async () => {
+  const repo = repository();
+  const before = repo.allTransactions().length;
+  await expect(
+    repo.withPlanningLedgerWrite(
+      {
+        type: 'expense',
+        amountMinor: 100,
+        currencyCode: 'SAR',
+        accountId: fixtureAccounts[0].id,
+        destinationAccountId: null,
+        feeMinor: 0,
+        categoryId: fixtureCategories[0].id,
+        title: 'Planning payment',
+        merchant: null,
+        occurredAt: Date.now(),
+        notes: null,
+        originalTransactionId: null,
+        obligationId: 'obligation-car'
+      },
+      'op-planning-rollback',
+      'manual',
+      () => {
+        throw new Error('planning failed');
+      }
+    )
+  ).rejects.toThrow('planning failed');
+  expect(repo.allTransactions()).toHaveLength(before);
+});

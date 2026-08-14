@@ -1,3 +1,5 @@
+import type { TextStyle } from 'react-native';
+
 /**
  * Masarifi Gulf Premium design-system token adapter (mobile).
  *
@@ -32,32 +34,67 @@ export const colorTokens = {
     700: '#93663D'
   },
   sand: {
-    50: '#FFFDFC',
-    100: '#FBF6EF',
-    200: '#F7EFE4',
-    300: '#F1E6D8',
-    400: '#E4D8C8'
+    50: '#FFFFFF',
+    100: '#F6F7F5',
+    200: '#FAFBFA',
+    300: '#F1F3F1',
+    400: '#E7E9E6'
   },
   ink: {
-    900: '#18312C',
-    700: '#554F42',
-    500: '#746D5D'
+    900: '#202824',
+    700: '#4B534E',
+    500: '#707870'
   },
   surface: {
     white: '#FFFFFF'
+  },
+  neutral: {
+    warmSurface: '#F6F7F5',
+    warmMuted: '#FAFBFA',
+    warmBorder: '#E7E9E6',
+    warmText: '#202824'
+  },
+  dark: {
+    background: '#111816',
+    surface: '#19231F',
+    surfaceMuted: '#202B27',
+    border: '#2C3934',
+    text: '#F8F0E5',
+    textMuted: '#D9CDBD',
+    inverse: '#0F211E'
+  },
+  border: {
+    light: '#E7E9E6',
+    dark: '#3B4A44',
+    focus: '#2E756B'
   },
   // Operational status colors are kept DISTINCT from financial semantic colors
   // per Constitution Product & Technical Constraints.
   status: {
     success: '#2F765D',
-    warning: '#B06A12',
+    warning: '#93663D',
     danger: '#C04B45',
-    info: '#367184'
+    info: '#367184',
+    neutral: '#746D5D',
+    pending: '#6B7280',
+    offline: '#7C5F42',
+    sync: '#2E7087'
   },
   // Financial semantic colors: positive/inflow vs negative/outflow.
   financial: {
-    positive: '#2F765D',
-    negative: '#C04B45'
+    income: '#1F7A5A',
+    expense: '#B4473F',
+    transfer: '#376E86',
+    refund: '#6D6A2E',
+    savings: '#5E7464',
+    debt: '#8B5A44',
+    positive: '#1F7A5A',
+    negative: '#B4473F'
+  },
+  chart: {
+    donut: ['#1C3934', '#93663D', '#46756C', '#6D6A2E', '#8B5A44'],
+    line: ['#1C3934', '#93663D', '#46756C', '#B4473F'],
+    patterns: ['solid', 'dash', 'dot', 'dashDot']
   }
 } as const;
 
@@ -83,6 +120,7 @@ export interface ThemeColors {
   primary: string;
   primaryPressed: string;
   accent: string;
+  focus: string;
   background: string;
   surface: string;
   surfaceMuted: string;
@@ -96,44 +134,85 @@ export interface ThemeColors {
   info: string;
   financialPositive: string;
   financialNegative: string;
+  status: {
+    success: string;
+    warning: string;
+    danger: string;
+    info: string;
+    neutral: string;
+    pending: string;
+    offline: string;
+    sync: string;
+  };
+  financial: {
+    income: string;
+    expense: string;
+    transfer: string;
+    refund: string;
+    savings: string;
+    debt: string;
+  };
+  chart: typeof colorTokens.chart;
 }
 
 export const lightThemeColors: ThemeColors = {
   primary: colorTokens.teal['800'],
   primaryPressed: colorTokens.teal['950'],
-  accent: colorTokens.bronze['500'],
+  accent: colorTokens.bronze['700'],
+  focus: colorTokens.border.focus,
   background: colorTokens.sand['100'],
   surface: colorTokens.sand['50'],
   surfaceMuted: colorTokens.sand['200'],
   border: colorTokens.sand['400'],
   textPrimary: colorTokens.ink['900'],
-  textSecondary: colorTokens.ink['500'],
+  textSecondary: colorTokens.ink['700'],
   textInverse: colorTokens.surface.white,
   success: colorTokens.status.success,
   warning: colorTokens.status.warning,
   danger: colorTokens.status.danger,
   info: colorTokens.status.info,
   financialPositive: colorTokens.financial.positive,
-  financialNegative: colorTokens.financial.negative
+  financialNegative: colorTokens.financial.negative,
+  status: colorTokens.status,
+  financial: {
+    income: colorTokens.financial.income,
+    expense: colorTokens.financial.expense,
+    transfer: colorTokens.financial.transfer,
+    refund: colorTokens.financial.refund,
+    savings: colorTokens.financial.savings,
+    debt: colorTokens.financial.debt
+  },
+  chart: colorTokens.chart
 };
 
 export const darkThemeColors: ThemeColors = {
-  primary: '#79A99F',
-  primaryPressed: '#A8CFC7',
-  accent: '#D0AA7D',
-  background: '#111816',
-  surface: '#19231F',
-  surfaceMuted: '#202B27',
-  border: '#3B4A44',
-  textPrimary: '#F8F0E5',
-  textSecondary: '#D9CDBD',
-  textInverse: '#0F211E',
+  primary: colorTokens.teal['100'],
+  primaryPressed: colorTokens.teal['50'],
+  accent: colorTokens.bronze['300'],
+  focus: colorTokens.teal['500'],
+  background: colorTokens.dark.background,
+  surface: colorTokens.dark.surface,
+  surfaceMuted: colorTokens.dark.surfaceMuted,
+  border: colorTokens.dark.border,
+  textPrimary: colorTokens.dark.text,
+  textSecondary: colorTokens.dark.textMuted,
+  textInverse: colorTokens.dark.inverse,
   success: colorTokens.status.success,
   warning: colorTokens.status.warning,
   danger: colorTokens.status.danger,
   info: colorTokens.status.info,
   financialPositive: colorTokens.financial.positive,
-  financialNegative: colorTokens.financial.negative
+  financialNegative: colorTokens.financial.negative,
+  status: colorTokens.status,
+  financial: {
+    income: colorTokens.financial.income,
+    expense: colorTokens.financial.expense,
+    transfer: colorTokens.financial.transfer,
+    refund: colorTokens.financial.refund,
+    savings: colorTokens.financial.savings,
+    debt: colorTokens.financial.debt
+  },
+  chart: colorTokens.chart
 };
 
 // ─── Spacing / radii / typography ────────────────────────────────────────────
@@ -149,21 +228,62 @@ export const spacing = {
 
 export const radius = {
   sm: 6,
-  md: 10,
-  lg: 16,
+  md: 8,
+  lg: 12,
+  card: 8,
   pill: 999
+} as const;
+
+export const borderWidth = {
+  hairline: 0.5,
+  default: 1,
+  focus: 2
+} as const;
+
+export const elevation = {
+  none: {
+    shadowOpacity: 0,
+    elevation: 0
+  },
+  raised: {
+    shadowColor: '#102723',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 3
+  }
+} as const;
+
+export const iconSize = {
+  sm: 18,
+  md: 24,
+  lg: 28
+} as const;
+
+export const controlHeight = {
+  sm: 44,
+  md: 48,
+  lg: 56
+} as const;
+
+export const viewport = {
+  minWidth: 320,
+  minHeight: 568
 } as const;
 
 // Minimum touch target per Constitution Principle III and UI Contract §8.
 export const minTouchTarget = 44;
 
 export const typography = {
-  // Sizes use platform-independent scale; components apply font scaling.
-  caption: 12,
-  body: 15,
-  subtitle: 17,
-  title: 22,
-  headline: 28,
-  // Financial amounts get priority weight per Constitution FR-013.
-  amount: 30
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: '400' },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  subtitle: { fontSize: 17, lineHeight: 24, fontWeight: '600' },
+  title: { fontSize: 22, lineHeight: 30, fontWeight: '700' },
+  headline: { fontSize: 28, lineHeight: 36, fontWeight: '700' },
+  amount: {
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'] as NonNullable<TextStyle['fontVariant']>
+  }
 } as const;

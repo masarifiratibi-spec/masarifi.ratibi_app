@@ -272,21 +272,23 @@ Marketing pages: 10%–12%
 
 # 6. Neutral Foundations
 
-## 6.1 Mobile Warm Neutral Palette
+## 6.1 Mobile Neutral Surface Palette
+
+Mobile screens now use the same cleaner neutral foundation proven in the Admin Dashboard,
+adapted for lower density and one-handed product flows. Warm cream remains available for
+small branded or premium moments, but it is no longer the default mobile page background.
 
 | Token | Hex | Use |
 |---|---|---|
-| `warm-50` | `#FFFDFC` | Elevated surface |
-| `warm-100` | `#FBF6EF` | Mobile page background |
-| `warm-200` | `#F7EFE4` | Mobile subtle background |
-| `warm-300` | `#F1E6D8` | Secondary warm surface |
-| `warm-400` | `#E4D8C8` | Warm border |
-| `warm-500` | `#D4C4B1` | Muted component |
-| `warm-600` | `#C0A486` | Decoration |
-| `warm-700` | `#817969` | Placeholder text |
-| `warm-800` | `#554F42` | Secondary text |
-| `warm-900` | `#39372E` | Strong text |
-| `warm-950` | `#211F1B` | Maximum contrast |
+| `mobile-neutral-50` | `#FFFFFF` | Primary card and elevated surface |
+| `mobile-neutral-100` | `#FAFBFA` | Muted control and secondary surface |
+| `mobile-neutral-200` | `#F6F7F5` | Mobile page background |
+| `mobile-neutral-300` | `#F1F3F1` | Secondary background and section surface |
+| `mobile-neutral-400` | `#E7E9E6` | Subtle border and divider |
+| `mobile-neutral-500` | `#D4D8D3` | Default border where stronger separation is needed |
+| `mobile-neutral-700` | `#707870` | Tertiary text and placeholder text |
+| `mobile-neutral-800` | `#4B534E` | Secondary text |
+| `mobile-neutral-900` | `#202824` | Primary text |
 
 ## 6.2 Admin Neutral Palette
 
@@ -312,11 +314,12 @@ Admin screens use more neutral surfaces to improve data clarity.
 ## 7.1 Mobile Application Light Mode
 
 ```css
---mobile-bg-page: #FBF6EF;
---mobile-bg-subtle: #F7EFE4;
---mobile-surface-primary: #FFFDFC;
---mobile-surface-secondary: #F1E6D8;
+--mobile-bg-page: #F6F7F5;
+--mobile-bg-subtle: #FAFBFA;
+--mobile-surface-primary: #FFFFFF;
+--mobile-surface-secondary: #F1F3F1;
 --mobile-surface-elevated: #FFFFFF;
+--mobile-border-subtle: #E7E9E6;
 ```
 
 Recommended for:
@@ -328,6 +331,9 @@ Recommended for:
 - Debts
 - Reports
 - AI assistant
+
+Use warm cream only for small branded, premium, or empty-state accents. Do not make it the
+default mobile background.
 
 ## 7.2 Admin Light Mode
 
@@ -367,11 +373,11 @@ Marketing may use stronger combinations of:
 ## 8.1 Light Mode Text
 
 ```css
---sys-text-primary: #18312C;
---sys-text-secondary: #554F42;
---sys-text-tertiary: #746D5D;
---sys-text-placeholder: #817969;
---sys-text-disabled: #8E897F;
+--sys-text-primary: #202824;
+--sys-text-secondary: #4B534E;
+--sys-text-tertiary: #707870;
+--sys-text-placeholder: #707870;
+--sys-text-disabled: #707870;
 --sys-text-inverse: #FFFFFF;
 ```
 
@@ -391,9 +397,9 @@ Marketing may use stronger combinations of:
 # 9. Border System
 
 ```css
---sys-border-subtle: #E7E3DA;
---sys-border-default: #D5D1C7;
---sys-border-strong: #B8B2A6;
+--sys-border-subtle: #E7E9E6;
+--sys-border-default: #D4D8D3;
+--sys-border-strong: #B4BBB5;
 --sys-border-interactive: #668C84;
 --sys-border-selected: #315C55;
 --sys-border-focus: #2E756B;
@@ -1922,8 +1928,9 @@ The following decisions are mandatory for Version 2.1:
 
 1. Deep teal remains the core Masarifi identity.
 2. Bronze remains a limited premium accent.
-3. The mobile application and Admin Dashboard use separate surface modes.
-4. Admin pages use neutral backgrounds and higher information density than the mobile application.
+3. The mobile application and Admin Dashboard share the cleaner neutral surface foundation.
+4. Admin pages use higher information density; mobile pages use the same neutral clarity with
+   larger spacing and simpler composition.
 5. Teal remains the primary interaction color in light and dark modes.
 6. Financial meaning is separate from system status.
 7. Status colors use separate solid, text, border, and surface tokens.
