@@ -1,7 +1,11 @@
+import { Platform } from 'react-native';
+import { isDemoModeEnabled } from '@/config/demo-mode';
 import {
   accountInputSchema,
   categoryInputSchema,
   emptyTransactionFilters,
+  matchesFilters,
+  projectTransactionEffects,
   transactionInputSchema,
   type AccountInput,
   type CategoryInput,
@@ -16,16 +20,17 @@ import type {
   DeleteResult,
   MutationResult
 } from '@/services/contracts/core-finance-service';
-import {
-  coreFinanceServiceCapability
-} from '@/services/contracts/core-finance-service';
+import { coreFinanceServiceCapability } from '@/services/contracts/core-finance-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
-import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import {
-  fixtureAccounts,
-  fixtureCategories,
-  fixtureTransactions
-} from '@/test-utils/core-finance-fixtures';
+  createDefaultAccount,
+  createDefaultCategories,
+  createDemoAccounts,
+  createDemoTransactions,
+  legacyFixtureAccounts,
+  legacyFixtureTransactions
+} from '@/domain/core-finance-seeds';
+import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import { createMockExchangeRateService } from './exchange-rate-service';
 
 const scopes = {
@@ -84,9 +89,18 @@ export function createMockCoreFinanceService(
       kind: 'mock',
       availability: 'available'
     },
-    async getHomeSummary(profileCurrency): Promise<HomeSummary> {
+    async getHomeSummary(
+      profileCurrency,
+      filters = emptyTransactionFilters
+    ): Promise<HomeSummary> {
       await ensureReady();
-      const accounts = repository.listAccounts();
+      const accounts = repository
+        .listAccounts()
+        .filter(
+          (account) =>
+            !filters.accountIds.length ||
+            filters.accountIds.includes(account.id)
+        );
       const components = [];
       const excludedAccountIds: string[] = [];
       let totalBalanceMinor = 0;
@@ -109,22 +123,20 @@ export function createMockCoreFinanceService(
         });
       }
       const transactions = repository.allTransactions();
-      const active = transactions.filter(
-        (item) =>
-          item.status === 'posted' ||
-          item.status === 'refunded' ||
-          item.status === 'reversed'
+      const periodTransactions = transactions.filter((transaction) =>
+        matchesFilters(transaction, filters)
       );
-      const periodIncomeMinor = active
-        .filter((item) => item.type === 'income')
-        .reduce((sum, item) => sum + item.amountMinor, 0);
-      const periodExpenseMinor = active
-        .filter((item) =>
-          ['expense', 'obligation_payment', 'recurring_payment'].includes(
-            item.type
-          )
-        )
-        .reduce((sum, item) => sum + item.amountMinor, 0);
+      const projections = projectTransactionEffects(transactions, null);
+      const periodTotals = periodTransactions.reduce(
+        (totals, transaction) => {
+          const confirmed = projections.get(transaction.id)!.confirmed;
+          return {
+            incomeMinor: totals.incomeMinor + confirmed.incomeMinor,
+            expenseMinor: totals.expenseMinor + confirmed.expenseMinor
+          };
+        },
+        { incomeMinor: 0, expenseMinor: 0 }
+      );
       return {
         totalBalanceMinor,
         currencyCode: profileCurrency,
@@ -133,18 +145,14 @@ export function createMockCoreFinanceService(
           excludedAccountIds.length > 0,
         components,
         excludedAccountIds,
-        periodIncomeMinor,
-        periodExpenseMinor,
+        periodIncomeMinor: periodTotals.incomeMinor,
+        periodExpenseMinor: periodTotals.expenseMinor,
         activeAccountCount: accounts.length,
-        recentTransactions: repository.listTransactions(
-          emptyTransactionFilters,
-          null,
-          5
-        ).items,
-        reviewCount: transactions.filter(
+        recentTransactions: repository.listTransactions(filters, null, 5).items,
+        reviewCount: periodTransactions.filter(
           (item) => item.reviewStatus === 'required'
         ).length,
-        pendingSyncCount: transactions.filter(
+        pendingSyncCount: periodTransactions.filter(
           (item) =>
             item.syncStatus === 'pending' ||
             item.syncStatus === 'failed' ||
@@ -161,6 +169,15 @@ export function createMockCoreFinanceService(
     async listAccounts(includeArchived) {
       return read(() => repository.listAccounts(includeArchived));
     },
+    async listAccountBalances(includeArchived) {
+      return read(() =>
+        repository.listAccounts(includeArchived).map((account) => ({
+          accountId: account.id,
+          balanceMinor: repository.accountBalance(account.id),
+          currencyCode: account.currencyCode
+        }))
+      );
+    },
     async getAccount(id) {
       return read(() => repository.requireAccount(id));
     },
@@ -173,7 +190,7 @@ export function createMockCoreFinanceService(
     },
     async updateAccount(id, input: AccountInput) {
       return mutate(
-        () => repository.saveAccount(accountInputSchema.parse(input), id),
+        () => repository.saveAccount(input, id),
         () => repository.persistAccounts(),
         () => scopes.account(id)
       );
@@ -244,7 +261,8 @@ export function createMockCoreFinanceService(
             operationId,
             source
           ),
-        (transaction) => repository.persistTransaction(transaction, operationId),
+        (transaction) =>
+          repository.persistTransaction(transaction, operationId),
         (transaction) => scopes.transaction(transaction.id)
       );
     },
@@ -317,15 +335,41 @@ export function createMockCoreFinanceService(
 export function createSeededCoreFinanceService() {
   return createMockCoreFinanceService(
     new CoreFinanceRepository({
-      accounts: fixtureAccounts,
-      categories: fixtureCategories,
-      transactions: fixtureTransactions
+      accounts: legacyFixtureAccounts,
+      categories: createDefaultCategories(),
+      transactions: legacyFixtureTransactions
     }),
-    process.env.NODE_ENV !== 'test'
+    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
   );
 }
 
-export const coreFinanceService = createSeededCoreFinanceService();
+export function createProductionCoreFinanceService() {
+  if (isDemoModeEnabled()) {
+    return createDemoCoreFinanceService();
+  }
+  return createMockCoreFinanceService(
+    new CoreFinanceRepository({
+      accounts: [createDefaultAccount()],
+      categories: createDefaultCategories(),
+      cleanupLegacyFixtures: true
+    }),
+    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+  );
+}
+
+export function createDemoCoreFinanceService() {
+  return createMockCoreFinanceService(
+    new CoreFinanceRepository({
+      accounts: createDemoAccounts(),
+      categories: createDefaultCategories(),
+      transactions: createDemoTransactions(),
+      replaceEmptyDefaultLedger: true
+    }),
+    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+  );
+}
+
+export const coreFinanceService = createProductionCoreFinanceService();
 
 function result<T>(
   value: T,

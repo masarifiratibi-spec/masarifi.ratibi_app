@@ -8,10 +8,19 @@ it('confirms, links, and undoes salary receipts idempotently', async () => {
       salaryProfileId: fixtureSalaryProfile.id,
       transactionId: 'salary-extra',
       expectedOccurrenceDate: '2026-02-28',
-      receivedDate: '2026-02-28'
+      receivedDate: '2026-02-28',
+      timeZone: 'Asia/Riyadh'
     },
     'op-salary-extra'
   );
   expect(result.value.receipt.transactionId).toBe('salary-extra');
-  expect((await service.undoSalaryReceipt(result.value.receipt.id, 'op-undo')).value.receipt.status).toBe('undone');
+  expect(
+    (
+      await service.undoSalaryReceipt(
+        result.value.receipt.id,
+        'op-undo',
+        'Asia/Riyadh'
+      )
+    ).value.receipt.status
+  ).toBe('undone');
 });

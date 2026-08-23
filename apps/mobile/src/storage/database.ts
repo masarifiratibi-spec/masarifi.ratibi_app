@@ -9,7 +9,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 7;
+const CURRENT_SCHEMA_VERSION = 8;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 let databaseWriteQueue: Promise<void> = Promise.resolve();
@@ -52,9 +52,14 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     PRAGMA foreign_keys = ON;
   `);
   await runExclusiveDatabaseTransaction(db, async (transaction) => {
-  await transaction.execAsync(`
+    await transaction.execAsync(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
+      applied_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS demo_seed_markers (
+      id TEXT PRIMARY KEY,
       applied_at INTEGER NOT NULL
     );
 
@@ -510,17 +515,17 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       ON support_operations(kind, status, requested_at DESC);
   `);
 
-  const applied = await transaction.getAllAsync<{ version: number }>(
-    'SELECT version FROM schema_migrations ORDER BY version'
-  );
-  const appliedVersions = new Set(applied.map((row) => row.version));
-
-  if (!appliedVersions.has(CURRENT_SCHEMA_VERSION)) {
-    await transaction.runAsync(
-      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
-      CURRENT_SCHEMA_VERSION,
-      Date.now()
+    const applied = await transaction.getAllAsync<{ version: number }>(
+      'SELECT version FROM schema_migrations ORDER BY version'
     );
-  }
+    const appliedVersions = new Set(applied.map((row) => row.version));
+
+    if (!appliedVersions.has(CURRENT_SCHEMA_VERSION)) {
+      await transaction.runAsync(
+        'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
+        CURRENT_SCHEMA_VERSION,
+        Date.now()
+      );
+    }
   });
 }

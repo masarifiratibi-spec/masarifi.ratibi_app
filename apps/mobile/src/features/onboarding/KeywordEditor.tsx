@@ -1,8 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
+import { FormField } from '@/design-system/components/forms/FormField';
+import {
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
 import type { KeywordRule } from '@/domain/app-shell';
 import { currentLocale, translate } from '@/localization/i18n';
 import {
@@ -70,57 +76,54 @@ export function KeywordEditor({
 
   return (
     <View style={styles.stack}>
-      <View style={styles.row}>
-        <ActionButton label={translate('common.arabic')} onPress={() => setLanguage('ar')} variant="secondary" />
-        <ActionButton label={translate('common.english')} onPress={() => setLanguage('en')} variant="secondary" />
-      </View>
-      <TextInput
-        accessibilityLabel={translate('appShell.tracking.keywords.search')}
+      <ChipSelector
+        options={[translate('common.arabic'), translate('common.english')]}
+        selected={[
+          translate(language === 'ar' ? 'common.arabic' : 'common.english')
+        ]}
+        onToggle={(label) =>
+          setLanguage(label === translate('common.arabic') ? 'ar' : 'en')
+        }
+      />
+      <FormField
+        label={translate('appShell.tracking.keywords.search')}
         onChangeText={setQuery}
-        style={styles.input}
+        variant="search"
         value={query}
       />
-      <View style={styles.row}>
-        <TextInput
-          accessibilityLabel={translate('appShell.tracking.keywords.draft')}
-          onChangeText={setDraft}
-          style={styles.input}
-          value={draft}
-        />
-        <ActionButton label={translate('appShell.tracking.keywords.add')} onPress={commitAdd} />
-      </View>
+      <FormField
+        label={translate('appShell.tracking.keywords.draft')}
+        onChangeText={setDraft}
+        value={draft}
+      />
+      <ActionButton
+        label={translate('appShell.tracking.keywords.add')}
+        onPress={commitAdd}
+      />
       {error ? <StyledText accessibilityRole="alert">{error}</StyledText> : null}
-      <ScrollView>
-        {visibleRules.map((rule) => (
-          <View key={rule.id} style={styles.keyword}>
-            <StyledText>{rule.value}</StyledText>
-            <StyledText variant="caption">
-              {translate('appShell.tracking.keywords.useCount').replace(
-                '{{value}}',
-                String(rule.recentUseCount)
-              )}
-            </StyledText>
+      {visibleRules.map((rule) => (
+        <GroupedList key={rule.id} label={rule.value}>
+          <NavigationRow
+            label={rule.value}
+            description={translate('appShell.tracking.keywords.useCount').replace(
+              '{{value}}',
+              String(rule.recentUseCount)
+            )}
+            status={translate('tracking.action.disable')}
+            onPress={() => commitDisable(rule.id)}
+          />
+          {rule.origin === 'custom' ? (
             <ActionButton
-              label={translate('appShell.tracking.keywords.disable').replace(
+              label={translate('appShell.tracking.keywords.delete').replace(
                 '{{value}}',
                 rule.value
               )}
-              onPress={() => commitDisable(rule.id)}
-              variant="secondary"
+              onPress={() => onChange(deleteKeywordRule(rules, rule.id))}
+              variant="quiet"
             />
-            {rule.origin === 'custom' ? (
-              <ActionButton
-                label={translate('appShell.tracking.keywords.delete').replace(
-                  '{{value}}',
-                  rule.value
-                )}
-                onPress={() => onChange(deleteKeywordRule(rules, rule.id))}
-                variant="quiet"
-              />
-            ) : null}
-          </View>
-        ))}
-      </ScrollView>
+          ) : null}
+        </GroupedList>
+      ))}
       <ActionButton
         label={translate('appShell.tracking.keywords.restore')}
         onPress={() => onChange(restoreDefaultKeywordRules(rules))}
@@ -132,21 +135,6 @@ export function KeywordEditor({
 
 const styles = StyleSheet.create({
   stack: {
-    gap: 12,
-    padding: 16
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8
-  },
-  input: {
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: 12
-  },
-  keyword: {
-    gap: 8,
-    paddingVertical: 8
+    gap: 12
   }
 });

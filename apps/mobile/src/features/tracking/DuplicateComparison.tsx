@@ -66,7 +66,7 @@ export function DuplicateComparison({ id }: { id: string }) {
             <>
               <StyledText variant="subtitle">{existing.data.title}</StyledText>
               <AmountText
-                value={existing.data.amountMinor / 100}
+                minorUnits={existing.data.amountMinor}
                 currency={existing.data.currencyCode}
                 meaning={
                   existing.data.type === 'income'

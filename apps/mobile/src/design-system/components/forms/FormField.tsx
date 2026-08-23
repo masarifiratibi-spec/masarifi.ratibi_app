@@ -9,6 +9,7 @@ import {
 
 import { useTheme } from '@/state/theme-context';
 import { translateDynamic } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
 
 type FormFieldVariant = 'text' | 'phone' | 'otp' | 'search' | 'amount';
 
@@ -30,6 +31,7 @@ export function FormField({
   ...props
 }: FormFieldProps) {
   const theme = useTheme();
+  const direction = usePreferenceStore((state) => state.direction);
   const localizedLabel = translateDynamic(label);
   const localizedHelper = helperText ? translateDynamic(helperText) : undefined;
   const localizedError = errorText ? translateDynamic(errorText) : undefined;
@@ -50,13 +52,15 @@ export function FormField({
       <TextInput
         accessibilityLabel={localizedLabel}
         keyboardType={keyboardType}
+        placeholderTextColor={theme.colors.textSecondary}
         style={[
           styles.input,
           {
             borderColor: errorText
               ? theme.colors.status.danger
               : theme.colors.border,
-            color: theme.colors.textPrimary
+            color: theme.colors.textPrimary,
+            textAlign: direction === 'rtl' ? 'right' : 'left'
           },
           style
         ]}

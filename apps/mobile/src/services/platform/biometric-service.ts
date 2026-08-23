@@ -1,6 +1,14 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 
-import type { BiometricService } from '@/services/contracts/app-shell-service';
+import type {
+  BiometricKind,
+  BiometricService
+} from '@/services/contracts/app-shell-service';
+
+const kindByNativeType: Record<number, BiometricKind> = {
+  1: 'fingerprint',
+  2: 'face'
+};
 
 export function createBiometricService(): BiometricService {
   return {
@@ -11,7 +19,11 @@ export function createBiometricService(): BiometricService {
       if (!(await LocalAuthentication.isEnrolledAsync())) {
         return { status: 'not_enrolled' };
       }
-      return { status: 'supported' };
+      const nativeTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const kinds = nativeTypes
+        .map((nativeType) => kindByNativeType[nativeType])
+        .filter((kind): kind is BiometricKind => kind !== undefined);
+      return { status: 'supported', kinds };
     },
     async authenticate() {
       const result = await LocalAuthentication.authenticateAsync();

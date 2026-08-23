@@ -6,11 +6,11 @@ describe('app shell localization', () => {
     changeLocale('ar');
     expect(translate('appShell.security.pinError')).toContain('6');
     expect(backIconForDirection('rtl')).toBe('chevron-right');
-    expect(tabOrderForDirection('rtl')).toHaveLength(5);
+    expect(tabOrderForDirection('rtl')).toHaveLength(3);
 
     changeLocale('en');
     expect(translate('appShell.security.pinError')).toContain('6');
     expect(backIconForDirection('ltr')).toBe('chevron-left');
-    expect(tabOrderForDirection('ltr')).toHaveLength(5);
+    expect(tabOrderForDirection('ltr')).toHaveLength(3);
   });
 });

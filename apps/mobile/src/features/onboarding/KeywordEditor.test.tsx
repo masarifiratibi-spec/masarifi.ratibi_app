@@ -10,8 +10,9 @@ describe('KeywordEditor', () => {
     const onChange = jest.fn();
     renderWithProviders(<KeywordEditor onChange={onChange} rules={defaultKeywordRules} />);
 
-    fireEvent.press(screen.getByLabelText('English'));
+    fireEvent.press(screen.getByText('English'));
     expect(screen.queryByText('راتب')).toBeNull();
+    expect(screen.getAllByText('إيقاف').length).toBeGreaterThan(0);
     fireEvent.changeText(screen.getByLabelText('بحث في الكلمات'), 'grocery');
     expect(screen.getByText('Grocery')).toBeOnTheScreen();
 

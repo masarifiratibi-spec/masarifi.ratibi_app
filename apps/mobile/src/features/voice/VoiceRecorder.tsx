@@ -23,16 +23,21 @@ export function VoiceRecorder({
 }) {
   const theme = useTheme();
   const recording = state === 'recording';
+  const elapsedSeconds = Math.floor(durationMs / 1000);
+  const elapsed = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(
+    elapsedSeconds % 60
+  ).padStart(2, '0')}`;
   return (
-    <SurfaceCard accessibilityLiveRegion="polite" style={styles.stack}>
+    <SurfaceCard
+      accessibilityLiveRegion="polite"
+      testID="voice-recorder"
+      style={styles.stack}
+    >
       <StyledText variant="subtitle">
         {translate(recording ? 'voice.record.active' : 'voice.record.ready')}
       </StyledText>
       <StyledText variant="amount">
-        {new Intl.NumberFormat('en-US', { minimumIntegerDigits: 2 }).format(
-          Math.floor(durationMs / 1000)
-        )}
-        /60
+        {elapsed}
       </StyledText>
       <View accessibilityElementsHidden style={styles.waveform}>
         {Array.from({ length: 12 }, (_, index) => (
@@ -53,7 +58,11 @@ export function VoiceRecorder({
       ) : null}
       {recording ? (
         <>
-          <ActionButton label={translate('voice.record.stop')} onPress={onStop} />
+          <ActionButton
+            label={translate('voice.record.stop')}
+            onPress={onStop}
+            style={styles.stop}
+          />
           <ActionButton
             label={translate('voice.record.cancel')}
             variant="quiet"
@@ -68,7 +77,13 @@ export function VoiceRecorder({
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 12 },
+  stack: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 12,
+    maxWidth: 320,
+    width: '100%'
+  },
   waveform: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -76,5 +91,6 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center'
   },
-  bar: { borderRadius: 2, width: 4 }
+  bar: { borderRadius: 2, width: 4 },
+  stop: { borderRadius: 44, height: 88, width: 88 }
 });

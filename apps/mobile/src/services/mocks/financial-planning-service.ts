@@ -1,3 +1,11 @@
+import { Platform } from 'react-native';
+import { getCurrencyMinorUnitScale } from '@/domain/currencies';
+import {
+  emptyTransactionFilters,
+  type Transaction
+} from '@/domain/core-finance';
+import { isDemoModeEnabled } from '@/config/demo-mode';
+import { createDemoFinancialPlanningSeed } from '@/domain/financial-planning-seeds';
 import {
   applyPaymentEarliestFirst,
   calculateBudgetProgress,
@@ -20,6 +28,7 @@ import {
   type SalaryReceiptLink,
   type SavingsGoal
 } from '@/domain/financial-planning';
+import { localDateInTimeZone } from '@/domain/financial-period';
 import type { MutationResult } from '@/services/contracts/core-finance-service';
 import type {
   BudgetDetail,
@@ -48,6 +57,7 @@ import type {
 import { financialPlanningServiceCapability } from '@/services/contracts/financial-planning-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { FinancialPlanningRepository } from '@/storage/financial-planning-repository';
+import { coreFinanceService } from './core-finance-service';
 import { fixtureTransactions } from '@/test-utils/core-finance-fixtures';
 import {
   financialPlanningSeed,
@@ -56,7 +66,11 @@ import {
 
 export function createMockFinancialPlanningService(
   repository = new FinancialPlanningRepository(),
-  persistent = false
+  persistent = false,
+  transactionReader: () => Promise<Transaction[]> = async () => [
+    fixtureSalaryTransaction,
+    ...fixtureTransactions
+  ]
 ): CapabilityProviderHandle<FinancialPlanningService> {
   let hydration: Promise<void> | null = null;
   const previews = new Map<string, unknown>();
@@ -65,10 +79,7 @@ export function createMockFinancialPlanningService(
     hydration ??= repository.hydrate();
     return hydration;
   };
-  const readTransactions = async () => [
-    fixtureSalaryTransaction,
-    ...fixtureTransactions
-  ];
+  const readTransactions = transactionReader;
   const persistIfNeeded = async () => {
     if (persistent) await repository.persistAll();
   };
@@ -86,6 +97,9 @@ export function createMockFinancialPlanningService(
       return {
         salaryReceipts: repository.listSalaryReceipts(),
         budgets: repository.listBudgets(),
+        categoryBudgets: repository
+          .listBudgets()
+          .flatMap((budget) => repository.listCategoryBudgets(budget.id)),
         obligations: repository.listObligations(),
         obligationPayments: repository.listPayments(),
         savingsGoals: repository.listGoals(),
@@ -97,11 +111,13 @@ export function createMockFinancialPlanningService(
     async getPlanningOverview(input): Promise<PlanningOverview> {
       await ensureReady();
       const transactions = await readTransactions();
+      const timeZone = resolvePlanningTimeZone(input.timeZone);
       const salary = deriveSalaryCycle({
         profile: repository.activeSalaryProfile(),
         receipts: repository.listSalaryReceipts(),
         transactions,
-        today: input.today
+        today: input.today,
+        timeZone
       });
       const budget = repository
         .listBudgets()
@@ -129,33 +145,76 @@ export function createMockFinancialPlanningService(
           ? calculateBudgetProgress({
               budget,
               transactions,
-              today: input.today
+              categoryIds: repository
+                .listCategoryBudgets(budget.id)
+                .map((category) => category.categoryId),
+              today: input.today,
+              timeZone
             })
           : null,
         obligationsDueMinor: {
           status: 'available',
-          value: { minorUnits: obligationDue, currencyCode: input.currencyCode, scale: 2 },
+          value: {
+            minorUnits: obligationDue,
+            currencyCode: input.currencyCode,
+            scale: getCurrencyMinorUnitScale(input.currencyCode)
+          },
           estimated: false,
           asOf: null
         },
-        savings: repository
-          .listGoals()
-          .map((goal) =>
-            deriveSavingsProgress({
-              goal,
-              movements: repository.listGoalMovements(goal.id),
-              today: input.today
-            })
-          )
+        savings: repository.listGoals().map((goal) =>
+          deriveSavingsProgress({
+            goal,
+            movements: repository.listGoalMovements(goal.id),
+            today: input.today
+          })
+        )
       };
     },
     async getSalaryOverview(input) {
       await ensureReady();
+      const timeZone = resolvePlanningTimeZone(input.timeZone);
+      const profile = repository.activeSalaryProfile();
+      const receipts = repository.listSalaryReceipts();
+      const transactions = await readTransactions();
+      let obligationsReserved = 0;
+      if (profile) {
+        const obligations = repository.listObligations();
+        for (const obligation of obligations) {
+          if (obligation.status !== 'active') continue;
+          const schedule = repository.listSchedule(obligation.id);
+          const payments = repository.listPayments(obligation.id);
+          const paid = new Set(
+            payments
+              .filter((p) => p.status === 'posted')
+              .flatMap((p) => p.allocations.map((a) => a.scheduleItemId))
+          );
+          const linked = receipts
+            .filter(
+              (r) => r.status === 'linked' && r.salaryProfileId === profile.id
+            )
+            .sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
+          if (linked.length) {
+            const cycleStart = linked[0].receivedDate;
+            const cycleEnd = profile.nextExpectedDate;
+            for (const item of schedule) {
+              if (item.status === 'cancelled' || item.status === 'paid')
+                continue;
+              if (paid.has(item.id)) continue;
+              if (item.dueDate >= cycleStart && item.dueDate < cycleEnd) {
+                obligationsReserved += item.scheduledMinor;
+              }
+            }
+          }
+        }
+      }
       return deriveSalaryCycle({
-        profile: repository.activeSalaryProfile(),
-        receipts: repository.listSalaryReceipts(),
-        transactions: await readTransactions(),
-        today: input.today
+        profile,
+        receipts,
+        transactions,
+        obligationsReservedMinor: obligationsReserved,
+        today: input.today,
+        timeZone
       });
     },
     async getSalaryReceiptReview(transactionId) {
@@ -163,7 +222,11 @@ export function createMockFinancialPlanningService(
       return (
         repository
           .listSalaryReceipts()
-          .find((receipt) => receipt.id === transactionId || receipt.transactionId === transactionId) ?? null
+          .find(
+            (receipt) =>
+              receipt.id === transactionId ||
+              receipt.transactionId === transactionId
+          ) ?? null
       );
     },
     async saveSalaryProfile(input: SalaryProfileInput, operationId: string) {
@@ -205,22 +268,54 @@ export function createMockFinancialPlanningService(
         operationId
       );
       await persistIfNeeded();
-      return salaryOutcome(repository, receipt, operationId);
+      return salaryOutcome(repository, receipt, operationId, input.timeZone);
     },
-    async undoSalaryReceipt(receiptId: string, operationId: string) {
+    async undoSalaryReceipt(
+      receiptId: string,
+      operationId: string,
+      timeZone?: string
+    ) {
       await ensureReady();
       const receipt = repository.undoSalaryReceipt(receiptId, operationId);
       await persistIfNeeded();
-      return salaryOutcome(repository, receipt, operationId);
+      return salaryOutcome(repository, receipt, operationId, timeZone);
     },
     async getBudget(periodKey: string) {
       await ensureReady();
       const budget = repository.getBudgetByPeriod(periodKey);
-      return budget ? budgetDetail(repository, budget, '2026-01-15') : null;
+      return budget
+        ? budgetDetail(
+            repository,
+            budget,
+            '2026-01-15',
+            await readTransactions()
+          )
+        : null;
+    },
+    async listBudgets(periodKey: string) {
+      await ensureReady();
+      const transactions = await readTransactions();
+      return repository
+        .listBudgets(periodKey)
+        .filter((budget) => budget.status !== 'deleted')
+        .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+        .map((budget) =>
+          budgetDetail(
+            repository,
+            budget,
+            localDateFromTimestamp(Date.now()),
+            transactions
+          )
+        );
     },
     async getBudgetById(id: string) {
       await ensureReady();
-      return budgetDetail(repository, repository.requireBudget(id), localDateFromTimestamp(Date.now()));
+      return budgetDetail(
+        repository,
+        repository.requireBudget(id),
+        localDateFromTimestamp(Date.now()),
+        await readTransactions()
+      );
     },
     async createBudgetDraftFromPrevious(periodKey: string) {
       await ensureReady();
@@ -249,8 +344,31 @@ export function createMockFinancialPlanningService(
     },
     async saveBudget(input: BudgetInput, operationId: string) {
       await ensureReady();
+      const prior = repository.operationResult<Budget>(operationId);
+      if (prior) return result(prior, budgetScopes(prior.id));
+      const name = input.name.trim();
+      if (!name) throw new FinancialPlanningError('validation');
+      repository.assertCategoriesAvailable(
+        input.periodKey,
+        (input.categories ?? [])
+          .filter((category) => category.status !== 'deleted')
+          .map((category) => category.categoryId),
+        input.id
+      );
+      if (input.categories) {
+        validateCategoryBudgets(
+          {
+            configuredExpenseLimitMinor: input.configuredExpenseLimitMinor,
+            rolloverCreditMinor: input.rolloverCreditMinor ?? 0
+          },
+          input.categories
+        );
+      }
       const budget = repository.saveBudget(
         {
+          id: input.id,
+          expectedVersion: input.expectedVersion,
+          name,
           periodKey: input.periodKey,
           currencyCode: input.currencyCode,
           configuredExpenseLimitMinor: input.configuredExpenseLimitMinor,
@@ -263,10 +381,12 @@ export function createMockFinancialPlanningService(
         operationId
       );
       if (input.categories) {
-        validateCategoryBudgets(budget, input.categories);
         repository.replaceCategoryBudgets(
           budget.id,
-          input.categories.map((category) => ({ ...category, budgetId: budget.id }))
+          input.categories.map((category) => ({
+            ...category,
+            budgetId: budget.id
+          }))
         );
       }
       await persistIfNeeded();
@@ -279,10 +399,16 @@ export function createMockFinancialPlanningService(
       const categories = repository.listCategoryBudgets(input.budgetId);
       const next = categories.map((category) => {
         if (category.categoryId === input.fromCategoryId) {
-          return { ...category, limitMinor: category.limitMinor - input.amountMinor };
+          return {
+            ...category,
+            limitMinor: category.limitMinor - input.amountMinor
+          };
         }
         if (category.categoryId === input.toCategoryId) {
-          return { ...category, limitMinor: category.limitMinor + input.amountMinor };
+          return {
+            ...category,
+            limitMinor: category.limitMinor + input.amountMinor
+          };
         }
         return category;
       });
@@ -302,19 +428,34 @@ export function createMockFinancialPlanningService(
       repository.replaceCategoryBudgets(preview.budgetId, preview.categories);
       await persistIfNeeded();
       return result(
-        budgetDetail(repository, repository.requireBudget(preview.budgetId), '2026-01-15'),
+        budgetDetail(
+          repository,
+          repository.requireBudget(preview.budgetId),
+          '2026-01-15',
+          await readTransactions()
+        ),
         budgetScopes(preview.budgetId)
       );
     },
     async setBudgetStatus(id, expectedVersion, status, operationId) {
       await ensureReady();
-      const value = repository.setBudgetStatus(id, expectedVersion, status, operationId);
+      const value = repository.setBudgetStatus(
+        id,
+        expectedVersion,
+        status,
+        operationId
+      );
       await persistIfNeeded();
       return result(value, budgetScopes(id));
     },
     async deleteBudget(id, expectedVersion, operationId) {
       await ensureReady();
-      const value = repository.setBudgetStatus(id, expectedVersion, 'deleted', operationId);
+      const value = repository.setBudgetStatus(
+        id,
+        expectedVersion,
+        'deleted',
+        operationId
+      );
       await persistIfNeeded();
       return result(value, budgetScopes(id));
     },
@@ -338,7 +479,8 @@ export function createMockFinancialPlanningService(
           status.remainingMinor.status === 'available'
             ? status.remainingMinor.value
             : 0;
-        if (obligation.direction === 'payable') overview.payablesMinor += remaining;
+        if (obligation.direction === 'payable')
+          overview.payablesMinor += remaining;
         else overview.receivablesMinor += remaining;
         if (
           status.nextDueDate &&
@@ -360,7 +502,10 @@ export function createMockFinancialPlanningService(
     },
     async createObligation(input: ObligationInput, operationId: string) {
       await ensureReady();
-      const obligation = repository.saveObligation(normalizeObligation(input), operationId);
+      const obligation = repository.saveObligation(
+        normalizeObligation(input),
+        operationId
+      );
       repository.replaceSchedule(obligation.id, buildSchedule(obligation));
       await persistIfNeeded();
       return result(obligation, obligationScopes(obligation.id));
@@ -368,7 +513,8 @@ export function createMockFinancialPlanningService(
     async updateObligation(id, expectedVersion, input, operationId) {
       await ensureReady();
       const current = repository.requireObligation(id);
-      if (current.version !== expectedVersion) throw new FinancialPlanningError('conflict');
+      if (current.version !== expectedVersion)
+        throw new FinancialPlanningError('conflict');
       const obligation = repository.saveObligation(
         { ...normalizeObligation(input), id },
         operationId
@@ -397,7 +543,10 @@ export function createMockFinancialPlanningService(
         payments: repository.listPayments(input.obligationId),
         paidDate: input.paidDate
       });
-      const allocated = allocations.reduce((sum, item) => sum + item.amountMinor, 0);
+      const allocated = allocations.reduce(
+        (sum, item) => sum + item.amountMinor,
+        0
+      );
       const preview: ObligationPaymentPreview = {
         previewId: `payment-preview-${Date.now()}`,
         obligationId: input.obligationId,
@@ -434,7 +583,9 @@ export function createMockFinancialPlanningService(
           settlementAdjustmentMinor: 0,
           source: preview.input.source,
           transactionOwnership:
-            preview.input.transaction.kind === 'link' ? 'linked_existing' : 'created',
+            preview.input.transaction.kind === 'link'
+              ? 'linked_existing'
+              : 'created',
           status: 'posted',
           operationId,
           replacesPaymentId: null
@@ -442,14 +593,20 @@ export function createMockFinancialPlanningService(
         operationId
       );
       await persistIfNeeded();
-      return result({ obligation, payment }, paymentScopes(obligation.id, payment.id));
+      return result(
+        { obligation, payment },
+        paymentScopes(obligation.id, payment.id)
+      );
     },
     async reverseObligationPayment(paymentId, operationId) {
       await ensureReady();
       const payment = repository.reversePayment(paymentId, operationId);
       const obligation = repository.requireObligation(payment.obligationId);
       await persistIfNeeded();
-      return result({ obligation, payment }, paymentScopes(obligation.id, payment.id));
+      return result(
+        { obligation, payment },
+        paymentScopes(obligation.id, payment.id)
+      );
     },
     async previewEarlySettlement(obligationId) {
       await ensureReady();
@@ -461,7 +618,9 @@ export function createMockFinancialPlanningService(
         today: '2026-01-15'
       });
       const remaining =
-        status.remainingMinor.status === 'available' ? status.remainingMinor.value : 0;
+        status.remainingMinor.status === 'available'
+          ? status.remainingMinor.value
+          : 0;
       return {
         previewId: `settlement-${obligationId}`,
         obligationId,
@@ -499,7 +658,10 @@ export function createMockFinancialPlanningService(
         operationId
       );
       await persistIfNeeded();
-      return result({ obligation, payment }, paymentScopes(obligationId, payment.id));
+      return result(
+        { obligation, payment },
+        paymentScopes(obligationId, payment.id)
+      );
     },
     async listPaymentMatches(input: PaymentMatchQuery) {
       await ensureReady();
@@ -510,7 +672,10 @@ export function createMockFinancialPlanningService(
       await ensureReady();
       return repository.requirePaymentMatch(id);
     },
-    async resolvePaymentMatch(input: PaymentMatchResolution, operationId: string) {
+    async resolvePaymentMatch(
+      input: PaymentMatchResolution,
+      operationId: string
+    ) {
       await ensureReady();
       const match = repository.requirePaymentMatch(input.matchId);
       const next: PaymentMatch = {
@@ -520,7 +685,10 @@ export function createMockFinancialPlanningService(
       };
       repository.savePaymentMatch(next, operationId);
       await persistIfNeeded();
-      return result({ match: next }, ['planning.paymentMatches', `planning.paymentMatch.${input.matchId}`]);
+      return result({ match: next }, [
+        'planning.paymentMatches',
+        `planning.paymentMatch.${input.matchId}`
+      ]);
     },
     async listGoals(input: GoalQuery) {
       await ensureReady();
@@ -539,18 +707,29 @@ export function createMockFinancialPlanningService(
     async updateGoal(id, expectedVersion, input, operationId) {
       await ensureReady();
       const current = repository.requireGoal(id);
-      if (current.version !== expectedVersion) throw new FinancialPlanningError('conflict');
-      const goal = repository.saveGoal({ ...normalizeGoal(input), id }, operationId);
+      if (current.version !== expectedVersion)
+        throw new FinancialPlanningError('conflict');
+      const goal = repository.saveGoal(
+        { ...normalizeGoal(input), id },
+        operationId
+      );
       await persistIfNeeded();
       return result(goal, goalScopes(id));
     },
     async setGoalStatus(id, expectedVersion, status, operationId) {
       await ensureReady();
-      const goal = repository.setGoalStatus(id, expectedVersion, status, operationId);
+      const goal = repository.setGoalStatus(
+        id,
+        expectedVersion,
+        status,
+        operationId
+      );
       await persistIfNeeded();
       return result(goal, goalScopes(id));
     },
-    async previewGoalMovement(input: GoalMovementInput): Promise<GoalMovementPreview> {
+    async previewGoalMovement(
+      input: GoalMovementInput
+    ): Promise<GoalMovementPreview> {
       await ensureReady();
       const preview = {
         previewId: `goal-movement-${Date.now()}`,
@@ -618,16 +797,33 @@ export function createMockFinancialPlanningService(
   };
 }
 
-export const financialPlanningService = createMockFinancialPlanningService(
-  new FinancialPlanningRepository(financialPlanningSeed),
-  process.env.NODE_ENV !== 'test'
-);
+export function createProductionFinancialPlanningService() {
+  return createMockFinancialPlanningService(
+    new FinancialPlanningRepository(
+      isDemoModeEnabled() ? createDemoFinancialPlanningSeed() : {}
+    ),
+    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
+    async () =>
+      (
+        await coreFinanceService.listTransactions(
+          emptyTransactionFilters,
+          null,
+          5_000
+        )
+      ).items
+  );
+}
 
 export function createSeededFinancialPlanningService() {
   return createMockFinancialPlanningService(
     new FinancialPlanningRepository(financialPlanningSeed)
   );
 }
+
+export const financialPlanningService =
+  process.env.NODE_ENV === 'test'
+    ? createSeededFinancialPlanningService()
+    : createProductionFinancialPlanningService();
 
 export function deriveMatchForTransaction(
   transactionId: string,
@@ -650,10 +846,12 @@ export function deriveMatchForTransaction(
 function salaryOutcome(
   repository: FinancialPlanningRepository,
   receipt: SalaryReceiptLink,
-  operationId: string
+  operationId: string,
+  timeZone?: string
 ): Promise<MutationResult<SalaryReceiptOutcome>> {
   const profile = repository.activeSalaryProfile();
   if (!profile) throw new FinancialPlanningError('not_found');
+  const effectiveTimeZone = resolvePlanningTimeZone(timeZone);
   return Promise.resolve(
     result(
       {
@@ -663,7 +861,8 @@ function salaryOutcome(
           profile,
           receipts: repository.listSalaryReceipts(),
           transactions: [fixtureSalaryTransaction, ...fixtureTransactions],
-          today: localDateFromTimestamp(Date.now())
+          today: localDateInTimeZone(Date.now(), effectiveTimeZone),
+          timeZone: effectiveTimeZone
         })
       },
       [...salaryScopes(), `planning.salary.operation.${operationId}`]
@@ -671,15 +870,26 @@ function salaryOutcome(
   );
 }
 
+function resolvePlanningTimeZone(timeZone?: string): string {
+  return timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+}
+
 function budgetDetail(
   repository: FinancialPlanningRepository,
   budget: Budget,
-  today: LocalDate
+  today: LocalDate,
+  transactions: readonly Transaction[]
 ): BudgetDetail {
+  const categories = repository.listCategoryBudgets(budget.id);
   return {
     budget,
-    categories: repository.listCategoryBudgets(budget.id),
-    progress: calculateBudgetProgress({ budget, transactions: [], today })
+    categories,
+    progress: calculateBudgetProgress({
+      budget,
+      transactions,
+      categoryIds: categories.map((category) => category.categoryId),
+      today
+    })
   };
 }
 
@@ -708,7 +918,9 @@ function goalDetail(
   };
 }
 
-function normalizeObligation(input: ObligationInput): Omit<
+function normalizeObligation(
+  input: ObligationInput
+): Omit<
   Obligation,
   'id' | 'version' | 'syncStatus' | 'createdAt' | 'updatedAt' | 'status'
 > {
@@ -734,7 +946,9 @@ function normalizeObligation(input: ObligationInput): Omit<
   };
 }
 
-function normalizeGoal(input: SavingsGoalInput): Omit<
+function normalizeGoal(
+  input: SavingsGoalInput
+): Omit<
   SavingsGoal,
   'id' | 'version' | 'syncStatus' | 'createdAt' | 'updatedAt' | 'status'
 > {
@@ -751,7 +965,10 @@ function normalizeGoal(input: SavingsGoalInput): Omit<
 }
 
 function buildSchedule(obligation: Obligation): ObligationScheduleItem[] {
-  if (obligation.scheduleKind !== 'fixed_term' || !obligation.installmentCount) {
+  if (
+    obligation.scheduleKind !== 'fixed_term' ||
+    !obligation.installmentCount
+  ) {
     return [];
   }
   const start = obligation.startDate ?? '2026-01-01';
@@ -773,8 +990,14 @@ function buildSchedule(obligation: Obligation): ObligationScheduleItem[] {
 
 const derivedScopes = ['reports.live', 'assistant.context'] as const;
 
-function result<T>(value: T, affectedScopes: readonly string[]): MutationResult<T> {
-  return { value, affectedScopes: [...new Set([...affectedScopes, ...derivedScopes])] };
+function result<T>(
+  value: T,
+  affectedScopes: readonly string[]
+): MutationResult<T> {
+  return {
+    value,
+    affectedScopes: [...new Set([...affectedScopes, ...derivedScopes])]
+  };
 }
 
 function salaryScopes() {
@@ -782,7 +1005,12 @@ function salaryScopes() {
 }
 
 function budgetScopes(id: string) {
-  return ['planning.overview', 'planning.budget', `planning.budget.${id}`, 'home.summary'];
+  return [
+    'planning.overview',
+    'planning.budget',
+    `planning.budget.${id}`,
+    'home.summary'
+  ];
 }
 
 function obligationScopes(id: string) {
@@ -804,5 +1032,10 @@ function paymentScopes(obligationId: string, paymentId: string) {
 }
 
 function goalScopes(id: string) {
-  return ['planning.overview', 'planning.goals', `planning.goal.${id}`, 'home.summary'];
+  return [
+    'planning.overview',
+    'planning.goals',
+    `planning.goal.${id}`,
+    'home.summary'
+  ];
 }

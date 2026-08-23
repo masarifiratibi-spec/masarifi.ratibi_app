@@ -1,6 +1,7 @@
 import { useAppShellStore } from './app-shell';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { seedClientDemoData } from '@/storage/client-demo-seeder';
 import type {
   AuthenticationSession,
   OnboardingProgress,
@@ -12,12 +13,16 @@ jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn()
 }));
+jest.mock('@/storage/client-demo-seeder', () => ({
+  seedClientDemoData: jest.fn(async () => true)
+}));
 
 const secureGet = jest.mocked(SecureStore.getItemAsync);
 const secureSet = jest.mocked(SecureStore.setItemAsync);
 const secureDelete = jest.mocked(SecureStore.deleteItemAsync);
 const asyncGet = jest.mocked(AsyncStorage.getItem);
 const asyncSet = jest.mocked(AsyncStorage.setItem);
+const seedDemo = jest.mocked(seedClientDemoData);
 
 const session: AuthenticationSession = {
   status: 'authenticated',
@@ -49,6 +54,7 @@ const lock: PrivacyLockPreference = {
 };
 
 beforeEach(() => {
+  delete process.env.EXPO_PUBLIC_DEMO_MODE;
   jest.clearAllMocks();
   useAppShellStore.getState().reset();
   secureGet.mockImplementation(async (key) =>
@@ -57,13 +63,61 @@ beforeEach(() => {
       : JSON.stringify(lock)
   );
   asyncGet.mockImplementation(async (key) => {
-    if (key === 'masarifi.appShell.onboarding') return JSON.stringify(onboarding);
+    if (key === 'masarifi.appShell.onboarding')
+      return JSON.stringify(onboarding);
     if (key === 'masarifi.appShell.pendingDestination') return '/reports';
     return null;
   });
 });
 
 describe('useAppShellStore', () => {
+  it('opens an enabled client demo as a completed local user', async () => {
+    process.env.EXPO_PUBLIC_DEMO_MODE = '1';
+    secureGet.mockResolvedValue(null);
+    asyncGet.mockResolvedValue(null);
+
+    await useAppShellStore.getState().hydrate(100);
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      hydrated: true,
+      session: {
+        status: 'authenticated',
+        userId: 'client-demo',
+        restoration: 'restored'
+      },
+      onboarding: { status: 'completed', currentStep: null },
+      privacyLock: null
+    });
+    expect(secureSet).toHaveBeenCalledWith(
+      'masarifi.appShell.session',
+      expect.stringContaining('client-demo')
+    );
+    expect(asyncSet).toHaveBeenCalledWith(
+      'masarifi.appShell.onboarding',
+      expect.stringContaining('completed')
+    );
+  });
+
+  it('waits for demo seeding before exposing a hydrated shell', async () => {
+    process.env.EXPO_PUBLIC_DEMO_MODE = '1';
+    let finishSeed!: () => void;
+    seedDemo.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        finishSeed = () => resolve(true);
+      })
+    );
+
+    const hydration = useAppShellStore.getState().hydrate(100);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(seedDemo).toHaveBeenCalledTimes(1);
+    expect(useAppShellStore.getState().hydrated).toBe(false);
+    finishSeed();
+    await hydration;
+    expect(useAppShellStore.getState().hydrated).toBe(true);
+  });
+
   it('hydrates session, onboarding, pending route, and lock atomically', async () => {
     await useAppShellStore.getState().hydrate(15);
 
@@ -134,7 +188,9 @@ describe('useAppShellStore', () => {
       'masarifi.appShell.pinCredential',
       JSON.stringify('pin:123456')
     );
-    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.pinCredential');
+    expect(secureDelete).toHaveBeenCalledWith(
+      'masarifi.appShell.pinCredential'
+    );
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
   });
 

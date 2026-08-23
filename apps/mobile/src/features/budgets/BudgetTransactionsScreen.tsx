@@ -8,7 +8,7 @@ import { PlanningMetric, PlanningScreen, PlanningState } from '@/features/financ
 import { currentLocale, translate } from '@/localization/i18n';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useBudgetById } from './budget-queries';
 
 export function BudgetTransactionsScreen({ budgetId = '' }: { budgetId?: string }) {
@@ -29,7 +29,7 @@ export function BudgetTransactionsScreen({ budgetId = '' }: { budgetId?: string 
   const amount = (minor: number) =>
     hideBalances && !revealed
       ? translate('planning.state.hidden')
-      : formatAmount(minor / 100, query.data?.budget.currencyCode ?? 'SAR', currentLocale());
+      : formatMinorAmount(minor, query.data?.budget.currencyCode ?? 'SAR', currentLocale());
   const categoryName = (id: string | null) => {
     const item = categories.data?.find((category: Category) => category.id === id);
     return currentLocale() === 'ar' ? item?.labelAr : item?.labelEn;

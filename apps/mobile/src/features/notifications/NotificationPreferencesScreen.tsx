@@ -6,9 +6,11 @@ import {
   type NotificationPreferencesInput
 } from '@/domain/notifications';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { StateView } from '@/design-system/components/feedback/StateView';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { CheckboxRow, RadioCard, SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
 import { useTheme } from '@/state/theme-context';
@@ -76,6 +78,8 @@ export function NotificationPreferencesScreen() {
       { onError: () => setError(t('notifications.preferences.saveError')) }
     );
   };
+  const quietDayLabels = dayKeys.map((day) => `${t('notifications.preferences.quietPrefix')} ${t(`notifications.preferences.day.${day}`)}`);
+  const weeklyDayLabels = dayKeys.map((day) => `${t('notifications.preferences.weeklyPrefix')} ${t(`notifications.preferences.day.${day}`)}`);
 
   return (
     <ScrollView contentContainerStyle={styles.stack}>
@@ -135,23 +139,21 @@ export function NotificationPreferencesScreen() {
           value={input.quietHours.timeZone}
           onChangeText={(timeZone) => update({ quietHours: { ...input.quietHours, timeZone } })}
         />
-        {dayKeys.map((day, index) => (
-          <CheckboxRow
-            key={day}
-            label={`${t('notifications.preferences.quietPrefix')} ${t(`notifications.preferences.day.${day}`)}`}
-            checked={input.quietHours.weekdays.includes(index)}
-            onPress={() =>
-              update({
-                quietHours: {
-                  ...input.quietHours,
-                  weekdays: input.quietHours.weekdays.includes(index)
-                    ? input.quietHours.weekdays.filter((value) => value !== index)
-                    : [...input.quietHours.weekdays, index].sort()
-                }
-              })
-            }
-          />
-        ))}
+        <ChipSelector
+          options={quietDayLabels}
+          selected={input.quietHours.weekdays.map((weekday) => quietDayLabels[weekday])}
+          onToggle={(label) => {
+            const weekday = quietDayLabels.indexOf(label);
+            update({
+              quietHours: {
+                ...input.quietHours,
+                weekdays: input.quietHours.weekdays.includes(weekday)
+                  ? input.quietHours.weekdays.filter((value) => value !== weekday)
+                  : [...input.quietHours.weekdays, weekday].sort()
+              }
+            });
+          }}
+        />
       </Section>
 
       <Section title={t('notifications.preferences.summaries')}>
@@ -175,14 +177,11 @@ export function NotificationPreferencesScreen() {
           value={input.weeklySummary.time}
           onChangeText={(time) => update({ weeklySummary: { ...input.weeklySummary, time } })}
         />
-        {dayKeys.map((day, weekday) => (
-          <RadioCard
-            key={day}
-            label={`${t('notifications.preferences.weeklyPrefix')} ${t(`notifications.preferences.day.${day}`)}`}
-            selected={input.weeklySummary.weekday === weekday}
-            onPress={() => update({ weeklySummary: { ...input.weeklySummary, weekday } })}
-          />
-        ))}
+        <ChipSelector
+          options={weeklyDayLabels}
+          selected={[weeklyDayLabels[input.weeklySummary.weekday]]}
+          onToggle={(label) => update({ weeklySummary: { ...input.weeklySummary, weekday: Math.max(0, weeklyDayLabels.indexOf(label)) } })}
+        />
       </Section>
 
       <View style={styles.row}>
@@ -210,10 +209,10 @@ export function NotificationPreferencesScreen() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const theme = useTheme();
   return (
-    <View style={styles.section}>
+    <SurfaceCard style={styles.section}>
       <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>{title}</Text>
       {children}
-    </View>
+    </SurfaceCard>
   );
 }
 

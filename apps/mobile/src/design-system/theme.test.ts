@@ -27,9 +27,36 @@ describe('SPEC-002 theme mapping', () => {
     for (const mode of ['light', 'dark'] as const) {
       const { colors } = resolveTheme(mode, mode);
 
-      expect(contrastRatio(colors.textPrimary, colors.background)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(colors.textSecondary, colors.surface)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(colors.primary, colors.background)).toBeGreaterThanOrEqual(3);
+      expect(
+        contrastRatio(colors.textPrimary, colors.background)
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(colors.textSecondary, colors.surface)
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(colors.primary, colors.background)
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('keeps the financial hero dark with readable content in both themes', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const { colors } = resolveTheme(mode, mode);
+
+      expect(colors.surfaces.financialHero).toBeDefined();
+      expect(colors.content.onFinancialHero).toBeDefined();
+      expect(
+        contrastRatio(
+          colors.content.onFinancialHero,
+          colors.surfaces.financialHero
+        )
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(colors.content.onFinancialHero, colors.horizon.heroStart)
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(colors.content.onFinancialHero, colors.horizon.heroEnd)
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 });

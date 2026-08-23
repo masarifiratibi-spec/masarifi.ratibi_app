@@ -3,18 +3,20 @@ import React, { useState } from 'react';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { RadioCard } from '@/design-system/components/forms/SelectionControls';
+import { PickerField } from '@/design-system/components/forms/PickerField';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { parseAmountToMinor, type Account } from '@/domain/core-finance';
 import type { LocalDate } from '@/domain/financial-planning';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { PlanningMetric, PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
 import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningDraft';
+import { AccountPicker } from '@/features/transactions/AccountPicker';
 import { currentLocale, translate, type MessageKey } from '@/localization/i18n';
 import type { ObligationPaymentPreview } from '@/services/contracts/financial-planning-service';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useObligation } from './obligation-queries';
 import { usePlanningMutation } from './payment-queries';
 
@@ -26,6 +28,7 @@ export function ObligationPaymentScreen({ obligationId = '' }: { obligationId?: 
   const [amount, setAmount] = useState('');
   const [paidDate, setPaidDate] = useState(() => new Date().toISOString().slice(0, 10) as LocalDate);
   const [accountId, setAccountId] = useState('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [preview, setPreview] = useState<ObligationPaymentPreview>();
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string>();
@@ -51,9 +54,9 @@ export function ObligationPaymentScreen({ obligationId = '' }: { obligationId?: 
   });
 
   const buildPreview = async () => {
-    const amountMinor = parseAmountToMinor(amount);
     const selectedAccount = accountId || accounts.data?.[0]?.id;
     const item = obligation.data?.obligation;
+    const amountMinor = parseAmountToMinor(amount, item?.currencyCode ?? 'SAR');
     if (!amountMinor || !selectedAccount || !item) {
       setError(translate('planning.validation.required'));
       return;
@@ -79,13 +82,14 @@ export function ObligationPaymentScreen({ obligationId = '' }: { obligationId?: 
       setPreviewing(false);
     }
   };
+  const selectedAccountId = accountId || accounts.data?.[0]?.id;
 
   return (
     <PlanningScreen titleKey="planning.obligations.payment">
       {!obligationId ? <PlanningState state="empty" /> : obligation.isLoading || accounts.isLoading || (draftEnabled && !draftReady) ? <PlanningState state="loading" /> : obligation.isError || accounts.isError || !obligation.data ? <PlanningState state="error" onRetry={() => { void obligation.refetch(); void accounts.refetch(); }} /> : preview ? (
         <>
           <PlanningMetric labelKey="planning.obligation.paymentCase" value={translate(`planning.obligation.paymentCase.${preview.case}` as MessageKey)} />
-          <PlanningMetric labelKey="planning.obligation.paymentAmount" value={hideBalances && !revealed ? translate('planning.state.hidden') : formatAmount(preview.amountMinor / 100, obligation.data.obligation.currencyCode, currentLocale())} />
+          <PlanningMetric labelKey="planning.obligation.paymentAmount" value={hideBalances && !revealed ? translate('planning.state.hidden') : formatMinorAmount(preview.amountMinor, obligation.data.obligation.currencyCode, currentLocale())} />
           <PlanningMetric labelKey="planning.obligation.allocations" value={String(preview.allocations.length)} />
           <ActionButton label={translate('planning.obligation.confirmPayment')} loading={confirm.isPending} onPress={() => confirm.mutate(preview, { onSuccess: () => { setSaved(true); void discardDraft(); }, onError: () => setError(translate('planning.state.error')) })} />
           <ActionButton label={translate('planning.action.edit')} onPress={() => { setPreview(undefined); setSaved(false); }} variant="secondary" />
@@ -96,7 +100,21 @@ export function ObligationPaymentScreen({ obligationId = '' }: { obligationId?: 
         <>
           <FormField label={translate('planning.obligation.paymentAmount')} onChangeText={setAmount} value={amount} variant="amount" />
           <FormField label={translate('planning.obligation.paymentDate')} onChangeText={(value) => setPaidDate(value as LocalDate)} value={paidDate} errorText={error} />
-          {accounts.data?.map((account: Account) => <RadioCard key={account.id} label={`${account.name} · ${account.currencyCode}`} selected={(accountId || accounts.data?.[0]?.id) === account.id} onPress={() => setAccountId(account.id)} />)}
+          <PickerField
+            label={translate('voice.review.account')}
+            value={accounts.data?.find((account: Account) => account.id === selectedAccountId)?.name}
+            placeholder={translate('reports.state.unavailable')}
+            onPress={() => setAccountPickerOpen(true)}
+          />
+          <AppSheet title={translate('voice.review.account')} visible={accountPickerOpen} onDismiss={() => setAccountPickerOpen(false)}>
+            <AccountPicker
+              selectedId={selectedAccountId}
+              onSelect={(account) => {
+                setAccountId(account.id);
+                setAccountPickerOpen(false);
+              }}
+            />
+          </AppSheet>
           <ActionButton label={translate('planning.obligation.previewPayment')} loading={previewing} onPress={() => void buildPreview()} />
         </>
       )}

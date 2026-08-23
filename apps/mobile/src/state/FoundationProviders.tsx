@@ -8,7 +8,13 @@
  */
 
 import React, { useEffect, useMemo, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  DefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+  type Theme as NavigationTheme
+} from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,7 +45,6 @@ export function FoundationProviders({
   client?: QueryClient;
 }) {
   const locale = usePreferenceStore((state) => state.locale);
-  const themePreference = usePreferenceStore((state) => state.theme);
   const direction = usePreferenceStore((state) => state.direction);
   const hydrated = usePreferenceStore((state) => state.hydrated);
   const hydrate = usePreferenceStore((state) => state.hydrate);
@@ -52,36 +57,55 @@ export function FoundationProviders({
 
   useEffect(() => {
     changeLocale(locale);
-  }, [locale]);
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.dir = direction;
+      document.documentElement.lang = locale;
+    }
+  }, [locale, direction]);
 
-  const resolved: ResolvedTheme = useMemo(
-    () => resolveTheme(themePreference),
-    [themePreference]
-  );
+  const resolved: ResolvedTheme = useMemo(() => resolveTheme('light'), []);
   const themeValue: ThemeContextValue = useMemo(
     () => ({ theme: resolved }),
+    [resolved]
+  );
+  const navigationTheme: NavigationTheme = useMemo(
+    () => ({
+      dark: resolved.mode === 'dark',
+      colors: {
+        primary: resolved.colors.primary,
+        background: resolved.colors.surfaces.page,
+        card: resolved.colors.surfaces.card,
+        text: resolved.colors.content.primary,
+        border: resolved.colors.borders.default,
+        notification: resolved.colors.status.info
+      },
+      fonts: DefaultTheme.fonts
+    }),
     [resolved]
   );
 
   return (
     <QueryClientProvider client={client}>
       <ThemeContext.Provider value={themeValue}>
-        <StatusBar
-          backgroundColor={resolved.colors.background}
-          style={resolved.mode === 'dark' ? 'light' : 'dark'}
-        />
-        <SensitiveVisibilityProvider>
-          <SafeAreaView
-            testID="foundation-direction-root"
-            style={{
-              backgroundColor: resolved.colors.background,
-              flex: 1,
-              direction
-            }}
-          >
-            {children}
-          </SafeAreaView>
-        </SensitiveVisibilityProvider>
+        <NavigationThemeProvider value={navigationTheme}>
+          <StatusBar
+            backgroundColor={resolved.colors.background}
+            style={resolved.mode === 'dark' ? 'light' : 'dark'}
+          />
+          <SensitiveVisibilityProvider>
+            <SafeAreaView
+              key={direction}
+              testID="foundation-direction-root"
+              style={{
+                backgroundColor: resolved.colors.background,
+                flex: 1,
+                direction
+              }}
+            >
+              {children}
+            </SafeAreaView>
+          </SensitiveVisibilityProvider>
+        </NavigationThemeProvider>
       </ThemeContext.Provider>
     </QueryClientProvider>
   );

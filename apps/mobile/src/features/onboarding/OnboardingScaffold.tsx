@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { translate } from '@/localization/i18n';
 
 interface OnboardingScaffoldProps {
@@ -42,8 +43,8 @@ export function OnboardingScaffold({
           </StyledText>
         ) : null}
         <StyledText variant="title">{title}</StyledText>
-        <View style={styles.body}>{children}</View>
-        <ActionButton label={primaryLabel} onPress={onPrimary} />
+        {children ? <SurfaceCard style={styles.body}>{children}</SurfaceCard> : null}
+        {onPrimary ? <ActionButton label={primaryLabel} onPress={onPrimary} /> : null}
         {onSkip ? (
           <ActionButton
             label={translate('appShell.onboarding.skip')}

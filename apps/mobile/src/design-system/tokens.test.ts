@@ -10,10 +10,12 @@ import {
   typography,
   minTouchTarget
 } from './tokens';
+import { darkThemeColors, lightThemeColors } from './tokens';
 
 describe('SPEC-002 design tokens', () => {
   it('owns approved reference color families centrally', () => {
-    expect(colorTokens.teal['800']).toBe(hex('1C3934'));
+    expect(colorTokens.teal['900']).toBe(hex('103F37'));
+    expect(colorTokens.teal['600']).toBe(hex('1D7464'));
     expect(colorTokens.bronze['500']).toBe(hex('CFA47A'));
     expect(colorTokens.neutral.warmSurface).toBe(hex('F6F7F5'));
     expect(colorTokens.dark.surface).toBe(hex('19231F'));
@@ -26,6 +28,46 @@ describe('SPEC-002 design tokens', () => {
     expect(colorTokens.financial.transfer).toBeDefined();
     expect(colorTokens.financial.savings).toBeDefined();
     expect(colorTokens.financial.debt).toBeDefined();
+  });
+
+  it('applies the approved light canvas and card hierarchy without changing the hero or dark theme', () => {
+    expect(lightThemeColors).toMatchObject({
+      background: hex('EEF6F4'),
+      surface: hex('FFFFFF'),
+      border: hex('D7E1DC'),
+      surfaces: {
+        page: hex('EEF6F4'),
+        grouped: hex('FFFFFF'),
+        card: hex('FFFFFF'),
+        inset: hex('F1F5F3'),
+        financialHero: hex('103F37')
+      },
+      borders: {
+        default: hex('D7E1DC'),
+        subtle: hex('EEF3F0')
+      },
+      financial: {
+        incomeSurface: hex('BFEBD9'),
+        expenseSurface: hex('FBC8C3')
+      },
+      horizon: {
+        heroStart: hex('103F37'),
+        heroEnd: hex('1D7464'),
+        sheet: hex('FFFFFF'),
+        sheetBorder: hex('D7E1DC')
+      }
+    });
+    expect(darkThemeColors.surfaces).toMatchObject({
+      page: hex('111816'),
+      grouped: hex('202B27'),
+      card: hex('19231F'),
+      inset: hex('202B27'),
+      financialHero: hex('0B2F29')
+    });
+    expect(darkThemeColors.financial).toMatchObject({
+      incomeSurface: darkThemeColors.surfaces.brandSubtle,
+      expenseSurface: darkThemeColors.surfaces.inset
+    });
   });
 
   it('defines chart palettes with non-color cue names', () => {
@@ -41,7 +83,10 @@ describe('SPEC-002 design tokens', () => {
 
   it('defines shared mobile metrics', () => {
     expect(spacing).toMatchObject({ xs: 4, sm: 8, md: 12, lg: 16 });
-    expect(radius.card).toBeLessThanOrEqual(8);
+    expect(radius.card).toBe(22);
+    expect(radius.control).toBe(22);
+    expect(radius.status).toBe(22);
+    expect(radius.overlay).toBe(22);
     expect(borderWidth.default).toBe(1);
     expect(elevation.raised.shadowRadius).toBeGreaterThan(0);
     expect(iconSize.md).toBe(24);
@@ -49,6 +94,71 @@ describe('SPEC-002 design tokens', () => {
     expect(viewport.minWidth).toBe(320);
     expect(viewport.minHeight).toBe(568);
     expect(typography.amount.fontVariant).toEqual(['tabular-nums']);
+  });
+
+  it('defines the R01 Gulf Premium semantic roles', () => {
+    expect(lightThemeColors.surfaces).toMatchObject({
+      page: expect.any(String),
+      grouped: expect.any(String),
+      card: expect.any(String),
+      inset: expect.any(String),
+      brandStrong: expect.any(String),
+      brandSubtle: expect.any(String),
+      attention: expect.any(String),
+      overlay: expect.any(String)
+    });
+    expect(Object.keys(darkThemeColors.surfaces)).toEqual(
+      Object.keys(lightThemeColors.surfaces)
+    );
+    expect(lightThemeColors.content).toMatchObject({
+      primary: lightThemeColors.textPrimary,
+      secondary: lightThemeColors.textSecondary,
+      muted: expect.any(String),
+      inverse: lightThemeColors.textInverse,
+      link: lightThemeColors.primary,
+      disabled: expect.any(String),
+      sensitive: expect.any(String)
+    });
+    expect(lightThemeColors.borders).toMatchObject({
+      default: lightThemeColors.border,
+      subtle: expect.any(String),
+      strong: expect.any(String),
+      focus: lightThemeColors.focus,
+      selected: lightThemeColors.primary,
+      error: lightThemeColors.danger,
+      disabled: expect.any(String)
+    });
+  });
+
+  it('provides the reusable Horizon visual contract', () => {
+    expect(lightThemeColors.horizon).not.toBe(darkThemeColors.horizon);
+    expect(lightThemeColors.horizon.heroStart).toBe(colorTokens.teal['900']);
+    expect(lightThemeColors.horizon.heroEnd).toBe(colorTokens.teal['600']);
+    expect(lightThemeColors.surfaces.brandStrong).toBe(colorTokens.teal['900']);
+    expect(darkThemeColors.horizon.heroStart).toBe(colorTokens.teal['950']);
+    expect(darkThemeColors.horizon.heroEnd).toBe(colorTokens.teal['900']);
+    expect(Object.keys(lightThemeColors.horizon)).toEqual([
+      'heroStart',
+      'heroEnd',
+      'glow',
+      'wash',
+      'sheet',
+      'sheetBorder',
+      'glass',
+      'metricSurface',
+      'glassStrong',
+      'glassBorder',
+      'ink',
+      'scrim'
+    ]);
+    expect(Object.keys(darkThemeColors.horizon)).toEqual(
+      Object.keys(lightThemeColors.horizon)
+    );
+    expect(radius).toMatchObject({
+      actionTray: 22,
+      bottomSheet: 28,
+      group: 22
+    });
   });
 });
 

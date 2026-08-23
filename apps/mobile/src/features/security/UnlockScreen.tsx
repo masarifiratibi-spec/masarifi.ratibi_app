@@ -10,6 +10,7 @@ import { verifyPin } from './privacy-lock';
 
 interface UnlockScreenProps {
   expectedHash?: string;
+  biometricEnabled?: boolean;
   biometricService?: BiometricService;
   lockedUntil?: number | null;
   now?: () => number;
@@ -20,6 +21,7 @@ interface UnlockScreenProps {
 }
 
 export function UnlockScreen({
+  biometricEnabled = false,
   biometricService,
   expectedHash = '',
   lockedUntil = null,
@@ -43,6 +45,15 @@ export function UnlockScreen({
     );
     return () => clearTimeout(timeout);
   }, [lockedUntil, now]);
+
+  useEffect(() => {
+    if (!biometricEnabled || !biometricService) return;
+    if (sessionExpired || temporarilyLocked) return;
+    void unlockWithBiometric();
+    // The automatic prompt is a mount-time behavior: re-running it on later
+    // renders would surprise users who already dismissed the prompt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function unlockWithBiometric() {
     const result = await biometricService?.authenticate();

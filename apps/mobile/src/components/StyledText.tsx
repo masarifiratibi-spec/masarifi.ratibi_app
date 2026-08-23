@@ -16,7 +16,7 @@ import {
 
 import { useTheme } from '@/state/theme-context';
 import { currentLocale, translateDynamic } from '@/localization/i18n';
-import { fontFamilyForLocale } from '@/design-system/typography';
+import { financialFontFamily, fontFamilyForLocale } from '@/design-system/typography';
 
 type Variant = keyof ReturnType<typeof variantStyles>;
 
@@ -42,11 +42,11 @@ export function StyledText({
         {
           color: theme.colors.textPrimary,
           flexShrink: 1,
-          fontFamily: fontFamilyForLocale(
-            currentLocale(),
-            weightForVariant(variant)
-          ),
-          writingDirection: 'auto'
+          fontFamily:
+            variant === 'amount'
+              ? financialFontFamily(900)
+              : fontFamilyForLocale(currentLocale(), weightForVariant(variant)),
+          writingDirection: variant === 'amount' ? 'ltr' : 'auto'
         },
         style
       ]}
@@ -56,7 +56,14 @@ export function StyledText({
 }
 
 function weightForVariant(variant: Variant) {
-  return variant === 'caption' || variant === 'body' ? 'regular' : 'bold';
+  return ({
+    caption: 400,
+    body: 400,
+    subtitle: 600,
+    title: 700,
+    headline: 800,
+    amount: 900
+  } as const)[variant];
 }
 
 /**

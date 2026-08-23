@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
@@ -8,7 +8,7 @@ import { translate } from '@/localization/i18n';
 
 export default function LegalRoute() {
   return (
-    <View style={styles.stack}>
+    <ScrollView contentContainerStyle={styles.stack}>
       <StyledText variant="title">{translate('appShell.public.legal')}</StyledText>
       <StyledText variant="subtitle">{translate('appShell.public.privacyTitle')}</StyledText>
       <StyledText>{translate('appShell.public.privacyBody')}</StyledText>
@@ -19,7 +19,7 @@ export default function LegalRoute() {
         onPress={() => router.back()}
         variant="secondary"
       />
-    </View>
+    </ScrollView>
   );
 }
 

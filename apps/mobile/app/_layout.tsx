@@ -11,6 +11,7 @@ import { AppShellProvider } from '@/state/AppShellProvider';
 import { FoundationProviders } from '@/state/FoundationProviders';
 import { useAppShellStore } from '@/state/app-shell';
 import { NotificationResponseRuntime } from '@/features/shell/ProtectedRouteGate';
+import { useTheme } from '@/state/theme-context';
 
 export default function RootLayout() {
   const autoLockDuration = useAppShellStore(
@@ -39,10 +40,23 @@ export default function RootLayout() {
             onLock={handleLock}
           >
             <NotificationResponseRuntime />
-            <Stack screenOptions={{ headerShown: false }} />
+            <RootStack />
           </AppPrivacyGate>
         </AppShellProvider>
       </FoundationProviders>
     </FontGate>
+  );
+}
+
+function RootStack() {
+  const theme = useTheme();
+
+  return (
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: theme.colors.surfaces.page },
+        headerShown: false
+      }}
+    />
   );
 }

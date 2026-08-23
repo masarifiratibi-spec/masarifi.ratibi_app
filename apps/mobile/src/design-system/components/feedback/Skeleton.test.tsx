@@ -12,8 +12,8 @@ describe('Skeleton', () => {
       </>
     );
 
-    const block = screen.UNSAFE_getByProps({ testID: 'skeleton-block' });
-    const card = screen.UNSAFE_getByProps({ testID: 'skeleton-card' });
+    const block = screen.getByTestId('skeleton-block', { includeHiddenElements: true });
+    const card = screen.getByTestId('skeleton-card', { includeHiddenElements: true });
     expect(block).toHaveStyle({ width: 120, height: 20 });
     expect(card).toHaveStyle({ width: 240, height: 120 });
     expect(block.props.accessibilityElementsHidden).toBe(true);

@@ -2,14 +2,14 @@ import React from 'react';
 import {
   Pressable,
   StyleSheet,
-  Text,
   type PressableProps,
   type StyleProp,
   type ViewStyle
 } from 'react-native';
 
 import { useTheme } from '@/state/theme-context';
-import { minTouchTarget } from '@/design-system/tokens';
+import { StyledText } from '@/components/StyledText';
+import { minTouchTarget, radius } from '@/design-system/tokens';
 import { translateDynamic } from '@/localization/i18n';
 
 export type ActionButtonVariant =
@@ -58,7 +58,9 @@ export function ActionButton({
       ]}
       {...props}
     >
-      <Text style={[styles.label, { color: colors.text }]}>{localizedLabel}</Text>
+      <StyledText accessible={false} variant="subtitle" style={[styles.label, { color: colors.text }]}>
+        {localizedLabel}
+      </StyledText>
     </Pressable>
   );
 }
@@ -110,7 +112,7 @@ function variantColors(
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: radius.control,
     borderWidth: 1,
     justifyContent: 'center',
     paddingHorizontal: 16,

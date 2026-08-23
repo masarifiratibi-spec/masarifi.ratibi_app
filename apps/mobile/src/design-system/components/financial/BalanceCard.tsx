@@ -9,6 +9,7 @@ import { AmountText } from './FinancialPrimitives';
 export function BalanceCard({
   title,
   value,
+  minorUnits,
   currency,
   hidden = false,
   trend,
@@ -16,7 +17,8 @@ export function BalanceCard({
   onAction
 }: {
   title: string;
-  value: number;
+  value?: number;
+  minorUnits?: number;
   currency: string;
   hidden?: boolean;
   trend?: string;
@@ -31,7 +33,13 @@ export function BalanceCard({
         <Text style={[styles.title, { color: theme.colors.textSecondary }]}>
           {title}
         </Text>
-        <AmountText value={value} currency={currency} meaning="income" masked={hidden} />
+        <AmountText
+          value={value}
+          minorUnits={minorUnits}
+          currency={currency}
+          meaning="income"
+          masked={hidden}
+        />
         {trend ? (
           <Text style={{ color: theme.colors.textSecondary }}>{trend}</Text>
         ) : null}

@@ -1,13 +1,19 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import React from 'react';
-import { ScrollView, TextInput } from 'react-native';
+import { ScrollView } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { FinancialPulse } from '@/design-system/components/financial/FinancialPulse';
+import { FormField } from '@/design-system/components/forms/FormField';
+import { GroupedList, NavigationRow } from '@/design-system/components/navigation/GroupedList';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import type { AssistantActionPreview } from '@/domain/assistant';
+import { minorToMajorAmountText } from '@/domain/currencies';
+import { parseAmountToMinor } from '@/domain/core-finance';
 import { StyledText } from '@/components/StyledText';
-import { translateDynamic } from '@/localization/i18n';
+import { currentLocale, translateDynamic } from '@/localization/i18n';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 
 type AssistantQueries = typeof import('./assistant-queries');
 
@@ -24,11 +30,14 @@ export function AssistantActionPreviewScreen({ previewId }: { conversationId: st
   const moneyInput = isMoneyInput(preview?.input) ? preview.input : null;
   const amountMinor = moneyInput?.amountMinor ?? 0;
   const currency = moneyInput?.currency ?? 'SAR';
+  const editedAmountMinor = parseAmountToMinor(amount, currency);
+  const formattedAmount = formatMinorAmount(amountMinor, currency, currentLocale());
   const queryError = previewQuery.error as { code?: string } | null;
 
   React.useEffect(() => {
-    if (preview && moneyInput) setAmount(formatAmount(amountMinor));
-  }, [amountMinor, moneyInput, preview]);
+    if (preview && moneyInput)
+      setAmount(minorToMajorAmountText(amountMinor, currency));
+  }, [amountMinor, currency, moneyInput, preview]);
 
   if (previewQuery.isError) return <StyledText>{queryError?.code === 'offline' ? 'assistant.actionPreview.state.offline' : 'assistant.actionPreview.state.error'}</StyledText>;
   if (!preview) return <StyledText>assistant.actionPreview.state.loading</StyledText>;
@@ -38,21 +47,27 @@ export function AssistantActionPreviewScreen({ previewId }: { conversationId: st
 
   return (
     <ScrollView contentContainerStyle={{ gap: 12, padding: 16 }}>
-      <StyledText>{`assistant.actionPreview.destination.${preview.affectedDestination.kind}`}</StyledText>
       {moneyInput ? (
-        <>
-          <StyledText>assistant.actionPreview.value.amount</StyledText>
-          <StyledText>{`${formatAmount(amountMinor)} ${currency}`}</StyledText>
-        </>
+        <FinancialPulse
+          accessibilityLabel={`${translateDynamic(`assistant.actionPreview.destination.${preview.affectedDestination.kind}`)}, ${formattedAmount}`}
+          scope={translateDynamic(`assistant.actionPreview.destination.${preview.affectedDestination.kind}`)}
+          statement={formattedAmount}
+          supportingValue={translateDynamic('assistant.actionPreview.confirm.message')}
+        />
+      ) : <StyledText>{`assistant.actionPreview.destination.${preview.affectedDestination.kind}`}</StyledText>}
+      {moneyInput ? (
+        <GroupedList label={translateDynamic('assistant.actionPreview.value.amount')}>
+          <NavigationRow label={translateDynamic('assistant.actionPreview.value.amount')} description={translateDynamic('assistant.actionPreview.confirm.message')} />
+        </GroupedList>
       ) : null}
       {confirm.isPending ? <StyledText>assistant.actionPreview.state.pending</StyledText> : null}
       {moneyInput ? (
         <>
-          <TextInput accessibilityLabel={translateDynamic('assistant.actionPreview.input.amount')} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
+          <FormField label={translateDynamic('assistant.actionPreview.input.amount')} value={amount} onChangeText={setAmount} variant="amount" />
           <ActionButton
             label="assistant.actionPreview.action.saveEdit"
-            disabled={!Number.isFinite(parseAmount(amount)) || parseAmount(amount) <= 0}
-            onPress={() => update.mutate({ previewId, input: { amountMinor: parseAmount(amount), currency }, expectedVersion: preview.version })}
+            disabled={editedAmountMinor === null || editedAmountMinor <= 0}
+            onPress={() => update.mutate({ previewId, input: { amountMinor: editedAmountMinor!, currency }, expectedVersion: preview.version })}
           />
         </>
       ) : null}
@@ -100,14 +115,6 @@ function routeSuccess(preview: AssistantActionPreview) {
   if (destination.kind === 'transactions') router.push('/transactions');
   if (destination.kind === 'budget') router.push(`/budgets/${destination.budgetId}`);
   if (destination.kind === 'obligation') router.push(`/obligations/${destination.obligationId}`);
-}
-
-function formatAmount(minor: number) {
-  return (minor / 100).toFixed(2);
-}
-
-function parseAmount(value: string) {
-  return Math.round(Number(value) * 100);
 }
 
 function isMoneyInput(input: unknown): input is { amountMinor: number; currency: string } {

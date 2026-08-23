@@ -18,6 +18,14 @@ describe('TrackingRulesJourney', () => {
 
     expect(screen.getByText('Masarifi Bank')).toBeOnTheScreen();
     fireEvent.changeText(screen.getByLabelText(translate('tracking.senders.search')), '');
-    expect(screen.getByLabelText(translate('tracking.action.disable'))).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(
+        [
+          'Masarifi Bank',
+          translate('tracking.senders.enabled'),
+          translate('tracking.action.disable')
+        ].join(', ')
+      )
+    ).toBeOnTheScreen();
   });
 });

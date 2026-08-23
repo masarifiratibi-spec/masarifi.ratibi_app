@@ -11,6 +11,19 @@ it('renders system hierarchy, favorites, search, and add action', () => {
   renderWithQueryData(<CategoryListScreen />, [
     [coreFinanceKeys.categories(true), fixtureCategories]
   ]);
+
+  // Category labels appear
   expect(screen.getByText(fixtureCategories[0].labelAr)).toBeTruthy();
-  expect(screen.getByText(translate('coreFinance.categories.add'))).toBeTruthy();
+
+  // Quick action button "إضافة فئة" (Arabic locale) or accessibilityLabel "إضافة تصنيف"
+  expect(
+    screen.getByLabelText(translate('coreFinance.categories.add'))
+  ).toBeTruthy();
+
+  // Category rows render
+  const rows = screen.getAllByTestId('category-row');
+  expect(rows.length).toBeGreaterThan(0);
+
+  // Unified design tokens: standalone cards have borderRadius 22
+  expect(rows[0]).toHaveStyle({ borderRadius: 22 });
 });

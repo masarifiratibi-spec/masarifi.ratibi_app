@@ -2,10 +2,36 @@ import React, { useState } from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
-import { translate } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
 import { ChipSelector, KeywordChipEditor } from './ChipControls';
 
 describe('ChipControls', () => {
+  beforeEach(() => {
+    changeLocale('ar');
+    usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
+  });
+
+  it('starts option rows from the right in Arabic', () => {
+    const screen = renderWithProviders(
+      <ChipSelector options={['الأول', 'الثاني']} selected={[]} onToggle={jest.fn()} />
+    );
+    const selector = screen.getByTestId('chip-selector');
+    expect(selector).toHaveStyle({ flexDirection: 'row-reverse' });
+  });
+
+  it('renders shared chip labels with semantic text', () => {
+    changeLocale('en');
+    usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
+    const screen = renderWithProviders(
+      <ChipSelector options={['All']} selected={[]} onToggle={jest.fn()} />
+    );
+
+    expect(screen.getByText('All')).toHaveStyle({
+      fontFamily: 'MasarifiLatin-600'
+    });
+  });
+
   it('supports selection, deletion, duplicate prevention, disabled default, and wrapping', () => {
     function Harness() {
       const [keywords, setKeywords] = useState(['rent']);

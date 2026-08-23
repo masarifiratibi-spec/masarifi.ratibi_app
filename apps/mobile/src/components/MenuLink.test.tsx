@@ -12,4 +12,10 @@ describe('MenuLink', () => {
 
     expect(ref.current).not.toBeNull();
   });
+
+  it('mirrors the row order in Arabic', () => {
+    const screen = renderWithProviders(<MenuLink label="الوجهة" showChevron />);
+
+    expect(screen.getByRole('link')).toHaveStyle({ flexDirection: 'row' });
+  });
 });

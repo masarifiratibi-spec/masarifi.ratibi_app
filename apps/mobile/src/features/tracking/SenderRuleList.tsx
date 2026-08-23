@@ -3,10 +3,12 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { StyledText } from '@/components/StyledText';
-import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import {
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
 import { translate } from '@/localization/i18n';
 import { automaticTrackingService } from '@/services/mocks/automatic-tracking-service';
 import {
@@ -38,21 +40,24 @@ export function SenderRuleList() {
             title={translate('tracking.senders.empty')}
           />
         }
-        renderItem={({ item }) => (
-          <SurfaceCard>
-            <StyledText variant="subtitle">{item.displayLabel}</StyledText>
-            <StyledText>
-              {item.enabled
-                ? translate('tracking.senders.enabled')
-                : translate('tracking.senders.disabled')}
-            </StyledText>
-            <ActionButton
-              label={
-                item.enabled
-                  ? translate('tracking.action.disable')
-                  : translate('tracking.action.enable')
-              }
-              onPress={async () => {
+        renderItem={({ item }) => {
+          const state = translate(
+            item.enabled
+              ? 'tracking.senders.enabled'
+              : 'tracking.senders.disabled'
+          );
+          const action = translate(
+            item.enabled
+              ? 'tracking.action.disable'
+              : 'tracking.action.enable'
+          );
+          return (
+            <GroupedList label={item.displayLabel}>
+              <NavigationRow
+                label={item.displayLabel}
+                description={state}
+                status={action}
+                onPress={async () => {
                 const result = await automaticTrackingService.saveSenderRule({
                   id: item.id,
                   sender: item.normalizedSender,
@@ -64,10 +69,10 @@ export function SenderRuleList() {
                 });
                 await invalidateTrackingScopes(client, result.affectedScopes);
               }}
-              variant="secondary"
-            />
-          </SurfaceCard>
-        )}
+              />
+            </GroupedList>
+          );
+        }}
         contentContainerStyle={styles.stack}
       />
     </View>

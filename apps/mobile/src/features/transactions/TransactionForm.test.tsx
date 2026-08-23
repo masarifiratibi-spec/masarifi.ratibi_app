@@ -1,25 +1,64 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react-native';
+import { router } from 'expo-router';
 
+import { lightThemeColors } from '@/design-system/tokens';
+import {
+  completeCategorySelection,
+  getCategorySelectionSession
+} from '@/features/categories/category-selection-session';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
-import { translate } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import {
   fixtureAccounts,
-  fixtureCategories
+  fixtureCategories,
+  fixtureTransactions
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
+import { MANUAL_TRANSACTION_DRAFT_ID } from './manual-transaction-draft';
 import { TransactionForm } from './TransactionForm';
 
-jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
+let mockFocusEffectCallback: (() => void) | undefined;
+
+jest.mock('expo-router', () => ({
+  router: {
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    push: jest.fn(),
+    replace: jest.fn()
+  },
+  useFocusEffect: (callback: () => void) => {
+    mockFocusEffectCallback = callback;
+    return require('react').useEffect(callback, [callback]);
+  }
+}));
 jest.mock('@/services/mocks/core-finance-service', () => ({
   coreFinanceService: {
     loadDraft: jest.fn(async () => null),
     saveDraft: jest.fn(async (draft: unknown) => draft),
     discardDraft: jest.fn(async () => undefined),
     createTransaction: jest.fn(),
-    updateTransaction: jest.fn()
+    updateTransaction: jest.fn(),
+    deleteTransaction: jest.fn(),
+    undoDelete: jest.fn()
   }
 }));
+
+beforeEach(() => {
+  changeLocale('en');
+  jest.clearAllMocks();
+  mockFocusEffectCallback = undefined;
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(null);
+  jest.mocked(router.canGoBack).mockReturnValue(true);
+});
 
 it('keeps amount-first entry values and shows localized validation before save', async () => {
   renderWithQueryData(<TransactionForm />, [
@@ -27,15 +66,505 @@ it('keeps amount-first entry values and shows localized validation before save',
     [coreFinanceKeys.categories(false), fixtureCategories]
   ]);
   await waitFor(() =>
-    expect(screen.getByLabelText(translate('coreFinance.form.amount'))).toBeTruthy()
+    expect(
+      screen.getByLabelText(translate('coreFinance.form.amount'))
+    ).toBeTruthy()
   );
   fireEvent.changeText(
     screen.getByLabelText(translate('coreFinance.form.title')),
     'Lunch'
   );
-  fireEvent.press(screen.getByText(translate('coreFinance.form.save')));
+  fireEvent.press(screen.getByLabelText(translate('coreFinance.form.save')));
   expect(screen.getByRole('alert')).toHaveTextContent(
     translate('coreFinance.validation.required')
   );
   expect(screen.getByDisplayValue('Lunch')).toBeTruthy();
+});
+
+it('uses compact controlled account and category pickers', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await waitFor(() =>
+    expect(
+      screen.getByLabelText(translate('coreFinance.form.amount'))
+    ).toBeTruthy()
+  );
+
+  expect(screen.getAllByText(fixtureAccounts[0].name)).toHaveLength(1);
+  expect(screen.queryByText(fixtureAccounts[1].name)).toBeNull();
+  expect(screen.getAllByText(fixtureCategories[0].labelEn)).toHaveLength(1);
+  expect(screen.queryByText(fixtureCategories[7].labelEn)).toBeNull();
+});
+
+it('uses the canonical category screen while preserving edit values', async () => {
+  const transaction = {
+    ...fixtureTransactions[1],
+    notes: 'Keep this note',
+    title: 'Keep this title'
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Category, Food'));
+  await waitFor(() => expect(router.push).toHaveBeenCalled());
+  const route = jest.mocked(router.push).mock.calls.at(-1)?.[0] as unknown as {
+    params: { requestId: string };
+  };
+  expect(getCategorySelectionSession(route.params.requestId)).toBeTruthy();
+  act(() => completeCategorySelection(route.params.requestId, 'shopping'));
+
+  expect(screen.getByText('Shopping')).toBeTruthy();
+  expect(screen.getByDisplayValue('Keep this title')).toBeTruthy();
+  expect(screen.getByDisplayValue('Keep this note')).toBeTruthy();
+});
+
+it('keeps the selected category when the add form regains focus', async () => {
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValueOnce({
+    id: MANUAL_TRANSACTION_DRAFT_ID,
+    transactionType: 'expense',
+    amountText: '25',
+    accountId: 'account-bank',
+    destinationAccountId: null,
+    categoryId: 'food',
+    merchant: 'Keep this title',
+    notes: 'Keep this note',
+    occurredAt: 1_723_939_200_000,
+    status: 'editing',
+    updatedAt: 1_723_939_200_000
+  });
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Category, Food'));
+  await waitFor(() => expect(router.push).toHaveBeenCalled());
+  const route = jest.mocked(router.push).mock.calls.at(-1)?.[0] as unknown as {
+    params: { requestId: string };
+  };
+  act(() => completeCategorySelection(route.params.requestId, 'shopping'));
+  act(() => mockFocusEffectCallback?.());
+
+  expect(screen.getByText('Shopping')).toBeTruthy();
+  expect(screen.getByDisplayValue('Keep this title')).toBeTruthy();
+  expect(screen.getByDisplayValue('Keep this note')).toBeTruthy();
+});
+
+it('presents existing transaction data in the complete edit workspace', async () => {
+  const transaction = {
+    ...fixtureTransactions[11],
+    amountMinor: 343_000,
+    notes: 'Existing context',
+    title: 'InstaPay'
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  expect(await screen.findByText('Edit Income')).toBeTruthy();
+  expect(screen.getByDisplayValue('InstaPay')).toBeTruthy();
+  expect(screen.getByDisplayValue('Existing context')).toBeTruthy();
+  expect(screen.getByText('Daily account')).toBeTruthy();
+  expect(screen.getAllByText('SAR').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Salary').length).toBeGreaterThan(0);
+  expect(screen.getByLabelText('Date')).toBeTruthy();
+  expect(screen.getByText('Manual')).toBeTruthy();
+  expect(screen.getByText('Synced')).toBeTruthy();
+  expect(screen.getByDisplayValue('3430')).toBeTruthy();
+});
+
+it('preserves a three-decimal transaction amount in the edit input', async () => {
+  const transaction = {
+    ...fixtureTransactions[1],
+    amountMinor: 343_123,
+    currencyCode: 'OMR'
+  };
+  const accounts = [{ ...fixtureAccounts[0], currencyCode: 'OMR' }];
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), accounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  expect(await screen.findByDisplayValue('343.123')).toBeTruthy();
+});
+
+it.each([
+  ['SAR', '90071992547409.91'],
+  ['OMR', '9007199254740.991']
+])(
+  'initializes the largest safe %s transaction without losing a minor unit',
+  async (currencyCode, expectedAmount) => {
+    const transaction = {
+      ...fixtureTransactions[1],
+      amountMinor: Number.MAX_SAFE_INTEGER,
+      currencyCode
+    };
+    const accounts = [
+      {
+        ...fixtureAccounts[0],
+        id: transaction.accountId,
+        currencyCode
+      }
+    ];
+    renderWithQueryData(<TransactionForm transaction={transaction} />, [
+      [coreFinanceKeys.accounts(false), accounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]);
+
+    expect(await screen.findByDisplayValue(expectedAmount)).toBeTruthy();
+  }
+);
+
+it('preserves the transaction currency when its account is absent from the active query', async () => {
+  const transaction = {
+    ...fixtureTransactions[1],
+    accountId: 'archived-omr-account',
+    amountMinor: 12_345,
+    currencyCode: 'OMR'
+  };
+  jest.mocked(coreFinanceService.updateTransaction).mockResolvedValue({
+    value: transaction,
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Save transaction'));
+
+  await waitFor(() =>
+    expect(coreFinanceService.updateTransaction).toHaveBeenCalledWith(
+      transaction.id,
+      expect.objectContaining({
+        accountId: 'archived-omr-account',
+        amountMinor: 12_345,
+        currencyCode: 'OMR'
+      })
+    )
+  );
+});
+
+it('groups the edit types and hero amount with the selected Masarifi treatment', async () => {
+  renderWithQueryData(
+    <TransactionForm
+      transaction={{ ...fixtureTransactions[11], amountMinor: 343_000 }}
+    />,
+    [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]
+  );
+
+  expect(await screen.findByTestId('transaction-edit-hero')).toBeTruthy();
+  expect(screen.getByTestId('transaction-edit-type-selector')).toHaveStyle({
+    flexDirection: 'row',
+    flexWrap: 'nowrap'
+  });
+  expect(screen.getByLabelText('Income selected')).toHaveStyle({
+    backgroundColor: lightThemeColors.interactions.primary,
+    flex: 1,
+    minWidth: 0
+  });
+  expect(screen.getByTestId('transaction-edit-amount-unit')).toHaveStyle({
+    alignSelf: 'center',
+    flexDirection: 'row',
+    maxWidth: '100%'
+  });
+  expect(screen.getByDisplayValue('3430')).toHaveStyle({
+    flexShrink: 1,
+    fontSize: 46,
+    lineHeight: 58
+  });
+});
+
+it('keeps the complete money unit centered for small and large amounts', async () => {
+  const small = renderWithQueryData(
+    <TransactionForm
+      transaction={{ ...fixtureTransactions[11], amountMinor: 500 }}
+    />,
+    [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]
+  );
+
+  const smallUnit = await screen.findByTestId('transaction-edit-amount-unit');
+  expect(within(smallUnit).getByDisplayValue('5')).toHaveStyle({ width: 40 });
+  expect(within(smallUnit).getByText('SAR')).toBeTruthy();
+  expect(smallUnit).toHaveStyle({ alignSelf: 'center', maxWidth: '100%' });
+  small.unmount();
+
+  renderWithQueryData(
+    <TransactionForm
+      transaction={{ ...fixtureTransactions[11], amountMinor: 99_999_999_999 }}
+    />,
+    [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]
+  );
+
+  const largeUnit = await screen.findByTestId('transaction-edit-amount-unit');
+  expect(within(largeUnit).getByDisplayValue('999999999.99')).toHaveStyle({
+    width: 300
+  });
+  expect(within(largeUnit).getByText('SAR')).toBeTruthy();
+  expect(largeUnit).toHaveStyle({ alignSelf: 'center', maxWidth: '100%' });
+});
+
+it('saves notes and current metadata then returns to the originating screen', async () => {
+  const transaction = {
+    ...fixtureTransactions[1],
+    notes: 'Old note'
+  };
+  jest.mocked(coreFinanceService.updateTransaction).mockResolvedValue({
+    value: transaction,
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.changeText(await screen.findByLabelText('Description'), 'Dinner');
+  fireEvent.changeText(screen.getByLabelText('Note'), 'Business dinner');
+  fireEvent.press(screen.getByLabelText('Save transaction'));
+
+  await waitFor(() =>
+    expect(coreFinanceService.updateTransaction).toHaveBeenCalledWith(
+      transaction.id,
+      expect.objectContaining({
+        feeMinor: transaction.feeMinor,
+        merchant: transaction.merchant,
+        notes: 'Business dinner',
+        occurredAt: transaction.occurredAt,
+        title: 'Dinner'
+      })
+    )
+  );
+  expect(router.back).toHaveBeenCalledTimes(1);
+  expect(router.replace).not.toHaveBeenCalled();
+});
+
+it('closes immediately when the edit is unchanged', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  const transaction = fixtureTransactions[1];
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Close'));
+  expect(router.back).toHaveBeenCalledTimes(1);
+  expect(alert).not.toHaveBeenCalled();
+});
+
+it('confirms before discarding changed edit values without touching the add draft', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  const transaction = fixtureTransactions[1];
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  fireEvent.changeText(await screen.findByLabelText('Description'), 'Changed');
+  fireEvent.press(screen.getByLabelText('Close'));
+  expect(alert).toHaveBeenCalledWith(
+    'Discard changes?',
+    expect.any(String),
+    expect.any(Array)
+  );
+  expect(router.back).not.toHaveBeenCalled();
+  expect(coreFinanceService.discardDraft).not.toHaveBeenCalled();
+});
+
+it('falls back to transactions after save when edit was opened directly', async () => {
+  const transaction = fixtureTransactions[1];
+  jest.mocked(router.canGoBack).mockReturnValue(false);
+  jest.mocked(coreFinanceService.updateTransaction).mockResolvedValue({
+    value: transaction,
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Save transaction'));
+  await waitFor(() =>
+    expect(router.replace).toHaveBeenCalledWith('/(tabs)/transactions')
+  );
+  expect(router.back).not.toHaveBeenCalled();
+});
+
+it('uses the approved manual workspace with exactly three transaction types', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  expect(await screen.findByTestId('transaction-edit-hero')).toBeTruthy();
+  for (const type of ['expense', 'income', 'transfer'] as const) {
+    expect(screen.getByTestId(`transaction-edit-type-${type}`)).toHaveStyle({
+      flex: 1,
+      minWidth: 0
+    });
+  }
+  expect(screen.queryByText('Refund')).toBeNull();
+  expect(screen.queryByText('Obligation payment')).toBeNull();
+  expect(screen.getByLabelText('Note')).toBeTruthy();
+  expect(screen.getByLabelText('Date')).toBeTruthy();
+  expect(screen.getByText('Account')).toBeTruthy();
+  expect(screen.getByText('Category')).toBeTruthy();
+});
+
+it('restores and saves the manual note and occurred-at date', async () => {
+  const occurredAt = 1_723_939_200_000;
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValueOnce({
+    id: 'manual-entry',
+    transactionType: 'expense',
+    amountText: '25.50',
+    accountId: fixtureAccounts[0].id,
+    destinationAccountId: null,
+    categoryId: fixtureCategories[0].id,
+    merchant: 'Lunch',
+    notes: 'Team lunch',
+    occurredAt,
+    status: 'editing',
+    updatedAt: occurredAt
+  });
+  jest.mocked(coreFinanceService.createTransaction).mockResolvedValue({
+    value: fixtureTransactions[0],
+    affectedScopes: []
+  });
+
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  expect(await screen.findByDisplayValue('Team lunch')).toBeTruthy();
+  fireEvent.press(screen.getByLabelText('Save transaction'));
+
+  await waitFor(() =>
+    expect(coreFinanceService.createTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notes: 'Team lunch',
+        occurredAt
+      }),
+      expect.stringMatching(/^manual-/)
+    )
+  );
+});
+
+it('shows only three equal transaction types in edit mode', async () => {
+  renderWithQueryData(
+    <TransactionForm transaction={fixtureTransactions[1]} />,
+    [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]
+  );
+
+  for (const type of ['expense', 'income', 'transfer'] as const) {
+    expect(
+      await screen.findByTestId(`transaction-edit-type-${type}`)
+    ).toHaveStyle({
+      flex: 1,
+      minWidth: 0
+    });
+  }
+  expect(screen.queryByText('Refund')).toBeNull();
+  expect(screen.queryByText('Obligation payment')).toBeNull();
+});
+
+it('mirrors the three edit types naturally in Arabic', async () => {
+  changeLocale('ar');
+  renderWithQueryData(
+    <TransactionForm transaction={fixtureTransactions[1]} />,
+    [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]
+  );
+
+  expect(
+    await screen.findByTestId('transaction-edit-type-selector')
+  ).toHaveStyle({
+    flexDirection: 'row-reverse'
+  });
+  expect(screen.getByTestId('transaction-edit-type-expense')).toBeTruthy();
+  expect(screen.getByTestId('transaction-edit-type-income')).toBeTruthy();
+  expect(screen.getByTestId('transaction-edit-type-transfer')).toBeTruthy();
+});
+
+it('opens existing relationships and exposes eligible secondary actions', async () => {
+  const transaction = {
+    ...fixtureTransactions[1],
+    source: 'automatic' as const,
+    originalTransactionId: 'tx-original',
+    obligationId: 'obligation-1'
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByText('tx-original'));
+  expect(router.push).toHaveBeenCalledWith('/transactions/tx-original');
+  fireEvent.press(screen.getByText('obligation-1'));
+  expect(router.push).toHaveBeenCalledWith('/obligations/obligation-1');
+  expect(
+    screen.getByText(translate('support.report.transaction'))
+  ).toBeTruthy();
+  expect(
+    screen.getByText(translate('tracking.action.reportWrong'))
+  ).toBeTruthy();
+  expect(
+    screen.getByText(translate('coreFinance.transaction.delete'))
+  ).toBeTruthy();
+});
+
+it('disables editing after deletion and restores it after undo', async () => {
+  const transaction = fixtureTransactions[1];
+  const undoExpiresAt = Date.now() + 30_000;
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  jest.mocked(coreFinanceService.deleteTransaction).mockResolvedValue({
+    value: { ...transaction, status: 'deleted', undoExpiresAt },
+    undoExpiresAt,
+    affectedScopes: []
+  });
+  jest.mocked(coreFinanceService.undoDelete).mockResolvedValue({
+    value: transaction,
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByText('Delete transaction'));
+  const confirmDelete = alert.mock.calls[0]?.[2]?.find(
+    (button) => button.style === 'destructive'
+  );
+  await act(async () => confirmDelete?.onPress?.());
+  await waitFor(() =>
+    expect(
+      screen.getByLabelText('Save transaction').props.accessibilityState
+        .disabled
+    ).toBe(true)
+  );
+
+  fireEvent.press(screen.getByLabelText('Undo'));
+  await waitFor(() =>
+    expect(
+      screen.getByLabelText('Save transaction').props.accessibilityState
+        .disabled
+    ).toBe(false)
+  );
 });

@@ -68,6 +68,18 @@ export function translateDynamic(
   );
 }
 
+export function translateDynamicOr(
+  key: string,
+  fallbackKey: string,
+  values: Record<string, string | number | boolean> = {},
+  locale: Locale = currentLocale()
+): string {
+  const translated = translateDynamic(key, values, locale);
+  return translated === key && key.startsWith('notifications.')
+    ? translateDynamic(fallbackKey, values, locale)
+    : translated;
+}
+
 export function currentLocale(): Locale {
   ensureInitialized();
   const lng = i18next.language as Locale | undefined;

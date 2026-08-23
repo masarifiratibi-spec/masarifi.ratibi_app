@@ -3,10 +3,13 @@ import React, { useState } from 'react';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { RadioCard, SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import { PickerField } from '@/design-system/components/forms/PickerField';
+import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { parseAmountToMinor, type Account } from '@/domain/core-finance';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
+import { AccountPicker } from '@/features/transactions/AccountPicker';
 import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningDraft';
 import { translate } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
@@ -21,6 +24,7 @@ export function SalaryProfileForm() {
   const [sourceName, setSourceName] = useState('');
   const [accountId, setAccountId] = useState('');
   const [automaticDetectionEnabled, setAutomaticDetectionEnabled] = useState(false);
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const save = usePlanningMutation((input: Parameters<typeof financialPlanningService.saveSalaryProfile>[0]) =>
@@ -44,7 +48,7 @@ export function SalaryProfileForm() {
   });
 
   const submit = () => {
-    const expectedAmountMinor = parseAmountToMinor(amount);
+    const expectedAmountMinor = parseAmountToMinor(amount, currencyCode);
     const day = Number(salaryDay);
     const receivingAccountId = accountId || accounts.data?.[0]?.id;
     if (!expectedAmountMinor || day < 1 || day > 31 || !sourceName.trim() || !receivingAccountId) {
@@ -69,10 +73,25 @@ export function SalaryProfileForm() {
           <FormField label={translate('planning.salary.amount')} onChangeText={setAmount} value={amount} variant="amount" errorText={error} />
           <FormField label={translate('planning.salary.day')} onChangeText={setSalaryDay} value={salaryDay} variant="amount" />
           <FormField label={translate('planning.salary.source')} onChangeText={setSourceName} value={sourceName} />
-          <StyledText variant="subtitle">{translate('planning.salary.account')}</StyledText>
-          {accounts.data?.map((account: Account) => (
-            <RadioCard key={account.id} label={`${account.name} · ${account.currencyCode}`} selected={(accountId || accounts.data?.[0]?.id) === account.id} onPress={() => setAccountId(account.id)} />
-          ))}
+          <PickerField
+            label={translate('planning.salary.account')}
+            value={accounts.data?.find((account: Account) => account.id === (accountId || accounts.data?.[0]?.id))?.name}
+            placeholder={translate('reports.state.unavailable')}
+            onPress={() => setAccountPickerOpen(true)}
+          />
+          <AppSheet
+            title={translate('planning.salary.account')}
+            visible={accountPickerOpen}
+            onDismiss={() => setAccountPickerOpen(false)}
+          >
+            <AccountPicker
+              selectedId={accountId || accounts.data?.[0]?.id}
+              onSelect={(account) => {
+                setAccountId(account.id);
+                setAccountPickerOpen(false);
+              }}
+            />
+          </AppSheet>
           <SwitchRow label={translate('planning.salary.automaticDetection')} value={automaticDetectionEnabled} onValueChange={setAutomaticDetectionEnabled} />
           <ActionButton label={translate('planning.action.save')} loading={save.isPending} onPress={submit} />
           {saved ? <StyledText accessibilityRole="alert">{translate('planning.state.saved')}</StyledText> : null}

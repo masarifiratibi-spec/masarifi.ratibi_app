@@ -11,8 +11,14 @@ import {
   type OnboardingStep,
   type StepResult
 } from '@/features/onboarding/onboarding-progress';
+import { isDemoModeEnabled } from '@/config/demo-mode';
+import {
+  createClientDemoSession,
+  createCompletedDemoOnboarding
+} from '@/domain/demo-session';
 import { failUnlock, resetLock } from '@/features/security/privacy-lock';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
+import { seedClientDemoData } from '@/storage/client-demo-seeder';
 
 interface AppShellState {
   hydrated: boolean;
@@ -72,22 +78,59 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 
   hydrate: async (now = Date.now()) => {
     try {
-      const [storedSession, onboarding, pendingDestination, privacyLock, pinCredential, profilePromptDismissed] =
-        await Promise.all([
-          storage.loadSession(),
-          storage.loadOnboarding(),
-          storage.loadPendingDestination(),
-          storage.loadPrivacyLock(),
-          storage.loadPinCredential(),
-          storage.loadProfilePromptDismissed()
-        ]);
+      const demoMode = isDemoModeEnabled();
+      const [
+        storedSession,
+        onboarding,
+        pendingDestination,
+        privacyLock,
+        pinCredential,
+        profilePromptDismissed
+      ] = await Promise.all([
+        storage.loadSession(),
+        storage.loadOnboarding(),
+        storage.loadPendingDestination(),
+        storage.loadPrivacyLock(),
+        storage.loadPinCredential(),
+        storage.loadProfilePromptDismissed(),
+        demoMode
+          ? seedClientDemoData({ now }).catch(() => false)
+          : Promise.resolve(false)
+      ]);
       const session =
         storedSession?.status === 'authenticated' &&
         storedSession.expiresAt !== null &&
         storedSession.expiresAt <= now
           ? { ...storedSession, status: 'expired' as const }
           : storedSession;
-      set({ hydrated: true, session, onboarding, pendingDestination, privacyLock, pinCredential, profilePromptDismissed });
+      if (demoMode) {
+        const demoSession = createClientDemoSession(now);
+        const demoOnboarding = createCompletedDemoOnboarding(now);
+        await Promise.all([
+          storage.saveSession(demoSession),
+          storage.saveOnboarding(demoOnboarding),
+          storage.savePendingDestination(null)
+        ]);
+        set({
+          hydrated: true,
+          session: demoSession,
+          onboarding: demoOnboarding,
+          pendingDestination: null,
+          privacyLock: null,
+          pinCredential,
+          profilePromptDismissed
+        });
+        return;
+      }
+      set({
+        hydrated: true,
+        session,
+        onboarding,
+        pendingDestination,
+        privacyLock,
+        pinCredential,
+        profilePromptDismissed
+      });
     } catch {
       set({ ...initialState, hydrated: true, session: signedOutSession });
     }
@@ -113,7 +156,12 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       storage.clearPinCredential(),
       storage.savePendingDestination(null)
     ]);
-    set({ session: signedOutSession, pendingDestination: null, privacyLock: null, pinCredential: null });
+    set({
+      session: signedOutSession,
+      pendingDestination: null,
+      privacyLock: null,
+      pinCredential: null
+    });
   },
 
   setOnboarding: async (onboarding) => {
@@ -188,7 +236,10 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   resetPrivacyLock: async () => {
-    await Promise.all([storage.clearPrivacyLock(), storage.clearPinCredential()]);
+    await Promise.all([
+      storage.clearPrivacyLock(),
+      storage.clearPinCredential()
+    ]);
     set({ privacyLock: null, pinCredential: null });
   },
 

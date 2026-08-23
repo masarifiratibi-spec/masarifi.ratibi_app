@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { RadioCard } from '@/design-system/components/forms/SelectionControls';
 import { parseAmountToMinor } from '@/domain/core-finance';
 import type { GoalMovement, LocalDate } from '@/domain/financial-planning';
 import { PlanningMetric, PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
@@ -13,7 +13,7 @@ import type { GoalMovementPreview } from '@/services/contracts/financial-plannin
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { usePlanningMutation, useSavingsGoal } from './savings-queries';
 
 type MovementKind = Extract<GoalMovement['kind'], 'contribution' | 'withdrawal'>;
@@ -31,6 +31,8 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
+  const movementKinds: MovementKind[] = ['contribution', 'withdrawal'];
+  const movementLabels = movementKinds.map((value) => translate(`planning.savings.movement.${value}` as MessageKey));
   const confirm = usePlanningMutation((value: GoalMovementPreview) =>
     financialPlanningService.confirmGoalMovement(
       value.previewId,
@@ -55,7 +57,10 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
   });
 
   const buildPreview = async () => {
-    const amountMinor = parseAmountToMinor(amount);
+    const amountMinor = parseAmountToMinor(
+      amount,
+      goal.data?.goal.currencyCode ?? 'SAR'
+    );
     if (!goal.data || !amountMinor || !/^\d{4}-\d{2}-\d{2}$/.test(movementDate)) {
       setError(translate('planning.validation.required'));
       return;
@@ -94,7 +99,7 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
           />
           <PlanningMetric
             labelKey="planning.savings.movementAmount"
-            value={hideBalances && !revealed ? translate('planning.state.hidden') : formatAmount(preview.amountMinor / 100, goal.data.goal.currencyCode, currentLocale())}
+            value={hideBalances && !revealed ? translate('planning.state.hidden') : formatMinorAmount(preview.amountMinor, goal.data.goal.currencyCode, currentLocale())}
           />
           <ActionButton
             label={translate('planning.savings.confirmMovement')}
@@ -119,14 +124,11 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
         </>
       ) : (
         <>
-          {(['contribution', 'withdrawal'] as const).map((value) => (
-            <RadioCard
-              key={value}
-              label={translate(`planning.savings.movement.${value}` as MessageKey)}
-              selected={kind === value}
-              onPress={() => setKind(value)}
-            />
-          ))}
+          <ChipSelector
+            options={movementLabels}
+            selected={[translate(`planning.savings.movement.${kind}` as MessageKey)]}
+            onToggle={(label) => setKind(movementKinds[movementLabels.indexOf(label)] ?? kind)}
+          />
           <FormField
             label={translate('planning.savings.movementAmount')}
             onChangeText={setAmount}

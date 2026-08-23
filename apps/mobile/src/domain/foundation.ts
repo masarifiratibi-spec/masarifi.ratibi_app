@@ -216,6 +216,7 @@ export interface UserPreferences {
   trackingPersonalization: boolean;
   assistantPersonalization: boolean;
   analyticsEnabled: boolean;
+  monthStartDay: number;
 }
 
 export function buildPreferences(
@@ -224,8 +225,8 @@ export function buildPreferences(
   const defaults: UserPreferences = {
     locale: 'ar',
     direction: 'rtl',
-    theme: 'system',
-    hideBalances: true,
+    theme: 'light',
+    hideBalances: false,
     baseCurrencyCode: 'SAR',
     timeZone: 'Asia/Riyadh',
     reducedMotion: false,
@@ -236,7 +237,8 @@ export function buildPreferences(
     voiceEnabled: true,
     trackingPersonalization: true,
     assistantPersonalization: true,
-    analyticsEnabled: true
+    analyticsEnabled: true,
+    monthStartDay: 1
   };
   const merged = { ...defaults, ...overrides };
   // Direction is derived from locale; never store an inconsistent pair.

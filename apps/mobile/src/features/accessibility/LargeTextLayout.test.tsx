@@ -12,6 +12,18 @@ import {
   fixtureTransactions
 } from '@/test-utils/core-finance-fixtures';
 import type { HomeSummary } from '@/domain/core-finance';
+import { usePreferenceStore } from '@/state/preferences';
+
+jest.mock('expo-router', () => ({
+  router: {
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    push: jest.fn(),
+    replace: jest.fn()
+  },
+  useFocusEffect: (callback: () => void) =>
+    require('react').useEffect(callback, [callback])
+}));
 
 const summary: HomeSummary = {
   totalBalanceMinor: 123_456,
@@ -29,15 +41,21 @@ const summary: HomeSummary = {
 };
 
 describe.each(['en', 'ar'] as const)('large text layout in %s', (locale) => {
-  beforeEach(() => changeLocale(locale));
+  beforeEach(() => {
+    changeLocale(locale);
+    usePreferenceStore.setState({ hideBalances: false });
+  });
 
-  it('keeps critical home amounts, statuses, and primary actions reachable at compact viewport', () => {
+  it('keeps critical home amounts and retained actions reachable at compact viewport', () => {
+    usePreferenceStore.setState({ hideBalances: true });
     expect(viewport).toMatchObject({ minWidth: 320, minHeight: 568 });
     const screen = renderWithProviders(<HomeScreen summary={summary} />);
 
-    expect(screen.getByText(translate('coreFinance.home.title'))).toBeTruthy();
-    expect(screen.getByLabelText(translate('capture.manual'))).toBeTruthy();
-    expect(screen.getByLabelText(translate('designSystem.privacy.hidden'))).toBeTruthy();
+    expect(screen.getByTestId('home-quick-action-accounts')).toBeTruthy();
+    expect(screen.getByTestId('home-quick-actions')).toBeTruthy();
+    expect(
+      screen.getByLabelText(translate('designSystem.privacy.hidden'))
+    ).toBeTruthy();
   });
 
   it('keeps transaction fields and save action reachable with keyboard-visible state', () => {
@@ -49,8 +67,14 @@ describe.each(['en', 'ar'] as const)('large text layout in %s', (locale) => {
       ]
     );
 
-    expect(screen.getByLabelText(translate('coreFinance.form.amount'))).toBeTruthy();
-    expect(screen.getByLabelText(translate('coreFinance.form.title'))).toBeTruthy();
-    expect(screen.getByLabelText(translate('coreFinance.form.save'))).toBeTruthy();
+    expect(
+      screen.getByLabelText(translate('coreFinance.form.amount'))
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText(translate('coreFinance.form.title'))
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText(translate('coreFinance.form.save'))
+    ).toBeTruthy();
   });
 });

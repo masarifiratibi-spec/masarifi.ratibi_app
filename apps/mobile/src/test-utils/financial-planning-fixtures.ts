@@ -79,6 +79,7 @@ export const fixtureSalaryReceipt: SalaryReceiptLink = {
 
 export const fixtureBudget: Budget = {
   id: 'budget-jan',
+  name: null,
   version: 1,
   syncStatus: 'synced',
   createdAt: now,

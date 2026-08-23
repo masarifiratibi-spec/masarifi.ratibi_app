@@ -48,6 +48,7 @@ export interface SalaryReceiptConfirmation {
   transactionId: string;
   expectedOccurrenceDate: LocalDate;
   receivedDate: LocalDate;
+  timeZone?: string;
   replacesReceiptId?: string | null;
 }
 
@@ -58,6 +59,9 @@ export interface SalaryReceiptOutcome {
 }
 
 export interface BudgetInput {
+  id?: string;
+  expectedVersion?: number;
+  name: string;
   periodKey: string;
   currencyCode: string;
   configuredExpenseLimitMinor: number;
@@ -229,46 +233,133 @@ export interface GoalMovementOutcome {
 }
 
 export interface FinancialPlanningService {
-  getReportingSnapshot(period: ReportPeriod): Promise<PlanningReportingSnapshot>;
-  getPlanningOverview(input: { currencyCode: string; today: LocalDate }): Promise<PlanningOverview>;
-  getSalaryOverview(input: { today: LocalDate }): Promise<SalaryCycle>;
-  getSalaryReceiptReview(transactionId: string): Promise<SalaryReceiptLink | null>;
-  saveSalaryProfile(input: SalaryProfileInput, operationId: string): Promise<MutationResult<SalaryProfile>>;
-  confirmSalaryReceipt(input: SalaryReceiptConfirmation, operationId: string): Promise<MutationResult<SalaryReceiptOutcome>>;
-  undoSalaryReceipt(receiptId: string, operationId: string): Promise<MutationResult<SalaryReceiptOutcome>>;
+  getReportingSnapshot(
+    period: ReportPeriod
+  ): Promise<PlanningReportingSnapshot>;
+  getPlanningOverview(input: {
+    currencyCode: string;
+    today: LocalDate;
+    timeZone?: string;
+  }): Promise<PlanningOverview>;
+  getSalaryOverview(input: {
+    today: LocalDate;
+    timeZone?: string;
+  }): Promise<SalaryCycle>;
+  getSalaryReceiptReview(
+    transactionId: string
+  ): Promise<SalaryReceiptLink | null>;
+  saveSalaryProfile(
+    input: SalaryProfileInput,
+    operationId: string
+  ): Promise<MutationResult<SalaryProfile>>;
+  confirmSalaryReceipt(
+    input: SalaryReceiptConfirmation,
+    operationId: string
+  ): Promise<MutationResult<SalaryReceiptOutcome>>;
+  undoSalaryReceipt(
+    receiptId: string,
+    operationId: string,
+    timeZone?: string
+  ): Promise<MutationResult<SalaryReceiptOutcome>>;
   getBudget(periodKey: string): Promise<BudgetDetail | null>;
+  listBudgets(periodKey: string): Promise<BudgetDetail[]>;
   getBudgetById(id: string): Promise<BudgetDetail>;
   createBudgetDraftFromPrevious(periodKey: string): Promise<PlanningDraft>;
-  saveBudget(input: BudgetInput, operationId: string): Promise<MutationResult<Budget>>;
+  saveBudget(
+    input: BudgetInput,
+    operationId: string
+  ): Promise<MutationResult<Budget>>;
   previewBudgetMove(input: BudgetMoveInput): Promise<BudgetMovePreview>;
-  confirmBudgetMove(previewId: string, operationId: string): Promise<MutationResult<BudgetDetail>>;
-  setBudgetStatus(id: string, expectedVersion: number, status: Exclude<BudgetLifecycle, 'draft' | 'deleted'>, operationId: string): Promise<MutationResult<Budget>>;
-  deleteBudget(id: string, expectedVersion: number, operationId: string): Promise<MutationResult<Budget>>;
+  confirmBudgetMove(
+    previewId: string,
+    operationId: string
+  ): Promise<MutationResult<BudgetDetail>>;
+  setBudgetStatus(
+    id: string,
+    expectedVersion: number,
+    status: Exclude<BudgetLifecycle, 'draft' | 'deleted'>,
+    operationId: string
+  ): Promise<MutationResult<Budget>>;
+  deleteBudget(
+    id: string,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<Budget>>;
   getObligationsOverview(input: ObligationQuery): Promise<ObligationsOverview>;
   listObligations(input: ObligationQuery): Promise<ObligationPage>;
   getObligation(id: string): Promise<ObligationDetail>;
-  createObligation(input: ObligationInput, operationId: string): Promise<MutationResult<Obligation>>;
-  updateObligation(id: string, expectedVersion: number, input: ObligationInput, operationId: string): Promise<MutationResult<Obligation>>;
-  setObligationStatus(id: string, expectedVersion: number, status: ObligationLifecycle, operationId: string): Promise<MutationResult<Obligation>>;
-  previewObligationPayment(input: ObligationPaymentInput): Promise<ObligationPaymentPreview>;
-  confirmObligationPayment(previewId: string, allocation: PaymentAllocationChoice, operationId: string): Promise<MutationResult<ObligationPaymentOutcome>>;
-  reverseObligationPayment(paymentId: string, operationId: string): Promise<MutationResult<ObligationPaymentOutcome>>;
+  createObligation(
+    input: ObligationInput,
+    operationId: string
+  ): Promise<MutationResult<Obligation>>;
+  updateObligation(
+    id: string,
+    expectedVersion: number,
+    input: ObligationInput,
+    operationId: string
+  ): Promise<MutationResult<Obligation>>;
+  setObligationStatus(
+    id: string,
+    expectedVersion: number,
+    status: ObligationLifecycle,
+    operationId: string
+  ): Promise<MutationResult<Obligation>>;
+  previewObligationPayment(
+    input: ObligationPaymentInput
+  ): Promise<ObligationPaymentPreview>;
+  confirmObligationPayment(
+    previewId: string,
+    allocation: PaymentAllocationChoice,
+    operationId: string
+  ): Promise<MutationResult<ObligationPaymentOutcome>>;
+  reverseObligationPayment(
+    paymentId: string,
+    operationId: string
+  ): Promise<MutationResult<ObligationPaymentOutcome>>;
   previewEarlySettlement(obligationId: string): Promise<EarlySettlementPreview>;
-  confirmEarlySettlement(previewId: string, operationId: string): Promise<MutationResult<ObligationPaymentOutcome>>;
+  confirmEarlySettlement(
+    previewId: string,
+    operationId: string
+  ): Promise<MutationResult<ObligationPaymentOutcome>>;
   listPaymentMatches(input: PaymentMatchQuery): Promise<PaymentMatchPage>;
   getPaymentMatch(id: string): Promise<PaymentMatch>;
-  resolvePaymentMatch(input: PaymentMatchResolution, operationId: string): Promise<MutationResult<PaymentMatchOutcome>>;
+  resolvePaymentMatch(
+    input: PaymentMatchResolution,
+    operationId: string
+  ): Promise<MutationResult<PaymentMatchOutcome>>;
   listGoals(input: GoalQuery): Promise<SavingsGoal[]>;
   getGoal(id: string): Promise<SavingsGoalDetail>;
-  createGoal(input: SavingsGoalInput, operationId: string): Promise<MutationResult<SavingsGoal>>;
-  updateGoal(id: string, expectedVersion: number, input: SavingsGoalInput, operationId: string): Promise<MutationResult<SavingsGoal>>;
-  setGoalStatus(id: string, expectedVersion: number, status: SavingsLifecycle, operationId: string): Promise<MutationResult<SavingsGoal>>;
+  createGoal(
+    input: SavingsGoalInput,
+    operationId: string
+  ): Promise<MutationResult<SavingsGoal>>;
+  updateGoal(
+    id: string,
+    expectedVersion: number,
+    input: SavingsGoalInput,
+    operationId: string
+  ): Promise<MutationResult<SavingsGoal>>;
+  setGoalStatus(
+    id: string,
+    expectedVersion: number,
+    status: SavingsLifecycle,
+    operationId: string
+  ): Promise<MutationResult<SavingsGoal>>;
   previewGoalMovement(input: GoalMovementInput): Promise<GoalMovementPreview>;
-  confirmGoalMovement(previewId: string, operationId: string): Promise<MutationResult<GoalMovementOutcome>>;
-  reverseGoalMovement(movementId: string, operationId: string): Promise<MutationResult<GoalMovementOutcome>>;
+  confirmGoalMovement(
+    previewId: string,
+    operationId: string
+  ): Promise<MutationResult<GoalMovementOutcome>>;
+  reverseGoalMovement(
+    movementId: string,
+    operationId: string
+  ): Promise<MutationResult<GoalMovementOutcome>>;
   saveDraft(draft: PlanningDraft): Promise<PlanningDraft>;
   loadDraft(id: string): Promise<PlanningDraft | null>;
   discardDraft(id: string): Promise<void>;
   getConflict(id: string): Promise<PlanningConflict>;
-  resolveConflict(id: string, resolution: 'keep_local' | 'keep_later'): Promise<MutationResult<unknown>>;
+  resolveConflict(
+    id: string,
+    resolution: 'keep_local' | 'keep_later'
+  ): Promise<MutationResult<unknown>>;
 }

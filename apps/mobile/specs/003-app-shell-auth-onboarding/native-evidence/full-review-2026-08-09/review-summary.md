@@ -41,3 +41,15 @@ but it is not a valid Android release-readiness proof.
 Android development functionality for SPEC-001 through SPEC-006 is suitable for continued client
 testing. Production release readiness is blocked by 16KB native-library alignment, iOS validation,
 and the intentionally deferred accessibility/visual matrix.
+
+## R19-R20 Authentication and Onboarding Re-baseline - 2026-08-16
+
+- PASS: phone, OTP, Google account, and legal routes use the shared title/card/scroll presentation while preserving authentication commands, errors, navigation, localization, and real service data.
+- PASS: the onboarding scaffold uses the shared surface, only renders actionable controls, and the completion route has an explicit localized Home destination.
+- PASS: focused Authentication validation (`9` suites, `29` tests), focused Onboarding validation (`15` suites, `40` tests), and typecheck.
+- FIXED: removed an inert onboarding primary control and updated the stale profile-completion journey contract so Profile Completion remains on More and is not restored to Home.
+- PASS: fresh Android Arabic RTL and English LTR dark-theme captures now cover language choice, welcome, sign-in, phone, OTP, Google account selection, legal, tracking intro, permission education, keywords, tracking mode, preview, and completion on Samsung `SM-A165F` (`1080x2340`, Android 16).
+- PASS: the R21 Android matrix now includes dark and light themes, hidden balances, a `320dp`-class small-display override, 200% system text, and reduced-motion animation scales. Display, density, font scale, animation scales, and the app theme were restored after validation.
+- PASS: accessibility trees expose localized button labels, roles, selected/disabled state, masked values, and RTL/LTR ordering across the captured routes.
+- BLOCKED: spoken TalkBack traversal still requires a human listener; the device service was detected but was not falsely recorded as an auditory pass.
+- BLOCKED: physical iOS/VoiceOver evidence requires a supported iOS/macOS environment.

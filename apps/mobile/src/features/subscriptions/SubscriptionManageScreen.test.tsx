@@ -41,6 +41,7 @@ beforeEach(() => {
 test('shows active plan lifecycle, renewal, retained access, and representative disclosure', () => {
   renderWithProviders(<SubscriptionManageScreen />);
 
+  expect(screen.getByText(t('subscriptions.manage.title'))).toBeTruthy();
   expect(screen.getByText(t('subscriptions.manage.current', { plan: 'premium' }))).toBeTruthy();
   expect(screen.getByText(t('subscriptions.manage.status.active'))).toBeTruthy();
   expect(screen.getByText(t('subscriptions.manage.renewsAt', { date: '2026-02-15' }))).toBeTruthy();

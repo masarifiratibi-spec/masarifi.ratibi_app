@@ -15,6 +15,10 @@ import {
   type TransactionFilterSet,
   type TransactionInput
 } from '@/domain/core-finance';
+import {
+  isLegacyFixtureAccount,
+  isLegacyFixtureTransaction
+} from '@/domain/core-finance-seeds';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   CoreFinanceError,
@@ -27,6 +31,8 @@ export interface CoreFinanceSeed {
   categories?: Category[];
   transactions?: Transaction[];
   conflicts?: SyncConflict[];
+  cleanupLegacyFixtures?: boolean;
+  replaceEmptyDefaultLedger?: boolean;
 }
 
 export class CoreFinanceRepository {
@@ -39,15 +45,22 @@ export class CoreFinanceRepository {
   private operationResults = new Map<string, Transaction>();
   private batchOperationResults = new Map<string, Transaction[]>();
   private sequence = 0;
+  private cleanupLegacyFixtures: boolean;
+  private replaceEmptyDefaultLedger: boolean;
 
   constructor(seed: CoreFinanceSeed = {}) {
     this.accounts = seed.accounts?.map(copy) ?? [];
     this.categories = seed.categories?.map(copy) ?? [];
     this.transactions = seed.transactions?.map(copy) ?? [];
     this.conflicts = seed.conflicts?.map(copy) ?? [];
+    this.cleanupLegacyFixtures = seed.cleanupLegacyFixtures ?? false;
+    this.replaceEmptyDefaultLedger = seed.replaceEmptyDefaultLedger ?? false;
   }
 
   async hydrate(): Promise<void> {
+    const seededAccounts = this.accounts.map(copy);
+    const seededCategories = this.categories.map(copy);
+    const seededTransactions = this.transactions.map(copy);
     const database = await openDatabase();
     const [accounts, categories, transactions, drafts, conflicts, corrections, operations] =
       await Promise.all([
@@ -63,17 +76,20 @@ export class CoreFinanceRepository {
         database.getAllAsync<{ payload: string }>(
           'SELECT payload FROM finance_drafts'
         ),
-        database.getAllAsync<{ payload: string }>(
-          'SELECT payload FROM finance_sync_conflicts'
-        ),
         database.getAllAsync<{ transaction_id: string; payload: string }>(
-          'SELECT transaction_id, payload FROM finance_corrections WHERE status = ?',
-          'undoable'
+          'SELECT transaction_id, payload FROM finance_sync_conflicts'
         ),
-        database.getAllAsync<{ operation_id: string; payload: string }>(
-          'SELECT operation_id, payload FROM finance_operations WHERE status = ?',
-          'succeeded'
-        )
+        database.getAllAsync<{
+          transaction_id: string;
+          payload: string;
+          status: string;
+        }>('SELECT transaction_id, payload, status FROM finance_corrections'),
+        database.getAllAsync<{
+          operation_id: string;
+          transaction_id: string;
+          payload: string;
+          status: string;
+        }>('SELECT operation_id, transaction_id, payload, status FROM finance_operations')
       ]);
     if (!accounts.length && !categories.length && !transactions.length) {
       await this.persistAll();
@@ -87,17 +103,44 @@ export class CoreFinanceRepository {
     );
     this.conflicts = parseRows<SyncConflict>(conflicts);
     this.deletedPriorStatus = new Map(
-      corrections.map((row) => [
+      corrections.filter((row) => row.status === 'undoable').map((row) => [
         row.transaction_id,
         JSON.parse(row.payload).priorStatus as Transaction['status']
       ])
     );
     this.operationResults = new Map(
-      operations.map((row) => [
+      operations.filter((row) => row.status === 'succeeded').map((row) => [
         row.operation_id,
         JSON.parse(row.payload) as Transaction
       ])
     );
+    if (
+      this.shouldReplaceEmptyDefaultLedger(
+        seededAccounts,
+        seededCategories,
+        seededTransactions,
+        drafts.length + conflicts.length + corrections.length + operations.length
+      )
+    ) {
+      this.accounts = seededAccounts;
+      this.categories = seededCategories;
+      this.transactions = seededTransactions;
+      await this.persistAll();
+      return;
+    }
+    if (this.cleanupLegacyFixtures) {
+      const referencedTransactionIds = new Set([
+        ...corrections.map((row) => row.transaction_id),
+        ...operations.map((row) => row.transaction_id),
+        ...conflicts.map((row) => row.transaction_id),
+        ...(await this.persistedDependentTransactionIds(database))
+      ]);
+      await this.removePersistedLegacyFixtures(database, referencedTransactionIds);
+    }
+    if (!this.accounts.length && seededAccounts.length) {
+      this.accounts = seededAccounts;
+      await this.persistAccounts();
+    }
   }
 
   async persistAll(): Promise<void> {
@@ -234,7 +277,28 @@ export class CoreFinanceRepository {
         throw new CoreFinanceError('validation');
       }
       if (value.isDefault) this.clearDefault(id);
-      const next: Account = { ...current, ...value, updatedAt: now };
+      const next: Account = {
+        ...current,
+        name: value.name,
+        type: value.type,
+        currencyCode: value.currencyCode,
+        openingBalanceMinor: value.openingBalanceMinor,
+        institution:
+          input.institution !== undefined
+            ? value.institution
+            : current.institution,
+        lastFour:
+          input.lastFour !== undefined ? value.lastFour : current.lastFour,
+        creditLimitMinor:
+          input.creditLimitMinor !== undefined
+            ? value.creditLimitMinor
+            : current.creditLimitMinor,
+        iconKey: current.iconKey,
+        colorKey: current.colorKey,
+        notes: input.notes !== undefined ? value.notes : current.notes,
+        isDefault: value.isDefault,
+        updatedAt: now
+      };
       this.accounts[index] = next;
       return copy(next);
     }
@@ -621,6 +685,75 @@ export class CoreFinanceRepository {
     return this.transactions.filter((item) => item.categoryId === id).length;
   }
 
+  private async removePersistedLegacyFixtures(
+    database: SQLiteDatabase,
+    referencedTransactionIds: ReadonlySet<string>
+  ): Promise<void> {
+    const cleanup = separateLegacyFixtures(
+      this.accounts,
+      this.transactions,
+      referencedTransactionIds
+    );
+    const { accounts, removedAccounts, removedTransactions, transactions } = cleanup;
+    if (!removedTransactions.length && !removedAccounts.length) return;
+    await runExclusiveDatabaseTransaction(database, async (transaction) => {
+      for (const item of removedTransactions)
+        await transaction.runAsync(
+          'DELETE FROM finance_transactions WHERE id = ?',
+          item.id
+        );
+      for (const item of removedAccounts)
+        await transaction.runAsync('DELETE FROM finance_accounts WHERE id = ?', item.id);
+    });
+    this.transactions = transactions;
+    this.accounts = accounts;
+  }
+
+  private async persistedDependentTransactionIds(
+    database: SQLiteDatabase
+  ): Promise<string[]> {
+    const [salaryReceipts, obligationPayments, goalMovements, feedback] =
+      await Promise.all([
+      database.getAllAsync<{ transaction_id: string }>(
+        'SELECT transaction_id FROM planning_salary_receipts'
+      ),
+      database.getAllAsync<{ transaction_id: string }>(
+        'SELECT transaction_id FROM planning_obligation_payments'
+      ),
+      database.getAllAsync<{ linked_transaction_id: string }>(
+        'SELECT linked_transaction_id FROM planning_goal_movements WHERE linked_transaction_id IS NOT NULL'
+      ),
+      database.getAllAsync<{ transaction_id: string }>(
+        'SELECT transaction_id FROM tracking_feedback'
+      )
+    ]);
+    return [
+      ...salaryReceipts.map((item) => item.transaction_id),
+      ...obligationPayments.map((item) => item.transaction_id),
+      ...goalMovements.map((item) => item.linked_transaction_id),
+      ...feedback.map((item) => item.transaction_id)
+    ];
+  }
+
+  private shouldReplaceEmptyDefaultLedger(
+    seededAccounts: readonly Account[],
+    seededCategories: readonly Category[],
+    seededTransactions: readonly Transaction[],
+    persistedWorkCount: number
+  ): boolean {
+    return (
+      this.replaceEmptyDefaultLedger &&
+      seededAccounts.length > 0 &&
+      seededCategories.length > 0 &&
+      seededTransactions.length > 0 &&
+      persistedWorkCount === 0 &&
+      this.transactions.length === 0 &&
+      this.accounts.length === 1 &&
+      isEmptyDefaultAccount(this.accounts[0]) &&
+      this.categories.every((category) => category.kind === 'system')
+    );
+  }
+
   private clearDefault(exceptId?: string): void {
     this.accounts.forEach((item) => {
       if (item.id !== exceptId) item.isDefault = false;
@@ -783,4 +916,59 @@ function transactionSorter(sort: TransactionFilterSet['sort']) {
 
 function copy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isEmptyDefaultAccount(account: Account): boolean {
+  return (
+    account.id === 'account-default' &&
+    account.name === 'Masarifi' &&
+    account.type === 'bank' &&
+    account.currencyCode === 'SAR' &&
+    account.openingBalanceMinor === 0 &&
+    account.institution === null &&
+    account.lastFour === null &&
+    account.creditLimitMinor === null &&
+    account.isDefault &&
+    account.iconKey === 'bank' &&
+    account.colorKey === 'account-teal' &&
+    account.notes === null &&
+    account.status === 'active'
+  );
+}
+
+function separateLegacyFixtures(
+  accounts: readonly Account[],
+  transactions: readonly Transaction[],
+  referencedTransactionIds: ReadonlySet<string>
+) {
+  const retainedTransactions = transactions.filter(
+    (transaction) =>
+      !isLegacyFixtureTransaction(transaction) ||
+      referencedTransactionIds.has(transaction.id)
+  );
+  const retainedAccounts = accounts.filter(
+    (account) => retainsLegacyAccount(account, retainedTransactions)
+  );
+  return {
+    accounts: retainedAccounts,
+    removedAccounts: accounts.filter((account) => !retainedAccounts.includes(account)),
+    removedTransactions: transactions.filter(
+      (transaction) => !retainedTransactions.includes(transaction)
+    ),
+    transactions: retainedTransactions
+  };
+}
+
+function retainsLegacyAccount(
+  account: Account,
+  transactions: readonly Transaction[]
+): boolean {
+  return (
+    !isLegacyFixtureAccount(account) ||
+    transactions.some(
+      (transaction) =>
+        transaction.accountId === account.id ||
+        transaction.destinationAccountId === account.id
+    )
+  );
 }

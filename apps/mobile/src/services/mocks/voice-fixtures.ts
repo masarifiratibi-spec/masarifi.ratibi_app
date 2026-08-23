@@ -8,13 +8,14 @@ import {
 } from '@/domain/voice-capture';
 
 const texts: Record<VoiceScenario, { text: string; language: VoiceTranscript['language'] }> = {
+  empty: { text: '', language: 'ar' },
   clear_ar: { text: 'دفعت 80 ريال للبنزين كاش', language: 'ar' },
   clear_en: { text: 'I paid 80 riyals for fuel in cash', language: 'en' },
   mixed: { text: 'دفعت 250 ريال لـ Netflix بالبطاقة', language: 'mixed' },
   missing_account: { text: 'I bought coffee for 20 riyals', language: 'en' },
   unknown_merchant: { text: 'I paid 45 riyals at New Corner', language: 'en' },
   multiple: {
-    text: 'Yesterday I paid 40 riyals for coffee and 120 riyals for groceries',
+    text: 'Yesterday I paid 40 riyals for coffee, received my salary, and transferred 500 riyals to Ahmed',
     language: 'en'
   },
   income: { text: 'I received my salary of 7000 riyals', language: 'en' },
@@ -35,7 +36,7 @@ export function fixtureTranscript(scenario: VoiceScenario, now = Date.now()): Vo
     confidence:
       scenario === 'low_confidence'
         ? 65
-        : scenario === 'no_speech' || scenario === 'background_noise'
+        : scenario === 'empty' || scenario === 'no_speech' || scenario === 'background_noise'
           ? 0
           : 96,
     capturedAt: now,
@@ -60,10 +61,23 @@ export function fixtureProposalGroup({
     recordedAt,
     timezoneOffsetMinutes
   ).value;
-  const proposals = scenario === 'multiple'
+  const proposals = scenario === 'empty'
+    ? []
+    : scenario === 'multiple'
     ? [
         proposal('coffee', 4_000, 'restaurants', occurredAt, { merchant: 'Coffee' }),
-        proposal('groceries', 12_000, 'food', occurredAt, { merchant: 'Groceries' })
+        proposal('salary', 700_000, 'salary', occurredAt, {
+          type: 'income',
+          merchant: 'Salary'
+        }),
+        proposal('transfer', 50_000, null, occurredAt, {
+          type: 'transfer',
+          title: 'Transfer to Ahmed',
+          merchant: null,
+          beneficiary: 'Ahmed',
+          destinationAccountId: 'account-wallet',
+          paymentMethod: 'transfer'
+        })
       ]
     : [singleProposal(scenario, occurredAt)];
   return {

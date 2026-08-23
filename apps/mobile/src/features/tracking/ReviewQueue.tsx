@@ -3,10 +3,13 @@ import { FlatList, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
-import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { SurfaceCard } from '@/design-system/components/SurfaceCard';
-import { translate } from '@/localization/i18n';
+import {
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
+import { currentLocale, translate } from '@/localization/i18n';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { trackingReasonSummary } from './tracking-display';
 import { useReviewItems } from './useAutomaticTracking';
 
@@ -38,17 +41,33 @@ export function ReviewQueue() {
       ListEmptyComponent={
         <StateView state="empty" title={translate('tracking.review.empty')} />
       }
-      renderItem={({ item }) => (
-        <SurfaceCard>
-          <StyledText variant="subtitle">
-            {trackingReasonSummary(item.reasonCodes)}
-          </StyledText>
-          <ActionButton
-            label={translate('tracking.action.open')}
-            onPress={() => router.push(`/tracking/review/${item.id}`)}
-          />
-        </SurfaceCard>
-      )}
+      renderItem={({ item }) => {
+        const reason = trackingReasonSummary(item.reasonCodes);
+        const proposed = item.proposedValues;
+        const merchant =
+          typeof proposed.merchant === 'string' && proposed.merchant
+            ? proposed.merchant
+            : undefined;
+        const amount =
+          typeof proposed.amountMinor === 'number' &&
+          typeof proposed.currencyCode === 'string'
+            ? formatMinorAmount(
+                proposed.amountMinor,
+                proposed.currencyCode,
+                currentLocale()
+              )
+            : translate('tracking.review.notDetected');
+        return (
+          <GroupedList label={translate('tracking.review.title')}>
+            <NavigationRow
+              label={reason}
+              description={merchant}
+              value={amount}
+              onPress={() => router.push(`/tracking/review/${item.id}`)}
+            />
+          </GroupedList>
+        );
+      }}
       contentContainerStyle={styles.stack}
     />
   );

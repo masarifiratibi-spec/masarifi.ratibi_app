@@ -30,6 +30,7 @@ beforeEach(() => {
 test('ticket list shows stable references, statuses, updated times, and empty/loading/error states', () => {
   renderWithProviders(<TicketListScreen />);
 
+  expect(screen.getByText(t('support.ticket.listTitle'))).toBeTruthy();
   expect(screen.UNSAFE_getByType(require('react-native').FlatList).props.keyExtractor(ticket('open'))).toBe('open');
   expect(screen.getByText('SUP-open')).toBeTruthy();
   expect(screen.getByText(t('support.ticket.status.open'))).toBeTruthy();
@@ -58,6 +59,7 @@ test('ticket detail preserves reply input through failure and only rates resolve
 
   renderWithProviders(<TicketDetailScreen ticketId="open" />);
 
+  expect(screen.getByText(t('support.ticket.detailTitle', { reference: 'SUP-open' }))).toBeTruthy();
   expect(screen.getByText('SUP-open')).toBeTruthy();
   expect(screen.getByText(t('support.ticket.message.user'))).toBeTruthy();
   expect(screen.queryByText(t('support.ticket.rate.5'))).toBeNull();

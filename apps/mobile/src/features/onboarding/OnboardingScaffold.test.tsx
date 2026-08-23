@@ -28,4 +28,10 @@ describe('OnboardingScaffold', () => {
     expect(onPrimary).toHaveBeenCalledTimes(1);
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
+
+  it('does not render an inert primary action when no handler exists', () => {
+    renderWithProviders(<OnboardingScaffold title="اختبار" />);
+
+    expect(screen.queryByLabelText('متابعة')).toBeNull();
+  });
 });

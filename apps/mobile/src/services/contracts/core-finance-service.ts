@@ -34,6 +34,12 @@ export interface TransactionPage {
   total: number;
 }
 
+export interface AccountBalanceProjection {
+  accountId: string;
+  balanceMinor: number;
+  currencyCode: string;
+}
+
 export interface MutationResult<T> {
   value: T;
   affectedScopes: readonly string[];
@@ -49,8 +55,14 @@ export interface DeleteResult extends MutationResult<Transaction> {
 }
 
 export interface CoreFinanceService {
-  getHomeSummary(profileCurrency: string): Promise<HomeSummary>;
+  getHomeSummary(
+    profileCurrency: string,
+    filters?: TransactionFilterSet
+  ): Promise<HomeSummary>;
   listAccounts(includeArchived?: boolean): Promise<Account[]>;
+  listAccountBalances(
+    includeArchived?: boolean
+  ): Promise<AccountBalanceProjection[]>;
   getAccount(id: string): Promise<Account>;
   createAccount(input: AccountInput): Promise<MutationResult<Account>>;
   updateAccount(

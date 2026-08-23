@@ -4,9 +4,12 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { AccountCard } from '@/design-system/components/financial/AccountCard';
 import { BalanceCard } from '@/design-system/components/financial/BalanceCard';
 import { BudgetCard } from '@/design-system/components/financial/BudgetCard';
+import { AttentionRail } from '@/design-system/components/feedback/AttentionRail';
 import { FinancialBadge, type FinancialMeaning } from '@/design-system/components/financial/FinancialPrimitives';
+import { FinancialPulse } from '@/design-system/components/financial/FinancialPulse';
 import { ReportMetricCard } from '@/design-system/components/financial/ReportMetricCard';
 import { SavingsGoalCard } from '@/design-system/components/financial/SavingsGoalCard';
+import { SourceMark } from '@/design-system/components/financial/SourceMark';
 import { TransactionRow } from '@/design-system/components/financial/TransactionRow';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { StyledText } from '@/components/StyledText';
@@ -87,6 +90,30 @@ export function FinancialGallery() {
           title={translate('designSystem.chart.lineSummary')}
           value={2200}
           currency={currency}
+        />
+        <SourceMark
+          label={translate('designSystem.financial.sourceManual')}
+          description={translate('designSystem.financial.sourceDescription')}
+        />
+        <FinancialPulse
+          statement={translate('designSystem.financial.pulseStatement')}
+          scope={translate('designSystem.financial.pulseScope')}
+          supportingValue={translate('designSystem.financial.pulseSupport')}
+          evidenceLabel={translate('designSystem.financial.evidence')}
+          onEvidence={() => undefined}
+        />
+        <AttentionRail
+          label={translate('designSystem.financial.attentionRail')}
+          items={[
+            {
+              title: translate('designSystem.financial.attentionTitle'),
+              reason: translate('designSystem.financial.attentionReason'),
+              consequence: translate('designSystem.financial.attentionConsequence'),
+              status: translate('designSystem.state.review'),
+              actionLabel: translate('designSystem.financial.attentionAction'),
+              onPress: () => undefined
+            }
+          ]}
         />
       </View>
 

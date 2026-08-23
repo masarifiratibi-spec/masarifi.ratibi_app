@@ -46,7 +46,7 @@ describe('RootLayout navigation chrome', () => {
 
     expect(mockStack).toHaveBeenCalledWith(
       expect.objectContaining({
-        screenOptions: { headerShown: false }
+        screenOptions: expect.objectContaining({ headerShown: false })
       })
     );
   });

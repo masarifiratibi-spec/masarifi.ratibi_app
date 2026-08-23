@@ -53,7 +53,7 @@ export class FinancialPlanningRepository {
   constructor(seed: FinancialPlanningSeed = {}) {
     this.salaryProfiles = seed.salaryProfiles?.map(copy) ?? [];
     this.salaryReceipts = seed.salaryReceipts?.map(copy) ?? [];
-    this.budgets = seed.budgets?.map(copy) ?? [];
+    this.budgets = seed.budgets?.map(normalizeBudget) ?? [];
     this.categoryBudgets = seed.categoryBudgets?.map(copy) ?? [];
     this.obligations = seed.obligations?.map(copy) ?? [];
     this.scheduleItems = seed.scheduleItems?.map(copy) ?? [];
@@ -109,7 +109,7 @@ export class FinancialPlanningRepository {
     ) {
       this.salaryProfiles = salaryProfiles;
       this.salaryReceipts = salaryReceipts;
-      this.budgets = budgets;
+      this.budgets = budgets.map(normalizeBudget);
       this.categoryBudgets = categoryBudgets;
       this.obligations = obligations;
       this.scheduleItems = scheduleItems;
@@ -254,15 +254,24 @@ export class FinancialPlanningRepository {
     return this.setOperation(operationId, next);
   }
 
-  listBudgets(): Budget[] {
-    return this.budgets.map(copy);
+  listBudgets(periodKey?: string): Budget[] {
+    return this.budgets
+      .filter(
+        (budget) => periodKey === undefined || budget.periodKey === periodKey
+      )
+      .map(copy);
   }
 
   getBudgetByPeriod(periodKey: string): Budget | null {
     return (
-      this.budgets.find(
-        (budget) => budget.periodKey === periodKey && budget.status !== 'deleted'
-      ) ?? null
+      this.budgets
+        .filter(
+          (budget) =>
+            budget.periodKey === periodKey && budget.status !== 'deleted'
+        )
+        .sort(
+          (a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id)
+        )[0] ?? null
     );
   }
 
@@ -272,9 +281,14 @@ export class FinancialPlanningRepository {
     return copy(budget);
   }
 
+  operationResult<T>(operationId: string): T | null {
+    return this.getOperation<T>(operationId);
+  }
+
   saveBudget(
     input: Omit<Budget, keyof ReturnType<typeof metadata> | 'status'> & {
       id?: string;
+      expectedVersion?: number;
       status?: Budget['status'];
     },
     operationId: string
@@ -283,29 +297,70 @@ export class FinancialPlanningRepository {
     if (existing) return existing;
     const index = input.id
       ? this.budgets.findIndex((item) => item.id === input.id)
-      : this.budgets.findIndex(
-          (item) => item.periodKey === input.periodKey && item.status !== 'deleted'
-        );
-    if (index < 0 && this.getBudgetByPeriod(input.periodKey)) {
-      throw new FinancialPlanningError('duplicate');
+      : -1;
+    if (index >= 0 && input.expectedVersion !== undefined)
+      assertVersion(this.budgets[index].version, input.expectedVersion);
+    const normalizedName = normalizeBudgetName(input.name);
+    if (
+      normalizedName &&
+      this.budgets.some(
+        (budget) =>
+          budget.id !== input.id &&
+          budget.periodKey === input.periodKey &&
+          budget.status !== 'deleted' &&
+          normalizeBudgetName(budget.name) === normalizedName
+      )
+    ) {
+      throw new FinancialPlanningError('duplicate', { kind: 'name' });
     }
     const now = Date.now();
+    const values = { ...input };
+    delete values.id;
+    delete values.expectedVersion;
     const next: Budget =
       index >= 0
         ? {
             ...this.budgets[index],
-            ...input,
+            ...values,
             version: this.budgets[index].version + 1,
             updatedAt: now
           }
         : {
             ...metadata(this.nextId('budget'), now),
-            ...input,
+            ...values,
             status: input.status ?? 'active'
           };
     if (index >= 0) this.budgets[index] = next;
     else this.budgets.push(next);
     return this.setOperation(operationId, next);
+  }
+
+  assertCategoriesAvailable(
+    periodKey: string,
+    categoryIds: readonly string[],
+    excludingBudgetId?: string
+  ): void {
+    const requested = new Set(categoryIds);
+    const conflict = this.categoryBudgets.find((category) => {
+      if (category.status === 'deleted' || !requested.has(category.categoryId))
+        return false;
+      const budget = this.budgets.find((item) => item.id === category.budgetId);
+      return Boolean(
+        budget &&
+          budget.id !== excludingBudgetId &&
+          budget.periodKey === periodKey &&
+          budget.status !== 'deleted'
+      );
+    });
+    if (conflict) {
+      const owner = this.budgets.find(
+        (budget) => budget.id === conflict.budgetId
+      );
+      throw new FinancialPlanningError('duplicate', {
+        kind: 'category',
+        owner: owner?.name ?? ''
+      });
+    }
   }
 
   listCategoryBudgets(budgetId: string): CategoryBudget[] {
@@ -858,4 +913,18 @@ function assertVersion(current: number, expected: number): void {
 
 function copy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function normalizeBudget(budget: Budget): Budget {
+  return {
+    ...copy(budget),
+    name:
+      typeof budget.name === 'string' && budget.name.trim()
+        ? budget.name.trim()
+        : null
+  };
+}
+
+function normalizeBudgetName(name: string | null): string {
+  return name?.trim().toLocaleLowerCase('en-US') ?? '';
 }

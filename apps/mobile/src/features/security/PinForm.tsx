@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { FormField } from '@/design-system/components/forms/FormField';
 import { translate } from '@/localization/i18n';
 import { isValidPin } from './privacy-lock';
 
@@ -40,24 +40,16 @@ export function PinForm({
 
   return (
     <View style={styles.stack}>
-      <TextInput
-        accessibilityLabel={translate('appShell.security.pinLabel')}
+      <FormField
+        label="appShell.security.pinLabel"
         editable={!disabled && !loading}
+        errorText={error ? 'appShell.security.pinError' : errorMessage}
         keyboardType="number-pad"
         maxLength={6}
         onChangeText={setPin}
         secureTextEntry
-        style={styles.input}
         value={pin}
       />
-      {error ? (
-        <StyledText accessibilityRole="alert">
-          {translate('appShell.security.pinError')}
-        </StyledText>
-      ) : null}
-      {errorMessage ? (
-        <StyledText accessibilityRole="alert">{errorMessage}</StyledText>
-      ) : null}
       <ActionButton
         disabled={disabled}
         label={label}
@@ -71,10 +63,5 @@ export function PinForm({
 const styles = StyleSheet.create({
   stack: {
     gap: 10
-  },
-  input: {
-    borderWidth: 1,
-    minHeight: 44,
-    paddingHorizontal: 12
   }
 });

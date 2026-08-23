@@ -3,10 +3,42 @@ import { AppState, Text } from 'react-native';
 import { act, fireEvent, render } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
+import { usePreferenceStore } from '@/state/preferences';
 import { SensitiveVisibilityProvider, useSensitiveVisibility } from './SensitiveVisibilityProvider';
 
 describe('SensitiveVisibilityProvider', () => {
+  beforeEach(() => usePreferenceStore.setState({ hideBalances: false }));
+
+  it.each([
+    [false, 'revealed'],
+    [true, 'masked']
+  ] as const)('derives financial visibility from hideBalances=%s', (hideBalances, expected) => {
+    usePreferenceStore.setState({ hideBalances });
+
+    function Harness() {
+      const { revealed } = useSensitiveVisibility();
+      return <Text>{revealed ? 'revealed' : 'masked'}</Text>;
+    }
+
+    const screen = renderWithProviders(<Harness />);
+    expect(screen.getByText(expected)).toBeTruthy();
+  });
+
+  it('masks immediately when Hide Balances is enabled', () => {
+    function Harness() {
+      const { revealed } = useSensitiveVisibility();
+      return <Text>{revealed ? 'revealed' : 'masked'}</Text>;
+    }
+
+    const screen = renderWithProviders(<Harness />);
+    expect(screen.getByText('revealed')).toBeTruthy();
+
+    act(() => usePreferenceStore.setState({ hideBalances: true }));
+    expect(screen.getByText('masked')).toBeTruthy();
+  });
+
   it('resets active reveal on background cleanup', () => {
+    usePreferenceStore.setState({ hideBalances: true });
     function Harness() {
       const { revealed, reveal, reset } = useSensitiveVisibility();
       return (

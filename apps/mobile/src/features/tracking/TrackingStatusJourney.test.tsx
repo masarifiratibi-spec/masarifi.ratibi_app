@@ -1,6 +1,5 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { screen } from '@testing-library/react-native';
 
 import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
 import { renderWithQueryData } from '@/test-utils/render';
@@ -8,11 +7,11 @@ import { translate } from '@/localization/i18n';
 import { TrackingStatusScreen } from './TrackingStatusScreen';
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn() }
+  router: { push: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) }
 }));
 
 describe('TrackingStatusJourney', () => {
-  it('shows status, recovery, and manual fallback actions', async () => {
+  it('shows status, recovery, and explanations', async () => {
     renderWithQueryData(<TrackingStatusScreen />, [
       [
         automaticTrackingKeys.status,
@@ -32,10 +31,17 @@ describe('TrackingStatusJourney', () => {
       ]
     ]);
 
-    expect(screen.getByText('2')).toBeOnTheScreen();
-    expect(screen.getByText('1')).toBeOnTheScreen();
-    fireEvent.press(screen.getByLabelText(translate('tracking.action.manual')));
-    expect(router.push).toHaveBeenCalledWith('/(tabs)/add');
-    await waitFor(() => expect(screen.queryByText('2')).toBeNull());
+    expect(
+      screen.getByText(translate('tracking.status.enabled'))
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('tracking-permission-warning-banner')
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(translate('tracking.permission.warning'))
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(translate('tracking.howItWorks.detection'))
+    ).toBeOnTheScreen();
   });
 });

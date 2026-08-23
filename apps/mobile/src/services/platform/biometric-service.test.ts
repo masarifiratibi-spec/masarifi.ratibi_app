@@ -6,17 +6,24 @@ import { createBiometricService } from './biometric-service';
 jest.mock('expo-local-authentication', () => ({
   authenticateAsync: jest.fn(),
   hasHardwareAsync: jest.fn(),
-  isEnrolledAsync: jest.fn()
+  isEnrolledAsync: jest.fn(),
+  supportedAuthenticationTypesAsync: jest.fn()
 }));
 
 const hasHardware = jest.mocked(LocalAuthentication.hasHardwareAsync);
 const isEnrolled = jest.mocked(LocalAuthentication.isEnrolledAsync);
 const authenticate = jest.mocked(LocalAuthentication.authenticateAsync);
+const supportedTypes = jest.mocked(
+  LocalAuthentication.supportedAuthenticationTypesAsync
+);
 
 describe('biometric service', () => {
   it('serves deterministic mock availability and results', async () => {
     const service = createMockBiometricService('supported', 'cancelled');
-    await expect(service.getAvailability()).resolves.toEqual({ status: 'supported' });
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'supported',
+      kinds: ['fingerprint']
+    });
     await expect(service.authenticate()).resolves.toEqual({ status: 'cancelled' });
   });
 
@@ -35,5 +42,45 @@ describe('biometric service', () => {
 
     authenticate.mockResolvedValue({ success: false, error: 'lockout' });
     await expect(service.authenticate()).resolves.toEqual({ status: 'locked_out' });
+  });
+
+  it('reports the supported biometric kinds when available', async () => {
+    const service = createBiometricService();
+
+    hasHardware.mockResolvedValue(true);
+    isEnrolled.mockResolvedValue(true);
+    supportedTypes.mockResolvedValue([1, 2]);
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'supported',
+      kinds: ['fingerprint', 'face']
+    });
+
+    supportedTypes.mockResolvedValue([2]);
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'supported',
+      kinds: ['face']
+    });
+
+    supportedTypes.mockResolvedValue([1]);
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'supported',
+      kinds: ['fingerprint']
+    });
+  });
+
+  it('omits biometric kinds when hardware is unsupported or not enrolled', async () => {
+    const service = createBiometricService();
+
+    hasHardware.mockResolvedValue(false);
+    supportedTypes.mockResolvedValue([1, 2]);
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'unsupported'
+    });
+
+    hasHardware.mockResolvedValue(true);
+    isEnrolled.mockResolvedValue(false);
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'not_enrolled'
+    });
   });
 });

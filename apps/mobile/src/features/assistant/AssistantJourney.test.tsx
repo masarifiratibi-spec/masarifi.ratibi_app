@@ -58,6 +58,7 @@ test('home shows consent disclosure, suggestions, history, and required data sta
 
   renderWithProviders(<AssistantHomeScreen />);
 
+  expect(screen.getByLabelText(t('appShell.navigation.assistant'))).toBeTruthy();
   expect(screen.getByText(t('assistant.consent.title'))).toBeTruthy();
   expect(screen.getByText(t('assistant.privacy.transactions'))).toBeTruthy();
   expect(screen.getByText(t('assistant.suggestions.spending'))).toBeTruthy();
@@ -93,7 +94,10 @@ test('conversation renders structured labels, evidence, limitations, feedback, r
 
   const rendered = renderWithProviders(<AssistantConversationScreen conversationId="conversation-1" />);
 
+  expect(screen.getByText('January budget help')).toBeTruthy();
   expect(screen.getByText(t('assistant.label.fact'))).toBeTruthy();
+  expect(screen.getByText(t('assistant.answer.direct'))).toBeTruthy();
+  expect(screen.queryByText('assistant.answer.direct')).toBeNull();
   expect(screen.getByText(t('assistant.label.estimate'))).toBeTruthy();
   expect(screen.getByText(t('assistant.evidence.report'))).toBeTruthy();
   expect(screen.getByText(t('assistant.limitation.reviewExcluded'))).toBeTruthy();
@@ -165,7 +169,7 @@ function response(id = 'response-1') {
     question: 'What changed?',
     responseType: 'direct',
     blocks: [
-      { label: 'fact', key: 'assistant.answer.spending', values: {} },
+      { label: 'fact', key: 'assistant.answer.direct', values: {} },
       { label: 'estimate', key: 'assistant.answer.estimate', values: {} }
     ],
     period: 'monthly:2026-01-01',

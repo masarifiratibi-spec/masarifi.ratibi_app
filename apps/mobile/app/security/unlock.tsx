@@ -14,6 +14,7 @@ export default function UnlockRoute() {
   const unlock = useAppShellStore((state) => state.unlock);
   return (
     <UnlockScreen
+      biometricEnabled={privacyLock?.biometricStatus === 'enabled'}
       biometricService={createBiometricService()}
       expectedHash={pinCredential ?? ''}
       lockedUntil={privacyLock?.lockedUntil}

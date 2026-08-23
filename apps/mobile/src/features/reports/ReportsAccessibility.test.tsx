@@ -10,8 +10,13 @@ test('report primary controls expose button roles', async () => {
   usePreferenceStore.setState({ hideBalances: true });
   const screen = renderWithProviders(<ReportsScreen />);
 
-  expect(await screen.findByLabelText('Schedule')).toBeTruthy();
-  expect(await screen.findByLabelText('Preview report')).toBeTruthy();
+  expect(await screen.findByText('Net worth')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'All Accounts' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: /August 2026/ })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '1M' })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: 'Set monthly budget' })
+  ).toBeTruthy();
   expect(screen.queryByText(/416545/)).toBeNull();
   expect(screen.queryByLabelText(/416545/)).toBeNull();
 });

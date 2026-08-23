@@ -17,8 +17,7 @@ import type {
 import { notificationServiceCapability } from '@/services/contracts/assistant-notifications-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import type { MutationResult } from '@/services/contracts/core-finance-service';
-import { phoneNotificationService } from '@/services/platform/phone-notification-service';
-import { translateDynamic } from '@/localization/i18n';
+import { translateDynamicOr } from '@/localization/i18n';
 import { AssistantNotificationsRepository } from '@/storage/assistant-notifications-repository';
 import { coreFinanceService } from './core-finance-service';
 
@@ -44,6 +43,30 @@ type TargetResolutionWithVersion = NotificationTargetResolution & {
 
 type ActionResolution = Awaited<ReturnType<NotificationService['revalidateAction']>>;
 type ValidatedActionResolution = ActionResolution & { sourceVersion: number | null };
+
+const lazyPhoneNotificationService: Pick<
+  PhoneNotificationService,
+  'getPermission' | 'requestPermission' | 'presentLocal'
+> = {
+  async getPermission() {
+    const { phoneNotificationService } = await import(
+      '@/services/platform/phone-notification-service'
+    );
+    return phoneNotificationService.getPermission();
+  },
+  async requestPermission() {
+    const { phoneNotificationService } = await import(
+      '@/services/platform/phone-notification-service'
+    );
+    return phoneNotificationService.requestPermission();
+  },
+  async presentLocal(input) {
+    const { phoneNotificationService } = await import(
+      '@/services/platform/phone-notification-service'
+    );
+    return phoneNotificationService.presentLocal(input);
+  }
+};
 
 export type NotificationOwnerActionInput = {
   notificationId: string;
@@ -132,8 +155,8 @@ export function createMockAssistantNotificationsService({
       const copy = rewritePhoneCopy(event, { hideSensitiveValues: policy.hideSensitiveValues });
       const presentation = await Promise.resolve(phone.presentLocal({
           notificationId: event.id,
-          title: translateDynamic(copy.titleKey, copy.messageValues),
-          body: translateDynamic(copy.bodyKey, copy.messageValues),
+          title: translateDynamicOr(copy.titleKey, 'notifications.fallback.title', copy.messageValues),
+          body: translateDynamicOr(copy.bodyKey, 'notifications.fallback.body', copy.messageValues),
           categoryId: 'financial-change'
         }))
         .catch(() => ({ status: 'failed' as const, identifier: null }));
@@ -237,8 +260,8 @@ export function createMockAssistantNotificationsService({
     const presentation = (async () => {
       const result = await Promise.resolve(phone.presentLocal({
         notificationId: saved.id,
-        title: translateDynamic(saved.titleKey, saved.messageValues),
-        body: translateDynamic(saved.bodyKey, saved.messageValues),
+        title: translateDynamicOr(saved.titleKey, 'notifications.fallback.title', saved.messageValues),
+        body: translateDynamicOr(saved.bodyKey, 'notifications.fallback.body', saved.messageValues),
         categoryId: 'financial-change'
       }))
       .catch(() => ({ status: 'failed' as const, identifier: null }));
@@ -390,7 +413,7 @@ export function createMockAssistantNotificationsService({
 }
 
 export const assistantNotificationsService = createMockAssistantNotificationsService({
-  phone: phoneNotificationService,
+  phone: lazyPhoneNotificationService,
   summaryWindow: 'all',
   executeOwnerAction: async ({ target }) => {
     if (target.kind !== 'transaction') throw new Error('owner_action_unavailable');

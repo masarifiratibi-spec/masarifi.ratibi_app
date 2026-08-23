@@ -11,7 +11,10 @@ import { DesignIcon, type DesignIconName } from '@/design-system/icons';
 import { minTouchTarget } from '@/design-system/tokens';
 import { useTheme } from '@/state/theme-context';
 
-export interface IconButtonProps extends Omit<PressableProps, 'children' | 'style'> {
+export interface IconButtonProps extends Omit<
+  PressableProps,
+  'children' | 'style'
+> {
   icon: DesignIconName;
   label: string;
   style?: StyleProp<ViewStyle>;
@@ -35,7 +38,12 @@ export function IconButton({ icon, label, style, ...props }: IconButtonProps) {
       ]}
       {...props}
     >
-      <DesignIcon name={icon} label={label} color={theme.colors.primary} />
+      <DesignIcon
+        name={icon}
+        label={label}
+        color={theme.colors.primary}
+        decorative
+      />
     </Pressable>
   );
 }

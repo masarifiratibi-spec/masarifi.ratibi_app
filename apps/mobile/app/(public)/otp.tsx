@@ -11,6 +11,8 @@ import {
 } from '@/features/auth/auth-flow';
 import { completeAuthenticatedSession } from '@/features/auth/session-controller';
 import { StateView } from '@/design-system/components/feedback/StateView';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import type { MessageKey } from '@/localization/messages/en';
 
@@ -81,20 +83,24 @@ export default function OtpRoute() {
 
   return (
     <View style={styles.stack}>
-      <OtpVerificationForm
-        errorCode={errorCode}
-        onResend={resend}
-        onSubmit={submit}
-        resendAvailable={now >= activeAttempt.resendAvailableAt}
-        resending={resending}
-        submitting={submitting}
-      />
+      <StyledText variant="title">{translate('appShell.auth.otp.title')}</StyledText>
+      <SurfaceCard>
+        <OtpVerificationForm
+          errorCode={errorCode}
+          onResend={resend}
+          onSubmit={submit}
+          resendAvailable={now >= activeAttempt.resendAvailableAt}
+          resending={resending}
+          submitting={submitting}
+        />
+      </SurfaceCard>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   stack: {
+    gap: 12,
     padding: 16
   }
 });

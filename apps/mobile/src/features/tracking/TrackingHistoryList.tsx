@@ -5,7 +5,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import {
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
 import { translate } from '@/localization/i18n';
 import { automaticTrackingService } from '@/services/mocks/automatic-tracking-service';
 import { trackingReasonSummary } from './tracking-display';
@@ -33,14 +36,9 @@ export function TrackingHistoryList() {
   const items = query.data?.items ?? [];
   return (
     <View style={styles.stack}>
-      <ActionButton
-        label={translate('tracking.action.clearHistory')}
-        onPress={async () => {
-          const result = await automaticTrackingService.clearHistory();
-          await invalidateTrackingScopes(client, result.affectedScopes);
-        }}
-        variant="destructive"
-      />
+      <StyledText variant="title">
+        {translate('tracking.action.history')}
+      </StyledText>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -50,15 +48,26 @@ export function TrackingHistoryList() {
             title={translate('tracking.history.empty')}
           />
         }
-        renderItem={({ item }) => (
-          <SurfaceCard>
-            <StyledText variant="subtitle">
-              {translate(`tracking.history.${item.action}` as never)}
-            </StyledText>
-            <StyledText>{trackingReasonSummary(item.reasonCodes)}</StyledText>
-          </SurfaceCard>
-        )}
+        renderItem={({ item }) => {
+          const action = translate(`tracking.history.${item.action}` as never);
+          return (
+            <GroupedList label={action}>
+              <NavigationRow
+                label={action}
+                description={trackingReasonSummary(item.reasonCodes)}
+              />
+            </GroupedList>
+          );
+        }}
         contentContainerStyle={styles.stack}
+      />
+      <ActionButton
+        label={translate('tracking.action.clearHistory')}
+        onPress={async () => {
+          const result = await automaticTrackingService.clearHistory();
+          await invalidateTrackingScopes(client, result.affectedScopes);
+        }}
+        variant="destructive"
       />
     </View>
   );

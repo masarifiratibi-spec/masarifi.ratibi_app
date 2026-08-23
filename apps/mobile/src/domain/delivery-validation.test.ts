@@ -8,6 +8,7 @@ import {
 } from './delivery-validation';
 
 const now = Date.UTC(2026, 7, 13);
+const futureExpiry = Date.now() + 86_400_000;
 
 test('ValidationCase requires reproducible, non-sensitive evidence fields', () => {
   expect(validationCaseSchema.parse(caseInput())).toMatchObject({ status: 'pass' });
@@ -43,13 +44,13 @@ test('DeliveryGate and exception lifecycle block failed gates and require future
     approvedBy: 'product-owner',
     risk: 'Android TalkBack evidence missing',
     owner: 'mobile-qa',
-    expiresAt: now + 86_400_000,
+    expiresAt: futureExpiry,
     requiredEvidence: 'TalkBack run on USB device',
     status: 'active'
   });
 
   expect(canCloseDeliveryGate(gate, [caseInput({ status: 'blocked', blockedBy: 'USB device' })], exception, now)).toBe(true);
-  expect(() => deliveryExceptionSchema.parse({ ...exception, expiresAt: now - 1 })).toThrow();
+  expect(() => deliveryExceptionSchema.parse({ ...exception, expiresAt: Date.now() - 1 })).toThrow();
   expect(
     canCloseDeliveryGate({ ...gate, status: 'fail' }, [caseInput({ status: 'fail' })], exception, now)
   ).toBe(false);
@@ -71,7 +72,7 @@ test('evaluateDeliveryGate derives status from evidence, not task markers', () =
     approvedBy: 'product-owner',
     risk: 'Android device evidence missing',
     owner: 'mobile-qa',
-    expiresAt: now + 86_400_000,
+    expiresAt: futureExpiry,
     requiredEvidence: 'USB Android evidence',
     status: 'active'
   });

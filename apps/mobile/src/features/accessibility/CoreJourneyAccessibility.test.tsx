@@ -13,8 +13,8 @@ beforeEach(() => changeLocale('en'));
 
 test('core journey exposes persistent names, roles, states, and non-color status text', () => {
   const home = renderWithProviders(<HomeScreen summary={homeSummary} />);
-  expect(home.getByText(translate('coreFinance.home.title'))).toBeTruthy();
-  expect(home.getByLabelText(translate('capture.manual'))).toBeTruthy();
+  expect(home.getByText(translate('coreFinance.home.total'))).toBeTruthy();
+  expect(home.getByTestId('home-quick-action-accounts').props.accessibilityRole).toBe('button');
 
   const conflict = makeConflict(fixtureTransactions[0]);
   const screen = renderWithQueryData(<SyncConflictScreen id={conflict.id} />, [
@@ -22,8 +22,8 @@ test('core journey exposes persistent names, roles, states, and non-color status
   ]);
   expect(screen.getByText(translate('coreFinance.conflict.local'))).toBeTruthy();
   expect(screen.getByText(translate('coreFinance.conflict.later'))).toBeTruthy();
-  expect(screen.getByLabelText(translate('coreFinance.conflict.keepLocal')).props.accessibilityRole).toBe('button');
-  expect(screen.getByLabelText(translate('coreFinance.conflict.keepLater')).props.accessibilityRole).toBe('button');
+  expect(screen.getByLabelText(translate('coreFinance.conflict.keepLocal')).props.accessibilityRole).toBe('radio');
+  expect(screen.getByLabelText(translate('coreFinance.conflict.keepLater')).props.accessibilityRole).toBe('radio');
 });
 
 test('privacy protection is announced without exposing hidden content', () => {
@@ -33,7 +33,7 @@ test('privacy protection is announced without exposing hidden content', () => {
     </AppPrivacyGate>
   );
 
-  expect(screen.queryByText(translate('coreFinance.home.title'))).toBeNull();
+  expect(screen.queryByText(translate('coreFinance.home.total'))).toBeNull();
   expect(screen.getByText(translate('appShell.security.protectedContent')).props.accessibilityLiveRegion).toBe('polite');
 });
 

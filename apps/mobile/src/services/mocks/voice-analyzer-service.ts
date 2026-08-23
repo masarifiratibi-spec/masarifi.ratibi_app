@@ -3,6 +3,8 @@ import { VoiceCaptureError, voiceAnalyzerServiceCapability } from '@/services/co
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { fixtureProposalGroup, fixtureTranscript } from './voice-fixtures';
 
+const EMPTY_ANALYSIS_DELAY_MS = 1_500;
+
 export function createMockVoiceAnalyzerService(): CapabilityProviderHandle<VoiceAnalyzerService> {
   return {
     metadata: {
@@ -19,6 +21,8 @@ export function createMockVoiceAnalyzerService(): CapabilityProviderHandle<Voice
       return fixtureTranscript(scenario);
     },
     async analyze(input) {
+      if (input.scenario === 'empty')
+        await new Promise((resolve) => setTimeout(resolve, EMPTY_ANALYSIS_DELAY_MS));
       if (input.transcript.language === 'unsupported')
         throw new VoiceCaptureError('unsupported_language');
       try {

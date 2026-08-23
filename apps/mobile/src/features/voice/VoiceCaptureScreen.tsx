@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { RadioCard } from '@/design-system/components/forms/SelectionControls';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { FormField } from '@/design-system/components/forms/FormField';
+import { PickerField } from '@/design-system/components/forms/PickerField';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import type { VoiceScenario } from '@/domain/voice-capture';
 import { useAccounts, useCategories } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
@@ -26,8 +30,11 @@ const demoScenarios: readonly VoiceScenario[] = [
   'offline'
 ];
 
-export function VoiceCaptureScreen({ onManual }: { onManual(): void }) {
+export function VoiceCaptureScreen({ autoStart = false }: { autoStart?: boolean }) {
   const voice = useVoiceCapture();
+  const autoStartAttempted = useRef(false);
+  const homeNavigationStarted = useRef(false);
+  const [scenarioPicker, setScenarioPicker] = useState(false);
   const accounts = useAccounts();
   const categories = useCategories();
   const { session } = voice;
@@ -35,33 +42,95 @@ export function VoiceCaptureScreen({ onManual }: { onManual(): void }) {
     ? (`voice.error.${session.errorCode}` as const)
     : 'voice.error.unknown';
 
-  return (
-    <ScrollView contentContainerStyle={styles.stack} keyboardShouldPersistTaps="handled">
-      <StyledText variant="title">{translate('voice.title')}</StyledText>
-      <StyledText>{translate('voice.demoNotice')}</StyledText>
+  useEffect(() => {
+    if (
+      autoStart &&
+      session.state === 'ready' &&
+      session.permission === 'granted' &&
+      !autoStartAttempted.current
+    ) {
+      autoStartAttempted.current = true;
+      void voice.start();
+    }
+  }, [autoStart, session.permission, session.state, voice]);
 
-      <StyledText variant="subtitle">{translate('voice.scenario.title')}</StyledText>
-      <View style={styles.options}>
-        {demoScenarios.map((scenario) => (
-          <RadioCard
-            key={scenario}
-            label={translate(`voice.scenario.${scenario}` as never)}
-            selected={session.scenario === scenario}
+  useEffect(() => {
+    if (session.state !== 'saved' || homeNavigationStarted.current) return;
+    homeNavigationStarted.current = true;
+    router.replace('/(tabs)/home');
+  }, [session.state]);
+
+  const processing = ['stopping', 'transcribing', 'analyzing', 'saving'].includes(
+    session.state
+  );
+
+  return (
+    <View style={styles.root}>
+      <ScrollView contentContainerStyle={styles.stack} keyboardShouldPersistTaps="handled">
+      <StyledText variant="title">{translate('voice.title')}</StyledText>
+      {__DEV__ && !autoStart ? <StyledText>{translate('voice.demoNotice')}</StyledText> : null}
+
+      {__DEV__ && !autoStart ? (
+        <>
+          <PickerField
+            label={translate('voice.scenario.title')}
+            value={translate(`voice.scenario.${session.scenario}` as never)}
             disabled={!['ready', 'permission_required', 'failed'].includes(session.state)}
-            onPress={() => voice.setScenario(scenario)}
+            onPress={() => setScenarioPicker(true)}
           />
-        ))}
-      </View>
+          <AppSheet
+            title={translate('voice.scenario.title')}
+            visible={scenarioPicker}
+            onDismiss={() => setScenarioPicker(false)}
+          >
+            <ChipSelector
+              options={demoScenarios.map((scenario) =>
+                translate(`voice.scenario.${scenario}` as never)
+              )}
+              selected={[
+                translate(`voice.scenario.${session.scenario}` as never)
+              ]}
+              onToggle={(label) => {
+                const index = demoScenarios.findIndex(
+                  (scenario) =>
+                    translate(`voice.scenario.${scenario}` as never) === label
+                );
+                if (index >= 0) voice.setScenario(demoScenarios[index]);
+                setScenarioPicker(false);
+              }}
+            />
+          </AppSheet>
+        </>
+      ) : null}
 
       {session.state === 'permission_required' ? (
-        <View style={styles.stack}>
-          <StyledText variant="subtitle">{translate('voice.permission.title')}</StyledText>
-          <StyledText>{translate('voice.permission.body')}</StyledText>
-          <ActionButton
-            label={translate('voice.permission.request')}
-            onPress={() => void voice.requestPermission()}
+        session.permission === 'permanently_denied' ? (
+          <View style={styles.stack}>
+            <StateView
+              state="error"
+              title={translate('voice.error.permission_permanent')}
+            />
+            <ActionButton
+              label={translate('voice.permission.settings')}
+              variant="secondary"
+              onPress={() => void voice.openSettings()}
+            />
+          </View>
+        ) : session.permission === 'unavailable' ? (
+          <StateView
+            state="error"
+            title={translate('voice.permission.unavailable')}
           />
-        </View>
+        ) : (
+          <View style={styles.stack}>
+            <StyledText variant="subtitle">{translate('voice.permission.title')}</StyledText>
+            <StyledText>{translate('voice.permission.body')}</StyledText>
+            <ActionButton
+              label={translate('voice.permission.request')}
+              onPress={() => void voice.requestPermission()}
+            />
+          </View>
+        )
       ) : null}
 
       {session.state === 'ready' || session.state === 'recording' ? (
@@ -71,15 +140,6 @@ export function VoiceCaptureScreen({ onManual }: { onManual(): void }) {
           onStart={() => void voice.start()}
           onStop={() => void voice.stop()}
           onCancel={() => void voice.cancelRecording()}
-        />
-      ) : null}
-
-      {['stopping', 'transcribing', 'analyzing', 'saving'].includes(session.state) ? (
-        <StateView
-          state="loading"
-          title={translate(
-            session.state === 'saving' ? 'voice.state.saving' : 'voice.state.processing'
-          )}
         />
       ) : null}
 
@@ -125,15 +185,6 @@ export function VoiceCaptureScreen({ onManual }: { onManual(): void }) {
         </View>
       ) : null}
 
-      {session.state === 'saved' ? (
-        <StateView
-          state="success"
-          title={translate('voice.state.saved')}
-          actionLabel={translate('voice.record.rerecord')}
-          onAction={() => void voice.reRecord()}
-        />
-      ) : null}
-
       {session.state === 'failed' && session.errorCode !== 'save_failed' ? (
         <View style={styles.stack}>
           <StateView
@@ -152,19 +203,53 @@ export function VoiceCaptureScreen({ onManual }: { onManual(): void }) {
         </View>
       ) : null}
 
-      <ActionButton
-        label={translate('voice.action.manual')}
-        variant="quiet"
-        onPress={() => {
-          void voice.cancel();
-          onManual();
-        }}
-      />
-    </ScrollView>
+      {session.state === 'permission_required' || session.state === 'failed' ? (
+        <ActionButton
+          label={translate('voice.action.manual')}
+          variant="quiet"
+          onPress={() => {
+            void voice.cancel();
+            router.replace('/(tabs)/add');
+          }}
+        />
+      ) : null}
+      </ScrollView>
+      {processing ? (
+        <View
+          accessibilityLabel={translate(
+            session.state === 'saving'
+              ? 'voice.state.saving'
+              : 'voice.state.processing'
+          )}
+          accessibilityLiveRegion="polite"
+          testID="voice-processing-overlay"
+          style={styles.processingOverlay}
+        >
+          <SurfaceCard style={styles.processingCard}>
+            <StateView
+              state="loading"
+              title={translate(
+                session.state === 'saving'
+                  ? 'voice.state.saving'
+                  : 'voice.state.processing'
+              )}
+            />
+          </SurfaceCard>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   stack: { gap: 14, padding: 16, paddingBottom: 40 },
-  options: { gap: 8 }
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+    justifyContent: 'center',
+    padding: 24
+  },
+  processingCard: { maxWidth: 320, width: '100%' }
 });

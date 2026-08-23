@@ -19,17 +19,28 @@ describe('DesignSystemGallery', () => {
     });
   });
 
-  it('navigates sections, switches theme and locale, and stays gallery-scoped', () => {
+  it('navigates sections, keeps the app light, switches locale, and stays gallery-scoped', () => {
     const screen = renderWithProviders(<DesignSystemGallery />);
 
     expect(screen.getByTestId('design-system-scroll')).toBeTruthy();
-    expect(screen.getAllByText('Financial').length).toBeGreaterThan(0);
+    for (const section of [
+      'foundation',
+      'navigation',
+      'financial',
+      'interaction',
+      'states',
+      'charts',
+      'accessibility',
+      'privacy'
+    ]) {
+      expect(screen.getByTestId(`design-system-section-${section}`)).toBeTruthy();
+    }
 
     fireEvent.press(screen.getByTestId('design-system-section-charts'));
     expect(screen.getAllByText('Charts').length).toBeGreaterThan(0);
 
     fireEvent.press(screen.getByTestId('design-system-theme-dark'));
-    expect(usePreferenceStore.getState().theme).toBe('dark');
+    expect(usePreferenceStore.getState().theme).toBe('light');
 
     fireEvent.press(screen.getByTestId('design-system-locale-ar'));
     expect(usePreferenceStore.getState().locale).toBe('ar');

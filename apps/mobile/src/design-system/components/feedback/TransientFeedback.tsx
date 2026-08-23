@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { useTheme } from '@/state/theme-context';
-import { translate } from '@/localization/i18n';
+import { translate, translateDynamic } from '@/localization/i18n';
 
 export function Toast({ message }: { message: string }) {
   return <FeedbackBox message={message} />;
@@ -30,19 +30,43 @@ export function Snackbar({
 export function UndoSnackbar({
   message,
   onUndo,
-  timeoutMs
+  timeoutMs,
+  onExpire
 }: {
   message: string;
   onUndo: () => void;
   timeoutMs: number;
+  onExpire?: () => void;
 }) {
+  const [remainingMs, setRemainingMs] = useState(timeoutMs);
+  useEffect(() => {
+    setRemainingMs(timeoutMs);
+    if (timeoutMs <= 0) {
+      onExpire?.();
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      const next = Math.max(0, timeoutMs - (Date.now() - startedAt));
+      setRemainingMs(next);
+      if (next === 0) {
+        clearInterval(timer);
+        onExpire?.();
+      }
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [onExpire, timeoutMs]);
   return (
     <FeedbackBox
       message={message}
       actionLabel={translate('coreFinance.undo')}
       onAction={onUndo}
     >
-      <Text>{`${timeoutMs} ms`}</Text>
+      <Text accessible={false}>
+        {translateDynamic('coreFinance.undoRemaining', {
+          count: String(Math.ceil(remainingMs / 1_000))
+        })}
+      </Text>
     </FeedbackBox>
   );
 }

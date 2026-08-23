@@ -26,9 +26,25 @@ interface PreferenceState extends UserPreferences {
   setTheme: (theme: ThemePreference) => void;
   toggleHideBalances: () => void;
   setBaseCurrencyCode: (code: string) => void;
+  setMonthStartDay: (day: number) => void;
   setTimeZone: (timeZone: string) => void;
   setReducedMotion: (reduced: boolean) => void;
-  updateApplicationPreferences: (patch: Partial<Pick<UserPreferences, 'firstDayOfWeek' | 'defaultAccountId' | 'transactionDefaultType' | 'dashboardSections' | 'voiceEnabled' | 'trackingPersonalization' | 'assistantPersonalization' | 'analyticsEnabled'>>) => void;
+  updateApplicationPreferences: (
+    patch: Partial<
+      Pick<
+        UserPreferences,
+        | 'firstDayOfWeek'
+        | 'defaultAccountId'
+        | 'transactionDefaultType'
+        | 'dashboardSections'
+        | 'voiceEnabled'
+        | 'trackingPersonalization'
+        | 'assistantPersonalization'
+        | 'analyticsEnabled'
+        | 'monthStartDay'
+      >
+    >
+  ) => void;
 }
 
 export const usePreferenceStore = create<PreferenceState>((set, get) => ({
@@ -36,9 +52,14 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
   hydrated: false,
 
   hydrate: async () => {
-    const loaded = await loadPreferences();
-    changeLocale(loaded.locale);
-    set({ ...loaded, hydrated: true });
+    // Preferences are optional startup state; storage failure must not block routing.
+    const loaded = await loadPreferences().catch(() => buildPreferences({}));
+    const next = { ...loaded, theme: 'light' as const };
+    changeLocale(next.locale);
+    set({ ...next, hydrated: true });
+    if (loaded.theme !== 'light') {
+      await savePreferences(next);
+    }
   },
 
   setLocale: (locale) => {
@@ -48,11 +69,7 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
     void persist(next);
   },
 
-  setTheme: (theme) => {
-    const next = { ...get(), theme };
-    set(next);
-    void persist(next);
-  },
+  setTheme: () => set({ theme: 'light' }),
 
   toggleHideBalances: () => {
     const next = { ...get(), hideBalances: !get().hideBalances };
@@ -62,6 +79,13 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
 
   setBaseCurrencyCode: (baseCurrencyCode) => {
     const next = { ...get(), baseCurrencyCode };
+    set(next);
+    void persist(next);
+  },
+
+  setMonthStartDay: (monthStartDay) => {
+    const clamped = Math.max(1, Math.min(28, Math.floor(monthStartDay) || 1));
+    const next = { ...get(), monthStartDay: clamped };
     set(next);
     void persist(next);
   },
@@ -100,6 +124,7 @@ function persist(state: PreferenceState): Promise<void> {
     voiceEnabled: state.voiceEnabled,
     trackingPersonalization: state.trackingPersonalization,
     assistantPersonalization: state.assistantPersonalization,
-    analyticsEnabled: state.analyticsEnabled
+    analyticsEnabled: state.analyticsEnabled,
+    monthStartDay: state.monthStartDay
   });
 }

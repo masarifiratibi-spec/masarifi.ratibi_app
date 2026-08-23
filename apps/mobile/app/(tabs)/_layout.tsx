@@ -9,12 +9,16 @@ export default function TabsLayout() {
     <ProtectedRouteGate>
       <Tabs
         screenOptions={{ headerShown: false }}
-        tabBar={({ state }) => (
-          <AppTabs
-            currentRoute={`/(tabs)/${state.routeNames[state.index]}`}
-            onSelect={(route) => router.navigate(route)}
-          />
-        )}
+        tabBar={({ state }) => {
+          const currentName = state.routeNames[state.index];
+          return currentName === 'reports' ||
+            currentName === 'more' ? null : (
+            <AppTabs
+              currentRoute={`/(tabs)/${currentName}`}
+              onSelect={(route) => router.navigate(route)}
+            />
+          );
+        }}
       >
         <Tabs.Screen name="home" />
         <Tabs.Screen name="transactions" />

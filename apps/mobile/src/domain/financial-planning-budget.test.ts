@@ -18,3 +18,32 @@ it('covers budget eligibility, thresholds, rollover, zero values, and missing FX
     }).percentage.status
   ).toBe('unavailable');
 });
+
+it('counts only transactions assigned to the budget categories', () => {
+  const progress = calculateBudgetProgress({
+    budget: fixtureBudget,
+    transactions: [
+      {
+        ...fixtureSalaryTransaction,
+        id: 'expense-housing',
+        type: 'expense',
+        categoryId: 'housing',
+        amountMinor: 400_00
+      },
+      {
+        ...fixtureSalaryTransaction,
+        id: 'expense-food',
+        type: 'expense',
+        categoryId: 'food',
+        amountMinor: 900_00
+      }
+    ],
+    categoryIds: ['housing'],
+    today: planningToday
+  });
+
+  expect(progress.eligibleSpendMinor).toMatchObject({
+    status: 'available',
+    value: 400_00
+  });
+});

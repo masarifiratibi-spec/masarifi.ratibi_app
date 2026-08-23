@@ -16,7 +16,7 @@ const newSession = (): VoiceCaptureSession => ({
   state: 'idle',
   permission: 'not_requested',
   language: 'ar',
-  scenario: 'clear_ar',
+  scenario: 'empty',
   startedAt: null,
   timezoneOffsetMinutes: null,
   durationMs: 0,

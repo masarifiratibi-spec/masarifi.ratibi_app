@@ -42,12 +42,13 @@ test('profile preserves edits, validates owner fields, and redirects identity-ow
 
   renderWithProviders(<ProfileScreen />);
 
+  expect(screen.getByText(t('settings.profile.title'))).toBeTruthy();
   expect(screen.getByText(t('settings.profile.avatar.default'))).toBeTruthy();
   expect(screen.getByText('+966500000000')).toBeTruthy();
-  expect(screen.getByText(t('settings.profile.google.notLinked'))).toBeTruthy();
-  expect(screen.getByText('SA')).toBeTruthy();
-  expect(screen.getByText(t('settings.profile.completion.identity'))).toBeTruthy();
-  expect(screen.getByText(t('settings.profile.googleOwner'))).toBeTruthy();
+  expect(screen.queryByText(t('settings.profile.google.notLinked'))).toBeNull();
+  expect(screen.queryByText('SA')).toBeNull();
+  expect(screen.queryByText(t('settings.profile.completion.identity'))).toBeNull();
+  expect(screen.queryByText(t('settings.profile.googleOwner'))).toBeNull();
 
   fireEvent.changeText(screen.getByLabelText(t('settings.profile.name')), 'Dana Edited');
   fireEvent.changeText(screen.getByLabelText(t('settings.profile.email')), 'bad-email');
@@ -59,20 +60,38 @@ test('profile preserves edits, validates owner fields, and redirects identity-ow
   fireEvent.press(screen.getByText(t('settings.profile.save')));
   expect(save).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ name: 'Dana Edited', timeZone: 'Asia/Riyadh', currency: 'SAR' }), expectedVersion: 1 }));
 
-  fireEvent.press(screen.getByText(t('settings.profile.phoneOwner')));
-  expect(router.push).toHaveBeenCalledWith('/security/settings');
-  fireEvent.press(screen.getByText(t('settings.profile.googleOwner')));
-  expect(router.push).toHaveBeenCalledWith('/security/settings');
+  fireEvent.press(screen.getByText(t('settings.profile.phone')));
+  expect(router.push).toHaveBeenCalledWith('/profile/phone');
+  expect(screen.getByText(t('settings.profile.birthday'))).toBeTruthy();
+  expect(screen.getByText(t('settings.profile.gender'))).toBeTruthy();
+  expect(screen.getByText(t('settings.profile.gender.male'))).toBeTruthy();
+  expect(screen.getByText(t('settings.profile.gender.female'))).toBeTruthy();
+
+  fireEvent.press(screen.getByText(t('settings.profile.gender.female')));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ gender: 'female' }) }));
+  expect(screen.queryByText(t('settings.profile.applicationOwner'))).toBeNull();
 });
 
-test('application settings route device-local owners without duplicating hide balances', () => {
+test('application settings renders controls: language, weekStart, currency, monthStart, defaultAccount, hideBalances', () => {
   renderWithProviders(<ApplicationSettingsScreen />);
 
-  ['settings.application.language', 'settings.application.theme', 'settings.application.weekStart', 'settings.application.defaultAccount', 'settings.application.transactionDefaults', 'settings.application.dashboard', 'settings.application.trackingOwner', 'settings.application.reportEmailOwner', 'settings.application.hideBalances', 'settings.application.notificationsOwner', 'settings.application.reportsOwner'].forEach((key) => expect(screen.getAllByText(t(key)).length).toBeGreaterThan(0));
-  expect(screen.getAllByText(t('settings.application.voiceOwner')).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(t('settings.application.title')).length).toBeGreaterThan(0);
+  expect(screen.getByLabelText(`${t('settings.application.language.en')} ${t('designSystem.state.selected')}`)).toBeTruthy();
+  ['settings.application.language', 'settings.application.weekStart', 'settings.application.currency', 'settings.application.monthStart', 'settings.application.defaultAccount', 'settings.application.hideBalances'].forEach((key) => expect(screen.getAllByText(t(key)).length).toBeGreaterThan(0));
 
-  fireEvent.press(screen.getByText(t('settings.application.notificationsOwner')));
-  expect(router.push).toHaveBeenCalledWith('/notifications/preferences');
+  ['settings.application.transactionDefaults', 'settings.application.dashboard', 'settings.application.trackingOwner', 'settings.application.voiceOwner', 'settings.application.reportEmailOwner', 'settings.application.notificationsOwner', 'settings.application.reportsOwner'].forEach((key) => expect(screen.queryByText(t(key))).toBeNull());
+
+  // Test navigation to currency selection
+  fireEvent.press(screen.getByRole('button', { name: new RegExp(t('settings.application.currency')) }));
+  expect(router.push).toHaveBeenCalledWith('/settings/currency');
+
+  // Test navigation to month start day selection
+  fireEvent.press(screen.getByRole('button', { name: new RegExp(t('settings.application.monthStart')) }));
+  expect(router.push).toHaveBeenCalledWith('/settings/month-start');
+
+  // Test dropdown open and option selection
+  fireEvent.press(screen.getByRole('button', { name: new RegExp(t('settings.application.defaultAccount')) }));
+  expect(screen.getByText(t('settings.application.defaultAccount.none'))).toBeTruthy();
 });
 
 test('privacy settings requests export/deletion and local deletion without false completion claims', () => {
@@ -83,6 +102,7 @@ test('privacy settings requests export/deletion and local deletion without false
 
   renderWithProviders(<PrivacySettingsScreen />);
 
+  expect(screen.getByText(t('settings.privacy.title'))).toBeTruthy();
   expect(screen.getByText(t('settings.privacy.legalExplanation'))).toBeTruthy();
   expect(screen.getByText(t('settings.privacy.tracking.enabled'))).toBeTruthy();
   expect(screen.getByText(t('settings.privacy.assistantPersonalization.enabled'))).toBeTruthy();

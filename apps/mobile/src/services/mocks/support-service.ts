@@ -149,9 +149,9 @@ export function createMockSupportService({
 export const supportService = createMockSupportService({ repository: new SupportRepository() });
 
 const articles = [
-  article('faq-subscription', 'faq', 'support.article.subscription.title', 'support.article.subscription.body', ['subscription', 'subscr', 'اشتراك', 'Ø§Ø´ØªØ±Ø§Ùƒ'], 'billing'),
-  article('help-ticket', 'help', 'support.article.ticket.title', 'support.article.ticket.body', ['ticket', 'support', 'help', 'دعم'], 'support'),
-  article('whats-new-2026-01', 'whats_new', 'support.article.whatsNew.title', 'support.article.whatsNew.body', ['whats new', 'new', 'جديد'], 'release')
+  article('faq-subscription', 'faq', 'support.article.faq.subscription.title', 'support.article.faq.subscription.body', ['subscription', 'subscr', 'اشتراك'], 'billing'),
+  article('help-ticket', 'help', 'support.article.help.notifications.title', 'support.article.help.notifications.body', ['ticket', 'support', 'help', 'دعم'], 'support'),
+  article('whats-new-2026-01', 'whats_new', 'support.article.whatsNew.v009.title', 'support.article.whatsNew.v009.body', ['whats new', 'new', 'جديد'], 'release')
 ];
 
 function article(id: string, kind: SupportArticle['kind'], titleKey: string, bodyKey: string, searchTerms: string[], category: string): SupportArticle {

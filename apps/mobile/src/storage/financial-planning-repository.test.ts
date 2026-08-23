@@ -22,6 +22,62 @@ it('stores salary, budget, obligation, payment, goal, draft, and conflict record
   expect(repository.listGoals()[0].id).toBe(fixtureGoal.id);
 });
 
+it('stores multiple named budgets in the same period', () => {
+  const repository = new FinancialPlanningRepository();
+  const first = repository.saveBudget(budgetInput('Home'), 'budget-home');
+  const second = repository.saveBudget(
+    budgetInput('Personal'),
+    'budget-personal'
+  );
+
+  expect(
+    repository.listBudgets('2032-08').map((budget) => budget.name)
+  ).toEqual(['Home', 'Personal']);
+  expect(first.id).not.toBe(second.id);
+});
+
+it('rejects stale budget edits and treats an empty period as scoped', () => {
+  const repository = new FinancialPlanningRepository();
+  const saved = repository.saveBudget(budgetInput('Home'), 'budget-home');
+
+  expect(() =>
+    repository.saveBudget(
+      { ...budgetInput('Changed'), id: saved.id, expectedVersion: saved.version - 1 },
+      'stale-budget-edit'
+    )
+  ).toThrow(FinancialPlanningError);
+  expect(repository.listBudgets('')).toEqual([]);
+});
+
+it('rejects duplicate normalized budget names and category ownership', () => {
+  const repository = new FinancialPlanningRepository();
+  const home = repository.saveBudget(budgetInput('Home'), 'budget-home');
+  repository.replaceCategoryBudgets(home.id, [
+    {
+      id: 'category-budget-home-housing',
+      version: 1,
+      syncStatus: 'pending',
+      createdAt: 1,
+      updatedAt: 1,
+      budgetId: home.id,
+      categoryId: 'housing',
+      limitMinor: 1_000_00,
+      alertThresholds: [80, 90, 100],
+      status: 'active'
+    }
+  ]);
+
+  expect(() =>
+    repository.saveBudget(budgetInput(' home '), 'budget-duplicate')
+  ).toThrow(FinancialPlanningError);
+  expect(() =>
+    repository.assertCategoriesAvailable('2032-08', ['housing'])
+  ).toThrow(FinancialPlanningError);
+  expect(() =>
+    repository.assertCategoriesAvailable('2032-09', ['housing'])
+  ).not.toThrow();
+});
+
 it('uses operation IDs for idempotent salary and goal movements', () => {
   const repository = new FinancialPlanningRepository(financialPlanningSeed);
   const first = repository.confirmSalaryReceipt(
@@ -121,3 +177,17 @@ it('preserves planning conflict candidates and rejects unsupported keep_both', (
     resolution: 'keep_later'
   });
 });
+
+function budgetInput(name: string) {
+  return {
+    name,
+    periodKey: '2032-08',
+    currencyCode: 'SAR',
+    configuredExpenseLimitMinor: 5_000_00,
+    incomeTargetMinor: 0,
+    savingsTargetMinor: 0,
+    rolloverEnabled: false,
+    rolloverCreditMinor: 0,
+    copiedFromBudgetId: null
+  };
+}

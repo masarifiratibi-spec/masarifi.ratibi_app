@@ -13,6 +13,8 @@ import AssistantRoute from '@app/assistant';
 import AuthRequiredRoute from '@app/modals/auth-required';
 import { translate, translateDynamic } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
+import { useAppShellStore } from '@/state/app-shell';
+import { usePreferenceStore } from '@/state/preferences';
 
 let mockSearchParams: { returnTo?: string } = {};
 
@@ -24,15 +26,31 @@ jest.mock('expo-router', () => ({
     navigate: jest.fn()
   },
   useLocalSearchParams: () => mockSearchParams,
+  useFocusEffect: (callback: () => void) =>
+    require('react').useEffect(callback, [callback]),
   Tabs: Object.assign(() => null, { Screen: () => null }),
   Stack: () => null
 }));
 
 jest.mock('@/services/mocks/core-finance-service', () => ({
   coreFinanceService: {
-    getHomeSummary: jest.fn(async () => ({ dataState: 'empty' })),
+    getHomeSummary: jest.fn(async () => ({
+      totalBalanceMinor: 0,
+      currencyCode: 'SAR',
+      isEstimated: false,
+      components: [],
+      excludedAccountIds: [],
+      periodIncomeMinor: 0,
+      periodExpenseMinor: 0,
+      activeAccountCount: 0,
+      recentTransactions: [],
+      reviewCount: 0,
+      pendingSyncCount: 0,
+      dataState: 'ready'
+    })),
     loadDraft: jest.fn(async () => null),
     listAccounts: jest.fn(async () => []),
+    listAccountBalances: jest.fn(async () => []),
     listCategories: jest.fn(async () => []),
     listTransactions: jest.fn(async () => ({ items: [], total: 0 }))
   }
@@ -61,40 +79,69 @@ jest.mock('@/features/assistant/assistant-queries', () => ({
   useAssistantFeedback: jest.fn()
 }));
 
-const mockAssistantQueries = jest.requireMock('@/features/assistant/assistant-queries') as Record<string, jest.Mock>;
+const mockAssistantQueries = jest.requireMock(
+  '@/features/assistant/assistant-queries'
+) as Record<string, jest.Mock>;
 
 beforeAll(() => {
-  notifyManager.setNotifyFunction((callback) => { act(callback); });
+  notifyManager.setNotifyFunction((callback) => {
+    act(callback);
+  });
 });
 
 afterAll(() => {
-  notifyManager.setNotifyFunction((callback) => { callback(); });
+  notifyManager.setNotifyFunction((callback) => {
+    callback();
+  });
 });
 
 describe('navigation journey', () => {
   beforeEach(() => {
     mockSearchParams = {};
     jest.clearAllMocks();
-    mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'enabled', version: 1 }, error: null, isError: false });
-    mockAssistantQueries.useAssistantAvailability.mockReturnValue({ data: { status: 'available', remainingQuestions: 2 }, error: null, isError: false });
-    mockAssistantQueries.useSetAssistantConsent.mockReturnValue({ mutate: jest.fn() });
-    mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: jest.fn(), error: null });
-    mockAssistantQueries.useAssistantConversations.mockReturnValue({ data: { items: [], nextCursor: null, total: 0 }, isLoading: false, isError: false });
-    mockAssistantQueries.useAssistantConversation.mockReturnValue({ data: { conversation: { id: 'conversation-1', title: 'Assistant', version: 1 }, responses: { items: [], nextCursor: null, total: 0 } } });
+    mockAssistantQueries.useAssistantConsent.mockReturnValue({
+      data: { status: 'enabled', version: 1 },
+      error: null,
+      isError: false
+    });
+    mockAssistantQueries.useAssistantAvailability.mockReturnValue({
+      data: { status: 'available', remainingQuestions: 2 },
+      error: null,
+      isError: false
+    });
+    mockAssistantQueries.useSetAssistantConsent.mockReturnValue({
+      mutate: jest.fn()
+    });
+    mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({
+      mutate: jest.fn(),
+      error: null
+    });
+    mockAssistantQueries.useAssistantConversations.mockReturnValue({
+      data: { items: [], nextCursor: null, total: 0 },
+      isLoading: false,
+      isError: false
+    });
+    mockAssistantQueries.useAssistantConversation.mockReturnValue({
+      data: {
+        conversation: { id: 'conversation-1', title: 'Assistant', version: 1 },
+        responses: { items: [], nextCursor: null, total: 0 }
+      }
+    });
     mockAssistantQueries.useAskAssistant.mockReturnValue({ mutate: jest.fn() });
-    mockAssistantQueries.useRenameAssistantConversation.mockReturnValue({ mutate: jest.fn() });
-    mockAssistantQueries.useDeleteAssistantConversation.mockReturnValue({ mutate: jest.fn() });
-    mockAssistantQueries.useAssistantFeedback.mockReturnValue({ mutate: jest.fn() });
+    mockAssistantQueries.useRenameAssistantConversation.mockReturnValue({
+      mutate: jest.fn()
+    });
+    mockAssistantQueries.useDeleteAssistantConversation.mockReturnValue({
+      mutate: jest.fn()
+    });
+    mockAssistantQueries.useAssistantFeedback.mockReturnValue({
+      mutate: jest.fn()
+    });
   });
 
   it('renders every primary and representative secondary destination', async () => {
     const home = renderWithProviders(<HomeRoute />);
-    expect(
-      await screen.findByLabelText(translate('appShell.shell.accounts'))
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByLabelText(translate('appShell.shell.assistant'))
-    ).toBeOnTheScreen();
+    expect(await screen.findByTestId('home-quick-action-accounts')).toBeOnTheScreen();
     home.unmount();
 
     const transactions = renderWithProviders(<TransactionsRoute />);
@@ -122,8 +169,8 @@ describe('navigation journey', () => {
     for (const [label, route] of [
       [translate('appShell.shell.profile'), '/profile'],
       [translate('appShell.shell.security'), '/security/settings'],
-      [translate('appShell.shell.privacy'), '/profile/privacy'],
-      [translate('appShell.shell.subscriptions'), '/subscriptions'],
+      [translate('settings.profile.applicationOwner'), '/profile/application'],
+      [translate('tracking.action.openTracking'), '/tracking'],
       [translate('appShell.shell.support'), '/support']
     ] as const) {
       const link = screen.getByLabelText(label);
@@ -152,6 +199,60 @@ describe('navigation journey', () => {
     authRequired.unmount();
   });
 
+  it('makes More the directory for every relocated secondary destination', async () => {
+    useAppShellStore.setState({ profilePromptDismissed: true });
+    renderWithProviders(<MoreRoute />);
+
+    for (const heading of [
+      'appShell.more.financePlanning',
+      'appShell.more.services',
+      'appShell.more.accountSettings'
+    ] as const) {
+      expect(screen.getByText(translate(heading))).toBeOnTheScreen();
+    }
+
+    for (const [label, route] of [
+      [translate('appShell.shell.accounts'), '/accounts'],
+      [translate('coreFinance.action.categories'), '/categories'],
+      [translate('planning.salary.title'), '/salary'],
+      [translate('planning.obligations.title'), '/obligations'],
+      [translate('appShell.shell.assistant'), '/assistant'],
+      [translate('appShell.shell.support'), '/support']
+    ] as const) {
+      const link = screen.getByLabelText(label);
+      fireEvent.press(link);
+      expect(router.push).toHaveBeenLastCalledWith(route);
+    }
+  });
+
+  it('updates mounted More labels immediately when the locale changes', () => {
+    usePreferenceStore.getState().setLocale('en');
+    renderWithProviders(<MoreRoute />);
+    expect(screen.getByText(translate('appShell.more.services', 'en'))).toBeOnTheScreen();
+
+    act(() => usePreferenceStore.getState().setLocale('ar'));
+
+    expect(screen.getByText(translate('appShell.more.services', 'ar'))).toBeOnTheScreen();
+    expect(screen.queryByText(translate('appShell.more.services', 'en'))).toBeNull();
+  });
+
+  it('maintains profile preferences without displaying progressive setup on More screen', () => {
+    useAppShellStore.setState({ profilePromptDismissed: false });
+    const visible = renderWithProviders(<MoreRoute />);
+
+    expect(
+      screen.queryByText(translate('appShell.shell.progressiveSetup'))
+    ).toBeNull();
+    visible.unmount();
+
+    useAppShellStore.setState({ profilePromptDismissed: true });
+    renderWithProviders(<MoreRoute />);
+
+    expect(
+      screen.queryByText(translate('appShell.shell.progressiveSetup'))
+    ).toBeNull();
+  });
+
   it('offers a safe return action when transactions opened from reports', async () => {
     mockSearchParams = { returnTo: '/(tabs)/reports' };
     renderWithProviders(<TransactionsRoute />);
@@ -165,20 +266,36 @@ describe('navigation journey', () => {
     expect(router.navigate).toHaveBeenCalledWith('/(tabs)/reports');
   });
 
-  it('opens notifications from More and shows the unread badge', async () => {
+  it('returns from Reports to its sanitized primary origin', () => {
+    mockSearchParams = { returnTo: '/(tabs)/transactions' };
+    renderWithProviders(<ReportsRoute />);
+
+    fireEvent.press(screen.getByLabelText(translate('appShell.navigation.back')));
+    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/transactions');
+  });
+
+  it('returns from More to Home when the origin is missing or invalid', () => {
+    mockSearchParams = { returnTo: '/not-approved' };
     renderWithProviders(<MoreRoute />);
 
-    const notificationsLink = await screen.findByLabelText(
-      `${translate('appShell.shell.notifications')} 7`
-    );
-    expect(notificationsLink).toBeOnTheScreen();
-    fireEvent.press(notificationsLink);
+    fireEvent.press(screen.getByLabelText(translate('appShell.navigation.back')));
+    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/home');
+  });
 
-    expect(router.push).toHaveBeenCalledWith('/notifications');
+  it('does not display notifications row in More services list', () => {
+    renderWithProviders(<MoreRoute />);
+
+    expect(
+      screen.queryByLabelText(translate('appShell.shell.notifications'))
+    ).toBeNull();
   });
 
   it('opens assistant from More and announces disabled and limit states', async () => {
-    mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'disabled', version: 2 }, error: null, isError: false });
+    mockAssistantQueries.useAssistantConsent.mockReturnValue({
+      data: { status: 'disabled', version: 2 },
+      error: null,
+      isError: false
+    });
     const disabled = renderWithProviders(<MoreRoute />);
     const assistantDisabled = await screen.findByLabelText(
       `${translate('appShell.shell.assistant')} ${translate('appShell.shell.assistantDisabled')}`
@@ -187,11 +304,21 @@ describe('navigation journey', () => {
     expect(router.push).toHaveBeenCalledWith('/assistant');
     disabled.unmount();
 
-    mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'enabled', version: 2 }, error: null, isError: false });
-    mockAssistantQueries.useAssistantAvailability.mockReturnValue({ data: { status: 'limit_reached', remainingQuestions: 0 }, error: null, isError: false });
+    mockAssistantQueries.useAssistantConsent.mockReturnValue({
+      data: { status: 'enabled', version: 2 },
+      error: null,
+      isError: false
+    });
+    mockAssistantQueries.useAssistantAvailability.mockReturnValue({
+      data: { status: 'limit_reached', remainingQuestions: 0 },
+      error: null,
+      isError: false
+    });
     renderWithProviders(<MoreRoute />);
     expect(
-      await screen.findByLabelText(`${translate('appShell.shell.assistant')} ${translate('appShell.shell.assistantLimitReached')}`)
+      await screen.findByLabelText(
+        `${translate('appShell.shell.assistant')} ${translate('appShell.shell.assistantLimitReached')}`
+      )
     ).toBeOnTheScreen();
   });
 });

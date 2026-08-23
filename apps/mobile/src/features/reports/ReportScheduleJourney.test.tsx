@@ -9,6 +9,7 @@ test('schedule journey verifies an editable recipient before activation', async 
   changeLocale('en');
   const screen = renderWithProviders(<ReportScheduleScreen />);
 
+  expect(await screen.findByLabelText(/Monthly selected/)).toBeTruthy();
   fireEvent.changeText(await screen.findByLabelText('Recipient email'), 'reports@example.com');
   fireEvent.press(screen.getByText('Verify email'));
   expect(await screen.findByText('Email verified')).toBeTruthy();

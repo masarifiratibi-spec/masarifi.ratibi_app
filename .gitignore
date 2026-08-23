@@ -10,3 +10,5 @@ dist
 !.env.example
 npm-debug.log*
 .worktrees/
+.superpowers/brainstorm/
+.impeccable/

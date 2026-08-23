@@ -45,7 +45,9 @@
         {
           "faceIDPermission": "Allow Masarifi to use Face ID to unlock your app."
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-audio"
     ],
     "experiments": {
       "tsconfigPaths": true

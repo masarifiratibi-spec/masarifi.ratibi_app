@@ -26,6 +26,7 @@ export type VoiceSessionState =
   | 'canceled';
 
 export type VoiceScenario =
+  | 'empty'
   | 'clear_ar'
   | 'clear_en'
   | 'mixed'
@@ -50,6 +51,7 @@ export type VoiceErrorCode =
   | 'no_speech'
   | 'background_noise'
   | 'unsupported_language'
+  | 'analysis_unavailable'
   | 'analysis_failed'
   | 'offline'
   | 'invalid_proposal'

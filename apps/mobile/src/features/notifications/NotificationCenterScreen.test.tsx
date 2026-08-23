@@ -60,8 +60,12 @@ afterEach(() => jest.restoreAllMocks());
 it('shows all eight views, unread count, date groups, and dense notification content', () => {
   renderWithProviders(<NotificationCenterScreen />);
 
+  expect(screen.getByText('Notifications')).toBeTruthy();
+  fireEvent.press(screen.getByText('Notification preferences'));
+  expect(router.push).toHaveBeenCalledWith('/notifications/preferences');
+  expect(screen.getByLabelText(/All selected/)).toBeTruthy();
   ['All', 'Unread', 'Transactions', 'Obligations', 'Budgets', 'Reports', 'Assistant', 'Security'].forEach((view) =>
-    expect(screen.getByLabelText(view)).toBeTruthy()
+    expect(screen.getByText(view)).toBeTruthy()
   );
   expect(screen.getByLabelText('Unread notifications')).toBeTruthy();
   expect(screen.getByText('3')).toBeTruthy();
@@ -82,7 +86,7 @@ it('shows all eight views, unread count, date groups, and dense notification con
     ['Security', { category: 'security' }],
     ['All', {}]
   ].forEach(([label, query]) => {
-    fireEvent.press(screen.getByLabelText(label as string));
+    fireEvent.press(screen.getByText(label as string));
     expect(mockUseNotifications).toHaveBeenLastCalledWith(query);
   });
 });
@@ -186,4 +190,25 @@ it('routes settings targets to their existing protected destinations', () => {
 
   fireEvent.press(screen.getByLabelText('Open Security settings'));
   expect(router.push).toHaveBeenCalledWith('/security/settings');
+});
+
+it('uses localized safe copy when an emitted notification key is missing', () => {
+  mockUseNotifications.mockReturnValue({
+    data: {
+      items: [notification({
+        titleKey: 'notifications.tracking.expense.review-required.title',
+        bodyKey: 'notifications.tracking.expense.review-required.body'
+      })],
+      total: 1
+    },
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn()
+  });
+
+  renderWithProviders(<NotificationCenterScreen />);
+
+  expect(screen.getByText('Financial update')).toBeTruthy();
+  expect(screen.getByText('Open Masarifi to review the latest update.')).toBeTruthy();
+  expect(screen.queryByText('notifications.tracking.expense.review-required.title')).toBeNull();
 });

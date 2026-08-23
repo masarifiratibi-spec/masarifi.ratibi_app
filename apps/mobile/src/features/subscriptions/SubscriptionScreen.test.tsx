@@ -32,6 +32,7 @@ beforeEach(() => {
 test('shows current plan, all offers from one catalog, exact terms, limits, and representative disclosure', () => {
   renderWithProviders(<SubscriptionScreen />);
 
+  expect(screen.getByText(t('subscriptions.title'))).toBeTruthy();
   expect(screen.getByText('Current plan: Free')).toBeTruthy();
   expect(screen.getByText('Free')).toBeTruthy();
   expect(screen.getByText('Basic')).toBeTruthy();

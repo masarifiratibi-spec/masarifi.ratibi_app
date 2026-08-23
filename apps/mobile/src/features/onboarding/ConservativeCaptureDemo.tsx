@@ -9,7 +9,7 @@ export function ConservativeCaptureDemo() {
   return (
     <OnboardingScaffold title={translate('appShell.onboarding.conservative.title')}>
       <ActionButton label={translate('capture.manual')} onPress={() => router.push('/(tabs)/add')} variant="secondary" />
-      <ActionButton label={translate('capture.voice')} onPress={() => router.push('/(tabs)/add?mode=voice')} variant="secondary" />
+      <ActionButton label={translate('capture.voice')} onPress={() => router.push('/assistant')} variant="secondary" />
     </OnboardingScaffold>
   );
 }

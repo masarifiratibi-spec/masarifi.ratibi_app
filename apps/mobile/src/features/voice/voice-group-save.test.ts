@@ -14,6 +14,6 @@ it('saves every selected proposal with one operation id', async () => {
   const result = await service.createTransactionsAtomically(
     group.proposals.map(proposalToTransactionInput), group.id, 'voice'
   );
-  expect(result.value).toHaveLength(2);
+  expect(result.value).toHaveLength(3);
   expect(result.value.every((item) => item.source === 'voice')).toBe(true);
 });

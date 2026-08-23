@@ -17,7 +17,7 @@ test('drill-down applies visible report filters before opening transactions', as
 
   expect(await screen.findByText('Report records')).toBeTruthy();
   expect(await screen.findByText('2026-08-01 - 2026-08-31')).toBeTruthy();
-  fireEvent.press(await screen.findByLabelText('Charity'));
+  fireEvent.press(await screen.findByLabelText(/Charity/));
   expect(useCoreFinanceViewState.getState().filters.categoryIds).toEqual([
     'charity'
   ]);
@@ -26,4 +26,14 @@ test('drill-down applies visible report filters before opening transactions', as
     pathname: '/(tabs)/transactions',
     params: { returnTo: '/(tabs)/reports' }
   });
+});
+
+test('drill-down localizes Arabic category rows', async () => {
+  changeLocale('ar');
+  const screen = renderWithProviders(<ReportDrillDownScreen />);
+
+  expect(await screen.findByText('سجلات التقرير')).toBeTruthy();
+  expect(await screen.findByText('الصدقة')).toBeTruthy();
+  expect(screen.queryByText('Charity')).toBeNull();
+  expect(screen.getAllByText(/سجلًا مساهمًا/).length).toBeGreaterThan(0);
 });

@@ -203,3 +203,14 @@ Scenario results:
 - Scenario 7 Source Retention and Privacy: PASS by privacy and retention tests.
 - Scenario 8 iOS Platform Honesty: PASS by route guard and localization tests; BLOCKED_IOS_NATIVE_MATRIX for device proof.
 - Scenario 9 Localization, Accessibility, and Layout: PASS by automated accessibility/localization tests; BLOCKED_NATIVE_A11Y_MATRIX for TalkBack/VoiceOver and device-size proof.
+
+## R06 UI Re-baseline - 2026-08-16
+
+- PASS: physical Samsung `SM-A165F` / device `RK8XB00N33K`, Android 16, dark theme.
+- PASS: real Android notification permission is granted and the tracking service reports Running.
+- PASS: English LTR status, review queue/detail, history, keywords, and sender-rule captures.
+- PASS: Arabic RTL status and review-queue captures.
+- PASS: grouped controls announce the row label, supporting value, state, and disclosure as one action.
+- PASS: review rows show their real proposed merchant and amount; no fixture replaces production data.
+- PASS: hidden Home balances remained masked while entering tracking from More.
+- BLOCKED: physical iOS/VoiceOver evidence requires a supported macOS/Xcode host.

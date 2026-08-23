@@ -28,10 +28,10 @@ describe('automatic tracking accessibility', () => {
     ]);
 
     expect(
-      screen.getByLabelText(translate('tracking.action.demo'))
+      screen.getByLabelText(translate('tracking.status.mode'))
     ).toBeOnTheScreen();
     expect(
-      screen.getByLabelText(translate('tracking.action.review'))
+      screen.getByText(translate('tracking.howItWorks.detection'))
     ).toBeOnTheScreen();
     await waitFor(() => expect(screen.queryByText('999')).toBeNull());
   });

@@ -73,7 +73,7 @@ it('renders every preference section and preserves edited input after save error
     'Quiet hours',
     'Daily summary',
     'Weekly summary'
-  ].forEach((label) => expect(screen.getByLabelText(label)).toBeTruthy());
+  ].forEach((label) => expect(screen.getAllByText(label).length).toBeGreaterThan(0));
 
   expect(screen.getByDisplayValue('22:00')).toBeTruthy();
   expect(screen.getByDisplayValue('07:00')).toBeTruthy();
@@ -83,8 +83,8 @@ it('renders every preference section and preserves edited input after save error
 
   fireEvent.changeText(screen.getByLabelText('Quiet timezone'), 'Asia/Dubai');
   fireEvent.press(screen.getByLabelText('Category budget'));
-  fireEvent.press(screen.getByLabelText('Quiet Friday'));
-  fireEvent.press(screen.getByLabelText('Weekly Friday'));
+  fireEvent.press(screen.getByText('Quiet Friday'));
+  fireEvent.press(screen.getByText('Weekly Friday'));
   fireEvent.press(screen.getByLabelText('Save notification preferences'));
 
   expect(mockSave.mutate).toHaveBeenCalledWith(
@@ -106,7 +106,7 @@ it('renders every preference section and preserves edited input after save error
   );
   expect(await screen.findByText('Could not save preferences')).toBeTruthy();
   expect(screen.getByDisplayValue('Asia/Dubai')).toBeTruthy();
-  expect(screen.getByLabelText('Weekly Friday').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByLabelText(/Weekly Friday selected/).props.accessibilityState.selected).toBe(true);
 });
 
 it('keeps permission recovery explicit and never auto-requests permission', async () => {

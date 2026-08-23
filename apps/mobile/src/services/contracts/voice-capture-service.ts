@@ -18,8 +18,8 @@ export const voiceAnalyzerServiceCapability: CapabilityContractMetadata = {
   capability: 'voice-capture.analyzer',
   majorVersion: 1,
   owner: 'voice-capture',
-  providerKinds: ['mock'],
-  unavailableOutcome: 'voice.analysis.unavailable'
+  providerKinds: ['mock', 'live'],
+  unavailableOutcome: 'voice.error.analysis_unavailable'
 };
 
 export interface VoiceRecording {

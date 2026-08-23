@@ -11,17 +11,25 @@ import { useTrackingStatus } from './useAutomaticTracking';
 export function TrackingHomeCard() {
   const query = useTrackingStatus();
   const status = query.data;
+
+  if (
+    query.isLoading ||
+    query.isError ||
+    status?.platform !== 'android' ||
+    status.permissionStatus !== 'not_requested'
+  ) {
+    return null;
+  }
+
   return (
     <SurfaceCard>
       <View style={styles.stack}>
-        <StyledText variant="subtitle">{translate('tracking.home.title')}</StyledText>
-        <StyledText>
-          {translate('tracking.home.summary')
-            .replace('{{review}}', String(status?.reviewCount ?? 0))
-            .replace('{{detected}}', String(status?.detectedThisMonth ?? 0))}
+        <StyledText variant="subtitle">
+          {translate('tracking.home.enableTitle')}
         </StyledText>
+        <StyledText>{translate('tracking.home.enableBody')}</StyledText>
         <ActionButton
-          label={translate('tracking.action.openTracking')}
+          label={translate('tracking.home.enableAction')}
           onPress={() => router.push('/tracking')}
           variant="secondary"
         />

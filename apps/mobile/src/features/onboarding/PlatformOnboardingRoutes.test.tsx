@@ -69,7 +69,7 @@ describe('platform onboarding routes', () => {
     fireEvent.press(screen.getByLabelText(translate('capture.manual')));
     expect(router.push).toHaveBeenCalledWith('/(tabs)/add');
     fireEvent.press(screen.getByLabelText(translate('capture.voice')));
-    expect(router.push).toHaveBeenCalledWith('/(tabs)/add?mode=voice');
+    expect(router.push).toHaveBeenCalledWith('/assistant');
     expect(screen.queryByText(/SMS|إذن الرسائل/)).toBeNull();
     expect(screen.getByText('إضافة يدوية')).toBeOnTheScreen();
     expect(screen.getByText('إضافة صوتية')).toBeOnTheScreen();
@@ -94,5 +94,7 @@ describe('platform onboarding routes', () => {
 
     renderWithProviders(<CompleteRoute />);
     expect(screen.getAllByText('جاهز للمتابعة')).toHaveLength(1);
+    expect(screen.getByText(translate('appShell.onboarding.complete.destinations'))).toBeOnTheScreen();
+    expect(screen.getByLabelText(translate('appShell.onboarding.complete.openHome'))).toBeOnTheScreen();
   });
 });

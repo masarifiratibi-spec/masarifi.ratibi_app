@@ -3,14 +3,16 @@ import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { FinancialPulse } from '@/design-system/components/financial/FinancialPulse';
+import { GroupedList, NavigationRow } from '@/design-system/components/navigation/GroupedList';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import type { GoalMovement, SavingsLifecycle } from '@/domain/financial-planning';
-import { PlanningMetric, PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
+import { PlanningScreen, PlanningState, planningReason } from '@/features/financial-planning/PlanningScaffold';
 import { currentLocale, translate, type MessageKey } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { usePlanningMutation, useSavingsGoal } from './savings-queries';
 
 export function SavingsGoalDetailScreen({ goalId = '' }: { goalId?: string }) {
@@ -24,7 +26,17 @@ export function SavingsGoalDetailScreen({ goalId = '' }: { goalId?: string }) {
   const amount = (minor: number) =>
     hideBalances && !revealed
       ? translate('planning.state.hidden')
-      : formatAmount(minor / 100, item?.currencyCode ?? 'SAR', currentLocale());
+      : formatMinorAmount(minor, item?.currencyCode ?? 'SAR', currentLocale());
+  const current = query.data?.progress.currentMinor.status === 'available'
+    ? amount(query.data.progress.currentMinor.value)
+    : query.data?.progress.currentMinor.status === 'unavailable'
+      ? planningReason(query.data.progress.currentMinor.reason)
+      : translate('reports.state.unavailable');
+  const percentage = query.data?.progress.percentage.status === 'available'
+    ? `${query.data.progress.percentage.value}%`
+    : query.data?.progress.percentage.status === 'unavailable'
+      ? planningReason(query.data.progress.percentage.reason)
+      : translate('reports.state.unavailable');
   return (
     <PlanningScreen titleKey="planning.savings.detail">
       {!goalId ? (
@@ -35,18 +47,17 @@ export function SavingsGoalDetailScreen({ goalId = '' }: { goalId?: string }) {
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <PlanningMetric labelKey="planning.savings.goalTitle" value={item.title} />
-          <PlanningMetric labelKey="planning.field.target" value={amount(item.targetMinor)} />
-          <PlanningMetric
-            labelKey="planning.field.current"
-            value={
-              query.data.progress.currentMinor.status === 'available'
-                ? amount(query.data.progress.currentMinor.value)
-                : query.data.progress.currentMinor.reason
-            }
+          <FinancialPulse
+            accessibilityLabel={`${item.title}, ${current}, ${percentage}`}
+            scope={item.title}
+            statement={current}
+            supportingValue={percentage}
           />
-          <PlanningMetric labelKey="planning.field.progress" value={query.data.progress.percentage.status === 'available' ? `${query.data.progress.percentage.value}%` : query.data.progress.percentage.reason} />
-          <PlanningMetric labelKey="planning.field.status" value={translate(`planning.savings.status.${item.status}` as MessageKey)} />
+          <GroupedList label={translate('planning.savings.detail')}>
+            <NavigationRow label={translate('planning.field.target')} value={amount(item.targetMinor)} />
+            <NavigationRow label={translate('planning.savings.targetDate')} value={item.targetDate} />
+            <NavigationRow label={translate('planning.field.status')} value={translate(`planning.savings.status.${item.status}` as MessageKey)} />
+          </GroupedList>
           <ActionButton label={translate('planning.savings.addMovement')} onPress={() => router.push(`/savings/${goalId}/movement`)} />
           <ActionButton label={translate('planning.action.edit')} onPress={() => router.push(`/savings/${goalId}/edit`)} variant="secondary" />
           {item.status === 'active' ? <ActionButton label={translate('planning.savings.pause')} loading={lifecycle.isPending} onPress={() => lifecycle.mutate('paused')} variant="secondary" /> : null}

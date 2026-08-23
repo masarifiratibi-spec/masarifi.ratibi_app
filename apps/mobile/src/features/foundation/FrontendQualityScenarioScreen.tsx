@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton, SurfaceCard } from '@/design-system';
+import { AppIcon } from '@/design-system/icons';
 import { minTouchTarget } from '@/design-system/tokens';
 import { translate, translateDynamic } from '@/localization/i18n';
 import { useTheme } from '@/state/theme-context';
@@ -15,7 +16,11 @@ import { resetFrontendQualityScenario } from '@/test-utils/frontend-quality-scen
 type Status =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'success'; routes: readonly string[]; scenarioId: FrontendQualityScenarioId }
+  | {
+      kind: 'success';
+      routes: readonly string[];
+      scenarioId: FrontendQualityScenarioId;
+    }
   | { code: string; kind: 'failure' };
 
 type Props = {
@@ -26,7 +31,8 @@ export function FrontendQualityScenarioScreen({
   defaultProfileId = 'spec010-disposable'
 }: Props) {
   const theme = useTheme();
-  const [selected, setSelected] = useState<FrontendQualityScenarioId>('typical');
+  const [selected, setSelected] =
+    useState<FrontendQualityScenarioId>('typical');
   const [confirmed, setConfirmed] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
@@ -56,8 +62,12 @@ export function FrontendQualityScenarioScreen({
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={styles.content}
     >
-      <StyledText variant="title">{translate('frontendQuality.selector.title')}</StyledText>
-      <StyledText variant="body">{translate('frontendQuality.selector.warning')}</StyledText>
+      <StyledText variant="title">
+        {translate('frontendQuality.selector.title')}
+      </StyledText>
+      <StyledText variant="body">
+        {translate('frontendQuality.selector.warning')}
+      </StyledText>
 
       <View style={styles.grid}>
         {frontendQualityScenarios.map((scenario) => {
@@ -72,7 +82,9 @@ export function FrontendQualityScenarioScreen({
               style={[
                 styles.option,
                 {
-                  backgroundColor: active ? theme.colors.primary : theme.colors.surface,
+                  backgroundColor: active
+                    ? theme.colors.primary
+                    : theme.colors.surface,
                   borderColor: theme.colors.border,
                   minHeight: minTouchTarget
                 }
@@ -80,15 +92,25 @@ export function FrontendQualityScenarioScreen({
             >
               <StyledText
                 variant="subtitle"
-                style={{ color: active ? theme.colors.textInverse : theme.colors.textPrimary }}
+                style={{
+                  color: active
+                    ? theme.colors.textInverse
+                    : theme.colors.textPrimary
+                }}
               >
                 {translate(`frontendQuality.scenarios.${scenario.id}.name`)}
               </StyledText>
               <StyledText
                 variant="caption"
-                style={{ color: active ? theme.colors.textInverse : theme.colors.textSecondary }}
+                style={{
+                  color: active
+                    ? theme.colors.textInverse
+                    : theme.colors.textSecondary
+                }}
               >
-                {translate(`frontendQuality.scenarios.${scenario.id}.description`)}
+                {translate(
+                  `frontendQuality.scenarios.${scenario.id}.description`
+                )}
               </StyledText>
             </Pressable>
           );
@@ -102,8 +124,29 @@ export function FrontendQualityScenarioScreen({
         onPress={() => setConfirmed((value) => !value)}
         style={styles.confirm}
       >
-        <StyledText variant="body">
-          {confirmed ? '✓ ' : '☐ '}
+        <View
+          style={[
+            styles.checkbox,
+            {
+              backgroundColor: confirmed ? theme.colors.primary : 'transparent',
+              borderColor: confirmed
+                ? theme.colors.primary
+                : theme.colors.border
+            }
+          ]}
+        >
+          {confirmed ? (
+            <AppIcon
+              name="check"
+              label=""
+              size="xs"
+              color={theme.colors.textInverse}
+              testID="frontend-quality-confirm-icon"
+              decorative
+            />
+          ) : null}
+        </View>
+        <StyledText accessible={false} variant="body">
           {translate('frontendQuality.selector.confirm')}
         </StyledText>
       </Pressable>
@@ -125,7 +168,9 @@ function StatusCard({ status }: { status: Status }) {
     return (
       <SurfaceCard>
         <StyledText variant="body" accessibilityLiveRegion="polite">
-          {translateDynamic('frontendQuality.selector.failure', { code: status.code })}
+          {translateDynamic('frontendQuality.selector.failure', {
+            code: status.code
+          })}
         </StyledText>
       </SurfaceCard>
     );
@@ -133,9 +178,13 @@ function StatusCard({ status }: { status: Status }) {
   return (
     <SurfaceCard>
       <StyledText variant="body" accessibilityLiveRegion="polite">
-        {translateDynamic('frontendQuality.selector.success', { scenario: status.scenarioId })}
+        {translateDynamic('frontendQuality.selector.success', {
+          scenario: status.scenarioId
+        })}
       </StyledText>
-      <StyledText variant="subtitle">{translate('frontendQuality.selector.routeLinks')}</StyledText>
+      <StyledText variant="subtitle">
+        {translate('frontendQuality.selector.routeLinks')}
+      </StyledText>
       {status.routes.map((route) => (
         <StyledText key={route} variant="body">
           {route}
@@ -148,8 +197,12 @@ function StatusCard({ status }: { status: Status }) {
 export function FrontendQualityScenarioUnavailableScreen() {
   return (
     <View style={styles.content}>
-      <StyledText variant="title">{translate('frontendQuality.selector.title')}</StyledText>
-      <StyledText variant="body">{translate('frontendQuality.selector.unavailable')}</StyledText>
+      <StyledText variant="title">
+        {translate('frontendQuality.selector.title')}
+      </StyledText>
+      <StyledText variant="body">
+        {translate('frontendQuality.selector.unavailable')}
+      </StyledText>
     </View>
   );
 }
@@ -165,7 +218,18 @@ const styles = StyleSheet.create({
     padding: 12
   },
   confirm: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
     minHeight: minTouchTarget,
     justifyContent: 'center'
+  },
+  checkbox: {
+    alignItems: 'center',
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 22,
+    justifyContent: 'center',
+    width: 22
   }
 });

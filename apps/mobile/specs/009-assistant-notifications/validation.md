@@ -181,6 +181,17 @@ Unavailable iOS/VoiceOver evidence is recorded as blocked, not passed.
 
 The feature is not marked fully complete because T144 and the usability/native acceptance criteria still have unproven items.
 
+## R13 Assistant UI Re-baseline - 2026-08-16
+
+- PASS: Assistant home now uses a clear title, consent/status card, primary suggestion, and grouped conversation rows while preserving consent, pagination, offline, empty, and limit states.
+- PASS: conversation responses, evidence links, limitations, composer, rename/delete confirmation, feedback, and support reporting remain on the existing conversation route and service.
+- PASS: action preview uses the shared financial hero, grouped disclosure, shared amount field, explicit confirmation dialog, safe cancellation, and typed success destinations; no action is applied before confirmation.
+- PASS: all `8` Assistant and Assistant/Notifications suites (`22` tests), typecheck, scoped ESLint, and the Assistant/Notifications boundary check.
+- PASS: English LTR dark-theme Android captures for consent/home, a populated conversation, and a savings action preview.
+- FIXED DURING DEVICE VALIDATION: all dynamic Assistant response types and estimate variants now have paired Arabic/English messages, preventing raw keys such as `assistant.answer.direct` from reaching users.
+- INTENTIONAL DEVIATION: evidence remains an existing report link inside the conversation rather than a duplicate evidence data screen; report provenance stays owned by Reports.
+- BLOCKED: physical iOS/VoiceOver evidence and usability-rate criteria require external supported environments and participants.
+
 ## T147 usability measurement status
 
 No usability study sample or imported measurement package was available in this workspace.
@@ -194,3 +205,25 @@ No usability study sample or imported measurement package was available in this 
 | SC-010 profile/application change and destructive-action consequence | 0 users | BLOCKED: no user measurement. |
 | SC-011 help/support success | 0 users | BLOCKED: no user measurement. |
 | SC-013 trust/safety rating | 0 users | BLOCKED: no user measurement. |
+
+## R14 Notifications UI Re-baseline - 2026-08-16
+
+- PASS: the notification center now has an explicit title, compact selectable category chips, unread actions, grouped events, and a discoverable link to the existing notification-preferences route.
+- PASS: notification preferences use shared section cards, switches, and compact weekday chips while preserving native permission, lock-screen masking, quiet-hours, weekly summary, and category behavior.
+- PASS: missing generated notification keys fall back to paired localized safe copy in both the center and phone presentation instead of exposing raw localization keys.
+- PASS: all `12` Assistant/Notifications suites (`50` tests), typecheck, scoped ESLint, and the Assistant/Notifications boundary check.
+- PASS: English LTR dark-theme Android captures for the center and preferences, including hidden lock-screen amounts and the `not requested` permission state.
+- INTENTIONAL DEVIATION: the production center retains its eight existing domain filters rather than collapsing to the mockup's four broad examples, preserving current query behavior and domain ownership.
+- BLOCKED: physical iOS/VoiceOver evidence and usability-rate criteria require external supported environments and participants.
+
+## R15-R18 More, Security, Subscription, and Support Re-baseline - 2026-08-16
+
+- PASS: More is organized into the approved Finance and Planning, Add and Capture, Services, and Account and Settings groups using the existing routes and `MenuLink` behavior; both sign-out actions and all five tabs remain unchanged.
+- PASS: Profile and Application Settings expose existing owner routes and preferences through shared fields, chips, switches, cards, and grouped rows without a navigation registry or new settings screens.
+- PASS: Security, Privacy, PIN, Sessions, and Security Events use the shared form, state, card, and grouped-navigation primitives while preserving biometric, auto-lock, masking, destructive-action, and recovery behavior.
+- PASS: Subscription overview, checkout, and management preserve the existing catalog, lifecycle, restore, cancellation, and representative-payment behavior.
+- PASS: Support home, ticket creation, ticket list, and ticket detail preserve search, draft, context, attachment, reply, status, and rating behavior.
+- PASS: all focused R15-R18 suites (`22` suites, `63` tests), typecheck, ESLint, app-shell, and Assistant/Notifications boundary checks.
+- PASS: fresh Android Arabic RTL and English LTR dark-theme captures now cover More, Profile, Application Settings, Security, Sessions, Security Events, Privacy, Subscription overview/checkout/management, and Support home/new-ticket/list/detail on Samsung `SM-A165F` (`1080x2340`, Android 16).
+- FIXED DURING DEVICE VALIDATION: Support fixtures no longer expose raw localization keys; Support uses its own header without the route filename; shared chips and `MenuLink` rows follow RTL order; and a mounted More tab updates immediately after locale changes.
+- BLOCKED: physical iOS/VoiceOver evidence and usability-rate criteria require external supported environments and participants.

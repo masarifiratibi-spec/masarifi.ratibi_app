@@ -8,16 +8,30 @@ import {
   createTrackingPermissionService as createAndroidResolvedTrackingPermissionService
 } from './tracking-permission-service.android';
 
-jest.mock('react-native/Libraries/PermissionsAndroid/PermissionsAndroid', () => ({
-  PERMISSIONS: { READ_SMS: 'android.permission.READ_SMS' },
-  RESULTS: {
+Object.defineProperty(PermissionsAndroid, 'check', {
+  value: jest.fn(),
+  writable: true,
+  configurable: true
+});
+Object.defineProperty(PermissionsAndroid, 'request', {
+  value: jest.fn(),
+  writable: true,
+  configurable: true
+});
+Object.defineProperty(PermissionsAndroid, 'PERMISSIONS', {
+  value: { READ_SMS: 'android.permission.READ_SMS' },
+  writable: true,
+  configurable: true
+});
+Object.defineProperty(PermissionsAndroid, 'RESULTS', {
+  value: {
     GRANTED: 'granted',
     DENIED: 'denied',
     NEVER_ASK_AGAIN: 'never_ask_again'
   },
-  check: jest.fn(),
-  request: jest.fn()
-}));
+  writable: true,
+  configurable: true
+});
 
 describe('tracking permission services', () => {
   it.each([

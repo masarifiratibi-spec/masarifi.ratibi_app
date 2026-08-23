@@ -2,9 +2,11 @@ import React from 'react';
 import { screen } from '@testing-library/react-native';
 
 import { TransactionRow } from '@/design-system/components/financial/TransactionRow';
+import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 
 it('combines financial row meaning into one accessible announcement and hides values', () => {
+  usePreferenceStore.setState({ hideBalances: true });
   renderWithProviders(
     <TransactionRow
       title="Market"

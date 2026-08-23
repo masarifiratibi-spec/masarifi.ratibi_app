@@ -3,12 +3,34 @@ import { emptyTransactionFilters } from '@/domain/core-finance';
 
 it('creates stable isolated query keys', () => {
   expect(coreFinanceKeys.home('SAR')).toEqual(['core-finance', 'home', 'SAR']);
+  const periodFilters = {
+    ...emptyTransactionFilters,
+    periodStart: Date.UTC(2026, 7, 1),
+    periodEnd: Date.UTC(2026, 8, 1) - 1
+  };
+  expect(coreFinanceKeys.home('SAR', periodFilters)).toEqual([
+    'core-finance',
+    'home',
+    'SAR',
+    periodFilters
+  ]);
   expect(coreFinanceKeys.transactions(emptyTransactionFilters)).toEqual([
     'core-finance',
     'transactions',
     emptyTransactionFilters
   ]);
   expect(coreFinanceKeys.account('a1')).not.toEqual(coreFinanceKeys.accounts());
+  expect(coreFinanceKeys.accountBalances(true)).toEqual([
+    'core-finance',
+    'account-balances',
+    true
+  ]);
+  expect(coreFinanceKeys.transactionPages(emptyTransactionFilters)).toEqual([
+    'core-finance',
+    'transactions',
+    'pages',
+    emptyTransactionFilters
+  ]);
 });
 
 it.each([

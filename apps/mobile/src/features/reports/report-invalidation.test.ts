@@ -56,6 +56,7 @@ test('finance and planning mutations also refresh reports and current assistant 
   const planning = createSeededFinancialPlanningService();
   const planningResult = await planning.saveBudget(
     {
+      name: 'September budget',
       periodKey: '2026-09',
       currencyCode: 'SAR',
       configuredExpenseLimitMinor: 200_00,

@@ -1,65 +1,158 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
+import { DesignIcon } from '@/design-system/icons';
+import { spacing } from '@/design-system/tokens';
 import {
-  RadioCard,
-  SwitchRow
-} from '@/design-system/components/forms/SelectionControls';
-import {
-  accountTypes,
   parseAmountToMinor,
   type Account,
   type AccountType
 } from '@/domain/core-finance';
-import { translate } from '@/localization/i18n';
+import { minorToMajorAmountText } from '@/domain/currencies';
+import { translate, translateDynamic } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
+import { useTheme } from '@/state/theme-context';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
 
-export function AccountForm({ account }: { account?: Account }) {
+import { AccountTypeHeroCard } from './AccountTypeHeroCard';
+import { AccountSettingCard } from './AccountSettingCard';
+import { CardEducationCard } from './CardEducationCard';
+import { CurrencyPickerSheet } from './CurrencyPickerSheet';
+import { CurrencyRow } from './CurrencyRow';
+import { colorTokens } from '@/design-system/tokens';
+
+export function AccountForm({
+  account,
+  initialType = 'bank',
+  onBack
+}: {
+  account?: Account;
+  initialType?: AccountType;
+  onBack?: () => void;
+}) {
   const client = useQueryClient();
+  const theme = useTheme();
+  const direction = usePreferenceStore((state) => state.direction);
+  const locale = usePreferenceStore((state) => state.locale);
+  const isRtl = direction === 'rtl';
+
+  const t = (key: string) => translateDynamic(key, {}, locale);
+
   const [name, setName] = useState(account?.name ?? '');
-  const [type, setType] = useState<AccountType>(account?.type ?? 'bank');
-  const [currency, setCurrency] = useState(account?.currencyCode ?? 'SAR');
-  const [balance, setBalance] = useState(
-    account ? String(account.openingBalanceMinor / 100) : '0'
+  const [type, setType] = useState<AccountType>(
+    account?.type ?? initialType ?? 'bank'
   );
+  const [currency, setCurrency] = useState(
+    account?.currencyCode ?? (locale === 'ar' ? 'EGP' : 'USD')
+  );
+  const [balance, setBalance] = useState(
+    account
+      ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
+      : '0'
+  );
+  const [creditLimit, setCreditLimit] = useState(
+    account?.creditLimitMinor
+      ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
+      : ''
+  );
+  const [lastFour, setLastFour] = useState(account?.lastFour ?? '');
+  const [dueDay, setDueDay] = useState('');
   const [isDefault, setDefault] = useState(account?.isDefault ?? false);
+
+  const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
   const [error, setError] = useState<string>();
+  const [errorField, setErrorField] = useState<
+    'name' | 'balance' | 'creditLimit' | 'form'
+  >();
   const [saving, setSaving] = useState(false);
+
+  const isEditing = Boolean(account);
+  const isCreditCard = type === 'credit_card';
+  const isCash = type === 'cash';
+
+  const dirty =
+    name !== (account?.name ?? '') ||
+    type !== (account?.type ?? initialType ?? 'bank') ||
+    currency !== (account?.currencyCode ?? (locale === 'ar' ? 'EGP' : 'USD')) ||
+    balance !==
+      (account
+        ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
+        : '0') ||
+    isDefault !== (account?.isDefault ?? false) ||
+    lastFour !== (account?.lastFour ?? '');
 
   useEffect(() => {
     if (!account) return;
     setName(account.name);
     setType(account.type);
     setCurrency(account.currencyCode);
-    setBalance(String(account.openingBalanceMinor / 100));
+    setBalance(minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode));
+    setCreditLimit(
+      account.creditLimitMinor
+        ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
+        : ''
+    );
+    setLastFour(account.lastFour ?? '');
     setDefault(account.isDefault);
     setError(undefined);
+    setErrorField(undefined);
   }, [account]);
 
-  const save = async () => {
-    const openingBalanceMinor = parseAmountToMinor(balance);
-    if (!name.trim() || openingBalanceMinor === null) {
+  const handleSave = async () => {
+    if (saving) return;
+    const openingBalanceMinor = parseAmountToMinor(balance, currency);
+    if (!name.trim()) {
       setError(translate('coreFinance.validation.required'));
+      setErrorField('name');
       return;
     }
+    if (openingBalanceMinor === null) {
+      setError(translate('coreFinance.validation.invalid'));
+      setErrorField('balance');
+      return;
+    }
+
+    let creditLimitMinor: number | null = null;
+    if (isCreditCard && creditLimit.trim()) {
+      creditLimitMinor = parseAmountToMinor(creditLimit, currency);
+      if (creditLimitMinor === null) {
+        setError(translate('coreFinance.validation.invalid'));
+        setErrorField('creditLimit');
+        return;
+      }
+    }
+
     const input = {
-      name,
+      name: name.trim(),
       type,
       currencyCode: currency.toUpperCase(),
       openingBalanceMinor,
-      institution: null,
-      lastFour: null,
-      creditLimitMinor: null,
+      institution: account?.institution ?? null,
+      lastFour: lastFour.trim() ? lastFour.trim().slice(-4) : null,
+      creditLimitMinor: creditLimitMinor ?? account?.creditLimitMinor ?? null,
       isDefault,
-      notes: null
+      notes: account?.notes ?? null
     };
+
     setSaving(true);
     setError(undefined);
+    setErrorField(undefined);
+
     try {
       const result = account
         ? await coreFinanceService.updateAccount(account.id, input)
@@ -68,56 +161,358 @@ export function AccountForm({ account }: { account?: Account }) {
       router.replace('/accounts');
     } catch {
       setError(translate('coreFinance.state.error'));
+      setErrorField('form');
     } finally {
       setSaving(false);
     }
   };
+
+  const handleCancel = () => {
+    if (!dirty) {
+      if (onBack) {
+        onBack();
+      } else {
+        router.back();
+      }
+      return;
+    }
+    Alert.alert(
+      translate('coreFinance.accounts.discardChanges'),
+      translate('coreFinance.accounts.discardChangesBody'),
+      [
+        {
+          text: translate('coreFinance.accounts.keepEditing'),
+          style: 'cancel'
+        },
+        {
+          text: translate('coreFinance.accounts.discard'),
+          style: 'destructive',
+          onPress: () => {
+            if (onBack) {
+              onBack();
+            } else {
+              router.back();
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
-    <ScrollView
-      contentContainerStyle={styles.stack}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[
+        styles.screen,
+        { backgroundColor: theme.colors.surfaces.page }
+      ]}
     >
-      <FormField
-        label={translate('coreFinance.accounts.name')}
-        value={name}
-        onChangeText={setName}
-        errorText={error}
-        autoFocus
-      />
-      {accountTypes.map((item) => (
-        <RadioCard
-          key={item}
-          label={translate(`coreFinance.accountType.${item}` as never)}
-          selected={type === item}
-          onPress={() => setType(item)}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Header with Progress Accent Bar and Back Button */}
+        <View style={styles.topBar}>
+          <View
+            style={[
+              styles.progressBarTrack,
+              styles.physicalLtr,
+              { flexDirection: isRtl ? 'row-reverse' : 'row' }
+            ]}
+          >
+            <View style={styles.progressBarActive} />
+          </View>
+
+          <View
+            style={[
+              styles.navRow,
+              styles.physicalLtr,
+              { flexDirection: isRtl ? 'row-reverse' : 'row' }
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+              onPress={handleCancel}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && { opacity: 0.7 }
+              ]}
+            >
+              <DesignIcon
+                name="chevronStart"
+                label={t('common.back')}
+                color={theme.colors.textPrimary}
+                size="feature"
+                direction={direction}
+                decorative
+              />
+            </Pressable>
+
+            <Text style={[styles.stepLabel, { color: theme.colors.textSecondary }]}>
+              {isEditing
+                ? t('coreFinance.accounts.edit')
+                : t('coreFinance.accounts.step2Of2')}
+            </Text>
+          </View>
+        </View>
+
+        {/* Intro section */}
+        <View
+          style={[
+            styles.headingSection,
+            styles.physicalLtr,
+            {
+              alignItems: isRtl ? 'flex-end' : 'flex-start',
+              alignSelf: 'stretch',
+              width: '100%'
+            }
+          ]}
+        >
+          <StyledText
+            style={[
+              styles.mainTitle,
+              {
+                textAlign: isRtl ? 'right' : 'left',
+                writingDirection: direction,
+                alignSelf: isRtl ? 'flex-end' : 'flex-start'
+              }
+            ]}
+            variant="subtitle"
+          >
+            {isEditing
+              ? t('coreFinance.accounts.edit')
+              : t('coreFinance.accounts.setup.introTitle')}
+          </StyledText>
+          <StyledText
+            style={[
+              styles.subTitle,
+              {
+                textAlign: isRtl ? 'right' : 'left',
+                writingDirection: direction,
+                alignSelf: isRtl ? 'flex-end' : 'flex-start'
+              }
+            ]}
+          >
+            {t('coreFinance.accounts.setup.introSubtitle')}
+          </StyledText>
+        </View>
+
+        {/* Selected Account Type Identity Hero */}
+        <AccountTypeHeroCard type={type} />
+
+        {/* Form Fields Container */}
+        <View style={styles.formContainer}>
+          {/* Account Name */}
+          <FormField
+            label={t('coreFinance.accounts.name')}
+            value={name}
+            onChangeText={setName}
+            placeholder={
+              isCash
+                ? locale === 'ar'
+                  ? 'مثال: كاش المحفظة، فلوس البيت'
+                  : 'e.g. Wallet Cash, Home Safe'
+                : isCreditCard
+                  ? locale === 'ar'
+                    ? 'مثال: كريدت كارد الأهلي، كارت المشتريات'
+                    : 'e.g. NBE Platinum, HSBC Cash Back'
+                  : locale === 'ar'
+                    ? 'مثال: بنك مصر، حساب المرتب'
+                    : 'e.g. Salary Account, Main Checking'
+            }
+            errorText={errorField === 'name' ? error : undefined}
+            autoFocus={!isEditing}
+          />
+
+          {/* Currency Row */}
+          <CurrencyRow
+            currencyCode={currency}
+            editable={!account}
+            onPress={() => setCurrencySheetVisible(true)}
+          />
+
+          {/* Opening Balance / Available Balance */}
+          <FormField
+            label={
+              isCreditCard
+                ? t('coreFinance.accounts.setup.availableBalance')
+                : t('coreFinance.accounts.openingBalance')
+            }
+            value={balance}
+            onChangeText={setBalance}
+            variant="amount"
+            errorText={errorField === 'balance' ? error : undefined}
+          />
+
+          {/* Credit Card Specific Fields */}
+          {isCreditCard ? (
+            <>
+              {/* Credit Limit */}
+              <FormField
+                label={t('coreFinance.accounts.setup.creditLimit')}
+                value={creditLimit}
+                onChangeText={setCreditLimit}
+                variant="amount"
+                errorText={errorField === 'creditLimit' ? error : undefined}
+                placeholder={t('common.zeroPlaceholder')}
+              />
+
+              {/* Due Day of Month */}
+              <FormField
+                label={t('coreFinance.accounts.setup.dueDay')}
+                value={dueDay}
+                onChangeText={setDueDay}
+                placeholder={locale === 'ar' ? 'مثال: 25 من كل شهر' : 'e.g. 25th of month'}
+              />
+            </>
+          ) : null}
+
+          {/* Bank / Debit / Card Identifier Section */}
+          {!isCash ? (
+            <View style={styles.sectionGroup}>
+              <FormField
+                label={t('coreFinance.accounts.setup.lastFour')}
+                value={lastFour}
+                onChangeText={setLastFour}
+                placeholder={t('common.lastFourPlaceholder')}
+                maxLength={4}
+              />
+              <CardEducationCard />
+            </View>
+          ) : null}
+
+          {/* Settings: Make Default Account */}
+          <AccountSettingCard
+            icon="check"
+            iconBg={colorTokens.raw["EBF5EC"]}
+            iconFg={colorTokens.raw["1F7A5A"]}
+            title={t('coreFinance.accounts.makeDefault')}
+            description={t('coreFinance.accounts.setup.makeDefaultDesc')}
+            value={isDefault}
+            onValueChange={setDefault}
+          />
+
+          {errorField === 'form' && error ? (
+            <Text style={styles.formErrorText}>{error}</Text>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      {/* Pinned Safe-Area Bottom Action Container */}
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.borders?.subtle ?? colorTokens.raw["E8EFEC"]
+          }
+        ]}
+      >
+        <ActionButton
+          label={
+            isEditing
+              ? t('coreFinance.accounts.save')
+              : t('coreFinance.accounts.create')
+          }
+          loading={saving}
+          onPress={() => void handleSave()}
         />
-      ))}
-      <FormField
-        label={translate('coreFinance.accounts.currency')}
-        value={currency}
-        onChangeText={setCurrency}
-        editable={!account}
+      </View>
+
+      {/* Currency Picker Bottom Sheet */}
+      <CurrencyPickerSheet
+        visible={currencySheetVisible}
+        selectedCurrency={currency}
+        onSelect={(code) => setCurrency(code)}
+        onClose={() => setCurrencySheetVisible(false)}
       />
-      <FormField
-        label={translate('coreFinance.accounts.openingBalance')}
-        value={balance}
-        onChangeText={setBalance}
-        variant="amount"
-      />
-      <SwitchRow
-        label={translate('coreFinance.accounts.makeDefault')}
-        value={isDefault}
-        onValueChange={setDefault}
-      />
-      <ActionButton
-        label={translate('coreFinance.accounts.save')}
-        loading={saving}
-        onPress={() => void save()}
-      />
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 10, padding: 16, paddingBottom: 40 }
+  physicalLtr: {
+    display: 'flex',
+    writingDirection: 'ltr'
+  },
+  screen: {
+    flex: 1
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 120,
+    gap: spacing.lg
+  },
+  topBar: {
+    gap: spacing.sm
+  },
+  progressBarTrack: {
+    height: 3,
+    backgroundColor: colorTokens.raw["E2EAE6"],
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: spacing.xs
+  },
+  progressBarActive: {
+    height: '100%',
+    width: '100%',
+    backgroundColor: colorTokens.raw["103F37"],
+    borderRadius: 2
+  },
+  navRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18
+  },
+  stepLabel: {
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  headingSection: {
+    gap: spacing.xs,
+    paddingHorizontal: 4
+  },
+  mainTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colorTokens.raw["10231F"]
+  },
+  subTitle: {
+    fontSize: 14,
+    color: colorTokens.raw["707870"],
+    lineHeight: 20
+  },
+  formContainer: {
+    gap: spacing.lg
+  },
+  sectionGroup: {
+    gap: spacing.sm
+  },
+  formErrorText: {
+    color: colorTokens.raw["C04B45"],
+    fontSize: 13,
+    textAlign: 'center'
+  },
+  bottomBar: {
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    shadowColor: colorTokens.raw["000"],
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 4
+  }
 });

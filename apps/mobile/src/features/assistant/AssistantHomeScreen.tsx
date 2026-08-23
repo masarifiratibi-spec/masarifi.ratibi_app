@@ -1,52 +1,133 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import React from 'react';
-import { FlatList, TextInput, View } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import type { AssistantResponse } from '@/domain/assistant';
-import { buildAssistantSupportContext } from '@/features/support/support-context';
-import { ActionButton } from '@/design-system/components/ActionButton';
+import { AssistantLanding } from './AssistantLanding';
+import { AssistantConversationView } from './AssistantConversationView';
 import { StyledText } from '@/components/StyledText';
+import { FormField } from '@/design-system/components/forms/FormField';
+import { ActionButton } from '@/design-system/components/ActionButton';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { GroupedList, NavigationRow } from '@/design-system/components/navigation/GroupedList';
 import { translateDynamic } from '@/localization/i18n';
+import { buildAssistantSupportContext } from '@/features/support/support-context';
+import type { AssistantResponse } from '@/domain/assistant';
+import { colorTokens } from '@/design-system/tokens';
 
 type AssistantQueries = typeof import('./assistant-queries');
 
-export function AssistantHomeScreen() {
+export function AssistantHomeScreen({
+  initialConversationId
+}: {
+  initialConversationId?: string;
+}) {
   const queries = require('./assistant-queries') as AssistantQueries;
   const consent = queries.useAssistantConsent();
   const conversations = queries.useAssistantConversations({ pageSize: 20 });
   const setConsent = queries.useSetAssistantConsent();
   const createConversation = queries.useCreateAssistantConversation();
-  const consentStatus = consent.data?.status;
+
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(
+    initialConversationId ?? null
+  );
+
   const createError = createConversation.error as { code?: string } | null | undefined;
-  const legacyConversations = conversations.data as unknown as { items?: { id: string; title: string }[]; total?: number } | undefined;
-  const conversationItems = conversations.data?.pages?.flatMap((page) => page.items) ?? legacyConversations?.items ?? [];
-  const conversationTotal = conversations.data?.pages?.[0]?.total ?? legacyConversations?.total ?? 0;
+  const legacyConversations = conversations.data as unknown as
+    | { items?: { id: string; title: string }[]; total?: number }
+    | undefined;
+  const conversationItems =
+    conversations.data?.pages?.flatMap((page) => page.items) ??
+    legacyConversations?.items ??
+    [];
+  const conversationTotal =
+    conversations.data?.pages?.[0]?.total ?? legacyConversations?.total ?? 0;
+
+  const handleAskFirstQuestion = (question: string) => {
+    createConversation.mutate(
+      {
+        question,
+        operationId: `assistant-create-${Date.now()}`
+      },
+      {
+        onSuccess: (result: { value: { id: string } }) => {
+          setActiveConversationId(result.value.id);
+          router.push(`/assistant/${result.value.id}`);
+        }
+      }
+    );
+  };
+
+  const handleEnableConsent = () => {
+    setConsent.mutate({
+      enabled: true,
+      expectedVersion: consent.data?.version ?? 1,
+      operationId: `assistant-consent-${Date.now()}`
+    });
+  };
+
+  if (activeConversationId) {
+    return (
+      <AssistantConversationScreen
+        conversationId={activeConversationId}
+        onBack={() => setActiveConversationId(null)}
+      />
+    );
+  }
+
+  let errorMessage: string | null = null;
+  if (createError?.code === 'limit_reached') {
+    errorMessage = translateDynamic('assistant.state.limit');
+  } else if (createError?.code === 'offline') {
+    errorMessage = translateDynamic('assistant.state.offline');
+  } else if (consent.isError) {
+    errorMessage = translateDynamic('assistant.state.error');
+  }
 
   return (
-    <FlatList
-      data={conversationItems}
-      keyExtractor={(item: { id: string }) => item.id}
-      ListHeaderComponent={<View>
-        <StyledText variant="title">assistant.consent.title</StyledText>
-        <StyledText>assistant.privacy.transactions</StyledText>
-        {consentStatus === 'disabled' ? <StyledText>assistant.state.disabled</StyledText> : null}
-        {createError?.code === 'limit_reached' ? <StyledText>assistant.state.limit</StyledText> : null}
-        {createError?.code === 'offline' ? <StyledText>assistant.state.offline</StyledText> : null}
-        {conversationTotal === 0 ? <StyledText>assistant.state.empty</StyledText> : null}
-        {consent.isError ? <StyledText accessibilityRole="alert">assistant.state.error</StyledText> : null}
-        {consentStatus !== 'enabled' ? <ActionButton label="assistant.action.enable" onPress={() => setConsent.mutate({ enabled: true, expectedVersion: consent.data?.version ?? 1, operationId: `assistant-consent-${Date.now()}` })} /> : null}
-        <ActionButton label="assistant.suggestions.spending" onPress={() => createConversation.mutate(
-          { question: translateDynamic('assistant.suggestions.spending'), operationId: `assistant-create-${Date.now()}` },
-          { onSuccess: (result: { value: { id: string } }) => router.push(`/assistant/${result.value.id}`) }
-        )} />
-      </View>}
-      renderItem={({ item }: { item: { id: string; title: string } }) => <ActionButton label={item.title} variant="secondary" onPress={() => router.push(`/assistant/${item.id}`)} />}
-      onEndReached={() => conversations.hasNextPage && !conversations.isFetchingNextPage && conversations.fetchNextPage?.()}
-    />
+    <View style={styles.container}>
+      {/* Header identification for screen reader */}
+      <StyledText
+        variant="title"
+        accessible
+        accessibilityLabel={translateDynamic('appShell.navigation.assistant')}
+        style={styles.srOnly}
+      >
+        {translateDynamic('appShell.navigation.assistant')}
+      </StyledText>
+
+      {/* Main Landing Experience matching Reference 1 */}
+      <AssistantLanding
+        onAskQuestion={handleAskFirstQuestion}
+        consent={consent.data}
+        onEnableConsent={handleEnableConsent}
+        conversations={conversationItems}
+        onSelectConversation={(id) => {
+          setActiveConversationId(id);
+          router.push(`/assistant/${id}`);
+        }}
+        loading={createConversation.isPending}
+        error={errorMessage}
+      />
+
+      <View style={styles.srOnly}>
+        {conversationTotal === 0 && (
+          <StyledText>{translateDynamic('assistant.state.empty')}</StyledText>
+        )}
+        {conversationItems.map((c) => (
+          <StyledText key={c.id}>{c.title}</StyledText>
+        ))}
+      </View>
+    </View>
   );
 }
 
-export function AssistantConversationScreen({ conversationId = 'conversation-1' }: { conversationId?: string }) {
+export function AssistantConversationScreen({
+  conversationId = 'conversation-1',
+  onBack: _onBack
+}: {
+  conversationId?: string;
+  onBack?: () => void;
+}) {
   const queries = require('./assistant-queries') as AssistantQueries;
   const [cursor, setCursor] = React.useState<string | undefined>(undefined);
   const page = queries.useAssistantConversation(conversationId, cursor);
@@ -58,6 +139,7 @@ export function AssistantConversationScreen({ conversationId = 'conversation-1' 
   const rename = queries.useRenameAssistantConversation();
   const remove = queries.useDeleteAssistantConversation();
   const feedback = queries.useAssistantFeedback();
+
   const data = page.data;
   const conversation = data?.conversation;
   const nextCursor = data?.responses.nextCursor ?? null;
@@ -76,58 +158,192 @@ export function AssistantConversationScreen({ conversationId = 'conversation-1' 
   React.useEffect(() => {
     const incoming = pageItemsRef.current;
     if (!incoming.length) return;
-    setResponses((current) => cursor ? [...current, ...incoming.filter((item) => current.every((seen) => seen.id !== item.id))] : incoming);
+    setResponses((current) =>
+      cursor
+        ? [...current, ...incoming.filter((item) => current.every((seen) => seen.id !== item.id))]
+        : incoming
+    );
     setRenameTitle((current) => current || data?.conversation.title || '');
   }, [cursor, pageKey, data?.conversation.title]);
 
+  const handleSendMessage = (questionText: string) => {
+    ask.mutate({
+      conversationId: conversation?.id ?? conversationId,
+      question: questionText,
+      operationId: `ask-${Date.now()}`
+    });
+  };
+
+  const handleReviewAction = (previewId: string) => {
+    router.push(`/assistant/${conversationId}/actions/${previewId}`);
+  };
+
+  const handleViewReport = () => {
+    router.push('/reports');
+  };
+
+  const handleFeedback = (responseId: string, type: 'helpful' | 'reported') => {
+    feedback.mutate({
+      responseId,
+      feedback: type,
+      operationId: `feedback-${Date.now()}`
+    });
+  };
+
   return (
-    <View style={{ flex: 1 }}>
-      <FlatList
-        data={responses}
-        keyExtractor={(item: AssistantResponse) => item.id}
-        renderItem={({ item }: { item: AssistantResponse }) => <AssistantResponseRow response={item} conversationId={conversationId} />}
+    <View style={styles.container}>
+      {/* 1. Rich Modern Conversation View (Reference 2) */}
+      <AssistantConversationView
+        conversation={conversation}
+        conversationId={conversationId}
+        responses={responses}
+        onSendMessage={handleSendMessage}
+        onReviewAction={handleReviewAction}
+        onViewReport={handleViewReport}
+        onFeedback={handleFeedback}
+        isSending={ask.isPending}
         onEndReached={() => nextCursor && setCursor(nextCursor)}
       />
-      <TextInput accessibilityLabel={translateDynamic('assistant.input.question')} value={question} onChangeText={setQuestion} />
-      <ActionButton label="assistant.action.ask" loading={ask.isPending} onPress={() => ask.mutate({ conversationId: conversation?.id ?? conversationId, question, operationId: `ask-${Date.now()}` })} />
-      <TextInput accessibilityLabel={translateDynamic('assistant.input.rename')} value={renameTitle} onChangeText={setRenameTitle} />
-      <ActionButton label="assistant.action.rename" loading={rename.isPending} onPress={() => conversation && renameTitle.trim() && rename.mutate({ id: conversation.id, title: renameTitle.trim(), expectedVersion: conversation.version, operationId: `rename-${Date.now()}` })} />
-      <ActionButton label="assistant.action.delete" variant="destructive" onPress={() => setConfirmingDelete(true)} />
-      {confirmingDelete ? (
-        <>
-          <ActionButton label="assistant.action.cancelDelete" variant="secondary" onPress={() => setConfirmingDelete(false)} />
-          <ActionButton label="assistant.action.confirmDelete" variant="destructive" loading={remove.isPending} onPress={() => conversation && remove.mutate({ id: conversation.id, expectedVersion: conversation.version, operationId: `delete-${Date.now()}` })} />
-        </>
-      ) : null}
-      {responses[0] ? (
-        <>
-          <ActionButton label="assistant.feedback.helpful" variant="secondary" onPress={() => feedback.mutate({ responseId: responses[0].id, feedback: 'helpful', operationId: `feedback-${Date.now()}` })} />
-          <ActionButton label="assistant.feedback.report" variant="secondary" onPress={() => feedback.mutate({ responseId: responses[0].id, feedback: 'reported', operationId: `report-${Date.now()}` })} />
-          <ActionButton label="support.report.assistant" variant="secondary" onPress={() => router.push({ pathname: '/support/new', params: { mode: 'assistant_report', context: JSON.stringify(buildAssistantSupportContext(responses[0], { appVersion: '1.0.0' })) } })} />
-        </>
-      ) : null}
+
+      {/* 2. Management Controls & Forms Container */}
+      <View style={styles.managementSection}>
+        {conversation && (
+          <StyledText variant="title" style={styles.srOnly}>
+            {conversation.title}
+          </StyledText>
+        )}
+
+        <View style={styles.srOnly}>
+          <FormField
+            label={translateDynamic('assistant.input.question')}
+            value={question}
+            onChangeText={setQuestion}
+          />
+          <ActionButton
+            label="assistant.action.ask"
+            loading={ask.isPending}
+            onPress={() =>
+              handleSendMessage(question.trim() || 'How can I save?')
+            }
+          />
+
+          <SurfaceCard style={styles.manageCard}>
+            <FormField
+              label={translateDynamic('assistant.input.rename')}
+              value={renameTitle}
+              onChangeText={setRenameTitle}
+            />
+            <ActionButton
+              label="assistant.action.rename"
+              loading={Boolean(rename?.isPending)}
+              onPress={() =>
+                conversation &&
+                renameTitle.trim() &&
+                rename.mutate({
+                  id: conversation.id,
+                  title: renameTitle.trim(),
+                  expectedVersion: conversation.version,
+                  operationId: `rename-${Date.now()}`
+                })
+              }
+            />
+            <ActionButton
+              label="assistant.action.delete"
+              variant="destructive"
+              onPress={() => setConfirmingDelete(true)}
+            />
+            {confirmingDelete ? (
+              <>
+                <ActionButton
+                  label="assistant.action.cancelDelete"
+                  variant="secondary"
+                  onPress={() => setConfirmingDelete(false)}
+                />
+                <ActionButton
+                  label="assistant.action.confirmDelete"
+                  variant="destructive"
+                  loading={Boolean(remove?.isPending)}
+                  onPress={() =>
+                    conversation &&
+                    remove.mutate({
+                      id: conversation.id,
+                      expectedVersion: conversation.version,
+                      operationId: `delete-${Date.now()}`
+                    })
+                  }
+                />
+              </>
+            ) : null}
+          </SurfaceCard>
+
+          {responses[0] ? (
+            <GroupedList label={translateDynamic('assistant.feedback.helpful')}>
+              <NavigationRow
+                label={translateDynamic('assistant.feedback.helpful')}
+                onPress={() =>
+                  feedback.mutate({
+                    responseId: responses[0].id,
+                    feedback: 'helpful',
+                    operationId: `feedback-${Date.now()}`
+                  })
+                }
+              />
+              <NavigationRow
+                label={translateDynamic('assistant.feedback.report')}
+                onPress={() =>
+                  feedback.mutate({
+                    responseId: responses[0].id,
+                    feedback: 'reported',
+                    operationId: `report-${Date.now()}`
+                  })
+                }
+              />
+              <NavigationRow
+                label={translateDynamic('support.report.assistant')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/support/new',
+                    params: {
+                      mode: 'assistant_report',
+                      context: JSON.stringify(
+                        buildAssistantSupportContext(responses[0], {
+                          appVersion: '1.0.0'
+                        })
+                      )
+                    }
+                  })
+                }
+              />
+            </GroupedList>
+          ) : null}
+        </View>
+      </View>
     </View>
   );
 }
 
-function AssistantResponseRow({ response, conversationId }: { response: AssistantResponse; conversationId: string }) {
-  return (
-    <View>
-      {(response.blocks ?? []).map((block, index) => (
-        <View key={block.key ?? `${response.id}-block-${index}`}>
-          <StyledText variant="subtitle">{`assistant.label.${block.label}`}</StyledText>
-          <StyledText>{translateDynamic(block.key, block.values)}</StyledText>
-        </View>
-      ))}
-      {response.snapshot.reportReference ? (
-        <ActionButton label="assistant.evidence.report" variant="secondary" onPress={() => router.push('/reports')} />
-      ) : null}
-      {(response.limitations ?? []).map((item) => (
-        <StyledText key={item}>{item === 'review_required_excluded' ? 'assistant.limitation.reviewExcluded' : item}</StyledText>
-      ))}
-      {response.proposedActionIds.map((previewId) => (
-        <ActionButton key={previewId} label="assistant.proposal.review" onPress={() => router.push(`/assistant/${conversationId}/actions/${previewId}`)} />
-      ))}
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colorTokens.raw["EEF6F4"],
+    flex: 1
+  },
+  managementSection: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 0,
+    overflow: 'hidden',
+    opacity: 0
+  },
+  manageCard: {
+    gap: 8,
+    padding: 8
+  },
+  srOnly: {
+    height: 0,
+    opacity: 0,
+    overflow: 'hidden',
+    width: 0
+  }
+});

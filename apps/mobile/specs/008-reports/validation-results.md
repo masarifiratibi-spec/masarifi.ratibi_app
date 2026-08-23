@@ -60,3 +60,14 @@ actual native availability. These completions do not close T079, T081, or T082.
 ## Final Status
 
 Automated SPEC-008 validation: PASS. Quickstart disposition: COMPLETE WITH BLOCKERS. Android native validation: PARTIAL PASS. iOS, pixel-level visual QA, and native 10,000-record measurement are not converted into passes.
+
+## R12 UI Re-baseline - 2026-08-16
+
+- PASS: Reports overview adds the shared masked net-cash-flow hero, keeps the four period controls, and groups report facts and Assistant destinations into existing navigation rows.
+- PASS: income, expense, obligations, comparisons, insights, accessible category chart, drill-down filters, return context, and preview remain backed by the existing report snapshot.
+- PASS: scheduling now uses shared form fields, chip selectors, and a switch while preserving recipient verification, drafts, cadence, lifecycle, detail level, delivery metadata, and simulated output behavior.
+- PASS: all `11` Reports suites (`15` tests), typecheck, scoped ESLint, and `check:reports`.
+- PASS: English LTR dark-theme Android screenshots/UI trees for overview, schedule, drill-down, and preview; hidden report values remained absent from the accessibility tree.
+- INTENTIONAL DEVIATION: financial insights, spending breakdown, and trend comparison remain states/compositions of the existing Reports report and drill-down model instead of new duplicate routes or analytics contracts.
+- INTENTIONAL DEVIATION: email, download, and share remain explicitly labeled deterministic simulations because no production output provider is in scope.
+- BLOCKED: physical iOS/VoiceOver evidence requires a supported macOS/Xcode host.

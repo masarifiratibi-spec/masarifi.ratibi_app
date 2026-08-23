@@ -27,6 +27,8 @@ describe('FormField', () => {
     expect(screen.getByText('Enter the transaction amount')).toBeTruthy();
     expect(screen.getByText('Amount is required')).toBeTruthy();
     expect(input.props.keyboardType).toBe('decimal-pad');
+    expect(input.props.placeholderTextColor).toBeTruthy();
+    expect(input).toHaveStyle({ textAlign: 'right' });
     fireEvent.changeText(input, '250');
     expect(input.props.value).toBe('250');
   });

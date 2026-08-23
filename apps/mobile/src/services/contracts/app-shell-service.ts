@@ -113,8 +113,12 @@ export interface TrackingPermissionService {
   openSettings(): Promise<void>;
 }
 
+export type BiometricKind = 'face' | 'fingerprint';
+
 export interface BiometricAvailability {
   status: 'supported' | 'unsupported' | 'not_enrolled' | 'locked_out';
+  /** Present only when hardware is supported and enrolled. */
+  kinds?: readonly BiometricKind[];
 }
 
 export interface BiometricResult {

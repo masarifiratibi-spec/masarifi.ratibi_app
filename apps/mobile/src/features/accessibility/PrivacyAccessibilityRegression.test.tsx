@@ -16,8 +16,10 @@ import {
   makeNotificationEvent
 } from '@/test-utils/assistant-notifications-fixtures';
 import type { HomeSummary } from '@/domain/core-finance';
+import { usePreferenceStore } from '@/state/preferences';
 
 test('hidden financial values stay out of accessible output while safe labels remain', () => {
+  usePreferenceStore.setState({ hideBalances: true });
   const screen = renderWithProviders(<HomeScreen summary={summary} />);
 
   expect(screen.getByLabelText(translate('designSystem.privacy.hidden'))).toBeTruthy();

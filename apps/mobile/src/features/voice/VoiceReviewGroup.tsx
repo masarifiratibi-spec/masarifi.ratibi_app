@@ -1,10 +1,11 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import type { Account, Category } from '@/domain/core-finance';
 import type { VoiceProposalGroup, VoiceTransactionProposal } from '@/domain/voice-capture';
-import { translate } from '@/localization/i18n';
+import { translate, translateDynamic } from '@/localization/i18n';
 import { VoiceReview } from './VoiceReview';
 
 export function VoiceReviewGroup({
@@ -29,18 +30,32 @@ export function VoiceReviewGroup({
   onReRecord(): void;
 }) {
   const visible = group.proposals.filter((item) => item.status !== 'removed');
+  const selected = visible.filter((item) => item.selected).length;
   return (
     <View style={styles.stack}>
-      {visible.map((proposal) => (
-        <VoiceReview
-          key={proposal.id}
-          proposal={proposal}
-          accounts={accounts}
-          categories={categories}
-          onChange={(value) => onChange(proposal.id, value)}
-          onConfirmField={(field) => onConfirmField(proposal.id, field)}
-          onRemove={() => onRemove(proposal.id)}
-        />
+      <StyledText variant="subtitle">
+        {translateDynamic('voice.review.groupSummary', {
+          selected,
+          total: visible.length
+        })}
+      </StyledText>
+      {visible.map((proposal, index) => (
+        <View key={proposal.id} style={styles.proposal}>
+          <StyledText variant="subtitle">
+            {translateDynamic('voice.review.proposalPosition', {
+              current: index + 1,
+              total: visible.length
+            })}
+          </StyledText>
+          <VoiceReview
+            proposal={proposal}
+            accounts={accounts}
+            categories={categories}
+            onChange={(value) => onChange(proposal.id, value)}
+            onConfirmField={(field) => onConfirmField(proposal.id, field)}
+            onRemove={() => onRemove(proposal.id)}
+          />
+        </View>
       ))}
       <ActionButton
         label={translate('voice.review.confirmSelected')}
@@ -61,4 +76,7 @@ export function VoiceReviewGroup({
   );
 }
 
-const styles = StyleSheet.create({ stack: { gap: 12 } });
+const styles = StyleSheet.create({
+  proposal: { gap: 8 },
+  stack: { gap: 12 }
+});
