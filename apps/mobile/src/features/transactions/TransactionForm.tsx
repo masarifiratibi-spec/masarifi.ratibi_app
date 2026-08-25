@@ -310,7 +310,12 @@ export function TransactionForm({
             onSelect={(account) => {
               if (picker === 'account') {
                 setAccountId(account.id);
-                if (destinationAccountId === account.id) setDestination('');
+                if (
+                  destinationAccountId &&
+                  (destinationAccountId === account.id ||
+                    selectedDestination?.currencyCode !== account.currencyCode)
+                )
+                  setDestination('');
               } else if (account.id !== sourceAccountId) {
                 setDestination(account.id);
               }

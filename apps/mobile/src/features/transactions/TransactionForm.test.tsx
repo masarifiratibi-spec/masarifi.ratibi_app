@@ -140,6 +140,29 @@ it('keeps an existing cross-currency destination available while editing', async
   expect(screen.getByText('Wallet')).toBeTruthy();
 });
 
+it('clears an incompatible destination when the source account changes', async () => {
+  const transaction = {
+    ...fixtureTransactions[0],
+    type: 'transfer' as const,
+    accountId: 'account-bank',
+    destinationAccountId: 'account-wallet',
+    currencyCode: 'SAR',
+    categoryId: null
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Account, Daily account'));
+  fireEvent.press(screen.getByLabelText(/Travel/));
+
+  const destination = translate('coreFinance.form.destination');
+  expect(screen.getByLabelText(`${destination}, ${destination}`)).toBeTruthy();
+});
+
 it('uses the canonical category screen while preserving edit values', async () => {
   const transaction = {
     ...fixtureTransactions[1],

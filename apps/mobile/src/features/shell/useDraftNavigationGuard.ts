@@ -34,7 +34,11 @@ export function useDraftNavigationGuard({
         {
           text: copy.discard,
           style: 'destructive',
-          onPress: () => void Promise.resolve(discard()).then(leave)
+          onPress: () =>
+            void Promise.resolve(discard()).then(() => {
+              saved.current = true;
+              leave();
+            })
         }
       ]);
     },

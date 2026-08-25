@@ -265,6 +265,28 @@ it('settles only the current outstanding amount from a stored preview', async ()
   ).rejects.toThrow(FinancialPlanningError);
 });
 
+it('rejects early settlement when the outstanding balance is unavailable', async () => {
+  const service = createSeededFinancialPlanningService();
+  const created = await service.createObligation(
+    {
+      direction: 'payable',
+      type: 'custom',
+      scheduleKind: 'open_ended',
+      title: 'Open-ended debt',
+      currencyCode: 'SAR',
+      contractedTotalMinor: null
+    },
+    'open-ended-obligation'
+  );
+
+  await expect(
+    service.previewEarlySettlement(created.value.id)
+  ).rejects.toMatchObject({ code: 'validation' });
+  expect((await service.getObligation(created.value.id)).obligation.status).toBe(
+    'active'
+  );
+});
+
 it('keeps savings movements tracking-only', async () => {
   const service = createSeededFinancialPlanningService();
   const preview = await service.previewGoalMovement({
