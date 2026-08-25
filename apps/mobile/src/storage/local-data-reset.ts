@@ -39,7 +39,7 @@ export async function resetLocalUserData(operationId: string): Promise<LocalData
     clearAppShellUserData(),
     clearPersistedPreferences()
   ]);
-  resetRuntimeUserData();
+  await resetRuntimeUserData();
   const failure = outcomes.find(
     (outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected'
   );
