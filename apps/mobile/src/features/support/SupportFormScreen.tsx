@@ -497,6 +497,7 @@ const styles = StyleSheet.create({
   },
   labelRow: {
     alignItems: 'center',
+    direction: 'ltr',
     gap: 2
   },
   asterisk: {
@@ -504,6 +505,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   chipsContainer: {
+    direction: 'ltr',
     flexWrap: 'wrap',
     gap: 10
   },
@@ -543,6 +545,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: 1,
+    direction: 'ltr',
     gap: 8,
     justifyContent: 'space-between',
     paddingHorizontal: 12,

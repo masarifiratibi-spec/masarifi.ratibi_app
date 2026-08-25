@@ -37,7 +37,15 @@ export function AttentionRail({
         }
       ]}
     >
-      <View style={[styles.heading, { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}>
+      <View
+        style={[
+          styles.heading,
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
+        ]}
+      >
         <DesignIcon
           name="warning"
           label={label}
@@ -72,6 +80,7 @@ function AttentionRow({ item }: { item: AttentionItem }) {
         {
           borderTopColor: theme.colors.borders.subtle,
           borderTopWidth: StyleSheet.hairlineWidth,
+          direction: 'ltr',
           flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
           minHeight: minTouchTarget
         },

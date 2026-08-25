@@ -173,6 +173,7 @@ export function AssistantMessageBubble({
 const styles = StyleSheet.create({
   row: {
     alignItems: 'flex-start',
+    direction: 'ltr',
     gap: spacing.xs,
     marginVertical: spacing.xs,
     paddingHorizontal: spacing.md,

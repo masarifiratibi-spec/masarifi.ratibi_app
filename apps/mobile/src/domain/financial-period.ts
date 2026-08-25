@@ -143,13 +143,15 @@ export function localDateTimeInstant(
   const [year, month, day] = date.split('-').map(Number);
   const desired = Date.UTC(year, month - 1, day, hour);
   let candidate = desired;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     const parts = zonedDateParts(candidate, timeZone);
     const represented = Date.UTC(
       parts.year,
       parts.month - 1,
       parts.day,
-      parts.hour
+      parts.hour,
+      parts.minute,
+      parts.second
     );
     candidate = desired - (represented - candidate);
   }
@@ -157,15 +159,22 @@ export function localDateTimeInstant(
 }
 
 function zonedDateParts(timestamp: number, timeZone: string) {
-  const values = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', {
+  let formatter = zonedDateFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
       timeZone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
       hourCycle: 'h23'
-    })
+    });
+    zonedDateFormatters.set(timeZone, formatter);
+  }
+  const values = Object.fromEntries(
+    formatter
       .formatToParts(timestamp)
       .map((part) => [part.type, part.value])
   );
@@ -173,9 +182,13 @@ function zonedDateParts(timestamp: number, timeZone: string) {
     year: Number(values.year),
     month: Number(values.month),
     day: Number(values.day),
-    hour: Number(values.hour)
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second)
   };
 }
+
+const zonedDateFormatters = new Map<string, Intl.DateTimeFormat>();
 
 function utcProxy(date: LocalDate): Date {
   return new Date(`${date}T00:00:00.000Z`);

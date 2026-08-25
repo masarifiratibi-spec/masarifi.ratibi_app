@@ -532,6 +532,7 @@ const styles = StyleSheet.create({
     marginVertical: 2
   },
   dropdownTrigger: {
+    direction: 'ltr',
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: spacing.sm,
@@ -574,6 +575,7 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   dropdownItem: {
+    direction: 'ltr',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     alignItems: 'center',
@@ -659,6 +661,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start'
   },
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

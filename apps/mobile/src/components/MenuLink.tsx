@@ -94,18 +94,28 @@ export const MenuLink = forwardRef<View, MenuLinkProps>(function MenuLink(
         )
       ) : null}
       <View
+        testID="menu-link-text"
         style={[
           styles.textContainer,
-          { alignItems: isRtl ? 'flex-start' : 'flex-start' }
+          { alignItems: 'flex-start' }
         ]}
       >
-        <StyledText accessible={false} style={styles.label}>
+        <StyledText
+          accessible={false}
+          style={[styles.label, { textAlign: isRtl ? 'right' : 'left' }]}
+        >
           {label}
         </StyledText>
         {subtitle ? (
           <StyledText
             accessible={false}
-            style={[styles.subtitle, { color: theme.colors.content.secondary }]}
+            style={[
+              styles.subtitle,
+              {
+                color: theme.colors.content.secondary,
+                textAlign: isRtl ? 'right' : 'left'
+              }
+            ]}
           >
             {subtitle}
           </StyledText>

@@ -4,9 +4,14 @@ import { useLocalSearchParams } from 'expo-router';
 import { SupportFormScreen, type SupportFormMode } from '@/features/support/SupportFormScreen';
 import type { SupportDraftInput } from '@/domain/support';
 import { supportContextSchema } from '@/domain/support';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { BackendUnavailableState } from '@/features/shell/BackendUnavailableState';
+import { translate } from '@/localization/i18n';
 
 export default function NewSupportRoute() {
   const params = useLocalSearchParams();
+  if (!isFixtureModeEnabled())
+    return <BackendUnavailableState title={translate('support.backendUnavailable')} />;
   const mode = modeFrom(params.mode);
   return <SupportFormScreen mode={mode} context={contextFrom(params.context, mode)} />;
 }

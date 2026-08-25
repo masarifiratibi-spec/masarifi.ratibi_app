@@ -62,15 +62,15 @@ describe('cycle-start domain calculations', () => {
       expect(result.formattedRange).toBe('Aug 8 - Sep 7');
     });
 
-    it('calculates split month range for day 28 in August 2026', () => {
+    it('does not preview a future cycle when its start day has not arrived', () => {
       const refDate = new Date(2026, 7, 20); // Aug 20, 2026
       const result = calculateCycleDateRange(28, refDate, 'en');
 
       expect(result.startDate.getDate()).toBe(28);
-      expect(result.startDate.getMonth()).toBe(7); // Aug
+      expect(result.startDate.getMonth()).toBe(6); // Jul
       expect(result.endDate.getDate()).toBe(27);
-      expect(result.endDate.getMonth()).toBe(8); // Sep
-      expect(result.formattedRange).toBe('Aug 28 - Sep 27');
+      expect(result.endDate.getMonth()).toBe(7); // Aug
+      expect(result.formattedRange).toBe('Jul 28 - Aug 27');
     });
 
     it('handles year transition across December to January', () => {
@@ -95,8 +95,9 @@ describe('cycle-start domain calculations', () => {
 
       const resultDay15 = calculateCycleDateRange(15, refDate, 'en');
       expect(resultDay15.endDate.getDate()).toBe(14);
-      expect(resultDay15.endDate.getMonth()).toBe(2); // Mar
-      expect(resultDay15.formattedRange).toBe('Feb 15 - Mar 14');
+      expect(resultDay15.startDate.getMonth()).toBe(0); // Jan
+      expect(resultDay15.endDate.getMonth()).toBe(1); // Feb
+      expect(resultDay15.formattedRange).toBe('Jan 15 - Feb 14');
     });
 
     it('handles February non-leap year (2025)', () => {

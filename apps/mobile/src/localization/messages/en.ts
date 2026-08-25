@@ -442,6 +442,8 @@ const en = {
     'Biometric unlock is temporarily unavailable.',
   'appShell.error.persistenceFailed': 'Could not save locally.',
   'appShell.error.unknown': 'Something went wrong.',
+  'appShell.auth.unavailable':
+    'Account authentication is not configured for this build.',
 
   'coreFinance.home.title': 'Financial position',
   'coreFinance.home.greeting': 'Good morning',
@@ -838,6 +840,8 @@ const en = {
   'tracking.status.disabled': 'Disabled',
   'tracking.permission.warning':
     'Message permissions not granted. Tap to enable.',
+  'tracking.permission.unavailableMessage':
+    'Automatic message tracking is unavailable in this version. Manual entry remains available.',
   'tracking.howItWorks.title': 'How automatic tracking works',
   'tracking.howItWorks.detection':
     'Automatically reads supported bank messages containing your specified keywords and records expenses in your account.',
@@ -1340,6 +1344,7 @@ const en = {
   'reports.state.stale': 'Report may be stale',
   'reports.state.offline': 'Offline report',
   'reports.state.unavailable': 'Unavailable',
+  'reports.backendUnavailable': 'Report delivery is not configured for production.',
   'reports.insight.title': 'Period insights',
   'reports.insight.budget_performance': 'Budget remaining',
   'reports.insight.month_comparison': 'Expense change from the previous period',
@@ -1556,6 +1561,7 @@ const en = {
     'Assistant is unavailable offline. Your history is preserved.',
   'assistant.state.empty': 'No conversations yet.',
   'assistant.state.error': 'Assistant is temporarily unavailable.',
+  'assistant.backendUnavailable': 'Assistant service is not configured for production.',
   'assistant.action.enable': 'Enable personalization',
   'assistant.consent.enabled': 'Smart personalization is active',
   'assistant.hero.title': 'AI Assistant',
@@ -1689,6 +1695,7 @@ const en = {
   'subscriptions.checkout.title': 'Confirm subscription',
   'subscriptions.state.error':
     'Subscription details are unavailable. Try again.',
+  'subscriptions.backendUnavailable': 'Billing is not configured for production.',
   'subscriptions.state.expired': 'Subscription expired',
   'subscriptions.access.readOnly': 'Existing paid content remains read-only.',
   'subscriptions.access.editable': 'Content remains editable.',
@@ -1820,6 +1827,8 @@ const en = {
   'settings.privacy.exportReview': 'Review data export request',
   'settings.privacy.accountDeletionReview': 'Review account deletion request',
   'settings.privacy.localDelete': 'Delete local data',
+  'settings.privacy.backendUnavailable':
+    'Account export and deletion requests are not configured for production.',
   'settings.privacy.confirmRequest': 'Confirm request',
   'settings.privacy.confirmLocalDelete': 'Confirm local-data deletion',
   'settings.sessions.loading': 'Loading sessions',
@@ -1890,6 +1899,7 @@ const en = {
   'support.ticket.listTitle': 'Support tickets',
   'support.ticket.detailTitle': 'Ticket {{reference}}',
   'support.ticket.error': 'Tickets are unavailable. Try again.',
+  'support.backendUnavailable': 'Online support tickets are not configured for production.',
   'support.ticket.empty': 'No support tickets yet.',
   'support.ticket.open': 'Open ticket',
   'support.ticket.reply': 'Reply',

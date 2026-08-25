@@ -505,6 +505,7 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
+    direction: 'ltr',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

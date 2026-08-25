@@ -59,6 +59,7 @@ export function FinancialPulse({
         style={[
           styles.scopeRow,
           {
+            direction: 'ltr',
             flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
           }
         ]}

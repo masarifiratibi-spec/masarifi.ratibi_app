@@ -230,6 +230,7 @@ export function CurrencyPickerSheet({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

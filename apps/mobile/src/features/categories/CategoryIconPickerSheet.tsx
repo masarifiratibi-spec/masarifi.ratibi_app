@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   grid: {
+    direction: 'ltr',
     flexWrap: 'wrap',
     gap: spacing.sm
   },

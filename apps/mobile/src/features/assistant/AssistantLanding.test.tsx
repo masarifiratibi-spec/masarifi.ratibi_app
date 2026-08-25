@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
+import { PixelRatio } from 'react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import { AssistantLanding } from './AssistantLanding';
@@ -8,6 +9,8 @@ describe('AssistantLanding', () => {
   beforeEach(() => {
     changeLocale('ar');
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   it('renders header, compact identity, ask card, consent card, 4 suggestions, and privacy footer', () => {
     const onAskQuestion = jest.fn();
@@ -100,4 +103,23 @@ describe('AssistantLanding', () => {
     fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
     expect(onEnableConsent).toHaveBeenCalled();
   });
+
+  it.each(['ar', 'en'] as const)(
+    'allows suggestion labels to wrap at 200%% text in %s',
+    (locale) => {
+      jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+      changeLocale(locale);
+      renderWithProviders(
+        <AssistantLanding
+          onAskQuestion={jest.fn()}
+          onEnableConsent={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(translate('assistant.suggestions.spending')).props
+          .numberOfLines
+      ).toBeUndefined();
+    }
+  );
 });

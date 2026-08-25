@@ -3,6 +3,11 @@ import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/asy
 import { changeLocale } from '@/localization/i18n';
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: jest.fn(() => ({ dispatch: jest.fn() })),
+  usePreventRemove: jest.fn()
+}));
 
 afterEach(() => changeLocale('ar'));
 

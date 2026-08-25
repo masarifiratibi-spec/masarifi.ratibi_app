@@ -21,7 +21,16 @@ export function ChipSelector({
 }) {
   const direction = usePreferenceStore((state) => state.direction);
   return (
-    <View testID="chip-selector" style={[styles.wrap, { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}>
+    <View
+      testID="chip-selector"
+      style={[
+        styles.wrap,
+        {
+          direction: 'ltr',
+          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+        }
+      ]}
+    >
       {options.map((option) => {
         const isSelected = selected.includes(option);
         const disabled = disabledOptions.includes(option);
@@ -91,7 +100,15 @@ export function KeywordChipEditor({
           {translate('designSystem.action.add')}
         </StyledText>
       </Pressable>
-      <View style={[styles.wrap, { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}>
+      <View
+        style={[
+          styles.wrap,
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
+        ]}
+      >
         {keywords.map((keyword) => (
           <Chip
             key={keyword}

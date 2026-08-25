@@ -118,7 +118,10 @@ export function VoiceReview({
         testID={`voice-review-summary-${proposal.id}`}
         style={[
           styles.summary,
-          { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
         ]}
       >
         <CategoryIcon

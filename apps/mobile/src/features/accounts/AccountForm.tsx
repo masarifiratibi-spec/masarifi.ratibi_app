@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -35,6 +34,7 @@ import { CardEducationCard } from './CardEducationCard';
 import { CurrencyPickerSheet } from './CurrencyPickerSheet';
 import { CurrencyRow } from './CurrencyRow';
 import { colorTokens } from '@/design-system/tokens';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 
 export function AccountForm({
   account,
@@ -49,6 +49,7 @@ export function AccountForm({
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const locale = usePreferenceStore((state) => state.locale);
+  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const isRtl = direction === 'rtl';
 
   const t = (key: string) => translateDynamic(key, {}, locale);
@@ -58,7 +59,7 @@ export function AccountForm({
     account?.type ?? initialType ?? 'bank'
   );
   const [currency, setCurrency] = useState(
-    account?.currencyCode ?? (locale === 'ar' ? 'EGP' : 'USD')
+    account?.currencyCode ?? baseCurrencyCode
   );
   const [balance, setBalance] = useState(
     account
@@ -71,7 +72,6 @@ export function AccountForm({
       : ''
   );
   const [lastFour, setLastFour] = useState(account?.lastFour ?? '');
-  const [dueDay, setDueDay] = useState('');
   const [isDefault, setDefault] = useState(account?.isDefault ?? false);
 
   const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
@@ -88,7 +88,7 @@ export function AccountForm({
   const dirty =
     name !== (account?.name ?? '') ||
     type !== (account?.type ?? initialType ?? 'bank') ||
-    currency !== (account?.currencyCode ?? (locale === 'ar' ? 'EGP' : 'USD')) ||
+    currency !== (account?.currencyCode ?? baseCurrencyCode) ||
     balance !==
       (account
         ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
@@ -167,37 +167,24 @@ export function AccountForm({
     }
   };
 
-  const handleCancel = () => {
-    if (!dirty) {
+  const close = () => {
       if (onBack) {
         onBack();
       } else {
         router.back();
       }
-      return;
-    }
-    Alert.alert(
-      translate('coreFinance.accounts.discardChanges'),
-      translate('coreFinance.accounts.discardChangesBody'),
-      [
-        {
-          text: translate('coreFinance.accounts.keepEditing'),
-          style: 'cancel'
-        },
-        {
-          text: translate('coreFinance.accounts.discard'),
-          style: 'destructive',
-          onPress: () => {
-            if (onBack) {
-              onBack();
-            } else {
-              router.back();
-            }
-          }
-        }
-      ]
-    );
   };
+  const handleCancel = useDraftNavigationGuard({
+    dirty,
+    discard: () => undefined,
+    close,
+    copy: {
+      title: translate('coreFinance.accounts.discardChanges'),
+      message: translate('coreFinance.accounts.discardChangesBody'),
+      keep: translate('coreFinance.accounts.keepEditing'),
+      discard: translate('coreFinance.accounts.discard')
+    }
+  });
 
   return (
     <KeyboardAvoidingView
@@ -360,13 +347,6 @@ export function AccountForm({
                 placeholder={t('common.zeroPlaceholder')}
               />
 
-              {/* Due Day of Month */}
-              <FormField
-                label={t('coreFinance.accounts.setup.dueDay')}
-                value={dueDay}
-                onChangeText={setDueDay}
-                placeholder={locale === 'ar' ? 'مثال: 25 من كل شهر' : 'e.g. 25th of month'}
-              />
             </>
           ) : null}
 
@@ -435,6 +415,7 @@ export function AccountForm({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

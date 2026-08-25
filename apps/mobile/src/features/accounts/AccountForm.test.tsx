@@ -8,6 +8,7 @@ import { translate } from '@/localization/i18n';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
 import { AccountForm } from './AccountForm';
+import { usePreferenceStore } from '@/state/preferences';
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), replace: jest.fn() }
@@ -34,7 +35,16 @@ describe('AccountForm', () => {
 
     expect(screen.getByText(translate('coreFinance.accounts.typeSelect.credit_card'))).toBeTruthy();
     expect(screen.getByText(translate('coreFinance.accounts.setup.creditLimit'))).toBeTruthy();
-    expect(screen.getByText(translate('coreFinance.accounts.setup.dueDay'))).toBeTruthy();
+    expect(screen.queryByText(translate('coreFinance.accounts.setup.dueDay'))).toBeNull();
+  });
+
+  it('defaults a new account to the configured base currency', () => {
+    usePreferenceStore.setState({ baseCurrencyCode: 'USD' });
+    const rendered = renderWithProviders(<AccountForm initialType="bank" />);
+
+    expect(screen.getByText('USD')).toBeTruthy();
+    rendered.unmount();
+    usePreferenceStore.setState({ baseCurrencyCode: 'SAR' });
   });
 
   it('renders streamlined fields for cash type', () => {

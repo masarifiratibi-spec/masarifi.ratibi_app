@@ -12,6 +12,7 @@ class StatefulSqliteFake {
   private failDdl = false;
 
   seed(table: string, rows: Row[]): void {
+    this.tables.set(table, { singleton: false, unique: [] });
     this.rows.set(
       table,
       rows.map((row) => ({ ...row }))
@@ -190,7 +191,7 @@ beforeEach(() => {
   resetDatabaseForTests();
 });
 
-it('migrates retained v1-v6 data atomically and records the current schema once', async () => {
+it('migrates retained v1-v6 data through each pending schema in order', async () => {
   const database = await openDatabase();
 
   expect(
@@ -218,11 +219,18 @@ it('migrates retained v1-v6 data atomically and records the current schema once'
     { version: 4, applied_at: 4 },
     { version: 5, applied_at: 5 },
     { version: 6, applied_at: 6 },
-    { version: 8, applied_at: expect.any(Number) }
+    { version: 7, applied_at: expect.any(Number) },
+    { version: 8, applied_at: expect.any(Number) },
+    { version: 9, applied_at: expect.any(Number) }
   ]);
   expect(mockDatabase.events).toEqual([
     'pragma',
     'begin',
+    'ddl',
+    'ddl',
+    'migration',
+    'ddl',
+    'migration',
     'ddl',
     'migration',
     'end'
@@ -234,13 +242,47 @@ it('migrates retained v1-v6 data atomically and records the current schema once'
     await database.getAllAsync(
       'SELECT version FROM schema_migrations ORDER BY version'
     )
-  ).toHaveLength(7);
+  ).toHaveLength(9);
   expect(mockDatabase.events.slice(-4)).toEqual([
     'pragma',
     'begin',
     'ddl',
     'end'
   ]);
+});
+
+it('applies every migration to a fresh database', async () => {
+  mockDatabase = new StatefulSqliteFake();
+  resetDatabaseForTests();
+
+  const database = await openDatabase();
+
+  expect(
+    (
+      await database.getAllAsync<{ version: number }>(
+        'SELECT version FROM schema_migrations ORDER BY version'
+      )
+    ).map((row) => row.version)
+  ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  expect(
+    (
+      await database.getAllAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table'"
+      )
+    ).map((row) => row.name)
+  ).toEqual(
+    expect.arrayContaining([
+      'offline_entries',
+      'finance_accounts',
+      'tracking_events',
+      'voice_category_preferences',
+      'planning_budgets',
+      'report_schedules',
+      ...v7Tables,
+      'demo_seed_markers',
+      'settings_profile'
+    ])
+  );
 });
 
 it('rolls back the schema and version record when DDL fails', async () => {
@@ -256,7 +298,7 @@ it('rolls back the schema and version record when DDL fails', async () => {
     await mockDatabase.getAllAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table'"
     )
-  ).toEqual([]);
+  ).not.toEqual(expect.arrayContaining(v7Tables.map((name) => ({ name }))));
   expect(mockDatabase.events).toEqual(['pragma', 'begin', 'rollback']);
 });
 
@@ -269,7 +311,13 @@ it('creates all current tables including the idempotent demo marker', async () =
         "SELECT name FROM sqlite_master WHERE type = 'table'"
       )
     ).map((row) => row.name)
-  ).toEqual(expect.arrayContaining([...v7Tables, 'demo_seed_markers']));
+  ).toEqual(
+    expect.arrayContaining([
+      ...v7Tables,
+      'demo_seed_markers',
+      'settings_profile'
+    ])
+  );
   for (const [table, index] of [
     ['notifications', 'idx_notifications_lifecycle'],
     ['notification_preferences', 'idx_notification_preferences_updated_at'],

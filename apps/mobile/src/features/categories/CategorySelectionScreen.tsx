@@ -85,7 +85,10 @@ export function CategorySelectionScreen({
         testID="category-selection-header"
         style={[
           styles.header,
-          { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
         ]}
       >
         <Pressable
@@ -117,6 +120,7 @@ export function CategorySelectionScreen({
           {
             backgroundColor: theme.colors.surfaces.card,
             borderColor: theme.colors.borders.subtle,
+            direction: 'ltr',
             flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
           }
         ]}
@@ -303,6 +307,7 @@ function CategoryGroup({
                     ? theme.colors.interactions.quietPressed
                     : theme.colors.surfaces.grouped,
                 borderBottomColor: theme.colors.borders.subtle,
+                direction: 'ltr',
                 flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
                 minHeight: largeText ? 72 : 64
               },

@@ -207,6 +207,7 @@ export function CurrencySelectionScreen({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

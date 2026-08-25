@@ -2,6 +2,7 @@ import { useAppShellStore } from './app-shell';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { seedClientDemoData } from '@/storage/client-demo-seeder';
+import { resetLocalUserData } from '@/storage/local-data-reset';
 import type {
   AuthenticationSession,
   OnboardingProgress,
@@ -16,6 +17,12 @@ jest.mock('expo-secure-store', () => ({
 jest.mock('@/storage/client-demo-seeder', () => ({
   seedClientDemoData: jest.fn(async () => true)
 }));
+jest.mock('@/storage/local-data-reset', () => ({
+  resetLocalUserData: jest.fn(async (operationId: string) => ({
+    deletedRows: 4,
+    operationId
+  }))
+}));
 
 const secureGet = jest.mocked(SecureStore.getItemAsync);
 const secureSet = jest.mocked(SecureStore.setItemAsync);
@@ -23,6 +30,7 @@ const secureDelete = jest.mocked(SecureStore.deleteItemAsync);
 const asyncGet = jest.mocked(AsyncStorage.getItem);
 const asyncSet = jest.mocked(AsyncStorage.setItem);
 const seedDemo = jest.mocked(seedClientDemoData);
+const resetUserData = jest.mocked(resetLocalUserData);
 
 const session: AuthenticationSession = {
   status: 'authenticated',
@@ -172,6 +180,9 @@ describe('useAppShellStore', () => {
       JSON.stringify(session)
     );
     expect(useAppShellStore.getState().session?.status).toBe('signed_out');
+    expect(resetUserData).toHaveBeenCalledWith(
+      expect.stringMatching(/^sign-out-/)
+    );
     expect(asyncSet).toHaveBeenCalledWith(
       'masarifi.appShell.onboarding',
       JSON.stringify(onboarding)

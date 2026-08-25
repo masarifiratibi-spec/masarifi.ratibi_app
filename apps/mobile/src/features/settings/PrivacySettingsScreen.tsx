@@ -7,6 +7,7 @@ import { useDeleteLocalData, usePrivacyRequest } from './settings-queries';
 import { StyledText } from '@/components/StyledText';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { usePreferenceStore } from '@/state/preferences';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
 
 export function PrivacySettingsScreen() {
   const request = usePrivacyRequest();
@@ -31,8 +32,14 @@ export function PrivacySettingsScreen() {
         <SwitchRow label="settings.privacy.analytics" value={analytics} onValueChange={(value) => update({ analyticsEnabled: value })} />
       </SurfaceCard>
       <SurfaceCard style={styles.section}>
-        <ActionButton label="settings.privacy.exportReview" variant="secondary" onPress={() => setReview('data_export')} />
-        <ActionButton label="settings.privacy.accountDeletionReview" variant="secondary" onPress={() => setReview('account_deletion')} />
+        {isFixtureModeEnabled() ? (
+          <>
+            <ActionButton label="settings.privacy.exportReview" variant="secondary" onPress={() => setReview('data_export')} />
+            <ActionButton label="settings.privacy.accountDeletionReview" variant="secondary" onPress={() => setReview('account_deletion')} />
+          </>
+        ) : (
+          <StyledText>settings.privacy.backendUnavailable</StyledText>
+        )}
         <ActionButton label="settings.privacy.localDelete" variant="destructive" onPress={() => setReview('local_delete')} />
       </SurfaceCard>
       {review === 'data_export' || review === 'account_deletion' ? (

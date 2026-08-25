@@ -213,8 +213,8 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
-  semanticRtl: { display: 'flex', writingDirection: 'rtl' },
+  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
+  semanticRtl: { direction: 'rtl', display: 'flex', writingDirection: 'rtl' },
   row: {
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,

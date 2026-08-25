@@ -37,6 +37,7 @@ import type {
 import type { CoreFinanceService } from '@/services/contracts/core-finance-service';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { AutomaticTrackingRepository } from '@/storage/automatic-tracking-repository';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { defaultKeywordRules } from './default-keywords';
 import { coreFinanceService } from './core-finance-service';
@@ -67,7 +68,8 @@ export function createMockAutomaticTrackingService({
   storage = createAppShellStorage(),
   permissionService = createMockTrackingPermissionService('granted'),
   persistent = false,
-  platform = Platform.OS
+  platform = Platform.OS,
+  registerForReset = false
 }: {
   repository?: AutomaticTrackingRepository;
   financeService?: CoreFinanceService;
@@ -76,6 +78,7 @@ export function createMockAutomaticTrackingService({
   permissionService?: TrackingPermissionService;
   persistent?: boolean;
   platform?: string;
+  registerForReset?: boolean;
 } = {}): CapabilityProviderHandle<AutomaticTrackingService> {
   let hydration: Promise<void> | null = null;
   let serviceState: TrackingStatusSnapshot['serviceState'] = 'healthy';
@@ -88,6 +91,13 @@ export function createMockAutomaticTrackingService({
     string,
     Promise<TrackingMutationResult<AutomaticFeedback>>
   >();
+  if (registerForReset)
+    registerRuntimeUserDataReset(() => {
+      repository.reset();
+      undoResults.clear();
+      serviceState = 'healthy';
+      hydration = null;
+    });
   const persist = async () => {
     if (persistent) await repository.persistAll();
   };
@@ -105,6 +115,7 @@ export function createMockAutomaticTrackingService({
     async getStatus() {
       await ensureReady();
       const permission = await permissionService.getState();
+      const permissionUnavailable = permission.status === 'unavailable';
       const events = repository.listEvents();
       const lastAuto = events.find((event) => event.transactionId);
       return {
@@ -116,7 +127,10 @@ export function createMockAutomaticTrackingService({
               : 'conservative',
         mode: await mode(),
         permissionStatus: platform === 'android' ? permission.status : null,
-        serviceState: platform === 'android' ? serviceState : 'unavailable',
+        serviceState:
+          platform === 'android' && !permissionUnavailable
+            ? serviceState
+            : 'unavailable',
         lastDetectedAt: events.at(-1)?.createdAt ?? null,
         lastSuccessfulTransactionId: lastAuto?.transactionId ?? null,
         detectedThisMonth: events.length,
@@ -356,7 +370,8 @@ export function createMockAutomaticTrackingService({
 export const automaticTrackingService = createMockAutomaticTrackingService({
   persistent: Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
   notificationService: assistantNotificationsService,
-  permissionService: createTrackingPermissionService()
+  permissionService: createTrackingPermissionService(),
+  registerForReset: true
 });
 
 function page<T>(items: T[], cursor: string | null = null, pageSize = 50) {

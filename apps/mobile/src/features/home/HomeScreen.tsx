@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { FinancialHorizonSurface } from '@/design-system/components/financial/FinancialHorizonSurface';
@@ -95,7 +95,10 @@ function QueriedHomeScreen({
     () => applyAccountScope(periodFilters(period), selectedAccountId),
     [period, selectedAccountId]
   );
-  const query = useHomeSummary('SAR', scopedFilters);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
+  const query = useHomeSummary(baseCurrencyCode, scopedFilters);
   const accounts = useAccounts(true);
   const categories = useCategories();
   const homeSummary = query.data;
@@ -207,7 +210,8 @@ function HomeHeader({
             decorative
           />
           <Text
-            numberOfLines={1}
+            testID="home-period-label"
+            numberOfLines={PixelRatio.getFontScale() >= 1.5 ? undefined : 1}
             style={[
               styles.periodLabel,
               { color: theme.colors.content.onFinancialHero }
@@ -235,6 +239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: radius.pill,
+    direction: 'ltr',
     gap: spacing.sm,
     justifyContent: 'center',
     maxWidth: '100%',

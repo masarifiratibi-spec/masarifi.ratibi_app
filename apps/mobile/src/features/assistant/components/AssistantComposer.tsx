@@ -106,6 +106,7 @@ const styles = StyleSheet.create({
     backgroundColor: colorTokens.raw["FFFFFF"],
     borderTopColor: colorTokens.raw["EEF3F0"],
     borderTopWidth: 1,
+    direction: 'ltr',
     gap: spacing.xs,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     paddingHorizontal: spacing.md,

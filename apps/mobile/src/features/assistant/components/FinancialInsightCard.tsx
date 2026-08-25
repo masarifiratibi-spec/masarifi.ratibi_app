@@ -160,6 +160,7 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     alignItems: 'center',
+    direction: 'ltr',
     gap: spacing.xs,
     justifyContent: 'space-between'
   },

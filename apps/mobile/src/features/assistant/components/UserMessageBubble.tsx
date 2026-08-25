@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     alignSelf: 'flex-end',
+    direction: 'ltr',
     gap: 4,
     marginTop: 2
   },

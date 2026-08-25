@@ -16,6 +16,14 @@ export class ReportsRepository {
 
   constructor(private readonly persistent = false) {}
 
+  reset(): void {
+    this.schedule = null;
+    this.draft = null;
+    this.attempts.clear();
+    this.operationIndex.clear();
+    this.hydration = null;
+  }
+
   async getSchedule(): Promise<ReportSchedule | null> {
     await this.ensureHydrated();
     return this.schedule;

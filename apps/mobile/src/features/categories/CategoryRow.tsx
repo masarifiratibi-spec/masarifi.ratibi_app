@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'react-native';
 
 import { DesignIcon } from '@/design-system/icons';
@@ -70,6 +70,7 @@ export function CategoryRow({
   const direction = usePreferenceStore((state) => state.direction);
   const locale = currentLocale();
   const isRtl = direction === 'rtl';
+  const largeText = PixelRatio.getFontScale() >= 1.5;
   const { category, label, parentLabel, statusLabelKey, originLabelKey } =
     presentation;
   const status = statusLabelKey ? translate(statusLabelKey as never) : null;
@@ -156,7 +157,7 @@ export function CategoryRow({
                 writingDirection: direction
               }
             ]}
-            numberOfLines={1}
+            numberOfLines={largeText ? undefined : 1}
           >
             {label}
           </Text>
@@ -170,7 +171,7 @@ export function CategoryRow({
                 writingDirection: direction
               }
             ]}
-            numberOfLines={1}
+            numberOfLines={largeText ? undefined : 1}
           >
             {subtitle}
             {category.isFavorite && !isGrouped ? `  ·  ${translate('coreFinance.categories.favoriteShort')}` : ''}
@@ -264,7 +265,7 @@ export function CategoryRow({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
 
   // Standalone card (list view)
   standalone: {

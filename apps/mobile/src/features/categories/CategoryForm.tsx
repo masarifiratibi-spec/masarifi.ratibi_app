@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import type { Category } from '@/domain/core-finance';
 import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 import { currentLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
@@ -106,32 +106,21 @@ export function CategoryForm({
     }
   };
 
-  const handleCancel = () => {
-    const doClose = () => {
+  const doClose = () => {
       if (onClose) onClose();
       else router.back();
-    };
-
-    if (!dirty) {
-      doClose();
-      return;
-    }
-    Alert.alert(
-      translate('coreFinance.categories.discardChanges'),
-      translate('coreFinance.categories.discardChangesBody'),
-      [
-        {
-          text: translate('coreFinance.categories.keepEditing'),
-          style: 'cancel'
-        },
-        {
-          text: translate('coreFinance.categories.discard'),
-          style: 'destructive',
-          onPress: doClose
-        }
-      ]
-    );
   };
+  const handleCancel = useDraftNavigationGuard({
+    dirty,
+    discard: () => undefined,
+    close: doClose,
+    copy: {
+      title: translate('coreFinance.categories.discardChanges'),
+      message: translate('coreFinance.categories.discardChangesBody'),
+      keep: translate('coreFinance.categories.keepEditing'),
+      discard: translate('coreFinance.categories.discard')
+    }
+  });
 
   const emoji = resolveEmojiForKey(iconKey);
   const isEditing = Boolean(category);
@@ -300,7 +289,7 @@ export function CategoryForm({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
   container: {
     gap: spacing.lg,
     paddingBottom: 48,

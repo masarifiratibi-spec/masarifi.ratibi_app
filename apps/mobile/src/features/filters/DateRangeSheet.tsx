@@ -359,7 +359,6 @@ function DateRangeOptionRow({
         {/* Text Stack */}
         <View style={styles.textStack}>
           <Text
-            numberOfLines={1}
             style={[
               styles.optionTitle,
               {
@@ -371,7 +370,6 @@ function DateRangeOptionRow({
             {title}
           </Text>
           <Text
-            numberOfLines={1}
             style={[
               styles.optionSubtitle,
               {

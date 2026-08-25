@@ -136,6 +136,7 @@ it.each([
     );
 
     expect(screen.getByTestId('primary-shell-header')).toHaveStyle({
+      direction: 'ltr',
       writingDirection: 'ltr',
       flexDirection
     });
@@ -163,7 +164,11 @@ it.each([
     );
 
     const header = screen.getByTestId('primary-shell-header');
-    expect(header).toHaveStyle({ writingDirection: 'ltr', flexDirection });
+    expect(header).toHaveStyle({
+      direction: 'ltr',
+      writingDirection: 'ltr',
+      flexDirection
+    });
     expect(
       within(header)
         .getAllByRole('button')

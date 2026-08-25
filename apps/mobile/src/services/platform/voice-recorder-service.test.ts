@@ -5,6 +5,7 @@ const mockOpenSettings = jest.fn(async () => undefined);
 const mockRecord = jest.fn(() => undefined);
 const mockAudioStop = jest.fn(async () => undefined);
 const mockAudioPrepare = jest.fn(async () => undefined);
+const mockAudioRelease = jest.fn();
 const mockGetRecordingPermissions = jest.fn(async () => ({
   granted: false,
   canAskAgain: true
@@ -25,7 +26,7 @@ jest.mock('expo-audio', () => ({
       prepareToRecordAsync: mockAudioPrepare,
       record: mockRecord,
       stop: mockAudioStop,
-      release: jest.fn(),
+      release: mockAudioRelease,
       uri: 'private://voice.m4a'
     }))
   }
@@ -72,6 +73,21 @@ it('cancels idempotently and exposes settings recovery', async () => {
   await service.openSettings();
   expect(mockDelete).toHaveBeenCalledTimes(1);
   expect(mockOpenSettings).toHaveBeenCalledTimes(1);
+});
+
+it('releases and removes temporary audio when recorder stop fails', async () => {
+  const stopError = new Error('stop failed');
+  mockAudioStop.mockRejectedValueOnce(stopError);
+  const service = createVoiceRecorderService();
+  const recording = await service.start();
+
+  await expect(service.stop(recording.id)).rejects.toBe(stopError);
+
+  expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+  expect(mockDelete).toHaveBeenCalledWith('private://voice.m4a', {
+    idempotent: true
+  });
+  await expect(service.cancel(recording.id)).resolves.toBeUndefined();
 });
 
 it('skips unavailable temporary-file deletion on web', async () => {

@@ -19,6 +19,7 @@ import {
 import { failUnlock, resetLock } from '@/features/security/privacy-lock';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { seedClientDemoData } from '@/storage/client-demo-seeder';
+import { resetLocalUserData } from '@/storage/local-data-reset';
 
 interface AppShellState {
   hydrated: boolean;
@@ -150,6 +151,8 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   signOut: async () => {
+    const userId = get().session?.userId ?? 'anonymous';
+    await resetLocalUserData(`sign-out-${userId}-${Date.now()}`);
     await Promise.all([
       storage.clearSession(),
       storage.clearPrivacyLock(),

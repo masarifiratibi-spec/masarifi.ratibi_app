@@ -11,6 +11,7 @@ describe('PinForm', () => {
 
     const input = screen.getByLabelText('رمز PIN');
     expect(input.props.secureTextEntry).toBe(true);
+    expect(input).toHaveStyle({ writingDirection: 'ltr' });
     fireEvent.changeText(input, '12345');
     fireEvent.press(screen.getByLabelText('حفظ PIN'));
     expect(screen.getByText('أدخل 6 أرقام')).toBeOnTheScreen();

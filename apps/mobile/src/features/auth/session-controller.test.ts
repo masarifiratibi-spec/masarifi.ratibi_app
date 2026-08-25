@@ -13,6 +13,12 @@ jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn()
 }));
+jest.mock('@/storage/local-data-reset', () => ({
+  resetLocalUserData: jest.fn(async (operationId: string) => ({
+    deletedRows: 0,
+    operationId
+  }))
+}));
 
 beforeEach(() => {
   useAppShellStore.getState().reset();

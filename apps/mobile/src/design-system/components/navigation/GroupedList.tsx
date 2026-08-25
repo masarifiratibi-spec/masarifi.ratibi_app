@@ -61,6 +61,7 @@ export function NavigationRow({
         {
           alignItems: largeText ? 'stretch' : 'center',
           borderBottomColor: theme.colors.borders.subtle,
+          direction: 'ltr',
           writingDirection: 'ltr',
           flexDirection: largeText
             ? 'column'

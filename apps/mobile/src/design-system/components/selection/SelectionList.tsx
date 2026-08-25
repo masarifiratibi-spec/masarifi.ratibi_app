@@ -174,6 +174,7 @@ export function SelectionList<T = string>({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

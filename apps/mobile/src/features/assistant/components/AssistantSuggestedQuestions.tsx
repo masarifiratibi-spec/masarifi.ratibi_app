@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Pressable, StyleSheet, Text } from 'react-native';
+import { PixelRatio, View, Pressable, StyleSheet, Text } from 'react-native';
 import { BarChartIcon, PieChartIcon, CalendarIcon, WalletIcon } from './AssistantIcons';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
@@ -17,6 +17,7 @@ export function AssistantSuggestedQuestions({
 }: AssistantSuggestedQuestionsProps) {
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const largeText = PixelRatio.getFontScale() >= 1.5;
 
   const cards = [
     {
@@ -65,7 +66,7 @@ export function AssistantSuggestedQuestions({
       {isRtl ? (
         <>
           <StyledText
-            numberOfLines={2}
+            numberOfLines={largeText ? undefined : 2}
             style={[
               styles.questionText,
               styles.questionTextRtl
@@ -93,7 +94,7 @@ export function AssistantSuggestedQuestions({
             {item.renderIcon()}
           </View>
           <StyledText
-            numberOfLines={2}
+            numberOfLines={largeText ? undefined : 2}
             style={[
               styles.questionText,
               styles.questionTextLtr

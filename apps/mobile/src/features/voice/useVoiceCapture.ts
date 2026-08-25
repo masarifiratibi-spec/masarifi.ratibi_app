@@ -235,8 +235,18 @@ export function useVoiceCapture({ permissionSync = 'on-mount' }: {
     } catch (error) {
       fail(error);
     } finally {
-      if (audioReference) await voiceRecorderService.remove(audioReference);
-      session.patch({ audioReference: null, recordingId: null });
+      let cleanupFailed = false;
+      if (audioReference) {
+        try {
+          await voiceRecorderService.remove(audioReference);
+        } catch {
+          cleanupFailed = true;
+        }
+      }
+      session.patch({
+        audioReference: cleanupFailed ? audioReference : null,
+        recordingId: null
+      });
       stopInFlight.current = false;
     }
   };

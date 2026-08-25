@@ -121,6 +121,7 @@ export function SelectionGrid<T = string>({
       {rows.map((row, rowIndex) => (
         <View
           key={`row-${rowIndex}`}
+          testID={`selection-grid-row-${rowIndex}`}
           style={[
             styles.row,
             styles.physicalLtr,
@@ -174,6 +175,7 @@ export function SelectionGrid<T = string>({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

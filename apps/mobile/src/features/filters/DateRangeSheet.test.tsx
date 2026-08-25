@@ -48,6 +48,10 @@ it('renders the 7 date range options in Arabic RTL with instruction text', () =>
   // 1. Custom Range
   expect(screen.getByText('نطاق مخصص')).toBeTruthy();
   expect(screen.getByText('اختر تاريخ البداية والنهاية المحددة')).toBeTruthy();
+  expect(screen.getByText('نطاق مخصص').props.numberOfLines).toBeUndefined();
+  expect(
+    screen.getByText('اختر تاريخ البداية والنهاية المحددة').props.numberOfLines
+  ).toBeUndefined();
 
   // 2. Today
   expect(screen.getByText('اليوم')).toBeTruthy();
@@ -103,6 +107,10 @@ it('renders the 7 date range options in English LTR with instruction text', () =
 
   expect(screen.getByText('Custom Range')).toBeTruthy();
   expect(screen.getByText('Choose a specific start and end date')).toBeTruthy();
+  expect(screen.getByText('Custom Range').props.numberOfLines).toBeUndefined();
+  expect(
+    screen.getByText('Choose a specific start and end date').props.numberOfLines
+  ).toBeUndefined();
   expect(screen.getByText('Today')).toBeTruthy();
   expect(screen.getByText('Yesterday')).toBeTruthy();
   expect(screen.getByText('This Week')).toBeTruthy();

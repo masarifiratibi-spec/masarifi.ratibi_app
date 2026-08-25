@@ -23,6 +23,10 @@ import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 
+jest.mock('@/config/demo-mode', () => ({
+  isDemoModeEnabled: () => true
+}));
+
 jest.mock('expo-router', () => ({
   router: {
     back: jest.fn(),

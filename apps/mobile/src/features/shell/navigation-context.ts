@@ -30,7 +30,14 @@ type StaticShellDestination = (typeof shellDestinations)[number];
 export type ShellDynamicDestination =
   | `/assistant/${string}`
   | `/assistant/${string}/actions/${string}`
-  | `/support/tickets/${string}`;
+  | `/support/tickets/${string}`
+  | `/accounts/${string}`
+  | `/transactions/${string}`
+  | `/categories/${string}`
+  | `/budgets/${string}`
+  | `/salary/${string}`
+  | `/obligations/${string}`
+  | `/savings/${string}`;
 export type ShellDestination = StaticShellDestination | ShellDynamicDestination;
 
 export const primaryTabRoutes = [
@@ -97,7 +104,15 @@ export function sanitizeReturnRoute(
   if (assistantConversation)
     return assistantConversationDestination(assistantConversation[1]);
   const supportTicket = /^\/support\/tickets\/([^/]+)$/.exec(route);
-  return supportTicket ? supportTicketDestination(supportTicket[1]) : null;
+  if (supportTicket) return supportTicketDestination(supportTicket[1]);
+  if (
+    /^\/(accounts|transactions|categories|budgets|salary|obligations|savings)(\/[A-Za-z0-9_-]+)+$/.test(
+      route
+    ) &&
+    !sensitiveRoutePattern.test(route)
+  )
+    return route as ShellDynamicDestination;
+  return null;
 }
 
 export function createReturnContext(
@@ -114,14 +129,6 @@ export function sanitizePrimaryTabRoute(route: string | null): PrimaryTabRoute {
     primaryTabRoutes.find((candidate) => candidate === sanitized) ??
     '/(tabs)/home'
   );
-}
-
-export function tabOrderForDirection(
-  direction: 'ltr' | 'rtl'
-): PrimaryTabRoute[] {
-  return direction === 'rtl'
-    ? [...primaryTabRoutes].reverse()
-    : [...primaryTabRoutes];
 }
 
 export function backIconForDirection(direction: 'ltr' | 'rtl') {

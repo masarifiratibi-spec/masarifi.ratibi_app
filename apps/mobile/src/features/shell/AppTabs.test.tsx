@@ -1,15 +1,25 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 
-import { translate } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
+import { renderWithProviders } from '@/test-utils/render';
 import { AppTabs } from './AppTabs';
 
-it('renders only the three primary destinations in structural LTR and RTL order', () => {
+afterEach(() => {
+  changeLocale('en');
   usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
-  const { rerender } = render(
+});
+
+it('keeps semantic tab order while inherited direction mirrors the layout', () => {
+  changeLocale('en');
+  usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
+  renderWithProviders(
     <AppTabs currentRoute="/(tabs)/home" onSelect={jest.fn()} />
   );
+  expect(screen.getByTestId('foundation-direction-root')).toHaveStyle({
+    direction: 'ltr'
+  });
   expect(
     screen.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel)
   ).toEqual(['Home', 'Assistant', 'Transactions']);
@@ -19,19 +29,25 @@ it('renders only the three primary destinations in structural LTR and RTL order'
   act(() => {
     usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   });
-  rerender(<AppTabs currentRoute="/(tabs)/home" onSelect={jest.fn()} />);
-  expect(screen.getByTestId('app-tabs')).toHaveStyle({
-    flexDirection: 'row-reverse'
+  expect(screen.getByTestId('foundation-direction-root')).toHaveStyle({
+    direction: 'rtl'
   });
+  expect(screen.getByTestId('app-tabs')).toHaveStyle({
+    flexDirection: 'row'
+  });
+  expect(screen.getByTestId('app-tabs')).not.toHaveStyle({ direction: 'ltr' });
   expect(
     screen.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel)
-  ).toEqual(['المعاملات', 'المساعد', 'الرئيسية']);
+  ).toEqual(['الرئيسية', 'المساعد', 'المعاملات']);
 });
 
 it('renders the assistant mark and opens the prominent center destination', () => {
+  changeLocale('en');
   usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
   const onSelect = jest.fn();
-  render(<AppTabs currentRoute="/(tabs)/home" onSelect={onSelect} />);
+  renderWithProviders(
+    <AppTabs currentRoute="/(tabs)/home" onSelect={onSelect} />
+  );
 
   fireEvent.press(
     screen.getByRole('tab', {
@@ -47,8 +63,11 @@ it('renders the assistant mark and opens the prominent center destination', () =
 });
 
 it('allows long tab labels to wrap instead of truncating', () => {
+  changeLocale('en');
   usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
-  render(<AppTabs currentRoute="/(tabs)/home" onSelect={jest.fn()} />);
+  renderWithProviders(
+    <AppTabs currentRoute="/(tabs)/home" onSelect={jest.fn()} />
+  );
 
   const label = screen.getByText(translate('appShell.tabs.transactions', 'en'));
   expect(label.props.numberOfLines).toBe(2);

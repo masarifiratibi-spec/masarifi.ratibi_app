@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react';
-import { KeyboardAvoidingView, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { spacing } from '@/design-system/tokens';
 import { usePreferenceStore } from '@/state/preferences';
@@ -42,7 +43,10 @@ export function RouteModalContainer({
             testID="route-modal-header"
             style={[
               styles.header,
-              { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+              }
             ]}
           >
             <Pressable

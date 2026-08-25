@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { renderWithProviders } from '@/test-utils/render';
@@ -22,7 +22,7 @@ describe('UnlockScreen', () => {
     expect(screen.queryByText('Protected')).toBeNull();
     fireEvent.changeText(screen.getByLabelText('رمز PIN'), '123456');
     fireEvent.press(screen.getByLabelText('فتح'));
-    expect(onUnlock).toHaveBeenCalled();
+    await waitFor(() => expect(onUnlock).toHaveBeenCalled());
 
     fireEvent.press(screen.getByLabelText('فتح بالبصمة'));
     expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
@@ -62,7 +62,7 @@ describe('UnlockScreen', () => {
 
     fireEvent.changeText(screen.getByLabelText('رمز PIN'), '123456');
     fireEvent.press(screen.getByLabelText('فتح'));
-    expect(onUnlock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
   });
 
   it('does not prompt biometric automatically when it is not enabled', async () => {

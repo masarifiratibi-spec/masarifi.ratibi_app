@@ -35,6 +35,7 @@ export interface FinancialPlanningSeed {
 }
 
 export class FinancialPlanningRepository {
+  private readonly seed: FinancialPlanningSeed;
   private salaryProfiles: SalaryProfile[];
   private salaryReceipts: SalaryReceiptLink[];
   private budgets: Budget[];
@@ -51,6 +52,7 @@ export class FinancialPlanningRepository {
   private sequence = 0;
 
   constructor(seed: FinancialPlanningSeed = {}) {
+    this.seed = copy(seed);
     this.salaryProfiles = seed.salaryProfiles?.map(copy) ?? [];
     this.salaryReceipts = seed.salaryReceipts?.map(copy) ?? [];
     this.budgets = seed.budgets?.map(normalizeBudget) ?? [];
@@ -63,6 +65,24 @@ export class FinancialPlanningRepository {
     this.goalMovements = seed.goalMovements?.map(copy) ?? [];
     this.drafts = seed.drafts?.map(copy) ?? [];
     this.conflicts = seed.conflicts?.map(copy) ?? [];
+  }
+
+  reset(): void {
+    const seed = this.seed;
+    this.salaryProfiles = seed.salaryProfiles?.map(copy) ?? [];
+    this.salaryReceipts = seed.salaryReceipts?.map(copy) ?? [];
+    this.budgets = seed.budgets?.map(normalizeBudget) ?? [];
+    this.categoryBudgets = seed.categoryBudgets?.map(copy) ?? [];
+    this.obligations = seed.obligations?.map(copy) ?? [];
+    this.scheduleItems = seed.scheduleItems?.map(copy) ?? [];
+    this.payments = seed.payments?.map(copy) ?? [];
+    this.paymentMatches = seed.paymentMatches?.map(copy) ?? [];
+    this.savingsGoals = seed.savingsGoals?.map(copy) ?? [];
+    this.goalMovements = seed.goalMovements?.map(copy) ?? [];
+    this.drafts = seed.drafts?.map(copy) ?? [];
+    this.conflicts = seed.conflicts?.map(copy) ?? [];
+    this.operationResults.clear();
+    this.sequence = 0;
   }
 
   async hydrate(): Promise<void> {

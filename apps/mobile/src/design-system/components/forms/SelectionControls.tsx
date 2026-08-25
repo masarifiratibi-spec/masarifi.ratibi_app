@@ -285,7 +285,7 @@ export function RadioCard({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
   toggleContainer: {
     minHeight: Math.max(44, minTouchTarget),
     minWidth: Math.max(44, minTouchTarget),

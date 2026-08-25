@@ -413,7 +413,10 @@ export function TransactionForm({
             testID="transaction-edit-type-selector"
             style={[
               styles.typeSelector,
-              { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+              }
             ]}
           >
             {editSupportedTypes.map((item) => {
@@ -682,6 +685,7 @@ function TransactionPickerCard({
               ? theme.colors.interactions.quietPressed
               : theme.colors.surfaces.card,
             borderColor: theme.colors.borders.subtle,
+            direction: 'ltr',
             flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
             opacity: disabled ? 0.56 : 1
           }

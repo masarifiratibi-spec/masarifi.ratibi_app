@@ -286,7 +286,6 @@ export function CategoryListScreen() {
                       writingDirection: direction
                     }
                   ]}
-                  numberOfLines={1}
                 >
                   {locale === 'ar' ? 'إضافة فئة' : 'Add Category'}
                 </Text>
@@ -322,7 +321,6 @@ export function CategoryListScreen() {
                       writingDirection: direction
                     }
                   ]}
-                  numberOfLines={1}
                 >
                   {locale === 'ar' ? 'إضافة مجموعة' : 'Add Group'}
                 </Text>
@@ -422,6 +420,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
+    direction: 'ltr',
     gap: spacing.sm,
     minHeight: 46,
     paddingHorizontal: spacing.md
@@ -434,6 +433,7 @@ const styles = StyleSheet.create({
 
   // Quick actions
   quickActionsRow: {
+    direction: 'ltr',
     gap: spacing.sm,
     marginTop: spacing.xs
   },

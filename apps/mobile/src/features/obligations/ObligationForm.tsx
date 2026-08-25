@@ -974,6 +974,7 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

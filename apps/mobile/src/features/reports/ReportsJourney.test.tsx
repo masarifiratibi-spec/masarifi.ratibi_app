@@ -38,6 +38,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   });
   expect(screen.getByText('التحليلات')).toBeTruthy();
   expect(screen.getByLabelText('كل الحسابات')).toBeTruthy();
+  expect(screen.getByText('كل الحسابات').props.numberOfLines).toBeUndefined();
   expect(screen.getByLabelText('أغسطس 2026')).toBeTruthy();
   expect(screen.getByText('التدفق المالي')).toBeTruthy();
   expect(screen.getByText('نسبة التوفير')).toBeTruthy();
@@ -89,6 +90,7 @@ test('approved analytics screen exposes the equivalent hierarchy in English', as
   expect(await screen.findByText('Net worth')).toBeTruthy();
   expect(screen.getByText('Analytics')).toBeTruthy();
   expect(screen.getByLabelText('All Accounts')).toBeTruthy();
+  expect(screen.getByText('All Accounts').props.numberOfLines).toBeUndefined();
   expect(screen.getByText('Cash flow')).toBeTruthy();
   expect(screen.getByText('Savings rate')).toBeTruthy();
   expect(screen.getByText('Budget')).toBeTruthy();

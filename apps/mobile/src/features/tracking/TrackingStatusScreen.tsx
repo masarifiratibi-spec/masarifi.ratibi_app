@@ -126,8 +126,16 @@ export function TrackingStatusScreen() {
   }
 
   const status = query.data;
-  const isEnabled = status.mode !== 'paused';
+  const permissionUnavailable =
+    status.permissionStatus === 'unavailable' ||
+    status.serviceState === 'unavailable';
+  const isEnabled = status.mode !== 'paused' && !permissionUnavailable;
   const hasPermission = status.permissionStatus === 'granted';
+  const permissionMessage = translate(
+    permissionUnavailable
+      ? 'tracking.permission.unavailableMessage'
+      : 'tracking.permission.warning'
+  );
 
   return (
     <View
@@ -185,7 +193,7 @@ export function TrackingStatusScreen() {
                 testID="tracking-mode-switch"
                 value={isEnabled}
                 onValueChange={(val) => void handleToggle(val)}
-                disabled={updating}
+                disabled={updating || permissionUnavailable}
                 accessibilityLabel={translate('tracking.status.mode')}
               />
             </View>
@@ -195,13 +203,19 @@ export function TrackingStatusScreen() {
           {!hasPermission && (
             <Pressable
               testID="tracking-permission-warning-banner"
-              onPress={() => void recoverPermission(status.permissionStatus)}
+              disabled={permissionUnavailable}
+              onPress={
+                permissionUnavailable
+                  ? undefined
+                  : () => void recoverPermission(status.permissionStatus)
+              }
               style={({ pressed }) => [
                 styles.warningBanner,
                 pressed && styles.bannerPressed
               ]}
               accessibilityRole="button"
-              accessibilityLabel={translate('tracking.permission.warning')}
+              accessibilityLabel={permissionMessage}
+              accessibilityState={{ disabled: permissionUnavailable }}
             >
               {/* START: Warning Icon */}
               <View style={styles.warningIconBadge}>
@@ -224,17 +238,19 @@ export function TrackingStatusScreen() {
                   }
                 ]}
               >
-                {translate('tracking.permission.warning')}
+                {permissionMessage}
               </StyledText>
 
               {/* END: Chevron pointing in reading direction (left in RTL, right in LTR) */}
-              <DesignIcon
-                name="chevronEnd"
-                size="sm"
-                color={colorTokens.status.warning}
-                direction={direction}
-                decorative
-              />
+              {!permissionUnavailable ? (
+                <DesignIcon
+                  name="chevronEnd"
+                  size="sm"
+                  color={colorTokens.status.warning}
+                  direction={direction}
+                  decorative
+                />
+              ) : null}
             </Pressable>
           )}
         </SurfaceCard>
@@ -315,35 +331,37 @@ export function TrackingStatusScreen() {
             </View>
 
             {/* Manufacturer / Battery optimization guidance */}
-            <Pressable
-              onPress={() => void recoverPermission(status.permissionStatus)}
-              style={({ pressed }) => [
-                styles.explanationItem,
-                pressed && styles.bannerPressed
-              ]}
-            >
-              <View style={styles.warningCircle}>
-                <DesignIcon
-                  name="warning"
-                  size="sm"
-                  color={colorTokens.status.warning}
-                  direction={direction}
-                  decorative
-                />
-              </View>
-              <StyledText
-                style={[
-                  styles.explanationItemText,
-                  styles.manufacturerWarningText,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
+            {!permissionUnavailable ? (
+              <Pressable
+                onPress={() => void recoverPermission(status.permissionStatus)}
+                style={({ pressed }) => [
+                  styles.explanationItem,
+                  pressed && styles.bannerPressed
                 ]}
               >
-                {translate('tracking.howItWorks.deviceWarning')}
-              </StyledText>
-            </Pressable>
+                <View style={styles.warningCircle}>
+                  <DesignIcon
+                    name="warning"
+                    size="sm"
+                    color={colorTokens.status.warning}
+                    direction={direction}
+                    decorative
+                  />
+                </View>
+                <StyledText
+                  style={[
+                    styles.explanationItemText,
+                    styles.manufacturerWarningText,
+                    {
+                      textAlign: isRtl ? 'right' : 'left',
+                      writingDirection: direction
+                    }
+                  ]}
+                >
+                  {translate('tracking.howItWorks.deviceWarning')}
+                </StyledText>
+              </Pressable>
+            ) : null}
           </View>
         </SurfaceCard>
 

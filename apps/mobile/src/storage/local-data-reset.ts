@@ -1,19 +1,14 @@
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
+import { resetRuntimeUserData } from './runtime-user-data-reset';
 
 type LocalDataDeletionResult = { deletedRows: number; operationId: string };
 type SqliteLike = {
+  execAsync(sql: string): Promise<void>;
   getAllAsync<T>(sql: string): Promise<T[]>;
   runAsync(sql: string, ...values: unknown[]): Promise<{ changes: number }>;
 };
 
 const completed = new Map<string, LocalDataDeletionResult>();
-const resetTables = [
-  'notifications',
-  'assistant_conversations',
-  'support_drafts',
-  'finance_transactions'
-] as const;
-
 export async function resetLocalUserData(operationId: string): Promise<LocalDataDeletionResult> {
   const replay = completed.get(operationId);
   if (replay) return replay;
@@ -21,12 +16,22 @@ export async function resetLocalUserData(operationId: string): Promise<LocalData
   const database = await openDatabase();
   let deletedRows = 0;
   await runExclusiveDatabaseTransaction(database, async (transaction) => {
-    for (const table of resetTables) {
-      for (const row of await (transaction as SqliteLike).getAllAsync<{ id: string }>(`SELECT id FROM ${table}`)) {
-        deletedRows += (await (transaction as SqliteLike).runAsync(`DELETE FROM ${table} WHERE id = ?`, row.id)).changes;
-      }
+    const sqlite = transaction as SqliteLike;
+    await sqlite.execAsync('PRAGMA defer_foreign_keys = ON');
+    const tables = await sqlite.getAllAsync<{ name: string }>(`
+      SELECT name
+      FROM sqlite_master
+      WHERE type = 'table'
+        AND name != 'schema_migrations'
+        AND name NOT LIKE 'sqlite_%'
+    `);
+    for (const { name } of tables) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+        throw new Error('invalid local data table');
+      deletedRows += (await sqlite.runAsync(`DELETE FROM "${name}"`)).changes;
     }
   });
+  resetRuntimeUserData();
 
   const result = { deletedRows, operationId };
   completed.set(operationId, result);

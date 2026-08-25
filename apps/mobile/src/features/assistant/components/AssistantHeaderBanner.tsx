@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { PixelRatio, View, StyleSheet, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
@@ -9,13 +9,21 @@ import { colorTokens } from '@/design-system/tokens';
 
 export function AssistantHeaderBanner() {
   const direction = usePreferenceStore((state) => state.direction);
+  const largeText = PixelRatio.getFontScale() >= 1.5;
 
   return (
     <View
       testID="assistant-header-banner"
       style={[
         styles.banner,
-        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+        {
+          alignItems: largeText ? 'stretch' : 'center',
+          flexDirection: largeText
+            ? 'column'
+            : direction === 'rtl'
+              ? 'row-reverse'
+              : 'row'
+        }
       ]}
     >
       {/* Mini Bot Avatar with status dot */}
@@ -37,7 +45,11 @@ export function AssistantHeaderBanner() {
         <StyledText variant="subtitle" style={styles.title}>
           {translate('assistant.chat.banner.title')}
         </StyledText>
-        <StyledText variant="caption" style={styles.subtitle} numberOfLines={2}>
+        <StyledText
+          variant="caption"
+          style={styles.subtitle}
+          numberOfLines={largeText ? undefined : 2}
+        >
           {translate('assistant.chat.banner.subtitle')}
         </StyledText>
       </View>
@@ -60,6 +72,7 @@ const styles = StyleSheet.create({
     borderColor: colorTokens.raw["D7E1DC"],
     borderRadius: 20,
     borderWidth: 1,
+    direction: 'ltr',
     gap: spacing.sm,
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,

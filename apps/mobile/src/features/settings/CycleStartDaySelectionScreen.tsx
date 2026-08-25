@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { SelectionScreen } from '@/design-system/components/selection/SelectionScreen';
@@ -24,6 +24,7 @@ export function CycleStartDaySelectionScreen({
   onBack?: () => void;
 }) {
   const locale = currentLocale();
+  const largeText = PixelRatio.getFontScale() >= 1.5;
   const globalMonthStartDay = usePreferenceStore((state) => state.monthStartDay);
   const setMonthStartDay = usePreferenceStore((state) => state.setMonthStartDay);
 
@@ -121,7 +122,8 @@ export function CycleStartDaySelectionScreen({
           <View style={styles.rangeContainer}>
             {isSingleMonth ? (
               <Text
-                numberOfLines={1}
+                testID={`cycle-start-range-${item.id}`}
+                numberOfLines={largeText ? undefined : 1}
                 style={[
                   styles.dayRangeSingle,
                   {
@@ -136,7 +138,8 @@ export function CycleStartDaySelectionScreen({
             ) : (
               <>
                 <Text
-                  numberOfLines={1}
+                  testID={`cycle-start-range-${item.id}`}
+                  numberOfLines={largeText ? undefined : 1}
                   style={[
                     styles.dayRangeLine,
                     {
@@ -149,7 +152,7 @@ export function CycleStartDaySelectionScreen({
                   {range.startLabel}
                 </Text>
                 <Text
-                  numberOfLines={1}
+                  numberOfLines={largeText ? undefined : 1}
                   style={[
                     styles.dayRangeLine,
                     {
@@ -166,7 +169,8 @@ export function CycleStartDaySelectionScreen({
           </View>
         ) : item.subtitle ? (
           <Text
-            numberOfLines={2}
+            testID={`cycle-start-range-${item.id}`}
+            numberOfLines={largeText ? undefined : 2}
             style={[
               styles.dayRangeSingle,
               {
@@ -192,7 +196,7 @@ export function CycleStartDaySelectionScreen({
       onSelect={handleSelect}
       onBack={onBack}
       layoutMode="grid"
-      numColumns={4}
+      numColumns={largeText ? 2 : 4}
       renderItem={renderDayItem}
     />
   );

@@ -1,6 +1,8 @@
 import React from 'react';
+import { PixelRatio } from 'react-native';
 import { screen } from '@testing-library/react-native';
 
+import { changeLocale } from '@/localization/i18n';
 import { fixtureCategories } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
 import { CategoryRow } from './CategoryRow';
@@ -29,4 +31,24 @@ it('renders a category row with an accessible image for openmoji visuals', () =>
   expect(row).toBeTruthy();
   // Label must appear
   expect(screen.getByText('Food')).toBeTruthy();
+});
+
+it.each([
+  ['ar', 'فئة المصروفات المنزلية اليومية ذات الاسم الطويل'],
+  ['en', 'Everyday household expenses with a long category name']
+] as const)('allows category labels to wrap at 200%% text in %s', (locale, label) => {
+  jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+  changeLocale(locale);
+  const category = {
+    ...fixtureCategories[0],
+    labelAr: locale === 'ar' ? label : fixtureCategories[0].labelAr,
+    labelEn: locale === 'en' ? label : fixtureCategories[0].labelEn
+  };
+
+  renderWithProviders(
+    <CategoryRow presentation={projectCategory(category, locale)} />
+  );
+
+  expect(screen.getByText(label).props.numberOfLines).toBeUndefined();
+  jest.restoreAllMocks();
 });

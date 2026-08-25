@@ -27,7 +27,9 @@ import type {
 import type { CoreFinanceService } from '@/services/contracts/core-finance-service';
 import { reportsServiceCapability } from '@/services/contracts/reports-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
+import type { CapabilityProviderKind } from '@/services/contracts/capability-contract';
 import { ReportsRepository } from '@/storage/reports-repository';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import {
   fixtureCategories,
   fixtureRates,
@@ -55,6 +57,8 @@ export function createMockReportsService(
     now?: () => number;
     outputFailures?: Readonly<Record<string, OutputFailure>>;
     outputDelayMs?: number;
+    registerForReset?: boolean;
+    providerKind?: CapabilityProviderKind;
   } = {},
   finance?: ReportLedgerFinance
 ): CapabilityProviderHandle<ReportsService> {
@@ -63,6 +67,12 @@ export function createMockReportsService(
     string,
     ReturnType<typeof verifyRecipient>
   >();
+  if (options.registerForReset)
+    registerRuntimeUserDataReset(() => {
+      repository.reset();
+      previews.clear();
+      verifiedRecipients.clear();
+    });
 
   async function report(
     input: Parameters<ReportsService['getReport']>[0],
@@ -94,10 +104,10 @@ export function createMockReportsService(
 
   return {
     metadata: {
-      id: 'mock-reports',
+      id: options.providerKind === 'live' ? 'local-reports' : 'mock-reports',
       capability: reportsServiceCapability.capability,
       majorVersion: reportsServiceCapability.majorVersion,
-      kind: 'mock',
+      kind: options.providerKind ?? 'mock',
       availability: 'available'
     },
     async getReport(input) {
@@ -235,7 +245,9 @@ const usesLiveLedger = process.env.NODE_ENV !== 'test';
 
 export const reportsService = createMockReportsService(
   new ReportsRepository(Platform.OS !== 'web' && usesLiveLedger),
-  usesLiveLedger ? { now: Date.now } : {},
+  usesLiveLedger
+    ? { now: Date.now, registerForReset: true, providerKind: 'live' }
+    : {},
   usesLiveLedger ? coreFinanceService : undefined
 );
 

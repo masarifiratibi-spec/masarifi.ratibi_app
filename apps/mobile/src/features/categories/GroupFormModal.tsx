@@ -317,7 +317,7 @@ export function GroupFormModal({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
   backdrop: {
     backgroundColor: 'rgba(6, 29, 25, 0.52)',
     flex: 1

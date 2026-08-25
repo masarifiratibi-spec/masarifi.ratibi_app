@@ -14,7 +14,7 @@ import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import {
-  tabOrderForDirection,
+  primaryTabRoutes,
   type PrimaryTabRoute
 } from './navigation-context';
 
@@ -38,7 +38,7 @@ export function AppTabs({ currentRoute, onSelect }: AppTabsProps) {
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const insets = React.useContext(SafeAreaInsetsContext);
-  const routes = tabOrderForDirection(direction);
+  const routes = primaryTabRoutes;
 
   return (
     <View
@@ -49,7 +49,7 @@ export function AppTabs({ currentRoute, onSelect }: AppTabsProps) {
         {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.border,
-          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           paddingBottom: Math.max(insets?.bottom ?? 0, spacing.xs)
         }
       ]}

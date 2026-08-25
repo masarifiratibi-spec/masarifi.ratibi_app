@@ -1,37 +1,5 @@
-import { PermissionsAndroid } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { createMockTrackingPermissionService } from '@/services/mocks/tracking-permission-service';
 import { createTrackingPermissionService } from './tracking-permission-service';
-import {
-  createAndroidTrackingPermissionService,
-  createTrackingPermissionService as createAndroidResolvedTrackingPermissionService
-} from './tracking-permission-service.android';
-
-Object.defineProperty(PermissionsAndroid, 'check', {
-  value: jest.fn(),
-  writable: true,
-  configurable: true
-});
-Object.defineProperty(PermissionsAndroid, 'request', {
-  value: jest.fn(),
-  writable: true,
-  configurable: true
-});
-Object.defineProperty(PermissionsAndroid, 'PERMISSIONS', {
-  value: { READ_SMS: 'android.permission.READ_SMS' },
-  writable: true,
-  configurable: true
-});
-Object.defineProperty(PermissionsAndroid, 'RESULTS', {
-  value: {
-    GRANTED: 'granted',
-    DENIED: 'denied',
-    NEVER_ASK_AGAIN: 'never_ask_again'
-  },
-  writable: true,
-  configurable: true
-});
 
 describe('tracking permission services', () => {
   it.each([
@@ -69,46 +37,16 @@ describe('tracking permission services', () => {
     });
   });
 
-  it('maps iOS and web to unavailable without SMS capability', async () => {
+  it('maps every production platform to unavailable until ingestion exists', async () => {
     await expect(createTrackingPermissionService().getState()).resolves.toMatchObject({
       status: 'unavailable',
       recoveryAction: 'continue'
     });
-  });
-
-  it('maps Android permission results without reading SMS content', async () => {
-    const check = jest.mocked(PermissionsAndroid.check);
-    const request = jest.mocked(PermissionsAndroid.request);
-    const getItem = jest.mocked(AsyncStorage.getItem);
-    check.mockResolvedValue(false);
-    getItem.mockResolvedValueOnce(null);
-    request.mockResolvedValue(PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN);
-
-    const service = createAndroidTrackingPermissionService();
-
-    await expect(service.getState()).resolves.toMatchObject({
-      status: 'not_requested'
-    });
-    await expect(service.requestAfterEducation()).resolves.toMatchObject({
-      status: 'permanently_denied'
-    });
-  });
-
-  it('exports the Android platform factory under the shared service name', async () => {
-    jest.mocked(PermissionsAndroid.check).mockResolvedValue(false);
-    jest.mocked(AsyncStorage.getItem).mockResolvedValue(null);
-
     await expect(
-      createAndroidResolvedTrackingPermissionService().getState()
-    ).resolves.toMatchObject({ status: 'not_requested' });
-  });
-
-  it('recognizes a previously granted Android permission as revoked', async () => {
-    jest.mocked(PermissionsAndroid.check).mockResolvedValue(false);
-    jest.mocked(AsyncStorage.getItem).mockResolvedValue('granted');
-
-    await expect(
-      createAndroidTrackingPermissionService().getState()
-    ).resolves.toMatchObject({ status: 'revoked', recoveryAction: 'open_settings' });
+      createTrackingPermissionService().requestAfterEducation()
+    ).resolves.toMatchObject({
+      status: 'unavailable',
+      recoveryAction: 'continue'
+    });
   });
 });

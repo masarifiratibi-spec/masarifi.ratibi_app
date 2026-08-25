@@ -1,5 +1,10 @@
-import type { ApplicationPreferences, UserProfile } from '@/domain/settings';
+import {
+  userProfileSchema,
+  type ApplicationPreferences,
+  type UserProfile
+} from '@/domain/settings';
 import { usePreferenceStore } from '@/state/preferences';
+import { openDatabase } from './database';
 
 const profileDefaults: Omit<UserProfile, 'currency'> = {
   name: null,
@@ -39,6 +44,23 @@ export function createSettingsStorage() {
         dashboardSections: preferences.dashboardSections,
         voiceEnabled: preferences.voiceEnabled
       };
+    },
+    async loadProfile(): Promise<UserProfile | null> {
+      const row = await (
+        await openDatabase()
+      ).getFirstAsync<{ payload: string }>(
+        "SELECT payload FROM settings_profile WHERE id = 'singleton'"
+      );
+      return row ? userProfileSchema.parse(JSON.parse(row.payload)) : null;
+    },
+    async saveProfile(profile: UserProfile): Promise<void> {
+      await (
+        await openDatabase()
+      ).runAsync(
+        "INSERT INTO settings_profile (id, payload, updated_at) VALUES ('singleton', ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
+        JSON.stringify(userProfileSchema.parse(profile)),
+        Date.now()
+      );
     },
     async hydrate(): Promise<void> {
       await usePreferenceStore.getState().hydrate();

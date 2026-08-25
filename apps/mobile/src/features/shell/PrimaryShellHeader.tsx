@@ -151,7 +151,11 @@ export function PrimaryShellHeader({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: {
+    direction: 'ltr',
+    display: 'flex',
+    writingDirection: 'ltr'
+  },
   root: {
     alignItems: 'center',
     gap: spacing.sm,

@@ -423,6 +423,8 @@ const ar: MessageCatalog = {
   'appShell.error.biometricLocked': 'فتح القفل بالبصمة غير متاح مؤقتًا.',
   'appShell.error.persistenceFailed': 'تعذر الحفظ محليًا.',
   'appShell.error.unknown': 'حدث خطأ ما.',
+  'appShell.auth.unavailable':
+    'لم تتم تهيئة مصادقة الحساب لهذا الإصدار.',
 
   'common.light': 'فاتح',
   'common.dark': 'داكن',
@@ -823,6 +825,8 @@ const ar: MessageCatalog = {
   'tracking.status.enabled': 'مفعّل',
   'tracking.status.disabled': 'معطّل',
   'tracking.permission.warning': 'لم يتم منح أذونات الرسائل. اضغط للتفعيل.',
+  'tracking.permission.unavailableMessage':
+    'التتبع التلقائي للرسائل غير متاح في هذا الإصدار. يظل الإدخال اليدوي متاحًا.',
   'tracking.howItWorks.title': 'كيف يعمل التتبع التلقائي؟',
   'tracking.howItWorks.detection':
     'قراءة رسائل البنك تلقائياً التي تحتوي على كلماتك المحددة وحفظ المصروفات في حسابك.',
@@ -1314,6 +1318,7 @@ const ar: MessageCatalog = {
   'reports.state.stale': 'قد تحتاج بيانات التقرير إلى تحديث',
   'reports.state.offline': 'تقرير دون اتصال',
   'reports.state.unavailable': 'غير متاح',
+  'reports.backendUnavailable': 'إرسال التقارير غير مهيأ للإنتاج.',
   'reports.insight.title': 'مؤشرات الفترة',
   'reports.insight.budget_performance': 'المتبقي من الميزانية',
   'reports.insight.month_comparison': 'تغير المصروفات عن الفترة السابقة',
@@ -1504,6 +1509,7 @@ const ar: MessageCatalog = {
   'assistant.state.offline': 'المساعد غير متاح دون اتصال. تم حفظ السجل.',
   'assistant.state.empty': 'لا توجد محادثات بعد.',
   'assistant.state.error': 'المساعد غير متاح مؤقتًا.',
+  'assistant.backendUnavailable': 'خدمة المساعد غير مهيأة للإنتاج.',
   'assistant.action.enable': 'تفعيل التخصيص',
   'assistant.consent.enabled': 'تم تفعيل التخصيص الذكي',
   'assistant.hero.title': 'المساعد الذكي',
@@ -1595,6 +1601,7 @@ const ar: MessageCatalog = {
   'subscriptions.state.loading': 'جار تحميل الاشتراك',
   'subscriptions.title': 'الاشتراك',
   'subscriptions.state.error': 'تفاصيل الاشتراك غير متاحة. حاول مجددًا.',
+  'subscriptions.backendUnavailable': 'خدمة الدفع غير مهيأة للإنتاج.',
   'subscriptions.state.expired': 'انتهى الاشتراك',
   'subscriptions.access.readOnly': 'يبقى المحتوى المدفوع السابق للقراءة فقط.',
   'subscriptions.access.editable': 'يبقى المحتوى قابلًا للتعديل.',
@@ -1709,6 +1716,8 @@ const ar: MessageCatalog = {
   'settings.privacy.exportReview': 'مراجعة طلب تصدير البيانات',
   'settings.privacy.accountDeletionReview': 'مراجعة طلب حذف الحساب',
   'settings.privacy.localDelete': 'حذف البيانات المحلية',
+  'settings.privacy.backendUnavailable':
+    'طلبات تصدير الحساب وحذفه غير مهيأة للإنتاج.',
   'settings.privacy.confirmRequest': 'تأكيد الطلب',
   'settings.privacy.confirmLocalDelete': 'تأكيد حذف البيانات المحلية',
   'settings.sessions.loading': 'جار تحميل الجلسات',
@@ -1774,6 +1783,7 @@ const ar: MessageCatalog = {
   'support.ticket.listTitle': 'تذاكر الدعم',
   'support.ticket.detailTitle': 'التذكرة {{reference}}',
   'support.ticket.error': 'التذاكر غير متاحة. حاول مجددًا.',
+  'support.backendUnavailable': 'تذاكر الدعم عبر الإنترنت غير مهيأة للإنتاج.',
   'support.ticket.empty': 'لا توجد تذاكر دعم بعد.',
   'support.ticket.open': 'فتح التذكرة',
   'support.ticket.reply': 'الرد',

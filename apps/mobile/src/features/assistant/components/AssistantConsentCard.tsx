@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
     borderColor: colorTokens.teal['100'],
     borderRadius: radius.sm,
     borderWidth: 1,
+    direction: 'ltr',
     gap: spacing.sm,
     justifyContent: 'center',
     marginTop: spacing.xs,

@@ -71,12 +71,18 @@ export function createVoiceRecorderService(): VoiceRecorderService {
     async stop(recordingId) {
       const recording = recordings.get(recordingId);
       if (!recording) throw new VoiceCaptureError('recording_interrupted');
-      recordings.delete(recordingId);
-      await recording.stop();
-      const uri = recording.uri;
-      recording.release();
-      if (!uri) throw new VoiceCaptureError('recording_interrupted');
-      return uri;
+      try {
+        await recording.stop();
+        const uri = recording.uri;
+        if (!uri) throw new VoiceCaptureError('recording_interrupted');
+        return uri;
+      } catch (error) {
+        await removeTemporaryAudio(recording.uri).catch(() => undefined);
+        throw error;
+      } finally {
+        recordings.delete(recordingId);
+        recording.release();
+      }
     },
     async cancel(recordingId) {
       const recording = recordings.get(recordingId);

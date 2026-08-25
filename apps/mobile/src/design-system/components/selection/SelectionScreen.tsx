@@ -223,6 +223,7 @@ export function SelectionScreen<T = string>({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },

@@ -595,12 +595,14 @@ it.each([
     renderWithProviders(<HomeScreen summary={summary} />);
 
     expect(screen.getByTestId('home-expense-section-heading')).toHaveStyle({
+      direction: 'ltr',
       writingDirection: 'ltr',
       flexDirection
     });
     expect(
       screen.getByTestId('home-transaction-row-transaction-2')
     ).toHaveStyle({
+      direction: 'ltr',
       writingDirection: 'ltr',
       flexDirection,
       gap: 12,
@@ -608,6 +610,7 @@ it.each([
       paddingVertical: 12
     });
     expect(screen.getByTestId('home-account-card')).toHaveStyle({
+      direction: 'ltr',
       flexDirection,
       writingDirection: 'ltr'
     });
@@ -654,6 +657,10 @@ it.each(['ar', 'en'] as const)(
     expect(
       screen.getByTestId('home-transaction-row-transaction-2')
     ).toHaveStyle({ alignItems: 'stretch', flexDirection: 'column' });
+    expect(
+      screen.getByText('Al Nakheel Restaurant').props.numberOfLines
+    ).toBeUndefined();
+    expect(screen.getByTestId('home-period-label').props.numberOfLines).toBeUndefined();
   }
 );
 
@@ -688,6 +695,7 @@ it.each([
   renderWithProviders(<HomeScreen summary={summary} />);
 
   expect(screen.getByTestId('home-quick-actions')).toHaveStyle({
+    direction: 'ltr',
     flexDirection
   });
   fontScale.mockRestore();
@@ -703,6 +711,7 @@ it.each([
   renderWithProviders(<HomeScreen summary={summary} />);
 
   expect(screen.getByTestId('home-quick-actions')).toHaveStyle({
+    direction: 'ltr',
     flexDirection
   });
 });

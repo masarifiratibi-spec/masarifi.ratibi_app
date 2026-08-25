@@ -243,6 +243,41 @@ it('stops the recorder only once when the stop control is tapped rapidly', async
   unmount();
 });
 
+it('retains a failed cleanup reference for retry without stranding stop state', async () => {
+  jest.spyOn(voiceRecorderService, 'getPermission').mockResolvedValue('granted');
+  jest
+    .spyOn(voiceRecorderService, 'stop')
+    .mockResolvedValue('private://voice-cleanup-retry');
+  const remove = jest
+    .spyOn(voiceRecorderService, 'remove')
+    .mockRejectedValueOnce(new Error('delete failed'))
+    .mockResolvedValue();
+  jest
+    .spyOn(voiceAnalyzerService, 'transcribe')
+    .mockRejectedValue(new Error('analysis unavailable'));
+  const { result, unmount } = renderVoiceHook();
+  await waitFor(() => expect(result.current.session.state).toBe('ready'));
+  act(() => {
+    useVoiceCaptureStore.getState().patch({
+      recordingId: 'recording-cleanup-retry',
+      state: 'recording'
+    });
+  });
+
+  await act(async () => {
+    await result.current.stop();
+  });
+  expect(useVoiceCaptureStore.getState()).toMatchObject({
+    audioReference: 'private://voice-cleanup-retry',
+    recordingId: null
+  });
+
+  await act(async () => result.current.cancel());
+  expect(remove).toHaveBeenCalledTimes(2);
+  expect(useVoiceCaptureStore.getState().audioReference).toBeNull();
+  unmount();
+});
+
 it('cancels an active recording when its inline capture owner unmounts', async () => {
   jest.spyOn(voiceRecorderService, 'getPermission').mockResolvedValue('granted');
   const cancel = jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();

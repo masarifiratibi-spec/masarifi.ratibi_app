@@ -124,6 +124,7 @@ export function AccountTypeHeroCard({ type }: { type: AccountType }) {
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    direction: 'ltr',
     display: 'flex',
     writingDirection: 'ltr'
   },
