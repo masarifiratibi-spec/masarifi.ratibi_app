@@ -111,6 +111,26 @@ describe('protected navigation', () => {
     );
   });
 
+  it('redirects a stale unlock route home when no lock is active', async () => {
+    mockPathname = '/security/unlock';
+
+    render(<RootLayout />);
+
+    await waitFor(() =>
+      expect(mockRedirect).toHaveBeenCalledWith({ href: '/(tabs)/home' })
+    );
+  });
+
+  it('keeps the unlock route reachable while authentication is unavailable', () => {
+    mockPathname = '/security/unlock';
+    useAppShellStore.setState({ session: signedOutSession });
+
+    render(<RootLayout />);
+
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(mockStack).toHaveBeenCalled();
+  });
+
   it('renders the current onboarding step without redirecting to itself', () => {
     mockPathname = '/android-sms-permission';
     useAppShellStore.setState({ onboarding: androidOnboarding });
