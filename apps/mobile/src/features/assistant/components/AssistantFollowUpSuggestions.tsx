@@ -41,7 +41,10 @@ export function AssistantFollowUpSuggestions({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={[
         styles.container,
-        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+        {
+          direction: 'ltr',
+          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+        }
       ]}
       style={styles.scrollView}
     >

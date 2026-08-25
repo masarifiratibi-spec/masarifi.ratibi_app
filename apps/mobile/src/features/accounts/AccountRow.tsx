@@ -112,7 +112,7 @@ export function AccountRow({
         {/* Text details */}
         <View style={styles.identityDetails}>
           <Text
-            numberOfLines={1}
+            numberOfLines={largeText ? undefined : 1}
             style={[
               styles.name,
               {
@@ -125,7 +125,7 @@ export function AccountRow({
           </Text>
 
           <Text
-            numberOfLines={1}
+            numberOfLines={largeText ? undefined : 1}
             style={[
               styles.meta,
               {

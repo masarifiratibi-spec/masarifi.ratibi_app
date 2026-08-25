@@ -10,6 +10,8 @@ import type {
   VoiceTransactionProposal
 } from '@/domain/voice-capture';
 import { VOICE_MAX_PROPOSALS } from '@/domain/voice-capture';
+import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 
 const newSession = (): VoiceCaptureSession => ({
   id: `voice-${Date.now()}`,
@@ -86,3 +88,17 @@ export const useVoiceCaptureStore = create<VoiceCaptureStore>((set) => ({
         : null
     }))
 }));
+
+registerRuntimeUserDataReset(async () => {
+  const session = useVoiceCaptureStore.getState();
+  const resourceCleanup = [
+    session.recordingId
+      ? voiceRecorderService.cancel(session.recordingId)
+      : Promise.resolve(),
+    session.audioReference
+      ? voiceRecorderService.remove(session.audioReference)
+      : Promise.resolve()
+  ];
+  session.reset();
+  await Promise.all(resourceCleanup);
+});

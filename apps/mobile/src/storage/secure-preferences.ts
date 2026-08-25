@@ -92,6 +92,12 @@ export async function savePreferences(
   }
 }
 
+export function clearPersistedPreferences(): Promise<void> {
+  return Platform.OS === 'web'
+    ? AsyncStorage.removeItem(STORAGE_KEY)
+    : SecureStore.deleteItemAsync(STORAGE_KEY);
+}
+
 function readPersistedPreferences(): Promise<string | null> {
   return Platform.OS === 'web'
     ? AsyncStorage.getItem(STORAGE_KEY)

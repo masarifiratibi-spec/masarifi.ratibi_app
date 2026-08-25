@@ -11,9 +11,12 @@ export async function patchManualTransactionDraft(
   );
   if (!current) return null;
 
-  return coreFinanceService.saveDraft({
+  const next = {
     ...current,
     ...patch,
     updatedAt: Date.now()
-  });
+  };
+  if (patch.accountId && patch.accountId !== current.accountId)
+    next.destinationAccountId = null;
+  return coreFinanceService.saveDraft(next);
 }

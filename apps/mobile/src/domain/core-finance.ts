@@ -621,6 +621,8 @@ export function matchesFilters(
   transaction: Transaction,
   filters: TransactionFilterSet
 ): boolean {
+  if (transaction.status === 'deleted' && filters.statuses.length === 0)
+    return false;
   const query = normalizeSearch(filters.search);
   if (
     query &&

@@ -17,6 +17,7 @@ import {
   type UserPreferences
 } from '@/domain/foundation';
 import { loadPreferences, savePreferences } from '@/storage/secure-preferences';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { changeLocale } from '@/localization/i18n';
 
 interface PreferenceState extends UserPreferences {
@@ -107,6 +108,12 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
     void persist(next);
   }
 }));
+
+registerRuntimeUserDataReset(() => {
+  const defaults = buildPreferences({});
+  changeLocale(defaults.locale);
+  usePreferenceStore.setState({ ...defaults, hydrated: true });
+});
 
 function persist(state: PreferenceState): Promise<void> {
   return savePreferences({

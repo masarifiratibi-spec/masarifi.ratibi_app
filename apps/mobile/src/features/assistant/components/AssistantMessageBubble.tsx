@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
 import { FinancialInsightCard } from './FinancialInsightCard';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate, translateDynamic } from '@/localization/i18n';
@@ -173,6 +174,7 @@ export function AssistantMessageBubble({
 const styles = StyleSheet.create({
   row: {
     alignItems: 'flex-start',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.xs,
     marginVertical: spacing.xs,
     paddingHorizontal: spacing.md,

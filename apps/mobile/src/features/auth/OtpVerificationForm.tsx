@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
@@ -49,7 +50,7 @@ export function OtpVerificationForm({
 
   return (
     <View style={styles.stack}>
-      <View style={styles.slots}>
+      <View testID="otp-slots" style={styles.slots}>
         {digits.map((digit, index) => (
           <TextInput
             accessibilityLabel={`${translate('appShell.auth.otp.code')} ${index + 1}`}
@@ -90,8 +91,11 @@ const styles = StyleSheet.create({
     gap: 12
   },
   slots: {
+    ...layoutDirectionStyle('ltr'),
     flexDirection: 'row',
-    gap: 8
+    gap: 4,
+    justifyContent: 'space-between',
+    width: '100%'
   },
   slot: {
     borderRadius: 8,

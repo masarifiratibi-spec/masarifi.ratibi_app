@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { PermissionEducation } from '@/features/onboarding/PermissionEducation';
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { StyledText } from '@/components/StyledText';
+import { StateView } from '@/design-system/components/feedback/StateView';
 import type { PermissionState } from '@/domain/app-shell';
 import { routeForOnboardingProgress } from '@/features/onboarding/onboarding-progress';
 import { translate } from '@/localization/i18n';
@@ -66,6 +67,18 @@ export default function AndroidSmsPermissionRoute() {
       'skipped'
     );
     if (progress) router.replace(routeForOnboardingProgress(progress));
+  }
+
+  if (permission?.status === 'unavailable') {
+    return (
+      <StateView
+        actionLabel={translate('appShell.onboarding.continue')}
+        message={translate('tracking.service.unavailable')}
+        onAction={skip}
+        state="disabled"
+        title={translate('appShell.permission.status.unavailable')}
+      />
+    );
   }
 
   return (

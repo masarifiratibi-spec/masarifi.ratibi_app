@@ -16,6 +16,7 @@ import Svg, {
   Stop
 } from 'react-native-svg';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { AppIcon, IconBadge } from '@/design-system/icons';
@@ -121,7 +122,10 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
         <View
           style={[
             styles.selectorRow,
-            { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+            {
+              direction: 'ltr',
+              flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+            }
           ]}
         >
           <Selector
@@ -203,7 +207,10 @@ function AnalyticsHeader({
     <View
       style={[
         styles.header,
-        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+        {
+          direction: 'ltr',
+          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+        }
       ]}
     >
       {onBack ? (
@@ -259,7 +266,10 @@ function Selector({
       onPress={onPress}
       style={[
         styles.selector,
-        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+        {
+          direction: 'ltr',
+          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+        }
       ]}
     >
       <AppIcon
@@ -270,7 +280,6 @@ function Selector({
         decorative
       />
       <Text
-        numberOfLines={1}
         style={[
           styles.selectorText,
           {
@@ -472,7 +481,10 @@ function NetWorthCard({
       <View
         style={[
           styles.timeframeRow,
-          { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
         ]}
       >
         {timeframeOptions.map(([value, label]) => {
@@ -736,7 +748,10 @@ function SavingsRateCard({
       <View
         style={[
           styles.savingsTop,
-          { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
         ]}
       >
         <View style={styles.savingsCopy}>
@@ -746,7 +761,10 @@ function SavingsRateCard({
           <View
             style={[
               styles.savingsValueRow,
-              { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+              }
             ]}
           >
             <Text style={styles.savingsPercent}>
@@ -824,7 +842,10 @@ function BudgetCard({
       style={[
         styles.card,
         styles.navigationCard,
-        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+        {
+          direction: 'ltr',
+          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+        }
       ]}
     >
       <View style={styles.addCircle}>
@@ -899,7 +920,10 @@ function AssistantActions({
       <View
         style={[
           styles.assistantHeader,
-          { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
         ]}
       >
         <IconBadge
@@ -1092,6 +1116,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg
   },
   ltrCanvas: {
+    ...layoutDirectionStyle('ltr'),
     writingDirection: 'ltr',
     gap: spacing.xl,
     width: '100%'

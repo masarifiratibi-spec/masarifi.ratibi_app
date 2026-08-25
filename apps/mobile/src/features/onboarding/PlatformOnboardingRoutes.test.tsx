@@ -13,6 +13,7 @@ import { ConservativeCaptureDemo } from './ConservativeCaptureDemo';
 import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { renderWithProviders } from '@/test-utils/render';
+import { androidOnboarding } from '@/test-utils/app-shell-fixtures';
 
 const mockRedirect = jest.fn((_props: { href: string }) => null);
 
@@ -46,15 +47,26 @@ describe('platform onboarding routes', () => {
     });
   });
 
-  it('shows Android tracking before profile setup and requests permission only from the CTA', async () => {
+  it('shows Android tracking as unavailable and continues without requesting SMS access', async () => {
+    useAppShellStore.setState({ onboarding: androidOnboarding });
     renderWithProviders(<AndroidIntroRoute />);
     expect(screen.getByText('إعداد التتبع التلقائي')).toBeOnTheScreen();
     expect(screen.queryByText(/الراتب|ميزانية/)).toBeNull();
 
     renderWithProviders(<AndroidPermissionRoute />);
-    expect(screen.getByText('السماح بتتبع الرسائل')).toBeOnTheScreen();
-    fireEvent.press(screen.getByLabelText('تفعيل التتبع'));
-    await waitFor(() => expect(screen.getByText(/الإذن/)).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByText('الإذن غير متاح')).toBeOnTheScreen());
+    fireEvent.press(screen.getByLabelText('متابعة'));
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith('/(onboarding)/tracking-demo')
+    );
+    expect(useAppShellStore.getState().onboarding?.skippedSteps).toEqual(
+      expect.arrayContaining([
+        'permission_education',
+        'permission_request',
+        'keywords',
+        'preference'
+      ])
+    );
   });
 
   it('keeps iOS and conservative routes free of SMS permission actions', () => {

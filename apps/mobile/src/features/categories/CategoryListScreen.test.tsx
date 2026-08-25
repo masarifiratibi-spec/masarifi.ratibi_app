@@ -19,6 +19,8 @@ it('renders system hierarchy, favorites, search, and add action', () => {
   expect(
     screen.getByLabelText(translate('coreFinance.categories.add'))
   ).toBeTruthy();
+  expect(screen.getByText('إضافة فئة').props.numberOfLines).toBeUndefined();
+  expect(screen.getByText('إضافة مجموعة').props.numberOfLines).toBeUndefined();
 
   // Category rows render
   const rows = screen.getAllByTestId('category-row');

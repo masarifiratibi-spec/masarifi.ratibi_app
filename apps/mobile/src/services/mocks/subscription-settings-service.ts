@@ -11,6 +11,7 @@ import {
   type UserProfile,
   type UserProfileInput
 } from '@/domain/settings';
+import { isDemoModeEnabled } from '@/config/demo-mode';
 import {
   subscriptionOfferCatalogSchema,
   subscriptionOperationSchema,
@@ -27,9 +28,13 @@ import {
   type SubscriptionService
 } from '@/services/contracts/assistant-notifications-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
+import type { CapabilityProviderKind } from '@/services/contracts/capability-contract';
 import type { MutationResult } from '@/services/contracts/core-finance-service';
 import { resetLocalUserData } from '@/storage/local-data-reset';
 import { SubscriptionsRepository } from '@/storage/subscriptions-repository';
+import { createSettingsStorage } from '@/storage/settings-storage';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
+import { Platform } from 'react-native';
 
 type Repository = Pick<SubscriptionsRepository, 'getState' | 'saveState' | 'getOperation' | 'startOperation' | 'completeOperation'>;
 type Outcome = 'success' | 'failure' | 'cancelled';
@@ -275,38 +280,81 @@ export class SettingsServiceError extends Error {
 export function createMockSettingsService({
   now = Date.now,
   clearCurrentSession = async () => undefined,
-  deleteLocalData = async (operationId: string) => ({ deletedRows: 0, operationId })
+  deleteLocalData = async (operationId: string) => ({ deletedRows: 0, operationId }),
+  profileStorage,
+  registerForReset = false,
+  providerKind = 'mock',
+  initialProfile = defaultProfile(),
+  initialSessions = defaultSessions(now()),
+  securityEvents = () => defaultSecurityEvents(now()),
+  createPrivacyRequest = fixturePrivacyRequest
 }: {
   now?: () => number;
   clearCurrentSession?: () => void | Promise<void>;
   deleteLocalData?: (operationId: string) => Promise<LocalDataDeletionResult & { operationId: string }>;
+  profileStorage?: Pick<ReturnType<typeof createSettingsStorage>, 'loadProfile' | 'saveProfile'>;
+  registerForReset?: boolean;
+  providerKind?: CapabilityProviderKind;
+  initialProfile?: UserProfile;
+  initialSessions?: RepresentativeSession[];
+  securityEvents?: () => SecurityEvent[];
+  createPrivacyRequest?: (
+    kind: PrivacyRequest['kind'],
+    operationId: string,
+    requestedAt: number
+  ) => PrivacyRequest;
 } = {}): CapabilityProviderHandle<SettingsService> {
-  let profile = defaultProfile();
-  const sessions = new Map(defaultSessions(now()).map((session) => [session.id, session]));
+  let profile = userProfileSchema.parse(initialProfile);
+  let profileHydration: Promise<void> | null = null;
+  const ensureProfile = async () => {
+    if (!profileStorage) return;
+    profileHydration ??= profileStorage.loadProfile().then((stored) => {
+      if (stored) profile = stored;
+    });
+    await profileHydration;
+  };
+  const sessions = new Map(initialSessions.map((session) => [session.id, session]));
   const profileOps = new Map<string, MutationResult<UserProfile>>();
   const sessionOps = new Map<string, MutationResult<RepresentativeSession>>();
   const allSessionOps = new Map<string, MutationResult<RepresentativeSession[]>>();
   const privacyOps = new Map<string, MutationResult<PrivacyRequest>>();
   const deletionOps = new Map<string, MutationResult<LocalDataDeletionResult>>();
+  if (registerForReset)
+    registerRuntimeUserDataReset(() => {
+      profile = userProfileSchema.parse(initialProfile);
+      profileHydration = null;
+      profileOps.clear();
+      sessionOps.clear();
+      allSessionOps.clear();
+      privacyOps.clear();
+      deletionOps.clear();
+    });
 
   return {
     metadata: {
-      id: 'mock-settings',
+      id: providerKind === 'live' ? 'local-settings' : 'mock-settings',
       capability: settingsServiceCapability.capability,
       majorVersion: settingsServiceCapability.majorVersion,
-      kind: 'mock',
+      kind: providerKind,
       availability: 'available'
     },
     async getProfile() {
+      await ensureProfile();
       return profile;
     },
     async saveProfile(input: UserProfileInput, expectedVersion: number, operationId: string) {
+      await ensureProfile();
       const replay = profileOps.get(operationId);
       if (replay) return replay;
       const parsed = parseProfileInput(input);
       if (parsed.phone !== profile.phone || parsed.googleAccount !== profile.googleAccount) throw new SettingsServiceError('identity_owner');
       if (profile.version !== expectedVersion) throw new SettingsServiceError('conflict');
-      profile = userProfileSchema.parse({ ...parsed, version: profile.version + 1 });
+      const next = userProfileSchema.parse({
+        ...parsed,
+        version: profile.version + 1
+      });
+      await profileStorage?.saveProfile(next);
+      profile = next;
       const saved = result(profile, ['settings.profile', 'reports.live', 'assistant.context', 'notifications.policy']);
       profileOps.set(operationId, saved);
       return saved;
@@ -337,14 +385,14 @@ export function createMockSettingsService({
       return saved;
     },
     async listSecurityEvents(cursor?: string): Promise<Page<SecurityEvent>> {
-      const events = defaultSecurityEvents(now());
+      const events = securityEvents();
       const start = cursor ? Number(cursor) : 0;
       return { items: events.slice(start, start + 20), nextCursor: start + 20 < events.length ? String(start + 20) : null, total: events.length };
     },
     async requestPrivacyAction(kind: PrivacyRequest['kind'], operationId: string) {
       const replay = privacyOps.get(operationId);
       if (replay) return replay;
-      const request = privacyRequestSchema.parse({ id: `privacy-${operationId}`, operationId, kind, status: 'accepted', requestedAt: now(), updatedAt: now(), safeFailure: null });
+      const request = createPrivacyRequest(kind, operationId, now());
       const saved = result(request, [`settings.privacy-request.${kind}`]);
       privacyOps.set(operationId, saved);
       return saved;
@@ -360,7 +408,30 @@ export function createMockSettingsService({
   };
 }
 
-export const settingsService = createMockSettingsService({ deleteLocalData: resetLocalUserData });
+export function createProductionSettingsService() {
+  if (isDemoModeEnabled())
+    return createMockSettingsService({
+      deleteLocalData: resetLocalUserData,
+      registerForReset: true
+    });
+  return createMockSettingsService({
+    deleteLocalData: resetLocalUserData,
+    profileStorage:
+      Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+        ? createSettingsStorage()
+        : undefined,
+    registerForReset: true,
+    providerKind: 'live',
+    initialProfile: emptyLocalProfile(),
+    initialSessions: [],
+    securityEvents: () => [],
+    createPrivacyRequest: () => {
+      throw new SettingsServiceError('unavailable');
+    }
+  });
+}
+
+export const settingsService = createProductionSettingsService();
 
 function parseProfileInput(input: UserProfileInput) {
   try {
@@ -382,6 +453,37 @@ function defaultProfile(): UserProfile {
     timeZone: 'Asia/Riyadh',
     completion: ['identity', 'currency'],
     version: 1
+  });
+}
+
+function emptyLocalProfile(): UserProfile {
+  return userProfileSchema.parse({
+    name: null,
+    avatar: 'default',
+    phone: null,
+    googleAccount: null,
+    email: null,
+    country: 'SA',
+    currency: 'SAR',
+    timeZone: 'Asia/Riyadh',
+    completion: [],
+    version: 1
+  });
+}
+
+function fixturePrivacyRequest(
+  kind: PrivacyRequest['kind'],
+  operationId: string,
+  requestedAt: number
+): PrivacyRequest {
+  return privacyRequestSchema.parse({
+    id: `privacy-${operationId}`,
+    operationId,
+    kind,
+    status: 'accepted',
+    requestedAt,
+    updatedAt: requestedAt,
+    safeFailure: null
   });
 }
 

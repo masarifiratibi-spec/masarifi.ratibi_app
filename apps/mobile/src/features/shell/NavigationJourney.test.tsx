@@ -158,7 +158,7 @@ describe('navigation journey', () => {
 
     const reports = renderWithProviders(<ReportsRoute />);
     expect(
-      screen.getByText(translate('appShell.tabs.reports'))
+      screen.getByText(translate('reports.analytics.title'))
     ).toBeOnTheScreen();
     reports.unmount();
 

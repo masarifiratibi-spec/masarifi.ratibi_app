@@ -1,7 +1,15 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  PixelRatio,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { AppIcon, IconBadge } from '@/design-system/icons';
@@ -67,7 +75,10 @@ export function ReportDrillDownScreen() {
         <View
           style={[
             styles.headerRow,
-            { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+            {
+              direction: 'ltr',
+              flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+            }
           ]}
         >
           <IconBadge
@@ -163,6 +174,7 @@ function DrillDownRow({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const largeText = PixelRatio.getFontScale() >= 1.5;
   const label = reportBreakdownItemLabel(breakdownItem);
   const memberLabels = reportBreakdownMemberLabels(breakdownItem);
   const valueText = hidden
@@ -170,14 +182,20 @@ function DrillDownRow({
     : formatReportMoney(breakdownItem.value.value);
   return (
     <Pressable
+      testID={`report-drill-down-row-${index}`}
       accessibilityRole="button"
       accessibilityLabel={`${label}, ${valueText}, ${breakdownItem.transactionIds.length} ${translate('reports.drillDown.recordCount')}`}
       onPress={onPress}
       style={[
         styles.row,
         {
+          alignItems: largeText ? 'stretch' : 'center',
           borderColor: theme.colors.borders.subtle,
-          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          flexDirection: largeText
+            ? 'column'
+            : direction === 'rtl'
+              ? 'row-reverse'
+              : 'row'
         }
       ]}
     >
@@ -193,7 +211,7 @@ function DrillDownRow({
       </View>
       <View style={styles.rowCopy}>
         <Text
-          numberOfLines={1}
+          numberOfLines={largeText ? undefined : 1}
           style={[
             styles.rowTitle,
             {
@@ -205,7 +223,9 @@ function DrillDownRow({
           {label}
         </Text>
         <Text
-          numberOfLines={memberLabels.length ? 2 : 1}
+          numberOfLines={
+            largeText ? undefined : memberLabels.length ? 2 : 1
+          }
           style={[
             styles.rowMeta,
             {
@@ -219,7 +239,15 @@ function DrillDownRow({
             : `${breakdownItem.transactionIds.length} ${translate('reports.drillDown.recordCount')}`}
         </Text>
       </View>
-      <View style={styles.amountCopy}>
+      <View
+        testID={`report-drill-down-amount-${index}`}
+        style={[
+          styles.amountCopy,
+          largeText
+            ? { alignItems: direction === 'rtl' ? 'flex-start' : 'flex-end' }
+            : null
+        ]}
+      >
         <Text
           numberOfLines={1}
           style={[
@@ -292,6 +320,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs
   },
   row: {
+    ...layoutDirectionStyle('ltr'),
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: spacing.md,

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { DesignIcon } from '@/design-system/icons';
 import type { Category } from '@/domain/core-finance';
@@ -286,7 +287,6 @@ export function CategoryListScreen() {
                       writingDirection: direction
                     }
                   ]}
-                  numberOfLines={1}
                 >
                   {locale === 'ar' ? 'إضافة فئة' : 'Add Category'}
                 </Text>
@@ -322,7 +322,6 @@ export function CategoryListScreen() {
                       writingDirection: direction
                     }
                   ]}
-                  numberOfLines={1}
                 >
                   {locale === 'ar' ? 'إضافة مجموعة' : 'Add Group'}
                 </Text>
@@ -422,6 +421,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     minHeight: 46,
     paddingHorizontal: spacing.md
@@ -434,6 +434,7 @@ const styles = StyleSheet.create({
 
   // Quick actions
   quickActionsRow: {
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     marginTop: spacing.xs
   },

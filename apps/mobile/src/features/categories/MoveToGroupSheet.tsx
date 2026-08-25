@@ -8,6 +8,7 @@ import {
   View
 } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import type { Category } from '@/domain/core-finance';
@@ -95,7 +96,10 @@ export function MoveToGroupSheet({
             accessibilityRole="button"
             accessibilityLabel={translate('coreFinance.cancel')}
             onPress={onClose}
-            style={styles.closeBtn}
+            style={[
+              styles.closeBtn,
+              isRtl ? styles.closeBtnRtl : styles.closeBtnLtr
+            ]}
             hitSlop={8}
           >
             <DesignIcon
@@ -269,7 +273,7 @@ export function MoveToGroupSheet({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
   backdrop: {
     backgroundColor: 'rgba(6, 29, 25, 0.52)',
     flex: 1
@@ -308,10 +312,11 @@ const styles = StyleSheet.create({
     height: 36,
     justifyContent: 'center',
     position: 'absolute',
-    right: 0,
     top: 0,
     width: 36
   },
+  closeBtnLtr: { right: 0 },
+  closeBtnRtl: { left: 0 },
   emptyContainer: {
     alignItems: 'center',
     flex: 1,

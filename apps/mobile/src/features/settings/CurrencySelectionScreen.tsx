@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { CurrencyFlagIcon } from '@/design-system/components/currency/CurrencyFlagIcon';
 import { SelectionScreen } from '@/design-system/components/selection/SelectionScreen';
 import type { SelectionItem, SelectionItemRenderProps } from '@/design-system/components/selection/selection-types';
@@ -207,6 +208,7 @@ export function CurrencySelectionScreen({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

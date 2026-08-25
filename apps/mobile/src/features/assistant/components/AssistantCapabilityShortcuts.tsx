@@ -49,7 +49,10 @@ export function AssistantCapabilityShortcuts({
       <View
         style={[
           styles.row,
-          { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
         ]}
       >
         {capabilities.map((item) => (

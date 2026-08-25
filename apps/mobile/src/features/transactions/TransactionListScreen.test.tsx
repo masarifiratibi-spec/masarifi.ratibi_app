@@ -751,6 +751,18 @@ it('stacks both monthly summary values at 200% text', () => {
   expect(screen.getByTestId('transaction-summary-values')).toHaveStyle({
     flexDirection: 'column'
   });
+  expect(screen.getByTestId('transaction-filter-bar')).toHaveStyle({
+    alignItems: 'stretch',
+    flexDirection: 'column'
+  });
+  expect(screen.getByTestId('transaction-account-scope')).toHaveStyle({
+    height: 'auto',
+    minHeight: 52
+  });
+  expect(screen.getByTestId('transaction-period-control')).toHaveStyle({
+    height: 'auto',
+    minHeight: 52
+  });
   expect(
     screen
       .getAllByTestId(/^transaction-summary-(income|expense)$/)

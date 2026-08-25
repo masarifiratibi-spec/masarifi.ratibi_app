@@ -8,6 +8,7 @@ import {
   View
 } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { radius, spacing } from '@/design-system/tokens';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
@@ -230,6 +231,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   grid: {
+    ...layoutDirectionStyle('ltr'),
     flexWrap: 'wrap',
     gap: spacing.sm
   },

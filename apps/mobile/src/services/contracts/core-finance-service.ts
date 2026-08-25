@@ -16,7 +16,7 @@ export const coreFinanceServiceCapability: CapabilityContractMetadata = {
   capability: 'core-finance.records',
   majorVersion: 1,
   owner: 'core-finance',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'coreFinance.state.error'
 };
 
@@ -24,7 +24,7 @@ export const exchangeRateServiceCapability: CapabilityContractMetadata = {
   capability: 'core-finance.exchange-rate',
   majorVersion: 1,
   owner: 'core-finance',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'coreFinance.exchange.unavailable'
 };
 

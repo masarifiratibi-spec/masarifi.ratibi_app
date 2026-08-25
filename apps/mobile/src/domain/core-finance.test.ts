@@ -152,6 +152,18 @@ describe('search and filters', () => {
     ).toBe(false);
   });
 
+  it('hides deleted transactions by default and includes them only when requested', () => {
+    const deleted = transaction({ status: 'deleted' });
+
+    expect(matchesFilters(deleted, emptyTransactionFilters)).toBe(false);
+    expect(
+      matchesFilters(deleted, {
+        ...emptyTransactionFilters,
+        statuses: ['deleted']
+      })
+    ).toBe(true);
+  });
+
   it.each([
     ['OMR', true],
     ['SAR', false]

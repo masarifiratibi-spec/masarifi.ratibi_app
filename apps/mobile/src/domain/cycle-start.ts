@@ -46,7 +46,7 @@ export interface CycleDateRange {
 
 /**
  * Calculates the cycle date range for a given start day (1-28)
- * anchored around the current reference month.
+ * containing the reference date.
  *
  * For startDay = 1: Entire anchor month (e.g. Aug 1 - Aug 31).
  * For startDay > 1: From anchor month start day to next month (startDay - 1).
@@ -62,7 +62,9 @@ export function calculateCycleDateRange(
   );
 
   const year = referenceDate.getFullYear();
-  const month = referenceDate.getMonth(); // 0-indexed
+  const month =
+    referenceDate.getMonth() -
+    (referenceDate.getDate() < clampedDay ? 1 : 0);
 
   const startDate = new Date(year, month, clampedDay);
 

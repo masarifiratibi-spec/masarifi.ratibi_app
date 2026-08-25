@@ -21,13 +21,16 @@
       "bundleIdentifier": "com.masarifi.mobile"
     },
     "android": {
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1C3934"
       },
       "permissions": [
-        "android.permission.READ_SMS",
         "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_SMS"
       ],
       "package": "com.masarifi.mobile"
     },

@@ -1,12 +1,22 @@
 import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { PixelRatio } from 'react-native';
 
 import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
 import { renderWithQueryData } from '@/test-utils/render';
-import { translate } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
 import { TrackingStatusScreen } from './TrackingStatusScreen';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { defaultKeywordRules } from '@/services/mocks/default-keywords';
+import { automaticTrackingService } from '@/services/mocks/automatic-tracking-service';
+import type { TrackingStatusSnapshot } from '@/domain/automatic-tracking';
+
+function renderStatus(status: TrackingStatusSnapshot) {
+  jest.spyOn(automaticTrackingService, 'getStatus').mockResolvedValue(status);
+  return renderWithQueryData(<TrackingStatusScreen />, [
+    [automaticTrackingKeys.status, status]
+  ]);
+}
 
 describe('TrackingStatusScreen', () => {
   beforeEach(async () => {
@@ -14,25 +24,22 @@ describe('TrackingStatusScreen', () => {
     await storage.saveKeywords(defaultKeywordRules);
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   it('renders tracking status, how it works, and keyword chips with dynamic count', async () => {
-    renderWithQueryData(<TrackingStatusScreen />, [
-      [
-        automaticTrackingKeys.status,
-        {
-          platform: 'android',
-          mode: 'automatic_clear',
-          permissionStatus: 'granted',
-          serviceState: 'healthy',
-          lastDetectedAt: null,
-          lastSuccessfulTransactionId: null,
-          detectedThisMonth: 12,
-          reviewCount: 3,
-          activeKeywordCount: 22,
-          activeSenderCount: 5,
-          lastUpdatedAt: Date.now()
-        }
-      ]
-    ]);
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 12,
+      reviewCount: 3,
+      activeKeywordCount: 22,
+      activeSenderCount: 5,
+      lastUpdatedAt: Date.now()
+    });
     await act(async () => {});
 
     // 1. Header & Status
@@ -64,24 +71,19 @@ describe('TrackingStatusScreen', () => {
   });
 
   it('displays actionable permission warning when permission is not granted', async () => {
-    renderWithQueryData(<TrackingStatusScreen />, [
-      [
-        automaticTrackingKeys.status,
-        {
-          platform: 'android',
-          mode: 'automatic_clear',
-          permissionStatus: 'denied',
-          serviceState: 'healthy',
-          lastDetectedAt: null,
-          lastSuccessfulTransactionId: null,
-          detectedThisMonth: 0,
-          reviewCount: 0,
-          activeKeywordCount: 22,
-          activeSenderCount: 0,
-          lastUpdatedAt: Date.now()
-        }
-      ]
-    ]);
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'denied',
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 22,
+      activeSenderCount: 0,
+      lastUpdatedAt: Date.now()
+    });
     await act(async () => {});
 
     expect(
@@ -93,24 +95,19 @@ describe('TrackingStatusScreen', () => {
   });
 
   it('allows adding and removing custom keywords', async () => {
-    renderWithQueryData(<TrackingStatusScreen />, [
-      [
-        automaticTrackingKeys.status,
-        {
-          platform: 'android',
-          mode: 'automatic_clear',
-          permissionStatus: 'granted',
-          serviceState: 'healthy',
-          lastDetectedAt: null,
-          lastSuccessfulTransactionId: null,
-          detectedThisMonth: 0,
-          reviewCount: 0,
-          activeKeywordCount: 22,
-          activeSenderCount: 0,
-          lastUpdatedAt: Date.now()
-        }
-      ]
-    ]);
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 22,
+      activeSenderCount: 0,
+      lastUpdatedAt: Date.now()
+    });
     await act(async () => {});
 
     // Open add keyword draft input
@@ -137,24 +134,19 @@ describe('TrackingStatusScreen', () => {
   });
 
   it('allows restoring default keywords', async () => {
-    renderWithQueryData(<TrackingStatusScreen />, [
-      [
-        automaticTrackingKeys.status,
-        {
-          platform: 'android',
-          mode: 'automatic_clear',
-          permissionStatus: 'granted',
-          serviceState: 'healthy',
-          lastDetectedAt: null,
-          lastSuccessfulTransactionId: null,
-          detectedThisMonth: 0,
-          reviewCount: 0,
-          activeKeywordCount: 22,
-          activeSenderCount: 0,
-          lastUpdatedAt: Date.now()
-        }
-      ]
-    ]);
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 22,
+      activeSenderCount: 0,
+      lastUpdatedAt: Date.now()
+    });
     await act(async () => {});
 
     await waitFor(() => {
@@ -169,4 +161,31 @@ describe('TrackingStatusScreen', () => {
     expect(screen.getByText('Salary')).toBeOnTheScreen();
     expect(screen.getByText('راتب')).toBeOnTheScreen();
   });
+
+  it.each(['ar', 'en'] as const)(
+    'stacks the keyword header at 200%% text in %s',
+    async (locale) => {
+      jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+      changeLocale(locale);
+      renderStatus({
+        platform: 'android',
+        mode: 'automatic_clear',
+        permissionStatus: 'granted',
+        serviceState: 'healthy',
+        lastDetectedAt: null,
+        lastSuccessfulTransactionId: null,
+        detectedThisMonth: 12,
+        reviewCount: 3,
+        activeKeywordCount: 22,
+        activeSenderCount: 5,
+        lastUpdatedAt: Date.now()
+      });
+      await act(async () => {});
+
+      expect(screen.getByTestId('tracking-keyword-header')).toHaveStyle({
+        alignItems: 'stretch',
+        flexDirection: 'column'
+      });
+    }
+  );
 });

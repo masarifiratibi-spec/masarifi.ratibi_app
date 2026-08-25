@@ -60,6 +60,7 @@ export function TransactionDateField({
               ? theme.colors.interactions.quietPressed
               : theme.colors.surfaces.card,
             borderColor: theme.colors.borders.subtle,
+            direction: 'ltr',
             flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
             opacity: disabled ? 0.56 : 1
           }

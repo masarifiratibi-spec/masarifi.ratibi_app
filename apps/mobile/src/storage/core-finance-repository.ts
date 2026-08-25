@@ -36,6 +36,7 @@ export interface CoreFinanceSeed {
 }
 
 export class CoreFinanceRepository {
+  private readonly seed: CoreFinanceSeed;
   private accounts: Account[];
   private categories: Category[];
   private transactions: Transaction[];
@@ -49,12 +50,26 @@ export class CoreFinanceRepository {
   private replaceEmptyDefaultLedger: boolean;
 
   constructor(seed: CoreFinanceSeed = {}) {
+    this.seed = copy(seed);
     this.accounts = seed.accounts?.map(copy) ?? [];
     this.categories = seed.categories?.map(copy) ?? [];
     this.transactions = seed.transactions?.map(copy) ?? [];
     this.conflicts = seed.conflicts?.map(copy) ?? [];
     this.cleanupLegacyFixtures = seed.cleanupLegacyFixtures ?? false;
     this.replaceEmptyDefaultLedger = seed.replaceEmptyDefaultLedger ?? false;
+  }
+
+  reset(): void {
+    const seed = this.seed;
+    this.accounts = seed.accounts?.map(copy) ?? [];
+    this.categories = seed.categories?.map(copy) ?? [];
+    this.transactions = seed.transactions?.map(copy) ?? [];
+    this.conflicts = seed.conflicts?.map(copy) ?? [];
+    this.drafts.clear();
+    this.deletedPriorStatus.clear();
+    this.operationResults.clear();
+    this.batchOperationResults.clear();
+    this.sequence = 0;
   }
 
   async hydrate(): Promise<void> {
@@ -485,10 +500,15 @@ export class CoreFinanceRepository {
       if (existing) return copy(existing);
     }
     const value = transactionInputSchema.parse(input);
+    const current = id
+      ? this.transactions.find((item) => item.id === id)
+      : undefined;
     this.assertSelectable(
       value.accountId,
       value.categoryId,
-      value.destinationAccountId
+      value.destinationAccountId,
+      value.currencyCode,
+      current
     );
     const now = Date.now();
     if (id) {
@@ -536,7 +556,8 @@ export class CoreFinanceRepository {
       this.assertSelectable(
         value.accountId,
         value.categoryId,
-        value.destinationAccountId
+        value.destinationAccountId,
+        value.currencyCode
       )
     );
     const previousLength = this.transactions.length;
@@ -763,12 +784,30 @@ export class CoreFinanceRepository {
   private assertSelectable(
     accountId: string,
     categoryId: string | null,
-    destinationId: string | null
+    destinationId: string | null,
+    currencyCode: string,
+    current?: Transaction
   ): void {
-    if (this.requireAccount(accountId).status !== 'active')
+    const preservesLegacyBoundary = Boolean(
+      current &&
+        current.accountId === accountId &&
+        current.destinationAccountId === destinationId &&
+        current.currencyCode === currencyCode
+    );
+    const account = this.requireAccount(accountId);
+    if (account.status !== 'active')
       throw new CoreFinanceError('archived');
-    if (destinationId && this.requireAccount(destinationId).status !== 'active')
-      throw new CoreFinanceError('archived');
+    if (account.currencyCode !== currencyCode && !preservesLegacyBoundary)
+      throw new CoreFinanceError('validation');
+    if (destinationId) {
+      const destination = this.requireAccount(destinationId);
+      if (destination.status !== 'active') throw new CoreFinanceError('archived');
+      if (
+        destination.currencyCode !== currencyCode &&
+        !preservesLegacyBoundary
+      )
+        throw new CoreFinanceError('validation');
+    }
     if (categoryId && this.requireCategory(categoryId).status !== 'active')
       throw new CoreFinanceError('archived');
   }

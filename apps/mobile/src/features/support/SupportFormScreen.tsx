@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StyledText } from '@/components/StyledText';
 import { DesignIcon, type DesignIconName } from '@/design-system/icons';
@@ -497,6 +498,7 @@ const styles = StyleSheet.create({
   },
   labelRow: {
     alignItems: 'center',
+    ...layoutDirectionStyle('ltr'),
     gap: 2
   },
   asterisk: {
@@ -504,6 +506,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   chipsContainer: {
+    ...layoutDirectionStyle('ltr'),
     flexWrap: 'wrap',
     gap: 10
   },
@@ -543,6 +546,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: 1,
+    ...layoutDirectionStyle('ltr'),
     gap: 8,
     justifyContent: 'space-between',
     paddingHorizontal: 12,

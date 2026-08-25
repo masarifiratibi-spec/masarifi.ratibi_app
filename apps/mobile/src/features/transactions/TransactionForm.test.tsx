@@ -8,6 +8,7 @@ import {
   within
 } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
 
 import { lightThemeColors } from '@/design-system/tokens';
 import {
@@ -96,6 +97,71 @@ it('uses compact controlled account and category pickers', async () => {
   expect(screen.queryByText(fixtureAccounts[1].name)).toBeNull();
   expect(screen.getAllByText(fixtureCategories[0].labelEn)).toHaveLength(1);
   expect(screen.queryByText(fixtureCategories[7].labelEn)).toBeNull();
+});
+
+it('passes the source currency to the destination picker for a new transfer', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByTestId('transaction-edit-type-transfer'));
+  const destination = translate('coreFinance.form.destination');
+  fireEvent.press(screen.getByLabelText(`${destination}, ${destination}`));
+
+  await waitFor(() =>
+    expect(router.push).toHaveBeenCalledWith(
+      '/modals/account-picker?draft=manual&field=destinationAccountId&currencyCode=SAR'
+    )
+  );
+});
+
+it('keeps an existing cross-currency destination available while editing', async () => {
+  const transaction = {
+    ...fixtureTransactions[0],
+    type: 'transfer' as const,
+    accountId: 'account-bank',
+    destinationAccountId: 'account-usd',
+    currencyCode: 'SAR',
+    categoryId: null
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  const destination = translate('coreFinance.form.destination');
+  fireEvent.press(await screen.findByLabelText(`${destination}, Travel`));
+
+  expect(screen.getAllByText('Travel')).toHaveLength(2);
+  expect(screen.getByText('Wallet')).toBeTruthy();
+});
+
+it('clears an incompatible destination when the source account changes', async () => {
+  const transaction = {
+    ...fixtureTransactions[0],
+    type: 'transfer' as const,
+    accountId: 'account-bank',
+    destinationAccountId: 'account-wallet',
+    currencyCode: 'SAR',
+    categoryId: null
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Account, Daily account'));
+  fireEvent.press(screen.getByLabelText(/Travel/));
+
+  const destination = translate('coreFinance.form.destination');
+  expect(screen.getByLabelText(`${destination}, ${destination}`)).toBeTruthy();
 });
 
 it('uses the canonical category screen while preserving edit values', async () => {
@@ -355,14 +421,24 @@ it('saves notes and current metadata then returns to the originating screen', as
 it('closes immediately when the edit is unchanged', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
   const transaction = fixtureTransactions[1];
+  const preventRemove: {
+    current?: ReturnType<
+      typeof jest.mocked<typeof usePreventRemove>
+    >['mock']['calls'][number][1];
+  } = {};
+  jest.mocked(router.back).mockImplementation(() => {
+    preventRemove.current?.({ data: { action: { type: 'GO_BACK' } } });
+  });
   renderWithQueryData(<TransactionForm transaction={transaction} />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
     [coreFinanceKeys.categories(false), fixtureCategories]
   ]);
+  preventRemove.current = jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1];
 
   fireEvent.press(await screen.findByLabelText('Close'));
   expect(router.back).toHaveBeenCalledTimes(1);
   expect(alert).not.toHaveBeenCalled();
+  expect(coreFinanceService.discardDraft).not.toHaveBeenCalled();
 });
 
 it('confirms before discarding changed edit values without touching the add draft', async () => {
@@ -460,6 +536,42 @@ it('restores and saves the manual note and occurred-at date', async () => {
       expect.stringMatching(/^manual-/)
     )
   );
+});
+
+it('bypasses the draft guard after creating a transaction', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  jest.mocked(router.replace).mockImplementation(() => {
+    jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1]({
+      data: { action: { type: 'REPLACE' } }
+    });
+  });
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValueOnce({
+    id: MANUAL_TRANSACTION_DRAFT_ID,
+    transactionType: 'expense',
+    amountText: '25',
+    accountId: fixtureAccounts[0].id,
+    destinationAccountId: null,
+    categoryId: fixtureCategories[0].id,
+    merchant: 'Lunch',
+    notes: null,
+    occurredAt: 1_723_939_200_000,
+    status: 'editing',
+    updatedAt: 1_723_939_200_000
+  });
+  jest.mocked(coreFinanceService.createTransaction).mockResolvedValue({
+    value: fixtureTransactions[0],
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Save transaction'));
+
+  await waitFor(() => expect(router.replace).toHaveBeenCalled());
+  expect(coreFinanceService.createTransaction).toHaveBeenCalledTimes(1);
+  expect(alert).not.toHaveBeenCalled();
 });
 
 it('shows only three equal transaction types in edit mode', async () => {

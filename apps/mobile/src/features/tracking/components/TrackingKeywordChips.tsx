@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  PixelRatio,
   Pressable,
   StyleSheet,
   TextInput,
@@ -32,6 +33,7 @@ export function TrackingKeywordChips({
 }: TrackingKeywordChipsProps) {
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const largeText = PixelRatio.getFontScale() >= 1.5;
 
   const [languageFilter, setLanguageFilter] = useState<'all' | 'ar' | 'en'>('all');
   const [isAdding, setIsAdding] = useState(false);
@@ -90,7 +92,13 @@ export function TrackingKeywordChips({
   return (
     <View style={[styles.container, { direction }]}>
       {/* Header: START = Title (Count) [Right in RTL, Left in LTR], END = Actions [Left in RTL, Right in LTR] */}
-      <View style={styles.headerRow}>
+      <View
+        testID="tracking-keyword-header"
+        style={[
+          styles.headerRow,
+          largeText ? { alignItems: 'stretch', flexDirection: 'column' } : null
+        ]}
+      >
         {/* START: Title */}
         <StyledText
           variant="subtitle"

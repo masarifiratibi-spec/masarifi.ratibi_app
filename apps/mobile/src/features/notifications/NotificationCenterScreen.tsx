@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import type { NotificationEvent, NotificationListQuery, NotificationTarget } from '@/domain/notifications';
@@ -39,6 +39,7 @@ const views: readonly { labelKey: string; query: NotificationListQuery }[] = [
 
 export function NotificationCenterScreen() {
   const theme = useTheme();
+  const largeText = PixelRatio.getFontScale() >= 1.5;
   const [viewIndex, setViewIndex] = useState(0);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NotificationEvent | null>(null);
@@ -58,7 +59,13 @@ export function NotificationCenterScreen() {
 
   const listHeader = (
     <View style={styles.stack}>
-      <View style={styles.header}>
+      <View
+        testID="notification-center-header"
+        style={[
+          styles.header,
+          largeText ? { alignItems: 'stretch', flexDirection: 'column' } : null
+        ]}
+      >
         <StyledText variant="title">appShell.shell.notifications</StyledText>
         <ActionButton
           label={t('notifications.preferences.title')}

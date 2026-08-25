@@ -30,7 +30,7 @@ export const financialPlanningServiceCapability: CapabilityContractMetadata = {
   capability: 'financial-planning.records',
   majorVersion: 1,
   owner: 'financial-planning',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'planning.state.error'
 };
 

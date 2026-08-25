@@ -3,3 +3,10 @@ export function isDemoModeEnabled(
 ): boolean {
   return value === '1';
 }
+
+export function isFixtureModeEnabled(
+  nodeEnv = process.env.NODE_ENV,
+  demoMode = isDemoModeEnabled()
+): boolean {
+  return nodeEnv === 'test' || demoMode;
+}

@@ -22,6 +22,7 @@ import type {
 } from '@/services/contracts/core-finance-service';
 import { coreFinanceServiceCapability } from '@/services/contracts/core-finance-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
+import type { CapabilityProviderKind } from '@/services/contracts/capability-contract';
 import {
   createDefaultAccount,
   createDefaultCategories,
@@ -31,7 +32,12 @@ import {
   legacyFixtureTransactions
 } from '@/domain/core-finance-seeds';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
-import { createMockExchangeRateService } from './exchange-rate-service';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
+import {
+  createMockExchangeRateService,
+  createProductionExchangeRateService
+} from './exchange-rate-service';
+import type { ExchangeRateService } from '@/services/contracts/core-finance-service';
 
 const scopes = {
   account: (id: string) => [
@@ -58,15 +64,29 @@ const derivedScopes = ['reports.live', 'assistant.context'] as const;
 
 export function createMockCoreFinanceService(
   repository = new CoreFinanceRepository(),
-  persistent = false
+  {
+    persistent = false,
+    registerForReset = false,
+    rates = createMockExchangeRateService(),
+    providerKind = 'mock'
+  }: {
+    persistent?: boolean;
+    registerForReset?: boolean;
+    rates?: ExchangeRateService;
+    providerKind?: CapabilityProviderKind;
+  } = {}
 ): CapabilityProviderHandle<CoreFinanceService> {
-  const rates = createMockExchangeRateService();
   let hydration: Promise<void> | null = null;
   const ensureReady = () => {
     if (!persistent) return Promise.resolve();
     hydration ??= repository.hydrate();
     return hydration;
   };
+  if (registerForReset)
+    registerRuntimeUserDataReset(() => {
+      repository.reset();
+      hydration = null;
+    });
   const read = async <T>(query: () => T | Promise<T>): Promise<T> => {
     await ensureReady();
     return query();
@@ -83,10 +103,10 @@ export function createMockCoreFinanceService(
   };
   return {
     metadata: {
-      id: 'mock-core-finance',
+      id: providerKind === 'live' ? 'local-core-finance' : 'mock-core-finance',
       capability: coreFinanceServiceCapability.capability,
       majorVersion: coreFinanceServiceCapability.majorVersion,
-      kind: 'mock',
+      kind: providerKind,
       availability: 'available'
     },
     async getHomeSummary(
@@ -106,7 +126,7 @@ export function createMockCoreFinanceService(
       let totalBalanceMinor = 0;
       for (const account of accounts) {
         const originalMinor = repository.accountBalance(account.id);
-        const rate = await rates.getRate(profileCurrency, account.currencyCode);
+        const rate = await rates.getRate(account.currencyCode, profileCurrency);
         if (rate.rate === null || rate.asOf === null) {
           excludedAccountIds.push(account.id);
           continue;
@@ -126,8 +146,11 @@ export function createMockCoreFinanceService(
       const periodTransactions = transactions.filter((transaction) =>
         matchesFilters(transaction, filters)
       );
+      const comparableTransactions = periodTransactions.filter(
+        (transaction) => transaction.currencyCode === profileCurrency
+      );
       const projections = projectTransactionEffects(transactions, null);
-      const periodTotals = periodTransactions.reduce(
+      const periodTotals = comparableTransactions.reduce(
         (totals, transaction) => {
           const confirmed = projections.get(transaction.id)!.confirmed;
           return {
@@ -142,7 +165,8 @@ export function createMockCoreFinanceService(
         currencyCode: profileCurrency,
         isEstimated:
           components.some((item) => item.currencyCode !== profileCurrency) ||
-          excludedAccountIds.length > 0,
+          excludedAccountIds.length > 0 ||
+          comparableTransactions.length !== periodTransactions.length,
         components,
         excludedAccountIds,
         periodIncomeMinor: periodTotals.incomeMinor,
@@ -161,7 +185,8 @@ export function createMockCoreFinanceService(
         dataState:
           accounts.length === 0 && transactions.length === 0
             ? 'empty'
-            : excludedAccountIds.length
+            : excludedAccountIds.length ||
+                comparableTransactions.length !== periodTransactions.length
               ? 'partial'
               : 'ready'
       };
@@ -339,13 +364,19 @@ export function createSeededCoreFinanceService() {
       categories: createDefaultCategories(),
       transactions: legacyFixtureTransactions
     }),
-    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+    { persistent: Platform.OS !== 'web' && process.env.NODE_ENV !== 'test' }
   );
 }
 
 export function createProductionCoreFinanceService() {
   if (isDemoModeEnabled()) {
-    return createDemoCoreFinanceService();
+    return createMockCoreFinanceService(
+      createDemoCoreFinanceRepository(),
+      {
+        persistent: Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
+        registerForReset: true
+      }
+    );
   }
   return createMockCoreFinanceService(
     new CoreFinanceRepository({
@@ -353,20 +384,29 @@ export function createProductionCoreFinanceService() {
       categories: createDefaultCategories(),
       cleanupLegacyFixtures: true
     }),
-    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+    {
+      persistent: Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
+      registerForReset: true,
+      rates: createProductionExchangeRateService(),
+      providerKind: 'live'
+    }
   );
 }
 
 export function createDemoCoreFinanceService() {
   return createMockCoreFinanceService(
-    new CoreFinanceRepository({
-      accounts: createDemoAccounts(),
-      categories: createDefaultCategories(),
-      transactions: createDemoTransactions(),
-      replaceEmptyDefaultLedger: true
-    }),
-    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+    createDemoCoreFinanceRepository(),
+    { persistent: Platform.OS !== 'web' && process.env.NODE_ENV !== 'test' }
   );
+}
+
+function createDemoCoreFinanceRepository() {
+  return new CoreFinanceRepository({
+    accounts: createDemoAccounts(),
+    categories: createDefaultCategories(),
+    transactions: createDemoTransactions(),
+    replaceEmptyDefaultLedger: true
+  });
 }
 
 export const coreFinanceService = createProductionCoreFinanceService();

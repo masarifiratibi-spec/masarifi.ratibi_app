@@ -15,6 +15,8 @@ import type { ImportRecord } from "@/types/admin";
 
 export default function ImportsPage() {
   const role = useSimulatedRole();
+  const { locale } = useLocale();
+  const copy = importsCopy[locale];
   const canRetry = hasPermission(role, "imports.failures.manage");
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("");
@@ -31,9 +33,6 @@ export default function ImportsPage() {
   if (imports.isPending) return <div className="page"><div className="state-box" role="status">جاري تحميل بيانات الاستيراد…</div></div>;
   if (imports.isError) return <div className="page"><div className="state-box error" role="alert">تعذر تحميل بيانات الاستيراد.</div></div>;
   const { failureTrend, items: filtered, metrics: importMetrics, processingTimes, sourceSuccess, sourceVolume: importSourceVolume } = imports.data;
-  
-  const { locale } = useLocale();
-  const copy = importsCopy[locale];
 
   const localizedMetrics = importMetrics.map(m => ({ ...m, label: copy.metrics[m.label as keyof typeof copy.metrics] || m.label }));
   const localizedVolume = importSourceVolume.map(v => ({ ...v, name: copy.sources[v.name as keyof typeof copy.sources] || v.name }));

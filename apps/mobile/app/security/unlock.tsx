@@ -12,6 +12,9 @@ export default function UnlockRoute() {
   const pinCredential = useAppShellStore((state) => state.pinCredential);
   const recordFailedUnlock = useAppShellStore((state) => state.recordFailedUnlock);
   const unlock = useAppShellStore((state) => state.unlock);
+  const configurePrivacyLock = useAppShellStore(
+    (state) => state.configurePrivacyLock
+  );
   return (
     <UnlockScreen
       biometricEnabled={privacyLock?.biometricStatus === 'enabled'}
@@ -20,6 +23,7 @@ export default function UnlockRoute() {
       lockedUntil={privacyLock?.lockedUntil}
       onForgotPin={() => router.push('/security/pin/forgot')}
       onInvalidPin={() => void recordFailedUnlock(Date.now())}
+      onCredentialUpgrade={(hash) => configurePrivacyLock(hash)}
       onUnlock={async () => {
         await unlock();
         router.replace(resolveEntryRoute(useAppShellStore.getState()));

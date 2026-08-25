@@ -1,5 +1,6 @@
 import { FinancialPlanningError } from '@/domain/financial-planning';
 import { resolveReportPeriod } from '@/domain/reports';
+import { Platform } from 'react-native';
 import {
   createProductionFinancialPlanningService,
   createSeededFinancialPlanningService
@@ -9,10 +10,33 @@ import {
   fixtureCategoryBudget,
   fixtureGoal,
   fixtureObligation,
-  fixtureSalaryProfile
+  fixtureSalaryProfile,
+  fixtureSalaryReceipt
 } from './financial-planning-fixtures';
 
-afterEach(() => jest.restoreAllMocks());
+const mockPlanningRows = new Map<string, unknown[]>();
+const mockPlanningDatabase = {
+  execAsync: jest.fn(async () => undefined),
+  runAsync: jest.fn(async () => ({})),
+  getAllAsync: jest.fn(async (sql: string) => {
+    const table = [...mockPlanningRows.keys()].find((name) => sql.includes(name));
+    return table
+      ? mockPlanningRows.get(table)!.map((row) => ({ payload: JSON.stringify(row) }))
+      : [];
+  })
+};
+
+jest.mock('@/storage/database', () => ({
+  openDatabase: jest.fn(async () => mockPlanningDatabase),
+  runExclusiveDatabaseTransaction: jest.fn(async (_database, task) =>
+    task(mockPlanningDatabase)
+  )
+}));
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  mockPlanningRows.clear();
+});
 
 it('seeds the production planning provider only in client demo mode', async () => {
   const previous = process.env.EXPO_PUBLIC_DEMO_MODE;
@@ -43,6 +67,32 @@ it('seeds the production planning provider only in client demo mode', async () =
   } finally {
     if (previous === undefined) delete process.env.EXPO_PUBLIC_DEMO_MODE;
     else process.env.EXPO_PUBLIC_DEMO_MODE = previous;
+  }
+});
+
+it('keeps current demo salary dates isolated from stale native persistence', async () => {
+  const previousDemoMode = process.env.EXPO_PUBLIC_DEMO_MODE;
+  const previousNodeEnv = process.env.NODE_ENV;
+  jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 24, 12));
+  jest.replaceProperty(Platform, 'OS', 'android');
+  mockPlanningRows.set('planning_salary_profiles', [fixtureSalaryProfile]);
+  mockPlanningRows.set('planning_salary_receipts', [fixtureSalaryReceipt]);
+
+  try {
+    process.env.EXPO_PUBLIC_DEMO_MODE = '1';
+    process.env.NODE_ENV = 'development';
+    const cycle = await createProductionFinancialPlanningService().getSalaryOverview(
+      { today: '2026-08-24', timeZone: 'Asia/Riyadh' }
+    );
+
+    expect(cycle.projectedNextSalaryDate).toBe('2026-09-01');
+    expect(cycle.daysRemaining).toBe(8);
+  } finally {
+    if (previousDemoMode === undefined)
+      delete process.env.EXPO_PUBLIC_DEMO_MODE;
+    else process.env.EXPO_PUBLIC_DEMO_MODE = previousDemoMode;
+    if (previousNodeEnv === undefined) Reflect.deleteProperty(process.env, 'NODE_ENV');
+    else process.env.NODE_ENV = previousNodeEnv;
   }
 });
 
@@ -192,6 +242,49 @@ it('keeps previews side-effect free and confirms with operation IDs', async () =
       'op-stale'
     )
   ).rejects.toThrow(FinancialPlanningError);
+});
+
+it('settles only the current outstanding amount from a stored preview', async () => {
+  jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-03-04T12:00:00Z').getTime());
+  const service = createSeededFinancialPlanningService();
+
+  const preview = await service.previewEarlySettlement(fixtureObligation.id);
+  const settled = await service.confirmEarlySettlement(
+    preview.previewId,
+    'early-settlement-1'
+  );
+
+  expect(preview.settlementMinor).toBe(48_000_00);
+  expect(settled.value.payment).toMatchObject({
+    amountMinor: preview.settlementMinor,
+    paidDate: '2026-03-04',
+    case: 'settlement'
+  });
+  await expect(
+    service.confirmEarlySettlement('settlement-forged', 'forged')
+  ).rejects.toThrow(FinancialPlanningError);
+});
+
+it('rejects early settlement when the outstanding balance is unavailable', async () => {
+  const service = createSeededFinancialPlanningService();
+  const created = await service.createObligation(
+    {
+      direction: 'payable',
+      type: 'custom',
+      scheduleKind: 'open_ended',
+      title: 'Open-ended debt',
+      currencyCode: 'SAR',
+      contractedTotalMinor: null
+    },
+    'open-ended-obligation'
+  );
+
+  await expect(
+    service.previewEarlySettlement(created.value.id)
+  ).rejects.toMatchObject({ code: 'validation' });
+  expect((await service.getObligation(created.value.id)).obligation.status).toBe(
+    'active'
+  );
 });
 
 it('keeps savings movements tracking-only', async () => {

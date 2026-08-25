@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
+import { PixelRatio } from 'react-native';
 
 import { changeLocale } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
@@ -22,6 +23,8 @@ describe('CycleStartDaySelectionScreen', () => {
       direction: 'ltr'
     });
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   it('renders days 1st through 28th in a grid', () => {
     renderWithProviders(<CycleStartDaySelectionScreen />);
@@ -55,4 +58,18 @@ describe('CycleStartDaySelectionScreen', () => {
     // Global monthStartDay remains untouched
     expect(usePreferenceStore.getState().monthStartDay).toBe(1);
   });
+
+  it.each(['ar', 'en'] as const)(
+    'uses two columns and wrapping ranges at 200%% text in %s',
+    (locale) => {
+      jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+      changeLocale(locale);
+      renderWithProviders(<CycleStartDaySelectionScreen />);
+
+      expect(screen.getByTestId('selection-grid-row-0').props.children).toHaveLength(2);
+      expect(
+        screen.getByTestId('cycle-start-range-1').props.numberOfLines
+      ).toBeUndefined();
+    }
+  );
 });

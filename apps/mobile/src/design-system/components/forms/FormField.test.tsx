@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
+import { changeLocale } from '@/localization/i18n';
 import { FormField } from './FormField';
 
 describe('FormField', () => {
@@ -32,4 +33,36 @@ describe('FormField', () => {
     fireEvent.changeText(input, '250');
     expect(input.props.value).toBe('250');
   });
+
+  it.each([
+    ['ar', 'rtl'],
+    ['en', 'ltr']
+  ] as const)(
+    'keeps numeric values LTR and localized text %s in %s',
+    (locale, direction) => {
+      changeLocale(locale);
+      const screen = renderWithProviders(
+        <>
+          <FormField
+            label="Amount"
+            value="1,250.00"
+            onChangeText={jest.fn()}
+            variant="amount"
+          />
+          <FormField
+            label="Name"
+            value="Sample"
+            onChangeText={jest.fn()}
+          />
+        </>
+      );
+
+      expect(screen.getByLabelText('Amount')).toHaveStyle({
+        writingDirection: 'ltr'
+      });
+      expect(screen.getByLabelText('Name')).toHaveStyle({
+        writingDirection: direction
+      });
+    }
+  );
 });

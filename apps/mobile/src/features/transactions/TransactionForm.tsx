@@ -135,7 +135,10 @@ export function TransactionForm({
     () => coreFinanceService.discardDraft(MANUAL_TRANSACTION_DRAFT_ID),
     []
   );
-  const requestClose = useTransactionDraftGuard({ meaningful, discard });
+  const { requestClose, leaveAfterSave } = useTransactionDraftGuard({
+    meaningful: !transaction && meaningful,
+    discard
+  });
   const sourceAccountId = accountId || accounts.data?.[0]?.id;
   const resolvedCategoryId = categoryId || categories.data?.[0]?.id || '';
   const selectedAccount = accounts.data?.find(
@@ -253,7 +256,8 @@ export function TransactionForm({
       await invalidateCoreFinanceScopes(client, mutation.affectedScopes);
       if (!transaction) await discard();
       if (transaction && router.canGoBack()) router.back();
-      else router.replace('/(tabs)/transactions');
+      else if (transaction) router.replace('/(tabs)/transactions');
+      else leaveAfterSave(() => router.replace('/(tabs)/transactions'));
     } catch (caught) {
       setError(
         caught instanceof CoreFinanceError
@@ -296,6 +300,9 @@ export function TransactionForm({
           onDismiss={() => setPicker(null)}
         >
           <AccountPicker
+            currencyCode={
+              picker === 'destination' ? selectedCurrencyCode : undefined
+            }
             excludedIds={
               picker === 'destination' && sourceAccountId
                 ? [sourceAccountId]
@@ -307,7 +314,12 @@ export function TransactionForm({
             onSelect={(account) => {
               if (picker === 'account') {
                 setAccountId(account.id);
-                if (destinationAccountId === account.id) setDestination('');
+                if (
+                  destinationAccountId &&
+                  (destinationAccountId === account.id ||
+                    selectedDestination?.currencyCode !== account.currencyCode)
+                )
+                  setDestination('');
               } else if (account.id !== sourceAccountId) {
                 setDestination(account.id);
               }
@@ -345,6 +357,10 @@ export function TransactionForm({
     router.push(
       `/modals/account-picker?draft=manual&field=${
         target === 'account' ? 'accountId' : 'destinationAccountId'
+      }${
+        target === 'destination'
+          ? `&currencyCode=${encodeURIComponent(selectedCurrencyCode)}`
+          : ''
       }`
     );
   };
@@ -413,7 +429,10 @@ export function TransactionForm({
             testID="transaction-edit-type-selector"
             style={[
               styles.typeSelector,
-              { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+              }
             ]}
           >
             {editSupportedTypes.map((item) => {
@@ -682,6 +701,7 @@ function TransactionPickerCard({
               ? theme.colors.interactions.quietPressed
               : theme.colors.surfaces.card,
             borderColor: theme.colors.borders.subtle,
+            direction: 'ltr',
             flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
             opacity: disabled ? 0.56 : 1
           }

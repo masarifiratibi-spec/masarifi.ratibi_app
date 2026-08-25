@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
+import { PixelRatio } from 'react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import { AssistantConversationView } from './AssistantConversationView';
@@ -9,6 +10,8 @@ describe('AssistantConversationView', () => {
   beforeEach(() => {
     changeLocale('ar');
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   const mockResponse: AssistantResponse = {
     id: 'response-1',
@@ -89,4 +92,28 @@ describe('AssistantConversationView', () => {
 
     expect(screen.getByTestId('assistant-thinking-indicator')).toBeTruthy();
   });
+
+  it.each(['ar', 'en'] as const)(
+    'stacks the conversation banner at 200%% text in %s',
+    (locale) => {
+      jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+      changeLocale(locale);
+      renderWithProviders(
+        <AssistantConversationView
+          conversationId="conversation-1"
+          responses={[]}
+          onSendMessage={jest.fn()}
+        />
+      );
+
+      expect(screen.getByTestId('assistant-header-banner')).toHaveStyle({
+        alignItems: 'stretch',
+        flexDirection: 'column'
+      });
+      expect(
+        screen.getByText(translate('assistant.chat.banner.subtitle')).props
+          .numberOfLines
+      ).toBeUndefined();
+    }
+  );
 });

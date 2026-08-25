@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +11,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
@@ -35,6 +35,7 @@ import { CardEducationCard } from './CardEducationCard';
 import { CurrencyPickerSheet } from './CurrencyPickerSheet';
 import { CurrencyRow } from './CurrencyRow';
 import { colorTokens } from '@/design-system/tokens';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 
 export function AccountForm({
   account,
@@ -49,6 +50,7 @@ export function AccountForm({
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const locale = usePreferenceStore((state) => state.locale);
+  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const isRtl = direction === 'rtl';
 
   const t = (key: string) => translateDynamic(key, {}, locale);
@@ -58,7 +60,7 @@ export function AccountForm({
     account?.type ?? initialType ?? 'bank'
   );
   const [currency, setCurrency] = useState(
-    account?.currencyCode ?? (locale === 'ar' ? 'EGP' : 'USD')
+    account?.currencyCode ?? baseCurrencyCode
   );
   const [balance, setBalance] = useState(
     account
@@ -71,7 +73,6 @@ export function AccountForm({
       : ''
   );
   const [lastFour, setLastFour] = useState(account?.lastFour ?? '');
-  const [dueDay, setDueDay] = useState('');
   const [isDefault, setDefault] = useState(account?.isDefault ?? false);
 
   const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
@@ -88,11 +89,15 @@ export function AccountForm({
   const dirty =
     name !== (account?.name ?? '') ||
     type !== (account?.type ?? initialType ?? 'bank') ||
-    currency !== (account?.currencyCode ?? (locale === 'ar' ? 'EGP' : 'USD')) ||
+    currency !== (account?.currencyCode ?? baseCurrencyCode) ||
     balance !==
       (account
         ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
         : '0') ||
+    creditLimit !==
+      (account?.creditLimitMinor
+        ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
+        : '') ||
     isDefault !== (account?.isDefault ?? false) ||
     lastFour !== (account?.lastFour ?? '');
 
@@ -112,6 +117,23 @@ export function AccountForm({
     setError(undefined);
     setErrorField(undefined);
   }, [account]);
+
+  const close = () => {
+    if (onBack) onBack();
+    else router.back();
+  };
+  const { requestClose: handleCancel, leaveAfterSave } =
+    useDraftNavigationGuard({
+      dirty,
+      discard: () => undefined,
+      close,
+      copy: {
+        title: translate('coreFinance.accounts.discardChanges'),
+        message: translate('coreFinance.accounts.discardChangesBody'),
+        keep: translate('coreFinance.accounts.keepEditing'),
+        discard: translate('coreFinance.accounts.discard')
+      }
+    });
 
   const handleSave = async () => {
     if (saving) return;
@@ -158,45 +180,13 @@ export function AccountForm({
         ? await coreFinanceService.updateAccount(account.id, input)
         : await coreFinanceService.createAccount(input);
       await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      router.replace('/accounts');
+      leaveAfterSave(() => router.replace('/accounts'));
     } catch {
       setError(translate('coreFinance.state.error'));
       setErrorField('form');
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    if (!dirty) {
-      if (onBack) {
-        onBack();
-      } else {
-        router.back();
-      }
-      return;
-    }
-    Alert.alert(
-      translate('coreFinance.accounts.discardChanges'),
-      translate('coreFinance.accounts.discardChangesBody'),
-      [
-        {
-          text: translate('coreFinance.accounts.keepEditing'),
-          style: 'cancel'
-        },
-        {
-          text: translate('coreFinance.accounts.discard'),
-          style: 'destructive',
-          onPress: () => {
-            if (onBack) {
-              onBack();
-            } else {
-              router.back();
-            }
-          }
-        }
-      ]
-    );
   };
 
   return (
@@ -360,13 +350,6 @@ export function AccountForm({
                 placeholder={t('common.zeroPlaceholder')}
               />
 
-              {/* Due Day of Month */}
-              <FormField
-                label={t('coreFinance.accounts.setup.dueDay')}
-                value={dueDay}
-                onChangeText={setDueDay}
-                placeholder={locale === 'ar' ? 'مثال: 25 من كل شهر' : 'e.g. 25th of month'}
-              />
             </>
           ) : null}
 
@@ -435,6 +418,7 @@ export function AccountForm({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

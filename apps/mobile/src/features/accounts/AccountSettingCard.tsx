@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { type AppIconName, DesignIcon } from '@/design-system/icons';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import { usePreferenceStore } from '@/state/preferences';
@@ -98,6 +99,7 @@ export function AccountSettingCard({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

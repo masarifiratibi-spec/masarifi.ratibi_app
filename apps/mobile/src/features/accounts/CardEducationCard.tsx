@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { radius, spacing } from '@/design-system/tokens';
 import { translateDynamic } from '@/localization/i18n';
@@ -73,6 +74,7 @@ export function CardEducationCard() {
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

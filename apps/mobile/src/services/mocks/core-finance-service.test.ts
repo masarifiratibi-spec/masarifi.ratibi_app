@@ -11,6 +11,7 @@ import {
   createMockCoreFinanceService,
   createProductionCoreFinanceService
 } from './core-finance-service';
+import { createMockExchangeRateService } from './exchange-rate-service';
 
 function service() {
   return createMockCoreFinanceService(
@@ -102,6 +103,42 @@ it('derives Home from accounts and eligible ledger records', async () => {
   expect(summary.periodExpenseMinor).toBeGreaterThan(0);
 });
 
+it('converts account balances toward the profile currency and excludes incomparable period totals', async () => {
+  const usdAccount = {
+    ...fixtureAccounts[2],
+    id: 'usd-only',
+    currencyCode: 'USD',
+    openingBalanceMinor: 100_00
+  };
+  const usdExpense = makeTransaction(90, {
+    id: 'usd-expense',
+    accountId: usdAccount.id,
+    currencyCode: 'USD',
+    amountMinor: 25_00,
+    type: 'expense'
+  });
+  const sut = createMockCoreFinanceService(
+    new CoreFinanceRepository({ accounts: [usdAccount], transactions: [usdExpense] }),
+    {
+      rates: createMockExchangeRateService([
+        {
+          baseCurrencyCode: 'USD',
+          quoteCurrencyCode: 'SAR',
+          rate: 3.75,
+          asOf: 1,
+          status: 'available'
+        }
+      ])
+    }
+  );
+
+  const summary = await sut.getHomeSummary('SAR');
+
+  expect(summary.totalBalanceMinor).toBe(28_125);
+  expect(summary.periodExpenseMinor).toBe(0);
+  expect(summary.dataState).toBe('partial');
+});
+
 it('filters Home period metrics and recent transactions through the shared ledger filters', async () => {
   const sut = service();
   const base = {
@@ -144,6 +181,32 @@ it('filters Home period metrics and recent transactions through the shared ledge
     'January lunch',
     'January salary'
   ]);
+});
+
+it('rejects transaction currencies that do not match their account boundary', async () => {
+  const sut = service();
+  const input = {
+    type: 'expense' as const,
+    amountMinor: 1_000,
+    currencyCode: 'USD',
+    accountId: 'account-bank',
+    categoryId: 'food',
+    title: 'Mismatched currency',
+    occurredAt: Date.UTC(2040, 0, 5)
+  };
+
+  await expect(sut.createTransaction(input)).rejects.toMatchObject({
+    code: 'validation'
+  });
+  await expect(
+    sut.createTransaction({
+      ...input,
+      type: 'transfer',
+      currencyCode: 'SAR',
+      categoryId: null,
+      destinationAccountId: 'account-usd'
+    })
+  ).rejects.toMatchObject({ code: 'validation' });
 });
 
 it('uses canonical confirmed effects for Home income and expense totals', async () => {

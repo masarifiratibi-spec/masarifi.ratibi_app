@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, Text } from 'react-native';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -160,6 +161,7 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     alignItems: 'center',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.xs,
     justifyContent: 'space-between'
   },

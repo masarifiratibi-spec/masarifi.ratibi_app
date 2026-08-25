@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
@@ -65,14 +66,19 @@ export function ProfileScreen() {
 
   const handleSave = () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('settings.profile.validation.email');
       return;
     }
 
     setError(null);
     save.mutate({
-      input: { ...profile.data, name, email, gender: selectedGender },
+      input: {
+        ...profile.data,
+        name,
+        email: trimmedEmail || null,
+        gender: selectedGender
+      },
       expectedVersion: profile.data.version,
       operationId: `settings-profile-${Date.now()}`
     });
@@ -81,7 +87,7 @@ export function ProfileScreen() {
   const handleGenderSelect = (gender: 'male' | 'female') => {
     setSelectedGender(gender);
     save.mutate({
-      input: { ...profile.data, name, email, gender },
+      input: { ...profile.data, name, email: email.trim() || null, gender },
       expectedVersion: profile.data.version,
       operationId: `settings-profile-gender-${Date.now()}`
     });
@@ -505,6 +511,7 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
+    ...layoutDirectionStyle('ltr'),
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

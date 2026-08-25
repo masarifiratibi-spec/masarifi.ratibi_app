@@ -1,6 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
 import { getCurrencyDetails } from '@/domain/currencies';
@@ -21,6 +22,7 @@ export function CurrencyRow({
   const direction = usePreferenceStore((state) => state.direction);
   const locale = usePreferenceStore((state) => state.locale);
   const isRtl = direction === 'rtl';
+  const largeText = PixelRatio.getFontScale() >= 1.5;
 
   const t = (key: string) => translateDynamic(key, {}, locale);
   const currency = getCurrencyDetails(currencyCode);
@@ -99,7 +101,7 @@ export function CurrencyRow({
                 writingDirection: direction
               }
             ]}
-            numberOfLines={1}
+            numberOfLines={largeText ? undefined : 1}
           >
             {name}
           </Text>
@@ -123,6 +125,7 @@ export function CurrencyRow({
 
 const styles = StyleSheet.create({
   physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

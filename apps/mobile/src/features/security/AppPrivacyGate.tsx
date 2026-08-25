@@ -25,6 +25,10 @@ export function AppPrivacyGate({
   const backgroundedAt = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!locked && backgroundedAt.current === null) setMasked(false);
+  }, [locked]);
+
+  useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'background' || state === 'inactive') {
         const firstBackgroundTransition = backgroundedAt.current === null;

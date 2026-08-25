@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,10 +10,12 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import type { Category } from '@/domain/core-finance';
 import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 import { currentLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
@@ -58,6 +59,23 @@ export function CategoryForm({
     setError(undefined);
   }, [category, locale]);
 
+  const doClose = () => {
+    if (onClose) onClose();
+    else router.back();
+  };
+  const { requestClose: handleCancel, leaveAfterSave } =
+    useDraftNavigationGuard({
+      dirty,
+      discard: () => undefined,
+      close: doClose,
+      copy: {
+        title: translate('coreFinance.categories.discardChanges'),
+        message: translate('coreFinance.categories.discardChangesBody'),
+        keep: translate('coreFinance.categories.keepEditing'),
+        discard: translate('coreFinance.categories.discard')
+      }
+    });
+
   const handleSave = async () => {
     if (saving) return;
     if (!name.trim()) {
@@ -92,45 +110,16 @@ export function CategoryForm({
         ? await coreFinanceService.updateCategory(category.id, input)
         : await coreFinanceService.createCategory(input);
       await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      if (onSuccess) {
-        onSuccess(result.value);
-      } else if (onClose) {
-        onClose();
-      } else {
-        router.replace('/categories');
-      }
+      leaveAfterSave(() => {
+        if (onSuccess) onSuccess(result.value);
+        else if (onClose) onClose();
+        else router.replace('/categories');
+      });
     } catch {
       setError(translate('coreFinance.state.error'));
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    const doClose = () => {
-      if (onClose) onClose();
-      else router.back();
-    };
-
-    if (!dirty) {
-      doClose();
-      return;
-    }
-    Alert.alert(
-      translate('coreFinance.categories.discardChanges'),
-      translate('coreFinance.categories.discardChangesBody'),
-      [
-        {
-          text: translate('coreFinance.categories.keepEditing'),
-          style: 'cancel'
-        },
-        {
-          text: translate('coreFinance.categories.discard'),
-          style: 'destructive',
-          onPress: doClose
-        }
-      ]
-    );
   };
 
   const emoji = resolveEmojiForKey(iconKey);
@@ -300,7 +289,7 @@ export function CategoryForm({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
   container: {
     gap: spacing.lg,
     paddingBottom: 48,

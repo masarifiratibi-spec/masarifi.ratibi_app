@@ -223,7 +223,10 @@ export function SalaryOverviewScreen() {
               <View
                 style={[
                   styles.nextRow,
-                  { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+                  {
+                    direction: 'ltr',
+                    flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+                  }
                 ]}
               >
                 <Text

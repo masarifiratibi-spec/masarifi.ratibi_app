@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { usePreferenceStore } from '@/state/preferences';
 import { spacing } from '@/design-system/tokens';
@@ -95,6 +96,7 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     alignSelf: 'flex-end',
+    ...layoutDirectionStyle('ltr'),
     gap: 4,
     marginTop: 2
   },

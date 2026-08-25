@@ -20,6 +20,12 @@ jest.mock('expo-local-authentication', () => ({
   isEnrolledAsync: jest.fn(),
   supportedAuthenticationTypesAsync: jest.fn()
 }));
+jest.mock('@/storage/local-data-reset', () => ({
+  resetLocalUserData: jest.fn(async (operationId: string) => ({
+    deletedRows: 0,
+    operationId
+  }))
+}));
 
 const hasHardware = jest.mocked(LocalAuthentication.hasHardwareAsync);
 const isEnrolled = jest.mocked(LocalAuthentication.isEnrolledAsync);
@@ -34,8 +40,8 @@ beforeEach(() => {
 
 describe('security journey', () => {
   it('covers PIN, biometrics, background mask, expiry precedence, reset, and sign-out', async () => {
-    const credential = createPinCredential('123456', '123456');
-    expect(credential).toMatchObject({ hash: 'pin:123456' });
+    const credential = await createPinCredential('123456', '123456');
+    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
     if (!credential.hash) return;
 
     await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
@@ -120,8 +126,8 @@ describe('security journey', () => {
     isEnrolled.mockResolvedValue(true);
     supportedTypes.mockResolvedValue([1]);
 
-    const credential = createPinCredential('123456', '123456');
-    expect(credential).toMatchObject({ hash: 'pin:123456' });
+    const credential = await createPinCredential('123456', '123456');
+    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
     if (!credential.hash) return;
     await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
 

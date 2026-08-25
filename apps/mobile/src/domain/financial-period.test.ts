@@ -18,6 +18,20 @@ describe('financial period boundaries', () => {
     });
   });
 
+  it('preserves minute-based time-zone offsets at local midnight', () => {
+    const period = buildFinancialPeriod({
+      timeZone: 'Asia/Kathmandu',
+      monthStartDay: 1,
+      preset: 'today',
+      anchorDate: '2026-08-22'
+    });
+
+    expect(period.startInstant).toBe(
+      Date.parse('2026-08-21T18:15:00.000Z')
+    );
+    expect(period.endInstant).toBe(Date.parse('2026-08-22T18:14:59.999Z'));
+  });
+
   it.each([
     ['three_months', '2025-11-01'],
     ['six_months', '2025-08-01'],

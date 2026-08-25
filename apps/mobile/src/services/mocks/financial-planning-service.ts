@@ -51,12 +51,15 @@ import type {
   SalaryProfileInput,
   SalaryReceiptConfirmation,
   SalaryReceiptOutcome,
+  EarlySettlementPreview,
   SavingsGoalDetail,
   SavingsGoalInput
 } from '@/services/contracts/financial-planning-service';
 import { financialPlanningServiceCapability } from '@/services/contracts/financial-planning-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
+import type { CapabilityProviderKind } from '@/services/contracts/capability-contract';
 import { FinancialPlanningRepository } from '@/storage/financial-planning-repository';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { coreFinanceService } from './core-finance-service';
 import { fixtureTransactions } from '@/test-utils/core-finance-fixtures';
 import {
@@ -70,7 +73,12 @@ export function createMockFinancialPlanningService(
   transactionReader: () => Promise<Transaction[]> = async () => [
     fixtureSalaryTransaction,
     ...fixtureTransactions
-  ]
+  ],
+  options: {
+    now?: () => number;
+    registerForReset?: boolean;
+    providerKind?: CapabilityProviderKind;
+  } = {}
 ): CapabilityProviderHandle<FinancialPlanningService> {
   let hydration: Promise<void> | null = null;
   const previews = new Map<string, unknown>();
@@ -79,6 +87,13 @@ export function createMockFinancialPlanningService(
     hydration ??= repository.hydrate();
     return hydration;
   };
+  const now = options.now ?? Date.now;
+  if (options.registerForReset)
+    registerRuntimeUserDataReset(() => {
+      repository.reset();
+      previews.clear();
+      hydration = null;
+    });
   const readTransactions = transactionReader;
   const persistIfNeeded = async () => {
     if (persistent) await repository.persistAll();
@@ -86,10 +101,13 @@ export function createMockFinancialPlanningService(
 
   return {
     metadata: {
-      id: 'mock-financial-planning',
+      id:
+        options.providerKind === 'live'
+          ? 'local-financial-planning'
+          : 'mock-financial-planning',
       capability: financialPlanningServiceCapability.capability,
       majorVersion: financialPlanningServiceCapability.majorVersion,
-      kind: 'mock',
+      kind: options.providerKind ?? 'mock',
       availability: 'available'
     },
     async getReportingSnapshot() {
@@ -231,9 +249,10 @@ export function createMockFinancialPlanningService(
     },
     async saveSalaryProfile(input: SalaryProfileInput, operationId: string) {
       await ensureReady();
+      const current = new Date(now());
       const nextExpectedDate = expectedDateForMonth(
-        new Date().getUTCFullYear(),
-        new Date().getUTCMonth() + 1,
+        current.getUTCFullYear(),
+        current.getUTCMonth() + 1,
         input.salaryDay
       );
       const value = repository.saveSalaryProfile(
@@ -268,7 +287,14 @@ export function createMockFinancialPlanningService(
         operationId
       );
       await persistIfNeeded();
-      return salaryOutcome(repository, receipt, operationId, input.timeZone);
+      return salaryOutcome(
+        repository,
+        receipt,
+        operationId,
+        await readTransactions(),
+        now(),
+        input.timeZone
+      );
     },
     async undoSalaryReceipt(
       receiptId: string,
@@ -278,7 +304,14 @@ export function createMockFinancialPlanningService(
       await ensureReady();
       const receipt = repository.undoSalaryReceipt(receiptId, operationId);
       await persistIfNeeded();
-      return salaryOutcome(repository, receipt, operationId, timeZone);
+      return salaryOutcome(
+        repository,
+        receipt,
+        operationId,
+        await readTransactions(),
+        now(),
+        timeZone
+      );
     },
     async getBudget(periodKey: string) {
       await ensureReady();
@@ -287,7 +320,7 @@ export function createMockFinancialPlanningService(
         ? budgetDetail(
             repository,
             budget,
-            '2026-01-15',
+            localDateFromTimestamp(now()),
             await readTransactions()
           )
         : null;
@@ -303,7 +336,7 @@ export function createMockFinancialPlanningService(
           budgetDetail(
             repository,
             budget,
-            localDateFromTimestamp(Date.now()),
+            localDateFromTimestamp(now()),
             transactions
           )
         );
@@ -313,7 +346,7 @@ export function createMockFinancialPlanningService(
       return budgetDetail(
         repository,
         repository.requireBudget(id),
-        localDateFromTimestamp(Date.now()),
+        localDateFromTimestamp(now()),
         await readTransactions()
       );
     },
@@ -339,7 +372,7 @@ export function createMockFinancialPlanningService(
             }
           : { periodKey },
         status: 'editing',
-        updatedAt: Date.now()
+        updatedAt: now()
       });
     },
     async saveBudget(input: BudgetInput, operationId: string) {
@@ -416,7 +449,7 @@ export function createMockFinancialPlanningService(
         throw new FinancialPlanningError('validation');
       }
       validateCategoryBudgets(repository.requireBudget(input.budgetId), next);
-      const previewId = `budget-move-${Date.now()}`;
+      const previewId = `budget-move-${now()}`;
       const preview = { previewId, budgetId: input.budgetId, categories: next };
       previews.set(previewId, preview);
       return preview;
@@ -431,7 +464,7 @@ export function createMockFinancialPlanningService(
         budgetDetail(
           repository,
           repository.requireBudget(preview.budgetId),
-          '2026-01-15',
+          localDateFromTimestamp(now()),
           await readTransactions()
         ),
         budgetScopes(preview.budgetId)
@@ -473,7 +506,7 @@ export function createMockFinancialPlanningService(
           obligation,
           schedule: repository.listSchedule(obligation.id),
           payments: repository.listPayments(obligation.id),
-          today: '2026-01-15'
+          today: localDateFromTimestamp(now())
         });
         const remaining =
           status.remainingMinor.status === 'available'
@@ -548,7 +581,7 @@ export function createMockFinancialPlanningService(
         0
       );
       const preview: ObligationPaymentPreview = {
-        previewId: `payment-preview-${Date.now()}`,
+        previewId: `payment-preview-${now()}`,
         obligationId: input.obligationId,
         amountMinor: input.amountMinor,
         allocations,
@@ -615,25 +648,31 @@ export function createMockFinancialPlanningService(
         obligation,
         schedule: repository.listSchedule(obligationId),
         payments: repository.listPayments(obligationId),
-        today: '2026-01-15'
+          today: localDateFromTimestamp(now())
       });
-      const remaining =
-        status.remainingMinor.status === 'available'
-          ? status.remainingMinor.value
-          : 0;
-      return {
+      if (status.remainingMinor.status !== 'available')
+        throw new FinancialPlanningError('validation');
+      const remaining = status.remainingMinor.value;
+      const preview: EarlySettlementPreview & { expectedVersion: number } = {
         previewId: `settlement-${obligationId}`,
         obligationId,
         settlementMinor: remaining,
-        adjustmentMinor: 0
+        adjustmentMinor: 0,
+        expectedVersion: obligation.version
       };
+      previews.set(preview.previewId, preview);
+      return preview;
     },
     async confirmEarlySettlement(previewId, operationId) {
       await ensureReady();
-      const obligationId = previewId.replace('settlement-', '');
+      const preview = previews.get(previewId) as
+        | (EarlySettlementPreview & { expectedVersion: number })
+        | undefined;
+      if (!preview) throw new FinancialPlanningError('stale_preview');
+      const obligationId = preview.obligationId;
       const obligation = repository.setObligationStatus(
         obligationId,
-        repository.requireObligation(obligationId).version,
+        preview.expectedVersion,
         'completed',
         `${operationId}-status`
       );
@@ -641,9 +680,9 @@ export function createMockFinancialPlanningService(
         {
           obligationId,
           transactionId: `settlement-${operationId}`,
-          amountMinor: obligation.contractedTotalMinor ?? 1,
+          amountMinor: preview.settlementMinor,
           currencyCode: obligation.currencyCode,
-          paidDate: '2026-01-15',
+          paidDate: localDateFromTimestamp(now()),
           case: 'settlement',
           allocationIntent: 'settlement',
           allocations: [],
@@ -696,7 +735,7 @@ export function createMockFinancialPlanningService(
     },
     async getGoal(id: string): Promise<SavingsGoalDetail> {
       await ensureReady();
-      return goalDetail(repository, id, '2026-01-15');
+      return goalDetail(repository, id, localDateFromTimestamp(now()));
     },
     async createGoal(input: SavingsGoalInput, operationId: string) {
       await ensureReady();
@@ -732,7 +771,7 @@ export function createMockFinancialPlanningService(
     ): Promise<GoalMovementPreview> {
       await ensureReady();
       const preview = {
-        previewId: `goal-movement-${Date.now()}`,
+        previewId: `goal-movement-${now()}`,
         goalId: input.goalId,
         kind: input.kind,
         amountMinor: input.amountMinor
@@ -798,11 +837,12 @@ export function createMockFinancialPlanningService(
 }
 
 export function createProductionFinancialPlanningService() {
+  const demoMode = isDemoModeEnabled();
   return createMockFinancialPlanningService(
     new FinancialPlanningRepository(
-      isDemoModeEnabled() ? createDemoFinancialPlanningSeed() : {}
+      demoMode ? createDemoFinancialPlanningSeed() : {}
     ),
-    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
+    !demoMode && Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
     async () =>
       (
         await coreFinanceService.listTransactions(
@@ -810,7 +850,8 @@ export function createProductionFinancialPlanningService() {
           null,
           5_000
         )
-      ).items
+      ).items,
+    { registerForReset: true, providerKind: 'live' }
   );
 }
 
@@ -826,14 +867,10 @@ export const financialPlanningService =
     : createProductionFinancialPlanningService();
 
 export function deriveMatchForTransaction(
-  transactionId: string,
+  transaction: Transaction,
   obligations: readonly Obligation[],
   payments: readonly ObligationPayment[]
 ) {
-  const transaction = [fixtureSalaryTransaction, ...fixtureTransactions].find(
-    (item) => item.id === transactionId
-  );
-  if (!transaction) throw new FinancialPlanningError('not_found');
   return Promise.resolve(
     scorePaymentMatch({
       transaction,
@@ -847,6 +884,8 @@ function salaryOutcome(
   repository: FinancialPlanningRepository,
   receipt: SalaryReceiptLink,
   operationId: string,
+  transactions: readonly Transaction[],
+  now: number,
   timeZone?: string
 ): Promise<MutationResult<SalaryReceiptOutcome>> {
   const profile = repository.activeSalaryProfile();
@@ -860,8 +899,8 @@ function salaryOutcome(
         cycle: deriveSalaryCycle({
           profile,
           receipts: repository.listSalaryReceipts(),
-          transactions: [fixtureSalaryTransaction, ...fixtureTransactions],
-          today: localDateInTimeZone(Date.now(), effectiveTimeZone),
+          transactions,
+          today: localDateInTimeZone(now, effectiveTimeZone),
           timeZone: effectiveTimeZone
         })
       },
@@ -971,8 +1010,10 @@ function buildSchedule(obligation: Obligation): ObligationScheduleItem[] {
   ) {
     return [];
   }
-  const start = obligation.startDate ?? '2026-01-01';
-  const amount = obligation.installmentAmountMinor ?? 1;
+  if (!obligation.startDate || !obligation.installmentAmountMinor)
+    throw new FinancialPlanningError('validation');
+  const start = obligation.startDate;
+  const amount = obligation.installmentAmountMinor;
   return Array.from({ length: obligation.installmentCount }, (_, index) => ({
     id: `${obligation.id}-schedule-${index + 1}`,
     obligationId: obligation.id,

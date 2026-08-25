@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { SkeletonBlock } from '@/design-system/components/feedback/Skeleton';
@@ -118,6 +119,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
     (state) => state.reconcileSelectedAccount
   );
   const direction = usePreferenceStore((state) => state.direction);
+  const largeText = PixelRatio.getFontScale() >= 1.5;
   const firstDayOfWeek = usePreferenceStore((state) => state.firstDayOfWeek);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
@@ -473,7 +475,17 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
               </View>
             ) : null}
             {/* Side-by-side Filter Bar: All Accounts Card + Period Card */}
-            <View style={[styles.filterBarRow, { direction }]}>
+            <View
+              testID="transaction-filter-bar"
+              style={[
+                styles.filterBarRow,
+                {
+                  alignItems: largeText ? 'stretch' : 'center',
+                  direction,
+                  flexDirection: largeText ? 'column' : 'row'
+                }
+              ]}
+            >
               {/* 1. Account Scope Card (when 2+ active accounts) */}
               {activeAccountIds.length >= 2 ? (
                 <Pressable
@@ -489,7 +501,10 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                     styles.filterBarCard,
                     styles.physicalLtr,
                     {
-                      flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+                      flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+                      height: largeText ? 'auto' : 52,
+                      minHeight: 52,
+                      paddingVertical: largeText ? spacing.sm : 0
                     },
                     pressed && styles.filterCardPressed
                   ]}
@@ -508,7 +523,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                   {/* Account label */}
                   <StyledText
                     variant="subtitle"
-                    numberOfLines={1}
+                    numberOfLines={largeText ? undefined : 1}
                     style={styles.filterBarText}
                   >
                     {(selectedAccountId &&
@@ -539,10 +554,14 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                 style={({ pressed }) => [
                   styles.filterBarCard,
                   styles.physicalLtr,
-                  {
-                    alignSelf: 'center',
-                    flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
-                  },
+                    {
+                      alignSelf: 'center',
+                      flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+                      height: largeText ? 'auto' : 52,
+                      minHeight: 52,
+                      paddingVertical: largeText ? spacing.sm : 0,
+                      width: largeText ? '100%' : undefined
+                    },
                   pressed && styles.filterCardPressed
                 ]}
               >
@@ -560,7 +579,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                 {/* Period label */}
                 <StyledText
                   variant="subtitle"
-                  numberOfLines={1}
+                  numberOfLines={largeText ? undefined : 1}
                   style={styles.filterBarText}
                 >
                   {periodLabel}
@@ -1300,7 +1319,7 @@ function QuickFilterOption({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
   content: { padding: spacing.lg, paddingBottom: spacing.lg },
   header: { marginBottom: spacing.md },
   pageHeader: { gap: spacing.md },

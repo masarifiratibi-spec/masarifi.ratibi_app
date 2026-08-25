@@ -75,3 +75,22 @@ it('stores the selected account field in the manual draft before returning', asy
   );
   expect(router.back).toHaveBeenCalledTimes(1);
 });
+
+it('clears the destination when the manual draft source account changes', async () => {
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue({
+    ...draft,
+    destinationAccountId: 'account-usd'
+  });
+  renderWithProviders(<AccountPickerRoute />);
+
+  fireEvent.press(screen.getByText('Choose account'));
+
+  await waitFor(() =>
+    expect(coreFinanceService.saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'account-wallet',
+        destinationAccountId: null
+      })
+    )
+  );
+});

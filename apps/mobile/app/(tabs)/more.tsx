@@ -18,6 +18,7 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { colorTokens } from '@/design-system/tokens';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
 
 export default function MoreRoute() {
   const theme = useTheme();
@@ -314,14 +315,16 @@ export default function MoreRoute() {
           }}
           variant="destructive"
         />
-        <ActionButton
-          label={translate('appShell.security.mockSignOutAll')}
-          onPress={async () => {
-            await signOut();
-            router.replace('/(public)/language');
-          }}
-          variant="secondary"
-        />
+        {isFixtureModeEnabled() ? (
+          <ActionButton
+            label={translate('appShell.security.mockSignOutAll')}
+            onPress={async () => {
+              await signOut();
+              router.replace('/(public)/language');
+            }}
+            variant="secondary"
+          />
+        ) : null}
       </View>
     </ScrollView>
   );

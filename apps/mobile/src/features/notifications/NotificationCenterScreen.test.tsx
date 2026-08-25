@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
+import { PixelRatio } from 'react-native';
 import { router } from 'expo-router';
 
 import type { NotificationEvent } from '@/domain/notifications';
@@ -212,3 +213,17 @@ it('uses localized safe copy when an emitted notification key is missing', () =>
   expect(screen.getByText('Open Masarifi to review the latest update.')).toBeTruthy();
   expect(screen.queryByText('notifications.tracking.expense.review-required.title')).toBeNull();
 });
+
+it.each(['ar', 'en'] as const)(
+  'stacks the notification header at 200%% text in %s',
+  (locale) => {
+    jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+    changeLocale(locale);
+    renderWithProviders(<NotificationCenterScreen />);
+
+    expect(screen.getByTestId('notification-center-header')).toHaveStyle({
+      alignItems: 'stretch',
+      flexDirection: 'column'
+    });
+  }
+);

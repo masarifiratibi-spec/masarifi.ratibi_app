@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { StyledText } from '@/components/StyledText';
 import { radius, spacing } from '@/design-system/tokens';
@@ -151,7 +152,11 @@ export function PrimaryShellHeader({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
+    display: 'flex',
+    writingDirection: 'ltr'
+  },
   root: {
     alignItems: 'center',
     gap: spacing.sm,

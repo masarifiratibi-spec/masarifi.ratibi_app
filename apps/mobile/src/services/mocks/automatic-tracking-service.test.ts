@@ -8,6 +8,19 @@ import type {
 } from '@/services/contracts/assistant-notifications-service';
 
 describe('mock automatic tracking service', () => {
+  it('reports automatic tracking unavailable when platform ingestion is unavailable', async () => {
+    const service = createMockAutomaticTrackingService({
+      persistent: false,
+      platform: 'android',
+      permissionService: createMockTrackingPermissionService('unavailable')
+    });
+
+    await expect(service.getStatus()).resolves.toMatchObject({
+      permissionStatus: 'unavailable',
+      serviceState: 'unavailable'
+    });
+  });
+
   it('loads tracking history and review data in client demo mode', async () => {
     const previous = process.env.EXPO_PUBLIC_DEMO_MODE;
     process.env.EXPO_PUBLIC_DEMO_MODE = '1';

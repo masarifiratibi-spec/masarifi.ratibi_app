@@ -18,7 +18,7 @@ export const reportsServiceCapability: CapabilityContractMetadata = {
   capability: 'reports.outputs',
   majorVersion: 1,
   owner: 'reports',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'reports.state.unavailable'
 };
 

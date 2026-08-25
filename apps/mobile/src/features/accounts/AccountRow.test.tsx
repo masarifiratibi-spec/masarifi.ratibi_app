@@ -4,6 +4,7 @@ import { fireEvent, screen } from '@testing-library/react-native';
 
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
+import { changeLocale } from '@/localization/i18n';
 import { AccountRow } from './AccountRow';
 import { projectAccount } from './account-presentation';
 
@@ -75,7 +76,11 @@ it('renders account balance with currency-owned precision', () => {
 
 it('stacks account identity and balance at 200% text', () => {
   const fontScale = jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
-  const account = fixtureAccounts[0];
+  changeLocale('en');
+  const account = {
+    ...fixtureAccounts[0],
+    name: 'Everyday household spending account with a long name'
+  };
 
   renderWithProviders(
     <AccountRow
@@ -90,5 +95,6 @@ it('stacks account identity and balance at 200% text', () => {
   expect(screen.getByTestId('account-row')).toHaveStyle({
     flexDirection: 'column'
   });
+  expect(screen.getByText(account.name).props.numberOfLines).toBeUndefined();
   fontScale.mockRestore();
 });
