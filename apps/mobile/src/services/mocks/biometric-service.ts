@@ -1,5 +1,6 @@
 import type {
   BiometricAvailability,
+  BiometricKind,
   BiometricResult,
   BiometricService
 } from '@/services/contracts/app-shell-service';
@@ -8,7 +9,8 @@ import type { CapabilityProviderHandle } from '@/services/contracts/capability-c
 
 export function createMockBiometricService(
   availability: BiometricAvailability['status'] = 'supported',
-  result: BiometricResult['status'] = 'authenticated'
+  result: BiometricResult['status'] = 'authenticated',
+  kinds: readonly BiometricKind[] = ['fingerprint']
 ): CapabilityProviderHandle<BiometricService> {
   return {
     metadata: {
@@ -19,7 +21,8 @@ export function createMockBiometricService(
       availability: availability === 'unsupported' || result === 'unavailable' ? 'unavailable' : 'available'
     },
     async getAvailability() {
-      return { status: availability };
+      if (availability !== 'supported') return { status: availability };
+      return { status: availability, kinds };
     },
     async authenticate() {
       return { status: result };

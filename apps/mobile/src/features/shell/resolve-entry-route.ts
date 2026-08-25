@@ -54,6 +54,7 @@ export function resolveProtectedAccessGate(
   input: EntryRouteInput
 ): string | null {
   const destination = resolveEntryRoute({ ...input, pendingDestination: null });
+  if (destination === '/index') return '/';
   return destination === homeRoute ? null : destination;
 }
 

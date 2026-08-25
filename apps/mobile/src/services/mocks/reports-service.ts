@@ -1,3 +1,11 @@
+import { Platform } from 'react-native';
+import {
+  emptyTransactionFilters,
+  matchesFilters,
+  type Category,
+  type ExchangeRateEstimate,
+  type Transaction
+} from '@/domain/core-finance';
 import {
   buildFinancialReport,
   buildSchedule,
@@ -16,58 +24,90 @@ import type {
   AttemptPage,
   ReportsService
 } from '@/services/contracts/reports-service';
+import type { CoreFinanceService } from '@/services/contracts/core-finance-service';
 import { reportsServiceCapability } from '@/services/contracts/reports-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
+import type { CapabilityProviderKind } from '@/services/contracts/capability-contract';
 import { ReportsRepository } from '@/storage/reports-repository';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import {
   fixtureCategories,
   fixtureRates,
   fixtureTransactions
 } from '@/test-utils/core-finance-fixtures';
 import { financialPlanningService } from './financial-planning-service';
+import { coreFinanceService } from './core-finance-service';
 import { createReportOutputAttempt } from './report-delivery-adapter';
 
 type OutputFailure = ReportOutputAttempt['failureCategory'];
+type ReportLedgerFinance = Pick<
+  CoreFinanceService,
+  'listCategories' | 'listTransactions'
+>;
+
+interface ReportLedgerSnapshot {
+  categories: Category[];
+  exchangeRates: ExchangeRateEstimate[];
+  transactions: Transaction[];
+}
 
 export function createMockReportsService(
   repository = new ReportsRepository(),
   options: {
+    now?: () => number;
     outputFailures?: Readonly<Record<string, OutputFailure>>;
     outputDelayMs?: number;
-  } = {}
+    registerForReset?: boolean;
+    providerKind?: CapabilityProviderKind;
+  } = {},
+  finance?: ReportLedgerFinance
 ): CapabilityProviderHandle<ReportsService> {
   const previews = new Map<string, ReportPreview>();
   const verifiedRecipients = new Map<
     string,
     ReturnType<typeof verifyRecipient>
   >();
+  if (options.registerForReset)
+    registerRuntimeUserDataReset(() => {
+      repository.reset();
+      previews.clear();
+      verifiedRecipients.clear();
+    });
 
   async function report(
-    input: Parameters<ReportsService['getReport']>[0]
+    input: Parameters<ReportsService['getReport']>[0],
+    suppliedLedger?: ReportLedgerSnapshot
   ): Promise<FinancialReport> {
-    const period = resolveReportPeriod({
-      ...input,
-      now: Date.UTC(2026, 7, 9, 12)
-    });
+    const ledger = suppliedLedger ?? (await reportLedger(finance));
+    const transactions = input.accountIds?.length
+      ? ledger.transactions.filter((transaction) =>
+          matchesFilters(transaction, {
+            ...emptyTransactionFilters,
+            accountIds: input.accountIds ?? []
+          })
+        )
+      : ledger.transactions;
+    const now = options.now?.() ?? Date.UTC(2026, 7, 9, 12);
+    const period = resolveReportPeriod({ ...input, now });
     const planning =
       await financialPlanningService.getReportingSnapshot(period);
     return buildFinancialReport({
       period,
-      transactions: fixtureTransactions,
-      categories: fixtureCategories,
+      transactions,
+      categories: ledger.categories,
       planning,
-      exchangeRates: fixtureRates,
+      exchangeRates: ledger.exchangeRates,
       currencyCode: input.currencyCode,
-      generatedAt: Date.UTC(2026, 7, 9, 12)
+      generatedAt: now
     });
   }
 
   return {
     metadata: {
-      id: 'mock-reports',
+      id: options.providerKind === 'live' ? 'local-reports' : 'mock-reports',
       capability: reportsServiceCapability.capability,
       majorVersion: reportsServiceCapability.majorVersion,
-      kind: 'mock',
+      kind: options.providerKind ?? 'mock',
       availability: 'available'
     },
     async getReport(input) {
@@ -131,16 +171,17 @@ export function createMockReportsService(
       await repository.discardDraft();
     },
     async previewOutput(input) {
-      const value = await report(input);
+      const ledger = await reportLedger(finance);
+      const value = await report(input, ledger);
       const preview: ReportPreview = {
         previewId: `report-preview-${value.key}:${input.detailLevel}`,
         snapshot: buildSnapshot({
           report: value,
           detailLevel: input.detailLevel,
           language: input.language,
-          transactions: fixtureTransactions,
+          transactions: ledger.transactions,
           categoryLabel: (id) =>
-            fixtureCategories.find((category) => category.id === id)?.labelEn ??
+            ledger.categories.find((category) => category.id === id)?.labelEn ??
             'Uncategorized'
         }),
         recipientEmail: input.recipientEmail ?? null
@@ -200,6 +241,44 @@ export function createMockReportsService(
   };
 }
 
+const usesLiveLedger = process.env.NODE_ENV !== 'test';
+
 export const reportsService = createMockReportsService(
-  new ReportsRepository(process.env.NODE_ENV !== 'test')
+  new ReportsRepository(Platform.OS !== 'web' && usesLiveLedger),
+  usesLiveLedger
+    ? { now: Date.now, registerForReset: true, providerKind: 'live' }
+    : {},
+  usesLiveLedger ? coreFinanceService : undefined
 );
+
+async function reportLedger(
+  finance?: ReportLedgerFinance
+): Promise<ReportLedgerSnapshot> {
+  if (!finance) {
+    return {
+      categories: fixtureCategories,
+      exchangeRates: fixtureRates,
+      transactions: fixtureTransactions
+    };
+  }
+  const [categories, transactions] = await Promise.all([
+    finance.listCategories(),
+    allTransactions(finance)
+  ]);
+  return { categories, exchangeRates: [], transactions };
+}
+
+async function allTransactions(finance: ReportLedgerFinance) {
+  const transactions: Transaction[] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await finance.listTransactions(
+      emptyTransactionFilters,
+      cursor,
+      500
+    );
+    transactions.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return transactions;
+}

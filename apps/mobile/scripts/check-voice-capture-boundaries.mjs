@@ -12,6 +12,7 @@ for (const file of files) {
     report(file, source, /from ['"]expo-sqlite['"]/g, 'direct SQLite import');
     report(file, source, /#[0-9a-f]{3,8}\b/gi, 'raw color');
     report(file, source, /(?:openai|anthropic|gemini|service[_-]?role|api[_-]?key)/gi, 'provider or secret reference');
+    report(file, source, /from ['"]@\/services\/mocks\/voice-analyzer-service['"]/g, 'direct mock analyzer import');
     report(file, source, /console\.(?:log|info|warn|error)/g, 'console logging');
   }
 }

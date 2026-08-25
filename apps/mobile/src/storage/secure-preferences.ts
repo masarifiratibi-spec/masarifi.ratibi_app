@@ -35,6 +35,7 @@ interface PersistedPreferences {
   trackingPersonalization: boolean;
   assistantPersonalization: boolean;
   analyticsEnabled: boolean;
+  monthStartDay: number;
 }
 
 const persistedPreferencesSchema = z.object({
@@ -51,7 +52,8 @@ const persistedPreferencesSchema = z.object({
   voiceEnabled: z.boolean().optional(),
   trackingPersonalization: z.boolean().optional(),
   assistantPersonalization: z.boolean().optional(),
-  analyticsEnabled: z.boolean().optional()
+  analyticsEnabled: z.boolean().optional(),
+  monthStartDay: z.number().int().min(1).max(28).optional()
 });
 
 export async function loadPreferences(): Promise<UserPreferences> {
@@ -79,7 +81,8 @@ export async function savePreferences(
     voiceEnabled: preferences.voiceEnabled,
     trackingPersonalization: preferences.trackingPersonalization,
     assistantPersonalization: preferences.assistantPersonalization,
-    analyticsEnabled: preferences.analyticsEnabled
+    analyticsEnabled: preferences.analyticsEnabled,
+    monthStartDay: preferences.monthStartDay
   };
   const serialized = JSON.stringify(persisted);
   if (Platform.OS === 'web') {

@@ -67,4 +67,19 @@ describe('navigation context', () => {
     expect(assistantActionDestination('conversation-1', 'preview?token=secret')).toBeNull();
     expect(supportTicketDestination('ticket/1')).toBeNull();
   });
+
+  it('preserves safe nested finance destinations without query data', () => {
+    for (const route of [
+      '/accounts/account-1/edit',
+      '/transactions/transaction-1',
+      '/categories/category-1',
+      '/budgets/budget-1',
+      '/salary/salary-1',
+      '/obligations/obligation-1',
+      '/savings/saving-1'
+    ]) {
+      expect(sanitizeReturnRoute(route)).toBe(route);
+    }
+    expect(sanitizeReturnRoute('/security/pin/change')).toBeNull();
+  });
 });

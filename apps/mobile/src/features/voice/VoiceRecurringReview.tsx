@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
-import { RadioCard } from '@/design-system/components/forms/SelectionControls';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import type { VoiceRecurringSuggestion } from '@/domain/voice-capture';
 import { translate } from '@/localization/i18n';
 
@@ -20,17 +20,24 @@ export function VoiceRecurringReview({
   value: VoiceRecurringSuggestion;
   onChange(value: VoiceRecurringSuggestion): void;
 }) {
+  const labels = choices.map(([, label]) => translate(label as never));
+  const selected = choices.find(([kind]) => kind === value.kind);
   return (
     <View style={styles.stack}>
       <StyledText variant="subtitle">{translate('voice.recurring.title')}</StyledText>
-      {choices.map(([kind, label]) => (
-        <RadioCard
-          key={kind}
-          label={translate(label as never)}
-          selected={value.kind === kind && value.confirmed}
-          onPress={() => onChange({ ...value, kind, confirmed: true })}
-        />
-      ))}
+      <ChipSelector
+        options={labels}
+        selected={
+          value.confirmed
+            ? [translate((selected ?? choices[0])[1] as never)]
+            : []
+        }
+        onToggle={(label) => {
+          const index = labels.indexOf(label);
+          if (index >= 0)
+            onChange({ ...value, kind: choices[index][0], confirmed: true });
+        }}
+      />
     </View>
   );
 }

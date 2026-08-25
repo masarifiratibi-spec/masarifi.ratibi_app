@@ -1,35 +1,31 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
-import { UndoSnackbar } from '@/design-system/components/feedback/TransientFeedback';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { AmountText } from '@/design-system/components/financial/FinancialPrimitives';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
-import type { Account, Category } from '@/domain/core-finance';
 import {
-  invalidateCoreFinanceScopes,
-  useAccounts,
-  useCategories,
-  useTransaction
-} from '@/features/core-finance/core-finance-queries';
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
+import type { Account, Category } from '@/domain/core-finance';
+import { useAccounts, useCategories, useTransaction } from '@/features/core-finance/core-finance-queries';
 import { currentLocale, translate } from '@/localization/i18n';
-import { coreFinanceService } from '@/services/mocks/core-finance-service';
-import { automaticTrackingService } from '@/services/mocks/automatic-tracking-service';
-import { invalidateTrackingScopes } from '@/features/tracking/useAutomaticTracking';
 import { useTheme } from '@/state/theme-context';
 import { formatDate } from '@/utils/format-financial-value';
-import { buildTransactionSupportContext } from '@/features/support/support-context';
+import { usePreferenceStore } from '@/state/preferences';
+import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
+import { TransactionActions } from './TransactionActions';
 
 export function TransactionDetailScreen({ id }: { id: string }) {
   const theme = useTheme();
-  const client = useQueryClient();
   const query = useTransaction(id);
   const accounts = useAccounts(true);
   const categories = useCategories(true);
-  const [deletedUntil, setDeletedUntil] = useState<number | null>(null);
+  const hideBalances = usePreferenceStore((state) => state.hideBalances);
+  const { revealed } = useSensitiveVisibility();
   if (query.isLoading)
     return (
       <StateView
@@ -37,7 +33,16 @@ export function TransactionDetailScreen({ id }: { id: string }) {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError || !query.data)
+  if (query.isError)
+    return (
+      <StateView
+        state="error"
+        title={translate('coreFinance.state.error')}
+        actionLabel={translate('coreFinance.action.retry')}
+        onAction={() => void query.refetch()}
+      />
+    );
+  if (!query.data)
     return (
       <StateView
         state="error"
@@ -51,16 +56,12 @@ export function TransactionDetailScreen({ id }: { id: string }) {
   const accountName = accounts.data?.find(
     (account: Account) => account.id === item.accountId
   )?.name;
+  const destinationAccountName = accounts.data?.find(
+    (account: Account) => account.id === item.destinationAccountId
+  )?.name;
   const category = categories.data?.find(
     (candidate: Category) => candidate.id === item.categoryId
   );
-  const restoredDeletedUntil =
-    item.status === 'deleted' &&
-    item.undoExpiresAt !== null &&
-    item.undoExpiresAt > Date.now()
-      ? item.undoExpiresAt
-      : null;
-  const activeDeletedUntil = deletedUntil ?? restoredDeletedUntil;
   const meaning =
     item.type === 'income'
       ? 'income'
@@ -77,96 +78,70 @@ export function TransactionDetailScreen({ id }: { id: string }) {
             {item.title}
           </Text>
           <AmountText
-            value={item.amountMinor / 100}
+            minorUnits={item.amountMinor}
             currency={item.currencyCode}
             meaning={meaning}
-          />
-          <Detail
-            label={translate('coreFinance.transaction.type')}
-            value={translate(`coreFinance.type.${item.type}` as never)}
-          />
-          <Detail
-            label={translate('coreFinance.transaction.date')}
-            value={formatDate(item.occurredAt, locale)}
-          />
-          <Detail
-            label={translate('coreFinance.transaction.account')}
-            value={accountName ?? translate('coreFinance.accounts.missing')}
-          />
-          <Detail
-            label={translate('coreFinance.transaction.category')}
-            value={
-              category
-                ? locale === 'ar'
-                  ? category.labelAr
-                  : category.labelEn
-                : translate('coreFinance.ledger.uncategorized')
-            }
-          />
-          <Detail
-            label={translate('coreFinance.transaction.source')}
-            value={translate(`coreFinance.source.${item.source}` as never)}
-          />
-          <Detail
-            label={translate('coreFinance.transaction.status')}
-            value={translate(`coreFinance.sync.${item.syncStatus}` as never)}
+            masked={hideBalances && !revealed}
           />
         </View>
       </SurfaceCard>
+      <GroupedList label={translate('coreFinance.transaction.details')}>
+        <NavigationRow
+          label={translate('coreFinance.transaction.type')}
+          value={translate(`coreFinance.type.${item.type}` as never)}
+        />
+        <NavigationRow
+          label={translate('coreFinance.transaction.date')}
+          value={formatDate(item.occurredAt, locale)}
+        />
+        <NavigationRow
+          label={translate('coreFinance.transaction.account')}
+          value={accountName ?? translate('coreFinance.accounts.missing')}
+        />
+        {destinationAccountName ? (
+          <NavigationRow
+            label={translate('coreFinance.form.destination')}
+            value={destinationAccountName}
+          />
+        ) : null}
+        <NavigationRow
+          label={translate('coreFinance.transaction.category')}
+          value={
+            category
+              ? locale === 'ar'
+                ? category.labelAr
+                : category.labelEn
+              : translate('coreFinance.ledger.uncategorized')
+          }
+        />
+        <NavigationRow
+          label={translate('coreFinance.transaction.source')}
+          value={translate(`coreFinance.source.${item.source}` as never)}
+        />
+        <NavigationRow
+          label={translate('coreFinance.transaction.status')}
+          value={translate(`coreFinance.sync.${item.syncStatus}` as never)}
+        />
+        {item.originalTransactionId ? (
+          <NavigationRow
+            label={translate('coreFinance.transaction.original')}
+            value={item.originalTransactionId}
+          />
+        ) : null}
+        {item.obligationId ? (
+          <NavigationRow
+            label={translate('coreFinance.transaction.obligation')}
+            value={item.obligationId}
+          />
+        ) : null}
+      </GroupedList>
       <ActionButton
         label={translate('coreFinance.transaction.edit')}
         variant="secondary"
         onPress={() => router.push(`/transactions/${id}/edit`)}
       />
-      <ActionButton
-        label="support.report.transaction"
-        variant="secondary"
-        onPress={() => router.push({ pathname: '/support/new', params: { mode: 'transaction_report', context: JSON.stringify(buildTransactionSupportContext(item, { appVersion: '1.0.0' })) } })}
-      />
-      {item.source === 'automatic' ? (
-        <ActionButton
-          label={translate('tracking.action.reportWrong')}
-          variant="secondary"
-          onPress={async () => {
-            const result =
-              await automaticTrackingService.reportWrongDetection(id);
-            await invalidateTrackingScopes(client, result.affectedScopes);
-          }}
-        />
-      ) : null}
-      {!activeDeletedUntil ? (
-        <ActionButton
-          label={translate('coreFinance.transaction.delete')}
-          variant="destructive"
-          onPress={async () => {
-            const result = await coreFinanceService.deleteTransaction(id);
-            setDeletedUntil(result.undoExpiresAt);
-            await invalidateCoreFinanceScopes(client, result.affectedScopes);
-          }}
-        />
-      ) : null}
-      {activeDeletedUntil ? (
-        <UndoSnackbar
-          message={translate('coreFinance.transaction.deleted')}
-          timeoutMs={Math.max(0, activeDeletedUntil - Date.now())}
-          onUndo={async () => {
-            const result = await coreFinanceService.undoDelete(id);
-            setDeletedUntil(null);
-            await invalidateCoreFinanceScopes(client, result.affectedScopes);
-          }}
-        />
-      ) : null}
+      <TransactionActions transaction={item} />
     </ScrollView>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
-  return (
-    <View>
-      <Text style={{ color: theme.colors.textSecondary }}>{label}</Text>
-      <Text style={{ color: theme.colors.textPrimary }}>{value}</Text>
-    </View>
   );
 }
 

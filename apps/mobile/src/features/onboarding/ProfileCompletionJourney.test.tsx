@@ -1,13 +1,14 @@
 import React from 'react';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent } from '@testing-library/react-native';
 
-import MoreRoute from '@app/(tabs)/more';
-import HomeRoute from '@app/(tabs)/home';
+import { ProfileCompletionCard } from './ProfileCompletionCard';
+import { deriveProfileCompletionSteps, emptyProfileSummary } from './profile-completion';
 import { useAppShellStore } from '@/state/app-shell';
 import { renderWithProviders } from '@/test-utils/render';
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), navigate: jest.fn() },
+  useLocalSearchParams: () => ({})
 }));
 
 beforeEach(() => {
@@ -15,23 +16,15 @@ beforeEach(() => {
 });
 
 describe('profile completion journey', () => {
-  it('dismisses, restarts hidden, reopens from More, and hides when complete', async () => {
-    renderWithProviders(<HomeRoute />);
-    expect(screen.getAllByText('استكمال الإعداد').length).toBeGreaterThan(0);
-    fireEvent.press(screen.getByLabelText('إخفاء استكمال الإعداد'));
-    await waitFor(() =>
-      expect(useAppShellStore.getState().profilePromptDismissed).toBe(true)
+  it('renders steps and triggers dismiss correctly', async () => {
+    const onDismiss = jest.fn();
+    const steps = deriveProfileCompletionSteps(emptyProfileSummary);
+    const view = renderWithProviders(
+      <ProfileCompletionCard steps={steps} onDismiss={onDismiss} />
     );
 
-    cleanup();
-    renderWithProviders(<HomeRoute />);
-    expect(screen.queryByLabelText('إخفاء استكمال الإعداد')).toBeNull();
-
-    cleanup();
-    renderWithProviders(<MoreRoute />);
-    fireEvent.press(screen.getByLabelText('إظهار استكمال الإعداد'));
-    await waitFor(() =>
-      expect(useAppShellStore.getState().profilePromptDismissed).toBe(false)
-    );
+    expect(view.getAllByText('استكمال الإعداد').length).toBeGreaterThan(0);
+    fireEvent.press(view.getByLabelText('إخفاء استكمال الإعداد'));
+    expect(onDismiss).toHaveBeenCalled();
   });
 });

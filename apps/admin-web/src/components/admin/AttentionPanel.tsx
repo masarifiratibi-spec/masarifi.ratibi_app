@@ -2,30 +2,31 @@
 
 import Link from "next/link";
 import { Bell, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { AdminRole } from "@/core/permissions/permissions";
 import { useAttention } from "@/features/foundation/hooks";
 import { SeverityBadge } from "./ui";
 
+const MOBILE_BREAKPOINT = "(max-width: 599px)";
+
+function subscribeToMobileBreakpoint(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia(MOBILE_BREAKPOINT);
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getIsMobileSnapshot() {
+  return window.matchMedia(MOBILE_BREAKPOINT).matches;
+}
+
 export function AttentionPanel({ role, defaultOpen = false }: { role: AdminRole; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
-  const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const isMobile = useSyncExternalStore(subscribeToMobileBreakpoint, getIsMobileSnapshot, () => false);
   const attention = useAttention(role, { page: 1, pageSize: 10 });
   const items = attention.data?.items ?? [];
   const count = attention.data?.totalItems ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
-
-  // Detect mobile breakpoint
-  useEffect(() => {
-    setMounted(true);
-    const mq = window.matchMedia("(max-width: 599px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   // Lock body scroll when mobile panel is open
   useEffect(() => {
@@ -85,7 +86,7 @@ export function AttentionPanel({ role, defaultOpen = false }: { role: AdminRole;
       </div>
 
       {/* Mobile: render via portal to body so position:fixed escapes all containing blocks */}
-      {mounted && open && isMobile && createPortal(
+      {open && isMobile && createPortal(
         <>
           <div
             aria-hidden="true"

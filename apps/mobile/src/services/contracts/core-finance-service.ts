@@ -16,7 +16,7 @@ export const coreFinanceServiceCapability: CapabilityContractMetadata = {
   capability: 'core-finance.records',
   majorVersion: 1,
   owner: 'core-finance',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'coreFinance.state.error'
 };
 
@@ -24,7 +24,7 @@ export const exchangeRateServiceCapability: CapabilityContractMetadata = {
   capability: 'core-finance.exchange-rate',
   majorVersion: 1,
   owner: 'core-finance',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'coreFinance.exchange.unavailable'
 };
 
@@ -32,6 +32,12 @@ export interface TransactionPage {
   items: Transaction[];
   nextCursor: string | null;
   total: number;
+}
+
+export interface AccountBalanceProjection {
+  accountId: string;
+  balanceMinor: number;
+  currencyCode: string;
 }
 
 export interface MutationResult<T> {
@@ -49,8 +55,14 @@ export interface DeleteResult extends MutationResult<Transaction> {
 }
 
 export interface CoreFinanceService {
-  getHomeSummary(profileCurrency: string): Promise<HomeSummary>;
+  getHomeSummary(
+    profileCurrency: string,
+    filters?: TransactionFilterSet
+  ): Promise<HomeSummary>;
   listAccounts(includeArchived?: boolean): Promise<Account[]>;
+  listAccountBalances(
+    includeArchived?: boolean
+  ): Promise<AccountBalanceProjection[]>;
   getAccount(id: string): Promise<Account>;
   createAccount(input: AccountInput): Promise<MutationResult<Account>>;
   updateAccount(

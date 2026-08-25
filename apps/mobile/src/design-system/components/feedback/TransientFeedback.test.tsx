@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
-import { translate } from '@/localization/i18n';
+import { translate, translateDynamic } from '@/localization/i18n';
 import { Snackbar, Toast, UndoSnackbar } from './TransientFeedback';
 
 describe('TransientFeedback', () => {
@@ -28,7 +28,11 @@ describe('TransientFeedback', () => {
     fireEvent.press(screen.getByLabelText('Retry'));
     fireEvent.press(screen.getByLabelText(translate('coreFinance.undo')));
     expect(onAction).toHaveBeenCalledTimes(2);
-    expect(screen.getByText('4000 ms')).toBeTruthy();
+    expect(
+      screen.getByText(
+        translateDynamic('coreFinance.undoRemaining', { count: '4' })
+      )
+    ).toBeTruthy();
     expect(screen.getByLabelText(translate('coreFinance.undo'))).toBeTruthy();
   });
 });

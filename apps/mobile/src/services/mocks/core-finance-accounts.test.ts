@@ -47,3 +47,38 @@ it('locks currency after posted activity', async () => {
     sut.updateAccount(account.id, { ...account, currencyCode: 'USD' })
   ).rejects.toThrow('validation');
 });
+
+it('returns complete-ledger balances without relying on the first transaction page', async () => {
+  const sut = service();
+  const account = await sut.getAccount('account-bank');
+  const balance = (await sut.listAccountBalances(true)).find(
+    (item) => item.accountId === account.id
+  );
+
+  expect(balance).toMatchObject({
+    accountId: account.id,
+    currencyCode: account.currencyCode
+  });
+  expect(balance?.balanceMinor).toEqual(expect.any(Number));
+});
+
+it('preserves optional account fields when an edit input omits them', async () => {
+  const sut = service();
+  const account = await sut.getAccount('account-bank');
+  const updated = await sut.updateAccount(account.id, {
+    name: 'Daily renamed',
+    type: account.type,
+    currencyCode: account.currencyCode,
+    openingBalanceMinor: account.openingBalanceMinor,
+    isDefault: account.isDefault
+  });
+
+  expect(updated.value).toMatchObject({
+    institution: account.institution,
+    lastFour: account.lastFour,
+    creditLimitMinor: account.creditLimitMinor,
+    iconKey: account.iconKey,
+    colorKey: account.colorKey,
+    notes: account.notes
+  });
+});

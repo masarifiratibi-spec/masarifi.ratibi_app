@@ -3,14 +3,16 @@ import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { FinancialPulse } from '@/design-system/components/financial/FinancialPulse';
+import { GroupedList, NavigationRow } from '@/design-system/components/navigation/GroupedList';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import type { ObligationLifecycle, ObligationPayment } from '@/domain/financial-planning';
-import { PlanningMetric, PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
+import { PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
 import { currentLocale, translate, type MessageKey } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useObligation, usePlanningMutation } from './obligation-queries';
 
 export function ObligationDetailScreen({ obligationId = '' }: { obligationId?: string }) {
@@ -24,17 +26,22 @@ export function ObligationDetailScreen({ obligationId = '' }: { obligationId?: s
     financialPlanningService.reverseObligationPayment(paymentId, `obligation-payment-undo:${paymentId}:${Date.now()}`)
   );
   const item = query.data?.obligation;
-  const money = (minor: number | null) => minor === null ? translate('reports.state.unavailable') : hideBalances && !revealed ? translate('planning.state.hidden') : formatAmount(minor / 100, item?.currencyCode ?? 'SAR', currentLocale());
+  const money = (minor: number | null) => minor === null ? translate('reports.state.unavailable') : hideBalances && !revealed ? translate('planning.state.hidden') : formatMinorAmount(minor, item?.currencyCode ?? 'SAR', currentLocale());
   const paidMinor = query.data?.payments.filter((payment: ObligationPayment) => payment.status === 'posted').reduce((sum: number, payment: ObligationPayment) => sum + payment.amountMinor, 0) ?? 0;
   return (
     <PlanningScreen titleKey="planning.obligations.detail">
       {!obligationId ? <PlanningState state="empty" /> : query.isLoading ? <PlanningState state="loading" /> : query.isError || !item ? <PlanningState state="error" onRetry={() => void query.refetch()} /> : (
         <>
-          <PlanningMetric labelKey="planning.obligation.title" value={item.title} />
-          <PlanningMetric labelKey="planning.field.status" value={translate(`planning.obligation.status.${item.status}` as MessageKey)} />
-          <PlanningMetric labelKey="planning.obligation.total" value={money(item.contractedTotalMinor)} />
-          <PlanningMetric labelKey="planning.field.paid" value={money(paidMinor)} />
-          <PlanningMetric labelKey="planning.obligation.schedule" value={String(query.data?.schedule.length ?? 0)} />
+          <FinancialPulse
+            accessibilityLabel={`${translate('planning.obligation.total')}, ${money(item.contractedTotalMinor)}, ${translate('planning.field.paid')}, ${money(paidMinor)}`}
+            scope={item.title}
+            statement={money(item.contractedTotalMinor)}
+            supportingValue={`${translate('planning.field.paid')}: ${money(paidMinor)}`}
+          />
+          <GroupedList label={translate('planning.obligations.detail')}>
+            <NavigationRow label={translate('planning.field.status')} value={translate(`planning.obligation.status.${item.status}` as MessageKey)} />
+            <NavigationRow label={translate('planning.obligation.schedule')} value={String(query.data?.schedule.length ?? 0)} />
+          </GroupedList>
           <ActionButton label={translate('planning.obligation.recordPayment')} onPress={() => router.push(`/obligations/${obligationId}/payment`)} />
           <ActionButton label={translate('planning.action.edit')} onPress={() => router.push(`/obligations/${obligationId}/edit`)} variant="secondary" />
           {item.status === 'active' ? <ActionButton label={translate('planning.obligation.pause')} loading={lifecycle.isPending} onPress={() => lifecycle.mutate('paused')} variant="secondary" /> : null}

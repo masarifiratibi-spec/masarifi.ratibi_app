@@ -26,6 +26,11 @@ export class StatefulSqlite {
     }
   }
 
+  async execAsync(sql: string): Promise<void> {
+    if (!sql.replace(/\s+/g, ' ').trim().startsWith('PRAGMA '))
+      throw new Error(`unsupported SQL: ${sql}`);
+  }
+
   async runAsync(sql: string, ...values: unknown[]): Promise<{ changes: number }> {
     const normalized = sql.replace(/\s+/g, ' ').trim();
     const insert = normalized.match(/^INSERT INTO (\w+) \(([^)]+)\)/);
@@ -60,6 +65,17 @@ export class StatefulSqlite {
       this.rows.set(deletion[1], kept);
       return { changes: rows.length - kept.length };
     }
+    const deleteAll = normalized.match(/^DELETE FROM ["']?(\w+)["']?$/);
+    if (deleteAll) {
+      const table = deleteAll[1];
+      if (this.failingTable === table) {
+        this.failingTable = null;
+        throw new Error(`injected ${table} failure`);
+      }
+      const changes = this.rows.get(table)?.length ?? 0;
+      this.rows.set(table, []);
+      return { changes };
+    }
     throw new Error(`unsupported SQL: ${normalized}`);
   }
 
@@ -73,6 +89,11 @@ export class StatefulSqlite {
 
   async getAllAsync<T extends Row>(sql: string): Promise<T[]> {
     const normalized = sql.replace(/\s+/g, ' ').trim();
+    if (normalized.includes('FROM sqlite_master')) {
+      return [...this.rows.keys()]
+        .filter((name) => name !== 'schema_migrations')
+        .map((name) => ({ name })) as unknown as T[];
+    }
     const table = normalized.match(/FROM (\w+)/)?.[1];
     if (!table) throw new Error(`unsupported SQL: ${normalized}`);
     return this.read(table) as T[];

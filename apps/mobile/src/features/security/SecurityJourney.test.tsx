@@ -1,7 +1,8 @@
 import React from 'react';
 import { AppState, Text } from 'react-native';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 import SecuritySettingsRoute from '@app/security/settings';
 import { translate } from '@/localization/i18n';
@@ -13,6 +14,24 @@ import { UnlockScreen } from './UnlockScreen';
 import { createPinCredential, resetLock } from './privacy-lock';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
+jest.mock('expo-local-authentication', () => ({
+  authenticateAsync: jest.fn(),
+  hasHardwareAsync: jest.fn(),
+  isEnrolledAsync: jest.fn(),
+  supportedAuthenticationTypesAsync: jest.fn()
+}));
+jest.mock('@/storage/local-data-reset', () => ({
+  resetLocalUserData: jest.fn(async (operationId: string) => ({
+    deletedRows: 0,
+    operationId
+  }))
+}));
+
+const hasHardware = jest.mocked(LocalAuthentication.hasHardwareAsync);
+const isEnrolled = jest.mocked(LocalAuthentication.isEnrolledAsync);
+const supportedTypes = jest.mocked(
+  LocalAuthentication.supportedAuthenticationTypesAsync
+);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -21,8 +40,8 @@ beforeEach(() => {
 
 describe('security journey', () => {
   it('covers PIN, biometrics, background mask, expiry precedence, reset, and sign-out', async () => {
-    const credential = createPinCredential('123456', '123456');
-    expect(credential).toMatchObject({ hash: 'pin:123456' });
+    const credential = await createPinCredential('123456', '123456');
+    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
     if (!credential.hash) return;
 
     await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
@@ -67,20 +86,70 @@ describe('security journey', () => {
     expect(useAppShellStore.getState().privacyLock).toBeNull();
   });
 
-  it('keeps existing controls and links to sessions, events, and local deletion', () => {
+  it('keeps existing controls and links to sessions and local deletion', () => {
+    hasHardware.mockResolvedValue(false);
     renderWithProviders(<SecuritySettingsRoute />);
 
     expect(screen.getByText(translate('appShell.security.pin.create'))).toBeTruthy();
-    expect(screen.getByText(translate('appShell.security.biometricUnavailable'))).toBeTruthy();
-    expect(screen.getByText(translate('appShell.security.autoLock.immediate'))).toBeTruthy();
+    expect(screen.getByText(translate('appShell.security.biometric.requiresPin'))).toBeTruthy();
     expect(screen.getByText(translate('appShell.security.hideBalances'))).toBeTruthy();
 
     fireEvent.press(screen.getByText(translate('appShell.security.sessions')));
-    fireEvent.press(screen.getByText(translate('appShell.security.events')));
     fireEvent.press(screen.getByText(translate('appShell.security.localData')));
 
     expect(router.push).toHaveBeenCalledWith('/security/sessions');
-    expect(router.push).toHaveBeenCalledWith('/security/events');
     expect(router.push).toHaveBeenCalledWith('/profile/privacy');
+  });
+
+  it('labels the biometric row with the enrolled kind and blocks it without a PIN', async () => {
+    hasHardware.mockResolvedValue(true);
+    isEnrolled.mockResolvedValue(true);
+    supportedTypes.mockResolvedValue([2]);
+
+    renderWithProviders(<SecuritySettingsRoute />);
+
+    expect(
+      await screen.findByText(translate('appShell.security.biometric.face'))
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(translate('appShell.security.biometric.requiresPin'))
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(
+        `${translate('appShell.security.biometric.face')}, ${translate('appShell.security.biometric.requiresPin')}`
+      )
+    ).toBeDisabled();
+  });
+
+  it('toggles biometrics on and off once a PIN is configured', async () => {
+    hasHardware.mockResolvedValue(true);
+    isEnrolled.mockResolvedValue(true);
+    supportedTypes.mockResolvedValue([1]);
+
+    const credential = await createPinCredential('123456', '123456');
+    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
+    if (!credential.hash) return;
+    await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
+
+    renderWithProviders(<SecuritySettingsRoute />);
+
+    const rowLabel = `${translate('appShell.security.biometric.fingerprint')}, ${translate('appShell.security.biometric.subtitle')}`;
+    await waitFor(() => {
+      expect(screen.getByLabelText(rowLabel)).toBeEnabled();
+    });
+
+    fireEvent.press(screen.getByLabelText(rowLabel));
+    await waitFor(() => {
+      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
+        'enabled'
+      );
+    });
+
+    fireEvent.press(screen.getByLabelText(rowLabel));
+    await waitFor(() => {
+      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
+        'disabled'
+      );
+    });
   });
 });

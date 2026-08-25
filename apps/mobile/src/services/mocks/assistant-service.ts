@@ -17,7 +17,6 @@ import { buildAssistantContextSnapshot } from '@/features/assistant/assistant-co
 import { coreFinanceService } from './core-finance-service';
 import { financialPlanningService } from './financial-planning-service';
 import { reportsService } from './reports-service';
-import { assistantNotificationsFixtureNow } from '@/test-utils/assistant-notifications-fixtures';
 
 type ContextValue = Pick<AssistantResponse, 'dataAsOf' | 'period' | 'snapshot'>;
 type SourceVersion = AssistantActionPreview['sourceVersions'][number];
@@ -31,7 +30,7 @@ export class AssistantServiceError extends Error {
 }
 
 export function createMockAssistantService({
-  now = () => assistantNotificationsFixtureNow,
+  now = Date.now,
   contextProvider = () => buildAssistantContextSnapshot({
     finance: coreFinanceService,
     planning: financialPlanningService,

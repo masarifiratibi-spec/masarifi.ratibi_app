@@ -1,11 +1,13 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { useDeleteLocalData, usePrivacyRequest } from './settings-queries';
 import { StyledText } from '@/components/StyledText';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { usePreferenceStore } from '@/state/preferences';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
 
 export function PrivacySettingsScreen() {
   const request = usePrivacyRequest();
@@ -17,28 +19,29 @@ export function PrivacySettingsScreen() {
   const [review, setReview] = React.useState<'data_export' | 'account_deletion' | 'local_delete' | null>(null);
 
   return (
-    <ScrollView contentContainerStyle={{ gap: 12, padding: 16 }}>
-      <StyledText variant="title">settings.privacy.legalExplanation</StyledText>
-      <SwitchRow label="settings.privacy.tracking" value={tracking} onValueChange={(value) => update({ trackingPersonalization: value })} />
-      <StyledText>{tracking ? 'settings.privacy.tracking.enabled' : 'settings.privacy.tracking.disabled'}</StyledText>
-      {!tracking ? <StyledText>settings.privacy.tracking.consequence</StyledText> : null}
-      <SwitchRow label="settings.privacy.assistantPersonalization" value={assistantPersonalization} onValueChange={(value) => update({ assistantPersonalization: value })} />
-      <StyledText>{assistantPersonalization ? 'settings.privacy.assistantPersonalization.enabled' : 'settings.privacy.assistantPersonalization.disabled'}</StyledText>
-      {!assistantPersonalization ? <StyledText>settings.privacy.assistantPersonalization.consequence</StyledText> : null}
-      <SwitchRow label="settings.privacy.analytics" value={analytics} onValueChange={(value) => update({ analyticsEnabled: value })} />
-      <ActionButton
-        label="settings.privacy.exportReview"
-        onPress={() => setReview('data_export')}
-      />
-      <ActionButton
-        label="settings.privacy.accountDeletionReview"
-        onPress={() => setReview('account_deletion')}
-      />
-      <ActionButton
-        label="settings.privacy.localDelete"
-        variant="destructive"
-        onPress={() => setReview('local_delete')}
-      />
+    <ScrollView contentContainerStyle={styles.stack}>
+      <StyledText variant="title">settings.privacy.title</StyledText>
+      <StyledText>settings.privacy.legalExplanation</StyledText>
+      <SurfaceCard style={styles.section}>
+        <SwitchRow label="settings.privacy.tracking" value={tracking} onValueChange={(value) => update({ trackingPersonalization: value })} />
+        <StyledText>{tracking ? 'settings.privacy.tracking.enabled' : 'settings.privacy.tracking.disabled'}</StyledText>
+        {!tracking ? <StyledText>settings.privacy.tracking.consequence</StyledText> : null}
+        <SwitchRow label="settings.privacy.assistantPersonalization" value={assistantPersonalization} onValueChange={(value) => update({ assistantPersonalization: value })} />
+        <StyledText>{assistantPersonalization ? 'settings.privacy.assistantPersonalization.enabled' : 'settings.privacy.assistantPersonalization.disabled'}</StyledText>
+        {!assistantPersonalization ? <StyledText>settings.privacy.assistantPersonalization.consequence</StyledText> : null}
+        <SwitchRow label="settings.privacy.analytics" value={analytics} onValueChange={(value) => update({ analyticsEnabled: value })} />
+      </SurfaceCard>
+      <SurfaceCard style={styles.section}>
+        {isFixtureModeEnabled() ? (
+          <>
+            <ActionButton label="settings.privacy.exportReview" variant="secondary" onPress={() => setReview('data_export')} />
+            <ActionButton label="settings.privacy.accountDeletionReview" variant="secondary" onPress={() => setReview('account_deletion')} />
+          </>
+        ) : (
+          <StyledText>settings.privacy.backendUnavailable</StyledText>
+        )}
+        <ActionButton label="settings.privacy.localDelete" variant="destructive" onPress={() => setReview('local_delete')} />
+      </SurfaceCard>
       {review === 'data_export' || review === 'account_deletion' ? (
         <ActionButton
           label="settings.privacy.confirmRequest"
@@ -57,3 +60,13 @@ export function PrivacySettingsScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  stack: {
+    gap: 12,
+    padding: 16
+  },
+  section: {
+    gap: 12
+  }
+});

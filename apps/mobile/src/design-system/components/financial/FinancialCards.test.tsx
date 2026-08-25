@@ -16,10 +16,10 @@ describe('financial composition cards', () => {
     );
 
     expect(screen.getByText('Groceries budget')).toBeTruthy();
-    expect(screen.getByText('-750 EGP')).toBeTruthy();
+    expect(screen.getByText('-750.00 EGP')).toBeTruthy();
     expect(screen.getByText('75%')).toBeTruthy();
     expect(screen.getByText('Emergency fund')).toBeTruthy();
-    expect(screen.getByText('+3,000 EGP')).toBeTruthy();
+    expect(screen.getByText('+3,000.00 EGP')).toBeTruthy();
     expect(screen.getByText('60%')).toBeTruthy();
   });
 

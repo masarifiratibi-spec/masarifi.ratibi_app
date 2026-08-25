@@ -9,7 +9,9 @@ beforeEach(() => changeLocale('en'));
 
 describe('AccessibilityStateGallery', () => {
   it('renders every core async state with a text cue beyond color', () => {
-    const { getByText } = renderWithProviders(<AccessibilityStateGallery />);
+    const { getByTestId, getByText } = renderWithProviders(
+      <AccessibilityStateGallery />
+    );
     // UI Contract §10: loading, success, empty, error, offline minimum.
     // Each state card prefixes an icon cue so meaning never relies on color.
     expect(getByText(/Loading/)).toBeTruthy();
@@ -17,6 +19,14 @@ describe('AccessibilityStateGallery', () => {
     expect(getByText(/Nothing here yet/)).toBeTruthy();
     expect(getByText(/Error/)).toBeTruthy();
     expect(getByText(/offline/i)).toBeTruthy();
+    expect(
+      getByTestId('state-icon-loading', { includeHiddenElements: true })
+    ).toBeTruthy();
+    expect(
+      getByTestId('state-icon-permission_required', {
+        includeHiddenElements: true
+      })
+    ).toBeTruthy();
   });
 
   it('gives every interactive control an accessible name and role', () => {

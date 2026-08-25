@@ -7,6 +7,12 @@ import {
 import { CoreFinanceRepository } from './core-finance-repository';
 import { createMockCoreFinanceService } from '@/services/mocks/core-finance-service';
 import { emptyTransactionFilters, type TransactionInput } from '@/domain/core-finance';
+import {
+  createDefaultAccount,
+  createDefaultCategories,
+  createDemoAccounts,
+  createDemoTransactions
+} from '@/domain/core-finance-seeds';
 
 const mockRunAsync = jest.fn(async (..._arguments: unknown[]) => ({}));
 const mockExecAsync = jest.fn(async (..._arguments: unknown[]) => undefined);
@@ -80,7 +86,8 @@ it('restores ledger, draft, conflict metadata, and undo state after restart', as
       return [
         {
           transaction_id: deletedTransaction.id,
-          payload: JSON.stringify({ priorStatus: 'posted' })
+          payload: JSON.stringify({ priorStatus: 'posted' }),
+          status: 'undoable'
         }
       ];
     return [];
@@ -114,6 +121,113 @@ it('seeds an empty database atomically with foreign-key-safe upserts', async () 
   );
 });
 
+it('restores a seeded default account when an existing ledger has no accounts', async () => {
+  const defaultAccount = createDefaultAccount(1_000);
+  mockGetAllAsync.mockImplementation(async (...arguments_: unknown[]) => {
+    const sql = arguments_[0] as string;
+    if (sql.includes('finance_categories'))
+      return [{ payload: JSON.stringify(fixtureCategories[0]) }];
+    return [];
+  });
+  const repository = new CoreFinanceRepository({
+    accounts: [defaultAccount],
+    categories: fixtureCategories.slice(0, 1)
+  });
+
+  await repository.hydrate();
+
+  expect(repository.listAccounts()).toEqual([defaultAccount]);
+  expect(mockRunAsync).toHaveBeenCalledWith(
+    expect.stringContaining('INSERT INTO finance_accounts'),
+    defaultAccount.id,
+    expect.any(String),
+    'active',
+    1,
+    defaultAccount.updatedAt
+  );
+});
+
+it('can replace the empty default-account ledger with explicit demo data', async () => {
+  const defaultAccount = createDefaultAccount(1_000);
+  const demoAccounts = createDemoAccounts();
+  const demoCategories = createDefaultCategories();
+  const demoTransactions = createDemoTransactions();
+  mockGetAllAsync.mockImplementation(async (...arguments_: unknown[]) => {
+    const sql = arguments_[0] as string;
+    if (sql.includes('finance_accounts'))
+      return [{ payload: JSON.stringify(defaultAccount) }];
+    if (sql.includes('finance_categories'))
+      return demoCategories.map((item) => ({ payload: JSON.stringify(item) }));
+    return [];
+  });
+
+  const repository = new CoreFinanceRepository({
+    accounts: demoAccounts,
+    categories: demoCategories,
+    transactions: demoTransactions,
+    replaceEmptyDefaultLedger: true
+  });
+
+  await repository.hydrate();
+
+  expect(repository.listAccounts()).toEqual(demoAccounts);
+  expect(repository.allTransactions()).toEqual(demoTransactions);
+});
+
+it('removes only unchanged legacy fixture ledger records during explicit persistent cleanup', async () => {
+  const modifiedAccount = { ...fixtureAccounts[0], name: 'Renamed account' };
+  const unrelatedAccount = { ...fixtureAccounts[1], id: 'account-user' };
+  const modifiedTransaction = {
+    ...fixtureTransactions[0],
+    title: 'Edited fixture transaction'
+  };
+  const unrelatedTransaction = {
+    ...makeTransaction(999),
+    id: 'transaction-user'
+  };
+  const persisted = {
+    accounts: [fixtureAccounts[3], modifiedAccount, unrelatedAccount],
+    categories: fixtureCategories,
+    transactions: [fixtureTransactions[1], modifiedTransaction, unrelatedTransaction]
+  };
+  mockGetAllAsync.mockImplementation(async (...arguments_: unknown[]) => {
+    const sql = arguments_[0] as string;
+    if (sql.includes('finance_accounts'))
+      return persisted.accounts.map((item) => ({ payload: JSON.stringify(item) }));
+    if (sql.includes('finance_categories'))
+      return persisted.categories.map((item) => ({ payload: JSON.stringify(item) }));
+    if (sql.includes('finance_transactions'))
+      return persisted.transactions.map((item) => ({ payload: JSON.stringify(item) }));
+    return [];
+  });
+  mockRunAsync.mockImplementation(async (...arguments_: unknown[]) => {
+    const [sql, id] = arguments_ as [string, string];
+    if (sql.includes('DELETE FROM finance_transactions'))
+      persisted.transactions = persisted.transactions.filter((item) => item.id !== id);
+    if (sql.includes('DELETE FROM finance_accounts'))
+      persisted.accounts = persisted.accounts.filter((item) => item.id !== id);
+    return {};
+  });
+
+  const repository = new CoreFinanceRepository({ cleanupLegacyFixtures: true });
+  await repository.hydrate();
+
+  expect(repository.listAccounts(true)).toEqual([modifiedAccount, unrelatedAccount]);
+  expect(repository.allTransactions()).toEqual([
+    modifiedTransaction,
+    unrelatedTransaction
+  ]);
+  expect(repository.listCategories()).toEqual(fixtureCategories);
+
+  const deletesAfterFirstCleanup = mockRunAsync.mock.calls.filter(([sql]) =>
+    (sql as string).startsWith('DELETE FROM')
+  );
+  await new CoreFinanceRepository({ cleanupLegacyFixtures: true }).hydrate();
+  expect(mockRunAsync.mock.calls.filter(([sql]) => (sql as string).startsWith('DELETE FROM'))).toEqual(
+    deletesAfterFirstCleanup
+  );
+});
+
 it('replays a durable create operation after restart without creating another transaction', async () => {
   const created = makeTransaction(900, { id: 'transaction-created-by-op' });
   mockGetAllAsync.mockImplementation(async (...arguments_: unknown[]) => {
@@ -125,7 +239,8 @@ it('replays a durable create operation after restart without creating another tr
       return [
         {
           operation_id: 'op-create-durable',
-          payload: JSON.stringify(created)
+          payload: JSON.stringify(created),
+          status: 'succeeded'
         }
       ];
     return [];

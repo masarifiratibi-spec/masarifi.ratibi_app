@@ -188,4 +188,17 @@ describe('resolveEntryRoute', () => {
       })
     ).toBe('/security/unlock');
   });
+
+  it('redirects protected refreshes to the registered root while hydration is pending', () => {
+    expect(
+      resolveProtectedAccessGate({
+        hydrated: false,
+        now: 15,
+        session: authenticatedSession,
+        privacyLock: unlocked,
+        onboarding: onboardingComplete,
+        pendingDestination: null
+      })
+    ).toBe('/');
+  });
 });

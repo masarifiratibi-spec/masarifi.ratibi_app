@@ -3,12 +3,16 @@ import React, { useEffect, useState } from 'react';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { RadioCard, SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import { PickerField } from '@/design-system/components/forms/PickerField';
+import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
+import { minorToMajorAmountText } from '@/domain/currencies';
 import { parseAmountToMinor, type Account } from '@/domain/core-finance';
 import type { LocalDate } from '@/domain/financial-planning';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
 import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningDraft';
+import { AccountPicker } from '@/features/transactions/AccountPicker';
 import { translate } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
@@ -18,11 +22,13 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
   const existing = useSavingsGoal(goalId);
   const accounts = useAccounts();
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const owningCurrencyCode = existing.data?.goal.currencyCode ?? currencyCode;
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState('');
   const [opening, setOpening] = useState('0');
   const [targetDate, setTargetDate] = useState(() => `${new Date().getUTCFullYear() + 1}-01-01` as LocalDate);
   const [accountId, setAccountId] = useState('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [emergencyFund, setEmergencyFund] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
@@ -36,8 +42,10 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
     const goal = existing.data?.goal;
     if (!goal) return;
     setTitle(goal.title);
-    setTarget(String(goal.targetMinor / 100));
-    setOpening(String(goal.openingTrackedMinor / 100));
+    setTarget(minorToMajorAmountText(goal.targetMinor, goal.currencyCode));
+    setOpening(
+      minorToMajorAmountText(goal.openingTrackedMinor, goal.currencyCode)
+    );
     setTargetDate(goal.targetDate);
     setAccountId(goal.linkedAccountId ?? '');
     setEmergencyFund(goal.emergencyFund);
@@ -63,8 +71,11 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
   });
 
   const submit = () => {
-    const targetMinor = parseAmountToMinor(target);
-    const openingTrackedMinor = parseAmountToMinor(opening);
+    const targetMinor = parseAmountToMinor(target, owningCurrencyCode);
+    const openingTrackedMinor = parseAmountToMinor(
+      opening,
+      owningCurrencyCode
+    );
     if (!title.trim() || !targetMinor || openingTrackedMinor === null || openingTrackedMinor > targetMinor || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
       setError(translate('planning.validation.required'));
       return;
@@ -73,7 +84,7 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
       title: title.trim(),
       targetMinor,
       openingTrackedMinor,
-      currencyCode: existing.data?.goal.currencyCode ?? currencyCode,
+      currencyCode: owningCurrencyCode,
       targetDate,
       linkedAccountId: accountId || null,
       emergencyFund
@@ -88,7 +99,21 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
       <FormField label={translate('planning.savings.targetAmount')} onChangeText={setTarget} value={target} variant="amount" />
       <FormField label={translate('planning.savings.openingAmount')} onChangeText={setOpening} value={opening} variant="amount" />
       <FormField label={translate('planning.savings.targetDate')} onChangeText={(value) => setTargetDate(value as LocalDate)} value={targetDate} errorText={error} />
-      {accounts.data?.map((account: Account) => <RadioCard key={account.id} label={`${account.name} · ${account.currencyCode}`} selected={accountId === account.id} onPress={() => setAccountId(account.id)} />)}
+      <PickerField
+        label={translate('planning.savings.linkedAccount')}
+        value={accounts.data?.find((account: Account) => account.id === accountId)?.name}
+        placeholder={translate('reports.state.unavailable')}
+        onPress={() => setAccountPickerOpen(true)}
+      />
+      <AppSheet title={translate('planning.savings.linkedAccount')} visible={accountPickerOpen} onDismiss={() => setAccountPickerOpen(false)}>
+        <AccountPicker
+          selectedId={accountId}
+          onSelect={(account) => {
+            setAccountId(account.id);
+            setAccountPickerOpen(false);
+          }}
+        />
+      </AppSheet>
       <SwitchRow label={translate('planning.savings.emergencyFund')} value={emergencyFund} onValueChange={setEmergencyFund} />
       <StyledText>{translate('planning.savings.trackingOnly')}</StyledText>
       <ActionButton label={translate('planning.action.save')} loading={save.isPending} onPress={submit} />

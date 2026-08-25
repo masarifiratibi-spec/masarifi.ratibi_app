@@ -3,20 +3,28 @@
  */
 
 import React, { useCallback } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 
 import { FontGate } from '@/design-system/typography';
 import { AppPrivacyGate } from '@/features/security/AppPrivacyGate';
 import { AppShellProvider } from '@/state/AppShellProvider';
 import { FoundationProviders } from '@/state/FoundationProviders';
 import { useAppShellStore } from '@/state/app-shell';
-import { NotificationResponseRuntime } from '@/features/shell/ProtectedRouteGate';
+import {
+  NotificationResponseRuntime,
+  ProtectedRouteGate
+} from '@/features/shell/ProtectedRouteGate';
+import { useTheme } from '@/state/theme-context';
 
 export default function RootLayout() {
+  const pathname = usePathname();
   const autoLockDuration = useAppShellStore(
     (state) => state.privacyLock?.autoLockDuration
   );
   const lockNow = useAppShellStore((state) => state.lockNow);
+  const appLockStatus = useAppShellStore(
+    (state) => state.privacyLock?.appLockStatus
+  );
   const lockAfterMs =
     autoLockDuration === 'one_minute'
       ? 60_000
@@ -36,13 +44,34 @@ export default function RootLayout() {
           <AppPrivacyGate
             immediate={autoLockDuration === 'immediate'}
             lockAfterMs={lockAfterMs}
+            locked={
+              appLockStatus !== undefined &&
+              appLockStatus !== 'unlocked' &&
+              pathname !== '/security/unlock' &&
+              pathname !== '/security/pin/forgot'
+            }
             onLock={handleLock}
           >
             <NotificationResponseRuntime />
-            <Stack screenOptions={{ headerShown: false }} />
+            <ProtectedRouteGate>
+              <RootStack />
+            </ProtectedRouteGate>
           </AppPrivacyGate>
         </AppShellProvider>
       </FoundationProviders>
     </FontGate>
+  );
+}
+
+function RootStack() {
+  const theme = useTheme();
+
+  return (
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: theme.colors.surfaces.page },
+        headerShown: false
+      }}
+    />
   );
 }

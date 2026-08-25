@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
+import { FormField } from '@/design-system/components/forms/FormField';
+import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import type { RecipientVerification, ReportOutputAttempt, ReportSchedule, ReportScheduleInput } from '@/domain/reports';
 import { currentLocale, translate } from '@/localization/i18n';
 import { reportsService } from '@/services/mocks/reports-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { useTheme } from '@/state/theme-context';
 import { formatDate } from '@/utils/format-financial-value';
 import { useReportAttempts, useReportMutation, useReportSchedule } from './report-queries';
 import { scheduleStateTitle } from './report-state';
@@ -16,7 +18,6 @@ import { makeReportScheduleDraft, reportDraftStore } from './useReportDraft';
 const frequencies = ['monthly', 'three_months', 'half_year', 'annual'] as const;
 
 export function ReportScheduleScreen() {
-  const theme = useTheme();
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const locale = usePreferenceStore((state) => state.locale);
   const schedule = useReportSchedule();
@@ -57,6 +58,11 @@ export function ReportScheduleScreen() {
 
   const verified = verification?.status === 'verified' && verification.normalizedEmail === input.recipientEmail.trim().toLowerCase();
   const lastAttempt = attempts.data?.items.find((attempt: ReportOutputAttempt) => attempt.id === schedule.data?.lastSuccessfulAttemptId);
+  const frequencyLabels = frequencies.map((frequency) => translate(`reports.period.${frequency}`));
+  const languages = ['ar', 'en'] as const;
+  const languageLabels = languages.map((language) => translate(language === 'ar' ? 'common.arabic' : 'common.english'));
+  const detailLevels = ['summary', 'detailed'] as const;
+  const detailLabels = detailLevels.map((detailLevel) => translate(`reports.schedule.${detailLevel}`));
 
   return (
     <ScrollView contentContainerStyle={styles.stack} keyboardShouldPersistTaps="handled">
@@ -64,14 +70,12 @@ export function ReportScheduleScreen() {
       <StyledText>{schedule.data ? scheduleStateTitle(schedule.data.status) : translate('reports.schedule.empty')}</StyledText>
       <StyledText>{translate('reports.schedule.mockNotice')}</StyledText>
 
-      <FieldLabel label={translate('reports.schedule.recipient')} />
-      <TextInput
-        accessibilityLabel={translate('reports.schedule.recipient')}
+      <FormField
+        label={translate('reports.schedule.recipient')}
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
         onChangeText={(recipientEmail) => updateInput('recipientEmail', recipientEmail)}
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
         value={input.recipientEmail}
       />
       <ActionButton
@@ -83,53 +87,44 @@ export function ReportScheduleScreen() {
       {verified ? <StyledText>{translate('reports.schedule.verified')}</StyledText> : null}
 
       <FieldLabel label={translate('reports.schedule.frequency')} />
-      <View style={styles.choices}>
-        {frequencies.map((frequency) => (
-          <ActionButton
-            accessibilityState={{ selected: input.frequency === frequency }}
-            key={frequency}
-            label={translate(`reports.period.${frequency}`)}
-            onPress={() => updateInput('frequency', frequency)}
-            variant="secondary"
-          />
-        ))}
-      </View>
+      <ChipSelector
+        options={frequencyLabels}
+        selected={[translate(`reports.period.${input.frequency}`)]}
+        onToggle={(label) => updateInput('frequency', frequencies[frequencyLabels.indexOf(label)] ?? input.frequency)}
+      />
 
-      <FieldLabel label={translate('reports.schedule.deliveryDay')} />
-      <TextInput
-        accessibilityLabel={translate('reports.schedule.deliveryDay')}
-        keyboardType="number-pad"
+      <FormField
+        label={translate('reports.schedule.deliveryDay')}
+        variant="amount"
         onChangeText={(deliveryDay) => updateInput('deliveryDay', Number(deliveryDay))}
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
         value={String(input.deliveryDay)}
       />
       <FieldLabel label={translate('reports.schedule.language')} />
-      <View style={styles.choices}>
-        <ActionButton label={translate('common.arabic')} onPress={() => updateInput('language', 'ar')} variant="secondary" />
-        <ActionButton label={translate('common.english')} onPress={() => updateInput('language', 'en')} variant="secondary" />
-      </View>
-      <FieldLabel label={translate('reports.schedule.currency')} />
-      <TextInput
-        accessibilityLabel={translate('reports.schedule.currency')}
+      <ChipSelector
+        options={languageLabels}
+        selected={[translate(input.language === 'ar' ? 'common.arabic' : 'common.english')]}
+        onToggle={(label) => updateInput('language', languages[languageLabels.indexOf(label)] ?? input.language)}
+      />
+      <FormField
+        label={translate('reports.schedule.currency')}
         autoCapitalize="characters"
         maxLength={3}
         onChangeText={(nextCurrency) => updateInput('currencyCode', nextCurrency.toUpperCase())}
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
         value={input.currencyCode}
       />
       <StyledText>{`${translate('reports.schedule.timeZone')}: ${input.timeZone}`}</StyledText>
       <StyledText>{`${translate('reports.schedule.coveredPeriod')}: ${translate(`reports.period.${input.frequency}`)}`}</StyledText>
 
-      <View style={styles.choices}>
-        <ActionButton label={translate('reports.schedule.summary')} onPress={() => updateInput('detailLevel', 'summary')} variant="secondary" />
-        <ActionButton label={translate('reports.schedule.detailed')} onPress={() => updateInput('detailLevel', 'detailed')} variant="secondary" />
-      </View>
+      <ChipSelector
+        options={detailLabels}
+        selected={[translate(`reports.schedule.${input.detailLevel}`)]}
+        onToggle={(label) => updateInput('detailLevel', detailLevels[detailLabels.indexOf(label)] ?? input.detailLevel)}
+      />
       {input.detailLevel === 'detailed' ? <StyledText>{translate('reports.schedule.detailWarning')}</StyledText> : <StyledText>{translate('reports.schedule.summaryOnly')}</StyledText>}
-      <ActionButton
-        accessibilityState={{ selected: input.includeAssistantSummary }}
+      <SwitchRow
         label={translate('reports.schedule.assistantSummary')}
-        onPress={() => updateInput('includeAssistantSummary', !input.includeAssistantSummary)}
-        variant="secondary"
+        value={input.includeAssistantSummary}
+        onValueChange={(value) => updateInput('includeAssistantSummary', value)}
       />
 
       <ActionButton
@@ -190,6 +185,5 @@ function inputFromSchedule(schedule: ReportSchedule): ReportScheduleInput {
 
 const styles = StyleSheet.create({
   stack: { gap: 12, padding: 16 },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  input: { borderRadius: 8, borderWidth: 1, minHeight: 48, paddingHorizontal: 12 }
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
 });

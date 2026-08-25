@@ -18,7 +18,12 @@ it('separates multiple transactions and maps safe failures', async () => {
   const group = await service.analyze({
     transcript, scenario: 'multiple', sessionId: 's', recordedAt: Date.now(), timezoneOffsetMinutes: 0
   });
-  expect(group.proposals).toHaveLength(2);
+  expect(group.proposals).toHaveLength(3);
+  expect(group.proposals.map((proposal) => proposal.type)).toEqual([
+    'expense',
+    'income',
+    'transfer'
+  ]);
   await expect(service.transcribe('private://audio', 'no_speech')).rejects.toEqual(
     new VoiceCaptureError('no_speech')
   );

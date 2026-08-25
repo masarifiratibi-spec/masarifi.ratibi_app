@@ -1,4 +1,4 @@
-import { emptyTransactionFilters } from '@/domain/core-finance';
+import { deriveAccountBalance, emptyTransactionFilters } from '@/domain/core-finance';
 import {
   fixtureAccounts,
   fixtureCategories,
@@ -49,4 +49,15 @@ it('sorts by amount and returns a real filtered-empty result', () => {
     repo.listTransactions({ ...emptyTransactionFilters, search: 'never-here' })
       .total
   ).toBe(0);
+});
+
+it('derives account balances from the complete ledger beyond one transaction page', () => {
+  const repo = repository();
+  const account = fixtureAccounts[0];
+  const firstPage = repo.listTransactions(emptyTransactionFilters, null, 1);
+
+  expect(repo.accountBalance(account.id)).not.toBe(
+    deriveAccountBalance(account, firstPage.items)
+  );
+  expect(Number.isFinite(repo.accountBalance(account.id))).toBe(true);
 });

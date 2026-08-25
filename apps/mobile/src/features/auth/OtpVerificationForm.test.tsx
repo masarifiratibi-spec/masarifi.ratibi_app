@@ -3,8 +3,11 @@ import { fireEvent, screen } from '@testing-library/react-native';
 
 import { OtpVerificationForm } from './OtpVerificationForm';
 import { renderWithProviders } from '@/test-utils/render';
+import { changeLocale, translate } from '@/localization/i18n';
 
 describe('OtpVerificationForm', () => {
+  afterEach(() => changeLocale('ar'));
+
   it('renders six slots, accepts paste, submits once, and exposes resend state', () => {
     const onSubmit = jest.fn();
     const onResend = jest.fn();
@@ -41,4 +44,30 @@ describe('OtpVerificationForm', () => {
     fireEvent.press(screen.getByLabelText('إعادة إرسال الرمز'));
     expect(onResend).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['ar', 'en'] as const)(
+    'keeps OTP slots in an LTR numeric run that fits narrow screens in %s',
+    (locale) => {
+      changeLocale(locale);
+      renderWithProviders(
+        <OtpVerificationForm
+          resendAvailable
+          onResend={jest.fn()}
+          onSubmit={jest.fn()}
+        />
+      );
+
+      expect(screen.getByTestId('otp-slots')).toHaveStyle({
+        direction: 'ltr',
+        gap: 4,
+        justifyContent: 'space-between',
+        width: '100%'
+      });
+      expect(
+        screen.getAllByLabelText(
+          new RegExp(translate('appShell.auth.otp.code'))
+        )
+      ).toHaveLength(6);
+    }
+  );
 });

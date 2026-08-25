@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppState, View } from 'react-native';
 import { translateDynamic } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
 
 interface SensitiveVisibilityContextValue {
   revealed: boolean;
@@ -15,21 +16,27 @@ const SensitiveVisibilityContext = createContext<SensitiveVisibilityContextValue
 });
 
 export function SensitiveVisibilityProvider({ children }: { children: ReactNode }) {
-  const [revealed, setRevealed] = useState(false);
+  const hideBalances = usePreferenceStore((state) => state.hideBalances);
+  const [sessionRevealed, setSessionRevealed] = useState(false);
   const [obscured, setObscured] = useState(false);
+  const revealed = !hideBalances || sessionRevealed;
   const value = useMemo(
     () => ({
       revealed,
-      reveal: () => setRevealed(true),
-      reset: () => setRevealed(false)
+      reveal: () => setSessionRevealed(true),
+      reset: () => setSessionRevealed(false)
     }),
     [revealed]
   );
 
   useEffect(() => {
+    if (!hideBalances) setSessionRevealed(false);
+  }, [hideBalances]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       const inactive = state !== 'active';
-      if (inactive) setRevealed(false);
+      if (inactive) setSessionRevealed(false);
       setObscured(inactive);
     });
     return () => subscription.remove();

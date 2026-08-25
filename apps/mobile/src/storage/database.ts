@@ -9,7 +9,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 7;
+const CURRENT_SCHEMA_VERSION = 9;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 let databaseWriteQueue: Promise<void> = Promise.resolve();
@@ -52,12 +52,28 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     PRAGMA foreign_keys = ON;
   `);
   await runExclusiveDatabaseTransaction(db, async (transaction) => {
-  await transaction.execAsync(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      version INTEGER PRIMARY KEY,
+    await transaction.execAsync(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY,
+        applied_at INTEGER NOT NULL
+      );
+    `);
+
+    const migrations = parseMigrations(`
+    -- migration:9
+    CREATE TABLE IF NOT EXISTS settings_profile (
+      id TEXT PRIMARY KEY CHECK (id = 'singleton'),
+      payload TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    -- migration:8
+    CREATE TABLE IF NOT EXISTS demo_seed_markers (
+      id TEXT PRIMARY KEY,
       applied_at INTEGER NOT NULL
     );
 
+    -- migration:1
     CREATE TABLE IF NOT EXISTS offline_entries (
       local_id TEXT PRIMARY KEY,
       amount REAL NOT NULL,
@@ -73,6 +89,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_offline_entries_sync_status
       ON offline_entries(sync_status);
 
+    -- migration:2
     CREATE TABLE IF NOT EXISTS finance_accounts (
       id TEXT PRIMARY KEY,
       payload TEXT NOT NULL,
@@ -162,6 +179,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_finance_transactions_filters ON finance_transactions(type, source, status, sync_status, review_status);
     CREATE INDEX IF NOT EXISTS idx_finance_transactions_search ON finance_transactions(normalized_title);
 
+    -- migration:3
     CREATE TABLE IF NOT EXISTS tracking_events (
       id TEXT PRIMARY KEY,
       source_fingerprint TEXT NOT NULL UNIQUE,
@@ -220,6 +238,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_tracking_reviews_status ON tracking_reviews(status, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_tracking_history_date ON tracking_history(occurred_at DESC, id DESC);
 
+    -- migration:4
     CREATE TABLE IF NOT EXISTS voice_category_preferences (
       id TEXT PRIMARY KEY,
       merchant_key TEXT NOT NULL UNIQUE,
@@ -230,6 +249,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       FOREIGN KEY(category_id) REFERENCES finance_categories(id)
     );
 
+    -- migration:5
     CREATE TABLE IF NOT EXISTS planning_salary_profiles (
       id TEXT PRIMARY KEY,
       payload TEXT NOT NULL,
@@ -360,6 +380,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_planning_conflicts_status
       ON planning_sync_conflicts(status, entity_kind, entity_id);
 
+    -- migration:6
     CREATE TABLE IF NOT EXISTS report_schedules (
       id TEXT PRIMARY KEY,
       payload TEXT NOT NULL,
@@ -389,6 +410,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_report_attempts_schedule
       ON report_output_attempts(schedule_id, requested_at DESC);
 
+    -- migration:7
     CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       payload TEXT NOT NULL,
@@ -510,17 +532,29 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       ON support_operations(kind, status, requested_at DESC);
   `);
 
-  const applied = await transaction.getAllAsync<{ version: number }>(
-    'SELECT version FROM schema_migrations ORDER BY version'
-  );
-  const appliedVersions = new Set(applied.map((row) => row.version));
-
-  if (!appliedVersions.has(CURRENT_SCHEMA_VERSION)) {
-    await transaction.runAsync(
-      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
-      CURRENT_SCHEMA_VERSION,
-      Date.now()
+    const applied = await transaction.getAllAsync<{ version: number }>(
+      'SELECT version FROM schema_migrations ORDER BY version'
     );
-  }
+    const appliedVersions = new Set(applied.map((row) => row.version));
+
+    for (let version = 1; version <= CURRENT_SCHEMA_VERSION; version += 1) {
+      if (appliedVersions.has(version)) continue;
+      const sql = migrations.get(version);
+      if (!sql) throw new Error(`missing schema migration ${version}`);
+      await transaction.execAsync(sql);
+      await transaction.runAsync(
+        'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
+        version,
+        Date.now()
+      );
+    }
   });
+}
+
+function parseMigrations(source: string): Map<number, string> {
+  const migrations = new Map<number, string>();
+  const parts = source.split(/-- migration:(\d+)/);
+  for (let index = 1; index < parts.length; index += 2)
+    migrations.set(Number(parts[index]), parts[index + 1].trim());
+  return migrations;
 }

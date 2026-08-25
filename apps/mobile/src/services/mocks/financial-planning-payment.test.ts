@@ -3,7 +3,7 @@ import { fixtureObligation, fixturePayment, fixtureSalaryTransaction } from './f
 
 it('requires explicit review for duplicate payment matches', async () => {
   const match = await deriveMatchForTransaction(
-    fixtureSalaryTransaction.id,
+    fixtureSalaryTransaction,
     [fixtureObligation],
     [{ ...fixturePayment, transactionId: fixtureSalaryTransaction.id }]
   );

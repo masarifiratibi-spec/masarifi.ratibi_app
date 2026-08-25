@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 
@@ -17,6 +18,9 @@ const ExpoLinking =
 export function createPhoneNotificationService(): PhoneNotificationService {
   return {
     async getPermission() {
+      if (Platform.OS === 'web' || !ExpoNotifications?.getPermissionsAsync) {
+        return 'unavailable';
+      }
       try {
         return mapPermission(await ExpoNotifications.getPermissionsAsync());
       } catch {
@@ -24,6 +28,12 @@ export function createPhoneNotificationService(): PhoneNotificationService {
       }
     },
     async requestPermission() {
+      if (
+        Platform.OS === 'web' ||
+        !ExpoNotifications?.requestPermissionsAsync
+      ) {
+        return 'unavailable';
+      }
       try {
         return mapPermission(await ExpoNotifications.requestPermissionsAsync());
       } catch {
@@ -31,28 +41,55 @@ export function createPhoneNotificationService(): PhoneNotificationService {
       }
     },
     async registerCategories() {
-      ExpoNotifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: false,
-          shouldSetBadge: false
-        })
-      });
-      await ExpoNotifications.setNotificationChannelAsync('financial-change', {
-        name: translateDynamic('notifications.channel.financialChanges'),
-        importance: ExpoNotifications.AndroidImportance.DEFAULT
-      });
-      await ExpoNotifications.setNotificationCategoryAsync(
-        'financial-change',
-        [
-          { identifier: 'view', buttonTitle: translateDynamic('notifications.actions.view'), options: { opensAppToForeground: true } },
-          { identifier: 'edit', buttonTitle: translateDynamic('notifications.actions.edit'), options: { opensAppToForeground: true } },
-          { identifier: 'undo', buttonTitle: translateDynamic('notifications.actions.undo'), options: { opensAppToForeground: true } }
-        ],
-        { previewPlaceholder: 'Masarifi' }
-      );
+      if (Platform.OS === 'web') return;
+      try {
+        ExpoNotifications?.setNotificationHandler?.({
+          handleNotification: async () => ({
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true
+          })
+        });
+        await ExpoNotifications?.setNotificationChannelAsync?.(
+          'financial-change',
+          {
+            name: translateDynamic('notifications.channel.financialChanges'),
+            importance: ExpoNotifications.AndroidImportance?.DEFAULT
+          }
+        );
+        await ExpoNotifications?.setNotificationCategoryAsync?.(
+          'financial-change',
+          [
+            {
+              identifier: 'view',
+              buttonTitle: translateDynamic('notifications.actions.view'),
+              options: { opensAppToForeground: true }
+            },
+            {
+              identifier: 'edit',
+              buttonTitle: translateDynamic('notifications.actions.edit'),
+              options: { opensAppToForeground: true }
+            },
+            {
+              identifier: 'undo',
+              buttonTitle: translateDynamic('notifications.actions.undo'),
+              options: { opensAppToForeground: true }
+            }
+          ],
+          { previewPlaceholder: 'Masarifi' }
+        );
+      } catch {
+        // Platform unsupported
+      }
     },
     async presentLocal(input) {
+      if (
+        Platform.OS === 'web' ||
+        !ExpoNotifications?.scheduleNotificationAsync
+      ) {
+        return { status: 'failed', identifier: null };
+      }
       try {
         const identifier = await ExpoNotifications.scheduleNotificationAsync({
           content: {
@@ -69,26 +106,60 @@ export function createPhoneNotificationService(): PhoneNotificationService {
       }
     },
     async getLastResponse() {
-      return responseFromExpo(await ExpoNotifications.getLastNotificationResponseAsync());
+      if (
+        Platform.OS === 'web' ||
+        !ExpoNotifications?.getLastNotificationResponseAsync
+      ) {
+        return null;
+      }
+      try {
+        return responseFromExpo(
+          await ExpoNotifications.getLastNotificationResponseAsync()
+        );
+      } catch {
+        return null;
+      }
     },
     subscribeToResponses(listener) {
-      const subscription = ExpoNotifications.addNotificationResponseReceivedListener(
-        (response) => {
-          const mapped = responseFromExpo(response);
-          if (mapped) listener(mapped);
-        }
-      );
-      return () => subscription.remove();
+      if (
+        Platform.OS === 'web' ||
+        !ExpoNotifications?.addNotificationResponseReceivedListener
+      ) {
+        return () => {};
+      }
+      try {
+        const subscription =
+          ExpoNotifications.addNotificationResponseReceivedListener(
+            (response) => {
+              const mapped = responseFromExpo(response);
+              if (mapped) listener(mapped);
+            }
+          );
+        return () => subscription?.remove?.();
+      } catch {
+        return () => {};
+      }
     },
     async openSystemSettings() {
-      await ExpoLinking.openSettings();
+      if (Platform.OS === 'web' || !ExpoLinking?.openSettings) {
+        return;
+      }
+      try {
+        await ExpoLinking.openSettings();
+      } catch {
+        // Platform unsupported
+      }
     }
   };
 }
 
 export const phoneNotificationService = createPhoneNotificationService();
 
-function mapPermission(status: { granted?: boolean; canAskAgain?: boolean; status?: string }): NotificationPermissionState {
+function mapPermission(status: {
+  granted?: boolean;
+  canAskAgain?: boolean;
+  status?: string;
+}): NotificationPermissionState {
   if (status.granted) return 'granted';
   if (status.status === 'undetermined') return 'not_requested';
   return status.canAskAgain === false ? 'permanently_denied' : 'denied';
@@ -98,9 +169,12 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
   if (!response || typeof response !== 'object') return null;
   const value = response as {
     actionIdentifier?: string;
-    notification?: { request?: { content?: { data?: Record<string, unknown> } } };
+    notification?: {
+      request?: { content?: { data?: Record<string, unknown> } };
+    };
   };
-  const notificationId = value.notification?.request?.content?.data?.notificationId;
+  const notificationId =
+    value.notification?.request?.content?.data?.notificationId;
   if (typeof notificationId !== 'string') return null;
   const action = mapAction(value.actionIdentifier);
   if (!action) return null;
@@ -110,11 +184,17 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
   };
 }
 
-function mapAction(actionIdentifier?: string): PhoneNotificationResponse['action'] | null {
+function mapAction(
+  actionIdentifier?: string
+): PhoneNotificationResponse['action'] | null {
   if (
     actionIdentifier === 'view' ||
-    actionIdentifier === (ExpoNotifications as { DEFAULT_ACTION_IDENTIFIER?: string }).DEFAULT_ACTION_IDENTIFIER
-  ) return 'view';
-  if (actionIdentifier === 'edit' || actionIdentifier === 'undo') return actionIdentifier;
+    actionIdentifier ===
+      (ExpoNotifications as { DEFAULT_ACTION_IDENTIFIER?: string })
+        .DEFAULT_ACTION_IDENTIFIER
+  )
+    return 'view';
+  if (actionIdentifier === 'edit' || actionIdentifier === 'undo')
+    return actionIdentifier;
   return null;
 }

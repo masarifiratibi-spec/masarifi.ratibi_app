@@ -4,6 +4,7 @@ it('creates, edits, pauses, and deletes budgets with version checks', async () =
   const service = createSeededFinancialPlanningService();
   const saved = await service.saveBudget(
     {
+      name: 'March budget',
       periodKey: '2026-03',
       currencyCode: 'SAR',
       configuredExpenseLimitMinor: 1_000,

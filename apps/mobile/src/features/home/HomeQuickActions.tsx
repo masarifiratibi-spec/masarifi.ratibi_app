@@ -12,8 +12,7 @@ const actions = [
   ['coreFinance.action.expense', '/(tabs)/add?type=expense'],
   ['coreFinance.action.income', '/(tabs)/add?type=income'],
   ['coreFinance.action.transfer', '/(tabs)/add?type=transfer'],
-  ['coreFinance.action.voice', '/(tabs)/add?mode=voice'],
-  ['coreFinance.action.obligation', '/(tabs)/add?type=obligation_payment'],
+  ['coreFinance.action.obligation', '/obligations'],
   ['coreFinance.action.assistant', '/assistant']
 ] as const;
 

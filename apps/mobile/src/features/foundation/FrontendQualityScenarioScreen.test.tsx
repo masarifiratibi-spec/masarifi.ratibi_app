@@ -10,7 +10,9 @@ beforeEach(() => changeLocale('en'));
 
 describe('FrontendQualityScenarioScreen', () => {
   it('lists every required profile', () => {
-    const { getByLabelText } = renderWithProviders(<FrontendQualityScenarioScreen />);
+    const { getByLabelText } = renderWithProviders(
+      <FrontendQualityScenarioScreen />
+    );
 
     for (const id of requiredScenarioCoverage) {
       getByLabelText(`Select ${id}`);
@@ -18,7 +20,11 @@ describe('FrontendQualityScenarioScreen', () => {
   });
 
   it('refuses reset without disposable confirmation', async () => {
-    const { getByLabelText, queryByText } = renderWithProviders(<FrontendQualityScenarioScreen />);
+    const { getByLabelText, queryByTestId, queryByText } = renderWithProviders(
+      <FrontendQualityScenarioScreen />
+    );
+
+    expect(queryByTestId('frontend-quality-confirm-icon')).toBeNull();
 
     fireEvent.press(getByLabelText('Reset selected scenario'));
 
@@ -26,8 +32,24 @@ describe('FrontendQualityScenarioScreen', () => {
     getByLabelText('Confirm disposable profile');
   });
 
+  it('uses the shared icon after disposable confirmation', () => {
+    const { getByLabelText, getByTestId } = renderWithProviders(
+      <FrontendQualityScenarioScreen />
+    );
+
+    fireEvent.press(getByLabelText('Confirm disposable profile'));
+
+    expect(
+      getByTestId('frontend-quality-confirm-icon', {
+        includeHiddenElements: true
+      })
+    ).toBeTruthy();
+  });
+
   it('shows seeded route links after confirmation', async () => {
-    const { getByLabelText, getByText } = renderWithProviders(<FrontendQualityScenarioScreen />);
+    const { getByLabelText, getByText } = renderWithProviders(
+      <FrontendQualityScenarioScreen />
+    );
 
     fireEvent.press(getByLabelText('Confirm disposable profile'));
     fireEvent.press(getByLabelText('Reset selected scenario'));

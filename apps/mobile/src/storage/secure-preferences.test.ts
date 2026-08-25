@@ -36,8 +36,8 @@ describe('loadPreferences', () => {
     await expect(loadPreferences()).resolves.toEqual(buildPreferences({
       locale: 'ar',
       direction: 'rtl',
-      theme: 'system',
-      hideBalances: true,
+      theme: 'light',
+      hideBalances: false,
       baseCurrencyCode: 'SAR',
       timeZone: 'Asia/Riyadh',
       reducedMotion: false
@@ -65,7 +65,7 @@ describe('loadPreferences', () => {
     });
   });
 
-  it('defaults first-use balances to hidden and preserves older stored choices', async () => {
+  it('defaults first-use balances to visible when no choice was stored', async () => {
     getItemAsync.mockResolvedValue(
       JSON.stringify({
         locale: 'en',
@@ -79,11 +79,20 @@ describe('loadPreferences', () => {
       locale: 'en',
       direction: 'ltr',
       theme: 'dark',
-      hideBalances: true,
+      hideBalances: false,
       baseCurrencyCode: 'USD',
       reducedMotion: true
     });
   });
+
+  it.each([true, false])(
+    'preserves an explicitly persisted hide-balances choice of %s',
+    async (hideBalances) => {
+      getItemAsync.mockResolvedValue(JSON.stringify({ hideBalances }));
+
+      await expect(loadPreferences()).resolves.toMatchObject({ hideBalances });
+    }
+  );
 
   it('uses AsyncStorage on web where SecureStore is unavailable', async () => {
     const originalPlatform = Platform.OS;

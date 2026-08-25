@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 
 import { PhoneAuthForm } from '@/features/auth/PhoneAuthForm';
 import { StyledText } from '@/components/StyledText';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { authService, setActivePhoneAttempt } from '@/features/auth/auth-flow';
 import type { PhoneInput } from '@/features/auth/phone-validation';
 import { translate } from '@/localization/i18n';
@@ -29,7 +30,10 @@ export default function PhoneRoute() {
 
   return (
     <View style={styles.stack}>
-      <PhoneAuthForm loading={loading} onSubmit={submit} />
+      <StyledText variant="title">{translate('appShell.auth.phone.title')}</StyledText>
+      <SurfaceCard>
+        <PhoneAuthForm loading={loading} onSubmit={submit} />
+      </SurfaceCard>
       {failed ? (
         <StyledText accessibilityRole="alert">
           {translate('appShell.error.unknown')}
@@ -41,6 +45,7 @@ export default function PhoneRoute() {
 
 const styles = StyleSheet.create({
   stack: {
+    gap: 12,
     padding: 16
   }
 });

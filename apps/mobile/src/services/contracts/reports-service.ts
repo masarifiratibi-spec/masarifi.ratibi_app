@@ -18,7 +18,7 @@ export const reportsServiceCapability: CapabilityContractMetadata = {
   capability: 'reports.outputs',
   majorVersion: 1,
   owner: 'reports',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'reports.state.unavailable'
 };
 
@@ -27,6 +27,7 @@ export interface ReportQuery {
   anchorDate: LocalDate;
   currencyCode: string;
   timeZone: string;
+  accountIds?: string[];
 }
 
 export interface ReportBreakdownQuery extends ReportQuery {
@@ -54,14 +55,34 @@ export interface ReportsService {
   getReport(input: ReportQuery): Promise<FinancialReport>;
   getBreakdown(input: ReportBreakdownQuery): Promise<ReportBreakdown>;
   getSchedule(): Promise<ReportSchedule | null>;
-  verifyRecipient(email: string, operationId: string): Promise<MutationResult<RecipientVerification>>;
-  saveSchedule(input: ReportScheduleInput, expectedVersion: number | null, operationId: string): Promise<MutationResult<ReportSchedule>>;
-  setScheduleStatus(status: 'active' | 'paused' | 'disabled', expectedVersion: number, operationId: string): Promise<MutationResult<ReportSchedule>>;
+  verifyRecipient(
+    email: string,
+    operationId: string
+  ): Promise<MutationResult<RecipientVerification>>;
+  saveSchedule(
+    input: ReportScheduleInput,
+    expectedVersion: number | null,
+    operationId: string
+  ): Promise<MutationResult<ReportSchedule>>;
+  setScheduleStatus(
+    status: 'active' | 'paused' | 'disabled',
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<ReportSchedule>>;
   saveScheduleDraft(input: ReportScheduleDraft): Promise<ReportScheduleDraft>;
   loadScheduleDraft(): Promise<ReportScheduleDraft | null>;
   discardScheduleDraft(): Promise<void>;
   previewOutput(input: ReportOutputPreviewInput): Promise<ReportPreview>;
-  requestOutput(input: { kind: Exclude<ReportOutputKind, 'scheduled' | 'retry'>; previewId: string } | { kind: 'scheduled'; scheduleId: string; scheduledFor: number } | { kind: 'retry'; previousAttemptId: string }, operationId: string): Promise<MutationResult<ReportOutputAttempt>>;
+  requestOutput(
+    input:
+      | {
+          kind: Exclude<ReportOutputKind, 'scheduled' | 'retry'>;
+          previewId: string;
+        }
+      | { kind: 'scheduled'; scheduleId: string; scheduledFor: number }
+      | { kind: 'retry'; previousAttemptId: string },
+    operationId: string
+  ): Promise<MutationResult<ReportOutputAttempt>>;
   listAttempts(input?: AttemptQuery): Promise<AttemptPage>;
   getAttempt(id: string): Promise<ReportOutputAttempt>;
 }

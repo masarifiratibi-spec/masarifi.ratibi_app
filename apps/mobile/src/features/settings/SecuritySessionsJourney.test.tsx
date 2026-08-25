@@ -40,6 +40,7 @@ test('session list shows current/other/expired/revoked sessions and success-only
 
   renderWithProviders(<SessionListScreen />);
 
+  expect(screen.getByText(t('settings.sessions.title'))).toBeTruthy();
   expect(screen.getByText(t('settings.sessions.current'))).toBeTruthy();
   expect(screen.getByText('Pixel 8')).toBeTruthy();
   expect(screen.getByText('Old iPhone')).toBeTruthy();
@@ -89,6 +90,7 @@ test('current clearing is visible after current-session or revoke-all success on
 test('security events show masked context and recovery destinations without raw technical values', () => {
   renderWithProviders(<SecurityEventScreen />);
 
+  expect(screen.getByText(t('settings.securityEvents.title'))).toBeTruthy();
   expect(screen.getByText(t('settings.securityEvents.new_session'))).toBeTruthy();
   expect(screen.getByText(t('settings.securityEvents.access_protection_change'))).toBeTruthy();
   expect(screen.getByText(t('settings.securityEvents.recover.security'))).toBeTruthy();

@@ -1,9 +1,12 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { StateView } from '@/design-system/components/feedback/StateView';
 import type { SubscriptionOffer } from '@/domain/subscriptions';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useStartSubscriptionOperation, useSubscriptionCatalog, useSubscriptionState } from './subscription-queries';
 import { StyledText } from '@/components/StyledText';
 import { translateDynamic } from '@/localization/i18n';
@@ -13,20 +16,23 @@ export function SubscriptionScreen() {
   const state = useSubscriptionState();
   const start = useStartSubscriptionOperation();
 
-  if (catalog.isLoading || state.isLoading) return <StyledText>subscriptions.state.loading</StyledText>;
-  if (catalog.isError || state.isError || !catalog.data || !state.data) return <StyledText>subscriptions.state.error</StyledText>;
+  if (catalog.isLoading || state.isLoading) return <StateView state="loading" title={translateDynamic('subscriptions.state.loading')} />;
+  if (catalog.isError || state.isError || !catalog.data || !state.data) return <StateView state="error" title={translateDynamic('subscriptions.state.error')} />;
 
   const offers = catalog.data.offers as SubscriptionOffer[];
   const restoreOffer = offers.find((offer) => offer.plan !== 'free') ?? offers[0];
 
   return (
-    <ScrollView contentContainerStyle={{ gap: 12, padding: 16 }}>
-      <StyledText variant="title">{translateDynamic('subscriptions.current', { plan: planLabel(state.data.plan) })}</StyledText>
+    <ScrollView contentContainerStyle={styles.stack}>
+      <StyledText variant="title">subscriptions.title</StyledText>
+      <SurfaceCard style={styles.offer}>
+        <StyledText variant="subtitle">{translateDynamic('subscriptions.current', { plan: planLabel(state.data.plan) })}</StyledText>
+      </SurfaceCard>
       {state.data.status === 'expired' ? <StyledText>subscriptions.state.expired</StyledText> : null}
       {state.data.paidContentAccess === 'read_only' ? <StyledText>subscriptions.access.readOnly</StyledText> : null}
       {state.data.status === 'expired' ? <StyledText>subscriptions.limit.reached</StyledText> : null}
       {offers.map((offer) => (
-        <View key={offer.offerId}>
+        <SurfaceCard key={offer.offerId} style={styles.offer}>
           <StyledText variant="subtitle">{planLabel(offer.plan)}</StyledText>
           <StyledText>{priceFor(offer)}</StyledText>
           {offer.features.map((feature) => <StyledText key={feature}>{feature.startsWith('subscriptions.') ? feature : `subscriptions.feature.${feature}`}</StyledText>)}
@@ -35,7 +41,7 @@ export function SubscriptionScreen() {
           <StyledText>{offer.renewalTermsKey}</StyledText>
           <StyledText>{offer.cancellationTermsKey}</StyledText>
           {offer.plan !== 'free' ? <ActionButton label={translateDynamic('subscriptions.action.choose', { plan: planLabel(offer.plan) })} onPress={() => router.push(`/subscriptions/checkout?offerId=${offer.offerId}`)} /> : null}
-        </View>
+        </SurfaceCard>
       ))}
       <StyledText>subscriptions.representative.notice</StyledText>
       <ActionButton
@@ -51,13 +57,28 @@ export function SubscriptionScreen() {
   );
 }
 
+const styles = StyleSheet.create({
+  stack: {
+    gap: 12,
+    padding: 16
+  },
+  offer: {
+    gap: 8
+  }
+});
+
 function planLabel(plan: SubscriptionOffer['plan']) {
   return translateDynamic(`subscriptions.plan.${plan}`);
 }
 
 function priceFor(offer: SubscriptionOffer) {
+  const formattedAmount = formatMinorAmount(
+    offer.priceMinor,
+    offer.currency,
+    'en'
+  );
   return translateDynamic('subscriptions.price', {
-    amount: (offer.priceMinor / 100).toFixed(2),
+    amount: formattedAmount.slice(0, -`\u00a0${offer.currency}`.length),
     currency: offer.currency,
     period: translateDynamic(`subscriptions.period.${offer.billingPeriod}`)
   });

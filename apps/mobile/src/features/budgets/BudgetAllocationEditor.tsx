@@ -14,7 +14,7 @@ import type { BudgetMovePreview } from '@/services/contracts/financial-planning-
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useBudgetById, usePlanningMutation } from './budget-queries';
 
 export function BudgetAllocationEditor({ budgetId = '' }: { budgetId?: string }) {
@@ -55,10 +55,13 @@ export function BudgetAllocationEditor({ budgetId = '' }: { budgetId?: string })
     const category = categories.data?.find((item: Category) => item.id === id);
     return currentLocale() === 'ar' ? category?.labelAr ?? id : category?.labelEn ?? id;
   };
-  const money = (minor: number) => hideBalances && !revealed ? translate('planning.state.hidden') : formatAmount(minor / 100, budget.data?.budget.currencyCode ?? 'SAR', currentLocale());
+  const money = (minor: number) => hideBalances && !revealed ? translate('planning.state.hidden') : formatMinorAmount(minor, budget.data?.budget.currencyCode ?? 'SAR', currentLocale());
 
   const buildPreview = async () => {
-    const amountMinor = parseAmountToMinor(amount);
+    const amountMinor = parseAmountToMinor(
+      amount,
+      budget.data?.budget.currencyCode ?? 'SAR'
+    );
     if (!amountMinor || !selectedFrom || !selectedTo || selectedFrom === selectedTo) {
       setError(translate('planning.validation.required'));
       return;

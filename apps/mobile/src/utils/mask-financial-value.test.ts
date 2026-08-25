@@ -8,7 +8,7 @@ describe('maskFinancialValue', () => {
     [
       'authenticated in-app session',
       { surface: 'app', authenticated: true, hideBalances: false },
-      '1,234.50 SAR'
+      '1,234.50\u00a0SAR'
     ],
     [
       'hide-balances preference on',

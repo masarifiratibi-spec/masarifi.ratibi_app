@@ -1,34 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import {
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
+import { spacing } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import type { PrivacyLockPreference } from '@/domain/app-shell';
+import type { BiometricAvailability } from '@/services/contracts/app-shell-service';
 import { createBiometricService } from '@/services/platform/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 
-const autoLockOptions: PrivacyLockPreference['autoLockDuration'][] = [
-  'immediate',
-  'one_minute',
-  'five_minutes',
-  'fifteen_minutes'
-];
-
 export default function SecuritySettingsRoute() {
   const service = useMemo(createBiometricService, []);
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [availability, setAvailability] = useState<BiometricAvailability | null>(
+    null
+  );
   const privacyLock = useAppShellStore((state) => state.privacyLock);
   const setPrivacyLock = useAppShellStore((state) => state.setPrivacyLock);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
-  const toggleHideBalances = usePreferenceStore((state) => state.toggleHideBalances);
+  const toggleHideBalances = usePreferenceStore(
+    (state) => state.toggleHideBalances
+  );
 
   useEffect(() => {
-    void service
-      .getAvailability()
-      .then((result) => setBiometricAvailable(result.status === 'supported'));
+    void service.getAvailability().then((result) => setAvailability(result));
   }, [service]);
 
   async function updateLock(update: Partial<PrivacyLockPreference>) {
@@ -36,77 +38,94 @@ export default function SecuritySettingsRoute() {
     await setPrivacyLock({ ...privacyLock, ...update });
   }
 
+  const biometricKinds =
+    availability?.status === 'supported' ? (availability.kinds ?? []) : [];
+  const biometricReady =
+    privacyLock !== null &&
+    availability?.status === 'supported' &&
+    biometricKinds.length > 0;
+  const prefersFace = biometricKinds.includes('face');
+  const biometricBlockedKey = !privacyLock
+    ? ('appShell.security.biometric.requiresPin' as const)
+    : availability === null
+      ? undefined
+      : availability.status === 'not_enrolled'
+        ? ('appShell.security.biometric.notEnrolled' as const)
+        : availability.status !== 'supported' || biometricKinds.length === 0
+          ? ('appShell.security.biometricUnavailable' as const)
+          : undefined;
+
   return (
-    <View style={styles.stack}>
-      <StyledText variant="title">{translate('appShell.security.settingsTitle')}</StyledText>
-      <ActionButton
-        label={translate(
-          privacyLock
-            ? 'appShell.security.changePin'
-            : 'appShell.security.pin.create'
-        )}
-        onPress={() =>
-          router.push(privacyLock ? '/security/pin/change' : '/security/pin/create')
-        }
-      />
-      {privacyLock ? (
-        <ActionButton
-          label={translate('appShell.security.forgotPin')}
-          onPress={() => router.push('/security/pin/forgot')}
-          variant="secondary"
-        />
-      ) : null}
-      <ActionButton
-        disabled={!privacyLock || !biometricAvailable}
-        label={translate(
-          !biometricAvailable
-            ? 'appShell.security.biometricUnavailable'
-            : privacyLock?.biometricStatus === 'enabled'
-              ? 'appShell.security.biometric.disable'
-              : 'appShell.security.biometric.enable'
-        )}
-        onPress={() =>
-          updateLock({
-            biometricStatus:
-              privacyLock?.biometricStatus === 'enabled' ? 'disabled' : 'enabled'
-          })
-        }
-        variant="secondary"
-      />
-      {autoLockOptions.map((duration) => (
-        <ActionButton
-          accessibilityState={{ selected: privacyLock?.autoLockDuration === duration }}
-          disabled={!privacyLock}
-          key={duration}
-          label={translate(`appShell.security.autoLock.${duration}` as never)}
-          onPress={() => updateLock({ autoLockDuration: duration })}
-          variant={
-            privacyLock?.autoLockDuration === duration ? 'primary' : 'secondary'
+    <ScrollView contentContainerStyle={styles.stack}>
+      <StyledText variant="title">
+        {translate('appShell.security.settingsTitle')}
+      </StyledText>
+
+      <GroupedList label={translate('appShell.security.sections.appLock')}>
+        <NavigationRow
+          label={translate(
+            privacyLock
+              ? 'appShell.security.pin.change'
+              : 'appShell.security.pin.create'
+          )}
+          onPress={() =>
+            router.push(
+              privacyLock ? '/security/pin/change' : '/security/pin/create'
+            )
           }
         />
-      ))}
-      <ActionButton
-        accessibilityState={{ selected: hideBalances }}
-        label={translate('appShell.security.hideBalances')}
-        onPress={toggleHideBalances}
-        variant={hideBalances ? 'primary' : 'secondary'}
-      />
-      <ActionButton
-        label={translate('appShell.security.sessions')}
-        onPress={() => router.push('/security/sessions')}
-        variant="secondary"
-      />
-      <ActionButton
-        label={translate('appShell.security.events')}
-        onPress={() => router.push('/security/events')}
-        variant="secondary"
-      />
+        {privacyLock ? (
+          <NavigationRow
+            label={translate('appShell.security.forgotPin')}
+            onPress={() => router.push('/security/pin/forgot')}
+          />
+        ) : null}
+        <View style={styles.insetRow}>
+          <SwitchRow
+            disabled={!biometricReady}
+            icon={prefersFace ? 'faceId' : 'fingerprint'}
+            label={
+              prefersFace
+                ? 'appShell.security.biometric.face'
+                : 'appShell.security.biometric.fingerprint'
+            }
+            subtext={
+              biometricBlockedKey ?? 'appShell.security.biometric.subtitle'
+            }
+            value={privacyLock?.biometricStatus === 'enabled'}
+            onValueChange={(next) =>
+              void updateLock({
+                biometricStatus: next ? 'enabled' : 'disabled'
+              })
+            }
+          />
+        </View>
+      </GroupedList>
+
+      <GroupedList label={translate('appShell.security.sections.privacy')}>
+        <View style={styles.insetRow}>
+          <SwitchRow
+            icon="eyeSlash"
+            label="appShell.security.hideBalances"
+            value={hideBalances}
+            onValueChange={toggleHideBalances}
+          />
+        </View>
+      </GroupedList>
+
+      <GroupedList label={translate('appShell.security.settingsTitle')}>
+        <NavigationRow
+          label={translate('appShell.security.sessions')}
+          onPress={() => router.push('/security/sessions')}
+        />
+      </GroupedList>
+
       <ActionButton
         label={translate('appShell.security.localData')}
         onPress={() => router.push('/profile/privacy')}
         variant="destructive"
       />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -114,5 +133,8 @@ const styles = StyleSheet.create({
   stack: {
     gap: 12,
     padding: 16
+  },
+  insetRow: {
+    paddingHorizontal: spacing.lg
   }
 });

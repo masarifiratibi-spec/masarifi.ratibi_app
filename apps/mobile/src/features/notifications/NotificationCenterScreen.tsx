@@ -1,15 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { FlatList, PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import type { NotificationEvent, NotificationListQuery, NotificationTarget } from '@/domain/notifications';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { SensitiveValue } from '@/design-system/components/SensitiveValue';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import { useTheme } from '@/state/theme-context';
-import { translateDynamic } from '@/localization/i18n';
+import { translateDynamic, translateDynamicOr } from '@/localization/i18n';
 import { StyledText } from '@/components/StyledText';
 
 import {
@@ -38,6 +39,7 @@ const views: readonly { labelKey: string; query: NotificationListQuery }[] = [
 
 export function NotificationCenterScreen() {
   const theme = useTheme();
+  const largeText = PixelRatio.getFontScale() >= 1.5;
   const [viewIndex, setViewIndex] = useState(0);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NotificationEvent | null>(null);
@@ -53,41 +55,48 @@ export function NotificationCenterScreen() {
   const items: NotificationEvent[] = notifications.data?.pages?.flatMap((page) => page.items) ?? legacyData?.items ?? [];
   const rows = buildNotificationCenterRows(items);
   const total = notifications.data?.pages?.[0]?.total ?? legacyData?.total ?? items.length;
+  const viewLabels = views.map((view) => t(view.labelKey));
 
-  const listHeader = useMemo(
-    () => (
-      <View style={styles.stack}>
-        <View accessibilityLabel={t('notifications.center.unreadLabel')} style={styles.badgeRow}>
-          <Text style={[styles.unread, { color: theme.colors.textPrimary }]}>
-            {unread.data ?? 0}
-          </Text>
-          <ActionButton
-            label={t('notifications.center.markAllRead')}
-            variant="secondary"
-            onPress={() =>
-              markAllRead.mutate({
-                filter: query,
-                operationId: `mark-all-${Date.now()}`
-              })
-            }
-          />
-        </View>
-        <View style={styles.filters}>
-          {views.map((view, index) => (
-            <ActionButton
-              key={view.labelKey}
-              label={t(view.labelKey)}
-              variant={index === viewIndex ? 'primary' : 'secondary'}
-              onPress={() => setViewIndex(index)}
-            />
-          ))}
-        </View>
-        <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
-          {`${total.toLocaleString('en-US')} ${t('notifications.center.countSuffix')}`}
-        </Text>
+  const listHeader = (
+    <View style={styles.stack}>
+      <View
+        testID="notification-center-header"
+        style={[
+          styles.header,
+          largeText ? { alignItems: 'stretch', flexDirection: 'column' } : null
+        ]}
+      >
+        <StyledText variant="title">appShell.shell.notifications</StyledText>
+        <ActionButton
+          label={t('notifications.preferences.title')}
+          variant="secondary"
+          onPress={() => router.push('/notifications/preferences')}
+        />
       </View>
-    ),
-    [markAllRead, query, theme.colors.textPrimary, theme.colors.textSecondary, total, unread.data, viewIndex]
+      <View accessibilityLabel={t('notifications.center.unreadLabel')} style={styles.badgeRow}>
+        <Text style={[styles.unread, { color: theme.colors.textPrimary }]}>
+          {unread.data ?? 0}
+        </Text>
+        <ActionButton
+          label={t('notifications.center.markAllRead')}
+          variant="secondary"
+          onPress={() =>
+            markAllRead.mutate({
+              filter: query,
+              operationId: `mark-all-${Date.now()}`
+            })
+          }
+        />
+      </View>
+      <ChipSelector
+        options={viewLabels}
+        selected={[viewLabels[viewIndex]]}
+        onToggle={(label) => setViewIndex(Math.max(0, viewLabels.indexOf(label)))}
+      />
+      <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
+        {`${total.toLocaleString('en-US')} ${t('notifications.center.countSuffix')}`}
+      </Text>
+    </View>
   );
 
   if (notifications.isLoading) {
@@ -173,12 +182,12 @@ function NotificationRow({
   const amount = Object.values(item.messageValues).find((value) => typeof value === 'string' && /\d/.test(value));
   const expired = item.availableActions.some((action) => action.expiresAt !== null && action.expiresAt <= Date.now());
   const canOpen = Boolean(routeForNotification(item));
-  const title = translateDynamic(item.titleKey, item.messageValues);
+  const title = translateDynamicOr(item.titleKey, 'notifications.fallback.title', item.messageValues);
 
   return (
     <View style={[styles.card, { borderColor: theme.colors.border }]}>
       <StyledText variant="subtitle">{title}</StyledText>
-      <StyledText style={{ color: theme.colors.textSecondary }}>{translateDynamic(item.bodyKey, item.messageValues)}</StyledText>
+      <StyledText style={{ color: theme.colors.textSecondary }}>{translateDynamicOr(item.bodyKey, 'notifications.fallback.body', item.messageValues)}</StyledText>
       <View style={styles.badgeRow}>
         {item.syncStatus === 'pending' ? <StatusBadge status="sync" label={t('notifications.center.syncPending')} /> : null}
         {!item.target || item.safeFailure === 'unavailable' ? <StatusBadge status="warning" label={t('notifications.center.unavailable')} /> : null}
@@ -260,10 +269,11 @@ const styles = StyleSheet.create({
   stack: {
     gap: 12
   },
-  filters: {
+  header: {
+    alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
+    gap: 8,
+    justifyContent: 'space-between'
   },
   badgeRow: {
     alignItems: 'center',

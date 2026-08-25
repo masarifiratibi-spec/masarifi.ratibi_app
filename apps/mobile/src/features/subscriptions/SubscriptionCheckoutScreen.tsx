@@ -3,8 +3,11 @@ import { ScrollView } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { StateView } from '@/design-system/components/feedback/StateView';
+import { GroupedList, NavigationRow } from '@/design-system/components/navigation/GroupedList';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import type { SubscriptionOffer } from '@/domain/subscriptions';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useStartSubscriptionOperation, useSubscriptionCatalog, useSubscriptionState } from './subscription-queries';
 import { StyledText } from '@/components/StyledText';
 import { translateDynamic } from '@/localization/i18n';
@@ -17,16 +20,18 @@ export function SubscriptionCheckoutScreen({ offerId }: { offerId?: string }) {
   const [submitted, setSubmitted] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
 
-  if (catalog.isLoading || state.isLoading) return <StyledText>subscriptions.state.loading</StyledText>;
-  if (catalog.isError || state.isError || !catalog.data || !state.data) return <StyledText>subscriptions.state.error</StyledText>;
+  if (catalog.isLoading || state.isLoading) return <StateView state="loading" title={translateDynamic('subscriptions.state.loading')} />;
+  if (catalog.isError || state.isError || !catalog.data || !state.data) return <StateView state="error" title={translateDynamic('subscriptions.state.error')} />;
   const offer = (catalog.data.offers as SubscriptionOffer[]).find((item) => item.offerId === offerId);
   if (!offer || state.data.catalogVersion !== catalog.data.version) return <StyledText>subscriptions.checkout.changed</StyledText>;
 
   return (
     <ScrollView contentContainerStyle={{ gap: 12, padding: 16 }}>
-      <StyledText variant="title">{translateDynamic(`subscriptions.plan.${offer.plan}`)}</StyledText>
-      <StyledText>{priceFor(offer)}</StyledText>
-      <StyledText>{translateDynamic('subscriptions.checkout.catalogVersion', { version: catalog.data.version })}</StyledText>
+      <StyledText variant="title">subscriptions.checkout.title</StyledText>
+      <GroupedList label={translateDynamic('subscriptions.checkout.title')}>
+        <NavigationRow label={translateDynamic(`subscriptions.plan.${offer.plan}`)} value={priceFor(offer)} />
+        <NavigationRow label={translateDynamic('subscriptions.checkout.catalogVersion', { version: catalog.data.version })} />
+      </GroupedList>
       <StyledText>subscriptions.representative.notice</StyledText>
       {failed ? <StyledText accessibilityRole="alert">subscriptions.checkout.failed</StyledText> : null}
       <ActionButton label="subscriptions.checkout.confirm" loading={start.isPending} onPress={() => setConfirmVisible(true)} />
@@ -61,8 +66,13 @@ export function SubscriptionCheckoutScreen({ offerId }: { offerId?: string }) {
 }
 
 function priceFor(offer: SubscriptionOffer) {
+  const formattedAmount = formatMinorAmount(
+    offer.priceMinor,
+    offer.currency,
+    'en'
+  );
   return translateDynamic('subscriptions.price', {
-    amount: (offer.priceMinor / 100).toFixed(2),
+    amount: formattedAmount.slice(0, -`\u00a0${offer.currency}`.length),
     currency: offer.currency,
     period: translateDynamic(`subscriptions.period.${offer.billingPeriod}`)
   });

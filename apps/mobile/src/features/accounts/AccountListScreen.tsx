@@ -1,36 +1,72 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, TextInput, View } from 'react-native';
+import { SectionList, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { AccountCard } from '@/design-system/components/financial/AccountCard';
-import {
-  deriveAccountBalance,
-  emptyTransactionFilters,
-  type Account
-} from '@/domain/core-finance';
+import type { Account } from '@/domain/core-finance';
 import {
   useAccounts,
-  useTransactions
+  useAccountBalances
 } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
+import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
+import { usePreferenceStore } from '@/state/preferences';
+import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { useTheme } from '@/state/theme-context';
+import { AccountRow } from './AccountRow';
+import {
+  projectAccount,
+  type AccountPresentation
+} from './account-presentation';
+
+interface AccountSection {
+  title: string;
+  data: AccountPresentation[];
+}
 
 export function AccountListScreen() {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const accounts = useAccounts(true);
-  const transactions = useTransactions(emptyTransactionFilters);
-  const filtered = useMemo(
+  const balances = useAccountBalances(true);
+  const hideBalances = usePreferenceStore((state) => state.hideBalances);
+  const { revealed } = useSensitiveVisibility();
+  const hidden = hideBalances && !revealed;
+  const balanceByAccount = useMemo(
     () =>
-      (accounts.data ?? []).filter((item: Account) =>
+      new Map<string, AccountBalanceProjection>(
+        ((balances.data ?? []) as AccountBalanceProjection[]).map((item) => [
+          item.accountId,
+          item
+        ])
+      ),
+    [balances.data]
+  );
+  const filtered = useMemo<Account[]>(
+    () =>
+      ((accounts.data ?? []) as Account[]).filter((item) =>
         item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())
       ),
     [accounts.data, search]
   );
-  if (accounts.isLoading)
+  const sections = useMemo<AccountSection[]>(() => {
+    const projected: AccountPresentation[] = filtered.map((item) =>
+      projectAccount(item, balanceByAccount.get(item.id), hidden)
+    );
+    return [
+      {
+        title: translate('coreFinance.accounts.activeSection'),
+        data: projected.filter((item) => item.account.status === 'active')
+      },
+      {
+        title: translate('coreFinance.accounts.archivedSection'),
+        data: projected.filter((item) => item.account.status === 'archived')
+      }
+    ].filter((section) => section.data.length);
+  }, [balanceByAccount, filtered, hidden]);
+  if (accounts.isLoading || balances.isLoading)
     return (
       <View style={styles.content}>
         <StyledText variant="title">
@@ -42,19 +78,22 @@ export function AccountListScreen() {
         />
       </View>
     );
-  if (accounts.isError)
+  if (accounts.isError || balances.isError)
     return (
       <StateView
         state="error"
         title={translate('coreFinance.state.error')}
         actionLabel={translate('coreFinance.action.retry')}
-        onAction={() => void accounts.refetch()}
+        onAction={() => {
+          void accounts.refetch();
+          void balances.refetch();
+        }}
       />
     );
   return (
-    <FlatList
-      data={filtered}
-      keyExtractor={(item) => item.id}
+    <SectionList
+      sections={sections}
+      keyExtractor={(item) => item.account.id}
       contentContainerStyle={styles.content}
       ListHeaderComponent={
         <View style={styles.header}>
@@ -84,38 +123,41 @@ export function AccountListScreen() {
       ListEmptyComponent={
         <StateView
           state="empty"
-          title={translate('coreFinance.accounts.empty')}
+          title={
+            (accounts.data ?? []).length
+              ? translate('coreFinance.accounts.noSearchResults')
+              : translate('coreFinance.accounts.empty')
+          }
         />
       }
-      renderItem={({ item }) => (
-        <AccountCard
-          name={item.name}
-          type={translate(`coreFinance.accountType.${item.type}` as never)}
-          maskedIdentifier={
-            item.lastFour ? `•••• ${item.lastFour}` : item.currencyCode
+      renderItem={({ item, index, section }) => (
+        <AccountRow
+          groupedPosition={
+            section.data.length === 1
+              ? 'only'
+              : index === 0
+                ? 'first'
+                : index === section.data.length - 1
+                  ? 'last'
+                  : 'middle'
           }
-          balance={
-            deriveAccountBalance(item, transactions.data?.items ?? []) / 100
-          }
-          currency={item.currencyCode}
-          statusLabel={
-            item.status === 'archived'
-              ? translate('coreFinance.accounts.archived')
-              : item.isDefault
-                ? translate('coreFinance.accounts.default')
-                : undefined
-          }
-          actionLabel={translate('coreFinance.accounts.open')}
-          onAction={() => router.push(`/accounts/${item.id}`)}
+          presentation={item}
+          onPress={() => router.push(`/accounts/${item.account.id}`)}
         />
+      )}
+      renderSectionHeader={({ section }) => (
+        <StyledText style={styles.sectionHeading} variant="subtitle">
+          {section.title}
+        </StyledText>
       )}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 10, padding: 16, paddingBottom: 40 },
-  header: { gap: 10 },
+  content: { padding: 16, paddingBottom: 40 },
+  header: { gap: 10, marginBottom: 8 },
+  sectionHeading: { paddingBottom: 8, paddingTop: 16 },
   search: {
     borderRadius: 8,
     borderWidth: 1,

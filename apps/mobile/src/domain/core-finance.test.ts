@@ -58,21 +58,32 @@ const transaction = (overrides: Partial<Transaction>): Transaction => ({
 
 describe('money parsing', () => {
   it.each([
+    ['JPY', '12', 12],
+    ['SAR', '12.34', 1234],
+    ['OMR', '12.345', 12345],
+    ['KWD', '0.001', 1],
+    ['BHD', '1.230', 1230],
+    ['JOD', '999999.999', 999999999]
+  ])('preserves %s minor units from %s', (currencyCode, text, expected) => {
+    expect(parseAmountToMinor(text, currencyCode)).toBe(expected);
+  });
+
+  it.each([
     ['12', 1200],
     ['12.3', 1230],
     ['1,234.56', 123456]
   ])('parses %s', (text, expected) => {
-    expect(parseAmountToMinor(text)).toBe(expected);
+    expect(parseAmountToMinor(text, 'SAR')).toBe(expected);
   });
   it.each(['', '-1', '1.234', 'abc'])('rejects %s', (text) =>
-    expect(parseAmountToMinor(text)).toBeNull()
+    expect(parseAmountToMinor(text, 'SAR')).toBeNull()
   );
   it('rejects values beyond the safe integer limit', () => {
-    expect(parseAmountToMinor('90071992547409.92')).toBeNull();
+    expect(parseAmountToMinor('90071992547409.92', 'SAR')).toBeNull();
   });
   it('formats user input scale deterministically through parsed minor units', () => {
-    expect(parseAmountToMinor('0.01')).toBe(1);
-    expect(parseAmountToMinor('0.1')).toBe(10);
+    expect(parseAmountToMinor('0.01', 'SAR')).toBe(1);
+    expect(parseAmountToMinor('0.1', 'SAR')).toBe(10);
   });
 });
 
@@ -140,4 +151,36 @@ describe('search and filters', () => {
       })
     ).toBe(false);
   });
+
+  it('hides deleted transactions by default and includes them only when requested', () => {
+    const deleted = transaction({ status: 'deleted' });
+
+    expect(matchesFilters(deleted, emptyTransactionFilters)).toBe(false);
+    expect(
+      matchesFilters(deleted, {
+        ...emptyTransactionFilters,
+        statuses: ['deleted']
+      })
+    ).toBe(true);
+  });
+
+  it.each([
+    ['OMR', true],
+    ['SAR', false]
+  ])(
+    'applies OMR amount thresholds only to %s transactions',
+    (currencyCode, expected) => {
+      expect(
+        matchesFilters(
+          transaction({ amountMinor: 12_345, currencyCode }),
+          {
+            ...emptyTransactionFilters,
+            amountCurrencyCode: 'OMR',
+            minMinor: 12_000,
+            maxMinor: 13_000
+          }
+        )
+      ).toBe(expected);
+    }
+  );
 });

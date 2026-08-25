@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { getCurrencyMinorUnitScale } from './currencies';
+
 export const accountTypes = [
   'bank',
   'debit_card',
@@ -131,6 +133,7 @@ export interface TransactionFilterSet {
   statuses: Transaction['status'][];
   syncStatuses: SyncStatus[];
   reviewRequired: boolean | null;
+  amountCurrencyCode: string | null;
   minMinor: number | null;
   maxMinor: number | null;
   sort: 'newest' | 'oldest' | 'amount_high' | 'amount_low';
@@ -179,6 +182,24 @@ export interface HomeSummary {
   dataState: 'ready' | 'empty' | 'partial' | 'offline' | 'stale';
 }
 
+export interface TransactionEffect {
+  accountDeltaMinor: number;
+  incomeMinor: number;
+  expenseMinor: number;
+  feeMinor: number;
+}
+
+export interface TransactionEffectProjection {
+  confirmed: TransactionEffect;
+  pending: TransactionEffect;
+}
+
+interface TransactionProjectionContext {
+  accountId: string | null;
+  transactionById: ReadonlyMap<string, Transaction>;
+  activeReversalIds: ReadonlySet<string>;
+}
+
 export const emptyTransactionFilters: TransactionFilterSet = {
   search: '',
   periodStart: null,
@@ -190,6 +211,7 @@ export const emptyTransactionFilters: TransactionFilterSet = {
   statuses: [],
   syncStatuses: [],
   reviewRequired: null,
+  amountCurrencyCode: null,
   minMinor: null,
   maxMinor: null,
   sort: 'newest'
@@ -314,7 +336,11 @@ export type TransactionInput = z.input<typeof transactionInputSchema>;
 export type DraftInput = z.input<typeof draftInputSchema>;
 export type ConflictResolution = z.input<typeof conflictResolutionSchema>;
 
-export function parseAmountToMinor(text: string, scale = 2): number | null {
+export function parseAmountToMinor(
+  text: string,
+  currencyCode: string
+): number | null {
+  const scale = getCurrencyMinorUnitScale(currencyCode);
   const normalized = text.trim().replaceAll(',', '');
   if (!/^\d+(?:\.\d+)?$/.test(normalized)) return null;
   const [whole, fraction = ''] = normalized.split('.');
@@ -326,41 +352,261 @@ export function parseAmountToMinor(text: string, scale = 2): number | null {
 
 export function transactionEffectForAccount(
   transaction: Transaction,
-  accountId: string
+  accountId: string,
+  originalTransaction: Transaction | null = null
 ): number {
-  if (
-    transaction.syncStatus === 'conflict' ||
-    transaction.status !== 'posted' &&
-      transaction.status !== 'refunded' &&
-      transaction.status !== 'reversed'
-  )
-    return 0;
-  if (transaction.type === 'transfer') {
-    if (transaction.accountId === accountId)
-      return -(transaction.amountMinor + transaction.feeMinor);
-    return transaction.destinationAccountId === accountId
-      ? transaction.amountMinor
-      : 0;
+  return projectTransactionEffect(transaction, accountId, originalTransaction)
+    .confirmed.accountDeltaMinor;
+}
+
+export function projectTransactionEffect(
+  transaction: Transaction,
+  accountId: string | null,
+  originalTransaction: Transaction | null = null
+): TransactionEffectProjection {
+  const effect = transactionValues(transaction, accountId, originalTransaction);
+  if (isConfirmedTransaction(transaction)) {
+    return { confirmed: effect, pending: emptyTransactionEffect() };
   }
-  if (transaction.accountId !== accountId) return 0;
-  if (transaction.type === 'income' || transaction.type === 'refund')
-    return transaction.amountMinor;
+  if (isPendingTransaction(transaction)) {
+    return { confirmed: emptyTransactionEffect(), pending: effect };
+  }
+  return {
+    confirmed: emptyTransactionEffect(),
+    pending: emptyTransactionEffect()
+  };
+}
+
+export function projectTransactionEffects(
+  transactions: readonly Transaction[],
+  accountId: string | null
+): ReadonlyMap<string, TransactionEffectProjection> {
+  const transactionById = new Map(
+    transactions.map((transaction) => [transaction.id, transaction])
+  );
+  const activeReversalIds = selectActiveReversalIds(
+    transactions,
+    transactionById
+  );
+  const context = { accountId, transactionById, activeReversalIds };
+  return new Map(
+    transactions.map((transaction) => [
+      transaction.id,
+      projectAggregateTransaction(transaction, context)
+    ])
+  );
+}
+
+function projectAggregateTransaction(
+  transaction: Transaction,
+  context: TransactionProjectionContext
+): TransactionEffectProjection {
+  const original = transaction.originalTransactionId
+    ? (context.transactionById.get(transaction.originalTransactionId) ?? null)
+    : null;
+  const eligibleOriginal =
+    transaction.type !== 'reversal' ||
+    context.activeReversalIds.has(transaction.id)
+      ? original
+      : null;
+  return projectTransactionEffect(
+    transaction,
+    context.accountId,
+    eligibleOriginal
+  );
+}
+
+export function isConfirmedTransaction(transaction: Transaction): boolean {
+  return (
+    transaction.status === 'posted' &&
+    transaction.reviewStatus !== 'required' &&
+    transaction.syncStatus !== 'conflict'
+  );
+}
+
+function isPendingTransaction(transaction: Transaction): boolean {
+  return (
+    transaction.status === 'pending' &&
+    transaction.reviewStatus !== 'required' &&
+    transaction.syncStatus !== 'conflict'
+  );
+}
+
+function transactionValues(
+  transaction: Transaction,
+  accountId: string | null,
+  originalTransaction: Transaction | null
+): TransactionEffect {
+  if (transaction.type === 'transfer')
+    return transferValues(transaction, accountId);
+  if (transaction.type === 'reversal') {
+    return reversalValues(transaction, accountId, originalTransaction);
+  }
+  const onAccount = transaction.accountId === accountId;
+  if (transaction.type === 'income')
+    return effect(
+      onAccount ? transaction.amountMinor : 0,
+      transaction.amountMinor,
+      0
+    );
+  if (transaction.type === 'refund') {
+    return refundValues(transaction, accountId, originalTransaction);
+  }
   if (transaction.type === 'adjustment')
-    return transaction.amountMinor * transaction.adjustmentSign;
-  if (transaction.type === 'reversal')
-    return transaction.amountMinor * transaction.adjustmentSign;
-  return -transaction.amountMinor;
+    return effect(
+      onAccount ? transaction.amountMinor * transaction.adjustmentSign : 0,
+      0,
+      0
+    );
+  return effect(
+    onAccount ? -transaction.amountMinor : 0,
+    0,
+    transaction.amountMinor
+  );
+}
+
+function refundValues(
+  transaction: Transaction,
+  accountId: string | null,
+  originalTransaction: Transaction | null
+): TransactionEffect {
+  if (!hasEligibleOriginal(transaction, originalTransaction)) {
+    return emptyTransactionEffect();
+  }
+  return effect(
+    transaction.accountId === accountId ? transaction.amountMinor : 0,
+    0,
+    -transaction.amountMinor
+  );
+}
+
+function transferValues(
+  transaction: Transaction,
+  accountId: string | null
+): TransactionEffect {
+  const accountDeltaMinor =
+    transaction.accountId === accountId
+      ? -(transaction.amountMinor + transaction.feeMinor)
+      : transaction.destinationAccountId === accountId
+        ? transaction.amountMinor
+        : 0;
+  return effect(accountDeltaMinor, 0, 0, transaction.feeMinor);
+}
+
+function reversalValues(
+  transaction: Transaction,
+  accountId: string | null,
+  originalTransaction: Transaction | null
+): TransactionEffect {
+  if (!hasEligibleOriginal(transaction, originalTransaction)) {
+    return emptyTransactionEffect();
+  }
+  const original = transactionValues(originalTransaction, accountId, null);
+  return effect(
+    negate(original.accountDeltaMinor),
+    negate(original.incomeMinor),
+    negate(original.expenseMinor),
+    negate(original.feeMinor)
+  );
+}
+
+function hasEligibleOriginal(
+  transaction: Transaction,
+  originalTransaction: Transaction | null
+): originalTransaction is Transaction {
+  return (
+    originalTransaction !== null &&
+    transaction.originalTransactionId === originalTransaction.id &&
+    isConfirmedTransaction(originalTransaction)
+  );
+}
+
+function selectActiveReversalIds(
+  transactions: readonly Transaction[],
+  transactionById: ReadonlyMap<string, Transaction>
+): Set<string> {
+  const selectedOriginalIds = new Set<string>();
+  const selectedReversalIds = new Set<string>();
+  const candidates = activeReversalCandidates(transactions);
+  for (const reversal of candidates) {
+    const originalId = eligibleOriginalId(reversal, transactionById);
+    if (!originalId || selectedOriginalIds.has(originalId)) continue;
+    selectedOriginalIds.add(originalId);
+    selectedReversalIds.add(reversal.id);
+  }
+  return selectedReversalIds;
+}
+
+function activeReversalCandidates(
+  transactions: readonly Transaction[]
+): Transaction[] {
+  return transactions
+    .filter(
+      (transaction) =>
+        transaction.type === 'reversal' &&
+        (isConfirmedTransaction(transaction) ||
+          isPendingTransaction(transaction))
+    )
+    .sort(compareReversalPriority);
+}
+
+function eligibleOriginalId(
+  reversal: Transaction,
+  transactionById: ReadonlyMap<string, Transaction>
+): string | null {
+  const originalId = reversal.originalTransactionId;
+  const original = originalId
+    ? (transactionById.get(originalId) ?? null)
+    : null;
+  return originalId && hasEligibleOriginal(reversal, original)
+    ? originalId
+    : null;
+}
+
+function compareReversalPriority(
+  left: Transaction,
+  right: Transaction
+): number {
+  return (
+    reversalStatusPriority(left) - reversalStatusPriority(right) ||
+    left.occurredAt - right.occurredAt ||
+    left.createdAt - right.createdAt ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+function reversalStatusPriority(transaction: Transaction): number {
+  return isConfirmedTransaction(transaction) ? 0 : 1;
+}
+
+function negate(minorUnits: number): number {
+  return minorUnits === 0 ? 0 : -minorUnits;
+}
+
+function effect(
+  accountDeltaMinor: number,
+  incomeMinor: number,
+  expenseMinor: number,
+  feeMinor = 0
+): TransactionEffect {
+  return { accountDeltaMinor, incomeMinor, expenseMinor, feeMinor };
+}
+
+function emptyTransactionEffect(): TransactionEffect {
+  return effect(0, 0, 0);
 }
 
 export function deriveAccountBalance(
   account: Account,
   transactions: readonly Transaction[]
 ): number {
-  return transactions.reduce(
-    (total, transaction) =>
-      total + transactionEffectForAccount(transaction, account.id),
-    account.openingBalanceMinor
-  );
+  const projections = projectTransactionEffects(transactions, account.id);
+  return transactions.reduce((total, transaction) => {
+    return (
+      total +
+      (projections.get(transaction.id)?.confirmed.accountDeltaMinor ?? 0)
+    );
+  }, account.openingBalanceMinor);
 }
 
 export function normalizeSearch(value: string): string {
@@ -375,6 +621,8 @@ export function matchesFilters(
   transaction: Transaction,
   filters: TransactionFilterSet
 ): boolean {
+  if (transaction.status === 'deleted' && filters.statuses.length === 0)
+    return false;
   const query = normalizeSearch(filters.search);
   if (
     query &&
@@ -392,7 +640,12 @@ export function matchesFilters(
     return false;
   if (
     filters.accountIds.length &&
-    !filters.accountIds.includes(transaction.accountId)
+    !filters.accountIds.includes(transaction.accountId) &&
+    !(
+      transaction.type === 'transfer' &&
+      transaction.destinationAccountId !== null &&
+      filters.accountIds.includes(transaction.destinationAccountId)
+    )
   )
     return false;
   if (
@@ -415,6 +668,11 @@ export function matchesFilters(
   if (
     filters.reviewRequired !== null &&
     (transaction.reviewStatus === 'required') !== filters.reviewRequired
+  )
+    return false;
+  if (
+    (filters.minMinor !== null || filters.maxMinor !== null) &&
+    transaction.currencyCode !== filters.amountCurrencyCode
   )
     return false;
   if (filters.minMinor !== null && transaction.amountMinor < filters.minMinor)

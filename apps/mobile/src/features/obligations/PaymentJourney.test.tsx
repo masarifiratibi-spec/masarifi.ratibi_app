@@ -9,6 +9,7 @@ import { PaymentMatchReviewScreen } from './PaymentMatchReviewScreen';
 it('previews and confirms a payment, then resolves a detected match', async () => {
   changeLocale('en');
   const payment = renderWithProviders(<ObligationPaymentScreen obligationId="obligation-car" />);
+  expect(await payment.findByLabelText(/Funding account Masarifi/)).toBeTruthy();
   fireEvent.changeText(await payment.findByLabelText('Payment amount'), '100');
   fireEvent.press(payment.getByText('Review payment'));
   expect(await payment.findByText('Full payment')).toBeTruthy();

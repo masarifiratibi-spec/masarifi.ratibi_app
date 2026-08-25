@@ -15,12 +15,17 @@ import PhoneRoute from '@app/(public)/phone';
 import OtpRoute from '@app/(public)/otp';
 import GoogleRoute from '@app/(public)/google';
 import LegalRoute from '@app/(public)/legal';
+import AppEntry from '@app/index';
 import PublicLayout from '@app/(public)/_layout';
 import { changeLocale, translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+
+jest.mock('@/config/demo-mode', () => ({
+  isDemoModeEnabled: () => true
+}));
 
 jest.mock('expo-router', () => ({
   router: {
@@ -92,11 +97,13 @@ describe('public auth routes', () => {
       screen.getByText(translate('appShell.public.termsBody'))
     ).toBeTruthy();
     fireEvent.press(screen.getByLabelText('رجوع'));
+
     expect(mockRouter.back).toHaveBeenCalled();
   });
 
   it('runs phone, OTP, and Google mock auth into the app-shell store', async () => {
     renderWithProviders(<PhoneRoute />);
+    expect(screen.getByText(translate('appShell.auth.phone.title'))).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText('رمز الدولة'), '+20');
     fireEvent.changeText(screen.getByLabelText('رقم الهاتف'), '5550100');
     fireEvent.press(screen.getByLabelText('إرسال الرمز'));
@@ -106,6 +113,7 @@ describe('public auth routes', () => {
     );
 
     renderWithProviders(<OtpRoute />);
+    expect(screen.getByText(translate('appShell.auth.otp.title'))).toBeTruthy();
     fireEvent.changeText(
       screen.getAllByLabelText(/رمز من ستة أرقام/)[0],
       '000000'
@@ -118,6 +126,7 @@ describe('public auth routes', () => {
 
     useAppShellStore.getState().reset();
     renderWithProviders(<GoogleRoute />);
+    expect(screen.getByText(translate('appShell.auth.google.title'))).toBeTruthy();
     fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
 
     await waitFor(() =>
@@ -132,6 +141,19 @@ describe('public auth routes', () => {
     });
 
     renderWithProviders(<PublicLayout />);
+
+    expect(mockRedirect.mock.calls[0]?.[0]).toMatchObject({
+      href: '/(tabs)/home'
+    });
+  });
+
+  it('keeps the registered tab route when refreshing the authenticated app root', () => {
+    useAppShellStore.setState({
+      hydrated: true,
+      session: authenticatedSession
+    });
+
+    renderWithProviders(<AppEntry />);
 
     expect(mockRedirect.mock.calls[0]?.[0]).toMatchObject({
       href: '/(tabs)/home'

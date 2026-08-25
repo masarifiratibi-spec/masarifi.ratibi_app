@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { renderWithProviders } from '@/test-utils/render';
@@ -22,10 +22,67 @@ describe('UnlockScreen', () => {
     expect(screen.queryByText('Protected')).toBeNull();
     fireEvent.changeText(screen.getByLabelText('رمز PIN'), '123456');
     fireEvent.press(screen.getByLabelText('فتح'));
-    expect(onUnlock).toHaveBeenCalled();
+    await waitFor(() => expect(onUnlock).toHaveBeenCalled());
 
     fireEvent.press(screen.getByLabelText('فتح بالبصمة'));
     expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
+  });
+
+  it('prompts biometric automatically when enabled and unlocks on success', async () => {
+    const onUnlock = jest.fn();
+    renderWithProviders(
+      <UnlockScreen
+        biometricEnabled
+        biometricService={createMockBiometricService(
+          'supported',
+          'authenticated'
+        )}
+        expectedHash="pin:123456"
+        onUnlock={onUnlock}
+      />
+    );
+
+    expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
+    expect(onUnlock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the PIN usable when the automatic biometric prompt is cancelled', async () => {
+    const onUnlock = jest.fn();
+    renderWithProviders(
+      <UnlockScreen
+        biometricEnabled
+        biometricService={createMockBiometricService('supported', 'cancelled')}
+        expectedHash="pin:123456"
+        onUnlock={onUnlock}
+      />
+    );
+
+    expect(await screen.findByText(/تم إلغاء الفتح بالبصمة/)).toBeOnTheScreen();
+    expect(onUnlock).not.toHaveBeenCalled();
+
+    fireEvent.changeText(screen.getByLabelText('رمز PIN'), '123456');
+    fireEvent.press(screen.getByLabelText('فتح'));
+    await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not prompt biometric automatically when it is not enabled', async () => {
+    const onUnlock = jest.fn();
+    renderWithProviders(
+      <UnlockScreen
+        biometricService={createMockBiometricService(
+          'supported',
+          'authenticated'
+        )}
+        expectedHash="pin:123456"
+        onUnlock={onUnlock}
+      />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByText('تم الفتح بالبصمة')).toBeNull();
+    expect(onUnlock).not.toHaveBeenCalled();
   });
 
   it('prioritizes expired account sessions over local unlock', () => {

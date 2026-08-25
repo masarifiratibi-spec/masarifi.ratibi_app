@@ -17,7 +17,7 @@ export function StepIndicator({
   return (
     <Text
       accessibilityLabel={`${label}, ${current}/${total}`}
-      style={{ color: theme.colors.textSecondary }}
+      style={{ color: theme.colors.textSecondary, writingDirection: 'ltr' }}
     >
       {current}/{total}
     </Text>

@@ -1,4 +1,5 @@
 import type { SupportDraftInput } from '@/domain/support';
+import { translateDynamic } from '@/localization/i18n';
 
 import { createMockSupportService } from './support-service';
 
@@ -11,6 +12,18 @@ test('searches localized help by exact, partial, Arabic, English, and no-result 
   expect((await service.searchArticles({ query: 'subscr' })).map((item) => item.id)).toContain('faq-subscription');
   expect((await service.searchArticles({ query: 'اشتراك' })).map((item) => item.id)).toContain('faq-subscription');
   expect(await service.searchArticles({ query: 'nothing-here' })).toEqual([]);
+});
+
+test('returns article content keys translated in Arabic and English', async () => {
+  const service = createMockSupportService({ now: () => now });
+  const articles = await service.searchArticles({ query: '' });
+
+  for (const article of articles) {
+    for (const locale of ['ar', 'en'] as const) {
+      expect(translateDynamic(article.titleKey, {}, locale)).not.toBe(article.titleKey);
+      expect(translateDynamic(article.bodyKey, {}, locale)).not.toBe(article.bodyKey);
+    }
+  }
 });
 
 test('saves, loads, discards, validates, and preserves drafts through failed submission', async () => {

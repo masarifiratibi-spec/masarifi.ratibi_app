@@ -1,35 +1,33 @@
 import { z } from 'zod';
 
-import type {
-  MoneyValue,
-  SyncStatus,
-  Transaction,
-  TransactionInput
+import { getCurrencyMinorUnitScale } from './currencies';
+import { localDateInTimeZone } from './financial-period';
+
+import {
+  projectTransactionEffects,
+  type MoneyValue,
+  type SyncStatus,
+  type Transaction,
+  type TransactionInput
 } from './core-finance';
 
 export type LocalDate = `${number}-${number}-${number}`;
 export type PlanningDataState =
-  | 'ready'
-  | 'empty'
-  | 'partial'
-  | 'stale'
-  | 'offline';
+  'ready' | 'empty' | 'partial' | 'stale' | 'offline';
 export type CalculationReason =
   | 'missing_data'
   | 'missing_rate'
   | 'insufficient_history'
-  | 'salary_overdue';
+  | 'salary_overdue'
+  | 'cycle_elapsed'
+  | 'balance_negative';
 export type Calculation<T> =
   | { status: 'available'; value: T; estimated: boolean; asOf: number | null }
   | { status: 'unavailable'; reason: CalculationReason };
 export type PlanningLifecycle = 'active' | 'paused' | 'archived';
 export type BudgetLifecycle = 'draft' | 'active' | 'paused' | 'deleted';
 export type ObligationLifecycle =
-  | 'active'
-  | 'paused'
-  | 'completed'
-  | 'closed'
-  | 'archived';
+  'active' | 'paused' | 'completed' | 'closed' | 'archived';
 export type SavingsLifecycle = 'active' | 'paused' | 'completed' | 'archived';
 export type PlanningErrorCode =
   | 'validation'
@@ -89,6 +87,7 @@ export interface SalaryCycle {
 }
 
 export interface Budget extends RecordMetadata {
+  name: string | null;
   periodKey: string;
   currencyCode: string;
   configuredExpenseLimitMinor: number;
@@ -238,7 +237,14 @@ export interface SavingsProgress {
 
 export interface PlanningDraft {
   id: string;
-  kind: 'salary' | 'budget' | 'obligation' | 'payment' | 'goal' | 'goal_movement' | 'report_schedule';
+  kind:
+    | 'salary'
+    | 'budget'
+    | 'obligation'
+    | 'payment'
+    | 'goal'
+    | 'goal_movement'
+    | 'report_schedule';
   entityId: string | null;
   payload: unknown;
   status: 'editing' | 'valid' | 'saving' | 'saved' | 'discarded';
@@ -275,10 +281,14 @@ export interface PaymentTransactionLink {
   transactionId: string;
 }
 
-export type PaymentTransaction = PaymentTransactionCreate | PaymentTransactionLink;
+export type PaymentTransaction =
+  PaymentTransactionCreate | PaymentTransactionLink;
 
 export class FinancialPlanningError extends Error {
-  constructor(public readonly code: PlanningErrorCode) {
+  constructor(
+    public readonly code: PlanningErrorCode,
+    public readonly details?: Readonly<Record<string, string>>
+  ) {
     super(code);
     this.name = 'FinancialPlanningError';
   }
@@ -297,7 +307,11 @@ export function money(minorUnits: number, currencyCode: string): MoneyValue {
     throw new FinancialPlanningError('validation');
   }
   currencyCodeSchema.parse(currencyCode);
-  return { minorUnits, currencyCode, scale: 2 };
+  return {
+    minorUnits,
+    currencyCode,
+    scale: getCurrencyMinorUnitScale(currencyCode)
+  };
 }
 
 export function available<T>(
@@ -315,28 +329,45 @@ export function unavailable<T>(reason: CalculationReason): Calculation<T> {
 export function parseLocalDate(value: string): LocalDate {
   localDateSchema.parse(value);
   const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value
+  ) {
     throw new FinancialPlanningError('validation');
   }
   return value as LocalDate;
 }
 
 export function localDateFromTimestamp(timestamp: number): LocalDate {
-  return new Date(timestamp).toISOString().slice(0, 10) as LocalDate;
+  const d = new Date(timestamp);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}` as LocalDate;
 }
 
-export function expectedDateForMonth(year: number, month: number, day: number): LocalDate {
+export function expectedDateForMonth(
+  year: number,
+  month: number,
+  day: number
+): LocalDate {
   if (day < 1 || day > 31) throw new FinancialPlanningError('validation');
   const normalized = new Date(Date.UTC(year, month - 1, 1));
   const normalizedYear = normalized.getUTCFullYear();
   const normalizedMonth = normalized.getUTCMonth() + 1;
-  const lastDay = new Date(Date.UTC(normalizedYear, normalizedMonth, 0)).getUTCDate();
+  const lastDay = new Date(
+    Date.UTC(normalizedYear, normalizedMonth, 0)
+  ).getUTCDate();
   return parseLocalDate(
     `${normalizedYear}-${String(normalizedMonth).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
   );
 }
 
-export function addMonthsClamped(date: LocalDate, months: number, day: number): LocalDate {
+export function addMonthsClamped(
+  date: LocalDate,
+  months: number,
+  day: number
+): LocalDate {
   const parsed = new Date(`${date}T00:00:00Z`);
   return expectedDateForMonth(
     parsed.getUTCFullYear(),
@@ -357,12 +388,17 @@ export function deriveSalaryCycle(input: {
   transactions: readonly Transaction[];
   obligationsReservedMinor?: number;
   today: LocalDate;
+  timeZone?: string;
 }): SalaryCycle {
   if (!input.profile || input.profile.status === 'archived') {
     return emptySalaryCycle('unconfigured');
   }
   const linked = input.receipts
-    .filter((receipt) => receipt.status === 'linked' && receipt.salaryProfileId === input.profile!.id)
+    .filter(
+      (receipt) =>
+        receipt.status === 'linked' &&
+        receipt.salaryProfileId === input.profile!.id
+    )
     .sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
   if (!linked.length) {
     return {
@@ -373,26 +409,45 @@ export function deriveSalaryCycle(input: {
     };
   }
   const current = linked[0];
-  const nextDate = nextExpectedAfter(current.receivedDate, input.profile.salaryDay);
+  const timeZone = input.timeZone ?? 'UTC';
+  const nextDate = nextExpectedAfter(
+    current.receivedDate,
+    input.profile.salaryDay
+  );
+  const projections = projectTransactionEffects(input.transactions, null);
   const cycleTransactions = input.transactions.filter(
     (transaction) =>
-      transaction.status === 'posted' &&
-      localDateFromTimestamp(transaction.occurredAt) >= current.receivedDate &&
-      localDateFromTimestamp(transaction.occurredAt) < nextDate
+      localDateInTimeZone(transaction.occurredAt, timeZone) >=
+        current.receivedDate &&
+      localDateInTimeZone(transaction.occurredAt, timeZone) < nextDate
   );
-  const incomeMinor = cycleTransactions
-    .filter((transaction) => transaction.type === 'income' || transaction.type === 'refund')
-    .reduce((sum, transaction) => sum + transaction.amountMinor, 0);
-  const expenseMinor = cycleTransactions
-    .filter((transaction) =>
-      ['expense', 'obligation_payment', 'recurring_payment'].includes(transaction.type)
-    )
-    .reduce((sum, transaction) => sum + transaction.amountMinor, 0);
+  const cycleTotals = cycleTransactions.reduce(
+    (totals, transaction) => {
+      const confirmed = projections.get(transaction.id)!.confirmed;
+      return {
+        incomeMinor: totals.incomeMinor + confirmed.incomeMinor,
+        expenseMinor: totals.expenseMinor + confirmed.expenseMinor
+      };
+    },
+    { incomeMinor: 0, expenseMinor: 0 }
+  );
+  const { incomeMinor, expenseMinor } = cycleTotals;
   const reservedMinor = input.obligationsReservedMinor ?? 0;
   const remainingMinor = incomeMinor - expenseMinor - reservedMinor;
   const daysRemaining = Math.max(0, daysBetween(input.today, nextDate));
-  const salaryState = deriveSalaryState(current.expectedOccurrenceDate, current.receivedDate, input.today);
-  const canSuggest = salaryState !== 'overdue' && daysRemaining > 0 && remainingMinor >= 0;
+  const salaryState = deriveSalaryState(
+    current.expectedOccurrenceDate,
+    current.receivedDate,
+    input.today
+  );
+  const dailyReason: CalculationReason | null =
+    salaryState === 'overdue'
+      ? 'salary_overdue'
+      : daysRemaining <= 0
+        ? 'cycle_elapsed'
+        : remainingMinor < 0
+          ? 'balance_negative'
+          : null;
   return {
     profileId: input.profile.id,
     startReceiptId: current.id,
@@ -401,14 +456,24 @@ export function deriveSalaryCycle(input: {
     daysRemaining,
     income: available(money(incomeMinor, input.profile.currencyCode)),
     expenses: available(money(expenseMinor, input.profile.currencyCode)),
-    reservedObligations: available(money(reservedMinor, input.profile.currencyCode)),
+    reservedObligations: available(
+      money(reservedMinor, input.profile.currencyCode)
+    ),
     remaining: available(money(remainingMinor, input.profile.currencyCode)),
-    suggestedDaily: canSuggest
-      ? available(money(Math.floor(remainingMinor / daysRemaining), input.profile.currencyCode))
-      : unavailable('salary_overdue'),
+    suggestedDaily:
+      dailyReason === null
+        ? available(
+            money(
+              Math.floor(remainingMinor / daysRemaining),
+              input.profile.currencyCode
+            )
+          )
+        : unavailable(dailyReason),
     previousCycleComparison:
       linked.length > 1
-        ? available({ deltaMinor: incomeMinor - input.profile.expectedAmountMinor })
+        ? available({
+            deltaMinor: incomeMinor - input.profile.expectedAmountMinor
+          })
         : unavailable('insufficient_history'),
     salaryState,
     dataState: 'ready'
@@ -418,11 +483,32 @@ export function deriveSalaryCycle(input: {
 export function calculateBudgetProgress(input: {
   budget: Budget;
   transactions: readonly Transaction[];
+  categoryIds?: readonly string[];
   missingRateTransactionIds?: readonly string[];
   today: LocalDate;
+  timeZone?: string;
 }): BudgetProgress {
-  const excludedTransactionIds = [...(input.missingRateTransactionIds ?? [])];
-  const effectiveLimit = input.budget.configuredExpenseLimitMinor + input.budget.rolloverCreditMinor;
+  const timeZone =
+    input.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+  const categoryIds = input.categoryIds ? new Set(input.categoryIds) : null;
+  const periodTransactions = input.transactions.filter(
+    (transaction) =>
+      localDateInTimeZone(transaction.occurredAt, timeZone).slice(0, 7) ===
+      input.budget.periodKey
+  );
+  const transactions = categoryIds
+    ? periodTransactions.filter(
+        (transaction) =>
+          Boolean(transaction.categoryId) &&
+          categoryIds.has(transaction.categoryId!)
+      )
+    : periodTransactions;
+  const transactionIds = new Set(transactions.map((transaction) => transaction.id));
+  const excludedTransactionIds = (input.missingRateTransactionIds ?? []).filter(
+    (id) => !categoryIds || transactionIds.has(id)
+  );
+  const effectiveLimit =
+    input.budget.configuredExpenseLimitMinor + input.budget.rolloverCreditMinor;
   if (excludedTransactionIds.length) {
     return {
       budgetId: input.budget.id,
@@ -435,20 +521,19 @@ export function calculateBudgetProgress(input: {
       excludedTransactionIds
     };
   }
-  const spend = input.transactions.reduce((sum, transaction) => {
-    if (transaction.status !== 'posted') return sum;
-    if (transaction.type === 'expense' || transaction.type === 'obligation_payment') {
-      return sum + transaction.amountMinor;
-    }
-    if (transaction.type === 'refund' || transaction.type === 'reversal') {
-      return sum - transaction.amountMinor;
-    }
-    return sum;
+  const projections = projectTransactionEffects(transactions, null);
+  const spend = transactions.reduce((total, transaction) => {
+    return total + projections.get(transaction.id)!.confirmed.expenseMinor;
   }, 0);
-  const percentage = effectiveLimit > 0 ? Math.round((spend / effectiveLimit) * 100) : null;
+  const percentage =
+    effectiveLimit > 0 ? Math.round((spend / effectiveLimit) * 100) : null;
   const elapsed = Math.max(1, Number(input.today.slice(8, 10)));
   const monthDays = new Date(
-    Date.UTC(Number(input.budget.periodKey.slice(0, 4)), Number(input.budget.periodKey.slice(5, 7)), 0)
+    Date.UTC(
+      Number(input.budget.periodKey.slice(0, 4)),
+      Number(input.budget.periodKey.slice(5, 7)),
+      0
+    )
   ).getUTCDate();
   const state =
     input.budget.status === 'paused'
@@ -468,7 +553,8 @@ export function calculateBudgetProgress(input: {
     budgetId: input.budget.id,
     eligibleSpendMinor: available(spend),
     remainingMinor: available(effectiveLimit - spend),
-    percentage: percentage === null ? unavailable('missing_data') : available(percentage),
+    percentage:
+      percentage === null ? unavailable('missing_data') : available(percentage),
     forecastMinor: available(Math.round((spend / elapsed) * monthDays)),
     comparison: unavailable('insufficient_history'),
     state,
@@ -476,12 +562,22 @@ export function calculateBudgetProgress(input: {
   };
 }
 
-export function frozenPositiveRollover(priorEffectiveLimitMinor: number, priorSpendMinor: number): number {
+export function frozenPositiveRollover(
+  priorEffectiveLimitMinor: number,
+  priorSpendMinor: number
+): number {
   return Math.max(0, priorEffectiveLimitMinor - priorSpendMinor);
 }
 
-export function validateCategoryBudgets(budget: Budget, categories: readonly CategoryBudget[]): void {
-  const effectiveLimit = budget.configuredExpenseLimitMinor + budget.rolloverCreditMinor;
+export function validateCategoryBudgets(
+  budget: Pick<
+    Budget,
+    'configuredExpenseLimitMinor' | 'rolloverCreditMinor'
+  >,
+  categories: readonly CategoryBudget[]
+): void {
+  const effectiveLimit =
+    budget.configuredExpenseLimitMinor + budget.rolloverCreditMinor;
   const total = categories
     .filter((category) => category.status === 'active')
     .reduce((sum, category) => sum + category.limitMinor, 0);
@@ -489,7 +585,8 @@ export function validateCategoryBudgets(budget: Budget, categories: readonly Cat
   const seen = new Set<string>();
   for (const category of categories) {
     if (category.status !== 'active') continue;
-    if (seen.has(category.categoryId)) throw new FinancialPlanningError('duplicate');
+    if (seen.has(category.categoryId))
+      throw new FinancialPlanningError('duplicate');
     seen.add(category.categoryId);
   }
 }
@@ -502,11 +599,14 @@ export function applyPaymentEarliestFirst(input: {
 }): PaymentAllocation[] {
   positiveMinorSchema.parse(input.amountMinor);
   const alreadyPaid = new Map<string, number>();
-  for (const payment of input.payments.filter((item) => item.status === 'posted')) {
+  for (const payment of input.payments.filter(
+    (item) => item.status === 'posted'
+  )) {
     for (const allocation of payment.allocations) {
       alreadyPaid.set(
         allocation.scheduleItemId,
-        (alreadyPaid.get(allocation.scheduleItemId) ?? 0) + allocation.amountMinor
+        (alreadyPaid.get(allocation.scheduleItemId) ?? 0) +
+          allocation.amountMinor
       );
     }
   }
@@ -514,10 +614,15 @@ export function applyPaymentEarliestFirst(input: {
   const allocations: PaymentAllocation[] = [];
   const unpaid = [...input.schedule]
     .filter((item) => item.status !== 'cancelled')
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.sequence - b.sequence);
+    .sort(
+      (a, b) => a.dueDate.localeCompare(b.dueDate) || a.sequence - b.sequence
+    );
   for (const item of unpaid) {
     if (remaining <= 0) break;
-    const due = Math.max(0, item.scheduledMinor - (alreadyPaid.get(item.id) ?? 0));
+    const due = Math.max(
+      0,
+      item.scheduledMinor - (alreadyPaid.get(item.id) ?? 0)
+    );
     if (!due) continue;
     const amountMinor = Math.min(remaining, due);
     allocations.push({ scheduleItemId: item.id, amountMinor });
@@ -541,14 +646,21 @@ export function deriveObligationStatus(input: {
     input.obligation.openingPaidMinor +
     input.payments
       .filter((payment) => payment.status === 'posted')
-      .reduce((sum, payment) => sum + payment.amountMinor + payment.settlementAdjustmentMinor, 0);
+      .reduce(
+        (sum, payment) =>
+          sum + payment.amountMinor + payment.settlementAdjustmentMinor,
+        0
+      );
   const total = input.obligation.contractedTotalMinor;
   const unpaidSchedule = input.schedule
     .filter((item) => item.status !== 'paid' && item.status !== 'cancelled')
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   return {
     paidMinor,
-    remainingMinor: total === null ? unavailable('missing_data') : available(Math.max(0, total - paidMinor)),
+    remainingMinor:
+      total === null
+        ? unavailable('missing_data')
+        : available(Math.max(0, total - paidMinor)),
     nextDueDate: unpaidSchedule[0]?.dueDate ?? null,
     overdue: unpaidSchedule.some((item) => item.dueDate < input.today)
   };
@@ -560,7 +672,11 @@ export function scorePaymentMatch(input: {
   existingPayments: readonly ObligationPayment[];
 }): PaymentMatch {
   const duplicatePaymentIds = input.existingPayments
-    .filter((payment) => payment.transactionId === input.transaction.id && payment.status === 'posted')
+    .filter(
+      (payment) =>
+        payment.transactionId === input.transaction.id &&
+        payment.status === 'posted'
+    )
     .map((payment) => payment.id);
   const normalizedTitle = input.transaction.title.toLocaleLowerCase('en');
   const candidateObligationIds = input.obligations
@@ -599,7 +715,10 @@ export function deriveSavingsProgress(input: {
       }, 0);
   if (current < 0) throw new FinancialPlanningError('validation');
   const remaining = Math.max(0, input.goal.targetMinor - current);
-  const months = Math.max(1, Math.ceil(daysBetween(input.today, input.goal.targetDate) / 30));
+  const months = Math.max(
+    1,
+    Math.ceil(daysBetween(input.today, input.goal.targetDate) / 30)
+  );
   const state =
     input.goal.status === 'completed'
       ? 'completed'
@@ -612,14 +731,25 @@ export function deriveSavingsProgress(input: {
     goalId: input.goal.id,
     currentMinor: available(current),
     remainingMinor: available(remaining),
-    percentage: available(Math.min(100, Math.round((current / input.goal.targetMinor) * 100))),
+    percentage: available(
+      Math.min(100, Math.round((current / input.goal.targetMinor) * 100))
+    ),
     requiredMonthlyMinor:
-      remaining === 0 ? available(0) : input.today > input.goal.targetDate ? unavailable('missing_data') : available(Math.ceil(remaining / months)),
+      remaining === 0
+        ? available(0)
+        : input.today > input.goal.targetDate
+          ? unavailable('missing_data')
+          : available(Math.ceil(remaining / months)),
     state
   };
 }
 
-export function assertGoalMovementAllowed(goal: SavingsGoal, amountMinor: number, kind: GoalMovement['kind'], currentMinor: number): void {
+export function assertGoalMovementAllowed(
+  goal: SavingsGoal,
+  amountMinor: number,
+  kind: GoalMovement['kind'],
+  currentMinor: number
+): void {
   positiveMinorSchema.parse(amountMinor);
   if (goal.status === 'archived') throw new FinancialPlanningError('archived');
   if (kind === 'withdrawal' && amountMinor > currentMinor) {
@@ -627,7 +757,9 @@ export function assertGoalMovementAllowed(goal: SavingsGoal, amountMinor: number
   }
 }
 
-function emptySalaryCycle(salaryState: SalaryCycle['salaryState']): SalaryCycle {
+function emptySalaryCycle(
+  salaryState: SalaryCycle['salaryState']
+): SalaryCycle {
   return {
     profileId: null,
     startReceiptId: null,
@@ -658,10 +790,9 @@ function nextExpectedAfter(date: LocalDate, day: number): LocalDate {
 function deriveSalaryState(
   expectedDate: LocalDate,
   receivedDate: LocalDate,
-  today: LocalDate
+  _today: LocalDate
 ): SalaryCycle['salaryState'] {
   if (receivedDate < expectedDate) return 'early';
   if (receivedDate > expectedDate) return 'late';
-  if (today > expectedDate && receivedDate < expectedDate) return 'overdue';
   return 'on_time';
 }

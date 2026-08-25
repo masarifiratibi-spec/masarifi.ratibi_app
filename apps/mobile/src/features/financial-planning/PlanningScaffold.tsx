@@ -6,19 +6,29 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { spacing } from '@/design-system/tokens';
+import type { CalculationReason } from '@/domain/financial-planning';
 import { translate, type MessageKey } from '@/localization/i18n';
+
+export function planningReason(reason: CalculationReason): string {
+  return translate(`planning.reason.${reason}` as MessageKey);
+}
 
 export function PlanningScreen({
   titleKey,
   children,
-  action
+  action,
+  backgroundColor
 }: {
   titleKey: MessageKey;
   children: React.ReactNode;
   action?: { labelKey: MessageKey; onPress: () => void };
+  backgroundColor?: string;
 }) {
   return (
-    <ScrollView contentContainerStyle={styles.stack}>
+    <ScrollView
+      style={backgroundColor ? { backgroundColor } : undefined}
+      contentContainerStyle={styles.stack}
+    >
       <StyledText variant="title">{translate(titleKey)}</StyledText>
       {children}
       {action ? (

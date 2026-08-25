@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { router } from 'expo-router';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
@@ -46,18 +45,12 @@ beforeEach(() => {
   });
 });
 
-test('support home searches FAQ/help/whats-new in Arabic and English and opens no-result ticket path', () => {
+test('support home directly renders contact support form in Arabic and English', () => {
   renderWithProviders(<SupportHomeScreen />);
 
-  expect(screen.getByText(t('support.home.version'))).toBeTruthy();
-  expect(screen.getByText(t('support.article.faq.subscription.title'))).toBeTruthy();
-  expect(screen.getByText(t('support.article.help.notifications.title'))).toBeTruthy();
-  expect(screen.getByText(t('support.article.whatsNew.v009.title'))).toBeTruthy();
-
-  fireEvent.changeText(screen.getByLabelText('support.search.input'), 'اشتراك');
-  expect(mockQueries.useArticleSearch).toHaveBeenCalled();
-  fireEvent.press(screen.getByText(t('support.search.noResultsCreateTicket')));
-  expect(router.push).toHaveBeenCalledWith('/support/new');
+  expect(screen.getByText(t('support.form.title'))).toBeTruthy();
+  expect(screen.getByText(t('support.form.category'))).toBeTruthy();
+  expect(screen.getByText(t('support.form.submit'))).toBeTruthy();
 });
 
 test('support form validates, flushes latest draft before submit, reviews/removes optional context, and excludes attachments', async () => {
@@ -79,6 +72,7 @@ test('support form validates, flushes latest draft before submit, reviews/remove
 
   renderWithProviders(<SupportFormScreen mode="transaction_report" />);
 
+  expect(screen.getByLabelText(`${t('support.category.technical')} ${t('designSystem.state.selected')}`)).toBeTruthy();
   expect(screen.getByText(t('support.form.context.transaction'))).toBeTruthy();
   fireEvent.press(screen.getByText(t('support.form.removeContext')));
   expect(update).toHaveBeenCalledWith({ context: null });

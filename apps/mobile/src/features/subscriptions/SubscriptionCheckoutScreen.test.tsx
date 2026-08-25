@@ -35,6 +35,7 @@ test('reviews one offer and starts a representative operation only after confirm
 
   renderWithProviders(<SubscriptionCheckoutScreen offerId="premium-annual" />);
 
+  expect(screen.getByText(t('subscriptions.checkout.title'))).toBeTruthy();
   expect(screen.getByText('Premium')).toBeTruthy();
   expect(screen.getByText('190.00 SAR / year')).toBeTruthy();
   expect(screen.getByText('Offer version: 2026-01')).toBeTruthy();

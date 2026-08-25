@@ -5,6 +5,7 @@ import { render } from '@testing-library/react-native';
 import {
   FONT_ASSETS,
   FontGate,
+  financialFontFamily,
   fontFamilyForLocale,
   typographyStyles
 } from './typography';
@@ -18,20 +19,37 @@ const { useFonts } = jest.requireMock('expo-font') as {
 };
 
 describe('SPEC-002 typography', () => {
-  it('registers local IBM Plex font assets', () => {
+  it('registers approved local Arabic and Latin font assets', () => {
     expect(Object.keys(FONT_ASSETS)).toEqual([
-      'IBMPlexSans-Regular',
-      'IBMPlexSans-SemiBold',
-      'IBMPlexSans-Bold',
-      'IBMPlexSansArabic-Regular',
-      'IBMPlexSansArabic-SemiBold',
-      'IBMPlexSansArabic-Bold'
+      'MasarifiArabic-400',
+      'MasarifiArabic-500',
+      'MasarifiArabic-600',
+      'MasarifiArabic-700',
+      'MasarifiArabic-800',
+      'MasarifiLatin-400',
+      'MasarifiLatin-500',
+      'MasarifiLatin-600',
+      'MasarifiLatin-700',
+      'MasarifiLatin-900'
     ]);
   });
 
   it('selects approved Arabic and English font families', () => {
-    expect(fontFamilyForLocale('ar', 'regular')).toBe('IBMPlexSansArabic-Regular');
-    expect(fontFamilyForLocale('en', 'bold')).toBe('IBMPlexSans-Bold');
+    expect(fontFamilyForLocale('ar', 400)).toBe('MasarifiArabic-400');
+    expect(fontFamilyForLocale('ar', 800)).toBe('MasarifiArabic-800');
+    expect(fontFamilyForLocale('ar', 900)).toBe('MasarifiArabic-800');
+    expect(fontFamilyForLocale('en', 600)).toBe('MasarifiLatin-600');
+    expect(fontFamilyForLocale('en', 900)).toBe('MasarifiLatin-900');
+  });
+
+  it('keeps existing text weights compatible with the new font families', () => {
+    expect(fontFamilyForLocale('ar', 'regular')).toBe('MasarifiArabic-400');
+    expect(fontFamilyForLocale('en', 'bold')).toBe('MasarifiLatin-700');
+  });
+
+  it('uses Latin fonts for financial values', () => {
+    expect(financialFontFamily(700)).toBe('MasarifiLatin-700');
+    expect(financialFontFamily(900)).toBe('MasarifiLatin-900');
   });
 
   it('exports hierarchy and tabular amount styles', () => {

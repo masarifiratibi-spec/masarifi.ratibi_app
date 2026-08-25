@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import { isDemoModeEnabled } from '@/config/demo-mode';
+import { createClientDemoData } from '@/domain/demo-data';
 
 import {
   decideAutomaticTracking,
@@ -35,35 +37,39 @@ import type {
 import type { CoreFinanceService } from '@/services/contracts/core-finance-service';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { AutomaticTrackingRepository } from '@/storage/automatic-tracking-repository';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { defaultKeywordRules } from './default-keywords';
 import { coreFinanceService } from './core-finance-service';
 import { createMockTrackingPermissionService } from './tracking-permission-service';
-import { defaultSenderRules } from './automatic-tracking-fixtures';
 import { assistantNotificationsService } from './assistant-notifications-service';
 
-const silentNotificationService: Pick<NotificationService, 'createFromSource'> = {
-  async createFromSource(input) {
-    return {
-      ...input,
-      id: `notification-${input.eventKey}`,
-      readAt: null,
-      deletedAt: null,
-      phoneStatus: 'not_requested',
-      syncStatus: 'synced',
-      safeFailure: null
-    };
-  }
-};
+const silentNotificationService: Pick<NotificationService, 'createFromSource'> =
+  {
+    async createFromSource(input) {
+      return {
+        ...input,
+        id: `notification-${input.eventKey}`,
+        readAt: null,
+        deletedAt: null,
+        phoneStatus: 'not_requested',
+        syncStatus: 'synced',
+        safeFailure: null
+      };
+    }
+  };
 
 export function createMockAutomaticTrackingService({
-  repository = new AutomaticTrackingRepository({ senders: defaultSenderRules }),
+  repository = new AutomaticTrackingRepository(
+    isDemoModeEnabled() ? createClientDemoData().tracking : {}
+  ),
   financeService = coreFinanceService,
   notificationService = silentNotificationService,
   storage = createAppShellStorage(),
   permissionService = createMockTrackingPermissionService('granted'),
   persistent = false,
-  platform = Platform.OS
+  platform = Platform.OS,
+  registerForReset = false
 }: {
   repository?: AutomaticTrackingRepository;
   financeService?: CoreFinanceService;
@@ -72,6 +78,7 @@ export function createMockAutomaticTrackingService({
   permissionService?: TrackingPermissionService;
   persistent?: boolean;
   platform?: string;
+  registerForReset?: boolean;
 } = {}): CapabilityProviderHandle<AutomaticTrackingService> {
   let hydration: Promise<void> | null = null;
   let serviceState: TrackingStatusSnapshot['serviceState'] = 'healthy';
@@ -84,6 +91,13 @@ export function createMockAutomaticTrackingService({
     string,
     Promise<TrackingMutationResult<AutomaticFeedback>>
   >();
+  if (registerForReset)
+    registerRuntimeUserDataReset(() => {
+      repository.reset();
+      undoResults.clear();
+      serviceState = 'healthy';
+      hydration = null;
+    });
   const persist = async () => {
     if (persistent) await repository.persistAll();
   };
@@ -101,6 +115,7 @@ export function createMockAutomaticTrackingService({
     async getStatus() {
       await ensureReady();
       const permission = await permissionService.getState();
+      const permissionUnavailable = permission.status === 'unavailable';
       const events = repository.listEvents();
       const lastAuto = events.find((event) => event.transactionId);
       return {
@@ -112,7 +127,10 @@ export function createMockAutomaticTrackingService({
               : 'conservative',
         mode: await mode(),
         permissionStatus: platform === 'android' ? permission.status : null,
-        serviceState: platform === 'android' ? serviceState : 'unavailable',
+        serviceState:
+          platform === 'android' && !permissionUnavailable
+            ? serviceState
+            : 'unavailable',
         lastDetectedAt: events.at(-1)?.createdAt ?? null,
         lastSuccessfulTransactionId: lastAuto?.transactionId ?? null,
         detectedThisMonth: events.length,
@@ -175,9 +193,13 @@ export function createMockAutomaticTrackingService({
         const review = repository.addReview(event);
         if (input.duplicateTransactionId) {
           repository.addDuplicate(event, input.duplicateTransactionId);
-          await notificationService.createFromSource(reviewNotification(event, review.id, 'duplicate'));
+          await notificationService.createFromSource(
+            reviewNotification(event, review.id, 'duplicate')
+          );
         } else {
-          await notificationService.createFromSource(reviewNotification(event, review.id));
+          await notificationService.createFromSource(
+            reviewNotification(event, review.id)
+          );
         }
         scopes.push('tracking.review');
       }
@@ -196,7 +218,9 @@ export function createMockAutomaticTrackingService({
           result.value.id,
           'delivered_mock'
         );
-        await notificationService.createFromSource(autoAddedNotification(event, feedback.undoExpiresAt));
+        await notificationService.createFromSource(
+          autoAddedNotification(event, feedback.undoExpiresAt)
+        );
         scopes.push(...result.affectedScopes, 'tracking.feedback');
       }
       await persist();
@@ -262,6 +286,13 @@ export function createMockAutomaticTrackingService({
           lastUsedAt: null
         }));
     },
+    async saveKeywordRules(rules) {
+      await storage.saveKeywords([...rules]);
+      return mutation(await this.listKeywordRules(), [
+        'tracking.keywords',
+        'tracking.status'
+      ]);
+    },
     async restoreDefaultKeywords() {
       await storage.saveKeywords(defaultKeywordRules);
       return mutation(await this.listKeywordRules(), [
@@ -301,7 +332,8 @@ export function createMockAutomaticTrackingService({
       const result = (async () => {
         await ensureReady();
         const feedback = repository.requireFeedback(feedbackId);
-        if (feedback.status !== 'active') return mutation(feedback, ['tracking.feedback']);
+        if (feedback.status !== 'active')
+          return mutation(feedback, ['tracking.feedback']);
         if (Date.now() > feedback.undoExpiresAt)
           throw new TrackingError('expired_undo');
         await financeService.deleteTransaction(feedback.transactionId);
@@ -336,9 +368,10 @@ export function createMockAutomaticTrackingService({
 }
 
 export const automaticTrackingService = createMockAutomaticTrackingService({
-  persistent: true,
+  persistent: Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
   notificationService: assistantNotificationsService,
-  permissionService: createTrackingPermissionService()
+  permissionService: createTrackingPermissionService(),
+  registerForReset: true
 });
 
 function page<T>(items: T[], cursor: string | null = null, pageSize = 50) {
@@ -370,7 +403,15 @@ function mutation<T>(
 }
 
 function autoAddedNotification(
-  event: Pick<DetectedFinancialEvent, 'id' | 'eventType' | 'priorEventId' | 'occurredAt' | 'createdAt' | 'transactionId'>,
+  event: Pick<
+    DetectedFinancialEvent,
+    | 'id'
+    | 'eventType'
+    | 'priorEventId'
+    | 'occurredAt'
+    | 'createdAt'
+    | 'transactionId'
+  >,
   undoExpiresAt: number
 ): NotificationSourceEvent {
   const kind = trackingNotificationKind(event);
@@ -387,7 +428,10 @@ function autoAddedNotification(
 }
 
 function reviewNotification(
-  event: Pick<DetectedFinancialEvent, 'id' | 'eventType' | 'priorEventId' | 'occurredAt' | 'createdAt'>,
+  event: Pick<
+    DetectedFinancialEvent,
+    'id' | 'eventType' | 'priorEventId' | 'occurredAt' | 'createdAt'
+  >,
   reviewId: string,
   outcome: 'review-required' | 'duplicate' = 'review-required'
 ): NotificationSourceEvent {

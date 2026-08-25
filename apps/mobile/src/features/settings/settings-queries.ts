@@ -15,8 +15,12 @@ export const settingsKeys = {
   localData: () => ['settings', 'local-data'] as const
 };
 
-export function useSettingsProfile() {
-  return useQuery({ queryKey: settingsKeys.profile(), queryFn: () => settingsService.getProfile() });
+export function useSettingsProfile(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.profile(),
+    queryFn: () => settingsService.getProfile(),
+    enabled
+  });
 }
 
 export function useSettingsSessions() {

@@ -10,10 +10,12 @@ import {
   makeNotificationEvent
 } from '@/test-utils/assistant-notifications-fixtures';
 import type { HomeSummary } from '@/domain/core-finance';
+import { usePreferenceStore } from '@/state/preferences';
 
 const canary = 'SPEC010_PRIVATE_CANARY';
 
 test('canary values stay out of visible and accessible privacy surfaces', () => {
+  usePreferenceStore.setState({ hideBalances: true });
   const screen = renderWithProviders(<HomeScreen summary={summary} />);
   const phone = rewritePhoneCopy(
     {

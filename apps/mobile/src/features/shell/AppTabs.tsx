@@ -1,50 +1,63 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { StyledText } from '@/components/StyledText';
-import { DesignIcon, type DesignIconName } from '@/design-system/icons';
-import { minTouchTarget, spacing, typography } from '@/design-system/tokens';
+import { DesignIcon } from '@/design-system/icons';
+import {
+  elevation,
+  minTouchTarget,
+  spacing,
+  typography
+} from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
-import { tabOrderForDirection } from './navigation-context';
+import {
+  primaryTabRoutes,
+  type PrimaryTabRoute
+} from './navigation-context';
 
 export const tabItems = [
   { route: '/(tabs)/home', label: 'appShell.tabs.home', icon: 'home' },
+  { route: '/assistant', label: 'appShell.shell.assistant', icon: 'assistant' },
   {
     route: '/(tabs)/transactions',
     label: 'appShell.tabs.transactions',
     icon: 'transactions'
-  },
-  { route: '/(tabs)/add', label: 'appShell.tabs.add', icon: 'add' },
-  { route: '/(tabs)/reports', label: 'appShell.tabs.reports', icon: 'reports' },
-  { route: '/(tabs)/more', label: 'appShell.tabs.more', icon: 'more' }
+  }
 ] as const;
 
 interface AppTabsProps {
   currentRoute: string;
-  onSelect: (route: (typeof tabItems)[number]['route']) => void;
+  onSelect: (route: PrimaryTabRoute) => void;
 }
 
 export function AppTabs({ currentRoute, onSelect }: AppTabsProps) {
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
-  const routes = tabOrderForDirection(direction);
+  const insets = React.useContext(SafeAreaInsetsContext);
+  const routes = primaryTabRoutes;
+
   return (
     <View
       accessibilityRole="tablist"
+      testID="app-tabs"
       style={[
         styles.root,
         {
           backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border
+          borderTopColor: theme.colors.border,
+          flexDirection: 'row',
+          paddingBottom: Math.max(insets?.bottom ?? 0, spacing.xs)
         }
       ]}
     >
       {routes.map((route) => {
         const item = tabItems.find((candidate) => candidate.route === route)!;
         const selected = item.route === currentRoute;
+        const prominent = item.route === '/assistant';
         const label = translate(item.label, locale);
         return (
           <Pressable
@@ -55,23 +68,41 @@ export function AppTabs({ currentRoute, onSelect }: AppTabsProps) {
             onPress={() => onSelect(item.route)}
             style={({ pressed }) => [
               styles.tab,
-              item.route === '/(tabs)/add' && styles.add,
-              selected && { backgroundColor: theme.colors.surfaceMuted },
               pressed && { backgroundColor: theme.colors.surfaceMuted }
             ]}
           >
-            <DesignIcon
-              name={item.icon as DesignIconName}
-              label={label}
-              color={
-                selected ? theme.colors.primary : theme.colors.textSecondary
-              }
-              direction={direction}
-              decorative
-            />
+            <View
+              style={[
+                styles.iconShell,
+                selected && {
+                  backgroundColor: theme.colors.surfaces.brandSubtle
+                },
+                prominent && [
+                  styles.assistantControl,
+                  elevation.raised,
+                  { backgroundColor: theme.colors.interactions.primary }
+                ]
+              ]}
+            >
+              <DesignIcon
+                name={item.icon}
+                label={label}
+                testID={prominent ? 'app-tabs-assistant-icon' : undefined}
+                color={
+                  prominent
+                    ? theme.colors.content.inverse
+                    : selected
+                      ? theme.colors.primary
+                      : theme.colors.textSecondary
+                }
+                direction={direction}
+                decorative
+              />
+            </View>
             <StyledText
               accessible={false}
-              numberOfLines={1}
+              maxFontSizeMultiplier={1.5}
+              numberOfLines={2}
               variant="caption"
               style={[
                 styles.label,
@@ -95,8 +126,8 @@ export function AppTabs({ currentRoute, onSelect }: AppTabsProps) {
 const styles = StyleSheet.create({
   root: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    paddingTop: spacing.xs
+    paddingTop: spacing.xs,
+    position: 'relative'
   },
   tab: {
     alignItems: 'center',
@@ -105,16 +136,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 64,
     minWidth: minTouchTarget,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: 0,
     paddingVertical: spacing.sm
   },
-  add: {
-    flex: 1.2
+  iconShell: {
+    alignItems: 'center',
+    borderRadius: 10,
+    height: 32,
+    justifyContent: 'center',
+    width: 32
+  },
+  assistantControl: {
+    borderRadius: 14,
+    height: 52,
+    marginTop: -18,
+    width: 52
   },
   label: {
     fontSize: typography.caption.fontSize,
     lineHeight: typography.caption.lineHeight,
-    textAlign: 'center'
+    textAlign: 'center',
+    width: '100%'
   },
   selectedLabel: {
     fontWeight: '700'

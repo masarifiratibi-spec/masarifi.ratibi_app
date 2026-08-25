@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useInfiniteQuery,
   useQuery,
   useQueryClient,
   type QueryClient
@@ -12,29 +13,48 @@ import {
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 
 export const coreFinanceKeys = {
-  home: (currency: string) => ['core-finance', 'home', currency] as const,
+  home: (currency: string, filters?: TransactionFilterSet) =>
+    filters
+      ? (['core-finance', 'home', currency, filters] as const)
+      : (['core-finance', 'home', currency] as const),
   accounts: (archived = false) =>
     ['core-finance', 'accounts', archived] as const,
+  accountBalances: (archived = false) =>
+    ['core-finance', 'account-balances', archived] as const,
   account: (id: string) => ['core-finance', 'account', id] as const,
   transactions: (filters: TransactionFilterSet = emptyTransactionFilters) =>
     ['core-finance', 'transactions', filters] as const,
+  transactionPages: (
+    filters: TransactionFilterSet = emptyTransactionFilters
+  ) => ['core-finance', 'transactions', 'pages', filters] as const,
   transaction: (id: string) => ['core-finance', 'transaction', id] as const,
   categories: (archived = false) =>
     ['core-finance', 'categories', archived] as const,
   conflict: (id: string) => ['core-finance', 'conflict', id] as const
 };
 
-export function useHomeSummary(currency: string) {
+export function useHomeSummary(
+  currency: string,
+  filters?: TransactionFilterSet
+) {
   return useQuery({
-    queryKey: coreFinanceKeys.home(currency),
-    queryFn: () => coreFinanceService.getHomeSummary(currency)
+    queryKey: coreFinanceKeys.home(currency, filters),
+    queryFn: () => coreFinanceService.getHomeSummary(currency, filters)
   });
 }
 
-export function useAccounts(includeArchived = false) {
+export function useAccounts(includeArchived = false, enabled = true) {
   return useQuery({
     queryKey: coreFinanceKeys.accounts(includeArchived),
-    queryFn: () => coreFinanceService.listAccounts(includeArchived)
+    queryFn: () => coreFinanceService.listAccounts(includeArchived),
+    enabled
+  });
+}
+
+export function useAccountBalances(includeArchived = false) {
+  return useQuery({
+    queryKey: coreFinanceKeys.accountBalances(includeArchived),
+    queryFn: () => coreFinanceService.listAccountBalances(includeArchived)
   });
 }
 
@@ -55,6 +75,18 @@ export function useTransactions(
   });
 }
 
+export function useInfiniteTransactions(
+  filters: TransactionFilterSet = emptyTransactionFilters
+) {
+  return useInfiniteQuery({
+    queryKey: coreFinanceKeys.transactionPages(filters),
+    queryFn: ({ pageParam }) =>
+      coreFinanceService.listTransactions(filters, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined
+  });
+}
+
 export function useTransaction(id: string) {
   return useQuery({
     queryKey: coreFinanceKeys.transaction(id),
@@ -63,10 +95,11 @@ export function useTransaction(id: string) {
   });
 }
 
-export function useCategories(includeArchived = false) {
+export function useCategories(includeArchived = false, enabled = true) {
   return useQuery({
     queryKey: coreFinanceKeys.categories(includeArchived),
-    queryFn: () => coreFinanceService.listCategories(includeArchived)
+    queryFn: () => coreFinanceService.listCategories(includeArchived),
+    enabled
   });
 }
 

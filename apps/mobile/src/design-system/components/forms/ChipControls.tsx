@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { minTouchTarget } from '@/design-system/tokens';
+import { StyledText } from '@/components/StyledText';
+import { fontFamilyForLocale } from '@/design-system/typography';
 import { translate } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 
 export function ChipSelector({
@@ -16,8 +19,18 @@ export function ChipSelector({
   disabledOptions?: string[];
   onToggle: (value: string) => void;
 }) {
+  const direction = usePreferenceStore((state) => state.direction);
   return (
-    <View style={styles.wrap}>
+    <View
+      testID="chip-selector"
+      style={[
+        styles.wrap,
+        {
+          direction: 'ltr',
+          flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+        }
+      ]}
+    >
       {options.map((option) => {
         const isSelected = selected.includes(option);
         const disabled = disabledOptions.includes(option);
@@ -50,6 +63,8 @@ export function KeywordChipEditor({
   onChange: (keywords: string[]) => void;
 }) {
   const theme = useTheme();
+  const direction = usePreferenceStore((state) => state.direction);
+  const locale = usePreferenceStore((state) => state.locale);
   const [draft, setDraft] = useState('');
 
   function addKeyword() {
@@ -69,7 +84,8 @@ export function KeywordChipEditor({
           styles.input,
           {
             borderColor: theme.colors.border,
-            color: theme.colors.textPrimary
+            color: theme.colors.textPrimary,
+            fontFamily: fontFamilyForLocale(locale, 400)
           }
         ]}
         value={draft}
@@ -80,11 +96,19 @@ export function KeywordChipEditor({
         onPress={addKeyword}
         style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
       >
-        <Text style={{ color: theme.colors.textInverse }}>
+        <StyledText accessible={false} variant="subtitle" style={{ color: theme.colors.textInverse }}>
           {translate('designSystem.action.add')}
-        </Text>
+        </StyledText>
       </Pressable>
-      <View style={styles.wrap}>
+      <View
+        style={[
+          styles.wrap,
+          {
+            direction: 'ltr',
+            flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+          }
+        ]}
+      >
         {keywords.map((keyword) => (
           <Chip
             key={keyword}
@@ -126,7 +150,9 @@ function Chip({
         { borderColor: selected ? theme.colors.primary : theme.colors.border }
       ]}
     >
-      <Text style={{ color: theme.colors.textPrimary }}>{label}</Text>
+      <StyledText accessible={false} variant="subtitle" style={{ color: theme.colors.textPrimary }}>
+        {label}
+      </StyledText>
     </Pressable>
   );
 }
@@ -136,6 +162,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   wrap: {
+    writingDirection: 'ltr',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8

@@ -1,4 +1,7 @@
-import { createMockExchangeRateService } from './exchange-rate-service';
+import {
+  createMockExchangeRateService,
+  createProductionExchangeRateService
+} from './exchange-rate-service';
 
 it('returns profile-currency identity and unavailable pairs explicitly', async () => {
   const service = createMockExchangeRateService([]);
@@ -10,6 +13,19 @@ it('returns profile-currency identity and unavailable pairs explicitly', async (
     rate: null,
     asOf: null,
     status: 'unavailable'
+  });
+});
+
+it('does not invent cross-currency rates in production', async () => {
+  const service = createProductionExchangeRateService();
+  await expect(service.getRate('USD', 'SAR')).resolves.toEqual({
+    rate: null,
+    asOf: null,
+    status: 'unavailable'
+  });
+  await expect(service.getRate('SAR', 'SAR')).resolves.toMatchObject({
+    rate: 1,
+    status: 'available'
   });
 });
 

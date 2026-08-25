@@ -1,7 +1,8 @@
 import React from 'react';
-import { fireEvent } from '@testing-library/react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 
 import { changeLocale } from '@/localization/i18n';
+import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 import { SavingsGoalDetailScreen } from './SavingsGoalDetailScreen';
@@ -13,6 +14,7 @@ it('creates, pauses, and records progress for savings goals', async () => {
   changeLocale('en');
   usePreferenceStore.setState({ hideBalances: false });
   const form = renderWithProviders(<SavingsGoalForm />);
+  expect(await form.findByLabelText(/Linked account Unavailable/)).toBeTruthy();
   fireEvent.changeText(await form.findByLabelText('Goal name'), 'Travel fund');
   fireEvent.changeText(form.getByLabelText('Target amount'), '5000');
   fireEvent.press(form.getByText('Save'));
@@ -21,10 +23,12 @@ it('creates, pauses, and records progress for savings goals', async () => {
 
   const overview = renderWithProviders(<SavingsGoalsScreen />);
   expect(await overview.findByText('Travel fund')).toBeTruthy();
+  expect(await overview.findByLabelText(/Active goals/)).toBeTruthy();
   overview.unmount();
 
   const detail = renderWithProviders(<SavingsGoalDetailScreen goalId="goal-emergency" />);
   expect(await detail.findByText('Emergency fund')).toBeTruthy();
+  expect(await detail.findByLabelText(/Emergency fund/)).toBeTruthy();
   fireEvent.press(detail.getByText('Pause goal'));
   expect(await detail.findByText('Paused')).toBeTruthy();
   detail.unmount();
@@ -37,3 +41,47 @@ it('creates, pauses, and records progress for savings goals', async () => {
   expect(await movement.findByText('Saved')).toBeTruthy();
   movement.unmount();
 });
+
+it.each([
+  ['JPY', '12345'],
+  ['SAR', '123.45'],
+  ['OMR', '12.345']
+])(
+  'round-trips %s savings-goal create and edit amounts without changing minor units',
+  async (currencyCode, majorAmount) => {
+    changeLocale('en');
+    usePreferenceStore.setState({ baseCurrencyCode: currencyCode });
+    const title = `Precision ${currencyCode} goal`;
+    const createForm = renderWithProviders(<SavingsGoalForm />);
+
+    fireEvent.changeText(await createForm.findByLabelText('Goal name'), title);
+    fireEvent.changeText(createForm.getByLabelText('Target amount'), majorAmount);
+    fireEvent.changeText(createForm.getByLabelText('Already saved'), majorAmount);
+    fireEvent.press(createForm.getByText('Save'));
+    expect(await createForm.findByText('Saved')).toBeTruthy();
+    createForm.unmount();
+
+    const created = (await financialPlanningService.listGoals({})).find(
+      (goal) => goal.title === title
+    );
+    expect(created).toMatchObject({
+      currencyCode,
+      targetMinor: 12_345,
+      openingTrackedMinor: 12_345
+    });
+
+    const editForm = renderWithProviders(<SavingsGoalForm goalId={created?.id} />);
+    await waitFor(() =>
+      expect(editForm.getAllByDisplayValue(majorAmount)).toHaveLength(2)
+    );
+    fireEvent.press(editForm.getByText('Save'));
+    expect(await editForm.findByText('Saved')).toBeTruthy();
+
+    const updated = await financialPlanningService.getGoal(created!.id);
+    expect(updated.goal).toMatchObject({
+      currencyCode,
+      targetMinor: 12_345,
+      openingTrackedMinor: 12_345
+    });
+  }
+);

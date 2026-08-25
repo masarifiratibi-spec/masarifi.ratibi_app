@@ -10,22 +10,36 @@ import { useTheme } from '@/state/theme-context';
 import { AccessibilityGallery } from './gallery/AccessibilityGallery';
 import { ChartGallery } from './gallery/ChartGallery';
 import { FinancialGallery } from './gallery/FinancialGallery';
+import { FoundationGallery } from './gallery/FoundationGallery';
 import { InteractionGallery } from './gallery/InteractionGallery';
+import { NavigationGallery } from './gallery/NavigationGallery';
 import { PrivacyGallery } from './gallery/PrivacyGallery';
+import { StateGallery } from './gallery/StateGallery';
 
-type SectionKey = 'financial' | 'interaction' | 'accessibility' | 'charts' | 'privacy';
+type SectionKey =
+  | 'foundation'
+  | 'navigation'
+  | 'financial'
+  | 'interaction'
+  | 'states'
+  | 'charts'
+  | 'accessibility'
+  | 'privacy';
 
 const SECTIONS: readonly { key: SectionKey; titleKey: MessageKey; render: () => React.ReactElement }[] = [
+  { key: 'foundation', titleKey: 'designSystem.gallery.foundation', render: () => <FoundationGallery /> },
+  { key: 'navigation', titleKey: 'designSystem.gallery.navigation', render: () => <NavigationGallery /> },
   { key: 'financial', titleKey: 'designSystem.gallery.financial', render: () => <FinancialGallery /> },
   { key: 'interaction', titleKey: 'designSystem.gallery.interaction', render: () => <InteractionGallery /> },
-  { key: 'accessibility', titleKey: 'designSystem.gallery.accessibility', render: () => <AccessibilityGallery /> },
+  { key: 'states', titleKey: 'designSystem.gallery.states', render: () => <StateGallery /> },
   { key: 'charts', titleKey: 'designSystem.gallery.charts', render: () => <ChartGallery /> },
+  { key: 'accessibility', titleKey: 'designSystem.gallery.accessibility', render: () => <AccessibilityGallery /> },
   { key: 'privacy', titleKey: 'designSystem.gallery.privacy', render: () => <PrivacyGallery /> }
 ];
 
 export function DesignSystemGallery() {
   const theme = useTheme();
-  const [active, setActive] = useState<SectionKey>('financial');
+  const [active, setActive] = useState<SectionKey>('foundation');
   const setLocale = usePreferenceStore((state) => state.setLocale);
   const setTheme = usePreferenceStore((state) => state.setTheme);
   const current = SECTIONS.find((section) => section.key === active) ?? SECTIONS[0];

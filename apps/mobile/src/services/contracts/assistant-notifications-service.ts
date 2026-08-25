@@ -78,7 +78,7 @@ export const settingsServiceCapability: CapabilityContractMetadata = {
   capability: 'settings.profile',
   majorVersion: 1,
   owner: 'settings',
-  providerKinds: ['mock'],
+  providerKinds: ['mock', 'live'],
   unavailableOutcome: 'settings.state.unavailable'
 };
 

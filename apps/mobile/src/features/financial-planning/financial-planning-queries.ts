@@ -9,11 +9,14 @@ import type { LocalDate, SavingsLifecycle } from '@/domain/financial-planning';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 
 export const financialPlanningKeys = {
-  overview: (currencyCode: string, today: LocalDate) =>
-    ['planning', 'overview', currencyCode, today] as const,
-  salary: (today: LocalDate) => ['planning', 'salary', today] as const,
+  overview: (currencyCode: string, today: LocalDate, timeZone: string) =>
+    ['planning', 'overview', currencyCode, today, timeZone] as const,
+  salary: (today: LocalDate, timeZone: string) =>
+    ['planning', 'salary', today, timeZone] as const,
   salaryReview: (id: string) => ['planning', 'salary-review', id] as const,
   budget: (periodKey: string) => ['planning', 'budget', periodKey] as const,
+  budgetList: (periodKey: string) =>
+    ['planning', 'budgets', periodKey] as const,
   budgetById: (id: string) => ['planning', 'budget-id', id] as const,
   obligations: (filters: unknown = {}) =>
     ['planning', 'obligations', filters] as const,
@@ -26,17 +29,27 @@ export const financialPlanningKeys = {
   conflict: (id: string) => ['planning', 'conflict', id] as const
 };
 
-export function usePlanningOverview(currencyCode: string, today: LocalDate) {
+export function usePlanningOverview(
+  currencyCode: string,
+  today: LocalDate,
+  timeZone: string
+) {
   return useQuery({
-    queryKey: financialPlanningKeys.overview(currencyCode, today),
-    queryFn: () => financialPlanningService.getPlanningOverview({ currencyCode, today })
+    queryKey: financialPlanningKeys.overview(currencyCode, today, timeZone),
+    queryFn: () =>
+      financialPlanningService.getPlanningOverview({
+        currencyCode,
+        today,
+        timeZone
+      })
   });
 }
 
-export function useSalaryOverview(today: LocalDate) {
+export function useSalaryOverview(today: LocalDate, timeZone: string) {
   return useQuery({
-    queryKey: financialPlanningKeys.salary(today),
-    queryFn: () => financialPlanningService.getSalaryOverview({ today })
+    queryKey: financialPlanningKeys.salary(today, timeZone),
+    queryFn: () =>
+      financialPlanningService.getSalaryOverview({ today, timeZone })
   });
 }
 
@@ -60,6 +73,13 @@ export function useBudget(periodKey: string) {
   return useQuery({
     queryKey: financialPlanningKeys.budget(periodKey),
     queryFn: () => financialPlanningService.getBudget(periodKey)
+  });
+}
+
+export function useBudgets(periodKey: string) {
+  return useQuery({
+    queryKey: financialPlanningKeys.budgetList(periodKey),
+    queryFn: () => financialPlanningService.listBudgets(periodKey)
   });
 }
 
@@ -136,7 +156,7 @@ export function scopeToKey(scope: string): readonly unknown[] {
     return ['planning', 'salary'];
   }
   if (scope.startsWith('planning.budget')) {
-    return ['planning', 'budget'];
+    return ['planning'];
   }
   if (scope.startsWith('planning.obligation') && parts[2]) {
     return financialPlanningKeys.obligation(parts[2]);

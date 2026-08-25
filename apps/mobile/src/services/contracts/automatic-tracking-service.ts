@@ -10,6 +10,7 @@ import type {
   TrackingMode,
   TrackingStatusSnapshot
 } from '@/domain/automatic-tracking';
+import type { KeywordRule } from '@/domain/app-shell';
 import type { CapabilityContractMetadata } from './capability-contract';
 
 export const automaticTrackingServiceCapability: CapabilityContractMetadata = {
@@ -101,6 +102,9 @@ export interface AutomaticTrackingService {
     resolution: DuplicateResolution
   ): Promise<TrackingMutationResult<DuplicateCandidate>>;
   listKeywordRules(query?: RuleQuery): Promise<KeywordRuleSummary[]>;
+  saveKeywordRules(
+    rules: readonly KeywordRule[]
+  ): Promise<TrackingMutationResult<KeywordRuleSummary[]>>;
   restoreDefaultKeywords(): Promise<TrackingMutationResult<KeywordRuleSummary[]>>;
   listSenderRules(query?: SenderQuery): Promise<SenderRule[]>;
   saveSenderRule(

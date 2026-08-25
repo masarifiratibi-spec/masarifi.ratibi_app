@@ -1,42 +1,102 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
+import {
+  formatAmount,
+  formatFinancialDisplayValue,
+  formatMinorAmount,
+  type FinancialDisplaySign,
+  type FinancialDisplayState
+} from '@/utils/format-financial-value';
+import type { Locale } from '@/domain/foundation';
 import { useTheme } from '@/state/theme-context';
 import { translate } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
+import { financialFontFamily } from '@/design-system/typography';
+import { AppIcon, type AppIconName } from '@/design-system/icons';
+import {
+  categoryVisualSizes,
+  resolveCategoryVisual,
+  type CategoryVisualSize
+} from './category-visuals';
 
 export type FinancialMeaning =
   'income' | 'expense' | 'transfer' | 'refund' | 'savings' | 'debt';
 
+// ponytail: character-count proxy; use measured text width if supported formats expand.
+const inlineAmountCharacterLimit = 16;
+
+export function financialAmountNeedsFullWidth(
+  value: number,
+  currency: string,
+  locale: Locale
+): boolean {
+  return (
+    formatAmount(Math.abs(value), currency, locale).length >=
+    inlineAmountCharacterLimit
+  );
+}
+
+export function financialMinorAmountNeedsFullWidth(
+  minorUnits: number,
+  currency: string,
+  locale: Locale
+): boolean {
+  return (
+    formatMinorAmount(Math.abs(minorUnits), currency, locale).length >=
+    inlineAmountCharacterLimit
+  );
+}
+
 export function AmountText({
   value,
+  minorUnits,
   currency,
   meaning,
-  masked = false
+  color,
+  masked = false,
+  sign,
+  size = 'default',
+  state = masked ? 'hidden' : 'confirmed'
 }: {
-  value: number;
+  value?: number;
+  minorUnits?: number;
   currency: string;
   meaning: FinancialMeaning;
+  color?: string;
   masked?: boolean;
+  sign?: FinancialDisplaySign;
+  size?: 'default' | 'row' | 'hero';
+  state?: FinancialDisplayState;
 }) {
   const theme = useTheme();
-  const color =
-    meaning === 'expense' || meaning === 'debt'
-      ? theme.colors.financial.expense
-      : theme.colors.financial.income;
-  const sign = meaning === 'expense' || meaning === 'debt' ? '-' : '+';
-  const text = masked
-    ? `•••• ${currency}`
-    : `${sign}${Math.abs(value).toLocaleString('en-US')} ${currency}`;
+  const locale = usePreferenceStore((store) => store.locale);
+  const display = formatFinancialDisplayValue({
+    value,
+    minorUnits,
+    currencyCode: currency,
+    locale,
+    sign:
+      sign ??
+      (meaning === 'expense' || meaning === 'debt' ? 'negative' : 'positive'),
+    state
+  });
+  const text = display.text.replace(/[\u2066\u2069]/g, '');
 
   return (
     <Text
       accessibilityLabel={
-        masked ? translate('designSystem.privacy.hidden') : text
+        state === 'hidden'
+          ? translate('designSystem.privacy.hidden')
+          : display.accessibilityLabel.replace(/[\u2066\u2069]/g, '')
       }
       style={[
         styles.amount,
+        size === 'row' && styles.rowAmount,
+        size === 'hero' && styles.heroAmount,
         {
-          color,
+          color: color ?? theme.colors.financial[meaning],
+          fontFamily: financialFontFamily(size === 'hero' ? 900 : 700),
           fontVariant: ['tabular-nums'],
           writingDirection: 'ltr'
         }
@@ -71,22 +131,62 @@ export function FinancialBadge({
 
 export function CategoryIcon({
   label,
-  initials
+  icon = 'category',
+  size = 44,
+  visualKey,
+  color,
+  backgroundColor
 }: {
   label: string;
-  initials: string;
+  icon?: AppIconName;
+  size?: number | CategoryVisualSize;
+  visualKey?: string | null;
+  color?: string;
+  backgroundColor?: string;
 }) {
   const theme = useTheme();
+  const visual = resolveCategoryVisual(visualKey, icon);
+  const resolvedSize =
+    typeof size === 'number' ? size : categoryVisualSizes[size];
+  const palette = theme.colors.iconBadges.category;
+  const badgeColors = visual
+    ? palette[visual.tone % palette.length]
+    : theme.colors.iconBadges.primary;
+  const iconColor = color ?? badgeColors.foreground;
+  const identity = visual?.key ?? icon;
 
   return (
     <View
+      testID={`transaction-category-icon-${identity}`}
       accessibilityLabel={label}
       accessibilityRole="image"
-      style={[styles.categoryIcon, { borderColor: theme.colors.border }]}
+      style={[
+        styles.categoryIcon,
+        {
+          backgroundColor: backgroundColor ?? badgeColors.background,
+          borderColor: color ?? badgeColors.border,
+          height: resolvedSize,
+          width: resolvedSize
+        }
+      ]}
     >
-      <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
-        {initials}
-      </Text>
+      {visual ? (
+        <Image
+          accessible={false}
+          resizeMode="contain"
+          source={visual.asset}
+          testID={`category-visual-openmoji-${visual.key}`}
+          style={{ height: resolvedSize * 0.72, width: resolvedSize * 0.72 }}
+        />
+      ) : (
+        <AppIcon
+          name={icon}
+          label={label}
+          color={iconColor}
+          testID={`transaction-category-icon-${icon}-mark`}
+          decorative
+        />
+      )}
     </View>
   );
 }
@@ -95,6 +195,14 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 22,
     fontWeight: '700'
+  },
+  rowAmount: {
+    fontSize: 16
+  },
+  heroAmount: {
+    fontSize: 46,
+    lineHeight: 58,
+    letterSpacing: -1
   },
   badge: {
     alignItems: 'center',
@@ -116,8 +224,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     borderWidth: 1,
-    height: 44,
-    justifyContent: 'center',
-    width: 44
+    justifyContent: 'center'
   }
 });

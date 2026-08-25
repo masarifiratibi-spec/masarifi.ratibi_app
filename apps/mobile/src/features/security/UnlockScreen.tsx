@@ -6,26 +6,34 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
 import type { BiometricService } from '@/services/contracts/app-shell-service';
 import { PinForm } from './PinForm';
-import { verifyPin } from './privacy-lock';
+import {
+  createPinCredential,
+  isLegacyPinCredential,
+  verifyPin
+} from './privacy-lock';
 
 interface UnlockScreenProps {
   expectedHash?: string;
+  biometricEnabled?: boolean;
   biometricService?: BiometricService;
   lockedUntil?: number | null;
   now?: () => number;
   onForgotPin?: () => void;
   onInvalidPin?: () => void;
-  onUnlock?: () => void;
+  onCredentialUpgrade?: (hash: string) => void | Promise<void>;
+  onUnlock?: () => void | Promise<void>;
   sessionExpired?: boolean;
 }
 
 export function UnlockScreen({
+  biometricEnabled = false,
   biometricService,
   expectedHash = '',
   lockedUntil = null,
   now = Date.now,
   onForgotPin,
   onInvalidPin,
+  onCredentialUpgrade,
   onUnlock,
   sessionExpired = false
 }: UnlockScreenProps) {
@@ -43,6 +51,15 @@ export function UnlockScreen({
     );
     return () => clearTimeout(timeout);
   }, [lockedUntil, now]);
+
+  useEffect(() => {
+    if (!biometricEnabled || !biometricService) return;
+    if (sessionExpired || temporarilyLocked) return;
+    void unlockWithBiometric();
+    // The automatic prompt is a mount-time behavior: re-running it on later
+    // renders would surprise users who already dismissed the prompt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function unlockWithBiometric() {
     const result = await biometricService?.authenticate();
@@ -76,10 +93,14 @@ export function UnlockScreen({
         disabled={temporarilyLocked}
         errorMessage={status ?? undefined}
         mode="unlock"
-        onSubmit={(pin) => {
-          if (verifyPin(pin, expectedHash)) {
+        onSubmit={async (pin) => {
+          if (await verifyPin(pin, expectedHash)) {
+            if (isLegacyPinCredential(expectedHash) && onCredentialUpgrade) {
+              const credential = await createPinCredential(pin, pin);
+              if (credential.hash) await onCredentialUpgrade(credential.hash);
+            }
             setStatus(null);
-            onUnlock?.();
+            await onUnlock?.();
             return;
           }
           setStatus(translate('appShell.security.invalidPin'));

@@ -28,6 +28,7 @@ export interface AutomaticTrackingSeed {
 }
 
 export class AutomaticTrackingRepository {
+  private readonly seed: AutomaticTrackingSeed;
   private events: DetectedFinancialEvent[];
   private reviews: ReviewItem[];
   private duplicates: DuplicateCandidate[];
@@ -37,12 +38,24 @@ export class AutomaticTrackingRepository {
   private sequence = 0;
 
   constructor(seed: AutomaticTrackingSeed = {}) {
+    this.seed = copy(seed);
     this.events = seed.events?.map(copy) ?? [];
     this.reviews = seed.reviews?.map(copy) ?? [];
     this.duplicates = seed.duplicates?.map(copy) ?? [];
     this.senders = seed.senders?.map(copy) ?? [];
     this.history = seed.history?.map(copy) ?? [];
     this.feedback = seed.feedback?.map(copy) ?? [];
+  }
+
+  reset(): void {
+    const seed = this.seed;
+    this.events = seed.events?.map(copy) ?? [];
+    this.reviews = seed.reviews?.map(copy) ?? [];
+    this.duplicates = seed.duplicates?.map(copy) ?? [];
+    this.senders = seed.senders?.map(copy) ?? [];
+    this.history = seed.history?.map(copy) ?? [];
+    this.feedback = seed.feedback?.map(copy) ?? [];
+    this.sequence = 0;
   }
 
   async hydrate(): Promise<void> {

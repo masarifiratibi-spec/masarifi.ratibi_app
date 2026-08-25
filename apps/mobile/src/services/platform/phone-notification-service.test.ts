@@ -45,11 +45,27 @@ describe('phone notification platform service', () => {
   });
 
   it('maps real permission states and requests only through the explicit education path', async () => {
-    mockNotifications.getPermissionsAsync.mockResolvedValueOnce({ granted: true, canAskAgain: true });
-    mockNotifications.getPermissionsAsync.mockResolvedValueOnce({ status: 'undetermined', granted: false, canAskAgain: true });
-    mockNotifications.getPermissionsAsync.mockResolvedValueOnce({ status: 'denied', granted: false, canAskAgain: false });
-    mockNotifications.getPermissionsAsync.mockRejectedValueOnce(new Error('native unavailable'));
-    mockNotifications.requestPermissionsAsync.mockResolvedValueOnce({ granted: false, canAskAgain: false });
+    mockNotifications.getPermissionsAsync.mockResolvedValueOnce({
+      granted: true,
+      canAskAgain: true
+    });
+    mockNotifications.getPermissionsAsync.mockResolvedValueOnce({
+      status: 'undetermined',
+      granted: false,
+      canAskAgain: true
+    });
+    mockNotifications.getPermissionsAsync.mockResolvedValueOnce({
+      status: 'denied',
+      granted: false,
+      canAskAgain: false
+    });
+    mockNotifications.getPermissionsAsync.mockRejectedValueOnce(
+      new Error('native unavailable')
+    );
+    mockNotifications.requestPermissionsAsync.mockResolvedValueOnce({
+      granted: false,
+      canAskAgain: false
+    });
     const service = createPhoneNotificationService();
 
     expect(await service.getPermission()).toBe('granted');
@@ -61,7 +77,9 @@ describe('phone notification platform service', () => {
   });
 
   it('registers local categories and presents ID-only local payloads', async () => {
-    mockNotifications.scheduleNotificationAsync.mockResolvedValueOnce('phone-1');
+    mockNotifications.scheduleNotificationAsync.mockResolvedValueOnce(
+      'phone-1'
+    );
     const service = createPhoneNotificationService();
 
     await service.registerCategories();
@@ -74,6 +92,14 @@ describe('phone notification platform service', () => {
 
     expect(mockNotifications.setNotificationHandler).toHaveBeenCalledWith({
       handleNotification: expect.any(Function)
+    });
+    const notificationHandler = mockNotifications.setNotificationHandler.mock
+      .calls[0][0].handleNotification as () => Promise<unknown>;
+    await expect(notificationHandler()).resolves.toEqual({
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true
     });
     expect(mockNotifications.setNotificationChannelAsync).toHaveBeenCalledWith(
       'financial-change',
@@ -106,25 +132,38 @@ describe('phone notification platform service', () => {
       .mockResolvedValueOnce(response('last', 'edit'))
       .mockResolvedValueOnce(response('dismissed', 'dismiss'))
       .mockResolvedValueOnce(response('unknown', 'share'));
-    mockNotifications.addNotificationResponseReceivedListener.mockImplementationOnce((listener) => {
-      listener(response('live', mockNotifications.DEFAULT_ACTION_IDENTIFIER));
-      listener(response('undo-live', 'undo'));
-      listener(response('bad-live', 'archive'));
-      return { remove };
-    });
+    mockNotifications.addNotificationResponseReceivedListener.mockImplementationOnce(
+      (listener) => {
+        listener(response('live', mockNotifications.DEFAULT_ACTION_IDENTIFIER));
+        listener(response('undo-live', 'undo'));
+        listener(response('bad-live', 'archive'));
+        return { remove };
+      }
+    );
     const service = createPhoneNotificationService();
     const live = jest.fn();
 
-    expect(await service.getLastResponse()).toEqual({ notificationId: 'last', action: 'edit' });
+    expect(await service.getLastResponse()).toEqual({
+      notificationId: 'last',
+      action: 'edit'
+    });
     expect(await service.getLastResponse()).toBeNull();
     expect(await service.getLastResponse()).toBeNull();
     const unsubscribe = service.subscribeToResponses(live);
     unsubscribe();
     await service.openSystemSettings();
 
-    expect(live).toHaveBeenCalledWith({ notificationId: 'live', action: 'view' });
-    expect(live).toHaveBeenCalledWith({ notificationId: 'undo-live', action: 'undo' });
-    expect(live).not.toHaveBeenCalledWith(expect.objectContaining({ notificationId: 'bad-live' }));
+    expect(live).toHaveBeenCalledWith({
+      notificationId: 'live',
+      action: 'view'
+    });
+    expect(live).toHaveBeenCalledWith({
+      notificationId: 'undo-live',
+      action: 'undo'
+    });
+    expect(live).not.toHaveBeenCalledWith(
+      expect.objectContaining({ notificationId: 'bad-live' })
+    );
     expect(remove).toHaveBeenCalledTimes(1);
     expect(mockLinking.openSettings).toHaveBeenCalledTimes(1);
   });

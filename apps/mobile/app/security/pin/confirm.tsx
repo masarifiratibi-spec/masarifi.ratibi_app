@@ -15,7 +15,10 @@ export default function ConfirmPinRoute() {
       errorMessage={errorMessage}
       mode="confirm"
       onSubmit={async (pin) => {
-        const credential = createPinCredential(getPendingPinForTest() ?? '', pin);
+        const credential = await createPinCredential(
+          getPendingPinForTest() ?? '',
+          pin
+        );
         if (credential.hash) {
           await configurePrivacyLock(credential.hash);
           clearPendingPin();

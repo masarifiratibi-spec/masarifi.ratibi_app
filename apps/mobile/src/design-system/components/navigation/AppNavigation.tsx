@@ -15,7 +15,7 @@ export function AppBar({
 }: {
   title: string;
   onBack: () => void;
-  onOverflow: () => void;
+  onOverflow?: () => void;
   direction?: LayoutDirection;
 }) {
   const theme = useTheme();
@@ -40,19 +40,23 @@ export function AppBar({
       <StyledText accessible={false} style={styles.title}>
         {title}
       </StyledText>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={moreLabel}
-        onPress={onOverflow}
-        style={styles.action}
-      >
-        <DesignIcon
-          name="more"
-          label={moreLabel}
-          color={theme.colors.primary}
-          decorative
-        />
-      </Pressable>
+      {onOverflow ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={moreLabel}
+          onPress={onOverflow}
+          style={styles.action}
+        >
+          <DesignIcon
+            name="more"
+            label={moreLabel}
+            color={theme.colors.primary}
+            decorative
+          />
+        </Pressable>
+      ) : (
+        <View style={styles.action} />
+      )}
     </View>
   );
 }
@@ -88,7 +92,8 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontWeight: '700'
+    fontWeight: '700',
+    textAlign: 'center'
   },
   action: {
     alignItems: 'center',

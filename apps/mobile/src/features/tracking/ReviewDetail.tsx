@@ -7,6 +7,10 @@ import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import {
+  GroupedList,
+  NavigationRow
+} from '@/design-system/components/navigation/GroupedList';
 import type { Account, Category } from '@/domain/core-finance';
 import {
   useAccounts,
@@ -14,8 +18,9 @@ import {
 } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
 import { automaticTrackingService } from '@/services/mocks/automatic-tracking-service';
-import { formatAmount } from '@/utils/format-financial-value';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 import { currentLocale } from '@/localization/i18n';
+import { useTheme } from '@/state/theme-context';
 import { trackingFieldLabel, trackingReasonSummary } from './tracking-display';
 import {
   invalidateTrackingScopes,
@@ -23,6 +28,7 @@ import {
 } from './useAutomaticTracking';
 
 export function ReviewDetail({ id }: { id: string }) {
+  const theme = useTheme();
   const client = useQueryClient();
   const query = useReviewItem(id);
   const accounts = useAccounts(true);
@@ -59,7 +65,7 @@ export function ReviewDetail({ id }: { id: string }) {
     }
   }
   const proposed = item.proposedValues;
-  const currency = stringValue(proposed.currencyCode) ?? 'SAR';
+  const currency = stringValue(proposed.currencyCode);
   const accountId = stringValue(proposed.accountId);
   const categoryId = stringValue(proposed.categoryId);
   const account = accounts.data?.find(
@@ -69,19 +75,21 @@ export function ReviewDetail({ id }: { id: string }) {
     (candidate: Category) => candidate.id === categoryId
   );
   const locale = currentLocale();
+  const amount =
+    typeof proposed.amountMinor === 'number' && currency
+      ? formatMinorAmount(proposed.amountMinor, currency, locale)
+      : translate('tracking.review.notDetected');
+  const merchant =
+    stringValue(proposed.merchant) ??
+    translate('tracking.review.notDetected');
   const rows = [
     {
       label: translate('coreFinance.form.amount'),
-      value:
-        typeof proposed.amountMinor === 'number'
-          ? formatAmount(proposed.amountMinor / 100, currency, locale)
-          : translate('tracking.review.notDetected')
+      value: amount
     },
     {
       label: translate('voice.review.merchant'),
-      value:
-        stringValue(proposed.merchant) ??
-        translate('tracking.review.notDetected')
+      value: merchant
     },
     {
       label: translate('coreFinance.transaction.account'),
@@ -101,25 +109,46 @@ export function ReviewDetail({ id }: { id: string }) {
       <StyledText variant="title">
         {translate('tracking.review.detail')}
       </StyledText>
-      <SurfaceCard>
-        <View style={styles.stack}>
-          <StyledText variant="subtitle">
-            {trackingReasonSummary(item.reasonCodes)}
+      <SurfaceCard
+        accessibilityLabel={`${amount}, ${merchant}`}
+        style={{
+          backgroundColor: theme.colors.surfaces.brandStrong,
+          borderColor: theme.colors.surfaces.brandStrong
+        }}
+      >
+        <View style={styles.hero}>
+          <StyledText
+            style={{ color: theme.colors.content.inverse }}
+            variant="caption"
+          >
+            {translate('tracking.review.detail')}
           </StyledText>
-          {rows.map((row) => (
-            <View key={row.label}>
-              <StyledText variant="caption">{row.label}</StyledText>
-              <StyledText>{row.value}</StyledText>
-            </View>
-          ))}
-          {item.missingFields.length ? (
-            <StyledText accessibilityRole="alert">
-              {translate('tracking.review.missingFields')}:{' '}
-              {item.missingFields.map(trackingFieldLabel).join(' · ')}
-            </StyledText>
-          ) : null}
+          <StyledText
+            style={{ color: theme.colors.content.inverse }}
+            variant="title"
+          >
+            {amount}
+          </StyledText>
+          <StyledText style={{ color: theme.colors.content.inverse }}>
+            {merchant}
+          </StyledText>
         </View>
       </SurfaceCard>
+      <GroupedList label={translate('tracking.review.detail')}>
+        <NavigationRow
+          label={translate('tracking.review.missingFields')}
+          description={trackingReasonSummary(item.reasonCodes)}
+        />
+        {rows.slice(2).map((row) => (
+          <NavigationRow key={row.label} label={row.label} value={row.value} />
+        ))}
+      </GroupedList>
+      {item.missingFields.length ? (
+        <StyledText accessibilityRole="alert">
+          {translate('tracking.review.missingFields')}:{' '}
+          {item.missingFields.map(trackingFieldLabel).join(' · ')}
+        </StyledText>
+      ) : null}
       {resolutionError ? (
         <StateView
           state="error"
@@ -152,5 +181,6 @@ function stringValue(value: unknown): string | null {
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 12, padding: 16 }
+  stack: { gap: 12, padding: 16 },
+  hero: { gap: 8 }
 });

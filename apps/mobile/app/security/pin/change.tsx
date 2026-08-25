@@ -14,8 +14,8 @@ export default function ChangePinRoute() {
     <PinForm
       errorMessage={errorMessage}
       mode="change"
-      onSubmit={(pin) => {
-        if (!pinCredential || !verifyPin(pin, pinCredential)) {
+      onSubmit={async (pin) => {
+        if (!pinCredential || !(await verifyPin(pin, pinCredential))) {
           setErrorMessage(translate('appShell.security.invalidPin'));
           return;
         }

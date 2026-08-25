@@ -34,6 +34,7 @@ test('discloses destination, values, editable input, and cancel/back without own
   renderWithProviders(<AssistantActionPreviewScreen conversationId="conversation-1" previewId="preview-1" />);
 
   expect(screen.getByText(t('assistant.actionPreview.destination.goal'))).toBeTruthy();
+  expect(screen.getByLabelText(/Savings goal.*300.00 SAR/)).toBeTruthy();
   expect(screen.getByText(t('assistant.actionPreview.value.amount'))).toBeTruthy();
   expect(screen.getByText('300.00 SAR')).toBeTruthy();
 
@@ -46,6 +47,46 @@ test('discloses destination, values, editable input, and cancel/back without own
   expect(cancel).toHaveBeenCalledWith(expect.objectContaining({ previewId: 'preview-1', expectedVersion: 1 }));
   expect(router.back).toHaveBeenCalled();
 });
+
+it.each([
+  ['JPY', 12_345, '12345'],
+  ['SAR', 12_345, '123.45'],
+  ['OMR', 12_345, '12.345']
+])(
+  'keeps %s minor units unchanged when the editable amount is saved',
+  async (currency, amountMinor, majorAmount) => {
+    const update = jest.fn();
+    mockAssistantQueries.useAssistantActionPreview.mockReturnValue({
+      data: preview({ currency, amountMinor }),
+      isLoading: false,
+      isError: false
+    });
+    mockAssistantQueries.useUpdateAssistantActionPreview.mockReturnValue({
+      mutate: update,
+      isPending: false
+    });
+
+    renderWithProviders(
+      <AssistantActionPreviewScreen
+        conversationId="conversation-1"
+        previewId="preview-1"
+      />
+    );
+
+    expect(
+      await screen.findByDisplayValue(majorAmount)
+    ).toBeTruthy();
+    fireEvent.press(
+      screen.getByText(t('assistant.actionPreview.action.saveEdit'))
+    );
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: { amountMinor: 12_345, currency }
+      })
+    );
+  }
+);
 
 test('requires confirmation dialog before mutating and routes to the safe success destination', () => {
   const confirm = jest.fn((_input, options) => options?.onSuccess?.({ value: { ...preview(), status: 'succeeded', resultReference: 'goal-1' } }));
@@ -127,12 +168,18 @@ test('shows stale, expired, safe failure, and offline states without confirmatio
   expect(screen.getByText(t('assistant.actionPreview.state.offline'))).toBeTruthy();
 });
 
-function preview() {
+function preview({
+  currency = 'SAR',
+  amountMinor = 30_000
+}: {
+  currency?: string;
+  amountMinor?: number;
+} = {}) {
   return {
     id: 'preview-1',
     responseId: 'response-1',
     kind: 'create_goal',
-    input: { amountMinor: 30000, currency: 'SAR' },
+    input: { amountMinor, currency },
     affectedDestination: { kind: 'goal', goalId: 'draft-goal' },
     sourceVersions: [{ id: 'budget-1', version: 2 }],
     status: 'ready',

@@ -10,7 +10,8 @@ import SecurityLayout from '@app/security/_layout';
 const mockStack = jest.fn((_props: unknown) => null);
 
 jest.mock('expo-router', () => ({
-  Stack: (props: unknown) => mockStack(props)
+  Stack: (props: unknown) => mockStack(props),
+  usePathname: () => '/(public)/phone'
 }));
 
 jest.mock('@/design-system/typography', () => ({
@@ -46,7 +47,7 @@ describe('RootLayout navigation chrome', () => {
 
     expect(mockStack).toHaveBeenCalledWith(
       expect.objectContaining({
-        screenOptions: { headerShown: false }
+        screenOptions: expect.objectContaining({ headerShown: false })
       })
     );
   });

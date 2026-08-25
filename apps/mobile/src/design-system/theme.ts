@@ -19,6 +19,8 @@ import {
 } from './tokens';
 import type { ThemePreference } from '@/domain/foundation';
 
+type SystemColorScheme = ReturnType<typeof Appearance.getColorScheme>;
+
 export interface ResolvedTheme {
   colors: ThemeColors;
   spacing: typeof spacing;
@@ -32,10 +34,9 @@ const baseMetrics = { spacing, radius, typography, minTouchTarget };
 
 export function resolveTheme(
   preference: ThemePreference,
-  systemScheme:
-    'light' | 'dark' | null | undefined = Appearance.getColorScheme()
+  systemScheme: SystemColorScheme = Appearance.getColorScheme()
 ): ResolvedTheme {
-  const mode = resolveThemeMode(preference, systemScheme ?? null);
+  const mode = resolveThemeMode(preference, systemScheme);
   return {
     ...baseMetrics,
     colors: mode === 'dark' ? darkThemeColors : lightThemeColors,
@@ -45,7 +46,7 @@ export function resolveTheme(
 
 function resolveThemeMode(
   preference: ThemePreference,
-  systemScheme: 'light' | 'dark' | null
+  systemScheme: SystemColorScheme
 ): 'light' | 'dark' {
   if (preference === 'system') {
     return systemScheme === 'dark' ? 'dark' : 'light';
