@@ -2,6 +2,7 @@ import React from 'react';
 import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { radius, spacing, colorTokens } from '@/design-system/tokens';
 import { currentLocale, translate, translateDynamic } from '@/localization/i18n';
@@ -265,7 +266,7 @@ export function CategoryRow({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
 
   // Standalone card (list view)
   standalone: {

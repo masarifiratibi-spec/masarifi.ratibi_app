@@ -16,6 +16,7 @@ import Svg, {
   Stop
 } from 'react-native-svg';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { AppIcon, IconBadge } from '@/design-system/icons';
@@ -1115,7 +1116,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg
   },
   ltrCanvas: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     writingDirection: 'ltr',
     gap: spacing.xl,
     width: '100%'

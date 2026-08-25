@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
     backgroundColor: colorTokens.raw["FFFFFF"],
     borderTopColor: colorTokens.raw["EEF3F0"],
     borderTopWidth: 1,
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.xs,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     paddingHorizontal: spacing.md,

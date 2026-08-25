@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { SkeletonBlock } from '@/design-system/components/feedback/Skeleton';
@@ -1318,7 +1319,7 @@ function QuickFilterOption({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
   content: { padding: spacing.lg, paddingBottom: spacing.lg },
   header: { marginBottom: spacing.md },
   pageHeader: { gap: spacing.md },

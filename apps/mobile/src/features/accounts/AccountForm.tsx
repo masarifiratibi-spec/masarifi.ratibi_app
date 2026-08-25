@@ -11,6 +11,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
@@ -415,7 +416,7 @@ export function AccountForm({
 
 const styles = StyleSheet.create({
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

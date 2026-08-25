@@ -1,5 +1,6 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 
 import { resolveTheme } from '@/design-system/theme';
 import { usePreferenceStore } from '@/state/preferences';
@@ -48,4 +49,34 @@ it('keeps nested navigators light while dark mode is disabled', () => {
       })
     })
   );
+});
+
+it('uses the web-safe writing direction without passing direction as a style', () => {
+  const originalPlatform = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+  usePreferenceStore.setState({
+    direction: 'rtl',
+    hydrated: true,
+    locale: 'ar'
+  });
+
+  try {
+    render(
+      <FoundationProviders>
+        <></>
+      </FoundationProviders>
+    );
+
+    expect(screen.getByTestId('foundation-direction-root')).toHaveStyle({
+      writingDirection: 'rtl'
+    });
+    expect(screen.getByTestId('foundation-direction-root')).not.toHaveStyle({
+      direction: 'rtl'
+    });
+  } finally {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform
+    });
+  }
 });

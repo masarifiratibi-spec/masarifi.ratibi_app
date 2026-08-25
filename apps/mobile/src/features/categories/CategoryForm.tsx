@@ -10,6 +10,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import type { Category } from '@/domain/core-finance';
@@ -289,7 +290,7 @@ export function CategoryForm({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
   container: {
     gap: spacing.lg,
     paddingBottom: 48,

@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resolveTheme } from '@/design-system/theme';
 import type { ResolvedTheme } from '@/design-system/theme';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { initI18n, changeLocale } from '@/localization/i18n';
 import { ThemeContext, type ThemeContextValue } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
@@ -99,7 +100,7 @@ export function FoundationProviders({
               style={{
                 backgroundColor: resolved.colors.background,
                 flex: 1,
-                direction
+                ...layoutDirectionStyle(direction)
               }}
             >
               {children}

@@ -9,6 +9,7 @@ import {
   View
 } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import {
@@ -230,7 +231,7 @@ export function CurrencyPickerSheet({
 
 const styles = StyleSheet.create({
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

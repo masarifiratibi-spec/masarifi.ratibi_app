@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { FinancialHorizonSurface } from '@/design-system/components/financial/FinancialHorizonSurface';
 import { DesignIcon } from '@/design-system/icons';
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: radius.pill,
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     justifyContent: 'center',
     maxWidth: '100%',

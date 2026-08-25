@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { type AppIconName, DesignIcon } from '@/design-system/icons';
 import { radius, spacing } from '@/design-system/tokens';
@@ -259,7 +260,7 @@ export function AccountTypeSelectionScreen({
 
 const styles = StyleSheet.create({
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

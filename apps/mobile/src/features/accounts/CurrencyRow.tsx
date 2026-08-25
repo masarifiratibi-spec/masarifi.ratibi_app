@@ -1,6 +1,7 @@
 import React from 'react';
 import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
 import { getCurrencyDetails } from '@/domain/currencies';
@@ -124,7 +125,7 @@ export function CurrencyRow({
 
 const styles = StyleSheet.create({
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

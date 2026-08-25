@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { AmountText, CategoryIcon } from '@/design-system/components/financial/FinancialPrimitives';
 import { resolveCategoryVisual } from '@/design-system/components/financial/category-visuals';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -643,14 +644,14 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 15, lineHeight: 22, opacity: 0.78 },
   balanceValue: { fontSize: 44, fontVariant: ['tabular-nums'], fontWeight: '800', letterSpacing: -1, lineHeight: 54, textAlign: 'center', writingDirection: 'ltr' },
   balanceSupport: { fontSize: 14, lineHeight: 20, opacity: 0.82, textAlign: 'center' },
-  accountCard: { alignItems: 'center', borderRadius: radius.lg, borderWidth: borderWidth.default, direction: 'ltr', gap: spacing.md, justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, width: '100%', writingDirection: 'ltr' },
+  accountCard: { alignItems: 'center', borderRadius: radius.lg, borderWidth: borderWidth.default, ...layoutDirectionStyle('ltr'), gap: spacing.md, justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, width: '100%', writingDirection: 'ltr' },
   accountCardText: { flex: 1, gap: 1, minWidth: 0 },
   accountCardValues: { alignItems: 'center', flexShrink: 1, gap: spacing.xs, justifyContent: 'center' },
   accountCardTitle: { fontSize: 14, fontWeight: '700', lineHeight: 19 },
   accountCardCount: { fontSize: 11, lineHeight: 15, opacity: 0.76 },
   accountCardBalance: { flexShrink: 1, fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '800', lineHeight: 20, textAlign: 'left', writingDirection: 'ltr' },
   actionTray: { alignSelf: 'stretch', borderRadius: radius.actionTray, borderWidth: borderWidth.default, overflow: 'hidden', padding: spacing.xs },
-  quickActions: { alignSelf: 'stretch', direction: 'ltr', gap: spacing.sm, writingDirection: 'ltr' },
+  quickActions: { alignSelf: 'stretch', ...layoutDirectionStyle('ltr'), gap: spacing.sm, writingDirection: 'ltr' },
   quickAction: { alignItems: 'center', borderRadius: radius.lg, flex: 1, gap: spacing.sm, justifyContent: 'center', minHeight: 48, minWidth: 48, padding: spacing.sm },
   quickActionStacked: { flex: 0, justifyContent: 'flex-start', width: '100%' },
   quickActionIconFrame: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
@@ -662,13 +663,13 @@ const styles = StyleSheet.create({
   section: { gap: spacing.md },
   voiceReview: { gap: spacing.md },
   voiceError: { alignItems: 'center', borderRadius: radius.overlay, gap: spacing.md, padding: spacing.xl },
-  sectionHeading: { alignItems: 'center', direction: 'ltr', justifyContent: 'space-between', writingDirection: 'ltr' },
+  sectionHeading: { alignItems: 'center', ...layoutDirectionStyle('ltr'), justifyContent: 'space-between', writingDirection: 'ltr' },
   sectionTitle: { fontSize: 20, fontWeight: '800', lineHeight: 28 },
   sectionAction: { justifyContent: 'center', minHeight: minTouchTarget },
   sectionActionText: { fontSize: 12, fontWeight: '700' },
   empty: { padding: spacing.xl, textAlign: 'center' },
   transactionList: { gap: spacing.sm },
-  transaction: { alignItems: 'center', borderRadius: radius.group, borderWidth: borderWidth.default, direction: 'ltr', gap: spacing.md, minHeight: 80, overflow: 'hidden', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, writingDirection: 'ltr' },
+  transaction: { alignItems: 'center', borderRadius: radius.group, borderWidth: borderWidth.default, ...layoutDirectionStyle('ltr'), gap: spacing.md, minHeight: 80, overflow: 'hidden', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, writingDirection: 'ltr' },
   transactionStacked: { alignItems: 'stretch', flexDirection: 'column' },
   transactionInfo: { alignItems: 'center', flex: 1, gap: spacing.md, minWidth: 0 },
   transactionText: { flex: 1, gap: 2, minWidth: 0 },
@@ -681,7 +682,7 @@ const styles = StyleSheet.create({
   transactionAmountStacked: { maxWidth: '100%' },
   transactionDate: { fontSize: 11, lineHeight: 15, textAlign: 'right' },
   processingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, zIndex: 10 },
-  processingInline: { alignItems: 'center', alignSelf: 'stretch', borderRadius: radius.lg, borderWidth: borderWidth.default, direction: 'ltr', gap: spacing.md, padding: spacing.md },
+  processingInline: { alignItems: 'center', alignSelf: 'stretch', borderRadius: radius.lg, borderWidth: borderWidth.default, ...layoutDirectionStyle('ltr'), gap: spacing.md, padding: spacing.md },
   processingIcon: { alignItems: 'center', borderRadius: radius.pill, height: 56, justifyContent: 'center', width: 56 },
   processingMessage: { flex: 1, fontSize: 15, fontWeight: '700', lineHeight: 22, textAlign: 'center' },
   unclearCard: { ...elevation.raised, alignItems: 'center', borderRadius: radius.overlay, gap: spacing.md, maxWidth: 340, padding: spacing.xl, width: '100%' },
