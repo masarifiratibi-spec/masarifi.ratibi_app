@@ -94,6 +94,10 @@ export function AccountForm({
       (account
         ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
         : '0') ||
+    creditLimit !==
+      (account?.creditLimitMinor
+        ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
+        : '') ||
     isDefault !== (account?.isDefault ?? false) ||
     lastFour !== (account?.lastFour ?? '');
 

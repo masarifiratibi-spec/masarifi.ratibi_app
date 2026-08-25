@@ -95,6 +95,24 @@ describe('AccountForm', () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
+  it('confirms before discarding a credit-limit-only edit', () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    renderWithProviders(<AccountForm account={fixtureAccounts[3]} />);
+
+    fireEvent.changeText(
+      screen.getByLabelText(translate('coreFinance.accounts.setup.creditLimit')),
+      '4000'
+    );
+    fireEvent.press(screen.getByLabelText(translate('common.back')));
+
+    expect(alert).toHaveBeenCalledWith(
+      translate('coreFinance.accounts.discardChanges'),
+      translate('coreFinance.accounts.discardChangesBody'),
+      expect.any(Array)
+    );
+    expect(router.back).not.toHaveBeenCalled();
+  });
+
   it('does not show the discard alert after a new account is saved', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     const dispatch = jest.fn();
