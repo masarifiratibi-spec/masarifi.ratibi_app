@@ -1,4 +1,7 @@
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
+import { clearAppShellUserData } from './app-shell-storage';
+import { resetLocalUserData } from './local-data-reset';
+import { clearPersistedPreferences } from './secure-preferences';
 import { registerRuntimeUserDataReset } from './runtime-user-data-reset';
 
 let mockDatabase: StatefulSqlite;
@@ -7,9 +10,15 @@ jest.mock('./database', () => ({
   openDatabase: jest.fn(async () => mockDatabase),
   runExclusiveDatabaseTransaction: jest.fn(async (db: StatefulSqlite, operation: (transaction: StatefulSqlite) => Promise<void>) => db.withExclusiveTransactionAsync(operation))
 }));
+jest.mock('./app-shell-storage', () => ({
+  clearAppShellUserData: jest.fn(async () => undefined)
+}));
+jest.mock('./secure-preferences', () => ({
+  clearPersistedPreferences: jest.fn(async () => undefined)
+}));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { resetLocalUserData } = require('./local-data-reset') as typeof import('./local-data-reset');
+const clearShellData = jest.mocked(clearAppShellUserData);
+const clearPreferences = jest.mocked(clearPersistedPreferences);
 
 const clearedTables = [
   'notifications',
@@ -29,6 +38,7 @@ const clearedTables = [
 const preservedTables = ['schema_migrations'];
 
 beforeEach(async () => {
+  jest.clearAllMocks();
   mockDatabase = new StatefulSqlite([...clearedTables, ...preservedTables]);
   for (const table of [...clearedTables, ...preservedTables]) {
     await mockDatabase.runAsync(`INSERT INTO ${table} (id, payload) VALUES (?, ?)`, `${table}-1`, '{}');
@@ -43,17 +53,25 @@ test('deletes every user-data table discovered from the authoritative schema', a
   expect(result).toEqual({ deletedRows: clearedTables.length, operationId: 'local-delete-1' });
   for (const table of clearedTables) expect(mockDatabase.read(table)).toEqual([]);
   expect(mockDatabase.read('schema_migrations')).toHaveLength(1);
+  expect(clearShellData).toHaveBeenCalledTimes(1);
+  expect(clearPreferences).toHaveBeenCalledTimes(1);
   expect(runtimeReset).toHaveBeenCalledTimes(1);
   unregister();
 });
 
 test('rolls back all deletes on failure and replays completed operations', async () => {
+  const runtimeReset = jest.fn();
+  const unregister = registerRuntimeUserDataReset(runtimeReset);
   mockDatabase.failNextWrite('planning_obligations');
   await expect(resetLocalUserData('local-delete-fail')).rejects.toThrow(
     'injected planning_obligations failure'
   );
   for (const table of [...clearedTables, ...preservedTables]) expect(mockDatabase.read(table)).toHaveLength(1);
+  expect(clearShellData).toHaveBeenCalledTimes(1);
+  expect(clearPreferences).toHaveBeenCalledTimes(1);
+  expect(runtimeReset).toHaveBeenCalledTimes(1);
 
   await expect(resetLocalUserData('local-delete-2')).resolves.toMatchObject({ deletedRows: clearedTables.length });
   await expect(resetLocalUserData('local-delete-2')).resolves.toMatchObject({ deletedRows: clearedTables.length });
+  unregister();
 });

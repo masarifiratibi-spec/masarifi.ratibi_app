@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { seedClientDemoData } from '@/storage/client-demo-seeder';
 import { resetLocalUserData } from '@/storage/local-data-reset';
+import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
 import type {
   AuthenticationSession,
   OnboardingProgress,
@@ -210,5 +211,45 @@ describe('useAppShellStore', () => {
 
     expect('locale' in state).toBe(false);
     expect('theme' in state).toBe(false);
+  });
+
+  it('clears authentication even when local user-data deletion fails', async () => {
+    useAppShellStore.setState({ session, privacyLock: lock, pinCredential: 'pin:123456' });
+    resetUserData.mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(useAppShellStore.getState().signOut()).rejects.toThrow(
+      'database unavailable'
+    );
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      session: { status: 'signed_out' },
+      privacyLock: null,
+      pinCredential: null
+    });
+    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
+    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.privacyLock');
+    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.pinCredential');
+  });
+
+  it('drops in-memory shell user data during a runtime user-data reset', () => {
+    useAppShellStore.setState({
+      session,
+      onboarding,
+      pendingDestination: '/reports',
+      privacyLock: lock,
+      profilePromptDismissed: true,
+      pinCredential: 'pin:123456'
+    });
+
+    resetRuntimeUserData();
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      session: { status: 'signed_out' },
+      onboarding: null,
+      pendingDestination: null,
+      privacyLock: null,
+      profilePromptDismissed: false,
+      pinCredential: null
+    });
   });
 });

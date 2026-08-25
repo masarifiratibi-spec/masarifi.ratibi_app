@@ -2,21 +2,24 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-import { loadPreferences } from './secure-preferences';
+import { clearPersistedPreferences, loadPreferences } from './secure-preferences';
 import { buildPreferences } from '@/domain/foundation';
 
 jest.mock('expo-secure-store', () => ({
+  deleteItemAsync: jest.fn(),
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn()
 }));
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
+  removeItem: jest.fn(),
   setItem: jest.fn()
 }));
 
 const getItemAsync = jest.mocked(SecureStore.getItemAsync);
 const getAsyncStorageItem = jest.mocked(AsyncStorage.getItem);
-
+const deleteSecureItem = jest.mocked(SecureStore.deleteItemAsync);
+const removeAsyncStorageItem = jest.mocked(AsyncStorage.removeItem);
 beforeEach(() => {
   jest.clearAllMocks();
 });
@@ -26,6 +29,29 @@ afterEach(() => {
 });
 
 describe('loadPreferences', () => {
+  it('clears native persisted preferences', async () => {
+    await clearPersistedPreferences();
+
+    expect(deleteSecureItem).toHaveBeenCalledWith('masarifi.preferences');
+  });
+
+  it('clears web persisted preferences from AsyncStorage', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+
+    try {
+      await clearPersistedPreferences();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform
+      });
+    }
+
+    expect(removeAsyncStorageItem).toHaveBeenCalledWith('masarifi.preferences');
+    expect(deleteSecureItem).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['empty object', '{}'],
     ['unsupported locale', '{"locale":"fr"}'],

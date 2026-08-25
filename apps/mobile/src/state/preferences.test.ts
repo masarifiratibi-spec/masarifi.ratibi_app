@@ -1,6 +1,7 @@
 import { buildPreferences } from '@/domain/foundation';
 import { loadPreferences, savePreferences } from '@/storage/secure-preferences';
 import { usePreferenceStore } from './preferences';
+import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
 
 jest.mock('@/storage/secure-preferences', () => ({
   loadPreferences: jest.fn(),
@@ -60,4 +61,25 @@ it('prevents transient theme changes while dark mode is disabled', () => {
   usePreferenceStore.getState().setTheme('dark');
 
   expect(usePreferenceStore.getState().theme).toBe('light');
+});
+
+it('drops in-memory user preferences when runtime user data resets', () => {
+  usePreferenceStore.setState({
+    ...buildPreferences({
+      locale: 'en',
+      defaultAccountId: 'account-1',
+      trackingPersonalization: false
+    }),
+    hydrated: true
+  });
+
+  resetRuntimeUserData();
+
+  expect(usePreferenceStore.getState()).toMatchObject({
+    locale: 'ar',
+    direction: 'rtl',
+    defaultAccountId: null,
+    trackingPersonalization: true,
+    hydrated: true
+  });
 });

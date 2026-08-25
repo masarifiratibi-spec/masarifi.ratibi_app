@@ -1,10 +1,12 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { Platform } from 'react-native';
+import { QueryClient } from '@tanstack/react-query';
 
 import { resolveTheme } from '@/design-system/theme';
 import { usePreferenceStore } from '@/state/preferences';
 import { FoundationProviders } from './FoundationProviders';
+import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
 
 const mockNavigationTheme = jest.fn();
 
@@ -79,4 +81,19 @@ it('uses the web-safe writing direction without passing direction as a style', (
       value: originalPlatform
     });
   }
+});
+
+it('clears cached user data when runtime user data resets', () => {
+  const client = new QueryClient();
+  client.setQueryData(['accounts', 'list'], [{ id: 'account-1' }]);
+
+  render(
+    <FoundationProviders client={client}>
+      <></>
+    </FoundationProviders>
+  );
+
+  resetRuntimeUserData();
+
+  expect(client.getQueryData(['accounts', 'list'])).toBeUndefined();
 });

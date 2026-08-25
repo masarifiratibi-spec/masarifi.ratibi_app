@@ -30,6 +30,26 @@ const keys = {
   profilePromptDismissed: 'masarifi.appShell.profilePromptDismissed'
 };
 
+const asyncUserDataKeys = [
+  keys.onboarding,
+  keys.keywords,
+  keys.trackingPreference,
+  keys.pendingDestination,
+  keys.profilePromptDismissed
+] as const;
+const sensitiveUserDataKeys = [
+  keys.session,
+  keys.privacyLock,
+  keys.pinCredential
+] as const;
+
+export async function clearAppShellUserData(): Promise<void> {
+  await Promise.all([
+    ...asyncUserDataKeys.map((key) => AsyncStorage.removeItem(key)),
+    ...sensitiveUserDataKeys.map((key) => removeSensitive(key))
+  ]);
+}
+
 export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorage> {
   return {
     metadata: {
