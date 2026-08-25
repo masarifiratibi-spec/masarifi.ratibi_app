@@ -72,6 +72,28 @@ test('profile preserves edits, validates owner fields, and redirects identity-ow
   expect(screen.queryByText(t('settings.profile.applicationOwner'))).toBeNull();
 });
 
+test('profile preserves an empty optional email when saving fresh profile fields', () => {
+  const save = jest.fn();
+  mockQueries.useSettingsProfile.mockReturnValue({
+    data: { ...profile(), name: null, email: null },
+    isLoading: false,
+    isError: false
+  });
+  mockQueries.useSaveSettingsProfile.mockReturnValue({ mutate: save, isPending: false });
+  renderWithProviders(<ProfileScreen />);
+
+  fireEvent.changeText(screen.getByLabelText(t('settings.profile.name')), 'New user');
+  fireEvent.press(screen.getByText(t('settings.profile.save')));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({
+    input: expect.objectContaining({ name: 'New user', email: null })
+  }));
+
+  fireEvent.press(screen.getByText(t('settings.profile.gender.female')));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({
+    input: expect.objectContaining({ email: null, gender: 'female' })
+  }));
+});
+
 test('application settings renders controls: language, weekStart, currency, monthStart, defaultAccount, hideBalances', () => {
   renderWithProviders(<ApplicationSettingsScreen />);
 
