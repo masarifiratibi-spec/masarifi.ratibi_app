@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { seedClientDemoData } from '@/storage/client-demo-seeder';
 import { resetLocalUserData } from '@/storage/local-data-reset';
+import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
 import type {
   AuthenticationSession,
   OnboardingProgress,
@@ -205,10 +206,75 @@ describe('useAppShellStore', () => {
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
   });
 
+  it('preserves lock preferences when replacing a legacy pin credential', async () => {
+    const preferredLock: PrivacyLockPreference = {
+      ...lock,
+      biometricStatus: 'enabled',
+      autoLockDuration: 'fifteen_minutes'
+    };
+    useAppShellStore.setState({
+      privacyLock: preferredLock,
+      pinCredential: 'pin:123456'
+    });
+
+    await useAppShellStore
+      .getState()
+      .configurePrivacyLock('pbkdf2-sha256:upgraded', 30);
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      privacyLock: preferredLock,
+      pinCredential: 'pbkdf2-sha256:upgraded'
+    });
+    expect(secureSet).toHaveBeenCalledWith(
+      'masarifi.appShell.privacyLock',
+      JSON.stringify(preferredLock)
+    );
+  });
+
   it('does not duplicate locale or theme preference state', () => {
     const state = useAppShellStore.getState();
 
     expect('locale' in state).toBe(false);
     expect('theme' in state).toBe(false);
+  });
+
+  it('clears authentication even when local user-data deletion fails', async () => {
+    useAppShellStore.setState({ session, privacyLock: lock, pinCredential: 'pin:123456' });
+    resetUserData.mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(useAppShellStore.getState().signOut()).rejects.toThrow(
+      'database unavailable'
+    );
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      session: { status: 'signed_out' },
+      privacyLock: null,
+      pinCredential: null
+    });
+    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
+    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.privacyLock');
+    expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.pinCredential');
+  });
+
+  it('drops in-memory shell user data during a runtime user-data reset', () => {
+    useAppShellStore.setState({
+      session,
+      onboarding,
+      pendingDestination: '/reports',
+      privacyLock: lock,
+      profilePromptDismissed: true,
+      pinCredential: 'pin:123456'
+    });
+
+    resetRuntimeUserData();
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      session: { status: 'signed_out' },
+      onboarding: null,
+      pendingDestination: null,
+      privacyLock: null,
+      profilePromptDismissed: false,
+      pinCredential: null
+    });
   });
 });

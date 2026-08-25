@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import { createAppShellStorage } from './app-shell-storage';
+import { clearAppShellUserData, createAppShellStorage } from './app-shell-storage';
 import type {
   AuthenticationSession,
   KeywordRule,
@@ -24,7 +24,6 @@ const secureDelete = jest.mocked(SecureStore.deleteItemAsync);
 const asyncGet = jest.mocked(AsyncStorage.getItem);
 const asyncSet = jest.mocked(AsyncStorage.setItem);
 const asyncRemove = jest.mocked(AsyncStorage.removeItem);
-
 const session: AuthenticationSession = {
   status: 'authenticated',
   userId: 'mock-user',
@@ -79,6 +78,48 @@ afterEach(() => {
 });
 
 describe('createAppShellStorage', () => {
+  it('clears every native app-shell user record', async () => {
+    await clearAppShellUserData();
+
+    for (const key of [
+      'masarifi.appShell.onboarding',
+      'masarifi.appShell.keywords',
+      'masarifi.appShell.trackingPreference',
+      'masarifi.appShell.pendingDestination',
+      'masarifi.appShell.profilePromptDismissed'
+    ]) {
+      expect(asyncRemove).toHaveBeenCalledWith(key);
+    }
+    for (const key of [
+      'masarifi.appShell.session',
+      'masarifi.appShell.privacyLock',
+      'masarifi.appShell.pinCredential'
+    ]) {
+      expect(secureDelete).toHaveBeenCalledWith(key);
+    }
+  });
+
+  it('clears web fallback app-shell user records without SecureStore', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+
+    try {
+      await clearAppShellUserData();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform
+      });
+    }
+
+    expect(asyncRemove).toHaveBeenCalledWith('masarifi.appShell.preview.session');
+    expect(asyncRemove).toHaveBeenCalledWith('masarifi.appShell.preview.privacyLock');
+    expect(asyncRemove).toHaveBeenCalledWith(
+      'masarifi.appShell.preview.masarifi.appShell.pinCredential'
+    );
+    expect(secureDelete).not.toHaveBeenCalled();
+  });
+
   it('stores native session and privacy lock records in SecureStore', async () => {
     const storage = createAppShellStorage();
 

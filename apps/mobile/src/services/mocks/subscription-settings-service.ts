@@ -11,6 +11,7 @@ import {
   type UserProfile,
   type UserProfileInput
 } from '@/domain/settings';
+import { isDemoModeEnabled } from '@/config/demo-mode';
 import {
   subscriptionOfferCatalogSchema,
   subscriptionOperationSchema,
@@ -348,8 +349,12 @@ export function createMockSettingsService({
       const parsed = parseProfileInput(input);
       if (parsed.phone !== profile.phone || parsed.googleAccount !== profile.googleAccount) throw new SettingsServiceError('identity_owner');
       if (profile.version !== expectedVersion) throw new SettingsServiceError('conflict');
-      profile = userProfileSchema.parse({ ...parsed, version: profile.version + 1 });
-      await profileStorage?.saveProfile(profile);
+      const next = userProfileSchema.parse({
+        ...parsed,
+        version: profile.version + 1
+      });
+      await profileStorage?.saveProfile(next);
+      profile = next;
       const saved = result(profile, ['settings.profile', 'reports.live', 'assistant.context', 'notifications.policy']);
       profileOps.set(operationId, saved);
       return saved;
@@ -403,21 +408,30 @@ export function createMockSettingsService({
   };
 }
 
-export const settingsService = createMockSettingsService({
-  deleteLocalData: resetLocalUserData,
-  profileStorage:
-    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
-      ? createSettingsStorage()
-      : undefined,
-  registerForReset: true,
-  providerKind: 'live',
-  initialProfile: emptyLocalProfile(),
-  initialSessions: [],
-  securityEvents: () => [],
-  createPrivacyRequest: () => {
-    throw new SettingsServiceError('unavailable');
-  }
-});
+export function createProductionSettingsService() {
+  if (isDemoModeEnabled())
+    return createMockSettingsService({
+      deleteLocalData: resetLocalUserData,
+      registerForReset: true
+    });
+  return createMockSettingsService({
+    deleteLocalData: resetLocalUserData,
+    profileStorage:
+      Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+        ? createSettingsStorage()
+        : undefined,
+    registerForReset: true,
+    providerKind: 'live',
+    initialProfile: emptyLocalProfile(),
+    initialSessions: [],
+    securityEvents: () => [],
+    createPrivacyRequest: () => {
+      throw new SettingsServiceError('unavailable');
+    }
+  });
+}
+
+export const settingsService = createProductionSettingsService();
 
 function parseProfileInput(input: UserProfileInput) {
   try {

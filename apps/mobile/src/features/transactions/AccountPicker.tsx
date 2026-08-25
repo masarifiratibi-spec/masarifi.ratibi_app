@@ -26,11 +26,13 @@ export function AccountPicker({
   selectedId,
   selectedIds = [],
   excludedIds = [],
+  currencyCode,
   onSelect
 }: {
   selectedId?: string;
   selectedIds?: string[];
   excludedIds?: string[];
+  currencyCode?: string;
   onSelect?: (account: Account) => void;
 }) {
   const accounts = useAccounts(true);
@@ -52,22 +54,31 @@ export function AccountPicker({
     [balances.data]
   );
 
-  const filtered = useMemo<Account[]>(
+  const eligible = useMemo<Account[]>(
     () =>
       (accounts.data ?? []).filter(
         (account: Account) =>
           account.status === 'active' &&
           !excludedIds.includes(account.id) &&
+          (!currencyCode ||
+            account.currencyCode === currencyCode ||
+            account.id === selectedId)
+      ),
+    [accounts.data, currencyCode, excludedIds, selectedId]
+  );
+
+  const filtered = useMemo<Account[]>(
+    () =>
+      eligible.filter(
+        (account: Account) =>
           `${account.name} ${account.currencyCode} ${account.lastFour ?? ''}`
             .toLocaleLowerCase('en')
             .includes(search.trim().toLocaleLowerCase('en'))
       ),
-    [accounts.data, excludedIds, search]
+    [eligible, search]
   );
 
-  const hasEligibleAccounts = (accounts.data ?? []).some(
-    (account: Account) => account.status === 'active'
-  );
+  const hasEligibleAccounts = eligible.length > 0;
 
   const loading = accounts.isLoading || balances.isLoading;
 

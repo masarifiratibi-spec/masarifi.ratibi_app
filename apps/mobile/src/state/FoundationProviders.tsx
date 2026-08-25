@@ -24,6 +24,7 @@ import { layoutDirectionStyle } from '@/design-system/direction';
 import { initI18n, changeLocale } from '@/localization/i18n';
 import { ThemeContext, type ThemeContextValue } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { SensitiveVisibilityProvider } from './SensitiveVisibilityProvider';
 
 initI18n();
@@ -55,6 +56,11 @@ export function FoundationProviders({
       void hydrate();
     }
   }, [hydrate, hydrated]);
+
+  useEffect(
+    () => registerRuntimeUserDataReset(() => client.clear()),
+    [client]
+  );
 
   useEffect(() => {
     changeLocale(locale);

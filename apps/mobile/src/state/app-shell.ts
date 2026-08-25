@@ -20,6 +20,7 @@ import { failUnlock, resetLock } from '@/features/security/privacy-lock';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { seedClientDemoData } from '@/storage/client-demo-seeder';
 import { resetLocalUserData } from '@/storage/local-data-reset';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 
 interface AppShellState {
   hydrated: boolean;
@@ -152,19 +153,22 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 
   signOut: async () => {
     const userId = get().session?.userId ?? 'anonymous';
-    await resetLocalUserData(`sign-out-${userId}-${Date.now()}`);
-    await Promise.all([
-      storage.clearSession(),
-      storage.clearPrivacyLock(),
-      storage.clearPinCredential(),
-      storage.savePendingDestination(null)
-    ]);
-    set({
-      session: signedOutSession,
-      pendingDestination: null,
-      privacyLock: null,
-      pinCredential: null
-    });
+    try {
+      await resetLocalUserData(`sign-out-${userId}-${Date.now()}`);
+    } finally {
+      set({
+        session: signedOutSession,
+        pendingDestination: null,
+        privacyLock: null,
+        pinCredential: null
+      });
+      await Promise.all([
+        storage.clearSession(),
+        storage.clearPrivacyLock(),
+        storage.clearPinCredential(),
+        storage.savePendingDestination(null)
+      ]);
+    }
   },
 
   setOnboarding: async (onboarding) => {
@@ -216,7 +220,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   configurePrivacyLock: async (hash, now = Date.now()) => {
-    const privacyLock = resetLock(now);
+    const privacyLock = get().privacyLock ?? resetLock(now);
     await Promise.all([
       storage.savePinCredential(hash),
       storage.savePrivacyLock(privacyLock)
@@ -273,3 +277,11 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set(initialState);
   }
 }));
+
+registerRuntimeUserDataReset(() => {
+  useAppShellStore.setState({
+    ...initialState,
+    hydrated: true,
+    session: signedOutSession
+  });
+});

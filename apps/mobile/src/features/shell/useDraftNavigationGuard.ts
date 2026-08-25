@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useNavigation, usePreventRemove } from '@react-navigation/native';
@@ -22,9 +22,10 @@ export function useDraftNavigationGuard({
   close?: () => void;
 }) {
   const navigation = useNavigation();
+  const saved = useRef(false);
   const confirm = useCallback(
     (leave: () => void) => {
-      if (!dirty) {
+      if (!dirty || saved.current) {
         leave();
         return;
       }
@@ -33,7 +34,11 @@ export function useDraftNavigationGuard({
         {
           text: copy.discard,
           style: 'destructive',
-          onPress: () => void Promise.resolve(discard()).then(leave)
+          onPress: () =>
+            void Promise.resolve(discard()).then(() => {
+              saved.current = true;
+              leave();
+            })
         }
       ]);
     },
@@ -44,5 +49,11 @@ export function useDraftNavigationGuard({
     confirm(() => navigation.dispatch(data.action))
   );
 
-  return useCallback(() => confirm(close), [close, confirm]);
+  return {
+    requestClose: useCallback(() => confirm(close), [close, confirm]),
+    leaveAfterSave: useCallback((leave: () => void) => {
+      saved.current = true;
+      leave();
+    }, [])
+  };
 }

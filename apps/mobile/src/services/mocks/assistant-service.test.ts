@@ -1,6 +1,9 @@
 const { createMockAssistantService } = require('./assistant-service') as {
   createMockAssistantService(input?: Record<string, unknown>): any;
 };
+const { resetRuntimeUserData } = require('@/storage/runtime-user-data-reset') as {
+  resetRuntimeUserData(): void;
+};
 
 const now = Date.UTC(2026, 0, 15, 12);
 
@@ -97,6 +100,35 @@ describe('AssistantService', () => {
     const failing = createMockAssistantService({ now: () => now, contextProvider: jest.fn().mockRejectedValue(new Error('raw provider')) });
     await failing.setConsent(true, 1, 'consent-enable');
     await expect(failing.createConversation({ question: 'Start' }, 'create-failing')).rejects.toMatchObject({ code: 'representative_failure' });
+  });
+
+  it('resets consent, conversations, quotas, and operation replays with user data', async () => {
+    const service = createMockAssistantService({
+      now: () => now,
+      contextProvider: jest.fn().mockResolvedValue(context()),
+      remainingQuestions: 2,
+      registerForReset: true
+    });
+    await service.setConsent(true, 1, 'consent-enable');
+    await service.createConversation({ question: 'Start' }, 'create-before-reset');
+
+    resetRuntimeUserData();
+
+    expect(await service.getConsent()).toMatchObject({
+      status: 'not_requested',
+      version: 1
+    });
+    expect(await service.listConversations()).toMatchObject({
+      items: [],
+      total: 0
+    });
+    expect(await service.getAvailability()).toEqual({
+      status: 'available',
+      remainingQuestions: 2
+    });
+    await expect(
+      service.setConsent(true, 1, 'consent-enable')
+    ).resolves.toMatchObject({ value: { status: 'enabled', version: 2 } });
   });
 });
 

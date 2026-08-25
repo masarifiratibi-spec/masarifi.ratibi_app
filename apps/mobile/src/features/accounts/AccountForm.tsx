@@ -94,6 +94,10 @@ export function AccountForm({
       (account
         ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
         : '0') ||
+    creditLimit !==
+      (account?.creditLimitMinor
+        ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
+        : '') ||
     isDefault !== (account?.isDefault ?? false) ||
     lastFour !== (account?.lastFour ?? '');
 
@@ -113,6 +117,23 @@ export function AccountForm({
     setError(undefined);
     setErrorField(undefined);
   }, [account]);
+
+  const close = () => {
+    if (onBack) onBack();
+    else router.back();
+  };
+  const { requestClose: handleCancel, leaveAfterSave } =
+    useDraftNavigationGuard({
+      dirty,
+      discard: () => undefined,
+      close,
+      copy: {
+        title: translate('coreFinance.accounts.discardChanges'),
+        message: translate('coreFinance.accounts.discardChangesBody'),
+        keep: translate('coreFinance.accounts.keepEditing'),
+        discard: translate('coreFinance.accounts.discard')
+      }
+    });
 
   const handleSave = async () => {
     if (saving) return;
@@ -159,7 +180,7 @@ export function AccountForm({
         ? await coreFinanceService.updateAccount(account.id, input)
         : await coreFinanceService.createAccount(input);
       await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      router.replace('/accounts');
+      leaveAfterSave(() => router.replace('/accounts'));
     } catch {
       setError(translate('coreFinance.state.error'));
       setErrorField('form');
@@ -167,25 +188,6 @@ export function AccountForm({
       setSaving(false);
     }
   };
-
-  const close = () => {
-      if (onBack) {
-        onBack();
-      } else {
-        router.back();
-      }
-  };
-  const handleCancel = useDraftNavigationGuard({
-    dirty,
-    discard: () => undefined,
-    close,
-    copy: {
-      title: translate('coreFinance.accounts.discardChanges'),
-      message: translate('coreFinance.accounts.discardChangesBody'),
-      keep: translate('coreFinance.accounts.keepEditing'),
-      discard: translate('coreFinance.accounts.discard')
-    }
-  });
 
   return (
     <KeyboardAvoidingView

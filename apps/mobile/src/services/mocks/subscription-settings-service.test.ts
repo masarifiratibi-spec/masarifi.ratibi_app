@@ -1,5 +1,6 @@
 import {
   createMockSettingsService,
+  createProductionSettingsService,
   createMockSubscriptionService,
   settingsService
 } from './subscription-settings-service';
@@ -117,6 +118,25 @@ describe('SettingsService lifecycle', () => {
     ).rejects.toMatchObject({ code: 'unavailable' });
   });
 
+  it('selects fixture settings for explicit demo mode', async () => {
+    const previousDemoMode = process.env.EXPO_PUBLIC_DEMO_MODE;
+    process.env.EXPO_PUBLIC_DEMO_MODE = '1';
+    try {
+      const service = createProductionSettingsService();
+
+      await expect(service.getProfile()).resolves.toMatchObject({ name: 'Dana' });
+      await expect(service.listSessions()).resolves.not.toEqual([]);
+      await expect(service.listSecurityEvents()).resolves.toMatchObject({ total: 2 });
+      await expect(
+        service.requestPrivacyAction('data_export', 'demo-export')
+      ).resolves.toMatchObject({ value: { status: 'accepted' } });
+    } finally {
+      if (previousDemoMode === undefined)
+        delete process.env.EXPO_PUBLIC_DEMO_MODE;
+      else process.env.EXPO_PUBLIC_DEMO_MODE = previousDemoMode;
+    }
+  });
+
   it('loads/saves profile with validation, versioning, and owner redirects', async () => {
     const service = createMockSettingsService({ now: () => now });
     const profile = await service.getProfile();
@@ -150,6 +170,36 @@ describe('SettingsService lifecycle', () => {
     await expect(restarted.getProfile()).resolves.toMatchObject({
       name: 'Persisted profile',
       version: 2
+    });
+  });
+
+  it('keeps the in-memory profile unchanged when persistence fails', async () => {
+    const profileStorage = {
+      loadProfile: jest.fn(async () => null),
+      saveProfile: jest
+        .fn<Promise<void>, [UserProfile]>()
+        .mockRejectedValueOnce(new Error('storage unavailable'))
+        .mockResolvedValue(undefined)
+    };
+    const service = createMockSettingsService({ profileStorage });
+    const profile = await service.getProfile();
+
+    await expect(
+      service.saveProfile(
+        { ...profile, name: 'Unpersisted profile' },
+        profile.version,
+        'failed-profile'
+      )
+    ).rejects.toThrow('storage unavailable');
+    await expect(service.getProfile()).resolves.toEqual(profile);
+    await expect(
+      service.saveProfile(
+        { ...profile, name: 'Persisted retry' },
+        profile.version,
+        'retry-profile'
+      )
+    ).resolves.toMatchObject({
+      value: { name: 'Persisted retry', version: 2 }
     });
   });
 

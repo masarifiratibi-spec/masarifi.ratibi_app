@@ -45,7 +45,11 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
     }
   }, [destination, gate, pendingDestination, setPendingDestination, unprotected]);
 
-  if (unprotected) return <>{children}</>;
+  if (
+    unprotected &&
+    (pathname !== '/security/unlock' || gate === '/(public)/language')
+  )
+    return <>{children}</>;
 
   const isLockRecovery =
     gate === '/security/unlock' &&

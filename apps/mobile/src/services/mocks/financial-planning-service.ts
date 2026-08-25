@@ -650,10 +650,9 @@ export function createMockFinancialPlanningService(
         payments: repository.listPayments(obligationId),
           today: localDateFromTimestamp(now())
       });
-      const remaining =
-        status.remainingMinor.status === 'available'
-          ? status.remainingMinor.value
-          : 0;
+      if (status.remainingMinor.status !== 'available')
+        throw new FinancialPlanningError('validation');
+      const remaining = status.remainingMinor.value;
       const preview: EarlySettlementPreview & { expectedVersion: number } = {
         previewId: `settlement-${obligationId}`,
         obligationId,

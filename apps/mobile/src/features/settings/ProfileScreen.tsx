@@ -66,14 +66,19 @@ export function ProfileScreen() {
 
   const handleSave = () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('settings.profile.validation.email');
       return;
     }
 
     setError(null);
     save.mutate({
-      input: { ...profile.data, name, email, gender: selectedGender },
+      input: {
+        ...profile.data,
+        name,
+        email: trimmedEmail || null,
+        gender: selectedGender
+      },
       expectedVersion: profile.data.version,
       operationId: `settings-profile-${Date.now()}`
     });
@@ -82,7 +87,7 @@ export function ProfileScreen() {
   const handleGenderSelect = (gender: 'male' | 'female') => {
     setSelectedGender(gender);
     save.mutate({
-      input: { ...profile.data, name, email, gender },
+      input: { ...profile.data, name, email: email.trim() || null, gender },
       expectedVersion: profile.data.version,
       operationId: `settings-profile-gender-${Date.now()}`
     });
