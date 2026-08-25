@@ -206,6 +206,31 @@ describe('useAppShellStore', () => {
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
   });
 
+  it('preserves lock preferences when replacing a legacy pin credential', async () => {
+    const preferredLock: PrivacyLockPreference = {
+      ...lock,
+      biometricStatus: 'enabled',
+      autoLockDuration: 'fifteen_minutes'
+    };
+    useAppShellStore.setState({
+      privacyLock: preferredLock,
+      pinCredential: 'pin:123456'
+    });
+
+    await useAppShellStore
+      .getState()
+      .configurePrivacyLock('pbkdf2-sha256:upgraded', 30);
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      privacyLock: preferredLock,
+      pinCredential: 'pbkdf2-sha256:upgraded'
+    });
+    expect(secureSet).toHaveBeenCalledWith(
+      'masarifi.appShell.privacyLock',
+      JSON.stringify(preferredLock)
+    );
+  });
+
   it('does not duplicate locale or theme preference state', () => {
     const state = useAppShellStore.getState();
 

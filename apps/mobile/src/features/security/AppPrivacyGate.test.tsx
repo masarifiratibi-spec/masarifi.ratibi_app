@@ -5,6 +5,47 @@ import { act, render, screen } from '@testing-library/react-native';
 import { AppPrivacyGate } from './AppPrivacyGate';
 
 describe('AppPrivacyGate', () => {
+  it('reveals the lock-recovery screen when the locked prop clears', () => {
+    const rendered = render(
+      <AppPrivacyGate locked>
+        <Text>Unlock form</Text>
+      </AppPrivacyGate>
+    );
+    expect(screen.queryByText('Unlock form')).toBeNull();
+
+    rendered.rerender(
+      <AppPrivacyGate locked={false}>
+        <Text>Unlock form</Text>
+      </AppPrivacyGate>
+    );
+
+    expect(screen.getByText('Unlock form')).toBeOnTheScreen();
+  });
+
+  it('keeps the recovery screen masked while the app is backgrounded', () => {
+    let listener: ((state: string) => void) | null = null;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
+      listener = callback as (state: string) => void;
+      return { remove: jest.fn() };
+    });
+    const rendered = render(
+      <AppPrivacyGate locked>
+        <Text>Unlock form</Text>
+      </AppPrivacyGate>
+    );
+
+    act(() => listener?.('background'));
+    rendered.rerender(
+      <AppPrivacyGate locked={false}>
+        <Text>Unlock form</Text>
+      </AppPrivacyGate>
+    );
+
+    expect(screen.queryByText('Unlock form')).toBeNull();
+    act(() => listener?.('active'));
+    expect(screen.getByText('Unlock form')).toBeOnTheScreen();
+  });
+
   it('masks protected content while locked and on background transitions', () => {
     let listener: ((state: string) => void) | null = null;
     jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {

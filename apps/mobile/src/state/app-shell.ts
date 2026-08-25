@@ -220,7 +220,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   configurePrivacyLock: async (hash, now = Date.now()) => {
-    const privacyLock = resetLock(now);
+    const privacyLock = get().privacyLock ?? resetLock(now);
     await Promise.all([
       storage.savePinCredential(hash),
       storage.savePrivacyLock(privacyLock)
