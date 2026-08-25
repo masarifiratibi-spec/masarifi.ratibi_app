@@ -135,7 +135,10 @@ export function TransactionForm({
     () => coreFinanceService.discardDraft(MANUAL_TRANSACTION_DRAFT_ID),
     []
   );
-  const requestClose = useTransactionDraftGuard({ meaningful, discard });
+  const { requestClose, leaveAfterSave } = useTransactionDraftGuard({
+    meaningful: !transaction && meaningful,
+    discard
+  });
   const sourceAccountId = accountId || accounts.data?.[0]?.id;
   const resolvedCategoryId = categoryId || categories.data?.[0]?.id || '';
   const selectedAccount = accounts.data?.find(
@@ -253,7 +256,8 @@ export function TransactionForm({
       await invalidateCoreFinanceScopes(client, mutation.affectedScopes);
       if (!transaction) await discard();
       if (transaction && router.canGoBack()) router.back();
-      else router.replace('/(tabs)/transactions');
+      else if (transaction) router.replace('/(tabs)/transactions');
+      else leaveAfterSave(() => router.replace('/(tabs)/transactions'));
     } catch (caught) {
       setError(
         caught instanceof CoreFinanceError

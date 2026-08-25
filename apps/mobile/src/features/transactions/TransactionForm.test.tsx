@@ -8,6 +8,7 @@ import {
   within
 } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
 
 import { lightThemeColors } from '@/design-system/tokens';
 import {
@@ -420,14 +421,24 @@ it('saves notes and current metadata then returns to the originating screen', as
 it('closes immediately when the edit is unchanged', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
   const transaction = fixtureTransactions[1];
+  const preventRemove: {
+    current?: ReturnType<
+      typeof jest.mocked<typeof usePreventRemove>
+    >['mock']['calls'][number][1];
+  } = {};
+  jest.mocked(router.back).mockImplementation(() => {
+    preventRemove.current?.({ data: { action: { type: 'GO_BACK' } } });
+  });
   renderWithQueryData(<TransactionForm transaction={transaction} />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
     [coreFinanceKeys.categories(false), fixtureCategories]
   ]);
+  preventRemove.current = jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1];
 
   fireEvent.press(await screen.findByLabelText('Close'));
   expect(router.back).toHaveBeenCalledTimes(1);
   expect(alert).not.toHaveBeenCalled();
+  expect(coreFinanceService.discardDraft).not.toHaveBeenCalled();
 });
 
 it('confirms before discarding changed edit values without touching the add draft', async () => {
@@ -525,6 +536,42 @@ it('restores and saves the manual note and occurred-at date', async () => {
       expect.stringMatching(/^manual-/)
     )
   );
+});
+
+it('bypasses the draft guard after creating a transaction', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  jest.mocked(router.replace).mockImplementation(() => {
+    jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1]({
+      data: { action: { type: 'REPLACE' } }
+    });
+  });
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValueOnce({
+    id: MANUAL_TRANSACTION_DRAFT_ID,
+    transactionType: 'expense',
+    amountText: '25',
+    accountId: fixtureAccounts[0].id,
+    destinationAccountId: null,
+    categoryId: fixtureCategories[0].id,
+    merchant: 'Lunch',
+    notes: null,
+    occurredAt: 1_723_939_200_000,
+    status: 'editing',
+    updatedAt: 1_723_939_200_000
+  });
+  jest.mocked(coreFinanceService.createTransaction).mockResolvedValue({
+    value: fixtureTransactions[0],
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByLabelText('Save transaction'));
+
+  await waitFor(() => expect(router.replace).toHaveBeenCalled());
+  expect(coreFinanceService.createTransaction).toHaveBeenCalledTimes(1);
+  expect(alert).not.toHaveBeenCalled();
 });
 
 it('shows only three equal transaction types in edit mode', async () => {

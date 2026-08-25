@@ -15,7 +15,7 @@ function Probe({
   meaningful: boolean;
   discard: () => Promise<void>;
 }) {
-  const requestClose = useTransactionDraftGuard({ meaningful, discard });
+  const { requestClose } = useTransactionDraftGuard({ meaningful, discard });
   return <Pressable testID="close" onPress={requestClose} />;
 }
 
