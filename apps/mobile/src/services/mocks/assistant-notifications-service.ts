@@ -19,6 +19,7 @@ import type { CapabilityProviderHandle } from '@/services/contracts/capability-c
 import type { MutationResult } from '@/services/contracts/core-finance-service';
 import { translateDynamicOr } from '@/localization/i18n';
 import { AssistantNotificationsRepository } from '@/storage/assistant-notifications-repository';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { coreFinanceService } from './core-finance-service';
 
 type NotificationRepository = Pick<
@@ -84,7 +85,8 @@ export function createMockAssistantNotificationsService({
   phone,
   hideBalances = false,
   summaryWindow = 'none',
-  summarizedEventKeys = []
+  summarizedEventKeys = [],
+  registerForReset = false
 }: {
   repository?: NotificationRepository;
   now?: () => number;
@@ -94,6 +96,7 @@ export function createMockAssistantNotificationsService({
   hideBalances?: boolean;
   summaryWindow?: SummaryWindow;
   summarizedEventKeys?: readonly string[];
+  registerForReset?: boolean;
 } = {}): CapabilityProviderHandle<NotificationService> {
   const markAllResults = new Map<string, MutationResult<number>>();
   const deleteResults = new Map<string, MutationResult<{ id: string }>>();
@@ -101,6 +104,12 @@ export function createMockAssistantNotificationsService({
   const sourceResults = new Map<string, Promise<NotificationEvent>>();
   const summaryResults = new Map<string, Promise<NotificationEvent | void>>();
   const summaryPresentations = new Map<string, Promise<NotificationEvent>>();
+  if (registerForReset)
+    registerRuntimeUserDataReset(() => {
+      markAllResults.clear();
+      deleteResults.clear();
+      actionResults.clear();
+    });
 
   async function validateAction(id: string, action: NotificationActionKind): Promise<ValidatedActionResolution> {
     const event = await repository.getNotification(id);
@@ -415,6 +424,7 @@ export function createMockAssistantNotificationsService({
 export const assistantNotificationsService = createMockAssistantNotificationsService({
   phone: lazyPhoneNotificationService,
   summaryWindow: 'all',
+  registerForReset: true,
   executeOwnerAction: async ({ target }) => {
     if (target.kind !== 'transaction') throw new Error('owner_action_unavailable');
     await coreFinanceService.deleteTransaction(target.transactionId);

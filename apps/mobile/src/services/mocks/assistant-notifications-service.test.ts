@@ -1,4 +1,5 @@
 import { createNotificationPreferences, type NotificationEvent, type NotificationPreferences } from '@/domain/notifications';
+import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
 
 import { createMockAssistantNotificationsService } from './assistant-notifications-service';
 
@@ -105,6 +106,43 @@ test('marks only matching notifications and deleting one leaves its source targe
   expect(await service.delete('transaction', 'delete-transaction')).toEqual(deleted);
   expect((await service.list({})).items.map((item) => item.id)).toEqual(['transaction-2', 'security']);
   expect((await service.get('transaction')).target).toEqual({ kind: 'transaction', transactionId: 'tx-1' });
+});
+
+test('resets notification operation replays with runtime user data', async () => {
+  const executeOwnerAction = jest.fn(async () => undefined);
+  const service = createMockAssistantNotificationsService({
+    repository: repository(),
+    now: () => 100,
+    resolveTarget: async (target) => ({ status: 'exact' as const, target, sourceVersion: 1 }),
+    executeOwnerAction,
+    registerForReset: true
+  });
+  await service.createFromSource(event('mark-before', { category: 'budget' }));
+  await service.createFromSource(event('delete-target'));
+  await service.createFromSource(event('action-before', {
+    availableActions: [{ kind: 'undo', expiresAt: null, sourceVersion: 1 }]
+  }));
+  await service.markAllRead({ category: 'budget' }, 'mark-reset');
+  await service.delete('delete-target', 'delete-reset');
+  await service.executeAction('action-before', 'undo', 'action-reset');
+
+  resetRuntimeUserData();
+
+  await service.createFromSource(event('mark-after', { category: 'budget' }));
+  await service.createFromSource(event('delete-target', { eventKey: 'event-delete-after' }));
+  await service.createFromSource(event('action-after', {
+    target: { kind: 'transaction', transactionId: 'tx-2' },
+    availableActions: [{ kind: 'undo', expiresAt: null, sourceVersion: 1 }]
+  }));
+  await service.markAllRead({ category: 'budget' }, 'mark-reset');
+  await service.delete('delete-target', 'delete-reset');
+  await expect(service.executeAction('action-after', 'undo', 'action-reset')).resolves.toMatchObject({
+    value: { target: { kind: 'transaction', transactionId: 'tx-2' } }
+  });
+
+  expect((await service.get('mark-after')).readAt).toBe(100);
+  expect((await service.get('delete-target')).deletedAt).toBe(100);
+  expect(executeOwnerAction).toHaveBeenCalledTimes(2);
 });
 
 test('resolves current targets and rejects unavailable, expired, or stale actions before executing an operation once', async () => {
