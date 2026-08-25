@@ -43,9 +43,17 @@ describe("admin overview Spec 002 page data", () => {
         onChange={() => undefined}
       />,
     );
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    const presetButtons = [...host.querySelectorAll("button")];
 
-    expect(html).toContain("30d");
-    expect(html).not.toContain("custom");
+    expect(presetButtons.map((button) => button.textContent)).toEqual([
+      "آخر 7 أيام",
+      "آخر 30 يوما",
+      "آخر 90 يوما",
+    ]);
+    expect(presetButtons[1]?.getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector('input[type="date"]')).toBeNull();
   });
 
   test("activity remains bounded and sanitized", () => {

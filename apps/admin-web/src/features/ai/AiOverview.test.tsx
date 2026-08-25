@@ -1,19 +1,26 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
+import { LocaleProvider } from "@/core/localization/provider";
 import { aiOverviewFixture } from "@/mocks/fixtures/ai";
 import { AiOverview } from "./AiOverview";
 
-describe("Spec 006 AI overview view", () => {
-  test("renders required metrics, units, freshness, platform filters, and drill-down links", () => {
-    const html = renderToStaticMarkup(<AiOverview overview={aiOverviewFixture} />);
+function renderAiOverview(locale: "ar" | "en") {
+  return renderToStaticMarkup(
+    <LocaleProvider locale={locale} setLocale={() => undefined}>
+      <AiOverview overview={aiOverviewFixture} />
+    </LocaleProvider>,
+  );
+}
 
-    expect(html).toContain("إدارة الذكاء الاصطناعي");
-    expect(html).toContain("AI Management");
-    expect(html).toContain("Original requests");
-    expect(html).toContain("Attempts");
-    expect(html).toContain("Fallback attempts");
+describe("Spec 006 AI overview view", () => {
+  test.each([
+    ["ar", ["إدارة الذكاء الاصطناعي", "الطلبات الأصلية", "المحاولات", "محاولات الاحتياط", "غير معروف"]],
+    ["en", ["AI Management", "Original requests", "Attempts", "Fallback attempts", "Unknown"]],
+  ] as const)("renders required %s metrics, filters, and drill-down links", (locale, labels) => {
+    const html = renderAiOverview(locale);
+
+    labels.forEach((label) => expect(html).toContain(label));
     expect(html).toContain("USD");
-    expect(html).toContain("unknown");
     expect(html).toContain("/admin/ai/providers");
     expect(html).toContain("/admin/ai/failures");
     expect(html).not.toMatch(/rawPrompt|providerPayload|apiKey|token/i);

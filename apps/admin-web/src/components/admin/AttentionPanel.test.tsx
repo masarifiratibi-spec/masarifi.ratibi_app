@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AttentionPanel } from "./AttentionPanel";
 
 async function waitForText(text: string) {
@@ -15,7 +15,21 @@ async function waitForText(text: string) {
   }
 }
 
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(() => false),
+  }));
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   document.body.replaceChildren();
   window.sessionStorage.clear();
 });
