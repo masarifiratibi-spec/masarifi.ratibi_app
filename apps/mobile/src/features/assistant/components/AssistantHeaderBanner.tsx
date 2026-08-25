@@ -1,6 +1,7 @@
 import React from 'react';
 import { PixelRatio, View, StyleSheet, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
     borderColor: colorTokens.raw["D7E1DC"],
     borderRadius: 20,
     borderWidth: 1,
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,

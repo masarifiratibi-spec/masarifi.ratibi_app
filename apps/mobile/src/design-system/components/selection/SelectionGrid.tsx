@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, radius, spacing, typography } from '@/design-system/tokens';
 import { useTheme } from '@/state/theme-context';
@@ -175,7 +176,7 @@ export function SelectionGrid<T = string>({
 
 const styles = StyleSheet.create({
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

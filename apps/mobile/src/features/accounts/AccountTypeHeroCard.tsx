@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { type AppIconName, DesignIcon } from '@/design-system/icons';
 import { radius, spacing } from '@/design-system/tokens';
@@ -124,7 +125,7 @@ export function AccountTypeHeroCard({ type }: { type: AccountType }) {
 
 const styles = StyleSheet.create({
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

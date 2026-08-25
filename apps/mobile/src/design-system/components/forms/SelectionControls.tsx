@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { type AppIconName, DesignIcon } from '@/design-system/icons';
 import { minTouchTarget, spacing } from '@/design-system/tokens';
 import { useTheme } from '@/state/theme-context';
@@ -285,7 +286,7 @@ export function RadioCard({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
   toggleContainer: {
     minHeight: Math.max(44, minTouchTarget),
     minWidth: Math.max(44, minTouchTarget),

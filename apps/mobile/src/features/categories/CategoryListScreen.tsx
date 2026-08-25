@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { DesignIcon } from '@/design-system/icons';
 import type { Category } from '@/domain/core-finance';
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     minHeight: 46,
     paddingHorizontal: spacing.md
@@ -433,7 +434,7 @@ const styles = StyleSheet.create({
 
   // Quick actions
   quickActionsRow: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     marginTop: spacing.xs
   },

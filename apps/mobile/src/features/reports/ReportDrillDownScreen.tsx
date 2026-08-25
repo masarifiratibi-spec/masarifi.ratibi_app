@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { AppIcon, IconBadge } from '@/design-system/icons';
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs
   },
   row: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: spacing.md,

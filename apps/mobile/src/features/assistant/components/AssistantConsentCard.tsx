@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LockShieldIcon, SmallShieldIcon } from './AssistantIcons';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
@@ -124,7 +125,7 @@ const styles = StyleSheet.create({
     borderColor: colorTokens.teal['100'],
     borderRadius: radius.sm,
     borderWidth: 1,
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     gap: spacing.sm,
     justifyContent: 'center',
     marginTop: spacing.xs,

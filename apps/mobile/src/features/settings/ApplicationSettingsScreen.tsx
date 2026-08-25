@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
@@ -532,7 +533,7 @@ const styles = StyleSheet.create({
     marginVertical: 2
   },
   dropdownTrigger: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: spacing.sm,
@@ -575,7 +576,7 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   dropdownItem: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     alignItems: 'center',
@@ -661,7 +662,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start'
   },
   physicalLtr: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     display: 'flex',
     writingDirection: 'ltr'
   },

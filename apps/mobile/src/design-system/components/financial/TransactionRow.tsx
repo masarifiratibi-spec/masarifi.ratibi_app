@@ -1,6 +1,7 @@
 import React from 'react';
 import { PixelRatio, Pressable, StyleSheet, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -213,8 +214,8 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { direction: 'ltr', display: 'flex', writingDirection: 'ltr' },
-  semanticRtl: { direction: 'rtl', display: 'flex', writingDirection: 'rtl' },
+  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
+  semanticRtl: { ...layoutDirectionStyle('rtl'), display: 'flex', writingDirection: 'rtl' },
   row: {
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,

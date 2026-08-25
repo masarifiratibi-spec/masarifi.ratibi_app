@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     gap: 12
   },
   slots: {
-    direction: 'ltr',
+    ...layoutDirectionStyle('ltr'),
     flexDirection: 'row',
     gap: 4,
     justifyContent: 'space-between',
