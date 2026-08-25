@@ -1,5 +1,6 @@
 import {
   createMockSettingsService,
+  createProductionSettingsService,
   createMockSubscriptionService,
   settingsService
 } from './subscription-settings-service';
@@ -115,6 +116,25 @@ describe('SettingsService lifecycle', () => {
     await expect(
       settingsService.requestPrivacyAction('data_export', 'production-export')
     ).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
+  it('selects fixture settings for explicit demo mode', async () => {
+    const previousDemoMode = process.env.EXPO_PUBLIC_DEMO_MODE;
+    process.env.EXPO_PUBLIC_DEMO_MODE = '1';
+    try {
+      const service = createProductionSettingsService();
+
+      await expect(service.getProfile()).resolves.toMatchObject({ name: 'Dana' });
+      await expect(service.listSessions()).resolves.not.toEqual([]);
+      await expect(service.listSecurityEvents()).resolves.toMatchObject({ total: 2 });
+      await expect(
+        service.requestPrivacyAction('data_export', 'demo-export')
+      ).resolves.toMatchObject({ value: { status: 'accepted' } });
+    } finally {
+      if (previousDemoMode === undefined)
+        delete process.env.EXPO_PUBLIC_DEMO_MODE;
+      else process.env.EXPO_PUBLIC_DEMO_MODE = previousDemoMode;
+    }
   });
 
   it('loads/saves profile with validation, versioning, and owner redirects', async () => {

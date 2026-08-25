@@ -56,7 +56,17 @@ describe('platform onboarding routes', () => {
     renderWithProviders(<AndroidPermissionRoute />);
     await waitFor(() => expect(screen.getByText('الإذن غير متاح')).toBeOnTheScreen());
     fireEvent.press(screen.getByLabelText('متابعة'));
-    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith('/(onboarding)/tracking-demo')
+    );
+    expect(useAppShellStore.getState().onboarding?.skippedSteps).toEqual(
+      expect.arrayContaining([
+        'permission_education',
+        'permission_request',
+        'keywords',
+        'preference'
+      ])
+    );
   });
 
   it('keeps iOS and conservative routes free of SMS permission actions', () => {

@@ -74,7 +74,7 @@ export default function AndroidSmsPermissionRoute() {
       <StateView
         actionLabel={translate('appShell.onboarding.continue')}
         message={translate('tracking.service.unavailable')}
-        onAction={continueWithTracking}
+        onAction={skip}
         state="disabled"
         title={translate('appShell.permission.status.unavailable')}
       />

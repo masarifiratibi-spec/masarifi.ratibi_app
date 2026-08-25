@@ -11,6 +11,7 @@ import {
   type UserProfile,
   type UserProfileInput
 } from '@/domain/settings';
+import { isDemoModeEnabled } from '@/config/demo-mode';
 import {
   subscriptionOfferCatalogSchema,
   subscriptionOperationSchema,
@@ -407,21 +408,30 @@ export function createMockSettingsService({
   };
 }
 
-export const settingsService = createMockSettingsService({
-  deleteLocalData: resetLocalUserData,
-  profileStorage:
-    Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
-      ? createSettingsStorage()
-      : undefined,
-  registerForReset: true,
-  providerKind: 'live',
-  initialProfile: emptyLocalProfile(),
-  initialSessions: [],
-  securityEvents: () => [],
-  createPrivacyRequest: () => {
-    throw new SettingsServiceError('unavailable');
-  }
-});
+export function createProductionSettingsService() {
+  if (isDemoModeEnabled())
+    return createMockSettingsService({
+      deleteLocalData: resetLocalUserData,
+      registerForReset: true
+    });
+  return createMockSettingsService({
+    deleteLocalData: resetLocalUserData,
+    profileStorage:
+      Platform.OS !== 'web' && process.env.NODE_ENV !== 'test'
+        ? createSettingsStorage()
+        : undefined,
+    registerForReset: true,
+    providerKind: 'live',
+    initialProfile: emptyLocalProfile(),
+    initialSessions: [],
+    securityEvents: () => [],
+    createPrivacyRequest: () => {
+      throw new SettingsServiceError('unavailable');
+    }
+  });
+}
+
+export const settingsService = createProductionSettingsService();
 
 function parseProfileInput(input: UserProfileInput) {
   try {
