@@ -114,6 +114,23 @@ export function AccountForm({
     setErrorField(undefined);
   }, [account]);
 
+  const close = () => {
+    if (onBack) onBack();
+    else router.back();
+  };
+  const { requestClose: handleCancel, leaveAfterSave } =
+    useDraftNavigationGuard({
+      dirty,
+      discard: () => undefined,
+      close,
+      copy: {
+        title: translate('coreFinance.accounts.discardChanges'),
+        message: translate('coreFinance.accounts.discardChangesBody'),
+        keep: translate('coreFinance.accounts.keepEditing'),
+        discard: translate('coreFinance.accounts.discard')
+      }
+    });
+
   const handleSave = async () => {
     if (saving) return;
     const openingBalanceMinor = parseAmountToMinor(balance, currency);
@@ -159,7 +176,7 @@ export function AccountForm({
         ? await coreFinanceService.updateAccount(account.id, input)
         : await coreFinanceService.createAccount(input);
       await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      router.replace('/accounts');
+      leaveAfterSave(() => router.replace('/accounts'));
     } catch {
       setError(translate('coreFinance.state.error'));
       setErrorField('form');
@@ -167,25 +184,6 @@ export function AccountForm({
       setSaving(false);
     }
   };
-
-  const close = () => {
-      if (onBack) {
-        onBack();
-      } else {
-        router.back();
-      }
-  };
-  const handleCancel = useDraftNavigationGuard({
-    dirty,
-    discard: () => undefined,
-    close,
-    copy: {
-      title: translate('coreFinance.accounts.discardChanges'),
-      message: translate('coreFinance.accounts.discardChangesBody'),
-      keep: translate('coreFinance.accounts.keepEditing'),
-      discard: translate('coreFinance.accounts.discard')
-    }
-  });
 
   return (
     <KeyboardAvoidingView

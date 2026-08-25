@@ -17,5 +17,5 @@ export function useTransactionDraftGuard({
       keep: translate('coreFinance.draft.keepEditing'),
       discard: translate('coreFinance.draft.discard')
     }
-  });
+  }).requestClose;
 }

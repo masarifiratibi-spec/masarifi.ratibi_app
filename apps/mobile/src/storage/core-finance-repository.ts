@@ -500,11 +500,15 @@ export class CoreFinanceRepository {
       if (existing) return copy(existing);
     }
     const value = transactionInputSchema.parse(input);
+    const current = id
+      ? this.transactions.find((item) => item.id === id)
+      : undefined;
     this.assertSelectable(
       value.accountId,
       value.categoryId,
       value.destinationAccountId,
-      value.currencyCode
+      value.currencyCode,
+      current
     );
     const now = Date.now();
     if (id) {
@@ -781,17 +785,27 @@ export class CoreFinanceRepository {
     accountId: string,
     categoryId: string | null,
     destinationId: string | null,
-    currencyCode: string
+    currencyCode: string,
+    current?: Transaction
   ): void {
+    const preservesLegacyBoundary = Boolean(
+      current &&
+        current.accountId === accountId &&
+        current.destinationAccountId === destinationId &&
+        current.currencyCode === currencyCode
+    );
     const account = this.requireAccount(accountId);
     if (account.status !== 'active')
       throw new CoreFinanceError('archived');
-    if (account.currencyCode !== currencyCode)
+    if (account.currencyCode !== currencyCode && !preservesLegacyBoundary)
       throw new CoreFinanceError('validation');
     if (destinationId) {
       const destination = this.requireAccount(destinationId);
       if (destination.status !== 'active') throw new CoreFinanceError('archived');
-      if (destination.currencyCode !== currencyCode)
+      if (
+        destination.currencyCode !== currencyCode &&
+        !preservesLegacyBoundary
+      )
         throw new CoreFinanceError('validation');
     }
     if (categoryId && this.requireCategory(categoryId).status !== 'active')

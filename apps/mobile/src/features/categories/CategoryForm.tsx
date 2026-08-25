@@ -59,6 +59,23 @@ export function CategoryForm({
     setError(undefined);
   }, [category, locale]);
 
+  const doClose = () => {
+    if (onClose) onClose();
+    else router.back();
+  };
+  const { requestClose: handleCancel, leaveAfterSave } =
+    useDraftNavigationGuard({
+      dirty,
+      discard: () => undefined,
+      close: doClose,
+      copy: {
+        title: translate('coreFinance.categories.discardChanges'),
+        message: translate('coreFinance.categories.discardChangesBody'),
+        keep: translate('coreFinance.categories.keepEditing'),
+        discard: translate('coreFinance.categories.discard')
+      }
+    });
+
   const handleSave = async () => {
     if (saving) return;
     if (!name.trim()) {
@@ -93,35 +110,17 @@ export function CategoryForm({
         ? await coreFinanceService.updateCategory(category.id, input)
         : await coreFinanceService.createCategory(input);
       await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      if (onSuccess) {
-        onSuccess(result.value);
-      } else if (onClose) {
-        onClose();
-      } else {
-        router.replace('/categories');
-      }
+      leaveAfterSave(() => {
+        if (onSuccess) onSuccess(result.value);
+        else if (onClose) onClose();
+        else router.replace('/categories');
+      });
     } catch {
       setError(translate('coreFinance.state.error'));
     } finally {
       setSaving(false);
     }
   };
-
-  const doClose = () => {
-      if (onClose) onClose();
-      else router.back();
-  };
-  const handleCancel = useDraftNavigationGuard({
-    dirty,
-    discard: () => undefined,
-    close: doClose,
-    copy: {
-      title: translate('coreFinance.categories.discardChanges'),
-      message: translate('coreFinance.categories.discardChangesBody'),
-      keep: translate('coreFinance.categories.keepEditing'),
-      discard: translate('coreFinance.categories.discard')
-    }
-  });
 
   const emoji = resolveEmojiForKey(iconKey);
   const isEditing = Boolean(category);

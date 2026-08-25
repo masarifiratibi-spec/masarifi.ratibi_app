@@ -64,3 +64,25 @@ it('distinguishes no eligible accounts from no search matches', () => {
   );
   expect(screen.getByText(translate('coreFinance.accounts.noSearchResults'))).toBeTruthy();
 });
+
+it('filters incompatible currencies but retains the existing selection', () => {
+  const seeds = [
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(true), fixtureCategories]
+  ] as const;
+  const filtered = renderWithQueryData(
+    <AccountPicker currencyCode="SAR" />,
+    seeds
+  );
+
+  expect(screen.getByText('Wallet')).toBeTruthy();
+  expect(screen.queryByText('Travel')).toBeNull();
+  filtered.unmount();
+
+  renderWithQueryData(
+    <AccountPicker currencyCode="SAR" selectedId="account-usd" />,
+    seeds
+  );
+  expect(screen.getByText('Travel')).toBeTruthy();
+});

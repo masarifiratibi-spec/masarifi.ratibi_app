@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { useNavigation, usePreventRemove } from '@react-navigation/native';
 
 import type { Account } from '@/domain/core-finance';
 import { translate } from '@/localization/i18n';
@@ -9,10 +10,13 @@ import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
 import { AccountForm } from './AccountForm';
 import { usePreferenceStore } from '@/state/preferences';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), replace: jest.fn() }
 }));
+
+afterEach(() => jest.restoreAllMocks());
 
 describe('AccountForm', () => {
   it('validates required name and shows hero card with currency', () => {
@@ -89,5 +93,30 @@ describe('AccountForm', () => {
       expect.any(Array)
     );
     expect(router.back).not.toHaveBeenCalled();
+  });
+
+  it('does not show the discard alert after a new account is saved', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    const dispatch = jest.fn();
+    jest.mocked(useNavigation).mockReturnValue({ dispatch } as never);
+    jest.spyOn(coreFinanceService, 'createAccount').mockResolvedValue({
+      value: { ...fixtureAccounts[0], id: 'created-account' },
+      affectedScopes: []
+    });
+    renderWithProviders(<AccountForm initialType="bank" />);
+
+    fireEvent.changeText(
+      screen.getByLabelText(translate('coreFinance.accounts.name')),
+      'Saved account'
+    );
+    const preventRemove = jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1];
+    jest.mocked(router.replace).mockImplementation(() =>
+      preventRemove?.({ data: { action: { type: 'REPLACE' } } })
+    );
+    fireEvent.press(screen.getByText(translate('coreFinance.accounts.create')));
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/accounts'));
+    expect(alert).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledWith({ type: 'REPLACE' });
   });
 });

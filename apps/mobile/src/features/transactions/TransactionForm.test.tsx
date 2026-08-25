@@ -98,6 +98,48 @@ it('uses compact controlled account and category pickers', async () => {
   expect(screen.queryByText(fixtureCategories[7].labelEn)).toBeNull();
 });
 
+it('passes the source currency to the destination picker for a new transfer', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.press(await screen.findByTestId('transaction-edit-type-transfer'));
+  const destination = translate('coreFinance.form.destination');
+  fireEvent.press(screen.getByLabelText(`${destination}, ${destination}`));
+
+  await waitFor(() =>
+    expect(router.push).toHaveBeenCalledWith(
+      '/modals/account-picker?draft=manual&field=destinationAccountId&currencyCode=SAR'
+    )
+  );
+});
+
+it('keeps an existing cross-currency destination available while editing', async () => {
+  const transaction = {
+    ...fixtureTransactions[0],
+    type: 'transfer' as const,
+    accountId: 'account-bank',
+    destinationAccountId: 'account-usd',
+    currencyCode: 'SAR',
+    categoryId: null
+  };
+  renderWithQueryData(<TransactionForm transaction={transaction} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  const destination = translate('coreFinance.form.destination');
+  fireEvent.press(await screen.findByLabelText(`${destination}, Travel`));
+
+  expect(screen.getAllByText('Travel')).toHaveLength(2);
+  expect(screen.getByText('Wallet')).toBeTruthy();
+});
+
 it('uses the canonical category screen while preserving edit values', async () => {
   const transaction = {
     ...fixtureTransactions[1],

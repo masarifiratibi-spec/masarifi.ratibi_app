@@ -296,6 +296,9 @@ export function TransactionForm({
           onDismiss={() => setPicker(null)}
         >
           <AccountPicker
+            currencyCode={
+              picker === 'destination' ? selectedCurrencyCode : undefined
+            }
             excludedIds={
               picker === 'destination' && sourceAccountId
                 ? [sourceAccountId]
@@ -345,6 +348,10 @@ export function TransactionForm({
     router.push(
       `/modals/account-picker?draft=manual&field=${
         target === 'account' ? 'accountId' : 'destinationAccountId'
+      }${
+        target === 'destination'
+          ? `&currencyCode=${encodeURIComponent(selectedCurrencyCode)}`
+          : ''
       }`
     );
   };

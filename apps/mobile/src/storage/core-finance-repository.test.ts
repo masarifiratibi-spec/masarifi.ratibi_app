@@ -82,6 +82,45 @@ it('rejects archived references before writing a transaction', () => {
   expect(repo.allTransactions()).toHaveLength(before);
 });
 
+it('allows an unchanged legacy cross-currency transfer to be edited', () => {
+  const legacyTransfer = {
+    ...fixtureTransactions[0],
+    id: 'legacy-cross-currency-transfer',
+    type: 'transfer' as const,
+    accountId: 'account-bank',
+    destinationAccountId: 'account-usd',
+    currencyCode: 'SAR',
+    categoryId: null
+  };
+  const repo = new CoreFinanceRepository({
+    accounts: fixtureAccounts,
+    categories: fixtureCategories,
+    transactions: [legacyTransfer]
+  });
+
+  const updated = repo.saveTransaction(
+    {
+      type: legacyTransfer.type,
+      amountMinor: legacyTransfer.amountMinor,
+      currencyCode: legacyTransfer.currencyCode,
+      accountId: legacyTransfer.accountId,
+      destinationAccountId: legacyTransfer.destinationAccountId,
+      feeMinor: legacyTransfer.feeMinor,
+      categoryId: null,
+      title: 'Edited legacy transfer',
+      merchant: legacyTransfer.merchant,
+      occurredAt: legacyTransfer.occurredAt,
+      notes: legacyTransfer.notes,
+      originalTransactionId: legacyTransfer.originalTransactionId,
+      obligationId: legacyTransfer.obligationId
+    },
+    legacyTransfer.id
+  );
+
+  expect(updated.title).toBe('Edited legacy transfer');
+  expect(updated.destinationAccountId).toBe('account-usd');
+});
+
 it('deletes with a persisted deadline and rejects late undo', () => {
   const repo = repository();
   const deleted = repo.deleteTransaction('transaction-0', 1000);

@@ -11,7 +11,8 @@ import { translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 
 export default function AccountPickerRoute() {
-  const { draft, field } = useLocalSearchParams<{
+  const { currencyCode, draft, field } = useLocalSearchParams<{
+    currencyCode?: string;
     draft?: string;
     field?: 'accountId' | 'destinationAccountId';
   }>();
@@ -38,6 +39,9 @@ export default function AccountPickerRoute() {
       onDismiss={() => router.back()}
     >
       <AccountPicker
+        currencyCode={
+          target === 'destinationAccountId' ? currencyCode : undefined
+        }
         excludedIds={
           target === 'destinationAccountId' && sourceAccountId
             ? [sourceAccountId]
