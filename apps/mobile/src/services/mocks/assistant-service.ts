@@ -17,6 +17,7 @@ import { buildAssistantContextSnapshot } from '@/features/assistant/assistant-co
 import { coreFinanceService } from './core-finance-service';
 import { financialPlanningService } from './financial-planning-service';
 import { reportsService } from './reports-service';
+import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 
 type ContextValue = Pick<AssistantResponse, 'dataAsOf' | 'period' | 'snapshot'>;
 type SourceVersion = AssistantActionPreview['sourceVersions'][number];
@@ -47,7 +48,8 @@ export function createMockAssistantService({
   },
   sourceVersionProvider,
   permissionProvider = async () => true,
-  entitlementProvider = async () => true
+  entitlementProvider = async () => true,
+  registerForReset = false
 }: {
   now?: () => number;
   contextProvider?: () => Promise<ContextValue>;
@@ -57,20 +59,24 @@ export function createMockAssistantService({
   sourceVersionProvider?: () => Promise<readonly SourceVersion[]>;
   permissionProvider?: () => Promise<boolean>;
   entitlementProvider?: () => Promise<boolean>;
+  registerForReset?: boolean;
 } = {}): CapabilityProviderHandle<AssistantService> {
   let remaining = remainingQuestions;
-  let consent: AssistantConsent = {
-    status: 'not_requested',
-    disclosedDataCategories: ['transactions', 'planning', 'reports'],
-    consentedAt: null,
-    disabledAt: null,
-    version: 1
-  };
+  let consent = initialConsent();
   const conversations = new Map<string, AssistantConversation>();
   const responses = new Map<string, AssistantResponse>();
   const previews = new Map<string, AssistantActionPreview>();
   const operations = new Map<string, MutationResult<unknown>>();
   const currentSourceVersions = sourceVersionProvider ?? (async () => []);
+  if (registerForReset)
+    registerRuntimeUserDataReset(() => {
+      remaining = remainingQuestions;
+      consent = initialConsent();
+      conversations.clear();
+      responses.clear();
+      previews.clear();
+      operations.clear();
+    });
 
   async function requireEnabled() {
     if (consent.status === 'not_requested') throw new AssistantServiceError('consent_required');
@@ -339,6 +345,16 @@ function responseTypeFor(question: string): AssistantResponse['responseType'] {
   return 'direct';
 }
 
+function initialConsent(): AssistantConsent {
+  return {
+    status: 'not_requested',
+    disclosedDataCategories: ['transactions', 'planning', 'reports'],
+    consentedAt: null,
+    disabledAt: null,
+    version: 1
+  };
+}
+
 function responseLimitations(responseType: AssistantResponse['responseType']) {
   if (responseType === 'insufficient_data') return ['insufficient_data'];
   if (responseType === 'safe_redirect') return ['educational_redirect'];
@@ -372,4 +388,6 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-export const assistantService = createMockAssistantService();
+export const assistantService = createMockAssistantService({
+  registerForReset: true
+});

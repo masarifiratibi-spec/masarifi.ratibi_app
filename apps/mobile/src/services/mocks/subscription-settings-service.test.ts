@@ -153,6 +153,36 @@ describe('SettingsService lifecycle', () => {
     });
   });
 
+  it('keeps the in-memory profile unchanged when persistence fails', async () => {
+    const profileStorage = {
+      loadProfile: jest.fn(async () => null),
+      saveProfile: jest
+        .fn<Promise<void>, [UserProfile]>()
+        .mockRejectedValueOnce(new Error('storage unavailable'))
+        .mockResolvedValue(undefined)
+    };
+    const service = createMockSettingsService({ profileStorage });
+    const profile = await service.getProfile();
+
+    await expect(
+      service.saveProfile(
+        { ...profile, name: 'Unpersisted profile' },
+        profile.version,
+        'failed-profile'
+      )
+    ).rejects.toThrow('storage unavailable');
+    await expect(service.getProfile()).resolves.toEqual(profile);
+    await expect(
+      service.saveProfile(
+        { ...profile, name: 'Persisted retry' },
+        profile.version,
+        'retry-profile'
+      )
+    ).resolves.toMatchObject({
+      value: { name: 'Persisted retry', version: 2 }
+    });
+  });
+
   it('provides deterministic sessions/events and replays revocation outcomes', async () => {
     const clearCurrentSession = jest.fn();
     const service = createMockSettingsService({ now: () => now, clearCurrentSession });

@@ -348,8 +348,12 @@ export function createMockSettingsService({
       const parsed = parseProfileInput(input);
       if (parsed.phone !== profile.phone || parsed.googleAccount !== profile.googleAccount) throw new SettingsServiceError('identity_owner');
       if (profile.version !== expectedVersion) throw new SettingsServiceError('conflict');
-      profile = userProfileSchema.parse({ ...parsed, version: profile.version + 1 });
-      await profileStorage?.saveProfile(profile);
+      const next = userProfileSchema.parse({
+        ...parsed,
+        version: profile.version + 1
+      });
+      await profileStorage?.saveProfile(next);
+      profile = next;
       const saved = result(profile, ['settings.profile', 'reports.live', 'assistant.context', 'notifications.policy']);
       profileOps.set(operationId, saved);
       return saved;
