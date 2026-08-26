@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
+import { lightThemeColors, radius } from '@/design-system/tokens';
 import { changeLocale } from '@/localization/i18n';
 import { FormField } from './FormField';
 
@@ -29,7 +30,12 @@ describe('FormField', () => {
     expect(screen.getByText('Amount is required')).toBeTruthy();
     expect(input.props.keyboardType).toBe('decimal-pad');
     expect(input.props.placeholderTextColor).toBeTruthy();
-    expect(input).toHaveStyle({ textAlign: 'right' });
+    expect(input).toHaveStyle({
+      backgroundColor: lightThemeColors.surfaces.card,
+      borderColor: lightThemeColors.borders.error,
+      borderRadius: radius.control,
+      textAlign: 'right'
+    });
     fireEvent.changeText(input, '250');
     expect(input.props.value).toBe('250');
   });

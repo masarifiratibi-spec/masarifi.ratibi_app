@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
 
 import { translate } from '@/localization/i18n';
+import { elevation } from '@/design-system/tokens';
 import { renderWithProviders } from '@/test-utils/render';
 import { AccountTypeSelectionScreen } from './AccountTypeSelectionScreen';
 import NewAccountRoute from '../../../app/accounts/new';
@@ -49,6 +50,9 @@ describe('AccountTypeSelectionScreen', () => {
     expect(
       screen.queryByText(translate('coreFinance.accounts.typeSelect.savings'))
     ).toBeNull();
+    expect(screen.getByTestId('account-type-card-bank')).toHaveStyle({
+      shadowOpacity: elevation.raised.shadowOpacity
+    });
 
     fireEvent.press(
       screen.getByText(translate('coreFinance.accounts.typeSelect.credit_card'))

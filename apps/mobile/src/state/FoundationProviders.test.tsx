@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
-import { Platform } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Platform, Pressable, Text } from 'react-native';
 import { QueryClient } from '@tanstack/react-query';
 
 import { resolveTheme } from '@/design-system/theme';
@@ -81,6 +81,41 @@ it('uses the web-safe writing direction without passing direction as a style', (
       value: originalPlatform
     });
   }
+});
+
+it('preserves a child state while changing locale direction', () => {
+  usePreferenceStore.setState({
+    direction: 'ltr',
+    hydrated: true,
+    locale: 'en'
+  });
+
+  function StatefulChild() {
+    const [count, setCount] = React.useState(0);
+
+    return (
+      <Pressable
+        testID="stateful-child"
+        onPress={() => setCount((value) => value + 1)}
+      >
+        <Text testID="stateful-child-count">{count}</Text>
+      </Pressable>
+    );
+  }
+
+  render(
+    <FoundationProviders>
+      <StatefulChild />
+    </FoundationProviders>
+  );
+
+  fireEvent.press(screen.getByTestId('stateful-child'));
+  act(() => usePreferenceStore.getState().setLocale('ar'));
+
+  expect(screen.getByTestId('foundation-direction-root')).toHaveStyle({
+    direction: 'rtl'
+  });
+  expect(screen.getByTestId('stateful-child-count')).toHaveTextContent('1');
 });
 
 it('clears cached user data when runtime user data resets', () => {

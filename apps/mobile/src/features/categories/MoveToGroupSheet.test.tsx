@@ -26,3 +26,25 @@ it.each([
     edge
   );
 });
+
+it('makes the move-to-group sheet a modal region', () => {
+  renderWithProviders(
+    <MoveToGroupSheet
+      visible
+      category={fixtureCategories[0]}
+      groups={fixtureCategories}
+      onSelectGroup={jest.fn()}
+      onNewGroup={jest.fn()}
+      onClose={jest.fn()}
+    />
+  );
+
+  expect(screen.getByTestId('move-to-group-sheet')).toHaveProp(
+    'accessibilityViewIsModal',
+    true
+  );
+  expect(
+    screen.UNSAFE_getByProps({ testID: 'move-to-group-backdrop' }).props
+      .accessibilityElementsHidden
+  ).toBe(true);
+});

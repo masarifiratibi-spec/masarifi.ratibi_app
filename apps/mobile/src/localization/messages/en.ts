@@ -592,6 +592,7 @@ const en = {
   'coreFinance.transaction.date': 'Date',
   'coreFinance.transaction.account': 'Account',
   'coreFinance.transaction.category': 'Category',
+  'coreFinance.transaction.chooseCategory': 'Choose category',
   'coreFinance.transaction.source': 'Source',
   'coreFinance.transaction.status': 'Sync status',
   'coreFinance.transaction.edit': 'Edit transaction',
@@ -1234,6 +1235,8 @@ const en = {
   'planning.budget.pause': 'Pause budget',
   'planning.budget.resume': 'Resume budget',
   'planning.budget.delete': 'Delete budget',
+  'planning.budget.deleteConfirm':
+    'This budget and its category allocations will be deleted.',
   'planning.budget.status.draft': 'Draft',
   'planning.budget.status.active': 'Active',
   'planning.budget.status.paused': 'Paused',

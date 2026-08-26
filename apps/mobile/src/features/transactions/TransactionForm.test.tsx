@@ -10,7 +10,7 @@ import {
 import { router } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
 
-import { lightThemeColors } from '@/design-system/tokens';
+import { elevation, lightThemeColors } from '@/design-system/tokens';
 import {
   completeCategorySelection,
   getCategorySelectionSession
@@ -61,6 +61,10 @@ beforeEach(() => {
   jest.mocked(router.canGoBack).mockReturnValue(true);
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 it('keeps amount-first entry values and shows localized validation before save', async () => {
   renderWithQueryData(<TransactionForm />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
@@ -82,7 +86,7 @@ it('keeps amount-first entry values and shows localized validation before save',
   expect(screen.getByDisplayValue('Lunch')).toBeTruthy();
 });
 
-it('uses compact controlled account and category pickers', async () => {
+it('uses compact controlled pickers without defaulting the category', async () => {
   renderWithQueryData(<TransactionForm />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
     [coreFinanceKeys.categories(false), fixtureCategories]
@@ -95,8 +99,57 @@ it('uses compact controlled account and category pickers', async () => {
 
   expect(screen.getAllByText(fixtureAccounts[0].name)).toHaveLength(1);
   expect(screen.queryByText(fixtureAccounts[1].name)).toBeNull();
-  expect(screen.getAllByText(fixtureCategories[0].labelEn)).toHaveLength(1);
+  expect(screen.getByText('Choose category')).toBeTruthy();
+  expect(screen.queryByText(fixtureCategories[0].labelEn)).toBeNull();
   expect(screen.queryByText(fixtureCategories[7].labelEn)).toBeNull();
+});
+
+it('uses compact picker hierarchy and card-colored text fields', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  const categoryPicker = await screen.findByLabelText(
+    'Category, Choose category'
+  );
+  expect(categoryPicker).toHaveStyle({
+    minHeight: 60,
+    shadowOpacity: elevation.raised.shadowOpacity
+  });
+  expect(screen.getByText('Choose category')).toHaveStyle({
+    fontSize: 16,
+    fontWeight: '600'
+  });
+  expect(screen.getByLabelText('Description')).toHaveStyle({
+    backgroundColor: lightThemeColors.surfaces.card
+  });
+  expect(screen.getByLabelText('Note')).toHaveStyle({
+    backgroundColor: lightThemeColors.surfaces.card,
+    minHeight: 64
+  });
+});
+
+it('requires an explicit category before saving a new expense', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.changeText(
+    await screen.findByLabelText(translate('coreFinance.form.amount')),
+    '200'
+  );
+  fireEvent.changeText(
+    screen.getByLabelText(translate('coreFinance.form.title')),
+    'Rent'
+  );
+  fireEvent.press(screen.getByLabelText(translate('coreFinance.form.save')));
+
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    translate('coreFinance.validation.required')
+  );
+  expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
 });
 
 it('passes the source currency to the destination picker for a new transfer', async () => {
@@ -349,6 +402,23 @@ it('groups the edit types and hero amount with the selected Masarifi treatment',
   });
 });
 
+it('shows a zero amount placeholder without a browser focus box', async () => {
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  const amountInput = await screen.findByLabelText(
+    translate('coreFinance.form.amount')
+  );
+  const amountUnit = screen.getByTestId('transaction-edit-amount-unit');
+
+  expect(amountInput.props.placeholder).toBe('0');
+  expect(amountInput.props.autoFocus).toBeUndefined();
+  expect(amountInput).toHaveStyle({ outlineWidth: 0 });
+  expect(within(amountUnit).getByText('SAR')).toBeTruthy();
+});
+
 it('keeps the complete money unit centered for small and large amounts', async () => {
   const small = renderWithQueryData(
     <TransactionForm
@@ -572,6 +642,58 @@ it('bypasses the draft guard after creating a transaction', async () => {
   await waitFor(() => expect(router.replace).toHaveBeenCalled());
   expect(coreFinanceService.createTransaction).toHaveBeenCalledTimes(1);
   expect(alert).not.toHaveBeenCalled();
+});
+
+it('clears saved add values and blocks stale draft saves while submitting', async () => {
+  jest.useFakeTimers();
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValueOnce({
+    id: MANUAL_TRANSACTION_DRAFT_ID,
+    transactionType: 'expense',
+    amountText: '',
+    accountId: null,
+    destinationAccountId: null,
+    categoryId: fixtureCategories[0].id,
+    merchant: null,
+    notes: null,
+    occurredAt: 1_723_939_200_000,
+    status: 'editing',
+    updatedAt: 1_723_939_200_000
+  });
+  let resolveCreate: (value: {
+    value: (typeof fixtureTransactions)[number];
+    affectedScopes: string[];
+  }) => void = () => undefined;
+  jest.mocked(coreFinanceService.createTransaction).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+  );
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+
+  fireEvent.changeText(await screen.findByLabelText('Amount'), '200');
+  fireEvent.changeText(screen.getByLabelText('Description'), 'Rent');
+  fireEvent.press(screen.getByLabelText('Save transaction'));
+  await waitFor(() =>
+    expect(coreFinanceService.createTransaction).toHaveBeenCalledTimes(1)
+  );
+
+  act(() => jest.advanceTimersByTime(300));
+  expect(coreFinanceService.saveDraft).not.toHaveBeenCalled();
+
+  await act(async () =>
+    resolveCreate({ value: fixtureTransactions[0], affectedScopes: [] })
+  );
+  await waitFor(() => expect(router.replace).toHaveBeenCalled());
+  await act(async () => {
+    mockFocusEffectCallback?.();
+  });
+
+  expect(screen.queryByDisplayValue('200')).toBeNull();
+  expect(screen.queryByDisplayValue('Rent')).toBeNull();
 });
 
 it('shows only three equal transaction types in edit mode', async () => {

@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { NavigationRow } from '@/design-system/components/navigation/GroupedList';
 import {
@@ -75,6 +76,7 @@ export function BudgetOverviewScreen({
 }
 
 function BudgetCard({ detail }: { detail: BudgetDetail }) {
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const item = detail.budget;
@@ -182,8 +184,20 @@ function BudgetCard({ detail }: { detail: BudgetDetail }) {
       <ActionButton
         label={translate('planning.budget.delete')}
         loading={lifecycle.isPending}
-        onPress={() => lifecycle.mutate('deleted')}
+        onPress={() => setConfirmDelete(true)}
         variant="destructive"
+      />
+      <ConfirmationDialog
+        visible={confirmDelete}
+        title={translate('planning.budget.delete')}
+        message={translate('planning.budget.deleteConfirm')}
+        confirmLabel={translate('planning.budget.delete')}
+        destructive
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          setConfirmDelete(false);
+          lifecycle.mutate('deleted');
+        }}
       />
     </SurfaceCard>
   );

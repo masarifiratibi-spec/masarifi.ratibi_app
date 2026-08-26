@@ -4,7 +4,7 @@ import { PixelRatio, StyleSheet } from 'react-native';
 import { changeLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
-import { lightThemeColors } from '@/design-system/tokens';
+import { lightThemeColors, radius } from '@/design-system/tokens';
 import { TransactionRow } from './TransactionRow';
 
 describe('transaction row', () => {
@@ -13,7 +13,10 @@ describe('transaction row', () => {
     usePreferenceStore.setState({ hideBalances: false });
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   it('keeps source accessible and renders exceptional status without repeating financial meaning', () => {
+    jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);
     usePreferenceStore.setState({ hideBalances: true });
     const screen = renderWithProviders(
       <TransactionRow
@@ -46,7 +49,11 @@ describe('transaction row', () => {
     expect(screen.getByText('•••• EGP')).toHaveStyle({ fontSize: 16 });
     expect(
       screen.getByTestId('transaction-category-icon-shopping')
-    ).toBeTruthy();
+    ).toHaveStyle({ height: 41, width: 41 });
+    expect(screen.getByTestId('transaction-row')).toHaveStyle({
+      minHeight: 75,
+      paddingVertical: 8
+    });
   });
 
   it.each([
@@ -127,7 +134,7 @@ describe('transaction row', () => {
     );
 
     expect(screen.getByTestId('transaction-row')).toHaveStyle({
-      borderRadius: 22,
+      borderRadius: radius.lg,
       borderWidth: StyleSheet.hairlineWidth,
       flexDirection: 'column',
       minHeight: 88
@@ -170,8 +177,8 @@ describe('transaction row', () => {
         borderBottomWidth: 0,
         borderLeftWidth: StyleSheet.hairlineWidth,
         borderRightWidth: StyleSheet.hairlineWidth,
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
+        borderTopLeftRadius: radius.lg,
+        borderTopRightRadius: radius.lg,
         borderTopWidth: StyleSheet.hairlineWidth
       },
       true
@@ -189,8 +196,8 @@ describe('transaction row', () => {
     [
       'last',
       {
-        borderBottomLeftRadius: 22,
-        borderBottomRightRadius: 22,
+        borderBottomLeftRadius: radius.lg,
+        borderBottomRightRadius: radius.lg,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderLeftWidth: StyleSheet.hairlineWidth,
         borderRightWidth: StyleSheet.hairlineWidth,
@@ -201,7 +208,7 @@ describe('transaction row', () => {
     [
       'only',
       {
-        borderRadius: 22,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth
       },
       false

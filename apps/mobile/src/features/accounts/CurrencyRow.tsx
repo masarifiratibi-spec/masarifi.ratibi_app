@@ -2,6 +2,7 @@ import React from 'react';
 import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
+import { CurrencyFlagIcon } from '@/design-system/components/currency/CurrencyFlagIcon';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
 import { getCurrencyDetails } from '@/domain/currencies';
@@ -45,7 +46,7 @@ export function CurrencyRow({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${t('coreFinance.accounts.currency')}: ${currency.flag} ${currency.code} - ${name}`}
+        accessibilityLabel={`${t('coreFinance.accounts.currency')}: ${currency.code} - ${name}`}
         disabled={!editable}
         onPress={editable ? onPress : undefined}
         style={({ pressed }) => [
@@ -71,7 +72,7 @@ export function CurrencyRow({
             { flexDirection: isRtl ? 'row-reverse' : 'row' }
           ]}
         >
-          <Text style={styles.flag}>{currency.flag}</Text>
+          <CurrencyFlagIcon code={currency.code} size={20} />
           <Text
             style={[
               styles.code,
@@ -149,9 +150,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     flex: 1
-  },
-  flag: {
-    fontSize: 20
   },
   code: {
     fontSize: 15,

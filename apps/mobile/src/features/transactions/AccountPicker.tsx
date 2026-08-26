@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { DesignIcon } from '@/design-system/icons';
@@ -21,18 +15,21 @@ import { translate } from '@/localization/i18n';
 import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
+import { useTheme } from '@/state/theme-context';
 
 export function AccountPicker({
   selectedId,
   selectedIds = [],
   excludedIds = [],
   currencyCode,
+  appearance = 'cards',
   onSelect
 }: {
   selectedId?: string;
   selectedIds?: string[];
   excludedIds?: string[];
   currencyCode?: string;
+  appearance?: 'cards' | 'grouped';
   onSelect?: (account: Account) => void;
 }) {
   const accounts = useAccounts(true);
@@ -42,6 +39,8 @@ export function AccountPicker({
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const { revealed } = useSensitiveVisibility();
+  const theme = useTheme();
+  const grouped = appearance === 'grouped';
 
   const balanceByAccount = useMemo(
     () =>
@@ -69,11 +68,10 @@ export function AccountPicker({
 
   const filtered = useMemo<Account[]>(
     () =>
-      eligible.filter(
-        (account: Account) =>
-          `${account.name} ${account.currencyCode} ${account.lastFour ?? ''}`
-            .toLocaleLowerCase('en')
-            .includes(search.trim().toLocaleLowerCase('en'))
+      eligible.filter((account: Account) =>
+        `${account.name} ${account.currencyCode} ${account.lastFour ?? ''}`
+          .toLocaleLowerCase('en')
+          .includes(search.trim().toLocaleLowerCase('en'))
       ),
     [eligible, search]
   );
@@ -99,60 +97,77 @@ export function AccountPicker({
   return (
     <FlatList
       testID="account-picker-list"
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        grouped && styles.groupedListContent
+      ]}
       data={filtered}
       keyExtractor={(account) => account.id}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ItemSeparatorComponent={
+        grouped ? undefined : () => <View style={styles.separator} />
+      }
       ListHeaderComponent={
-        <View style={styles.searchBoxContainer}>
-          <View style={[styles.searchField, { direction }]}>
-            {/* Search Icon */}
-            <DesignIcon
-              name="search"
-              size="sm"
-              color={colorTokens.ink['500']}
-              direction={direction}
-              decorative
-            />
-
-            {/* Input field */}
-            <TextInput
-              testID="account-search-input"
-              accessibilityLabel={translate('coreFinance.accounts.search')}
-              placeholder={translate('coreFinance.accounts.search')}
-              placeholderTextColor={colorTokens.ink['500']}
-              value={search}
-              onChangeText={setSearch}
+        grouped ? null : (
+          <View style={styles.searchBoxContainer}>
+            <View
+              testID="account-search-field"
               style={[
-                styles.searchInput,
+                styles.searchField,
                 {
-                  textAlign: isRtl ? 'right' : 'left',
-                  writingDirection: direction
+                  backgroundColor: theme.colors.surfaces.card,
+                  borderColor: theme.colors.borders.subtle,
+                  direction
                 }
               ]}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
+            >
+              {/* Search Icon */}
+              <DesignIcon
+                name="search"
+                size="sm"
+                color={colorTokens.ink['500']}
+                direction={direction}
+                decorative
+              />
 
-            {/* Clear search button */}
-            {search.length > 0 && (
-              <Pressable
-                onPress={() => setSearch('')}
-                hitSlop={8}
-                accessibilityLabel={translate('appShell.navigation.close')}
-                accessibilityRole="button"
-              >
-                <DesignIcon
-                  name="close"
-                  size="xs"
-                  color={colorTokens.ink['500']}
-                  direction={direction}
-                  decorative
-                />
-              </Pressable>
-            )}
+              {/* Input field */}
+              <TextInput
+                testID="account-search-input"
+                accessibilityLabel={translate('coreFinance.accounts.search')}
+                placeholder={translate('coreFinance.accounts.search')}
+                placeholderTextColor={colorTokens.ink['500']}
+                value={search}
+                onChangeText={setSearch}
+                style={[
+                  styles.searchInput,
+                  {
+                    textAlign: isRtl ? 'right' : 'left',
+                    writingDirection: direction
+                  }
+                ]}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+              />
+
+              {/* Clear search button */}
+              {search.length > 0 && (
+                <Pressable
+                  onPress={() => setSearch('')}
+                  hitSlop={8}
+                  accessibilityLabel={translate('appShell.navigation.close')}
+                  accessibilityRole="button"
+                >
+                  <DesignIcon
+                    name="close"
+                    size="xs"
+                    color={colorTokens.ink['500']}
+                    direction={direction}
+                    decorative
+                  />
+                </Pressable>
+              )}
+            </View>
           </View>
-        </View>
+        )
       }
       ListEmptyComponent={
         <StateView
@@ -168,7 +183,7 @@ export function AccountPicker({
           }
         />
       }
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <AccountRow
           presentation={projectAccount(
             item,
@@ -176,6 +191,17 @@ export function AccountPicker({
             hideBalances && !revealed
           )}
           selected={selectedId === item.id || selectedIds.includes(item.id)}
+          groupedPosition={
+            grouped
+              ? filtered.length === 1
+                ? 'only'
+                : index === 0
+                  ? 'first'
+                  : index === filtered.length - 1
+                    ? 'last'
+                    : 'middle'
+              : undefined
+          }
           onPress={() => onSelect?.(item)}
         />
       )}
@@ -188,15 +214,17 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     paddingTop: spacing.xs
   },
+  groupedListContent: {
+    paddingBottom: 0,
+    paddingTop: 0
+  },
   searchBoxContainer: {
     marginBottom: spacing.md
   },
   searchField: {
     alignItems: 'center',
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.card,
-    borderWidth: 1,
+    borderRadius: radius.control,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
     height: 48,

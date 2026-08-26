@@ -214,6 +214,8 @@ describe('navigation journey', () => {
     for (const [label, route] of [
       [translate('appShell.shell.accounts'), '/accounts'],
       [translate('coreFinance.action.categories'), '/categories'],
+      [translate('planning.budgets.title'), '/budgets'],
+      [translate('planning.savings.title'), '/savings'],
       [translate('planning.salary.title'), '/salary'],
       [translate('planning.obligations.title'), '/obligations'],
       [translate('appShell.shell.assistant'), '/assistant'],

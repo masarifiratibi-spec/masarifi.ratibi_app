@@ -6,6 +6,7 @@ import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { DesignIcon } from '@/design-system/icons';
 import {
   colorTokens,
+  elevation,
   minTouchTarget,
   radius,
   spacing
@@ -140,6 +141,7 @@ export function DateRangeSheet({
 
           {/* 1. Custom Range (نطاق مخصص) */}
           <DateRangeOptionRow
+            appearance="featured"
             testID="date-period-option-custom"
             title={translate('coreFinance.home.period.custom')}
             subtitle={translate('coreFinance.home.period.customSubtitle')}
@@ -148,113 +150,119 @@ export function DateRangeSheet({
             onPress={() => setStep('custom')}
           />
 
-          {/* 2. Today (اليوم) */}
-          <DateRangeOptionRow
-            testID="date-period-option-today"
-            title={translate('coreFinance.home.period.today')}
-            subtitle={formatDaySpan(
-              today.periodStart,
-              today.periodEnd,
-              locale,
-              timeZone
-            )}
-            selected={isTodaySelected}
-            direction={direction}
-            onPress={() => {
-              onApply(today);
-              onDismiss();
-            }}
-          />
-
-          {/* 3. Yesterday (أمس) */}
-          <DateRangeOptionRow
-            testID="date-period-option-yesterday"
-            title={translate('coreFinance.home.period.yesterday')}
-            subtitle={formatDaySpan(
-              yesterday.periodStart,
-              yesterday.periodEnd,
-              locale,
-              timeZone
-            )}
-            selected={isYesterdaySelected}
-            direction={direction}
-            onPress={() => {
-              onApply(yesterday);
-              onDismiss();
-            }}
-          />
-
-          {/* 4. This Week (هذا الأسبوع) */}
-          <DateRangeOptionRow
-            testID="date-period-option-thisWeek"
-            title={translate('coreFinance.home.period.thisWeek')}
-            subtitle={formatDaySpan(
-              thisWeek.periodStart,
-              thisWeek.periodEnd,
-              locale,
-              timeZone
-            )}
-            selected={isThisWeekSelected}
-            direction={direction}
-            onPress={() => {
-              onApply(thisWeek);
-              onDismiss();
-            }}
-          />
-
-          {/* 5. Last Week (الأسبوع الماضي) */}
-          <DateRangeOptionRow
-            testID="date-period-option-lastWeek"
-            title={translate('coreFinance.home.period.lastWeek')}
-            subtitle={formatDaySpan(
-              lastWeek.periodStart,
-              lastWeek.periodEnd,
-              locale,
-              timeZone
-            )}
-            selected={isLastWeekSelected}
-            direction={direction}
-            onPress={() => {
-              onApply(lastWeek);
-              onDismiss();
-            }}
-          />
-
-          {/* 6. This Month (هذا الشهر) */}
-          <DateRangeOptionRow
-            testID="date-period-option-thisMonth"
-            title={translate('coreFinance.home.period.thisMonth')}
-            subtitle={formatDaySpan(
-              thisMonth.periodStart,
-              thisMonth.periodEnd,
-              locale,
-              timeZone
-            )}
-            selected={isThisMonthSelected}
-            direction={direction}
-            onPress={() => {
-              onApply(thisMonth);
-              onDismiss();
-            }}
-          />
-
-          {/* 7. Last Month (الشهر الماضي) */}
-          <DateRangeOptionRow
-            testID="date-period-option-lastMonth"
-            title={translate('coreFinance.home.period.lastMonth')}
-            subtitle={formatDaySpan(
-              lastMonth.periodStart,
-              lastMonth.periodEnd,
-              locale,
-              timeZone
-            )}
-            selected={isLastMonthSelected}
-            direction={direction}
-            onPress={() => {
-              onApply(lastMonth);
-              onDismiss();
-            }}
-          />
+          <View
+            testID="date-period-presets"
+            style={[
+              styles.presetGroup,
+              {
+                backgroundColor: theme.colors.surfaces.card,
+                borderColor: theme.colors.borders.subtle
+              }
+            ]}
+          >
+            <DateRangeOptionRow
+              appearance="grouped"
+              testID="date-period-option-today"
+              title={translate('coreFinance.home.period.today')}
+              subtitle={formatDaySpan(
+                today.periodStart,
+                today.periodEnd,
+                locale,
+                timeZone
+              )}
+              selected={isTodaySelected}
+              direction={direction}
+              onPress={() => {
+                onApply(today);
+                onDismiss();
+              }}
+            />
+            <DateRangeOptionRow
+              appearance="grouped"
+              testID="date-period-option-yesterday"
+              title={translate('coreFinance.home.period.yesterday')}
+              subtitle={formatDaySpan(
+                yesterday.periodStart,
+                yesterday.periodEnd,
+                locale,
+                timeZone
+              )}
+              selected={isYesterdaySelected}
+              direction={direction}
+              onPress={() => {
+                onApply(yesterday);
+                onDismiss();
+              }}
+            />
+            <DateRangeOptionRow
+              appearance="grouped"
+              testID="date-period-option-thisWeek"
+              title={translate('coreFinance.home.period.thisWeek')}
+              subtitle={formatDaySpan(
+                thisWeek.periodStart,
+                thisWeek.periodEnd,
+                locale,
+                timeZone
+              )}
+              selected={isThisWeekSelected}
+              direction={direction}
+              onPress={() => {
+                onApply(thisWeek);
+                onDismiss();
+              }}
+            />
+            <DateRangeOptionRow
+              appearance="grouped"
+              testID="date-period-option-lastWeek"
+              title={translate('coreFinance.home.period.lastWeek')}
+              subtitle={formatDaySpan(
+                lastWeek.periodStart,
+                lastWeek.periodEnd,
+                locale,
+                timeZone
+              )}
+              selected={isLastWeekSelected}
+              direction={direction}
+              onPress={() => {
+                onApply(lastWeek);
+                onDismiss();
+              }}
+            />
+            <DateRangeOptionRow
+              appearance="grouped"
+              testID="date-period-option-thisMonth"
+              title={translate('coreFinance.home.period.thisMonth')}
+              subtitle={formatDaySpan(
+                thisMonth.periodStart,
+                thisMonth.periodEnd,
+                locale,
+                timeZone
+              )}
+              selected={isThisMonthSelected}
+              direction={direction}
+              onPress={() => {
+                onApply(thisMonth);
+                onDismiss();
+              }}
+            />
+            <DateRangeOptionRow
+              appearance="grouped-last"
+              testID="date-period-option-lastMonth"
+              title={translate('coreFinance.home.period.lastMonth')}
+              subtitle={formatDaySpan(
+                lastMonth.periodStart,
+                lastMonth.periodEnd,
+                locale,
+                timeZone
+              )}
+              selected={isLastMonthSelected}
+              direction={direction}
+              onPress={() => {
+                onApply(lastMonth);
+                onDismiss();
+              }}
+            />
+          </View>
         </View>
       ) : (
         <View style={styles.stack}>
@@ -302,6 +310,7 @@ export function DateRangeSheet({
 }
 
 function DateRangeOptionRow({
+  appearance,
   testID,
   title,
   subtitle,
@@ -309,6 +318,7 @@ function DateRangeOptionRow({
   direction,
   onPress
 }: {
+  appearance: 'featured' | 'grouped' | 'grouped-last';
   testID: string;
   title: string;
   subtitle: string;
@@ -317,6 +327,8 @@ function DateRangeOptionRow({
   onPress: () => void;
 }) {
   const isRtl = direction === 'rtl';
+  const theme = useTheme();
+  const featured = appearance === 'featured';
 
   return (
     <Pressable
@@ -327,14 +339,15 @@ function DateRangeOptionRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.optionCard,
+        featured ? styles.featuredOption : styles.groupedOption,
+        appearance === 'grouped-last' && styles.groupedLastOption,
         {
           backgroundColor: selected
-            ? colorTokens.teal['50']
-            : colorTokens.sand['50'],
+            ? theme.colors.surfaces.brandSubtle
+            : theme.colors.surfaces.card,
           borderColor: selected
-            ? colorTokens.teal['700']
-            : colorTokens.sand['400'],
-          borderWidth: selected ? 1.5 : 1,
+            ? theme.colors.borders.selected
+            : theme.colors.borders.subtle,
           direction
         },
         pressed && {
@@ -345,16 +358,18 @@ function DateRangeOptionRow({
       {/* 1. START of reading: Content Group (Calendar icon badge + Text Stack) */}
       <View style={[styles.contentGroup, { flexDirection: 'row' }]}>
         {/* Calendar Icon Badge */}
-        <View style={styles.iconBadge}>
-          <DesignIcon
-            name="calendar"
-            size="sm"
-            label={title}
-            color={colorTokens.teal['700']}
-            direction={direction}
-            decorative
-          />
-        </View>
+        {featured ? (
+          <View testID="date-period-icon-custom" style={styles.iconBadge}>
+            <DesignIcon
+              name="calendar"
+              size="sm"
+              label={title}
+              color={colorTokens.teal['700']}
+              direction={direction}
+              decorative
+            />
+          </View>
+        ) : null}
 
         {/* Text Stack */}
         <View style={styles.textStack}>
@@ -460,14 +475,28 @@ const styles = StyleSheet.create({
   },
   optionCard: {
     alignItems: 'center',
-    borderRadius: radius.card,
     flexDirection: 'row',
     gap: spacing.md,
     justifyContent: 'space-between',
-    minHeight: 64,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm
   },
+  featuredOption: {
+    borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 64
+  },
+  presetGroup: {
+    ...elevation.raised,
+    borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden'
+  },
+  groupedOption: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 56
+  },
+  groupedLastOption: { borderBottomWidth: 0 },
   contentGroup: {
     alignItems: 'center',
     flex: 1,

@@ -83,12 +83,24 @@ describe('SPEC-002 design tokens', () => {
 
   it('defines shared mobile metrics', () => {
     expect(spacing).toMatchObject({ xs: 4, sm: 8, md: 12, lg: 16 });
-    expect(radius.card).toBe(22);
-    expect(radius.control).toBe(22);
-    expect(radius.status).toBe(22);
-    expect(radius.overlay).toBe(22);
+    expect(radius).toMatchObject({
+      sm: 16,
+      md: 18,
+      control: 18,
+      status: 16,
+      lg: 18,
+      group: 18,
+      actionTray: 18,
+      card: 18,
+      overlay: 18,
+      bottomSheet: 18
+    });
     expect(borderWidth.default).toBe(1);
-    expect(elevation.raised.shadowRadius).toBeGreaterThan(0);
+    expect(elevation.raised).toMatchObject({
+      elevation: 2,
+      shadowOpacity: 0.08,
+      shadowRadius: 12
+    });
     expect(iconSize.md).toBe(24);
     expect(controlHeight.md).toBeGreaterThanOrEqual(minTouchTarget);
     expect(viewport.minWidth).toBe(320);
@@ -155,9 +167,9 @@ describe('SPEC-002 design tokens', () => {
       Object.keys(lightThemeColors.horizon)
     );
     expect(radius).toMatchObject({
-      actionTray: 22,
-      bottomSheet: 28,
-      group: 22
+      actionTray: 18,
+      bottomSheet: 18,
+      group: 18
     });
   });
 });

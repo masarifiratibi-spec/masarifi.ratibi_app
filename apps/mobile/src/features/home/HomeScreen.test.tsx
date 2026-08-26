@@ -4,7 +4,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
-import { lightThemeColors } from '@/design-system/tokens';
+import { lightThemeColors, radius } from '@/design-system/tokens';
 import type { HomeSummary } from '@/domain/core-finance';
 import { changeLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -27,8 +27,13 @@ jest.mock('@/features/transactions/AccountPicker', () => ({
 }));
 jest.mock('@/services/platform/voice-recorder-service', () => ({
   voiceRecorderService: {
-    getPermission: jest.fn(), requestPermission: jest.fn(),
-    openSettings: jest.fn(), start: jest.fn(), stop: jest.fn(), cancel: jest.fn(), remove: jest.fn()
+    getPermission: jest.fn(),
+    requestPermission: jest.fn(),
+    openSettings: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    cancel: jest.fn(),
+    remove: jest.fn()
   }
 }));
 jest.mock('@/features/settings/settings-queries', () => ({
@@ -64,9 +69,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   usePreferenceStore.setState({ hideBalances: false, reducedMotion: false });
   useVoiceCaptureStore.getState().reset();
-  jest.mocked(voiceRecorderService.getPermission).mockImplementation(
-    () => new Promise(() => undefined)
-  );
+  jest
+    .mocked(voiceRecorderService.getPermission)
+    .mockImplementation(() => new Promise(() => undefined));
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -81,11 +86,15 @@ it('opens Reports and More from fixed physical shell actions', () => {
   expect(screen.getByTestId('primary-shell-header')).toHaveStyle({
     flexDirection: 'row'
   });
-  expect(screen.getAllByLabelText(translate('appShell.navigation.reports'))[0]).toHaveStyle({
+  expect(
+    screen.getAllByLabelText(translate('appShell.navigation.reports'))[0]
+  ).toHaveStyle({
     minHeight: 48,
     minWidth: 48
   });
-  fireEvent.press(screen.getAllByLabelText(translate('appShell.navigation.reports'))[0]);
+  fireEvent.press(
+    screen.getAllByLabelText(translate('appShell.navigation.reports'))[0]
+  );
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/(tabs)/reports',
     params: { returnTo: '/(tabs)/home' }
@@ -183,7 +192,11 @@ it('shows recent expenses before income and excludes transfers from both section
         recentTransactions: [
           makeTransaction(20, { title: 'Card transfer', type: 'transfer' }),
           makeTransaction(11, { title: 'August salary', type: 'income' }),
-          makeTransaction(2, { categoryId: 'shopping', title: 'Coffee shop', type: 'expense' })
+          makeTransaction(2, {
+            categoryId: 'shopping',
+            title: 'Coffee shop',
+            type: 'expense'
+          })
         ]
       }}
     />
@@ -230,7 +243,7 @@ it('renders every recent transaction as an independent card without dividers', (
   });
   for (const id of ['transaction-2', 'transaction-3']) {
     expect(screen.getByTestId(`home-transaction-row-${id}`)).toHaveStyle({
-      borderRadius: 22,
+      borderRadius: radius.card,
       borderWidth: 1
     });
   }
@@ -283,7 +296,9 @@ it('uses existing quick-action routes and opens Accounts as a modal', () => {
 it('starts voice recording inline without navigating away from Home', async () => {
   jest.useFakeTimers();
   changeLocale('en');
-  jest.mocked(voiceRecorderService.requestPermission).mockResolvedValue('granted');
+  jest
+    .mocked(voiceRecorderService.requestPermission)
+    .mockResolvedValue('granted');
   jest.mocked(voiceRecorderService.start).mockResolvedValue({
     id: 'recording-home',
     startedAt: Date.now()
@@ -292,9 +307,13 @@ it('starts voice recording inline without navigating away from Home', async () =
   try {
     fireEvent.press(screen.getByTestId('home-quick-action-voice'));
 
-    expect(await screen.findByTestId('home-inline-voice-recording')).toBeTruthy();
+    expect(
+      await screen.findByTestId('home-inline-voice-recording')
+    ).toBeTruthy();
     expect(screen.getByText('0:00')).toBeTruthy();
-    expect(screen.getByLabelText(/Recording.*Stop recording.*0:00/)).toBeTruthy();
+    expect(
+      screen.getByLabelText(/Recording.*Stop recording.*0:00/)
+    ).toBeTruthy();
     expect(screen.getByTestId('home-voice-recording-pulse')).toBeTruthy();
     expect(screen.queryByTestId('home-voice-recording-static-ring')).toBeNull();
     expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
@@ -306,7 +325,9 @@ it('starts voice recording inline without navigating away from Home', async () =
 
 it('keeps a denied microphone permission recoverable on Home', async () => {
   changeLocale('en');
-  jest.mocked(voiceRecorderService.requestPermission).mockResolvedValue('denied');
+  jest
+    .mocked(voiceRecorderService.requestPermission)
+    .mockResolvedValue('denied');
   renderWithProviders(<HomeScreen summary={summary} />);
 
   fireEvent.press(screen.getByTestId('home-quick-action-voice'));
@@ -366,33 +387,38 @@ it('does not check the microphone or leave Home before the user asks', () => {
 it.each([
   ['ar', 'جاري تحليل التسجيل...'],
   ['en', 'Analyzing recording...']
-] as const)('shows the compact inline processing state in %s', (locale, message) => {
-  changeLocale(locale);
-  useVoiceCaptureStore.getState().patch({ state: 'transcribing' });
+] as const)(
+  'shows the compact inline processing state in %s',
+  (locale, message) => {
+    changeLocale(locale);
+    useVoiceCaptureStore.getState().patch({ state: 'transcribing' });
 
-  renderWithProviders(<HomeScreen summary={summary} />);
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  const processing = screen.getByTestId('home-voice-processing-inline');
-  expect(screen.getByText(message)).toBeTruthy();
-  expect(
-    screen.getByTestId('home-voice-processing-icon', {
-      includeHiddenElements: true
-    })
-  ).toBeTruthy();
-  expect(screen.getByTestId('home-voice-processing-indicator')).toBeTruthy();
-  expect(processing).toHaveStyle({
-    alignItems: 'center',
-    flexDirection: locale === 'ar' ? 'row-reverse' : 'row'
-  });
-  expect(processing.props.accessibilityViewIsModal).toBeUndefined();
-  expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
-});
+    const processing = screen.getByTestId('home-voice-processing-inline');
+    expect(screen.getByText(message)).toBeTruthy();
+    expect(
+      screen.getByTestId('home-voice-processing-icon', {
+        includeHiddenElements: true
+      })
+    ).toBeTruthy();
+    expect(screen.getByTestId('home-voice-processing-indicator')).toBeTruthy();
+    expect(processing).toHaveStyle({
+      alignItems: 'center',
+      flexDirection: locale === 'ar' ? 'row-reverse' : 'row'
+    });
+    expect(processing.props.accessibilityViewIsModal).toBeUndefined();
+    expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
+  }
+);
 
 it('shows unclear audio after the empty default result without creating a transaction', async () => {
   jest.useFakeTimers();
   try {
     changeLocale('en');
-    jest.mocked(voiceRecorderService.stop).mockResolvedValue('private://voice-audio');
+    jest
+      .mocked(voiceRecorderService.stop)
+      .mockResolvedValue('private://voice-audio');
     jest.mocked(voiceRecorderService.remove).mockResolvedValue();
     const createTransactions = jest.spyOn(
       coreFinanceService,
@@ -447,13 +473,15 @@ it('clears unclear audio and returns Voice to ready when Record Again is pressed
 
   fireEvent.press(screen.getByLabelText('Record Again'));
 
-  await waitFor(() => expect(useVoiceCaptureStore.getState()).toMatchObject({
-    state: 'ready',
-    durationMs: 0,
-    transcript: null,
-    group: null,
-    errorCode: null
-  }));
+  await waitFor(() =>
+    expect(useVoiceCaptureStore.getState()).toMatchObject({
+      state: 'ready',
+      durationMs: 0,
+      transcript: null,
+      group: null,
+      errorCode: null
+    })
+  );
   expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
   expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
 });
@@ -469,7 +497,9 @@ it('dismisses unclear audio and stays on Home when Cancel is pressed', async () 
 
   fireEvent.press(screen.getByLabelText('Cancel'));
 
-  await waitFor(() => expect(useVoiceCaptureStore.getState().state).toBe('idle'));
+  await waitFor(() =>
+    expect(useVoiceCaptureStore.getState().state).toBe('idle')
+  );
   expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
   expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
 });
@@ -477,17 +507,25 @@ it('dismisses unclear audio and stays on Home when Cancel is pressed', async () 
 it('stops inline recording and shows the valid result for review on Home', async () => {
   changeLocale('en');
   let resolveTranscript!: (value: ReturnType<typeof fixtureTranscript>) => void;
-  jest.mocked(voiceRecorderService.getPermission).mockImplementation(
-    () => new Promise(() => undefined)
-  );
-  jest.mocked(voiceRecorderService.stop).mockResolvedValue('private://voice-audio');
+  jest
+    .mocked(voiceRecorderService.getPermission)
+    .mockImplementation(() => new Promise(() => undefined));
+  jest
+    .mocked(voiceRecorderService.stop)
+    .mockResolvedValue('private://voice-audio');
   jest.mocked(voiceRecorderService.remove).mockResolvedValue();
   jest.spyOn(voiceAnalyzerService, 'transcribe').mockImplementation(
-    () => new Promise((resolve) => { resolveTranscript = resolve; })
+    () =>
+      new Promise((resolve) => {
+        resolveTranscript = resolve;
+      })
   );
   const createTransactions = jest
     .spyOn(coreFinanceService, 'createTransactionsAtomically')
-    .mockResolvedValue({ value: [], affectedScopes: ['home.summary'] } as never);
+    .mockResolvedValue({
+      value: [],
+      affectedScopes: ['home.summary']
+    } as never);
   useVoiceCaptureStore.getState().patch({
     permission: 'granted',
     scenario: 'clear_en',
@@ -502,7 +540,9 @@ it('stops inline recording and shows the valid result for review on Home', async
   expect(screen.getByText('0:02')).toBeTruthy();
   fireEvent.press(screen.getByTestId('home-inline-voice-recording'));
 
-  expect(await screen.findByTestId('home-voice-processing-inline')).toBeTruthy();
+  expect(
+    await screen.findByTestId('home-voice-processing-inline')
+  ).toBeTruthy();
   expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
   await act(async () => {
     resolveTranscript(fixtureTranscript('clear_en', Date.UTC(2026, 7, 18, 12)));
@@ -516,11 +556,15 @@ it('stops inline recording and shows the valid result for review on Home', async
 
 it('keeps multiple analyzed transactions as separate review cards on Home', async () => {
   changeLocale('en');
-  jest.mocked(voiceRecorderService.stop).mockResolvedValue('private://voice-audio');
+  jest
+    .mocked(voiceRecorderService.stop)
+    .mockResolvedValue('private://voice-audio');
   jest.mocked(voiceRecorderService.remove).mockResolvedValue();
   jest
     .spyOn(voiceAnalyzerService, 'transcribe')
-    .mockResolvedValue(fixtureTranscript('multiple', Date.UTC(2026, 7, 18, 12)));
+    .mockResolvedValue(
+      fixtureTranscript('multiple', Date.UTC(2026, 7, 18, 12))
+    );
   useVoiceCaptureStore.getState().patch({
     permission: 'granted',
     scenario: 'multiple',
@@ -552,7 +596,9 @@ it('routes account actions and dismisses the Accounts sheet', () => {
   expect(screen.queryByTestId('account-scope-sheet')).toBeNull();
 
   fireEvent.press(screen.getByTestId('home-quick-action-accounts'));
-  fireEvent.press(screen.getByTestId('app-sheet-backdrop', { includeHiddenElements: true }));
+  fireEvent.press(
+    screen.getByTestId('app-sheet-backdrop', { includeHiddenElements: true })
+  );
   expect(screen.queryByTestId('account-scope-sheet')).toBeNull();
 });
 
@@ -627,6 +673,9 @@ it.each([
       textAlign,
       writingDirection
     });
+    expect(screen.getByText('Al Nakheel Restaurant').props.numberOfLines).toBe(
+      2
+    );
   }
 );
 
@@ -660,7 +709,9 @@ it.each(['ar', 'en'] as const)(
     expect(
       screen.getByText('Al Nakheel Restaurant').props.numberOfLines
     ).toBeUndefined();
-    expect(screen.getByTestId('home-period-label').props.numberOfLines).toBeUndefined();
+    expect(
+      screen.getByTestId('home-period-label').props.numberOfLines
+    ).toBeUndefined();
   }
 );
 
@@ -687,34 +738,40 @@ it('shows the optional notice only with a populated financial summary', () => {
 it.each([
   ['en', 'ltr', 'column'],
   ['ar', 'rtl', 'column-reverse']
-] as const)('stacks quick actions at 200%% text in %s', (locale, direction, flexDirection) => {
-  const fontScale = jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
-  changeLocale(locale);
-  usePreferenceStore.setState({ locale, direction });
+] as const)(
+  'stacks quick actions at 200%% text in %s',
+  (locale, direction, flexDirection) => {
+    const fontScale = jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
+    changeLocale(locale);
+    usePreferenceStore.setState({ locale, direction });
 
-  renderWithProviders(<HomeScreen summary={summary} />);
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  expect(screen.getByTestId('home-quick-actions')).toHaveStyle({
-    direction: 'ltr',
-    flexDirection
-  });
-  fontScale.mockRestore();
-});
+    expect(screen.getByTestId('home-quick-actions')).toHaveStyle({
+      direction: 'ltr',
+      flexDirection
+    });
+    fontScale.mockRestore();
+  }
+);
 
 it.each([
   ['en', 'ltr', 'row'],
   ['ar', 'rtl', 'row-reverse']
-] as const)('keeps four quick actions in one row in %s', (locale, direction, flexDirection) => {
-  jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);
-  changeLocale(locale);
-  usePreferenceStore.setState({ locale, direction });
-  renderWithProviders(<HomeScreen summary={summary} />);
+] as const)(
+  'keeps four quick actions in one row in %s',
+  (locale, direction, flexDirection) => {
+    jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);
+    changeLocale(locale);
+    usePreferenceStore.setState({ locale, direction });
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  expect(screen.getByTestId('home-quick-actions')).toHaveStyle({
-    direction: 'ltr',
-    flexDirection
-  });
-});
+    expect(screen.getByTestId('home-quick-actions')).toHaveStyle({
+      direction: 'ltr',
+      flexDirection
+    });
+  }
+);
 
 describe('selected account scope', () => {
   const scopedSummary: HomeSummary = {
@@ -751,20 +808,20 @@ describe('selected account scope', () => {
     });
   });
 
-  it('scopes the hero, account card, and recent activity to the selected account', () => {
+  it('shows the selected account balance in the hero and scopes recent activity', () => {
     changeLocale('en');
     useCoreFinanceViewState.getState().selectAccount('account-wallet');
     renderWithProviders(
       <HomeScreen accounts={fixtureAccounts} summary={scopedSummary} />
     );
 
-    expect(screen.getByText('Spent this period')).toBeTruthy();
-    expect(screen.getByText('200.00 SAR')).toBeTruthy();
+    expect(screen.getByText('Balance')).toBeTruthy();
+    expect(screen.getAllByText('500.00 SAR')).toHaveLength(2);
+    expect(screen.queryByText('200.00 SAR')).toBeNull();
     expect(screen.queryByText('1,250.00 SAR')).toBeNull();
     expect(screen.getByTestId('home-account-card-title')).toHaveTextContent(
       'Wallet'
     );
-    expect(screen.getByText('500.00 SAR')).toBeTruthy();
     expect(
       screen.getByTestId('home-transaction-row-transaction-3')
     ).toBeTruthy();
@@ -795,7 +852,8 @@ describe('selected account scope', () => {
     expect(screen.getByTestId('home-account-card-title')).toHaveTextContent(
       'Wallet'
     );
-    expect(screen.getByText('200.00 SAR')).toBeTruthy();
+    expect(screen.getAllByText('500.00 SAR')).toHaveLength(2);
+    expect(screen.queryByText('200.00 SAR')).toBeNull();
     first.unmount();
 
     const bankScopedSummary: HomeSummary = {
@@ -820,8 +878,8 @@ describe('selected account scope', () => {
     expect(screen.getByTestId('home-account-card-title')).toHaveTextContent(
       'Daily account'
     );
-    expect(screen.getByText('500.00 SAR')).toBeTruthy();
-    expect(screen.getByText('8,500.00 SAR')).toBeTruthy();
+    expect(screen.getAllByText('8,500.00 SAR')).toHaveLength(2);
+    expect(screen.queryByText('500.00 SAR')).toBeNull();
     expect(screen.queryByText('200.00 SAR')).toBeNull();
 
     act(() => {

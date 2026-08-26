@@ -1,7 +1,12 @@
 import React, { type ReactNode } from 'react';
 import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { minTouchTarget, spacing } from '@/design-system/tokens';
+import {
+  elevation,
+  minTouchTarget,
+  radius,
+  spacing
+} from '@/design-system/tokens';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 
@@ -19,7 +24,7 @@ export function GroupedList({
       style={[
         styles.group,
         {
-          backgroundColor: theme.colors.surfaces.grouped,
+          backgroundColor: theme.colors.surfaces.card,
           borderColor: theme.colors.borders.subtle
         }
       ]}
@@ -121,8 +126,9 @@ export function NavigationRow({
 
 const styles = StyleSheet.create({
   group: {
-    borderRadius: 12,
-    borderWidth: 1,
+    ...elevation.raised,
+    borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden'
   },
   row: {
