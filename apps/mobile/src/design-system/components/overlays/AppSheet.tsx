@@ -32,6 +32,7 @@ export function AppSheet({
 }) {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const translateY = useRef(new Animated.Value(0)).current;
   const menu = appearance === 'menu';
   const panResponder = useMemo(
@@ -46,13 +47,17 @@ export function AppSheet({
             onDismiss();
             return;
           }
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true
-          }).start();
+          if (reducedMotion) {
+            translateY.setValue(0);
+          } else {
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true
+            }).start();
+          }
         }
       }),
-    [onDismiss, translateY]
+    [onDismiss, reducedMotion, translateY]
   );
 
   return (
@@ -193,10 +198,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    top: 6,
-    width: 32,
-    height: 32,
-    borderRadius: 16
+    top: 0,
+    width: 48,
+    height: 48,
+    borderRadius: 24
   },
   closeButtonLtr: {
     right: 0

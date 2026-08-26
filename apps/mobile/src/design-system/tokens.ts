@@ -663,16 +663,16 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 22,
-  md: 22,
-  control: 22,
-  status: 22,
-  lg: 22,
-  group: 22,
-  actionTray: 22,
-  card: 22,
-  overlay: 22,
-  bottomSheet: 28,
+  sm: 16,
+  md: 18,
+  control: 18,
+  status: 16,
+  lg: 18,
+  group: 18,
+  actionTray: 18,
+  card: 18,
+  overlay: 18,
+  bottomSheet: 18,
   pill: 999
 } as const;
 
@@ -689,10 +689,10 @@ export const elevation = {
   },
   raised: {
     shadowColor: colorTokens.teal['950'],
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3
+    shadowRadius: 12,
+    elevation: 2
   }
 } as const;
 

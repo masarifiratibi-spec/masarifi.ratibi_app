@@ -13,7 +13,7 @@
       "backgroundColor": "#1C3934"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "NSFaceIDUsageDescription": "Allow Masarifi to use Face ID to unlock your app.",
         "NSMicrophoneUsageDescription": "Allow Masarifi to record a transaction for voice entry."

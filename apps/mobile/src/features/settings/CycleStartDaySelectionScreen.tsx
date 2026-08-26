@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { SelectionScreen } from '@/design-system/components/selection/SelectionScreen';
 import type { SelectionItem, SelectionItemRenderProps } from '@/design-system/components/selection/selection-types';
 import { DesignIcon } from '@/design-system/icons';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { colorTokens, elevation, radius, spacing } from '@/design-system/tokens';
 import {
   calculateCycleDateRange,
   formatDayOrdinal,
@@ -70,6 +70,7 @@ export function CycleStartDaySelectionScreen({
     return (
       <Pressable
         key={item.id}
+        testID={`cycle-start-day-${item.id}`}
         accessibilityLabel={`${item.title}, ${item.subtitle}`}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
@@ -81,7 +82,7 @@ export function CycleStartDaySelectionScreen({
               ? theme.colors.surfaces.brandSubtle
               : pressed
                 ? theme.colors.surfaceMuted
-                : theme.colors.surface,
+                : theme.colors.surfaces.card,
             borderColor: isSelected
               ? colorTokens.teal[300]
               : theme.colors.borders.subtle,
@@ -204,18 +205,14 @@ export function CycleStartDaySelectionScreen({
 
 const styles = StyleSheet.create({
   dayCard: {
+    ...elevation.raised,
     alignItems: 'center',
     borderRadius: radius.card,
     gap: 3,
     justifyContent: 'space-between',
     minHeight: 74,
     paddingHorizontal: 4,
-    paddingVertical: spacing.sm,
-    shadowColor: colorTokens.raw["103F37"],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1
+    paddingVertical: spacing.sm
   },
   numberRow: {
     alignItems: 'center',

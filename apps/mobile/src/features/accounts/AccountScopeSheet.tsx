@@ -25,9 +25,7 @@ export function AccountScopeSheet({
   const selectedAccountId = useCoreFinanceViewState(
     (state) => state.selectedAccountId
   );
-  const selectAccount = useCoreFinanceViewState(
-    (state) => state.selectAccount
-  );
+  const selectAccount = useCoreFinanceViewState((state) => state.selectAccount);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
@@ -67,6 +65,7 @@ export function AccountScopeSheet({
         {/* 2. Search & Account List */}
         <View style={styles.pickerContainer}>
           <AccountPicker
+            appearance="grouped"
             selectedId={selectedAccountId ?? undefined}
             onSelect={(account) => choose(account.id)}
           />
@@ -221,7 +220,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 60,
+    minHeight: 56,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm
   },
@@ -258,15 +257,13 @@ const styles = StyleSheet.create({
   },
   manageCard: {
     alignItems: 'center',
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
+    backgroundColor: 'transparent',
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 56,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm
+    minHeight: 44,
+    paddingHorizontal: spacing.sm
   },
   manageIdentity: {
     alignItems: 'center',
@@ -280,11 +277,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     alignItems: 'center',
-    backgroundColor: colorTokens.sand['200'],
-    borderRadius: radius.card,
-    height: 50,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
-    marginTop: spacing.xs
+    minHeight: 44
   },
   cancelText: {
     color: colorTokens.teal['700'],

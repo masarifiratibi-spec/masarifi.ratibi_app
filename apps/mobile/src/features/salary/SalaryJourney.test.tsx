@@ -9,6 +9,7 @@ import {
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
+import { lightThemeColors } from '@/design-system/tokens';
 import { SalaryOverviewScreen } from './SalaryOverviewScreen';
 import { SalaryProfileForm } from './SalaryProfileForm';
 import { SalaryReceiptReview } from './SalaryReceiptReview';
@@ -39,6 +40,9 @@ it('renders salary overview, setup, and receipt review states', async () => {
   const { findByLabelText, findByText, unmount } = renderWithProviders(<SalaryOverviewScreen />);
   expect(await findByText('Salary cycle')).toBeTruthy();
   expect(await findByLabelText(/Remaining salary/)).toBeTruthy();
+  expect(await findByText('Received early')).toHaveStyle({
+    color: lightThemeColors.content.onFinancialHero
+  });
   // The daily insight shows the reason when suggested daily is unavailable
   // When cycle has elapsed (fixture cycle is Jan 2026, real Date.now() is later), reason is cycle_elapsed
   expect(await findByText('Current salary cycle has ended')).toBeTruthy();

@@ -2,7 +2,12 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 import { PixelRatio } from 'react-native';
 
-import { minTouchTarget } from '@/design-system/tokens';
+import {
+  elevation,
+  lightThemeColors,
+  minTouchTarget,
+  radius
+} from '@/design-system/tokens';
 import { renderWithProviders } from '@/test-utils/render';
 import { GroupedList, NavigationRow } from './GroupedList';
 
@@ -27,6 +32,12 @@ describe('GroupedList and NavigationRow', () => {
     fireEvent.press(row);
 
     expect(onPress).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('Settings group')).toHaveStyle({
+      backgroundColor: lightThemeColors.surfaces.card,
+      borderColor: lightThemeColors.borders.subtle,
+      borderRadius: radius.card,
+      shadowOpacity: elevation.raised.shadowOpacity
+    });
     expect(row).toHaveStyle({ minHeight: minTouchTarget });
     expect(row).toHaveStyle({ flexDirection: 'row-reverse' });
     expect(screen.getByLabelText('Disabled row').props.accessibilityState).toMatchObject({

@@ -18,9 +18,6 @@ export function AssistantHero() {
 
       {/* Typography matching reference */}
       <View style={styles.textSection}>
-        <StyledText variant="title" style={styles.heroTitle}>
-          {translate('assistant.hero.title')}
-        </StyledText>
         <StyledText variant="body" style={styles.heroSubtitle}>
           {translate('assistant.hero.subtitle')}
         </StyledText>
@@ -67,12 +64,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     maxWidth: 300
-  },
-  heroTitle: {
-    color: colorTokens.ink['900'],
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center'
   },
   heroSubtitle: {
     color: colorTokens.ink['700'],

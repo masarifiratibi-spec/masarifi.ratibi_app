@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { minTouchTarget } from '@/design-system/tokens';
+import { minTouchTarget, radius } from '@/design-system/tokens';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 
@@ -31,7 +31,13 @@ export function PickerField({
         accessibilityState={{ disabled }}
         disabled={disabled}
         onPress={onPress}
-        style={[styles.trigger, { borderColor: theme.colors.border }]}
+        style={[
+          styles.trigger,
+          {
+            backgroundColor: theme.colors.surfaces.card,
+            borderColor: theme.colors.borders.subtle
+          }
+        ]}
       >
         <Text
           style={{
@@ -57,8 +63,8 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   trigger: {
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: radius.control,
+    borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     minHeight: minTouchTarget,
     paddingHorizontal: 12

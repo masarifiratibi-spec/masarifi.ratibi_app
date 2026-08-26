@@ -25,3 +25,11 @@ it.each([
     expect(screen.getByText(name).props.numberOfLines).toBeUndefined();
   }
 );
+
+it('uses the vector flag without announcing an emoji', () => {
+  changeLocale('en');
+  renderWithProviders(<CurrencyRow currencyCode="JPY" />);
+
+  expect(screen.queryByText('🇯🇵')).toBeNull();
+  expect(screen.getByLabelText('Currency: JPY - Japanese Yen')).toBeTruthy();
+});

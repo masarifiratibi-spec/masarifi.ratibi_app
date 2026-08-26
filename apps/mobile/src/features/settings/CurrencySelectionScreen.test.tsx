@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
 
 import { changeLocale } from '@/localization/i18n';
+import { elevation } from '@/design-system/tokens';
 import { renderWithProviders } from '@/test-utils/render';
 import { usePreferenceStore } from '@/state/preferences';
 import { CurrencySelectionScreen } from './CurrencySelectionScreen';
@@ -31,6 +32,9 @@ describe('CurrencySelectionScreen', () => {
     expect(screen.getByText('Egyptian Pound')).toBeTruthy();
     expect(screen.getByText('US Dollar')).toBeTruthy();
     expect(screen.getByText('Euro')).toBeTruthy();
+    expect(screen.getByTestId('currency-selection-row-SAR')).toHaveStyle({
+      shadowOpacity: elevation.raised.shadowOpacity
+    });
   });
 
   it('searches currencies by code, english name, and arabic name', () => {

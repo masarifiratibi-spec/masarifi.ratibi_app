@@ -4,12 +4,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { type AppIconName, DesignIcon } from '@/design-system/icons';
-import { radius, spacing } from '@/design-system/tokens';
+import { colorTokens, elevation, radius, spacing } from '@/design-system/tokens';
 import type { AccountType } from '@/domain/core-finance';
 import { translateDynamic } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
-import { colorTokens } from '@/design-system/tokens';
 
 export interface AccountTypeOption {
   type: AccountType;
@@ -169,6 +168,7 @@ export function AccountTypeSelectionScreen({
           return (
             <Pressable
               key={option.type}
+              testID={`account-type-card-${option.type}`}
               accessibilityRole="button"
               accessibilityLabel={`${title}, ${desc}`}
               onPress={() => onSelectType(option.type)}
@@ -176,8 +176,8 @@ export function AccountTypeSelectionScreen({
                 styles.card,
                 styles.physicalLtr,
                 {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.surfaces.card,
+                  borderColor: theme.colors.borders.subtle,
                   flexDirection: isRtl ? 'row-reverse' : 'row'
                 },
                 pressed && {
@@ -320,16 +320,12 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   card: {
+    ...elevation.raised,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.md,
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: colorTokens.raw["000"],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
     minHeight: 74
   },
   cardBody: {

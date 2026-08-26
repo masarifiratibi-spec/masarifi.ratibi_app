@@ -13,6 +13,7 @@ import { StateView } from '@/design-system/components/feedback/StateView';
 import { CategoryIcon } from '@/design-system/components/financial/FinancialPrimitives';
 import { DesignIcon } from '@/design-system/icons';
 import {
+  elevation,
   minTouchTarget,
   radius,
   spacing,
@@ -283,7 +284,7 @@ function CategoryGroup({
       style={[
         styles.group,
         {
-          backgroundColor: theme.colors.surfaces.grouped,
+          backgroundColor: theme.colors.surfaces.card,
           borderColor: theme.colors.borders.subtle
         }
       ]}
@@ -305,7 +306,7 @@ function CategoryGroup({
                   ? theme.colors.surfaces.brandSubtle
                   : pressed
                     ? theme.colors.interactions.quietPressed
-                    : theme.colors.surfaces.grouped,
+                    : theme.colors.surfaces.card,
                 borderBottomColor: theme.colors.borders.subtle,
                 direction: 'ltr',
                 flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
@@ -384,6 +385,7 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   group: {
+    ...elevation.raised,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden'

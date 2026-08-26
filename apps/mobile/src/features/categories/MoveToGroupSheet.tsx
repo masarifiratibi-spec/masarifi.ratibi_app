@@ -50,8 +50,16 @@ export function MoveToGroupSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable
+        testID="move-to-group-backdrop"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.backdrop}
+        onPress={onClose}
+      />
       <View
+        testID="move-to-group-sheet"
+        accessibilityViewIsModal
         style={[
           styles.sheet,
           { backgroundColor: theme.colors.surface }

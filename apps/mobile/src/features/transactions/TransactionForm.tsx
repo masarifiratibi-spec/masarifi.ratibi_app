@@ -21,6 +21,7 @@ import {
 import { CategoryIcon } from '@/design-system/components/financial/FinancialPrimitives';
 import { DesignIcon, type DesignIconName } from '@/design-system/icons';
 import {
+  elevation,
   minTouchTarget,
   radius,
   spacing,
@@ -57,6 +58,7 @@ import { TransactionActions } from './TransactionActions';
 import { MANUAL_TRANSACTION_DRAFT_ID } from './manual-transaction-draft';
 
 const editSupportedTypes: TransactionType[] = ['expense', 'income', 'transfer'];
+const EMPTY_AMOUNT_PLACEHOLDER = '0';
 
 export function TransactionForm({
   initialType = 'expense',
@@ -140,7 +142,6 @@ export function TransactionForm({
     discard
   });
   const sourceAccountId = accountId || accounts.data?.[0]?.id;
-  const resolvedCategoryId = categoryId || categories.data?.[0]?.id || '';
   const selectedAccount = accounts.data?.find(
     (item: Account) => item.id === sourceAccountId
   );
@@ -148,7 +149,7 @@ export function TransactionForm({
     (item: Account) => item.id === destinationAccountId
   );
   const selectedCategory = categories.data?.find(
-    (item: Category) => item.id === resolvedCategoryId
+    (item: Category) => item.id === categoryId
   );
   const selectedCurrencyCode = transaction
     ? selectedAccount?.currencyCode ?? transaction.currencyCode
@@ -160,7 +161,7 @@ export function TransactionForm({
       title !== transaction.title ||
       sourceAccountId !== transaction.accountId ||
       (destinationAccountId || null) !== transaction.destinationAccountId ||
-      (type === 'transfer' ? null : resolvedCategoryId || null) !==
+      (type === 'transfer' ? null : categoryId || null) !==
         transaction.categoryId ||
       notes !== (transaction.notes ?? '') ||
       occurredAt !== transaction.occurredAt)
@@ -211,21 +212,21 @@ export function TransactionForm({
   );
 
   useEffect(() => {
-    if (!draftReady || transaction || !meaningful) return;
+    if (!draftReady || transaction || !meaningful || saving) return;
     const timeout = setTimeout(() => {
       void saveManualDraft().catch(() =>
         setError(translate('coreFinance.state.error'))
       );
     }, 250);
     return () => clearTimeout(timeout);
-  }, [draftReady, meaningful, saveManualDraft, transaction]);
+  }, [draftReady, meaningful, saveManualDraft, saving, transaction]);
   const save = async () => {
     if (saving || deleted) return;
     const resolvedAccount = accountId || accounts.data?.[0]?.id;
     const currencyCode = selectedCurrencyCode;
     const amountMinor = parseAmountToMinor(amount, currencyCode);
-    const resolvedCategory = categoryId || categories.data?.[0]?.id || null;
-    if (!amountMinor || !resolvedAccount || !title.trim()) {
+    const categoryRequired = type !== 'transfer' && !categoryId;
+    if (!amountMinor || !resolvedAccount || !title.trim() || categoryRequired) {
       setError(translate('coreFinance.validation.required'));
       return;
     }
@@ -239,7 +240,7 @@ export function TransactionForm({
         destinationAccountId:
           type === 'transfer' ? destinationAccountId || null : null,
         feeMinor: transaction?.feeMinor ?? 0,
-        categoryId: type === 'transfer' ? null : resolvedCategory,
+        categoryId: type === 'transfer' ? null : categoryId,
         title,
         merchant: transaction?.merchant ?? null,
         occurredAt,
@@ -254,7 +255,17 @@ export function TransactionForm({
             `manual-${Date.now()}`
           );
       await invalidateCoreFinanceScopes(client, mutation.affectedScopes);
-      if (!transaction) await discard();
+      if (!transaction) {
+        await discard();
+        setType(initialType);
+        setAmount('');
+        setTitle('');
+        setAccountId('');
+        setDestination('');
+        setCategoryId('');
+        setNotes('');
+        setOccurredAt(Date.now());
+      }
       if (transaction && router.canGoBack()) router.back();
       else if (transaction) router.replace('/(tabs)/transactions');
       else leaveAfterSave(() => router.replace('/(tabs)/transactions'));
@@ -335,12 +346,12 @@ export function TransactionForm({
     ? locale === 'ar'
       ? selectedCategory.labelAr
       : selectedCategory.labelEn
-    : translate('coreFinance.transaction.category');
+    : translate('coreFinance.transaction.chooseCategory');
   const openPicker = async (target: 'account' | 'destination' | 'category') => {
     if (target === 'category') {
       if (!transaction) await saveManualDraft();
       openCategorySelection({
-        selectedId: resolvedCategoryId,
+        selectedId: categoryId,
         onSelect: (nextCategoryId) => {
           if (!nextCategoryId) return;
           if (!transaction) skipNextDraftReload.current = true;
@@ -493,10 +504,11 @@ export function TransactionForm({
             >
               <TextInput
                 accessibilityLabel={translate('coreFinance.form.amount')}
-                autoFocus={!transaction}
                 keyboardType="decimal-pad"
                 editable={!transaction || !deleted}
                 onChangeText={setAmount}
+                placeholder={EMPTY_AMOUNT_PLACEHOLDER}
+                placeholderTextColor={theme.colors.content.muted}
                 selectTextOnFocus
                 style={[
                   styles.amountInput,
@@ -791,7 +803,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   editStack: {
-    gap: spacing.lg,
+    gap: spacing.md,
     padding: spacing.lg,
     paddingBottom: spacing.xxl
   },
@@ -841,6 +853,7 @@ const styles = StyleSheet.create({
     lineHeight: 58,
     maxWidth: 300,
     minWidth: 40,
+    outlineWidth: 0,
     padding: 0,
     textAlign: 'right',
     writingDirection: 'ltr'
@@ -850,30 +863,31 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     writingDirection: 'ltr'
   },
-  fieldStack: { gap: spacing.sm },
-  fieldLabel: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  fieldStack: { gap: spacing.xs },
+  fieldLabel: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
   pickerCard: {
+    ...elevation.raised,
     alignItems: 'center',
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     writingDirection: 'ltr',
-    gap: spacing.md,
-    minHeight: 76,
+    gap: spacing.sm,
+    minHeight: 60,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md
+    paddingVertical: spacing.sm
   },
   pickerIcon: {
     alignItems: 'center',
     borderRadius: radius.pill,
-    height: 48,
+    height: 40,
     justifyContent: 'center',
-    width: 48
+    width: 40
   },
   pickerText: { flex: 1, gap: spacing.xs },
-  pickerTitle: { fontSize: 18, fontWeight: '700', lineHeight: 26 },
-  pickerSubtitle: { fontSize: 14, lineHeight: 20 },
+  pickerTitle: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
+  pickerSubtitle: { fontSize: 13, lineHeight: 18 },
   noteInput: {
-    minHeight: 88,
+    minHeight: 64,
     paddingTop: spacing.md,
     textAlignVertical: 'top'
   },

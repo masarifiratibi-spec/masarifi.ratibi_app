@@ -1,6 +1,7 @@
 import React from 'react';
 import { screen } from '@testing-library/react-native';
 
+import { radius } from '@/design-system/tokens';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
@@ -22,6 +23,6 @@ it('renders active, archived, duplicate, and add-account states', () => {
   expect(screen.getByText(fixtureAccounts[0].name)).toBeTruthy();
   expect(screen.getByText(translate('coreFinance.accounts.add'))).toBeTruthy();
   const rows = screen.getAllByTestId('account-row');
-  expect(rows[0]).toHaveStyle({ borderTopLeftRadius: 22 });
+  expect(rows[0]).toHaveStyle({ borderTopLeftRadius: radius.lg });
   expect(rows[1]).toHaveStyle({ borderTopLeftRadius: 0 });
 });

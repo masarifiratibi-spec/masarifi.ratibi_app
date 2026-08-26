@@ -31,7 +31,7 @@ describe('AssistantLanding', () => {
     );
 
     // Header & Hero
-    expect(screen.getAllByText(translate('assistant.hero.title')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(translate('assistant.hero.title')).length).toBe(1);
     expect(screen.getByText(translate('assistant.hero.subtitle'))).toBeTruthy();
     expect(screen.getByTestId('assistant-hero-avatar')).toBeTruthy();
 
