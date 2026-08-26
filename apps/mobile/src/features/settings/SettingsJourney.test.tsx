@@ -97,7 +97,7 @@ test('profile preserves an empty optional email when saving fresh profile fields
 test('application settings renders controls: language, weekStart, currency, monthStart, defaultAccount, hideBalances', () => {
   renderWithProviders(<ApplicationSettingsScreen />);
 
-  expect(screen.getAllByText(t('settings.application.title')).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(t('settings.application.title'))).toHaveLength(1);
   expect(screen.getByLabelText(`${t('settings.application.language.en')} ${t('designSystem.state.selected')}`)).toBeTruthy();
   ['settings.application.language', 'settings.application.weekStart', 'settings.application.currency', 'settings.application.monthStart', 'settings.application.defaultAccount', 'settings.application.hideBalances'].forEach((key) => expect(screen.getAllByText(t(key)).length).toBeGreaterThan(0));
 
@@ -112,8 +112,19 @@ test('application settings renders controls: language, weekStart, currency, mont
   expect(router.push).toHaveBeenCalledWith('/settings/month-start');
 
   // Test dropdown open and option selection
-  fireEvent.press(screen.getByRole('button', { name: new RegExp(t('settings.application.defaultAccount')) }));
-  expect(screen.getByText(t('settings.application.defaultAccount.none'))).toBeTruthy();
+  const defaultAccountTrigger = screen.getByRole('button', {
+    name: new RegExp(t('settings.application.defaultAccount')),
+    expanded: false
+  });
+  fireEvent.press(defaultAccountTrigger);
+  expect(screen.getByRole('button', {
+    name: new RegExp(t('settings.application.defaultAccount')),
+    expanded: true
+  })).toBeTruthy();
+  expect(screen.getByRole('button', {
+    name: t('settings.application.defaultAccount.none'),
+    selected: true
+  })).toBeTruthy();
 });
 
 test('privacy settings requests export/deletion and local deletion without false completion claims', () => {

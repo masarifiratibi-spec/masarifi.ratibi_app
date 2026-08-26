@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
+import { CurrencyFlagIcon } from '@/design-system/components/currency/CurrencyFlagIcon';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import {
@@ -154,7 +155,7 @@ export function CurrencyPickerSheet({
               <Pressable
                 key={item.code}
                 accessibilityRole="button"
-                accessibilityLabel={`${item.flag} ${item.code} - ${name}`}
+                accessibilityLabel={`${item.code} - ${name}`}
                 onPress={() => {
                   onSelect(item.code);
                   onClose();
@@ -175,7 +176,7 @@ export function CurrencyPickerSheet({
                   }
                 ]}
               >
-                <Text style={styles.flag}>{item.flag}</Text>
+                <CurrencyFlagIcon code={item.code} size={32} />
                 <View
                   style={[
                     styles.nameContainer,
@@ -300,9 +301,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     minHeight: 52
-  },
-  flag: {
-    fontSize: 24
   },
   nameContainer: {
     flex: 1,

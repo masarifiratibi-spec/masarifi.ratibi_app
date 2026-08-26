@@ -2,7 +2,10 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { changeLocale } from '@/localization/i18n';
-import { financialPlanningService } from '@/services/mocks/financial-planning-service';
+import {
+  createMockFinancialPlanningService,
+  financialPlanningService
+} from '@/services/mocks/financial-planning-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
@@ -56,6 +59,12 @@ it('renders salary overview, setup, and receipt review states', async () => {
     updatedAt: 1
   });
   const profile = renderWithProviders(<SalaryProfileForm />);
+  expect(
+    await profile.findByRole('header', { name: 'Salary details' })
+  ).toBeTruthy();
+  expect(
+    profile.getByRole('header', { name: 'Receiving and detection' })
+  ).toBeTruthy();
   expect(await profile.findByDisplayValue('Draft Employer')).toBeTruthy();
   expect(await profile.findByLabelText(/Receiving account Daily account/)).toBeTruthy();
   fireEvent.changeText(profile.getByLabelText('Expected salary amount'), '15000');
@@ -115,4 +124,26 @@ it('submits a three-decimal salary using the selected base currency', async () =
     expect.any(String)
   );
   save.mockRestore();
+});
+
+it('guides an unconfigured user to set up a salary cycle', async () => {
+  changeLocale('en');
+  const emptyService = createMockFinancialPlanningService();
+  const emptyCycle = await emptyService.getSalaryOverview({
+    today: '2026-08-26',
+    timeZone: 'Asia/Riyadh'
+  });
+  const loadSalary = jest
+    .spyOn(financialPlanningService, 'getSalaryOverview')
+    .mockResolvedValue(emptyCycle);
+
+  const overview = renderWithProviders(<SalaryOverviewScreen />);
+
+  expect(
+    await overview.findByRole('header', { name: 'Plan from payday to payday' })
+  ).toBeTruthy();
+  expect(
+    overview.getByRole('button', { name: 'Salary setup' })
+  ).toBeTruthy();
+  loadSalary.mockRestore();
 });

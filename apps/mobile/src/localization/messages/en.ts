@@ -1169,10 +1169,22 @@ const en = {
     'This budget changed on another screen. Reload and try again.',
   'planning.state.saved': 'Saved',
   'planning.salary.amount': 'Expected salary amount',
+  'planning.salary.emptyTitle': 'Plan from payday to payday',
+  'planning.salary.emptySubtitle':
+    'Add your salary details to track what remains and see a practical daily spending amount.',
+  'planning.salary.setupSubtitle':
+    'Add these details once and Masarifi will calculate each salary cycle for you.',
+  'planning.salary.detailsGroup': 'Salary details',
+  'planning.salary.detailsGroupSubtitle': 'The amount and timing you usually expect.',
+  'planning.salary.receivingGroup': 'Receiving and detection',
+  'planning.salary.receivingGroupSubtitle': 'Choose where the salary arrives and how to identify it.',
   'planning.salary.day': 'Expected salary day',
+  'planning.salary.dayHelper': 'Enter a day from 1 to 31.',
   'planning.salary.source': 'Employer or salary source',
   'planning.salary.account': 'Receiving account',
   'planning.salary.automaticDetection': 'Detect salary receipts automatically',
+  'planning.salary.automaticDetectionSubtitle':
+    'Match incoming salary transactions to this cycle for review.',
   'planning.salary.expectedDate': 'Expected date',
   'planning.salary.receivedDate': 'Received date',
   'planning.salary.transaction': 'Linked transaction',

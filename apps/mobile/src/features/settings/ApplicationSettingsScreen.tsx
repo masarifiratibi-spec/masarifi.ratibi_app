@@ -64,28 +64,15 @@ export function ApplicationSettingsScreen() {
         direction={direction}
       />
 
-      {/* Hero Header */}
-      <View style={styles.heroSection}>
-        <View style={styles.iconCircle}>
-          <DesignIcon
-            name="settings"
-            label="Settings"
-            color={colorTokens.raw["1F7A5A"]}
-            size="hero"
-            decorative
-          />
-        </View>
-        <StyledText style={styles.heroTitle} variant="subtitle">
-          {t('settings.application.title')}
-        </StyledText>
-        <StyledText style={styles.heroSubtitle}>
-          {t('settings.application.subtitle')}
-        </StyledText>
-      </View>
-
       {/* Section 1: Regional Preferences (Language & Week Start) */}
       <View style={styles.sectionWrapper}>
-        <StyledText style={styles.sectionHeading} variant="caption">
+        <StyledText
+          style={[
+            styles.sectionHeading,
+            { textAlign: isRtl ? 'right' : 'left', writingDirection: direction }
+          ]}
+          variant="caption"
+        >
           {t('settings.application.regionalGroup')}
         </StyledText>
         <View
@@ -99,7 +86,13 @@ export function ApplicationSettingsScreen() {
         >
           {/* 1. Language */}
           <View style={styles.fieldGroup}>
-            <StyledText style={styles.fieldLabel} variant="body">
+            <StyledText
+              style={[
+                styles.fieldLabel,
+                { textAlign: isRtl ? 'right' : 'left', writingDirection: direction }
+              ]}
+              variant="body"
+            >
               {t('settings.application.language')}
             </StyledText>
             <ChipSelector
@@ -122,7 +115,13 @@ export function ApplicationSettingsScreen() {
 
           {/* 2. First Day of Week */}
           <View style={styles.fieldGroup}>
-            <StyledText style={styles.fieldLabel} variant="body">
+            <StyledText
+              style={[
+                styles.fieldLabel,
+                { textAlign: isRtl ? 'right' : 'left', writingDirection: direction }
+              ]}
+              variant="body"
+            >
               {t('settings.application.weekStart')}
             </StyledText>
             <ChipSelector
@@ -271,7 +270,13 @@ export function ApplicationSettingsScreen() {
 
       {/* Section 2: Account & Privacy (Default Account Dropdown & Hide Balances) */}
       <View style={styles.sectionWrapper}>
-        <StyledText style={styles.sectionHeading} variant="caption">
+        <StyledText
+          style={[
+            styles.sectionHeading,
+            { textAlign: isRtl ? 'right' : 'left', writingDirection: direction }
+          ]}
+          variant="caption"
+        >
           {t('settings.application.accountDisplayGroup')}
         </StyledText>
         <View
@@ -285,7 +290,13 @@ export function ApplicationSettingsScreen() {
         >
           {/* 3. Default Account Dropdown */}
           <View style={styles.fieldGroup}>
-            <StyledText style={styles.fieldLabel} variant="body">
+            <StyledText
+              style={[
+                styles.fieldLabel,
+                { textAlign: isRtl ? 'right' : 'left', writingDirection: direction }
+              ]}
+              variant="body"
+            >
               {t('settings.application.defaultAccount')}
             </StyledText>
 
@@ -295,6 +306,7 @@ export function ApplicationSettingsScreen() {
               accessibilityLabel={`${t('settings.application.defaultAccount')} ${
                 selectedAccount?.name ?? t('settings.application.defaultAccount.placeholder')
               }`}
+              accessibilityState={{ expanded: isDropdownOpen }}
               onPress={() => setIsDropdownOpen(!isDropdownOpen)}
               style={({ pressed }) => [
                 styles.dropdownTrigger,
@@ -321,7 +333,12 @@ export function ApplicationSettingsScreen() {
                     decorative
                   />
                 </View>
-                <View style={styles.dropdownTriggerTexts}>
+                <View
+                  style={[
+                    styles.dropdownTriggerTexts,
+                    { alignItems: isRtl ? 'flex-end' : 'flex-start' }
+                  ]}
+                >
                   <StyledText style={styles.dropdownSelectedText} variant="body">
                     {selectedAccount?.name ??
                       t('settings.application.defaultAccount.placeholder')}
@@ -357,6 +374,9 @@ export function ApplicationSettingsScreen() {
               >
                 {/* Option: None / No default account */}
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('settings.application.defaultAccount.none')}
+                  accessibilityState={{ selected: !defaultAccountId }}
                   onPress={() => {
                     update({ defaultAccountId: null });
                     setIsDropdownOpen(false);
@@ -393,6 +413,9 @@ export function ApplicationSettingsScreen() {
                   return (
                     <Pressable
                       key={acc.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${acc.name}, ${acc.currencyCode}`}
+                      accessibilityState={{ selected: isSelected }}
                       onPress={() => {
                         update({ defaultAccountId: acc.id });
                         setIsDropdownOpen(false);
@@ -406,8 +429,8 @@ export function ApplicationSettingsScreen() {
                     >
                       <View
                         style={[
-                          styles.dropdownItemLeft,
-                          { flexDirection: isRtl ? 'row-reverse' : 'row' }
+                          styles.dropdownItemTextStack,
+                          { alignItems: isRtl ? 'flex-end' : 'flex-start' }
                         ]}
                       >
                         <StyledText
@@ -419,7 +442,7 @@ export function ApplicationSettingsScreen() {
                           {acc.name}
                         </StyledText>
                         <StyledText style={styles.dropdownItemSub}>
-                          ({acc.currencyCode})
+                          {acc.currencyCode}
                         </StyledText>
                       </View>
                       {isSelected ? (
@@ -471,34 +494,9 @@ export function ApplicationSettingsScreen() {
 
 const styles = StyleSheet.create({
   stack: {
-    gap: spacing.lg,
+    gap: spacing.md,
     padding: spacing.lg,
     paddingBottom: spacing.xxl
-  },
-  heroSection: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm
-  },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colorTokens.raw["EBF5EC"],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs
-  },
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colorTokens.raw["10231F"]
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    color: colorTokens.raw["707870"],
-    textAlign: 'center',
-    paddingHorizontal: spacing.lg
   },
   sectionWrapper: {
     gap: spacing.xs
@@ -566,14 +564,14 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     marginTop: spacing.xs,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.md,
     overflow: 'hidden',
     shadowColor: colorTokens.raw["000"],
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1
   },
   dropdownItem: {
     ...layoutDirectionStyle('ltr'),
@@ -588,12 +586,13 @@ const styles = StyleSheet.create({
   dropdownItemActive: {
     backgroundColor: colorTokens.raw["F3F9F6"]
   },
-  dropdownItemLeft: {
-    alignItems: 'center',
-    gap: spacing.xs
+  dropdownItemTextStack: {
+    flex: 1,
+    gap: 2
   },
   dropdownItemText: {
     fontSize: 14,
+    fontWeight: '600',
     color: colorTokens.raw["2A332F"]
   },
   dropdownItemTextActive: {
