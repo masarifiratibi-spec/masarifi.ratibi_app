@@ -10,6 +10,7 @@ import {
 import { useTheme } from '@/state/theme-context';
 import { translateDynamic } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
+import { radius } from '@/design-system/tokens';
 
 type FormFieldVariant = 'text' | 'phone' | 'otp' | 'search' | 'amount';
 
@@ -64,9 +65,10 @@ export function FormField({
         style={[
           styles.input,
           {
+            backgroundColor: theme.colors.surfaces.card,
             borderColor: errorText
-              ? theme.colors.status.danger
-              : theme.colors.border,
+              ? theme.colors.borders.error
+              : theme.colors.borders.subtle,
             color: theme.colors.textPrimary,
             textAlign: direction === 'rtl' ? 'right' : 'left',
             writingDirection: physicalLtr ? 'ltr' : direction
@@ -98,8 +100,8 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   input: {
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: radius.control,
+    borderWidth: StyleSheet.hairlineWidth,
     minHeight: 48,
     paddingHorizontal: 12
   }

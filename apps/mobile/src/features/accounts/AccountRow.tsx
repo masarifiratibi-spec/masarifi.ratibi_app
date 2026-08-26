@@ -2,7 +2,12 @@ import React from 'react';
 import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { DesignIcon } from '@/design-system/icons';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import {
+  colorTokens,
+  elevation,
+  radius,
+  spacing
+} from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { financialFontFamily } from '@/design-system/typography';
@@ -52,7 +57,9 @@ export function AccountRow({
           ).slice(0, -(account.currencyCode.length + 1));
 
   // Account type localization
-  const typeLabel = translate(`coreFinance.accountType.${account.type}` as never);
+  const typeLabel = translate(
+    `coreFinance.accountType.${account.type}` as never
+  );
   const metaSubtitle = account.lastFour
     ? `${typeLabel}, ${account.currencyCode} ${account.lastFour}`
     : `${typeLabel}, ${account.currencyCode}`;
@@ -72,15 +79,24 @@ export function AccountRow({
         {
           backgroundColor: selected
             ? colorTokens.teal['50']
-            : colorTokens.sand['50'],
+            : groupedPosition
+              ? colorTokens.surface.white
+              : colorTokens.sand['50'],
           borderColor: selected
             ? colorTokens.teal['700']
-            : colorTokens.sand['400'],
-          borderWidth: selected ? 1.5 : 1,
+            : groupedPosition
+              ? colorTokens.border.light
+              : colorTokens.sand['400'],
+          borderWidth: groupedPosition
+            ? StyleSheet.hairlineWidth
+            : selected
+              ? 1.5
+              : 1,
           flexDirection: largeText ? 'column' : 'row',
           opacity: disabled ? 0.56 : 1,
           direction
         },
+        !groupedPosition && elevation.raised,
         groupedPosition && styles.grouped,
         groupedPosition === 'first' && styles.groupedFirst,
         groupedPosition === 'middle' && styles.groupedMiddle,
@@ -95,10 +111,7 @@ export function AccountRow({
       {/* START: Account Icon & Identity */}
       <View style={[styles.identityGroup, { flexDirection: 'row' }]}>
         {/* Icon badge */}
-        <View
-          testID="account-row-icon-accounts"
-          style={styles.iconBadge}
-        >
+        <View testID="account-row-icon-accounts" style={styles.iconBadge}>
           <DesignIcon
             name="accounts"
             size="sm"

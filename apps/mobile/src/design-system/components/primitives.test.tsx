@@ -2,7 +2,13 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
-import { colorTokens, minTouchTarget } from '@/design-system/tokens';
+import {
+  colorTokens,
+  elevation,
+  lightThemeColors,
+  minTouchTarget,
+  radius
+} from '@/design-system/tokens';
 import { ActionButton } from './ActionButton';
 import { IconButton } from './IconButton';
 import { SurfaceCard } from './SurfaceCard';
@@ -49,12 +55,17 @@ describe('design-system primitives', () => {
     });
   });
 
-  it('uses border-first surfaces', () => {
+  it('uses the shared elevated card treatment', () => {
     const screen = renderWithProviders(
       <SurfaceCard testID="surface-card">Content</SurfaceCard>
     );
 
-    expect(screen.getByTestId('surface-card')).toHaveStyle({ borderWidth: 1 });
+    expect(screen.getByTestId('surface-card')).toHaveStyle({
+      backgroundColor: lightThemeColors.surfaces.card,
+      borderColor: lightThemeColors.borders.subtle,
+      borderRadius: radius.card,
+      shadowOpacity: elevation.raised.shadowOpacity
+    });
   });
 
   it('renders status badges with non-color text cues', () => {

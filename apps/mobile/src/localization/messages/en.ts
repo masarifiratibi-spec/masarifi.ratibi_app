@@ -592,6 +592,7 @@ const en = {
   'coreFinance.transaction.date': 'Date',
   'coreFinance.transaction.account': 'Account',
   'coreFinance.transaction.category': 'Category',
+  'coreFinance.transaction.chooseCategory': 'Choose category',
   'coreFinance.transaction.source': 'Source',
   'coreFinance.transaction.status': 'Sync status',
   'coreFinance.transaction.edit': 'Edit transaction',

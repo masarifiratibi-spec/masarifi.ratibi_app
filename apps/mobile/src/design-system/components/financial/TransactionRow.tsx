@@ -63,11 +63,7 @@ export function TransactionRow({
     (!masked &&
       (amountMinor === undefined
         ? financialAmountNeedsFullWidth(amount ?? 0, currency, locale)
-        : financialMinorAmountNeedsFullWidth(
-            amountMinor,
-            currency,
-            locale
-          )));
+        : financialMinorAmountNeedsFullWidth(amountMinor, currency, locale)));
   const meaningLabel = translate(`coreFinance.meaning.${meaning}` as never);
   const announcement = `${title}, ${category}, ${date}, ${account}, ${source}, ${statusLabel ?? meaningLabel}`;
 
@@ -79,6 +75,7 @@ export function TransactionRow({
       onPress={onPress}
       style={[
         styles.row,
+        largeText && styles.largeTextRow,
         styles.physicalLtr,
         {
           alignItems: stacked ? 'stretch' : 'center',
@@ -101,7 +98,7 @@ export function TransactionRow({
       <CategoryIcon
         label={category}
         icon={categoryIcon ?? categoryIconName(categoryVisualKey ?? null)}
-        size="md"
+        size={largeText ? 48 : 41}
         visualKey={categoryVisualKey}
         color={categoryColor}
       />
@@ -214,17 +211,26 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
-  semanticRtl: { ...layoutDirectionStyle('rtl'), display: 'flex', writingDirection: 'rtl' },
+  physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
+    display: 'flex',
+    writingDirection: 'ltr'
+  },
+  semanticRtl: {
+    ...layoutDirectionStyle('rtl'),
+    display: 'flex',
+    writingDirection: 'rtl'
+  },
   row: {
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 88,
+    minHeight: 75,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md
+    paddingVertical: spacing.sm
   },
+  largeTextRow: { minHeight: 88, paddingVertical: spacing.md },
   groupedFirst: {
     borderBottomWidth: 0,
     borderBottomLeftRadius: 0,

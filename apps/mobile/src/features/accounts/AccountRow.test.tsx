@@ -5,6 +5,7 @@ import { fireEvent, screen } from '@testing-library/react-native';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
+import { elevation } from '@/design-system/tokens';
 import { AccountRow } from './AccountRow';
 import { projectAccount } from './account-presentation';
 
@@ -33,6 +34,9 @@ it('renders account identity, status, and a single selectable row action', () =>
       includeHiddenElements: true
     })
   ).toBeTruthy();
+  expect(screen.getByTestId('account-row')).toHaveStyle({
+    shadowOpacity: elevation.raised.shadowOpacity
+  });
 });
 
 it('announces hidden account balance state without exposing the value', () => {

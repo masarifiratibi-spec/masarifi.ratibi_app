@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, screen, within } from '@testing-library/react-native';
 
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
+import { elevation, lightThemeColors } from '@/design-system/tokens';
 import { changeLocale } from '@/localization/i18n';
 import { fixtureCategories } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
@@ -50,6 +51,10 @@ it('groups real favorites above other categories and marks the current choice', 
   ).toBeTruthy();
   expect(screen.queryByText('System category')).toBeNull();
   expect(screen.queryByText('Favorite')).toBeNull();
+  expect(screen.getByTestId('category-selection-most-used')).toHaveStyle({
+    backgroundColor: lightThemeColors.surfaces.card,
+    shadowOpacity: elevation.raised.shadowOpacity
+  });
 });
 
 it('searches existing categories, honors exclusions, and returns the chosen id', () => {

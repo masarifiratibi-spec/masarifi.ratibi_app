@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
+import { lightThemeColors, radius } from '@/design-system/tokens';
 import { changeLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
@@ -117,6 +118,30 @@ it('renders the 7 date range options in English LTR with instruction text', () =
   expect(screen.getByText('Last Week')).toBeTruthy();
   expect(screen.getByText('This Month')).toBeTruthy();
   expect(screen.getByText('Last Month')).toBeTruthy();
+});
+
+it('features custom range and groups presets without repeated calendar icons', () => {
+  renderWithProviders(
+    <DateRangeSheet
+      visible
+      period={todayPeriod(Date.UTC(2026, 7, 22, 12), riyadh)}
+      onApply={jest.fn()}
+      onDismiss={jest.fn()}
+    />
+  );
+
+  expect(screen.getByTestId('date-period-presets')).toHaveStyle({
+    backgroundColor: lightThemeColors.surfaces.card,
+    borderRadius: radius.card
+  });
+  expect(screen.getByTestId('date-period-option-custom')).toHaveStyle({
+    minHeight: 64
+  });
+  expect(screen.getByTestId('date-period-option-today')).toHaveStyle({
+    minHeight: 56
+  });
+  expect(screen.getByTestId('date-period-icon-custom')).toBeTruthy();
+  expect(screen.queryByTestId('date-period-icon-today')).toBeNull();
 });
 
 it('applies preset date periods immediately upon clicking', () => {

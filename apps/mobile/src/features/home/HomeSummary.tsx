@@ -49,22 +49,28 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
   const voiceStartPending = useRef(false);
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const scoped = Boolean(selectedAccount);
-  const heroLabelKey = scoped ? 'coreFinance.home.spent' : 'coreFinance.home.total';
+  const accountComponent = selectedAccount
+    ? summary.components.find(
+        (component) => component.accountId === selectedAccount.id
+      )
+    : undefined;
+  const heroLabelKey = scoped ? 'coreFinance.home.balance' : 'coreFinance.home.total';
   const heroValueMinor = scoped
-    ? summary.periodExpenseMinor
+    ? accountComponent?.convertedMinor
     : summary.totalBalanceMinor;
   const total = formatFinancialDisplayValue({
     minorUnits: heroValueMinor,
     currencyCode: summary.currencyCode,
     locale,
     sign: 'none',
-    state: hidden ? 'hidden' : summary.isEstimated ? 'estimated' : 'confirmed'
+    state: hidden
+      ? 'hidden'
+      : heroValueMinor === undefined
+        ? 'unknown'
+        : summary.isEstimated
+          ? 'estimated'
+          : 'confirmed'
   });
-  const accountComponent = selectedAccount
-    ? summary.components.find(
-        (component) => component.accountId === selectedAccount.id
-      )
-    : undefined;
   const accountBalance = accountComponent
     ? formatFinancialDisplayValue({
         minorUnits: accountComponent.convertedMinor,

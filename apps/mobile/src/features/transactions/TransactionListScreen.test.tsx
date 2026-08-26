@@ -1,6 +1,12 @@
 import React from 'react';
 import { FlatList, PixelRatio } from 'react-native';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import {
@@ -337,18 +343,24 @@ it('applies compact quick sort and type choices immediately', () => {
   );
   const menu = screen.getByTestId('transaction-quick-filter-menu');
   expect(screen.queryByTestId('app-sheet-menu')).toBeNull();
-  expect(within(menu).queryByText(translate('coreFinance.filters.period'))).toBeNull();
-  expect(within(menu).queryByText(translate('coreFinance.filters.accounts'))).toBeNull();
-  expect(within(menu).queryByText(translate('coreFinance.filters.sources'))).toBeNull();
-  expect(within(menu).queryByText(translate('coreFinance.filters.apply'))).toBeNull();
+  expect(
+    within(menu).queryByText(translate('coreFinance.filters.period'))
+  ).toBeNull();
+  expect(
+    within(menu).queryByText(translate('coreFinance.filters.accounts'))
+  ).toBeNull();
+  expect(
+    within(menu).queryByText(translate('coreFinance.filters.sources'))
+  ).toBeNull();
+  expect(
+    within(menu).queryByText(translate('coreFinance.filters.apply'))
+  ).toBeNull();
 
   fireEvent.press(
     within(menu).getByText(translate('coreFinance.filters.type.expenses'))
   );
   expect(
-    within(menu).getByLabelText(
-      translate('coreFinance.filters.type.expenses')
-    )
+    within(menu).getByLabelText(translate('coreFinance.filters.type.expenses'))
   ).toHaveAccessibilityState({ selected: true });
   expect(useCoreFinanceViewState.getState().filters).toMatchObject({
     periodStart: Date.UTC(2026, 7, 1),
@@ -552,6 +564,26 @@ it('shows category and type descriptors after removing the quick-scope rail', ()
     screen.getByRole('button', {
       name: `${translate('designSystem.action.remove')} ${translate('coreFinance.filters.types')}: 1`
     })
+  ).toBeTruthy();
+});
+
+it('shows account scope beside the period when one active account exists', () => {
+  renderWithQueryData(<TransactionListScreen />, [
+    [
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      { pages: [{ items: [], nextCursor: null, total: 0 }], pageParams: [null] }
+    ],
+    [coreFinanceKeys.accounts(true), [fixtureAccounts[0]]],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    summarySeed
+  ]);
+
+  const filterBar = screen.getByTestId('transaction-filter-bar');
+  expect(
+    within(filterBar).getByTestId('transaction-account-scope')
+  ).toBeTruthy();
+  expect(
+    within(filterBar).getByTestId('transaction-period-control')
   ).toBeTruthy();
 });
 
@@ -1035,7 +1067,9 @@ describe('selected account scope', () => {
       [
         coreFinanceKeys.transactionPages(dateFilters),
         {
-          pages: [{ items: [walletTransactions[0]], nextCursor: null, total: 1 }],
+          pages: [
+            { items: [walletTransactions[0]], nextCursor: null, total: 1 }
+          ],
           pageParams: [null]
         }
       ],
@@ -1079,7 +1113,10 @@ describe('selected account scope', () => {
     renderWithQueryData(<TransactionListScreen />, [
       [
         coreFinanceKeys.transactionPages(scopedFilters),
-        { pages: [{ items: [], nextCursor: null, total: 0 }], pageParams: [null] }
+        {
+          pages: [{ items: [], nextCursor: null, total: 0 }],
+          pageParams: [null]
+        }
       ],
       [coreFinanceKeys.accounts(true), fixtureAccounts],
       [coreFinanceKeys.categories(true), fixtureCategories],
@@ -1098,7 +1135,11 @@ describe('selected account scope', () => {
         coreFinanceKeys.transactionPages(emptyTransactionFilters),
         {
           pages: [
-            { items: fixtureTransactions.slice(0, 2), nextCursor: null, total: 2 }
+            {
+              items: fixtureTransactions.slice(0, 2),
+              nextCursor: null,
+              total: 2
+            }
           ],
           pageParams: [null]
         }
@@ -1114,42 +1155,33 @@ describe('selected account scope', () => {
     expect(screen.getAllByTestId('transaction-row')).toHaveLength(2);
   });
 
-  it('hides the account scope control with a single active account', () => {
-    const singleAccount = [fixtureAccounts[0]];
-    renderWithQueryData(<TransactionListScreen />, [
-      [
-        coreFinanceKeys.transactionPages(emptyTransactionFilters),
-        {
-          pages: [{ items: fixtureTransactions.slice(0, 1), nextCursor: null, total: 1 }],
-          pageParams: [null]
-        }
-      ],
-      [coreFinanceKeys.accounts(true), singleAccount],
-      [coreFinanceKeys.categories(true), fixtureCategories],
-      summarySeed
-    ]);
-
-    expect(screen.queryByTestId('transaction-account-scope')).toBeNull();
-  });
-
   it.each([
     ['ar', 'row-reverse'],
     ['en', 'row']
-  ] as const)('mirrors the account scope control in %s', (locale, flexDirection) => {
-    changeLocale(locale);
-    usePreferenceStore.setState({ locale, direction: locale === 'ar' ? 'rtl' : 'ltr' });
-    renderWithQueryData(<TransactionListScreen />, [
-      [
-        coreFinanceKeys.transactionPages(emptyTransactionFilters),
-        { pages: [{ items: [], nextCursor: null, total: 0 }], pageParams: [null] }
-      ],
-      [coreFinanceKeys.accounts(true), fixtureAccounts],
-      [coreFinanceKeys.categories(true), fixtureCategories],
-      summarySeed
-    ]);
+  ] as const)(
+    'mirrors the account scope control in %s',
+    (locale, flexDirection) => {
+      changeLocale(locale);
+      usePreferenceStore.setState({
+        locale,
+        direction: locale === 'ar' ? 'rtl' : 'ltr'
+      });
+      renderWithQueryData(<TransactionListScreen />, [
+        [
+          coreFinanceKeys.transactionPages(emptyTransactionFilters),
+          {
+            pages: [{ items: [], nextCursor: null, total: 0 }],
+            pageParams: [null]
+          }
+        ],
+        [coreFinanceKeys.accounts(true), fixtureAccounts],
+        [coreFinanceKeys.categories(true), fixtureCategories],
+        summarySeed
+      ]);
 
-    expect(screen.getByTestId('transaction-account-scope')).toHaveStyle({
-      flexDirection
-    });
-  });
+      expect(screen.getByTestId('transaction-account-scope')).toHaveStyle({
+        flexDirection
+      });
+    }
+  );
 });

@@ -408,8 +408,8 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                 }
               ]}
             >
-              {/* 1. Account Scope Card (when 2+ active accounts) */}
-              {activeAccountIds.length >= 2 ? (
+              {/* 1. Account Scope Card */}
+              {activeAccountIds.length >= 1 ? (
                 <Pressable
                   testID="transaction-account-scope"
                   accessibilityLabel={`${translate('coreFinance.home.accountScope.title')}: ${
@@ -423,7 +423,8 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                     styles.filterBarCard,
                     styles.physicalLtr,
                     {
-                      flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+                      flexDirection:
+                        direction === 'rtl' ? 'row-reverse' : 'row',
                       height: largeText ? 'auto' : 52,
                       minHeight: 52,
                       paddingVertical: largeText ? spacing.sm : 0
@@ -476,14 +477,14 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                 style={({ pressed }) => [
                   styles.filterBarCard,
                   styles.physicalLtr,
-                    {
-                      alignSelf: 'center',
-                      flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
-                      height: largeText ? 'auto' : 52,
-                      minHeight: 52,
-                      paddingVertical: largeText ? spacing.sm : 0,
-                      width: largeText ? '100%' : undefined
-                    },
+                  {
+                    alignSelf: 'center',
+                    flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+                    height: largeText ? 'auto' : 52,
+                    minHeight: 52,
+                    paddingVertical: largeText ? spacing.sm : 0,
+                    width: largeText ? '100%' : undefined
+                  },
                   pressed && styles.filterCardPressed
                 ]}
               >
@@ -1164,7 +1165,11 @@ function QuickFilterOption({
 }
 
 const styles = StyleSheet.create({
-  physicalLtr: { ...layoutDirectionStyle('ltr'), display: 'flex', writingDirection: 'ltr' },
+  physicalLtr: {
+    ...layoutDirectionStyle('ltr'),
+    display: 'flex',
+    writingDirection: 'ltr'
+  },
   content: { padding: spacing.lg, paddingBottom: spacing.lg },
   header: { marginBottom: spacing.md },
   pageHeader: { gap: spacing.md },

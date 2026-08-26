@@ -3,6 +3,7 @@ import { fireEvent, screen } from '@testing-library/react-native';
 import { PixelRatio } from 'react-native';
 
 import { changeLocale } from '@/localization/i18n';
+import { elevation } from '@/design-system/tokens';
 import { renderWithProviders } from '@/test-utils/render';
 import { usePreferenceStore } from '@/state/preferences';
 import { CycleStartDaySelectionScreen } from './CycleStartDaySelectionScreen';
@@ -35,6 +36,9 @@ describe('CycleStartDaySelectionScreen', () => {
     expect(screen.getByText('15th')).toBeTruthy();
     expect(screen.getByText('28th')).toBeTruthy();
     expect(screen.queryByText('29th')).toBeNull();
+    expect(screen.getByTestId('cycle-start-day-1')).toHaveStyle({
+      shadowOpacity: elevation.raised.shadowOpacity
+    });
   });
 
   it('updates global monthStartDay preference when used in settings mode', () => {

@@ -38,6 +38,37 @@ it('offers All Accounts plus active accounts and hides archived ones', () => {
   expect(screen.queryByText('Archived credit card')).toBeNull();
 });
 
+it('uses a grouped account list without search and with quiet footer actions', () => {
+  renderWithQueryData(
+    <AccountScopeSheet visible onDismiss={jest.fn()} />,
+    seed
+  );
+
+  expect(screen.queryByTestId('account-search-field')).toBeNull();
+  expect(screen.queryByTestId('account-search-input')).toBeNull();
+  expect(screen.getByTestId('account-scope-all')).toHaveStyle({
+    minHeight: 56
+  });
+  const rows = screen.getAllByTestId('account-row');
+  expect(rows[0]).toHaveStyle({
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0
+  });
+  expect(rows.at(-1)).toHaveStyle({
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0
+  });
+  expect(screen.getByTestId('account-scope-manage-accounts')).toHaveStyle({
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    minHeight: 44
+  });
+  expect(screen.getByTestId('account-scope-cancel-button')).toHaveStyle({
+    backgroundColor: 'transparent',
+    minHeight: 44
+  });
+});
+
 it('picks a specific account into the shared store and dismisses', () => {
   const onDismiss = jest.fn();
   renderWithQueryData(

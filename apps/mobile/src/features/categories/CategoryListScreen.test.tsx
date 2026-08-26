@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
 
+import { radius } from '@/design-system/tokens';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
 import { fixtureCategories } from '@/test-utils/core-finance-fixtures';
@@ -30,14 +31,15 @@ it('renders system hierarchy, favorites, search, and add action', () => {
   const rows = screen.getAllByTestId('category-row');
   expect(rows.length).toBeGreaterThan(0);
 
-  // Unified design tokens: standalone cards have borderRadius 22
-  expect(rows[0]).toHaveStyle({ borderRadius: 22 });
+  expect(rows[0]).toHaveStyle({ borderRadius: radius.card });
 });
 
 it('makes the category form a modal region', () => {
   renderWithQueryData(<CategoryListScreen />, categoryListQuerySeeds);
 
-  fireEvent.press(screen.getByLabelText(translate('coreFinance.categories.add')));
+  fireEvent.press(
+    screen.getByLabelText(translate('coreFinance.categories.add'))
+  );
   expect(screen.getByTestId('category-form-modal-content')).toHaveProp(
     'accessibilityViewIsModal',
     true
