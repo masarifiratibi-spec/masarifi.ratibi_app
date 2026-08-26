@@ -7,7 +7,7 @@ import { BackendUnavailableState } from '@/features/shell/BackendUnavailableStat
 import { translate } from '@/localization/i18n';
 
 export default function AssistantLayout() {
-  if (!isFixtureModeEnabled())
+  if (!__DEV__ && !isFixtureModeEnabled())
     return <BackendUnavailableState title={translate('assistant.backendUnavailable')} />;
   return (
     <ProtectedRouteGate>
