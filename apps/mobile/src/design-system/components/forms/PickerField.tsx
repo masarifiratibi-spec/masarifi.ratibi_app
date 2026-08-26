@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { minTouchTarget } from '@/design-system/tokens';
+import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 
 export function PickerField({
@@ -18,6 +19,7 @@ export function PickerField({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const direction = usePreferenceStore((state) => state.direction);
   const display = value ?? placeholder ?? '';
 
   return (
@@ -31,7 +33,15 @@ export function PickerField({
         onPress={onPress}
         style={[styles.trigger, { borderColor: theme.colors.border }]}
       >
-        <Text style={{ color: value ? theme.colors.textPrimary : theme.colors.textSecondary }}>
+        <Text
+          style={{
+            color: value
+              ? theme.colors.textPrimary
+              : theme.colors.textSecondary,
+            textAlign: direction === 'rtl' ? 'right' : 'left',
+            writingDirection: direction
+          }}
+        >
           {display}
         </Text>
       </Pressable>

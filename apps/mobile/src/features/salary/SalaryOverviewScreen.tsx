@@ -2,12 +2,14 @@ import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { ActionButton } from '@/design-system/components/ActionButton';
 import { FinancialPulse } from '@/design-system/components/financial/FinancialPulse';
 import {
   StatusBadge,
   type StatusBadgeStatus
 } from '@/design-system/components/StatusBadge';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { DesignIcon } from '@/design-system/icons';
 import { radius, spacing, typography } from '@/design-system/tokens';
 import type { Calculation } from '@/domain/financial-planning';
 import type { MoneyValue } from '@/domain/core-finance';
@@ -115,17 +117,21 @@ export function SalaryOverviewScreen() {
   return (
     <PlanningScreen
       titleKey="planning.salary.title"
-      action={{
-        labelKey: 'planning.salary.setup',
-        onPress: () => router.push('/salary/profile')
-      }}
+      action={
+        data?.dataState === 'empty'
+          ? undefined
+          : {
+              labelKey: 'planning.salary.setup',
+              onPress: () => router.push('/salary/profile')
+            }
+      }
     >
       {query.isLoading ? (
         <PlanningState state="loading" />
       ) : query.isError || !data ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : data.dataState === 'empty' ? (
-        <PlanningState state="empty" />
+        <SalaryEmptyState direction={direction} theme={theme} />
       ) : (
         <>
           {/* ── Hero: Remaining Salary ── */}
@@ -256,6 +262,66 @@ export function SalaryOverviewScreen() {
         </>
       )}
     </PlanningScreen>
+  );
+}
+
+function SalaryEmptyState({
+  direction,
+  theme
+}: {
+  direction: 'rtl' | 'ltr';
+  theme: ReturnType<typeof useTheme>;
+}) {
+  const textAlign = direction === 'rtl' ? 'right' : 'left';
+
+  return (
+    <SurfaceCard
+      style={[
+        styles.emptyCard,
+        {
+          backgroundColor: theme.colors.surfaces.brandSubtle,
+          borderColor: theme.colors.borders.subtle
+        }
+      ]}
+    >
+      <View
+        style={[
+          styles.emptyIcon,
+          { backgroundColor: theme.colors.surface }
+        ]}
+      >
+        <DesignIcon
+          name="salary"
+          label={translate('planning.salary.emptyTitle')}
+          color={theme.colors.interactions.primary}
+          size="hero"
+          decorative
+        />
+      </View>
+      <View style={styles.emptyCopy}>
+        <Text
+          accessibilityRole="header"
+          style={[
+            styles.emptyTitle,
+            { color: theme.colors.content.primary, textAlign }
+          ]}
+        >
+          {translate('planning.salary.emptyTitle')}
+        </Text>
+        <Text
+          style={[
+            styles.emptySubtitle,
+            { color: theme.colors.content.secondary, textAlign }
+          ]}
+        >
+          {translate('planning.salary.emptySubtitle')}
+        </Text>
+      </View>
+      <ActionButton
+        label={translate('planning.salary.setup')}
+        onPress={() => router.push('/salary/profile')}
+      />
+    </SurfaceCard>
   );
 }
 
@@ -461,6 +527,29 @@ function DailyInsight({
 /* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
+  emptyCard: {
+    borderRadius: radius.card,
+    gap: spacing.lg,
+    padding: spacing.lg
+  },
+  emptyIcon: {
+    alignItems: 'center',
+    borderRadius: radius.card,
+    height: 56,
+    justifyContent: 'center',
+    width: 56
+  },
+  emptyCopy: {
+    gap: spacing.xs
+  },
+  emptyTitle: {
+    ...typography.subtitle,
+    fontSize: 20
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    lineHeight: 22
+  },
   heroBadgeRow: {
     alignSelf: 'flex-start',
     marginTop: spacing.xs
