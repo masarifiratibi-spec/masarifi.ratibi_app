@@ -1147,10 +1147,22 @@ const ar: MessageCatalog = {
   'planning.budget.error.stale':
     'تم تعديل هذه الميزانية في شاشة أخرى. أعد التحميل وحاول مجددًا.',
   'planning.salary.amount': 'مبلغ الراتب المتوقع',
+  'planning.salary.emptyTitle': 'خطط من راتب إلى راتب',
+  'planning.salary.emptySubtitle':
+    'أضف تفاصيل راتبك لمعرفة المتبقي ومقدار الصرف اليومي المناسب.',
+  'planning.salary.setupSubtitle':
+    'أدخل هذه التفاصيل مرة واحدة، وسيتولى مصاريفي حساب كل دورة راتب.',
+  'planning.salary.detailsGroup': 'تفاصيل الراتب',
+  'planning.salary.detailsGroupSubtitle': 'المبلغ والموعد اللذان تتوقعهما عادةً.',
+  'planning.salary.receivingGroup': 'الاستلام والاكتشاف',
+  'planning.salary.receivingGroupSubtitle': 'اختر حساب الاستلام وطريقة التعرّف على الراتب.',
   'planning.salary.day': 'يوم الراتب المتوقع',
+  'planning.salary.dayHelper': 'أدخل يومًا من 1 إلى 31.',
   'planning.salary.source': 'جهة العمل أو مصدر الراتب',
   'planning.salary.account': 'حساب الاستلام',
   'planning.salary.automaticDetection': 'اكتشاف استلام الراتب تلقائيًا',
+  'planning.salary.automaticDetectionSubtitle':
+    'يطابق معاملات الراتب الواردة مع هذه الدورة لمراجعتها.',
   'planning.salary.expectedDate': 'التاريخ المتوقع',
   'planning.salary.receivedDate': 'تاريخ الاستلام',
   'planning.salary.transaction': 'المعاملة المرتبطة',

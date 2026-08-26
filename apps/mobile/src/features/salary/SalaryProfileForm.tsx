@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -6,6 +7,8 @@ import { FormField } from '@/design-system/components/forms/FormField';
 import { PickerField } from '@/design-system/components/forms/PickerField';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { radius, spacing } from '@/design-system/tokens';
 import { parseAmountToMinor, type Account } from '@/domain/core-finance';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
@@ -14,10 +17,13 @@ import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningD
 import { translate } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
+import { useTheme } from '@/state/theme-context';
 import { usePlanningMutation } from './salary-queries';
 
 export function SalaryProfileForm() {
   const accounts = useAccounts();
+  const theme = useTheme();
+  const direction = usePreferenceStore((state) => state.direction);
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const [amount, setAmount] = useState('');
   const [salaryDay, setSalaryDay] = useState('1');
@@ -70,15 +76,78 @@ export function SalaryProfileForm() {
     <PlanningScreen titleKey="planning.salary.setup">
       {accounts.isLoading || !draftReady ? <PlanningState state="loading" /> : accounts.isError ? <PlanningState state="error" onRetry={() => void accounts.refetch()} /> : (
         <>
-          <FormField label={translate('planning.salary.amount')} onChangeText={setAmount} value={amount} variant="amount" errorText={error} />
-          <FormField label={translate('planning.salary.day')} onChangeText={setSalaryDay} value={salaryDay} variant="amount" />
-          <FormField label={translate('planning.salary.source')} onChangeText={setSourceName} value={sourceName} />
-          <PickerField
-            label={translate('planning.salary.account')}
-            value={accounts.data?.find((account: Account) => account.id === (accountId || accounts.data?.[0]?.id))?.name}
-            placeholder={translate('reports.state.unavailable')}
-            onPress={() => setAccountPickerOpen(true)}
-          />
+          <StyledText
+            style={{
+              color: theme.colors.content.secondary,
+              textAlign: direction === 'rtl' ? 'right' : 'left'
+            }}
+          >
+            {translate('planning.salary.setupSubtitle')}
+          </StyledText>
+
+          <SurfaceCard style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <StyledText accessibilityRole="header" variant="subtitle">
+                {translate('planning.salary.detailsGroup')}
+              </StyledText>
+              <StyledText
+                style={{ color: theme.colors.content.secondary }}
+                variant="caption"
+              >
+                {translate('planning.salary.detailsGroupSubtitle')}
+              </StyledText>
+            </View>
+            <View style={styles.fields}>
+              <FormField
+                label={translate('planning.salary.amount')}
+                helperText={currencyCode}
+                onChangeText={setAmount}
+                value={amount}
+                variant="amount"
+              />
+              <FormField
+                label={translate('planning.salary.day')}
+                helperText={translate('planning.salary.dayHelper')}
+                onChangeText={setSalaryDay}
+                value={salaryDay}
+                variant="amount"
+              />
+              <FormField
+                label={translate('planning.salary.source')}
+                onChangeText={setSourceName}
+                value={sourceName}
+              />
+            </View>
+          </SurfaceCard>
+
+          <SurfaceCard style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <StyledText accessibilityRole="header" variant="subtitle">
+                {translate('planning.salary.receivingGroup')}
+              </StyledText>
+              <StyledText
+                style={{ color: theme.colors.content.secondary }}
+                variant="caption"
+              >
+                {translate('planning.salary.receivingGroupSubtitle')}
+              </StyledText>
+            </View>
+            <View style={styles.fields}>
+              <PickerField
+                label={translate('planning.salary.account')}
+                value={accounts.data?.find((account: Account) => account.id === (accountId || accounts.data?.[0]?.id))?.name}
+                placeholder={translate('reports.state.unavailable')}
+                onPress={() => setAccountPickerOpen(true)}
+              />
+              <SwitchRow
+                label="planning.salary.automaticDetection"
+                subtext="planning.salary.automaticDetectionSubtitle"
+                value={automaticDetectionEnabled}
+                onValueChange={setAutomaticDetectionEnabled}
+              />
+            </View>
+          </SurfaceCard>
+
           <AppSheet
             title={translate('planning.salary.account')}
             visible={accountPickerOpen}
@@ -92,11 +161,43 @@ export function SalaryProfileForm() {
               }}
             />
           </AppSheet>
-          <SwitchRow label={translate('planning.salary.automaticDetection')} value={automaticDetectionEnabled} onValueChange={setAutomaticDetectionEnabled} />
-          <ActionButton label={translate('planning.action.save')} loading={save.isPending} onPress={submit} />
-          {saved ? <StyledText accessibilityRole="alert">{translate('planning.state.saved')}</StyledText> : null}
+          {error ? (
+            <StyledText
+              accessibilityRole="alert"
+              style={{ color: theme.colors.status.danger }}
+            >
+              {error}
+            </StyledText>
+          ) : null}
+          <ActionButton
+            label={translate('planning.action.save')}
+            loading={save.isPending}
+            onPress={submit}
+          />
+          {saved ? (
+            <StyledText
+              accessibilityRole="alert"
+              style={{ color: theme.colors.status.success }}
+            >
+              {translate('planning.state.saved')}
+            </StyledText>
+          ) : null}
         </>
       )}
     </PlanningScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionCard: {
+    borderRadius: radius.card,
+    gap: spacing.lg,
+    padding: spacing.lg
+  },
+  sectionHeader: {
+    gap: spacing.xs
+  },
+  fields: {
+    gap: spacing.md
+  }
+});

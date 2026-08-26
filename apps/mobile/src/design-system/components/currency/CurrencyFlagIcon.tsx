@@ -83,6 +83,14 @@ export function CurrencyFlagIcon({ code, size = 36 }: CurrencyFlagIconProps) {
           </G>
         );
 
+      case 'JPY': // Japan
+        return (
+          <G>
+            <Rect width="36" height="36" fill={colorTokens.raw["FFFFFF"]} />
+            <Circle cx="18" cy="18" r="9" fill={colorTokens.raw["C8102E"]} />
+          </G>
+        );
+
       case 'EUR': // European Union
         return (
           <G>
