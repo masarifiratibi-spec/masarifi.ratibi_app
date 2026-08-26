@@ -101,7 +101,6 @@ export function FoundationProviders({
           />
           <SensitiveVisibilityProvider>
             <SafeAreaView
-              key={direction}
               testID="foundation-direction-root"
               style={{
                 backgroundColor: resolved.colors.background,

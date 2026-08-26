@@ -87,9 +87,7 @@ it('opens the creation form directly when the selected month is empty', async ()
 
 it('assigns a category without requiring an optional category limit', async () => {
   changeLocale('en');
-  const form = renderWithProviders(
-    <BudgetForm initialPeriodKey="2042-05" />
-  );
+  const form = renderWithProviders(<BudgetForm initialPeriodKey="2042-05" />);
   fireEvent.changeText(await form.findByLabelText('Budget name'), 'Home');
   fireEvent.changeText(form.getByLabelText('Expense limit'), '1000');
   fireEvent.press(form.getByLabelText(/Category Housing/));
@@ -100,7 +98,9 @@ it('assigns a category without requiring an optional category limit', async () =
   fireEvent.press(form.getByText('Save'));
 
   expect(await form.findByText('Saved')).toBeTruthy();
-  expect((await financialPlanningService.getBudget('2042-05'))?.categories).toEqual(
+  expect(
+    (await financialPlanningService.getBudget('2042-05'))?.categories
+  ).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ categoryId: 'housing', limitMinor: 0 })
     ])
@@ -110,9 +110,7 @@ it('assigns a category without requiring an optional category limit', async () =
 it('shows a localized duplicate-name error', async () => {
   changeLocale('en');
   await saveBudget('Home', '2042-06', 'duplicate-name-existing');
-  const form = renderWithProviders(
-    <BudgetForm initialPeriodKey="2042-06" />
-  );
+  const form = renderWithProviders(<BudgetForm initialPeriodKey="2042-06" />);
   fireEvent.changeText(await form.findByLabelText('Budget name'), ' home ');
   fireEvent.changeText(form.getByLabelText('Expense limit'), '1000');
   fireEvent.press(form.getByText('Save'));
@@ -136,18 +134,16 @@ it('identifies and excludes categories owned by another monthly budget', async (
     },
     'category-owner-home'
   );
-  const form = renderWithProviders(
-    <BudgetForm initialPeriodKey="2042-07" />
-  );
+  const form = renderWithProviders(<BudgetForm initialPeriodKey="2042-07" />);
 
   expect(await form.findByText('Housing — Home')).toBeTruthy();
   fireEvent.press(form.getByLabelText(/Category Food/));
   const route = jest.mocked(router.push).mock.calls.at(-1)?.[0] as unknown as {
     params: { requestId: string };
   };
-  expect(getCategorySelectionSession(route.params.requestId)?.excludedIds).toEqual(
-    expect.arrayContaining(['housing'])
-  );
+  expect(
+    getCategorySelectionSession(route.params.requestId)?.excludedIds
+  ).toEqual(expect.arrayContaining(['housing']));
 });
 
 it('disables save for an incomplete month without crashing the form', async () => {
@@ -172,6 +168,45 @@ it('renders every budget saved in the selected month', async () => {
 
   expect(await screen.findByText('Home')).toBeTruthy();
   expect(screen.getByText('Personal')).toBeTruthy();
+});
+
+it('requires confirmation before deleting a saved budget', async () => {
+  changeLocale('en');
+  await saveBudget(
+    'Delete confirmation',
+    '2041-04',
+    'budget-delete-confirmation'
+  );
+  const deleteBudget = jest.spyOn(financialPlanningService, 'deleteBudget');
+  try {
+    const screen = renderWithProviders(
+      <BudgetOverviewScreen periodKey="2041-04" />
+    );
+
+    fireEvent.press(await screen.findByText('Delete budget'));
+    expect(
+      await screen.findByText(
+        'This budget and its category allocations will be deleted.'
+      )
+    ).toBeTruthy();
+    expect(deleteBudget).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByText(
+        'This budget and its category allocations will be deleted.'
+      )
+    ).toBeNull();
+    expect(deleteBudget).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Delete budget'));
+    fireEvent.press(
+      screen.getAllByRole('button', { name: 'Delete budget' }).at(-1)!
+    );
+    await waitFor(() => expect(deleteBudget).toHaveBeenCalledTimes(1));
+  } finally {
+    deleteBudget.mockRestore();
+  }
 });
 
 it('keeps budget values while selecting a category on the canonical screen', async () => {
@@ -211,7 +246,10 @@ it.each([
       await createForm.findByLabelText('Budget month'),
       periodKey
     );
-    fireEvent.changeText(createForm.getByLabelText('Expense limit'), majorAmount);
+    fireEvent.changeText(
+      createForm.getByLabelText('Expense limit'),
+      majorAmount
+    );
     fireEvent.press(createForm.getByText('Save'));
     expect(await createForm.findByText('Saved')).toBeTruthy();
     createForm.unmount();
@@ -227,7 +265,9 @@ it.each([
     const editForm = renderWithProviders(
       <BudgetForm budgetId={created?.budget.id} />
     );
-    await waitFor(() => expect(editForm.getByDisplayValue(majorAmount)).toBeTruthy());
+    await waitFor(() =>
+      expect(editForm.getByDisplayValue(majorAmount)).toBeTruthy()
+    );
     fireEvent.press(editForm.getByText('Save'));
     expect(await editForm.findByText('Saved')).toBeTruthy();
 
@@ -264,10 +304,7 @@ it('uses the budget currency when previewing a three-decimal allocation move', a
     <BudgetAllocationEditor budgetId={saved.value.id} />
   );
 
-  fireEvent.changeText(
-    await editor.findByLabelText('Amount to move'),
-    '1.234'
-  );
+  fireEvent.changeText(await editor.findByLabelText('Amount to move'), '1.234');
   fireEvent.press(editor.getByText('Review allocation move'));
 
   expect(await editor.findByText('Housing: 18.766\u00a0OMR')).toBeTruthy();
@@ -289,7 +326,11 @@ function categoryBudget(categoryId: string, limitMinor: number) {
   };
 }
 
-async function saveBudget(name: string, periodKey: string, operationId: string) {
+async function saveBudget(
+  name: string,
+  periodKey: string,
+  operationId: string
+) {
   return financialPlanningService.saveBudget(
     {
       name,

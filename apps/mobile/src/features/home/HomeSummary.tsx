@@ -607,7 +607,7 @@ function HomeTransactionRow({ accountName, transaction, hidden, largeText }: {
       >
         <CategoryIcon label={categoryLabel} size="md" visualKey={visualKey} />
         <View testID={`home-transaction-text-${transaction.id}`} style={[styles.transactionText, { alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start' }]}>
-          <Text numberOfLines={largeText ? undefined : 1} style={[styles.transactionTitle, { color: theme.colors.content.primary, textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{presentation.title}</Text>
+          <Text numberOfLines={largeText ? undefined : 2} style={[styles.transactionTitle, { color: theme.colors.content.primary, textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{presentation.title}</Text>
           <Text numberOfLines={largeText ? undefined : 1} style={[styles.transactionMeta, { color: theme.colors.content.secondary, textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{categoryLabel}</Text>
           {accountName ? (
             <View style={styles.transactionAccount}>

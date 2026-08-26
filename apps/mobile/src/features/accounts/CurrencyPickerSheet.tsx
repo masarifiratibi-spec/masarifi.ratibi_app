@@ -51,8 +51,16 @@ export function CurrencyPickerSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable
+        testID="currency-picker-backdrop"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.backdrop}
+        onPress={onClose}
+      />
       <View
+        testID="currency-picker-sheet"
+        accessibilityViewIsModal
         style={[
           styles.sheet,
           { backgroundColor: theme.colors.surface }

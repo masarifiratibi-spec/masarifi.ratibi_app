@@ -16,10 +16,12 @@ export type StatusBadgeStatus =
 
 export function StatusBadge({
   status,
-  label
+  label,
+  textColor
 }: {
   status: StatusBadgeStatus;
   label: string;
+  textColor?: string;
 }) {
   const theme = useTheme();
   const color = theme.colors.status[status];
@@ -32,7 +34,7 @@ export function StatusBadge({
       style={[styles.badge, { borderColor: color }]}
     >
       <Text style={[styles.cue, { color }]}>{cueForStatus(status)}</Text>
-      <Text style={[styles.label, { color: theme.colors.textPrimary }]}>{text}</Text>
+      <Text style={[styles.label, { color: textColor ?? theme.colors.textPrimary }]}>{text}</Text>
     </View>
   );
 }

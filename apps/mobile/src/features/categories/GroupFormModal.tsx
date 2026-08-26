@@ -98,8 +98,16 @@ export function GroupFormModal({
         animationType="slide"
         onRequestClose={onClose}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable
+          testID="group-form-modal-backdrop"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.backdrop}
+          onPress={onClose}
+        />
         <View
+          testID="group-form-modal-content"
+          accessibilityViewIsModal
           style={[
             styles.modalContent,
             { backgroundColor: theme.colors.surface }

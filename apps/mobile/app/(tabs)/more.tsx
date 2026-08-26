@@ -212,7 +212,6 @@ export default function MoreRoute() {
             hideBorder
             onPress={() => router.push('/categories')}
           />
-          {/* ملاحظة: تم إخفاء الميزانيات وأهداف الادخار مؤقتاً من الشاشة وسيتم العمل عليهما لاحقاً
           <Divider />
           <MenuLink
             label={translate('planning.budgets.title')}
@@ -233,7 +232,6 @@ export default function MoreRoute() {
             hideBorder
             onPress={() => router.push('/savings')}
           />
-          */}
           <Divider />
           <MenuLink
             label={translate('planning.salary.title')}

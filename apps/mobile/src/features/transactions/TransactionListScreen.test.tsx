@@ -196,13 +196,8 @@ it.each([
       writingDirection: 'ltr',
       flexDirection
     });
-    expect(screen.getByTestId('transaction-quick-scope-rail')).toHaveStyle({
-      writingDirection: 'ltr'
-    });
-    expect(screen.getByTestId('transaction-quick-scopes')).toHaveStyle({
-      writingDirection: 'ltr',
-      flexDirection
-    });
+    expect(screen.queryByTestId('transaction-quick-scope-rail')).toBeNull();
+    expect(screen.queryByTestId('transaction-quick-scopes')).toBeNull();
 
     fireEvent.press(screen.getByTestId('transaction-search-action'));
     expect(screen.getByTestId('transaction-search-control')).toHaveStyle({
@@ -278,11 +273,11 @@ it('opens the lens search, submits it, and clears it', () => {
 });
 
 it.each([
-  ['en', 'ltr', 'MasarifiLatin-400', 'MasarifiLatin-600'],
-  ['ar', 'rtl', 'MasarifiArabic-400', 'MasarifiArabic-600']
+  ['en', 'ltr', 'MasarifiLatin-400'],
+  ['ar', 'rtl', 'MasarifiArabic-400']
 ] as const)(
-  'uses semantic %s typography for search, summary, and shortcuts',
-  (locale, direction, bodyFamily, subtitleFamily) => {
+  'uses semantic %s typography for search and summary',
+  (locale, direction, bodyFamily) => {
     changeLocale(locale);
     usePreferenceStore.setState({ locale, direction });
     renderWithQueryData(<TransactionListScreen />, [
@@ -301,11 +296,6 @@ it.each([
     const searchLabel = translate('coreFinance.ledger.search');
     expect(screen.getByText(translate('coreFinance.home.income'))).toHaveStyle({
       fontFamily: bodyFamily
-    });
-    expect(
-      screen.getByText(translate('coreFinance.ledger.quick.all'))
-    ).toHaveStyle({
-      fontFamily: subtitleFamily
     });
 
     fireEvent.press(screen.getByTestId('transaction-search-action'));
@@ -536,8 +526,11 @@ it('shows next-page progress and error before retrying the page', async () => {
   expect(await screen.findByText(nextTransaction.title)).toBeTruthy();
 });
 
-it('shows removable descriptors for applied filters', () => {
-  useCoreFinanceViewState.getState().editFilters({ types: ['expense'] });
+it('shows category and type descriptors after removing the quick-scope rail', () => {
+  useCoreFinanceViewState.getState().editFilters({
+    categoryIds: ['food'],
+    types: ['transfer']
+  });
   useCoreFinanceViewState.getState().applyFilters();
   const filters = useCoreFinanceViewState.getState().filters;
   renderWithQueryData(<TransactionListScreen />, [
@@ -545,18 +538,21 @@ it('shows removable descriptors for applied filters', () => {
       coreFinanceKeys.transactionPages(filters),
       { pages: [{ items: [], nextCursor: null, total: 0 }], pageParams: [null] }
     ],
-    [
-      coreFinanceKeys.transactionPages(emptyTransactionFilters),
-      { pages: [{ items: [], nextCursor: null, total: 0 }], pageParams: [null] }
-    ],
     [coreFinanceKeys.accounts(true), fixtureAccounts],
     [coreFinanceKeys.categories(true), fixtureCategories],
     summarySeed
   ]);
 
-  const chip = screen.getByTestId('active-filter-chip');
-  fireEvent.press(chip);
-  expect(useCoreFinanceViewState.getState().filters.types).toEqual([]);
+  expect(
+    screen.getByRole('button', {
+      name: `${translate('designSystem.action.remove')} ${translate('coreFinance.filters.categories')}: 1`
+    })
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('button', {
+      name: `${translate('designSystem.action.remove')} ${translate('coreFinance.filters.types')}: 1`
+    })
+  ).toBeTruthy();
 });
 
 it.each([
@@ -674,31 +670,9 @@ it('renders the approved light composition independently of filters', () => {
   expect(screen.getByTestId('transaction-summary-expense')).toBeTruthy();
   expect(screen.getByTestId('transaction-search-action')).toBeTruthy();
   expect(screen.getByTestId('transaction-filter-action')).toBeTruthy();
-  expect(
-    screen.getByText(translate('coreFinance.ledger.quick.all'))
-  ).toBeTruthy();
-  expect(
-    screen.getByRole('button', {
-      name: translate('coreFinance.ledger.quick.all')
-    })
-  ).toHaveStyle({
-    flexShrink: 0,
-    minHeight: 44,
-    paddingHorizontal: 14
-  });
-  expect(screen.getByTestId('transaction-quick-scopes')).toHaveStyle({
-    gap: 8
-  });
-  expect(
-    screen.getByTestId('transaction-quick-scope-rail').props.horizontal
-  ).toBe(true);
-  expect(screen.getByText('Food')).toBeTruthy();
-  expect(
-    screen.getByText(translate('coreFinance.ledger.quick.transfer'))
-  ).toBeTruthy();
-  expect(screen.getByText('Transportation')).toBeTruthy();
-  expect(screen.getByText('Shopping')).toBeTruthy();
-  expect(screen.getByText('Health')).toBeTruthy();
+  expect(screen.getByTestId('transaction-account-scope')).toBeTruthy();
+  expect(screen.queryByTestId('transaction-quick-scope-rail')).toBeNull();
+  expect(screen.queryByTestId('transaction-quick-scopes')).toBeNull();
   expect(
     screen.getByText(translate('appShell.security.protectedContent'))
   ).toBeTruthy();
@@ -884,70 +858,6 @@ it('uses shared transfer and income visuals when no category owns the row', () =
 
   expect(screen.getByTestId('category-visual-openmoji-transfers')).toBeTruthy();
   expect(screen.getByTestId('category-visual-openmoji-salary')).toBeTruthy();
-});
-
-it('changes only category and type scopes from the visible shortcuts', () => {
-  const food = fixtureCategories.find((category) => category.id === 'food')!;
-  const transportation = fixtureCategories.find(
-    (category) => category.id === 'transportation'
-  )!;
-  const initial = {
-    ...emptyTransactionFilters,
-    categoryIds: [food.id],
-    types: ['expense' as const],
-    sources: ['manual' as const]
-  };
-  useCoreFinanceViewState.setState({ filters: initial, draftFilters: initial });
-  const transfer = {
-    ...initial,
-    categoryIds: [],
-    types: ['transfer' as const]
-  };
-  const transportationFilter = {
-    ...initial,
-    categoryIds: [transportation.id],
-    types: []
-  };
-  const all = { ...initial, categoryIds: [], types: [] };
-
-  renderWithQueryData(<TransactionListScreen />, [
-    ...[initial, transfer, transportationFilter, all].map(
-      (value) =>
-        [
-          coreFinanceKeys.transactionPages(value),
-          {
-            pages: [{ items: [], nextCursor: null, total: 0 }],
-            pageParams: [null]
-          }
-        ] as const
-    ),
-    [coreFinanceKeys.accounts(true), fixtureAccounts],
-    [coreFinanceKeys.categories(true), fixtureCategories],
-    summarySeed
-  ]);
-
-  fireEvent.press(
-    screen.getByText(translate('coreFinance.ledger.quick.transfer'))
-  );
-  expect(useCoreFinanceViewState.getState().filters).toMatchObject({
-    categoryIds: [],
-    types: ['transfer'],
-    sources: ['manual']
-  });
-
-  fireEvent.press(screen.getByText(translate('coreFinance.ledger.quick.all')));
-  expect(useCoreFinanceViewState.getState().filters).toMatchObject({
-    categoryIds: [],
-    types: [],
-    sources: ['manual']
-  });
-
-  fireEvent.press(screen.getByText('Transportation'));
-  expect(useCoreFinanceViewState.getState().filters).toMatchObject({
-    categoryIds: [transportation.id],
-    types: [],
-    sources: ['manual']
-  });
 });
 
 it.each([

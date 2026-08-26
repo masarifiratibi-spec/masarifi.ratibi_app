@@ -148,6 +148,7 @@ export function SalaryOverviewScreen() {
               <StatusBadge
                 status={salaryStatusBadge(data.salaryState).status}
                 label={translate(salaryStatusBadge(data.salaryState).key)}
+                textColor={theme.colors.content.onFinancialHero}
               />
             </View>
           </FinancialPulse>

@@ -361,7 +361,11 @@ export function CategoryListScreen() {
           setEditingCategory(null);
         }}
       >
-        <View style={{ flex: 1, backgroundColor: theme.colors.background ?? colorTokens.raw["F6F8F7"], paddingTop: 20 }}>
+        <View
+          testID="category-form-modal-content"
+          accessibilityViewIsModal
+          style={{ flex: 1, backgroundColor: theme.colors.background ?? colorTokens.raw["F6F8F7"], paddingTop: 20 }}
+        >
           <CategoryForm
             category={editingCategory ?? undefined}
             onClose={() => {

@@ -1234,6 +1234,8 @@ const en = {
   'planning.budget.pause': 'Pause budget',
   'planning.budget.resume': 'Resume budget',
   'planning.budget.delete': 'Delete budget',
+  'planning.budget.deleteConfirm':
+    'This budget and its category allocations will be deleted.',
   'planning.budget.status.draft': 'Draft',
   'planning.budget.status.active': 'Active',
   'planning.budget.status.paused': 'Paused',

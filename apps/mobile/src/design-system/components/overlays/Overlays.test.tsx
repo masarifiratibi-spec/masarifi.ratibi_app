@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent } from '@testing-library/react-native';
+import { Animated } from 'react-native';
+import { act, fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
@@ -49,6 +50,9 @@ describe('overlays', () => {
     fireEvent.press(
       screen.getByLabelText(translate('appShell.navigation.close'))
     );
+    expect(
+      screen.getByLabelText(translate('appShell.navigation.close'))
+    ).toHaveStyle({ height: 48, width: 48 });
     fireEvent.press(screen.getByLabelText('Main'));
     fireEvent.press(screen.getByLabelText('Delete permanently'));
     expect(onDismiss).toHaveBeenCalledTimes(2);
@@ -76,5 +80,25 @@ describe('overlays', () => {
     expect(shouldDismissMenuSheet(96, 0)).toBe(true);
     expect(shouldDismissMenuSheet(12, 1)).toBe(true);
     expect(shouldDismissMenuSheet(12, 0.2)).toBe(false);
+  });
+
+  it('snaps back without a spring when reduced motion is enabled', () => {
+    usePreferenceStore.setState({ reducedMotion: true });
+    const spring = jest.spyOn(Animated, 'spring');
+    const screen = renderWithProviders(
+      <AppSheet appearance="menu" title="All accounts" visible onDismiss={jest.fn()}>
+        <></>
+      </AppSheet>
+    );
+
+    act(() => {
+      screen.getByTestId('app-sheet-handle').props.onResponderRelease({}, {
+        dy: 12,
+        vy: 0.2
+      });
+    });
+
+    expect(spring).not.toHaveBeenCalled();
+    spring.mockRestore();
   });
 });

@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
   PixelRatio,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   View
@@ -77,20 +76,6 @@ type LedgerRow =
       groupedPosition: TransactionGroupedPosition;
     };
 
-type QuickScope = {
-  key: string;
-  label: string;
-  categoryIds: string[];
-  types: TransactionFilterSet['types'];
-};
-
-const quickCategoryIds = [
-  'food',
-  'transportation',
-  'shopping',
-  'health'
-] as const;
-
 const quickSortValues = [
   'newest',
   'oldest',
@@ -129,16 +114,6 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
   const [quickCategoryOpen, setQuickCategoryOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [accountScopeOpen, setAccountScopeOpen] = useState(false);
-  const quickScopeRailRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    if (direction === 'rtl') {
-      quickScopeRailRef.current?.scrollToEnd({ animated: false });
-    } else {
-      quickScopeRailRef.current?.scrollTo({ x: 0, animated: false });
-    }
-  }, [direction]);
-
   const scopedFilters = useMemo(
     () => applyAccountScope(filters, selectedAccountId),
     [filters, selectedAccountId]
@@ -172,13 +147,6 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       ),
     [categories.data]
   );
-  const quickCategoryById = useMemo(() => {
-    return new Map(
-      ((categories.data ?? []) as Category[])
-        .filter((category) => category.status === 'active')
-        .map((category) => [category.id, category])
-    );
-  }, [categories.data]);
   const locale = currentLocale();
   const appliedPeriod = periodFromRange(
     filters.periodStart,
@@ -191,44 +159,6 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
     monthStartDay
   });
   const periodLabel = formatPeriodLabel(appliedPeriod, locale, timeZone);
-  const categoryScopes = quickCategoryIds.flatMap((id) => {
-    const category = quickCategoryById.get(id);
-    return category
-      ? [
-          {
-            key: id,
-            label: locale === 'ar' ? category.labelAr : category.labelEn,
-            categoryIds: [category.id],
-            types: []
-          } satisfies QuickScope
-        ]
-      : [];
-  });
-  const quickScopes: QuickScope[] = [
-    {
-      key: 'all',
-      label: translate('coreFinance.ledger.quick.all'),
-      categoryIds: [],
-      types: []
-    },
-    ...categoryScopes.slice(0, 1),
-    {
-      key: 'transfer',
-      label: translate('coreFinance.ledger.quick.transfer'),
-      categoryIds: [],
-      types: ['transfer']
-    },
-    ...categoryScopes.slice(1)
-  ];
-  const quickSelection = quickScopes.find(
-    (scope) =>
-      scope.categoryIds.length === filters.categoryIds.length &&
-      scope.categoryIds.every((id) => filters.categoryIds.includes(id)) &&
-      scope.types.length === filters.types.length &&
-      scope.types.every((type) => filters.types.includes(type))
-  );
-  const quickCategorySelected = Boolean(quickSelection?.categoryIds.length);
-  const quickTypeSelected = Boolean(quickSelection?.types.length);
   const transactions = useMemo(() => {
     const byId = new Map<string, Transaction>();
     query.data?.pages.forEach((page) =>
@@ -286,16 +216,12 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       'coreFinance.filters.accounts',
       filters.accountIds.length
     );
-    if (!quickCategorySelected) {
-      addCount(
-        'categoryIds',
-        'coreFinance.filters.categories',
-        filters.categoryIds.length
-      );
-    }
-    if (!quickTypeSelected) {
-      addCount('types', 'coreFinance.filters.types', filters.types.length);
-    }
+    addCount(
+      'categoryIds',
+      'coreFinance.filters.categories',
+      filters.categoryIds.length
+    );
+    addCount('types', 'coreFinance.filters.types', filters.types.length);
     addCount('sources', 'coreFinance.filters.sources', filters.sources.length);
     addCount(
       'statuses',
@@ -332,16 +258,12 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
         label: translate(`coreFinance.filters.sort.${filters.sort}` as never)
       });
     return values;
-  }, [filters, quickCategorySelected, quickTypeSelected]);
+  }, [filters]);
   const applyQuickFilter = (patch: Partial<TransactionFilterSet>) => {
     beginFilterSession();
     editFilters(patch);
     applyFilters();
   };
-  const applyQuickScopes = (
-    categoryIds: string[],
-    types: TransactionFilterSet['types']
-  ) => applyQuickFilter({ categoryIds, types });
   const headerCenter = (
     <View
       testID="transaction-toolbar-actions"
@@ -619,41 +541,6 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                 setPeriodOpen(false);
               }}
             />
-            <ScrollView
-              ref={quickScopeRailRef}
-              testID="transaction-quick-scope-rail"
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.physicalLtr}
-              contentContainerStyle={styles.quickScopesScroll}
-              onContentSizeChange={() => {
-                if (direction === 'rtl') {
-                  quickScopeRailRef.current?.scrollToEnd({ animated: false });
-                }
-              }}
-            >
-              <View
-                testID="transaction-quick-scopes"
-                style={[
-                  styles.quickScopes,
-                  styles.physicalLtr,
-                  {
-                    flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
-                  }
-                ]}
-              >
-                {quickScopes.map((scope) => (
-                  <QuickScopeChip
-                    key={scope.key}
-                    label={scope.label}
-                    selected={quickSelection?.key === scope.key}
-                    onPress={() =>
-                      applyQuickScopes(scope.categoryIds, scope.types)
-                    }
-                  />
-                ))}
-              </View>
-            </ScrollView>
           </View>
           {activeFilters.length ? (
             <View style={styles.activeFilters}>
@@ -1089,48 +976,6 @@ function ToolbarButton({
   );
 }
 
-function QuickScopeChip({
-  label,
-  selected,
-  onPress
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[
-        styles.quickScopeChip,
-        {
-          backgroundColor: selected
-            ? theme.colors.interactions.primary
-            : theme.colors.surfaces.card,
-          borderColor: selected
-            ? theme.colors.interactions.primary
-            : theme.colors.borders.subtle
-        }
-      ]}
-    >
-      <StyledText
-        accessible={false}
-        variant="subtitle"
-        style={{
-          color: selected
-            ? theme.colors.content.inverse
-            : theme.colors.content.primary
-        }}
-      >
-        {label}
-      </StyledText>
-    </Pressable>
-  );
-}
-
 function QuickTransactionFilterMenu({
   filters,
   visible,
@@ -1438,17 +1283,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: minTouchTarget,
     minWidth: minTouchTarget
-  },
-  quickScopesScroll: { flexGrow: 1, paddingVertical: spacing.xs },
-  quickScopes: { flexDirection: 'row', gap: 8, paddingHorizontal: 4 },
-  quickScopeChip: {
-    alignItems: 'center',
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    flexShrink: 0,
-    minHeight: 44,
-    paddingHorizontal: 14
   },
   activeFilters: {
     flexDirection: 'row',

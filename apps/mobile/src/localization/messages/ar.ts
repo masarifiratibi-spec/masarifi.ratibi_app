@@ -1210,6 +1210,7 @@ const ar: MessageCatalog = {
   'planning.budget.pause': 'إيقاف الميزانية مؤقتًا',
   'planning.budget.resume': 'استئناف الميزانية',
   'planning.budget.delete': 'حذف الميزانية',
+  'planning.budget.deleteConfirm': 'سيتم حذف هذه الميزانية وتخصيصات فئاتها.',
   'planning.budget.status.draft': 'مسودة',
   'planning.budget.status.active': 'نشطة',
   'planning.budget.status.paused': 'متوقفة مؤقتًا',

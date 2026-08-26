@@ -6,7 +6,7 @@ import { useNavigation, usePreventRemove } from '@react-navigation/native';
 
 import type { Category } from '@/domain/core-finance';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
-import { translate } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
 import { fixtureCategories } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
 import { CategoryForm } from './CategoryForm';
@@ -16,7 +16,10 @@ jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
 }));
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  changeLocale('ar');
+});
 
 it('requires a category name and shows alert on empty submit', () => {
   renderWithQueryData(<CategoryForm />, [
@@ -41,6 +44,38 @@ it('shows hero emoji picker button and opens sheet on press', () => {
   expect(heroBtn).toBeTruthy();
 });
 
+it.each([
+  ['en', ['Coffee icon', 'Pizza icon', 'Cake icon']],
+  ['ar', ['أيقونة القهوة', 'أيقونة البيتزا', 'أيقونة الكعك']]
+] as const)(
+  'makes the icon picker modal and gives similar icon tiles distinct names in %s',
+  (locale, [coffee, pizza, cake]) => {
+    changeLocale(locale);
+    renderWithQueryData(<CategoryForm />, [
+      [coreFinanceKeys.categories(), fixtureCategories]
+    ]);
+
+    fireEvent.press(
+      screen.getByLabelText(translate('coreFinance.categories.chooseIcon'))
+    );
+
+    expect(screen.getByTestId('category-icon-picker-sheet')).toHaveProp(
+      'accessibilityViewIsModal',
+      true
+    );
+    expect(
+      screen.UNSAFE_getByProps({ testID: 'category-icon-picker-backdrop' })
+        .props.importantForAccessibility
+    ).toBe('no-hide-descendants');
+    expect(
+      screen.getByLabelText(translate('coreFinance.categories.icon.shopping'))
+    ).toBeTruthy();
+    expect(screen.getByLabelText(coffee)).toBeTruthy();
+    expect(screen.getByLabelText(pizza)).toBeTruthy();
+    expect(screen.getByLabelText(cake)).toBeTruthy();
+  }
+);
+
 it('fills edit fields when category data arrives after the first render', async () => {
   function Harness() {
     const [category, setCategory] = useState<Category | undefined>();
@@ -64,12 +99,12 @@ it('confirms before discarding a dirty category draft', () => {
   ]);
 
   fireEvent.changeText(
-    screen.getByPlaceholderText(translate('coreFinance.categories.categoryNamePlaceholder')),
+    screen.getByPlaceholderText(
+      translate('coreFinance.categories.categoryNamePlaceholder')
+    ),
     'Custom'
   );
-  fireEvent.press(
-    screen.getByLabelText(translate('coreFinance.cancel'))
-  );
+  fireEvent.press(screen.getByLabelText(translate('coreFinance.cancel')));
 
   expect(alert).toHaveBeenCalled();
   expect(router.back).not.toHaveBeenCalled();
@@ -88,16 +123,24 @@ it('does not show the discard alert after a new category is saved', async () => 
   ]);
 
   fireEvent.changeText(
-    screen.getByPlaceholderText(translate('coreFinance.categories.categoryNamePlaceholder')),
+    screen.getByPlaceholderText(
+      translate('coreFinance.categories.categoryNamePlaceholder')
+    ),
     'Saved category'
   );
   const preventRemove = jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1];
-  jest.mocked(router.replace).mockImplementation(() =>
-    preventRemove?.({ data: { action: { type: 'REPLACE' } } })
+  jest
+    .mocked(router.replace)
+    .mockImplementation(() =>
+      preventRemove?.({ data: { action: { type: 'REPLACE' } } })
+    );
+  fireEvent.press(
+    screen.getByLabelText(translate('coreFinance.categories.save'))
   );
-  fireEvent.press(screen.getByLabelText(translate('coreFinance.categories.save')));
 
-  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/categories'));
+  await waitFor(() =>
+    expect(router.replace).toHaveBeenCalledWith('/categories')
+  );
   expect(alert).not.toHaveBeenCalled();
   expect(dispatch).toHaveBeenCalledWith({ type: 'REPLACE' });
 });

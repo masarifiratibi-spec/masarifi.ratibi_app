@@ -627,6 +627,9 @@ it.each([
       textAlign,
       writingDirection
     });
+    expect(
+      screen.getByText('Al Nakheel Restaurant').props.numberOfLines
+    ).toBe(2);
   }
 );
 

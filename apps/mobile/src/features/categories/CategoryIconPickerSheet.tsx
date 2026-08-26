@@ -22,7 +22,8 @@ import { colorTokens } from '@/design-system/tokens';
 export interface EmojiIconTile {
   key: string; // passed as iconKey
   emoji: string;
-  labelKey: string;
+  labelAr: string;
+  labelEn: string;
 }
 
 const ICON_SECTIONS: {
@@ -34,60 +35,240 @@ const ICON_SECTIONS: {
     titleAr: 'المصروفات',
     titleEn: 'SPENDING',
     tiles: [
-      { key: 'shopping', emoji: '🛒', labelKey: 'coreFinance.categories.icon.shopping' },
-      { key: 'food', emoji: '🍔', labelKey: 'coreFinance.categories.icon.restaurant' },
-      { key: 'restaurants', emoji: '🍜', labelKey: 'coreFinance.categories.icon.restaurant' },
-      { key: 'coffee', emoji: '☕', labelKey: 'coreFinance.category.food' },
-      { key: 'pizza', emoji: '🍕', labelKey: 'coreFinance.category.food' },
-      { key: 'cake', emoji: '🎂', labelKey: 'coreFinance.category.food' },
-      { key: 'health', emoji: '💊', labelKey: 'coreFinance.categories.icon.health' },
-      { key: 'charity', emoji: '🎁', labelKey: 'coreFinance.categories.icon.charity' },
-      { key: 'subscriptions', emoji: '💳', labelKey: 'coreFinance.category.subscriptions' },
-      { key: 'entertainment', emoji: '🎬', labelKey: 'coreFinance.categories.icon.entertainment' },
-      { key: 'fees', emoji: '🏷️', labelKey: 'coreFinance.category.fees' },
-      { key: 'receipt', emoji: '🧾', labelKey: 'coreFinance.categories.icon.receipt' }
+      {
+        key: 'shopping',
+        emoji: '🛒',
+        labelAr: 'أيقونة التسوق',
+        labelEn: 'Shopping icon'
+      },
+      {
+        key: 'food',
+        emoji: '🍔',
+        labelAr: 'أيقونة البرغر',
+        labelEn: 'Burger icon'
+      },
+      {
+        key: 'restaurants',
+        emoji: '🍜',
+        labelAr: 'أيقونة المطاعم',
+        labelEn: 'Restaurant icon'
+      },
+      {
+        key: 'coffee',
+        emoji: '☕',
+        labelAr: 'أيقونة القهوة',
+        labelEn: 'Coffee icon'
+      },
+      {
+        key: 'pizza',
+        emoji: '🍕',
+        labelAr: 'أيقونة البيتزا',
+        labelEn: 'Pizza icon'
+      },
+      {
+        key: 'cake',
+        emoji: '🎂',
+        labelAr: 'أيقونة الكعك',
+        labelEn: 'Cake icon'
+      },
+      {
+        key: 'health',
+        emoji: '💊',
+        labelAr: 'أيقونة الأدوية',
+        labelEn: 'Medicine icon'
+      },
+      {
+        key: 'charity',
+        emoji: '🎁',
+        labelAr: 'أيقونة الهدايا',
+        labelEn: 'Gift icon'
+      },
+      {
+        key: 'subscriptions',
+        emoji: '💳',
+        labelAr: 'أيقونة الاشتراكات',
+        labelEn: 'Subscription icon'
+      },
+      {
+        key: 'entertainment',
+        emoji: '🎬',
+        labelAr: 'أيقونة السينما',
+        labelEn: 'Cinema icon'
+      },
+      {
+        key: 'fees',
+        emoji: '🏷️',
+        labelAr: 'أيقونة الرسوم',
+        labelEn: 'Fees icon'
+      },
+      {
+        key: 'receipt',
+        emoji: '🧾',
+        labelAr: 'أيقونة الإيصال',
+        labelEn: 'Receipt icon'
+      }
     ]
   },
   {
     titleAr: 'المواصلات والتنقل',
     titleEn: 'GETTING AROUND',
     tiles: [
-      { key: 'travel', emoji: '✈️', labelKey: 'coreFinance.categories.icon.travel' },
-      { key: 'transportation', emoji: '🚗', labelKey: 'coreFinance.categories.icon.car' },
-      { key: 'metro', emoji: '🚇', labelKey: 'coreFinance.category.transportation' },
-      { key: 'bus', emoji: '🚌', labelKey: 'coreFinance.category.transportation' },
-      { key: 'taxi', emoji: '🚕', labelKey: 'coreFinance.category.transportation' },
-      { key: 'fuel', emoji: '⛽', labelKey: 'coreFinance.category.fuel' },
-      { key: 'scooter', emoji: '🛵', labelKey: 'coreFinance.category.transportation' },
-      { key: 'bicycle', emoji: '🚲', labelKey: 'coreFinance.category.transportation' }
+      {
+        key: 'travel',
+        emoji: '✈️',
+        labelAr: 'أيقونة السفر الجوي',
+        labelEn: 'Air travel icon'
+      },
+      {
+        key: 'transportation',
+        emoji: '🚗',
+        labelAr: 'أيقونة السيارة',
+        labelEn: 'Car icon'
+      },
+      {
+        key: 'metro',
+        emoji: '🚇',
+        labelAr: 'أيقونة المترو',
+        labelEn: 'Metro icon'
+      },
+      {
+        key: 'bus',
+        emoji: '🚌',
+        labelAr: 'أيقونة الحافلة',
+        labelEn: 'Bus icon'
+      },
+      {
+        key: 'taxi',
+        emoji: '🚕',
+        labelAr: 'أيقونة سيارة الأجرة',
+        labelEn: 'Taxi icon'
+      },
+      {
+        key: 'fuel',
+        emoji: '⛽',
+        labelAr: 'أيقونة الوقود',
+        labelEn: 'Fuel icon'
+      },
+      {
+        key: 'scooter',
+        emoji: '🛵',
+        labelAr: 'أيقونة الدراجة النارية',
+        labelEn: 'Scooter icon'
+      },
+      {
+        key: 'bicycle',
+        emoji: '🚲',
+        labelAr: 'أيقونة الدراجة الهوائية',
+        labelEn: 'Bicycle icon'
+      }
     ]
   },
   {
     titleAr: 'المنزل والفواتير',
     titleEn: 'HOME & BILLS',
     tiles: [
-      { key: 'housing', emoji: '🏠', labelKey: 'coreFinance.categories.icon.home' },
-      { key: 'utilities', emoji: '💡', labelKey: 'coreFinance.category.utilities' },
-      { key: 'water', emoji: '💧', labelKey: 'coreFinance.category.utilities' },
-      { key: 'fire', emoji: '🔥', labelKey: 'coreFinance.category.utilities' },
-      { key: 'communication', emoji: '📱', labelKey: 'coreFinance.categories.icon.communication' },
-      { key: 'internet', emoji: '📶', labelKey: 'coreFinance.category.communication' },
-      { key: 'tv', emoji: '📺', labelKey: 'coreFinance.category.entertainment' },
-      { key: 'obligations', emoji: '🧾', labelKey: 'coreFinance.category.obligations' }
+      {
+        key: 'housing',
+        emoji: '🏠',
+        labelAr: 'أيقونة المنزل',
+        labelEn: 'Home icon'
+      },
+      {
+        key: 'utilities',
+        emoji: '💡',
+        labelAr: 'أيقونة الكهرباء',
+        labelEn: 'Electricity icon'
+      },
+      {
+        key: 'water',
+        emoji: '💧',
+        labelAr: 'أيقونة المياه',
+        labelEn: 'Water icon'
+      },
+      {
+        key: 'fire',
+        emoji: '🔥',
+        labelAr: 'أيقونة الغاز',
+        labelEn: 'Gas icon'
+      },
+      {
+        key: 'communication',
+        emoji: '📱',
+        labelAr: 'أيقونة الهاتف',
+        labelEn: 'Phone icon'
+      },
+      {
+        key: 'internet',
+        emoji: '📶',
+        labelAr: 'أيقونة الإنترنت',
+        labelEn: 'Internet icon'
+      },
+      {
+        key: 'tv',
+        emoji: '📺',
+        labelAr: 'أيقونة التلفاز',
+        labelEn: 'Television icon'
+      },
+      {
+        key: 'obligations',
+        emoji: '🧾',
+        labelAr: 'أيقونة الالتزامات',
+        labelEn: 'Obligations icon'
+      }
     ]
   },
   {
     titleAr: 'الحياة والصحة',
     titleEn: 'LIFE & HEALTH',
     tiles: [
-      { key: 'education', emoji: '🎓', labelKey: 'coreFinance.categories.icon.education' },
-      { key: 'gym', emoji: '💪', labelKey: 'coreFinance.category.health' },
-      { key: 'books', emoji: '📚', labelKey: 'coreFinance.category.education' },
-      { key: 'scissors', emoji: '✂️', labelKey: 'coreFinance.category.health' },
-      { key: 'healthcare', emoji: '🏥', labelKey: 'coreFinance.categories.icon.health' },
-      { key: 'salary', emoji: '💰', labelKey: 'coreFinance.category.salary' },
-      { key: 'income', emoji: '💵', labelKey: 'coreFinance.category.otherIncome' },
-      { key: 'transfers', emoji: '🔄', labelKey: 'coreFinance.categories.icon.transactions' }
+      {
+        key: 'education',
+        emoji: '🎓',
+        labelAr: 'أيقونة التخرج',
+        labelEn: 'Graduation icon'
+      },
+      {
+        key: 'gym',
+        emoji: '💪',
+        labelAr: 'أيقونة الرياضة',
+        labelEn: 'Fitness icon'
+      },
+      {
+        key: 'books',
+        emoji: '📚',
+        labelAr: 'أيقونة الكتب',
+        labelEn: 'Books icon'
+      },
+      {
+        key: 'scissors',
+        emoji: '✂️',
+        labelAr: 'أيقونة العناية الشخصية',
+        labelEn: 'Personal care icon'
+      },
+      {
+        key: 'healthcare',
+        emoji: '🏥',
+        labelAr: 'أيقونة المستشفى',
+        labelEn: 'Hospital icon'
+      },
+      {
+        key: 'salary',
+        emoji: '💰',
+        labelAr: 'أيقونة الراتب',
+        labelEn: 'Salary icon'
+      },
+      {
+        key: 'income',
+        emoji: '💵',
+        labelAr: 'أيقونة الدخل',
+        labelEn: 'Income icon'
+      },
+      {
+        key: 'transfers',
+        emoji: '🔄',
+        labelAr: 'أيقونة التحويلات',
+        labelEn: 'Transfers icon'
+      }
     ]
   }
 ];
@@ -115,19 +296,27 @@ export function CategoryIconPickerSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable
+        testID="category-icon-picker-backdrop"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.backdrop}
+        onPress={onClose}
+      />
       <View
-        style={[
-          styles.sheet,
-          { backgroundColor: theme.colors.surface }
-        ]}
+        testID="category-icon-picker-sheet"
+        accessibilityViewIsModal
+        style={[styles.sheet, { backgroundColor: theme.colors.surface }]}
       >
         {/* Handle bar */}
         <View style={styles.handleContainer}>
           <View
             style={[
               styles.handle,
-              { backgroundColor: theme.colors.borders?.subtle ?? colorTokens.raw["E0E0E0"] }
+              {
+                backgroundColor:
+                  theme.colors.borders?.subtle ?? colorTokens.raw['E0E0E0']
+              }
             ]}
           />
         </View>
@@ -165,6 +354,9 @@ export function CategoryIconPickerSheet({
                     <Pressable
                       key={tile.key}
                       accessibilityRole="button"
+                      accessibilityLabel={
+                        locale === 'ar' ? tile.labelAr : tile.labelEn
+                      }
                       accessibilityState={{ selected: isSelected }}
                       onPress={() => {
                         onSelect(tile.key);
@@ -174,10 +366,13 @@ export function CategoryIconPickerSheet({
                         styles.tile,
                         {
                           backgroundColor: isSelected
-                            ? theme.colors.surfaces?.brandSubtle ?? colorTokens.raw["E8F5F0"]
-                            : theme.colors.surfaces?.grouped ?? colorTokens.raw["F6F7F5"],
+                            ? (theme.colors.surfaces?.brandSubtle ??
+                              colorTokens.raw['E8F5F0'])
+                            : (theme.colors.surfaces?.grouped ??
+                              colorTokens.raw['F6F7F5']),
                           borderColor: isSelected
-                            ? theme.colors.primary ?? colorTokens.raw["103F37"]
+                            ? (theme.colors.primary ??
+                              colorTokens.raw['103F37'])
                             : 'transparent',
                           borderWidth: isSelected ? 2 : 0
                         }

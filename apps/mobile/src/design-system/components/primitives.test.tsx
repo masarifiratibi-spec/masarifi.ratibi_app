@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
-import { minTouchTarget } from '@/design-system/tokens';
+import { colorTokens, minTouchTarget } from '@/design-system/tokens';
 import { ActionButton } from './ActionButton';
 import { IconButton } from './IconButton';
 import { SurfaceCard } from './SurfaceCard';
@@ -64,5 +64,22 @@ describe('design-system primitives', () => {
 
     expect(screen.getByText('Needs review')).toBeTruthy();
     expect(screen.getByText('!')).toBeTruthy();
+  });
+
+  it('uses an explicit label color without changing the status cue', () => {
+    const screen = renderWithProviders(
+      <StatusBadge
+        status="warning"
+        label="Needs review"
+        textColor={colorTokens.surface.white}
+      />
+    );
+
+    expect(screen.getByText('Needs review')).toHaveStyle({
+      color: colorTokens.surface.white
+    });
+    expect(screen.getByText('!')).not.toHaveStyle({
+      color: colorTokens.surface.white
+    });
   });
 });
