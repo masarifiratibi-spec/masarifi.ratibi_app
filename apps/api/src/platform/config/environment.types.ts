@@ -1,0 +1,30 @@
+export type NodeEnvironment = 'development' | 'test' | 'production';
+export type ProcessKind = 'api' | 'worker' | 'migration';
+
+export interface PlatformEnvironment {
+  NODE_ENV: NodeEnvironment;
+  MASARIFI_PROCESS_KIND: ProcessKind;
+  MASARIFI_RELEASE_VERSION: string;
+  DATABASE_URL: string;
+  MASARIFI_HTTP_PORT: number;
+  MASARIFI_CORS_ORIGINS: string;
+  MASARIFI_HTTP_BODY_LIMIT_BYTES: number;
+  MASARIFI_REQUEST_TIMEOUT_MS: number;
+  MASARIFI_READINESS_TIMEOUT_MS: number;
+  MASARIFI_READINESS_CACHE_TTL_MS: number;
+  MASARIFI_DATABASE_POOL_MAX: number;
+  MASARIFI_SHUTDOWN_TIMEOUT_MS: number;
+  MASARIFI_OUTBOX_BATCH_SIZE: number;
+  MASARIFI_WORKER_ID?: string;
+  MASARIFI_OUTBOX_LEASE_SECONDS: number;
+  MASARIFI_OUTBOX_POLL_MS: number;
+  MASARIFI_OUTBOX_MAX_ATTEMPTS: number;
+  MASARIFI_OUTBOX_RETRY_BASE_SECONDS: number;
+  MASARIFI_OUTBOX_RETRY_MAX_SECONDS: number;
+  MASARIFI_OUTBOX_RETRY_JITTER_MS: number;
+  MASARIFI_LOG_LEVEL: 'debug' | 'info' | 'warn' | 'error';
+  MASARIFI_META_MIN_MOBILE_VERSION?: string;
+  MASARIFI_META_MIN_ADMIN_VERSION?: string;
+  MASARIFI_MIGRATION_CHECKSUM_FILE: string;
+  MASARIFI_MIGRATION_STATEMENT_TIMEOUT_MS: number;
+}

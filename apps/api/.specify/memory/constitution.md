@@ -1,28 +1,23 @@
 <!--
 Sync Impact Report
-- Version change: none -> 1.0.0
-- Added principles:
-  - I. One Backend Spec, One Branch, One Owner
-  - II. Spec Kit Artifacts Before Implementation
-  - III. Master Architecture and Contract Authority
-  - IV. Database Change and Ownership Discipline
-  - V. Financial Integrity Is Non-Negotiable
-  - VI. Deny-by-Default Security and Secret Isolation
-  - VII. OpenRouter AI Is Advisory Only
-  - VIII. Evidence-Based Completion and Operational Safety
-- Added sections:
-  - Backend Architecture and Change Safety
-  - Spec Workflow and Quality Gates
+- Version change: 1.0.0 -> 1.1.0
+- Modified principles:
+  - VIII. Evidence-Based Completion and Operational Safety: separates Draft PR
+    evidence collection from completion and merge approval.
+- Modified sections:
+  - Spec Workflow and Quality Gates: permits commit/push and Draft PR after all
+    local pre-PR gates pass so remote-only CI evidence can run.
+  - Governance: adds Draft PR and final completion compliance gates.
+- Added sections: none
 - Removed sections: none
 - Dependent artifacts:
-  - Reviewed: docs/Back end/BACKEND_MASTER_PLAN.md; no change required
-  - Reviewed: apps/admin-web/.specify/memory/constitution.md; separate scope, no change
-  - Pending: apps/api/.specify/templates/plan-template.md is not initialized
-  - Pending: apps/api/.specify/templates/spec-template.md is not initialized
-  - Pending: apps/api/.specify/templates/tasks-template.md is not initialized
-  - Pending: shared .agents/skills/speckit-* contain stale Admin-specific fallback text
-- Follow-up: initialize Backend Spec Kit templates under apps/api and align them
-  with this constitution before creating SPEC-BE-001 artifacts.
+  - Updated: apps/api/.specify/templates/spec-template.md
+  - Updated: apps/api/.specify/templates/tasks-template.md
+  - Reviewed: apps/api/.specify/templates/plan-template.md; no change required
+  - Updated: apps/api/specs/001-backend-foundation/spec.md
+  - Updated: apps/api/specs/001-backend-foundation/tasks.md
+  - Reviewed: docs/Back end/BACKEND_MASTER_PLAN.md; no architecture change required
+- Follow-up: none
 -->
 
 # Masarifi Backend Development Constitution
@@ -249,6 +244,12 @@ A Spec is not complete because code, migrations, or endpoints exist. It is
 complete only when every required artifact and acceptance gate has current,
 reviewable evidence.
 
+A Draft pull request is an evidence-collection state, not completion. It MAY be
+opened only after all locally executable pre-PR gates pass, no known local
+Critical/High finding remains, and pending remote-only gates are listed in the PR.
+Opening or updating a Draft PR MUST NOT mark the Spec complete, waive a blocker,
+or authorize production release or merge.
+
 Completion requires all applicable items to pass:
 
 - implementation of the active Spec's complete owned scope;
@@ -341,16 +342,23 @@ A failed Constitution Check blocks planning or implementation. A deviation canno
 be hidden in Complexity Tracking; it requires explicit user approval and a prior
 Constitution or Master Plan amendment when it changes a non-negotiable rule.
 
-After all acceptance criteria pass, the Spec MUST be committed with a clear
-message and pushed on its dedicated branch to:
+After all locally executable pre-PR acceptance gates pass, the Spec MUST be
+committed with a clear message and pushed on its dedicated branch to:
 
 ```text
 https://github.com/abdullah-zordok/MASREFY_Final
 ```
 
-The agent MUST NOT auto-merge. Merge occurs only after review and explicit
-approval. Review feedback remains on the same dedicated Spec branch, and fresh
-verification is required after material changes before approval.
+The branch MAY also be pushed to an explicitly user-approved mirror. A Draft PR
+MAY then be opened to run remote-only CI, image scanning, SBOM, signature, and
+provenance gates. The Draft PR description MUST identify every pending gate.
+
+The PR MUST remain Draft and the Spec MUST remain incomplete until every required
+local and remote acceptance criterion, release-blocking security gate, and
+Definition of Done item has passing evidence. Only then MAY the PR be marked ready
+for review. The agent MUST NOT auto-merge. Merge occurs only after review and
+explicit approval. Review feedback remains on the same dedicated Spec branch,
+and fresh verification is required after material changes before approval.
 
 ## Governance
 
@@ -359,10 +367,11 @@ backend working conventions, generated templates, plans, and tasks. It does not
 govern Admin-only or Mobile-only implementation outside an explicitly owned
 Backend cutover.
 
-Compliance is reviewed at four gates: specification approval, plan approval,
-task approval, and pull-request completion. Reviewers MUST cite concrete files,
-owned resources, acceptance criteria, and executed evidence. Any Constitution
-violation is critical and blocks implementation or merge.
+Compliance is reviewed at six gates: specification approval, plan approval, task
+approval, local pre-PR verification, Draft PR remote evidence, and final pull-
+request completion. Reviewers MUST cite concrete files, owned resources,
+acceptance criteria, and executed evidence. Any Constitution violation is
+critical and blocks implementation, ready-for-review transition, or merge.
 
 Amendments require explicit approval, written rationale, an updated Sync Impact
 Report, review against the full Backend Master Plan and current contracts,
@@ -376,4 +385,4 @@ The original ratification date is immutable. `Last Amended` changes only when
 the Constitution content changes. Master Plan ownership or architecture changes
 MUST update the Master Plan before affected Spec artifacts or code proceed.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-08-27
+**Version**: 1.1.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-08-27

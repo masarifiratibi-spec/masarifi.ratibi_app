@@ -1,0 +1,295 @@
+openapi: 3.1.0
+info:
+  title: Masarifi Backend Foundation API
+  version: 1.0.0
+  description: >-
+    Approved SPEC-BE-001 contract. Product APIs and client cutover are outside
+    this specification.
+servers:
+  - url: '/'
+    description: Deployment-relative API root
+tags:
+  - name: Health
+  - name: Platform
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags: [Health]
+      summary: Report whether the process can serve
+      description: Performs no dependency I/O and exposes no internal topology.
+      security: []
+      responses:
+        '200':
+          description: Process is live.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+        '503':
+          description: Process cannot truthfully serve.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafeError'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags: [Health]
+      summary: Report bounded database and queue readiness
+      description: >-
+        Deployment MUST expose this path only to the container/orchestrator
+        network or an equivalently protected operations boundary. Each required
+        dependency check times out within one second. The complete result may be
+        cached in-process for at most five seconds.
+      security: []
+      x-network-access: internal-only
+      responses:
+        '200':
+          description: Required dependencies are ready.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessSuccess'
+        '503':
+          description: At least one required dependency is unavailable.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessFailure'
+  /api/v1/meta:
+    get:
+      operationId: getPlatformMetadata
+      tags: [Platform]
+      summary: Return safe API compatibility metadata
+      description: >-
+        Requires a verified Clerk session JWT. SPEC-BE-001 fails closed with
+        503 until SPEC-BE-002 supplies the production verifier. Clients remain
+        on mocks until SPEC-BE-014.
+      security:
+        - ClerkBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Safe platform metadata.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    ClerkBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Asymmetric Clerk session JWT verified by the backend.
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Optional caller correlation ID. Invalid values are replaced.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._:-]+$'
+  headers:
+    RequestId:
+      description: Bounded request correlation ID generated or propagated by the API.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._:-]+$'
+  schemas:
+    LivenessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, version, startedAt]
+      properties:
+        status:
+          type: string
+          const: ok
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        startedAt:
+          type: string
+          format: date-time
+    DependencyChecks:
+      type: object
+      additionalProperties: false
+      required: [database, queue]
+      properties:
+        database:
+          type: string
+          enum: [up, down]
+        queue:
+          type: string
+          enum: [up, down]
+    ReadinessSuccess:
+      type: object
+      additionalProperties: false
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          const: ready
+        checks:
+          allOf:
+            - $ref: '#/components/schemas/DependencyChecks'
+            - type: object
+              properties:
+                database:
+                  const: up
+                queue:
+                  const: up
+    ReadinessFailure:
+      type: object
+      additionalProperties: false
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          const: not_ready
+        checks:
+          $ref: '#/components/schemas/DependencyChecks'
+    MetaResponse:
+      type: object
+      additionalProperties: false
+      required: [apiVersion, serverTime]
+      properties:
+        apiVersion:
+          type: string
+          const: v1
+        serverTime:
+          type: string
+          format: date-time
+        minMobileVersion:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 32
+        minAdminVersion:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 32
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+          minLength: 1
+          maxLength: 128
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 256
+    SafeError:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 256
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        fieldErrors:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/FieldError'
+  responses:
+    Unauthorized:
+      description: Missing, malformed, expired, or unverifiable authentication.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SafeError'
+    Forbidden:
+      description: Authenticated principal is not permitted.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SafeError'
+    RateLimited:
+      description: Bounded request rate exceeded.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Retry-After:
+          description: Seconds until the caller may retry.
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SafeError'
+    InternalError:
+      description: Safe internal failure without implementation details.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SafeError'
+    Unavailable:
+      description: Required platform capability is not configured or unavailable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SafeError'
