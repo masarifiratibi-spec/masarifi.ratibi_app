@@ -16,6 +16,7 @@ const claimFailure = new Rate('outbox_claim_failure');
 const throughput = new Counter('outbox_published');
 const backlog = new Gauge('outbox_unpublished_backlog');
 const databaseSessionMemory = new Gauge('outbox_database_session_memory_bytes');
+const claimBatchSize = 50;
 
 const normalScenarios = {
   concurrent_claim: {
@@ -94,7 +95,7 @@ function claim(leaseSeconds) {
       ...db.query(
         'select * from private.claim_outbox_batch($1, $2, $3)',
         `k6-${__VU}`,
-        10,
+        claimBatchSize,
         leaseSeconds,
       ),
     ];
