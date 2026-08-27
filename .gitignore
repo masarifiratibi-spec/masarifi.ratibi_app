@@ -2,6 +2,9 @@ node_modules
 .next
 out
 dist
+coverage
+supabase/.branches
+supabase/.temp
 .wrangler
 .next-preview*.log
 .next-dev*.log
@@ -9,6 +12,13 @@ dist
 .env*
 !.env.example
 npm-debug.log*
+*.log
+*.tmp
+apps/api/test/performance/artifacts/*.json
+apps/api/test/performance/artifacts/*.txt
+!apps/api/test/performance/artifacts/.gitkeep
+.DS_Store
+Thumbs.db
 .worktrees/
 .superpowers/brainstorm/
 .impeccable/

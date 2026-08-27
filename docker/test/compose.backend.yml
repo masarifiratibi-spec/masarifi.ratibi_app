@@ -1,0 +1,37 @@
+name: masarifi-backend-test
+
+x-test-backend: &test-backend
+  build:
+    context: ../..
+    dockerfile: docker/backend.Dockerfile
+  environment:
+    NODE_ENV: test
+    MASARIFI_RELEASE_VERSION: test
+    MASARIFI_LOG_LEVEL: error
+    DATABASE_URL: ${MASARIFI_TEST_DATABASE_URL:?set a disposable local test database URL}
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  init: true
+
+services:
+  backend-api:
+    <<: *test-backend
+    command: ["dist/src/main.js"]
+    environment:
+      NODE_ENV: test
+      MASARIFI_PROCESS_KIND: api
+      MASARIFI_RELEASE_VERSION: test
+      MASARIFI_LOG_LEVEL: error
+      DATABASE_URL: ${MASARIFI_TEST_DATABASE_URL:?set a disposable local test database URL}
+    ports:
+      - "3300:3000"
+
+  worker:
+    <<: *test-backend
+    command: ["dist/src/worker.js"]
+    environment:
+      NODE_ENV: test
+      MASARIFI_PROCESS_KIND: worker
+      MASARIFI_RELEASE_VERSION: test
+      MASARIFI_LOG_LEVEL: error
+      DATABASE_URL: ${MASARIFI_TEST_DATABASE_URL:?set a disposable local test database URL}

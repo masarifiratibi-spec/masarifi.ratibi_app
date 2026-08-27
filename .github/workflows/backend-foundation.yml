@@ -1,0 +1,199 @@
+name: Backend Foundation
+
+on:
+  pull_request:
+    paths: ["apps/api/**", "supabase/**", "docker/**", ".github/workflows/backend-foundation.yml"]
+  push:
+    branches: [main]
+    tags: ["backend-v*"]
+
+concurrency:
+  group: backend-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sentinel-redaction:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run test:unit -- logger.spec.ts safe-exception-filter.spec.ts queue-publisher.spec.ts
+
+  application:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Enforce SPEC-BE-001 scope
+        shell: bash
+        run: |
+          export MASARIFI_CHANGED_PATHS="$(git diff --name-only b1ba259c6fbd0c3b6dc34615c50aae2a69a001a3)"
+          npm run security:scope
+      - run: npm run test:unit
+      - run: npm run test:contract
+      - run: npm run test:openapi
+      - run: npm run test:integration
+      - run: npm run test:e2e
+      - run: npm run build
+      - run: npm audit --audit-level=high
+      - run: npm run migration:checksums
+
+  database:
+    runs-on: ubuntu-24.04
+    env:
+      NODE_ENV: test
+      MASARIFI_PROCESS_KIND: migration
+      MASARIFI_RELEASE_VERSION: ci
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      K6_DATABASE_URL: postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065
+        with:
+          k6-version: "1.8.0"
+      - run: npm ci --ignore-scripts
+      - run: npm run supabase:start
+      - run: npm run db:reset
+      - run: npm run db:lint
+      - run: npm run test:db
+      - run: npm run build
+      - run: npm run start:migration
+      - run: npm run test:migration
+        env:
+          MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - run: npm run test:database:integration
+        env:
+          MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - run: npm run test:foundation:e2e
+        env:
+          MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - run: npm run test:performance:platform
+      - run: npm run perf:seed:outbox
+      - shell: bash
+        run: |
+          set -o pipefail
+          npm run perf:explain:outbox | tee test/performance/artifacts/outbox-explain.txt
+      - run: npm run test:outbox:performance
+      - run: npm run perf:seed:outbox
+      - run: npm run test:stress
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.sha }}-performance-evidence
+          path: apps/api/test/performance/artifacts/
+          if-no-files-found: warn
+      - if: always()
+        run: npm run supabase:stop
+
+  image:
+    needs: [secrets, sentinel-redaction, application, database]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm --prefix apps/api ci --ignore-scripts
+      - run: docker build --file docker/backend.Dockerfile --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
+      - run: npm --prefix apps/api run test:container
+        env:
+          MASARIFI_IMAGE_UNDER_TEST: masarifi-backend:${{ github.sha }}
+      - run: test "$(docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Config.User}}')" = "65532:65532"
+      - run: docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Id}}' > backend-image-digest.txt
+      - uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
+        with:
+          image-ref: masarifi-backend:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.sha }}-image-evidence
+          path: backend-image-digest.txt
+
+  signed-release-evidence:
+    if: startsWith(github.ref, 'refs/tags/backend-v')
+    needs: image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: backend-${{ github.sha }}-image-evidence
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+      - run: cd apps/api && npm ci --omit=dev --ignore-scripts && npx --yes @cyclonedx/cyclonedx-npm@4.1.1 --omit dev --output-file ../../backend-sbom.cdx.json
+      - id: provenance
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763
+        with:
+          subject-path: backend-image-digest.txt
+      - id: sbom-attestation
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763
+        with:
+          subject-path: backend-image-digest.txt
+          sbom-path: backend-sbom.cdx.json
+      - run: gh attestation verify backend-image-digest.txt --repo ${{ github.repository }} --signer-workflow ${{ github.repository }}/.github/workflows/backend-foundation.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9
+      - run: cosign sign-blob --yes --bundle backend-sbom.sigstore.json backend-sbom.cdx.json
+      - run: cosign verify-blob --bundle backend-sbom.sigstore.json --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/backend-foundation.yml@refs/tags/backend-v.*" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" backend-sbom.cdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.sha }}-signed-evidence
+          path: |
+            backend-image-digest.txt
+            backend-sbom.cdx.json
+            backend-sbom.sigstore.json
+            ${{ steps.provenance.outputs.bundle-path }}
+            ${{ steps.sbom-attestation.outputs.bundle-path }}
