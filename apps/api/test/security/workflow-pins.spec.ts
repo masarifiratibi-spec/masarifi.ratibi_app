@@ -15,6 +15,12 @@ describe('backend workflow action pins', () => {
     for (const reference of uses) expect(reference).toMatch(/^[a-f0-9]{40}$/);
   });
 
+  it('grants the secret scanner read-only pull-request metadata access', () => {
+    const workflow = readFileSync(workflowPath, 'utf8');
+
+    expect(workflow).toMatch(/permissions:\r?\n {2}contents: read\r?\n {2}pull-requests: read/);
+  });
+
   it('blocks the image on database migrations and measured outbox budgets', () => {
     const workflow = readFileSync(workflowPath, 'utf8');
 
