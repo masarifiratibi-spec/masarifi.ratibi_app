@@ -1,0 +1,8 @@
+dist/
+coverage/
+node_modules/
+.specify/
+docs/
+specs/
+README.md
+test/performance/artifacts/

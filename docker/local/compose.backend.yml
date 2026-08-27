@@ -1,0 +1,27 @@
+name: masarifi-backend-local
+
+x-backend: &backend
+  build:
+    context: ../..
+    dockerfile: docker/backend.Dockerfile
+  env_file:
+    - ../../apps/api/.env
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  init: true
+  restart: unless-stopped
+
+services:
+  backend-api:
+    <<: *backend
+    command: ["dist/src/main.js"]
+    environment:
+      MASARIFI_PROCESS_KIND: api
+    ports:
+      - "3000:3000"
+
+  worker:
+    <<: *backend
+    command: ["dist/src/worker.js"]
+    environment:
+      MASARIFI_PROCESS_KIND: worker
