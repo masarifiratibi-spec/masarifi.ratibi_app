@@ -325,7 +325,7 @@ observability, recovery, ownership, and release gates with fresh evidence.
 - [X] T141 Commit the verified SPEC-BE-002 change on the existing `codex/backend-spec-be-002` delivery branch with a clear Spec-identifying message after T139-T140 pass; verify the commit contains no unrelated/untracked user files and reference it in `apps/api/specs/002-auth-profiles-preferences-sessions/checklists/definition-of-done.md`
 - [X] T142 Push `codex/backend-spec-be-002` to `https://github.com/abdullah-zordok/MASREFY_Final` without force or merge; record the remote commit reference in `apps/api/specs/002-auth-profiles-preferences-sessions/checklists/definition-of-done.md`
 - [ ] T143 Collect CI test/image/SBOM/vulnerability/signature/provenance results for the pushed delivery-branch commit when the repository workflow supports that ref, and attach only safe evidence references to `apps/api/specs/002-auth-profiles-preferences-sessions/checklists/definition-of-done.md`
-- [ ] T144 Address every remote failure with a forward-fix commit on `codex/backend-spec-be-002`, rerun affected local checks before pushing, and update `apps/api/specs/002-auth-profiles-preferences-sessions/checklists/definition-of-done.md`
+- [X] T144 Address every remote failure with a forward-fix commit on `codex/backend-spec-be-002`, rerun affected local checks before pushing, and update `apps/api/specs/002-auth-profiles-preferences-sessions/checklists/definition-of-done.md`
 - [ ] T145 Mark SPEC-BE-002 complete only after T143-T144 and every DoD/acceptance/provider gate passes; record final completion evidence in `apps/api/specs/002-auth-profiles-preferences-sessions/checklists/definition-of-done.md`
 
 ## Dependencies

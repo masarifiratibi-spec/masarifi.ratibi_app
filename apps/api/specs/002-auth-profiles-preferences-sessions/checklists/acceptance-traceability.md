@@ -17,14 +17,14 @@
 - AC-003: Clerk native Supabase integration, no legacy JWT Template, the hosted exact-domain connection, and real asymmetric token acceptance all pass; a corrupted token fails closed.
 - AC-004/AC-006/SC-001: one Google identity passes the official Clerk guard, hosted Third-Party Auth, and local owner/non-owner RLS; two Phone identities and the hosted schema remain unavailable for the full matrix.
 - AC-011: production-like SQL runs used the profile primary keys, device cursor index, and webhook claim/retention indexes under the 50 ms DB budget. Authenticated identity k6 requires protected provider tokens and all remaining k6 was explicitly skipped by the user; it is not a pass.
-- AC-015: dependency audit, SAST, repository/history/image secret scans, and release-container checks pass locally; remote CI/SBOM/signature/provenance remains open.
+- AC-015: dependency audit, SAST, repository/history/image secret scans, release-container checks, and remote CI/image/Trivy pass; tag-only SBOM/signature/provenance remains open.
 - SC-002/SC-005/SC-007/SC-008: locally covered in part; final provider and release evidence remains open.
 
 FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain explicit evidence gaps and are not inferred as passes.
 
-## Fresh command evidence — 2026-08-28
+## Fresh command evidence — 2026-08-29
 
-- Fresh local `npm run verify`: unit 171/171, contract 83/83, security 50/50, build, migration checksums, dependency audit, and workflow pins pass. Explicit live-database runs separately pass integration 48/48 and E2E 18/18.
+- Fresh local `npm run verify`: unit 172/172, contract 83/83, security 50/50, build, migration checksums, dependency audit, and workflow pins pass. Explicit live-database runs separately pass integration 48/48 and E2E 18/18.
 - `npm run db:lint && npm run test:db`: no schema errors; 8 files and 308 pgTAP assertions pass.
 - `npm run test:release-image`: 4 suites and 9 container assertions pass.
 - Production-like SQL: profile lookup 0.036 ms, preferences lookup 0.023 ms, device cursor 0.059 ms, webhook claim 0.036 ms, and retention 0.051 ms in the final recorded local run; all used the intended indexes after forward migration 013 and removed their own fixtures.
@@ -32,6 +32,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 - Provider recovery rehearsal: live-database integration passed 18 suites/48 tests, including Clerk outage, reconciliation, webhook crash/retry/retention, and device session recovery.
 - Completed load evidence: outbox 4,791 iterations with zero claim failures (P95 18 ms/P99 53 ms); webhook 600 requests with only 202/expected 429 responses (P95 7.045 ms/P99 15.063 ms). Remaining k6 is skipped by explicit user instruction and not counted as a release pass.
 - Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. One controlled Google session with `role=authenticated` passes the official API guard, reaches hosted PostgREST through the exact-domain Third-Party Auth connection, and passes local owner/non-owner RLS; a corrupted token is rejected with `401/PGRST301`. Hosted Supabase contains zero `auth.users`; hosted owner/non-owner RLS still requires the canonical hosted schema and two Phone identities.
+- Remote workflow `33211892554`: application, live database, Gitleaks/redaction, release-image/container/non-root, image-digest artifact, and Trivy all pass on commit `bcf45bb`; k6 is intentionally skipped and signed release evidence remains tag-only.
 
 ## Requirement traceability
 
@@ -99,7 +100,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 | AC-012 | Metrics/logs/runbooks and local tabletop pass; production dashboards open |
 | AC-013 | Clean apply/checksum/concurrency/backup-restore pass; N-1 hosted rehearsal open |
 | AC-014 | Pass: mapping and no-client-diff/Admin-route gates |
-| AC-015 | Local OWASP/audit/SAST/container/secret gates pass; provider/remote gates open |
+| AC-015 | Local and remote CI/image/vulnerability gates pass; provider and tag-only signed-release gates remain open |
 
 | Success criterion | Evidence/result |
 |---|---|

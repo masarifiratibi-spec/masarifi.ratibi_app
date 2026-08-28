@@ -15,17 +15,17 @@
 - [ ] The Google protected alias exists; two Phone aliases and the full three-identity matrix remain open.
 - [x] Container, dependency, SAST, and secret/history/image gates pass locally.
 - [ ] Authenticated/provider-backed release validation passes; remaining k6/stress is explicitly skipped by the user and is not counted as a pass.
-- [x] Delivery commits through provider/guard fix `d0db2b7` are pushed to `origin/codex/backend-spec-be-002` without force or merge.
-- [ ] Remote CI/SBOM/vulnerability/signature/provenance results pass.
+- [x] Delivery commits through CI/security fix `bcf45bb` are pushed to `origin/codex/backend-spec-be-002` without force or merge.
+- [ ] Remote CI/image/vulnerability gates pass; SBOM/signature/provenance remain release-tag-only and have not run.
 
 Current status: the local implementation, clean database/migration recovery,
 security/container, local outage recovery, runbook tabletop, exact SMS allowlist,
 and real Google-token gates pass. Release remains blocked by hosted schema/RLS
 validation, the iOS Team ID, two Phone identities, a deployed webhook URL/secret
-store, and remote CI.
+store, and tag-only signed release evidence.
 Remaining k6 was skipped by explicit user instruction and is not reported as pass.
 
-Latest local verification (2026-08-28): `npm run verify` passed (171 unit, 83 contract, 50 security, build, checksums, audit, and workflow pins); the explicit live-database runs passed 48 integration and 18 E2E tests; pgTAP passed 308 assertions; the rebuilt release image passed 9 container assertions.
+Latest local verification (2026-08-29): `npm run verify` passed (172 unit, 83 contract, 50 security, build, checksums, audit, and workflow pins); the explicit live-database runs passed 48 integration and 18 E2E tests; pgTAP passed 308 assertions; the refreshed release image passed 9 container assertions and Trivy reported zero fixed HIGH/CRITICAL vulnerabilities.
 
 Final local scope review (2026-08-28): current branch is
 `codex/backend-spec-be-002`; `git diff --check`, client-diff,
@@ -38,7 +38,10 @@ The unrelated untracked
 paths were committed (114 files, with zero client paths or secret values); no
 worktree or merge was used.
 
-Delivery evidence (2026-08-28): implementation commit `056640f` and the real-provider
-guard fix/evidence commit `d0db2b7` were pushed to
-`origin/codex/backend-spec-be-002`. The remote workflow does not run for a plain push
-to this branch, so remote release evidence remains open; no PR or merge was created.
+Delivery evidence (2026-08-29): implementation commit `056640f`, provider/guard fix
+`d0db2b7`, and remote-forward-fix commits through `bcf45bb` were pushed to
+`origin/codex/backend-spec-be-002`. Manual workflow run
+`33211892554` passed application, live database, Gitleaks/redaction, release-image,
+container, non-root, image-digest, and Trivy gates with k6 explicitly skipped. The
+signed-release-evidence job was correctly skipped because this branch run is not a
+`backend-v*` release tag; no PR or merge was created.
