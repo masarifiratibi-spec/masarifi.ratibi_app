@@ -34,7 +34,7 @@ const applicationKeys = new Set([
   'MASARIFI_CLERK_WEBHOOK_MAX_ATTEMPTS',
   'MASARIFI_CLERK_RECONCILE_PAGE_SIZE',
 ]);
-const testHarnessKeys = new Set(['MASARIFI_LIVE_DATABASE_TESTS']);
+const testHarnessKeys = new Set(['MASARIFI_IMAGE_UNDER_TEST', 'MASARIFI_LIVE_DATABASE_TESTS']);
 
 const base64UrlKey = /^[A-Za-z0-9_-]{43}$/;
 const safeKeyId = /^[A-Za-z0-9._-]{1,32}$/;
