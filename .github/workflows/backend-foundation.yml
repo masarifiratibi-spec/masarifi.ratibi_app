@@ -158,7 +158,7 @@ jobs:
           MASARIFI_IMAGE_UNDER_TEST: masarifi-backend:${{ github.sha }}
       - run: test "$(docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Config.User}}')" = "65532:65532"
       - run: docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Id}}' > backend-image-digest.txt
-      - uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: masarifi-backend:${{ github.sha }}
           severity: CRITICAL,HIGH
