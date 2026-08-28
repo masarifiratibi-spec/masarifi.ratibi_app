@@ -304,7 +304,10 @@ security invoker
 set search_path = ''
 ```
 
-It returns `nullif(btrim(auth.jwt() ->> 'sub'), '')`. Policies call it as
+It returns the trimmed `sub` from PostgreSQL's transaction-local
+`request.jwt.claims` JSON (the same verified claim source exposed by
+`auth.jwt()`, without requiring runtime roles to use the provider-owned `auth`
+schema). Policies call it as
 `(select public.current_clerk_user_id())` so PostgreSQL evaluates it once per
 statement. It has minimum execute grants and never reads `auth.users`.
 
@@ -354,23 +357,24 @@ but no table-owner, superuser, service-role, or BYPASSRLS capability.
 ### Profile bootstrap/reconciliation
 
 1. Validate the stored signed event and extract only the immutable subject.
-2. Start a worker transaction, lock the inbox row, and insert a nonvisible
-   `deletion_pending` profile shell with `ON CONFLICT DO NOTHING`.
-3. Lock the profile row for that subject. A concurrent processor blocks on the
-   unique insert/row lock and then observes the first committed result.
-4. Perform one bounded current-user Clerk lookup while the per-subject row is
-   locked; provider outage rolls back the shell/claim and is never deletion
-   evidence.
-5. If Clerk currently has the user, activate only the shell inserted by this
-   transaction and synchronize provider-owned fields. Never reactivate a
-   pre-existing inactive profile or overwrite a customer display name. If Clerk
-   confirms absence, retain/move the profile to `deletion_pending`.
+2. Start a worker transaction, lock the inbox row, and take a transaction-scoped
+   PostgreSQL advisory lock derived from the immutable Clerk subject.
+3. A concurrent webhook or reconciliation processor for the same subject blocks
+   on that advisory lock and then observes the first committed result.
+4. Perform one bounded current-user Clerk lookup while the per-subject lock is
+   held; provider outage rolls back the claim and is never deletion evidence.
+5. If Clerk currently has the user, insert a missing profile directly as active or
+   synchronize provider-owned fields on an existing active profile. Never
+   reactivate a pre-existing inactive profile or overwrite a customer display
+   name. If Clerk confirms absence, retain/move an existing profile to
+   `deletion_pending`; absence alone does not create a profile shell.
 6. Insert missing preference and onboarding defaults only for an active current
    Clerk user, using `ON CONFLICT DO NOTHING`.
 7. Enqueue the owned profile event through SPEC-BE-001's outbox helper.
 8. Mark the inbox event processed and commit.
 
-The per-subject row lock serializes concurrent delivery/reconciliation effects.
+The per-subject transaction advisory lock serializes concurrent
+delivery/reconciliation effects without adding a durable lock table.
 Fetching current Clerk state means stale payload order cannot regress current
 identity or deletion state without adding a source watermark column.
 
@@ -423,7 +427,7 @@ SPEC-BE-001 is merged; do not invent or rewrite a historical timestamp.
 
 The merged baseline owns migrations `20260827000100` through `20260827000400` and
 pgTAP files `001` through `003`. The confirmed next files are migrations
-`20260827000500` through `20260827001200` and pgTAP files
+`20260827000500` through `20260827001300` and pgTAP files
 `004_identity_profiles_rls.test.sql` through `008_identity_admin_denial.test.sql`.
 No reserved slot collides; never overwrite an occupied slot.
 

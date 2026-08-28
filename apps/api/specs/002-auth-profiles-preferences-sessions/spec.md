@@ -3,9 +3,9 @@
 **Phase / Spec**: Phase 02 / SPEC-BE-002 of 014
 **Working Branch**: `main`
 **Feature Directory**: `apps/api/specs/002-auth-profiles-preferences-sessions`
-**Base Revision**: `d17d140e0eaf0270895c7fbe1dc25d84e2d9bb0f` (`origin/main`)
+**Base Revision**: `4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`
 **Created**: 2026-08-27
-**Status**: Governance transition to `main` pending; implementation not started
+**Status**: Implementation in progress on `main`; baseline gate cleared 2026-08-28
 **Input**: "Read the complete BACKEND_MASTER_PLAN.md and specify SPEC-BE-002 — Authentication, Profiles, Preferences & Sessions."
 
 ## Objective and Scope

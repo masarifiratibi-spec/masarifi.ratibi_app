@@ -6,9 +6,8 @@ subject, webhook body, or database URL.
 
 ## 0. Verified Implementation Baseline
 
-SPEC-BE-001 is merged into `origin/main` at
-`d17d140e0eaf0270895c7fbe1dc25d84e2d9bb0f`. SPEC-BE-002 implementation begins
-only after these artifacts are integrated into the existing `main` checkout.
+SPEC-BE-001 and the approved SPEC-BE-002 artifacts are integrated into `main` at
+`4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`.
 
 Before implementation, verify from the existing checkout—do not create a worktree:
 
@@ -31,8 +30,9 @@ Required result:
 If any item fails, stop implementation and update the baseline through the normal
 reviewed Git flow. Do not use destructive reset/clean/checkout commands.
 
-Historical preflight before the governance change confirmed SPEC-BE-001 ancestry;
-repeat the checks above on `main` before T007. No worktree was created;
+Verified preflight on 2026-08-28: the checkout is `main`, SPEC-BE-001 is an
+ancestor, and the SPEC-BE-002 planning merge is
+`4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`. No worktree was created;
 `.agents/plugins`, `apps/api/test/performance/artifacts`, `supabase/.branches`, and
 `supabase/.temp` were preserved. Mobile/Admin diffs were empty. The merged baseline
 contains migrations `00100`-`00400`, pgTAP files `001`-`003`, the three NOLOGIN/
@@ -43,6 +43,11 @@ and the pinned CI workflow.
 The mandatory pre-code cross-artifact review is recorded in
 [checklists/artifact-analysis.md](checklists/artifact-analysis.md). T137 remains a
 fresh final rerun after implementation rather than replacing this early gate.
+
+Foundation gate verified on 2026-08-28 after T007-T017: TypeScript and ESLint
+passed; 23 unit suites/110 tests, 8 contract suites/36 tests, and 2 ownership/scope
+suites/9 tests passed; API, worker, and migration builds passed. The existing
+SPEC-BE-001 validation, error, OpenAPI, scope, and build contracts remained green.
 
 ## 1. Complete the Redacted Provider Checklist
 

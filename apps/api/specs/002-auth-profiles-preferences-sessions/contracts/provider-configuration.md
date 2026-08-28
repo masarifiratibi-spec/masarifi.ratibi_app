@@ -2,7 +2,8 @@
 
 **Spec**: SPEC-BE-002
 **Environment**: Development first
-**Evidence status**: Planned; no dashboard item is marked verified by this artifact
+**Evidence status**: Partially verified on 2026-08-28; unresolved items remain
+release blockers and stay unchecked below.
 
 This is the redaction-safe configuration contract and implementation checklist.
 Do not paste keys, OTPs, JWTs, test credentials, provider responses, or screenshots
@@ -47,6 +48,13 @@ countries is a **production release blocker**. It is not permission to widen the
 allowlist or claim AC-001 complete. Development test usage remains controlled until
 the provider restriction is resolved.
 
+Dashboard review on 2026-08-28 confirmed that Saudi Arabia is provider-locked in
+Tier C and Egypt and the United Arab Emirates are provider-locked in Tier D. Clerk
+requires support activation for these tiers. The default Canada and United States
+destinations were removed, leaving the allowlist empty rather than wider than the
+approved policy. No phone number or OTP was used or recorded. Support activation of
+exactly `+20`, `+966`, and `+971` remains required.
+
 ## Native Applications
 
 | Platform | Required identity | Additional provider evidence |
@@ -70,6 +78,13 @@ secure session-token storage, manifest/config-plugin changes, and live Mobile/Ad
 adapter cutover. If SPEC-BE-014 selects native Google rather than browser SSO, it
 must supply the provider-specific Google client IDs, iOS reversed-client scheme,
 Android SHA-1, Clerk SHA-256, and development-build/EAS configuration at that time.
+
+Dashboard review on 2026-08-28 confirmed Native API is enabled and
+`masarifi://oauth-callback` is the sole Mobile SSO redirect. The Android application
+is registered as namespace/package `com.masarifi.mobile` with the EAS Development
+signing fingerprint; the dashboard's masked fingerprint evidence was verified and
+the full value was not committed. The iOS record remains blocked on the missing
+Apple Team ID.
 
 ## Google Connection
 
@@ -95,6 +110,14 @@ Android SHA-1, Clerk SHA-256, and development-build/EAS configuration at that ti
 5. Copy the Clerk instance domain through a private local channel. The domain is
    configuration, not a secret key, but is still validated against the approved
    instance.
+
+The Development instance domain observed in Clerk on 2026-08-28 is
+`popular-chipmunk-2273.clerk.accounts.dev`. Clerk's integration setup now reports
+**Enabled** and states that the integration adds the required claim to Clerk session
+tokens. Its copy field exposes the same domain with an `https://` scheme. The JWT
+Templates page reports `0-0 of 0`, so no legacy Supabase JWT Template exists. Token
+claim and hosted-project verification remain unchecked until a controlled Clerk
+session token can be tested through Supabase Third-Party Auth.
 
 ### Supabase hosted project
 
@@ -122,6 +145,15 @@ never committed tokens.
 Supabase may take up to the documented provider refresh interval (currently up to
 30 minutes) to accept rotated Clerk signing keys. The rotation runbook waits and
 tests fail closed; it does not fall back to a shared JWT secret.
+
+Local clean-state validation on 2026-08-28 reapplied all migrations through 013,
+then passed schema lint and all 308 pgTAP assertions with the Clerk third-party
+block present in `supabase/config.toml`. Clerk OIDC discovery returned the exact
+approved issuer and a JWKS containing only asymmetric keys with `kid`; local
+`auth.users` contained zero rows. The hosted Supabase project was discovered and
+healthy, but its Dashboard and connected-service session require reauthentication,
+so the hosted Third-Party Auth record and real-token RLS proof remain blocked rather
+than inferred.
 
 ## Authorized Parties
 
@@ -166,6 +198,11 @@ Verification covers valid delivery, invalid signature, stale/future timestamp,
 identical signed duplicate, same delivery ID/different hash conflict, unsupported
 signed type, raw-body preservation, body limit, provider retry, and redaction.
 
+Clerk currently has zero webhook endpoints. No endpoint was created because the
+repository contains no deployed public HTTPS API URL for `POST /webhooks/clerk`.
+Creating a placeholder or localhost endpoint would not validate delivery and would
+expose a signing secret without an approved runtime secret store.
+
 ## Required Test Identities
 
 | Alias | Method | Purpose | Stored evidence |
@@ -181,15 +218,15 @@ identity was created.
 
 ## Release Evidence Checklist
 
-- [ ] One `Masarifi Development` Clerk application serves both clients.
-- [ ] Only Phone OTP and Google are enabled; password/Apple/Facebook/other are off.
+- [x] One `Masarifi Development` Clerk application serves both clients.
+- [x] Only Phone OTP and Google are enabled; password/Apple/Facebook/other are off.
 - [ ] `+20`, `+966`, and `+971` are the only provider-side SMS destinations.
 - [ ] Android/iOS identity `com.masarifi.mobile` exists under Native Applications.
 - [ ] `masarifi://oauth-callback` is allowlisted and an unapproved redirect fails.
-- [ ] Native Supabase integration is enabled in Clerk.
+- [x] Native Supabase integration is enabled in Clerk.
 - [ ] Supabase Third-Party Auth contains the exact approved Clerk instance domain.
 - [ ] Valid Clerk token passes owner RLS; wrong subject/invalid token fails.
-- [ ] No Supabase JWT Template exists.
+- [x] No Supabase JWT Template exists.
 - [ ] No Masarifi identity exists in `auth.users`.
 - [ ] Two Phone identities and one Google identity pass the redacted test matrix.
 - [ ] Webhook events are exactly the three approved types and signature tests pass.

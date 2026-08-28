@@ -2,7 +2,7 @@
 
 **Spec**: SPEC-BE-002
 **Date**: 2026-08-27
-**Status**: Complete; main-baseline transition pending 2026-08-28
+**Status**: Complete; main baseline cleared 2026-08-28
 
 This document records the decisions that remove implementation ambiguity. It is
 not evidence that Clerk, Supabase, source code, migrations, or production secrets
@@ -202,13 +202,13 @@ never interpreted as deletion.
 
 For crash and per-subject concurrency safety without inventing a queue or lease
 schema, a worker transaction locks one eligible inbox row with
-`FOR UPDATE SKIP LOCKED`, inserts a transaction-local `deletion_pending` profile
-shell when the subject is new, and locks that profile row. Concurrent work for the
-same subject therefore serializes on the unique insert/row lock. The worker then
-performs one bounded read-only Clerk lookup, activates only a shell it inserted
-when the Clerk user currently exists, applies profile/default/outbox changes, and
-completes or records failure before commit. A provider error or process crash rolls
-back the shell, claim, and partial effects. Batch size is deliberately one per
+`FOR UPDATE SKIP LOCKED` and takes a transaction-scoped PostgreSQL advisory lock
+derived from the immutable Clerk subject. Concurrent webhook and reconciliation
+work for that subject therefore serializes before the provider lookup. The worker
+then performs one bounded read-only Clerk lookup, creates a new profile directly in
+its current state, applies profile/default/outbox changes, and completes or records
+failure before commit. A provider error or process crash rolls back the claim and
+all partial effects. Batch size is deliberately one per
 transaction while a provider call is inside it; performance evidence decides
 whether the Master Plan needs lease columns or a queue in a later approved
 amendment.
@@ -411,4 +411,4 @@ and current device/session state should not be hidden behind a speculative cache
 | Push-token protection | Node AES-256-GCM + HMAC-SHA-256 with separate keys |
 | Durable customer idempotency | Deferred to SPEC-BE-006; natural repeatability here |
 | Client auth implementation | Deferred to SPEC-BE-014 |
-| Implementation start | Blocked until SPEC-BE-002 artifacts are integrated into synchronized `main` |
+| Implementation start | Cleared on `main` at `4460ea56d6f53760fc6fefbfc35d0cc8c734dd75` |

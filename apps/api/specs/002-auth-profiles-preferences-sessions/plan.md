@@ -2,9 +2,9 @@
 
 **Phase / Spec**: Phase 02 / SPEC-BE-002
 **Branch**: `main`
-**Base Revision**: `d17d140e0eaf0270895c7fbe1dc25d84e2d9bb0f` (`origin/main`)
+**Base Revision**: `4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`
 **Date**: 2026-08-28
-**Status**: Governance transition to `main` pending; implementation not started
+**Status**: Implementation in progress on `main`; baseline gate cleared
 **Spec**: [spec.md](spec.md)
 **Input**: SPEC-BE-002 specification and `docs/Back end/BACKEND_MASTER_PLAN.md`
 
@@ -28,11 +28,11 @@ view, or client cutover.
 
 ## Implementation Gate
 
-SPEC-BE-001 is merged into `origin/main` at
-`d17d140e0eaf0270895c7fbe1dc25d84e2d9bb0f`. Before implementation, integrate
-these SPEC-BE-002 artifacts into the existing `main` checkout without creating a
-worktree, then recheck source, migration, pgTAP, Docker, CI, role, outbox, and
-client-contract paths. The repository has templates but no
+Cleared on 2026-08-28. SPEC-BE-001 and the approved SPEC-BE-002 artifacts are on
+`main` at `4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`; no new worktree was
+created and unrelated `.agents/plugins` content remains untracked and untouched.
+Source, migration, pgTAP, Docker, CI, role, outbox, and client-contract paths were
+rechecked. The repository has templates but no
 `check-prerequisites.ps1`, so prerequisite discovery remains a documented manual
 fallback and does not alter the implementation contract.
 
@@ -67,7 +67,7 @@ implementation hold above remains binding.*
 
 | Gate | Status | Evidence / disposition |
 |---|---|---|
-| Main-first baseline | PENDING | Switch the existing checkout to synchronized `main`, preserve unrelated files, and record the resulting revision before T007 |
+| Main-first baseline | PASS | Existing checkout is `main` at `4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`; SPEC-BE-001 and SPEC-BE-002 artifacts are present and unrelated files are preserved |
 | Required Spec Kit sequence | PASS through tasks | `spec.md`, `plan.md`, and `tasks.md` exist; cross-artifact analysis is the final pre-code gate |
 | Exclusive owned resources | PASS | Ownership register matches Phase 02; no Admin/authz/audit/privacy/client/idempotency resource is added |
 | Current code and client contracts reviewed | PASS | Merged BE-001 source/tests and current Mobile auth/onboarding plus Admin mock projections were inspected |
@@ -79,7 +79,7 @@ implementation hold above remains binding.*
 | Named verification/recovery evidence | PASS | [quickstart.md](quickstart.md) and the Evidence Plan name commands, environments, thresholds, and blocker outcomes |
 
 No Constitution deviation is approved or required. The main-baseline transition
-blocks implementation, not this design-only Phase 0/1 work.
+and mandatory pre-code artifact analysis are complete.
 
 ## Project Structure
 
@@ -160,6 +160,7 @@ supabase/
 |   |-- 20260827001000_identity_devices_push_rls.sql
 |   |-- 20260827001100_clerk_webhook_inbox.sql
 |   `-- 20260827001200_clerk_webhook_grants.sql
+|   `-- 20260827001300_clerk_webhook_claim_index.sql
 |-- migration-checksums.sha256
 `-- tests/
     |-- 004_identity_profiles_rls.test.sql
@@ -287,13 +288,14 @@ no direct table grant.
 ### Webhook inbox and current-state convergence
 
 Ingress verifies exact raw bytes and the Standard Webhooks headers through Clerk,
-then performs one unique insert. Processing locks one inbox row and one subject
-profile in one transaction, reads current Clerk state with a bounded timeout, and
-commits profile/default/outbox/inbox effects atomically. A new subject uses a
-transaction-local deletion-pending shell so concurrent work serializes on the row;
-only a shell inserted by that transaction may become active. Existing inactive
-profiles never auto-reactivate. Provider outage rolls back and retries, while
-confirmed absence becomes deletion-pending evidence.
+then performs one unique insert. Processing locks one inbox row and takes a
+transaction-scoped PostgreSQL advisory lock derived from the immutable subject,
+reads current Clerk state with a bounded timeout, and commits
+profile/default/outbox/inbox effects atomically. Concurrent webhook and
+reconciliation work for one subject serializes on that lock. New profiles are
+inserted directly in their current state; existing inactive profiles never
+auto-reactivate. Provider outage rolls back and retries, while confirmed absence
+becomes deletion-pending evidence only for an existing profile.
 
 This deliberately holds one database transaction across one read-only provider
 lookup. It is the only crash-safe design that fits the Master Plan's fixed inbox
@@ -450,7 +452,7 @@ mitigation, escalation, rollback/reconciliation, and closure evidence.
 
 | Gate | Status | Phase 1 evidence |
 |---|---|---|
-| Main-first baseline / dependency | PENDING | BE-001 is present in `origin/main`; existing checkout must be transitioned to synchronized `main` and recorded before implementation |
+| Main-first baseline / dependency | PASS | Existing checkout is `main` at `4460ea56d6f53760fc6fefbfc35d0cc8c734dd75`; BE-001 and the SPEC-BE-002 artifacts are present and no new worktree was created |
 | Artifact consistency | PASS | Spec corrections align with research, data model, OpenAPI, events, environment, provider checklist, and quickstart; tasks/analyze still next |
 | Ownership completeness | PASS | Every proposed table/function/trigger/API/job/event/config is registered; no new queue/view/session/idempotency/Admin/client resource |
 | Repository/client review | PASS | Reuse paths and Mobile onboarding/auth/Admin boundaries are encoded; exact merged paths must be rechecked |
