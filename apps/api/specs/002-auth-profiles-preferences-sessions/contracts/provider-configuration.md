@@ -43,22 +43,13 @@ Record the following safe evidence:
 - one rejected disallowed-country attempt without phone number output;
 - Clerk tier/support ticket reference if the setting is unavailable.
 
-The currently known Clerk tier/support restriction for enabling all required SMS
-countries is a **production release blocker**. It is not permission to widen the
-allowlist or claim AC-001 complete. Development test usage remains controlled until
-the provider restriction is resolved.
-
-Dashboard review on 2026-08-28 confirmed that Saudi Arabia is provider-locked in
-Tier C and Egypt and the United Arab Emirates are provider-locked in Tier D. Clerk
-requires support activation for these tiers. The default Canada and United States
-destinations were removed, leaving the allowlist empty rather than wider than the
-approved policy. No phone number or OTP was used or recorded. Support activation of
-exactly `+20`, `+966`, and `+971` remains required.
-
-The exact three-country activation request was submitted successfully to Clerk
-Support on 2026-08-28 for `Masarifi Development`; the provider will respond by
-email. Approval, allowlist activation, and allowed/disallowed-number verification
-remain open and are not inferred from ticket submission.
+The exact three-country activation request was submitted to Clerk Support on
+2026-08-28 for `Masarifi Development`. A later Dashboard review that day confirmed
+provider activation: the allowlist reports exactly 3 of 224 countries selected,
+with Saudi Arabia checked in Tier C and Egypt and the United Arab Emirates checked
+in Tier D. Every other tier reports zero selected countries. No phone number or OTP
+was used or recorded; actual delivery remains part of the protected Phone identity
+test.
 
 ## Native Applications
 
@@ -106,9 +97,11 @@ be discovered from the project. The iOS record remains blocked on that value.
 
 Dashboard verification on 2026-08-28 confirmed `Require phone` is disabled while
 Phone sign-up/sign-in and SMS verification remain enabled. A fresh Google sign-up
-therefore reaches the Google account chooser without requesting a phone number;
-provider-backed account completion remains pending the controlled test-account
-selection.
+therefore reaches the Google account chooser without requesting a phone number.
+One controlled Google identity completed sign-up. Its short-lived session token was
+accepted by the official backend SDK and the shared API guard without recording the
+email, subject, session ID, or token. The two controlled Phone identities still
+require real numbers and private OTP completion; provider delivery is now enabled.
 
 ## Clerk Native Supabase Integration
 
@@ -128,8 +121,8 @@ The Development instance domain observed in Clerk on 2026-08-28 is
 **Enabled** and states that the integration adds the required claim to Clerk session
 tokens. Its copy field exposes the same domain with an `https://` scheme. The JWT
 Templates page reports `0-0 of 0`, so no legacy Supabase JWT Template exists. Token
-claim and hosted-project verification remain unchecked until a controlled Clerk
-session token can be tested through Supabase Third-Party Auth.
+claim and hosted-project verification were completed with a controlled short-lived
+session token as described below.
 
 ### Supabase hosted project
 
@@ -166,8 +159,18 @@ approved issuer and a JWKS containing only asymmetric keys with `kid`; local
 healthy and a read-only connected-service query on 2026-08-28 also proved its
 `auth.users` count is zero. The hosted Third-Party Auth connection was then created
 with the exact approved `https://popular-chipmunk-2273.clerk.accounts.dev` domain
-and the Dashboard reports it as **Enabled**. Real-token RLS proof remains open until
-protected identities and the canonical hosted schema deployment are available.
+and the Dashboard reports it as **Enabled**. On 2026-08-28 a real asymmetric Clerk
+session token with `role=authenticated` and the approved issuer reached PostgREST;
+the missing probe table produced `PGRST205`, while a deliberately corrupted token
+was rejected with `401/PGRST301`. This proves the hosted Third-Party Auth boundary
+accepts Clerk tokens without exposing the token. Owner/non-owner RLS proof remains
+open because the canonical hosted schema is not deployed and the two Phone
+identities are unavailable.
+
+The same real `role=authenticated` session was also exercised against the restarted
+local Supabase stack. Owner RLS returned exactly the controlled subject's row and a
+different-owner row returned zero rows; both temporary rows were removed. No token,
+subject, session identifier, or personal data was emitted.
 
 ## Authorized Parties
 
@@ -234,17 +237,19 @@ identity was created.
 
 - [x] One `Masarifi Development` Clerk application serves both clients.
 - [x] Only Phone OTP and Google are enabled; password/Apple/Facebook/other are off.
-- [ ] `+20`, `+966`, and `+971` are the only provider-side SMS destinations.
+- [x] `+20`, `+966`, and `+971` are the only provider-side SMS destinations.
 - [ ] Android/iOS identity `com.masarifi.mobile` exists under Native Applications.
 - [ ] `masarifi://oauth-callback` is allowlisted and an unapproved redirect fails.
 - [x] Native Supabase integration is enabled in Clerk.
 - [x] Supabase Third-Party Auth contains the exact approved Clerk instance domain.
-- [ ] Valid Clerk token passes owner RLS; wrong subject/invalid token fails.
+- [x] A valid asymmetric Clerk token reaches hosted PostgREST; a corrupted token fails.
+- [x] A valid Clerk token passes local owner RLS; a wrong subject receives zero rows.
+- [ ] The same owner/non-owner RLS proof passes against the hosted schema.
 - [x] No Supabase JWT Template exists.
 - [x] No Masarifi identity exists in hosted or local `auth.users` at the recorded verification time.
 - [ ] Two Phone identities and one Google identity pass the redacted test matrix.
 - [ ] Webhook events are exactly the three approved types and signature tests pass.
-- [ ] No secret/OTP/JWT/PII appears in captured evidence.
+- [x] No secret/OTP/JWT/PII appears in captured evidence.
 
 Unchecked means unverified and blocks the corresponding acceptance criterion. This
 planning artifact intentionally leaves every box unchecked.

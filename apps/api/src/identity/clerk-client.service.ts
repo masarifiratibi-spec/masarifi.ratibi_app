@@ -55,7 +55,6 @@ export class ClerkClientService {
   private readonly client: ClerkClient;
   private readonly timeoutMs: number;
   private readonly instanceDomain: string | undefined;
-  private readonly authorizedParties: string[];
 
   constructor(config: PlatformConfigService) {
     this.client = createClerkClient({
@@ -67,11 +66,10 @@ export class ClerkClientService {
     });
     this.timeoutMs = config.get('MASARIFI_CLERK_API_TIMEOUT_MS');
     this.instanceDomain = config.get('CLERK_INSTANCE_DOMAIN');
-    this.authorizedParties = [...(config.get('CLERK_AUTHORIZED_PARTIES') ?? [])];
   }
 
   async authenticateRequest(request: ExpressRequest): Promise<ClerkAuthentication> {
-    if (!this.instanceDomain || this.authorizedParties.length === 0) {
+    if (!this.instanceDomain) {
       throw new ClerkProviderUnavailableError();
     }
     const headers = new Headers();
@@ -88,7 +86,6 @@ export class ClerkClientService {
       const state: unknown = await this.withTimeout(
         this.client.authenticateRequest<'session_token'>(webRequest, {
           acceptsToken: 'session_token',
-          authorizedParties: this.authorizedParties,
         }),
       );
       if (!isSignedInState(state)) return { isAuthenticated: false };

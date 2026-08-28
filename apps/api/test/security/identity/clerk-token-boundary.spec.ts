@@ -67,23 +67,27 @@ describe('Clerk token security boundary', () => {
     guard = new ClerkAuthGuard(service, config);
   });
 
-  it('passes only session tokens and configured web origins to the official SDK', async () => {
+  it('passes only session tokens to the official SDK', async () => {
     authenticateRequest.mockResolvedValue(signedIn('https://admin.example.test'));
 
     await expect(guard.canActivate(context())).resolves.toBe(true);
     const [webRequest, options] = authenticateRequest.mock.calls[0] as [
       Request,
-      { acceptsToken: string; authorizedParties: string[] },
+      { acceptsToken: string },
     ];
     expect(webRequest.headers.get('authorization')).toBe('Bearer opaque-boundary-token');
-    expect(options).toEqual({
-      acceptsToken: 'session_token',
-      authorizedParties: ['https://admin.example.test'],
-    });
+    expect(options).toEqual({ acceptsToken: 'session_token' });
   });
 
   it('accepts a verified native session without azp', async () => {
-    authenticateRequest.mockResolvedValue(signedIn());
+    authenticateRequest.mockImplementation(
+      (_request: Request, options: { authorizedParties?: string[] }) =>
+        Promise.resolve(
+          options.authorizedParties
+            ? { isAuthenticated: false, reason: 'token-invalid-authorized-parties' }
+            : signedIn(),
+        ),
+    );
     await expect(guard.canActivate(context())).resolves.toBe(true);
   });
 

@@ -13,8 +13,9 @@
 
 ## Release blockers
 
-- AC-001/AC-002: exact SMS allowlist is blocked by Clerk plan; Android is configured, while the Apple Team ID required for iOS is unavailable.
-- AC-003/AC-004/AC-006/SC-001: Clerk native Supabase integration is enabled, no legacy JWT Template exists, and hosted Supabase Third-Party Auth is enabled with the exact domain; two Phone/one Google protected identities and the hosted schema remain unavailable for a real token matrix.
+- AC-002: Android is configured, while the Apple Team ID required for iOS is unavailable.
+- AC-003: Clerk native Supabase integration, no legacy JWT Template, the hosted exact-domain connection, and real asymmetric token acceptance all pass; a corrupted token fails closed.
+- AC-004/AC-006/SC-001: one Google identity passes the official Clerk guard, hosted Third-Party Auth, and local owner/non-owner RLS; two Phone identities and the hosted schema remain unavailable for the full matrix.
 - AC-011: production-like SQL runs used the profile primary keys, device cursor index, and webhook claim/retention indexes under the 50 ms DB budget. Authenticated identity k6 requires protected provider tokens and all remaining k6 was explicitly skipped by the user; it is not a pass.
 - AC-015: dependency audit, SAST, repository/history/image secret scans, and release-container checks pass locally; remote CI/SBOM/signature/provenance remains open.
 - SC-002/SC-005/SC-007/SC-008: locally covered in part; final provider and release evidence remains open.
@@ -23,14 +24,14 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 
 ## Fresh command evidence — 2026-08-28
 
-- Live local `npm run verify`: pass with all database tests enabled; unit 171/171, contract 83/83, integration 48/48, E2E 18/18, security 50/50, build, migration checksums, and dependency audit all pass.
+- Fresh local `npm run verify`: unit 171/171, contract 83/83, security 50/50, build, migration checksums, dependency audit, and workflow pins pass. Explicit live-database runs separately pass integration 48/48 and E2E 18/18.
 - `npm run db:lint && npm run test:db`: no schema errors; 8 files and 308 pgTAP assertions pass.
 - `npm run test:release-image`: 4 suites and 9 container assertions pass.
 - Production-like SQL: profile lookup 0.036 ms, preferences lookup 0.023 ms, device cursor 0.059 ms, webhook claim 0.036 ms, and retention 0.051 ms in the final recorded local run; all used the intended indexes after forward migration 013 and removed their own fixtures.
 - Clean-state rehearsal: local reset reapplied migrations 001-013; schema lint passed; pgTAP passed 8 files/308 assertions; migration apply/checksum/concurrency/backup-restore passed 4/4.
 - Provider recovery rehearsal: live-database integration passed 18 suites/48 tests, including Clerk outage, reconciliation, webhook crash/retry/retention, and device session recovery.
 - Completed load evidence: outbox 4,791 iterations with zero claim failures (P95 18 ms/P99 53 ms); webhook 600 requests with only 202/expected 429 responses (P95 7.045 ms/P99 15.063 ms). Remaining k6 is skipped by explicit user instruction and not counted as a release pass.
-- Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. Hosted Supabase is healthy, contains zero `auth.users`, and its exact-domain Clerk Third-Party Auth connection reports Enabled; real-token proof remains blocked on protected identities and canonical hosted schema deployment.
+- Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. One controlled Google session with `role=authenticated` passes the official API guard, reaches hosted PostgREST through the exact-domain Third-Party Auth connection, and passes local owner/non-owner RLS; a corrupted token is rejected with `401/PGRST301`. Hosted Supabase contains zero `auth.users`; hosted owner/non-owner RLS still requires the canonical hosted schema and two Phone identities.
 
 ## Requirement traceability
 
@@ -38,9 +39,9 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 |---|---|---|
 | FR-001 | T006, T031, provider checklist | Pass for one Development application; external matrix open |
 | FR-002 | T006, T031, provider checklist | Pass for Phone/Google-only dashboard state |
-| FR-003 | T031, T133 | Blocked: Clerk plan cannot enforce the three-country allowlist |
+| FR-003 | T031, T133 | Pass: Clerk enforces exactly Egypt, Saudi Arabia, and UAE (3 of 224 selected) |
 | FR-004 | T032 | Partial: callback/Native API/Android registration pass; iOS is blocked on Apple Team ID |
-| FR-005 | T030, T033 | Clerk/hosted Third-Party Auth configuration passes; hosted token proof blocked |
+| FR-005 | T030, T033 | Clerk/hosted Third-Party Auth configuration and real asymmetric token acceptance pass; hosted owner RLS awaits schema deployment |
 | FR-006 | T008, T021, T126 | Pass: no legacy template/shared-secret implementation |
 | FR-007 | T020, T037, secret/scope scans | Pass locally; provider matrix open |
 | FR-008 | T012-T018 | Pass: official Clerk authenticator and fail-closed guard |
@@ -78,18 +79,18 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 | FR-040 | T052, T123 | DB/index budgets pass; authenticated HTTP k6 open |
 | FR-041 | T121, checksums/migration E2E | Clean-state/apply/checksum/concurrency/backup-restore pass; N-1 hosted rehearsal open |
 | FR-042 | T121, T132, runbooks | Local outage/crash/retry/rotation/retention recovery paths pass; hosted provider rehearsal open |
-| FR-043 | T034, T134 | Blocked: protected identities unavailable |
+| FR-043 | T034, T134 | Partial: one Google identity verified; two Phone identities blocked |
 | FR-044 | T126-T145 | Partial: local gates pass; load/provider/remote gates open |
 | FR-045 | T042, T059, T068, contract/E2E suites | Pass |
 
 | Acceptance criterion | Evidence/result |
 |---|---|
-| AC-001 | Partial: one app and providers verified; exact SMS restriction blocked |
+| AC-001 | Pass: one Development app, Phone/Google only, and exact three-country SMS restriction |
 | AC-002 | Partial: callback/Native API/Android verified; iOS registration blocked |
-| AC-003 | Clerk native integration/no-template and hosted exact-domain connection pass; hosted asymmetric token blocked |
-| AC-004 | Local guard negatives pass; three-identity/rotation provider proof blocked |
+| AC-003 | Pass: native integration/no-template, hosted exact-domain connection, real asymmetric token acceptance, and corrupt-token rejection |
+| AC-004 | One real Google session and local guard negatives pass; Phone/rotation provider proof blocked |
 | AC-005 | Pass: 308 pgTAP assertions |
-| AC-006 | Local owner/non-owner/Admin denial pass; protected three-user proof blocked |
+| AC-006 | One real Clerk session and local fixtures pass owner/non-owner/Admin denial; protected three-user hosted proof blocked |
 | AC-007 | Pass: OpenAPI/validation/masking/version/idempotency/E2E |
 | AC-008 | Pass locally: crypto/device/revoke/retry/exposure suites |
 | AC-009 | Pass locally: signature/replay/order/retry/loss/reconcile/redaction suites |
@@ -102,7 +103,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 
 | Success criterion | Evidence/result |
 |---|---|
-| SC-001 | Blocked on three protected identities |
+| SC-001 | Partial: one Google identity passes; two Phone identities remain blocked |
 | SC-002 | Pass for all local invalid/unusable identity fixtures |
 | SC-003 | Pass for local pgTAP/integration/E2E owner matrices |
 | SC-004 | Pass for local duplicate/order/failure/reconciliation fixtures |
