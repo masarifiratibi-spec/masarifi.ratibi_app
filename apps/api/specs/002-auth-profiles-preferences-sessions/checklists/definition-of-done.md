@@ -15,7 +15,7 @@
 - [ ] The Google protected alias exists; two Phone aliases and the full three-identity matrix remain open.
 - [x] Container, dependency, SAST, and secret/history/image gates pass locally.
 - [ ] Authenticated/provider-backed release validation passes; remaining k6/stress is explicitly skipped by the user and is not counted as a pass.
-- [x] Delivery commit `056640f` is pushed to `origin/codex/backend-spec-be-002` without force or merge.
+- [x] Delivery commits through provider/guard fix `d0db2b7` are pushed to `origin/codex/backend-spec-be-002` without force or merge.
 - [ ] Remote CI/SBOM/vulnerability/signature/provenance results pass.
 
 Current status: the local implementation, clean database/migration recovery,
@@ -38,7 +38,7 @@ The unrelated untracked
 paths were committed (114 files, with zero client paths or secret values); no
 worktree or merge was used.
 
-Delivery evidence (2026-08-28): implementation commit `056640f` was pushed to
-`origin/codex/backend-spec-be-002`. The remote workflow does not run for a plain
-push to this branch, so remote release evidence remains open; no PR or merge was
-created.
+Delivery evidence (2026-08-28): implementation commit `056640f` and the real-provider
+guard fix/evidence commit `d0db2b7` were pushed to
+`origin/codex/backend-spec-be-002`. The remote workflow does not run for a plain push
+to this branch, so remote release evidence remains open; no PR or merge was created.
