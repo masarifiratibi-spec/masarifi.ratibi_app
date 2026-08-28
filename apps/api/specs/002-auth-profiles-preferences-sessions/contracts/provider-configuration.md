@@ -55,6 +55,11 @@ destinations were removed, leaving the allowlist empty rather than wider than th
 approved policy. No phone number or OTP was used or recorded. Support activation of
 exactly `+20`, `+966`, and `+971` remains required.
 
+The exact three-country activation request was submitted successfully to Clerk
+Support on 2026-08-28 for `Masarifi Development`; the provider will respond by
+email. Approval, allowlist activation, and allowed/disallowed-number verification
+remain open and are not inferred from ticket submission.
+
 ## Native Applications
 
 | Platform | Required identity | Additional provider evidence |
@@ -83,8 +88,9 @@ Dashboard review on 2026-08-28 confirmed Native API is enabled and
 `masarifi://oauth-callback` is the sole Mobile SSO redirect. The Android application
 is registered as namespace/package `com.masarifi.mobile` with the EAS Development
 signing fingerprint; the dashboard's masked fingerprint evidence was verified and
-the full value was not committed. The iOS record remains blocked on the missing
-Apple Team ID.
+the full value was not committed. EAS inspection of the Development iOS profile on
+2026-08-28 reported that no iOS credentials are configured, so no Apple Team ID can
+be discovered from the project. The iOS record remains blocked on that value.
 
 ## Google Connection
 
@@ -152,9 +158,10 @@ block present in `supabase/config.toml`. Clerk OIDC discovery returned the exact
 approved issuer and a JWKS containing only asymmetric keys with `kid`; local
 `auth.users` contained zero rows. The hosted Supabase project was discovered as
 healthy and a read-only connected-service query on 2026-08-28 also proved its
-`auth.users` count is zero. The Dashboard browser session still requires sign-in,
-so the hosted Third-Party Auth record and real-token RLS proof remain blocked rather
-than inferred.
+`auth.users` count is zero. The hosted Third-Party Auth connection was then created
+with the exact approved `https://popular-chipmunk-2273.clerk.accounts.dev` domain
+and the Dashboard reports it as **Enabled**. Real-token RLS proof remains open until
+protected identities and the canonical hosted schema deployment are available.
 
 ## Authorized Parties
 
@@ -225,7 +232,7 @@ identity was created.
 - [ ] Android/iOS identity `com.masarifi.mobile` exists under Native Applications.
 - [ ] `masarifi://oauth-callback` is allowlisted and an unapproved redirect fails.
 - [x] Native Supabase integration is enabled in Clerk.
-- [ ] Supabase Third-Party Auth contains the exact approved Clerk instance domain.
+- [x] Supabase Third-Party Auth contains the exact approved Clerk instance domain.
 - [ ] Valid Clerk token passes owner RLS; wrong subject/invalid token fails.
 - [x] No Supabase JWT Template exists.
 - [x] No Masarifi identity exists in hosted or local `auth.users` at the recorded verification time.

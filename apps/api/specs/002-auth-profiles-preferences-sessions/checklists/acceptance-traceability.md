@@ -14,7 +14,7 @@
 ## Release blockers
 
 - AC-001/AC-002: exact SMS allowlist is blocked by Clerk plan; Android is configured, while the Apple Team ID required for iOS is unavailable.
-- AC-003/AC-004/AC-006/SC-001: Clerk native Supabase integration is enabled and no legacy JWT Template exists; hosted Supabase Third-Party Auth plus two Phone/one Google protected identities remain unavailable for a real token matrix.
+- AC-003/AC-004/AC-006/SC-001: Clerk native Supabase integration is enabled, no legacy JWT Template exists, and hosted Supabase Third-Party Auth is enabled with the exact domain; two Phone/one Google protected identities and the hosted schema remain unavailable for a real token matrix.
 - AC-011: production-like SQL runs used the profile primary keys, device cursor index, and webhook claim/retention indexes under the 50 ms DB budget. Authenticated identity k6 requires protected provider tokens and all remaining k6 was explicitly skipped by the user; it is not a pass.
 - AC-015: dependency audit, SAST, repository/history/image secret scans, and release-container checks pass locally; remote CI/SBOM/signature/provenance remains open.
 - SC-002/SC-005/SC-007/SC-008: locally covered in part; final provider and release evidence remains open.
@@ -30,7 +30,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 - Clean-state rehearsal: local reset reapplied migrations 001-013; schema lint passed; pgTAP passed 8 files/308 assertions; migration apply/checksum/concurrency/backup-restore passed 4/4.
 - Provider recovery rehearsal: live-database integration passed 18 suites/48 tests, including Clerk outage, reconciliation, webhook crash/retry/retention, and device session recovery.
 - Completed load evidence: outbox 4,791 iterations with zero claim failures (P95 18 ms/P99 53 ms); webhook 600 requests with only 202/expected 429 responses (P95 7.045 ms/P99 15.063 ms). Remaining k6 is skipped by explicit user instruction and not counted as a release pass.
-- Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. Hosted Supabase is healthy and contains zero `auth.users`; Third-Party Auth and real-token proof remain blocked on Dashboard sign-in/test identities.
+- Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. Hosted Supabase is healthy, contains zero `auth.users`, and its exact-domain Clerk Third-Party Auth connection reports Enabled; real-token proof remains blocked on protected identities and canonical hosted schema deployment.
 
 ## Requirement traceability
 
@@ -40,7 +40,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 | FR-002 | T006, T031, provider checklist | Pass for Phone/Google-only dashboard state |
 | FR-003 | T031, T133 | Blocked: Clerk plan cannot enforce the three-country allowlist |
 | FR-004 | T032 | Partial: callback/Native API/Android registration pass; iOS is blocked on Apple Team ID |
-| FR-005 | T030, T033 | Clerk integration and local config pass; hosted token proof blocked |
+| FR-005 | T030, T033 | Clerk/hosted Third-Party Auth configuration passes; hosted token proof blocked |
 | FR-006 | T008, T021, T126 | Pass: no legacy template/shared-secret implementation |
 | FR-007 | T020, T037, secret/scope scans | Pass locally; provider matrix open |
 | FR-008 | T012-T018 | Pass: official Clerk authenticator and fail-closed guard |
@@ -86,7 +86,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 |---|---|
 | AC-001 | Partial: one app and providers verified; exact SMS restriction blocked |
 | AC-002 | Partial: callback/Native API/Android verified; iOS registration blocked |
-| AC-003 | Clerk native integration/no-template and local config pass; hosted asymmetric token blocked |
+| AC-003 | Clerk native integration/no-template and hosted exact-domain connection pass; hosted asymmetric token blocked |
 | AC-004 | Local guard negatives pass; three-identity/rotation provider proof blocked |
 | AC-005 | Pass: 308 pgTAP assertions |
 | AC-006 | Local owner/non-owner/Admin denial pass; protected three-user proof blocked |
