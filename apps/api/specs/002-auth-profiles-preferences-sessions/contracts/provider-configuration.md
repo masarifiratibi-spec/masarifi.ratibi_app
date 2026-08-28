@@ -150,8 +150,9 @@ Local clean-state validation on 2026-08-28 reapplied all migrations through 013,
 then passed schema lint and all 308 pgTAP assertions with the Clerk third-party
 block present in `supabase/config.toml`. Clerk OIDC discovery returned the exact
 approved issuer and a JWKS containing only asymmetric keys with `kid`; local
-`auth.users` contained zero rows. The hosted Supabase project was discovered and
-healthy, but its Dashboard and connected-service session require reauthentication,
+`auth.users` contained zero rows. The hosted Supabase project was discovered as
+healthy and a read-only connected-service query on 2026-08-28 also proved its
+`auth.users` count is zero. The Dashboard browser session still requires sign-in,
 so the hosted Third-Party Auth record and real-token RLS proof remain blocked rather
 than inferred.
 
@@ -227,7 +228,7 @@ identity was created.
 - [ ] Supabase Third-Party Auth contains the exact approved Clerk instance domain.
 - [ ] Valid Clerk token passes owner RLS; wrong subject/invalid token fails.
 - [x] No Supabase JWT Template exists.
-- [ ] No Masarifi identity exists in `auth.users`.
+- [x] No Masarifi identity exists in hosted or local `auth.users` at the recorded verification time.
 - [ ] Two Phone identities and one Google identity pass the redacted test matrix.
 - [ ] Webhook events are exactly the three approved types and signature tests pass.
 - [ ] No secret/OTP/JWT/PII appears in captured evidence.

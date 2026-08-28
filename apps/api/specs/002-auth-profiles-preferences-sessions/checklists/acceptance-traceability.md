@@ -30,7 +30,7 @@ FR-001..FR-045 map to tasks T001..T145 in `tasks.md`; unchecked tasks remain exp
 - Clean-state rehearsal: local reset reapplied migrations 001-013; schema lint passed; pgTAP passed 8 files/308 assertions; migration apply/checksum/concurrency/backup-restore passed 4/4.
 - Provider recovery rehearsal: live-database integration passed 18 suites/48 tests, including Clerk outage, reconciliation, webhook crash/retry/retention, and device session recovery.
 - Completed load evidence: outbox 4,791 iterations with zero claim failures (P95 18 ms/P99 53 ms); webhook 600 requests with only 202/expected 429 responses (P95 7.045 ms/P99 15.063 ms). Remaining k6 is skipped by explicit user instruction and not counted as a release pass.
-- Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. Hosted Supabase and real-token proof remain blocked on reauthentication/test identities.
+- Clerk provider evidence: native Supabase integration reports Enabled; JWT Templates reports 0 items; OIDC issuer/JWKS match the approved asymmetric instance. Hosted Supabase is healthy and contains zero `auth.users`; Third-Party Auth and real-token proof remain blocked on Dashboard sign-in/test identities.
 
 ## Requirement traceability
 

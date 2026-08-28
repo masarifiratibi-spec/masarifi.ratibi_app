@@ -12,11 +12,12 @@
 - [ ] Two Phone and one Google protected aliases pass the full matrix.
 - [x] Container, dependency, SAST, and secret/history/image gates pass locally.
 - [ ] Authenticated/provider-backed release validation passes; remaining k6/stress is explicitly skipped by the user and is not counted as a pass.
-- [ ] The delivery-branch commit is pushed and remote CI/SBOM/vulnerability/signature/provenance results pass.
+- [x] Delivery commit `056640f` is pushed to `origin/codex/backend-spec-be-002` without force or merge.
+- [ ] Remote CI/SBOM/vulnerability/signature/provenance results pass.
 
 Current status: the local implementation, clean database/migration recovery,
 security/container, local outage recovery, and runbook tabletop gates pass. Release
-remains blocked by hosted Supabase reauthentication/configuration, iOS/SMS/provider
+remains blocked by hosted Supabase Dashboard configuration, iOS/SMS/provider
 inputs, real identities/tokens, a deployed webhook URL/secret store, and remote CI.
 Remaining k6 was skipped by explicit user instruction and is not reported as pass.
 
@@ -30,3 +31,8 @@ and localhost origin; secret fields remain empty. The unrelated untracked
 `.agents/plugins/` entry remains untouched. Only SPEC-BE-002-owned API/Supabase
 paths are staged (114 files, with zero staged client paths or secret values); no
 worktree or merge is used.
+
+Delivery evidence (2026-08-28): implementation commit `056640f` was pushed to
+`origin/codex/backend-spec-be-002`. The remote workflow does not run for a plain
+push to this branch, so remote release evidence remains open; no PR or merge was
+created.
