@@ -104,6 +104,12 @@ be discovered from the project. The iOS record remains blocked on that value.
 - Do not use deprecated Expo `useOAuth()` in future cutover work; current browser
   SSO guidance uses `useSSO()`.
 
+Dashboard verification on 2026-08-28 confirmed `Require phone` is disabled while
+Phone sign-up/sign-in and SMS verification remain enabled. A fresh Google sign-up
+therefore reaches the Google account chooser without requesting a phone number;
+provider-backed account completion remains pending the controlled test-account
+selection.
+
 ## Clerk Native Supabase Integration
 
 ### Clerk side
