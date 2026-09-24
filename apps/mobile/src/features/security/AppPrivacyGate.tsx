@@ -41,6 +41,7 @@ export function AppPrivacyGate({
           ? Date.now() - backgroundedAt.current
           : 0;
         backgroundedAt.current = null;
+        if (immediate) return;
         if (!immediate && lockAfterMs !== null && elapsed >= lockAfterMs) {
           onLock?.();
           return;

@@ -103,10 +103,6 @@ export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorag
       readSensitive(ownerKey(keys.privacyLock), privacyLockPreferenceSchema),
     savePrivacyLock: (lock) => writeSensitive(ownerKey(keys.privacyLock), lock),
     clearPrivacyLock: () => removeSensitive(ownerKey(keys.privacyLock)),
-    loadPinCredential: () =>
-      readSensitive(ownerKey(keys.pinCredential), z.string().min(1)),
-    savePinCredential: (hash) =>
-      writeSensitive(ownerKey(keys.pinCredential), hash),
     clearPinCredential: () => removeSensitive(ownerKey(keys.pinCredential)),
     loadProfilePromptDismissed: async () =>
       (await readJson(ownerKey(keys.profilePromptDismissed), z.boolean())) ??
@@ -189,11 +185,10 @@ async function migrateLegacyPrivacyLock(ownerHash: string): Promise<void> {
   const writes: Promise<void>[] = [];
   if (legacyLock && !ownerLock)
     writes.push(writeSensitive(ownerPrivacyLockKey, legacyLock));
-  if (legacyPin && !ownerPin)
-    writes.push(writeSensitive(ownerPinKey, legacyPin));
   await Promise.all(writes);
   await Promise.all([
     legacyLock ? removeSensitive(keys.privacyLock) : Promise.resolve(),
-    legacyPin ? removeSensitive(keys.pinCredential) : Promise.resolve()
+    legacyPin ? removeSensitive(keys.pinCredential) : Promise.resolve(),
+    ownerPin ? removeSensitive(ownerPinKey) : Promise.resolve()
   ]);
 }

@@ -68,7 +68,10 @@ export const conservativeOnboarding: OnboardingProgress = {
   updatedAt: 1_700_000_000_000
 };
 
-export const permissionStates: Record<PermissionState['status'], PermissionState> = {
+export const permissionStates: Record<
+  PermissionState['status'],
+  PermissionState
+> = {
   not_requested: {
     id: 'sms',
     status: 'not_requested',
@@ -108,8 +111,8 @@ export const permissionStates: Record<PermissionState['status'], PermissionState
 };
 
 export const lockedPrivacy: PrivacyLockPreference = {
-  pinConfigured: true,
-  biometricStatus: 'disabled',
+  pinConfigured: false,
+  biometricStatus: 'enabled',
   autoLockDuration: 'immediate',
   invalidAttempts: 0,
   lockedUntil: null,

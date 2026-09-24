@@ -1,10 +1,12 @@
 import * as LocalAuthentication from 'expo-local-authentication';
+import { Platform } from 'react-native';
 
 import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { createBiometricService } from './biometric-service';
 
 jest.mock('expo-local-authentication', () => ({
   authenticateAsync: jest.fn(),
+  cancelAuthenticate: jest.fn(),
   hasHardwareAsync: jest.fn(),
   isEnrolledAsync: jest.fn(),
   supportedAuthenticationTypesAsync: jest.fn()
@@ -13,6 +15,9 @@ jest.mock('expo-local-authentication', () => ({
 const hasHardware = jest.mocked(LocalAuthentication.hasHardwareAsync);
 const isEnrolled = jest.mocked(LocalAuthentication.isEnrolledAsync);
 const authenticate = jest.mocked(LocalAuthentication.authenticateAsync);
+const cancelAuthentication = jest.mocked(
+  LocalAuthentication.cancelAuthenticate
+);
 const supportedTypes = jest.mocked(
   LocalAuthentication.supportedAuthenticationTypesAsync
 );
@@ -24,24 +29,50 @@ describe('biometric service', () => {
       status: 'supported',
       kinds: ['fingerprint']
     });
-    await expect(service.authenticate()).resolves.toEqual({ status: 'cancelled' });
+    await expect(service.authenticate()).resolves.toEqual({
+      status: 'cancelled'
+    });
   });
 
   it('maps native availability and authentication states', async () => {
     const service = createBiometricService();
     hasHardware.mockResolvedValue(false);
-    await expect(service.getAvailability()).resolves.toEqual({ status: 'unsupported' });
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'unsupported'
+    });
 
     hasHardware.mockResolvedValue(true);
     isEnrolled.mockResolvedValue(false);
-    await expect(service.getAvailability()).resolves.toEqual({ status: 'not_enrolled' });
+    await expect(service.getAvailability()).resolves.toEqual({
+      status: 'not_enrolled'
+    });
 
     isEnrolled.mockResolvedValue(true);
     authenticate.mockResolvedValue({ success: true });
-    await expect(service.authenticate()).resolves.toEqual({ status: 'authenticated' });
+    await expect(service.authenticate()).resolves.toEqual({
+      status: 'authenticated'
+    });
 
     authenticate.mockResolvedValue({ success: false, error: 'lockout' });
-    await expect(service.authenticate()).resolves.toEqual({ status: 'locked_out' });
+    await expect(service.authenticate()).resolves.toEqual({
+      status: 'locked_out'
+    });
+  });
+
+  it('clears stale Android prompts and keeps device credentials out of biometric retry', async () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
+    const service = createBiometricService();
+    cancelAuthentication.mockResolvedValue();
+    authenticate.mockResolvedValue({ success: false, error: 'app_cancel' });
+
+    await expect(service.authenticate()).resolves.toEqual({
+      status: 'cancelled'
+    });
+    expect(cancelAuthentication).toHaveBeenCalledTimes(1);
+    expect(authenticate).toHaveBeenCalledWith({
+      disableDeviceFallback: true
+    });
+    platform.restore();
   });
 
   it('reports the supported biometric kinds when available', async () => {
