@@ -142,7 +142,6 @@ describe('createAppShellStorage', () => {
 
     await storage.saveSession(session);
     await storage.savePrivacyLock(lock);
-    await storage.savePinCredential('pin:123456');
     await storage.clearSession();
     await storage.clearPrivacyLock();
     await storage.clearPinCredential();
@@ -154,10 +153,6 @@ describe('createAppShellStorage', () => {
     expect(secureSet).toHaveBeenCalledWith(
       'masarifi.appShell.privacyLock',
       JSON.stringify(lock)
-    );
-    expect(secureSet).toHaveBeenCalledWith(
-      'masarifi.appShell.pinCredential',
-      JSON.stringify('pin:123456')
     );
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.privacyLock');
@@ -244,7 +239,7 @@ describe('createAppShellStorage', () => {
     );
   });
 
-  it('moves a legacy PIN and privacy lock into the first verified owner namespace', async () => {
+  it('moves a legacy privacy lock and removes the obsolete PIN credential', async () => {
     secureGet.mockImplementation(async (key) => {
       if (key === 'masarifi.appShell.privacyLock') return JSON.stringify(lock);
       if (key === 'masarifi.appShell.pinCredential')
@@ -258,9 +253,9 @@ describe('createAppShellStorage', () => {
       `masarifi.appShell.privacyLock.${'a'.repeat(24)}`,
       JSON.stringify(lock)
     );
-    expect(secureSet).toHaveBeenCalledWith(
-      `masarifi.appShell.pinCredential.${'a'.repeat(24)}`,
-      JSON.stringify('pin:123456')
+    expect(secureSet).not.toHaveBeenCalledWith(
+      expect.stringContaining('pinCredential'),
+      expect.any(String)
     );
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.privacyLock');
     expect(secureDelete).toHaveBeenCalledWith(
@@ -278,7 +273,6 @@ describe('createAppShellStorage', () => {
     await expect(storage.loadKeywords()).resolves.toEqual(defaultKeywordRules);
     await expect(storage.loadTrackingPreference()).resolves.toBeNull();
     await expect(storage.loadPrivacyLock()).resolves.toBeNull();
-    await expect(storage.loadPinCredential()).resolves.toBeNull();
     await expect(storage.loadProfilePromptDismissed()).resolves.toBe(false);
     await expect(storage.loadTrackingHomeCardDismissed()).resolves.toBe(false);
   });

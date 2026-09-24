@@ -97,8 +97,7 @@ test('sign-out hides the previous owner view while preserving its stored data', 
     session: { status: 'signed_out' },
     onboarding: null,
     pendingDestination: null,
-    privacyLock: null,
-    pinCredential: null
+    privacyLock: null
   });
 });
 
@@ -117,8 +116,8 @@ test('hides the previous owner before switching the live database owner', async 
     session: liveSession,
     onboarding,
     privacyLock: {
-      pinConfigured: true,
-      biometricStatus: 'disabled',
+      pinConfigured: false,
+      biometricStatus: 'enabled',
       autoLockDuration: 'immediate',
       invalidAttempts: 0,
       lockedUntil: null,

@@ -341,27 +341,15 @@ const en = {
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
     'This section is not available in the current build.',
-  'appShell.security.pinLabel': 'PIN',
-  'appShell.security.pinError': 'Enter 6 digits',
-  'appShell.security.savePin': 'Save PIN',
-  'appShell.security.unlock': 'Unlock',
-  'appShell.security.unlockTitle': 'Unlock app',
   'appShell.security.biometricUnlock': 'Unlock with biometrics',
-  'appShell.security.biometricUnlocked': 'Unlocked with biometrics',
   'appShell.security.biometricUnavailable': 'Biometrics unavailable',
   'appShell.security.biometricCancelled':
-    'Biometric unlock was cancelled. Use your PIN.',
-  'appShell.security.biometricFailed': 'Biometric unlock failed. Use your PIN.',
+    'Biometric unlock was cancelled. You can try again.',
+  'appShell.security.biometricFailed': 'Biometric unlock failed. Try again.',
   'appShell.security.biometricLocked':
-    'Biometrics are temporarily locked. Use your PIN.',
-  'appShell.security.invalidPin': 'The PIN is not correct.',
-  'appShell.security.pinMismatch': 'The PINs do not match. Try again.',
-  'appShell.security.reauthenticate':
-    'Sign in to your account before resetting the device PIN.',
+    'Biometrics are temporarily locked by your device.',
   'appShell.security.protectedContent': 'Content protected',
   'appShell.security.settingsTitle': 'Security settings',
-  'appShell.security.changePin': 'Change PIN',
-  'appShell.security.forgotPin': 'Forgot PIN',
   'appShell.security.mockSignOutAll': 'Sign out everywhere',
   'appShell.profile.name': 'Name',
   'appShell.profile.firstAccount': 'First account',
@@ -408,25 +396,25 @@ const en = {
   'appShell.navigation.back': 'Back',
   'appShell.navigation.close': 'Close',
   'appShell.navigation.authRequired': 'Sign in to continue',
-  'appShell.security.unlock.title': 'Unlock Masarifi',
-  'appShell.security.pin.create': 'Create PIN',
-  'appShell.security.pin.confirm': 'Confirm PIN',
-  'appShell.security.pin.change': 'Change PIN',
-  'appShell.security.pin.forgot': 'Forgot PIN',
-  'appShell.security.pin.retryIn': 'Try again soon',
   'appShell.security.biometric.enable': 'Enable biometrics',
   'appShell.security.biometric.disable': 'Disable biometrics',
-  'appShell.security.biometric.usePin': 'Use PIN instead',
+  'appShell.security.biometric.authenticated': 'Biometrics enabled',
+  'appShell.security.biometric.cancelled':
+    'Biometric verification was cancelled',
+  'appShell.security.biometric.failed': 'Biometric verification failed',
+  'appShell.security.biometric.locked_out':
+    'Biometrics are temporarily locked by your device',
+  'appShell.security.biometric.unavailable':
+    'Biometrics are currently unavailable',
   'appShell.security.biometric.face': 'Face ID',
   'appShell.security.biometric.fingerprint': 'Fingerprint',
   'appShell.security.biometric.subtitle':
-    'Unlock the app with biometrics instead of your PIN',
-  'appShell.security.biometric.requiresPin':
-    'Create a PIN first to enable biometrics',
+    'Protect the app with your fingerprint or face',
   'appShell.security.biometric.notEnrolled':
     'Enroll a biometric in your device settings first',
   'appShell.security.sections.appLock': 'App Lock',
   'appShell.security.sections.privacy': 'Privacy',
+  'appShell.security.sections.activity': 'Account activity',
   'appShell.security.autoLock.title': 'Auto-Lock',
   'appShell.security.autoLock.immediate': 'Lock immediately',
   'appShell.security.autoLock.one_minute': 'Lock after 1 minute',
@@ -437,6 +425,8 @@ const en = {
   'appShell.security.sessions': 'Active sessions',
   'appShell.security.events': 'Security events',
   'appShell.security.deleteAccount': 'Delete account',
+  'appShell.security.deleteAccount.description':
+    'Deleting your account starts a permanent data-removal request.',
   'appShell.security.deleteAccount.confirmation':
     'Are you sure you want to delete your account?',
   'appShell.progressive.title': 'Finish setup when ready',
