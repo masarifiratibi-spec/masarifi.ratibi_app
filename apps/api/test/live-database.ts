@@ -10,6 +10,7 @@ export function createLivePool(): PoolService {
     get: (key: string) => {
       if (key === 'DATABASE_URL') return process.env.DATABASE_URL;
       if (key === 'MASARIFI_DATABASE_POOL_MAX') return 10;
+      if (key === 'MASARIFI_PROCESS_KIND') return undefined;
       throw new Error(`UNEXPECTED_CONFIG_KEY:${key}`);
     },
   } as never);
