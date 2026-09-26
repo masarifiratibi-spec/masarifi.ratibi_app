@@ -356,7 +356,7 @@ export class AiRepository {
             conversationId,
             input.content,
             input.intent,
-            input.contextScope,
+            input.contextScope ?? [],
             JSON.stringify(input.context ?? {}),
             JSON.stringify(input.evidence ?? []),
             JSON.stringify(input.history ?? []),
