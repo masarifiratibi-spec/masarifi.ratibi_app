@@ -52,8 +52,42 @@ services:
       - ${MASARIFI_WORKER_ENV_FILE:-/etc/masarifi/worker.env}
     environment:
       MASARIFI_PROCESS_KIND: worker
+      MASARIFI_CLAMAV_HOST: clamav
+      MASARIFI_CLAMAV_PORT: "3310"
+    depends_on:
+      clamav:
+        condition: service_healthy
     healthcheck:
       disable: true
 
+  clamav:
+    image: clamav/clamav@sha256:e8388295191bff0893fb889d9415ae975491201c989b205e30c9057b1985d36a
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 1
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    volumes:
+      - clamav-db:/var/lib/clamav
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    networks: [backend]
+
 networks:
   backend: {}
+
+volumes:
+  clamav-db: {}
