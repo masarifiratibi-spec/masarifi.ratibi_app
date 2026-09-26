@@ -74,6 +74,7 @@ describeLiveDatabase('migration application', () => {
       'private.sync_cursor_positions',
       'private.system_incidents',
       'private.system_settings',
+      'private.user_job_quota_events',
     ]);
 
     const functions = await pool.query<{ name: string }>(
@@ -173,6 +174,7 @@ describeLiveDatabase('migration application', () => {
       'dispatch_security_alerts',
       'enqueue_assistant_message',
       'enqueue_assistant_message_v2',
+      'enqueue_assistant_message_v3',
       'enqueue_credit_card_due_reminders',
       'enqueue_credit_card_due_reminders',
       'enqueue_outbox_event',
@@ -321,6 +323,7 @@ describeLiveDatabase('migration application', () => {
       'request_job_action',
       'reserve_ai_quota',
       'reserve_ai_quota',
+      'reserve_user_job_quota',
       'resolve_category',
       'resolve_exchange_rate',
       'resolve_transaction_conflict',
