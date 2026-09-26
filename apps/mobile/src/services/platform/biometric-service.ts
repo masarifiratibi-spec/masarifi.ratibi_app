@@ -1,4 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
+import { Platform } from 'react-native';
 
 import type {
   BiometricKind,
@@ -19,17 +20,27 @@ export function createBiometricService(): BiometricService {
       if (!(await LocalAuthentication.isEnrolledAsync())) {
         return { status: 'not_enrolled' };
       }
-      const nativeTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const nativeTypes =
+        await LocalAuthentication.supportedAuthenticationTypesAsync();
       const kinds = nativeTypes
         .map((nativeType) => kindByNativeType[nativeType])
         .filter((kind): kind is BiometricKind => kind !== undefined);
       return { status: 'supported', kinds };
     },
     async authenticate() {
-      const result = await LocalAuthentication.authenticateAsync();
+      if (Platform.OS === 'android') {
+        await LocalAuthentication.cancelAuthenticate();
+      }
+      const result = await LocalAuthentication.authenticateAsync({
+        disableDeviceFallback: true
+      });
       if (result.success) return { status: 'authenticated' };
       if (result.error === 'lockout') return { status: 'locked_out' };
-      if (result.error === 'user_cancel' || result.error === 'system_cancel') {
+      if (
+        result.error === 'app_cancel' ||
+        result.error === 'user_cancel' ||
+        result.error === 'system_cancel'
+      ) {
         return { status: 'cancelled' };
       }
       return { status: 'failed' };

@@ -34,6 +34,15 @@ describe('validateEnvironment', () => {
     });
   });
 
+  it('accepts Clerk webhook signing secrets encoded with standard Base64', () => {
+    expect(
+      validateEnvironment({
+        ...valid,
+        CLERK_WEBHOOK_SIGNING_SECRET: ['whsec', 'nonfunctional+fixture/value='].join('_'),
+      }),
+    ).toMatchObject({ MASARIFI_PROCESS_KIND: 'api' });
+  });
+
   it.each(['NODE_ENV', 'MASARIFI_PROCESS_KIND', 'MASARIFI_RELEASE_VERSION', 'DATABASE_URL'])(
     'rejects missing %s without echoing values',
     (key) => {

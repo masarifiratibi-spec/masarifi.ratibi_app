@@ -141,4 +141,15 @@ describe('safeError', () => {
       }),
     ).not.toHaveProperty('limit');
   });
+
+  it.each([
+    ['IMPORT_QUOTA_EXCEEDED', 'Import quota is exhausted'],
+    ['REPORT_QUOTA_EXCEEDED', 'Report generation quota is exhausted'],
+  ])('maps the staging job quota %s without exposing database text', (code, message) => {
+    expect(safeError(429, 'quota-request', [], code)).toEqual({
+      code,
+      message,
+      requestId: 'quota-request',
+    });
+  });
 });

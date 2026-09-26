@@ -258,7 +258,7 @@ const schema = Joi.object<PlatformEnvironment>({
     .optional(),
   CLERK_WEBHOOK_SIGNING_SECRET: Joi.string()
     .trim()
-    .pattern(/^whsec_[A-Za-z0-9_-]{8,}$/)
+    .pattern(/^whsec_[A-Za-z0-9_+\x2f-]{8,}={0,2}$/)
     .max(512)
     .optional(),
   MASARIFI_PUSH_TOKEN_HASH_KEY: Joi.string().trim().pattern(base64UrlKey).optional(),

@@ -1,0 +1,26 @@
+[Unit]
+Description=Masarifi staging Admin
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=masarifi
+Group=masarifi
+WorkingDirectory=/opt/masarifi/current/apps/admin-web
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/masarifi/admin.env
+ExecStart=/usr/bin/npm start -- --hostname 127.0.0.1 --port 3001
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/opt/masarifi/current/apps/admin-web/.next/cache
+
+[Install]
+WantedBy=multi-user.target

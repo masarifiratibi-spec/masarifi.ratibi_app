@@ -2,25 +2,21 @@ import { Injectable } from '@nestjs/common';
 
 import { PoolService } from './pool.service';
 
-export const MINIMUM_SCHEMA_VERSION = '20260829080200';
-
 @Injectable()
 export class SchemaCompatibilityService {
   constructor(private readonly database: PoolService) {}
 
   async check(timeoutMs = 1_000): Promise<void> {
-    const result = await this.database.query<{ version: string | null }>(
-      'select max(version)::text as version from supabase_migrations.schema_migrations',
+    const result = await this.database.query<{ compatible: boolean | null }>(
+      `select has_function_privilege(
+        current_user,
+        'private.resolve_category(text,uuid,text)',
+        'execute'
+      ) as compatible`,
       [],
       timeoutMs,
     );
-    const version = result.rows[0]?.version;
-    if (
-      version === null ||
-      version === undefined ||
-      !/^\d{14}$/.test(version) ||
-      version < MINIMUM_SCHEMA_VERSION
-    ) {
+    if (result.rows[0]?.compatible !== true) {
       throw new Error('SCHEMA_INCOMPATIBLE');
     }
   }

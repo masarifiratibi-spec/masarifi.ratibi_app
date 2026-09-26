@@ -37,6 +37,58 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
     await pool.onModuleDestroy();
   });
 
+  it('keeps worker aliases within the persisted context scope', async () => {
+    const scopedUserId = `ai_scope_${randomUUID()}`;
+    const scopedPrincipal = {
+      userId: scopedUserId,
+      sessionId: 'assistant-scope-session',
+      factorAgeSeconds: 0,
+    };
+    await pool.query("insert into public.profiles(id,status) values($1,'active')", [scopedUserId]);
+    await pool.query(
+      "insert into public.assistant_consents(user_id,policy_version) values($1,'assistant-privacy-v1')",
+      [scopedUserId],
+    );
+    await pool.query(
+      "insert into public.accounts(user_id,name,type,currency_code) values($1,'Scoped account','bank','SAR')",
+      [scopedUserId],
+    );
+    const created = await repository.createConversation(
+      scopedPrincipal,
+      'Scoped context',
+      'assistant-scope-conversation-key',
+    );
+    const conversation = Reflect.get(created, 'resource') as Record<string, unknown>;
+    await repository.enqueueMessage(
+      scopedPrincipal,
+      String(conversation.id),
+      {
+        content: 'Create an expense',
+        intent: 'create_transaction',
+        context: {},
+        contextScope: [],
+        evidence: [],
+        history: [],
+        responseMode: 'async',
+      },
+      'assistant-scope-message-key',
+    );
+    const [claim] = await repository.claimWork(
+      'assistant.respond',
+      'assistant-scope-worker',
+      1,
+      120,
+    );
+    if (!claim) throw new Error('AI_ASSISTANT_SCOPE_CLAIM_MISSING');
+
+    await expect(
+      repository.workInput(claim.kind, claim.id, claim.claim_token),
+    ).resolves.toMatchObject({
+      contextScope: [],
+      aliases: [],
+    });
+  });
+
   it('enforces consent, persists minimized evidence, and cancels queued work on revocation', async () => {
     await expect(repository.getConsent(principal, 'assistant-privacy-v1')).resolves.toMatchObject({
       granted: false,

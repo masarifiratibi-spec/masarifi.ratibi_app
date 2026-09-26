@@ -64,6 +64,7 @@ function mappedError(error: unknown): HttpException | Error {
   if (/CONFLICT|STALE|IN_PROGRESS|REUSED/.test(message))
     return new HttpException({ code: message }, 409);
   if (/NOT_FOUND/.test(message)) return new HttpException({ code: message }, 404);
+  if (/QUOTA_EXCEEDED/.test(message)) return new HttpException({ code: message }, 429);
   if (/INVALID|LIMIT|REQUIRED/.test(message)) return new HttpException({ code: message }, 400);
   return error instanceof Error ? error : new Error('TRACKING_DATABASE_UNAVAILABLE');
 }
@@ -303,6 +304,11 @@ export class TrackingRepository {
       201,
       request.requestId,
       async (client) => {
+        await this.queryJson(client, 'select private.reserve_user_job_quota($1,$2,$3) result', [
+          principal.userId,
+          'import',
+          hashIdempotencyKey(request.key),
+        ]);
         const requestHash = hashNormalizedCommand(input).replace('sha256:', '');
         const sourceType = input.sourceType;
         const row = await this.queryJson(

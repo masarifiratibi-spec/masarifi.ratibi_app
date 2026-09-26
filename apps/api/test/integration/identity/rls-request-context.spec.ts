@@ -12,6 +12,7 @@ describeLiveDatabase('identity RLS request context', () => {
       get: (key: string) => {
         if (key === 'DATABASE_URL') return process.env.DATABASE_URL;
         if (key === 'MASARIFI_DATABASE_POOL_MAX') return 1;
+        if (key === 'MASARIFI_PROCESS_KIND') return undefined;
         throw new Error(`UNEXPECTED_CONFIG_KEY:${key}`);
       },
     } as never);

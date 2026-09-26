@@ -163,7 +163,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="topbar-start">
             <button ref={mobileTrigger} className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label={t(locale, "shell.mobileOpen")}><Menu size={20} /></button>
             <button className="icon-button desktop-collapse" onClick={() => setCompact((value) => !value)} aria-label={compact ? t(locale, "shell.expandSidebar") : t(locale, "shell.collapseSidebar")}><PanelRightClose size={20} /></button>
-            <GlobalSearch role={role} />
+            {demoMode && <GlobalSearch role={role} />}
             <DateRangeControl value={range} onChange={setRange} />
           </div>
           <div className="topbar-actions">
@@ -174,7 +174,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <button className="icon-button" onClick={() => setTheme(nextTheme)} aria-label={t(locale, "shell.themeToggle")}>
               {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
             </button>
-            <AttentionPanel role={role} />
+            {demoMode && <AttentionPanel role={role} />}
             <div className="profile">
               <div className="avatar profile-photo" role="img" aria-label={t(locale, "shell.profilePhoto", { name: session.data?.displayName ?? "Waleed" })} />
               <div><strong>{session.data?.displayName ?? "Waleed"}</strong><small>{getRoleLabel(locale, role)}</small></div>

@@ -151,8 +151,6 @@ export interface AppShellStorage {
   loadPrivacyLock(): Promise<PrivacyLockPreference | null>;
   savePrivacyLock(lock: PrivacyLockPreference): Promise<void>;
   clearPrivacyLock(): Promise<void>;
-  loadPinCredential(): Promise<string | null>;
-  savePinCredential(hash: string): Promise<void>;
   clearPinCredential(): Promise<void>;
   loadProfilePromptDismissed(): Promise<boolean>;
   saveProfilePromptDismissed(dismissed: boolean): Promise<void>;

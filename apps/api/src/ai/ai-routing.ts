@@ -25,6 +25,8 @@ export const ASSISTANT_INTENTS = [
 ] as const;
 
 export type AssistantIntent = (typeof ASSISTANT_INTENTS)[number];
+export type AssistantContextScope =
+  'accounts_summary' | 'recent_transactions' | 'budgets' | 'obligations' | 'tracking_reviews';
 export type AssistantTurn = {
   role: 'user' | 'assistant';
   content: string;
@@ -43,7 +45,34 @@ export interface AssistantRoute {
   intent: AssistantIntent;
   execution: 'deterministic' | 'provider';
   financialTools: FinancialTool[];
+  contextScopes: readonly AssistantContextScope[];
 }
+
+const CONTEXT_SCOPES: Record<AssistantIntent, readonly AssistantContextScope[]> = {
+  spending_summary: ['recent_transactions'],
+  income_summary: ['recent_transactions'],
+  category_breakdown: ['recent_transactions'],
+  budget_status: ['budgets'],
+  savings_status: ['budgets'],
+  obligations_status: ['obligations'],
+  upcoming_obligations: ['obligations'],
+  salary_status: ['accounts_summary'],
+  period_comparison: ['recent_transactions'],
+  recent_transactions: ['recent_transactions'],
+  transaction_search: ['recent_transactions'],
+  financial_health: ['accounts_summary', 'recent_transactions', 'budgets', 'obligations'],
+  financial_advice: ['accounts_summary', 'recent_transactions', 'budgets', 'obligations'],
+  purchase_affordability: ['accounts_summary', 'obligations'],
+  general_finance: [],
+  create_transaction: ['accounts_summary', 'recent_transactions'],
+  update_transaction: ['accounts_summary', 'recent_transactions'],
+  update_budget: ['budgets'],
+  create_savings_goal: ['accounts_summary', 'budgets'],
+  record_obligation_payment: ['obligations'],
+  resolve_tracking_review: ['tracking_reviews'],
+  unsupported: [],
+  unrelated: [],
+};
 
 const DETERMINISTIC_TOOLS: Partial<Record<AssistantIntent, FinancialTool[]>> = {
   spending_summary: ['reports.monthly_summary'],
@@ -118,10 +147,20 @@ export function routeAssistantMessage(input: {
   const intent = input.intentHint ?? inferredIntent(input.content, history);
   const deterministicTools = DETERMINISTIC_TOOLS[intent];
   if (deterministicTools)
-    return { intent, execution: 'deterministic', financialTools: deterministicTools };
+    return {
+      intent,
+      execution: 'deterministic',
+      financialTools: deterministicTools,
+      contextScopes: CONTEXT_SCOPES[intent],
+    };
   if (intent === 'unrelated' || intent === 'unsupported')
-    return { intent, execution: 'deterministic', financialTools: [] };
-  return { intent, execution: 'provider', financialTools: PROVIDER_TOOLS[intent] ?? [] };
+    return { intent, execution: 'deterministic', financialTools: [], contextScopes: [] };
+  return {
+    intent,
+    execution: 'provider',
+    financialTools: PROVIDER_TOOLS[intent] ?? [],
+    contextScopes: CONTEXT_SCOPES[intent],
+  };
 }
 
 function inferredIntent(content: string, history: readonly AssistantTurn[]): AssistantIntent {
