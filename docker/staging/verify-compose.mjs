@@ -81,7 +81,7 @@ if (
   !clamavCaps.every((capability) => clamav.cap_add?.includes(capability)) ||
   !clamav.security_opt?.includes('no-new-privileges:true') ||
   clamav.pids_limit !== 256 ||
-  clamav.mem_limit !== '1073741824' ||
+  clamav.mem_limit !== '2147483648' ||
   !clamav.volumes?.some((volume) => volume.target === '/var/lib/clamav')
 ) {
   throw new Error('Unsafe ClamAV container contract');
