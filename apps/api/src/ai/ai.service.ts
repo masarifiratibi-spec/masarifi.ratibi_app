@@ -332,6 +332,9 @@ export class AiService {
         recentTurns: history,
       });
     }
+    const contextScope = input.contextScopeProvided
+      ? route.contextScopes.filter((scope) => input.contextScope.includes(scope))
+      : [...route.contextScopes];
     const redactedContent = redactAiText(input.content);
     const keyValue = idempotencyKey(key);
     if (route.intent === 'unrelated' || route.intent === 'unsupported') {
@@ -344,6 +347,7 @@ export class AiService {
             intent: route.intent,
             answer: this.redirect(input.content, route.intent),
             context: {},
+            contextScope,
             evidence: [],
             responseMode: input.responseMode,
           },
@@ -356,6 +360,7 @@ export class AiService {
       route.intent,
       input.content,
       keyValue,
+      contextScope,
     );
     const evidence = truth.evidence.map((item, index) => ({
       ...item,
@@ -371,6 +376,7 @@ export class AiService {
             intent: route.intent,
             answer: truth.answer,
             context: truth.context,
+            contextScope,
             evidence,
             responseMode: input.responseMode,
           },
@@ -387,6 +393,7 @@ export class AiService {
           content: redactedContent,
           intent: route.intent,
           context: truth.context,
+          contextScope,
           evidence,
           history: history.map(({ role, content }) => ({ role, content: redactAiText(content) })),
           responseMode: input.responseMode,

@@ -19,6 +19,7 @@ import type {
   NavigationResponse,
   PlatformOptionsResponse,
 } from "./contracts";
+import { getLiveNavigation } from "./navigation";
 export interface FoundationRepository {
   getSession(): Promise<AdminSession>;
   getNavigation(role: AdminRole): Promise<NavigationResponse>;
@@ -56,7 +57,7 @@ function sortAttention(items: AttentionResponse["items"]): AttentionResponse["it
 export const foundationRepository: FoundationRepository = {
   getSession: () => apiClient.get("/api/v1/admin/access/me", adminSelfContextSchema),
   async getNavigation(role) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return { groups: getLiveNavigation() };
     const roleQuery = mocksEnabled() ? queryString({ role }) : "";
     const response = await apiClient.get(`/api/v1/admin/navigation${roleQuery ? `?${roleQuery}` : ""}`, navigationResponseSchema);
     if (!mocksEnabled()) return response;
@@ -121,5 +122,11 @@ export const foundationRepository: FoundationRepository = {
   getPlatformOptions: () =>
     mocksEnabled()
       ? apiClient.get("/api/v1/admin/platform-options", platformOptionsResponseSchema)
-      : unavailableClientOperation(),
+      : Promise.resolve({
+          options: [
+            { value: "all", labelKey: "الكل", isDefault: true },
+            { value: "ios", labelKey: "iOS", isDefault: false },
+            { value: "android", labelKey: "Android", isDefault: false },
+          ],
+        }),
 };

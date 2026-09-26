@@ -64,7 +64,6 @@ export class ClerkWebhookController {
     @Headers('svix-signature') signature: string | undefined,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ accepted: true } | undefined> {
-    this.consumeRateLimit();
     if (!Buffer.isBuffer(request.body)) throw domainError('INVALID_WEBHOOK', 400);
     if (!bounded(eventId, 128) || !bounded(timestamp, 32) || !bounded(signature, 2048)) {
       throw domainError('WEBHOOK_SIGNATURE_INVALID', 401);
@@ -92,6 +91,7 @@ export class ClerkWebhookController {
     } catch {
       throw domainError('WEBHOOK_SIGNATURE_INVALID', 401);
     }
+    this.consumeRateLimit();
     if (!supportedTypes.has(verified.type)) {
       response.status(204);
       return undefined;
