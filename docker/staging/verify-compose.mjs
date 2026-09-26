@@ -36,6 +36,16 @@ for (const [name, contract] of Object.entries(expected)) {
   ) {
     throw new Error(`Unsafe ${name} container contract`);
   }
+  if (
+    !service.volumes?.some(
+      (volume) =>
+        volume.type === 'bind' &&
+        volume.target === '/etc/ssl/certs/masarifi-database-ca.crt' &&
+        volume.read_only === true,
+    )
+  ) {
+    throw new Error(`${name} must mount the database CA read-only`);
+  }
   if (Boolean(service.healthcheck?.disable) !== contract.healthcheckDisabled) {
     throw new Error(`Unexpected ${name} healthcheck contract`);
   }

@@ -7,6 +7,8 @@ x-backend: &backend
   read_only: true
   tmpfs:
     - /tmp:rw,noexec,nosuid,size=64m
+  volumes:
+    - ${MASARIFI_DATABASE_CA_FILE:-/etc/masarifi/supabase-ca.crt}:/etc/ssl/certs/masarifi-database-ca.crt:ro
   cap_drop: [ALL]
   security_opt:
     - no-new-privileges:true

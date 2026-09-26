@@ -119,6 +119,8 @@ grant masarifi_worker to masarifi_worker_login with inherit false, set true;
 
 Immediately set both passwords with interactive `\password masarifi_api_login` and `\password masarifi_worker_login`. Store the resulting API and worker URLs only in `/etc/masarifi/api.env` and `/etc/masarifi/worker.env`, mode `0600`. Use the session pooler or direct database endpoint; do not use transaction pooling for migration DDL/advisory locks.
 
+For the shared session pooler, download the project root CA from Supabase Database Settings to `/etc/masarifi/supabase-ca.crt`, verify its subject/issuer/expiry, and keep it non-secret and root-owned. Use `sslmode=verify-full` in every database URL and set `NODE_EXTRA_CA_CERTS=/etc/ssl/certs/masarifi-database-ca.crt` in each backend process environment. The staging Compose contract mounts `${MASARIFI_DATABASE_CA_FILE:-/etc/masarifi/supabase-ca.crt}` read-only at that container path.
+
 Verify without printing passwords:
 
 ```sql
@@ -171,6 +173,7 @@ Classification rule: a row explicitly marked `secret` is confidential VPS enviro
 | `MASARIFI_DATABASE_POOL_MAX` | API/worker | **REQUIRED** — start at `10` per process; confirm total below Supabase limit | Pool saturation test and Supabase connection count stay within budget. |
 | `MASARIFI_SHUTDOWN_TIMEOUT_MS` | API/worker | **REQUIRED** — keep `30000` initially | SIGTERM drains/ends within the orchestrator grace period. |
 | `DATABASE_URL` | Separate secret for API, worker, migration | **BLOCKING** — staging only; API/worker non-owner logins, migration owner/session URL | Host/project is staging; role tests in Section 2 pass; value never appears in logs. |
+| `NODE_EXTRA_CA_CERTS` | All backend env files | **BLOCKING for the shared Supabase pooler** — `/etc/ssl/certs/masarifi-database-ca.crt` | `sslmode=verify-full` connects with the mounted Supabase root CA; removing or replacing the CA fails closed. |
 | `MASARIFI_LOG_LEVEL` | API/worker | **REQUIRED** — `info`; production rejects `debug` | JSON logs are useful and redact secrets/PII. |
 | `MASARIFI_MIGRATION_CHECKSUM_FILE` | Migration | **BLOCKING** — `supabase/migration-checksums.sha256` | Migration runner validates every checksum. |
 | `MASARIFI_MIGRATION_STATEMENT_TIMEOUT_MS` | Migration | **REQUIRED** — keep `120000` initially | Long/blocked migration aborts safely and releases lock. |
