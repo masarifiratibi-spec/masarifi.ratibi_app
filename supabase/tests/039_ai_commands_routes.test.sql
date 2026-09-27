@@ -71,8 +71,8 @@ update private.ai_prompt_versions
 set status='approved',approved_by='ai-route-admin',published_at=clock_timestamp(),evaluation_passed=true
 where workload='financial_assistant';
 update private.ai_feature_routes set enabled=true where workload='financial_assistant';
-select is(private.get_effective_ai_route('financial_assistant')->'fallbacks','[]'::jsonb,
-  'a free-only route is effective without a paid fallback');
+select is(private.get_effective_ai_route('financial_assistant')#>>'{fallbacks,0,modelId}',
+  'google/gemini-3.1-flash-lite','the effective route exposes only the governed fallback');
 insert into public.profiles(id,status) values('ai-command-owner','active');
 select ok((private.reserve_ai_quota('ai-command-owner','99000000-0000-4000-8000-000000000001')->>'allowed')::boolean,
   'first quota reservation succeeds');
