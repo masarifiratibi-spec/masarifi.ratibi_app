@@ -85,7 +85,7 @@ describe('AiGateway', () => {
       require_parameters: true,
       data_collection: 'deny',
       zdr: true,
-      max_price: route.maxPrice,
+      max_price: { prompt: 0.275, completion: 1.65 },
     });
     expect(
       Reflect.get(Reflect.get(body, 'response_format') as object, 'json_schema'),

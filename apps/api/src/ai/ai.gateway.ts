@@ -140,7 +140,10 @@ export class AiGateway {
           require_parameters: true,
           data_collection: 'deny',
           zdr: true,
-          max_price: input.route.maxPrice,
+          max_price: {
+            prompt: Number((Number(input.route.maxPrice.prompt) * 1_000_000).toFixed(8)),
+            completion: Number((Number(input.route.maxPrice.completion) * 1_000_000).toFixed(8)),
+          },
         },
       });
       if (new TextEncoder().encode(body).length > AiGateway.MAX_REQUEST_BYTES)
