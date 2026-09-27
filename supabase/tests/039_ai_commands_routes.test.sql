@@ -15,19 +15,39 @@ from (values
 
 select is((select count(*) from private.ai_providers where key='openrouter'),1::bigint,
   'OpenRouter provider metadata is seeded once');
+select is((select count(*) from private.ai_providers
+  where key in ('azure','google-vertex') and approved and zdr_capable
+    and training_policy='no_training' and retention_reviewed_at is not null),2::bigint,
+  'paid assistant providers are approved only with reviewed ZDR and no-training policies');
 select is((select count(*) from private.ai_models where model_id in
  ('openai/gpt-audio-mini','google/gemini-2.5-flash-lite','anthropic/claude-haiku-4.5',
   'openai/gpt-5.2','anthropic/claude-sonnet-5','google/gemini-2.5-flash',
-  'qwen/qwen3.8-27b:free')),7::bigint,
+  'qwen/qwen3.8-27b:free','openai/gpt-6-luna','google/gemini-3.1-flash-lite')),9::bigint,
   'reviewed model candidates are seeded');
 select is((select count(*) from private.ai_feature_routes r join private.ai_models m on m.id=r.primary_model_id
-  where r.workload<>'voice_transcription' and m.model_id='qwen/qwen3.8-27b:free'),5::bigint,
-  'all text routes use the reviewed free model');
+  where r.workload not in ('voice_transcription','financial_assistant') and m.model_id='qwen/qwen3.8-27b:free'),4::bigint,
+  'disabled non-assistant text routes keep the reviewed free model');
 select is((select count(*) from private.ai_feature_routes
-  where workload<>'voice_transcription' and fallback_model_ids='{}'::uuid[]
+  where workload not in ('voice_transcription','financial_assistant') and fallback_model_ids='{}'::uuid[]
     and provider_allowlist=array['modelrun']::text[]
-    and max_price='{"prompt":"0","completion":"0"}'::jsonb),5::bigint,
-  'text routes cannot fall back to a paid model');
+    and max_price='{"prompt":"0","completion":"0"}'::jsonb),4::bigint,
+  'disabled non-assistant text routes cannot fall back to a paid model');
+select is((select m.model_id from private.ai_feature_routes r join private.ai_models m on m.id=r.primary_model_id
+  where r.workload='financial_assistant'),'openai/gpt-6-luna',
+  'financial assistant primary is GPT-6 Luna');
+select is((select array_agg(m.model_id order by f.ordinality) from private.ai_feature_routes r
+  cross join lateral unnest(r.fallback_model_ids) with ordinality f(id,ordinality)
+  join private.ai_models m on m.id=f.id where r.workload='financial_assistant'),
+  array['google/gemini-3.1-flash-lite']::text[],'financial assistant has one governed fallback');
+select is((select provider_allowlist from private.ai_feature_routes where workload='financial_assistant'),
+  array['azure','google-vertex']::text[],'financial assistant pins Azure then Google Vertex');
+select is((select max_price from private.ai_feature_routes where workload='financial_assistant'),
+  '{"prompt":"0.000000275","completion":"0.00000165"}'::jsonb,
+  'financial assistant rejects endpoints above reviewed provider prices');
+select is((select limits->>'monthlyBudget' from private.ai_feature_routes where workload='financial_assistant'),
+  '2.00000000','financial assistant keeps the two-dollar staging budget');
+select is((select (value#>>'{}')::numeric from private.system_settings where setting_key='ai.global.monthly_budget'),
+  2::numeric,'global AI spend is capped at two dollars during staging tests');
 select is((select m.model_id from private.ai_feature_routes r join private.ai_models m on m.id=r.primary_model_id
   where r.workload='voice_transcription'),'google/gemini-2.5-flash','voice primary uses a reviewed ZDR audio model');
 select is((select array_agg(m.model_id order by f.ordinality) from private.ai_feature_routes r
