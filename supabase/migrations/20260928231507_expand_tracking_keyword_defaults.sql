@@ -1,3 +1,6 @@
+grant masarifi_migration to current_user with set true, inherit false;
+set local role masarifi_migration;
+
 create or replace function private.restore_default_keyword_rules(p_user_id text) returns integer
 language plpgsql security definer set search_path='' as $$
 declare inserted_count integer; request_id text:=private.tracking_request_id();
@@ -40,3 +43,6 @@ end $$;
 alter function private.restore_default_keyword_rules(text) owner to masarifi_migration;
 revoke all on function private.restore_default_keyword_rules(text) from public;
 grant execute on function private.restore_default_keyword_rules(text) to masarifi_api;
+
+reset role;
+revoke masarifi_migration from current_user granted by current_user;
