@@ -366,7 +366,12 @@ export class SecurityService {
         throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
       }
       const identity = await this.clerk.getIdentityUser(input.principal.userId);
-      if (!identity?.primaryEmail)
+      if (
+        !identity?.primaryEmail ||
+        !identity.primaryEmailVerified ||
+        identity.banned ||
+        identity.locked
+      )
         throw new HttpException({ code: 'VERIFIED_EMAIL_REQUIRED' }, 403);
       body.tokenHash = `h1:${createHash('sha256').update(token).digest('hex')}`;
       body.verifiedEmail = identity.primaryEmail;
@@ -464,6 +469,11 @@ export class SecurityService {
         throw new HttpException({ code: 'SYSTEM_ROLE_PROTECTED' }, 409);
       if (message === 'LAST_SUPER_ADMIN_REQUIRED')
         throw new HttpException({ code: 'LAST_SUPER_ADMIN' }, 409);
+      if (
+        message === 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN' ||
+        code === 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN'
+      )
+        throw new HttpException({ code: 'SUPER_ADMIN_REQUIRED' }, 403);
       if (message === 'SUPPORT_GRANT_INVARIANT_INVALID')
         throw new HttpException({ code: 'SCOPE_WIDENING' }, 409);
       if (message === 'SUPPORT_GRANT_DENIED')

@@ -98,6 +98,37 @@ describe('SecurityService boundaries', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it.each([
+    ['createAdminInvitation', { email: 'admin@example.test' }, {}, 'access.invites.write'],
+    ['acceptAdminInvitation', { token: 'x'.repeat(32) }, {}, undefined],
+    [
+      'assignAdminRole',
+      { userId: 'user_2', roleId: 'role_1', reason: 'Approved role assignment' },
+      {},
+      'access.assignments.write',
+    ],
+    [
+      'revokeAdminRole',
+      { expectedVersion: 1, reason: 'Approved role revocation' },
+      { assignmentId: 'assignment_1' },
+      'access.assignments.write',
+    ],
+  ])('requires recent MFA for %s', async (operation, body, params, permission) => {
+    await expect(
+      service.execute({
+        operation,
+        permission,
+        principal: { ...principal, mfaAgeSeconds: null },
+        body,
+        query: {},
+        params,
+        requestId: 'request-1',
+        idempotencyKey: 'request-key',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(repository.execute).not.toHaveBeenCalled();
+  });
+
   it('returns a stable 429 when immutable database evidence reaches its bound', async () => {
     repository.consumeRateLimit.mockResolvedValueOnce(false);
     await expect(
@@ -189,6 +220,28 @@ describe('SecurityService boundaries', () => {
         idempotencyKey: 'request-key',
       }),
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('accepts invitations only with a Clerk-verified primary email and recent MFA', async () => {
+    clerk.getIdentityUser.mockResolvedValueOnce({
+      id: principal.userId,
+      primaryEmail: 'owner@example.test',
+      primaryEmailVerified: false,
+      banned: false,
+      locked: false,
+    });
+    await expect(
+      service.execute({
+        operation: 'acceptAdminInvitation',
+        principal,
+        body: { token: 'x'.repeat(32) },
+        query: {},
+        params: {},
+        requestId: 'request-1',
+        idempotencyKey: 'request-key',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(repository.execute).not.toHaveBeenCalled();
   });
 
   it.each([

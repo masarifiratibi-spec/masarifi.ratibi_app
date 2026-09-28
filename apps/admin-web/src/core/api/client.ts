@@ -361,4 +361,7 @@ export const apiClient = {
   patch<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
     return requestJson(path, schema, { method: "PATCH", body });
   },
+  delete<T>(path: string, body: unknown, schema: z.ZodType<T>, emptyValue: T): Promise<T> {
+    return requestJson(path, schema, { method: "DELETE", body, emptyValue });
+  },
 };

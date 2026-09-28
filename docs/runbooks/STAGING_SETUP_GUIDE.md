@@ -432,10 +432,10 @@ npm --prefix apps/admin-web run build
 npm --prefix apps/admin-web start
 ```
 
-Bootstrap the first superadmin only after the staging Clerk user exists and its webhook-created profile is active. Keep `MASARIFI_ADMIN_ROUTES_ENABLED=false`, use the one-off migration/owner database environment, and require a different approved-by identity:
+Bootstrap the first superadmin only after the staging Clerk user exists with a verified primary email and its matching webhook-created profile is active. Keep `MASARIFI_ADMIN_ROUTES_ENABLED=false` and use the one-off migration/owner database environment. The immutable consumed marker makes this command permanently single-use:
 
 ```powershell
-npm --prefix apps/api run admin:bootstrap -- --user-id <STAGING_CLERK_USER_ID> --approved-by <SECOND_APPROVER_ID> --reason "<APPROVED_REASON_AT_LEAST_10_CHARACTERS>"
+npm --prefix apps/api run admin:bootstrap -- --user-id <STAGING_CLERK_USER_ID> --email <EXACT_VERIFIED_PRIMARY_EMAIL> --reason "<APPROVED_REASON_AT_LEAST_10_CHARACTERS>"
 ```
 
 Then set API `MASARIFI_ADMIN_ROUTES_ENABLED=true` and restart only the API. Verify authorized superadmin, lower-role Admin, normal user, disabled user, stale recent-auth, fresh MFA, invitations, support access, notifications, tracking review, AI configuration, jobs, incidents, maintenance controls, immutable audit records, and sign-out/revocation. Every request must target the staging API.

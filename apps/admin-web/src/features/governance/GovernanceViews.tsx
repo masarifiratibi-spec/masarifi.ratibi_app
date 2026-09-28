@@ -11,16 +11,36 @@ import { inviteAdminRequestSchema, reasonSchema, roleCreateRequestSchema } from 
 import {
   useAdminUser,
   useAdminUsers,
+  useAcceptAdminInvitation,
   useAssignAdminRoles,
   useCreateRole,
   useDisableAdmin,
   useInviteAdmin,
   usePermissionMatrix,
+  useRevokeAdminRole,
   useRevokeAdminSessions,
   useRole,
   useRoles,
   useUpdateRole,
 } from "./hooks";
+
+export function InvitationAcceptanceView({ token }: { token: string }) {
+  const accept = useAcceptAdminInvitation();
+  const valid = token.length >= 32 && token.length <= 512;
+  return (
+    <main className="admin-page">
+      <PageHeader title="قبول دعوة الإدارة" description="Confirm this invitation after signing in with the invited verified email and recent MFA." />
+      <section className="table-card admin-action-card">
+        <button className="button primary" aria-label="Accept invitation" disabled={!valid || accept.isPending} onClick={() => accept.mutate(token)}>
+          {accept.isPending ? "Accepting..." : "Accept invitation"}
+        </button>
+        {!valid && <ErrorState />}
+        {accept.isSuccess && <SuccessState message="Invitation accepted" />}
+        {accept.isError && <ErrorState />}
+      </section>
+    </main>
+  );
+}
 
 function asStatus(error: unknown) {
   return typeof error === "object" && error !== null && "status" in error ? Number(error.status) : 0;
@@ -46,7 +66,7 @@ const copy = {
     adminActions: "إجراءات الإدارة",
     adminList: "قائمة المسؤولين",
     adminNotFound: "لم يتم العثور على المسؤول",
-    adminTeamDescription: "مسؤولون تجريبيون وجلسات آمنة ودعوات معلقة.",
+    adminTeamDescription: "إدارة المسؤولين والأدوار والجلسات والدعوات.",
     adminTeamTitle: "فريق الإدارة",
     administrators: "مسؤول",
     approval: "الموافقة",
@@ -69,7 +89,7 @@ const copy = {
     englishName: "الاسم الإنجليزي",
     expiryDays: "أيام الانتهاء",
     governanceApproval: "موافقة الحوكمة",
-    inviteAdminDescription: "ينشئ دعوة تجريبية معلقة فقط؛ لا يتم إرسال بريد.",
+    inviteAdminDescription: "ينشئ دعوة معلقة ويرسلها إلى البريد المتحقق منه.",
     inviteAdminTitle: "دعوة مسؤول",
     inviteCreated: "تم إنشاء الدعوة المعلقة بأمان.",
     kind: "النوع",
@@ -110,7 +130,7 @@ const copy = {
     adminActions: "Administrative actions",
     adminList: "Admin list",
     adminNotFound: "Admin not found",
-    adminTeamDescription: "Fictional admin users, safe sessions, and pending invitations.",
+    adminTeamDescription: "Manage administrators, roles, sessions, and pending invitations.",
     adminTeamTitle: "Admin Team",
     administrators: "administrators",
     approval: "Approval",
@@ -133,7 +153,7 @@ const copy = {
     englishName: "English name",
     expiryDays: "Expiry days",
     governanceApproval: "Governance approval",
-    inviteAdminDescription: "Creates a pending mock invitation only; no email is sent.",
+    inviteAdminDescription: "Creates a pending invitation and sends it to the verified email.",
     inviteAdminTitle: "Invite Admin",
     inviteCreated: "Pending invitation created safely.",
     kind: "Kind",
@@ -258,18 +278,22 @@ export function AdminTeamView() {
 
 export function InviteAdminView() {
   const invite = useInviteAdmin();
+  const rolesQuery = useRoles({ role: "super-admin", page: 1, pageSize: 100 });
   const { locale } = useLocale();
   const c = copy[locale];
   const [form, setForm] = useState({
     email: "",
     name: "",
-    roleId: "ROLE-DEMO-SUPPORT",
+    roleId: "",
     department: "Support",
     expiryDays: "7",
     message: "",
   });
+  const roles = (rolesQuery.data as { items: DisplayRole[] } | undefined)?.items ?? [];
+  const invitationRoleId = form.roleId || roles.find((role) => roleStatus(role) === "active")?.id || "";
   const parsed = inviteAdminRequestSchema.safeParse({
     ...form,
+    roleId: invitationRoleId,
     expiryDays: Number(form.expiryDays),
     message: form.message || undefined,
     submissionKey: "SUB-DEMO-UI-INVITE",
@@ -283,12 +307,12 @@ export function InviteAdminView() {
         if (parsed.success) invite.mutate(parsed.data);
       }}>
         <div className="invite-admin-grid">
-          <label>{c.email}<input className="input ltr" aria-label={c.email} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value.trim().toLowerCase() })} /></label>
-          <label>{c.name}<input className="input" aria-label={c.name} value={form.name} maxLength={120} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-          <label>{c.role}<select className="select" aria-label={c.role} value={form.roleId} onChange={(event) => setForm({ ...form, roleId: event.target.value })}><option value="ROLE-DEMO-SUPPORT">{getRoleLabel(locale, "support-agent")}</option><option value="ROLE-DEMO-SECURITY">{getRoleLabel(locale, "security-administrator")}</option></select></label>
-          <label>{c.department}<input className="input" aria-label={c.department} value={form.department} onChange={(event) => setForm({ ...form, department: event.target.value })} /></label>
-          <label>{c.expiryDays}<input className="input numbers" aria-label={c.expiryDays} type="number" min={1} max={30} value={form.expiryDays} onChange={(event) => setForm({ ...form, expiryDays: event.target.value })} /></label>
-          <label className="invite-message-field">{c.message}<textarea className="input" aria-label={c.message} maxLength={1000} value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} /></label>
+          <label>{c.email}<input className="input ltr" aria-label={c.email} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value.trim().toLowerCase() }))} /></label>
+          <label>{c.name}<input className="input" aria-label={c.name} value={form.name} maxLength={120} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></label>
+          <label>{c.role}<select className="select" aria-label={c.role} value={invitationRoleId} onChange={(event) => setForm((current) => ({ ...current, roleId: event.target.value }))}>{roles.filter((role) => roleStatus(role) === "active").map((role) => <option value={role.id} key={role.id}>{roleName(role, locale)}</option>)}</select></label>
+          <label>{c.department}<input className="input" aria-label={c.department} value={form.department} onChange={(event) => setForm((current) => ({ ...current, department: event.target.value }))} /></label>
+          <label>{c.expiryDays}<input className="input numbers" aria-label={c.expiryDays} type="number" min={1} max={30} value={form.expiryDays} onChange={(event) => setForm((current) => ({ ...current, expiryDays: event.target.value }))} /></label>
+          <label className="invite-message-field">{c.message}<textarea className="input" aria-label={c.message} maxLength={1000} value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} /></label>
         </div>
         <div className="invite-admin-footer">
           {!parsed.success && <p role="alert">{c.validationInvite}</p>}
@@ -307,11 +331,16 @@ export function AdminProfileView({ adminId }: { adminId: string }) {
   const query = useAdminUser(adminId);
   const admin = query.data as AdminUserDetail | AccessAdminDetail | undefined;
   const assign = useAssignAdminRoles(adminId);
+  const revokeRole = useRevokeAdminRole(adminId);
+  const rolesQuery = useRoles({ role: "super-admin", page: 1, pageSize: 100 });
   const revoke = useRevokeAdminSessions(adminId);
   const disable = useDisableAdmin(adminId);
   const [dialog, setDialog] = useState<"assign" | "revoke" | "disable" | null>(null);
-  const [reason, setReason] = useState("Approved governance action for mock admin review.");
+  const [reason, setReason] = useState("Approved administrator access change.");
+  const [selectedRoleId, setSelectedRoleId] = useState("");
   const reasonOk = reasonSchema.safeParse(reason).success;
+  const liveRoles = (rolesQuery.data as { items: AccessRole[] } | undefined)?.items ?? [];
+  const liveRoleId = selectedRoleId || liveRoles.find((role) => role.enabled)?.id || "";
 
   if (query.isPending) return <LoadingState />;
   if (query.isError) return asStatus(query.error) === 403 ? <AccessDeniedState permission="admin-team.read" /> : <ErrorState />;
@@ -329,6 +358,26 @@ export function AdminProfileView({ adminId }: { adminId: string }) {
           <div><dt>{locale === "ar" ? "الصلاحيات" : "Permissions"}</dt><dd>{admin.effectivePermissionKeys.join(", ") || "Unavailable"}</dd></div>
         </dl>
       </section>
+      {admin.eligibleActions.includes("assign_roles") && (
+        <section className="table-card admin-action-card" aria-labelledby="live-admin-actions-title">
+          <div className="card-heading ops-card-heading"><div><h2 id="live-admin-actions-title">{c.adminActions}</h2></div></div>
+          <div className="admin-action-body">
+            <label>{c.confirmationReason}<textarea className="input" dir="auto" aria-label={c.confirmationReason} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
+            <label>{c.role}<select className="select" aria-label={c.role} value={liveRoleId} onChange={(event) => setSelectedRoleId(event.target.value)}>{liveRoles.filter((role) => role.enabled).map((role) => <option value={role.id} key={role.id}>{role.name}</option>)}</select></label>
+            <div className="admin-action-buttons">
+              <button className="button primary" disabled={!reasonOk || !liveRoleId || assign.isPending} onClick={() => assign.mutate({ adminId, roleIds: [liveRoleId], reason, expectedVersion: admin.version, submissionKey: "LIVE-ADMIN-ROLE-ASSIGN" })}>{c.assignRole}</button>
+            </div>
+            <div className="admin-role-list">
+              {admin.assignments.filter((assignment) => !assignment.revokedAt).map((assignment) => {
+                const role = liveRoles.find((candidate) => candidate.id === assignment.roleId);
+                return <div className="admin-role-row" key={assignment.id}><span>{role?.name ?? assignment.roleId}</span><button className="button danger" aria-label="Revoke role" disabled={!reasonOk || revokeRole.isPending} onClick={() => revokeRole.mutate({ assignmentId: assignment.id, expectedVersion: assignment.version, reason })}>{locale === "ar" ? "إلغاء الدور" : "Revoke role"}</button></div>;
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+      {(assign.isSuccess || revokeRole.isSuccess) && <SuccessState message="Admin governance action completed safely." />}
+      {(assign.isError || revokeRole.isError) && <ErrorState />}
     </section>
   );
   const revocable = admin.sessions.filter((session) => session.state === "active" && !session.isCurrentSession);

@@ -2,8 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
-import { AdminProfileView, AdminTeamView, EditRoleView, InviteAdminView, NewRoleView, PermissionMatrixView, RoleDetailView, RolesView } from "./GovernanceViews";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { http, HttpResponse } from "msw";
+import { mockServer } from "@/mocks/server";
+import { AdminProfileView, AdminTeamView, EditRoleView, InvitationAcceptanceView, InviteAdminView, NewRoleView, PermissionMatrixView, RoleDetailView, RolesView } from "./GovernanceViews";
 
 const roots: Root[] = [];
 
@@ -132,5 +134,63 @@ describe("US1 admin team views", () => {
     });
     expect(host.textContent).toContain("Admin governance action completed safely");
     expect(document.activeElement === button || document.body.contains(document.activeElement)).toBe(true);
+  });
+});
+
+describe("live admin role controls", () => {
+  const roleId = "33000000-0000-4000-8000-000000000001";
+  const assignmentId = "33000000-0000-4000-8000-000000000002";
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
+    mockServer.use(
+      http.get("/api/v1/admin/access/roles", () => HttpResponse.json({
+        items: [{ id: roleId, key: "support-agent", name: "Support Agent", description: null, systemRole: true, enabled: true, permissionKeys: ["admin-team.read"], assignmentCount: 1, version: 1 }],
+        nextCursor: null,
+      })),
+      http.get("/api/v1/admin/access/admins/user_target", () => HttpResponse.json({
+        id: "user_target",
+        displayName: "Live Operator",
+        emailMasked: "op***@example.test",
+        status: "active",
+        department: "Support",
+        roleKeys: ["support-agent"],
+        mfaStatus: "enabled",
+        activeSessionCount: 1,
+        version: 1,
+        assignments: [{ id: assignmentId, userId: "user_target", roleId, startsAt: "2026-09-10T08:00:00.000Z", endsAt: null, revokedAt: null, version: 1 }],
+        effectivePermissionKeys: ["admin-team.read"],
+        eligibleActions: ["assign_roles"],
+      })),
+      http.post("/api/v1/admin/access/invitations/accept", () => HttpResponse.json({ id: "user_target", status: "active" })),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true";
+  });
+
+  test("loads live role IDs for invitations instead of demo IDs", async () => {
+    const host = await renderView(<InviteAdminView />);
+    const values = Array.from(host.querySelectorAll("select option"), (option) => option.getAttribute("value"));
+    expect(values).toContain(roleId);
+    expect(values.some((value) => value?.includes("DEMO"))).toBe(false);
+  });
+
+  test("renders live assignment and revoke controls", async () => {
+    const host = await renderView(<AdminProfileView adminId="user_target" />);
+    expect(host.textContent).toContain("Live Operator");
+    expect(host.textContent).toContain("Support Agent");
+    expect(host.querySelector("button[aria-label='Revoke role']")).not.toBeNull();
+  });
+
+  test("accepts an invitation token from the protected landing page", async () => {
+    const host = await renderView(<InvitationAcceptanceView token={"x".repeat(32)} />);
+    await act(async () => {
+      (host.querySelector("button[aria-label='Accept invitation']") as HTMLButtonElement).click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(host.textContent).toContain("Invitation accepted");
   });
 });

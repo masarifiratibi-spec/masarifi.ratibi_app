@@ -1,11 +1,21 @@
+import { createClerkClient } from '@clerk/backend';
 import { Pool } from 'pg';
 
+import { containsControlCharacter } from './security.dto';
 import { buildSecurityEventPayload } from './security.events';
 
 export interface AdminBootstrapInput {
   userId: string;
-  approvedBy: string;
+  email: string;
   reason: string;
+}
+
+export interface AdminBootstrapIdentity {
+  id: string;
+  primaryEmail: string | null;
+  primaryEmailVerified: boolean;
+  banned: boolean;
+  locked: boolean;
 }
 
 function argument(argv: readonly string[], name: string): string {
@@ -18,14 +28,16 @@ function argument(argv: readonly string[], name: string): string {
 export function parseBootstrapArgs(argv: readonly string[]): AdminBootstrapInput {
   const input = {
     userId: argument(argv, 'user-id'),
-    approvedBy: argument(argv, 'approved-by'),
+    email: argument(argv, 'email'),
     reason: argument(argv, 'reason'),
   };
   if (
-    input.userId.length > 128 ||
-    input.approvedBy.length > 128 ||
-    input.userId === input.approvedBy ||
+    !/^user_[A-Za-z0-9_-]{1,123}$/.test(input.userId) ||
+    input.email.length > 320 ||
+    input.email !== input.email.trim().toLowerCase() ||
+    !/^[^\s@]+@[^\s@]+$/.test(input.email) ||
     input.reason.trim() !== input.reason ||
+    containsControlCharacter(input.reason) ||
     input.reason.length < 10 ||
     input.reason.length > 500
   ) {
@@ -34,10 +46,45 @@ export function parseBootstrapArgs(argv: readonly string[]): AdminBootstrapInput
   return input;
 }
 
+export function assertBootstrapIdentity(
+  input: AdminBootstrapInput,
+  identity: AdminBootstrapIdentity,
+): void {
+  if (
+    identity.id !== input.userId ||
+    identity.primaryEmail !== input.email ||
+    !identity.primaryEmailVerified ||
+    identity.banned ||
+    identity.locked
+  ) {
+    throw new Error('ADMIN_BOOTSTRAP_IDENTITY_INELIGIBLE');
+  }
+}
+
+async function getBootstrapIdentity(
+  secretKey: string,
+  userId: string,
+): Promise<AdminBootstrapIdentity> {
+  const user = await createClerkClient({
+    secretKey,
+    telemetry: { disabled: true, debug: false, samplingRate: 0 },
+  }).users.getUser(userId);
+  const primaryEmail = user.emailAddresses.find(
+    (entry) => entry.id === user.primaryEmailAddressId,
+  );
+  return {
+    id: user.id,
+    primaryEmail: primaryEmail?.emailAddress.trim().toLowerCase() ?? null,
+    primaryEmailVerified: primaryEmail?.verification?.status === 'verified',
+    banned: user.banned,
+    locked: user.locked,
+  };
+}
+
 export async function bootstrapAdmin(
   pool: Pool,
   input: AdminBootstrapInput,
-): Promise<{ assignmentId: string; created: boolean }> {
+): Promise<{ assignmentId: string }> {
   const client = await pool.connect();
   try {
     await client.query('begin');
@@ -45,19 +92,19 @@ export async function bootstrapAdmin(
     await client.query(
       "select pg_advisory_xact_lock(hashtextextended('masarifi:first-super-admin',0))",
     );
-    const active = await client.query<{
-      id: string;
-    }>(`select a.id from public.admin_role_assignments a join public.roles r on r.id=a.role_id
-      where r.key='super-admin' and r.enabled and a.revoked_at is null and a.starts_at<=clock_timestamp() and (a.ends_at is null or a.ends_at>clock_timestamp()) limit 1`);
-    if (active.rows[0]) {
-      await client.query('commit');
-      return { assignmentId: active.rows[0].id, created: false };
-    }
-    const profile = await client.query<{ id: string }>(
-      "select id from public.profiles where id=$1 and status='active'",
-      [input.userId],
+    const unavailable = await client.query<{ unavailable: boolean }>(`select (
+      exists(select 1 from private.owner_bootstrap_state) or exists(
+      select 1 from public.admin_role_assignments a join public.roles r on r.id=a.role_id
+      join public.admin_profiles p on p.user_id=a.user_id
+      where p.status='active' and r.key='super-admin' and r.enabled and a.revoked_at is null
+        and a.starts_at<=clock_timestamp() and (a.ends_at is null or a.ends_at>clock_timestamp())
+      )) as unavailable`);
+    if (unavailable.rows[0]?.unavailable) throw new Error('ADMIN_BOOTSTRAP_ALREADY_CONSUMED');
+    const profile = await client.query<{ id: string; primary_email: string }>(
+      "select id,primary_email from public.profiles where id=$1 and status='active' and primary_email=$2",
+      [input.userId, input.email],
     );
-    if (!profile.rows[0]) throw new Error('ADMIN_BOOTSTRAP_PROFILE_NOT_ACTIVE');
+    if (!profile.rows[0]) throw new Error('ADMIN_BOOTSTRAP_PROFILE_MISMATCH');
     await client.query(
       `insert into public.admin_profiles(user_id,status) values($1,'active') on conflict(user_id) do update set status='active'`,
       [input.userId],
@@ -71,13 +118,17 @@ export async function bootstrapAdmin(
     if (!row) throw new Error('ADMIN_BOOTSTRAP_ROLE_MISSING');
     const requestId = `bootstrap:${row.id}`;
     await client.query(
+      'insert into private.owner_bootstrap_state(singleton,user_id,assignment_id) values(true,$1,$2)',
+      [input.userId, row.id],
+    );
+    await client.query(
       `select audit.append_event($1,'system','admin.bootstrap_completed','admin_assignment',$2,null,null,$3,$4,$5)`,
       [
-        input.approvedBy,
+        input.userId,
         row.id,
         input.reason,
         requestId,
-        JSON.stringify({ procedure: 'two-person' }),
+        JSON.stringify({ procedure: 'one-time-owner-bootstrap' }),
       ],
     );
     await client.query(
@@ -96,7 +147,7 @@ export async function bootstrapAdmin(
       ],
     );
     await client.query('commit');
-    return { assignmentId: row.id, created: true };
+    return { assignmentId: row.id };
   } catch (error) {
     await client.query('rollback');
     throw error;
@@ -110,12 +161,14 @@ async function main(): Promise<void> {
     throw new Error('ADMIN_BOOTSTRAP_REQUIRES_DISABLED_ROUTES');
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('ADMIN_BOOTSTRAP_DATABASE_MISSING');
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  if (!clerkSecretKey) throw new Error('ADMIN_BOOTSTRAP_CLERK_SECRET_MISSING');
+  const input = parseBootstrapArgs(process.argv.slice(2));
+  assertBootstrapIdentity(input, await getBootstrapIdentity(clerkSecretKey, input.userId));
   const pool = new Pool({ connectionString: databaseUrl, max: 1 });
   try {
-    const result = await bootstrapAdmin(pool, parseBootstrapArgs(process.argv.slice(2)));
-    process.stdout.write(
-      `ADMIN_BOOTSTRAP_${result.created ? 'CREATED' : 'ALREADY_COMPLETE'}:${result.assignmentId}\n`,
-    );
+    const result = await bootstrapAdmin(pool, input);
+    process.stdout.write(`ADMIN_BOOTSTRAP_CREATED:${result.assignmentId}\n`);
   } finally {
     await pool.end();
   }
