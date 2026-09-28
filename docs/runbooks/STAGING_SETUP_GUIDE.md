@@ -488,7 +488,7 @@ docker run -d \
   <REGISTRY>/<IMAGE>@sha256:<DIGEST> dist/src/worker.js
 ```
 
-The resource limits are conservative starting values, not measured capacity. Raise them only from staging evidence. If Admin is hosted on this VPS, install dependencies/build as the service account, then use a systemd unit with `EnvironmentFile=/etc/masarifi/admin.env` and an `ExecStart` equivalent to `npm --prefix <ADMIN_RELEASE_DIRECTORY>/apps/admin-web start -- --hostname localhost --port 3001`. Use an absolute release directory for each SHA; switch the service's release symlink only after a successful build. Nginx proxies the API hostname to `127.0.0.1:3000` and, only for VPS-hosted Admin, its hostname to `127.0.0.1:3001`. Preserve `Host` and `X-Forwarded-Proto`, set conservative request/body timeouts, and expose only the API routes intended by the application.
+The resource limits are conservative starting values, not measured capacity. Raise them only from staging evidence. If Admin is hosted on this VPS, install dependencies/build as the service account, then use a systemd unit with `EnvironmentFile=/etc/masarifi/admin.env` and an `ExecStart` equivalent to `npm --prefix <ADMIN_RELEASE_DIRECTORY>/apps/admin-web start -- --hostname localhost --port 3001`. Use an absolute release directory for each SHA; switch the service's release symlink only after a successful build. Nginx proxies the API hostname to `127.0.0.1:3000` and, only for VPS-hosted Admin, its hostname to `[::1]:3001`. Preserve `Host` and `X-Forwarded-Proto`, set conservative request/body timeouts, and expose only the API routes intended by the application.
 
 Service checks:
 

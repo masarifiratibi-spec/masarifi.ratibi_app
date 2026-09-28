@@ -105,7 +105,7 @@ if (
   !nginx.includes('location = /health/ready') ||
   !nginx.includes('proxy_pass http://127.0.0.1:3000;') ||
   !nginx.includes('server_name staging.masarifiratibi.com;') ||
-  !nginx.includes('proxy_pass http://127.0.0.1:3001;')
+  !nginx.includes('proxy_pass http://[::1]:3001;')
 ) {
   throw new Error('Unexpected staging reverse-proxy contract');
 }
