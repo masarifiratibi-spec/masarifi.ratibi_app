@@ -10,7 +10,7 @@ Group=masarifi
 WorkingDirectory=/opt/masarifi/current/apps/admin-web
 Environment=NODE_ENV=production
 EnvironmentFile=/etc/masarifi/admin.env
-ExecStart=/usr/bin/npm start -- --hostname 127.0.0.1 --port 3001
+ExecStart=/usr/bin/npm start -- --hostname localhost --port 3001
 Restart=on-failure
 RestartSec=5s
 NoNewPrivileges=true
