@@ -14,7 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { setSimulatedRole, useSimulatedRole } from "@/core/auth/use-simulated-role";
 import type { AdminRole } from "@/core/permissions/permissions";
-import { hasPermission } from "@/core/permissions/role-map";
+import { hasPermission, toClientPermission } from "@/core/permissions/role-map";
 import { ApiError } from "@/core/api/errors";
 import { mocksEnabled } from "@/core/config/runtime";
 import { ADMIN_ROLES } from "@/core/permissions/permissions";
@@ -93,7 +93,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     ADMIN_ROLES.some((role) => role === key),
   );
   const role = demoMode ? simulatedRole : (serverRole ?? "support-agent");
-  const effectivePermissions = new Set(session.data?.effectivePermissionKeys ?? []);
+  const effectivePermissions = new Set(
+    (session.data?.effectivePermissionKeys ?? []).map(toClientPermission),
+  );
   const navigation = useAdminNavigation(role);
   const groups = navigation.data?.groups ?? [];
   // Communications is temporarily hidden from the Admin Dashboard sidebar.

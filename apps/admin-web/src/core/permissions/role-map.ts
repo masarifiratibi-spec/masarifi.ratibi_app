@@ -369,6 +369,10 @@ const CANONICAL_CLIENT_PERMISSION: Readonly<Record<string, PermissionKey>> = {
   "access.assignments.write": "admin-team.roles.assign",
 };
 
+export function toClientPermission(permission: string): string {
+  return CANONICAL_CLIENT_PERMISSION[permission] ?? permission;
+}
+
 const BACKEND_ONLY_OPERATIONS_PERMISSIONS = new Set([
   "operations.health.read",
   "operations.providers.read",
@@ -388,7 +392,5 @@ const BACKEND_ONLY_OPERATIONS_PERMISSIONS = new Set([
 
 export function hasPermission(role: AdminRole, permission: string): boolean {
   if (BACKEND_ONLY_OPERATIONS_PERMISSIONS.has(permission)) return role === "super-admin";
-  return permissionsByRole[role].includes(
-    CANONICAL_CLIENT_PERMISSION[permission] ?? (permission as PermissionKey),
-  );
+  return permissionsByRole[role].includes(toClientPermission(permission) as PermissionKey);
 }
