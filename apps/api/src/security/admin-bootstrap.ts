@@ -89,6 +89,10 @@ export async function bootstrapAdmin(
   try {
     await client.query('begin');
     await client.query(
+      'grant masarifi_migration to current_user with set true, inherit false',
+    );
+    await client.query('set local role masarifi_migration');
+    await client.query(
       "select pg_advisory_xact_lock(hashtextextended('masarifi:first-super-admin',0))",
     );
     const unavailable = await client.query<{ unavailable: boolean }>(`select (
@@ -144,6 +148,10 @@ export async function bootstrapAdmin(
           }),
         ),
       ],
+    );
+    await client.query('reset role');
+    await client.query(
+      'revoke masarifi_migration from current_user granted by current_user',
     );
     await client.query('commit');
     return { assignmentId: row.id };

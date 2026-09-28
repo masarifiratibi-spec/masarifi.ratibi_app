@@ -83,9 +83,18 @@ describe('Admin bootstrap arguments', () => {
       reason: 'Approved owner bootstrap',
     })).resolves.toEqual({ assignmentId: 'assignment_1' });
 
+    expect(statements.slice(0, 3)).toEqual([
+      'begin',
+      'grant masarifi_migration to current_user with set true, inherit false',
+      'set local role masarifi_migration',
+    ]);
     expect(statements.findIndex((sql) => sql.includes('pg_advisory_xact_lock')))
       .toBeLessThan(statements.findIndex((sql) => sql.includes('as unavailable')));
-    expect(statements).not.toContain('set local role masarifi_migration');
+    expect(statements.slice(-3)).toEqual([
+      'reset role',
+      'revoke masarifi_migration from current_user granted by current_user',
+      'commit',
+    ]);
     expect(statements).toEqual(expect.arrayContaining([
       expect.stringContaining('owner_bootstrap_state'),
       expect.stringContaining('admin.bootstrap_completed'),
