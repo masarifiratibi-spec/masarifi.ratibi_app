@@ -2,6 +2,9 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(21);
 
+grant authenticated, masarifi_api, masarifi_worker, masarifi_migration to current_user with inherit true, set true;
+set local role masarifi_migration;
+
 select has_table('private', 'owner_bootstrap_state', 'owner bootstrap consumption is persisted privately');
 select col_is_pk('private', 'owner_bootstrap_state', array['singleton'], 'bootstrap state is a singleton');
 select ok(
