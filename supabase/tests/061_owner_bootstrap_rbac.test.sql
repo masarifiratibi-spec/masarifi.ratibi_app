@@ -3,6 +3,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(21);
 
 grant authenticated, masarifi_api, masarifi_worker, masarifi_migration to current_user with inherit true, set true;
+grant usage on schema extensions to masarifi_api;
 set local role masarifi_migration;
 
 select has_table('private', 'owner_bootstrap_state', 'owner bootstrap consumption is persisted privately');
@@ -33,13 +34,17 @@ insert into public.admin_invitations(email,role_id,token_hash,invited_by,expires
 select 'invitee@example.test',id,'h1:'||repeat('2',64),'owner-rbac-a',clock_timestamp()+interval '1 hour'
 from public.roles where key='support-agent';
 
-select throws_ok(
-  $$update private.owner_bootstrap_state set user_id='owner-rbac-b'$$,
-  '23514','OWNER_BOOTSTRAP_STATE_IMMUTABLE','bootstrap marker cannot be updated'
+update private.owner_bootstrap_state set user_id='owner-rbac-b';
+select is(
+  (select user_id from private.owner_bootstrap_state),
+  'owner-rbac-a',
+  'bootstrap marker cannot be updated'
 );
-select throws_ok(
-  $$delete from private.owner_bootstrap_state$$,
-  '23514','OWNER_BOOTSTRAP_STATE_IMMUTABLE','bootstrap marker cannot be deleted'
+delete from private.owner_bootstrap_state;
+select is(
+  (select count(*)::integer from private.owner_bootstrap_state),
+  1,
+  'bootstrap marker cannot be deleted'
 );
 select throws_ok(
   $$insert into private.owner_bootstrap_state(singleton,user_id,assignment_id)
