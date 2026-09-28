@@ -250,7 +250,7 @@ export class SecurityRepository {
       if (count >= limit) return false;
       await client.query(
         `insert into public.security_events(user_id,event_type,severity,ip_hash,metadata)
-        values($1,'security.request_attempt','info',$3,jsonb_build_object('category',$2))`,
+        values($1,'security.request_attempt','info',$3,jsonb_build_object('category',$2::text))`,
         [principal.userId, category, ipHash],
       );
       return true;
