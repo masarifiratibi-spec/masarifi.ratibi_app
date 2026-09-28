@@ -88,7 +88,6 @@ export async function bootstrapAdmin(
   const client = await pool.connect();
   try {
     await client.query('begin');
-    await client.query('set local role masarifi_migration');
     await client.query(
       "select pg_advisory_xact_lock(hashtextextended('masarifi:first-super-admin',0))",
     );

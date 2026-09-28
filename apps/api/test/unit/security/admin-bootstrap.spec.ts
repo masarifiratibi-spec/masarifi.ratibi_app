@@ -85,6 +85,7 @@ describe('Admin bootstrap arguments', () => {
 
     expect(statements.findIndex((sql) => sql.includes('pg_advisory_xact_lock')))
       .toBeLessThan(statements.findIndex((sql) => sql.includes('as unavailable')));
+    expect(statements).not.toContain('set local role masarifi_migration');
     expect(statements).toEqual(expect.arrayContaining([
       expect.stringContaining('owner_bootstrap_state'),
       expect.stringContaining('admin.bootstrap_completed'),
