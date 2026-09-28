@@ -45,6 +45,19 @@ describe("Admin strict HTTP client", () => {
     );
   });
 
+  test("bypasses the browser cache for authenticated API reads after the 2026-09-28 fresh-tab regression", async () => {
+    const request = vi.fn(async (_url: string, init?: RequestInit) =>
+      init?.cache === "no-store"
+        ? response(200, { state: "ready" })
+        : response(304),
+    );
+    vi.stubGlobal("fetch", request);
+
+    await expect(requestJson("/api/v1/admin/access/me", schema)).resolves.toEqual({
+      state: "ready",
+    });
+  });
+
   test("reuses an automatic idempotency key after an ambiguous network failure", async () => {
     const request = vi
       .fn()

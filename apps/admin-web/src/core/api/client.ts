@@ -210,7 +210,7 @@ export async function requestJson<T>(
 
     const response = await fetch(apiUrl(path), {
       method: options.method,
-      cache: options.cache,
+      cache: options.cache ?? "no-store",
       credentials: "same-origin",
       headers,
       body:
