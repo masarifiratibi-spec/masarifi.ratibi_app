@@ -281,13 +281,13 @@ const PHASE9_EXACT_ROUTE_PERMISSIONS: Partial<Record<string, PermissionKey>> = {
 export function resolveRoutePermission(pathname: string): PermissionKey | "forbidden" | undefined {
   const phase9ExactPermission = PHASE9_EXACT_ROUTE_PERMISSIONS[pathname];
   if (phase9ExactPermission) return phase9ExactPermission;
-  if (/^\/admin\/admin-team\/ADM-[A-Z0-9-]{3,64}$/.test(pathname)) {
+  if (/^\/admin\/admin-team\/(?:ADM-[A-Z0-9-]{3,64}|user_[A-Za-z0-9_-]{20,128})$/.test(pathname)) {
     return "admin-team.read";
   }
-  if (/^\/admin\/roles\/ROLE-[A-Z0-9-]{3,64}$/.test(pathname)) {
+  if (/^\/admin\/roles\/(?:ROLE-[A-Z0-9-]{3,64}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.test(pathname)) {
     return "roles.read";
   }
-  if (/^\/admin\/roles\/ROLE-[A-Z0-9-]{3,64}\/edit$/.test(pathname)) {
+  if (/^\/admin\/roles\/(?:ROLE-[A-Z0-9-]{3,64}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/edit$/i.test(pathname)) {
     return "roles.manage";
   }
   if (
