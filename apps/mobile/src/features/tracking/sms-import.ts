@@ -25,19 +25,27 @@ export interface PreparedSmsImport {
 const otpPattern =
   /\botp\b|one[\s-]?time|verification\s*code|رمز\s*(?:التحقق|الأمان)|كود\s*التحقق/iu;
 const marketingPattern =
-  /\boffer\b|\bpromo\b|\bdiscount\b|عرض|خصم\s+\d+\s*%|اشتر/iu;
+  /\boffer\b|\bpromo(?:tion)?\b|\bdiscount\s+\d+\s*%|عرض\s+(?:خاص|حصري)|خصم\s+\d+\s*%|اشتر(?:\s+\S+){0,3}\s+واحصل/iu;
+const negativeTransactionPattern =
+  /\b(?:failed|declined|rejected|unsuccessful|cancelled|canceled|reversed)\b|\binsufficient\s+funds\b|\bexceed(?:ed|ing)\b.{0,40}\bpin\s+attempts?\b|فشلت?|رفضت?|مرفوض(?:ة)?|لم\s+تتم|غير\s+ناجح(?:ة)?|ملغ(?:ى|اة)|عكس\s+(?:القيد|العملية)/iu;
 const kindPatterns: [NonNullable<TrackingImportEvent['kind']>, RegExp][] = [
   ['refund', /\brefund(?:ed)?\b|استرداد|مسترد/iu],
   [
     'income',
-    /\bsalary\b|\bcredited\b|\bdeposit(?:ed)?\b|\breceived\b|راتب|إيداع|ايداع|استلام/iu
+    /\bsalary\b|\bcr\.?\s*(?:transaction|txn)\b|\bcredit(?:ed)?\b|\bdeposit(?:ed)?\b|\bincoming\s+transfer\b|\btransfer(?:red)?\s+from\b|\breceived\b|راتب|إيداع|ايداع|إضافة|اضافة|استلام|تحويل\s+وارد/iu
+  ],
+  [
+    'fee',
+    /\b(?:foreign\s+(?:transaction|txn)\s+)?fees?\b|\bservice\s+charge\b|\bcommission\b|رسوم|عمولة/iu
   ],
   ['transfer', /\btransfer(?:red)?\b|تحويل/iu],
-  ['expense', /\bwithdraw(?:al|n)?\b|سحب/iu],
-  ['fee', /\bfees?\b|رسوم/iu],
   [
     'expense',
-    /\bpaid\b|\bpurchase\b|\bspent\b|\bdebit(?:ed)?\b|\bcharged\b|شراء|دفع|خصم/iu
+    /\bwithdraw(?:al|n)?\b|\bcash\s+withdrawal\b|\batm\b|سحب(?:\s+نقدي)?/iu
+  ],
+  [
+    'expense',
+    /\bused\s+for\b|\bpaid\b|\bpayment\b|\bpurchase\b|\bspent\b|\bdebit(?:ed|\s+(?:transaction|txn))?\b|\bcharged\b|شراء|دفع|سداد|خصم/iu
   ]
 ];
 const paymentRailPatterns: [string, RegExp][] = [
@@ -232,6 +240,7 @@ function detectKind(
     senderRules: readonly SenderRule[];
   }
 ): NonNullable<TrackingImportEvent['kind']> | null {
+  if (negativeTransactionPattern.test(value)) return null;
   const structuredKind = kindPatterns.find(([, pattern]) =>
     pattern.test(value)
   )?.[0];

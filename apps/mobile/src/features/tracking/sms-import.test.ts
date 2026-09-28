@@ -170,6 +170,98 @@ describe('SMS import preparation', () => {
     expect(result.consumedSourceKeys).toEqual([record.key]);
   });
 
+  it.each([
+    [
+      'Debit card XX4242 was used for AED 14.00 at SAMPLE SHOP. Available Balance AED 632.00.',
+      'expense',
+      -1400
+    ],
+    ['AED 18.00 txn at DISCOUNT MARKET was debited.', 'expense', -1800],
+    [
+      'A Cr. transaction of AED 250.00 on account XX0001 was successful. Avl.Bal AED 435.40.',
+      'income',
+      25000
+    ],
+    ['FOREIGN TXN FEE: AED 2.50 charged to card XX4242.', 'fee', -250],
+    ['Cash withdrawn AED 80.00 from ATM using card XX4242.', 'expense', -8000],
+    [
+      'Incoming transfer received AED 90.00 from SAMPLE PERSON.',
+      'income',
+      9000
+    ],
+    ['Transferred AED 75.00 TO SAMPLE BENEFICIARY.', 'transfer', -7500],
+    ['شراء عبر نقاط بيع بمبلغ AED 15.33 بطاقة مدى **4242', 'expense', -1533],
+    ['شراء إنترنت بمبلغ AED 22.00 بطاقة مدى **4242', 'expense', -2200],
+    ['تم إضافة مبلغ AED 45.00 إلى حسابك', 'income', 4500],
+    ['تحويل وارد بمبلغ AED 55.00 من حساب تجريبي', 'income', 5500],
+    ['تم التحويل إلى مستفيد تجريبي بمبلغ AED 60.00', 'transfer', -6000],
+    ['تم سداد مبلغ AED 30.00 من حسابك', 'expense', -3000],
+    ['تم خصم عمولة AED 3.00 من حسابك', 'fee', -300]
+  ])(
+    'classifies sanitized Gulf banking message: %s',
+    async (text, kind, amountMinor) => {
+      const result = await prepareSmsImport([message({ body: text })], {
+        keywordRules: [],
+        senderRules: [],
+        accounts: [account({ currencyCode: 'AED' })],
+        knownFingerprints: new Set()
+      });
+
+      expect(result.events).toEqual([
+        expect.objectContaining({ kind, amountMinor, currency: 'AED' })
+      ]);
+    }
+  );
+
+  it.each([
+    'AED 68.70 txn at SAMPLE SHOP failed due to exceeding PIN attempts.',
+    'Debit card transaction AED 20.00 was declined.',
+    'Purchase AED 21.00 was rejected.',
+    'Payment AED 22.00 was unsuccessful.',
+    'Purchase AED 23.00 was cancelled.',
+    'Debited AED 24.00 then reversed.',
+    'لم تتم عملية شراء بمبلغ AED 25.00',
+    'عملية شراء بمبلغ AED 26.00 مرفوضة',
+    'تم رفض عملية شراء بمبلغ AED 26.50',
+    'عملية دفع غير ناجحة بمبلغ AED 27.00',
+    'عملية شراء ملغاة بمبلغ AED 28.00',
+    'Available Balance AED 435.40',
+    'الرصيد المتاح AED 436.40'
+  ])('does not create a successful transaction from: %s', async (text) => {
+    const result = await prepareSmsImport([message({ body: text })], {
+      keywordRules: [],
+      senderRules: [],
+      accounts: [account({ currencyCode: 'AED' })],
+      knownFingerprints: new Set()
+    });
+
+    expect(result.events).toEqual([]);
+  });
+
+  it('honors enabled custom keywords and ignores disabled default keywords', async () => {
+    const result = await prepareSmsImport(
+      [
+        message({ id: 'custom', body: 'SAFE CUSTOM DEBIT AED 12.00' }),
+        message({ id: 'disabled', body: 'BANK ACTIVITY AED 13.00' })
+      ],
+      {
+        keywordRules: [
+          keyword('safe custom debit'),
+          {
+            ...keyword('bank activity', false),
+            id: 'expense-en-bank-activity-default',
+            origin: 'default'
+          }
+        ],
+        senderRules: [sender()],
+        accounts: [account({ currencyCode: 'AED' })],
+        knownFingerprints: new Set()
+      }
+    );
+
+    expect(result.events.map((event) => event.amountMinor)).toEqual([-1200]);
+  });
+
   it('extracts merchant and last-four account hints without retaining raw notification text', async () => {
     const result = await prepareFinancialMessageImport(
       [
