@@ -23,7 +23,7 @@ describe('UnlockScreen', () => {
     expect(
       screen.queryByText('استخدم بصمة الإصبع أو الوجه للوصول إلى بياناتك.')
     ).toBeNull();
-    expect(screen.queryByLabelText('فتح بالبصمة')).toBeNull();
+    expect(screen.queryByLabelText('فتح بالتحقق الحيوي')).toBeNull();
     await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
   });
 
@@ -47,7 +47,7 @@ describe('UnlockScreen', () => {
       <UnlockScreen biometricService={biometricService} onUnlock={onUnlock} />
     );
 
-    expect(await screen.findByText(/تم إلغاء الفتح بالبصمة/)).toBeOnTheScreen();
+    expect(await screen.findByText(/تم إلغاء التحقق الحيوي/)).toBeOnTheScreen();
     expect(screen.queryByText('فتح التطبيق')).toBeNull();
     expect(
       screen.queryByText('استخدم بصمة الإصبع أو الوجه للوصول إلى بياناتك.')
@@ -55,7 +55,7 @@ describe('UnlockScreen', () => {
     expect(
       screen.queryByLabelText('تسجيل الدخول بالحساب بدلًا من ذلك')
     ).toBeNull();
-    fireEvent.press(screen.getByLabelText('فتح بالبصمة'));
+    fireEvent.press(screen.getByLabelText('فتح بالتحقق الحيوي'));
     await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
   });
 
@@ -68,6 +68,6 @@ describe('UnlockScreen', () => {
     );
 
     expect(screen.getByText('سجل الدخول للمتابعة')).toBeOnTheScreen();
-    expect(screen.queryByLabelText('فتح بالبصمة')).toBeNull();
+    expect(screen.queryByLabelText('فتح بالتحقق الحيوي')).toBeNull();
   });
 });

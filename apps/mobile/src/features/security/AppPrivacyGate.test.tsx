@@ -70,7 +70,7 @@ describe('AppPrivacyGate', () => {
     expect(screen.getByText('المحتوى محمي')).toBeOnTheScreen();
   });
 
-  it('masks on the inactive app-switcher transition and locks only when configured', () => {
+  it('masks transient inactive overlays without treating them as background locks', () => {
     let listener: ((state: string) => void) | null = null;
     const onLock = jest.fn();
     jest
@@ -87,10 +87,23 @@ describe('AppPrivacyGate', () => {
     );
     act(() => {
       listener?.('inactive');
-      listener?.('background');
     });
 
     expect(screen.queryByText('Protected')).toBeNull();
+    expect(onLock).not.toHaveBeenCalled();
+
+    act(() => {
+      listener?.('active');
+    });
+
+    expect(screen.getByText('Protected')).toBeOnTheScreen();
+
+    act(() => {
+      listener?.('inactive');
+      listener?.('background');
+      listener?.('background');
+    });
+
     expect(onLock).toHaveBeenCalledTimes(1);
   });
 
