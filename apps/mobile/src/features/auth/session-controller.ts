@@ -27,7 +27,15 @@ export async function restoreAppShellSession(
   const session = await authService.restoreSession();
   if (!isCurrent()) return;
   if (session.status === 'authenticated') {
-    await useAppShellStore.getState().authenticate(session, isCurrent);
+    const currentSession = useAppShellStore.getState().session;
+    if (
+      currentSession?.status !== 'authenticated' ||
+      currentSession.userId !== session.userId ||
+      currentSession.method !== session.method ||
+      currentSession.issuedAt !== session.issuedAt ||
+      currentSession.expiresAt !== session.expiresAt
+    )
+      await useAppShellStore.getState().authenticate(session, isCurrent);
     if (!isCurrent()) return;
     useAppShellStore.getState().setProfileSetup('loading');
     let snapshot: ProfileSetupSnapshot;

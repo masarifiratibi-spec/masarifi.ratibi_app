@@ -1,6 +1,8 @@
 import { createMockAuthService } from '@/services/mocks/auth-service';
 import { buildPreferences } from '@/domain/foundation';
 import type { ProfileSetupSnapshot } from '@/domain/settings';
+import type { AuthenticationSession } from '@/domain/app-shell';
+import type { AuthService } from '@/services/contracts/app-shell-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { registerRuntimeIdentityReset } from '@/storage/runtime-user-data-reset';
@@ -70,6 +72,7 @@ const mockSavePreferences = jest.mocked(savePreferences);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   process.env.EXPO_PUBLIC_DEMO_MODE = '1';
   mockLoadPreferences.mockResolvedValue(
     buildPreferences({ baseCurrencyCode: 'SAR' })
@@ -82,6 +85,7 @@ beforeEach(() => {
 });
 
 afterAll(() => {
+  delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   delete process.env.EXPO_PUBLIC_DEMO_MODE;
 });
 
@@ -134,6 +138,35 @@ describe('session-controller', () => {
       status: 'authenticated',
       method: 'google'
     });
+  });
+
+  it('keeps local identity data when Clerk restores the same session after Google sign-in', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const session: AuthenticationSession = {
+      status: 'authenticated',
+      userId: 'user_live_123',
+      method: 'google',
+      issuedAt: 4_000_000_000_000,
+      expiresAt: 4_000_003_600_000,
+      restoration: 'restored'
+    };
+    useAppShellStore.setState({
+      hydrated: true,
+      session,
+      profileSetupStatus: 'unknown'
+    });
+    const resetIdentity = jest.fn();
+    const unregister = registerRuntimeIdentityReset(resetIdentity);
+    const auth = {
+      restoreSession: jest.fn(async () => session)
+    } as unknown as AuthService;
+
+    await restoreAppShellSession(auth, () => true, {
+      getProfileSetup: jest.fn(async () => aedProfileSetup)
+    });
+
+    expect(resetIdentity).not.toHaveBeenCalled();
+    unregister();
   });
 
   it('restores the server profile currency into local preferences', async () => {
