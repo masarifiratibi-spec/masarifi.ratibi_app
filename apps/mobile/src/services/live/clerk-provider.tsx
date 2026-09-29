@@ -49,8 +49,7 @@ const LiveClerkSessionContext = createContext<string | null | undefined>(
   undefined
 );
 
-export const useLiveClerkSessionKey = () =>
-  useContext(LiveClerkSessionContext);
+export const useLiveClerkSessionKey = () => useContext(LiveClerkSessionContext);
 
 export function getLiveClerkDisplayName(): string | null {
   try {
@@ -260,7 +259,9 @@ function ClerkBridgeInstaller({
     if (!auth.isLoaded) return;
     registerLiveClerkBridge(bridge);
     onSessionKey(auth.isSignedIn ? auth.sessionId : null);
-  });
+    // Clerk hook resources are mutable; reinstall only when identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.isLoaded, auth.isSignedIn, auth.sessionId, onSessionKey]);
   return null;
 }
 
@@ -272,7 +273,9 @@ function isIdentifierNotFound(error: unknown): boolean {
     errors.some((item) => {
       if (!item || typeof item !== 'object' || !('code' in item)) return false;
       const code = (item as { code?: unknown }).code;
-      return code === 'form_identifier_not_found' || code === 'identifier_not_found';
+      return (
+        code === 'form_identifier_not_found' || code === 'identifier_not_found'
+      );
     })
   );
 }
