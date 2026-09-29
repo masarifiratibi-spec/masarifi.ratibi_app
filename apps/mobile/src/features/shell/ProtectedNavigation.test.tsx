@@ -49,6 +49,12 @@ jest.mock('@/state/AppShellProvider', () => ({
   )
 }));
 
+jest.mock('@/services/live/clerk-provider', () => ({
+  MobileIdentityProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  )
+}));
+
 jest.mock('@/features/security/AppPrivacyGate', () => ({
   AppPrivacyGate: (props: {
     children: React.ReactNode;

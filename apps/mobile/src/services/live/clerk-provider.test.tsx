@@ -6,7 +6,7 @@ import {
   useLiveClerkSessionKey
 } from './clerk-provider';
 
-const mockUseAuth = jest.fn(() => ({
+let authState = {
   getToken: jest.fn(),
   isLoaded: true,
   isSignedIn: true,
@@ -14,7 +14,8 @@ const mockUseAuth = jest.fn(() => ({
   sessionId: 'session-1',
   signOut: jest.fn(),
   userId: 'user-1'
-}));
+};
+const mockUseAuth = jest.fn(() => authState);
 const mockRegisterLiveClerkBridge = jest.fn();
 
 jest.mock('@clerk/expo', () => ({
@@ -43,6 +44,19 @@ function SessionProbe() {
   return null;
 }
 
+beforeEach(() => {
+  jest.clearAllMocks();
+  authState = {
+    getToken: jest.fn(),
+    isLoaded: true,
+    isSignedIn: true,
+    sessionClaims: { exp: 2, iat: 1 },
+    sessionId: 'session-1',
+    signOut: jest.fn(),
+    userId: 'user-1'
+  };
+});
+
 it('synchronizes a stable Clerk session without another state update pass', async () => {
   const rendered = render(
     <MobileIdentityProvider>
@@ -60,4 +74,33 @@ it('synchronizes a stable Clerk session without another state update pass', asyn
 
   expect(mockUseAuth).toHaveBeenCalledTimes(3);
   expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(1);
+});
+
+it('reinstalls the bridge once when the Clerk session identity changes', async () => {
+  const rendered = render(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await waitFor(() =>
+    expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(1)
+  );
+
+  authState = { ...authState, sessionId: 'session-2' };
+  rendered.rerender(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await waitFor(() =>
+    expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(2)
+  );
+
+  rendered.rerender(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await act(async () => Promise.resolve());
+  expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(2);
 });

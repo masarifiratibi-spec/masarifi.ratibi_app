@@ -12,11 +12,13 @@ import * as LocalAuthentication from 'expo-local-authentication';
 
 import SecuritySettingsRoute from '@app/security/settings';
 import ForgotPinRoute from '@app/security/pin/forgot';
+import UnlockRoute from '@app/security/unlock';
 import { translate } from '@/localization/i18n';
 import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { renderWithProviders } from '@/test-utils/render';
 import {
+  authenticatedSession,
   lockedPrivacy,
   pinCredential
 } from '@/test-utils/app-shell-fixtures';
@@ -73,6 +75,42 @@ beforeEach(() => {
 });
 
 describe('security journey', () => {
+  it('coalesces Face authentication across an unlock-route remount and preserves the Clerk session', async () => {
+    let finish!: (
+      result: Awaited<
+        ReturnType<typeof LocalAuthentication.authenticateAsync>
+      >
+    ) => void;
+    jest.mocked(LocalAuthentication.authenticateAsync).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+    );
+    useAppShellStore.setState({
+      hydrated: true,
+      session: authenticatedSession,
+      pinCredential,
+      privacyLock: { ...lockedPrivacy, pinConfigured: true }
+    });
+
+    const first = renderWithProviders(<UnlockRoute />);
+    await waitFor(() =>
+      expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1)
+    );
+    first.unmount();
+    renderWithProviders(<UnlockRoute />);
+
+    expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ success: true }));
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.appLockStatus).toBe(
+        'unlocked'
+      )
+    );
+    expect(useAppShellStore.getState().session).toEqual(authenticatedSession);
+    expect(router.replace).toHaveBeenCalledTimes(1);
+  });
+
   it('covers biometric unlock, background masking, expiry precedence, and reset', async () => {
     const onUnlock = jest.fn(() => useAppShellStore.getState().unlock());
     render(
