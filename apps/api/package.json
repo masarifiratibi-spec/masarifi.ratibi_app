@@ -123,7 +123,7 @@
     "class-validator": "^0.14.0",
     "express": "5.1.0",
     "helmet": "^8.0.0",
-    "joi": "^18.0.0",
+    "joi": "^18.2.9",
     "nodemailer": "9.1.1",
     "pdfkit": "0.20.2",
     "pg": "^8.0.0",
