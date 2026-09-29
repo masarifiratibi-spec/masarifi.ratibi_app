@@ -86,4 +86,3 @@ describe('PinSetupScreen', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
   });
 });
-

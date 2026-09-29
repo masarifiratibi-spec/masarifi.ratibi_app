@@ -137,7 +137,7 @@ export function UnlockScreen({
         await completeUnlock();
       } else {
         await onInvalidPin?.(now());
-        setPinError(translate('appShell.auth.otp.invalid'));
+        setPinError(translate('appShell.security.pin.invalid'));
       }
     } finally {
       if (mounted.current && !completed.current) setPending(false);

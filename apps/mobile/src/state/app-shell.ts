@@ -405,7 +405,12 @@ function lockForLaunch(
   now: number
 ): PrivacyLockPreference | null {
   if (!privacyLock) return pinCredential ? createPinLock(now) : null;
-  if (!pinCredential && privacyLock.biometricStatus !== 'enabled') return null;
+  if (
+    !pinCredential &&
+    !privacyLock.pinConfigured &&
+    privacyLock.biometricStatus !== 'enabled'
+  )
+    return null;
 
   const lockoutExpired =
     pinCredential !== null &&

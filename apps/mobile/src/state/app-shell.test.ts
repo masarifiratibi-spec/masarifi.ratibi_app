@@ -243,6 +243,30 @@ describe('useAppShellStore', () => {
     });
   });
 
+  it('keeps a corrupt PIN record locked for account-verified recovery', async () => {
+    secureGet.mockImplementation(async (key) => {
+      if (key === 'masarifi.appShell.session') return JSON.stringify(session);
+      if (key === 'masarifi.appShell.pinCredential')
+        return JSON.stringify('pin:123456');
+      return JSON.stringify({
+        ...lock,
+        pinConfigured: true,
+        biometricStatus: 'disabled'
+      });
+    });
+
+    await useAppShellStore.getState().hydrate(15);
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      pinCredential: null,
+      privacyLock: {
+        pinConfigured: false,
+        biometricStatus: 'disabled',
+        appLockStatus: 'locked'
+      }
+    });
+  });
+
   it('locks an enabled biometric preference again after a cold start', async () => {
     secureGet.mockImplementation(async (key) =>
       key === 'masarifi.appShell.session'

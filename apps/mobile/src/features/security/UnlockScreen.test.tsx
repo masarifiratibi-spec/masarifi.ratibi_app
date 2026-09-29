@@ -228,6 +228,7 @@ describe('UnlockScreen', () => {
     fireEvent.press(screen.getByLabelText('تحقق'));
 
     await waitFor(() => expect(onInvalidPin).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('alert')).toHaveTextContent('رمز PIN غير صحيح.');
     expect(onUnlock).not.toHaveBeenCalled();
   });
 
