@@ -40,7 +40,8 @@ describe('UnlockScreen', () => {
       }),
       authenticate: async () => ({
         status: outcomes.shift() ?? 'authenticated'
-      })
+      }),
+      cancel: async () => undefined
     };
 
     renderWithProviders(

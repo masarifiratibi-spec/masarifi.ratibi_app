@@ -135,6 +135,7 @@ export interface BiometricResult {
 export interface BiometricService {
   getAvailability(): Promise<BiometricAvailability>;
   authenticate(): Promise<BiometricResult>;
+  cancel(): Promise<void>;
 }
 
 export interface AppShellStorage {

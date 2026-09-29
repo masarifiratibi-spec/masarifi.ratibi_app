@@ -22,6 +22,10 @@ const supportedTypes = jest.mocked(
   LocalAuthentication.supportedAuthenticationTypesAsync
 );
 
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 describe('biometric service', () => {
   it('serves deterministic mock availability and results', async () => {
     const service = createMockBiometricService('supported', 'cancelled');
@@ -32,6 +36,25 @@ describe('biometric service', () => {
     await expect(service.authenticate()).resolves.toEqual({
       status: 'cancelled'
     });
+    await expect(service.cancel()).resolves.toBeUndefined();
+  });
+
+  it('coalesces concurrent authentication across service instances', async () => {
+    let finish!: (result: { success: true }) => void;
+    authenticate.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+    );
+    const first = createBiometricService().authenticate();
+    const second = createBiometricService().authenticate();
+    await Promise.resolve();
+    await Promise.resolve();
+    finish({ success: true });
+
+    await expect(first).resolves.toEqual({ status: 'authenticated' });
+    await expect(second).resolves.toEqual({ status: 'authenticated' });
+    expect(authenticate).toHaveBeenCalledTimes(1);
   });
 
   it('maps native availability and authentication states', async () => {
@@ -59,7 +82,7 @@ describe('biometric service', () => {
     });
   });
 
-  it('clears stale Android prompts and keeps device credentials out of biometric retry', async () => {
+  it('cancels explicitly and keeps device credentials out of biometric authentication', async () => {
     const platform = jest.replaceProperty(Platform, 'OS', 'android');
     const service = createBiometricService();
     cancelAuthentication.mockResolvedValue();
@@ -68,11 +91,50 @@ describe('biometric service', () => {
     await expect(service.authenticate()).resolves.toEqual({
       status: 'cancelled'
     });
+    expect(cancelAuthentication).not.toHaveBeenCalled();
+    await service.cancel();
     expect(cancelAuthentication).toHaveBeenCalledTimes(1);
     expect(authenticate).toHaveBeenCalledWith({
       disableDeviceFallback: true
     });
     platform.restore();
+  });
+
+  it.each(['not_available', 'not_enrolled'] as const)(
+    'maps native %s errors to unavailable',
+    async (error) => {
+      authenticate.mockResolvedValue({ success: false, error });
+
+      await expect(createBiometricService().authenticate()).resolves.toEqual({
+        status: 'unavailable'
+      });
+    }
+  );
+
+  it.each(['app_cancel', 'user_cancel', 'system_cancel'] as const)(
+    'maps native %s errors to cancelled',
+    async (error) => {
+      authenticate.mockResolvedValue({ success: false, error });
+
+      await expect(createBiometricService().authenticate()).resolves.toEqual({
+        status: 'cancelled'
+      });
+    }
+  );
+
+  it('maps lockout and allows a later retry after the request settles', async () => {
+    authenticate
+      .mockResolvedValueOnce({ success: false, error: 'lockout' })
+      .mockResolvedValueOnce({ success: true });
+    const service = createBiometricService();
+
+    await expect(service.authenticate()).resolves.toEqual({
+      status: 'locked_out'
+    });
+    await expect(service.authenticate()).resolves.toEqual({
+      status: 'authenticated'
+    });
+    expect(authenticate).toHaveBeenCalledTimes(2);
   });
 
   it('reports the supported biometric kinds when available', async () => {
