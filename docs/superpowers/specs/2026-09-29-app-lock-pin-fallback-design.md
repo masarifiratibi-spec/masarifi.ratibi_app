@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 
-**Status:** Design approved; pending written-spec review
+**Status:** Approved for implementation
 
 **Scope:** Staging mobile application only
 
