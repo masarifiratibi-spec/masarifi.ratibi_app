@@ -4,9 +4,9 @@ import {
   useAuth,
   useSignIn,
   useSignUp,
-  useSSO,
   type TokenCache
 } from '@clerk/expo';
+import { useSSO } from '@clerk/expo/experimental';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import React, {
@@ -232,8 +232,7 @@ function ClerkBridgeInstaller({
     },
     async signInWithGoogle() {
       const result = await startSSOFlow({ strategy: 'oauth_google' });
-      if (!result.createdSessionId || !result.setActive) return null;
-      await result.setActive({ session: result.createdSessionId });
+      if (!result.createdSessionId) return null;
       const userId =
         result.signUp?.createdUserId ?? getClerkInstance().user?.id;
       if (!userId) throw new Error('Clerk user missing');
