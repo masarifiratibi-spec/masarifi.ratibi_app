@@ -348,6 +348,15 @@ const en = {
   'appShell.security.biometricFailed': 'Biometric unlock failed. Try again.',
   'appShell.security.biometricLocked':
     'Biometrics are temporarily locked by your device.',
+  'appShell.security.pin.create': 'Create App PIN',
+  'appShell.security.pin.confirm': 'Confirm App PIN',
+  'appShell.security.pin.current': 'Enter current App PIN',
+  'appShell.security.pin.change': 'Change App PIN',
+  'appShell.security.pin.forgot': 'Forgot App PIN',
+  'appShell.security.pin.invalid': 'The App PIN is not correct.',
+  'appShell.security.pin.mismatch': 'The App PINs do not match.',
+  'appShell.security.pin.reauthenticate':
+    'Verify your account before resetting App Lock.',
   'appShell.security.protectedContent': 'Content protected',
   'appShell.security.settingsTitle': 'Security settings',
   'appShell.security.mockSignOutAll': 'Sign out everywhere',
@@ -412,6 +421,8 @@ const en = {
     'Protect the app with your fingerprint or face',
   'appShell.security.biometric.notEnrolled':
     'Enroll a biometric in your device settings first',
+  'appShell.security.biometric.requiresPin':
+    'Create an App PIN before enabling biometrics',
   'appShell.security.sections.appLock': 'App Lock',
   'appShell.security.sections.privacy': 'Privacy',
   'appShell.security.sections.activity': 'Account activity',

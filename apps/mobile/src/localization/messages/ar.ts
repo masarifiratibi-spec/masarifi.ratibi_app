@@ -337,6 +337,15 @@ const ar: MessageCatalog = {
   'appShell.security.biometricFailed': 'تعذر التحقق الحيوي. حاول مرة أخرى.',
   'appShell.security.biometricLocked':
     'التحقق الحيوي مقفل مؤقتًا من نظام الجهاز.',
+  'appShell.security.pin.create': 'إنشاء رمز PIN',
+  'appShell.security.pin.confirm': 'تأكيد رمز PIN',
+  'appShell.security.pin.current': 'أدخل رمز PIN الحالي',
+  'appShell.security.pin.change': 'تغيير رمز PIN',
+  'appShell.security.pin.forgot': 'نسيت رمز PIN',
+  'appShell.security.pin.invalid': 'رمز PIN غير صحيح.',
+  'appShell.security.pin.mismatch': 'رمزا PIN غير متطابقين.',
+  'appShell.security.pin.reauthenticate':
+    'تحقق من حسابك قبل إعادة تعيين قفل التطبيق.',
   'appShell.security.protectedContent': 'المحتوى محمي',
   'appShell.security.settingsTitle': 'إعدادات الأمان',
   'appShell.security.mockSignOutAll': 'تسجيل الخروج من كل الأجهزة',
@@ -395,6 +404,8 @@ const ar: MessageCatalog = {
   'appShell.security.biometric.subtitle': 'حماية التطبيق ببصمة الإصبع أو الوجه',
   'appShell.security.biometric.notEnrolled':
     'سجّل طريقة تحقق حيوي في إعدادات جهازك أولًا',
+  'appShell.security.biometric.requiresPin':
+    'أنشئ رمز PIN للتطبيق أولًا لتفعيل التحقق الحيوي',
   'appShell.security.sections.appLock': 'قفل التطبيق',
   'appShell.security.sections.privacy': 'الخصوصية',
   'appShell.security.sections.activity': 'نشاط الحساب',

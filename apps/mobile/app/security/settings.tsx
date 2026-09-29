@@ -14,7 +14,6 @@ import { spacing } from '@/design-system/tokens';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { translate, type MessageKey } from '@/localization/i18n';
 import type { PrivacyLockPreference } from '@/domain/app-shell';
-import { createBiometricLock } from '@/features/security/privacy-lock';
 import type { BiometricAvailability } from '@/services/contracts/app-shell-service';
 import { createBiometricService } from '@/services/platform/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
@@ -40,8 +39,8 @@ export default function SecuritySettingsRoute() {
   const [biometricPending, setBiometricPending] = useState(false);
   const [biometricMessage, setBiometricMessage] = useState<MessageKey>();
   const privacyLock = useAppShellStore((state) => state.privacyLock);
+  const pinCredential = useAppShellStore((state) => state.pinCredential);
   const setPrivacyLock = useAppShellStore((state) => state.setPrivacyLock);
-  const resetPrivacyLock = useAppShellStore((state) => state.resetPrivacyLock);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const toggleHideBalances = usePreferenceStore(
     (state) => state.toggleHideBalances
@@ -63,14 +62,15 @@ export default function SecuritySettingsRoute() {
   async function updateBiometric(next: boolean) {
     setBiometricMessage(undefined);
     if (!next) {
-      await resetPrivacyLock();
+      await updateLock({ biometricStatus: 'disabled' });
       return;
     }
+    if (!pinCredential || !privacyLock) return;
     setBiometricPending(true);
     try {
       const authentication = await service.authenticate();
       if (authentication.status === 'authenticated') {
-        await setPrivacyLock(createBiometricLock());
+        await updateLock({ biometricStatus: 'enabled' });
       } else {
         setBiometricMessage(
           `appShell.security.biometric.${authentication.status}`
@@ -115,10 +115,13 @@ export default function SecuritySettingsRoute() {
   const biometricKinds =
     availability?.status === 'supported' ? (availability.kinds ?? []) : [];
   const biometricReady =
-    availability?.status === 'supported' && biometricKinds.length > 0;
+    pinCredential !== null &&
+    availability?.status === 'supported' &&
+    biometricKinds.length > 0;
   const prefersFace = biometricKinds.includes('face');
-  const biometricBlockedKey =
-    availability === null
+  const biometricBlockedKey = !pinCredential
+    ? ('appShell.security.biometric.requiresPin' as const)
+    : availability === null
       ? undefined
       : availability.status === 'not_enrolled'
         ? ('appShell.security.biometric.notEnrolled' as const)
@@ -140,6 +143,24 @@ export default function SecuritySettingsRoute() {
       />
 
       <GroupedList label={translate('appShell.security.sections.appLock')}>
+        <NavigationRow
+          label={translate(
+            pinCredential
+              ? 'appShell.security.pin.change'
+              : 'appShell.security.pin.create'
+          )}
+          onPress={() =>
+            router.push(
+              pinCredential ? '/security/pin/change' : '/security/pin/create'
+            )
+          }
+        />
+        {pinCredential ? (
+          <NavigationRow
+            label={translate('appShell.security.pin.forgot')}
+            onPress={() => router.push('/security/pin/forgot')}
+          />
+        ) : null}
         <View style={styles.insetRow}>
           <SwitchRow
             disabled={!biometricReady || biometricPending}
