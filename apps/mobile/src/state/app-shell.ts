@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type {
   AuthenticationSession,
   OnboardingProgress,
+  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -21,6 +22,7 @@ import {
   createClientDemoSession,
   createCompletedDemoOnboarding
 } from '@/domain/demo-session';
+import { createPinLock, failUnlock } from '@/features/security/privacy-lock';
 import {
   clearAppShellStorageOwner,
   configureAppShellStorageOwner,
@@ -41,6 +43,7 @@ interface AppShellState {
   onboarding: OnboardingProgress | null;
   pendingDestination: string | null;
   privacyLock: PrivacyLockPreference | null;
+  pinCredential: PinCredential | null;
   profilePromptDismissed: boolean;
   trackingHomeCardDismissed: boolean;
   profileSetupStatus: ProfileSetupStatus;
@@ -62,6 +65,12 @@ interface AppShellState {
   setTrackingPreference: (preference: TrackingPreference) => Promise<void>;
   setPendingDestination: (destination: string | null) => Promise<void>;
   setPrivacyLock: (lock: PrivacyLockPreference) => Promise<void>;
+  configurePrivacyLock: (
+    credential: PinCredential,
+    now?: number
+  ) => Promise<void>;
+  updatePinCredential: (credential: PinCredential) => Promise<void>;
+  recordFailedUnlock: (now: number) => Promise<void>;
   lockNow: () => Promise<void>;
   resetPrivacyLock: () => Promise<void>;
   setProfileSetup: (
@@ -92,6 +101,7 @@ const initialState = {
   onboarding: null,
   pendingDestination: null,
   privacyLock: null,
+  pinCredential: null,
   profilePromptDismissed: false,
   trackingHomeCardDismissed: false,
   profileSetupStatus: 'unknown' as ProfileSetupStatus,
@@ -118,6 +128,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         onboarding,
         pendingDestination,
         privacyLock,
+        pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed
       ] = await Promise.all([
@@ -125,6 +136,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         storage.loadOnboarding(),
         storage.loadPendingDestination(),
         storage.loadPrivacyLock(),
+        storage.loadPinCredential(),
         storage.loadProfilePromptDismissed(),
         storage.loadTrackingHomeCardDismissed(),
         demoMode
@@ -150,7 +162,8 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
           session: demoSession,
           onboarding: demoOnboarding,
           pendingDestination: null,
-          privacyLock: lockForLaunch(privacyLock),
+          privacyLock: lockForLaunch(privacyLock, pinCredential, now),
+          pinCredential,
           profilePromptDismissed,
           trackingHomeCardDismissed,
           profileSetupStatus: 'complete',
@@ -163,7 +176,8 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         session,
         onboarding,
         pendingDestination,
-        privacyLock: lockForLaunch(privacyLock),
+        privacyLock: lockForLaunch(privacyLock, pinCredential, now),
+        pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed,
         profileSetupStatus: 'complete',
@@ -195,12 +209,14 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         onboarding,
         pendingDestination,
         privacyLock,
+        pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed
       ] = await Promise.all([
         storage.loadOnboarding(),
         storage.loadPendingDestination(),
         storage.loadPrivacyLock(),
+        storage.loadPinCredential(),
         storage.loadProfilePromptDismissed(),
         storage.loadTrackingHomeCardDismissed()
       ]);
@@ -210,7 +226,8 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         session,
         onboarding,
         pendingDestination,
-        privacyLock: lockForLaunch(privacyLock),
+        privacyLock: lockForLaunch(privacyLock, pinCredential, Date.now()),
+        pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed
       });
@@ -236,6 +253,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       onboarding: null,
       pendingDestination: null,
       privacyLock: null,
+      pinCredential: null,
       profilePromptDismissed: false,
       trackingHomeCardDismissed: false,
       profileSetupStatus: 'unknown',
@@ -305,6 +323,29 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set({ privacyLock });
   },
 
+  configurePrivacyLock: async (pinCredential, now = Date.now()) => {
+    const existing = get().privacyLock;
+    const privacyLock = existing
+      ? { ...existing, pinConfigured: true }
+      : createPinLock(now);
+    await Promise.all([
+      storage.savePinCredential(pinCredential),
+      storage.savePrivacyLock(privacyLock)
+    ]);
+    set({ privacyLock, pinCredential });
+  },
+
+  updatePinCredential: async (pinCredential) => {
+    await storage.savePinCredential(pinCredential);
+    set({ pinCredential });
+  },
+
+  recordFailedUnlock: async (now) => {
+    const privacyLock = failUnlock(get().privacyLock ?? createPinLock(now), now);
+    await storage.savePrivacyLock(privacyLock);
+    set({ privacyLock });
+  },
+
   lockNow: async () => {
     const privacyLock = get().privacyLock;
     if (!privacyLock || privacyLock.appLockStatus === 'locked') return;
@@ -318,7 +359,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       storage.clearPrivacyLock(),
       storage.clearPinCredential()
     ]);
-    set({ privacyLock: null });
+    set({ privacyLock: null, pinCredential: null });
   },
 
   setProfileSetup: (profileSetupStatus, profileSetupSnapshot = null) => {
@@ -359,15 +400,30 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 }));
 
 function lockForLaunch(
-  privacyLock: PrivacyLockPreference | null
+  privacyLock: PrivacyLockPreference | null,
+  pinCredential: PinCredential | null,
+  now: number
 ): PrivacyLockPreference | null {
-  if (privacyLock?.biometricStatus !== 'enabled') return null;
+  if (!privacyLock) return pinCredential ? createPinLock(now) : null;
+  if (!pinCredential && privacyLock.biometricStatus !== 'enabled') return null;
+
+  const lockoutExpired =
+    pinCredential !== null &&
+    privacyLock.lockedUntil !== null &&
+    privacyLock.lockedUntil <= now;
+  const lockoutActive =
+    pinCredential !== null &&
+    privacyLock.invalidAttempts >= 5 &&
+    privacyLock.lockedUntil !== null &&
+    privacyLock.lockedUntil > now;
   return {
     ...privacyLock,
-    pinConfigured: false,
-    invalidAttempts: 0,
-    lockedUntil: null,
-    appLockStatus: 'locked'
+    pinConfigured: pinCredential !== null,
+    invalidAttempts:
+      pinCredential && !lockoutExpired ? privacyLock.invalidAttempts : 0,
+    lockedUntil:
+      pinCredential && !lockoutExpired ? privacyLock.lockedUntil : null,
+    appLockStatus: lockoutActive ? 'temporarily_locked' : 'locked'
   };
 }
 

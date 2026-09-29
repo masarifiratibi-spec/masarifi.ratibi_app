@@ -8,6 +8,7 @@ import {
   authSessionSchema,
   keywordRuleSchema,
   onboardingProgressSchema,
+  pinCredentialSchema,
   privacyLockPreferenceSchema,
   trackingPreferenceSchema
 } from '@/domain/app-shell';
@@ -103,6 +104,9 @@ export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorag
       readSensitive(ownerKey(keys.privacyLock), privacyLockPreferenceSchema),
     savePrivacyLock: (lock) => writeSensitive(ownerKey(keys.privacyLock), lock),
     clearPrivacyLock: () => removeSensitive(ownerKey(keys.privacyLock)),
+    loadPinCredential: () => loadPinCredential(ownerKey(keys.pinCredential)),
+    savePinCredential: (credential) =>
+      writeSensitive(ownerKey(keys.pinCredential), credential),
     clearPinCredential: () => removeSensitive(ownerKey(keys.pinCredential)),
     loadProfilePromptDismissed: async () =>
       (await readJson(ownerKey(keys.profilePromptDismissed), z.boolean())) ??
@@ -126,6 +130,18 @@ async function readSensitive<T>(
       ? await AsyncStorage.getItem(previewKey(nativeKey))
       : await SecureStore.getItemAsync(nativeKey);
   return parse(raw, schema);
+}
+
+async function loadPinCredential(nativeKey: string) {
+  const raw =
+    Platform.OS === 'web'
+      ? await AsyncStorage.getItem(previewKey(nativeKey))
+      : await SecureStore.getItemAsync(nativeKey);
+  if (!raw) return null;
+  const credential = parse(raw, pinCredentialSchema);
+  if (credential) return credential;
+  await removeSensitive(nativeKey);
+  return null;
 }
 
 function writeSensitive<T>(nativeKey: string, value: T): Promise<void> {
@@ -176,19 +192,29 @@ async function migrateLegacyPrivacyLock(ownerHash: string): Promise<void> {
   const suffix = ownerHash.slice(0, 24);
   const ownerPrivacyLockKey = `${keys.privacyLock}.${suffix}`;
   const ownerPinKey = `${keys.pinCredential}.${suffix}`;
-  const [legacyLock, legacyPin, ownerLock, ownerPin] = await Promise.all([
+  const [legacyLock, legacyPinRaw, ownerLock, ownerPinRaw] = await Promise.all([
     readSensitive(keys.privacyLock, privacyLockPreferenceSchema),
-    readSensitive(keys.pinCredential, z.string().min(1)),
+    Platform.OS === 'web'
+      ? AsyncStorage.getItem(previewKey(keys.pinCredential))
+      : SecureStore.getItemAsync(keys.pinCredential),
     readSensitive(ownerPrivacyLockKey, privacyLockPreferenceSchema),
-    readSensitive(ownerPinKey, z.string().min(1))
+    Platform.OS === 'web'
+      ? AsyncStorage.getItem(previewKey(ownerPinKey))
+      : SecureStore.getItemAsync(ownerPinKey)
   ]);
+  const legacyPin = parse(legacyPinRaw, pinCredentialSchema);
+  const ownerPin = parse(ownerPinRaw, pinCredentialSchema);
   const writes: Promise<void>[] = [];
   if (legacyLock && !ownerLock)
     writes.push(writeSensitive(ownerPrivacyLockKey, legacyLock));
+  if (legacyPin && !ownerPin)
+    writes.push(writeSensitive(ownerPinKey, legacyPin));
   await Promise.all(writes);
   await Promise.all([
     legacyLock ? removeSensitive(keys.privacyLock) : Promise.resolve(),
-    legacyPin ? removeSensitive(keys.pinCredential) : Promise.resolve(),
-    ownerPin ? removeSensitive(ownerPinKey) : Promise.resolve()
+    legacyPinRaw ? removeSensitive(keys.pinCredential) : Promise.resolve(),
+    ownerPinRaw && !ownerPin && !legacyPin
+      ? removeSensitive(ownerPinKey)
+      : Promise.resolve()
   ]);
 }

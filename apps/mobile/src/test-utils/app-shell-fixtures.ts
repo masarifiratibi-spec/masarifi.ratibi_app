@@ -2,6 +2,7 @@ import type {
   AuthenticationSession,
   OnboardingProgress,
   PermissionState,
+  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -118,6 +119,9 @@ export const lockedPrivacy: PrivacyLockPreference = {
   lockedUntil: null,
   appLockStatus: 'locked'
 };
+
+export const pinCredential =
+  `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(32)}` as PinCredential;
 
 export const unlockedPrivacy: PrivacyLockPreference = {
   ...lockedPrivacy,
