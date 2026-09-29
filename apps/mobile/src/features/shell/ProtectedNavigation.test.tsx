@@ -50,8 +50,11 @@ jest.mock('@/state/AppShellProvider', () => ({
 }));
 
 jest.mock('@/features/security/AppPrivacyGate', () => ({
-  AppPrivacyGate: (props: { children: React.ReactNode; locked?: boolean }) =>
-    mockPrivacyGate(props)
+  AppPrivacyGate: (props: {
+    children: React.ReactNode;
+    immediate?: boolean;
+    locked?: boolean;
+  }) => mockPrivacyGate(props)
 }));
 
 jest.mock('@/services/platform/phone-notification-service', () => ({
@@ -173,6 +176,17 @@ describe('protected navigation', () => {
 
     await waitFor(() =>
       expect(mockRedirect).toHaveBeenCalledWith({ href: '/(tabs)/home' })
+    );
+  });
+
+  it('does not keep the privacy mask active on the lock recovery route', () => {
+    mockPathname = '/security/unlock';
+    useAppShellStore.setState({ privacyLock: lockedPrivacy });
+
+    render(<RootLayout />);
+
+    expect(mockPrivacyGate).toHaveBeenCalledWith(
+      expect.objectContaining({ immediate: false, locked: false })
     );
   });
 

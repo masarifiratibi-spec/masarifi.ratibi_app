@@ -193,6 +193,16 @@ describe('useAppShellStore', () => {
     );
   });
 
+  it('does not persist an already locked biometric preference again', async () => {
+    useAppShellStore.setState({ privacyLock: lock });
+    secureSet.mockClear();
+
+    await useAppShellStore.getState().lockNow();
+
+    expect(useAppShellStore.getState().privacyLock).toBe(lock);
+    expect(secureSet).not.toHaveBeenCalled();
+  });
+
   it('marks an expired persisted session before protected routes can render', async () => {
     await useAppShellStore.getState().hydrate(21);
 

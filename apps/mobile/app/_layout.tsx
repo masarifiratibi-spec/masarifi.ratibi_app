@@ -44,7 +44,10 @@ export default function RootLayout() {
         <FoundationProviders>
           <AppShellProvider>
             <AppPrivacyGate
-              immediate={autoLockDuration === 'immediate'}
+              immediate={
+                autoLockDuration === 'immediate' &&
+                pathname !== '/security/unlock'
+              }
               lockAfterMs={lockAfterMs}
               locked={
                 appLockStatus !== undefined &&

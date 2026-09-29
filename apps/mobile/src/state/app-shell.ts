@@ -307,7 +307,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 
   lockNow: async () => {
     const privacyLock = get().privacyLock;
-    if (!privacyLock) return;
+    if (!privacyLock || privacyLock.appLockStatus === 'locked') return;
     const locked = { ...privacyLock, appLockStatus: 'locked' as const };
     await storage.savePrivacyLock(locked);
     set({ privacyLock: locked });
