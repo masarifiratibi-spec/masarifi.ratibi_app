@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import type { OnboardingProgress } from '@/domain/app-shell';
-import type { UserProfile } from '@/domain/settings';
+import { userProfileSchema, type UserProfile } from '@/domain/settings';
 import { createAuthService } from '@/features/auth/auth-flow';
 import { requestJson } from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
@@ -311,7 +311,7 @@ describe('live owner identity mappings', () => {
       name: 'Authoritative name',
       phone: '+966***55',
       googleAccount: 'au***@example.test',
-      email: 'au***@example.test',
+      email: null,
       currency: 'SAR',
       timeZone: 'Asia/Riyadh',
       version: 7
@@ -523,6 +523,55 @@ describe('live owner identity mappings', () => {
 });
 
 describe('live profile setup', () => {
+  test.each(
+    (['getProfile', 'getProfileSetup', 'saveProfileSetup'] as const).flatMap(
+      (operation) =>
+        [null, 'contact@example.test'].map((email) => ({ operation, email }))
+    )
+  )(
+    '$operation persists masked Google identity while preserving contact email $email',
+    async ({ operation, email }) => {
+      const local = userProfileSchema.parse({
+        name: null,
+        avatar: 'default',
+        phone: null,
+        googleAccount: null,
+        email,
+        country: 'SA',
+        currency: 'SAR',
+        timeZone: 'Asia/Riyadh',
+        completion: [],
+        version: 1
+      });
+      const saveLocalProfile = jest.fn(async (value: UserProfile) => {
+        userProfileSchema.parse(value);
+      });
+      const service = createLiveIdentityService({
+        loadLocalProfile: async () => local,
+        saveLocalProfile,
+        request: async (path) =>
+          path === '/api/v1/me'
+            ? profile
+            : path.endsWith('/preferences')
+              ? { ...preferences, defaultCurrency: 'SAR' }
+              : onboarding
+      });
+      if (operation === 'saveProfileSetup') {
+        await service.saveProfileSetup(
+          { name: 'Owner', currency: 'SAR' },
+          { profile: local, preferences, onboarding, complete: false },
+          'masked-contact'
+        );
+      } else {
+        await service[operation]();
+      }
+      expect(saveLocalProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ googleAccount: 'a***@example.test', email }),
+        undefined
+      );
+    }
+  );
+
   test('stops the remaining profile setup writes when the owner changes during the first request', async () => {
     let owner = liveSession.userId;
     let finish!: (value: unknown) => void;

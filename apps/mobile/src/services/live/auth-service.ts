@@ -272,16 +272,7 @@ export function createLiveIdentityService({
       loadLocalProfile(ownerId ?? undefined)
     ]);
     if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
-    const merged: UserProfile = {
-      ...(local ?? emptyProfile()),
-      name: remote.displayName,
-      phone: remote.phoneMasked,
-      googleAccount: remote.primaryEmailMasked,
-      email: remote.primaryEmailMasked,
-      currency: preferences.defaultCurrency,
-      timeZone: remote.timezone,
-      version: remote.version
-    };
+    const merged = mergeProfile(remote, preferences, local);
     await saveLocalProfile(merged, ownerId ?? undefined);
     return merged;
   }
@@ -458,16 +449,11 @@ export function createLiveIdentityService({
       onboardingVersion = remoteOnboarding.version;
       profileSetupComplete =
         remoteOnboarding.completedSteps.includes('welcome');
-      const profile = {
-        ...snapshot.profile,
-        name: remoteProfile.displayName,
-        phone: remoteProfile.phoneMasked,
-        googleAccount: remoteProfile.primaryEmailMasked,
-        email: remoteProfile.primaryEmailMasked,
-        currency: remotePreferences.defaultCurrency,
-        timeZone: remoteProfile.timezone,
-        version: remoteProfile.version
-      };
+      const profile = mergeProfile(
+        remoteProfile,
+        remotePreferences,
+        snapshot.profile
+      );
       await saveLocalProfile(profile, ownerId ?? undefined);
       return mutation(
         {
@@ -689,7 +675,7 @@ function mergeProfile(
     name: remote.displayName,
     phone: remote.phoneMasked,
     googleAccount: remote.primaryEmailMasked,
-    email: remote.primaryEmailMasked,
+    email: local?.email ?? null,
     currency,
     timeZone: remote.timezone,
     version: remote.version
