@@ -12,6 +12,7 @@ let mismatchCounts = false;
 let migrationMarker: string | null = null;
 let failSchemaMigration = false;
 let mockSeparateTransactionConnections = false;
+let mockDatabaseDirectory = 'file:///databases';
 interface MockDatabase {
   execAsync(sql: string): Promise<void>;
   getFirstAsync(sql: string): Promise<Record<string, unknown> | null>;
@@ -64,9 +65,14 @@ const mockDatabase: MockDatabase = {
 };
 
 jest.mock('expo-sqlite', () => ({
-  defaultDatabaseDirectory: 'file:///databases',
+  get defaultDatabaseDirectory() {
+    return mockDatabaseDirectory;
+  },
   openDatabaseAsync: jest.fn(async (name: string) => {
-    mockExistingFiles.add(`file:///databases/${name}`);
+    const directory = mockDatabaseDirectory.startsWith('/')
+      ? `file://${mockDatabaseDirectory}`
+      : mockDatabaseDirectory;
+    mockExistingFiles.add(`${directory}/${name}`);
     return mockDatabase;
   })
 }));
@@ -92,6 +98,8 @@ jest.mock('expo-file-system', () => ({
       this.uri = `${directory}/${name}`;
     }
     get exists() {
+      // Android's File(URI) rejects plain paths before any file access.
+      if (this.uri.startsWith('/')) throw new Error('URI is not absolute');
       return mockExistingFiles.has(this.uri);
     }
     delete() {
@@ -123,6 +131,7 @@ const {
 
 beforeEach(async () => {
   mockSeparateTransactionConnections = false;
+  mockDatabaseDirectory = 'file:///databases';
   await clearDatabaseOwner();
   resetDatabaseForTests();
   mockExistingFiles.clear();
@@ -138,6 +147,7 @@ beforeEach(async () => {
 });
 
 test('bootstraps encrypted owner storage and persists profile through a fresh transaction connection', async () => {
+  mockDatabaseDirectory = '/data/user/0/com.masarifi.mobile/files/SQLite';
   mockSeparateTransactionConnections = true;
   await configureDatabaseOwner('user_owner-a');
   const storage = createSettingsStorage();

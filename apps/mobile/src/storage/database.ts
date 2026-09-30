@@ -293,7 +293,11 @@ async function tableCounts(
 }
 
 function databaseFile(name: string): File {
-  return new File(SQLite.defaultDatabaseDirectory, name);
+  const directory = SQLite.defaultDatabaseDirectory;
+  return new File(
+    directory.startsWith('/') ? `file://${directory}` : directory,
+    name
+  );
 }
 
 async function runMigrations(
