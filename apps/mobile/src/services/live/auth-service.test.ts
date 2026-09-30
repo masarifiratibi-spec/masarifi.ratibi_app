@@ -419,11 +419,11 @@ describe('live owner identity mappings', () => {
       affectedScopes: ['settings.privacy-request.data_export']
     });
     await expect(
-      service.requestPrivacyAction('account_deletion', 'deletion-operation-123')
+      service.requestPrivacyAction('account_deletion', 'delete-op')
     ).resolves.toEqual({
       value: {
         id: 'deletion-123',
-        operationId: 'deletion-operation-123',
+        operationId: 'delete-op',
         kind: 'account_deletion',
         status: 'pending',
         requestedAt: Date.parse('2026-09-12T11:00:00.000Z'),
@@ -439,7 +439,7 @@ describe('live owner identity mappings', () => {
     });
     expect(request).toHaveBeenNthCalledWith(2, '/api/v1/me/deletion-requests', {
       method: 'POST',
-      headers: { 'Idempotency-Key': 'deletion-operation-123' },
+      headers: { 'Idempotency-Key': 'delete-op' },
       body: { confirmation: 'DELETE_MY_ACCOUNT' }
     });
   });

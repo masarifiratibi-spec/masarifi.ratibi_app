@@ -44,3 +44,6 @@ c65efc62cdcdab0c25ccf2ca0801b505243df371:apps/api/specs/003-admin-rbac-security/
 
 # Firebase-generated Android client key; public mobile identifier, not an FCM service-account secret.
 384f7c77a738a7bc6cab32af132f510ede38174c:apps/mobile/google-services.json:gcp-api-key:18
+
+# Historical fictional idempotency fixture; shortened to delete-op in the next commit.
+17a70ff2ec2a7091f78e1a750a5b7a651ff11713:apps/mobile/src/services/live/auth-service.test.ts:generic-api-key:442
