@@ -95,16 +95,14 @@ export class AiRepository {
     return stableUuid(`${principal.userId}:${scope}:${hashIdempotencyKey(key)}`);
   }
 
-  workloadAvailable(workload: string): Promise<boolean> {
-    return this.worker(async (client) =>
-      Boolean(
-        (
-          await client.query<{ result: boolean }>(
-            'select private.ai_workload_available($1) result',
-            [workload],
-          )
-        ).rows[0]?.result,
-      ),
+  async workloadAvailable(workload: string): Promise<boolean> {
+    return Boolean(
+      (
+        await this.pool.query<{ result: boolean }>(
+          'select private.ai_workload_available($1) result',
+          [workload],
+        )
+      ).rows[0]?.result,
     );
   }
 

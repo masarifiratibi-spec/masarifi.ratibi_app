@@ -4,6 +4,14 @@ export type ClerkNameSource = {
   lastName?: string | null;
 };
 
+export function resolvePublicDisplayName(
+  savedName: string | null | undefined,
+  providerName: string | null,
+  genericName: string
+): string {
+  return savedName?.trim() || providerName?.trim() || genericName;
+}
+
 export function resolveClerkDisplayName(
   user: ClerkNameSource | null | undefined
 ): string | null {

@@ -57,9 +57,14 @@ const LiveClerkSessionContext = createContext<string | null | undefined>(
 
 export const useLiveClerkSessionKey = () => useContext(LiveClerkSessionContext);
 
-export function getLiveClerkDisplayName(): string | null {
+export function getLiveClerkDisplayName(
+  ownerId: string | null | undefined
+): string | null {
   try {
-    return resolveClerkDisplayName(getClerkInstance().user);
+    const user = getClerkInstance().user;
+    return ownerId && user?.id === ownerId
+      ? resolveClerkDisplayName(user)
+      : null;
   } catch {
     return null;
   }

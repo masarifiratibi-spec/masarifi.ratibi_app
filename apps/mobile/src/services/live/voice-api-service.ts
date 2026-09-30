@@ -215,8 +215,11 @@ function apiError(status: number, value: unknown): VoiceCaptureError {
   const code =
     value && typeof value === 'object' ? Reflect.get(value, 'code') : undefined;
   if (status === 401) return new VoiceCaptureError('session_expired');
-  if (status === 503 || code === 'AI_UNAVAILABLE' || code === 'AI_TEMPORARILY_UNAVAILABLE')
+  if (code === 'AI_UNAVAILABLE' || code === 'AI_TEMPORARILY_UNAVAILABLE')
     return new VoiceCaptureError('provider_unavailable');
+  if (status === 503 && code === 'PROVIDER_UNAVAILABLE')
+    return new VoiceCaptureError('auth_unavailable');
+  if (status === 503) return new VoiceCaptureError('analysis_unavailable');
   if (status === 422) return new VoiceCaptureError('invalid_proposal');
   if (status === 429) return new VoiceCaptureError('quota_exhausted');
   if (status === 404) return new VoiceCaptureError('analysis_failed');

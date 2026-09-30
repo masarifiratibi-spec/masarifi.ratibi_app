@@ -172,7 +172,10 @@ it('uses the actual duration and preserves server session, proposal, and version
 it.each([
   [401, { code: 'UNAUTHORIZED' }, 'session_expired'],
   [429, { code: 'AI_QUOTA_EXCEEDED' }, 'quota_exhausted'],
-  [503, { code: 'AI_UNAVAILABLE' }, 'provider_unavailable']
+  [503, { code: 'AI_UNAVAILABLE' }, 'provider_unavailable'],
+  [503, { code: 'AI_TEMPORARILY_UNAVAILABLE' }, 'provider_unavailable'],
+  [503, { code: 'PROVIDER_UNAVAILABLE' }, 'auth_unavailable'],
+  [503, {}, 'analysis_unavailable']
 ] as const)('maps HTTP %s to %s', async (status, body, code) => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()

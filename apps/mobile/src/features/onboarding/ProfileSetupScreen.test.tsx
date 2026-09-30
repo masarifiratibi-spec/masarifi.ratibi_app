@@ -151,7 +151,7 @@ beforeEach(() => {
   });
 });
 
-test('matches the Arabic reference and prefills from Clerk before backend name', () => {
+test('matches the Arabic reference and keeps the saved name ahead of Clerk prefill', () => {
   renderWithProviders(
     <ProfileSetupScreen
       getClerkName={() => 'Adel Mohamed'}
@@ -173,7 +173,7 @@ test('matches the Arabic reference and prefills from Clerk before backend name',
     writingDirection: 'rtl',
     width: '100%'
   });
-  expect(screen.getByDisplayValue('Adel Mohamed')).toHaveStyle({
+  expect(screen.getByDisplayValue('Backend Name')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'auto'
   });
@@ -193,6 +193,52 @@ test('matches the Arabic reference and prefills from Clerk before backend name',
     writingDirection: 'rtl',
     width: '100%'
   });
+});
+
+test.each(['Typed Person', ''])(
+  'preserves active typing %s when a delayed saved profile arrives',
+  (typedName) => {
+    useAppShellStore.setState({
+      profileSetupSnapshot: null,
+      profileSetupStatus: 'loading'
+    });
+    renderWithProviders(
+      <ProfileSetupScreen
+        getClerkName={() => 'Provider Person'}
+        service={service()}
+      />
+    );
+    fireEvent.changeText(screen.getByLabelText('الاسم'), 'Typed Person');
+    fireEvent.changeText(screen.getByLabelText('الاسم'), typedName);
+    act(() =>
+      useAppShellStore.setState({
+        profileSetupSnapshot: snapshot,
+        profileSetupStatus: 'incomplete'
+      })
+    );
+    expect(screen.getByLabelText('الاسم')).toHaveDisplayValue(typedName);
+  }
+);
+
+test('replaces only the provider prefill when a delayed saved name arrives', () => {
+  useAppShellStore.setState({
+    profileSetupSnapshot: null,
+    profileSetupStatus: 'loading'
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => 'Provider Person'}
+      service={service()}
+    />
+  );
+  expect(screen.getByLabelText('الاسم')).toHaveDisplayValue('Provider Person');
+  act(() =>
+    useAppShellStore.setState({
+      profileSetupSnapshot: snapshot,
+      profileSetupStatus: 'incomplete'
+    })
+  );
+  expect(screen.getByLabelText('الاسم')).toHaveDisplayValue('Backend Name');
 });
 
 test('keeps Arabic currency code and label in separate deterministic runs', () => {

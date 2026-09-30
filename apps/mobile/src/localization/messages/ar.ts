@@ -336,7 +336,7 @@ const ar: MessageCatalog = {
   'appShell.more.accountSettings': 'الحساب والإعدادات',
   'appShell.more.profileSummary': 'ملخص الحساب والملف الشخصي',
   'appShell.more.defaultUserName': 'مستخدم مصاريفي',
-  'appShell.more.defaultUserEmail': 'user.ar@masarifi.app',
+  'appShell.more.defaultUserEmail': 'حساب مصاريفي',
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
@@ -1127,6 +1127,8 @@ const ar: MessageCatalog = {
     'تعذر تحليل التسجيل. حاول مجددًا أو أدخل المعاملة يدويًا.',
   'voice.error.provider_unavailable':
     'التحليل الصوتي غير مهيأ أو غير متاح مؤقتًا.',
+  'voice.error.auth_unavailable':
+    'التحقق من تسجيل الدخول غير متاح مؤقتًا. حاول لاحقًا.',
   'voice.error.quota_exhausted':
     'وصل التحليل الصوتي إلى حد الاستخدام الحالي. حاول لاحقًا.',
   'voice.error.processing_timed_out':

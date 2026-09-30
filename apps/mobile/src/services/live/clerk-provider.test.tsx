@@ -10,6 +10,7 @@ import { Text } from 'react-native';
 
 import {
   MobileIdentityProvider,
+  getLiveClerkDisplayName,
   useLiveClerkSessionKey,
   useLiveIdentityStatus
 } from './clerk-provider';
@@ -28,6 +29,20 @@ let authState = {
 const mockUseAuth = jest.fn(() => authState);
 const mockRegisterLiveClerkBridge = jest.fn();
 const mockStartSSOFlow = jest.fn();
+
+it.each(['user-1', 'user-other', null])(
+  'only returns the current authenticated owner name for %s',
+  (ownerId) => {
+    jest
+      .mocked(getClerkInstance)
+      .mockReturnValue({
+        user: { id: 'user-1', fullName: 'Provider Person' }
+      } as never);
+    expect(getLiveClerkDisplayName(ownerId)).toBe(
+      ownerId === 'user-1' ? 'Provider Person' : null
+    );
+  }
+);
 
 jest.mock('@clerk/expo', () => ({
   ClerkProvider: ({ children }: { children: React.ReactNode }) => children,

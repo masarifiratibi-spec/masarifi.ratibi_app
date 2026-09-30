@@ -39,7 +39,7 @@ export function ProfileSetupScreen({
   navigateHome = () => router.replace('/(tabs)/home')
 }: {
   service?: ProfileSetupService;
-  getClerkName?: () => string | null;
+  getClerkName?: (ownerId: string | null | undefined) => string | null;
   navigateHome?: () => void;
 }) {
   const theme = useTheme();
@@ -52,9 +52,12 @@ export function ProfileSetupScreen({
   const snapshot = useAppShellStore((state) => state.profileSetupSnapshot);
   const setProfileSetup = useAppShellStore((state) => state.setProfileSetup);
   const initialized = useRef(false);
+  const nameEdited = useRef(false);
   const submittingRef = useRef(false);
   const operationId = useRef(`profile-setup-${Date.now()}`);
-  const [name, setName] = useState(() => getClerkName() ?? '');
+  const [name, setName] = useState(
+    () => snapshot?.profile.name?.trim() || getClerkName(ownerId) || ''
+  );
   const [currency, setCurrency] = useState('SAR');
   const [nameError, setNameError] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -63,7 +66,8 @@ export function ProfileSetupScreen({
   useEffect(() => {
     if (!snapshot || initialized.current) return;
     initialized.current = true;
-    setName((current) => current.trim() || snapshot.profile.name || '');
+    if (!nameEdited.current)
+      setName((current) => snapshot.profile.name?.trim() || current);
     setCurrency(snapshot.profile.currency || 'SAR');
   }, [snapshot]);
 
@@ -168,6 +172,7 @@ export function ProfileSetupScreen({
                   label={translate('profileSetup.nameLabel')}
                   labelPlacement="accessibility-only"
                   onChangeText={(value) => {
+                    nameEdited.current = true;
                     setName(value);
                     if (nameError && value.trim()) setNameError(false);
                   }}

@@ -347,7 +347,7 @@ const en = {
   'appShell.more.accountSettings': 'Account and Settings',
   'appShell.more.profileSummary': 'Profile and account summary',
   'appShell.more.defaultUserName': 'Masarifi User',
-  'appShell.more.defaultUserEmail': 'user@masarifi.app',
+  'appShell.more.defaultUserEmail': 'Masarifi account',
   'appShell.more.planBasic': 'Basic',
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
@@ -1149,6 +1149,8 @@ const en = {
     'The recording could not be analyzed. Try again or edit it manually.',
   'voice.error.provider_unavailable':
     'Voice analysis is not configured or is temporarily unavailable.',
+  'voice.error.auth_unavailable':
+    'Sign-in verification is temporarily unavailable. Try again later.',
   'voice.error.quota_exhausted':
     'Voice analysis has reached its current usage limit. Try again later.',
   'voice.error.processing_timed_out':
