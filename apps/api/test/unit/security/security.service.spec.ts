@@ -66,7 +66,7 @@ describe('SecurityService boundaries', () => {
     },
   );
 
-  it('requires idempotency, recent MFA, and a bounded reason', async () => {
+  it('requires idempotency, recent login, and a bounded reason', async () => {
     const base = {
       operation: 'createRole',
       permission: 'access.roles.write',
@@ -86,7 +86,7 @@ describe('SecurityService boundaries', () => {
       service.execute({
         ...base,
         idempotencyKey: 'request-key',
-        principal: { ...principal, mfaAgeSeconds: null },
+        principal: { ...principal, factorAgeSeconds: null },
       }),
     ).rejects.toMatchObject({ status: 403 });
     await expect(
@@ -113,20 +113,48 @@ describe('SecurityService boundaries', () => {
       { assignmentId: 'assignment_1' },
       'access.assignments.write',
     ],
-  ])('requires recent MFA for %s', async (operation, body, params, permission) => {
-    await expect(
-      service.execute({
-        operation,
-        permission,
-        principal: { ...principal, mfaAgeSeconds: null },
-        body,
-        query: {},
-        params,
-        requestId: 'request-1',
-        idempotencyKey: 'request-key',
-      }),
-    ).rejects.toMatchObject({ status: 403 });
-    expect(repository.execute).not.toHaveBeenCalled();
+  ])(
+    'requires recent login for %s even with fresh MFA',
+    async (operation, body, params, permission) => {
+      await expect(
+        service.execute({
+          operation,
+          permission,
+          principal: { ...principal, factorAgeSeconds: 601 },
+          body,
+          query: {},
+          params,
+          requestId: 'request-1',
+          idempotencyKey: 'request-key',
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(repository.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves the governed role command with recent login and no MFA claim', async () => {
+    const recentPrincipal = {
+      userId: principal.userId,
+      sessionId: principal.sessionId,
+      factorAgeSeconds: 0,
+    };
+    const input = {
+      operation: 'createRole',
+      permission: 'access.roles.write',
+      principal: recentPrincipal,
+      body: {
+        key: 'custom-role',
+        name: 'Custom',
+        permissionKeys: ['audit.read'],
+        reason: 'Approved role creation',
+      },
+      query: {},
+      params: {},
+      requestId: 'request-recent',
+      idempotencyKey: 'recent-role-key',
+    };
+    await expect(service.execute(input)).resolves.toBeDefined();
+    expect(repository.execute).toHaveBeenCalledWith(expect.objectContaining(input));
   });
 
   it('returns a stable 429 when immutable database evidence reaches its bound', async () => {
@@ -222,7 +250,7 @@ describe('SecurityService boundaries', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  it('accepts invitations only with a Clerk-verified primary email and recent MFA', async () => {
+  it('accepts invitations only with a Clerk-verified primary email and recent Clerk login', async () => {
     clerk.getIdentityUser.mockResolvedValueOnce({
       id: principal.userId,
       primaryEmail: 'owner@example.test',

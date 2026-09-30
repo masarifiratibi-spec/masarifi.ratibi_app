@@ -6,4 +6,4 @@ Keep `MASARIFI_ADMIN_ROUTES_ENABLED=false` until migrations, pgTAP, the 173-key 
 
 For permission drift, disable Admin routes, compare the server/client manifest hashes, remove unsafe role mappings with a forward migration or guarded role command, rerun the exact-permission matrix, then re-enable. For invitation exposure, revoke the local invitation first; any delayed provider link then fails closed. For Clerk session-revocation outage, keep the Admin profile suspended and retry the bounded revoke endpoint after provider recovery.
 
-Never alter history or use a role/header/Clerk metadata value as authority. Recovery is closed only when one effective MFA-capable super-admin remains, the exact-permission query passes, audit/outbox evidence exists, no plaintext token was retained, and the route gate is deliberately enabled by the release owner.
+Never alter history or use a role/header/Clerk metadata value as authority. Recovery is closed only when one effective recently authenticated super-admin remains, the exact-permission query passes, audit/outbox evidence exists, no plaintext token was retained, and the route gate is deliberately enabled by the release owner.

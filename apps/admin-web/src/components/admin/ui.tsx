@@ -150,7 +150,15 @@ export function EmptyState({ title, message }: { title?: string; message?: strin
 }
 
 function SearchStateIcon() { return <CircleAlert size={28} />; }
-export function ErrorState() { const t = useT(); return <div className="state-box error"><AlertTriangle size={28} /><strong>{t("states.errorTitle")}</strong><p>{t("states.errorMessage")}</p></div>; }
+export function ErrorState({ error }: { error?: unknown } = {}) {
+  const t = useT();
+  const { locale } = useLocale();
+  const reauthenticate = typeof error === "object" && error !== null && "code" in error && error.code === "recent_auth_required";
+  const message = reauthenticate
+    ? locale === "ar" ? "سجّل الخروج ثم سجّل الدخول مرة أخرى لإكمال هذا الإجراء." : "Sign out and sign in again to complete this action."
+    : t("states.errorMessage");
+  return <div className="state-box error" role="alert"><AlertTriangle size={28} /><strong>{t("states.errorTitle")}</strong><p>{message}</p></div>;
+}
 export function TableSkeleton() { const t = useT(); return <div className="skeleton-list" aria-label={t("common.loading")}>{[1,2,3,4].map((item) => <span key={item} />)}</div>; }
 export function LoadingState() { const t = useT(); return <div className="state-box" role="status"><LoaderCircle size={28} /><strong>{t("states.loading")}</strong></div>; }
 export function SuccessState({ message }: { message?: string }) { const t = useT(); return <div className="state-box state-warning" role="status"><CheckCircle2 size={28} /><strong>{message ?? t("states.success")}</strong></div>; }
@@ -186,7 +194,7 @@ export function RegionState({
     const isForbidden = error?.code === "forbidden" || availability === "forbidden";
     return (
       <div className="region-failure" role="alert">
-        {isForbidden ? <AccessDeniedState permission={permission} /> : <ErrorState />}
+        {isForbidden ? <AccessDeniedState permission={permission} /> : <ErrorState error={error} />}
         {onRetry && (region?.retryable ?? true) && (
           <div className="region-retry">
             <button className="button" type="button" onClick={onRetry}><RefreshCw size={15} /><span>{t("common.retry")}</span></button>

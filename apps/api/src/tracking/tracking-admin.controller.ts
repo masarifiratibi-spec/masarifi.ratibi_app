@@ -56,7 +56,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/imports/sessions/:sessionId/retry-handoff')
   @HttpCode(202)
   @ApiOperation({ operationId: 'retryAdminImportSession' })
-  @adminPermission('imports.failures.manage', { recentMfa: true })
+  @adminPermission('imports.failures.manage', { recentAuth: true })
   retryHandoff(
     @Req() r: Request,
     @Param('sessionId') id: string,
@@ -73,7 +73,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/imports/failures/:itemId/action')
   @ApiOperation({ operationId: 'actOnAdminImportFailure' })
-  @adminPermission('imports.failures.manage', { recentMfa: true })
+  @adminPermission('imports.failures.manage', { recentAuth: true })
   failure(
     @Req() r: Request,
     @Param('itemId') id: string,
@@ -90,7 +90,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/imports/low-confidence/:reviewId/review')
   @ApiOperation({ operationId: 'reviewAdminLowConfidence' })
-  @adminPermission('imports.confidence.manage', { recentMfa: true })
+  @adminPermission('imports.confidence.manage', { recentAuth: true })
   review(
     @Req() r: Request,
     @Param('reviewId') id: string,
@@ -107,7 +107,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/imports/duplicates/:candidateId/resolve')
   @ApiOperation({ operationId: 'resolveAdminDuplicate' })
-  @adminPermission('imports.duplicates.manage', { recentMfa: true })
+  @adminPermission('imports.duplicates.manage', { recentAuth: true })
   duplicate(
     @Req() r: Request,
     @Param('candidateId') id: string,
@@ -124,7 +124,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/imports/unsupported-formats/:formatId/action')
   @ApiOperation({ operationId: 'actOnUnsupportedFormat' })
-  @adminPermission('imports.unsupported.manage', { recentMfa: true })
+  @adminPermission('imports.unsupported.manage', { recentAuth: true })
   unsupportedAction(
     @Req() r: Request,
     @Param('formatId') id: string,
@@ -143,7 +143,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/institutions')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createParserInstitution' })
-  @adminPermission('parsers.senders.manage', { recentMfa: true })
+  @adminPermission('parsers.senders.manage', { recentAuth: true })
   createInstitution(
     @Req() r: Request,
     @Body() b: unknown,
@@ -159,7 +159,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/parsers/institutions/:institutionId')
   @ApiOperation({ operationId: 'updateParserInstitution' })
-  @adminPermission('parsers.senders.manage', { recentMfa: true })
+  @adminPermission('parsers.senders.manage', { recentAuth: true })
   updateInstitution(
     @Req() r: Request,
     @Param('institutionId') id: string,
@@ -178,7 +178,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/senders')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createParserSender' })
-  @adminPermission('parsers.senders.manage', { recentMfa: true })
+  @adminPermission('parsers.senders.manage', { recentAuth: true })
   createSender(
     @Req() r: Request,
     @Body() b: unknown,
@@ -188,7 +188,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/parsers/senders/:senderId/action')
   @ApiOperation({ operationId: 'mutateInstitutionSender' })
-  @adminPermission('parsers.senders.manage', { recentMfa: true })
+  @adminPermission('parsers.senders.manage', { recentAuth: true })
   senderAction(
     @Req() r: Request,
     @Param('senderId') id: string,
@@ -199,7 +199,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/parsers/senders/:senderId')
   @ApiOperation({ operationId: 'updateParserSender' })
-  @adminPermission('parsers.senders.manage', { recentMfa: true })
+  @adminPermission('parsers.senders.manage', { recentAuth: true })
   updateSender(
     @Req() r: Request,
     @Param('senderId') id: string,
@@ -218,7 +218,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/rules')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createParserRule' })
-  @adminPermission('parsers.rules.manage', { recentMfa: true })
+  @adminPermission('parsers.rules.manage', { recentAuth: true })
   createRule(
     @Req() r: Request,
     @Body() b: unknown,
@@ -234,7 +234,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/parsers/rules/:ruleId')
   @ApiOperation({ operationId: 'updateParserRule' })
-  @adminPermission('parsers.rules.manage', { recentMfa: true })
+  @adminPermission('parsers.rules.manage', { recentAuth: true })
   updateRule(
     @Req() r: Request,
     @Param('ruleId') id: string,
@@ -256,7 +256,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/rules/:ruleId/versions')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createParserVersion' })
-  @adminPermission('parsers.versions.manage', { recentMfa: true })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
   createVersion(
     @Req() r: Request,
     @Param('ruleId') ruleId: string,
@@ -275,7 +275,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/test-cases')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createParserTestCase' })
-  @adminPermission('parsers.versions.manage', { recentMfa: true })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
   createCase(
     @Req() r: Request,
     @Body() b: unknown,
@@ -286,7 +286,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/test-cases/run')
   @HttpCode(202)
   @ApiOperation({ operationId: 'runParserCorpus' })
-  @adminPermission('parsers.tests.run', { recentMfa: true })
+  @adminPermission('parsers.tests.run', { recentAuth: true })
   runCases(
     @Req() r: Request,
     @Body() b: unknown,
@@ -296,7 +296,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/parsers/test-cases/:caseId')
   @ApiOperation({ operationId: 'updateParserTestCase' })
-  @adminPermission('parsers.versions.manage', { recentMfa: true })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
   updateCase(
     @Req() r: Request,
     @Param('caseId') id: string,
@@ -314,7 +314,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/parsers/versions/:versionId/action')
   @ApiOperation({ operationId: 'mutateParserVersion' })
-  @adminPermission('parsers.versions.manage', { recentMfa: true })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
   versionAction(
     @Req() r: Request,
     @Param('versionId') id: string,
@@ -326,7 +326,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/parsers/versions/:versionId/corpus-runs')
   @HttpCode(202)
   @ApiOperation({ operationId: 'runParserVersionCorpus' })
-  @adminPermission('parsers.tests.run', { recentMfa: true })
+  @adminPermission('parsers.tests.run', { recentAuth: true })
   runVersion(
     @Req() r: Request,
     @Param('versionId') id: string,
@@ -343,7 +343,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/parsers/versions/:versionId/publish')
   @ApiOperation({ operationId: 'publishParserVersion' })
-  @adminPermission('parsers.versions.manage', { recentMfa: true })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
   publish(
     @Req() r: Request,
     @Param('versionId') id: string,
@@ -361,7 +361,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/parsers/merchant-rules')
   @ApiOperation({ operationId: 'mutateMerchantRule' })
-  @adminPermission('parsers.merchants.manage', { recentMfa: true })
+  @adminPermission('parsers.merchants.manage', { recentAuth: true })
   createMerchant(
     @Req() r: Request,
     @Body() b: unknown,
@@ -371,7 +371,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/parsers/merchant-rules/:ruleId')
   @ApiOperation({ operationId: 'updateMerchantRule' })
-  @adminPermission('parsers.merchants.manage', { recentMfa: true })
+  @adminPermission('parsers.merchants.manage', { recentAuth: true })
   updateMerchant(
     @Req() r: Request,
     @Param('ruleId') id: string,
@@ -388,7 +388,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/parsers/category-rules')
   @ApiOperation({ operationId: 'mutateCategoryRule' })
-  @adminPermission('parsers.categories.manage', { recentMfa: true })
+  @adminPermission('parsers.categories.manage', { recentAuth: true })
   createCategory(
     @Req() r: Request,
     @Body() b: unknown,
@@ -398,7 +398,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/parsers/category-rules/:ruleId')
   @ApiOperation({ operationId: 'updateCategoryRule' })
-  @adminPermission('parsers.categories.manage', { recentMfa: true })
+  @adminPermission('parsers.categories.manage', { recentAuth: true })
   updateCategory(
     @Req() r: Request,
     @Param('ruleId') id: string,
@@ -411,7 +411,7 @@ export class TrackingAdminController {
   @Post('api/v1/admin/imports/:sessionId/retry')
   @HttpCode(202)
   @ApiOperation({ operationId: 'retryImportSession' })
-  @adminPermission('imports.failures.manage', { recentMfa: true })
+  @adminPermission('imports.failures.manage', { recentAuth: true })
   retry(
     @Req() r: Request,
     @Param('sessionId') id: string,
@@ -422,7 +422,7 @@ export class TrackingAdminController {
   }
   @Post('api/v1/admin/imports/:sessionId/cancel')
   @ApiOperation({ operationId: 'cancelImportSession' })
-  @adminPermission('imports.failures.manage', { recentMfa: true })
+  @adminPermission('imports.failures.manage', { recentAuth: true })
   cancel(
     @Req() r: Request,
     @Param('sessionId') id: string,
@@ -439,7 +439,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/imports/unsupported/:formatId')
   @ApiOperation({ operationId: 'updateUnsupportedFormat' })
-  @adminPermission('imports.unsupported.manage', { recentMfa: true })
+  @adminPermission('imports.unsupported.manage', { recentAuth: true })
   updateUnsupported(
     @Req() r: Request,
     @Param('formatId') id: string,
@@ -456,7 +456,7 @@ export class TrackingAdminController {
   }
   @Patch('api/v1/admin/settings/imports')
   @ApiOperation({ operationId: 'updateImportSettings' })
-  @adminPermission('settings.imports.manage', { recentMfa: true })
+  @adminPermission('settings.imports.manage', { recentAuth: true })
   updateSettings(
     @Req() r: Request,
     @Body() b: unknown,

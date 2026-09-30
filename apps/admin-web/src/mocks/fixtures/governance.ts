@@ -309,7 +309,7 @@ export const governanceSettingsGroups = [
     group: "security",
     values: {
       sessionMinutes: 60,
-      mfaRequired: true,
+      mfaRequired: false,
       riskThresholds: { low: 20, medium: 50, high: 80 },
     },
     version: 1,

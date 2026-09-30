@@ -84,6 +84,12 @@ describe("US2 role and permission views", () => {
 });
 
 describe("US1 admin team views", () => {
+  test("offers invitation confirmation with recent Clerk login and no MFA eligibility gate", async () => {
+    const host = await renderView(<InvitationAcceptanceView token={"x".repeat(32)} />);
+    expect(host.textContent).toContain("recent Clerk login");
+    expect(host.textContent).not.toMatch(/recent MFA/);
+    expect((host.querySelector("button[aria-label='Accept invitation']") as HTMLButtonElement).disabled).toBe(false);
+  });
   test("renders list, filters, masked identity, non-color status, and authorized links", async () => {
     const host = await renderView();
     expect(host.textContent).toContain("فريق الإدارة");

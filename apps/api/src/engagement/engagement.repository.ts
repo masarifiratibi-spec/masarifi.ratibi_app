@@ -894,7 +894,7 @@ export class EngagementRepository {
           command.operation,
           id,
           JSON.stringify(databaseInput),
-          principal.mfaAgeSeconds ?? principal.factorAgeSeconds,
+          principal.factorAgeSeconds,
           command.requestId,
           this.config.getRequired('MASARIFI_CAMPAIGN_APPROVAL_THRESHOLD'),
           this.config.getRequired('MASARIFI_SUPPORT_REOPEN_HOURS'),

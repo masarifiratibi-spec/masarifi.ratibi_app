@@ -99,7 +99,7 @@ function register(
   if (admin) {
     const adminRoute = ENGAGEMENT_ADMIN_ROUTES.find((value) => value.operation === route.operation);
     if (!adminRoute) throw new Error('ENGAGEMENT_ADMIN_ROUTE_INVALID');
-    adminPermission(adminRoute.permission, { recentMfa: adminRoute.recentMfa })(
+    adminPermission(adminRoute.permission, { recentAuth: adminRoute.recentAuth })(
       target.prototype,
       route.operation,
       descriptor,

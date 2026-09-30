@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ConfirmDialog, PageHeader } from "@/components/admin/ui";
+import { ConfirmDialog, ErrorState, PageHeader } from "@/components/admin/ui";
 import type {
   AiOperationalActionRequest,
   AiModelSummary,
@@ -695,11 +695,7 @@ function ProviderActionButton({
           />
         </label>
       </ConfirmDialog>
-      {mutation.isError && (
-        <p role="alert">
-          تعذر تسجيل القرار. حدّث البيانات وتحقق من الأهلية ثم أعد المحاولة.
-        </p>
-      )}
+      {mutation.isError && <ErrorState error={mutation.error} />}
     </>
   );
 }
@@ -795,11 +791,7 @@ function AiActionButton({
           />
         </label>
       </ConfirmDialog>
-      {mutation.isError && (
-        <p role="alert">
-          تعذر تسجيل القرار. حدّث البيانات وتحقق من الأهلية ثم أعد المحاولة.
-        </p>
-      )}
+      {mutation.isError && <ErrorState error={mutation.error} />}
     </>
   );
 }

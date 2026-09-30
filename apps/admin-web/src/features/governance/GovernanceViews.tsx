@@ -29,14 +29,14 @@ export function InvitationAcceptanceView({ token }: { token: string }) {
   const valid = token.length >= 32 && token.length <= 512;
   return (
     <main className="admin-page">
-      <PageHeader title="قبول دعوة الإدارة" description="Confirm this invitation after signing in with the invited verified email and recent MFA." />
+      <PageHeader title="قبول دعوة الإدارة" description="Confirm this invitation after signing in with the invited verified email and a recent Clerk login." />
       <section className="table-card admin-action-card">
         <button className="button primary" aria-label="Accept invitation" disabled={!valid || accept.isPending} onClick={() => accept.mutate(token)}>
           {accept.isPending ? "Accepting..." : "Accept invitation"}
         </button>
         {!valid && <ErrorState />}
         {accept.isSuccess && <SuccessState message="Invitation accepted" />}
-        {accept.isError && <ErrorState />}
+        {accept.isError && <ErrorState error={accept.error} />}
       </section>
     </main>
   );
@@ -320,7 +320,7 @@ export function InviteAdminView() {
         </div>
       </form>
       {invite.isSuccess && <SuccessState message={c.inviteCreated} />}
-      {invite.isError && <ErrorState />}
+      {invite.isError && <ErrorState error={invite.error} />}
     </section>
   );
 }
@@ -377,7 +377,7 @@ export function AdminProfileView({ adminId }: { adminId: string }) {
         </section>
       )}
       {(assign.isSuccess || revokeRole.isSuccess) && <SuccessState message="Admin governance action completed safely." />}
-      {(assign.isError || revokeRole.isError) && <ErrorState />}
+      {(assign.isError || revokeRole.isError) && <ErrorState error={assign.error ?? revokeRole.error} />}
     </section>
   );
   const revocable = admin.sessions.filter((session) => session.state === "active" && !session.isCurrentSession);
@@ -449,7 +449,7 @@ export function AdminProfileView({ adminId }: { adminId: string }) {
         </div>
       </section>
       {(assign.isSuccess || revoke.isSuccess || disable.isSuccess) && <SuccessState message="Admin governance action completed safely." />}
-      {(assign.isError || revoke.isError || disable.isError) && <ErrorState />}
+      {(assign.isError || revoke.isError || disable.isError) && <ErrorState error={assign.error ?? revoke.error ?? disable.error} />}
       <ConfirmDialog
         open={dialog === "assign"}
         onClose={() => setDialog(null)}
@@ -616,7 +616,7 @@ export function NewRoleView() {
         </div>
       </form>
       {createRole.isSuccess && <SuccessState message="Role created safely." />}
-      {createRole.isError && <ErrorState />}
+      {createRole.isError && <ErrorState error={createRole.error} />}
     </section>
   );
 }
@@ -735,7 +735,7 @@ export function EditRoleView({ roleId }: { roleId: string }) {
         </div>
       </form>
       {update.isSuccess && <SuccessState message="Role updated safely." />}
-      {update.isError && <ErrorState />}
+      {update.isError && <ErrorState error={update.error} />}
     </section>
   );
 }

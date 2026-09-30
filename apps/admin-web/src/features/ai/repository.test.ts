@@ -638,7 +638,7 @@ describe("BE009 live Admin AI mapping", () => {
     expect(safety.items[0]).not.toHaveProperty("safetyDefinition");
   });
 
-  test("rejects unknown owner fields and forwards exact mutations and recent-MFA errors", async () => {
+  test("rejects unknown owner fields and forwards exact mutations and recent-login errors", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce(

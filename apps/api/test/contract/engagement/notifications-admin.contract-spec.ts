@@ -21,10 +21,10 @@ describe('Admin engagement HTTP contract', () => {
     );
   });
 
-  it('requires recent MFA for every privileged mutation', () => {
+  it('requires recent Clerk login for every privileged mutation', () => {
     expect(
       ENGAGEMENT_ADMIN_ROUTES.filter((route) => route.method !== 'GET').every(
-        (route) => route.recentMfa && route.idempotent,
+        (route) => route.recentAuth && route.idempotent,
       ),
     ).toBe(true);
   });

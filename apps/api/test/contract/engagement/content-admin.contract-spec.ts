@@ -11,7 +11,7 @@ describe('Admin content contract', () => {
     expect(
       ENGAGEMENT_ADMIN_ROUTES.filter(
         (route) => route.operation.includes('Content') && route.method !== 'GET',
-      ).every((route) => route.recentMfa && route.idempotent),
+      ).every((route) => route.recentAuth && route.idempotent),
     ).toBe(true);
   });
 

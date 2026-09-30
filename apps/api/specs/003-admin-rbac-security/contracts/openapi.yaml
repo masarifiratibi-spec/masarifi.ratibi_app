@@ -66,7 +66,7 @@ paths:
       operationId: disableAdmin
       tags: [Admin Access]
       x-permission: admin-team.disable
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -98,7 +98,7 @@ paths:
       operationId: revokeAdminSessions
       tags: [Admin Access]
       x-permission: admin-team.sessions.revoke
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -149,7 +149,7 @@ paths:
       operationId: createAdminInvitation
       tags: [Admin Access]
       x-permission: access.invites.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -170,7 +170,7 @@ paths:
       operationId: acceptAdminInvitation
       tags: [Admin Access]
       description: Uses authenticated Clerk identity and verified primary email; no Admin permission is required before acceptance.
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -214,7 +214,7 @@ paths:
       operationId: createRole
       tags: [Admin Access]
       x-permission: access.roles.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -249,7 +249,7 @@ paths:
       operationId: updateRole
       tags: [Admin Access]
       x-permission: access.roles.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/RoleId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -270,7 +270,7 @@ paths:
       operationId: assignAdminRole
       tags: [Admin Access]
       x-permission: access.assignments.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -290,7 +290,7 @@ paths:
       operationId: revokeAdminRole
       tags: [Admin Access]
       x-permission: access.assignments.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/AssignmentId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -377,7 +377,7 @@ paths:
       operationId: decideSupportAccessRequest
       tags: [Support Access]
       x-permission: support.access.approve
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/RequestResourceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -399,7 +399,7 @@ paths:
       operationId: revokeSupportAccess
       tags: [Support Access]
       x-permission: support.access.revoke
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/RequestResourceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -558,7 +558,7 @@ paths:
       operationId: createSecurityIncident
       tags: [Security]
       x-permission: security.incidents.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -592,7 +592,7 @@ paths:
       operationId: updateSecurityIncident
       tags: [Security]
       x-permission: security.incidents.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IncidentId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -733,7 +733,7 @@ paths:
       operationId: listPrivacyExports
       tags: [Privacy]
       x-permission: privacy.exports.read
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
@@ -747,7 +747,7 @@ paths:
       operationId: actOnPrivacyExport
       tags: [Privacy]
       x-permission: privacy.exports.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/ExportId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -769,7 +769,7 @@ paths:
       operationId: listDeletionRequests
       tags: [Privacy]
       x-permission: privacy.deletions.read
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
@@ -784,7 +784,7 @@ paths:
       operationId: actOnDeletionRequest
       tags: [Privacy]
       x-permission: privacy.deletions.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/DeletionId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -807,7 +807,7 @@ paths:
       operationId: listRetentionPolicies
       tags: [Retention]
       x-permission: retention.read
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
@@ -822,7 +822,7 @@ paths:
       operationId: updateRetentionPolicy
       tags: [Retention]
       x-permission: retention.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/PolicyId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -844,7 +844,7 @@ paths:
       operationId: createRetentionHold
       tags: [Retention]
       x-permission: retention.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -865,7 +865,7 @@ paths:
       operationId: releaseRetentionHold
       tags: [Retention]
       x-permission: retention.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/HoldId'
         - $ref: '#/components/parameters/IdempotencyKey'
