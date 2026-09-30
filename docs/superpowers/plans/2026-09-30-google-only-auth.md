@@ -22,7 +22,9 @@ Approved by the owner on 2026-09-30 in this chat, including preservation of all 
 7. Harden Google new/existing session, cancel/failure/incomplete registration, lifecycle and persistence.
 8. Focused and full Mobile verification plus whole-diff review.
 9. Commit/push and exact-SHA CI.
+   - Repair the required API dependency audit gate with patched Nodemailer and brace-expansion versions; verify the existing mail interfaces with an offline transport test. No mail configuration or credential changes.
 10. Verify Staging, changing only required artifacts.
+    - Deploy the scanned API/Worker image after the dependency gate repair; Admin code is unchanged.
 11. Build/install the exact passing SHA with compatible signer and preserved data.
 12. Physical Android acceptance: signed-out UI, chooser, login, clean callback, terminating bootstrap, restart, logout/login, locales and disabled lock.
 
