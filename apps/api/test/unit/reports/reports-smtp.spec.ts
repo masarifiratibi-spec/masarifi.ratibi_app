@@ -33,6 +33,7 @@ describe('ReportsSmtp', () => {
       messageId: '<fixture@example.test>',
     });
     expect(mail.envelope.to).toEqual(['owner@example.test']);
+    if (!Buffer.isBuffer(mail.message)) throw new Error('Expected an in-memory mail buffer');
     expect(mail.message.toString()).toContain('Message-ID: <fixture@example.test>');
   });
 
