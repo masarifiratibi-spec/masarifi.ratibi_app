@@ -125,6 +125,27 @@ describeLiveDatabase('ledger read repository', () => {
     });
   });
 
+  it('preserves the account currency when its transaction history is empty or filtered out', async () => {
+    const empty = await reads.getAccountSummary(owner, transferAccountId, {});
+    expect(empty).toMatchObject({
+      accountId: transferAccountId,
+      currency: 'SAR',
+      balance: { currency: 'SAR', confirmedMinor: 0, pendingMinor: 0, ledgerVersion: 0 },
+      recentTransactions: [],
+      ledgerVersion: 0,
+    });
+
+    const filtered = await reads.getAccountSummary(owner, accountId, {
+      from: '2027-01-01T00:00:00.000Z',
+    });
+    expect(filtered).toMatchObject({
+      currency: 'SAR',
+      balance: { currency: 'SAR', confirmedMinor: -300, pendingMinor: 0, ledgerVersion: 3 },
+      recentTransactions: [],
+      ledgerVersion: 3,
+    });
+  });
+
   it('returns transfer roles independently from sorted account membership', async () => {
     const [destinationAccountId, sourceAccountId] = [accountId, transferAccountId].sort();
     const transfer = (await reads.mutate({
