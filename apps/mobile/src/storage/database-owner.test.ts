@@ -1,4 +1,7 @@
 import app from '../../app.json';
+import { createSettingsStorage } from './settings-storage';
+import { createLiveIdentityService } from '@/services/live/auth-service';
+import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 
 const mockExistingFiles = new Set(['file:///databases/masarifi.db']);
 const mockDeletedFiles: string[] = [];
@@ -8,6 +11,7 @@ const mockSecureValues = new Map<string, string>();
 let mismatchCounts = false;
 let migrationMarker: string | null = null;
 let failSchemaMigration = false;
+let mockSeparateTransactionConnections = false;
 interface MockDatabase {
   execAsync(sql: string): Promise<void>;
   getFirstAsync(sql: string): Promise<Record<string, unknown> | null>;
@@ -25,6 +29,7 @@ const mockDatabase: MockDatabase = {
       throw new Error('schema migration failed');
   }),
   getFirstAsync: jest.fn(async (sql: string) => {
+    if (sql.includes('settings_profile')) return null;
     if (sql.includes('cipher_version')) return { cipher_version: '4.6.1' };
     if (sql.includes('_masarifi_migration_state'))
       return migrationMarker ? { value: migrationMarker } : null;
@@ -37,8 +42,23 @@ const mockDatabase: MockDatabase = {
   ) as unknown as MockDatabase['getAllAsync'],
   runAsync: jest.fn(async () => undefined),
   withExclusiveTransactionAsync: jest.fn(
-    async (operation: (database: MockDatabase) => Promise<void>) =>
-      operation(mockDatabase)
+    async (operation: (database: MockDatabase) => Promise<void>) => {
+      if (!mockSeparateTransactionConnections) return operation(mockDatabase);
+      let keyed = false;
+      // Expo opens a fresh connection; SQLCipher keys are connection-local.
+      await operation({
+        ...mockDatabase,
+        execAsync: async (sql) => {
+          if (sql.startsWith('PRAGMA key =')) keyed = true;
+          else if (!keyed) throw new Error('file is not a database');
+          await mockDatabase.execAsync(sql);
+        },
+        runAsync: async (...args: Parameters<MockDatabase['runAsync']>) => {
+          if (!keyed) throw new Error('file is not a database');
+          await mockDatabase.runAsync(...args);
+        }
+      });
+    }
   ),
   closeAsync: jest.fn(async () => undefined)
 };
@@ -102,6 +122,7 @@ const {
 } = require('./database') as typeof import('./database');
 
 beforeEach(async () => {
+  mockSeparateTransactionConnections = false;
   await clearDatabaseOwner();
   resetDatabaseForTests();
   mockExistingFiles.clear();
@@ -114,6 +135,72 @@ beforeEach(async () => {
   migrationMarker = null;
   failSchemaMigration = false;
   jest.clearAllMocks();
+});
+
+test('bootstraps encrypted owner storage and persists profile through a fresh transaction connection', async () => {
+  mockSeparateTransactionConnections = true;
+  await configureDatabaseOwner('user_owner-a');
+  const storage = createSettingsStorage();
+
+  await expect(openDatabase('user_owner-a')).resolves.toBe(mockDatabase);
+  const service = createLiveIdentityService({
+    getOwnerId: () => 'user_owner-a',
+    loadLocalProfile: storage.loadProfile,
+    saveLocalProfile: storage.saveProfile,
+    request: async (path) =>
+      path === '/api/v1/me'
+        ? {
+            id: 'user_owner-a',
+            displayName: null,
+            primaryEmailMasked: 'a***@example.test',
+            phoneMasked: null,
+            locale: 'ar',
+            timezone: 'Asia/Riyadh',
+            status: 'active',
+            version: 2
+          }
+        : path.endsWith('/preferences')
+          ? {
+              defaultCurrency: 'SAR',
+              language: 'ar',
+              theme: 'system',
+              calendar: 'gregorian',
+              weekStart: 6,
+              privacySettings: {},
+              version: 1
+            }
+          : {
+              step: 'welcome',
+              completedSteps: [],
+              completedAt: null,
+              version: 1
+            }
+  });
+  const snapshot = await service.getProfileSetup();
+  expect(snapshot.complete).toBe(false);
+  expect(
+    resolveEntryRoute({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true,
+      profileSetupStatus: snapshot.complete ? 'complete' : 'incomplete',
+      session: {
+        status: 'authenticated',
+        userId: 'user_owner-a',
+        method: 'google',
+        restoration: 'restored',
+        issuedAt: 1,
+        expiresAt: Date.now() + 60_000
+      },
+      privacyLock: null,
+      onboarding: null,
+      pendingDestination: null
+    })
+  ).toBe('/(onboarding)/profile-setup');
+  expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+    expect.stringContaining('INSERT INTO settings_profile'),
+    expect.any(String),
+    expect.any(Number)
+  );
 });
 
 test('binds the legacy store once, exports it into an encrypted owner namespace, and preserves rows', async () => {
