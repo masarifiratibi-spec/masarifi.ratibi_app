@@ -2,6 +2,9 @@ import { HttpException } from '@nestjs/common';
 
 import { buildLedgerEvent } from '../../../src/ledger/ledger.events';
 import { LedgerService } from '../../../src/ledger/ledger.service';
+import { LedgerRepository } from '../../../src/ledger/ledger.repository';
+import { hashNormalizedCommand } from '../../../src/ledger/idempotency';
+import { normalizeCreateAccount } from '../../../src/reference/reference.dto';
 
 const principal = { userId: 'user_1', sessionId: 'session_1', factorAgeSeconds: 120 };
 const body = {
@@ -540,6 +543,53 @@ describe('LedgerService delete and restore', () => {
 });
 
 describe('LedgerService account opening', () => {
+  it.each([{}, { notes: null }, { notes: 'Fictional fixture' }])(
+    'replays a normalized account using the same JSON hash as account creation: %j',
+    async (optionalFields) => {
+      const account = normalizeCreateAccount({
+        name: 'Cash',
+        type: 'cash',
+        currency: 'SAR',
+        ...optionalFields,
+      });
+      const replayed = { account: { id: 'existing-account' }, openingTransactionId: null };
+      const query = jest.fn((sql: string) =>
+        Promise.resolve({
+          rows: sql.startsWith('select * from private.lookup_idempotency_key')
+            ? [{ outcome: 'replay', response_status: 201, response_body: replayed }]
+            : [],
+        }),
+      );
+      const repository = new LedgerRepository({
+        withClient: (action: (client: unknown) => unknown) => action({ query }),
+      } as never);
+      const service = new LedgerService(repository, {} as never, {} as never);
+      await expect(
+        service.createAccount(
+          {
+            operation: 'createAccount',
+            principal,
+            requestId: 'account-replay',
+            idempotencyKey: 'account-replay-key',
+            query: {},
+            params: {},
+            body: account,
+          },
+          {} as never,
+        ),
+      ).resolves.toEqual(replayed);
+      expect(query).toHaveBeenCalledWith(
+        'select * from private.lookup_idempotency_key($1,$2,$3,$4)',
+        [
+          principal.userId,
+          'reference.account.create',
+          expect.any(String),
+          hashNormalizedCommand(JSON.parse(JSON.stringify(account))),
+        ],
+      );
+    },
+  );
+
   it('applies absolute configured recent auth and delegates the atomic account boundary', async () => {
     const { service, repository } = harness({ SAR: 500 });
     const reference = { createAccountOnClient: jest.fn() };
