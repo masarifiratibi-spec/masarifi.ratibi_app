@@ -5,6 +5,7 @@ import type { PoolClient, QueryResultRow } from 'pg';
 
 import { PoolService } from '../platform/database/pool.service';
 import { LEDGER_METRICS, recordPlatformMetric } from '../platform/observability/platform-metrics';
+import { PlatformLogger } from '../platform/observability/platform-logger';
 import { buildLedgerEvent } from './ledger.events';
 import {
   decodeLedgerCursor,
@@ -127,7 +128,10 @@ function domainError(code: string, status: number, currentVersion?: number): Htt
   );
 }
 
-function mapDatabaseError(error: unknown): HttpException {
+function mapDatabaseError(
+  error: unknown,
+  diagnostic?: { operation: string; stage: string },
+): HttpException {
   if (error instanceof HttpException) return error;
   const pg = error as { code?: string; message?: string; detail?: string; constraint?: string };
   const message = pg.message ?? '';
@@ -173,6 +177,13 @@ function mapDatabaseError(error: unknown): HttpException {
     message === 'DATABASE_QUERY_TIMEOUT'
   )
     return domainError('LEDGER_BUSY', 409);
+  if (diagnostic)
+    new PlatformLogger().error('LEDGER_UNAVAILABLE', {
+      eventName: 'ledger.database.failure',
+      context: diagnostic.operation,
+      state: diagnostic.stage,
+      code: typeof pg.code === 'string' && /^[0-9A-Z]{5}$/.test(pg.code) ? pg.code : 'UNKNOWN',
+    });
   return domainError('LEDGER_UNAVAILABLE', 503);
 }
 
@@ -243,7 +254,7 @@ export class LedgerRepository {
       });
     } catch (error) {
       observed = true;
-      const mapped = mapDatabaseError(error);
+      const mapped = mapDatabaseError(error, { operation: input.operation, stage: 'lookup' });
       if (mapped.getStatus() === 409) {
         recordPlatformMetric(LEDGER_METRICS.conflict, 1, {
           operation: input.operation,
@@ -404,7 +415,7 @@ export class LedgerRepository {
     } catch (error) {
       if (appendStage !== 'command')
         recordPlatformMetric(LEDGER_METRICS.appendFailure, 1, { dependency: appendStage });
-      const mapped = mapDatabaseError(error);
+      const mapped = mapDatabaseError(error, { operation, stage: appendStage });
       if (mapped.getStatus() === 409) {
         recordPlatformMetric(LEDGER_METRICS.conflict, 1, {
           operation,
