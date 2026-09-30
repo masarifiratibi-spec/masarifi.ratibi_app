@@ -61,9 +61,7 @@ export default function RootLayout() {
               onLock={appLockEnabled ? handleLock : undefined}
             >
               <NotificationResponseRuntime />
-              <ProtectedRouteGate>
-                <RootStack />
-              </ProtectedRouteGate>
+              <RootStack />
             </AppPrivacyGate>
           </AppShellProvider>
         </FoundationProviders>
@@ -77,6 +75,9 @@ function RootStack() {
 
   return (
     <Stack
+      screenLayout={({ children }) => (
+        <ProtectedRouteGate>{children}</ProtectedRouteGate>
+      )}
       screenOptions={{
         contentStyle: { backgroundColor: theme.colors.surfaces.page },
         headerShown: false

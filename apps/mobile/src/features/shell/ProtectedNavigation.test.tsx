@@ -13,7 +13,13 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 
 const mockRouterPush = jest.fn();
-const mockStack = jest.fn(() => null);
+const mockStack = jest.fn(
+  ({
+    screenLayout
+  }: {
+    screenLayout?: (props: { children: React.ReactNode }) => React.ReactNode;
+  }) => (screenLayout ? screenLayout({ children: null }) : null)
+);
 const mockRegisterCategories = jest.fn();
 const mockGetLastResponse = jest.fn();
 const mockSubscribeToResponses = jest.fn();
@@ -27,7 +33,7 @@ const mockPrivacyGate = jest.fn(
 );
 
 jest.mock('expo-router', () => ({
-  Stack: () => mockStack(),
+  Stack: (props: Parameters<typeof mockStack>[0]) => mockStack(props),
   Redirect: (props: { href: string }) => mockRedirect(props),
   router: { push: mockRouterPush },
   usePathname: () => mockPathname

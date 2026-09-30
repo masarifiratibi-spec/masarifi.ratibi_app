@@ -140,7 +140,7 @@ describe('session-controller', () => {
         ...authenticatedSession,
         userId: 'user_live_google'
       })
-    ).resolves.toBe('/index');
+    ).resolves.toBe('/');
     expect(useAppShellStore.getState().pendingDestination).toBe('/reports');
     expect(useAppShellStore.getState().session).toBeNull();
   });

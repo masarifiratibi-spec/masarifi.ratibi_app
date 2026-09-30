@@ -128,7 +128,7 @@ export async function completeAuthenticatedSession(
       state.profileSetupStatus === 'unknown'
     )
       state.retryBootstrap();
-    return '/index';
+    return '/';
   }
   const store = useAppShellStore.getState();
   await store.authenticate(session);
