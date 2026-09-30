@@ -5,6 +5,7 @@ import type { PinCredential } from '@/domain/app-shell';
 import { createPinCredential } from './privacy-lock';
 import { renderWithProviders } from '@/test-utils/render';
 import { PinSetupScreen } from './PinSetupScreen';
+import * as pinKdf from '@noble/hashes/pbkdf2';
 
 let currentCredential: PinCredential;
 
@@ -32,7 +33,9 @@ describe('PinSetupScreen', () => {
     expect(onSave).not.toHaveBeenCalled();
 
     submit('654321');
-    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1), {
+      timeout: 5_000
+    });
     expect(onSave.mock.calls[0]?.[0]).toMatch(
       /^pbkdf2-sha256:120000:[a-f0-9]{32}:[a-f0-9]{64}$/
     );
@@ -79,10 +82,25 @@ describe('PinSetupScreen', () => {
     await waitFor(() => expect(onInvalidCurrent).toHaveBeenCalledTimes(1));
     expect(onSave).not.toHaveBeenCalled();
 
-    submit('123456');
-    expect(await screen.findByText('إنشاء رمز PIN')).toBeOnTheScreen();
-    submit('111111');
-    submit('111111');
-    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
-  });
+    const derive = pinKdf.pbkdf2Async;
+    const slowVerification = jest
+      .spyOn(pinKdf, 'pbkdf2Async')
+      .mockImplementationOnce(async (...args) => {
+        await new Promise((resolve) => setTimeout(resolve, 1_250));
+        return derive(...args);
+      });
+    try {
+      submit('123456');
+      expect(
+        await screen.findByText('إنشاء رمز PIN', undefined, { timeout: 5_000 })
+      ).toBeOnTheScreen();
+      submit('111111');
+      submit('111111');
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1), {
+        timeout: 5_000
+      });
+    } finally {
+      slowVerification.mockRestore();
+    }
+  }, 10_000);
 });
