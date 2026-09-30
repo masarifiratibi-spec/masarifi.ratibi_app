@@ -8,6 +8,38 @@ import { dockerResult, imageUnderTest, inspectImage } from './docker-test.utils'
 jest.setTimeout(180_000);
 
 describe('same-image process commands', () => {
+  it('contains the patched OpenSSL packages and matching library files', () => {
+    const script = `
+      const assert = require('node:assert/strict');
+      const fs = require('node:fs');
+      const crypto = require('node:crypto');
+      for (const name of ['libssl3t64', 'openssl-provider-legacy']) {
+        const prefix = '/var/lib/dpkg/status.d/' + name;
+        assert.match(fs.readFileSync(prefix, 'utf8'), /^Version: 3\\.5\\.7-1~deb13u3$/m);
+        const checksums = fs.readFileSync(prefix + '.md5sums', 'utf8').trim().split('\\n');
+        for (const line of checksums) {
+          const [expected, path] = line.trim().split(/\\s+/);
+          if (!path.startsWith('usr/lib/')) continue;
+          const actual = crypto.createHash('md5').update(fs.readFileSync('/' + path)).digest('hex');
+          assert.equal(actual, expected, path);
+        }
+      }
+    `;
+    const result = dockerResult([
+      'run',
+      '--rm',
+      '--read-only',
+      '--network',
+      'none',
+      '--entrypoint',
+      '/nodejs/bin/node',
+      imageUnderTest,
+      '-e',
+      script,
+    ]);
+    expect(result.status).toBe(0);
+  });
+
   it.each([
     ['dist/src/main.js', 'API_BOOTSTRAP_FAILED'],
     ['dist/src/worker.js', 'WORKER_BOOTSTRAP_FAILED'],
