@@ -38,6 +38,8 @@ import { clearDatabaseOwner, configureDatabaseOwner } from '@/storage/database';
 import { clearLegacySmsImportQueue } from '@/storage/sms-import-queue';
 
 interface AppShellState {
+  bootstrapRevision: number;
+  retryBootstrap: () => void;
   hydrated: boolean;
   session: AuthenticationSession | null;
   onboarding: OnboardingProgress | null;
@@ -110,6 +112,14 @@ const initialState = {
 
 export const useAppShellStore = create<AppShellState>((set, get) => ({
   ...initialState,
+  bootstrapRevision: 0,
+  retryBootstrap: () => {
+    if (get().profileSetupStatus === 'loading') return;
+    set({
+      bootstrapRevision: get().bootstrapRevision + 1,
+      profileSetupStatus: 'loading'
+    });
+  },
 
   hydrate: async (now = Date.now()) => {
     try {
@@ -341,7 +351,10 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   recordFailedUnlock: async (now) => {
-    const privacyLock = failUnlock(get().privacyLock ?? createPinLock(now), now);
+    const privacyLock = failUnlock(
+      get().privacyLock ?? createPinLock(now),
+      now
+    );
     await storage.savePrivacyLock(privacyLock);
     set({ privacyLock });
   },

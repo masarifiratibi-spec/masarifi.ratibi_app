@@ -5,6 +5,7 @@ import type {
 } from '@/domain/app-shell';
 import type { ProfileSetupStatus } from '@/domain/settings';
 import { sanitizeReturnRoute } from './navigation-context';
+import { isAppLockEnabled } from '@/config/client-runtime';
 
 export interface EntryRouteInput {
   hydrated: boolean;
@@ -26,18 +27,20 @@ export function resolveEntryRoute(input: EntryRouteInput): string {
       ? '/(public)/auth-pending'
       : '/welcome';
   }
-  if (input.privacyLock && input.privacyLock.appLockStatus !== 'unlocked') {
+  if (
+    isAppLockEnabled() &&
+    input.privacyLock &&
+    input.privacyLock.appLockStatus !== 'unlocked'
+  ) {
     return '/security/unlock';
   }
   if (
     input.profileSetupStatus === 'unknown' ||
-    input.profileSetupStatus === 'loading'
-  )
-    return '/index';
-  if (
-    input.profileSetupStatus === 'incomplete' ||
+    input.profileSetupStatus === 'loading' ||
     input.profileSetupStatus === 'error'
   )
+    return '/index';
+  if (input.profileSetupStatus === 'incomplete')
     return '/(onboarding)/profile-setup';
   return sanitizeReturnRoute(input.pendingDestination) ?? homeRoute;
 }

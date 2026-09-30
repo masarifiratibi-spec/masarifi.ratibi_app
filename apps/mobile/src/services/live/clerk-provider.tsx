@@ -9,6 +9,7 @@ import {
 import { useSSO } from '@clerk/expo/experimental';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import React, {
   createContext,
   useContext,
@@ -26,6 +27,11 @@ import type {
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { classifyPhoneVerificationError } from './clerk-errors';
 import { resolveClerkDisplayName } from './clerk-name';
+import {
+  LiveIdentityStatusContext,
+  type IdentityStatus
+} from './clerk-context';
+export { useLiveIdentityStatus } from './clerk-context';
 
 type PendingPhoneAttempt = {
   countryCode: string;
@@ -79,23 +85,55 @@ export function MobileIdentityProvider({ children }: { children: ReactNode }) {
 
 function LiveClerkRuntime({ children }: { children: ReactNode }) {
   const [sessionKey, setSessionKey] = useState<string | null>();
+  const [status, setStatus] = useState<IdentityStatus>('loading');
+  useEffect(() => {
+    if (status !== 'loading') return;
+    const timer = setTimeout(() => setStatus('error'), 30_000);
+    return () => clearTimeout(timer);
+  }, [status]);
   return (
-    <LiveClerkSessionContext.Provider value={sessionKey}>
-      <ClerkBridgeInstaller onSessionKey={setSessionKey} />
-      {children}
-    </LiveClerkSessionContext.Provider>
+    <LiveIdentityStatusContext.Provider
+      value={{
+        status,
+        retry: () => {
+          setStatus('loading');
+          const clerk = getClerkInstance();
+          void clerk
+            .load({
+              standardBrowser: Platform.OS === 'web',
+              experimental:
+                Platform.OS === 'web' ? {} : { runtimeEnvironment: 'headless' }
+            })
+            .then(() => setStatus(clerk.status === 'ready' ? 'ready' : 'error'))
+            .catch(() => setStatus('error'));
+        }
+      }}
+    >
+      <LiveClerkSessionContext.Provider value={sessionKey}>
+        <ClerkBridgeInstaller
+          onSessionKey={setSessionKey}
+          onStatus={setStatus}
+        />
+        {children}
+      </LiveClerkSessionContext.Provider>
+    </LiveIdentityStatusContext.Provider>
   );
 }
 
 function ClerkBridgeInstaller({
-  onSessionKey
+  onSessionKey,
+  onStatus
 }: {
   onSessionKey: (sessionKey: string | null) => void;
+  onStatus: (status: IdentityStatus) => void;
 }) {
   const auth = useAuth();
   const signInState = useSignIn();
   const signUpState = useSignUp();
   const { startSSOFlow } = useSSO();
+  const latest = useRef({ auth, signInState, signUpState, startSSOFlow });
+  latest.current = { auth, signInState, signUpState, startSSOFlow };
+  const ssoPending = useRef(false);
   const attempts = useRef(new Map<string, PendingPhoneAttempt>());
   const lastMethod = useRef<'phone' | 'google'>('google');
 
@@ -104,26 +142,27 @@ function ClerkBridgeInstaller({
   }
     ? T
     : never => {
-    if (!auth.isSignedIn) return null;
-    const claims = auth.sessionClaims as { iat?: number; exp?: number };
-    if (!claims.iat || !claims.exp || claims.exp <= claims.iat) return null;
+    if (!latest.current.auth.isLoaded) return null;
+    const clerk = getClerkInstance();
+    const session = clerk.session;
+    if (!clerk.user || !session || session.status !== 'active') return null;
     return {
-      id: auth.sessionId,
-      userId: auth.userId,
+      id: session.id,
+      userId: clerk.user.id,
       method: lastMethod.current,
-      issuedAt: claims.iat * 1_000,
-      expiresAt: claims.exp * 1_000
+      issuedAt: session.lastActiveAt.getTime(),
+      expiresAt: session.expireAt.getTime()
     };
   };
 
   const bridge: LiveClerkBridge = {
     getSession: async () => currentSession(),
-    getToken: (options) => auth.getToken(options),
+    getToken: (options) => latest.current.auth.getToken(options),
     async startPhone({ countryCode, phoneValue }) {
       const identifier = `${countryCode}${phoneValue}`;
       const attemptId = Crypto.randomUUID();
       try {
-        const signIn = signInState.signIn;
+        const signIn = latest.current.signInState.signIn;
         const created = await signIn.create({ identifier });
         if (created.error) throw created.error;
         const sent = await signIn.phoneCode.sendCode({
@@ -160,7 +199,7 @@ function ClerkBridgeInstaller({
         });
       } catch (error) {
         if (!isIdentifierNotFound(error)) throw error;
-        const signUp = signUpState.signUp;
+        const signUp = latest.current.signUpState.signUp;
         const created = await signUp.create({ phoneNumber: identifier });
         if (created.error) throw created.error;
         const sent = await signUp.verifications.sendPhoneCode();
@@ -230,38 +269,79 @@ function ClerkBridgeInstaller({
       return phoneAttempt(sessionId, attempt.countryCode, attempt.phoneValue);
     },
     async signInWithGoogle() {
-      const result = await startSSOFlow({ strategy: 'oauth_google' });
-      if (!result.createdSessionId) return null;
-      const userId =
-        result.signUp?.createdUserId ?? getClerkInstance().user?.id;
-      if (!userId) throw new Error('Clerk user missing');
-      lastMethod.current = 'google';
-      const session = getClerkInstance().session;
-      if (!session || session.id !== result.createdSessionId)
-        throw new Error('Clerk session missing');
-      return {
-        id: result.createdSessionId,
-        userId,
-        method: 'google',
-        issuedAt: session.lastActiveAt.getTime(),
-        expiresAt: session.expireAt.getTime()
-      };
+      if (!latest.current.auth.isLoaded || ssoPending.current)
+        throw new Error('appShell.auth.unavailable');
+      ssoPending.current = true;
+      onStatus('sso');
+      try {
+        const result = await latest.current.startSSOFlow({
+          strategy: 'oauth_google',
+          redirectUrl: 'masarifi://sso-callback'
+        });
+        if (
+          result.authSessionResult?.type === 'cancel' ||
+          result.authSessionResult?.type === 'dismiss'
+        ) {
+          onStatus('cancelled');
+          return null;
+        }
+        if (result.authSessionResult?.type !== 'success')
+          throw new Error('appShell.auth.unavailable');
+        const activatedId =
+          result.createdSessionId ??
+          result.signIn?.existingSession?.sessionId ??
+          result.signUp?.existingSession?.sessionId;
+        if (!activatedId) {
+          onStatus('incomplete');
+          throw new Error('googleAuth.incomplete');
+        }
+        lastMethod.current = 'google';
+        const session = currentSession();
+        if (!session || session.id !== activatedId)
+          throw new Error('Clerk session missing');
+        onStatus('ready');
+        onSessionKey(session.id);
+        return session;
+      } catch (error) {
+        if (!(
+          error instanceof Error && error.message === 'googleAuth.incomplete'
+        ))
+          onStatus('error');
+        throw error;
+      } finally {
+        ssoPending.current = false;
+      }
     },
     reverifyConflict: async () => null,
     signOut: ({ scope }) =>
-      auth.signOut(
+      latest.current.auth.signOut(
         scope === 'current'
-          ? { sessionId: auth.sessionId ?? undefined }
+          ? { sessionId: latest.current.auth.sessionId ?? undefined }
           : undefined
       )
   };
   useEffect(() => {
     if (!auth.isLoaded) return;
     registerLiveClerkBridge(bridge);
-    onSessionKey(auth.isSignedIn ? auth.sessionId : null);
+    if (!ssoPending.current)
+      onSessionKey(auth.isSignedIn ? auth.sessionId : null);
     // Clerk hook resources are mutable; reinstall only when identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.isLoaded, auth.isSignedIn, auth.sessionId, onSessionKey]);
+  useEffect(() => {
+    const clerk = getClerkInstance();
+    const update = (status: string) => {
+      if (ssoPending.current) return;
+      if (status === 'error' || status === 'degraded') onStatus('error');
+      else if (status === 'ready' || auth.isLoaded) onStatus('ready');
+    };
+    update(clerk?.status ?? (auth.isLoaded ? 'ready' : 'loading'));
+    const listener = (status: string) => update(status);
+    clerk?.on?.('status', listener, { notify: true });
+    return () => {
+      clerk?.off?.('status', listener);
+    };
+  }, [auth.isLoaded, onStatus]);
   return null;
 }
 

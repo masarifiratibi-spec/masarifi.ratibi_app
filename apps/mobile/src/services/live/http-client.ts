@@ -67,6 +67,8 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   GONE: 'gone',
   RATE_LIMITED: 'rate_limited',
   SERVICE_UNAVAILABLE: 'provider_unavailable',
+  PROVIDER_UNAVAILABLE: 'provider_unavailable',
+  PROFILE_SYNC_UNAVAILABLE: 'provider_unavailable',
   REFERENCE_UNAVAILABLE: 'provider_unavailable'
 };
 const PRIVATE_KEYS =
@@ -99,47 +101,59 @@ export async function requestJson<T>(
   if (options.signal?.aborted) abort();
   else options.signal?.addEventListener('abort', abort, { once: true });
   const timer = setTimeout(abort, options.timeoutMs ?? 15_000);
+  let rejectAborted!: () => void;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    rejectAborted = () => reject(new HttpError('provider_unavailable', 503));
+    controller.signal.addEventListener('abort', rejectAborted, { once: true });
+  });
 
   try {
-    const token = options.token ?? (await tokenProvider?.());
-    if (!token) throw new HttpError('session_expired', 401);
-    const headers = headerRecord(options.headers);
-    setHeader(headers, 'accept', 'application/json');
-    if (options.body !== undefined)
-      setHeader(headers, 'content-type', 'application/json');
-    setHeader(headers, 'Authorization', `Bearer ${token}`);
+    if (controller.signal.aborted)
+      throw new HttpError('provider_unavailable', 503);
+    const operation = (async () => {
+      const token = options.token ?? (await tokenProvider?.());
+      if (controller.signal.aborted)
+        throw new HttpError('provider_unavailable', 503);
+      if (!token) throw new HttpError('session_expired', 401);
+      const headers = headerRecord(options.headers);
+      setHeader(headers, 'accept', 'application/json');
+      if (options.body !== undefined)
+        setHeader(headers, 'content-type', 'application/json');
+      setHeader(headers, 'Authorization', `Bearer ${token}`);
 
-    const request = options.request ?? fetch;
-    const baseUrl = (
-      options.baseUrl ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      ''
-    ).replace(/\/+$/u, '');
-    if (!baseUrl || !path.startsWith('/'))
-      throw new HttpError('contract_mismatch', 500);
-    const response = await request(`${baseUrl}${path}`, {
-      method: options.method,
-      headers,
-      body:
-        options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: controller.signal
-    });
+      const request = options.request ?? fetch;
+      const baseUrl = (
+        options.baseUrl ??
+        process.env.EXPO_PUBLIC_API_URL ??
+        ''
+      ).replace(/\/+$/u, '');
+      if (!baseUrl || !path.startsWith('/'))
+        throw new HttpError('contract_mismatch', 500);
+      const response = await request(`${baseUrl}${path}`, {
+        method: options.method,
+        headers,
+        body:
+          options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: controller.signal
+      });
 
-    if (response.status === 204)
-      return parseKnownValue(schema, options, 'emptyValue');
-    if (response.status === 304)
-      return parseKnownValue(schema, options, 'notModifiedValue');
-    if (!response.ok) throw await parseError(response);
+      if (response.status === 204)
+        return parseKnownValue(schema, options, 'emptyValue');
+      if (response.status === 304)
+        return parseKnownValue(schema, options, 'notModifiedValue');
+      if (!response.ok) throw await parseError(response);
 
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      throw new HttpError('contract_mismatch', 502);
-    }
-    const parsed = schema.safeParse(payload);
-    if (!parsed.success) throw new HttpError('contract_mismatch', 502);
-    return parsed.data;
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new HttpError('contract_mismatch', 502);
+      }
+      const parsed = schema.safeParse(payload);
+      if (!parsed.success) throw new HttpError('contract_mismatch', 502);
+      return parsed.data;
+    })();
+    return await Promise.race([operation, aborted]);
   } catch (error) {
     const failure = normalizeFailure(error, controller.signal.aborted);
     if (typeof __DEV__ !== 'undefined' && __DEV__)
@@ -150,6 +164,7 @@ export async function requestJson<T>(
     throw failure;
   } finally {
     clearTimeout(timer);
+    controller.signal.removeEventListener('abort', rejectAborted);
     options.signal?.removeEventListener('abort', abort);
   }
 }

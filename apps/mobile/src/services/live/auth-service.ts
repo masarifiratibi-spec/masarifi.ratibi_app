@@ -246,15 +246,17 @@ export function createLiveAuthService(
 }
 
 export function createLiveIdentityService({
+  getOwnerId = () => null,
   request = defaultIdentityRequest,
   loadLocalProfile = async () => emptyProfile(),
   saveLocalProfile = async () => undefined,
   loadLocalOnboarding = async () => null,
   saveLocalOnboarding = async () => undefined
 }: {
+  getOwnerId?: () => string | null;
   request?: IdentityRequest;
-  loadLocalProfile?: () => Promise<UserProfile | null>;
-  saveLocalProfile?: (profile: UserProfile) => Promise<void>;
+  loadLocalProfile?: (ownerId?: string) => Promise<UserProfile | null>;
+  saveLocalProfile?: (profile: UserProfile, ownerId?: string) => Promise<void>;
   loadLocalOnboarding?: () => Promise<OnboardingProgress | null>;
   saveLocalOnboarding?: (progress: OnboardingProgress) => Promise<void>;
 } = {}): CapabilityProviderHandle<SettingsService & OnboardingService> {
@@ -263,11 +265,13 @@ export function createLiveIdentityService({
   const sessions = new Map<string, RepresentativeSession>();
 
   async function getProfile(): Promise<UserProfile> {
+    const ownerId = getOwnerId();
     const [remote, preferences, local] = await Promise.all([
       parsedRequest(request, '/api/v1/me', profileSchema),
       parsedRequest(request, '/api/v1/me/preferences', preferencesSchema),
-      loadLocalProfile()
+      loadLocalProfile(ownerId ?? undefined)
     ]);
+    if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
     const merged: UserProfile = {
       ...(local ?? emptyProfile()),
       name: remote.displayName,
@@ -278,17 +282,19 @@ export function createLiveIdentityService({
       timeZone: remote.timezone,
       version: remote.version
     };
-    await saveLocalProfile(merged);
+    await saveLocalProfile(merged, ownerId ?? undefined);
     return merged;
   }
 
   async function getProfileSetup(): Promise<ProfileSetupSnapshot> {
+    const ownerId = getOwnerId();
     const [remote, preferences, onboarding, local] = await Promise.all([
       parsedRequest(request, '/api/v1/me', profileSchema),
       parsedRequest(request, '/api/v1/me/preferences', preferencesSchema),
       parsedRequest(request, '/api/v1/me/onboarding', onboardingSchema),
-      loadLocalProfile()
+      loadLocalProfile(ownerId ?? undefined)
     ]);
+    if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
     onboardingVersion = onboarding.version;
     profileSetupComplete = onboarding.completedSteps.includes('welcome');
     const profile = mergeProfile(
@@ -297,7 +303,7 @@ export function createLiveIdentityService({
       local,
       supportedCurrency(preferences.defaultCurrency)
     );
-    await saveLocalProfile(profile);
+    await saveLocalProfile(profile, ownerId ?? undefined);
     return {
       profile,
       preferences: preferences as OwnerPreferences,
@@ -359,6 +365,7 @@ export function createLiveIdentityService({
       expectedVersion: number,
       operationId: string
     ) {
+      const ownerId = getOwnerId();
       const remote = await parsedRequest(request, '/api/v1/me', profileSchema, {
         method: 'PATCH',
         headers: { 'Idempotency-Key': operationId },
@@ -368,13 +375,14 @@ export function createLiveIdentityService({
           expectedVersion
         }
       });
+      if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
       const next = {
         ...input,
         name: remote.displayName,
         timeZone: remote.timezone,
         version: remote.version
       };
-      await saveLocalProfile(next);
+      await saveLocalProfile(next, ownerId ?? undefined);
       return mutation(next, ['settings.profile']);
     },
     async saveProfileSetup(
@@ -382,6 +390,7 @@ export function createLiveIdentityService({
       snapshot: ProfileSetupSnapshot,
       operationId: string
     ) {
+      const ownerId = getOwnerId();
       const name = input.name.trim();
       const currency = supportedCurrency(input.currency);
       if (!name) throw new HttpError('validation_error', 400);
@@ -400,6 +409,7 @@ export function createLiveIdentityService({
           }
         }
       );
+      if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
       const remotePreferences = await parsedRequest(
         request,
         '/api/v1/me/preferences',
@@ -418,6 +428,7 @@ export function createLiveIdentityService({
           }
         }
       );
+      if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
       const step =
         snapshot.onboarding.step === 'welcome'
           ? 'tracking_intro'
@@ -443,8 +454,10 @@ export function createLiveIdentityService({
           }
         }
       );
+      if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
       onboardingVersion = remoteOnboarding.version;
-      profileSetupComplete = remoteOnboarding.completedSteps.includes('welcome');
+      profileSetupComplete =
+        remoteOnboarding.completedSteps.includes('welcome');
       const profile = {
         ...snapshot.profile,
         name: remoteProfile.displayName,
@@ -455,7 +468,7 @@ export function createLiveIdentityService({
         timeZone: remoteProfile.timezone,
         version: remoteProfile.version
       };
-      await saveLocalProfile(profile);
+      await saveLocalProfile(profile, ownerId ?? undefined);
       return mutation(
         {
           profile,
@@ -513,10 +526,9 @@ export function createLiveIdentityService({
                 body: { confirmation: 'DELETE_MY_ACCOUNT' }
               }
             );
-      return mutation(
-        privacyRequest(kind, operationId, serverRequest),
-        [`settings.privacy-request.${kind}`]
-      );
+      return mutation(privacyRequest(kind, operationId, serverRequest), [
+        `settings.privacy-request.${kind}`
+      ]);
     },
     async deleteLocalData(operationId: string) {
       const deleted = await resetLocalUserData(operationId);

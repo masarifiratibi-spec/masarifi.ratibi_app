@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,9 +6,8 @@ import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
 import { GoogleAccountSelector } from '@/features/auth/GoogleAccountSelector';
-import { authService } from '@/features/auth/auth-flow';
+import { GoogleAuthScreen } from '@/features/auth/GoogleAuthScreen';
 import { validatePhoneInput } from '@/features/auth/phone-validation';
-import { completeAuthenticatedSession } from '@/features/auth/session-controller';
 import { mapAppShellError } from '@/features/shell/app-shell-errors';
 import { translate } from '@/localization/i18n';
 import type { MessageKey } from '@/localization/messages/en';
@@ -22,14 +20,7 @@ import type {
 import { useTheme } from '@/state/theme-context';
 
 export default function AuthPendingRoute() {
-  return (
-    <AuthPendingScreen
-      auth={authService}
-      onAuthenticated={async (session) => {
-        router.replace(await completeAuthenticatedSession(session));
-      }}
-    />
-  );
+  return <GoogleAuthScreen />;
 }
 
 export function AuthPendingScreen({

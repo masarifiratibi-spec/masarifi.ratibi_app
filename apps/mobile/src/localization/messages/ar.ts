@@ -10,6 +10,16 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'googleAuth.brand': 'مصاريفي',
+  'googleAuth.incomplete':
+    'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
+  'googleAuth.welcome': 'مرحبًا بك في مصاريفي',
+  'googleAuth.supporting':
+    'أموالك في مكان واحد. تابع باستخدام حساب Google للبدء.',
+  'googleAuth.continue': 'المتابعة باستخدام Google',
+  'googleAuth.footer': 'استخدم حساب Google نفسه للعودة إلى بياناتك المالية.',
+  'appShell.security.stagingDisabled':
+    'قفل التطبيق غير متاح مؤقتًا في هذا الإصدار التجريبي.',
   'app.title': 'مسارف',
   'app.foundationTitle': 'شاشة التحقق من الأساس',
   'app.foundationIntro':

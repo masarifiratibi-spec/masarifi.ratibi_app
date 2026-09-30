@@ -13,12 +13,23 @@ const clientModes = new Set<ClientMode>(['live', 'demo', 'test']);
 const clerkKeyPattern = /^pk_(?:live|test)_[A-Za-z0-9_-]{10,}$/;
 const publicSecretPattern = /^EXPO_PUBLIC_.*(?:API_KEY|SECRET|SERVICE_ROLE)/;
 const bundledEnvironment = (): RuntimeEnvironment => ({
+  EXPO_PUBLIC_APP_LOCK_ENABLED: process.env.EXPO_PUBLIC_APP_LOCK_ENABLED,
   EXPO_PUBLIC_CLIENT_MODE: process.env.EXPO_PUBLIC_CLIENT_MODE,
   EXPO_PUBLIC_DEMO_MODE: process.env.EXPO_PUBLIC_DEMO_MODE,
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
     process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 });
+
+export function isAppLockEnabled(
+  environment: RuntimeEnvironment = bundledEnvironment()
+): boolean {
+  return !(
+    environment.EXPO_PUBLIC_APP_LOCK_ENABLED === 'false' &&
+    validHttpsUrl(environment.EXPO_PUBLIC_API_URL) ===
+      'https://api.staging.masarifiratibi.com'
+  );
+}
 
 export function resolveClientMode(
   environment: RuntimeEnvironment = bundledEnvironment(),
@@ -34,7 +45,8 @@ export function resolveClientMode(
           ? 'live'
           : 'demo');
 
-  if (!clientModes.has(rawMode as ClientMode)) throw new Error('invalid client mode');
+  if (!clientModes.has(rawMode as ClientMode))
+    throw new Error('invalid client mode');
   return rawMode as ClientMode;
 }
 
@@ -49,7 +61,12 @@ export function resolveClientRuntime(
 
   const mode = resolveClientMode(environment, nodeEnvironment);
   if (mode !== 'live')
-    return { apiUrl: null, billingAvailable: false, clerkPublishableKey: null, mode };
+    return {
+      apiUrl: null,
+      billingAvailable: false,
+      clerkPublishableKey: null,
+      mode
+    };
 
   const apiUrl = validHttpsUrl(environment.EXPO_PUBLIC_API_URL);
   if (!apiUrl) throw new Error('live mode requires a valid HTTPS API URL');
@@ -57,7 +74,10 @@ export function resolveClientRuntime(
   const clerkPublishableKey = environment.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
   if (!clerkPublishableKey || !clerkKeyPattern.test(clerkPublishableKey))
     throw new Error('live mode requires a valid Clerk publishable key');
-  if (nodeEnvironment === 'production' && !clerkPublishableKey.startsWith('pk_live_'))
+  if (
+    nodeEnvironment === 'production' &&
+    !clerkPublishableKey.startsWith('pk_live_')
+  )
     throw new Error('production Clerk publishable key must use pk_live');
 
   return { apiUrl, billingAvailable: false, clerkPublishableKey, mode };
@@ -67,7 +87,12 @@ function validHttpsUrl(value: string | undefined): string | null {
   if (!value) return null;
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password)
+    if (
+      url.protocol !== 'https:' ||
+      !url.hostname ||
+      url.username ||
+      url.password
+    )
       return null;
     return value.replace(/\/+$/, '');
   } catch {

@@ -48,6 +48,7 @@ export function ProfileSetupScreen({
     (state) => state.setBaseCurrencyCode
   );
   const status = useAppShellStore((state) => state.profileSetupStatus);
+  const ownerId = useAppShellStore((state) => state.session?.userId);
   const snapshot = useAppShellStore((state) => state.profileSetupSnapshot);
   const setProfileSetup = useAppShellStore((state) => state.setProfileSetup);
   const initialized = useRef(false);
@@ -67,14 +68,17 @@ export function ProfileSetupScreen({
   }, [snapshot]);
 
   async function loadLatest(): Promise<ProfileSetupSnapshot | null> {
-    setProfileSetup('loading');
+    if (useAppShellStore.getState().session?.userId !== ownerId) return null;
+    if (!snapshot) setProfileSetup('loading');
     try {
       const latest = await service.getProfileSetup();
+      if (useAppShellStore.getState().session?.userId !== ownerId) return null;
       setProfileSetup(latest.complete ? 'complete' : 'incomplete', latest);
       if (latest.complete) navigateHome();
       return latest;
     } catch {
-      setProfileSetup('error');
+      if (useAppShellStore.getState().session?.userId === ownerId && !snapshot)
+        setProfileSetup('error');
       return null;
     }
   }
@@ -96,10 +100,12 @@ export function ProfileSetupScreen({
         snapshot,
         operationId.current
       );
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
       setProfileSetup('complete', result.value);
       setBaseCurrencyCode(result.value.profile.currency);
       navigateHome();
     } catch {
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
       setSaveError(true);
       await loadLatest();
     } finally {

@@ -14,6 +14,7 @@ import {
   signOutAppShellSession
 } from './session-controller';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { HttpError } from '@/services/live/http-client';
 
 jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(),
@@ -90,6 +91,59 @@ afterAll(() => {
 });
 
 describe('session-controller', () => {
+  it('requires Google authentication again when profile bootstrap rejects the account token', async () => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    await restoreAppShellSession(auth, () => true, {
+      getProfileSetup: async () => {
+        throw new HttpError('session_expired', 401);
+      }
+    });
+    expect(useAppShellStore.getState().session?.status).toBe('expired');
+  });
+  it('retains owner-scoped state when active session metadata changes during Retry', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const previous = { ...authenticatedSession, userId: 'user_live_retry' };
+    useAppShellStore.setState({
+      hydrated: true,
+      session: previous,
+      profilePromptDismissed: true
+    });
+    const reset = jest.fn();
+    const unregister = registerRuntimeIdentityReset(reset);
+    try {
+      await restoreAppShellSession(
+        {
+          restoreSession: async () => ({
+            ...previous,
+            issuedAt: 42,
+            expiresAt: 4_000_000_000_000
+          })
+        } as AuthService,
+        () => true,
+        { getProfileSetup: async () => aedProfileSetup }
+      );
+      expect(useAppShellStore.getState().profilePromptDismissed).toBe(true);
+      expect(reset).not.toHaveBeenCalled();
+    } finally {
+      unregister();
+    }
+  });
+  it('hands live Google completion to the provider without resetting private owner state', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    useAppShellStore.setState({
+      hydrated: true,
+      pendingDestination: '/reports'
+    });
+    await expect(
+      completeAuthenticatedSession({
+        ...authenticatedSession,
+        userId: 'user_live_google'
+      })
+    ).resolves.toBe('/index');
+    expect(useAppShellStore.getState().pendingDestination).toBe('/reports');
+    expect(useAppShellStore.getState().session).toBeNull();
+  });
   it('loads server profile setup after restoring an authenticated session', async () => {
     const auth = createMockAuthService({ now: () => 1_000 });
     await auth.signInWithGoogle();
@@ -184,9 +238,7 @@ describe('session-controller', () => {
     mockLoadPreferences.mockReturnValueOnce(
       new Promise((resolve) => {
         finishHydration = () =>
-          resolve(
-            buildPreferences({ locale: 'en', baseCurrencyCode: 'SAR' })
-          );
+          resolve(buildPreferences({ locale: 'en', baseCurrencyCode: 'SAR' }));
       })
     );
     usePreferenceStore.setState({
@@ -307,7 +359,9 @@ describe('session-controller', () => {
     const providerFailure = new Error('provider unavailable');
     jest.spyOn(auth, 'signOut').mockRejectedValueOnce(providerFailure);
 
-    await expect(signOutAppShellSession(auth, 'all')).rejects.toBe(providerFailure);
+    await expect(signOutAppShellSession(auth, 'all')).rejects.toBe(
+      providerFailure
+    );
 
     expect(useAppShellStore.getState().session?.status).toBe('signed_out');
     expect(resetIdentity).toHaveBeenCalledTimes(1);

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Pressable,
+  ActivityIndicator,
   StyleSheet,
   type PressableProps,
   type StyleProp,
@@ -25,6 +26,7 @@ export interface ActionButtonProps extends Omit<
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
+  icon?: React.ReactNode;
 }
 
 export function ActionButton({
@@ -34,6 +36,7 @@ export function ActionButton({
   disabled,
   style,
   labelStyle,
+  icon,
   ...props
 }: ActionButtonProps) {
   const theme = useTheme();
@@ -61,6 +64,11 @@ export function ActionButton({
       ]}
       {...props}
     >
+      {loading ? (
+        <ActivityIndicator accessible={false} color={colors.text} />
+      ) : (
+        icon
+      )}
       <StyledText
         accessible={false}
         variant="subtitle"
@@ -118,6 +126,8 @@ function variantColors(
 
 const styles = StyleSheet.create({
   button: {
+    flexDirection: 'row',
+    gap: 12,
     alignItems: 'center',
     borderRadius: radius.control,
     borderWidth: 1,

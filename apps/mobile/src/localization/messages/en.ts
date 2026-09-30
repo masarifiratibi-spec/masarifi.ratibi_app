@@ -8,6 +8,17 @@
  */
 
 const en = {
+  'googleAuth.brand': 'Masarifi',
+  'googleAuth.incomplete':
+    'Google registration needs additional account information. Please try another Google account or contact support.',
+  'googleAuth.welcome': 'Welcome to Masarifi',
+  'googleAuth.supporting':
+    'Your finances, together in one place. Continue with your Google account to get started.',
+  'googleAuth.continue': 'Continue with Google',
+  'googleAuth.footer':
+    'Use the same Google account to return to your finances.',
+  'appShell.security.stagingDisabled':
+    'App Lock is temporarily unavailable in this Staging version.',
   // App shell
   'app.title': 'Masarifi',
   'app.foundationTitle': 'Foundation Validation Harness',

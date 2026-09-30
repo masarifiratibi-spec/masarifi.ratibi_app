@@ -90,7 +90,9 @@ describe('Mobile strict HTTP client', () => {
     ['IDEMPOTENCY_IN_PROGRESS', 'conflict'],
     ['INVALID_CURRENCY', 'validation_error'],
     ['PROFILE_INACTIVE', 'forbidden'],
-    ['REFERENCE_UNAVAILABLE', 'provider_unavailable']
+    ['REFERENCE_UNAVAILABLE', 'provider_unavailable'],
+    ['PROVIDER_UNAVAILABLE', 'provider_unavailable'],
+    ['PROFILE_SYNC_UNAVAILABLE', 'provider_unavailable']
   ] as const)('maps the BE004 %s error', async (serverCode, clientCode) => {
     await expect(
       requestJson('/reference', schema, {
@@ -178,6 +180,25 @@ describe('Mobile strict HTTP client', () => {
         signal: controller.signal
       })
     ).rejects.toMatchObject({ code: 'provider_unavailable' });
+  });
+
+  it('terminates a hung token acquisition instead of leaving bootstrap pending', async () => {
+    jest.useFakeTimers();
+    configureMobileApiTokenProvider(() => new Promise(() => {}));
+    let failure: unknown;
+    const request = requestJson('/api/v1/me', schema, {
+      baseUrl: 'https://api.example',
+      timeoutMs: 10
+    }).catch((error: unknown) => {
+      failure = error;
+    });
+    await jest.advanceTimersByTimeAsync(10);
+    try {
+      expect(failure).toMatchObject({ code: 'provider_unavailable' });
+      await request;
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('redacts request paths, tokens, payloads, and errors from logs', () => {

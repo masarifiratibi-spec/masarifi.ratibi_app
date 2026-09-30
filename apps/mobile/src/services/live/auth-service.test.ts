@@ -432,24 +432,16 @@ describe('live owner identity mappings', () => {
       },
       affectedScopes: ['settings.privacy-request.account_deletion']
     });
-    expect(request).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/me/privacy/exports',
-      {
-        method: 'POST',
-        headers: { 'Idempotency-Key': 'export-operation-123' },
-        body: {}
-      }
-    );
-    expect(request).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/me/deletion-requests',
-      {
-        method: 'POST',
-        headers: { 'Idempotency-Key': 'deletion-operation-123' },
-        body: { confirmation: 'DELETE_MY_ACCOUNT' }
-      }
-    );
+    expect(request).toHaveBeenNthCalledWith(1, '/api/v1/me/privacy/exports', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'export-operation-123' },
+      body: {}
+    });
+    expect(request).toHaveBeenNthCalledWith(2, '/api/v1/me/deletion-requests', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'deletion-operation-123' },
+      body: { confirmation: 'DELETE_MY_ACCOUNT' }
+    });
   });
 
   test('rejects an unrecognized privacy status', async () => {
@@ -531,6 +523,61 @@ describe('live owner identity mappings', () => {
 });
 
 describe('live profile setup', () => {
+  test('stops the remaining profile setup writes when the owner changes during the first request', async () => {
+    let owner = liveSession.userId;
+    let finish!: (value: unknown) => void;
+    const delayed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const writes: string[] = [];
+    const service = createLiveIdentityService({
+      getOwnerId: () => owner,
+      request: async (path, options) => {
+        if (options?.method) {
+          writes.push(path);
+          if (path === '/api/v1/me') return delayed;
+        }
+        return path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding;
+      }
+    });
+    const snapshot = await service.getProfileSetup();
+    const pending = service.saveProfileSetup(
+      { name: 'Old owner edit', currency: 'SAR' },
+      snapshot,
+      'owner-switch-test'
+    );
+    owner = 'user_live_replacement';
+    finish({ ...profile, displayName: 'Old owner edit' });
+    await expect(pending).rejects.toMatchObject({ code: 'session_expired' });
+    expect(writes).toEqual(['/api/v1/me']);
+  });
+  test('rejects a late profile response after an owner switch before writing local profile data', async () => {
+    let owner = liveSession.userId;
+    let finish!: (value: unknown) => void;
+    const delayed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const saveLocalProfile = jest.fn();
+    const service = createLiveIdentityService({
+      getOwnerId: () => owner,
+      saveLocalProfile,
+      request: async (path) =>
+        path === '/api/v1/me'
+          ? delayed
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding
+    });
+    const pending = service.getProfileSetup();
+    owner = 'user_live_replacement';
+    finish(profile);
+    await expect(pending).rejects.toMatchObject({ code: 'session_expired' });
+    expect(saveLocalProfile).not.toHaveBeenCalled();
+  });
   const profile = {
     id: liveSession.userId,
     displayName: null,
@@ -656,21 +703,23 @@ describe('live profile setup', () => {
   });
 
   test('preserves profile completion when later tracking onboarding is saved', async () => {
-    const request = jest.fn(async (_path: string, options?: { body?: unknown }) => {
-      if (!options)
+    const request = jest.fn(
+      async (_path: string, options?: { body?: unknown }) => {
+        if (!options)
+          return {
+            step: 'tracking_intro',
+            completedSteps: ['welcome'],
+            completedAt: null,
+            version: 8
+          };
         return {
-          step: 'tracking_intro',
-          completedSteps: ['welcome'],
+          step: 'permission_education',
+          completedSteps: ['welcome', 'tracking_intro'],
           completedAt: null,
-          version: 8
+          version: 9
         };
-      return {
-        step: 'permission_education',
-        completedSteps: ['welcome', 'tracking_intro'],
-        completedAt: null,
-        version: 9
-      };
-    });
+      }
+    );
     const service = createLiveIdentityService({ request });
     await service.loadProgress();
     await service.saveProgress({
