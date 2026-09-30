@@ -107,15 +107,17 @@ it('opens Reports and More from fixed physical shell actions', () => {
   });
 });
 
-it('opens the Home period flow and updates the filled month pill', () => {
+it('opens the Home period flow at a UTC/Riyadh month rollover', () => {
   changeLocale('en');
+  usePreferenceStore.setState({ timeZone: 'Asia/Riyadh', monthStartDay: 1 });
+  jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-30T21:04:00Z'));
   renderWithProviders(<HomeScreen summary={summary} />);
 
-  const current = new Date();
+  const current = new Date(Date.now());
   const currentLabel = new Intl.DateTimeFormat('en', {
     month: 'long',
     year: 'numeric',
-    timeZone: 'UTC'
+    timeZone: usePreferenceStore.getState().timeZone
   }).format(current);
   fireEvent.press(screen.getByLabelText(currentLabel));
   expect(screen.getByText('Choose Date Range')).toBeTruthy();
