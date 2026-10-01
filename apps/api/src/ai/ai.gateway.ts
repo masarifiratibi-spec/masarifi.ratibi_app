@@ -348,6 +348,7 @@ const providerCodes = new Set([
   'UNKNOWN',
 ]);
 const requestFields = new Set([
+  'GenerateContentRequest',
   'generation_config',
   'generationConfig',
   'response_schema',
@@ -421,11 +422,13 @@ function recognizedField(value: unknown): value is string {
   return (
     typeof value === 'string' &&
     value.length <= 256 &&
-    /^[A-Za-z_][A-Za-z_0-9]*(?:\[\d{1,2}\])?(?:\.[A-Za-z_][A-Za-z_0-9]*(?:\[\d{1,2}\])?)*$/.test(
+    /^[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*|\[(?:\d{1,2}|[A-Za-z_][A-Za-z_0-9]*)\])*$/.test(
       value,
     ) &&
     value
-      .replace(/\[\d+\]/g, '')
+      .replace(/\[(\d+|[A-Za-z_][A-Za-z_0-9]*)\]/g, (_match, part: string) =>
+        /^\d+$/.test(part) ? '' : `.${part}`,
+      )
       .split('.')
       .every((part) => requestFields.has(part))
   );
@@ -474,6 +477,8 @@ async function rejectionDiagnostic(response: Response, requestId: string): Promi
           }
       }
       if (typeof value.message === 'string') {
+        for (const match of value.message.matchAll(/(?:^|\n)\s*([^:\r\n]{1,256}):/g))
+          if (recognizedField(match[1])) fields.add(match[1]);
         for (const match of value.message.matchAll(/Invalid value at '([^']{1,256})'/g))
           if (recognizedField(match[1])) fields.add(match[1]);
         for (const match of value.message.matchAll(

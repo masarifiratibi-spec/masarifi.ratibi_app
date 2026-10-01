@@ -59,6 +59,64 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  it.each([
+    [
+      'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      [
+        'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      ],
+    ],
+    [
+      'GenerateContentRequest.generation_config.response_schema.properties[PRIVATE_CUSTOMER].enum[0]',
+      [],
+    ],
+    ['PRIVATE_CUSTOMER.generation_config.response_schema.properties[schemaVersion].enum[0]', []],
+    [
+      'GenerateContentRequest.generation_config.response_schema.properties[https://signed.invalid/secret].enum[0]',
+      [],
+    ],
+  ])(
+    'retains only completely allowlisted Google field paths in colon-prefixed errors: %s',
+    async (field, expected) => {
+      const privateText = 'PRIVATE_CUSTOMER audio-base64 Clerk-token API-key';
+      const fetcher = jest.fn(() =>
+        Promise.resolve(
+          response(
+            {
+              error: {
+                metadata: {
+                  raw: JSON.stringify({
+                    error: { status: 'INVALID_ARGUMENT', message: `${field}: ${privateText}` },
+                  }),
+                },
+              },
+            },
+            400,
+          ),
+        ),
+      );
+      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+        .complete({
+          route,
+          userContent: privateText,
+          schema: {},
+          parse: (value) => value,
+          requestId: 'request',
+        })
+        .catch((failure: unknown) => failure);
+      expect(error).toMatchObject({
+        code: 'AI_UNAVAILABLE',
+        retryable: false,
+        diagnostic: {
+          providerCode: 'INVALID_ARGUMENT',
+          rejectedFields: expected,
+        },
+      });
+      expect(JSON.stringify(error)).not.toContain(privateText);
+      expect(JSON.stringify(error)).not.toContain('signed.invalid');
+      expect(JSON.stringify(error)).not.toContain('PRIVATE_CUSTOMER');
+    },
+  );
   it('does not wait for a stalled stream cancellation after the diagnostic size limit', async () => {
     jest.useFakeTimers();
     const fetcher = jest.fn(() =>
