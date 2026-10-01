@@ -46,6 +46,7 @@ import {
 import type { ChartPoint, Metric, SystemStatus } from "@/types/admin";
 import type { DateRangeInput } from "@/features/foundation/contracts";
 import { ApiError } from "@/core/api/errors";
+import { mocksEnabled } from "@/core/config/runtime";
 import { formatDate } from "@/lib/admin-utils";
 
 const PERIOD_PRESETS = ["7d", "30d", "90d"] as const;
@@ -359,6 +360,7 @@ function versionLabel(version: string, locale: Locale): string {
 }
 
 export default function OverviewPage() {
+  const demoMode = mocksEnabled();
   const role = useSimulatedRole();
   const { direction, locale } = useLocale();
   const t = useT();
@@ -392,7 +394,7 @@ export default function OverviewPage() {
     period,
     page: 1,
     pageSize: 5,
-  });
+  }, demoMode);
   const activity = useOverviewActivity({
     platform,
     period,
@@ -528,7 +530,7 @@ export default function OverviewPage() {
               onClick={() => {
                 summary.refetch();
                 analytics.refetch();
-                attention.refetch();
+                if (demoMode) attention.refetch();
                 activity.refetch();
               }}
             >
@@ -610,7 +612,7 @@ export default function OverviewPage() {
             )}
           </RegionState>
         </div>
-        <article className="card attention-card">
+        {demoMode && <article className="card attention-card">
           <div className="card-heading">
             <div>
               <h2>{t("overview.attentionTitle")}</h2>
@@ -664,7 +666,7 @@ export default function OverviewPage() {
               </div>
             )}
           </RegionState>
-        </article>
+        </article>}
       </section>
 
       <section

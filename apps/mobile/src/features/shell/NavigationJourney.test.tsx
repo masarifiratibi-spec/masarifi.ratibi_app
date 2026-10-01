@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { notifyManager } from '@tanstack/react-query';
 
@@ -12,12 +12,38 @@ import AccountsRoute from '@app/accounts';
 import AssistantRoute from '@app/assistant';
 import { createClientDemoSession } from '@/domain/demo-session';
 import { translate, translateDynamic } from '@/localization/i18n';
-import { renderWithProviders } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
+import { settingsKeys } from '@/features/settings/settings-queries';
+import { changeLocale } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { settingsService } from '@/services/mocks/subscription-settings-service';
+import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
+import type { UserProfile } from '@/domain/settings';
+import { ProfileScreen } from '@/features/settings/ProfileScreen';
+import { PrimaryShellHeader } from '@/features/shell/PrimaryShellHeader';
 
 let mockSearchParams: { returnTo?: string } = {};
+const mockClerkName = jest.fn(() => null as string | null);
+jest.mock('@clerk/expo', () => ({
+  getClerkInstance: () => ({
+    user: { id: 'user_fabricated_subject', fullName: mockClerkName() }
+  })
+}));
+
+const publicProfile: UserProfile = {
+  name: 'Saved Person',
+  googleAccount: 's***@example.test',
+  email: 'editable@example.test',
+  avatar: 'default',
+  phone: null,
+  country: 'SA',
+  currency: 'SAR',
+  timeZone: 'Asia/Riyadh',
+  completion: [],
+  version: 1
+};
 
 jest.mock('expo-router', () => ({
   router: {
@@ -99,6 +125,8 @@ afterAll(() => {
 
 describe('navigation journey', () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
+    mockClerkName.mockReturnValue(null);
     mockSearchParams = {};
     jest.clearAllMocks();
     mockAssistantQueries.useAssistantConsent.mockReturnValue({
@@ -140,6 +168,175 @@ describe('navigation journey', () => {
     mockAssistantQueries.useAssistantFeedback.mockReturnValue({
       mutate: jest.fn()
     });
+  });
+
+  it.each([
+    [
+      'en',
+      '  Saved Person  ',
+      'Provider Person',
+      'Saved Person',
+      's***@example.test'
+    ],
+    [
+      'ar',
+      'اسم محفوظ طويل — 李',
+      'Provider Person',
+      'اسم محفوظ طويل — 李',
+      's***@example.test'
+    ],
+    ['en', ' ', 'Provider Person', 'Provider Person', null],
+    ['en', '', null, 'Masarifi User', null],
+    ['ar', '', null, 'مستخدم مصاريفي', null]
+  ] as const)(
+    'shows public account copy in %s with saved name %s',
+    (locale, name, provider, expected, googleAccount) => {
+      changeLocale(locale);
+      useAppShellStore.setState({
+        session: {
+          ...authenticatedSession,
+          userId: 'user_fabricated_subject',
+          method: 'google'
+        }
+      });
+      mockClerkName.mockReturnValue(provider);
+      renderWithQueryData(<MoreRoute />, [
+        [settingsKeys.profile(), { ...publicProfile, name, googleAccount }]
+      ]);
+      expect(screen.getByText(expected)).toBeOnTheScreen();
+      expect(
+        screen.getByText(
+          googleAccount ??
+            (locale === 'ar' ? 'حساب مصاريفي' : 'Masarifi account')
+        )
+      ).toBeOnTheScreen();
+      expect(JSON.stringify(screen.toJSON())).not.toContain(
+        'user_fabricated_subject'
+      );
+      expect(screen.queryByText('editable@example.test')).toBeNull();
+      expect(screen.queryByText(/user(\.ar)?@masarifi\.app/)).toBeNull();
+    }
+  );
+
+  it('keeps public fallbacks during a delayed profile read and after its failure', async () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    let fail!: (error: Error) => void;
+    jest.spyOn(settingsService, 'getProfile').mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      })
+    );
+    renderWithProviders(<MoreRoute />);
+    expect(screen.getByText('Masarifi User')).toBeOnTheScreen();
+    await act(async () => fail(new Error('offline')));
+    expect(screen.getByText('Masarifi User')).toBeOnTheScreen();
+    expect(screen.getByText('Masarifi account')).toBeOnTheScreen();
+    expect(JSON.stringify(screen.toJSON())).not.toContain(
+      'user_fabricated_subject'
+    );
+  });
+
+  it('renders a complete Unicode character as the account initial', () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    renderWithQueryData(<MoreRoute />, [
+      [settingsKeys.profile(), { ...publicProfile, name: '𐐀 Person' }]
+    ]);
+    expect(screen.getByText('𐐀')).toBeOnTheScreen();
+  });
+
+  it('discards a late previous-owner profile after the identity cache is reset', async () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    mockClerkName.mockReturnValue('Previous Provider');
+    let finish!: (profile: UserProfile) => void;
+    jest
+      .spyOn(settingsService, 'getProfile')
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+      )
+      .mockResolvedValue({ ...publicProfile, name: 'Next Person' });
+    renderWithProviders(<MoreRoute />);
+    expect(screen.getByText('Previous Provider')).toBeOnTheScreen();
+    await act(async () => {
+      await resetRuntimeIdentityData();
+      useAppShellStore.setState({
+        session: {
+          ...authenticatedSession,
+          userId: 'user_next_subject',
+          method: 'google'
+        }
+      });
+    });
+    expect(screen.queryByText('Previous Provider')).toBeNull();
+    await act(async () =>
+      finish({ ...publicProfile, name: 'Previous Person' })
+    );
+    await waitFor(() =>
+      expect(screen.getByText('Next Person')).toBeOnTheScreen()
+    );
+    expect(screen.queryByText('Previous Person')).toBeNull();
+  });
+
+  it('updates More and shared initials after a versioned profile edit through query invalidation', async () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    let saved = publicProfile;
+    jest
+      .spyOn(settingsService, 'getProfile')
+      .mockImplementation(async () => saved);
+    jest
+      .spyOn(settingsService, 'saveProfile')
+      .mockImplementation(async (input, expectedVersion) => {
+        if (expectedVersion !== saved.version)
+          throw new Error('PROFILE_VERSION_CONFLICT');
+        saved = { ...saved, ...input, version: saved.version + 1 };
+        return { value: saved, affectedScopes: ['settings.profile'] };
+      });
+    renderWithProviders(
+      <>
+        <MoreRoute />
+        <PrimaryShellHeader origin="/(tabs)/home">{null}</PrimaryShellHeader>
+        <ProfileScreen />
+      </>
+    );
+    await screen.findByDisplayValue('Saved Person');
+    expect(screen.getByText('SP')).toBeOnTheScreen();
+    fireEvent.changeText(
+      screen.getByLabelText(translate('settings.profile.name')),
+      'Edited Person'
+    );
+    fireEvent.press(screen.getByText(translate('settings.profile.save')));
+    await screen.findByText('Edited Person');
+    expect(await screen.findByText('EP')).toBeOnTheScreen();
+    expect(screen.queryByText('Saved Person')).toBeNull();
   });
 
   it('renders every primary and representative secondary destination', async () => {
@@ -245,11 +442,14 @@ describe('navigation journey', () => {
     expect(router.replace).toHaveBeenCalledWith('/(public)/auth-pending');
   });
 
-  it('keeps the client demo profile separate from subscriptions', () => {
+  it('keeps the client demo public profile separate from subscriptions', async () => {
     useAppShellStore.setState({ session: createClientDemoSession(Date.now()) });
     const more = renderWithProviders(<MoreRoute />);
 
-    expect(screen.getAllByText('client-demo').length).toBeGreaterThan(0);
+    expect(screen.queryByText('client-demo')).toBeNull();
+    expect(
+      await screen.findByText(translate('appShell.more.defaultUserEmail'))
+    ).toBeOnTheScreen();
     expect(
       screen.queryByLabelText(
         `client-demo, ${translate('appShell.more.planBasic')}`

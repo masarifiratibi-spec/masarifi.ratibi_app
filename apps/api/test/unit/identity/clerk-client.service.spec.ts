@@ -45,16 +45,21 @@ describe('Clerk Admin client adapter', () => {
       id: 'user_fixture_a',
       primaryEmailAddressId: 'email_a',
       primaryPhoneNumberId: 'phone_a',
-      emailAddresses: [{ id: 'email_a', emailAddress: ' OWNER@EXAMPLE.TEST ' }],
+      emailAddresses: [{ id: 'email_a', emailAddress: ' OWNER@EXAMPLE.TEST ', verification: { status: 'verified' } }],
       phoneNumbers: [{ id: 'phone_a', phoneNumber: '+966500000012' }],
       firstName: ' First ',
       lastName: ' Last ',
+      banned: false,
+      locked: false,
     });
     await expect(service.getIdentityUser('user_fixture_a')).resolves.toEqual({
       id: 'user_fixture_a',
       primaryEmail: 'owner@example.test',
+      primaryEmailVerified: true,
       primaryPhone: '+966500000012',
       displayName: 'First Last',
+      banned: false,
+      locked: false,
     });
   });
 
@@ -79,12 +84,14 @@ describe('Clerk Admin client adapter', () => {
           phoneNumbers: [],
           firstName: null,
           lastName: null,
+          banned: false,
+          locked: false,
         },
       ],
       totalCount: 3,
     });
     await expect(service.listIdentityUsers(0, 1)).resolves.toEqual({
-      users: [{ id: 'user_fixture_a', primaryEmail: null, primaryPhone: null, displayName: null }],
+      users: [{ id: 'user_fixture_a', primaryEmail: null, primaryEmailVerified: false, primaryPhone: null, displayName: null, banned: false, locked: false }],
       nextOffset: 1,
     });
     expect(getUserList).toHaveBeenCalledWith({ offset: 0, limit: 1, orderBy: '+created_at' });

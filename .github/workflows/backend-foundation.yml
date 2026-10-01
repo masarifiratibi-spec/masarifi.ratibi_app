@@ -294,6 +294,9 @@ jobs:
   image:
     needs: [secrets, sentinel-redaction, application, mobile, admin, admin-e2e, database]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -320,13 +323,25 @@ jobs:
         env:
           MASARIFI_IMAGE_UNDER_TEST: masarifi-backend:${{ github.sha }}
       - run: test "$(docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Config.User}}')" = "65532:65532"
-      - run: docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Id}}' > backend-image-digest.txt
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: masarifi-backend:${{ github.sha }}
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+      - name: Record local image evidence
+        if: github.event_name != 'workflow_dispatch'
+        run: docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Id}}' > backend-image-digest.txt
+      - name: Publish scanned staging image
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          IMAGE_REPOSITORY: ghcr.io/${{ github.repository_owner }}/masarifi-backend
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          docker tag "masarifi-backend:${GITHUB_SHA}" "${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+          docker push "${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+          docker image inspect "${IMAGE_REPOSITORY}:${GITHUB_SHA}" --format '{{index .RepoDigests 0}}' \
+            | sed 's/.*@//' > backend-image-digest.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: backend-${{ github.sha }}-image-evidence

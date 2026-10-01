@@ -1,60 +1,54 @@
-import type { PrivacyLockPreference } from '@/domain/app-shell';
+import {
+  pinCredentialSchema,
+  type PinCredential,
+  type PrivacyLockPreference
+} from '@/domain/app-shell';
 import { getRandomBytesAsync } from 'expo-crypto';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-
-type PinCredentialResult =
-  | { hash: string; error?: never }
-  | { error: 'invalid' | 'mismatch'; hash?: never };
-
-export function isValidPin(pin: string): boolean {
-  return /^\d{6}$/.test(pin);
-}
 
 const pinCredentialVersion = 'pbkdf2-sha256';
 const pinKdfIterations = 120_000;
 const pinSaltBytes = 16;
 const pinHashBytes = 32;
 
+type PinCredentialResult =
+  { credential: PinCredential } | { error: 'invalid' | 'mismatch' };
+
+export function isValidPin(pin: string): boolean {
+  return /^\d{6}$/.test(pin);
+}
+
 export async function createPinCredential(
   pin: string,
   confirmation: string,
   randomBytes: (length: number) => Promise<Uint8Array> = getRandomBytesAsync
 ): Promise<PinCredentialResult> {
-  if (!isValidPin(pin)) return { error: 'invalid' as const };
-  if (pin !== confirmation) return { error: 'mismatch' as const };
+  if (!isValidPin(pin)) return { error: 'invalid' };
+  if (pin !== confirmation) return { error: 'mismatch' };
+
   const salt = await randomBytes(pinSaltBytes);
   const hash = await derivePinHash(pin, salt, pinKdfIterations);
   return {
-    hash: `${pinCredentialVersion}:${pinKdfIterations}:${bytesToHex(salt)}:${bytesToHex(hash)}`
+    credential: `${pinCredentialVersion}:${pinKdfIterations}:${bytesToHex(salt)}:${bytesToHex(hash)}`
   };
 }
 
 export async function verifyPin(
   pin: string,
-  expectedHash: string
+  credential: PinCredential
 ): Promise<boolean> {
-  if (!isValidPin(pin)) return false;
-  if (isLegacyPinCredential(expectedHash)) return expectedHash === `pin:${pin}`;
-  const [version, iterationsText, saltHex, hashHex] = expectedHash.split(':');
-  const iterations = Number(iterationsText);
-  if (
-    version !== pinCredentialVersion ||
-    !Number.isInteger(iterations) ||
-    iterations < 10_000 ||
-    iterations > 500_000 ||
-    !/^[a-f0-9]{32}$/.test(saltHex ?? '') ||
-    !/^[a-f0-9]{64}$/.test(hashHex ?? '')
-  ) {
+  if (!isValidPin(pin) || !pinCredentialSchema.safeParse(credential).success)
     return false;
-  }
-  const actual = await derivePinHash(pin, hexToBytes(saltHex), iterations);
-  return constantTimeEqual(actual, hexToBytes(hashHex));
-}
 
-export function isLegacyPinCredential(value: string): boolean {
-  return /^pin:\d{6}$/.test(value);
+  const [, iterationsText, saltHex, hashHex] = credential.split(':');
+  const actual = await derivePinHash(
+    pin,
+    hexToBytes(saltHex),
+    Number(iterationsText)
+  );
+  return constantTimeEqual(actual, hexToBytes(hashHex));
 }
 
 async function derivePinHash(
@@ -78,7 +72,18 @@ function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0;
 }
 
-export function resetLock(_now: number): PrivacyLockPreference {
+export function createBiometricLock(): PrivacyLockPreference {
+  return {
+    pinConfigured: false,
+    biometricStatus: 'enabled',
+    autoLockDuration: 'immediate',
+    invalidAttempts: 0,
+    lockedUntil: null,
+    appLockStatus: 'unlocked'
+  };
+}
+
+export function createPinLock(_now = Date.now()): PrivacyLockPreference {
   return {
     pinConfigured: true,
     biometricStatus: 'disabled',

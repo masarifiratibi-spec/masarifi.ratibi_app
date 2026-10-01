@@ -14,6 +14,7 @@ import type {
   UpdateMaintenanceRequest,
   UpdateSettingsGroupRequest,
   RevokeAdminSessionsRequest,
+  RevokeAdminRoleRequest,
 } from "./contracts";
 import { paginationQuerySchema } from "./contracts";
 import { governanceRepository } from "./repository";
@@ -100,6 +101,23 @@ export function useAssignAdminRoles(adminId: string) {
     mutationKey: [governanceMutationLockKeys.admin("assign-roles", adminId)],
     mutationFn: (request: AssignAdminRolesRequest) => governanceRepository.assignAdminRoles(adminId, request),
     onSuccess: () => void client.invalidateQueries({ queryKey: governanceQueryKeys.actor() }),
+  });
+}
+
+export function useRevokeAdminRole(adminId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationKey: [governanceMutationLockKeys.admin("revoke-role", adminId)],
+    mutationFn: (request: RevokeAdminRoleRequest & { assignmentId: string }) =>
+      governanceRepository.revokeAdminRole(request.assignmentId, request),
+    onSuccess: () => void client.invalidateQueries({ queryKey: governanceQueryKeys.actor() }),
+  });
+}
+
+export function useAcceptAdminInvitation() {
+  return useMutation({
+    mutationKey: [governanceMutationLockKeys.admin("accept-invitation", "current")],
+    mutationFn: (token: string) => governanceRepository.acceptAdminInvitation(token),
   });
 }
 

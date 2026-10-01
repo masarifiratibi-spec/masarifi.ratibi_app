@@ -24,7 +24,7 @@ Run the deterministic seed assertions from test 016. Reapplying the approved
 `INSERT ... ON CONFLICT DO NOTHING` set must insert zero rows and must not change
 versions, timestamps, audit evidence, or Admin-disabled rows. If a code or system
 key is missing, block release and add a reviewed forward seed migration. Disable
-a currency/country/category through the typed Admin command with recent MFA,
+a currency/country/category through the typed Admin command with recent Clerk login,
 reason, and expected version; never delete its natural key or referenced history.
 
 ## Audit or Outbox Failure
@@ -58,7 +58,7 @@ commands; never rewrite ownership, currency, versions, timestamps, or history.
 No provider worker or secret is configured in Phase 04. Missing or stale approved
 metadata must return `FX_UNAVAILABLE`; same-currency identity is the only computed
 rate. Do not seed, estimate, invert, scrape, or simulate a provider rate. A manual
-Admin row requires exact write permission, recent MFA, reason, validation, audit,
+Admin row requires exact write permission, recent Clerk login, reason, validation, audit,
 and outbox evidence.
 
 ## Migration Failure, Previous Image, and Forward Fix

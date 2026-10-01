@@ -71,7 +71,7 @@ export class AiAdminController {
   }
   @Patch('providers/:providerId')
   @ApiOperation({ operationId: 'updateAiProvider' })
-  @adminPermission('ai.providers.manage', { recentMfa: true })
+  @adminPermission('ai.providers.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   updateProvider(
     @Req() request: Request,
@@ -84,7 +84,7 @@ export class AiAdminController {
   @Post('providers/:providerId/actions')
   @HttpCode(200)
   @ApiOperation({ operationId: 'actOnAiProvider' })
-  @adminPermission('ai.providers.manage', { recentMfa: true })
+  @adminPermission('ai.providers.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   actProvider(
     @Req() request: Request,
@@ -104,7 +104,7 @@ export class AiAdminController {
   }
   @Patch('models/:modelId')
   @ApiOperation({ operationId: 'updateAiModel' })
-  @adminPermission('ai.models.manage', { recentMfa: true })
+  @adminPermission('ai.models.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   updateModel(
     @Req() request: Request,
@@ -117,7 +117,7 @@ export class AiAdminController {
   @Post('models/:modelId/actions')
   @HttpCode(200)
   @ApiOperation({ operationId: 'actOnAiModel' })
-  @adminPermission('ai.models.manage', { recentMfa: true })
+  @adminPermission('ai.models.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   actModel(
     @Req() request: Request,
@@ -137,7 +137,7 @@ export class AiAdminController {
   }
   @Patch('routes/:routeId')
   @ApiOperation({ operationId: 'updateAiRoute' })
-  @adminPermission('ai.routes.manage', { recentMfa: true })
+  @adminPermission('ai.routes.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   updateRoute(
     @Req() request: Request,
@@ -158,7 +158,7 @@ export class AiAdminController {
   @Post('prompts')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createAiPromptVersion' })
-  @adminPermission('ai.prompts.manage', { recentMfa: true })
+  @adminPermission('ai.prompts.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   createPrompt(
     @Req() request: Request,
@@ -177,7 +177,7 @@ export class AiAdminController {
   @Post('prompts/:promptVersionId/test')
   @HttpCode(202)
   @ApiOperation({ operationId: 'testAiPromptVersion' })
-  @adminPermission('ai.prompts.publish', { recentMfa: true })
+  @adminPermission('ai.prompts.publish', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   testPrompt(
     @Req() request: Request,
@@ -190,7 +190,7 @@ export class AiAdminController {
   @Post('prompts/:promptVersionId/publish')
   @HttpCode(200)
   @ApiOperation({ operationId: 'publishAiPromptVersion' })
-  @adminPermission('ai.prompts.publish', { recentMfa: true })
+  @adminPermission('ai.prompts.publish', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   publishPrompt(
     @Req() request: Request,
@@ -252,7 +252,7 @@ export class AiAdminController {
   @Post('safety-rules')
   @HttpCode(201)
   @ApiOperation({ operationId: 'createAiSafetyRule' })
-  @adminPermission('ai.safety.manage', { recentMfa: true })
+  @adminPermission('ai.safety.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   createSafety(
     @Req() request: Request,
@@ -270,7 +270,7 @@ export class AiAdminController {
   }
   @Patch('safety-rules/:ruleId')
   @ApiOperation({ operationId: 'updateAiSafetyRule' })
-  @adminPermission('ai.safety.manage', { recentMfa: true })
+  @adminPermission('ai.safety.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   updateSafety(
     @Req() request: Request,
@@ -291,7 +291,7 @@ export class AiAdminController {
   @Post(':resource/:resourceId/actions')
   @HttpCode(200)
   @ApiOperation({ operationId: 'actOnAiOperationalResource' })
-  @adminPermission('ai.operations.manage', { recentMfa: true })
+  @adminPermission('ai.operations.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   operationalAction(
     @Req() request: Request,

@@ -215,8 +215,11 @@ function apiError(status: number, value: unknown): VoiceCaptureError {
   const code =
     value && typeof value === 'object' ? Reflect.get(value, 'code') : undefined;
   if (status === 401) return new VoiceCaptureError('session_expired');
-  if (status === 503 || code === 'AI_UNAVAILABLE' || code === 'AI_TEMPORARILY_UNAVAILABLE')
+  if (code === 'AI_UNAVAILABLE' || code === 'AI_TEMPORARILY_UNAVAILABLE')
     return new VoiceCaptureError('provider_unavailable');
+  if (status === 503 && code === 'PROVIDER_UNAVAILABLE')
+    return new VoiceCaptureError('auth_unavailable');
+  if (status === 503) return new VoiceCaptureError('analysis_unavailable');
   if (status === 422) return new VoiceCaptureError('invalid_proposal');
   if (status === 429) return new VoiceCaptureError('quota_exhausted');
   if (status === 404) return new VoiceCaptureError('analysis_failed');
@@ -384,7 +387,10 @@ export function createLiveVoiceApiService(
       const bytes = await audio.arrayBuffer();
       if (bytes.byteLength < 1 || bytes.byteLength > 12_582_912)
         throw new VoiceCaptureError('recording_interrupted');
-      const header = audio.headers.get('content-type') ?? '';
+      // Android can infer audio/mpeg for the native recorder's M4A files.
+      const header = audioReference.endsWith('.m4a')
+        ? 'audio/m4a'
+        : (audio.headers.get('content-type') ?? '');
       const contentType = [
         'audio/m4a',
         'audio/mp4',

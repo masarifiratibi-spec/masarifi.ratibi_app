@@ -49,7 +49,11 @@ select throws_ok(
   'TRACKING_VERSION_CONFLICT',
   'stale preference update is rejected'
 );
-select is(private.restore_default_keyword_rules('tracking-pgtap-owner'),22,'all bilingual default groups restore');
+insert into public.user_keyword_rules(user_id,keyword,group_key,language_code,origin,match_type,priority,enabled)
+values('tracking-pgtap-owner','Purchase','expense','en','custom','contains',50,false);
+select is(private.restore_default_keyword_rules('tracking-pgtap-owner'),69,'expanded bilingual defaults restore without replacing a conflicting custom rule');
+select is((select count(*) from public.user_keyword_rules where user_id='tracking-pgtap-owner'),70::bigint,'restore retains the custom rule and installs every non-conflicting default');
+select is((select enabled from public.user_keyword_rules where user_id='tracking-pgtap-owner' and origin='custom' and keyword='Purchase'),false,'restore preserves custom keyword state');
 insert into public.accounts(id,user_id,name,type,currency_code)
 values('85000000-0000-4000-8000-000000000010','tracking-pgtap-owner','Tracking card','credit_card','SAR');
 

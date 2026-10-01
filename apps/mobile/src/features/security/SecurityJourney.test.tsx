@@ -1,26 +1,45 @@
 import React from 'react';
 import { Alert, AppState, Text } from 'react-native';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor
+} from '@testing-library/react-native';
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 import SecuritySettingsRoute from '@app/security/settings';
+import ForgotPinRoute from '@app/security/pin/forgot';
 import UnlockRoute from '@app/security/unlock';
 import { translate } from '@/localization/i18n';
 import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { renderWithProviders } from '@/test-utils/render';
-import { authenticatedSession, lockedPrivacy } from '@/test-utils/app-shell-fixtures';
+import {
+  authenticatedSession,
+  lockedPrivacy,
+  pinCredential
+} from '@/test-utils/app-shell-fixtures';
 import { AppPrivacyGate } from './AppPrivacyGate';
 import { UnlockScreen } from './UnlockScreen';
-import { createPinCredential, resetLock } from './privacy-lock';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), replace: jest.fn() }
+}));
 jest.mock('expo-local-authentication', () => ({
   authenticateAsync: jest.fn(),
+  cancelAuthenticate: jest.fn(),
   hasHardwareAsync: jest.fn(),
   isEnrolledAsync: jest.fn(),
   supportedAuthenticationTypesAsync: jest.fn()
+}));
+jest.mock('@/features/auth/auth-flow', () => ({
+  authService: {
+    metadata: { availability: 'available' },
+    signInWithGoogle: jest.fn()
+  }
 }));
 jest.mock('@/storage/local-data-reset', () => ({
   resetLocalUserData: jest.fn(async (operationId: string) => ({
@@ -36,6 +55,9 @@ const requestAccountDeletion = jest.fn();
 const { usePrivacyRequest } = jest.requireMock(
   '@/features/settings/settings-queries'
 ) as { usePrivacyRequest: jest.Mock };
+const { authService } = jest.requireMock('@/features/auth/auth-flow') as {
+  authService: { signInWithGoogle: jest.Mock };
+};
 
 const hasHardware = jest.mocked(LocalAuthentication.hasHardwareAsync);
 const isEnrolled = jest.mocked(LocalAuthentication.isEnrolledAsync);
@@ -53,46 +75,63 @@ beforeEach(() => {
 });
 
 describe('security journey', () => {
-  it('offers forgotten-PIN recovery from the locked screen', () => {
+  it('coalesces Face authentication across an unlock-route remount and preserves the Clerk session', async () => {
+    let finish!: (
+      result: Awaited<
+        ReturnType<typeof LocalAuthentication.authenticateAsync>
+      >
+    ) => void;
+    jest.mocked(LocalAuthentication.authenticateAsync).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+    );
     useAppShellStore.setState({
       hydrated: true,
       session: authenticatedSession,
-      privacyLock: lockedPrivacy,
-      pinCredential: 'pin:123456'
+      pinCredential,
+      privacyLock: { ...lockedPrivacy, pinConfigured: true }
     });
 
+    const first = renderWithProviders(<UnlockRoute />);
+    await waitFor(() =>
+      expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1)
+    );
+    first.unmount();
     renderWithProviders(<UnlockRoute />);
 
-    fireEvent.press(screen.getByLabelText(translate('appShell.security.forgotPin')));
-    expect(router.push).toHaveBeenCalledWith('/security/pin/forgot');
+    expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ success: true }));
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.appLockStatus).toBe(
+        'unlocked'
+      )
+    );
+    expect(useAppShellStore.getState().session).toEqual(authenticatedSession);
+    expect(router.replace).toHaveBeenCalledTimes(1);
   });
 
-  it('covers PIN, biometrics, background mask, expiry precedence, reset, and sign-out', async () => {
-    const credential = await createPinCredential('123456', '123456');
-    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
-    if (!credential.hash) return;
-
-    await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
-    expect(useAppShellStore.getState().privacyLock).toMatchObject({
-      appLockStatus: 'locked'
-    });
-
+  it('covers biometric unlock, background masking, expiry precedence, and reset', async () => {
     const onUnlock = jest.fn(() => useAppShellStore.getState().unlock());
     render(
       <UnlockScreen
-        biometricService={createMockBiometricService('supported', 'authenticated')}
-        expectedHash={credential.hash}
+        biometricService={createMockBiometricService(
+          'supported',
+          'authenticated'
+        )}
         onUnlock={onUnlock}
       />
     );
-    fireEvent.press(screen.getByLabelText('فتح بالبصمة'));
-    expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
+    await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('فتح التطبيق')).toBeNull();
 
     let listener: ((state: string) => void) | null = null;
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
-      listener = callback as (state: string) => void;
-      return { remove: jest.fn() };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
     render(
       <AppPrivacyGate immediate>
         <Text>Protected</Text>
@@ -103,14 +142,15 @@ describe('security journey', () => {
     });
     expect(screen.getByText('المحتوى محمي')).toBeOnTheScreen();
 
-    render(<UnlockScreen expectedHash={credential.hash} sessionExpired />);
+    render(
+      <UnlockScreen
+        biometricService={createMockBiometricService()}
+        sessionExpired
+      />
+    );
     expect(screen.getByText('سجل الدخول للمتابعة')).toBeOnTheScreen();
 
     await useAppShellStore.getState().resetPrivacyLock();
-    expect(useAppShellStore.getState().privacyLock).toBeNull();
-    await useAppShellStore.getState().setPrivacyLock(resetLock(1));
-    await useAppShellStore.getState().signOut();
-    expect(useAppShellStore.getState().session?.status).toBe('signed_out');
     expect(useAppShellStore.getState().privacyLock).toBeNull();
   });
 
@@ -120,9 +160,12 @@ describe('security journey', () => {
     renderWithProviders(<SecuritySettingsRoute />);
     await act(async () => {});
 
-    expect(screen.getByText(translate('appShell.security.pin.create'))).toBeTruthy();
-    expect(screen.getByText(translate('appShell.security.biometric.requiresPin'))).toBeTruthy();
-    expect(screen.getByText(translate('appShell.security.hideBalances'))).toBeTruthy();
+    expect(
+      screen.getByText(translate('appShell.security.biometric.fingerprint'))
+    ).toBeTruthy();
+    expect(
+      screen.getByText(translate('appShell.security.hideBalances'))
+    ).toBeTruthy();
 
     fireEvent.press(screen.getByText(translate('appShell.security.sessions')));
     fireEvent.press(screen.getByText('حذف الحساب'));
@@ -144,35 +187,92 @@ describe('security journey', () => {
     alert.mockRestore();
   });
 
-  it('labels the biometric row with the enrolled kind and blocks it without a PIN', async () => {
+  it('requires an App PIN before biometrics can be enabled', async () => {
     hasHardware.mockResolvedValue(true);
     isEnrolled.mockResolvedValue(true);
     supportedTypes.mockResolvedValue([2]);
 
     renderWithProviders(<SecuritySettingsRoute />);
 
-    expect(
-      await screen.findByText(translate('appShell.security.biometric.face'))
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText(translate('appShell.security.biometric.requiresPin'))
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByLabelText(
-        `${translate('appShell.security.biometric.face')}, ${translate('appShell.security.biometric.requiresPin')}`
-      )
-    ).toBeDisabled();
+    const biometricRow = await screen.findByLabelText(
+      `${translate('appShell.security.biometric.face')}, ${translate('appShell.security.biometric.requiresPin')}`
+    );
+    expect(biometricRow).toBeDisabled();
   });
 
-  it('toggles biometrics on and off once a PIN is configured', async () => {
+  it('enables biometrics only after a successful native check', async () => {
+    hasHardware.mockResolvedValue(true);
+    isEnrolled.mockResolvedValue(true);
+    supportedTypes.mockResolvedValue([2]);
+    jest.mocked(LocalAuthentication.authenticateAsync).mockResolvedValue({
+      success: true
+    });
+    useAppShellStore.setState({
+      pinCredential,
+      privacyLock: {
+        ...lockedPrivacy,
+        pinConfigured: true,
+        biometricStatus: 'disabled'
+      }
+    });
+
+    renderWithProviders(<SecuritySettingsRoute />);
+
+    const biometricRow = await screen.findByLabelText(
+      `${translate('appShell.security.biometric.face')}, ${translate('appShell.security.biometric.subtitle')}`
+    );
+    expect(biometricRow).toBeEnabled();
+
+    fireEvent.press(biometricRow);
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
+        'enabled'
+      )
+    );
+  });
+
+  it('shows navigation and updates the auto-lock duration', async () => {
+    hasHardware.mockResolvedValue(true);
+    isEnrolled.mockResolvedValue(true);
+    supportedTypes.mockResolvedValue([1]);
+    useAppShellStore.setState({ privacyLock: lockedPrivacy });
+
+    renderWithProviders(<SecuritySettingsRoute />);
+
+    expect(
+      screen.getByLabelText(translate('appShell.navigation.back'))
+    ).toBeTruthy();
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    fireEvent.press(
+      screen.getByLabelText(
+        `${translate('appShell.security.autoLock.title')}, ${translate('appShell.security.autoLock.immediate')}`
+      )
+    );
+    const choices = alert.mock.calls[0]?.[2] ?? [];
+    choices
+      .find(
+        (choice) =>
+          choice.text === translate('appShell.security.autoLock.five_minutes')
+      )
+      ?.onPress?.();
+
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.autoLockDuration).toBe(
+        'five_minutes'
+      )
+    );
+    alert.mockRestore();
+  });
+
+  it('disabling biometrics retains the PIN App Lock', async () => {
     hasHardware.mockResolvedValue(true);
     isEnrolled.mockResolvedValue(true);
     supportedTypes.mockResolvedValue([1]);
 
-    const credential = await createPinCredential('123456', '123456');
-    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
-    if (!credential.hash) return;
-    await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
+    useAppShellStore.setState({
+      pinCredential,
+      privacyLock: { ...lockedPrivacy, pinConfigured: true }
+    });
 
     renderWithProviders(<SecuritySettingsRoute />);
 
@@ -183,16 +283,111 @@ describe('security journey', () => {
 
     fireEvent.press(screen.getByLabelText(rowLabel));
     await waitFor(() => {
-      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
-        'enabled'
-      );
+      expect(useAppShellStore.getState()).toMatchObject({
+        pinCredential,
+        privacyLock: {
+          pinConfigured: true,
+          biometricStatus: 'disabled'
+        }
+      });
     });
+  });
 
-    fireEvent.press(screen.getByLabelText(rowLabel));
-    await waitFor(() => {
-      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
-        'disabled'
-      );
+  it('shows create or change/reset PIN actions from current state', async () => {
+    hasHardware.mockResolvedValue(false);
+    const first = renderWithProviders(<SecuritySettingsRoute />);
+    fireEvent.press(await screen.findByText('إنشاء رمز PIN'));
+    expect(router.push).toHaveBeenCalledWith('/security/pin/create');
+    first.unmount();
+
+    useAppShellStore.setState({
+      pinCredential,
+      privacyLock: { ...lockedPrivacy, pinConfigured: true }
     });
+    renderWithProviders(<SecuritySettingsRoute />);
+    fireEvent.press(await screen.findByText('تغيير رمز PIN'));
+    fireEvent.press(screen.getByText('نسيت رمز PIN'));
+    expect(router.push).toHaveBeenCalledWith('/security/pin/change');
+    expect(router.push).toHaveBeenCalledWith('/security/pin/forgot');
+  });
+
+  it('resets App Lock only after authenticated Google reauthentication', async () => {
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'user_live_123456',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 2,
+        restoration: 'restored'
+      },
+      pinCredential,
+      privacyLock: { ...lockedPrivacy, pinConfigured: true }
+    });
+    authService.signInWithGoogle.mockResolvedValueOnce({ status: 'cancelled' });
+    const cancelled = renderWithProviders(<ForgotPinRoute />);
+    fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
+    await screen.findByText('تم إلغاء تسجيل الدخول بجوجل.');
+    expect(useAppShellStore.getState().privacyLock).not.toBeNull();
+    cancelled.unmount();
+
+    authService.signInWithGoogle.mockResolvedValueOnce({
+      status: 'failed',
+      errorCode: 'appShell.error.offline'
+    });
+    const failed = renderWithProviders(<ForgotPinRoute />);
+    fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
+    await screen.findByText('الاتصال غير متاح.');
+    expect(useAppShellStore.getState().privacyLock).not.toBeNull();
+    failed.unmount();
+
+    authService.signInWithGoogle.mockResolvedValueOnce({
+      status: 'authenticated',
+      session: {
+        status: 'authenticated',
+        userId: 'user_live_123456',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 2,
+        restoration: 'restored'
+      }
+    });
+    renderWithProviders(<ForgotPinRoute />);
+    fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
+    await waitFor(() => expect(useAppShellStore.getState().privacyLock).toBeNull());
+    expect(router.replace).toHaveBeenCalledWith('/security/pin/create');
+  });
+
+  it('does not reset App Lock for a different Google owner', async () => {
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'owner-a',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 2,
+        restoration: 'restored'
+      },
+      pinCredential,
+      privacyLock: { ...lockedPrivacy, pinConfigured: true }
+    });
+    authService.signInWithGoogle.mockResolvedValueOnce({
+      status: 'authenticated',
+      session: {
+        status: 'authenticated',
+        userId: 'owner-b',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 2,
+        restoration: 'restored'
+      }
+    });
+    renderWithProviders(<ForgotPinRoute />);
+
+    fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
+
+    await waitFor(() => expect(authService.signInWithGoogle).toHaveBeenCalled());
+    expect(useAppShellStore.getState().privacyLock).not.toBeNull();
+    expect(router.replace).not.toHaveBeenCalledWith('/security/pin/create');
   });
 });

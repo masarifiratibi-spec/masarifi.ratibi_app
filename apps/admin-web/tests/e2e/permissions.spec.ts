@@ -142,11 +142,10 @@ test("limited AI roles receive only their documented projections", async ({ page
 
 test("seven simulated roles expose only their allowed route links", async ({ page }) => {
   await page.goto("/admin");
-  const switcher = page.getByRole("combobox", { name: "الدور التجريبي" });
   await expect(page.locator("nav a").first()).toBeVisible();
 
   for (const [role, allowedRoutes] of Object.entries(matrix)) {
-    await switcher.selectOption(role);
+    await page.evaluate((nextRole) => sessionStorage.setItem("admin-simulated-role", nextRole), role);
     await page.reload();
     const healthButton = page.getByRole("button", { name: /صحة النظام|System Health/ });
     if (allowedRoutes.includes("/admin/system-health" as never)) {

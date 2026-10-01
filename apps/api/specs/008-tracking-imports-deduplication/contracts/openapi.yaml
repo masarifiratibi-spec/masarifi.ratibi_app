@@ -286,7 +286,7 @@ paths:
       operationId: retryAdminImportSession
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/SessionId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -309,7 +309,7 @@ paths:
       operationId: actOnAdminImportFailure
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/ItemId' },
@@ -336,7 +336,7 @@ paths:
       operationId: reviewAdminLowConfidence
       tags: [Admin Imports]
       x-admin-permission: imports.confidence.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/ReviewId' },
@@ -361,7 +361,7 @@ paths:
       operationId: resolveAdminDuplicate
       tags: [Admin Imports]
       x-admin-permission: imports.duplicates.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/CandidateId' },
@@ -387,7 +387,7 @@ paths:
       operationId: actOnUnsupportedFormat
       tags: [Admin Imports]
       x-admin-permission: imports.unsupported.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: formatId
           in: path
@@ -411,7 +411,7 @@ paths:
       operationId: createParserInstitution
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -426,7 +426,7 @@ paths:
       operationId: updateParserInstitution
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/InstitutionId' },
@@ -449,7 +449,7 @@ paths:
       operationId: createParserSender
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -458,7 +458,7 @@ paths:
       operationId: mutateInstitutionSender
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: senderId
           in: path
@@ -484,7 +484,7 @@ paths:
       operationId: createParserRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.rules.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -499,7 +499,7 @@ paths:
       operationId: updateParserRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.rules.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -538,7 +538,7 @@ paths:
       operationId: createParserTestCase
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -547,7 +547,7 @@ paths:
       operationId: runParserCorpus
       tags: [Admin Parsers]
       x-admin-permission: parsers.tests.run
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '202': { $ref: '#/components/responses/TrackingResource' } }
@@ -567,7 +567,7 @@ paths:
       operationId: mutateParserVersion
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: versionId
           in: path
@@ -591,7 +591,7 @@ paths:
       operationId: mutateMerchantRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.merchants.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
@@ -610,7 +610,7 @@ paths:
       operationId: mutateCategoryRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.categories.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
@@ -619,7 +619,7 @@ paths:
       operationId: retryImportSession
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/SessionId' },
@@ -632,7 +632,7 @@ paths:
       operationId: cancelImportSession
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/SessionId' },
@@ -658,7 +658,7 @@ paths:
       operationId: updateUnsupportedFormat
       tags: [Admin Imports]
       x-admin-permission: imports.unsupported.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: formatId
           in: path
@@ -672,7 +672,7 @@ paths:
       operationId: updateParserSender
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: senderId
           in: path
@@ -686,7 +686,7 @@ paths:
       operationId: createParserVersion
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -699,7 +699,7 @@ paths:
       operationId: runParserVersionCorpus
       tags: [Admin Parsers]
       x-admin-permission: parsers.tests.run
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: versionId
           in: path
@@ -712,7 +712,7 @@ paths:
       operationId: publishParserVersion
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: versionId
           in: path
@@ -726,7 +726,7 @@ paths:
       operationId: updateParserTestCase
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: caseId
           in: path
@@ -740,7 +740,7 @@ paths:
       operationId: updateMerchantRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.merchants.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -753,7 +753,7 @@ paths:
       operationId: updateCategoryRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.categories.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -771,7 +771,7 @@ paths:
       operationId: updateImportSettings
       tags: [Admin Imports]
       x-admin-permission: settings.imports.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }

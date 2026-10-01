@@ -8,6 +8,17 @@
  */
 
 const en = {
+  'googleAuth.brand': 'Masarifi',
+  'googleAuth.incomplete':
+    'Google registration needs additional account information. Please try another Google account or contact support.',
+  'googleAuth.welcome': 'Welcome to Masarifi',
+  'googleAuth.supporting':
+    'Your finances, together in one place. Continue with your Google account to get started.',
+  'googleAuth.continue': 'Continue with Google',
+  'googleAuth.footer':
+    'Use the same Google account to return to your finances.',
+  'appShell.security.stagingDisabled':
+    'App Lock is temporarily unavailable in this Staging version.',
   // App shell
   'app.title': 'Masarifi',
   'app.foundationTitle': 'Foundation Validation Harness',
@@ -336,32 +347,29 @@ const en = {
   'appShell.more.accountSettings': 'Account and Settings',
   'appShell.more.profileSummary': 'Profile and account summary',
   'appShell.more.defaultUserName': 'Masarifi User',
-  'appShell.more.defaultUserEmail': 'user@masarifi.app',
+  'appShell.more.defaultUserEmail': 'Masarifi account',
   'appShell.more.planBasic': 'Basic',
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
     'This section is not available in the current build.',
-  'appShell.security.pinLabel': 'PIN',
-  'appShell.security.pinError': 'Enter 6 digits',
-  'appShell.security.savePin': 'Save PIN',
-  'appShell.security.unlock': 'Unlock',
-  'appShell.security.unlockTitle': 'Unlock app',
   'appShell.security.biometricUnlock': 'Unlock with biometrics',
-  'appShell.security.biometricUnlocked': 'Unlocked with biometrics',
   'appShell.security.biometricUnavailable': 'Biometrics unavailable',
   'appShell.security.biometricCancelled':
-    'Biometric unlock was cancelled. Use your PIN.',
-  'appShell.security.biometricFailed': 'Biometric unlock failed. Use your PIN.',
+    'Biometric unlock was cancelled. You can try again.',
+  'appShell.security.biometricFailed': 'Biometric unlock failed. Try again.',
   'appShell.security.biometricLocked':
-    'Biometrics are temporarily locked. Use your PIN.',
-  'appShell.security.invalidPin': 'The PIN is not correct.',
-  'appShell.security.pinMismatch': 'The PINs do not match. Try again.',
-  'appShell.security.reauthenticate':
-    'Sign in to your account before resetting the device PIN.',
+    'Biometrics are temporarily locked by your device.',
+  'appShell.security.pin.create': 'Create App PIN',
+  'appShell.security.pin.confirm': 'Confirm App PIN',
+  'appShell.security.pin.current': 'Enter current App PIN',
+  'appShell.security.pin.change': 'Change App PIN',
+  'appShell.security.pin.forgot': 'Forgot App PIN',
+  'appShell.security.pin.invalid': 'The App PIN is not correct.',
+  'appShell.security.pin.mismatch': 'The App PINs do not match.',
+  'appShell.security.pin.reauthenticate':
+    'Verify your account before resetting App Lock.',
   'appShell.security.protectedContent': 'Content protected',
   'appShell.security.settingsTitle': 'Security settings',
-  'appShell.security.changePin': 'Change PIN',
-  'appShell.security.forgotPin': 'Forgot PIN',
   'appShell.security.mockSignOutAll': 'Sign out everywhere',
   'appShell.profile.name': 'Name',
   'appShell.profile.firstAccount': 'First account',
@@ -408,25 +416,27 @@ const en = {
   'appShell.navigation.back': 'Back',
   'appShell.navigation.close': 'Close',
   'appShell.navigation.authRequired': 'Sign in to continue',
-  'appShell.security.unlock.title': 'Unlock Masarifi',
-  'appShell.security.pin.create': 'Create PIN',
-  'appShell.security.pin.confirm': 'Confirm PIN',
-  'appShell.security.pin.change': 'Change PIN',
-  'appShell.security.pin.forgot': 'Forgot PIN',
-  'appShell.security.pin.retryIn': 'Try again soon',
   'appShell.security.biometric.enable': 'Enable biometrics',
   'appShell.security.biometric.disable': 'Disable biometrics',
-  'appShell.security.biometric.usePin': 'Use PIN instead',
+  'appShell.security.biometric.authenticated': 'Biometrics enabled',
+  'appShell.security.biometric.cancelled':
+    'Biometric verification was cancelled',
+  'appShell.security.biometric.failed': 'Biometric verification failed',
+  'appShell.security.biometric.locked_out':
+    'Biometrics are temporarily locked by your device',
+  'appShell.security.biometric.unavailable':
+    'Biometrics are currently unavailable',
   'appShell.security.biometric.face': 'Face ID',
   'appShell.security.biometric.fingerprint': 'Fingerprint',
   'appShell.security.biometric.subtitle':
-    'Unlock the app with biometrics instead of your PIN',
-  'appShell.security.biometric.requiresPin':
-    'Create a PIN first to enable biometrics',
+    'Protect the app with your fingerprint or face',
   'appShell.security.biometric.notEnrolled':
     'Enroll a biometric in your device settings first',
+  'appShell.security.biometric.requiresPin':
+    'Create an App PIN before enabling biometrics',
   'appShell.security.sections.appLock': 'App Lock',
   'appShell.security.sections.privacy': 'Privacy',
+  'appShell.security.sections.activity': 'Account activity',
   'appShell.security.autoLock.title': 'Auto-Lock',
   'appShell.security.autoLock.immediate': 'Lock immediately',
   'appShell.security.autoLock.one_minute': 'Lock after 1 minute',
@@ -437,6 +447,8 @@ const en = {
   'appShell.security.sessions': 'Active sessions',
   'appShell.security.events': 'Security events',
   'appShell.security.deleteAccount': 'Delete account',
+  'appShell.security.deleteAccount.description':
+    'Deleting your account starts a permanent data-removal request.',
   'appShell.security.deleteAccount.confirmation':
     'Are you sure you want to delete your account?',
   'appShell.progressive.title': 'Finish setup when ready',
@@ -917,6 +929,12 @@ const en = {
   'tracking.status.unavailable': 'Unavailable',
   'tracking.source.bankNotifications': 'Bank notifications',
   'tracking.source.financialSms': 'Financial SMS',
+  'tracking.source.smsTracking': 'SMS tracking',
+  'tracking.source.smsTrackingDescription':
+    'Read financial SMS and match your tracking keywords',
+  'tracking.source.notificationTracking': 'Transaction notification tracking',
+  'tracking.source.notificationTrackingDescription':
+    'Read transaction alerts from banks, wallets, and payment apps',
   'tracking.status.demo': 'Demo tracking — not production data',
   'tracking.permission.warning':
     'Message permissions not granted. Tap to enable.',
@@ -1131,6 +1149,8 @@ const en = {
     'The recording could not be analyzed. Try again or edit it manually.',
   'voice.error.provider_unavailable':
     'Voice analysis is not configured or is temporarily unavailable.',
+  'voice.error.auth_unavailable':
+    'Sign-in verification is temporarily unavailable. Try again later.',
   'voice.error.quota_exhausted':
     'Voice analysis has reached its current usage limit. Try again later.',
   'voice.error.processing_timed_out':
@@ -1436,16 +1456,20 @@ const en = {
   'planning.obligation.lastPayment': 'Last payment',
   'planning.obligation.paymentHistory': 'Payment history',
   'planning.obligation.noPayments': 'No payments yet',
-  'planning.validation.currencyMismatch': 'The account and payment currencies must match.',
+  'planning.validation.currencyMismatch':
+    'The account and payment currencies must match.',
   'planning.paymentMatch.transaction': 'Detected transaction',
   'planning.paymentMatch.suggestedObligation': 'Suggested obligation',
   'planning.paymentMatch.confidenceStrong': 'Strong match',
   'planning.paymentMatch.confidenceReview': 'Review this match',
-  'planning.paymentMatch.reason.amount_match': 'The amount is close to the expected installment.',
-  'planning.paymentMatch.reason.keyword_match': 'The transaction description matches the provider.',
+  'planning.paymentMatch.reason.amount_match':
+    'The amount is close to the expected installment.',
+  'planning.paymentMatch.reason.keyword_match':
+    'The transaction description matches the provider.',
   'planning.paymentMatch.remainingBefore': 'Remaining now',
   'planning.paymentMatch.remainingAfter': 'After matching',
-  'planning.paymentMatch.refreshRequired': 'The match details changed or are incomplete. Refresh before confirming.',
+  'planning.paymentMatch.refreshRequired':
+    'The match details changed or are incomplete. Refresh before confirming.',
   'planning.paymentMatch.confirm': 'Match payment',
   'planning.paymentMatch.ignore': 'Ignore match',
   'planning.paymentMatch.status.clear': 'Clear match',

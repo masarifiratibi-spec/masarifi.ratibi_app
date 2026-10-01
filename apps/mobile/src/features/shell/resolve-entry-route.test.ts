@@ -37,6 +37,26 @@ const base = {
 };
 
 describe('resolveEntryRoute', () => {
+  test('disabled Staging lock permits only a valid authenticated session without changing stored lock state', () => {
+    process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    const locked = { ...unlocked, appLockStatus: 'locked' as const };
+    try {
+      expect(resolveEntryRoute({ ...base, privacyLock: locked })).toBe(
+        '/(tabs)/home'
+      );
+      expect(
+        resolveEntryRoute({ ...base, privacyLock: locked, session: null })
+      ).toBe('/(public)/auth-pending');
+      expect(resolveEntryRoute({ ...base, privacyLock: locked, now: 21 })).toBe(
+        '/(public)/auth-pending'
+      );
+      expect(locked.appLockStatus).toBe('locked');
+    } finally {
+      delete process.env.EXPO_PUBLIC_APP_LOCK_ENABLED;
+      delete process.env.EXPO_PUBLIC_API_URL;
+    }
+  });
   test('waits for hydration before evaluating any account state', () => {
     expect(resolveEntryRoute({ ...base, hydrated: false })).toBe('/index');
   });
@@ -70,7 +90,7 @@ describe('resolveEntryRoute', () => {
     }
   );
 
-  test.each(['incomplete', 'error'] as const)(
+  test.each(['incomplete'] as const)(
     'routes authenticated %s profile setup to the recoverable form',
     (profileSetupStatus) => {
       expect(resolveEntryRoute({ ...base, profileSetupStatus })).toBe(
@@ -78,6 +98,15 @@ describe('resolveEntryRoute', () => {
       );
     }
   );
+
+  test('routes a profile bootstrap failure to entry Retry instead of the profile form', () => {
+    expect(resolveEntryRoute({ ...base, profileSetupStatus: 'error' })).toBe(
+      '/index'
+    );
+    expect(
+      resolveProtectedAccessGate({ ...base, profileSetupStatus: 'error' })
+    ).toBe('/');
+  });
 
   test('lets a completed account bypass local first-launch state after reinstall', () => {
     expect(
@@ -112,9 +141,9 @@ describe('resolveEntryRoute', () => {
   });
 
   test('returns safe pending destinations only for completed accounts', () => {
-    expect(
-      resolveEntryRoute({ ...base, pendingDestination: '/reports' })
-    ).toBe('/reports');
+    expect(resolveEntryRoute({ ...base, pendingDestination: '/reports' })).toBe(
+      '/reports'
+    );
     expect(
       resolveEntryRoute({
         ...base,
@@ -131,8 +160,6 @@ describe('resolveEntryRoute', () => {
         profileSetupStatus: 'incomplete'
       })
     ).toBe('/(onboarding)/profile-setup');
-    expect(
-      resolveProtectedAccessGate({ ...base, hydrated: false })
-    ).toBe('/');
+    expect(resolveProtectedAccessGate({ ...base, hydrated: false })).toBe('/');
   });
 });

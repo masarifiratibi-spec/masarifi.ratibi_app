@@ -278,7 +278,7 @@ export class LedgerService {
       operation: 'createAccountOpening',
       scope: 'reference.account.create',
       principal: input.principal,
-      command: input.body,
+      command: JSON.parse(JSON.stringify(input.body)) as Record<string, unknown>,
       idempotencyKey: input.idempotencyKey ?? '',
       requestId: input.requestId,
       status: 201,

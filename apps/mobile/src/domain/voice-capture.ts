@@ -50,6 +50,7 @@ export type VoiceErrorCode =
   | 'analysis_unavailable'
   | 'analysis_failed'
   | 'provider_unavailable'
+  | 'auth_unavailable'
   | 'quota_exhausted'
   | 'processing_timed_out'
   | 'session_expired'

@@ -1,28 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { router } from 'expo-router';
 
-import { PinForm } from '@/features/security/PinForm';
-
-let pendingPin: string | null = null;
-
-export function getPendingPinForTest() {
-  return pendingPin;
-}
-
-export function clearPendingPin() {
-  pendingPin = null;
-}
+import { PinSetupScreen } from '@/features/security/PinSetupScreen';
+import { useAppShellStore } from '@/state/app-shell';
 
 export default function CreatePinRoute() {
-  const [loading, setLoading] = useState(false);
+  const configurePrivacyLock = useAppShellStore(
+    (state) => state.configurePrivacyLock
+  );
   return (
-    <PinForm
-      loading={loading}
+    <PinSetupScreen
       mode="create"
-      onSubmit={(pin) => {
-        setLoading(true);
-        pendingPin = pin;
-        router.push('/security/pin/confirm');
+      onSave={async (credential) => {
+        await configurePrivacyLock(credential);
+        router.replace('/security/settings');
       }}
     />
   );

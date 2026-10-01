@@ -18,6 +18,25 @@ const url =
   'https://project.supabase.co/storage/v1/object/sign/report-exports/reports/key?token=opaque';
 
 describe('ReportsSmtp', () => {
+  it('renders a report message with the installed mail transport without contacting SMTP', async () => {
+    const transport = nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    });
+    const mail = await transport.sendMail({
+      from: 'reports@example.test',
+      to: 'owner@example.test',
+      subject: 'Report fixture',
+      text: 'Report fixture',
+      messageId: '<fixture@example.test>',
+    });
+    expect(mail.envelope.to).toEqual(['owner@example.test']);
+    if (!Buffer.isBuffer(mail.message)) throw new Error('Expected an in-memory mail buffer');
+    expect(mail.message.toString()).toContain('Message-ID: <fixture@example.test>');
+  });
+
   it('constructs one authenticated TLS-only transport with bounded timeouts', () => {
     const transport = { sendMail: jest.fn() };
     const spy = jest.spyOn(nodemailer, 'createTransport').mockReturnValue(transport as never);

@@ -39,26 +39,59 @@ describe('Clerk webhook security boundary', () => {
     expect(source).not.toMatch(/console\.|logger\./i);
   });
 
-  it('applies a bounded global limit before trusting spoofable request metadata', async () => {
-    const controller = new ClerkWebhookController(
-      {} as never,
-      {
-        get: jest.fn().mockReturnValue(262_144),
-        getRequired: jest.fn(),
-      } as never,
-    );
+  it('does not let unsigned deliveries consume capacity for a verified event', async () => {
+    const { controller, repository, response } = boundary();
     const request = { body: Buffer.from('{}') } as Request;
-    const response = { status: jest.fn() } as unknown as Response;
     for (let attempt = 0; attempt < 120; attempt += 1) {
       const error = await controller
         .receive(request, undefined, undefined, undefined, response)
         .catch((reason: unknown) => reason);
       expect(error).toMatchObject({ status: 401, response: { code: 'WEBHOOK_SIGNATURE_INVALID' } });
     }
-    const limited = await controller
-      .receive(request, undefined, undefined, undefined, response)
-      .catch((reason: unknown) => reason);
-    expect(limited).toMatchObject({ status: 429, response: { code: 'RATE_LIMITED' } });
+    const body = JSON.stringify({ type: 'user.created', data: { id: 'security_fixture' } });
+    const headers = signedHeaders(body, 'msg_security_verified', Math.floor(Date.now() / 1000));
+
+    await expect(
+      controller.receive(
+        { body: Buffer.from(body) } as Request,
+        headers.eventId,
+        headers.timestamp,
+        headers.signature,
+        response,
+      ),
+    ).resolves.toEqual({ accepted: true });
+    expect(repository.receiveClerkWebhook).toHaveBeenCalledTimes(1);
+  });
+
+  it('limits the 121st verified delivery', async () => {
+    const { controller, repository, response } = boundary();
+    const body = JSON.stringify({ type: 'user.updated', data: { id: 'security_fixture' } });
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      const headers = signedHeaders(body, `msg_security_limited_${String(attempt)}`, timestamp);
+      await expect(
+        controller.receive(
+          { body: Buffer.from(body) } as Request,
+          headers.eventId,
+          headers.timestamp,
+          headers.signature,
+          response,
+        ),
+      ).resolves.toEqual({ accepted: true });
+    }
+
+    const headers = signedHeaders(body, 'msg_security_limited_120', timestamp);
+    await expect(
+      controller.receive(
+        { body: Buffer.from(body) } as Request,
+        headers.eventId,
+        headers.timestamp,
+        headers.signature,
+        response,
+      ),
+    ).rejects.toMatchObject({ status: 429, response: { code: 'RATE_LIMITED' } });
+    expect(repository.receiveClerkWebhook).toHaveBeenCalledTimes(120);
   });
 
   it.each([

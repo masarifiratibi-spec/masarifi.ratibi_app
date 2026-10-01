@@ -76,7 +76,7 @@ export function createVoiceRecorderService(): VoiceRecorderService {
       const recording = new AudioModule.AudioRecorder(
         RecordingPresets.HIGH_QUALITY
       );
-      await recording.prepareToRecordAsync();
+      await recording.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
       recording.record();
       const id = `recording-${Date.now()}-${++sequence}`;
       recordings.set(id, recording);

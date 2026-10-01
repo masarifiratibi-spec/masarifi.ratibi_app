@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
 
 import { assertSafeAiInput, hasForbiddenKey } from './ai.schemas';
-import { ASSISTANT_INTENTS, type AssistantIntent } from './ai-routing';
+import { ASSISTANT_INTENTS, type AssistantContextScope, type AssistantIntent } from './ai-routing';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const CONTENT_TYPES = new Set([
@@ -201,6 +201,8 @@ export function assistantMessage(input: unknown) {
     bad();
   return {
     content,
+    contextScope: normalizedScope as AssistantContextScope[],
+    contextScopeProvided: value.contextScope !== undefined,
     intent: intent as AssistantIntent | undefined,
     responseMode: value.responseMode as 'async' | 'stream',
   };

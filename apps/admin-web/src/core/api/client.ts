@@ -210,7 +210,7 @@ export async function requestJson<T>(
 
     const response = await fetch(apiUrl(path), {
       method: options.method,
-      cache: options.cache,
+      cache: options.cache ?? "no-store",
       credentials: "same-origin",
       headers,
       body:
@@ -360,5 +360,8 @@ export const apiClient = {
   },
   patch<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
     return requestJson(path, schema, { method: "PATCH", body });
+  },
+  delete<T>(path: string, body: unknown, schema: z.ZodType<T>, emptyValue: T): Promise<T> {
+    return requestJson(path, schema, { method: "DELETE", body, emptyValue });
   },
 };

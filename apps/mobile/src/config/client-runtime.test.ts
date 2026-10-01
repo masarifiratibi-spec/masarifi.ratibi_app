@@ -1,4 +1,4 @@
-import { resolveClientRuntime } from './client-runtime';
+import { resolveClientRuntime, isAppLockEnabled } from './client-runtime';
 
 const liveEnvironment = {
   EXPO_PUBLIC_CLIENT_MODE: 'live',
@@ -7,22 +7,46 @@ const liveEnvironment = {
 };
 
 describe('Mobile client runtime policy', () => {
+  it('keeps App Lock enabled by default and refuses disabling it against Production', () => {
+    expect(isAppLockEnabled({})).toBe(true);
+    expect(
+      isAppLockEnabled({
+        EXPO_PUBLIC_APP_LOCK_ENABLED: 'false',
+        EXPO_PUBLIC_API_URL: 'https://api.masarifiratibi.com'
+      })
+    ).toBe(true);
+    expect(
+      isAppLockEnabled({
+        EXPO_PUBLIC_APP_LOCK_ENABLED: 'false',
+        EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com'
+      })
+    ).toBe(false);
+  });
   it('starts unconfigured development builds in demo mode', () => {
     expect(resolveClientRuntime({}, 'development').mode).toBe('demo');
   });
 
-  it.each(['live', 'demo', 'test'] as const)('accepts the explicit %s mode outside production', (mode) => {
-    expect(
-      resolveClientRuntime(
-        mode === 'live' ? liveEnvironment : { EXPO_PUBLIC_CLIENT_MODE: mode },
-        'development'
-      ).mode
-    ).toBe(mode);
-  });
+  it.each(['live', 'demo', 'test'] as const)(
+    'accepts the explicit %s mode outside production',
+    (mode) => {
+      expect(
+        resolveClientRuntime(
+          mode === 'live' ? liveEnvironment : { EXPO_PUBLIC_CLIENT_MODE: mode },
+          'development'
+        ).mode
+      ).toBe(mode);
+    }
+  );
 
-  it.each(['demo', 'test'] as const)('allows an explicit %s mode in a production-optimized development bundle', (mode) => {
-    expect(resolveClientRuntime({ EXPO_PUBLIC_CLIENT_MODE: mode }, 'production').mode).toBe(mode);
-  });
+  it.each(['demo', 'test'] as const)(
+    'allows an explicit %s mode in a production-optimized development bundle',
+    (mode) => {
+      expect(
+        resolveClientRuntime({ EXPO_PUBLIC_CLIENT_MODE: mode }, 'production')
+          .mode
+      ).toBe(mode);
+    }
+  );
 
   it('requires a valid HTTPS API URL in live mode', () => {
     expect(() =>
@@ -48,13 +72,16 @@ describe('Mobile client runtime policy', () => {
     ).toThrow('valid Clerk publishable key');
     expect(() =>
       resolveClientRuntime(
-        { ...liveEnvironment, EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'sk_live_secret' },
+        {
+          ...liveEnvironment,
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'sk_live_secret'
+        },
         'development'
       )
     ).toThrow('valid Clerk publishable key');
-    expect(() =>
-      resolveClientRuntime(liveEnvironment, 'production')
-    ).toThrow('production Clerk publishable key');
+    expect(() => resolveClientRuntime(liveEnvironment, 'production')).toThrow(
+      'production Clerk publishable key'
+    );
   });
 
   it.each([
@@ -64,7 +91,10 @@ describe('Mobile client runtime policy', () => {
     'EXPO_PUBLIC_STRIPE_SECRET_KEY'
   ])('rejects forbidden public secret variable %s', (name) => {
     expect(() =>
-      resolveClientRuntime({ ...liveEnvironment, [name]: 'exposed' }, 'development')
+      resolveClientRuntime(
+        { ...liveEnvironment, [name]: 'exposed' },
+        'development'
+      )
     ).toThrow('forbidden public secret variable');
   });
 
@@ -75,6 +105,8 @@ describe('Mobile client runtime policy', () => {
         'development'
       )
     ).toThrow('invalid client mode');
-    expect(resolveClientRuntime(liveEnvironment, 'development').billingAvailable).toBe(false);
+    expect(
+      resolveClientRuntime(liveEnvironment, 'development').billingAvailable
+    ).toBe(false);
   });
 });

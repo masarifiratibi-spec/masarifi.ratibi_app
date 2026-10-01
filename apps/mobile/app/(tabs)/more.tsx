@@ -20,6 +20,9 @@ import { colorTokens } from '@/design-system/tokens';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { authService } from '@/features/auth/auth-flow';
 import { signOutAppShellSession } from '@/features/auth/session-controller';
+import { useSettingsProfile } from '@/features/settings/settings-queries';
+import { resolvePublicDisplayName } from '@/services/live/clerk-name';
+import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
 
 export default function MoreRoute() {
   const theme = useTheme();
@@ -44,13 +47,18 @@ export default function MoreRoute() {
         : null;
 
   const session = useAppShellStore((state) => state.session);
-  const userName = session?.userId
-    ? session.userId.split('@')[0]
-    : translate('appShell.more.defaultUserName', locale);
-  const userEmail =
-    session?.userId ?? translate('appShell.more.defaultUserEmail', locale);
+  const ownerId = session?.status === 'authenticated' ? session.userId : null;
+  const profile = useSettingsProfile(Boolean(ownerId));
+  const userName = resolvePublicDisplayName(
+    ownerId ? profile.data?.name : null,
+    getLiveClerkDisplayName(ownerId),
+    translate('appShell.more.defaultUserName', locale)
+  );
+  const accountLabel =
+    (ownerId && profile.data?.googleAccount?.trim()) ||
+    translate('appShell.more.defaultUserEmail', locale);
   const initial =
-    userName.trim().charAt(0).toUpperCase() || (isRtl ? '\u0639' : 'M');
+    Array.from(userName.trim())[0]?.toUpperCase() || (isRtl ? '\u0639' : 'M');
 
   return (
     <ScrollView
@@ -91,7 +99,7 @@ export default function MoreRoute() {
               { color: theme.colors.content.secondary }
             ]}
           >
-            {userEmail}
+            {accountLabel}
           </StyledText>
         </View>
       </View>

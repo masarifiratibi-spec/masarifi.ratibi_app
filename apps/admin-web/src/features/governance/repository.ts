@@ -1,5 +1,5 @@
 import { apiActorCacheKey, apiClient, mocksEnabled } from "@/core/api/client";
-import type { z } from "zod";
+import { z } from "zod";
 import {
   adminIdSchema,
   adminListQuerySchema,
@@ -15,6 +15,8 @@ import {
   be3RolePageSchema,
   be3RoleSchema,
   be3SessionRevokeResultSchema,
+  acceptAdminInvitationRequestSchema,
+  acceptAdminInvitationResultSchema,
   assignAdminRolesRequestSchema,
   assignAdminRolesResultSchema,
   disableAdminRequestSchema,
@@ -34,6 +36,7 @@ import {
   roleMutationResultSchema,
   roleSchema,
   roleUpdateRequestSchema,
+  revokeAdminRoleRequestSchema,
   permissionMatrixSchema,
   settingsGroupNameSchema,
   settingsGroupSchema,
@@ -124,6 +127,8 @@ export interface GovernanceRepository {
   disableAdmin(adminId: AdminId, input: GovernanceMutationRequest): Promise<GovernanceMutationResult>;
   revokeAdminSessions(adminId: AdminId, input: GovernanceMutationRequest): Promise<GovernanceMutationResult>;
   assignAdminRoles(adminId: AdminId, input: GovernanceMutationRequest): Promise<GovernanceMutationResult>;
+  revokeAdminRole(assignmentId: string, input: GovernanceMutationRequest): Promise<void>;
+  acceptAdminInvitation(token: string): Promise<GovernanceMutationResult>;
   listRoles(input: GovernanceListQuery): Promise<GovernanceReadModel>;
   createRole(input: GovernanceMutationRequest): Promise<GovernanceMutationResult>;
   getRole(roleId: RoleId): Promise<GovernanceReadModel>;
@@ -213,6 +218,24 @@ export const governanceRepository: GovernanceRepository = {
     return apiClient.post("/api/v1/admin/access/assignments", {
       userId: parsed, roleId: request.roleIds[0], reason: request.reason,
     }, be3AssignmentSchema);
+  },
+  async revokeAdminRole(assignmentId, input) {
+    const id = z.uuid().parse(assignmentId);
+    const request = revokeAdminRoleRequestSchema.parse(input);
+    await apiClient.delete(
+      `/api/v1/admin/access/assignments/${encodeURIComponent(id)}`,
+      request,
+      z.null(),
+      null,
+    );
+  },
+  acceptAdminInvitation(token) {
+    const request = acceptAdminInvitationRequestSchema.parse({ token });
+    return apiClient.post(
+      "/api/v1/admin/access/invitations/accept",
+      request,
+      acceptAdminInvitationResultSchema,
+    );
   },
   async listRoles(input) {
     const parsed = paginationQuerySchema.parse({ page: input.page, pageSize: input.pageSize });

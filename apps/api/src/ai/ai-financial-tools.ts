@@ -5,7 +5,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { PlanningService } from '../planning/planning.service';
 import { ReportsService } from '../reports/reports.service';
 import type { ReportsSummaryResponse } from '../reports/reports.repository';
-import type { AssistantIntent } from './ai-routing';
+import type { AssistantContextScope, AssistantIntent } from './ai-routing';
 
 export interface FinancialToolResult {
   answer: string | null;
@@ -26,9 +26,12 @@ export class AssistantFinancialTools {
     intent: AssistantIntent,
     question: string,
     requestId: string,
+    contextScope: readonly AssistantContextScope[],
   ): Promise<FinancialToolResult> {
-    if (['spending_summary', 'income_summary', 'category_breakdown'].includes(intent))
+    if (['spending_summary', 'income_summary', 'category_breakdown'].includes(intent)) {
+      if (!contextScope.includes('recent_transactions')) return unavailableResult();
       return this.reportResult(principal, intent, question, requestId);
+    }
     if (
       [
         'budget_status',
@@ -37,14 +40,36 @@ export class AssistantFinancialTools {
         'upcoming_obligations',
         'salary_status',
       ].includes(intent)
-    )
+    ) {
+      const required = ['obligations_status', 'upcoming_obligations'].includes(intent)
+        ? 'obligations'
+        : intent === 'salary_status'
+          ? 'accounts_summary'
+          : 'budgets';
+      if (!contextScope.includes(required)) return unavailableResult();
       return this.planningResult(principal, intent, question, requestId);
-    if (intent === 'purchase_affordability')
+    }
+    if (intent === 'purchase_affordability') {
+      if (!contextScope.includes('accounts_summary') || !contextScope.includes('obligations'))
+        return unavailableResult();
       return this.affordabilityResult(principal, question, requestId);
-    if (intent === 'recent_transactions' || intent === 'transaction_search')
+    }
+    if (intent === 'recent_transactions' || intent === 'transaction_search') {
+      if (!contextScope.includes('recent_transactions')) return unavailableResult();
       return this.transactionResult(principal, requestId);
+    }
     if (intent === 'general_finance' || intent === 'resolve_tracking_review') return emptyResult();
-    return this.reasoningResult(principal, intent, requestId);
+    if (
+      [
+        'create_transaction',
+        'update_transaction',
+        'update_budget',
+        'create_savings_goal',
+        'record_obligation_payment',
+      ].includes(intent)
+    )
+      return emptyResult();
+    return this.reasoningResult(principal, intent, requestId, contextScope);
   }
 
   private async reportResult(
@@ -136,9 +161,11 @@ export class AssistantFinancialTools {
     principal: ClerkPrincipal,
     intent: AssistantIntent,
     requestId: string,
+    contextScope: readonly AssistantContextScope[],
   ): Promise<FinancialToolResult> {
-    const report = await this.monthlyReport(principal, requestId);
     if (intent === 'period_comparison') {
+      if (!contextScope.includes('recent_transactions')) return unavailableResult();
+      const report = await this.monthlyReport(principal, requestId);
       const previous = await this.reports.getReportSummary(
         principal,
         {
@@ -155,13 +182,26 @@ export class AssistantFinancialTools {
         evidence: report.metadata.evidence,
       };
     }
-    const planning = planningRecord(
-      await this.planning.getPlanningSummary(principal, { period: currentMonth() }, requestId),
-    );
+    const context: Record<string, unknown> = {};
+    const evidence: FinancialToolResult['evidence'] = [];
+    if (contextScope.includes('recent_transactions')) {
+      const report = await this.monthlyReport(principal, requestId);
+      context.report = compactReport(report);
+      evidence.push(...report.metadata.evidence);
+    }
+    if (
+      contextScope.some((scope) => ['accounts_summary', 'budgets', 'obligations'].includes(scope))
+    ) {
+      const planning = planningRecord(
+        await this.planning.getPlanningSummary(principal, { period: currentMonth() }, requestId),
+      );
+      context.planning = compactPlanning(planning, contextScope);
+      evidence.push(...planningEvidence(planning));
+    }
     return {
       answer: null,
-      context: { report: compactReport(report), planning: compactPlanning(planning) },
-      evidence: report.metadata.evidence,
+      context,
+      evidence,
     };
   }
 
@@ -249,12 +289,14 @@ function compactReport(value: unknown) {
   return { summaries: report.summaries, categories: report.breakdowns };
 }
 
-function compactPlanning(value: Record<string, unknown>) {
+function compactPlanning(
+  value: Record<string, unknown>,
+  contextScope: readonly AssistantContextScope[],
+) {
   return {
-    salary: value.salary,
-    budgets: value.budgets,
-    obligations: value.obligations,
-    savings: value.savings,
+    ...(contextScope.includes('accounts_summary') ? { salary: value.salary } : {}),
+    ...(contextScope.includes('budgets') ? { budgets: value.budgets, savings: value.savings } : {}),
+    ...(contextScope.includes('obligations') ? { obligations: value.obligations } : {}),
   };
 }
 

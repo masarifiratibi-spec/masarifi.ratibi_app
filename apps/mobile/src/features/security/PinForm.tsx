@@ -1,67 +1,54 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { translate } from '@/localization/i18n';
 import { isValidPin } from './privacy-lock';
 
 interface PinFormProps {
-  mode: 'create' | 'confirm' | 'change' | 'unlock' | 'reset';
   disabled?: boolean;
   errorMessage?: string;
   loading?: boolean;
-  onSubmit: (pin: string) => void;
+  onSubmit: (pin: string) => void | Promise<void>;
 }
 
 export function PinForm({
   disabled = false,
   errorMessage,
   loading = false,
-  mode,
   onSubmit
 }: PinFormProps) {
   const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
-  const label =
-    mode === 'unlock'
-      ? translate('appShell.security.unlock')
-      : translate('appShell.security.savePin');
 
-  function submit() {
-    if (!isValidPin(pin)) {
-      setError(true);
-      return;
+  async function submit() {
+    if (disabled || loading || !isValidPin(pin)) return;
+    const submittedPin = pin;
+    try {
+      await onSubmit(submittedPin);
+    } finally {
+      setPin('');
     }
-    setError(false);
-    setPin('');
-    onSubmit(pin);
   }
 
   return (
-    <View style={styles.stack}>
+    <View>
       <FormField
-        label="appShell.security.pinLabel"
         editable={!disabled && !loading}
-        errorText={error ? 'appShell.security.pinError' : errorMessage}
+        errorText={errorMessage}
         keyboardType="number-pad"
+        label="appShell.auth.otp.code"
         maxLength={6}
-        onChangeText={setPin}
+        onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))}
         secureTextEntry
         value={pin}
+        variant="otp"
       />
       <ActionButton
-        disabled={disabled}
-        label={label}
+        disabled={disabled || !isValidPin(pin)}
+        label="appShell.auth.otp.submit"
         loading={loading}
         onPress={submit}
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  stack: {
-    gap: 10
-  }
-});

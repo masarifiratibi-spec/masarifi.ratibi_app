@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+
 import {
   GOVERNED_JOB_KEYS,
   OPERATIONS_JOB_KEYS,
@@ -65,6 +67,45 @@ describe('operations job registry', () => {
 });
 
 describe('OperationsWorker', () => {
+  it('keeps the 2026-09-27 staging worker process alive while polling is active', async () => {
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
+        `require('ts-node/register/transpile-only');
+         const { OperationsWorker } = require('./src/operations/operations.worker');
+         const worker = new OperationsWorker(
+           { claim: () => Promise.resolve([]), complete: () => Promise.resolve(), heartbeat: () => Promise.resolve() },
+           { run: () => Promise.resolve({}) },
+         );
+         worker.start();
+         process.stdout.write('started');`,
+      ],
+      { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        child.stdout.once('data', () => {
+          resolve();
+        });
+        child.once('exit', (code) => {
+          reject(new Error(`worker exited early with code ${String(code)}`));
+        });
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(child.exitCode).toBeNull();
+    } finally {
+      child.kill();
+      if (child.exitCode === null)
+        await new Promise<void>((resolve) => {
+          child.once('exit', () => {
+            resolve();
+          });
+        });
+    }
+  });
+
   it('records a safe successful attempt', async () => {
     const completed: unknown[] = [];
     const repository = {

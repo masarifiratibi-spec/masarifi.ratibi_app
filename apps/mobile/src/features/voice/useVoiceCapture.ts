@@ -164,6 +164,8 @@ export function useVoiceCapture({
       }, 250);
     } catch (error) {
       fail(error);
+    } finally {
+      startInFlight.current = false;
     }
   };
 
@@ -257,8 +259,6 @@ export function useVoiceCapture({
       await routeAnalyzedGroup(group);
     } catch (error) {
       fail(error);
-    } finally {
-      startInFlight.current = false;
     }
   };
 

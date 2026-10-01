@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import type { OnboardingProgress } from '@/domain/app-shell';
-import type { UserProfile } from '@/domain/settings';
+import { userProfileSchema, type UserProfile } from '@/domain/settings';
 import { createAuthService } from '@/features/auth/auth-flow';
 import { requestJson } from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
@@ -311,7 +311,7 @@ describe('live owner identity mappings', () => {
       name: 'Authoritative name',
       phone: '+966***55',
       googleAccount: 'au***@example.test',
-      email: 'au***@example.test',
+      email: null,
       currency: 'SAR',
       timeZone: 'Asia/Riyadh',
       version: 7
@@ -419,11 +419,11 @@ describe('live owner identity mappings', () => {
       affectedScopes: ['settings.privacy-request.data_export']
     });
     await expect(
-      service.requestPrivacyAction('account_deletion', 'deletion-operation-123')
+      service.requestPrivacyAction('account_deletion', 'delete-op')
     ).resolves.toEqual({
       value: {
         id: 'deletion-123',
-        operationId: 'deletion-operation-123',
+        operationId: 'delete-op',
         kind: 'account_deletion',
         status: 'pending',
         requestedAt: Date.parse('2026-09-12T11:00:00.000Z'),
@@ -432,24 +432,16 @@ describe('live owner identity mappings', () => {
       },
       affectedScopes: ['settings.privacy-request.account_deletion']
     });
-    expect(request).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/me/privacy/exports',
-      {
-        method: 'POST',
-        headers: { 'Idempotency-Key': 'export-operation-123' },
-        body: {}
-      }
-    );
-    expect(request).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/me/deletion-requests',
-      {
-        method: 'POST',
-        headers: { 'Idempotency-Key': 'deletion-operation-123' },
-        body: { confirmation: 'DELETE_MY_ACCOUNT' }
-      }
-    );
+    expect(request).toHaveBeenNthCalledWith(1, '/api/v1/me/privacy/exports', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'export-operation-123' },
+      body: {}
+    });
+    expect(request).toHaveBeenNthCalledWith(2, '/api/v1/me/deletion-requests', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'delete-op' },
+      body: { confirmation: 'DELETE_MY_ACCOUNT' }
+    });
   });
 
   test('rejects an unrecognized privacy status', async () => {
@@ -531,6 +523,110 @@ describe('live owner identity mappings', () => {
 });
 
 describe('live profile setup', () => {
+  test.each(
+    (['getProfile', 'getProfileSetup', 'saveProfileSetup'] as const).flatMap(
+      (operation) =>
+        [null, 'contact@example.test'].map((email) => ({ operation, email }))
+    )
+  )(
+    '$operation persists masked Google identity while preserving contact email $email',
+    async ({ operation, email }) => {
+      const local = userProfileSchema.parse({
+        name: null,
+        avatar: 'default',
+        phone: null,
+        googleAccount: null,
+        email,
+        country: 'SA',
+        currency: 'SAR',
+        timeZone: 'Asia/Riyadh',
+        completion: [],
+        version: 1
+      });
+      const saveLocalProfile = jest.fn(async (value: UserProfile) => {
+        userProfileSchema.parse(value);
+      });
+      const service = createLiveIdentityService({
+        loadLocalProfile: async () => local,
+        saveLocalProfile,
+        request: async (path) =>
+          path === '/api/v1/me'
+            ? profile
+            : path.endsWith('/preferences')
+              ? { ...preferences, defaultCurrency: 'SAR' }
+              : onboarding
+      });
+      if (operation === 'saveProfileSetup') {
+        await service.saveProfileSetup(
+          { name: 'Owner', currency: 'SAR' },
+          { profile: local, preferences, onboarding, complete: false },
+          'masked-contact'
+        );
+      } else {
+        await service[operation]();
+      }
+      expect(saveLocalProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ googleAccount: 'a***@example.test', email }),
+        undefined
+      );
+    }
+  );
+
+  test('stops the remaining profile setup writes when the owner changes during the first request', async () => {
+    let owner = liveSession.userId;
+    let finish!: (value: unknown) => void;
+    const delayed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const writes: string[] = [];
+    const service = createLiveIdentityService({
+      getOwnerId: () => owner,
+      request: async (path, options) => {
+        if (options?.method) {
+          writes.push(path);
+          if (path === '/api/v1/me') return delayed;
+        }
+        return path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding;
+      }
+    });
+    const snapshot = await service.getProfileSetup();
+    const pending = service.saveProfileSetup(
+      { name: 'Old owner edit', currency: 'SAR' },
+      snapshot,
+      'owner-switch-test'
+    );
+    owner = 'user_live_replacement';
+    finish({ ...profile, displayName: 'Old owner edit' });
+    await expect(pending).rejects.toMatchObject({ code: 'session_expired' });
+    expect(writes).toEqual(['/api/v1/me']);
+  });
+  test('rejects a late profile response after an owner switch before writing local profile data', async () => {
+    let owner = liveSession.userId;
+    let finish!: (value: unknown) => void;
+    const delayed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const saveLocalProfile = jest.fn();
+    const service = createLiveIdentityService({
+      getOwnerId: () => owner,
+      saveLocalProfile,
+      request: async (path) =>
+        path === '/api/v1/me'
+          ? delayed
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding
+    });
+    const pending = service.getProfileSetup();
+    owner = 'user_live_replacement';
+    finish(profile);
+    await expect(pending).rejects.toMatchObject({ code: 'session_expired' });
+    expect(saveLocalProfile).not.toHaveBeenCalled();
+  });
   const profile = {
     id: liveSession.userId,
     displayName: null,
@@ -656,21 +752,23 @@ describe('live profile setup', () => {
   });
 
   test('preserves profile completion when later tracking onboarding is saved', async () => {
-    const request = jest.fn(async (_path: string, options?: { body?: unknown }) => {
-      if (!options)
+    const request = jest.fn(
+      async (_path: string, options?: { body?: unknown }) => {
+        if (!options)
+          return {
+            step: 'tracking_intro',
+            completedSteps: ['welcome'],
+            completedAt: null,
+            version: 8
+          };
         return {
-          step: 'tracking_intro',
-          completedSteps: ['welcome'],
+          step: 'permission_education',
+          completedSteps: ['welcome', 'tracking_intro'],
           completedAt: null,
-          version: 8
+          version: 9
         };
-      return {
-        step: 'permission_education',
-        completedSteps: ['welcome', 'tracking_intro'],
-        completedAt: null,
-        version: 9
-      };
-    });
+      }
+    );
     const service = createLiveIdentityService({ request });
     await service.loadProgress();
     await service.saveProgress({

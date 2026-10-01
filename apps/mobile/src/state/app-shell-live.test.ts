@@ -5,9 +5,12 @@ import { usePreferenceStore } from './preferences';
 import * as database from '@/storage/database';
 import { waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import type {
   AuthenticationSession,
-  OnboardingProgress
+  OnboardingProgress,
+  PinCredential,
+  PrivacyLockPreference
 } from '@/domain/app-shell';
 
 jest.mock('@/storage/local-data-reset', () => ({
@@ -16,6 +19,17 @@ jest.mock('@/storage/local-data-reset', () => ({
     operationId: 'unused'
   }))
 }));
+jest.mock('expo-secure-store', () => ({
+  deleteItemAsync: jest.fn(),
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn()
+}));
+jest.mock('expo-crypto', () => ({
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  digestStringAsync: jest.fn(async () => 'a'.repeat(64))
+}));
+
+const secureGet = jest.mocked(SecureStore.getItemAsync);
 
 const liveSession: AuthenticationSession = {
   status: 'authenticated',
@@ -35,11 +49,22 @@ const onboarding: OnboardingProgress = {
   trackingPreference: null,
   updatedAt: 1_000
 };
+const credential =
+  `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(32)}` as PinCredential;
+const pinLock: PrivacyLockPreference = {
+  pinConfigured: true,
+  biometricStatus: 'enabled',
+  autoLockDuration: 'immediate',
+  invalidAttempts: 0,
+  lockedUntil: null,
+  appLockStatus: 'unlocked'
+};
 
 beforeEach(() => {
   delete process.env.EXPO_PUBLIC_DEMO_MODE;
   process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
   jest.clearAllMocks();
+  secureGet.mockResolvedValue(null);
   useAppShellStore.getState().reset();
 });
 
@@ -97,8 +122,7 @@ test('sign-out hides the previous owner view while preserving its stored data', 
     session: { status: 'signed_out' },
     onboarding: null,
     pendingDestination: null,
-    privacyLock: null,
-    pinCredential: null
+    privacyLock: null
   });
 });
 
@@ -117,8 +141,8 @@ test('hides the previous owner before switching the live database owner', async 
     session: liveSession,
     onboarding,
     privacyLock: {
-      pinConfigured: true,
-      biometricStatus: 'disabled',
+      pinConfigured: false,
+      biometricStatus: 'enabled',
       autoLockDuration: 'immediate',
       invalidAttempts: 0,
       lockedUntil: null,
@@ -142,4 +166,33 @@ test('hides the previous owner before switching the live database owner', async 
   releaseOwnerSwitch?.();
   await switching;
   configureOwner.mockRestore();
+});
+
+test('restores the owner-scoped PIN when authenticating a live session', async () => {
+  const ownerSuffix = 'a'.repeat(24);
+  secureGet.mockImplementation(async (key) => {
+    if (key === `masarifi.appShell.privacyLock.${ownerSuffix}`)
+      return JSON.stringify(pinLock);
+    if (key === `masarifi.appShell.pinCredential.${ownerSuffix}`)
+      return JSON.stringify(credential);
+    return null;
+  });
+  const configureOwner = jest
+    .spyOn(database, 'configureDatabaseOwner')
+    .mockResolvedValue(undefined);
+
+  try {
+    await useAppShellStore.getState().authenticate(liveSession);
+  } finally {
+    configureOwner.mockRestore();
+  }
+
+  expect(useAppShellStore.getState()).toMatchObject({
+    session: liveSession,
+    pinCredential: credential,
+    privacyLock: {
+      pinConfigured: true,
+      appLockStatus: 'locked'
+    }
+  });
 });

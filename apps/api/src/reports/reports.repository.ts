@@ -165,6 +165,9 @@ function safeInteger(value: string): number {
 function mapDatabaseError(error: unknown): HttpException {
   if (error instanceof HttpException) return error;
   const code = (error as { code?: string }).code;
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('REPORT_QUOTA_EXCEEDED'))
+    return new HttpException({ code: 'REPORT_QUOTA_EXCEEDED' }, 429);
   if (code === '57014') return new HttpException({ code: 'REPORT_QUERY_TIMEOUT' }, 503);
   if (code === '42501') return new HttpException({ code: 'FORBIDDEN' }, 403);
   if (code === 'P0002') return new HttpException({ code: 'REPORT_NOT_FOUND' }, 404);
@@ -293,10 +296,23 @@ export class ReportsRepository {
   ): Promise<Record<string, unknown>> {
     try {
       return await this.pool.withClient(async (client) => {
+        const keyHash = hashIdempotencyKey(idempotencyKey);
+        await client.query('begin');
+        try {
+          await this.setApiContext(client, principal);
+          await client.query('select private.reserve_user_job_quota($1,$2,$3)', [
+            principal.userId,
+            'report_generation',
+            keyHash,
+          ]);
+          await client.query('commit');
+        } catch (error) {
+          await client.query('rollback');
+          throw error;
+        }
         await client.query('begin isolation level repeatable read');
         try {
           await this.setApiContext(client, principal);
-          const keyHash = hashIdempotencyKey(idempotencyKey);
           const requestHash = hashNormalizedCommand(command);
           const claim = (
             await client.query<IdempotencyClaim>(

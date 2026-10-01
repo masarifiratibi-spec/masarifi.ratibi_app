@@ -38,6 +38,7 @@ import { createSettingsStorage } from '@/storage/settings-storage';
 import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { createLiveIdentityService } from '@/services/live/auth-service';
+import { useAppShellStore } from '@/state/app-shell';
 
 type Repository = Pick<
   SubscriptionsRepository,
@@ -629,6 +630,7 @@ export function createProductionSettingsService() {
   const settingsStorage = createSettingsStorage();
   const shellStorage = createAppShellStorage();
   return createLiveIdentityService({
+    getOwnerId: () => useAppShellStore.getState().session?.userId ?? null,
     loadLocalProfile: settingsStorage.loadProfile,
     saveLocalProfile: settingsStorage.saveProfile,
     loadLocalOnboarding: shellStorage.loadOnboarding,

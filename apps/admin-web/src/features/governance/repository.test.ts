@@ -395,6 +395,44 @@ describe("BE003 exact live access governance mapping", () => {
     });
     expect(idempotencyKey).toBeTruthy();
   });
+
+  test("assigns and revokes live role IDs and accepts invitation tokens through exact routes", async () => {
+    const assignmentId = "23000000-0000-4000-8000-000000000004";
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    mockServer.use(
+      http.post("/api/v1/admin/access/assignments", async ({ request }) => {
+        calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return HttpResponse.json({ id: assignmentId, userId: "user_target", roleId, startsAt: liveAt, endsAt: null, revokedAt: null, version: 1 }, { status: 201 });
+      }),
+      http.delete(`/api/v1/admin/access/assignments/${assignmentId}`, async ({ request }) => {
+        calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.post("/api/v1/admin/access/invitations/accept", async ({ request }) => {
+        calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return HttpResponse.json({ id: "user_target", status: "active" });
+      }),
+    );
+
+    await governanceRepository.assignAdminRoles("user_target", {
+      adminId: "user_target",
+      roleIds: [roleId],
+      reason: "Assign the reviewed live role.",
+      expectedVersion: 1,
+      submissionKey: "SUB-LIVE-ASSIGNMENT",
+    });
+    await governanceRepository.revokeAdminRole(assignmentId, {
+      expectedVersion: 1,
+      reason: "Revoke the reviewed live role.",
+    });
+    await governanceRepository.acceptAdminInvitation("x".repeat(32));
+
+    expect(calls).toEqual([
+      { method: "POST", path: "/api/v1/admin/access/assignments", body: { userId: "user_target", roleId, reason: "Assign the reviewed live role." } },
+      { method: "DELETE", path: `/api/v1/admin/access/assignments/${assignmentId}`, body: { expectedVersion: 1, reason: "Revoke the reviewed live role." } },
+      { method: "POST", path: "/api/v1/admin/access/invitations/accept", body: { token: "x".repeat(32) } },
+    ]);
+  });
 });
 
 function percentageRule(value: string | undefined): boolean {

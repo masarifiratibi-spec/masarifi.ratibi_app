@@ -1,6 +1,11 @@
 import { AiService } from '../../../src/ai/ai.service';
 import type { FinancialToolResult } from '../../../src/ai/ai-financial-tools';
-import type { AssistantIntent, AssistantTurn } from '../../../src/ai/ai-routing';
+import {
+  routeAssistantMessage,
+  type AssistantContextScope,
+  type AssistantIntent,
+  type AssistantTurn,
+} from '../../../src/ai/ai-routing';
 
 const owner = { userId: 'owner', sessionId: 'session', factorAgeSeconds: 0 };
 const conversationId = '99000000-0000-4000-8000-000000000001';
@@ -9,6 +14,18 @@ const accepted = {
 };
 
 describe('AiService provider-boundary routing', () => {
+  it.each([
+    ['spending_summary', ['recent_transactions']],
+    ['budget_status', ['budgets']],
+    ['financial_health', ['accounts_summary', 'recent_transactions', 'budgets', 'obligations']],
+    ['create_transaction', ['accounts_summary', 'recent_transactions']],
+    ['resolve_tracking_review', ['tracking_reviews']],
+  ] as const)('derives the minimum financial context for %s', (intent, contextScopes) => {
+    expect(routeAssistantMessage({ content: 'safe', intentHint: intent })).toMatchObject({
+      contextScopes,
+    });
+  });
+
   const repository = {
     workloadAvailable: jest.fn(() => Promise.resolve(true)),
     recentConversationTurns: jest.fn<Promise<AssistantTurn[]>, []>(() => Promise.resolve([])),
@@ -20,13 +37,15 @@ describe('AiService provider-boundary routing', () => {
     ),
   };
   const tools = {
-    resolve: jest.fn<Promise<FinancialToolResult>, [typeof owner, AssistantIntent, string, string]>(
-      () =>
-        Promise.resolve({
-          answer: 'صرفت 2,350 ريال هذا الشهر.',
-          context: { monthlySpendingMinor: 235_000, currency: 'SAR' },
-          evidence: [{ kind: 'ledger', version: 12 }],
-        }),
+    resolve: jest.fn<
+      Promise<FinancialToolResult>,
+      [typeof owner, AssistantIntent, string, string, readonly AssistantContextScope[]]
+    >(() =>
+      Promise.resolve({
+        answer: 'صرفت 2,350 ريال هذا الشهر.',
+        context: { monthlySpendingMinor: 235_000, currency: 'SAR' },
+        evidence: [{ kind: 'ledger', version: 12 }],
+      }),
     ),
   };
   const service = new AiService(
@@ -78,6 +97,7 @@ describe('AiService provider-boundary routing', () => {
       'spending_summary',
       'صرفي كام الشهر ده؟',
       expect.any(String),
+      ['recent_transactions'],
     );
     expect(repository.workloadAvailable).not.toHaveBeenCalled();
     expect(repository.enqueueMessage).not.toHaveBeenCalled();
@@ -115,6 +135,7 @@ describe('AiService provider-boundary routing', () => {
       conversationId,
       expect.objectContaining({
         intent: 'period_comparison',
+        contextScope: ['recent_transactions'],
         context: {
           current: { expenseMinor: 235_000 },
           previous: { expenseMinor: 200_000 },
@@ -139,6 +160,60 @@ describe('AiService provider-boundary routing', () => {
       conversationId,
       expect.objectContaining({ intent: 'general_finance', context: {}, evidence: [] }),
       'message-operation-key-0004',
+    );
+  });
+
+  it('lets an explicit context scope only reduce the intent minimum', async () => {
+    tools.resolve.mockImplementationOnce((_owner, _intent, _question, _requestId, contextScope) =>
+      Promise.resolve({ answer: null, context: { selected: contextScope }, evidence: [] }),
+    );
+
+    await service.createMessage(
+      owner,
+      conversationId,
+      {
+        content: 'كيف وضعي المالي؟',
+        intent: 'financial_health',
+        contextScope: ['budgets', 'tracking_reviews'],
+        responseMode: 'async',
+      },
+      'message-operation-key-0005',
+    );
+
+    expect(repository.enqueueMessage).toHaveBeenCalledWith(
+      owner,
+      conversationId,
+      expect.objectContaining({
+        contextScope: ['budgets'],
+        context: { selected: ['budgets'] },
+      }),
+      'message-operation-key-0005',
+    );
+  });
+
+  it('honors an explicitly empty context scope', async () => {
+    tools.resolve.mockImplementationOnce((_owner, _intent, _question, _requestId, contextScope) =>
+      Promise.resolve({ answer: null, context: { selected: contextScope }, evidence: [] }),
+    );
+
+    await service.createMessage(
+      owner,
+      conversationId,
+      {
+        content: 'كيف وضعي المالي؟',
+        intent: 'financial_health',
+        contextScope: [],
+        responseMode: 'async',
+      },
+      'message-operation-key-0006',
+    );
+
+    expect(tools.resolve).toHaveBeenLastCalledWith(
+      owner,
+      'financial_health',
+      'كيف وضعي المالي؟',
+      expect.any(String),
+      [],
     );
   });
 });

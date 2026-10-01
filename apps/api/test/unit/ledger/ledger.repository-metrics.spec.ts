@@ -145,3 +145,73 @@ describe('ledger command metrics', () => {
     );
   });
 });
+
+describe('unavailable ledger diagnostics', () => {
+  let lines: string[];
+  beforeEach(() => {
+    lines = [];
+    jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      lines.push(String(chunk));
+      return true;
+    });
+  });
+
+  it.each([
+    ['42883', '42883'],
+    ['secret-owner@example.test', 'UNKNOWN'],
+    [undefined, 'UNKNOWN'],
+  ])('logs only a validated SQLSTATE for lookup failure %s', async (code, expectedCode) => {
+    const failure = Object.assign(new Error('private SQL and financial payload'), {
+      code,
+      detail: 'owner@example.test credential and transaction amount',
+    });
+    const repository = new LedgerRepository({
+      withClient: () => Promise.reject(failure),
+    } as never);
+    await expect(repository.replayCompleted(input)).rejects.toMatchObject({
+      response: { code: 'LEDGER_UNAVAILABLE' },
+      status: 503,
+    });
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines.join(''))).toMatchObject({
+      level: 'error',
+      message: 'LEDGER_UNAVAILABLE',
+      eventName: 'ledger.database.failure',
+      context: input.operation,
+      state: 'lookup',
+      code: expectedCode,
+    });
+    expect(lines.join('')).not.toMatch(
+      /owner@|credential|payload|metrics-user|metrics-key|private SQL/,
+    );
+  });
+
+  it('identifies account creation and preserves its unavailable result', async () => {
+    const repository = new LedgerRepository({
+      withClient: () => Promise.reject(Object.assign(new Error('private data'), { code: 'XX000' })),
+    } as never);
+    await expect(
+      repository.createAccount({ ...input, operation: 'createAccount' } as never, {} as never),
+    ).rejects.toMatchObject({ response: { code: 'LEDGER_UNAVAILABLE' }, status: 503 });
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines.join(''))).toMatchObject({
+      message: 'LEDGER_UNAVAILABLE',
+      eventName: 'ledger.database.failure',
+      context: 'createAccountOpening',
+      state: 'command',
+      code: 'XX000',
+    });
+  });
+
+  it('keeps permission failures denied without logging them as unavailable', async () => {
+    const repository = new LedgerRepository({
+      withClient: () =>
+        Promise.reject(Object.assign(new Error('FINANCIAL_ACCESS_DENIED'), { code: '42501' })),
+    } as never);
+    await expect(repository.replayCompleted(input)).rejects.toMatchObject({
+      response: { code: 'FORBIDDEN' },
+      status: 403,
+    });
+    expect(lines).toEqual([]);
+  });
+});

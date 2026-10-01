@@ -31,10 +31,15 @@ export function useAdminNavigation(role: AdminRole) {
   });
 }
 
-export function useAttention(role: AdminRole, input: AttentionQuery = { page: 1, pageSize: 10 }) {
+export function useAttention(
+  role: AdminRole,
+  input: AttentionQuery = { page: 1, pageSize: 10 },
+  enabled = true,
+) {
   return useQuery({
     queryKey: foundationQueryKeys.attention(role, input),
     queryFn: () => foundationRepository.getAttention(role, input),
+    enabled,
   });
 }
 

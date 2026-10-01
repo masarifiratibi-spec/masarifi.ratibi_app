@@ -16,6 +16,16 @@ export interface ClerkPrincipalRequest extends Request {
   clerkPrincipal?: ClerkPrincipal;
 }
 
+export function isRecentClerkAuthentication(
+  principal: ClerkPrincipal,
+  maximumAgeSeconds: number,
+): boolean {
+  const age = principal.factorAgeSeconds;
+  return (
+    typeof age === 'number' && Number.isSafeInteger(age) && age >= 0 && age <= maximumAgeSeconds
+  );
+}
+
 function authError(
   code: 'AUTH_TOKEN_INVALID' | 'PROVIDER_UNAVAILABLE',
   status: 401 | 503,

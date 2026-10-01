@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Masarifi",
-    "slug": "masarifi-mobile",
+    "slug": "masarifiratibi",
     "version": "0.0.1",
     "orientation": "portrait",
     "scheme": "masarifi",
@@ -66,7 +66,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "a6cc51cf-3b15-4a78-8ef1-927fdd265824"
+        "projectId": "c8cc3dd3-a7e9-4737-ac4d-32f076107600"
       },
       "clientPolicy": {
         "modes": [
@@ -76,6 +76,7 @@
         ],
         "billingAvailable": false
       }
-    }
+    },
+    "owner": "masarifiratibi"
   }
 }

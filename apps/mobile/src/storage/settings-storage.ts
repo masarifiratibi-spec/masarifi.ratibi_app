@@ -4,7 +4,7 @@ import {
   type UserProfile
 } from '@/domain/settings';
 import { usePreferenceStore } from '@/state/preferences';
-import { openDatabase } from './database';
+import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 
 const profileDefaults: Omit<UserProfile, 'currency'> = {
   name: null,
@@ -45,22 +45,23 @@ export function createSettingsStorage() {
         voiceEnabled: preferences.voiceEnabled
       };
     },
-    async loadProfile(): Promise<UserProfile | null> {
+    async loadProfile(ownerId?: string): Promise<UserProfile | null> {
       const row = await (
-        await openDatabase()
+        await openDatabase(ownerId)
       ).getFirstAsync<{ payload: string }>(
         "SELECT payload FROM settings_profile WHERE id = 'singleton'"
       );
       return row ? userProfileSchema.parse(JSON.parse(row.payload)) : null;
     },
-    async saveProfile(profile: UserProfile): Promise<void> {
-      await (
-        await openDatabase()
-      ).runAsync(
-        "INSERT INTO settings_profile (id, payload, updated_at) VALUES ('singleton', ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
-        JSON.stringify(userProfileSchema.parse(profile)),
-        Date.now()
-      );
+    async saveProfile(profile: UserProfile, ownerId?: string): Promise<void> {
+      const database = await openDatabase(ownerId);
+      await runExclusiveDatabaseTransaction(database, async (transaction) => {
+        await transaction.runAsync(
+          "INSERT INTO settings_profile (id, payload, updated_at) VALUES ('singleton', ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
+          JSON.stringify(userProfileSchema.parse(profile)),
+          Date.now()
+        );
+      });
     },
     async hydrate(): Promise<void> {
       await usePreferenceStore.getState().hydrate();

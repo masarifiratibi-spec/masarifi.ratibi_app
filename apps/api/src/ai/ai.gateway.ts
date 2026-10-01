@@ -114,6 +114,10 @@ export class AiGateway {
       Math.min(remaining, 3_000),
     );
     try {
+      const completionParameters =
+        candidate.modelId === 'openai/gpt-6-luna'
+          ? { max_completion_tokens: input.route.limits.outputTokens }
+          : { max_tokens: input.route.limits.outputTokens, temperature: 0 };
       const body = JSON.stringify({
         model: candidate.modelId,
         messages: [
@@ -128,8 +132,7 @@ export class AiGateway {
             schema: input.schema,
           },
         },
-        max_tokens: input.route.limits.outputTokens,
-        temperature: 0,
+        ...completionParameters,
         stream: false,
         provider: {
           only: [candidate.provider],
@@ -137,7 +140,10 @@ export class AiGateway {
           require_parameters: true,
           data_collection: 'deny',
           zdr: true,
-          max_price: input.route.maxPrice,
+          max_price: {
+            prompt: Number((Number(input.route.maxPrice.prompt) * 1_000_000).toFixed(8)),
+            completion: Number((Number(input.route.maxPrice.completion) * 1_000_000).toFixed(8)),
+          },
         },
       });
       if (new TextEncoder().encode(body).length > AiGateway.MAX_REQUEST_BYTES)

@@ -5,25 +5,43 @@ import { router } from 'expo-router';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
+import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import {
   GroupedList,
   NavigationRow
 } from '@/design-system/components/navigation/GroupedList';
 import { spacing } from '@/design-system/tokens';
-import { translate } from '@/localization/i18n';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { isAppLockEnabled } from '@/config/client-runtime';
+import { translate, type MessageKey } from '@/localization/i18n';
 import type { PrivacyLockPreference } from '@/domain/app-shell';
 import type { BiometricAvailability } from '@/services/contracts/app-shell-service';
 import { createBiometricService } from '@/services/platform/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { useTheme } from '@/state/theme-context';
 import { usePrivacyRequest } from '@/features/settings/settings-queries';
 
+type AutoLockDuration = PrivacyLockPreference['autoLockDuration'];
+
+const autoLockDurations: readonly AutoLockDuration[] = [
+  'immediate',
+  'one_minute',
+  'five_minutes',
+  'fifteen_minutes'
+];
+
 export default function SecuritySettingsRoute() {
+  const appLockEnabled = isAppLockEnabled();
   const service = useMemo(createBiometricService, []);
-  const [availability, setAvailability] = useState<BiometricAvailability | null>(
-    null
-  );
+  const theme = useTheme();
+  const direction = usePreferenceStore((state) => state.direction);
+  const [availability, setAvailability] =
+    useState<BiometricAvailability | null>(null);
+  const [biometricPending, setBiometricPending] = useState(false);
+  const [biometricMessage, setBiometricMessage] = useState<MessageKey>();
   const privacyLock = useAppShellStore((state) => state.privacyLock);
+  const pinCredential = useAppShellStore((state) => state.pinCredential);
   const setPrivacyLock = useAppShellStore((state) => state.setPrivacyLock);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const toggleHideBalances = usePreferenceStore(
@@ -32,12 +50,50 @@ export default function SecuritySettingsRoute() {
   const deletionRequest = usePrivacyRequest();
 
   useEffect(() => {
-    void service.getAvailability().then((result) => setAvailability(result));
-  }, [service]);
+    if (!appLockEnabled) return;
+    void service
+      .getAvailability()
+      .then(setAvailability)
+      .catch(() => setAvailability({ status: 'unsupported', kinds: [] }));
+  }, [service, appLockEnabled]);
 
   async function updateLock(update: Partial<PrivacyLockPreference>) {
     if (!privacyLock) return;
     await setPrivacyLock({ ...privacyLock, ...update });
+  }
+
+  async function updateBiometric(next: boolean) {
+    setBiometricMessage(undefined);
+    if (!next) {
+      await updateLock({ biometricStatus: 'disabled' });
+      return;
+    }
+    if (!pinCredential || !privacyLock) return;
+    setBiometricPending(true);
+    try {
+      const authentication = await service.authenticate();
+      if (authentication.status === 'authenticated') {
+        await updateLock({ biometricStatus: 'enabled' });
+      } else {
+        setBiometricMessage(
+          `appShell.security.biometric.${authentication.status}`
+        );
+      }
+    } catch {
+      setBiometricMessage('appShell.security.biometric.unavailable');
+    } finally {
+      setBiometricPending(false);
+    }
+  }
+
+  function chooseAutoLockDuration() {
+    Alert.alert(translate('appShell.security.autoLock.title'), undefined, [
+      ...autoLockDurations.map((duration) => ({
+        text: translate(`appShell.security.autoLock.${duration}`),
+        onPress: () => void updateLock({ autoLockDuration: duration })
+      })),
+      { text: translate('coreFinance.cancel'), style: 'cancel' as const }
+    ]);
   }
 
   function confirmAccountDeletion() {
@@ -62,11 +118,11 @@ export default function SecuritySettingsRoute() {
   const biometricKinds =
     availability?.status === 'supported' ? (availability.kinds ?? []) : [];
   const biometricReady =
-    privacyLock !== null &&
+    pinCredential !== null &&
     availability?.status === 'supported' &&
     biometricKinds.length > 0;
   const prefersFace = biometricKinds.includes('face');
-  const biometricBlockedKey = !privacyLock
+  const biometricBlockedKey = !pinCredential
     ? ('appShell.security.biometric.requiresPin' as const)
     : availability === null
       ? undefined
@@ -77,51 +133,70 @@ export default function SecuritySettingsRoute() {
           : undefined;
 
   return (
-    <ScrollView contentContainerStyle={styles.stack}>
-      <StyledText variant="title">
-        {translate('appShell.security.settingsTitle')}
-      </StyledText>
+    <ScrollView
+      contentContainerStyle={[
+        styles.stack,
+        { backgroundColor: theme.colors.surfaces.page }
+      ]}
+    >
+      <AppBar
+        direction={direction}
+        onBack={() => router.back()}
+        title={translate('appShell.security.settingsTitle')}
+      />
 
-      <GroupedList label={translate('appShell.security.sections.appLock')}>
-        <NavigationRow
-          label={translate(
-            privacyLock
-              ? 'appShell.security.pin.change'
-              : 'appShell.security.pin.create'
-          )}
-          onPress={() =>
-            router.push(
-              privacyLock ? '/security/pin/change' : '/security/pin/create'
-            )
-          }
-        />
-        {privacyLock ? (
+      {appLockEnabled ? (
+        <GroupedList label={translate('appShell.security.sections.appLock')}>
           <NavigationRow
-            label={translate('appShell.security.forgotPin')}
-            onPress={() => router.push('/security/pin/forgot')}
-          />
-        ) : null}
-        <View style={styles.insetRow}>
-          <SwitchRow
-            disabled={!biometricReady}
-            icon={prefersFace ? 'faceId' : 'fingerprint'}
-            label={
-              prefersFace
-                ? 'appShell.security.biometric.face'
-                : 'appShell.security.biometric.fingerprint'
-            }
-            subtext={
-              biometricBlockedKey ?? 'appShell.security.biometric.subtitle'
-            }
-            value={privacyLock?.biometricStatus === 'enabled'}
-            onValueChange={(next) =>
-              void updateLock({
-                biometricStatus: next ? 'enabled' : 'disabled'
-              })
+            label={translate(
+              pinCredential
+                ? 'appShell.security.pin.change'
+                : 'appShell.security.pin.create'
+            )}
+            onPress={() =>
+              router.push(
+                pinCredential ? '/security/pin/change' : '/security/pin/create'
+              )
             }
           />
-        </View>
-      </GroupedList>
+          {pinCredential ? (
+            <NavigationRow
+              label={translate('appShell.security.pin.forgot')}
+              onPress={() => router.push('/security/pin/forgot')}
+            />
+          ) : null}
+          <View style={styles.insetRow}>
+            <SwitchRow
+              disabled={!biometricReady || biometricPending}
+              icon={prefersFace ? 'faceId' : 'fingerprint'}
+              label={
+                prefersFace
+                  ? 'appShell.security.biometric.face'
+                  : 'appShell.security.biometric.fingerprint'
+              }
+              subtext={
+                biometricMessage ??
+                biometricBlockedKey ??
+                'appShell.security.biometric.subtitle'
+              }
+              value={privacyLock?.biometricStatus === 'enabled'}
+              onValueChange={(next) => void updateBiometric(next)}
+            />
+          </View>
+          <NavigationRow
+            disabled={!privacyLock}
+            label={translate('appShell.security.autoLock.title')}
+            value={translate(
+              `appShell.security.autoLock.${privacyLock?.autoLockDuration ?? 'immediate'}`
+            )}
+            onPress={privacyLock ? chooseAutoLockDuration : undefined}
+          />
+        </GroupedList>
+      ) : (
+        <StyledText>
+          {translate('appShell.security.stagingDisabled')}
+        </StyledText>
+      )}
 
       <GroupedList label={translate('appShell.security.sections.privacy')}>
         <View style={styles.insetRow}>
@@ -134,19 +209,30 @@ export default function SecuritySettingsRoute() {
         </View>
       </GroupedList>
 
-      <GroupedList label={translate('appShell.security.settingsTitle')}>
+      <GroupedList label={translate('appShell.security.sections.activity')}>
         <NavigationRow
           label={translate('appShell.security.sessions')}
           onPress={() => router.push('/security/sessions')}
         />
+        {isFixtureModeEnabled() ? (
+          <NavigationRow
+            label={translate('appShell.security.events')}
+            onPress={() => router.push('/security/events')}
+          />
+        ) : null}
       </GroupedList>
 
-      <ActionButton
-        label={translate('appShell.security.deleteAccount')}
-        loading={deletionRequest.isPending}
-        onPress={confirmAccountDeletion}
-        variant="destructive"
-      />
+      <View style={styles.dangerZone}>
+        <StyledText style={{ color: theme.colors.content.secondary }}>
+          {translate('appShell.security.deleteAccount.description')}
+        </StyledText>
+        <ActionButton
+          label={translate('appShell.security.deleteAccount')}
+          loading={deletionRequest.isPending}
+          onPress={confirmAccountDeletion}
+          variant="destructive"
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -158,5 +244,9 @@ const styles = StyleSheet.create({
   },
   insetRow: {
     paddingHorizontal: spacing.lg
+  },
+  dangerZone: {
+    gap: spacing.sm,
+    marginTop: spacing.md
   }
 });

@@ -2,7 +2,7 @@ import { ENGAGEMENT_ADMIN_ROUTES } from '../../../src/engagement/engagement.rout
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-test('Admin support mutations each require an exact permission, recent MFA, and idempotency', () => {
+test('Admin support mutations each require an exact permission, recent Clerk login, and idempotency', () => {
   const routes = ENGAGEMENT_ADMIN_ROUTES.filter(
     (route) => route.path.startsWith('admin/support') && route.method !== 'GET',
   );
@@ -26,7 +26,7 @@ test('Admin support mutations each require an exact permission, recent MFA, and 
       }),
     ]),
   );
-  expect(routes.every((route) => route.recentMfa && route.idempotent)).toBe(true);
+  expect(routes.every((route) => route.recentAuth && route.idempotent)).toBe(true);
   const migration = readFileSync(
     resolve(
       __dirname,

@@ -12,9 +12,9 @@ describe('operations route contract', () => {
     }
   });
 
-  it('requires recent MFA on every operational mutation except safe preview', () => {
+  it('requires recent Clerk login on every operational mutation except safe preview', () => {
     for (const route of OPERATIONS_ROUTES.filter((candidate) => candidate.method !== 'GET')) {
-      expect(route.recentMfa).toBe(route.operation === 'previewFeatureFlag' ? false : true);
+      expect(route.recentAuth).toBe(route.operation === 'previewFeatureFlag' ? false : true);
     }
   });
 

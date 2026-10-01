@@ -39,26 +39,23 @@ export function AppShellProvider({
     (state) => state.setPendingDestination
   );
   const liveClerkSessionKey = useLiveClerkSessionKey();
-  const restoredLiveSession = useRef<string | null | undefined>(undefined);
+  const bootstrapRevision = useAppShellStore(
+    (state) => state.bootstrapRevision
+  );
+  const mode = resolveClientMode();
   const restoreQueue = useRef(Promise.resolve());
   const registeredPushSession = useRef<string | null>(null);
 
   useEffect(() => {
+    if (mode !== 'live' && !hydrated) void hydrate();
+  }, [hydrate, hydrated, mode]);
+
+  useEffect(() => {
     let current = true;
-    if (resolveClientMode() !== 'live') {
-      if (!hydrated) void hydrate();
+    if (mode !== 'live' || liveClerkSessionKey === undefined)
       return () => {
         current = false;
       };
-    }
-    if (
-      liveClerkSessionKey === undefined ||
-      restoredLiveSession.current === liveClerkSessionKey
-    )
-      return () => {
-        current = false;
-      };
-    restoredLiveSession.current = liveClerkSessionKey;
     restoreQueue.current = restoreQueue.current
       .catch(() => undefined)
       .then(() =>
@@ -77,12 +74,17 @@ export function AppShellProvider({
         }
       })
       .catch(() =>
-        current ? useAppShellStore.getState().signOut() : undefined
+        current
+          ? useAppShellStore.setState({
+              hydrated: true,
+              profileSetupStatus: 'error'
+            })
+          : undefined
       );
     return () => {
       current = false;
     };
-  }, [hydrate, hydrated, liveClerkSessionKey]);
+  }, [liveClerkSessionKey, mode, bootstrapRevision]);
 
   useEffect(() => {
     async function retainSafeDestination(url: string | null, navigate = false) {
@@ -96,7 +98,7 @@ export function AppShellProvider({
       const { firstLaunchOnboardingCompleted } = usePreferenceStore.getState();
       router.replace(
         resolveEntryRoute({
-          hydrated,
+          hydrated: hydrated && usePreferenceStore.getState().hydrated,
           firstLaunchOnboardingCompleted,
           profileSetupStatus,
           session,

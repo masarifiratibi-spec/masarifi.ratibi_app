@@ -5,6 +5,89 @@ const proposalId = '99000000-0000-4000-8000-000000000011';
 const transactionId = '99000000-0000-4000-8000-000000000012';
 const accountId = '99000000-0000-4000-8000-000000000013';
 
+describe('Voice availability gate', () => {
+  it.each([
+    [false, true],
+    [true, false],
+  ])(
+    'denies flag=%s route=%s before any session/upload/financial side effects',
+    async (enabled, available) => {
+      const repository = {
+        workloadAvailable: jest.fn(() => Promise.resolve(available)),
+        createVoiceSession: jest.fn(),
+      };
+      const storage = { signedUpload: jest.fn() };
+      const ledger = { createTransaction: jest.fn() };
+      const service = new AiService(
+        repository as never,
+        storage as never,
+        ledger as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        { getRequired: () => enabled } as never,
+      );
+      await expect(
+        service.createVoiceSession(
+          owner,
+          { locale: 'ar', durationMs: 1000, contentType: 'audio/mp4', sizeBytes: 64 },
+          'voice-create-fixture',
+        ),
+      ).rejects.toMatchObject({ status: 503, response: { code: 'AI_UNAVAILABLE' } });
+      expect(repository.createVoiceSession).not.toHaveBeenCalled();
+      expect(storage.signedUpload).not.toHaveBeenCalled();
+      expect(ledger.createTransaction).not.toHaveBeenCalled();
+      if (!enabled) expect(repository.workloadAvailable).not.toHaveBeenCalled();
+    },
+  );
+
+  it('returns a private upload only after eligibility, without changing finances', async () => {
+    const repository = {
+      workloadAvailable: () => Promise.resolve(true),
+      createVoiceSession: () =>
+        Promise.resolve({
+          resource: {
+            id: proposalId,
+            storageRef: 'private-fixture',
+            contentType: 'audio/mp4',
+            sizeBytes: 64,
+            version: 1,
+          },
+        }),
+    };
+    const ledger = { createTransaction: jest.fn() };
+    const service = new AiService(
+      repository as never,
+      {
+        signedUpload: () =>
+          Promise.resolve({
+            url: 'https://storage.example.test/private-upload',
+            token: 'fixture',
+            headers: {},
+          }),
+      } as never,
+      ledger as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        getRequired: (key: string) => (key === 'MASARIFI_AI_PROVIDER_ENABLED' ? true : 300),
+      } as never,
+    );
+    await expect(
+      service.createVoiceSession(
+        owner,
+        { locale: 'en', durationMs: 1000, contentType: 'audio/mp4', sizeBytes: 64 },
+        'voice-create-fixture',
+      ),
+    ).resolves.toEqual({
+      session: { id: proposalId, version: 1 },
+      upload: { url: 'https://storage.example.test/private-upload', token: 'fixture', headers: {} },
+    });
+    expect(ledger.createTransaction).not.toHaveBeenCalled();
+  });
+});
+
 describe('AiService financial action bridge', () => {
   const repository = {
     operationId: jest.fn(() => '99000000-0000-4000-8000-000000000014'),

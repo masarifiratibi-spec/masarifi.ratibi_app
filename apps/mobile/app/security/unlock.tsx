@@ -9,12 +9,11 @@ import { usePreferenceStore } from '@/state/preferences';
 
 export default function UnlockRoute() {
   const session = useAppShellStore((state) => state.session);
-  const privacyLock = useAppShellStore((state) => state.privacyLock);
-  const pinCredential = useAppShellStore((state) => state.pinCredential);
-  const recordFailedUnlock = useAppShellStore((state) => state.recordFailedUnlock);
   const unlock = useAppShellStore((state) => state.unlock);
-  const configurePrivacyLock = useAppShellStore(
-    (state) => state.configurePrivacyLock
+  const pinCredential = useAppShellStore((state) => state.pinCredential);
+  const privacyLock = useAppShellStore((state) => state.privacyLock);
+  const recordFailedUnlock = useAppShellStore(
+    (state) => state.recordFailedUnlock
   );
   const firstLaunchOnboardingCompleted = usePreferenceStore(
     (state) => state.firstLaunchOnboardingCompleted
@@ -23,11 +22,9 @@ export default function UnlockRoute() {
     <UnlockScreen
       biometricEnabled={privacyLock?.biometricStatus === 'enabled'}
       biometricService={createBiometricService()}
-      expectedHash={pinCredential ?? ''}
       lockedUntil={privacyLock?.lockedUntil}
-      onForgotPin={() => router.push('/security/pin/forgot')}
-      onInvalidPin={() => void recordFailedUnlock(Date.now())}
-      onCredentialUpgrade={(hash) => configurePrivacyLock(hash)}
+      onAccountRecovery={() => router.push('/security/pin/forgot')}
+      onInvalidPin={recordFailedUnlock}
       onUnlock={async () => {
         await unlock();
         router.replace(
@@ -37,6 +34,8 @@ export default function UnlockRoute() {
           })
         );
       }}
+      pinConfigured={privacyLock?.pinConfigured ?? false}
+      pinCredential={pinCredential}
       sessionExpired={
         session?.status !== 'authenticated' ||
         session.expiresAt === null ||

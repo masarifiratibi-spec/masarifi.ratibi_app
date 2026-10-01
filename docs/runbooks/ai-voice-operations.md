@@ -11,7 +11,7 @@ Routes ship disabled. Before enabling one, verify the OpenRouter account is
 approved for zero-data-retention/no-training, configure `OPENROUTER_API_KEY` only
 in the worker secret store, and run the prompt corpus and provider-independent
 gates. In Admin AI, publish the evaluated prompt, then enable its route using the
-current expected version, recent MFA, a reason, and a unique idempotency key.
+current expected version, recent Clerk login, a reason, and a unique idempotency key.
 
 For an incident, disable the affected route through the same governed Admin API.
 Disabling is the rollback: finance APIs remain available and AI returns the safe
@@ -95,6 +95,6 @@ multiple-operation, obligation, and unclear voice intents must remain explicit
 unsupported outcomes until a lossless owner contract is implemented.
 
 Escalate cross-owner disclosure, credential/content logging, direct AI financial
-mutation, bypassed consent/MFA/version checks, non-equivalent fallback, hard-budget
+mutation, bypassed consent/authentication/version checks, non-equivalent fallback, hard-budget
 bypass, duplicate financial effects, unreconciled usage, or unexplained audit and
 outbox gaps immediately.

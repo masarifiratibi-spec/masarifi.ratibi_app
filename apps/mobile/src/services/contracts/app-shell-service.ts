@@ -3,6 +3,7 @@ import type {
   KeywordRule,
   OnboardingProgress,
   PermissionState,
+  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -134,6 +135,7 @@ export interface BiometricResult {
 export interface BiometricService {
   getAvailability(): Promise<BiometricAvailability>;
   authenticate(): Promise<BiometricResult>;
+  cancel(): Promise<void>;
 }
 
 export interface AppShellStorage {
@@ -151,8 +153,8 @@ export interface AppShellStorage {
   loadPrivacyLock(): Promise<PrivacyLockPreference | null>;
   savePrivacyLock(lock: PrivacyLockPreference): Promise<void>;
   clearPrivacyLock(): Promise<void>;
-  loadPinCredential(): Promise<string | null>;
-  savePinCredential(hash: string): Promise<void>;
+  loadPinCredential(): Promise<PinCredential | null>;
+  savePinCredential(credential: PinCredential): Promise<void>;
   clearPinCredential(): Promise<void>;
   loadProfilePromptDismissed(): Promise<boolean>;
   saveProfilePromptDismissed(dismissed: boolean): Promise<void>;

@@ -16,8 +16,10 @@ import {
 } from '@/features/shell/ProtectedRouteGate';
 import { useTheme } from '@/state/theme-context';
 import { MobileIdentityProvider } from '@/services/live/clerk-provider';
+import { isAppLockEnabled } from '@/config/client-runtime';
 
 export default function RootLayout() {
+  const appLockEnabled = isAppLockEnabled();
   const pathname = usePathname();
   const autoLockDuration = useAppShellStore(
     (state) => state.privacyLock?.autoLockDuration
@@ -44,20 +46,22 @@ export default function RootLayout() {
         <FoundationProviders>
           <AppShellProvider>
             <AppPrivacyGate
-              immediate={autoLockDuration === 'immediate'}
-              lockAfterMs={lockAfterMs}
+              immediate={
+                appLockEnabled &&
+                autoLockDuration === 'immediate' &&
+                pathname !== '/security/unlock'
+              }
+              lockAfterMs={appLockEnabled ? lockAfterMs : null}
               locked={
+                appLockEnabled &&
                 appLockStatus !== undefined &&
                 appLockStatus !== 'unlocked' &&
-                pathname !== '/security/unlock' &&
-                pathname !== '/security/pin/forgot'
+                pathname !== '/security/unlock'
               }
-              onLock={handleLock}
+              onLock={appLockEnabled ? handleLock : undefined}
             >
               <NotificationResponseRuntime />
-              <ProtectedRouteGate>
-                <RootStack />
-              </ProtectedRouteGate>
+              <RootStack />
             </AppPrivacyGate>
           </AppShellProvider>
         </FoundationProviders>
@@ -71,6 +75,9 @@ function RootStack() {
 
   return (
     <Stack
+      screenLayout={({ children }) => (
+        <ProtectedRouteGate>{children}</ProtectedRouteGate>
+      )}
       screenOptions={{
         contentStyle: { backgroundColor: theme.colors.surfaces.page },
         headerShown: false

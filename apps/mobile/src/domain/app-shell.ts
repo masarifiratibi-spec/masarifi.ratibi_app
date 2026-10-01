@@ -179,6 +179,28 @@ export const keywordRuleSchema = z
 
 export type KeywordRule = z.infer<typeof keywordRuleSchema>;
 
+export const pinCredentialSchema = z.string().superRefine((credential, ctx) => {
+  const [version, iterationsText, saltHex, hashHex, extra] =
+    credential.split(':');
+  const iterations = Number(iterationsText);
+  if (
+    extra !== undefined ||
+    version !== 'pbkdf2-sha256' ||
+    !Number.isInteger(iterations) ||
+    iterations < 10_000 ||
+    iterations > 500_000 ||
+    !/^[a-f0-9]{32}$/.test(saltHex ?? '') ||
+    !/^[a-f0-9]{64}$/.test(hashHex ?? '')
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'invalid App PIN credential'
+    });
+  }
+});
+
+export type PinCredential = z.infer<typeof pinCredentialSchema>;
+
 export const privacyLockPreferenceSchema = z.object({
   pinConfigured: z.boolean(),
   biometricStatus: z.enum([

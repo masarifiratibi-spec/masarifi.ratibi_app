@@ -12,8 +12,48 @@ import type {
 import { coreFinanceService } from './core-finance-service';
 import { AutomaticTrackingRepository } from '@/storage/automatic-tracking-repository';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
+import type { KeywordRule } from '@/domain/app-shell';
+import { defaultKeywordRules } from './default-keywords';
 
 describe('mock automatic tracking service', () => {
+  it('restores current defaults without deleting custom keyword rules', async () => {
+    const custom: KeywordRule = {
+      id: 'expense-en-custom-purchase',
+      group: 'expense',
+      language: 'en',
+      value: 'Purchase',
+      normalizedValue: 'purchase',
+      origin: 'custom',
+      enabled: false
+    };
+    let stored = [{ ...defaultKeywordRules[0]!, enabled: false }, custom];
+    const service = createMockAutomaticTrackingService({
+      persistent: false,
+      storage: {
+        loadKeywords: async () => stored,
+        saveKeywords: async (rules: KeywordRule[]) => {
+          stored = [...rules];
+        }
+      } as never
+    });
+
+    const restored = await service.restoreDefaultKeywords();
+
+    expect(restored.value).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: defaultKeywordRules[0]!.id,
+          origin: 'default',
+          enabled: true
+        }),
+        expect.objectContaining(custom)
+      ])
+    );
+    expect(
+      restored.value.filter((rule) => rule.origin === 'default')
+    ).toHaveLength(defaultKeywordRules.length - 1);
+  });
+
   it('does not record an event while tracking is paused', async () => {
     const service = createMockAutomaticTrackingService({
       storage: {

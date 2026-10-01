@@ -1,49 +1,130 @@
 import {
+  createBiometricLock,
   createPinCredential,
+  createPinLock,
   failUnlock,
   isValidPin,
-  resetLock,
   verifyPin
 } from './privacy-lock';
 
-describe('privacy lock', () => {
-  const fixedRandom = async (length: number) =>
-    Uint8Array.from({ length }, (_, index) => index + 1);
+test('creates an enabled biometric lock without a PIN fallback', () => {
+  expect(createBiometricLock()).toEqual({
+    pinConfigured: false,
+    biometricStatus: 'enabled',
+    autoLockDuration: 'immediate',
+    invalidAttempts: 0,
+    lockedUntil: null,
+    appLockStatus: 'unlocked'
+  });
+});
 
-  it('validates six English numerals and stores a salted one-way verifier', async () => {
-    expect(isValidPin('123456')).toBe(true);
-    expect(isValidPin('12345')).toBe(false);
-    await expect(createPinCredential('123456', '654321')).resolves.toMatchObject({
+describe('App PIN credentials', () => {
+  test.each(['123456', '000000', '987654'])(
+    'accepts a six-digit PIN',
+    (pin) => {
+      expect(isValidPin(pin)).toBe(true);
+    }
+  );
+
+  test.each(['12345', '1234567', '12a456', '１２３４５６', ''])(
+    'rejects an invalid PIN: %s',
+    (pin) => {
+      expect(isValidPin(pin)).toBe(false);
+    }
+  );
+
+  test('creates a salted PBKDF2 credential only after confirmation', async () => {
+    const randomBytes = jest
+      .fn<Promise<Uint8Array>, [number]>()
+      .mockResolvedValue(Uint8Array.from({ length: 16 }, (_, index) => index));
+
+    await expect(
+      createPinCredential('12345', '12345', randomBytes)
+    ).resolves.toEqual({
+      error: 'invalid'
+    });
+    await expect(
+      createPinCredential('123456', '654321', randomBytes)
+    ).resolves.toEqual({
       error: 'mismatch'
     });
-    const credential = await createPinCredential(
-      '123456',
-      '123456',
-      fixedRandom
-    );
-    expect(credential).toHaveProperty('hash');
-    if (!credential.hash) throw new Error('credential missing');
-    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
-    expect(credential.hash).not.toContain('123456');
-    await expect(verifyPin('123456', credential.hash)).resolves.toBe(true);
-    await expect(verifyPin('654321', credential.hash)).resolves.toBe(false);
+
+    const result = await createPinCredential('123456', '123456', randomBytes);
+
+    expect(randomBytes).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      credential: expect.stringMatching(
+        /^pbkdf2-sha256:120000:[a-f0-9]{32}:[a-f0-9]{64}$/
+      )
+    });
   });
 
-  it('counts five failures into a 30-second temporary lock and supports one legacy verification for migration', async () => {
-    let lock = resetLock(1);
-    for (let index = 0; index < 4; index += 1) {
-      lock = failUnlock(lock, 10);
-      expect(lock.appLockStatus).toBe('locked');
+  test('verifies against the credential salt and stored iteration count', async () => {
+    const first = await createPinCredential('123456', '123456', async () =>
+      Uint8Array.from({ length: 16 }, (_, index) => index)
+    );
+    const second = await createPinCredential('123456', '123456', async () =>
+      Uint8Array.from({ length: 16 }, (_, index) => index + 1)
+    );
+
+    if (!('credential' in first) || !('credential' in second)) {
+      throw new Error('expected credentials');
     }
-    lock = failUnlock(lock, 10);
-    expect(lock).toMatchObject({
-      appLockStatus: 'temporarily_locked',
-      lockedUntil: 30_010
-    });
-    await expect(verifyPin('123456', 'pin:123456')).resolves.toBe(true);
-    expect(resetLock(50)).toMatchObject({
+
+    expect(first.credential).not.toBe(second.credential);
+    await expect(verifyPin('123456', first.credential)).resolves.toBe(true);
+    await expect(verifyPin('654321', first.credential)).resolves.toBe(false);
+    await expect(
+      verifyPin('123456', first.credential.replace(':120000:', ':120001:'))
+    ).resolves.toBe(false);
+  });
+
+  test.each([
+    'pin:123456',
+    'malformed',
+    `pbkdf2-sha256:9999:${'01'.repeat(16)}:${'ab'.repeat(32)}`,
+    `pbkdf2-sha256:120000:${'01'.repeat(15)}:${'ab'.repeat(32)}`
+  ])('rejects an unsafe credential: %s', async (credential) => {
+    await expect(verifyPin('123456', credential)).resolves.toBe(false);
+  });
+});
+
+describe('App PIN lockout', () => {
+  it('starts locked with PIN fallback and biometrics disabled', () => {
+    expect(createPinLock()).toEqual({
+      pinConfigured: true,
+      biometricStatus: 'disabled',
+      autoLockDuration: 'immediate',
       invalidAttempts: 0,
-      lockedUntil: null
+      lockedUntil: null,
+      appLockStatus: 'locked'
+    });
+  });
+
+  it('locks for 30 seconds after five failures and caps attempts', () => {
+    const now = 1_000;
+    let lock = createPinLock(now);
+
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      lock = failUnlock(lock, now);
+      expect(lock).toMatchObject({
+        invalidAttempts: attempt,
+        lockedUntil: null,
+        appLockStatus: 'locked'
+      });
+    }
+
+    lock = failUnlock(lock, now);
+    expect(lock).toMatchObject({
+      invalidAttempts: 5,
+      lockedUntil: 31_000,
+      appLockStatus: 'temporarily_locked'
+    });
+
+    expect(failUnlock(lock, now + 1)).toMatchObject({
+      invalidAttempts: 5,
+      lockedUntil: 31_001,
+      appLockStatus: 'temporarily_locked'
     });
   });
 });

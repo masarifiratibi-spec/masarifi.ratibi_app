@@ -31,8 +31,11 @@ export class ClerkSessionIneligibleError extends Error {
 export interface ClerkIdentityUser {
   id: string;
   primaryEmail: string | null;
+  primaryEmailVerified?: boolean;
   primaryPhone: string | null;
   displayName: string | null;
+  banned?: boolean;
+  locked?: boolean;
 }
 
 export interface ClerkIdentityPage {
@@ -260,6 +263,9 @@ export class ClerkClientService {
       .find((entry) => entry.id === user.primaryEmailAddressId)
       ?.emailAddress.trim()
       .toLowerCase();
+    const primaryEmail = user.emailAddresses.find(
+      (entry) => entry.id === user.primaryEmailAddressId,
+    );
     const phoneValue = user.phoneNumbers
       .find((entry) => entry.id === user.primaryPhoneNumberId)
       ?.phoneNumber.trim();
@@ -273,8 +279,11 @@ export class ClerkClientService {
         emailValue && emailValue.length <= 320 && /^[^\s@]+@[^\s@]+$/.test(emailValue)
           ? emailValue
           : null,
+      primaryEmailVerified: primaryEmail?.verification?.status === 'verified',
       primaryPhone: phoneValue && /^\+[1-9][0-9]{7,14}$/.test(phoneValue) ? phoneValue : null,
       displayName: name.length >= 1 && name.length <= 100 ? name : null,
+      banned: user.banned,
+      locked: user.locked,
     };
   }
 

@@ -10,7 +10,7 @@ export interface EngagementRoute {
 
 export interface EngagementAdminRoute extends EngagementRoute {
   permission: string;
-  recentMfa: boolean;
+  recentAuth: boolean;
 }
 
 export const ENGAGEMENT_CUSTOMER_ROUTES: readonly EngagementRoute[] = Object.freeze([
@@ -173,7 +173,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'communications.templates.manage',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -182,7 +182,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 201,
     idempotent: true,
     permission: 'communications.templates.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -191,7 +191,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'communications.templates.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -200,7 +200,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'notifications.audience.preview',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -209,7 +209,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'notifications.campaigns.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -218,7 +218,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 201,
     idempotent: true,
     permission: 'notifications.campaigns.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -227,7 +227,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'notifications.campaigns.detail.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -236,7 +236,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'notifications.campaigns.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -245,7 +245,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'notifications.delivery.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -254,7 +254,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 202,
     idempotent: true,
     permission: 'notifications.campaigns.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -263,7 +263,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'support.tickets.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -272,7 +272,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'support.tickets.detail.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -281,7 +281,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'support.tickets.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -290,7 +290,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 201,
     idempotent: true,
     permission: 'support.tickets.notes',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -299,7 +299,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'support.categories.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -308,7 +308,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 201,
     idempotent: true,
     permission: 'support.categories.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -317,7 +317,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'support.categories.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -326,7 +326,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'feedback.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -335,7 +335,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'feedback.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -344,7 +344,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'feedback.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -353,7 +353,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'feedback.abuse.manage',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -362,7 +362,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'feedback.abuse.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -371,7 +371,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'content.manage',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -380,7 +380,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: false,
     permission: 'content.manage',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -389,7 +389,7 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 201,
     idempotent: true,
     permission: 'content.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -398,6 +398,6 @@ export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.f
     status: 200,
     idempotent: true,
     permission: 'content.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
 ]);

@@ -84,7 +84,9 @@ describe('AssistantFinancialTools', () => {
 
   it('answers monthly spending from the Reports owner result', async () => {
     await expect(
-      tools.resolve(owner, 'spending_summary', 'صرفي كام الشهر ده؟', 'request-id'),
+      tools.resolve(owner, 'spending_summary', 'صرفي كام الشهر ده؟', 'request-id', [
+        'recent_transactions',
+      ]),
     ).resolves.toMatchObject({
       answer: 'صرفت 2,350 ريال هذا الشهر.',
       context: { monthlySpendingMinor: 235_000, currency: 'SAR' },
@@ -94,7 +96,9 @@ describe('AssistantFinancialTools', () => {
 
   it('answers budget remaining from the Planning owner result', async () => {
     await expect(
-      tools.resolve(owner, 'budget_status', 'كم باقي من ميزانية المطاعم؟', 'request-id'),
+      tools.resolve(owner, 'budget_status', 'كم باقي من ميزانية المطاعم؟', 'request-id', [
+        'budgets',
+      ]),
     ).resolves.toMatchObject({
       answer: 'باقي لك 420 ريال من ميزانية المطاعم.',
       context: { budgets: [{ remainingMinor: 42_000 }] },
@@ -103,7 +107,9 @@ describe('AssistantFinancialTools', () => {
 
   it('answers upcoming obligations without provider arithmetic', async () => {
     await expect(
-      tools.resolve(owner, 'upcoming_obligations', 'كم عندي التزامات جاية؟', 'request-id'),
+      tools.resolve(owner, 'upcoming_obligations', 'كم عندي التزامات جاية؟', 'request-id', [
+        'obligations',
+      ]),
     ).resolves.toMatchObject({
       answer: 'عندك التزام واحد قادم بإجمالي 2,450 ريال.',
       context: { count: 1, totalMinor: 245_000, currency: 'SAR' },
@@ -112,10 +118,12 @@ describe('AssistantFinancialTools', () => {
 
   it('answers salary and savings status from Planning owner values', async () => {
     await expect(
-      tools.resolve(owner, 'salary_status', 'كم راتبي هذا الشهر؟', 'request-id'),
+      tools.resolve(owner, 'salary_status', 'كم راتبي هذا الشهر؟', 'request-id', [
+        'accounts_summary',
+      ]),
     ).resolves.toMatchObject({ answer: 'دخلك المؤكد هذا الشهر 8,000 ريال.' });
     await expect(
-      tools.resolve(owner, 'savings_status', 'كيف ادخاري؟', 'request-id'),
+      tools.resolve(owner, 'savings_status', 'كيف ادخاري؟', 'request-id', ['budgets']),
     ).resolves.toMatchObject({ answer: 'ادخرت 3,000 ريال من هدف بقيمة 10,000 ريال.' });
   });
 
@@ -126,6 +134,7 @@ describe('AssistantFinancialTools', () => {
         'purchase_affordability',
         'هل أقدر أشتري جوال بـ5000 ريال؟',
         'request-id',
+        ['accounts_summary', 'obligations'],
       ),
     ).resolves.toMatchObject({
       answer: null,
@@ -139,10 +148,31 @@ describe('AssistantFinancialTools', () => {
 
   it('answers an empty recent-transaction quick question deterministically', async () => {
     await expect(
-      tools.resolve(owner, 'recent_transactions', 'آخر معاملاتي', 'request-id'),
+      tools.resolve(owner, 'recent_transactions', 'آخر معاملاتي', 'request-id', [
+        'recent_transactions',
+      ]),
     ).resolves.toMatchObject({
       answer: 'لا توجد معاملات حديثة مؤكدة.',
       context: { recentTransactions: [] },
     });
+  });
+
+  it('keeps broad financial advice within the explicitly selected context', async () => {
+    const result = await tools.resolve(
+      owner,
+      'financial_advice',
+      'كيف وضعي المالي؟',
+      'request-id',
+      ['budgets'],
+    );
+
+    expect(result).toMatchObject({
+      answer: null,
+      context: { planning: { budgets: planning.budgets, savings: planning.savings } },
+    });
+    expect(result.context).not.toHaveProperty('report');
+    expect(result.context.planning).not.toHaveProperty('salary');
+    expect(result.context.planning).not.toHaveProperty('obligations');
+    expect(reports.getReportSummary).not.toHaveBeenCalled();
   });
 });

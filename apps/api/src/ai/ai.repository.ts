@@ -95,16 +95,14 @@ export class AiRepository {
     return stableUuid(`${principal.userId}:${scope}:${hashIdempotencyKey(key)}`);
   }
 
-  workloadAvailable(workload: string): Promise<boolean> {
-    return this.worker(async (client) =>
-      Boolean(
-        (
-          await client.query<{ result: boolean }>(
-            'select private.ai_workload_available($1) result',
-            [workload],
-          )
-        ).rows[0]?.result,
-      ),
+  async workloadAvailable(workload: string): Promise<boolean> {
+    return Boolean(
+      (
+        await this.pool.query<{ result: boolean }>(
+          'select private.ai_workload_available($1) result',
+          [workload],
+        )
+      ).rows[0]?.result,
     );
   }
 
@@ -350,12 +348,13 @@ export class AiRepository {
         if (!quota.allowed) quotaError(quota);
         return this.json(
           client,
-          'select private.enqueue_assistant_message_v2($1,$2::uuid,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::uuid) result',
+          'select private.enqueue_assistant_message_v3($1,$2::uuid,$3,$4,$5::text[],$6::jsonb,$7::jsonb,$8::jsonb,$9,$10::uuid) result',
           [
             principal.userId,
             conversationId,
             input.content,
             input.intent,
+            input.contextScope ?? [],
             JSON.stringify(input.context ?? {}),
             JSON.stringify(input.evidence ?? []),
             JSON.stringify(input.history ?? []),

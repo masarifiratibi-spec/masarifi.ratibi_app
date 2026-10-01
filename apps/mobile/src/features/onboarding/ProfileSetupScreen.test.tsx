@@ -13,6 +13,93 @@ const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockBack = jest.fn();
 
+jest.mock('@/services/live/clerk-provider', () => ({
+  getLiveClerkDisplayName: () => null
+}));
+
+test('does not switch a usable profile form to global Loading while refreshing after a failed save', async () => {
+  let finish!: (value: ProfileSetupSnapshot) => void;
+  let started!: () => void;
+  const refreshStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const refresh = new Promise<ProfileSetupSnapshot>((resolve) => {
+    finish = resolve;
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => null}
+      navigateHome={mockReplace}
+      service={service({
+        saveProfileSetup: async () => {
+          throw new Error('offline');
+        },
+        getProfileSetup: () => {
+          started();
+          return refresh;
+        }
+      })}
+    />
+  );
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  await act(async () => {
+    await refreshStarted;
+  });
+  const status = useAppShellStore.getState().profileSetupStatus;
+  await act(async () => {
+    finish(snapshot);
+  });
+  expect(status).toBe('incomplete');
+});
+
+test('does not complete or navigate the replacement owner after an old profile save resolves', async () => {
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'user_live_old',
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 4_000_000_000_000,
+      restoration: 'restored'
+    }
+  });
+  let finish!: (value: unknown) => void;
+  const pending = new Promise((resolve) => {
+    finish = resolve;
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => null}
+      navigateHome={mockReplace}
+      service={service({ saveProfileSetup: () => pending })}
+    />
+  );
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  act(() =>
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'user_live_new',
+        method: 'google',
+        issuedAt: 2,
+        expiresAt: 4_000_000_000_000,
+        restoration: 'restored'
+      },
+      profileSetupSnapshot: {
+        ...snapshot,
+        profile: { ...snapshot.profile, name: 'New owner' }
+      }
+    })
+  );
+  await act(async () => {
+    finish({ value: { ...snapshot, complete: true } });
+  });
+  expect(useAppShellStore.getState().profileSetupSnapshot?.profile.name).toBe(
+    'New owner'
+  );
+  expect(mockReplace).not.toHaveBeenCalled();
+});
+
 jest.mock('expo-router', () => ({
   router: {
     replace: (...args: unknown[]) => mockReplace(...args),
@@ -64,7 +151,7 @@ beforeEach(() => {
   });
 });
 
-test('matches the Arabic reference and prefills from Clerk before backend name', () => {
+test('matches the Arabic reference and keeps the saved name ahead of Clerk prefill', () => {
   renderWithProviders(
     <ProfileSetupScreen
       getClerkName={() => 'Adel Mohamed'}
@@ -86,7 +173,7 @@ test('matches the Arabic reference and prefills from Clerk before backend name',
     writingDirection: 'rtl',
     width: '100%'
   });
-  expect(screen.getByDisplayValue('Adel Mohamed')).toHaveStyle({
+  expect(screen.getByDisplayValue('Backend Name')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'auto'
   });
@@ -106,6 +193,52 @@ test('matches the Arabic reference and prefills from Clerk before backend name',
     writingDirection: 'rtl',
     width: '100%'
   });
+});
+
+test.each(['Typed Person', ''])(
+  'preserves active typing %s when a delayed saved profile arrives',
+  (typedName) => {
+    useAppShellStore.setState({
+      profileSetupSnapshot: null,
+      profileSetupStatus: 'loading'
+    });
+    renderWithProviders(
+      <ProfileSetupScreen
+        getClerkName={() => 'Provider Person'}
+        service={service()}
+      />
+    );
+    fireEvent.changeText(screen.getByLabelText('الاسم'), 'Typed Person');
+    fireEvent.changeText(screen.getByLabelText('الاسم'), typedName);
+    act(() =>
+      useAppShellStore.setState({
+        profileSetupSnapshot: snapshot,
+        profileSetupStatus: 'incomplete'
+      })
+    );
+    expect(screen.getByLabelText('الاسم')).toHaveDisplayValue(typedName);
+  }
+);
+
+test('replaces only the provider prefill when a delayed saved name arrives', () => {
+  useAppShellStore.setState({
+    profileSetupSnapshot: null,
+    profileSetupStatus: 'loading'
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => 'Provider Person'}
+      service={service()}
+    />
+  );
+  expect(screen.getByLabelText('الاسم')).toHaveDisplayValue('Provider Person');
+  act(() =>
+    useAppShellStore.setState({
+      profileSetupSnapshot: snapshot,
+      profileSetupStatus: 'incomplete'
+    })
+  );
+  expect(screen.getByLabelText('الاسم')).toHaveDisplayValue('Backend Name');
 });
 
 test('keeps Arabic currency code and label in separate deterministic runs', () => {

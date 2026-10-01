@@ -6,6 +6,7 @@ import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { useLiveIdentityStatus } from '@/services/live/clerk-context';
 
 /**
  * Entry route. Uses the mount-safe <Redirect> instead of an imperative
@@ -17,6 +18,7 @@ import { usePreferenceStore } from '@/state/preferences';
  * view (destination '/index').
  */
 export default function AppEntry() {
+  const identity = useLiveIdentityStatus();
   const shellHydrated = useAppShellStore((state) => state.hydrated);
   const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
   const firstLaunchOnboardingCompleted = usePreferenceStore(
@@ -41,6 +43,32 @@ export default function AppEntry() {
     pendingDestination,
     privacyLock
   });
+
+  if (identity.status === 'error') {
+    return (
+      <StateView
+        state="error"
+        title={translate('appShell.error.unknown')}
+        actionLabel={translate('profileSetup.retry')}
+        onAction={identity.retry}
+      />
+    );
+  }
+  if (identity.status === 'loading' || identity.status === 'sso') {
+    return (
+      <StateView state="loading" title={translate('appShell.state.loading')} />
+    );
+  }
+  if (profileSetupStatus === 'error') {
+    return (
+      <StateView
+        state="error"
+        title={translate('settings.profile.error')}
+        actionLabel={translate('profileSetup.retry')}
+        onAction={() => useAppShellStore.getState().retryBootstrap()}
+      />
+    );
+  }
 
   if (destination !== '/index') {
     return <Redirect href={destination} />;

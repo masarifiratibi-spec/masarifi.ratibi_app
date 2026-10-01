@@ -250,7 +250,7 @@ export class SecurityRepository {
       if (count >= limit) return false;
       await client.query(
         `insert into public.security_events(user_id,event_type,severity,ip_hash,metadata)
-        values($1,'security.request_attempt','info',$3,jsonb_build_object('category',$2))`,
+        values($1,'security.request_attempt','info',$3,jsonb_build_object('category',$2::text))`,
         [principal.userId, category, ipHash],
       );
       return true;
@@ -580,6 +580,7 @@ export class SecurityRepository {
         break;
       case 'createAdminInvitation': {
         resourceType = 'admin_invitation';
+        await this.assertMayTargetRole(client, principal.userId, requiredText(body.roleId));
         const row = await this.one<{ id: string }>(
           client,
           `insert into public.admin_invitations(email,role_id,token_hash,invited_by,expires_at,department)
@@ -672,6 +673,7 @@ export class SecurityRepository {
       case 'assignAdminRole': {
         if (requiredText(body.userId, 128) === principal.userId) invalid();
         resourceType = 'admin_assignment';
+        await this.assertMayTargetRole(client, principal.userId, requiredText(body.roleId));
         await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
           `role:${requiredText(body.roleId)}`,
         ]);
@@ -698,6 +700,7 @@ export class SecurityRepository {
       case 'revokeAdminRole':
         resourceType = 'admin_assignment';
         resourceId = requiredText(params.assignmentId);
+        await this.assertMayTargetAssignment(client, principal.userId, resourceId);
         result = await this.one(
           client,
           `update public.admin_role_assignments set revoked_at=clock_timestamp()
@@ -1113,6 +1116,36 @@ export class SecurityRepository {
     const row = (await client.query<T>(sql, [...values])).rows[0];
     if (!row) throw Object.assign(new Error('NOT_FOUND'), { code: 'P0002' });
     return row;
+  }
+
+  private async assertMayTargetRole(
+    client: PoolClient,
+    actorId: string,
+    roleId: string,
+  ): Promise<void> {
+    const role = await this.one<{ targetIsSuper: boolean; actorIsSuper: boolean }>(
+      client,
+      `select private.is_super_admin_role($1) as "targetIsSuper",
+        private.is_active_super_admin($2) as "actorIsSuper"`,
+      [roleId, actorId],
+    );
+    if (role.targetIsSuper && !role.actorIsSuper)
+      throw Object.assign(new Error('SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN'), {
+        code: 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN',
+      });
+  }
+
+  private async assertMayTargetAssignment(
+    client: PoolClient,
+    actorId: string,
+    assignmentId: string,
+  ): Promise<void> {
+    const assignment = await this.one<{ roleId: string }>(
+      client,
+      'select role_id as "roleId" from public.admin_role_assignments where id=$1',
+      [assignmentId],
+    );
+    await this.assertMayTargetRole(client, actorId, assignment.roleId);
   }
 
   private async replacePermissions(

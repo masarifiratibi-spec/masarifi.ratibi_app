@@ -12,6 +12,8 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import type { PrimaryTabRoute } from './navigation-context';
+import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
+import { resolvePublicDisplayName } from '@/services/live/clerk-name';
 
 export function PrimaryShellHeader({
   origin,
@@ -30,8 +32,16 @@ export function PrimaryShellHeader({
 }) {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
-  const userId = useAppShellStore((state) => state.session?.userId ?? null);
+  const locale = usePreferenceStore((state) => state.locale);
+  const userId = useAppShellStore((state) =>
+    state.session?.status === 'authenticated' ? state.session.userId : null
+  );
   const profile = useSettingsProfile(showAvatar && userId !== null);
+  const publicName = resolvePublicDisplayName(
+    userId ? profile.data?.name : null,
+    getLiveClerkDisplayName(userId),
+    translate('appShell.more.defaultUserName', locale)
+  );
   const reportsLabel = translate('appShell.navigation.reports');
   const backLabel = translate('appShell.navigation.back');
   const moreLabel = translate('appShell.navigation.more');
@@ -138,11 +148,7 @@ export function PrimaryShellHeader({
                 }
               ]}
             >
-              {profileInitials(
-                profile.data?.name ?? null,
-                profile.data?.email ?? null,
-                userId
-              )}
+              {profileInitials(publicName)}
             </StyledText>
           </View>
         </Pressable>
@@ -184,13 +190,8 @@ const styles = StyleSheet.create({
   }
 });
 
-export function profileInitials(
-  name: string | null,
-  email: string | null,
-  userId: string | null
-): string {
-  const source =
-    name?.trim() || email?.split('@')[0]?.trim() || userId?.trim() || 'M';
+export function profileInitials(name: string | null): string {
+  const source = name?.trim() || 'M';
   const words = source
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()

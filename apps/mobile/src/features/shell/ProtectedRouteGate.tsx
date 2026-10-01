@@ -8,10 +8,12 @@ import { usePreferenceStore } from '@/state/preferences';
 import { createNotificationResponseController } from '@/features/notifications/notification-response-controller';
 import { notificationService } from '@/services/engagement-service';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
+import { isAppLockEnabled } from '@/config/client-runtime';
 
 export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAppShellStore((state) => state.hydrated);
+  const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
   const session = useAppShellStore((state) => state.session);
   const onboarding = useAppShellStore((state) => state.onboarding);
   const pendingDestination = useAppShellStore(
@@ -28,7 +30,7 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
     (state) => state.setPendingDestination
   );
   const gate = resolveProtectedAccessGate({
-    hydrated,
+    hydrated: hydrated && preferencesHydrated,
     firstLaunchOnboardingCompleted,
     profileSetupStatus,
     session,
@@ -63,10 +65,12 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   ]);
 
   if (legalRoute) return <>{children}</>;
+  if (!gate && (pathname === '/auth-pending' || pathname === '/welcome')) {
+    return <Redirect href="/" />;
+  }
 
   const isLockRecovery =
-    gate === '/security/unlock' &&
-    (pathname === '/security/unlock' || pathname === '/security/pin/forgot');
+    gate === '/security/unlock' && pathname === '/security/unlock';
   const isProfileSetupCurrencyPicker =
     gate === '/(onboarding)/profile-setup' && pathname === '/settings/currency';
   if (
@@ -76,6 +80,13 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
     !isProfileSetupCurrencyPicker
   ) {
     return <Redirect href={gate} />;
+  }
+  if (
+    !gate &&
+    !isAppLockEnabled() &&
+    (pathname === '/security/unlock' || pathname.startsWith('/security/pin/'))
+  ) {
+    return <Redirect href="/security/settings" />;
   }
   if (!gate && pathname === '/security/unlock') {
     return <Redirect href="/(tabs)/home" />;
@@ -92,7 +103,10 @@ export function NotificationResponseRuntime() {
   useEffect(() => {
     if (!isCurrentAuthenticatedSession({ hydrated, session })) {
       resolvePendingUnlocks(pendingUnlocks.current, false);
-    } else if (privacyLock?.appLockStatus === 'unlocked') {
+    } else if (
+      !isAppLockEnabled() ||
+      privacyLock?.appLockStatus === 'unlocked'
+    ) {
       resolvePendingUnlocks(pendingUnlocks.current, true);
     } else if (privacyLock === null) {
       resolvePendingUnlocks(pendingUnlocks.current, false);
@@ -109,6 +123,7 @@ export function NotificationResponseRuntime() {
       unlock: async () => {
         const state = useAppShellStore.getState();
         if (!isCurrentAuthenticatedSession(state)) return false;
+        if (!isAppLockEnabled()) return true;
         if (!state.privacyLock) return true;
         if (state.privacyLock.appLockStatus === 'unlocked') return true;
         const waitForVerifiedUnlock = new Promise<boolean>((resolve) => {

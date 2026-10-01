@@ -10,6 +10,16 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'googleAuth.brand': 'مصاريفي',
+  'googleAuth.incomplete':
+    'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
+  'googleAuth.welcome': 'مرحبًا بك في مصاريفي',
+  'googleAuth.supporting':
+    'أموالك في مكان واحد. تابع باستخدام حساب Google للبدء.',
+  'googleAuth.continue': 'المتابعة باستخدام Google',
+  'googleAuth.footer': 'استخدم حساب Google نفسه للعودة إلى بياناتك المالية.',
+  'appShell.security.stagingDisabled':
+    'قفل التطبيق غير متاح مؤقتًا في هذا الإصدار التجريبي.',
   'app.title': 'مسارف',
   'app.foundationTitle': 'شاشة التحقق من الأساس',
   'app.foundationIntro':
@@ -326,30 +336,28 @@ const ar: MessageCatalog = {
   'appShell.more.accountSettings': 'الحساب والإعدادات',
   'appShell.more.profileSummary': 'ملخص الحساب والملف الشخصي',
   'appShell.more.defaultUserName': 'مستخدم مصاريفي',
-  'appShell.more.defaultUserEmail': 'user.ar@masarifi.app',
+  'appShell.more.defaultUserEmail': 'حساب مصاريفي',
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
-  'appShell.security.pinLabel': 'رمز PIN',
-  'appShell.security.pinError': 'أدخل 6 أرقام',
-  'appShell.security.savePin': 'حفظ PIN',
-  'appShell.security.unlock': 'فتح',
-  'appShell.security.unlockTitle': 'فتح التطبيق',
-  'appShell.security.biometricUnlock': 'فتح بالبصمة',
-  'appShell.security.biometricUnlocked': 'تم الفتح بالبصمة',
-  'appShell.security.biometricUnavailable': 'البصمة غير متاحة',
+  'appShell.security.biometricUnlock': 'فتح بالتحقق الحيوي',
+  'appShell.security.biometricUnavailable': 'التحقق الحيوي غير متاح',
   'appShell.security.biometricCancelled':
-    'تم إلغاء الفتح بالبصمة. استخدم رمز PIN.',
-  'appShell.security.biometricFailed': 'تعذر الفتح بالبصمة. استخدم رمز PIN.',
-  'appShell.security.biometricLocked': 'البصمة مقفلة مؤقتًا. استخدم رمز PIN.',
-  'appShell.security.invalidPin': 'رمز PIN غير صحيح.',
-  'appShell.security.pinMismatch': 'رمزا PIN غير متطابقين. حاول مرة أخرى.',
-  'appShell.security.reauthenticate':
-    'سجل الدخول إلى حسابك قبل إعادة تعيين رمز الجهاز.',
+    'تم إلغاء التحقق الحيوي. يمكنك المحاولة مرة أخرى.',
+  'appShell.security.biometricFailed': 'تعذر التحقق الحيوي. حاول مرة أخرى.',
+  'appShell.security.biometricLocked':
+    'التحقق الحيوي مقفل مؤقتًا من نظام الجهاز.',
+  'appShell.security.pin.create': 'إنشاء رمز PIN',
+  'appShell.security.pin.confirm': 'تأكيد رمز PIN',
+  'appShell.security.pin.current': 'أدخل رمز PIN الحالي',
+  'appShell.security.pin.change': 'تغيير رمز PIN',
+  'appShell.security.pin.forgot': 'نسيت رمز PIN',
+  'appShell.security.pin.invalid': 'رمز PIN غير صحيح.',
+  'appShell.security.pin.mismatch': 'رمزا PIN غير متطابقين.',
+  'appShell.security.pin.reauthenticate':
+    'تحقق من حسابك قبل إعادة تعيين قفل التطبيق.',
   'appShell.security.protectedContent': 'المحتوى محمي',
   'appShell.security.settingsTitle': 'إعدادات الأمان',
-  'appShell.security.changePin': 'تغيير PIN',
-  'appShell.security.forgotPin': 'نسيت PIN',
   'appShell.security.mockSignOutAll': 'تسجيل الخروج من كل الأجهزة',
   'appShell.profile.name': 'الاسم',
   'appShell.profile.firstAccount': 'أول حساب',
@@ -393,23 +401,24 @@ const ar: MessageCatalog = {
   'appShell.navigation.back': 'رجوع',
   'appShell.navigation.close': 'إغلاق',
   'appShell.navigation.authRequired': 'سجل الدخول للمتابعة',
-  'appShell.security.unlock.title': 'افتح مسارفي',
-  'appShell.security.pin.create': 'إنشاء رمز PIN',
-  'appShell.security.pin.confirm': 'تأكيد رمز PIN',
-  'appShell.security.pin.change': 'تغيير رمز PIN',
-  'appShell.security.pin.forgot': 'نسيت رمز PIN',
-  'appShell.security.pin.retryIn': 'حاول مرة أخرى بعد قليل',
-  'appShell.security.biometric.enable': 'تفعيل البصمة',
-  'appShell.security.biometric.disable': 'إيقاف البصمة',
-  'appShell.security.biometric.usePin': 'استخدام رمز PIN بدلًا من ذلك',
-  'appShell.security.biometric.face': 'بصمة الوجه',
+  'appShell.security.biometric.enable': 'تفعيل التحقق الحيوي',
+  'appShell.security.biometric.disable': 'إيقاف التحقق الحيوي',
+  'appShell.security.biometric.authenticated': 'تم تفعيل التحقق الحيوي بنجاح',
+  'appShell.security.biometric.cancelled': 'تم إلغاء التحقق الحيوي',
+  'appShell.security.biometric.failed': 'تعذر التحقق الحيوي',
+  'appShell.security.biometric.locked_out':
+    'التحقق الحيوي مقفل مؤقتًا من نظام الجهاز',
+  'appShell.security.biometric.unavailable': 'التحقق الحيوي غير متاح حاليًا',
+  'appShell.security.biometric.face': 'التعرّف على الوجه',
   'appShell.security.biometric.fingerprint': 'بصمة الإصبع',
-  'appShell.security.biometric.subtitle':
-    'فتح التطبيق بالبصمة بدلًا من رمز PIN',
-  'appShell.security.biometric.requiresPin': 'أنشئ رمز PIN أولًا لتفعيل البصمة',
-  'appShell.security.biometric.notEnrolled': 'سجّل بصمة في إعدادات جهازك أولًا',
+  'appShell.security.biometric.subtitle': 'حماية التطبيق ببصمة الإصبع أو الوجه',
+  'appShell.security.biometric.notEnrolled':
+    'سجّل طريقة تحقق حيوي في إعدادات جهازك أولًا',
+  'appShell.security.biometric.requiresPin':
+    'أنشئ رمز PIN للتطبيق أولًا لتفعيل التحقق الحيوي',
   'appShell.security.sections.appLock': 'قفل التطبيق',
   'appShell.security.sections.privacy': 'الخصوصية',
+  'appShell.security.sections.activity': 'نشاط الحساب',
   'appShell.security.autoLock.title': 'القفل التلقائي',
   'appShell.security.autoLock.immediate': 'القفل فورًا',
   'appShell.security.autoLock.one_minute': 'القفل بعد دقيقة',
@@ -420,6 +429,8 @@ const ar: MessageCatalog = {
   'appShell.security.sessions': 'الجلسات النشطة',
   'appShell.security.events': 'أحداث الأمان',
   'appShell.security.deleteAccount': 'حذف الحساب',
+  'appShell.security.deleteAccount.description':
+    'يؤدي حذف الحساب إلى بدء طلب إزالة بياناتك نهائيًا.',
   'appShell.security.deleteAccount.confirmation': 'هل أنت متأكد من حذف الحساب؟',
   'appShell.progressive.title': 'أكمل الإعداد عندما تكون جاهزًا',
   'appShell.progressive.dismiss': 'إخفاء الآن',
@@ -446,7 +457,7 @@ const ar: MessageCatalog = {
   'appShell.error.expired': 'انتهت صلاحية هذه الخطوة.',
   'appShell.error.rateLimited': 'محاولات كثيرة.',
   'appShell.error.permissionDenied': 'لم يتم منح الإذن.',
-  'appShell.error.biometricLocked': 'فتح القفل بالبصمة غير متاح مؤقتًا.',
+  'appShell.error.biometricLocked': 'فتح القفل بالتحقق الحيوي غير متاح مؤقتًا.',
   'appShell.error.persistenceFailed': 'تعذر الحفظ محليًا.',
   'appShell.error.unknown': 'حدث خطأ ما.',
   'appShell.auth.unavailable': 'لم تتم تهيئة مصادقة الحساب لهذا الإصدار.',
@@ -899,6 +910,12 @@ const ar: MessageCatalog = {
   'tracking.status.unavailable': 'غير متاح',
   'tracking.source.bankNotifications': 'إشعارات البنوك',
   'tracking.source.financialSms': 'الرسائل المالية',
+  'tracking.source.smsTracking': 'تتبع الرسائل النصية (\u2068SMS\u2069)',
+  'tracking.source.smsTrackingDescription':
+    'قراءة الرسائل المالية ومطابقتها مع كلمات التتبع',
+  'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
+  'tracking.source.notificationTrackingDescription':
+    'قراءة إشعارات البنوك والمحافظ وتطبيقات الدفع',
   'tracking.status.demo': 'تتبّع تجريبي — ليست بيانات إنتاج',
   'tracking.permission.warning': 'لم يتم منح أذونات الرسائل. اضغط للتفعيل.',
   'tracking.permission.unavailableMessage':
@@ -1110,6 +1127,8 @@ const ar: MessageCatalog = {
     'تعذر تحليل التسجيل. حاول مجددًا أو أدخل المعاملة يدويًا.',
   'voice.error.provider_unavailable':
     'التحليل الصوتي غير مهيأ أو غير متاح مؤقتًا.',
+  'voice.error.auth_unavailable':
+    'التحقق من تسجيل الدخول غير متاح مؤقتًا. حاول لاحقًا.',
   'voice.error.quota_exhausted':
     'وصل التحليل الصوتي إلى حد الاستخدام الحالي. حاول لاحقًا.',
   'voice.error.processing_timed_out':
@@ -1406,16 +1425,19 @@ const ar: MessageCatalog = {
   'planning.obligation.lastPayment': 'آخر دفعة',
   'planning.obligation.paymentHistory': 'سجل الدفعات',
   'planning.obligation.noPayments': 'لا توجد دفعات بعد',
-  'planning.validation.currencyMismatch': 'يجب أن تتطابق عملة الحساب مع عملة الدفعة.',
+  'planning.validation.currencyMismatch':
+    'يجب أن تتطابق عملة الحساب مع عملة الدفعة.',
   'planning.paymentMatch.transaction': 'المعاملة المكتشفة',
   'planning.paymentMatch.suggestedObligation': 'الالتزام المقترح',
   'planning.paymentMatch.confidenceStrong': 'تطابق قوي',
   'planning.paymentMatch.confidenceReview': 'راجع هذا التطابق',
-  'planning.paymentMatch.reason.amount_match': 'المبلغ قريب من قيمة القسط المتوقع.',
+  'planning.paymentMatch.reason.amount_match':
+    'المبلغ قريب من قيمة القسط المتوقع.',
   'planning.paymentMatch.reason.keyword_match': 'وصف العملية يتطابق مع الجهة.',
   'planning.paymentMatch.remainingBefore': 'المتبقي الآن',
   'planning.paymentMatch.remainingAfter': 'بعد المطابقة',
-  'planning.paymentMatch.refreshRequired': 'تفاصيل المطابقة تغيرت أو غير مكتملة. حدّث البيانات قبل التأكيد.',
+  'planning.paymentMatch.refreshRequired':
+    'تفاصيل المطابقة تغيرت أو غير مكتملة. حدّث البيانات قبل التأكيد.',
   'planning.paymentMatch.confirm': 'مطابقة الدفعة',
   'planning.paymentMatch.ignore': 'تجاهل المطابقة',
   'planning.paymentMatch.status.clear': 'مطابقة واضحة',

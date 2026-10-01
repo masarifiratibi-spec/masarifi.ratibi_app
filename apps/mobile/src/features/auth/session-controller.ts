@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import { resolveClientMode } from '@/config/client-runtime';
+import { HttpError } from '@/services/live/http-client';
 
 import type { AuthenticationSession } from '@/domain/app-shell';
 import type { ProfileSetupSnapshot } from '@/domain/settings';
@@ -24,17 +26,55 @@ export async function restoreAppShellSession(
   isCurrent: () => boolean = () => true,
   identityService: Pick<SettingsService, 'getProfileSetup'> = settingsService
 ): Promise<void> {
+  let active = true;
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      active = false;
+      reject(new Error('bootstrap unavailable'));
+    }, 30_000);
+  });
+  try {
+    await Promise.race([
+      restoreCurrentSession(
+        authService,
+        () => active && isCurrent(),
+        identityService
+      ),
+      deadline
+    ]);
+  } finally {
+    active = false;
+    clearTimeout(timer!);
+  }
+}
+
+async function restoreCurrentSession(
+  authService: AuthService,
+  isCurrent: () => boolean,
+  identityService: Pick<SettingsService, 'getProfileSetup'>
+): Promise<void> {
   const session = await authService.restoreSession();
   if (!isCurrent()) return;
   if (session.status === 'authenticated') {
-    await useAppShellStore.getState().authenticate(session, isCurrent);
+    const currentSession = useAppShellStore.getState().session;
+    if (
+      currentSession?.status !== 'authenticated' ||
+      currentSession.userId !== session.userId
+    )
+      await useAppShellStore.getState().authenticate(session, isCurrent);
+    else useAppShellStore.setState({ session });
     if (!isCurrent()) return;
     useAppShellStore.getState().setProfileSetup('loading');
     let snapshot: ProfileSetupSnapshot;
     try {
       snapshot = await identityService.getProfileSetup();
-    } catch {
-      if (isCurrent()) useAppShellStore.getState().setProfileSetup('error');
+    } catch (error) {
+      if (!isCurrent()) return;
+      if (error instanceof HttpError && error.code === 'session_expired') {
+        await useAppShellStore.getState().expireSession();
+        if (isCurrent()) useAppShellStore.getState().setProfileSetup('unknown');
+      } else useAppShellStore.getState().setProfileSetup('error');
       return;
     }
     if (!isCurrent()) return;
@@ -78,6 +118,18 @@ export async function completeAuthenticatedSession(
   session: AuthenticationSession,
   options: CompleteSessionOptions = {}
 ): Promise<string> {
+  // Live Clerk activation triggers the provider's single bootstrap path.
+  if (resolveClientMode() === 'live') {
+    const state = useAppShellStore.getState();
+    if (
+      state.session?.status !== 'authenticated' ||
+      state.session.userId !== session.userId ||
+      state.profileSetupStatus === 'error' ||
+      state.profileSetupStatus === 'unknown'
+    )
+      state.retryBootstrap();
+    return '/';
+  }
   const store = useAppShellStore.getState();
   await store.authenticate(session);
   const onboarding = useAppShellStore.getState().onboarding;
@@ -90,7 +142,10 @@ export async function completeAuthenticatedSession(
       smsAvailable: Platform.OS === 'android'
     }
   );
-  const progress = createOnboardingProgress(platformPath, options.now?.() ?? Date.now());
+  const progress = createOnboardingProgress(
+    platformPath,
+    options.now?.() ?? Date.now()
+  );
   await useAppShellStore.getState().setOnboarding(progress);
   return routeForOnboardingProgress(progress);
 }

@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { resetLock } from '@/features/security/privacy-lock';
+import { createBiometricLock } from '@/features/security/privacy-lock';
 import { currentLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { savePreferences } from '@/storage/secure-preferences';
@@ -56,19 +56,25 @@ describe('protected settings storage', () => {
       firstDayOfWeek: 'sunday',
       defaultAccountId: null,
       transactionDefaults: { type: 'expense' },
-      dashboardSections: ['balance', 'transactions', 'budgets', 'goals', 'reports'],
+      dashboardSections: [
+        'balance',
+        'transactions',
+        'budgets',
+        'goals',
+        'reports'
+      ],
       voiceEnabled: true
     });
   });
 
   it('keeps lock controls while hideBalances stays in the global preference store', () => {
-    expect(resetLock(1)).toEqual({
-      pinConfigured: true,
-      biometricStatus: 'disabled',
+    expect(createBiometricLock()).toEqual({
+      pinConfigured: false,
+      biometricStatus: 'enabled',
       autoLockDuration: 'immediate',
       invalidAttempts: 0,
       lockedUntil: null,
-      appLockStatus: 'locked'
+      appLockStatus: 'unlocked'
     });
 
     usePreferenceStore.getState().toggleHideBalances();
@@ -81,15 +87,17 @@ describe('protected settings storage', () => {
       persisted = value;
     });
     getItemAsync.mockImplementation(async () => persisted);
-    await savePreferences(buildPreferences({
-      locale: 'en',
-      direction: 'ltr',
-      theme: 'dark',
-      hideBalances: false,
-      baseCurrencyCode: 'USD',
-      timeZone: 'Europe/London',
-      reducedMotion: true
-    }));
+    await savePreferences(
+      buildPreferences({
+        locale: 'en',
+        direction: 'ltr',
+        theme: 'dark',
+        hideBalances: false,
+        baseCurrencyCode: 'USD',
+        timeZone: 'Europe/London',
+        reducedMotion: true
+      })
+    );
 
     await createSettingsStorage().hydrate();
 

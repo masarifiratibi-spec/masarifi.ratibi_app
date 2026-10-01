@@ -9,7 +9,12 @@ import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), navigate: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    navigate: jest.fn()
+  },
   useLocalSearchParams: () => ({})
 }));
 
@@ -24,17 +29,24 @@ describe('app shell accessibility', () => {
     home.unmount();
 
     const more = renderWithProviders(<MoreRoute />);
-    expect(screen.getByLabelText('الملف الشخصي')).toHaveStyle({ minHeight: 48 });
+    expect(screen.getByLabelText('الملف الشخصي')).toHaveStyle({
+      minHeight: 48
+    });
     more.unmount();
 
-    renderWithProviders(
+    const permission = renderWithProviders(
       <PermissionEducation onEnable={jest.fn()} onSkip={jest.fn()} />
     );
     expect(screen.getByLabelText('تفعيل التتبع')).toHaveAccessibilityState({
       disabled: false
     });
+    permission.unmount();
 
-    renderWithProviders(<PinForm mode="unlock" onSubmit={jest.fn()} />);
-    expect(screen.getByLabelText('رمز PIN')).toBeOnTheScreen();
+    changeLocale('en');
+    renderWithProviders(<PinForm onSubmit={jest.fn()} />);
+    expect(screen.getByLabelText('Six digit code')).toHaveStyle({
+      minHeight: 48,
+      writingDirection: 'ltr'
+    });
   });
 });

@@ -3,7 +3,7 @@ import { isIP } from 'node:net';
 
 import { HttpException, Injectable } from '@nestjs/common';
 
-import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
+import { isRecentClerkAuthentication, type ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { ClerkClientService, ClerkSessionIneligibleError } from '../identity/clerk-client.service';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { normalizeSupportScope } from './privacy-handlers';
@@ -284,10 +284,7 @@ export class SecurityService {
       throw new HttpException({ code: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
     }
     if (recentAuthOperations.has(input.operation)) {
-      this.assertRecentAuth(
-        input.principal,
-        input.permission !== undefined || input.operation === 'acceptAdminInvitation',
-      );
+      this.assertRecentAuth(input.principal);
     }
     if (requiredReasonOperations.has(input.operation) || body.reason !== undefined) {
       const reason = body.reason;
@@ -366,7 +363,12 @@ export class SecurityService {
         throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
       }
       const identity = await this.clerk.getIdentityUser(input.principal.userId);
-      if (!identity?.primaryEmail)
+      if (
+        !identity?.primaryEmail ||
+        !identity.primaryEmailVerified ||
+        identity.banned ||
+        identity.locked
+      )
         throw new HttpException({ code: 'VERIFIED_EMAIL_REQUIRED' }, 403);
       body.tokenHash = `h1:${createHash('sha256').update(token).digest('hex')}`;
       body.verifiedEmail = identity.primaryEmail;
@@ -383,7 +385,7 @@ export class SecurityService {
         return {
           ...record(result),
           activeSessionCount: await this.clerk.countActiveSessions(input.principal.userId),
-          mfaStatus: input.principal.mfaAgeSeconds === null ? 'missing' : 'enabled',
+          mfaStatus: input.principal.mfaAgeSeconds == null ? 'missing' : 'enabled',
         };
       }
       if (
@@ -392,7 +394,7 @@ export class SecurityService {
         result !== null &&
         (result as { status?: unknown }).status === 'ready'
       ) {
-        this.assertRecentAuth(input.principal, false);
+        this.assertRecentAuth(input.principal);
         const exportId = input.params.exportId;
         if (!exportId) throw new HttpException({ code: 'NOT_FOUND' }, 404);
         const reference = await this.repository.getReadyExportReference(input.principal, exportId);
@@ -464,6 +466,11 @@ export class SecurityService {
         throw new HttpException({ code: 'SYSTEM_ROLE_PROTECTED' }, 409);
       if (message === 'LAST_SUPER_ADMIN_REQUIRED')
         throw new HttpException({ code: 'LAST_SUPER_ADMIN' }, 409);
+      if (
+        message === 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN' ||
+        code === 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN'
+      )
+        throw new HttpException({ code: 'SUPER_ADMIN_REQUIRED' }, 403);
       if (message === 'SUPPORT_GRANT_INVARIANT_INVALID')
         throw new HttpException({ code: 'SCOPE_WIDENING' }, 409);
       if (message === 'SUPPORT_GRANT_DENIED')
@@ -488,9 +495,13 @@ export class SecurityService {
     }
   }
 
-  private assertRecentAuth(principal: ClerkPrincipal, requireMfa: boolean): void {
-    const age = requireMfa ? (principal.mfaAgeSeconds ?? null) : principal.factorAgeSeconds;
-    if (age === null || age > this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS')) {
+  private assertRecentAuth(principal: ClerkPrincipal): void {
+    if (
+      !isRecentClerkAuthentication(
+        principal,
+        this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
+      )
+    ) {
       throw new HttpException({ code: 'RECENT_AUTH_REQUIRED' }, 403);
     }
   }

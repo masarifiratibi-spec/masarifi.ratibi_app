@@ -228,6 +228,39 @@ it('keeps denied permission safe without starting or automatically looping reque
   unmount();
 });
 
+it.each(['startup', 'transcription', 'cancellation'] as const)(
+  'allows a fresh recording after %s fails or interrupts a started capture',
+  async (failure) => {
+    jest.spyOn(voiceRecorderService, 'getPermission').mockResolvedValue('granted');
+    jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+    jest.spyOn(voiceRecorderService, 'remove').mockResolvedValue();
+    jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue('private://voice-retry');
+    jest.spyOn(voiceAnalyzerService, 'transcribe').mockRejectedValue(new Error('upload failed'));
+    const confirm = jest.spyOn(voiceAnalyzerService, 'confirm');
+    const start = jest.spyOn(voiceRecorderService, 'start').mockResolvedValue({
+      id: 'recording-retry', startedAt: Date.now()
+    });
+    if (failure === 'startup') start.mockRejectedValueOnce(new Error('recorder unavailable'));
+    const { result, unmount } = renderVoiceHook();
+    await waitFor(() => expect(result.current.session.state).toBe('ready'));
+
+    await act(async () => result.current.start());
+    if (failure === 'transcription') await act(async () => result.current.stop());
+    if (failure === 'cancellation')
+      await act(async () => result.current.cancelRecording('recording_interrupted'));
+    expect(result.current.session.state).toBe('failed');
+
+    await act(async () => result.current.reRecord());
+
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(result.current.session).toMatchObject({
+      state: 'recording', recordingId: 'recording-retry', errorCode: null
+    });
+    expect(confirm).not.toHaveBeenCalled();
+    unmount();
+  }
+);
+
 it('stops the recorder only once when the stop control is tapped rapidly', async () => {
   let resolveStop!: (value: string) => void;
   jest.spyOn(voiceRecorderService, 'getPermission').mockResolvedValue('granted');

@@ -143,6 +143,8 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   AI_UNAVAILABLE: { status: 503, message: 'AI is unavailable' },
   AI_TEMPORARILY_UNAVAILABLE: { status: 503, message: 'AI is temporarily unavailable' },
   AI_QUOTA_EXCEEDED: { status: 429, message: 'AI request quota is exhausted' },
+  IMPORT_QUOTA_EXCEEDED: { status: 429, message: 'Import quota is exhausted' },
+  REPORT_QUOTA_EXCEEDED: { status: 429, message: 'Report generation quota is exhausted' },
   AI_BUDGET_EXHAUSTED: { status: 429, message: 'AI budget is exhausted' },
 };
 
