@@ -349,6 +349,13 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               onSave={() => void voice.save()}
               onSaveAll={() => void voice.save(true)}
             />
+            <ActionButton
+              disabled={voice.session.state !== 'proposal_review'}
+              label="voice.action.cancel"
+              onPress={() => void voice.cancel()}
+              testID="home-voice-review-cancel"
+              variant="secondary"
+            />
           </View>
         ) : null}
         {notice}

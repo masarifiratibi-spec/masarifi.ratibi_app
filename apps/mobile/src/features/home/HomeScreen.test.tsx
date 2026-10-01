@@ -598,7 +598,7 @@ it.each([
   expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
 });
 
-it('stops inline recording and shows the valid result for review on Home', async () => {
+it('stops inline recording, shows review and permits cancellation without saving on Home', async () => {
   changeLocale('en');
   let resolveTranscript!: (value: ReturnType<typeof fixtureTranscript>) => void;
   jest
@@ -646,6 +646,13 @@ it('stops inline recording and shows the valid result for review on Home', async
   expect(createTransactions).not.toHaveBeenCalled();
   expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
   expect(screen.queryByTestId('home-voice-processing-inline')).toBeNull();
+
+  fireEvent.press(screen.getByTestId('home-voice-review-cancel'));
+  await waitFor(() => expect(useVoiceCaptureStore.getState()).toMatchObject({
+    state: 'idle', group: null, transcript: null, audioReference: null
+  }));
+  expect(screen.queryByTestId(/^voice-review-card-/)).toBeNull();
+  expect(createTransactions).not.toHaveBeenCalled();
 });
 
 it('keeps multiple analyzed transactions as separate review cards on Home', async () => {
