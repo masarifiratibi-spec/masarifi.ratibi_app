@@ -49,13 +49,16 @@ export class AiStorage {
 
   async download(key: string, expectedBytes: number): Promise<Buffer> {
     if (!Number.isInteger(expectedBytes) || expectedBytes < 1 || expectedBytes > 12_582_912)
-      throw new Error('VOICE_MEDIA_INVALID');
+      throw new Error('VOICE_MEDIA_INVALID', { cause: 'expected_size' });
     const response = await this.request(
       `/storage/v1/object/authenticated/voice-temp/${this.encoded(key)}`,
     );
     const length = Number(response.headers.get('content-length'));
-    if (Number.isFinite(length) && length !== expectedBytes) throw new Error('VOICE_MEDIA_INVALID');
-    if (!response.body) throw new Error('VOICE_MEDIA_INVALID');
+    if (Number.isFinite(length) && length !== expectedBytes)
+      throw new Error('VOICE_MEDIA_INVALID', {
+        cause: response.headers.has('content-length') ? 'declared_length' : 'header_missing',
+      });
+    if (!response.body) throw new Error('VOICE_MEDIA_INVALID', { cause: 'response_body' });
     const reader = response.body.getReader(),
       chunks: Buffer[] = [];
     let received = 0;
@@ -65,12 +68,13 @@ export class AiStorage {
       received += value.byteLength;
       if (received > expectedBytes) {
         await reader.cancel();
-        throw new Error('VOICE_MEDIA_INVALID');
+        throw new Error('VOICE_MEDIA_INVALID', { cause: 'stream_overflow' });
       }
       chunks.push(Buffer.from(value));
     }
     const body = Buffer.concat(chunks, received);
-    if (body.length !== expectedBytes) throw new Error('VOICE_MEDIA_INVALID');
+    if (body.length !== expectedBytes)
+      throw new Error('VOICE_MEDIA_INVALID', { cause: 'stream_length' });
     return body;
   }
 

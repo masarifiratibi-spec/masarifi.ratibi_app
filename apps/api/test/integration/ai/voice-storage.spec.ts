@@ -7,6 +7,35 @@ const config = {
 };
 
 describe('private voice object boundary', () => {
+  it.each([
+    ['expected_size', 0, new Response(Buffer.alloc(44))],
+    ['header_missing', 44, new Response(Buffer.alloc(44))],
+    [
+      'declared_length',
+      44,
+      new Response(Buffer.alloc(44), { headers: { 'content-length': '43' } }),
+    ],
+    ['response_body', 44, new Response(null, { headers: { 'content-length': '44' } })],
+    [
+      'stream_overflow',
+      44,
+      new Response(Buffer.alloc(45), { headers: { 'content-length': '44' } }),
+    ],
+    ['stream_length', 44, new Response(Buffer.alloc(43), { headers: { 'content-length': '44' } })],
+  ] as const)(
+    'identifies only the fixed %s rejection stage without changing its public failure',
+    async (stage, expectedBytes, response) => {
+      const storage = new AiStorage(
+        config as never,
+        jest.fn(() => Promise.resolve(response)),
+      );
+      await expect(storage.download(key, expectedBytes)).rejects.toMatchObject({
+        message: 'VOICE_MEDIA_INVALID',
+        cause: stage,
+      });
+    },
+  );
+
   it('preserves the Storage API prefix for the relative signed upload URL returned by Supabase', async () => {
     const token = 'signed-token-fixture';
     const path = `/object/upload/sign/voice-temp/${key}?token=${token}`;

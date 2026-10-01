@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { PlatformLogger } from '../platform/observability/platform-logger';
 import { recordAiJob } from './ai.observability';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
@@ -427,6 +428,23 @@ export class AiWorker implements OnModuleDestroy {
       else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
     } catch (error) {
+      if (error instanceof Error && error.message === 'VOICE_MEDIA_INVALID')
+        new PlatformLogger().warn('VOICE_MEDIA_INVALID', {
+          eventName: 'voice.media.rejected',
+          state:
+            typeof error.cause === 'string' &&
+            [
+              'magic',
+              'expected_size',
+              'header_missing',
+              'declared_length',
+              'response_body',
+              'stream_overflow',
+              'stream_length',
+            ].includes(error.cause)
+              ? error.cause
+              : 'unknown',
+        });
       const code =
         error instanceof AiGatewayError
           ? error.code
@@ -460,7 +478,7 @@ export class AiWorker implements OnModuleDestroy {
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
     const audio = await this.storage.download(String(input.storageRef), Number(input.sizeBytes));
     const contentType = String(input.contentType);
-    if (!validMagic(audio, contentType)) throw new Error('VOICE_MEDIA_INVALID');
+    if (!validMagic(audio, contentType)) throw new Error('VOICE_MEDIA_INVALID', { cause: 'magic' });
     const references = aliasReferences(input.aliases);
     const descriptors = references.map(({ alias, kind, version, data }) => ({
       alias,

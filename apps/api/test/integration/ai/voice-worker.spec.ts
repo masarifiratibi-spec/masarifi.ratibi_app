@@ -138,7 +138,21 @@ describe('voice transcription worker', () => {
     },
   );
 
-  it('fails closed before provider dispatch when media magic is invalid', async () => {
+  it.each([
+    'magic',
+    'expected_size',
+    'header_missing',
+    'declared_length',
+    'response_body',
+    'stream_overflow',
+    'stream_length',
+    'Bearer private-fixture-token',
+  ])('fails closed before provider dispatch and logs only a fixed stage for %s', async (stage) => {
+    const lines: string[] = [];
+    jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      lines.push(String(chunk));
+      return true;
+    });
     const repository = {
       claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
       workInput: jest.fn(() =>
@@ -174,7 +188,13 @@ describe('voice transcription worker', () => {
     };
     await new AiWorker(
       repository as never,
-      { download: jest.fn(() => Promise.resolve(Buffer.alloc(44))) } as never,
+      {
+        download: jest.fn(() =>
+          stage === 'magic'
+            ? Promise.resolve(Buffer.alloc(44))
+            : Promise.reject(new Error('VOICE_MEDIA_INVALID', { cause: stage })),
+        ),
+      } as never,
       gateway as never,
       config as never,
     ).runOnce();
@@ -186,6 +206,15 @@ describe('voice transcription worker', () => {
       'failed',
       'VOICE_MEDIA_INVALID',
     );
+    expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
+      {
+        timestamp: expect.any(String) as unknown,
+        level: 'warn',
+        message: 'VOICE_MEDIA_INVALID',
+        eventName: 'voice.media.rejected',
+        state: stage === 'Bearer private-fixture-token' ? 'unknown' : stage,
+      },
+    ]);
   });
 
   it.each(['transfer', 'multiple', 'obligation'] as const)(
