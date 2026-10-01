@@ -7,6 +7,20 @@ const config = {
 };
 
 describe('private voice object boundary', () => {
+  it('preserves the Storage API prefix for the relative signed upload URL returned by Supabase', async () => {
+    const token = 'signed-token-fixture';
+    const path = `/object/upload/sign/voice-temp/${key}?token=${token}`;
+    const storage = new AiStorage(
+      config as never,
+      jest.fn(() => Promise.resolve(new Response(JSON.stringify({ url: path, token })))),
+    );
+    await expect(storage.signedUpload(key, 300, 'audio/wav')).resolves.toMatchObject({
+      url: `https://storage.example.test/storage/v1${path}`,
+      token,
+      headers: { 'content-type': 'audio/wav' },
+    });
+  });
+
   it('signs, streams an exact-size object, and permits idempotent purge without exposing the credential', async () => {
     const audio = Buffer.alloc(44);
     audio.write('RIFF');

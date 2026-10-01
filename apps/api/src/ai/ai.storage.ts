@@ -34,7 +34,10 @@ export class AiStorage {
       value.token.length > 4096
     )
       throw new Error('VOICE_STORAGE_UNAVAILABLE');
-    const url = new URL(value.url, this.origin);
+    const path = value.url.startsWith('/object/upload/sign/')
+      ? `/storage/v1${value.url}`
+      : value.url;
+    const url = new URL(path, this.origin);
     if (url.origin !== this.origin.origin) throw new Error('VOICE_STORAGE_UNAVAILABLE');
     return {
       url: url.toString(),
