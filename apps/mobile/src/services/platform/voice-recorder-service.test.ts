@@ -20,7 +20,15 @@ jest.mock('expo-audio', () => ({
     canAskAgain: true
   })),
   setAudioModeAsync: jest.fn(async () => undefined),
-  RecordingPresets: { HIGH_QUALITY: {} },
+  RecordingPresets: {
+    HIGH_QUALITY: {
+      extension: '.m4a',
+      sampleRate: 44100,
+      numberOfChannels: 2,
+      bitRate: 128000,
+      android: { outputFormat: 'mpeg4', audioEncoder: 'aac' }
+    }
+  },
   AudioModule: {
     AudioRecorder: jest.fn().mockImplementation(() => ({
       prepareToRecordAsync: mockAudioPrepare,
@@ -55,6 +63,12 @@ it('uses the Expo 55 audio recorder contract', async () => {
 
   expect(await service.getPermission()).toBe('granted');
   const recording = await service.start();
+  expect(mockAudioPrepare).toHaveBeenCalledWith(
+    expect.objectContaining({
+      extension: '.m4a',
+      android: { outputFormat: 'mpeg4', audioEncoder: 'aac' }
+    })
+  );
   expect(await service.stop(recording.id)).toBe('private://voice.m4a');
 });
 
