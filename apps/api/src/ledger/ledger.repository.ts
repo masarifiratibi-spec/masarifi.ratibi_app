@@ -604,9 +604,9 @@ export class LedgerRepository {
             and ($3::timestamptz is null or t.occurred_at >= $3)
             and ($4::timestamptz is null or t.occurred_at <= $4)
           order by t.occurred_at desc,t.id desc limit 25)
-        select s.account_id,btrim(s.currency_code::text) currency,s.account_status,
+        select r.*,s.account_id,btrim(s.currency_code::text) currency,s.account_status,
           s.confirmed_minor::text,s.pending_minor::text,s.available_minor::text,
-          s.ledger_version::text,s.reconciled_at,s.updated_at,r.*
+          s.ledger_version::text,s.reconciled_at,s.updated_at
         from public.v_account_balance_summary s left join recent r on true
         where s.account_id=$2 order by r.occurred_at desc,r.id desc`,
             [principal.userId, id, normalized.from, normalized.to],
