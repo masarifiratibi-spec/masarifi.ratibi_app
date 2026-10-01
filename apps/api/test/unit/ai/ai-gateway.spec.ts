@@ -61,6 +61,12 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 describe('AiGateway', () => {
   it.each([
     [
+      '* GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      [
+        'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      ],
+    ],
+    [
       'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
       [
         'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',

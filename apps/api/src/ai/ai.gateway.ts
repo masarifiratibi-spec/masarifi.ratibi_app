@@ -477,7 +477,7 @@ async function rejectionDiagnostic(response: Response, requestId: string): Promi
           }
       }
       if (typeof value.message === 'string') {
-        for (const match of value.message.matchAll(/(?:^|\n)\s*([^:\r\n]{1,256}):/g))
+        for (const match of value.message.matchAll(/(?:^|\n)\s*(?:\*\s*)?([^:\r\n]{1,256}):/g))
           if (recognizedField(match[1])) fields.add(match[1]);
         for (const match of value.message.matchAll(/Invalid value at '([^']{1,256})'/g))
           if (recognizedField(match[1])) fields.add(match[1]);
