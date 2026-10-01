@@ -16,6 +16,12 @@ export interface SafeLogFields {
   jobName?: string;
   severity?: string;
   durationMs?: number;
+  httpStatus?: number;
+  failureStage?: string;
+  providerCode?: string;
+  providerRequestIdHash?: string;
+  rejectedFields?: string[];
+  rejectedKeywords?: string[];
 }
 
 const levels: Record<LogLevel, number> = {

@@ -428,6 +428,11 @@ export class AiWorker implements OnModuleDestroy {
       else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
     } catch (error) {
+      if (error instanceof AiGatewayError && error.diagnostic)
+        new PlatformLogger().warn('AI_PROVIDER_REQUEST_REJECTED', {
+          ...error.diagnostic,
+          eventName: 'ai.provider.request_rejected',
+        });
       if (error instanceof Error && error.message === 'VOICE_MEDIA_INVALID')
         new PlatformLogger().warn('VOICE_MEDIA_INVALID', {
           eventName: 'voice.media.rejected',

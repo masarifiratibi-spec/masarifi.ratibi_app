@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+
+import type { SafeLogFields } from '../platform/observability/platform-logger';
+
 export interface EffectiveAiRoute {
   workload: string;
   primary: { modelId: string; provider: string };
@@ -28,6 +32,7 @@ export class AiGatewayError extends Error {
   constructor(
     public readonly code: string,
     public readonly retryable = false,
+    public readonly diagnostic?: SafeLogFields,
   ) {
     super(code);
     this.name = 'AiGatewayError';
@@ -162,11 +167,13 @@ export class AiGateway {
       });
       clearTimeout(connectionTimer);
       if (!response.ok) {
+        const diagnostic = await rejectionDiagnostic(response, input.requestId);
         throw new AiGatewayError(
           response.status === 429 || response.status >= 500
             ? 'AI_TEMPORARILY_UNAVAILABLE'
             : 'AI_UNAVAILABLE',
           response.status === 429 || response.status >= 500,
+          diagnostic,
         );
       }
       if (!response.headers.get('content-type')?.toLowerCase().includes('application/json'))
@@ -296,22 +303,193 @@ export class AiGateway {
   }
 }
 
-async function boundedText(response: Response, maximumBytes: number): Promise<string> {
+async function boundedText(
+  response: Response,
+  maximumBytes: number,
+  maximumMs?: number,
+): Promise<string> {
   if (!response.body) return '';
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let total = 0;
   let result = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) return result + decoder.decode();
-    total += value.byteLength;
-    if (total > maximumBytes) {
-      await reader.cancel();
-      throw new AiGatewayError('AI_SCHEMA_INVALID');
+  const timer =
+    maximumMs === undefined
+      ? undefined
+      : setTimeout(() => {
+          void reader.cancel().catch(() => undefined);
+        }, maximumMs);
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return result + decoder.decode();
+      total += value.byteLength;
+      if (total > maximumBytes) {
+        void reader.cancel().catch(() => undefined);
+        throw new AiGatewayError('AI_SCHEMA_INVALID');
+      }
+      result += decoder.decode(value, { stream: true });
     }
-    result += decoder.decode(value, { stream: true });
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+const providerCodes = new Set([
+  'INVALID_ARGUMENT',
+  'FAILED_PRECONDITION',
+  'PERMISSION_DENIED',
+  'RESOURCE_EXHAUSTED',
+  'UNAUTHENTICATED',
+  'NOT_FOUND',
+  'UNAVAILABLE',
+  'DEADLINE_EXCEEDED',
+  'INTERNAL',
+  'UNKNOWN',
+]);
+const requestFields = new Set([
+  'generation_config',
+  'generationConfig',
+  'response_schema',
+  'responseSchema',
+  'response_json_schema',
+  'responseJsonSchema',
+  'response_format',
+  'json_schema',
+  'schema',
+  'properties',
+  'items',
+  'value',
+  'type',
+  'enum',
+  'const',
+  'oneOf',
+  'anyOf',
+  'allOf',
+  'additionalProperties',
+  'required',
+  'format',
+  'pattern',
+  'minimum',
+  'maximum',
+  'minItems',
+  'maxItems',
+  'minLength',
+  'maxLength',
+  'nullable',
+  'description',
+  'contents',
+  'parts',
+  'inline_data',
+  'inlineData',
+  'mime_type',
+  'mimeType',
+  'data',
+  'messages',
+  'content',
+  'input_audio',
+  'audio',
+  'model',
+  'max_tokens',
+  'maxOutputTokens',
+  'max_output_tokens',
+  'temperature',
+  'schemaVersion',
+  'outcome',
+  'transcript',
+  'language',
+  'confidence',
+  'proposal',
+  'unsupportedReason',
+  'amountMinor',
+  'currency',
+  'categoryId',
+  'accountId',
+  'date',
+  'merchant',
+  'note',
+  'kind',
+]);
+
+function diagnosticObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function recognizedField(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= 256 &&
+    /^[A-Za-z_][A-Za-z_0-9]*(?:\[\d{1,2}\])?(?:\.[A-Za-z_][A-Za-z_0-9]*(?:\[\d{1,2}\])?)*$/.test(
+      value,
+    ) &&
+    value
+      .replace(/\[\d+\]/g, '')
+      .split('.')
+      .every((part) => requestFields.has(part))
+  );
+}
+
+async function rejectionDiagnostic(response: Response, requestId: string): Promise<SafeLogFields> {
+  const diagnostic: SafeLogFields = {
+    httpStatus: response.status,
+    failureStage: 'provider_request',
+    rejectedFields: [],
+    rejectedKeywords: [],
+  };
+  if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId))
+    diagnostic.requestId = requestId;
+  const correlation = response.headers.get('x-request-id');
+  if (correlation && correlation.length <= 256)
+    diagnostic.providerRequestIdHash = createHash('sha256').update(correlation).digest('hex');
+  try {
+    const envelope = diagnosticObject(
+      JSON.parse(await boundedText(response, 8_192, 500)) as unknown,
+    );
+    const outer = diagnosticObject(envelope.error);
+    const raw = diagnosticObject(outer.metadata).raw;
+    let inner = {};
+    if (typeof raw === 'string') {
+      try {
+        inner = diagnosticObject(diagnosticObject(JSON.parse(raw) as unknown).error);
+      } catch {
+        /* Unrecognized provider text is discarded. */
+      }
+    }
+    const fields = new Set<string>(),
+      keywords = new Set<string>();
+    for (const error of [outer, inner]) {
+      const value = diagnosticObject(error);
+      for (const code of [value.status, value.type, value.code])
+        if (typeof code === 'string' && providerCodes.has(code)) diagnostic.providerCode = code;
+      if (recognizedField(value.param)) fields.add(value.param);
+      const details = Array.isArray(value.details) ? value.details : [];
+      for (const detail of details) {
+        const violations = diagnosticObject(detail).fieldViolations;
+        if (Array.isArray(violations))
+          for (const violation of violations) {
+            const field = diagnosticObject(violation).field;
+            if (recognizedField(field)) fields.add(field);
+          }
+      }
+      if (typeof value.message === 'string') {
+        for (const match of value.message.matchAll(/Invalid value at '([^']{1,256})'/g))
+          if (recognizedField(match[1])) fields.add(match[1]);
+        for (const match of value.message.matchAll(
+          /Unknown name "([A-Za-z_][A-Za-z_0-9]*)"(?: at '([^']{1,256})')?/g,
+        )) {
+          if (requestFields.has(match[1] ?? '')) keywords.add(match[1] ?? '');
+          if (recognizedField(match[2])) fields.add(match[2]);
+        }
+      }
+    }
+    diagnostic.rejectedFields = [...fields].slice(0, 16);
+    diagnostic.rejectedKeywords = [...keywords].slice(0, 16);
+  } catch {
+    /* Diagnostic parsing must not alter provider failure or retry semantics. */
+  }
+  return diagnostic;
 }
 
 function decimal(value: string): boolean {

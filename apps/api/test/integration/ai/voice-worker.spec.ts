@@ -1,4 +1,5 @@
 import { AiWorker } from '../../../src/ai/ai.worker';
+import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 
 const claim = {
   kind: 'voice.transcribe_extract' as const,
@@ -24,6 +25,115 @@ const route = {
 const accountId = '99000000-0000-4000-8000-000000000009';
 
 describe('voice transcription worker', () => {
+  it('logs sanitized provider rejection after M4A validation without saving a Voice result', async () => {
+    const lines: string[] = [];
+    jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      lines.push(String(chunk));
+      return true;
+    });
+    const operationId = '99000000-0000-4000-8000-000000000007';
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      primary: { modelId: 'google/gemini-2.5-flash', provider: 'google-vertex' },
+      providerAllowlist: ['google-vertex'],
+      safetyRules: [
+        {
+          key: 'input',
+          type: 'input_block',
+          configuration: { denyControl: true, denyBidiControls: true, maxUtf8Bytes: 8192 },
+        },
+        {
+          key: 'output',
+          type: 'output_block',
+          configuration: {
+            forbiddenKeys: ['tool', 'tools', 'sql', 'url', 'callback', 'authorization', 'secret'],
+          },
+        },
+      ],
+    };
+    const repository = {
+      claimWork: jest.fn(() => Promise.resolve([claim])),
+      workInput: jest.fn(() =>
+        Promise.resolve({
+          storageRef: 'fixture-only',
+          sizeBytes: 44,
+          contentType: 'audio/m4a',
+          locale: 'en',
+          operationId,
+          aliases: [],
+        }),
+      ),
+      getRoute: jest.fn(() => Promise.resolve(voiceRoute)),
+      recordUsage: jest.fn(),
+      saveVoiceResult: jest.fn(),
+      completeWork: jest.fn(),
+      recordFailure: jest.fn(),
+    };
+    const audio = Buffer.alloc(44);
+    audio.write('ftyp', 4);
+    const gateway = new AiGateway({
+      apiKey: 'fixture-secret',
+      fetcher: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                metadata: {
+                  raw: JSON.stringify({
+                    error: {
+                      status: 'INVALID_ARGUMENT',
+                      message: `Unknown name "const" at 'generation_config.response_schema': Cannot find field. PRIVATE_CUSTOMER`,
+                    },
+                  }),
+                },
+              },
+            }),
+            { status: 400 },
+          ),
+        ),
+    });
+    const config = {
+      getRequired: (name: string) =>
+        (
+          ({
+            MASARIFI_AI_PROVIDER_ENABLED: true,
+            MASARIFI_AI_JOB_BATCH_SIZE: 1,
+            MASARIFI_AI_LEASE_SECONDS: 120,
+            MASARIFI_AI_MAX_CONCURRENCY: 1,
+          }) as Record<string, unknown>
+        )[name],
+      get: () => 'fixture-worker',
+    };
+    await new AiWorker(
+      repository as never,
+      { download: () => Promise.resolve(audio) } as never,
+      gateway,
+      config as never,
+    ).runJob('voice.transcribe_extract');
+    const events = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(events).toEqual([
+      expect.objectContaining({
+        eventName: 'ai.provider.request_rejected',
+        requestId: operationId,
+        httpStatus: 400,
+        failureStage: 'provider_request',
+        providerCode: 'INVALID_ARGUMENT',
+        rejectedFields: ['generation_config.response_schema'],
+        rejectedKeywords: ['const'],
+      }),
+    ]);
+    expect(lines.join('')).not.toContain('PRIVATE_CUSTOMER');
+    expect(lines.join('')).not.toContain('fixture-secret');
+    expect(repository.recordUsage).not.toHaveBeenCalled();
+    expect(repository.saveVoiceResult).not.toHaveBeenCalled();
+    expect(repository.completeWork).toHaveBeenCalledWith(
+      claim.kind,
+      claim.id,
+      claim.claim_token,
+      'failed',
+      'AI_UNAVAILABLE',
+    );
+  });
   it.each([
     ['en', 'Paid 12.50 at Shop'],
     ['ar', 'دفعت ١٢٫٥٠ في المتجر'],
