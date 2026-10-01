@@ -47,12 +47,13 @@ function proposal(overrides: Record<string, unknown> = {}) {
 
 function successfulRequest(
   process: unknown = { id: id(1), status: 'queued' },
-  poll: unknown = proposal()
+  poll: unknown = proposal(),
+  audio = { bytes: wav, contentType: 'audio/wav', inferredType: 'audio/wav' }
 ) {
   return jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
     .mockResolvedValueOnce(
-      new Response(wav, { headers: { 'content-type': 'audio/wav' } })
+      new Response(audio.bytes, { headers: { 'content-type': audio.inferredType } })
     )
     .mockResolvedValueOnce(
       json(
@@ -72,7 +73,7 @@ function successfulRequest(
             url: 'https://storage.test/upload',
             token: 'signed',
             expiresAt: '2026-09-03T00:05:00.000Z',
-            headers: { 'content-type': 'audio/wav' }
+            headers: { 'content-type': audio.contentType }
           }
         },
         201
@@ -104,6 +105,25 @@ function successfulRequest(
       })
     );
 }
+
+it('uploads native M4A recordings as M4A even when Android infers MP3, without confirming a transaction', async () => {
+  const m4a = Uint8Array.from([0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32]);
+  const request = successfulRequest(undefined, undefined, {
+    bytes: m4a, contentType: 'audio/m4a', inferredType: 'audio/mpeg'
+  });
+  const service = createLiveVoiceApiService({
+    baseUrl: 'https://api.test', token: async () => 'owner', request, sleep: async () => {}
+  });
+  await expect(service.transcribe('file:///recording.m4a', 'clear_en', 1_234, 'en'))
+    .resolves.toMatchObject({ analysisReference: { proposalId: id(2) } });
+  expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
+    contentType: 'audio/m4a', sizeBytes: m4a.byteLength
+  });
+  expect(request.mock.calls[2]?.[1]).toMatchObject({
+    body: m4a.buffer, headers: { 'content-type': 'audio/m4a' }
+  });
+  expect(request.mock.calls.some(([url]) => String(url).endsWith('/confirm'))).toBe(false);
+});
 
 it('uses the actual duration and preserves server session, proposal, and version identifiers', async () => {
   const request = successfulRequest();

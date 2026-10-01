@@ -387,7 +387,10 @@ export function createLiveVoiceApiService(
       const bytes = await audio.arrayBuffer();
       if (bytes.byteLength < 1 || bytes.byteLength > 12_582_912)
         throw new VoiceCaptureError('recording_interrupted');
-      const header = audio.headers.get('content-type') ?? '';
+      // Android can infer audio/mpeg for the native recorder's M4A files.
+      const header = audioReference.endsWith('.m4a')
+        ? 'audio/m4a'
+        : (audio.headers.get('content-type') ?? '');
       const contentType = [
         'audio/m4a',
         'audio/mp4',
