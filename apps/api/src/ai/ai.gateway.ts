@@ -355,6 +355,8 @@ const requestFields = new Set([
   'responseSchema',
   'response_json_schema',
   'responseJsonSchema',
+  'response_mime_type',
+  'responseMimeType',
   'response_format',
   'json_schema',
   'schema',
@@ -368,6 +370,14 @@ const requestFields = new Set([
   'anyOf',
   'allOf',
   'additionalProperties',
+  'additional_properties',
+  'one_of',
+  'any_of',
+  'all_of',
+  'min_items',
+  'max_items',
+  'min_length',
+  'max_length',
   'required',
   'format',
   'pattern',
@@ -477,6 +487,12 @@ async function rejectionDiagnostic(response: Response, requestId: string): Promi
           }
       }
       if (typeof value.message === 'string') {
+        if (value.message.trim() === 'Request contains an invalid argument.')
+          diagnostic.providerReason = 'UNSPECIFIED_INVALID_ARGUMENT';
+        for (const match of value.message.matchAll(
+          /response schemas specified unsupported field ([A-Za-z_][A-Za-z_0-9]*)\b/g,
+        ))
+          if (requestFields.has(match[1] ?? '')) keywords.add(match[1] ?? '');
         for (const match of value.message.matchAll(/(?:^|\n)\s*(?:\*\s*)?([^:\r\n]{1,256}):/g))
           if (recognizedField(match[1])) fields.add(match[1]);
         for (const match of value.message.matchAll(/Invalid value at '([^']{1,256})'/g))

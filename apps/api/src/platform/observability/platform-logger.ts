@@ -19,6 +19,7 @@ export interface SafeLogFields {
   httpStatus?: number;
   failureStage?: string;
   providerCode?: string;
+  providerReason?: 'UNSPECIFIED_INVALID_ARGUMENT';
   providerRequestIdHash?: string;
   rejectedFields?: string[];
   rejectedKeywords?: string[];

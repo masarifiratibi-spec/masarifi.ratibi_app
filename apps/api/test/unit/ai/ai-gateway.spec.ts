@@ -60,6 +60,84 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 
 describe('AiGateway', () => {
   it.each([
+    {
+      message:
+        '* GenerateContentRequest.generation_config.response_schema.one_of[0].properties[proposal].any_of[0].min_length: PRIVATE_CUSTOMER',
+      fields: [
+        'GenerateContentRequest.generation_config.response_schema.one_of[0].properties[proposal].any_of[0].min_length',
+      ],
+      keywords: [],
+      reason: undefined,
+    },
+    {
+      message:
+        'Unable to submit request because one or more response schemas specified unsupported field min_length. PRIVATE_CUSTOMER',
+      fields: [],
+      keywords: ['min_length'],
+      reason: undefined,
+    },
+    {
+      message:
+        'Unable to submit request because one or more response schemas specified unsupported field PRIVATE_CUSTOMER.',
+      fields: [],
+      keywords: [],
+      reason: undefined,
+    },
+    {
+      message: 'Request contains an invalid argument.',
+      fields: [],
+      keywords: [],
+      reason: 'UNSPECIFIED_INVALID_ARGUMENT',
+    },
+    {
+      message: 'Request contains an invalid argument. PRIVATE_CUSTOMER',
+      fields: [],
+      keywords: [],
+      reason: undefined,
+    },
+  ])(
+    'retains only recognized snake-case or unspecified Google rejection metadata: $message',
+    async ({ message, fields, keywords, reason }) => {
+      const fetcher = () =>
+        Promise.resolve(
+          response(
+            {
+              error: {
+                metadata: {
+                  raw: JSON.stringify({ error: { status: 'INVALID_ARGUMENT', message } }),
+                },
+              },
+            },
+            400,
+          ),
+        );
+      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+        .complete({
+          route,
+          userContent: 'PRIVATE_CUSTOMER',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'request',
+        })
+        .catch((failure: unknown) => failure);
+      if (!(error instanceof AiGatewayError)) throw new Error('EXPECTED_GATEWAY_REJECTION');
+      const lines: string[] = [];
+      new PlatformLogger((line) => lines.push(line)).warn(
+        'AI_PROVIDER_REQUEST_REJECTED',
+        error.diagnostic,
+      );
+      const logged = JSON.parse(lines[0] ?? '{}') as Record<string, unknown>;
+      expect(logged).toMatchObject({
+        httpStatus: 400,
+        providerCode: 'INVALID_ARGUMENT',
+        rejectedFields: fields,
+        rejectedKeywords: keywords,
+      });
+      expect(logged.providerReason).toBe(reason);
+      expect(lines.join('')).not.toContain('PRIVATE_CUSTOMER');
+    },
+  );
+  it.each([
     [
       '* GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
       [
