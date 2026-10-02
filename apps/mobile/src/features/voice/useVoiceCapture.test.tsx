@@ -413,6 +413,7 @@ it('dismisses a failed capture even when temporary audio cleanup fails', async (
 });
 
 it('clears a failed capture and immediately starts a fresh recording', async () => {
+  jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-180);
   jest
     .spyOn(voiceRecorderService, 'getPermission')
     .mockResolvedValue('granted');

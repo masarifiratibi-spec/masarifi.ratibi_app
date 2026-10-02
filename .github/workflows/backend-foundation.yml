@@ -71,6 +71,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci --ignore-scripts
+      # The integrated Voice journey validates the actual Mobile parser.
+      - run: npm --prefix ../mobile ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
@@ -168,6 +170,8 @@ jobs:
         with:
           k6-version: "1.8.0"
       - run: npm ci --ignore-scripts
+      # The integrated Voice journey validates the actual Mobile parser.
+      - run: npm --prefix ../mobile ci --ignore-scripts
       - run: npm run supabase:start
       - run: npm run db:reset
       - run: npm run db:lint
