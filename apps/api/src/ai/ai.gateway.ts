@@ -119,10 +119,17 @@ export class AiGateway {
     const dispatchState = { dispatched: false, responseReceived: false, accounted: false };
     try {
       return await withAiAbort(controller.signal, async () => {
+        const vertexVoiceLite =
+          input.route.workload === 'voice_transcription' &&
+          candidate.modelId === 'google/gemini-3.5-flash-lite' &&
+          candidate.provider === 'google-vertex';
         const completionParameters =
           candidate.modelId === 'openai/gpt-6-luna'
             ? { max_completion_tokens: input.route.limits.outputTokens }
-            : { max_tokens: input.route.limits.outputTokens, temperature: 0 };
+            : {
+                max_tokens: input.route.limits.outputTokens,
+                ...(vertexVoiceLite ? {} : { temperature: 0 }),
+              };
         const body = JSON.stringify({
           model: candidate.modelId,
           messages: [
@@ -140,7 +147,7 @@ export class AiGateway {
           ...completionParameters,
           stream: false,
           provider: {
-            only: [candidate.provider],
+            only: [vertexVoiceLite ? 'google-vertex/global' : candidate.provider],
             allow_fallbacks: false,
             require_parameters: true,
             data_collection: 'deny',

@@ -1,5 +1,6 @@
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
+import { VOICE_OUTPUT_SCHEMA, parseVoiceWorkerOutput } from '../../../src/ai/ai.schemas';
 
 const route: EffectiveAiRoute = {
   workload: 'financial_assistant',
@@ -59,6 +60,111 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  it('sends supported pinned Vertex parameters for Voice 3.5 Flash-Lite without changing canonical validation', async () => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+      fallbacks: [],
+      providerAllowlist: ['google-vertex'],
+      maxPrice: { prompt: '0.000001', completion: '0.000003' },
+      limits: { inputTokens: 128000, outputTokens: 1200, timeoutMs: 120000 },
+    };
+    const voiceOutput = {
+      schemaVersion: 1,
+      outcome: 'supported',
+      transcript: 'Fictional groceries expense fifteen riyals',
+      language: 'en',
+      confidence: 0.9,
+      proposal: {
+        schemaVersion: 1,
+        type: 'transaction.create',
+        amountMinor: '-1500',
+        currency: 'SAR',
+        categoryId: 'CATEGORY-1',
+        accountId: 'ACCOUNT-1',
+        date: '2026-10-02',
+        merchant: null,
+        note: null,
+        confidence: 0.9,
+      },
+    };
+    const audio = {
+      type: 'input_audio',
+      input_audio: { data: 'fictional-fixture', format: 'm4a' },
+    };
+    let sent: Record<string, unknown> = {};
+    const fetcher = (_url: RequestInfo | URL, init?: RequestInit) => {
+      sent = requestBody(init);
+      return Promise.resolve(
+        response({
+          id: 'synthetic-generation',
+          model: voiceRoute.primary.modelId,
+          choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(voiceOutput) } }],
+          usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.00028 },
+        }),
+      );
+    };
+    const result = await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      route: voiceRoute,
+      userContent: [{ type: 'text', text: '{}' }, audio],
+      schema: VOICE_OUTPUT_SCHEMA,
+      parse: parseVoiceWorkerOutput,
+      requestId: 'synthetic-voice',
+      beforeDispatch: (candidate) => {
+        expect(candidate).toEqual(voiceRoute.primary);
+        return Promise.resolve();
+      },
+    });
+    expect(sent.provider).toEqual({
+      only: ['google-vertex/global'],
+      allow_fallbacks: false,
+      require_parameters: true,
+      data_collection: 'deny',
+      zdr: true,
+      max_price: { prompt: 1, completion: 3 },
+    });
+    expect(sent).not.toHaveProperty('temperature');
+    expect(sent.max_tokens).toBe(1200);
+    expect(sent.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: { name: 'voice_transcription_v1', strict: true, schema: VOICE_OUTPUT_SCHEMA },
+    });
+    expect(sent.messages).toEqual([
+      { role: 'system', content: voiceRoute.prompt.template },
+      { role: 'user', content: [{ type: 'text', text: '{}' }, audio] },
+    ]);
+    expect(result.value).toEqual(voiceOutput);
+    expect(() => parseVoiceWorkerOutput({ ...voiceOutput, tool: 'forbidden' })).toThrow();
+  });
+
+  it.each([
+    ['financial_assistant', 'google/gemini-3.5-flash-lite'],
+    ['voice_transcription', 'google/gemini-2.5-flash'],
+    ['voice_transcription', 'google/gemini-3.1-flash-lite'],
+  ])('preserves the existing transport for %s / %s', async (workload, modelId) => {
+    let sent: Record<string, unknown> = {};
+    const fetcher = (_url: RequestInfo | URL, init?: RequestInit) => {
+      sent = requestBody(init);
+      return Promise.resolve(
+        response({
+          model: modelId,
+          choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      );
+    };
+    await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      route: { ...route, workload, primary: { modelId, provider: 'google-vertex' }, fallbacks: [] },
+      userContent: '{}',
+      schema: {},
+      parse: (value) => value,
+      requestId: 'synthetic-unrelated',
+    });
+    expect(sent.temperature).toBe(0);
+    expect(sent.provider).toMatchObject({ only: ['google-vertex'] });
+  });
+
   it.each(['length', 'content_filter', 'error'])(
     'rejects a %s completion even when its content parses',
     async (reason) => {
