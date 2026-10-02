@@ -188,6 +188,7 @@ describeLiveDatabase('migration application', () => {
       'enqueue_credit_card_due_reminders',
       'enqueue_credit_card_due_reminders',
       'enqueue_outbox_event',
+      'ensure_authenticated_profile',
       'evaluate_feature_flag',
       'execute_engagement_command',
       'execute_operations_command',
