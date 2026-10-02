@@ -560,7 +560,7 @@ export class AiWorker implements OnModuleDestroy {
             },
             references: descriptors,
             instruction:
-              'Use only supplied aliases. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
+              'Use only supplied aliases. Expenses use positive amountMinor; income uses negative amountMinor. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
           }),
         },
         {

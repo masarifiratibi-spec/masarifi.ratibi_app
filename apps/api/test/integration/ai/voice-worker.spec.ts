@@ -150,6 +150,18 @@ describe('voice transcription worker', () => {
         payload: { type: 'transaction.create', accountId },
       });
       expect(storage.delete).toHaveBeenCalledTimes(1);
+      expect(gateway.complete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userContent: expect.arrayContaining([
+            expect.objectContaining({
+              type: 'text',
+              text: expect.stringContaining(
+                'Expenses use positive amountMinor; income uses negative amountMinor.',
+              ) as unknown,
+            }),
+          ]) as unknown,
+        }),
+      );
     },
   );
 

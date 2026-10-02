@@ -6,9 +6,11 @@ Authority: the user's complete Phase A–H request, preserved verbatim in the pl
 
 | Item | Verified state |
 | --- | --- |
-| AI | Clean isolated `codex/ai-voice-continuation`, HEAD `41170e846406751bde52847ea18b00a9727ebdc5`; contains `8434640` and `8da9cfb` |
+| AI | Isolated `codex/ai-voice-continuation`: `41170e8` → `cee9421` gateway hardening → final canonical sign instruction; contains `8434640` and `8da9cfb` |
 | Onboarding | `5113fb7046372183fea4f8a8b1e23a9ec947dcd2`, contains/supersedes `08fda46`; deployed, exact-SHA CI green, matching Samsung APK installed |
 | Integrated SHA | None; no merge performed |
+| CI | Final AI exact-SHA run pending; superseded `cee9421` run cancelled |
+| Staging | API onboarding `5113fb7`, immutable image `3ed2ad83dbbf…`; Worker stopped |
 | Provider acceptance | Pending; the cancelled Samsung attempt had zero Worker/provider attempts |
 | Samsung acceptance | Onboarding first-signup pending availability of genuinely unused identity; Voice pending |
 | Finance | No Confirm authorization; no Voice transaction |
@@ -46,6 +48,16 @@ Fresh public OpenRouter metadata: exact model `google/gemini-3.5-flash-lite`, en
 Browser Clerk owner fingerprint matches the existing Samsung owner safely. `/me` and accounts return 200. Category listing still returns 503 `REFERENCE_UNAVAILABLE`; this separate reference boundary must be diagnosed before final review acceptance. No reference/account was created or modified by this phase.
 
 ## Remaining phases
+
+### Additional Phase A canonical-contract check
+
+After `cee9421`, request review established an ambiguity: the schema allows signed money but has only `transaction.create`, and the actual Worker context never states which sign means expense/income. Three existing real Worker request tests (AR/EN/noisy) reproduced the missing contract instruction RED, then passed when the existing instruction gained one sentence: `Expenses use positive amountMinor; income uses negative amountMinor.` This is application execution context, not a model/provider/schema or published-prompt change. Fresh review found no issues and independently passed 15 Worker checks. Gateway + Worker targeted gate: 66 passed; typecheck/lint/build and compiled one-shot failure checks passed again. The earlier `cee9421` CI run `37029548003` was cancelled to prevent publication of a superseded candidate; it must never count as release acceptance. Fresh exact-SHA CI follows this final Phase A commit.
+
+Cancelled-session reconciliation confirmed 15:52Z: original audio count 0, storage reference cleared, reservation `released`, attempts 0, proposals 0, transactions 0. Normal maintenance at 15:51:31Z purged 2 remaining eligible references and released exactly 1 eligible hold. Historical unresolved provider-attempt holds remain protected; the second new cancelled capture's hold is not old enough to release yet.
+
+15:50:47Z authenticated OpenRouter key read: limit 2, remaining 1.99932675, usage 0.00067325; no inference. Effective Voice provider approved/ZDR-capable/no_training, model approved/audio_input/structured_output, prompt version 1 approved/evaluation-passed; route and all unrelated fingerprints unchanged.
+
+Reference issue isolated read-only under the **actual API role and API connection** at 15:53Z: search_path `"$user", public`; extensions schema USAGE false; unqualified digest call fails SQLSTATE `42883`, qualified call fails `42501`. `ReferenceRepository.sharedHash` currently calls unqualified `digest`, explaining cached category/reference 503. Migration-role probes can resolve it and therefore do not represent the API boundary. No grant/config/source change made here. Treat as a unique release-critical shared reference defect for the later integration phase; avoid broadening database privileges. Worker reference construction uses its existing restricted definer path and remains independently verifiable before paid canary.
 
 B: cancelled-session read-only correlation and governed non-inference maintenance; fresh route/prompt/ZDR/budget/quota checks; exact tested Worker image; one English synthetic, Arabic only after full pass.
 
