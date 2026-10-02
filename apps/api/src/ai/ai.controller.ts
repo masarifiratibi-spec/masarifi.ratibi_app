@@ -17,7 +17,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import {
   ClerkAuthGuard,
@@ -48,8 +48,32 @@ export class AiController {
     @Req() request: AiRequest,
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
+    @Headers('x-voice-contract') contract?: string,
   ) {
-    return this.ai.createVoiceSession(principal(request), body, key);
+    return this.ai.createVoiceSession(principal(request), body, key, contract ?? '');
+  }
+
+  @Put('voice/sessions/:sessionId/audio')
+  @ApiOperation({ operationId: 'uploadVoiceAudio' })
+  uploadVoiceAudio(@Req() request: AiRequest & Request, @Param('sessionId') id: string) {
+    return this.ai.uploadVoiceAudio(principal(request), id, request);
+  }
+
+  @Post('voice/sessions/:sessionId/cancel')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'cancelVoiceSession' })
+  cancelVoiceSession(
+    @Req() request: AiRequest,
+    @Param('sessionId') id: string,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.ai.cancelVoiceSession(principal(request), id, key);
+  }
+
+  @Get('voice/sessions/:sessionId/recovery')
+  @ApiOperation({ operationId: 'getVoiceRecovery' })
+  getVoiceRecovery(@Req() request: AiRequest, @Param('sessionId') id: string) {
+    return this.ai.getVoiceRecovery(principal(request), id);
   }
 
   @Get('voice/sessions/:sessionId')
@@ -84,7 +108,9 @@ export class AiController {
     @Param('proposalId') id: string,
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
+    @Headers('x-voice-contract') contract?: string,
   ) {
+    if (contract !== '2') throw new HttpException({ code: 'VOICE_UPGRADE_REQUIRED' }, 410);
     return this.ai.confirmVoice(principal(request), id, body, key);
   }
 

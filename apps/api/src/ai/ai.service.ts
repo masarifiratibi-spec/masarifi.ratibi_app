@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import { HttpException, Injectable } from '@nestjs/common';
+import type { Request } from 'express';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { LedgerService } from '../ledger/ledger.service';
@@ -13,7 +15,7 @@ import {
   consent,
   conversationCreate,
   conversationUpdate,
-  createVoice,
+  createVoiceV2,
   feedback,
   idempotencyKey,
   page,
@@ -22,6 +24,7 @@ import {
   responseReport,
   uuid,
   voicePreference,
+  voiceDecision,
 } from './ai.dto';
 import { recordAiResult } from './ai.observability';
 import { AiRepository } from './ai.repository';
@@ -69,6 +72,20 @@ function resourceId(value: unknown): string {
 
 function resultResource(value: unknown): Record<string, unknown> {
   return resource(resource(value).resource);
+}
+
+function publicVoiceSession(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    locale: row.locale,
+    status: row.status,
+    durationMs: row.durationMs,
+    expiresAt: row.expiresAt,
+    confirmedAt: row.confirmedAt ?? null,
+    failureCode: row.failureCode ?? null,
+    version: row.version,
+    createdAt: row.createdAt,
+  };
 }
 
 function cursor(value: string | undefined): { time: string | null; id: string | null } {
@@ -120,27 +137,31 @@ export class AiService {
     private readonly config: PlatformConfigService,
   ) {}
 
-  async createVoiceSession(principal: ClerkPrincipal, body: unknown, key: unknown) {
+  async createVoiceSession(principal: ClerkPrincipal, body: unknown, key: unknown, contract = '2') {
     const started = performance.now();
-    const input = createVoice(body);
     await this.available('voice_transcription');
+    if (contract !== '2') throw new HttpException({ code: 'VOICE_CLIENT_UPGRADE_REQUIRED' }, 410);
+    const input = createVoiceV2(body);
     const result = resource(
-      await this.repository.createVoiceSession(principal, input, idempotencyKey(key)),
+      await this.repository.createVoiceSession(
+        principal,
+        input,
+        idempotencyKey(key),
+        this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
+      ),
     );
     const session = resource(result.resource);
-    if (typeof session.storageRef !== 'string')
+    if (typeof session.id !== 'string' || typeof session.uploadDeadline !== 'string')
       throw new HttpException({ code: 'AI_UNAVAILABLE' }, 503);
-    const storageRef = session.storageRef;
-    const upload = await this.storage.signedUpload(
-      storageRef,
-      this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
-      input.contentType,
-    );
-    Reflect.deleteProperty(session, 'storageRef');
-    Reflect.deleteProperty(session, 'contentType');
-    Reflect.deleteProperty(session, 'sizeBytes');
     recordAiResult('voice_session_create', 'success', performance.now() - started);
-    return { session, upload };
+    return {
+      session: publicVoiceSession(session),
+      upload: {
+        method: 'PUT',
+        path: '/api/v1/voice/sessions/' + session.id + '/audio',
+        expiresAt: session.uploadDeadline,
+      },
+    };
   }
 
   async processVoiceSession(
@@ -160,8 +181,90 @@ export class AiService {
     return { id: sessionId, status: 'queued' };
   }
 
-  getVoiceSession(principal: ClerkPrincipal, sessionId: string) {
-    return this.repository.getVoiceSession(principal, uuid(sessionId));
+  async getVoiceSession(principal: ClerkPrincipal, sessionId: string) {
+    let row = resource(await this.repository.getVoiceSession(principal, uuid(sessionId)));
+    if (
+      Date.parse(String(row.expiresAt)) <= Date.now() &&
+      !['confirmed', 'expired', 'failed'].includes(String(row.status))
+    ) {
+      row = resource((await this.repository.getVoiceRecovery(principal, uuid(sessionId))).session);
+    }
+    return publicVoiceSession(row);
+  }
+
+  async uploadVoiceAudio(principal: ClerkPrincipal, sessionId: string, request: Request) {
+    const id = uuid(sessionId);
+    const upload = await this.repository.beginVoiceUpload(principal, id);
+    const token = typeof upload.uploadToken === 'string' ? upload.uploadToken : null;
+    const timer = setTimeout(
+      () => request.destroy(),
+      Math.min(30_000, this.config.getRequired('MASARIFI_REQUEST_TIMEOUT_MS')),
+    );
+    try {
+      if (
+        request.headers['content-type'] !== upload.contentType ||
+        Number(request.headers['content-length']) !== Number(upload.sizeBytes)
+      )
+        throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 422);
+      const chunks: Buffer[] = [];
+      const hash = createHash('sha256');
+      let size = 0;
+      for await (const part of request) {
+        if (!Buffer.isBuffer(part)) throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 422);
+        size += part.length;
+        if (size > Number(upload.sizeBytes) || size > 12_582_912)
+          throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 413);
+        hash.update(part);
+        chunks.push(part);
+      }
+      const digest = hash.digest('hex');
+      if (size !== Number(upload.sizeBytes) || digest !== upload.contentHash)
+        throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 422);
+      if (upload.completed === true)
+        return { id, version: upload.version, contentHash: digest, sizeBytes: size };
+      if (!token) throw new HttpException({ code: 'VOICE_UPLOAD_IN_PROGRESS' }, 409);
+      try {
+        await this.storage.upload(
+          String(upload.storageRef),
+          Buffer.concat(chunks, size),
+          String(upload.contentType),
+        );
+      } catch (error) {
+        // A lost Storage acknowledgement can leave the immutable object behind.
+        const existing = await this.storage
+          .download(String(upload.storageRef), size)
+          .catch(() => null);
+        if (!existing || createHash('sha256').update(existing).digest('hex') !== digest)
+          throw error;
+      }
+      // Unknown SQL acknowledgement must preserve accepted media. Cancellation/expiry purge owns deletion.
+      return await this.repository.finishVoiceUpload(principal, id, token, digest);
+    } finally {
+      clearTimeout(timer);
+      if (token)
+        await this.repository.releaseVoiceUpload(principal, id, token).catch(() => undefined);
+    }
+  }
+
+  async cancelVoiceSession(principal: ClerkPrincipal, sessionId: string, key: unknown) {
+    return resultResource(
+      await this.repository.cancelVoiceSession(principal, uuid(sessionId), idempotencyKey(key)),
+    );
+  }
+
+  async getVoiceRecovery(principal: ClerkPrincipal, sessionId: string) {
+    const row = await this.repository.getVoiceRecovery(principal, uuid(sessionId));
+    return {
+      phase: row.phase,
+      session: publicVoiceSession(resource(row.session)),
+      proposal: row.proposalId ? await this.getVoiceProposal(principal, sessionId) : null,
+      recordedAt: row.recordedAt,
+      timezoneOffsetMinutes: row.timezoneOffsetMinutes,
+      captureContextLegacy: row.captureContextLegacy,
+      transcriptLanguage: row.transcriptLanguage ?? null,
+      transcriptConfidence: row.transcriptConfidence ?? null,
+      transactionId: row.transactionId ?? null,
+    };
   }
 
   async getVoiceProposal(principal: ClerkPrincipal, sessionId: string) {
@@ -212,13 +315,65 @@ export class AiService {
     );
   }
 
-  confirmVoice(principal: ClerkPrincipal, proposalId: string, body: unknown, key: unknown) {
-    return this.confirm(
+  async confirmVoice(principal: ClerkPrincipal, proposalId: string, body: unknown, key: unknown) {
+    const id = uuid(proposalId);
+    const operationId = this.repository.operationId(
       principal,
-      uuid(proposalId),
-      actionDecision(body, true),
+      `ai.action.confirm:${id}`,
       idempotencyKey(key),
     );
+    const decision = voiceDecision(body, operationId);
+    const claim = resource(
+      await this.repository.claimVoiceAction(principal, id, operationId, decision),
+    );
+    if (claim.inProgress === true)
+      throw new HttpException({ code: 'VOICE_CONFIRMATION_IN_PROGRESS' }, 409);
+    if (claim.replayed === true)
+      return {
+        sourceId: id,
+        actionType: 'transaction.create',
+        resourceId: claim.resourceId,
+        status: 'executed',
+        replayed: true,
+      };
+    let result: unknown;
+    try {
+      result = await this.ledger.createTransaction({
+        principal,
+        idempotencyKey: String(claim.ledgerKey),
+        requestId: operationId,
+        body: claim.command,
+      });
+    } catch (error) {
+      // Only a definitive local validation failure can release an authorization.
+      if (
+        error instanceof HttpException &&
+        error.getStatus() >= 400 &&
+        error.getStatus() < 500 &&
+        ![408, 409, 429].includes(error.getStatus())
+      ) {
+        await this.repository.abandonVoiceAction(principal, id, String(claim.decisionToken));
+      }
+      throw error;
+    }
+    const idResult = resourceId(result);
+    try {
+      await this.repository.completeVoiceAction(
+        principal,
+        id,
+        String(claim.decisionToken),
+        idResult,
+      );
+    } catch {
+      /* Ledger receipt is authoritative; an identical retry repairs Voice bookkeeping. */
+    }
+    return {
+      sourceId: id,
+      actionType: 'transaction.create',
+      resourceId: idResult,
+      status: 'executed',
+      replayed: false,
+    };
   }
 
   async reject(principal: ClerkPrincipal, id: string, body: unknown, key: unknown) {

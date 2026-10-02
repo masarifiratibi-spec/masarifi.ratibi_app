@@ -1,3 +1,42 @@
+const mockDatabases = new Map<string, ReturnType<typeof mockMakeDatabase>>();
+function mockMakeDatabase() {
+  const { DatabaseSync } = require('node:sqlite');
+  const native = new DatabaseSync(':memory:');
+  native.exec(
+    'CREATE TABLE voice_operation_journal(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
+  );
+  return {
+    native,
+    getFirstAsync: async (sql: string, ...args: string[]) =>
+      native.prepare(sql).get(...args) ?? null,
+    runAsync: async (sql: string, ...args: (string | number)[]) =>
+      native.prepare(sql).run(...args)
+  };
+}
+jest.mock('@/storage/database', () => ({
+  openDatabase: async (ownerId: string) => {
+    if (!mockDatabases.has(ownerId))
+      mockDatabases.set(ownerId, mockMakeDatabase());
+    return mockDatabases.get(ownerId);
+  },
+  runExclusiveDatabaseTransaction: async (
+    db: ReturnType<typeof mockMakeDatabase>,
+    operation: (db: unknown) => Promise<void>
+  ) => {
+    db.native.exec('BEGIN IMMEDIATE');
+    try {
+      await operation(db);
+      db.native.exec('COMMIT');
+    } catch (error) {
+      db.native.exec('ROLLBACK');
+      throw error;
+    }
+  }
+}));
+
+afterAll(() => {
+  for (const db of mockDatabases.values()) db.native.close();
+});
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -9,6 +48,9 @@ import { requestJson } from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
 import { createLiveAssistantApiService } from './assistant-api-service';
 import { createLiveVoiceApiService } from './voice-api-service';
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => require('node:crypto').randomUUID()
+}));
 import {
   createLiveAuthService,
   createLiveIdentityService,

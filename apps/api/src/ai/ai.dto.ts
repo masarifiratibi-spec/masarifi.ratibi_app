@@ -1,4 +1,5 @@
 import { HttpException } from '@nestjs/common';
+import { normalizeCreateTransaction } from '../ledger/ledger.dto';
 
 import { assertSafeAiInput, hasForbiddenKey } from './ai.schemas';
 import { ASSISTANT_INTENTS, type AssistantContextScope, type AssistantIntent } from './ai-routing';
@@ -81,6 +82,44 @@ export function createVoice(input: unknown) {
   };
 }
 
+export function createVoiceV2(input: unknown) {
+  const value = record(input);
+  exact(value, [
+    'locale',
+    'durationMs',
+    'contentType',
+    'sizeBytes',
+    'contentHash',
+    'recordedAt',
+    'timezoneOffsetMinutes',
+  ]);
+  const media = createVoice({
+    locale: value.locale,
+    durationMs: value.durationMs,
+    contentType: value.contentType,
+    sizeBytes: value.sizeBytes,
+  });
+  const recordedAt = typeof value.recordedAt === 'string' ? Date.parse(value.recordedAt) : NaN;
+  if (
+    media.durationMs > 60_000 ||
+    typeof value.contentHash !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(value.contentHash) ||
+    !Number.isFinite(recordedAt) ||
+    new Date(recordedAt).toISOString() !== value.recordedAt ||
+    recordedAt > Date.now() + 300_000 ||
+    recordedAt < Date.now() - 86_400_000 ||
+    !Number.isInteger(value.timezoneOffsetMinutes) ||
+    Math.abs(Number(value.timezoneOffsetMinutes)) > 840
+  )
+    bad();
+  return {
+    ...media,
+    contentHash: value.contentHash,
+    recordedAt: value.recordedAt,
+    timezoneOffsetMinutes: Number(value.timezoneOffsetMinutes),
+  };
+}
+
 export function processVoice(input: unknown) {
   const value = record(input);
   exact(value, ['uploadCompleted', 'expectedVersion', 'contentHash']);
@@ -139,6 +178,71 @@ export function actionDecision(input: unknown, editable: boolean) {
     if (Object.keys(editedFields).length === 0 || hasForbiddenKey(editedFields)) bad();
   }
   return { expectedVersion: positiveVersion(value.expectedVersion), reason, editedFields };
+}
+
+export function voiceDecision(input: unknown, operationId: string, now = new Date()) {
+  const value = record(input);
+  exact(value, [
+    'expectedVersion',
+    'editedFields',
+    'reason',
+    'occurredAt',
+    'timezoneOffsetMinutes',
+  ]);
+  const { occurredAt, timezoneOffsetMinutes, ...decisionBody } = value;
+  const decision = actionDecision(decisionBody, true);
+  const patch = decision.editedFields;
+  if (
+    !patch ||
+    Object.keys(patch).length !== 7 ||
+    typeof occurredAt !== 'string' ||
+    !Number.isInteger(timezoneOffsetMinutes) ||
+    Number(timezoneOffsetMinutes) < -840 ||
+    Number(timezoneOffsetMinutes) > 840 ||
+    typeof patch.date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/u.test(patch.date) ||
+    Number.isNaN(Date.parse(patch.date + 'T00:00:00Z')) ||
+    new Date(patch.date + 'T00:00:00Z').toISOString().slice(0, 10) !== patch.date ||
+    typeof patch.amountMinor !== 'string' ||
+    !/^-?[1-9][0-9]{0,15}$/u.test(patch.amountMinor)
+  )
+    bad();
+  const amount = Number(patch.amountMinor);
+  if (amount > 0 && patch.categoryId == null) bad();
+  let command;
+  try {
+    command = normalizeCreateTransaction(
+      {
+        kind: amount < 0 ? 'income' : 'expense',
+        amountMinor: Math.abs(amount),
+        currency: patch.currency,
+        accountId: patch.accountId,
+        categoryId: patch.categoryId,
+        merchant: patch.merchant,
+        note: patch.note,
+        title: patch.merchant ?? 'Voice transaction',
+        paymentMethod: null,
+        occurredAt,
+        source: 'voice',
+        externalRef: 'voice:' + uuid(operationId),
+      },
+      now,
+    );
+  } catch {
+    bad();
+  }
+  if (
+    new Date(Date.parse(command.occurredAt) - Number(timezoneOffsetMinutes) * 60_000)
+      .toISOString()
+      .slice(0, 10) !== patch.date
+  )
+    bad();
+  return {
+    ...decision,
+    editedFields: { ...patch, merchant: command.merchant, note: command.note },
+    command,
+    timezoneOffsetMinutes: Number(timezoneOffsetMinutes),
+  };
 }
 
 export function consent(input: unknown) {

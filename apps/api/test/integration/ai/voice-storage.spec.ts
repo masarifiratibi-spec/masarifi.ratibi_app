@@ -7,6 +7,23 @@ const config = {
 };
 
 describe('private voice object boundary', () => {
+  it('bounds a stalled download body and cancels its reader', async () => {
+    jest.useFakeTimers();
+    const cancel = jest.fn();
+    const storage = new AiStorage(
+      config as never,
+      jest.fn(() =>
+        Promise.resolve(
+          new Response(new ReadableStream({ cancel }), { headers: { 'content-length': '44' } }),
+        ),
+      ),
+    );
+    const result = expect(storage.download(key, 44)).rejects.toThrow('VOICE_STORAGE_UNAVAILABLE');
+    await jest.advanceTimersByTimeAsync(10_001);
+    await result;
+    expect(cancel).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
   it.each([
     ['expected_size', 0, new Response(Buffer.alloc(44))],
     ['header_missing', 44, new Response(Buffer.alloc(44))],

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { AiWorker } from '../../../src/ai/ai.worker';
 
 const claim = {
@@ -32,6 +33,7 @@ describe('voice transcription worker', () => {
     'validates %s/noisy output, stores a redacted proposal, and purges media',
     async (language, transcript) => {
       const repository = {
+        renewVoiceWork: jest.fn(() => Promise.resolve(true)),
         claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
         workInput: jest.fn(() =>
           Promise.resolve({
@@ -39,7 +41,20 @@ describe('voice transcription worker', () => {
               'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
             sizeBytes: 44,
             contentType: 'audio/wav',
+            contentHash: createHash('sha256')
+              .update(
+                (() => {
+                  const b = Buffer.alloc(44);
+                  b.write('RIFF');
+                  b.write('WAVE', 8);
+                  return b;
+                })(),
+              )
+              .digest('hex'),
             locale: language,
+            recordedAt: '2026-09-03T08:00:00.000Z',
+            timezoneOffsetMinutes: -180,
+            captureContextLegacy: false,
             operationId: 'request-voice-0001',
             aliases: [
               {
@@ -154,6 +169,7 @@ describe('voice transcription worker', () => {
       return true;
     });
     const repository = {
+      renewVoiceWork: jest.fn(() => Promise.resolve(true)),
       claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
       workInput: jest.fn(() =>
         Promise.resolve({
@@ -161,6 +177,16 @@ describe('voice transcription worker', () => {
             'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
           sizeBytes: 44,
           contentType: 'audio/wav',
+          contentHash: createHash('sha256')
+            .update(
+              (() => {
+                const b = Buffer.alloc(44);
+                b.write('RIFF');
+                b.write('WAVE', 8);
+                return b;
+              })(),
+            )
+            .digest('hex'),
         }),
       ),
       getRoute: jest.fn(() => Promise.resolve(route)),
@@ -221,13 +247,27 @@ describe('voice transcription worker', () => {
     'fails %s intent explicitly without saving a transaction proposal',
     async (unsupportedReason) => {
       const repository = {
+        renewVoiceWork: jest.fn(() => Promise.resolve(true)),
         claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
         workInput: jest.fn(() =>
           Promise.resolve({
             storageRef: 'voice/session/audio',
             sizeBytes: 44,
             contentType: 'audio/wav',
+            contentHash: createHash('sha256')
+              .update(
+                (() => {
+                  const b = Buffer.alloc(44);
+                  b.write('RIFF');
+                  b.write('WAVE', 8);
+                  return b;
+                })(),
+              )
+              .digest('hex'),
             locale: 'en',
+            recordedAt: '2026-09-03T08:00:00.000Z',
+            timezoneOffsetMinutes: -180,
+            captureContextLegacy: false,
             operationId: 'request-voice-unsupported',
             aliases: [],
           }),
@@ -302,6 +342,7 @@ describe('voice transcription worker', () => {
       dispatched = resolve;
     });
     const repository = {
+      renewVoiceWork: jest.fn(() => Promise.resolve(true)),
       claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
       workInput: jest.fn(() =>
         Promise.resolve({
@@ -309,7 +350,20 @@ describe('voice transcription worker', () => {
             'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
           sizeBytes: 44,
           contentType: 'audio/wav',
+          contentHash: createHash('sha256')
+            .update(
+              (() => {
+                const b = Buffer.alloc(44);
+                b.write('RIFF');
+                b.write('WAVE', 8);
+                return b;
+              })(),
+            )
+            .digest('hex'),
           locale: 'en',
+          recordedAt: '2026-09-03T08:00:00.000Z',
+          timezoneOffsetMinutes: -180,
+          captureContextLegacy: false,
           operationId: 'request-voice-shutdown',
           aliases: [{ alias: 'ACCOUNT-1', kind: 'account', id: accountId, version: 1, data: {} }],
         }),

@@ -1121,6 +1121,7 @@ const en = {
   'voice.recurring.new': 'Create new obligation',
   'voice.action.manual': 'Use manual entry',
   'voice.action.retry': 'Try again',
+  'voice.action.checkResult': 'Check confirmation result',
   'voice.action.cancel': 'Cancel',
   'voice.state.processing': 'Analyzing recording...',
   'voice.state.saving': 'Saving transactions',
@@ -1153,6 +1154,12 @@ const en = {
     'Sign-in verification is temporarily unavailable. Try again later.',
   'voice.error.quota_exhausted':
     'Voice analysis has reached its current usage limit. Try again later.',
+  'voice.error.operation_cancelled':
+    'Voice was paused. Check the existing operation before recording again.',
+  'voice.error.re_record_required':
+    'The interrupted recording could not be recovered. Please record again.',
+  'voice.error.recovery_required':
+    'Check the existing Voice result before starting another operation.',
   'voice.error.processing_timed_out':
     'Voice analysis took too long. Try again or enter the transaction manually.',
   'voice.error.session_expired':

@@ -23,8 +23,8 @@ describe('Phase 09 assistant contract', () => {
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
         .map(([, value]) => value.operationId),
     );
-    expect(operations).toHaveLength(49);
-    expect(new Set(operations).size).toBe(49);
+    expect(operations).toHaveLength(52);
+    expect(new Set(operations).size).toBe(52);
     const runtime = generateOpenApi(app);
     expect(runtime.paths['/api/v1/assistant/consent']?.put?.operationId).toBe(
       'grantAssistantConsent',

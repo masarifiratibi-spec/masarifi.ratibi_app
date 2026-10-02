@@ -25,6 +25,14 @@ export const voiceAnalyzerServiceCapability: CapabilityContractMetadata = {
 export interface VoiceRecording {
   id: string;
   startedAt: number;
+  finished?: Promise<void>;
+}
+
+export interface VoiceCapturedAudio {
+  uri: string;
+  durationMs: number;
+  contentType: 'audio/m4a';
+  recordedAt: number;
 }
 
 export interface VoiceRecorderService {
@@ -32,8 +40,9 @@ export interface VoiceRecorderService {
   requestPermission(): Promise<VoicePermissionState>;
   openSettings(): Promise<void>;
   start(maxDurationMs?: number): Promise<VoiceRecording>;
-  stop(recordingId: string): Promise<string>;
-  cancel(recordingId: string): Promise<void>;
+  stop(recordingId: string): Promise<VoiceCapturedAudio>;
+  cancel(recordingId?: string): Promise<void>;
+  duration?(recordingId: string): number;
   remove(audioReference: string): Promise<void>;
 }
 
@@ -42,13 +51,24 @@ export interface VoiceAnalyzerService {
     audioReference: string,
     scenario: VoiceScenario,
     durationMs?: number,
-    locale?: 'ar' | 'en'
+    locale?: 'ar' | 'en',
+    capture?: {
+      recordedAt: number;
+      timezoneOffsetMinutes: number;
+      contentType: string;
+    }
   ): Promise<VoiceTranscript>;
-  recoverPending?(): Promise<{
-    transcript: VoiceTranscript;
-    recordedAt: number;
-    timezoneOffsetMinutes: number;
-  } | null>;
+  recoverPending?(retryAudio?: boolean): Promise<
+    | {
+        saved?: undefined;
+        transcript: VoiceTranscript;
+        recordedAt: number;
+        timezoneOffsetMinutes: number;
+      }
+    | { saved: { transactionIds: string[]; affectedScopes: readonly string[] } }
+    | null
+  >;
+  pausePending?(): void;
   discardPending?(): Promise<void>;
   analyze(input: {
     transcript: VoiceTranscript;

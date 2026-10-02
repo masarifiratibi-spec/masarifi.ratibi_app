@@ -1098,6 +1098,7 @@ const ar: MessageCatalog = {
   'voice.recurring.new': 'إنشاء التزام جديد',
   'voice.action.manual': 'استخدام الإدخال اليدوي',
   'voice.action.retry': 'المحاولة مرة أخرى',
+  'voice.action.checkResult': 'التحقق من نتيجة التأكيد',
   'voice.action.cancel': 'إلغاء',
   'voice.state.processing': 'جاري تحليل التسجيل...',
   'voice.state.saving': 'جارٍ حفظ المعاملات',
@@ -1131,6 +1132,12 @@ const ar: MessageCatalog = {
     'التحقق من تسجيل الدخول غير متاح مؤقتًا. حاول لاحقًا.',
   'voice.error.quota_exhausted':
     'وصل التحليل الصوتي إلى حد الاستخدام الحالي. حاول لاحقًا.',
+  'voice.error.operation_cancelled':
+    'تم إيقاف العملية مؤقتًا. تحقق من نتيجتها قبل التسجيل مجددًا.',
+  'voice.error.re_record_required':
+    'تعذر استعادة التسجيل المتوقف. يرجى التسجيل مجددًا.',
+  'voice.error.recovery_required':
+    'تحقق من نتيجة العملية الحالية قبل بدء عملية جديدة.',
   'voice.error.processing_timed_out':
     'استغرق التحليل الصوتي وقتًا طويلًا. حاول مجددًا أو أدخل المعاملة يدويًا.',
   'voice.error.session_expired': 'انتهت جلستك. سجّل الدخول مجددًا للمتابعة.',

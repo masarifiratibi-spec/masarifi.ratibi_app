@@ -2,16 +2,44 @@ import { Platform } from 'react-native';
 
 const mockDelete = jest.fn(async () => undefined);
 const mockOpenSettings = jest.fn(async () => undefined);
-const mockRecord = jest.fn(() => undefined);
-const mockAudioStop = jest.fn(async () => undefined);
-const mockAudioPrepare = jest.fn(async () => undefined);
+const mockListeners = new Set<
+  (status: {
+    isFinished: boolean;
+    hasError: boolean;
+    url: string | null;
+    error: string | null;
+    id: string;
+  }) => void
+>();
+let mockNativeRecording = false;
+const mockRecord = jest.fn(() => {
+  mockNativeRecording = true;
+});
+const mockAudioStop = jest.fn(async () => {
+  mockNativeRecording = false;
+  queueMicrotask(() =>
+    mockListeners.forEach((listener) =>
+      listener({
+        id: 'native-recorder',
+        isFinished: true,
+        hasError: false,
+        url: 'private://voice.m4a',
+        error: null
+      })
+    )
+  );
+});
+const mockAudioPrepare = jest.fn<Promise<void>, []>(async () => undefined);
 const mockAudioRelease = jest.fn();
 const mockGetRecordingPermissions = jest.fn(async () => ({
   granted: false,
   canAskAgain: true
 }));
 
-jest.mock('expo-file-system/legacy', () => ({ deleteAsync: mockDelete }));
+jest.mock('expo-file-system/legacy', () => ({
+  deleteAsync: mockDelete,
+  getInfoAsync: jest.fn(async () => ({ exists: true, size: 46885 }))
+}));
 jest.mock('expo-linking', () => ({ openSettings: mockOpenSettings }));
 jest.mock('expo-audio', () => ({
   getRecordingPermissionsAsync: mockGetRecordingPermissions,
@@ -35,6 +63,18 @@ jest.mock('expo-audio', () => ({
       record: mockRecord,
       stop: mockAudioStop,
       release: mockAudioRelease,
+      getStatus: () => ({
+        isRecording: mockNativeRecording,
+        durationMillis: 2832,
+        canRecord: true
+      }),
+      addListener: (
+        _name: string,
+        listener: Parameters<typeof mockListeners.add>[0]
+      ) => {
+        mockListeners.add(listener);
+        return { remove: () => mockListeners.delete(listener) };
+      },
       uri: 'private://voice.m4a'
     }))
   }
@@ -47,12 +87,74 @@ const { createVoiceRecorderService } =
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockListeners.clear();
+  mockNativeRecording = false;
   mockGetRecordingPermissions.mockResolvedValue({
     granted: false,
     canAskAgain: true
   });
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
+
+it('owns preparation before permission resolves so concurrent starts allocate once', async () => {
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  const service = createVoiceRecorderService();
+  const results = await Promise.allSettled([service.start(), service.start()]);
+  try {
+    expect(
+      results.filter((result) => result.status === 'fulfilled')
+    ).toHaveLength(1);
+  } finally {
+    for (const result of results)
+      if (result.status === 'fulfilled') await service.cancel(result.value.id);
+  }
+});
+
+it('releases an allocated recorder when native preparation fails', async () => {
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  const error = new Error('native prepare failed');
+  mockAudioPrepare.mockRejectedValueOnce(error);
+  const service = createVoiceRecorderService();
+  await expect(service.start()).rejects.toBe(error);
+  expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+});
+
+it('bounds hung preparation and fences a late native completion after Cancel', async () => {
+  jest.useFakeTimers();
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  let resolve!: () => void;
+  mockAudioPrepare.mockImplementationOnce(
+    () =>
+      new Promise<void>((done) => {
+        resolve = done;
+      })
+  );
+  const service = createVoiceRecorderService();
+  const starting = service.start();
+  const assertion = expect(starting).rejects.toMatchObject({
+    code: 'recording_interrupted'
+  });
+  await jest.advanceTimersByTimeAsync(10_000);
+  await assertion;
+  await service.cancel();
+  resolve();
+  await jest.advanceTimersByTimeAsync(1);
+  expect(mockRecord).not.toHaveBeenCalled();
+  expect(mockAudioRelease).toHaveBeenCalled();
+  jest.useRealTimers();
+});
 
 it('uses the Expo 55 audio recorder contract', async () => {
   mockGetRecordingPermissions.mockResolvedValue({
@@ -69,7 +171,13 @@ it('uses the Expo 55 audio recorder contract', async () => {
       android: { outputFormat: 'mpeg4', audioEncoder: 'aac' }
     })
   );
-  expect(await service.stop(recording.id)).toBe('private://voice.m4a');
+  expect(await service.stop(recording.id)).toMatchObject({
+    uri: 'private://voice.m4a',
+    durationMs: 2832,
+    contentType: 'audio/m4a',
+    recordedAt: recording.startedAt
+  });
+  expect(mockRecord).toHaveBeenCalledWith({ forDuration: 60 });
 });
 
 it('maps permission, records once, and deletes temporary audio', async () => {
@@ -82,7 +190,10 @@ it('maps permission, records once, and deletes temporary audio', async () => {
   });
   const recording = await service.start();
   await expect(service.start()).rejects.toBeDefined();
-  expect(await service.stop(recording.id)).toBe('private://voice.m4a');
+  expect(await service.stop(recording.id)).toMatchObject({
+    uri: 'private://voice.m4a',
+    durationMs: 2832
+  });
   await service.remove('private://voice.m4a');
   expect(mockDelete).toHaveBeenCalledWith('private://voice.m4a', {
     idempotent: true
@@ -90,7 +201,10 @@ it('maps permission, records once, and deletes temporary audio', async () => {
 });
 
 it('cancels idempotently and exposes settings recovery', async () => {
-  mockGetRecordingPermissions.mockResolvedValue({ granted: true, canAskAgain: true });
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
   const service = createVoiceRecorderService();
   const recording = await service.start();
   await service.cancel(recording.id);
@@ -101,7 +215,10 @@ it('cancels idempotently and exposes settings recovery', async () => {
 });
 
 it('releases and removes temporary audio when recorder stop fails', async () => {
-  mockGetRecordingPermissions.mockResolvedValue({ granted: true, canAskAgain: true });
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
   const stopError = new Error('stop failed');
   mockAudioStop.mockRejectedValueOnce(stopError);
   const service = createVoiceRecorderService();
@@ -125,4 +242,80 @@ it('skips unavailable temporary-file deletion on web', async () => {
   await service.remove('blob:voice.m4a');
 
   expect(mockDelete).not.toHaveBeenCalled();
+});
+
+it('rejects a resolved native Stop that subsequently reports an Android error', async () => {
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  mockAudioStop.mockImplementationOnce(async () => {
+    mockListeners.forEach((listener) =>
+      listener({
+        id: 'native-recorder',
+        isFinished: true,
+        hasError: true,
+        url: null,
+        error: 'stop failed'
+      })
+    );
+  });
+  const service = createVoiceRecorderService();
+  const recording = await service.start();
+  await expect(service.stop(recording.id)).rejects.toMatchObject({
+    code: 'recording_interrupted'
+  });
+  expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+  expect(mockDelete).toHaveBeenCalledWith('private://voice.m4a', {
+    idempotent: true
+  });
+});
+
+it('rejects a native Start no-op and releases the recorder', async () => {
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  mockRecord.mockImplementationOnce(() => undefined);
+  await expect(createVoiceRecorderService().start()).rejects.toMatchObject({
+    code: 'recording_interrupted'
+  });
+  expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+});
+
+it('shares native Stop across duplicate terminal requests', async () => {
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  const service = createVoiceRecorderService();
+  const recording = await service.start();
+  const [first, second] = await Promise.all([
+    service.stop(recording.id),
+    service.stop(recording.id)
+  ]);
+  expect(first).toEqual(second);
+  expect(mockAudioStop).toHaveBeenCalledTimes(1);
+  expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+});
+
+it('bounds a native Stop that never settles and releases its recorder', async () => {
+  jest.useFakeTimers();
+  try {
+    mockGetRecordingPermissions.mockResolvedValue({
+      granted: true,
+      canAskAgain: true
+    });
+    mockAudioStop.mockImplementationOnce(() => new Promise(() => undefined));
+    const service = createVoiceRecorderService();
+    const recording = await service.start();
+    const checked = expect(service.stop(recording.id)).rejects.toMatchObject({
+      code: 'recording_interrupted'
+    });
+    await jest.advanceTimersByTimeAsync(5_000);
+    await checked;
+    expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });

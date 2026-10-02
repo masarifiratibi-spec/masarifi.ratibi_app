@@ -10,14 +10,14 @@ import type {
   VoiceTransactionProposal
 } from '@/domain/voice-capture';
 import { VOICE_MAX_PROPOSALS } from '@/domain/voice-capture';
-import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import {
   registerRuntimeIdentityReset,
   registerRuntimeUserDataReset
 } from '@/storage/runtime-user-data-reset';
 
+let sessionSequence = 0;
 const newSession = (): VoiceCaptureSession => ({
-  id: `voice-${Date.now()}`,
+  id: `voice-${Date.now()}-${++sessionSequence}`,
   state: 'idle',
   permission: 'not_requested',
   language: 'ar',
@@ -74,7 +74,9 @@ export const useVoiceCaptureStore = create<VoiceCaptureStore>((set) => ({
         ? {
             ...state.group,
             proposals: state.group.proposals.map((item) =>
-              item.id === id ? { ...item, selected: false, status: 'removed' } : item
+              item.id === id
+                ? { ...item, selected: false, status: 'removed' }
+                : item
             )
           }
         : null
@@ -93,18 +95,17 @@ export const useVoiceCaptureStore = create<VoiceCaptureStore>((set) => ({
 }));
 
 async function resetVoiceCapture(): Promise<void> {
-  const session = useVoiceCaptureStore.getState();
-  const resourceCleanup = [
-    session.recordingId
-      ? voiceRecorderService.cancel(session.recordingId)
-      : Promise.resolve(),
-    session.audioReference
-      ? voiceRecorderService.remove(session.audioReference)
-      : Promise.resolve()
-  ];
-  session.reset();
-  await Promise.all(resourceCleanup);
+  useVoiceCaptureStore.getState().reset();
 }
 
 registerRuntimeUserDataReset(resetVoiceCapture);
 registerRuntimeIdentityReset(resetVoiceCapture);
+
+export function registerVoiceCaptureCleanup(cleanup: () => Promise<void>) {
+  const identity = registerRuntimeIdentityReset(cleanup);
+  const userData = registerRuntimeUserDataReset(cleanup);
+  return () => {
+    identity();
+    userData();
+  };
+}

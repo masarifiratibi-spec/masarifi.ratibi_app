@@ -1,5 +1,6 @@
-import { createLiveVoiceApiService } from './voice-api-service';
+import { createLiveVoiceApiService as createService } from './voice-api-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadVoiceOperation } from '@/storage/voice-pending-session';
 
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '00000000-0000-4000-8000-000000000001'
@@ -15,7 +16,85 @@ const json = (value: unknown, status = 200) =>
     headers: { 'content-type': 'application/json' }
   });
 
-beforeEach(async () => AsyncStorage.clear());
+const mockDatabases = new Map<string, ReturnType<typeof mockMakeDatabase>>();
+function mockMakeDatabase() {
+  const { DatabaseSync } = require('node:sqlite');
+  const native = new DatabaseSync(':memory:');
+  native.exec(
+    'CREATE TABLE voice_operation_journal(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
+  );
+  return {
+    native,
+    getFirstAsync: async (sql: string, ...args: string[]) =>
+      native.prepare(sql).get(...args) ?? null,
+    runAsync: async (sql: string, ...args: (string | number)[]) =>
+      native.prepare(sql).run(...args)
+  };
+}
+jest.mock('@/storage/database', () => ({
+  openDatabase: async (ownerId: string) => {
+    if (!mockDatabases.has(ownerId))
+      mockDatabases.set(ownerId, mockMakeDatabase());
+    return mockDatabases.get(ownerId);
+  },
+  runExclusiveDatabaseTransaction: async (
+    db: ReturnType<typeof mockMakeDatabase>,
+    operation: (db: unknown) => Promise<void>
+  ) => {
+    db.native.exec('BEGIN IMMEDIATE');
+    try {
+      await operation(db);
+      db.native.exec('COMMIT');
+    } catch (error) {
+      db.native.exec('ROLLBACK');
+      throw error;
+    }
+  }
+}));
+const createLiveVoiceApiService = (
+  options: Parameters<typeof createService>[0]
+) => createService({ owner: async () => 'owner-a', ...options });
+beforeEach(async () => {
+  for (const db of mockDatabases.values()) db.native.close();
+  mockDatabases.clear();
+  await AsyncStorage.clear();
+});
+afterAll(() => {
+  for (const db of mockDatabases.values()) db.native.close();
+});
+function recovery(value: unknown = proposal()) {
+  return {
+    phase: 'proposed',
+    session: {
+      id: id(1),
+      locale: 'en',
+      status: 'proposed',
+      durationMs: 1234,
+      expiresAt: '2026-09-03T01:00:00.000Z',
+      confirmedAt: null,
+      failureCode: null,
+      version: 8,
+      createdAt: at
+    },
+    proposal: value,
+    recordedAt: at,
+    timezoneOffsetMinutes: 0,
+    captureContextLegacy: false,
+    transcriptLanguage: 'en',
+    transcriptConfidence: 0.95,
+    transactionId: null
+  };
+}
+function uploadReceipt(bytes = wav) {
+  const { sha256 } = require('@noble/hashes/sha256');
+  const { bytesToHex } = require('@noble/hashes/utils');
+  return {
+    id: id(1),
+    version: 7,
+    contentHash: bytesToHex(sha256(bytes)),
+    sizeBytes: bytes.byteLength
+  };
+}
 
 function proposal(overrides: Record<string, unknown> = {}) {
   return {
@@ -53,7 +132,9 @@ function successfulRequest(
   return jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
     .mockResolvedValueOnce(
-      new Response(audio.bytes, { headers: { 'content-type': audio.inferredType } })
+      new Response(audio.bytes, {
+        headers: { 'content-type': audio.inferredType }
+      })
     )
     .mockResolvedValueOnce(
       json(
@@ -70,16 +151,15 @@ function successfulRequest(
             createdAt: at
           },
           upload: {
-            url: 'https://storage.test/upload',
-            token: 'signed',
-            expiresAt: '2026-09-03T00:05:00.000Z',
-            headers: { 'content-type': audio.contentType }
+            method: 'PUT',
+            path: `/api/v1/voice/sessions/${id(1)}/audio`,
+            expiresAt: '2026-09-03T00:05:00.000Z'
           }
         },
         201
       )
     )
-    .mockResolvedValueOnce(new Response(null, { status: 200 }))
+    .mockResolvedValueOnce(json(uploadReceipt(audio.bytes)))
     .mockResolvedValueOnce(json(process, 202))
     .mockResolvedValueOnce(
       json({
@@ -94,7 +174,7 @@ function successfulRequest(
         createdAt: at
       })
     )
-    .mockResolvedValueOnce(json(poll))
+    .mockResolvedValueOnce(json(recovery(poll)))
     .mockResolvedValueOnce(
       json({
         sourceId: id(2),
@@ -107,22 +187,34 @@ function successfulRequest(
 }
 
 it('uploads native M4A recordings as M4A even when Android infers MP3, without confirming a transaction', async () => {
-  const m4a = Uint8Array.from([0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32]);
+  const m4a = Uint8Array.from([
+    0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32
+  ]);
   const request = successfulRequest(undefined, undefined, {
-    bytes: m4a, contentType: 'audio/m4a', inferredType: 'audio/mpeg'
+    bytes: m4a,
+    contentType: 'audio/m4a',
+    inferredType: 'audio/mpeg'
   });
   const service = createLiveVoiceApiService({
-    baseUrl: 'https://api.test', token: async () => 'owner', request, sleep: async () => {}
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request,
+    sleep: async () => {}
   });
-  await expect(service.transcribe('file:///recording.m4a', 'clear_en', 1_234, 'en'))
-    .resolves.toMatchObject({ analysisReference: { proposalId: id(2) } });
+  await expect(
+    service.transcribe('file:///recording.m4a', 'clear_en', 1_234, 'en')
+  ).resolves.toMatchObject({ analysisReference: { proposalId: id(2) } });
   expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
-    contentType: 'audio/m4a', sizeBytes: m4a.byteLength
+    contentType: 'audio/m4a',
+    sizeBytes: m4a.byteLength
   });
   expect(request.mock.calls[2]?.[1]).toMatchObject({
-    body: m4a.buffer, headers: { 'content-type': 'audio/m4a' }
+    body: m4a.buffer,
+    headers: { 'Content-Type': 'audio/m4a' }
   });
-  expect(request.mock.calls.some(([url]) => String(url).endsWith('/confirm'))).toBe(false);
+  expect(
+    request.mock.calls.some(([url]) => String(url).endsWith('/confirm'))
+  ).toBe(false);
 });
 
 it('uses the actual duration and preserves server session, proposal, and version identifiers', async () => {
@@ -172,7 +264,7 @@ it('uses the actual duration and preserves server session, proposal, and version
     service.confirm({
       group,
       proposals: group.proposals,
-      operationId: 'voice-confirm-1'
+      operationId: id(10)
     })
   ).resolves.toMatchObject({ transactionIds: [id(5)] });
   expect(JSON.parse(String(request.mock.calls[3]?.[1]?.body))).toMatchObject({
@@ -215,34 +307,57 @@ it.each([
 it('polls at one-second intervals through the backend deadline and times out explicitly', async () => {
   const sleep = jest.fn(async () => undefined);
   let call = 0;
-  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(async () => {
-    call += 1;
-    if (call === 1)
-      return new Response(wav, { headers: { 'content-type': 'audio/wav' } });
-    if (call === 2)
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
+    async () => {
+      call += 1;
+      if (call === 1)
+        return new Response(wav, { headers: { 'content-type': 'audio/wav' } });
+      if (call === 2)
+        return json(
+          {
+            session: {
+              id: id(1),
+              locale: 'en',
+              status: 'uploaded',
+              durationMs: 1_000,
+              expiresAt: '2026-09-03T01:00:00.000Z',
+              confirmedAt: null,
+              failureCode: null,
+              version: 7,
+              createdAt: at
+            },
+            upload: {
+              method: 'PUT',
+              path: `/api/v1/voice/sessions/${id(1)}/audio`,
+              expiresAt: at
+            }
+          },
+          201
+        );
+      if (call === 3) return json(uploadReceipt());
+      if (call === 4) return json({ id: id(1), status: 'queued' }, 202);
       return json({
-        session: {
-          id: id(1), locale: 'en', status: 'uploaded', durationMs: 1_000,
-          expiresAt: '2026-09-03T01:00:00.000Z', confirmedAt: null,
-          failureCode: null, version: 7, createdAt: at
-        },
-        upload: {
-          url: 'https://storage.test/upload', token: 'signed', expiresAt: at,
-          headers: { 'content-type': 'audio/wav' }
-        }
-      }, 201);
-    if (call === 3) return new Response(null, { status: 200 });
-    if (call === 4) return json({ id: id(1), status: 'queued' }, 202);
-    return json({
-      id: id(1), locale: 'en', status: 'processing', durationMs: 1_000,
-      expiresAt: '2026-09-03T01:00:00.000Z', confirmedAt: null,
-      failureCode: null, version: 8, createdAt: at
-    });
-  });
+        id: id(1),
+        locale: 'en',
+        status: 'processing',
+        durationMs: 1_000,
+        expiresAt: '2026-09-03T01:00:00.000Z',
+        confirmedAt: null,
+        failureCode: null,
+        version: 8,
+        createdAt: at
+      });
+    }
+  );
 
-  await expect(createLiveVoiceApiService({
-    baseUrl: 'https://api.test', token: async () => 'owner', request, sleep
-  }).transcribe('file:///voice.wav', 'clear_en', 1_000, 'en')).rejects.toMatchObject({
+  await expect(
+    createLiveVoiceApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request,
+      sleep
+    }).transcribe('file:///voice.wav', 'clear_en', 1_000, 'en')
+  ).rejects.toMatchObject({
     code: 'processing_timed_out'
   });
   expect(sleep).toHaveBeenCalledTimes(124);
@@ -283,7 +398,12 @@ it('restores a proposal from its server reference after the live service is recr
   ).resolves.toMatchObject({ id: id(2), proposals: [{ id: id(2) }] });
   expect(restoredRequest).toHaveBeenCalledWith(
     `https://api.test/api/v1/voice/sessions/${id(1)}/proposal`,
-    expect.objectContaining({ headers: { Authorization: 'Bearer owner' } })
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        Authorization: 'Bearer owner',
+        'X-Voice-Contract': '2'
+      })
+    })
   );
 });
 
@@ -308,21 +428,24 @@ it('recovers only the current owner pending session and clears it after confirm'
 
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json({
-      id: id(1), locale: 'en', status: 'proposed', durationMs: 1_234,
-      expiresAt: '2026-09-03T01:00:00.000Z', confirmedAt: null,
-      failureCode: null, version: 8, createdAt: at
-    }))
-    .mockResolvedValueOnce(json(proposal()))
-    .mockResolvedValueOnce(json({
-      sourceId: id(2), actionType: 'transaction.create', resourceId: id(5),
-      status: 'executed', replayed: false
-    }));
+    .mockResolvedValueOnce(json(recovery()))
+    .mockResolvedValueOnce(
+      json({
+        sourceId: id(2),
+        actionType: 'transaction.create',
+        resourceId: id(5),
+        status: 'executed',
+        replayed: false
+      })
+    );
   const restored = createLiveVoiceApiService({
-    baseUrl: 'https://api.test', token: async () => 'token',
-    owner: async () => 'user-a', request
+    baseUrl: 'https://api.test',
+    token: async () => 'token',
+    owner: async () => 'user-a',
+    request
   });
   const pending = await restored.recoverPending?.();
+  if (!pending || pending.saved) throw new Error('expected review recovery');
   expect(pending?.transcript.analysisReference?.sessionId).toBe(id(1));
   const group = await restored.analyze({
     transcript: pending!.transcript,
@@ -331,8 +454,14 @@ it('recovers only the current owner pending session and clears it after confirm'
     recordedAt: pending!.recordedAt,
     timezoneOffsetMinutes: pending!.timezoneOffsetMinutes
   });
-  await restored.confirm({ group, proposals: group.proposals, operationId: 'confirm-recovered' });
-  await expect(restored.recoverPending?.()).resolves.toBeNull();
+  await restored.confirm({
+    group,
+    proposals: group.proposals,
+    operationId: id(11)
+  });
+  await expect(restored.recoverPending?.()).resolves.toMatchObject({
+    saved: { transactionIds: [id(5)] }
+  });
 });
 
 it.each(['multiple', 'transfer', 'obligation'] as const)(
@@ -404,10 +533,9 @@ it('fails closed on an unexpected upload session state', async () => {
             createdAt: at
           },
           upload: {
-            url: 'https://storage.test/upload',
-            token: 'signed',
-            expiresAt: at,
-            headers: { 'content-type': 'audio/wav' }
+            method: 'PUT',
+            path: `/api/v1/voice/sessions/${id(1)}/audio`,
+            expiresAt: at
           }
         },
         201
@@ -434,6 +562,10 @@ it('fails closed on unexpected process and malformed poll states', async () => {
   ).rejects.toMatchObject({ code: 'analysis_failed' });
   expect(processRequest).toHaveBeenCalledTimes(4);
 
+  // Finish the failed operation before starting a separate recording.
+  mockDatabases
+    .get('owner-a')
+    ?.native.exec('DELETE FROM voice_operation_journal');
   const pollRequest = successfulRequest(undefined, {
     ...proposal(),
     providerPayload: 'private'
@@ -447,4 +579,125 @@ it('fails closed on unexpected process and malformed poll states', async () => {
     }).transcribe('file:///voice.wav', 'clear_en', 1_000)
   ).rejects.toMatchObject({ code: 'analysis_failed' });
   expect(pollRequest).toHaveBeenCalledTimes(6);
+});
+
+it('returns a definitively rejected confirmation to editable review and uses a new key for the correction', async () => {
+  const initial = successfulRequest();
+  let confirmations = 0;
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
+    async (...args) => {
+      const url = String(args[0]);
+      if (url.endsWith('/confirm')) {
+        confirmations += 1;
+        return confirmations === 1
+          ? json({ code: 'VOICE_PROPOSAL_INVALID' }, 422)
+          : json({
+              sourceId: id(2),
+              actionType: 'transaction.create',
+              resourceId: id(5),
+              status: 'executed',
+              replayed: false
+            });
+      }
+      if (initial.mock.calls.length >= 6 && url.endsWith('/recovery'))
+        return json(recovery());
+      return initial(...args);
+    }
+  );
+  const service = createLiveVoiceApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'token',
+    request
+  });
+  const transcript = await service.transcribe(
+    'file:///voice.wav',
+    'clear_en',
+    1234,
+    'en'
+  );
+  const group = await service.analyze({
+    transcript,
+    scenario: 'clear_en',
+    sessionId: 'local',
+    recordedAt: Date.now(),
+    timezoneOffsetMinutes: 0
+  });
+  await expect(
+    service.confirm({ group, proposals: group.proposals, operationId: id(10) })
+  ).rejects.toMatchObject({ code: 'invalid_proposal' });
+  expect(await loadVoiceOperation('owner-a')).toMatchObject({
+    phase: 'reviewing',
+    confirmationBody: null,
+    confirmationKey: null
+  });
+  const corrected = { ...group.proposals[0]!, notes: 'Reviewed correction' };
+  await expect(
+    service.confirm({ group, proposals: [corrected], operationId: id(11) })
+  ).resolves.toMatchObject({ transactionIds: [id(5)] });
+  const calls = request.mock.calls.filter(([url]) =>
+    String(url).endsWith('/confirm')
+  );
+  expect(calls[0]?.[1]?.headers).not.toEqual(calls[1]?.[1]?.headers);
+});
+
+it('replays the exact authorized confirmation after response loss and restart, then discards Saved locally', async () => {
+  const initial = successfulRequest();
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
+    async (...args) => {
+      if (String(args[0]).endsWith('/confirm'))
+        throw new Error('response lost');
+      return initial(...args);
+    }
+  );
+  const service = createLiveVoiceApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'token',
+    request
+  });
+  const transcript = await service.transcribe(
+    'file:///voice.wav',
+    'clear_en',
+    1234,
+    'en'
+  );
+  const group = await service.analyze({
+    transcript,
+    scenario: 'clear_en',
+    sessionId: 'local',
+    recordedAt: Date.now(),
+    timezoneOffsetMinutes: 0
+  });
+  await expect(
+    service.confirm({ group, proposals: group.proposals, operationId: id(10) })
+  ).rejects.toMatchObject({ code: 'recovery_required' });
+  const original = request.mock.calls.find(([url]) =>
+    String(url).endsWith('/confirm')
+  )?.[1];
+  const resumedRequest = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json({ ...recovery(), phase: 'confirming' }))
+    .mockResolvedValueOnce(
+      json({
+        sourceId: id(2),
+        actionType: 'transaction.create',
+        resourceId: id(5),
+        status: 'executed',
+        replayed: true
+      })
+    );
+  const resumed = createLiveVoiceApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'token',
+    request: resumedRequest
+  });
+  await expect(resumed.recoverPending?.()).resolves.toMatchObject({
+    saved: { transactionIds: [id(5)] }
+  });
+  expect(resumedRequest.mock.calls[1]?.[1]).toMatchObject({
+    body: original?.body,
+    headers: original?.headers
+  });
+  await resumed.discardPending?.();
+  expect(resumedRequest).toHaveBeenCalledTimes(2);
+  expect(await loadVoiceOperation('owner-a')).toBeNull();
 });

@@ -1,4 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { withAiAbort } from './ai.abort';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { PlatformLogger } from '../platform/observability/platform-logger';
@@ -406,13 +408,13 @@ export class AiWorker implements OnModuleDestroy {
   }
 
   private async processKind(kind: AiWorkClaim['kind']): Promise<number> {
+    const concurrency = this.config.getRequired('MASARIFI_AI_MAX_CONCURRENCY');
     const claims = await this.repository.claimWork(
       kind,
       this.workerId(),
-      this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'),
+      Math.min(concurrency, this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE')),
       this.config.getRequired('MASARIFI_AI_LEASE_SECONDS'),
     );
-    const concurrency = this.config.getRequired('MASARIFI_AI_MAX_CONCURRENCY');
     for (let offset = 0; offset < claims.length; offset += concurrency)
       await Promise.all(
         claims.slice(offset, offset + concurrency).map((claim) => this.process(claim)),
@@ -422,12 +424,50 @@ export class AiWorker implements OnModuleDestroy {
 
   private async process(claim: AiWorkClaim): Promise<void> {
     const startedAt = performance.now();
+    const controller = new AbortController();
+    const signal = this.abortController
+      ? AbortSignal.any([controller.signal, this.abortController.signal])
+      : controller.signal;
+    let renewal: NodeJS.Timeout | undefined;
+    let deadline: NodeJS.Timeout | undefined;
+    let renewing = false;
     try {
-      if (claim.kind === 'voice.transcribe_extract') await this.voice(claim);
-      else if (claim.kind === 'assistant.respond') await this.assistant(claim);
+      if (claim.kind === 'voice.transcribe_extract') {
+        const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
+        if (!(await this.repository.renewVoiceWork(claim.id, claim.claim_token, lease)))
+          throw new Error('AI_WORK_FENCE_INVALID');
+        renewal = setInterval(
+          () => {
+            if (renewing) return;
+            renewing = true;
+            void this.repository
+              .renewVoiceWork(claim.id, claim.claim_token, lease)
+              .then((valid) => {
+                if (!valid) controller.abort();
+              })
+              .catch(() => {
+                controller.abort();
+              })
+              .finally(() => {
+                renewing = false;
+              });
+          },
+          Math.floor((lease * 1_000) / 3),
+        );
+        // Provider remains governed by its original deadline; this bounds the whole job including I/O.
+        deadline = setTimeout(() => {
+          controller.abort();
+        }, 180_000);
+        await withAiAbort(signal, () => this.voice(claim, signal));
+      } else if (claim.kind === 'assistant.respond') await this.assistant(claim);
       else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
     } catch (error) {
+      if (error instanceof AiGatewayError && error.diagnostic)
+        new PlatformLogger().warn('AI_PROVIDER_REQUEST_REJECTED', {
+          ...error.diagnostic,
+          eventName: 'ai.provider.request_rejected',
+        });
       if (error instanceof Error && error.message === 'VOICE_MEDIA_INVALID')
         new PlatformLogger().warn('VOICE_MEDIA_INVALID', {
           eventName: 'voice.media.rejected',
@@ -469,16 +509,30 @@ export class AiWorker implements OnModuleDestroy {
         code,
       );
       recordAiJob(claim.kind, retry ? 'retry' : 'failure');
+    } finally {
+      if (renewal) clearInterval(renewal);
+      if (deadline) clearTimeout(deadline);
     }
   }
 
-  private async voice(claim: AiWorkClaim): Promise<void> {
+  private async voice(claim: AiWorkClaim, signal: AbortSignal): Promise<void> {
     const input = object(await this.repository.workInput(claim.kind, claim.id, claim.claim_token));
     const route = await this.repository.getRoute('voice_transcription');
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
-    const audio = await this.storage.download(String(input.storageRef), Number(input.sizeBytes));
+    const audio = await this.storage.download(
+      String(input.storageRef),
+      Number(input.sizeBytes),
+      signal,
+    );
     const contentType = String(input.contentType);
     if (!validMagic(audio, contentType)) throw new Error('VOICE_MEDIA_INVALID', { cause: 'magic' });
+    if (
+      audio.length !== Number(input.sizeBytes) ||
+      typeof input.contentHash !== 'string' ||
+      createHash('sha256').update(audio).digest('hex') !== input.contentHash
+    )
+      throw new Error('VOICE_MEDIA_INVALID', { cause: 'hash_mismatch' });
+    if (signal.aborted) throw new Error('AI_WORK_CANCELLED');
     const references = aliasReferences(input.aliases);
     const descriptors = references.map(({ alias, kind, version, data }) => ({
       alias,
@@ -486,6 +540,7 @@ export class AiWorker implements OnModuleDestroy {
       version,
       data,
     }));
+    let attemptNo = 0;
     const completion = await this.gateway.complete({
       route,
       userContent: [
@@ -493,6 +548,16 @@ export class AiWorker implements OnModuleDestroy {
           type: 'text',
           text: JSON.stringify({
             locale: String(input.locale),
+            capture: {
+              recordedAt: new Date(String(input.recordedAt)).toISOString(),
+              timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+              referenceLocalDate: new Date(
+                Date.parse(String(input.recordedAt)) - Number(input.timezoneOffsetMinutes) * 60_000,
+              )
+                .toISOString()
+                .slice(0, 10),
+              legacyContext: input.captureContextLegacy,
+            },
             references: descriptors,
             instruction:
               'Use only supplied aliases. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
@@ -506,19 +571,34 @@ export class AiWorker implements OnModuleDestroy {
       schema: VOICE_OUTPUT_SCHEMA,
       parse: parseVoiceWorkerOutput,
       requestId: String(input.operationId),
-      signal: this.abortController?.signal,
+      signal,
+      beforeDispatch: async (candidate) => {
+        const authorized = await this.repository.authorizeVoiceDispatch(
+          claim.id,
+          claim.claim_token,
+          candidate.modelId,
+          candidate.provider,
+          route,
+        );
+        if (authorized.operationId !== input.operationId || !Number.isInteger(authorized.attemptNo))
+          throw new Error('AI_DISPATCH_REJECTED');
+        attemptNo = Number(authorized.attemptNo);
+      },
+      onReceipt: (receipt) =>
+        this.repository
+          .recordVoiceAttempt(String(input.operationId), attemptNo, receipt, true)
+          .then(() => undefined),
+      onDispatchFailure: (received) =>
+        this.repository
+          .recordVoiceAttempt(String(input.operationId), attemptNo, null, received)
+          .then(() => undefined),
     });
     const output = completion.value;
     assertConfiguredOutput(route, output.transcript, 'transcript');
-    await this.repository.recordUsage(
-      claim.user_id,
-      'voice_transcription',
-      completion,
-      String(input.operationId),
-    );
     if (output.outcome === 'unsupported')
       throw new Error(`VOICE_INTENT_UNSUPPORTED_${output.unsupportedReason.toUpperCase()}`);
     const proposal = resolveVoiceProposal(output.proposal, references);
+    signal.throwIfAborted();
     await this.repository.saveVoiceResult(claim.id, claim.claim_token, {
       provider: completion.provider,
       model: completion.model,

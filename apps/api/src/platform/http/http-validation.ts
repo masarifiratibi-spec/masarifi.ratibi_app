@@ -11,6 +11,7 @@ export function configureValidation(
   rawJsonPaths: readonly string[] = [],
   largerJsonPaths: Readonly<Record<string, number>> = {},
   rawBodyPaths: Readonly<Record<string, number>> = {},
+  streamBodyPaths: readonly RegExp[] = [],
 ): void {
   for (const path of rawJsonPaths) {
     app.use(path, raw({ inflate: true, limit: bodyLimitBytes, type: 'application/json' }));
@@ -40,7 +41,16 @@ export function configureValidation(
       pathname !== undefined &&
       rawBodyPaths[pathname] !== undefined &&
       Buffer.isBuffer(Reflect.get(request, 'body'));
-    if (bodyMethods.has(request.method) && !request.is('application/json') && !acceptedRaw) {
+    const acceptedStream =
+      pathname !== undefined &&
+      request.method === 'PUT' &&
+      streamBodyPaths.some((path) => path.test(pathname));
+    if (
+      bodyMethods.has(request.method) &&
+      !request.is('application/json') &&
+      !acceptedRaw &&
+      !acceptedStream
+    ) {
       next(new UnsupportedMediaTypeException());
       return;
     }

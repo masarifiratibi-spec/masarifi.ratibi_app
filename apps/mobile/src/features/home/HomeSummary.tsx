@@ -16,8 +16,19 @@ import { layoutDirectionStyle } from '@/design-system/direction';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon, type DesignIconName } from '@/design-system/icons';
-import { borderWidth, elevation, minTouchTarget, radius, spacing } from '@/design-system/tokens';
-import type { Account, Category, HomeSummary as HomeSummaryValue, Transaction } from '@/domain/core-finance';
+import {
+  borderWidth,
+  elevation,
+  minTouchTarget,
+  radius,
+  spacing
+} from '@/design-system/tokens';
+import type {
+  Account,
+  Category,
+  HomeSummary as HomeSummaryValue,
+  Transaction
+} from '@/domain/core-finance';
 import { TransactionCard } from '@/features/transactions/TransactionCard';
 import { useVoiceCapture } from '@/features/voice/useVoiceCapture';
 import { VoiceReviewGroup } from '@/features/voice/VoiceReviewGroup';
@@ -28,7 +39,13 @@ import { useTheme } from '@/state/theme-context';
 import { formatFinancialDisplayValue } from '@/utils/format-financial-value';
 import { AccountScopeSheet } from '@/features/accounts/AccountScopeSheet';
 
-export function HomeSummary({ accounts, categories, notice, selectedAccount = null, summary }: {
+export function HomeSummary({
+  accounts,
+  categories,
+  notice,
+  selectedAccount = null,
+  summary
+}: {
   accounts?: Account[];
   categories?: Category[];
   notice?: React.ReactNode;
@@ -43,7 +60,6 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const theme = useTheme();
   const voice = useVoiceCapture({ permissionSync: 'on-demand' });
-  const voiceStartPending = useRef(false);
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const scoped = Boolean(selectedAccount);
   const accountComponent = selectedAccount
@@ -51,7 +67,9 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
         (component) => component.accountId === selectedAccount.id
       )
     : undefined;
-  const heroLabelKey = scoped ? 'coreFinance.home.balance' : 'coreFinance.home.total';
+  const heroLabelKey = scoped
+    ? 'coreFinance.home.balance'
+    : 'coreFinance.home.total';
   const heroValueMinor = scoped
     ? accountComponent?.convertedMinor
     : summary.totalBalanceMinor;
@@ -59,7 +77,8 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
     minorUnits: heroValueMinor,
     currencyCode: summary.currencyCode,
     locale,
-    sign: heroValueMinor !== undefined && heroValueMinor < 0 ? 'negative' : 'none',
+    sign:
+      heroValueMinor !== undefined && heroValueMinor < 0 ? 'negative' : 'none',
     state: hidden
       ? 'hidden'
       : heroValueMinor === undefined
@@ -81,12 +100,27 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
             : 'confirmed'
       })
     : null;
-  const expenses = summary.recentTransactions.filter(({ type }) => type === 'expense').slice(0, 2);
-  const income = summary.recentTransactions.filter(({ type }) => type === 'income').slice(0, 2);
+  const expenses = summary.recentTransactions
+    .filter(({ type }) => type === 'expense')
+    .slice(0, 2);
+  const income = summary.recentTransactions
+    .filter(({ type }) => type === 'income')
+    .slice(0, 2);
   const voiceRecording = voice.session.state === 'recording';
-  const voiceProcessing = ['stopping', 'transcribing', 'analyzing', 'saving'].includes(voice.session.state);
+  const voiceProcessing = [
+    'requesting_permission',
+    'preparing',
+    'stopping',
+    'uploading',
+    'transcribing',
+    'analyzing',
+    'recovering',
+    'saving',
+    'confirmation_unknown'
+  ].includes(voice.session.state);
   const unclearAudio =
-    voice.session.state === 'failed' && isUnclearAudioError(voice.session.errorCode);
+    voice.session.state === 'failed' &&
+    isUnclearAudioError(voice.session.errorCode);
   const voiceError =
     voice.session.state === 'failed' &&
     !unclearAudio &&
@@ -96,22 +130,7 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
   const voiceElapsed = formatVoiceDuration(voice.session.durationMs);
 
   const startVoice = async () => {
-    if (voiceStartPending.current) return;
-    voiceStartPending.current = true;
-    try {
-      if (voice.session.permission !== 'granted') {
-        const restoredPermission = await voice.waitForPermissionSync();
-        if (restoredPermission === 'granted') {
-          await voice.start();
-          return;
-        }
-        await voice.requestPermission();
-        return;
-      }
-      await voice.start();
-    } finally {
-      voiceStartPending.current = false;
-    }
+    await voice.start();
   };
 
   const stopVoice = () => {
@@ -120,36 +139,73 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
 
   const recoverVoice = () => {
     if (voiceError === 'permission_permanent') return void voice.openSettings();
-    if (voiceError === 'permission_denied') return void voice.requestPermission();
-    void voice.reRecord();
+    if (voiceError === 'permission_denied') return void voice.start();
+    void voice.retry();
   };
 
   return (
     <View testID="home-horizon" style={styles.root}>
       <View style={styles.hero}>
-        <View accessible={false} style={[styles.orbit, { borderColor: theme.colors.accent }]} />
-        <View accessible={false} style={[styles.orbit, styles.orbitInner, { borderColor: theme.colors.accent }]} />
+        <View
+          accessible={false}
+          style={[styles.orbit, { borderColor: theme.colors.accent }]}
+        />
+        <View
+          accessible={false}
+          style={[
+            styles.orbit,
+            styles.orbitInner,
+            { borderColor: theme.colors.accent }
+          ]}
+        />
         <Pressable
-          accessibilityHint={hidden ? translate('coreFinance.home.reveal') : undefined}
-          accessibilityLabel={hidden ? translate('designSystem.privacy.hidden') : `${translate(heroLabelKey)} ${total.accessibilityLabel}`}
+          accessibilityHint={
+            hidden ? translate('coreFinance.home.reveal') : undefined
+          }
+          accessibilityLabel={
+            hidden
+              ? translate('designSystem.privacy.hidden')
+              : `${translate(heroLabelKey)} ${total.accessibilityLabel}`
+          }
           accessibilityRole={hidden ? 'button' : undefined}
           disabled={!hidden}
           onPress={reveal}
           style={styles.balance}
         >
-          <Text style={[styles.balanceLabel, { color: theme.colors.content.onFinancialHero, writingDirection: direction }]}>
+          <Text
+            style={[
+              styles.balanceLabel,
+              {
+                color: theme.colors.content.onFinancialHero,
+                writingDirection: direction
+              }
+            ]}
+          >
             {translate(heroLabelKey)}
           </Text>
           <Text
             adjustsFontSizeToFit={!largeText}
             minimumFontScale={0.68}
             numberOfLines={largeText ? 2 : 1}
-            style={[styles.balanceValue, { color: theme.colors.content.onFinancialHero }]}
+            style={[
+              styles.balanceValue,
+              { color: theme.colors.content.onFinancialHero }
+            ]}
           >
             {total.text.replace(/[\u2066\u2069]/g, '')}
           </Text>
-          <Text style={[styles.balanceSupport, { color: theme.colors.content.onFinancialHero, writingDirection: direction }]}>
-            {summary.isEstimated ? translate('coreFinance.home.estimated') : translate('coreFinance.home.recorded')}
+          <Text
+            style={[
+              styles.balanceSupport,
+              {
+                color: theme.colors.content.onFinancialHero,
+                writingDirection: direction
+              }
+            ]}
+          >
+            {summary.isEstimated
+              ? translate('coreFinance.home.estimated')
+              : translate('coreFinance.home.recorded')}
           </Text>
         </Pressable>
 
@@ -165,34 +221,80 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
           style={({ pressed }) => [
             styles.accountCard,
             {
-              backgroundColor: pressed ? theme.colors.horizon.glassStrong : theme.colors.horizon.glass,
+              backgroundColor: pressed
+                ? theme.colors.horizon.glassStrong
+                : theme.colors.horizon.glass,
               borderColor: theme.colors.horizon.glassBorder,
               flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
             }
           ]}
         >
-          <View style={[styles.accountCardText, { alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start' }]}>
-            <Text testID="home-account-card-title" style={[styles.accountCardTitle, { color: theme.colors.content.onFinancialHero, writingDirection: direction }]}>
-              {scoped ? selectedAccount!.name : translate('coreFinance.home.allAccounts')}
-            </Text>
-            <Text testID="home-account-card-subtitle" style={[styles.accountCardCount, { color: theme.colors.content.onFinancialHero, writingDirection: direction }]}>
+          <View
+            style={[
+              styles.accountCardText,
+              { alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start' }
+            ]}
+          >
+            <Text
+              testID="home-account-card-title"
+              style={[
+                styles.accountCardTitle,
+                {
+                  color: theme.colors.content.onFinancialHero,
+                  writingDirection: direction
+                }
+              ]}
+            >
               {scoped
-                ? translate(`coreFinance.accountType.${selectedAccount!.type}` as never)
-                : translateDynamic('coreFinance.home.accountCount', { count: summary.activeAccountCount }, locale)}
+                ? selectedAccount!.name
+                : translate('coreFinance.home.allAccounts')}
+            </Text>
+            <Text
+              testID="home-account-card-subtitle"
+              style={[
+                styles.accountCardCount,
+                {
+                  color: theme.colors.content.onFinancialHero,
+                  writingDirection: direction
+                }
+              ]}
+            >
+              {scoped
+                ? translate(
+                    `coreFinance.accountType.${selectedAccount!.type}` as never
+                  )
+                : translateDynamic(
+                    'coreFinance.home.accountCount',
+                    { count: summary.activeAccountCount },
+                    locale
+                  )}
             </Text>
           </View>
           <View
             testID="home-account-card-values"
-            style={[styles.accountCardValues, { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}
+            style={[
+              styles.accountCardValues,
+              { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+            ]}
           >
             {scoped ? (
               accountBalance ? (
-                <Text style={[styles.accountCardBalance, { color: theme.colors.content.onFinancialHero }]}>
+                <Text
+                  style={[
+                    styles.accountCardBalance,
+                    { color: theme.colors.content.onFinancialHero }
+                  ]}
+                >
                   {accountBalance.text.replace(/[\u2066\u2069]/g, '')}
                 </Text>
               ) : null
             ) : (
-              <Text style={[styles.accountCardBalance, { color: theme.colors.content.onFinancialHero }]}>
+              <Text
+                style={[
+                  styles.accountCardBalance,
+                  { color: theme.colors.content.onFinancialHero }
+                ]}
+              >
                 {total.text.replace(/[\u2066\u2069]/g, '')}
               </Text>
             )}
@@ -206,24 +308,53 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
           </View>
         </Pressable>
 
-        <View testID="home-action-tray" style={[styles.actionTray, { backgroundColor: theme.colors.horizon.glass, borderColor: theme.colors.horizon.glassBorder }]}>
+        <View
+          testID="home-action-tray"
+          style={[
+            styles.actionTray,
+            {
+              backgroundColor: theme.colors.horizon.glass,
+              borderColor: theme.colors.horizon.glassBorder
+            }
+          ]}
+        >
           <View
             testID="home-quick-actions"
             style={[
               styles.quickActions,
               {
                 flexDirection: largeText
-                  ? direction === 'rtl' ? 'column-reverse' : 'column'
-                  : direction === 'rtl' ? 'row-reverse' : 'row'
+                  ? direction === 'rtl'
+                    ? 'column-reverse'
+                    : 'column'
+                  : direction === 'rtl'
+                    ? 'row-reverse'
+                    : 'row'
               }
             ]}
           >
-            <QuickAction testID="home-quick-action-add" icon="add" label={translate('appShell.navigation.add')} onPress={() => router.push('/(tabs)/add')} stacked={largeText} />
             <QuickAction
-              testID={voiceRecording ? 'home-inline-voice-recording' : 'home-quick-action-voice'}
+              testID="home-quick-action-add"
+              icon="add"
+              label={translate('appShell.navigation.add')}
+              onPress={() => router.push('/(tabs)/add')}
+              stacked={largeText}
+            />
+            <QuickAction
+              testID={
+                voiceRecording
+                  ? 'home-inline-voice-recording'
+                  : 'home-quick-action-voice'
+              }
               icon={voiceRecording ? 'stop' : 'voice'}
-              label={voiceRecording ? voiceElapsed : translate('voice.mode.voice')}
-              accessibilityLabel={voiceRecording ? `${translate('voice.record.active')}. ${translate('voice.record.stop')}, ${voiceElapsed}` : translate('voice.mode.voice')}
+              label={
+                voiceRecording ? voiceElapsed : translate('voice.mode.voice')
+              }
+              accessibilityLabel={
+                voiceRecording
+                  ? `${translate('voice.record.active')}. ${translate('voice.record.stop')}, ${voiceElapsed}`
+                  : translate('voice.mode.voice')
+              }
               active={voiceRecording}
               onPress={voiceRecording ? stopVoice : () => void startVoice()}
               stacked={largeText}
@@ -233,10 +364,21 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               testID="home-quick-action-reports"
               icon="reports"
               label={translate('appShell.navigation.reports')}
-              onPress={() => router.push({ pathname: '/(tabs)/reports', params: { returnTo: '/(tabs)/home' } })}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/reports',
+                  params: { returnTo: '/(tabs)/home' }
+                })
+              }
               stacked={largeText}
             />
-            <QuickAction testID="home-quick-action-accounts" icon="more" label={translate('appShell.navigation.accounts')} onPress={() => setAccountsSheetVisible(true)} stacked={largeText} />
+            <QuickAction
+              testID="home-quick-action-accounts"
+              icon="more"
+              label={translate('appShell.navigation.accounts')}
+              onPress={() => setAccountsSheetVisible(true)}
+              stacked={largeText}
+            />
           </View>
         </View>
         {voiceProcessing ? (
@@ -253,7 +395,12 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               }
             ]}
           >
-            <View style={[styles.processingIcon, { backgroundColor: theme.colors.surfaces.brandSubtle }]}>
+            <View
+              style={[
+                styles.processingIcon,
+                { backgroundColor: theme.colors.surfaces.brandSubtle }
+              ]}
+            >
               <DesignIcon
                 color={theme.colors.financial.income}
                 decorative
@@ -278,11 +425,33 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               color={theme.colors.content.onFinancialHero}
               testID="home-voice-processing-indicator"
             />
+            {voice.session.state === 'confirmation_unknown' ? (
+              <ActionButton
+                label="voice.action.checkResult"
+                onPress={() => void voice.retry()}
+              />
+            ) : null}
+            {!['saving', 'confirmation_unknown'].includes(
+              voice.session.state
+            ) ? (
+              <ActionButton
+                label="voice.action.cancel"
+                onPress={() => void voice.cancel()}
+                variant="secondary"
+                testID="home-voice-processing-cancel"
+              />
+            ) : null}
           </View>
         ) : null}
       </View>
 
-      <View testID="home-activity-sheet" style={[styles.activity, { backgroundColor: theme.colors.surfaces.page }]}>
+      <View
+        testID="home-activity-sheet"
+        style={[
+          styles.activity,
+          { backgroundColor: theme.colors.surfaces.page }
+        ]}
+      >
         {voiceError ? (
           <SurfaceCard
             testID="home-voice-error-card"
@@ -299,7 +468,10 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               accessibilityRole="alert"
               style={[
                 styles.unclearMessage,
-                { color: theme.colors.content.primary, writingDirection: direction }
+                {
+                  color: theme.colors.content.primary,
+                  writingDirection: direction
+                }
               ]}
             >
               {translate(`voice.error.${voiceError}` as never)}
@@ -314,16 +486,20 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
                 onPress={recoverVoice}
                 testID="home-voice-error-action"
               />
-              <ActionButton
-                label="voice.action.cancel"
-                onPress={() => void voice.cancel()}
-                testID="home-voice-error-cancel"
-                variant="secondary"
-              />
+              {voice.session.state !== 'confirmation_unknown' ? (
+                <ActionButton
+                  label="voice.action.cancel"
+                  onPress={() => void voice.cancel()}
+                  testID="home-voice-error-cancel"
+                  variant="secondary"
+                />
+              ) : null}
             </View>
           </SurfaceCard>
         ) : null}
-        {(voice.session.state === 'proposal_review' || voice.session.errorCode === 'save_failed') && voice.session.group ? (
+        {(voice.session.state === 'proposal_review' ||
+          voice.session.errorCode === 'save_failed') &&
+        voice.session.group ? (
           <View testID="home-voice-review" style={styles.voiceReview}>
             <Text
               accessibilityRole="header"
@@ -339,6 +515,7 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               {translate('voice.review.title')}
             </Text>
             <VoiceReviewGroup
+              live={voice.live}
               accounts={accounts ?? []}
               categories={categories ?? []}
               group={voice.session.group}
@@ -359,12 +536,41 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
           </View>
         ) : null}
         {notice}
-        {expenses.length ? <ActivitySection accounts={accounts} hidden={hidden} largeText={largeText} testID="home-expense-section" title={translate('coreFinance.home.recentExpenses')} transactions={expenses} /> : null}
-        {income.length ? <ActivitySection accounts={accounts} hidden={hidden} largeText={largeText} testID="home-income-section" title={translate('coreFinance.home.recentIncome')} transactions={income} /> : null}
-        {!expenses.length && !income.length ? <Text style={[styles.empty, { color: theme.colors.content.secondary }]}>{scoped ? translate('coreFinance.home.accountEmpty') : translate('coreFinance.ledger.empty')}</Text> : null}
+        {expenses.length ? (
+          <ActivitySection
+            accounts={accounts}
+            hidden={hidden}
+            largeText={largeText}
+            testID="home-expense-section"
+            title={translate('coreFinance.home.recentExpenses')}
+            transactions={expenses}
+          />
+        ) : null}
+        {income.length ? (
+          <ActivitySection
+            accounts={accounts}
+            hidden={hidden}
+            largeText={largeText}
+            testID="home-income-section"
+            title={translate('coreFinance.home.recentIncome')}
+            transactions={income}
+          />
+        ) : null}
+        {!expenses.length && !income.length ? (
+          <Text
+            style={[styles.empty, { color: theme.colors.content.secondary }]}
+          >
+            {scoped
+              ? translate('coreFinance.home.accountEmpty')
+              : translate('coreFinance.ledger.empty')}
+          </Text>
+        ) : null}
       </View>
 
-      <AccountScopeSheet visible={accountsSheetVisible} onDismiss={() => setAccountsSheetVisible(false)} />
+      <AccountScopeSheet
+        visible={accountsSheetVisible}
+        onDismiss={() => setAccountsSheetVisible(false)}
+      />
       <Modal
         animationType={reducedMotion ? 'none' : 'fade'}
         onRequestClose={() => void voice.cancel()}
@@ -374,7 +580,10 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
         <View
           accessibilityViewIsModal
           testID="home-voice-unclear-overlay"
-          style={[styles.processingOverlay, { backgroundColor: theme.colors.horizon.scrim }]}
+          style={[
+            styles.processingOverlay,
+            { backgroundColor: theme.colors.horizon.scrim }
+          ]}
         >
           <SurfaceCard
             testID="home-voice-unclear-card"
@@ -386,7 +595,12 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
               }
             ]}
           >
-            <View style={[styles.processingIcon, { backgroundColor: theme.colors.surfaces.brandSubtle }]}>
+            <View
+              style={[
+                styles.processingIcon,
+                { backgroundColor: theme.colors.surfaces.brandSubtle }
+              ]}
+            >
               <DesignIcon
                 color={theme.colors.content.link}
                 decorative
@@ -396,13 +610,28 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
                 testID="home-voice-unclear-icon"
               />
             </View>
-            <Text accessibilityRole="header" style={[styles.unclearTitle, { color: theme.colors.content.primary, writingDirection: direction }]}>
+            <Text
+              accessibilityRole="header"
+              style={[
+                styles.unclearTitle,
+                {
+                  color: theme.colors.content.primary,
+                  writingDirection: direction
+                }
+              ]}
+            >
               {translate('voice.unclear.title')}
             </Text>
             <Text
               accessibilityLiveRegion="assertive"
               accessibilityRole="alert"
-              style={[styles.unclearMessage, { color: theme.colors.content.secondary, writingDirection: direction }]}
+              style={[
+                styles.unclearMessage,
+                {
+                  color: theme.colors.content.secondary,
+                  writingDirection: direction
+                }
+              ]}
             >
               {translate('voice.unclear.message')}
             </Text>
@@ -428,7 +657,16 @@ export function HomeSummary({ accounts, categories, notice, selectedAccount = nu
   );
 }
 
-function QuickAction({ label, accessibilityLabel = label, active = false, icon, onPress, reducedMotion = false, stacked, testID }: {
+function QuickAction({
+  label,
+  accessibilityLabel = label,
+  active = false,
+  icon,
+  onPress,
+  reducedMotion = false,
+  stacked,
+  testID
+}: {
   accessibilityLabel?: string;
   active?: boolean;
   icon: DesignIconName;
@@ -451,8 +689,14 @@ function QuickAction({ label, accessibilityLabel = label, active = false, icon, 
         styles.quickAction,
         stacked && styles.quickActionStacked,
         {
-          backgroundColor: pressed ? theme.colors.horizon.glassStrong : 'transparent',
-          flexDirection: stacked ? direction === 'rtl' ? 'row-reverse' : 'row' : 'column'
+          backgroundColor: pressed
+            ? theme.colors.horizon.glassStrong
+            : 'transparent',
+          flexDirection: stacked
+            ? direction === 'rtl'
+              ? 'row-reverse'
+              : 'row'
+            : 'column'
         }
       ]}
     >
@@ -463,23 +707,47 @@ function QuickAction({ label, accessibilityLabel = label, active = false, icon, 
             reducedMotion={reducedMotion}
           />
         ) : null}
-        <View style={[
-          styles.quickActionIcon,
-          active && styles.quickActionIconActive,
-          {
-            backgroundColor: `${theme.colors.content.onFinancialHero}${active ? '2E' : '18'}`,
-            borderColor: theme.colors.content.onFinancialHero
-          }
-        ]}>
-          <DesignIcon name={icon} label={accessibilityLabel} color={theme.colors.content.onFinancialHero} decorative />
+        <View
+          style={[
+            styles.quickActionIcon,
+            active && styles.quickActionIconActive,
+            {
+              backgroundColor: `${theme.colors.content.onFinancialHero}${active ? '2E' : '18'}`,
+              borderColor: theme.colors.content.onFinancialHero
+            }
+          ]}
+        >
+          <DesignIcon
+            name={icon}
+            label={accessibilityLabel}
+            color={theme.colors.content.onFinancialHero}
+            decorative
+          />
         </View>
       </View>
-      <Text numberOfLines={stacked ? undefined : 1} style={[styles.quickActionLabel, { color: theme.colors.content.onFinancialHero, writingDirection: direction }]}>{label}</Text>
+      <Text
+        numberOfLines={stacked ? undefined : 1}
+        style={[
+          styles.quickActionLabel,
+          {
+            color: theme.colors.content.onFinancialHero,
+            writingDirection: direction
+          }
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
-function RecordingIndicator({ color, reducedMotion }: { color: string; reducedMotion: boolean }) {
+function RecordingIndicator({
+  color,
+  reducedMotion
+}: {
+  color: string;
+  reducedMotion: boolean;
+}) {
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -524,8 +792,18 @@ function RecordingIndicator({ color, reducedMotion }: { color: string; reducedMo
         styles.recordingRing,
         {
           borderColor: color,
-          opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.65] }),
-          transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.14] }) }]
+          opacity: progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.25, 0.65]
+          }),
+          transform: [
+            {
+              scale: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.92, 1.14]
+              })
+            }
+          ]
         }
       ]}
     />
@@ -541,7 +819,14 @@ function formatVoiceDuration(durationMs: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function ActivitySection({ accounts, hidden, largeText, testID, title, transactions }: {
+function ActivitySection({
+  accounts,
+  hidden,
+  largeText,
+  testID,
+  title,
+  transactions
+}: {
   accounts?: Account[];
   hidden: boolean;
   largeText: boolean;
@@ -559,7 +844,9 @@ function ActivitySection({ accounts, hidden, largeText, testID, title, transacti
         {transactions.map((transaction) => (
           <TransactionCard
             key={transaction.id}
-            accountName={accounts?.find(({ id }) => id === transaction.accountId)?.name}
+            accountName={
+              accounts?.find(({ id }) => id === transaction.accountId)?.name
+            }
             hidden={hidden}
             largeText={largeText}
             testIDPrefix="home"
@@ -576,10 +863,39 @@ function SectionHeading({ testID, title }: { testID: string; title: string }) {
   const direction = usePreferenceStore((state) => state.direction);
   const action = translate('coreFinance.home.viewAll');
   return (
-    <View testID={testID} style={[styles.sectionHeading, { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.content.primary, textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{title}</Text>
-      <Pressable accessibilityLabel={action} accessibilityRole="button" onPress={() => router.push('/(tabs)/transactions')} style={styles.sectionAction}>
-        <Text style={[styles.sectionActionText, { color: theme.colors.content.link, writingDirection: direction }]}>{action}</Text>
+    <View
+      testID={testID}
+      style={[
+        styles.sectionHeading,
+        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+      ]}
+    >
+      <Text
+        style={[
+          styles.sectionTitle,
+          {
+            color: theme.colors.content.primary,
+            textAlign: direction === 'rtl' ? 'right' : 'left',
+            writingDirection: direction
+          }
+        ]}
+      >
+        {title}
+      </Text>
+      <Pressable
+        accessibilityLabel={action}
+        accessibilityRole="button"
+        onPress={() => router.push('/(tabs)/transactions')}
+        style={styles.sectionAction}
+      >
+        <Text
+          style={[
+            styles.sectionActionText,
+            { color: theme.colors.content.link, writingDirection: direction }
+          ]}
+        >
+          {action}
+        </Text>
       </Pressable>
     </View>
   );
@@ -587,45 +903,210 @@ function SectionHeading({ testID, title }: { testID: string; title: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  hero: { alignItems: 'center', gap: spacing.lg, overflow: 'hidden', paddingBottom: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  orbit: { borderRadius: 140, borderWidth: StyleSheet.hairlineWidth, height: 280, opacity: 0.18, position: 'absolute', right: -110, top: -70, width: 280 },
-  orbitInner: { borderRadius: 96, height: 192, opacity: 0.12, right: -36, top: -16, width: 192 },
+  hero: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    overflow: 'hidden',
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm
+  },
+  orbit: {
+    borderRadius: 140,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 280,
+    opacity: 0.18,
+    position: 'absolute',
+    right: -110,
+    top: -70,
+    width: 280
+  },
+  orbitInner: {
+    borderRadius: 96,
+    height: 192,
+    opacity: 0.12,
+    right: -36,
+    top: -16,
+    width: 192
+  },
   balance: { alignItems: 'center', gap: spacing.sm, width: '100%' },
   balanceLabel: { fontSize: 15, lineHeight: 22, opacity: 0.78 },
-  balanceValue: { fontSize: 35.2, fontVariant: ['tabular-nums'], fontWeight: '800', letterSpacing: -1, lineHeight: 43.2, textAlign: 'center', writingDirection: 'ltr' },
-  balanceSupport: { fontSize: 14, lineHeight: 20, opacity: 0.82, textAlign: 'center' },
-  accountCard: { alignItems: 'center', borderRadius: radius.lg, borderWidth: borderWidth.default, ...layoutDirectionStyle('ltr'), gap: spacing.md, justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, width: '100%', writingDirection: 'ltr' },
+  balanceValue: {
+    fontSize: 35.2,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '800',
+    letterSpacing: -1,
+    lineHeight: 43.2,
+    textAlign: 'center',
+    writingDirection: 'ltr'
+  },
+  balanceSupport: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.82,
+    textAlign: 'center'
+  },
+  accountCard: {
+    alignItems: 'center',
+    borderRadius: radius.lg,
+    borderWidth: borderWidth.default,
+    ...layoutDirectionStyle('ltr'),
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 54,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    width: '100%',
+    writingDirection: 'ltr'
+  },
   accountCardText: { flex: 1, gap: 1, minWidth: 0 },
-  accountCardValues: { alignItems: 'center', flexShrink: 1, gap: spacing.xs, justifyContent: 'center' },
+  accountCardValues: {
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: spacing.xs,
+    justifyContent: 'center'
+  },
   accountCardTitle: { fontSize: 14, fontWeight: '700', lineHeight: 19 },
   accountCardCount: { fontSize: 11, lineHeight: 15, opacity: 0.76 },
-  accountCardBalance: { flexShrink: 1, fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '800', lineHeight: 20, textAlign: 'left', writingDirection: 'ltr' },
-  actionTray: { alignSelf: 'stretch', borderRadius: radius.actionTray, borderWidth: borderWidth.default, overflow: 'hidden', padding: spacing.xs },
-  quickActions: { alignSelf: 'stretch', ...layoutDirectionStyle('ltr'), gap: spacing.sm, writingDirection: 'ltr' },
-  quickAction: { alignItems: 'center', borderRadius: radius.lg, flex: 1, gap: spacing.sm, justifyContent: 'center', minHeight: 48, minWidth: 48, padding: spacing.sm },
+  accountCardBalance: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '800',
+    lineHeight: 20,
+    textAlign: 'left',
+    writingDirection: 'ltr'
+  },
+  actionTray: {
+    alignSelf: 'stretch',
+    borderRadius: radius.actionTray,
+    borderWidth: borderWidth.default,
+    overflow: 'hidden',
+    padding: spacing.xs
+  },
+  quickActions: {
+    alignSelf: 'stretch',
+    ...layoutDirectionStyle('ltr'),
+    gap: spacing.sm,
+    writingDirection: 'ltr'
+  },
+  quickAction: {
+    alignItems: 'center',
+    borderRadius: radius.lg,
+    flex: 1,
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
+    padding: spacing.sm
+  },
   quickActionStacked: { flex: 0, justifyContent: 'flex-start', width: '100%' },
-  quickActionIconFrame: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
-  quickActionIcon: { alignItems: 'center', borderRadius: radius.pill, height: 42, justifyContent: 'center', width: 42 },
+  quickActionIconFrame: {
+    alignItems: 'center',
+    height: 42,
+    justifyContent: 'center',
+    width: 42
+  },
+  quickActionIcon: {
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    height: 42,
+    justifyContent: 'center',
+    width: 42
+  },
   quickActionIconActive: { borderWidth: 2 },
-  recordingRing: { borderRadius: radius.pill, borderWidth: 2, height: 50, position: 'absolute', width: 50 },
-  quickActionLabel: { fontSize: 12, fontWeight: '600', lineHeight: 17, textAlign: 'center' },
-  activity: { borderTopLeftRadius: radius.bottomSheet, borderTopRightRadius: radius.bottomSheet, flexGrow: 1, gap: spacing.xl, minHeight: 360, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  recordingRing: {
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    height: 50,
+    position: 'absolute',
+    width: 50
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+    textAlign: 'center'
+  },
+  activity: {
+    borderTopLeftRadius: radius.bottomSheet,
+    borderTopRightRadius: radius.bottomSheet,
+    flexGrow: 1,
+    gap: spacing.xl,
+    minHeight: 360,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg
+  },
   section: { gap: spacing.md },
   voiceReview: { gap: spacing.md },
-  voiceError: { alignItems: 'center', borderRadius: radius.overlay, gap: spacing.md, padding: spacing.xl },
-  sectionHeading: { alignItems: 'center', ...layoutDirectionStyle('ltr'), justifyContent: 'space-between', writingDirection: 'ltr' },
+  voiceError: {
+    alignItems: 'center',
+    borderRadius: radius.overlay,
+    gap: spacing.md,
+    padding: spacing.xl
+  },
+  sectionHeading: {
+    alignItems: 'center',
+    ...layoutDirectionStyle('ltr'),
+    justifyContent: 'space-between',
+    writingDirection: 'ltr'
+  },
   sectionTitle: { fontSize: 20, fontWeight: '800', lineHeight: 28 },
   sectionAction: { justifyContent: 'center', minHeight: minTouchTarget },
   sectionActionText: { fontSize: 12, fontWeight: '700' },
   empty: { padding: spacing.xl, textAlign: 'center' },
   transactionList: { gap: spacing.sm },
-  processingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, zIndex: 10 },
-  processingInline: { alignItems: 'center', alignSelf: 'stretch', borderRadius: radius.lg, borderWidth: borderWidth.default, ...layoutDirectionStyle('ltr'), gap: spacing.md, padding: spacing.md },
-  processingIcon: { alignItems: 'center', borderRadius: radius.pill, height: 56, justifyContent: 'center', width: 56 },
-  processingMessage: { flex: 1, fontSize: 15, fontWeight: '700', lineHeight: 22, textAlign: 'center' },
-  unclearCard: { ...elevation.raised, alignItems: 'center', borderRadius: radius.overlay, gap: spacing.md, maxWidth: 340, padding: spacing.xl, width: '100%' },
-  unclearTitle: { fontSize: 20, fontWeight: '800', lineHeight: 28, textAlign: 'center' },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    zIndex: 10
+  },
+  processingInline: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    borderRadius: radius.lg,
+    borderWidth: borderWidth.default,
+    ...layoutDirectionStyle('ltr'),
+    gap: spacing.md,
+    padding: spacing.md
+  },
+  processingIcon: {
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    height: 56,
+    justifyContent: 'center',
+    width: 56
+  },
+  processingMessage: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 22,
+    textAlign: 'center'
+  },
+  unclearCard: {
+    ...elevation.raised,
+    alignItems: 'center',
+    borderRadius: radius.overlay,
+    gap: spacing.md,
+    maxWidth: 340,
+    padding: spacing.xl,
+    width: '100%'
+  },
+  unclearTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 28,
+    textAlign: 'center'
+  },
   unclearMessage: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  unclearActions: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.sm },
+  unclearActions: {
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+    marginTop: spacing.sm
+  },
   unclearAction: { alignSelf: 'stretch' }
 });

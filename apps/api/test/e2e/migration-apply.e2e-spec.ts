@@ -76,6 +76,8 @@ describeLiveDatabase('migration application', () => {
       'private.system_incidents',
       'private.system_settings',
       'private.user_job_quota_events',
+      'private.voice_media_tombstones',
+      'private.voice_provider_attempts',
     ]);
 
     const functions = await pool.query<{ name: string }>(
@@ -85,6 +87,7 @@ describeLiveDatabase('migration application', () => {
        order by name`,
     );
     expect(functions.rows.map((row) => row.name)).toEqual([
+      'abandon_voice_action',
       'accept_admin_invitation',
       'accept_import_item',
       'ack_client_sync_cursor',
@@ -109,7 +112,10 @@ describeLiveDatabase('migration application', () => {
       'attach_credit_card_terms_sync_snapshot',
       'attach_outbox_sync_metadata',
       'attach_planning_sync_metadata',
+      'authorize_voice_dispatch',
+      'begin_voice_upload',
       'cancel_assistant_message',
+      'cancel_voice_session',
       'capture_report_delivery_webhook',
       'capture_report_snapshot',
       'check_sync_reconciliation',
@@ -131,6 +137,7 @@ describeLiveDatabase('migration application', () => {
       'claim_review_decision',
       'claim_sync_idempotency_key',
       'claim_tracking_admin_idempotency',
+      'claim_voice_action',
       'claim_voice_media_purge',
       'clear_credit_card_terms_on_type_change',
       'clear_tracking_history',
@@ -146,6 +153,7 @@ describeLiveDatabase('migration application', () => {
       'complete_raw_ingestion_purge',
       'complete_sync_idempotency_key',
       'complete_tracking_admin_idempotency',
+      'complete_voice_action',
       'complete_voice_media_purge',
       'compute_duplicate_candidates',
       'confirm_ai_action',
@@ -161,6 +169,7 @@ describeLiveDatabase('migration application', () => {
       'create_support_ticket',
       'create_transaction_conflict',
       'create_voice_session',
+      'create_voice_session_v2',
       'decide_duplicate_candidate',
       'decide_payment_match',
       'decide_review_item',
@@ -192,6 +201,8 @@ describeLiveDatabase('migration application', () => {
       'export_tracking_data',
       'finalize_import_session',
       'finalize_voice_session',
+      'finalize_voice_session',
+      'finish_voice_upload',
       'generate_obligation_schedule',
       'generate_salary_receipts',
       'get_admin_self_context',
@@ -206,6 +217,7 @@ describeLiveDatabase('migration application', () => {
       'get_sync_delta',
       'get_tracking_preferences',
       'get_voice_proposal',
+      'get_voice_recovery',
       'get_voice_session',
       'guard_account_balance',
       'guard_account_update',
@@ -311,6 +323,7 @@ describeLiveDatabase('migration application', () => {
       'record_sync_cursor_issued',
       'record_tracking_feedback',
       'record_unsupported_import',
+      'record_voice_attempt',
       'refresh_financial_insights',
       'refund_transaction',
       'register_job',
@@ -323,7 +336,9 @@ describeLiveDatabase('migration application', () => {
       'reject_ledger_evidence_change',
       'reject_owner_bootstrap_state_change',
       'reject_planning_history_change',
+      'release_voice_upload',
       'reminder_delivery_eligible',
+      'renew_voice_work',
       'replace_budget_categories',
       'request_job_action',
       'reserve_ai_quota',
@@ -336,6 +351,7 @@ describeLiveDatabase('migration application', () => {
       'restore_linked_obligation_payments',
       'restore_linked_obligation_payments_after_ledger_status',
       'restore_transaction',
+      'retain_voice_media_tombstone',
       'retry_client_mutation',
       'retry_report_delivery',
       'reverse_savings_movement',
@@ -372,6 +388,7 @@ describeLiveDatabase('migration application', () => {
       'validate_ai_safety_rule',
       'validate_assistant_action',
       'validate_support_grant_invariant',
+      'voice_committed_receipt',
     ]);
 
     const roles = await pool.query<{ name: string; login: boolean }>(

@@ -106,7 +106,12 @@ export class AiRepository {
     );
   }
 
-  createVoiceSession(principal: ClerkPrincipal, input: Record<string, unknown>, key: string) {
+  createVoiceSession(
+    principal: ClerkPrincipal,
+    input: Record<string, unknown>,
+    key: string,
+    uploadSeconds = 300,
+  ) {
     return this.idempotent(
       principal,
       'ai.voice-session.create',
@@ -114,14 +119,24 @@ export class AiRepository {
       input,
       201,
       async (client, operationId) =>
-        this.json(client, 'select private.create_voice_session($1,$2,$3,$4,$5,$6::uuid) result', [
-          principal.userId,
-          input.locale,
-          input.durationMs,
-          input.contentType,
-          input.sizeBytes,
-          operationId,
-        ]),
+        input.contentHash
+          ? this.json(
+              client,
+              'select private.create_voice_session_v2($1,$2::jsonb,$3::uuid,$4) result',
+              [principal.userId, JSON.stringify(input), operationId, uploadSeconds],
+            )
+          : this.json(
+              client,
+              'select private.create_voice_session($1,$2,$3,$4,$5,$6::uuid) result',
+              [
+                principal.userId,
+                input.locale,
+                input.durationMs,
+                input.contentType,
+                input.sizeBytes,
+                operationId,
+              ],
+            ),
     );
   }
 
@@ -146,8 +161,8 @@ export class AiRepository {
         if (!quota.allowed) quotaError(quota);
         return this.json(
           client,
-          'select private.finalize_voice_session($1,$2::uuid,$3,$4) result',
-          [principal.userId, sessionId, input.expectedVersion, input.contentHash],
+          'select private.finalize_voice_session($1,$2::uuid,$3,$4,$5::uuid) result',
+          [principal.userId, sessionId, input.expectedVersion, input.contentHash, operationId],
         );
       },
     );
@@ -162,6 +177,53 @@ export class AiRepository {
 
   getVoiceProposal(principal: ClerkPrincipal, sessionId: string) {
     return this.ownerJson(principal, 'select private.get_voice_proposal($1,$2::uuid) result', [
+      principal.userId,
+      sessionId,
+    ]);
+  }
+
+  beginVoiceUpload(principal: ClerkPrincipal, sessionId: string) {
+    return this.ownerJson(principal, 'select private.begin_voice_upload($1,$2::uuid) result', [
+      principal.userId,
+      sessionId,
+    ]);
+  }
+
+  finishVoiceUpload(principal: ClerkPrincipal, sessionId: string, token: string, hash: string) {
+    return this.ownerJson(
+      principal,
+      'select private.finish_voice_upload($1,$2::uuid,$3::uuid,$4) result',
+      [principal.userId, sessionId, token, hash],
+    );
+  }
+
+  releaseVoiceUpload(principal: ClerkPrincipal, sessionId: string, token: string) {
+    return this.owner(principal, async (client) => {
+      await client.query('select private.release_voice_upload($1,$2::uuid,$3::uuid)', [
+        principal.userId,
+        sessionId,
+        token,
+      ]);
+    });
+  }
+
+  cancelVoiceSession(principal: ClerkPrincipal, sessionId: string, key: string) {
+    return this.idempotent(
+      principal,
+      'ai.voice-session.cancel.' + sessionId,
+      key,
+      {},
+      200,
+      (client) =>
+        this.json(client, 'select private.cancel_voice_session($1,$2::uuid) result', [
+          principal.userId,
+          sessionId,
+        ]),
+    );
+  }
+
+  getVoiceRecovery(principal: ClerkPrincipal, sessionId: string) {
+    return this.ownerJson(principal, 'select private.get_voice_recovery($1,$2::uuid) result', [
       principal.userId,
       sessionId,
     ]);
@@ -453,6 +515,52 @@ export class AiRepository {
     );
   }
 
+  claimVoiceAction(
+    principal: ClerkPrincipal,
+    id: string,
+    operationId: string,
+    decision: {
+      expectedVersion: number;
+      editedFields?: Record<string, unknown>;
+      command: unknown;
+      timezoneOffsetMinutes: number;
+    },
+  ) {
+    return this.ownerJson(
+      principal,
+      'select private.claim_voice_action($1::uuid,$2,$3::uuid,$4::jsonb,$5::jsonb,$6) result',
+      [
+        id,
+        decision.expectedVersion,
+        operationId,
+        JSON.stringify(decision.editedFields),
+        JSON.stringify(decision.command),
+        decision.timezoneOffsetMinutes,
+      ],
+    );
+  }
+
+  completeVoiceAction(principal: ClerkPrincipal, id: string, token: string, resourceId: string) {
+    return this.ownerJson(
+      principal,
+      'select private.complete_voice_action($1::uuid,$2::uuid,$3::uuid) result',
+      [id, token, resourceId],
+    );
+  }
+
+  abandonVoiceAction(principal: ClerkPrincipal, id: string, token: string) {
+    return this.owner(principal, async (client) =>
+      Boolean(
+        (
+          await client.query<{ result: boolean }>(
+            'select private.abandon_voice_action($1::uuid,$2::uuid) result',
+            [id, token],
+          )
+        ).rows[0]?.result,
+      ),
+    );
+  }
+
   claimAction(
     principal: ClerkPrincipal,
     id: string,
@@ -679,6 +787,58 @@ export class AiRepository {
           id,
           token,
         ]);
+  }
+
+  renewVoiceWork(id: string, token: string, leaseSeconds: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<{ result: boolean }>(
+            'select private.renew_voice_work($1::uuid,$2::uuid,$3) result',
+            [id, token, leaseSeconds],
+          )
+        ).rows[0]?.result === true,
+    );
+  }
+
+  authorizeVoiceDispatch(
+    id: string,
+    token: string,
+    model: string,
+    provider: string,
+    policy: EffectiveAiRoute,
+  ) {
+    return this.workerJson(
+      'select private.authorize_voice_dispatch($1::uuid,$2::uuid,$3,$4,$5::jsonb) result',
+      [id, token, model, provider, JSON.stringify(policy)],
+    );
+  }
+
+  recordVoiceAttempt(
+    operationId: string,
+    attempt: number,
+    receipt: {
+      usage: { inputTokens: number; outputTokens: number; cost: number };
+      generationId: string;
+      latencyMs: number;
+      fallbackUsed: boolean;
+    } | null,
+    responseReceived: boolean,
+  ) {
+    const safeReceipt = receipt
+      ? {
+          ...receipt.usage,
+          latencyMs: receipt.latencyMs,
+          fallbackUsed: receipt.fallbackUsed,
+          generationHash: createHash('sha256').update(receipt.generationId).digest('hex'),
+        }
+      : null;
+    return this.workerJson('select private.record_voice_attempt($1::uuid,$2,$3::jsonb,$4) result', [
+      operationId,
+      attempt,
+      safeReceipt ? JSON.stringify(safeReceipt) : null,
+      responseReceived,
+    ]);
   }
 
   saveVoiceResult(
