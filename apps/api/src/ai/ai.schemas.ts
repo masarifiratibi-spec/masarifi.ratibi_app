@@ -1,3 +1,5 @@
+import { isIsoDate } from '../reference/reference.dto';
+
 const VOICE_KEYS = [
   'schemaVersion',
   'type',
@@ -328,12 +330,23 @@ function closedKeys(
     invalid();
 }
 
-function identifier(value: unknown, aliases: boolean): value is string {
-  return typeof value === 'string' && (UUID.test(value) || (aliases && ALIAS.test(value)));
+function identifier(
+  value: unknown,
+  aliases: boolean,
+  kind?: 'ACCOUNT' | 'CATEGORY',
+): value is string {
+  return (
+    typeof value === 'string' &&
+    (UUID.test(value) || (aliases && ALIAS.test(value) && (!kind || value.startsWith(`${kind}-`))))
+  );
 }
 
-function optionalIdentifier(value: unknown, aliases: boolean): value is string | null {
-  return value === null || identifier(value, aliases);
+function optionalIdentifier(
+  value: unknown,
+  aliases: boolean,
+  kind?: 'ACCOUNT' | 'CATEGORY',
+): value is string | null {
+  return value === null || identifier(value, aliases, kind);
 }
 
 function nullableBounded(value: unknown, maximum: number): value is string | null {
@@ -360,12 +373,12 @@ function parseVoiceProposalValue(input: unknown, aliases: boolean): VoiceProposa
     value.type !== 'transaction.create' ||
     typeof value.amountMinor !== 'string' ||
     !/^-?[1-9][0-9]{0,15}$/.test(value.amountMinor) ||
+    !Number.isSafeInteger(Number(value.amountMinor)) ||
     typeof value.currency !== 'string' ||
     !/^[A-Z]{3}$/.test(value.currency) ||
-    !optionalIdentifier(value.categoryId, aliases) ||
-    !identifier(value.accountId, aliases) ||
-    typeof value.date !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(value.date) ||
+    !optionalIdentifier(value.categoryId, aliases, 'CATEGORY') ||
+    !identifier(value.accountId, aliases, 'ACCOUNT') ||
+    !isIsoDate(value.date) ||
     !nullableBounded(value.merchant, 160) ||
     !nullableBounded(value.note, 500) ||
     typeof value.confidence !== 'number' ||
@@ -389,10 +402,10 @@ export function parseVoiceWorkerOutput(input: unknown): VoiceWorkerOutput {
   exactKeys(value, [...commonKeys, outcomeKey]);
   if (
     value.schemaVersion !== 1 ||
-    !['supported', 'unsupported'].includes(String(value.outcome)) ||
+    (value.outcome !== 'supported' && value.outcome !== 'unsupported') ||
     typeof value.transcript !== 'string' ||
     new TextEncoder().encode(value.transcript).length > 8192 ||
-    !['ar', 'en'].includes(String(value.language)) ||
+    (value.language !== 'ar' && value.language !== 'en') ||
     typeof value.confidence !== 'number' ||
     !Number.isFinite(value.confidence) ||
     value.confidence < 0 ||
@@ -401,7 +414,8 @@ export function parseVoiceWorkerOutput(input: unknown): VoiceWorkerOutput {
     invalid();
   if (value.outcome === 'unsupported') {
     if (
-      !['transfer', 'multiple', 'obligation', 'unclear'].includes(String(value.unsupportedReason))
+      typeof value.unsupportedReason !== 'string' ||
+      !['transfer', 'multiple', 'obligation', 'unclear'].includes(value.unsupportedReason)
     )
       invalid();
     return value as unknown as VoiceWorkerOutput;

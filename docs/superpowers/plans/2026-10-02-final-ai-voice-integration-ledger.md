@@ -6,16 +6,16 @@ Authority: the user's complete Phase A–H request, preserved verbatim in the pl
 
 | Item | Verified state |
 | --- | --- |
-| AI | Isolated `codex/ai-voice-continuation`: `41170e8` → `cee9421` gateway hardening → final canonical sign instruction; contains `8434640` and `8da9cfb` |
+| AI | Isolated `codex/ai-voice-continuation`: `41170e8` → `cee9421` gateway hardening → `998f8b2` sign instruction → canonical parser hardening; contains `8434640` and `8da9cfb` |
 | Onboarding | `5113fb7046372183fea4f8a8b1e23a9ec947dcd2`, contains/supersedes `08fda46`; deployed, exact-SHA CI green, matching Samsung APK installed |
 | Integrated SHA | None; no merge performed |
-| CI | Final AI exact-SHA run pending; superseded `cee9421` run cancelled |
+| CI | Final AI exact-SHA run pending; superseded `cee9421` and `998f8b2` runs cancelled |
 | Staging | API onboarding `5113fb7`, immutable image `3ed2ad83dbbf…`; Worker stopped |
 | Provider acceptance | Pending; the cancelled Samsung attempt had zero Worker/provider attempts |
 | Samsung acceptance | Onboarding first-signup pending availability of genuinely unused identity; Voice pending |
 | Finance | No Confirm authorization; no Voice transaction |
 
-Phase A: locally complete, exact-SHA CI pending. Other recovery chat inspected as idle. The AI change since `8434640` is gateway completion-identity/accounting/terminal-classification guards and tests/documentation; no recorder, media, migration or routing change.
+Phase A: locally complete, exact-SHA CI pending. Other recovery chat inspected as idle. The AI change since `8434640` is gateway completion-identity/accounting/terminal-classification guards, canonical parser hardening, sign instruction and tests/documentation; no recorder, media, migration or routing change.
 
 Pre-flight interfaces: AI gateway receipt → Worker durable usage recording; API admission → Worker processing operation; canonical proposal → financial sign/date/reference resolution; onboarding `/me` bootstrap → Mobile sequential reads. Review each before release. Preserve onboarding lineage and do not deploy an AI-only API over `5113fb7`.
 
@@ -48,6 +48,14 @@ Fresh public OpenRouter metadata: exact model `google/gemini-3.5-flash-lite`, en
 Browser Clerk owner fingerprint matches the existing Samsung owner safely. `/me` and accounts return 200. Category listing still returns 503 `REFERENCE_UNAVAILABLE`; this separate reference boundary must be diagnosed before final review acceptance. No reference/account was created or modified by this phase.
 
 ## Remaining phases
+
+### Final canonical parser review and fix
+
+The compiled parser accepted coerced language/reason arrays, unsafe signed minor units, impossible dates and cross-kind aliases. Fresh independent review reproduced these trust-boundary gaps. Eight focused regressions failed as expected (22 other cases passed); the minimum repair reuses existing pure `isIsoDate`, checks safe signed integers, requires actual enum strings and checks field-specific alias kinds in the shared Voice proposal parser. Assistant callers retain their prior behavior; provider-facing schema is unchanged.
+
+Final: fixed canonical trust-boundary gaps — `ai-foundation.spec.ts` RED 8 / GREEN 30, broad API unit/contract/security 248 suites / 1,433 passed (1 suite / 8 skipped). Real disposable-database Worker/journey/confirmation/budget gate: 4 suites / 24 passed. Typecheck, changed-file lint/format, all three builds, checksums and whitespace checks passed. Initial focused command named the Worker file under unit instead of integration (81 passing checks plus ENOENT); corrected selection exercised the actual integration file. Initial integration invocation omitted its explicit live-test switch and skipped 9 tests; corrected switch ran all 24 successfully. Neither setup error counts as verification.
+
+`998f8b2` CI run `37030861033` is completed/cancelled and superseded. Its parent gates do not qualify this final candidate; no image was deployed and no paid canary was run. Complete canonical review is now recorded before another exact-SHA dispatch.
 
 ### Additional Phase A canonical-contract check
 
