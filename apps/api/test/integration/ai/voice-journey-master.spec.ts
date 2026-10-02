@@ -25,6 +25,12 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     accountId = randomUUID(),
     categoryId = randomUUID();
   const principal = { userId, sessionId: 'fictional-offline-session', factorAgeSeconds: 0 };
+  let originalRoute: {
+    primary_model_id: string;
+    fallback_model_ids: string[];
+    provider_allowlist: string[];
+  };
+  let fixtureModelId: string | undefined;
   const media = new Map<string, Buffer>();
   const storage = {
     upload: (key: string, bytes: Buffer) => {
@@ -68,6 +74,25 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     config as never,
   );
   beforeAll(async () => {
+    const snapshot = (
+      await pool.query<typeof originalRoute>(
+        "select primary_model_id,fallback_model_ids,provider_allowlist from private.ai_feature_routes where workload='voice_transcription'",
+      )
+    ).rows[0];
+    if (!snapshot) throw new Error('missing Voice test route');
+    originalRoute = snapshot;
+    fixtureModelId = (
+      await pool.query<{ id: string }>(
+        `insert into private.ai_models(provider_id,model_id,capabilities,approved,max_context,structured_output,cost_policy)
+       select id,'google/gemini-3.5-flash-lite',array['text','audio_input','structured_output'],true,1048576,true,
+       jsonb_build_object('prompt','0.0000003','completion','0.0000025')
+       from private.ai_providers where key='google-vertex' on conflict(model_id) do nothing returning id`,
+      )
+    ).rows[0]?.id;
+    await pool.query(
+      `update private.ai_feature_routes set primary_model_id=(select id from private.ai_models where model_id='google/gemini-3.5-flash-lite'),
+       fallback_model_ids='{}',provider_allowlist=array['google-vertex'] where workload='voice_transcription'`,
+    );
     await pool.query("insert into public.profiles(id,status) values($1,'active'),($2,'active')", [
       userId,
       adminId,
@@ -93,8 +118,15 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
   });
   afterAll(async () => {
     await pool.query(
-      "update private.ai_feature_routes set enabled=false where workload='voice_transcription'",
+      "update private.ai_feature_routes set enabled=false,primary_model_id=$1,fallback_model_ids=$2,provider_allowlist=$3 where workload='voice_transcription'",
+      [
+        originalRoute.primary_model_id,
+        originalRoute.fallback_model_ids,
+        originalRoute.provider_allowlist,
+      ],
     );
+    if (fixtureModelId)
+      await pool.query('delete from private.ai_models where id=$1', [fixtureModelId]);
     await pool.onModuleDestroy();
   });
   it.each([
@@ -163,7 +195,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         if (!route) throw new Error('missing governed route');
         expect(body.model).toBe(route.primary.modelId);
         expect(body.provider).toMatchObject({
-          only: [route.primary.provider],
+          only: ['google-vertex/global'],
           allow_fallbacks: false,
           require_parameters: true,
           zdr: true,
@@ -171,7 +203,10 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         });
         expect(body.response_format).toMatchObject({
           type: 'json_schema',
-          json_schema: { strict: true },
+          json_schema: {
+            strict: true,
+            schema: { type: 'object', properties: { proposalConfidence: { type: 'number' } } },
+          },
         });
         expect(body.max_tokens).toBe(route.limits.outputTokens);
         const content = body.messages[1]?.content;
@@ -219,7 +254,28 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
           JSON.stringify({
             id: 'offline-generation-' + randomUUID(),
             model: body.model,
-            choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+            choices: [
+              {
+                finish_reason: 'stop',
+                message: {
+                  content: JSON.stringify({
+                    outcome: output.outcome,
+                    transcript: output.transcript,
+                    language,
+                    confidence: output.confidence,
+                    unsupportedReason: '',
+                    amountMinor: output.proposal.amountMinor,
+                    currency: 'SAR',
+                    accountId: 'ACCOUNT-1',
+                    categoryId: output.proposal.categoryId ?? '',
+                    date,
+                    merchant: '',
+                    note: '',
+                    proposalConfidence: output.proposal.confidence,
+                  }),
+                },
+              },
+            ],
             usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.000001 },
           }),
           { headers: { 'content-type': 'application/json' } },

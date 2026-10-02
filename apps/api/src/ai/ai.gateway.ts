@@ -1,6 +1,7 @@
 import { withAiAbort } from './ai.abort';
 import { createHash } from 'node:crypto';
 import type { SafeLogFields } from '../platform/observability/platform-logger';
+import { VERTEX_VOICE_OUTPUT_SCHEMA, normalizeVertexVoiceOutput } from './voice-provider-schema';
 export interface EffectiveAiRoute {
   workload: string;
   primary: { modelId: string; provider: string };
@@ -142,7 +143,7 @@ export class AiGateway {
             json_schema: {
               name: `${input.route.workload}_v${input.route.prompt.schemaVersion.toString()}`,
               strict: true,
-              schema: input.schema,
+              schema: vertexVoiceLite ? VERTEX_VOICE_OUTPUT_SCHEMA : input.schema,
             },
           },
           ...completionParameters,
@@ -272,7 +273,7 @@ export class AiGateway {
         }
         let value: T;
         try {
-          value = input.parse(decoded);
+          value = input.parse(vertexVoiceLite ? normalizeVertexVoiceOutput(decoded) : decoded);
         } catch {
           throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
         }

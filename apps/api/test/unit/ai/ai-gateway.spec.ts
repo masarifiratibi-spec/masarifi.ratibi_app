@@ -92,6 +92,21 @@ describe('AiGateway', () => {
         confidence: 0.9,
       },
     };
+    const providerOutput = {
+      outcome: 'supported',
+      transcript,
+      language,
+      confidence: 0.9,
+      unsupportedReason: '',
+      amountMinor: '1500',
+      currency: 'SAR',
+      accountId: 'ACCOUNT-1',
+      categoryId: 'CATEGORY-1',
+      date: '2026-10-02',
+      merchant: '',
+      note: '',
+      proposalConfidence: 0.9,
+    };
     const audio = {
       type: 'input_audio',
       input_audio: { data: 'fictional-fixture', format: 'm4a' },
@@ -103,7 +118,9 @@ describe('AiGateway', () => {
         response({
           id: 'synthetic-generation',
           model: voiceRoute.primary.modelId,
-          choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(voiceOutput) } }],
+          choices: [
+            { finish_reason: 'stop', message: { content: JSON.stringify(providerOutput) } },
+          ],
           usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.00028 },
         }),
       );
@@ -129,10 +146,26 @@ describe('AiGateway', () => {
     });
     expect(sent).not.toHaveProperty('temperature');
     expect(sent.max_tokens).toBe(1200);
-    expect(sent.response_format).toEqual({
+    expect(sent.response_format).toMatchObject({
       type: 'json_schema',
-      json_schema: { name: 'voice_transcription_v1', strict: true, schema: VOICE_OUTPUT_SCHEMA },
+      json_schema: {
+        name: 'voice_transcription_v1',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            amountMinor: { type: 'string' },
+            unsupportedReason: { type: 'string' },
+            proposalConfidence: { type: 'number' },
+          },
+        },
+      },
     });
+    const schema = (sent.response_format as { json_schema: { schema: Record<string, unknown> } })
+      .json_schema.schema;
+    expect(schema).not.toHaveProperty('oneOf');
+    expect(schema).not.toHaveProperty('properties.proposal');
     expect(sent.messages).toEqual([
       { role: 'system', content: voiceRoute.prompt.template },
       { role: 'user', content: [{ type: 'text', text: '{}' }, audio] },
@@ -255,7 +288,21 @@ describe('AiGateway', () => {
                 ? '{'
                 : failure === 'non-string content'
                   ? null
-                  : '{}',
+                  : JSON.stringify({
+                      outcome: 'unsupported',
+                      transcript: 'Fictional transfer',
+                      language: 'en',
+                      confidence: 0.8,
+                      unsupportedReason: 'transfer',
+                      amountMinor: '',
+                      currency: '',
+                      accountId: '',
+                      categoryId: '',
+                      date: '',
+                      merchant: '',
+                      note: '',
+                      proposalConfidence: 0,
+                    }),
           },
         },
       ],
@@ -362,6 +409,7 @@ describe('AiGateway', () => {
     });
     expect(sent.temperature).toBe(0);
     expect(sent.provider).toMatchObject({ only: ['google-vertex'] });
+    expect(sent.response_format).toMatchObject({ json_schema: { strict: true, schema: {} } });
   });
 
   it.each(['length', 'content_filter', 'error'])(
