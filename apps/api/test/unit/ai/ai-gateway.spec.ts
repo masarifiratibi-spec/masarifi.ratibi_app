@@ -144,7 +144,7 @@ describe('AiGateway', () => {
   it.each([
     ['missing model', { model: undefined }],
     ['null model', { model: null }],
-    ['wrong model', { model: 'google/gemini-3.1-flash-lite' }],
+    ['blank model', { model: ' ' }],
     ['missing generation', { id: undefined }],
     ['null generation', { id: null }],
     ['blank generation', { id: ' ' }],
@@ -187,6 +187,113 @@ describe('AiGateway', () => {
       expect(fetcher).toHaveBeenCalledTimes(1);
     },
   );
+
+  it('accounts a real wrong-model Voice receipt before terminal rejection', async () => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+    };
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        response({
+          id: 'actual-wrong-model-generation',
+          model: 'google/gemini-3.1-flash-lite',
+          choices: [{ finish_reason: 'stop', message: { content: '{}' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      ),
+    );
+    const parse = jest.fn((value: unknown) => value);
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const onDispatchFailure = jest.fn(() => Promise.resolve());
+    await expect(
+      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        userContent: '{}',
+        schema: {},
+        parse,
+        requestId: 'local-operation',
+        onReceipt,
+        onDispatchFailure,
+      }),
+    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+    expect(onReceipt).toHaveBeenCalledTimes(1);
+    expect(onReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'google/gemini-3.1-flash-lite',
+        generationId: 'actual-wrong-model-generation',
+        usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+      }),
+    );
+    expect(parse).not.toHaveBeenCalled();
+    expect(onDispatchFailure).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    'invalid envelope JSON',
+    'null envelope',
+    'invalid content JSON',
+    'non-string content',
+    'canonical rejection',
+  ])('rejects Voice %s without a second dispatch', async (failure) => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+    };
+    const envelope = {
+      id: 'actual-malformed-generation',
+      model: voiceRoute.primary.modelId,
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: {
+            content:
+              failure === 'invalid content JSON'
+                ? '{'
+                : failure === 'non-string content'
+                  ? null
+                  : '{}',
+          },
+        },
+      ],
+      usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+    };
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        failure === 'invalid envelope JSON'
+          ? new Response('{', { headers: { 'content-type': 'application/json' } })
+          : response(failure === 'null envelope' ? null : envelope),
+      ),
+    );
+    const parse = jest.fn(() => {
+      throw new Error('CANONICAL_REJECTED');
+    });
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const onDispatchFailure = jest.fn(() => Promise.resolve());
+    await expect(
+      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        userContent: '{}',
+        schema: {},
+        parse,
+        requestId: 'local-operation',
+        onReceipt,
+        onDispatchFailure,
+      }),
+    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    if (failure === 'invalid envelope JSON' || failure === 'null envelope') {
+      expect(onReceipt).not.toHaveBeenCalled();
+      expect(onDispatchFailure).toHaveBeenCalledWith(true);
+    } else {
+      expect(onReceipt).toHaveBeenCalledTimes(1);
+      expect(onDispatchFailure).not.toHaveBeenCalled();
+    }
+    expect(parse).toHaveBeenCalledTimes(failure === 'canonical rejection' ? 1 : 0);
+  });
 
   it('rejects Voice with no completion status after recording known usage', async () => {
     const voiceRoute: EffectiveAiRoute = {

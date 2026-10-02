@@ -117,6 +117,7 @@ export class AiGateway {
       controller.abort();
     }, remaining);
     const dispatchState = { dispatched: false, responseReceived: false, accounted: false };
+    const voice = input.route.workload === 'voice_transcription';
     try {
       return await withAiAbort(controller.signal, async () => {
         const vertexVoiceLite =
@@ -198,12 +199,20 @@ export class AiGateway {
         if (!response.headers.get('content-type')?.toLowerCase().includes('application/json'))
           throw new AiGatewayError('AI_SCHEMA_INVALID');
         const text = await boundedText(response, 262_144, controller.signal);
-        let envelope: Record<string, unknown>;
+        let decodedEnvelope: unknown;
         try {
-          envelope = JSON.parse(text) as Record<string, unknown>;
+          decodedEnvelope = JSON.parse(text);
         } catch {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', true);
+          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
         }
+        if (
+          voice &&
+          (!decodedEnvelope ||
+            typeof decodedEnvelope !== 'object' ||
+            Array.isArray(decodedEnvelope))
+        )
+          throw new AiGatewayError('AI_SCHEMA_INVALID');
+        const envelope = decodedEnvelope as Record<string, unknown>;
         const usage = this.usage(envelope.usage);
         const maximumCost =
           usage.inputTokens * Number(input.route.maxPrice.prompt) +
@@ -212,11 +221,12 @@ export class AiGateway {
           usage.inputTokens > input.route.limits.inputTokens ||
           usage.outputTokens > input.route.limits.outputTokens ||
           usage.cost > maximumCost + 0.00000001 ||
-          (input.route.workload === 'voice_transcription' &&
-            (envelope.model !== candidate.modelId ||
+          (voice &&
+            (typeof envelope.model !== 'string' ||
+              envelope.model.trim().length === 0 ||
               typeof envelope.id !== 'string' ||
               envelope.id.trim().length === 0)) ||
-          (typeof envelope.model === 'string' && envelope.model !== candidate.modelId)
+          (!voice && typeof envelope.model === 'string' && envelope.model !== candidate.modelId)
         ) {
           throw new AiGatewayError('AI_SCHEMA_INVALID');
         }
@@ -230,6 +240,8 @@ export class AiGateway {
         };
         await input.onReceipt?.(receipt);
         dispatchState.accounted = true;
+        if (voice && envelope.model !== candidate.modelId)
+          throw new AiGatewayError('AI_SCHEMA_INVALID');
         const choices = Array.isArray(envelope.choices) ? (envelope.choices as unknown[]) : [];
         const choice = choices[0];
         if (!choice || typeof choice !== 'object' || choices.length !== 1)
@@ -250,19 +262,19 @@ export class AiGateway {
             ? (choice as { message?: { content?: unknown } }).message?.content
             : undefined;
         if (typeof content !== 'string' || content.length > 65_536) {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', true);
+          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
         }
         let decoded: unknown;
         try {
           decoded = JSON.parse(content);
         } catch {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', true);
+          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
         }
         let value: T;
         try {
           value = input.parse(decoded);
         } catch {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', true);
+          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
         }
         return {
           value,
