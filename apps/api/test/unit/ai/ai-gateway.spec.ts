@@ -60,7 +60,10 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
-  it('sends supported pinned Vertex parameters for Voice 3.5 Flash-Lite without changing canonical validation', async () => {
+  it.each([
+    ['en', 'Fictional groceries expense fifteen riyals'],
+    ['ar', 'دفعت خمسة عشر ريالاً للبقالة'],
+  ])('pins Voice Lite and validates %s output', async (language, transcript) => {
     const voiceRoute: EffectiveAiRoute = {
       ...route,
       workload: 'voice_transcription',
@@ -73,13 +76,13 @@ describe('AiGateway', () => {
     const voiceOutput = {
       schemaVersion: 1,
       outcome: 'supported',
-      transcript: 'Fictional groceries expense fifteen riyals',
-      language: 'en',
+      transcript,
+      language,
       confidence: 0.9,
       proposal: {
         schemaVersion: 1,
         type: 'transaction.create',
-        amountMinor: '-1500',
+        amountMinor: '1500',
         currency: 'SAR',
         categoryId: 'CATEGORY-1',
         accountId: 'ACCOUNT-1',
@@ -139,6 +142,94 @@ describe('AiGateway', () => {
   });
 
   it.each([
+    ['missing model', { model: undefined }],
+    ['null model', { model: null }],
+    ['wrong model', { model: 'google/gemini-3.1-flash-lite' }],
+    ['missing generation', { id: undefined }],
+    ['null generation', { id: null }],
+    ['blank generation', { id: ' ' }],
+  ])(
+    'rejects Voice %s without inventing provider identity or falling back',
+    async (_label, fields) => {
+      const voiceRoute: EffectiveAiRoute = {
+        ...route,
+        workload: 'voice_transcription',
+        primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+      };
+      const fetcher = jest.fn(() =>
+        Promise.resolve(
+          response({
+            id: 'synthetic-generation',
+            model: voiceRoute.primary.modelId,
+            choices: [{ finish_reason: 'stop', message: { content: '{}' } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            ...fields,
+          }),
+        ),
+      );
+      const parse = jest.fn((value: unknown) => value);
+      const onReceipt = jest.fn(() => Promise.resolve());
+      const onDispatchFailure = jest.fn(() => Promise.resolve());
+      await expect(
+        new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+          route: voiceRoute,
+          userContent: '{}',
+          schema: {},
+          parse,
+          requestId: 'local-operation',
+          onReceipt,
+          onDispatchFailure,
+        }),
+      ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+      expect(parse).not.toHaveBeenCalled();
+      expect(onReceipt).not.toHaveBeenCalled();
+      expect(onDispatchFailure).toHaveBeenCalledWith(true);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('rejects Voice with no completion status after recording known usage', async () => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+    };
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        response({
+          id: 'synthetic-generation',
+          model: voiceRoute.primary.modelId,
+          choices: [{ message: { content: '{}' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      ),
+    );
+    const parse = jest.fn((value: unknown) => value);
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const onDispatchFailure = jest.fn(() => Promise.resolve());
+    await expect(
+      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        userContent: '{}',
+        schema: {},
+        parse,
+        requestId: 'local-operation',
+        onReceipt,
+        onDispatchFailure,
+      }),
+    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+    expect(parse).not.toHaveBeenCalled();
+    expect(onReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: 'synthetic-generation',
+        usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+      }),
+    );
+    expect(onDispatchFailure).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
     ['financial_assistant', 'google/gemini-3.5-flash-lite'],
     ['voice_transcription', 'google/gemini-2.5-flash'],
     ['voice_transcription', 'google/gemini-3.1-flash-lite'],
@@ -148,6 +239,7 @@ describe('AiGateway', () => {
       sent = requestBody(init);
       return Promise.resolve(
         response({
+          id: 'synthetic-unrelated-generation',
           model: modelId,
           choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
           usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },

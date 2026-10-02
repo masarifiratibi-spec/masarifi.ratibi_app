@@ -212,6 +212,10 @@ export class AiGateway {
           usage.inputTokens > input.route.limits.inputTokens ||
           usage.outputTokens > input.route.limits.outputTokens ||
           usage.cost > maximumCost + 0.00000001 ||
+          (input.route.workload === 'voice_transcription' &&
+            (envelope.model !== candidate.modelId ||
+              typeof envelope.id !== 'string' ||
+              envelope.id.trim().length === 0)) ||
           (typeof envelope.model === 'string' && envelope.model !== candidate.modelId)
         ) {
           throw new AiGatewayError('AI_SCHEMA_INVALID');
@@ -233,7 +237,10 @@ export class AiGateway {
         const finishReason: unknown = Reflect.get(choice, 'finish_reason');
         if (finishReason === 'length') throw new AiGatewayError('AI_OUTPUT_TRUNCATED');
         if (finishReason === 'content_filter') throw new AiGatewayError('AI_REFUSED');
-        if (finishReason !== undefined && finishReason !== 'stop')
+        if (
+          finishReason !== 'stop' &&
+          (finishReason !== undefined || input.route.workload === 'voice_transcription')
+        )
           throw new AiGatewayError('AI_SCHEMA_INVALID');
         const message: unknown = Reflect.get(choice, 'message');
         if (message && typeof message === 'object' && Reflect.get(message, 'refusal'))
