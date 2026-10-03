@@ -121,7 +121,7 @@ async function main() {
       );
       assert.equal(
         history.at(-1),
-        "20261001211129",
+        "20261002134352",
         "UNEXPECTED_STAGING_HISTORY",
       );
       const before = await facts(client);
