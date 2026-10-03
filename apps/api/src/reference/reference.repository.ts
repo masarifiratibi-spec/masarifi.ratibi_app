@@ -132,7 +132,7 @@ export class ReferenceRepository {
           ? 'where user_id is null and active and deleted_at is null'
           : 'where enabled';
       const result = await client.query<{ digest: string }>(
-        `select encode(digest(coalesce(string_agg(row_to_json(x)::text,'' order by x.key),''),'sha256'),'hex') digest from (select ${resource === 'categories' ? 'id::text key,version,label_ar,label_en,kind,icon,color,sort_order' : 'code::text key,version,name'} from public.${table} ${where}) x`,
+        `select encode(pg_catalog.sha256(pg_catalog.convert_to(coalesce(string_agg(row_to_json(x)::text,'' order by x.key),''),'UTF8')),'hex') digest from (select ${resource === 'categories' ? 'id::text key,version,label_ar,label_en,kind,icon,color,sort_order' : 'code::text key,version,name'} from public.${table} ${where}) x`,
       );
       return result.rows[0]?.digest ?? hash([]);
     });

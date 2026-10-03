@@ -10,7 +10,7 @@ it('projects database session rows to the exact public polling contract', async 
     locale: 'en',
     status: 'processing',
     durationMs: 2832,
-    expiresAt: '2026-10-03T00:00:00.000Z',
+    expiresAt: '2099-10-03T00:00:00.000Z',
     confirmedAt: null,
     failureCode: null,
     version: 3,
