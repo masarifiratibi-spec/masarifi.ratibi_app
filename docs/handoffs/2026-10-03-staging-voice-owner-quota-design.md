@@ -1,0 +1,15 @@
+# Staging test-owner Voice allowance — governed change
+
+Date: 2026-10-03. Application canary candidate remains `4ea85c67e90f61dd852a77e615a51468accd3bfd`.
+
+The user explicitly authorized only the existing Staging test-owner Voice rolling allowance from 5 to 30. The shared `ai.user.rolling_limit` cannot implement this scope: it applies across owners and workloads. The new forward migration therefore adds an inert-by-default setting and a private effective-limit helper. Only `voice_transcription`, the exact owner fingerprint, Staging scope and the numeric value 30 select the override. All other paths retain 5; the 24-hour window and historical all-workload usage counting are unchanged.
+
+Activation uses the existing `MigrationRunner` checksum/history/advisory-lock/transaction mechanism on the migration connection. The executor pins the Staging connection identity, rejects connection identity overrides and unsupported protocols, verifies the expected baseline history, binds Staging/owner context on its dedicated connection, and clears that context afterward. The standard migration is inert without those bindings. Production is neither accessed nor activated. No application-role grants are added.
+
+The admission function is identical to its previous implementation except for the initial limit lookup. Budget locks, $2 global/key controls, reservation accounting, retry/fallback, provider routing, ZDR/no-training, credentials, canonical financial validation and unrelated AI routes remain unchanged. Before/after hashes verify usage events, provider attempts, holds, routes, provider policy, safety, other settings and transactions. Verification under a temporary migration role rolls back that role membership.
+
+Local evidence: original quota regression RED: 3 failed / 5 passed; GREEN after scope repair: 15 integration tests passed. Executor protocol RED: 2 failed / 8 passed; GREEN: 10 tests passed. Earlier integrated database regression: 102 active suites / 326 tests passed; broad unit/contract/security: 251 active suites / 1,504 tests passed. The final added scope/protocol cases passed separately. API typecheck, full lint and migration checksum verification passed. Fresh exact-SHA CI is required before Staging activation.
+
+The migration/configuration candidate is separate from the immutable 4ea85c6 application image used for the already-approved single English canary. No model, schema, normalizer, gateway, Worker, M4A format, Mobile, Docker or CI workflow changes are included. No paid inference has occurred in this phase.
+
+After a green exact-SHA gate, activation must show owner Voice30, owner Assistant5, other-owner Voice5; unchanged historical usage and reserved unknown-cost holds $0.5264. Normal admission will be tested only by the authorized English canary, without an extra quota reservation probe. Exactly one provider dispatch is allowed. Stop after the result; no Arabic, Samsung, fallback, Retry or financial confirmation. Use normal Cancel after evidence capture and verify no financial mutation. Unknown-cost holds remain untouched.
