@@ -181,6 +181,11 @@ describeLiveDatabase('Opt-in Staging Voice owner allowance', () => {
         'utf8',
       ).split('create function private.ai_effective_rolling_limit')[0];
       if (!prefix) throw new Error('activation SQL missing');
+      const membershipBefore = (
+        await pool.query<{ inherited: boolean }>(
+          "select pg_has_role(current_user,'masarifi_migration','usage') inherited",
+        )
+      ).rows[0]?.inherited;
       const activate = pool.withClient(async (client) => {
         await client.query('begin');
         try {
@@ -191,37 +196,48 @@ describeLiveDatabase('Opt-in Staging Voice owner allowance', () => {
               target === 'wrong-owner' ? '0'.repeat(64) : fingerprint,
             ],
           );
-          await client.query(prefix + '\nreset role; revoke masarifi_migration from current_user;');
-          await client.query('commit');
-        } catch (error) {
+          await client.query(prefix);
+          const configured = (
+            await client.query<{ value: unknown }>(
+              'select value from private.system_settings where setting_key=$1',
+              [setting],
+            )
+          ).rows[0]?.value;
+          await client.query('reset role; revoke masarifi_migration from current_user;');
+          return configured;
+        } finally {
+          // Inspect real activation, then restore both fixture data and role membership.
           await client.query('rollback');
-          throw error;
         }
       });
       try {
         if (target === 'staging') {
-          await expect(activate).resolves.toBeUndefined();
-          expect(
-            (
-              await pool.query('select value from private.system_settings where setting_key=$1', [
-                setting,
-              ])
-            ).rows[0]?.value,
-          ).toEqual({ scope: 'staging', ownerFingerprint: fingerprint, limit: 30 });
+          await expect(activate).resolves.toEqual({
+            scope: 'staging',
+            ownerFingerprint: fingerprint,
+            limit: 30,
+          });
         } else {
           await expect(activate).rejects.toThrow(
             target === 'production'
               ? 'STAGING_QUOTA_TARGET_INVALID'
               : 'STAGING_QUOTA_BINDING_INVALID',
           );
-          expect(
-            (
-              await pool.query('select value from private.system_settings where setting_key=$1', [
-                setting,
-              ])
-            ).rows[0]?.value,
-          ).toEqual({});
         }
+        expect(
+          (
+            await pool.query('select value from private.system_settings where setting_key=$1', [
+              setting,
+            ])
+          ).rows[0]?.value,
+        ).toEqual({});
+        expect(
+          (
+            await pool.query(
+              "select pg_has_role(current_user,'masarifi_migration','usage') inherited",
+            )
+          ).rows[0]?.inherited,
+        ).toEqual(membershipBefore);
       } finally {
         await configure({ scope: 'staging', ownerFingerprint: fingerprint, limit: 30 });
       }
