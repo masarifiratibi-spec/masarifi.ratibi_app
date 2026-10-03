@@ -92,3 +92,7 @@ Only after this candidate's exact-SHA CI passes, explicit approval, and fresh le
 6. Ordinary Cancel/discard and normal target media cleanup, verify no proposal resurrection/transaction/balance change. Cancellation does not erase legitimately billed quota. Report receipt before any further testing.
 
 This proposal is not permission to execute. Arabic/Samsung acceptance and final integration remain paused. T08/Master Voice acceptance is incomplete until the real proposal and later explicitly approved physical/financial checkpoints succeed.
+
+## Correction added 2026-10-03 — category taxonomy acceptance
+
+The historical “one matching groceries predicate” row above was Shopping / التسوق, not a category named Groceries. Food / الطعام is the existing shared grocery-rule target. The old label predicate rejects Food and accepts Shopping. The exact historical Gemini selection remains unknown; the retained receipt cannot identify it. This correction supersedes the earlier inference that the expected groceries category was available under that predicate. The restricted-role hashing repair is separate and cannot explain the direct Worker-context canary failure. See [the taxonomy repair record](2026-10-03-voice-category-taxonomy-repair.md) for the identity-based operational checker and separated semantic gate. Original receipts remain intact.

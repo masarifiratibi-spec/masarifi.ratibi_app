@@ -13,7 +13,8 @@ describeLiveDatabase(
     const owner = `category_owner_${randomUUID()}`,
       other = `category_other_${randomUUID()}`;
     const accountId = randomUUID(),
-      categoryId = randomUUID(),
+      categoryId = '04000000-0000-4000-8000-000000000002',
+      staleId = randomUUID(),
       foreignId = randomUUID();
     const bytes = Buffer.alloc(44);
     bytes.write('ftyp', 4);
@@ -50,8 +51,8 @@ describeLiveDatabase(
         [accountId, owner],
       );
       await pool.query(
-        "insert into public.categories(id,user_id,kind,label_ar,label_en) values($1,$3,'expense','بقالة','Offline groceries'),($2,$4,'expense','خاص','Foreign category')",
-        [categoryId, foreignId, owner, other],
+        "insert into public.categories(id,user_id,kind,label_ar,label_en) values($1,$3,'expense','اختبار','Offline stale reference'),($2,$4,'expense','خاص','Foreign category')",
+        [staleId, foreignId, owner, other],
       );
     });
     afterAll(async () => {
@@ -61,9 +62,6 @@ describeLiveDatabase(
     it.each(['alias', 'uuid', 'missing', 'unknown', 'swapped', 'foreign', 'stale'] as const)(
       '%s category crosses only its permitted boundaries',
       async (mode) => {
-        await pool.query('update public.categories set active=true,deleted_at=null where id=$1', [
-          categoryId,
-        ]);
         const id = randomUUID(),
           token = randomUUID();
         await pool.query(
@@ -79,7 +77,7 @@ describeLiveDatabase(
           data: unknown;
         }[];
         const account = aliases.find((x) => x.id === accountId),
-          category = aliases.find((x) => x.id === categoryId);
+          category = aliases.find((x) => x.id === (mode === 'stale' ? staleId : categoryId));
         expect(account?.kind).toBe('account');
         expect(category?.kind).toBe('category');
         expect(aliases.some((x) => x.id === foreignId)).toBe(false);
@@ -111,13 +109,17 @@ describeLiveDatabase(
                 alias: category.alias,
                 kind: 'category',
                 version: expect.any(Number) as unknown,
-                data: { kind: 'expense', labelAr: 'بقالة', labelEn: 'Offline groceries' },
+                data: {
+                  kind: 'expense',
+                  labelAr: mode === 'stale' ? 'اختبار' : 'الطعام',
+                  labelEn: mode === 'stale' ? 'Offline stale reference' : 'Food',
+                },
               });
               expect(JSON.stringify(context.references)).not.toContain(foreignId);
               if (mode === 'stale')
                 await pool.query(
                   'update public.categories set active=false,deleted_at=clock_timestamp() where id=$1',
-                  [categoryId],
+                  [staleId],
                 );
               const selected =
                 mode === 'uuid'
