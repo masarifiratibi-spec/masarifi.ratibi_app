@@ -96,6 +96,7 @@ describeLiveDatabase('migration application', () => {
       'admin_has_permission',
       'advance_report_schedule',
       'ai_assert_owner',
+      'ai_effective_rolling_limit',
       'ai_history_turn_limit',
       'ai_owner_data_counts',
       'ai_route_is_compliant',
