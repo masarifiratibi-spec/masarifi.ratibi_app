@@ -712,6 +712,27 @@ describe('live profile setup', () => {
     });
   });
 
+  test('waits for new-owner provisioning before reading dependent setup records', async () => {
+    let provisioned = false;
+    const request = async (path: string) => {
+      if (path === '/api/v1/me') {
+        await Promise.resolve();
+        provisioned = true;
+        return profile;
+      }
+      if (!provisioned) throw new Error('PROFILE_INACTIVE');
+      if (path === '/api/v1/me/preferences') return preferences;
+      if (path === '/api/v1/me/onboarding') return onboarding;
+      throw new Error(`unexpected path ${path}`);
+    };
+    await expect(
+      createLiveIdentityService({ request }).getProfileSetup()
+    ).resolves.toMatchObject({
+      complete: false,
+      onboarding: { completedSteps: [] }
+    });
+  });
+
   test('saves name and currency before marking welcome complete', async () => {
     const calls: { path: string; options: Record<string, unknown> }[] = [];
     const request = jest.fn(

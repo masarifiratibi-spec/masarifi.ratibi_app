@@ -266,8 +266,9 @@ export function createLiveIdentityService({
 
   async function getProfile(): Promise<UserProfile> {
     const ownerId = getOwnerId();
-    const [remote, preferences, local] = await Promise.all([
-      parsedRequest(request, '/api/v1/me', profileSchema),
+    const remote = await parsedRequest(request, '/api/v1/me', profileSchema);
+    if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
+    const [preferences, local] = await Promise.all([
       parsedRequest(request, '/api/v1/me/preferences', preferencesSchema),
       loadLocalProfile(ownerId ?? undefined)
     ]);
@@ -279,8 +280,9 @@ export function createLiveIdentityService({
 
   async function getProfileSetup(): Promise<ProfileSetupSnapshot> {
     const ownerId = getOwnerId();
-    const [remote, preferences, onboarding, local] = await Promise.all([
-      parsedRequest(request, '/api/v1/me', profileSchema),
+    const remote = await parsedRequest(request, '/api/v1/me', profileSchema);
+    if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
+    const [preferences, onboarding, local] = await Promise.all([
       parsedRequest(request, '/api/v1/me/preferences', preferencesSchema),
       parsedRequest(request, '/api/v1/me/onboarding', onboardingSchema),
       loadLocalProfile(ownerId ?? undefined)

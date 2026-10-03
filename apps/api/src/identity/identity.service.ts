@@ -89,7 +89,27 @@ export class IdentityService {
 
   async getProfile(principal: ClerkPrincipal): Promise<ProfileDto> {
     try {
-      const row = await this.repository.getProfile(principal);
+      let row: ProfileRecord | null;
+      try {
+        row = await this.repository.getProfile(principal);
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.includes('PROFILE_INACTIVE')) throw error;
+        // Distinguish a delayed first webhook from a blocked existing owner before contacting Clerk.
+        if (!(await this.repository.ensureProfileBootstrap(principal))) {
+          if (!this.clerk) throw domainError('PROVIDER_UNAVAILABLE', 503);
+          const identity = await this.clerk.getIdentityUser(principal.userId);
+          if (
+            !identity ||
+            identity.id !== principal.userId ||
+            identity.banned ||
+            identity.locked ||
+            (identity.primaryEmail !== null && identity.primaryEmailVerified !== true)
+          )
+            throw domainError('AUTH_TOKEN_INVALID', 401);
+          await this.repository.ensureProfileBootstrap(principal, identity);
+        }
+        row = await this.repository.getProfile(principal);
+      }
       if (!row) throw domainError('PROFILE_SYNC_UNAVAILABLE', 503);
       return projectProfile(row);
     } catch (error) {

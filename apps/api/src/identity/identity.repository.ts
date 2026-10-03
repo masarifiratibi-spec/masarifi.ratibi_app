@@ -607,6 +607,34 @@ export class IdentityRepository {
     });
   }
 
+  async ensureProfileBootstrap(
+    principal: ClerkPrincipal,
+    identity: ClerkIdentityUser | null = null,
+  ): Promise<boolean> {
+    return this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({
+            role: 'authenticated',
+            sub: principal.userId,
+            sid: principal.sessionId,
+          }),
+        ]);
+        await client.query('set local role masarifi_api');
+        const result = await client.query<{ ready: boolean }>(
+          'select private.ensure_authenticated_profile($1,$2::jsonb) ready',
+          [principal.userId, identity === null ? null : JSON.stringify(identity)],
+        );
+        await client.query('commit');
+        return result.rows[0]?.ready === true;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
+  }
+
   async updateProfile(
     principal: ClerkPrincipal,
     input: ProfileUpdateDto,
