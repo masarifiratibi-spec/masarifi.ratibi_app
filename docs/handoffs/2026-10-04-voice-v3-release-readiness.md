@@ -57,6 +57,8 @@ The whole-candidate independent review identified six issues, resolved in one re
 
 A fresh full-migration disposable PostgreSQL 18 database passed five Voice integration suites / 54 tests, including all-item atomicity, persistent per-item infrastructure failure, late reference invalidation, cancellation, receipts and v2 compatibility. This local result supplements, rather than replaces, the official Supabase/PostgreSQL 17 exact-SHA CI gate.
 
+The first official Supabase run additionally exposed a migration-role error: `RESET ROLE` occurred before replacing the existing upload/input/media functions. A non-superuser migration connection reproduced the exact `permission denied for schema private` failure. Keeping the established migration role until the end applied the complete migration successfully under that restricted connection; no extra schema grants or customer/Worker privileges were added. The updated checksum and full exact-SHA CI must verify the repaired candidate.
+
 ## Recommended next acceptance (not performed)
 
 After the exact-SHA infrastructure gates pass, first use a controlled non-posting provider probe to settle capacity. Keep the automatic policy disabled. A shadow harness must invoke the accepted Gemini 3.5 Flash-Lite / `google-vertex/global` transport and basic structured schema with the same 60-second M4A, 1,200-token cap, ZDR, reservation and accounting controls. It must not accept a batch or call the ledger finalizer. Since the candidate enforces five, the ten-event probe needs an explicit shadow-only prompt/envelope variant; the normal production bound must not be changed merely to conduct the probe.

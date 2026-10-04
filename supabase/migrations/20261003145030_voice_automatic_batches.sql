@@ -342,8 +342,6 @@ do $$ declare f record; begin
     execute format('grant execute on function %s to %I',f.signature,case when f.name in ('create_voice_session_v3','get_voice_batch_result','list_voice_batch_recovery','cancel_voice_session') then 'masarifi_api' else 'masarifi_worker' end);
   end loop;
 end $$;
-reset role;
-
 create or replace function private.begin_voice_upload(p_user_id text,p_session_id uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare s public.voice_sessions%rowtype; token uuid:=extensions.gen_random_uuid();
@@ -494,3 +492,4 @@ begin
   end if;
   return true;
 end $$;
+reset role;
