@@ -1,18 +1,31 @@
 import { openDatabase } from '@/storage/database';
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor
+} from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useVoiceBatches } from '@/features/voice/useVoiceBatches';
 import { VoiceBatchStatus } from '@/features/voice/VoiceBatchStatus';
 import { voiceAnalyzerService } from '@/services/voice-analyzer-service';
 import { changeLocale, translate } from '@/localization/i18n';
+import { HomeSummary } from '@/features/home/HomeSummary';
+import { renderWithProviders } from '@/test-utils/render';
+import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { useAppShellStore } from '@/state/app-shell';
+import { useVoiceCaptureStore } from '@/state/voice-capture';
+import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import {
   loadVoiceBatches,
   saveVoiceBatch
 } from '@/storage/voice-batch-journal';
 import {
   createVoiceBatchApi,
-  VoiceBatchLocalTerminalError
+  VoiceBatchLocalTerminalError,
+  type VoiceBatchResult
 } from './voice-batch-api-service';
 
 jest.mock('@/storage/database', () => ({ openDatabase: jest.fn() }));
@@ -23,6 +36,18 @@ jest.mock('@/services/voice-analyzer-service', () => ({
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '11111111-1111-4111-8111-111111111111'
 }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('@/services/platform/voice-recorder-service', () => ({
+  voiceRecorderService: {
+    getPermission: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    cancel: jest.fn(async () => undefined),
+    remove: jest.fn(async () => undefined),
+    duration: () => 0
+  }
+}));
+jest.mock('@/services/engagement-service', () => ({ notificationService: {} }));
 const { DatabaseSync } = jest.requireActual<{
   DatabaseSync: new (path: string) => {
     exec(sql: string): void;
@@ -57,7 +82,9 @@ afterEach(() => db.close());
 
 function fixture(
   createResponse: () => Promise<Response>,
-  removeAudio = async (_uri: string) => {}
+  removeAudio = async (_uri: string) => {},
+  serverResult?: VoiceBatchResult,
+  resolveOwner: () => Promise<string> = async () => owner
 ) {
   const calls: {
     url: string;
@@ -81,11 +108,17 @@ function fixture(
       return { ok: true, json: async () => ({ items: [] }) } as Response;
     if (init?.method === 'POST' && String(url).endsWith('/voice/sessions'))
       return createResponse();
+    if (
+      init?.method === 'GET' &&
+      String(url).endsWith('/batch') &&
+      serverResult
+    )
+      return { ok: true, json: async () => serverResult } as Response;
     throw new Error('Unexpected upload/process/result dispatch');
   }) as typeof fetch;
   const api = createVoiceBatchApi({
     baseUrl: 'https://fixture.test',
-    owner: async () => owner,
+    owner: resolveOwner,
     token: async () => 'fixture-token',
     request,
     removeAudio
@@ -98,6 +131,186 @@ const unavailable = () =>
     status: 503,
     json: async () => ({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' })
   } as Response);
+
+it.each(['en', 'ar'] as const)(
+  'reproduces hosted generic rejection versus precise rejection through the real Home capture flow in %s',
+  async (locale) => {
+    for (const code of ['AI_UNAVAILABLE', 'VOICE_AUTOMATIC_UNAVAILABLE']) {
+      jest.clearAllMocks();
+      db.exec('DELETE FROM voice_batch_operations');
+      useVoiceCaptureStore.getState().reset();
+      useAppShellStore.setState({
+        session: { ...authenticatedSession, userId: owner }
+      });
+      const { api, calls } = fixture(
+        async () =>
+          ({
+            ok: false,
+            status: 503,
+            json: async () => ({ code })
+          }) as Response
+      );
+      Object.assign(voiceAnalyzerService, api, { metadata: { kind: 'live' } });
+      changeLocale(locale);
+      jest
+        .mocked(voiceRecorderService.getPermission)
+        .mockResolvedValue('granted');
+      const start = jest
+        .mocked(voiceRecorderService.start)
+        .mockResolvedValue({ id: 'native-a', startedAt: Date.now() });
+      jest.mocked(voiceRecorderService.stop).mockResolvedValue(audio);
+      const view = renderWithProviders(
+        React.createElement(HomeSummary, {
+          summary: {
+            totalBalanceMinor: 0,
+            currencyCode: 'SAR',
+            isEstimated: false,
+            components: [],
+            excludedAccountIds: [],
+            periodIncomeMinor: 0,
+            periodExpenseMinor: 0,
+            activeAccountCount: 0,
+            recentTransactions: [],
+            reviewCount: 0,
+            pendingSyncCount: 0,
+            dataState: 'ready'
+          }
+        })
+      );
+      try {
+        fireEvent.press(screen.getByTestId('home-quick-action-voice'));
+        await waitFor(() =>
+          expect(useVoiceCaptureStore.getState().state).toBe('recording')
+        );
+        fireEvent.press(screen.getByTestId('home-inline-voice-recording'));
+        await waitFor(() =>
+          expect(
+            screen.getByText(
+              translate(
+                code === 'AI_UNAVAILABLE'
+                  ? 'voice.batch.checking'
+                  : 'voice.batch.failed'
+              )
+            )
+          ).toBeTruthy()
+        );
+        expect(useVoiceCaptureStore.getState().state).toBe('ready');
+        if (code === 'AI_UNAVAILABLE')
+          expect(
+            screen.getByTestId('home-voice-processing-inline')
+          ).toBeTruthy();
+        else
+          expect(
+            screen.queryByTestId('home-voice-processing-inline')
+          ).toBeNull();
+        expect(screen.queryByTestId('home-voice-review')).toBeNull();
+        expect(screen.queryByText(translate('voice.batch.empty'))).toBeNull();
+        const row = (await loadVoiceBatches(owner))[0]!;
+        expect(row).toMatchObject({
+          sessionId: null,
+          phase: code === 'AI_UNAVAILABLE' ? 'captured' : 'failed'
+        });
+        if (code === 'AI_UNAVAILABLE')
+          expect(row.audioReference).toBe(audio.uri);
+        expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+        expect(
+          calls.some(
+            (call) => call.method === 'PUT' || call.url.endsWith('/process')
+          )
+        ).toBe(false);
+        fireEvent.press(screen.getByTestId('home-quick-action-voice'));
+        await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+        expect(useVoiceCaptureStore.getState().state).toBe('recording');
+      } finally {
+        view.unmount();
+        await act(async () => {});
+        jest.restoreAllMocks();
+      }
+    }
+  },
+  15000
+);
+
+it.each(['completed', 'failed', 'cancelled'] as const)(
+  'publishes and durably retires a server %s receipt before stuck native deletion',
+  async (status) => {
+    jest.useFakeTimers();
+    const receipt = {
+      sessionId: '22222222-2222-4222-8222-222222222222',
+      batchId: null,
+      status,
+      transactionIds: [],
+      addedCount: 0,
+      ledgerVersion: 0
+    };
+    const { api } = fixture(
+      async () =>
+        ({
+          ok: true,
+          json: async () => ({
+            session: { id: receipt.sessionId, version: 1 },
+            upload: { path: '/unused' }
+          })
+        }) as Response,
+      () => new Promise<void>(() => {}),
+      receipt
+    );
+    try {
+      const id = await api.queueBatch(audio, 'en', -180);
+      const outcome = Promise.race([
+        api.runBatch(id),
+        new Promise<string>((resolve) =>
+          setTimeout(() => resolve('blocked by cleanup'), 1)
+        )
+      ]);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(await outcome).toEqual(receipt);
+      expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+        phase: status,
+        audioReference: audio.uri,
+        createBody: null,
+        processBody: null
+      });
+      api.pauseBatches();
+      await jest.advanceTimersByTimeAsync(10000);
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+);
+
+it('keeps a rejected server-terminal cleanup owned without resurrecting executable journal state', async () => {
+  const receipt = {
+    sessionId: '22222222-2222-4222-8222-222222222222',
+    batchId: null,
+    status: 'failed' as const,
+    transactionIds: [],
+    addedCount: 0,
+    ledgerVersion: 0
+  };
+  const { api } = fixture(
+    async () =>
+      ({
+        ok: true,
+        json: async () => ({
+          session: { id: receipt.sessionId, version: 1 },
+          upload: { path: '/unused' }
+        })
+      }) as Response,
+    async () => {
+      throw new Error('native deletion failed');
+    },
+    receipt
+  );
+  const id = await api.queueBatch(audio, 'en', -180);
+  expect(await api.runBatch(id)).toEqual(receipt);
+  expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+    phase: 'failed',
+    audioReference: audio.uri,
+    createBody: null,
+    processBody: null
+  });
+});
 
 it('reports the initial create rejection through the real hook before native cleanup settles', async () => {
   let releaseCleanup!: () => void;
@@ -224,6 +437,34 @@ it('bounds background deletion, ignores a late completion after pause and retrie
   } finally {
     jest.useRealTimers();
   }
+});
+
+it('fences deletion when pause occurs during the asynchronous owner check', async () => {
+  let holdOwner = false;
+  let resolveOwner: ((value: string) => void) | undefined;
+  const remove = jest.fn(async () => {
+    holdOwner = true;
+  });
+  const { api } = fixture(unavailable, remove, undefined, () =>
+    holdOwner
+      ? new Promise((resolve) => {
+          resolveOwner = resolve;
+        })
+      : Promise.resolve(owner)
+  );
+  const id = await api.queueBatch(audio, 'en', -180);
+  await expect(api.runBatch(id)).rejects.toBeInstanceOf(
+    VoiceBatchLocalTerminalError
+  );
+  await waitFor(() => expect(resolveOwner).toBeDefined());
+  api.pauseBatches();
+  holdOwner = false;
+  resolveOwner!(owner);
+  for (let n = 0; n < 30; n++) await Promise.resolve();
+  expect(
+    (await loadVoiceBatches(owner)).find((value) => value.id === id)
+      ?.audioReference
+  ).toBe(audio.uri);
 });
 
 it('fences native cleanup completion when the owner epoch changes before its timeout', async () => {
@@ -496,13 +737,15 @@ it.each(['generic 503', 'lost response'])(
     expect(creates).toHaveLength(2);
     expect(creates[1]).toEqual(creates[0]);
     expect(unexpected).toEqual([]);
-    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
-      phase: 'completed',
-      sessionId,
-      audioReference: null,
-      createBody: null,
-      processBody: null
-    });
+    await waitFor(async () =>
+      expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+        phase: 'completed',
+        sessionId,
+        audioReference: null,
+        createBody: null,
+        processBody: null
+      })
+    );
   }
 );
 

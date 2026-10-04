@@ -19,6 +19,7 @@ it.each([
       cancel: async () => undefined,
       results: [],
       pendingIds: ['capture-pending'],
+      cancelIds: ['capture-pending'],
       uncertain,
       localFailure: false,
       processing: true,

@@ -3,6 +3,8 @@ import { AppState, Linking, Text } from 'react-native';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
+import { clearAppShellStorageOwner } from '@/storage/app-shell-storage';
 
 import { AppShellProvider } from './AppShellProvider';
 import { useAppShellStore } from './app-shell';
@@ -399,6 +401,126 @@ describe('AppShellProvider', () => {
     expect(useAppShellStore.getState().pendingDestination).toBe(
       '/(tabs)/reports'
     );
+  });
+
+  it('opens a cold Reports link that resolves after authenticated Home hydration', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    let releaseUrl!: (url: string) => void;
+    jest.spyOn(Linking, 'getInitialURL').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseUrl = resolve as typeof releaseUrl;
+        })
+    );
+    useAppShellStore.setState({
+      hydrated: true,
+      session: authenticatedSession,
+      onboarding: null,
+      privacyLock: null,
+      profileSetupStatus: 'complete'
+    });
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await act(async () => {
+      releaseUrl('masarifi://reports');
+    });
+    expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/reports');
+  });
+
+  it('retains an early cold Reports link across actual owner authentication/storage hydration', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    clearAppShellStorageOwner();
+    const digest = jest
+      .spyOn(Crypto, 'digestStringAsync')
+      .mockResolvedValue('a'.repeat(64));
+    jest
+      .spyOn(Linking, 'getInitialURL')
+      .mockResolvedValueOnce('masarifi://reports');
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await act(async () => {});
+    expect(useAppShellStore.getState().pendingDestination).toBe(
+      '/(tabs)/reports'
+    );
+    try {
+      await act(async () => {
+        await useAppShellStore.getState().authenticate({
+          ...authenticatedSession,
+          userId: 'user_live_reports'
+        });
+        useAppShellStore.getState().setProfileSetup('complete');
+      });
+    } finally {
+      digest.mockRestore();
+    }
+    expect(useAppShellStore.getState().pendingDestination).toBe(
+      '/(tabs)/reports'
+    );
+    expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/reports');
+  });
+
+  it('retains a newer runtime Reports link through owner hydration and ignores late initial URL', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    clearAppShellStorageOwner();
+    const digest = jest
+      .spyOn(Crypto, 'digestStringAsync')
+      .mockResolvedValue('b'.repeat(64));
+    let releaseInitial!: (url: string) => void;
+    let receive!: (event: { url: string }) => void;
+    jest.spyOn(Linking, 'getInitialURL').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseInitial = resolve as typeof releaseInitial;
+        })
+    );
+    jest
+      .spyOn(Linking, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receive = listener;
+        return { remove: jest.fn() } as never;
+      });
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    try {
+      await act(async () => receive({ url: 'masarifi://reports' }));
+      await act(async () => releaseInitial('masarifi://tracking'));
+      await act(async () => {
+        await useAppShellStore
+          .getState()
+          .authenticate({
+            ...authenticatedSession,
+            userId: 'user_runtime_reports'
+          });
+        useAppShellStore.getState().setProfileSetup('complete');
+      });
+      expect(useAppShellStore.getState().pendingDestination).toBe(
+        '/(tabs)/reports'
+      );
+      expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/reports');
+    } finally {
+      digest.mockRestore();
+    }
   });
 
   it('opens a safe runtime deep link through the current access gate', async () => {

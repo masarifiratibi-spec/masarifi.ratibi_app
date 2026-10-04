@@ -62,6 +62,7 @@ it('hands audio to an independent batch and permits another recording without de
     await act(async () => result.current.stop());
     expect(result.current.session).toMatchObject({
       state: 'ready',
+      durationMs: 0,
       audioReference: null,
       group: null,
       transcript: null
@@ -572,6 +573,90 @@ it('stops the recorder only once when the stop control is tapped rapidly', async
   await act(async () => Promise.all([first, second]));
   unmount();
 });
+
+it.each(['stop', 'cancel'] as const)(
+  'bounds hung capture cleanup during %s and keeps another recording possible',
+  async (operation) => {
+    jest.useFakeTimers();
+    const priorQueue = voiceAnalyzerService.queueBatch;
+    const priorRun = voiceAnalyzerService.runBatch;
+    if (operation === 'stop') {
+      voiceAnalyzerService.queueBatch = jest
+        .fn()
+        .mockRejectedValue(new Error('journal write failed'));
+      voiceAnalyzerService.runBatch = jest.fn();
+    }
+    jest
+      .spyOn(voiceRecorderService, 'getPermission')
+      .mockResolvedValue('granted');
+    jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+    jest
+      .spyOn(voiceRecorderService, 'stop')
+      .mockResolvedValue({
+        uri: 'private://hung-' + operation,
+        durationMs: 3000,
+        contentType: 'audio/m4a',
+        recordedAt: Date.now()
+      });
+    const remove = jest
+      .spyOn(voiceRecorderService, 'remove')
+      .mockReturnValue(new Promise<void>(() => {}));
+    jest
+      .spyOn(voiceAnalyzerService, 'transcribe')
+      .mockRejectedValue(new Error('analysis unavailable'));
+    const start = jest
+      .spyOn(voiceRecorderService, 'start')
+      .mockResolvedValue({ id: 'next-recording', startedAt: Date.now() });
+    const { result, unmount } = renderVoiceHook();
+    try {
+      await act(async () => {});
+      act(() =>
+        useVoiceCaptureStore
+          .getState()
+          .patch({
+            recordingId: 'hung-recording',
+            state: operation === 'stop' ? 'recording' : 'failed',
+            audioReference:
+              operation === 'cancel' ? 'private://hung-cancel' : null
+          })
+      );
+      let settled = false;
+      act(() => {
+        void (
+          operation === 'stop' ? result.current.stop() : result.current.cancel()
+        ).then(() => {
+          settled = true;
+        });
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10001);
+      });
+      expect(remove).toHaveBeenCalled();
+      expect(settled).toBe(true);
+      let cancelling!: Promise<void>;
+      act(() => {
+        cancelling = result.current.cancel();
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10001);
+        await cancelling;
+      });
+      remove.mockResolvedValue();
+      await act(async () => result.current.start());
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(result.current.session.state).toBe('recording');
+      await act(async () => result.current.stop());
+      expect(voiceRecorderService.stop).toHaveBeenCalledTimes(
+        operation === 'stop' ? 2 : 1
+      );
+    } finally {
+      unmount();
+      voiceAnalyzerService.queueBatch = priorQueue;
+      voiceAnalyzerService.runBatch = priorRun;
+      jest.useRealTimers();
+    }
+  }
+);
 
 it('retains a failed cleanup reference for retry without stranding stop state', async () => {
   jest

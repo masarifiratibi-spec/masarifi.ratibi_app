@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { z } from 'zod';
+import { recordVoiceDiagnostic } from '@/services/platform/voice-diagnostics';
 import {
   loadVoiceBatches,
   pruneVoiceBatches,
@@ -55,6 +56,7 @@ export interface VoiceBatchApi {
     uncertain: boolean;
     pendingIds: string[];
     localFailure: boolean;
+    localSessions?: Record<string, string>;
   }>;
   cancelBatch(id: string): Promise<VoiceBatchResult | null>;
   pauseBatches(): void;
@@ -81,9 +83,14 @@ export function createVoiceBatchApi(options: {
   const sleep =
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  const binding = async () => ({ owner: await options.owner(), epoch });
+  const binding = async (captureId?: string) => ({
+    owner: await options.owner(),
+    epoch,
+    captureId
+  });
   const check = async (b: { owner: string; epoch: number }) => {
-    if (b.epoch !== epoch || b.owner !== (await options.owner()))
+    const currentOwner = await options.owner();
+    if (b.epoch !== epoch || b.owner !== currentOwner)
       throw new VoiceCaptureError('operation_cancelled');
   };
   const bounded = async <T>(
@@ -109,24 +116,47 @@ export function createVoiceBatchApi(options: {
     }
   };
   const send = async (
-    b: { owner: string; epoch: number },
+    b: { owner: string; epoch: number; captureId?: string },
     method: string,
     path: string,
     body?: unknown,
     key?: string,
     audio?: ArrayBuffer
-  ): Promise<unknown> =>
-    bounded(
+  ): Promise<unknown> => {
+    const requestId = randomUUID();
+    const started = performance.now();
+    const sessionId = path.match(/\/voice\/sessions\/([0-9a-f-]{36})\//i)?.[1];
+    const operation =
+      path === '/api/v1/voice/sessions'
+        ? 'create'
+        : path.startsWith('/api/v1/voice/batches/recovery')
+          ? 'recovery'
+          : path.endsWith('/audio')
+            ? 'upload'
+            : path.endsWith('/process')
+              ? 'process'
+              : path.endsWith('/cancel')
+                ? 'cancel'
+                : 'status';
+    return bounded(
       async (signal) => {
         await check(b);
         const token = await options.token();
         await check(b);
+        recordVoiceDiagnostic('request', {
+          operation,
+          captureId: b.captureId,
+          sessionId,
+          requestId,
+          phase: 'start'
+        });
         const response = await options.request(options.baseUrl + path, {
           method,
           signal,
           headers: {
             authorization: 'Bearer ' + token,
             'X-Voice-Contract': '3',
+            'X-Request-Id': requestId,
             'content-type': audio ? 'audio/m4a' : 'application/json',
             ...(audio ? { 'content-length': String(audio.byteLength) } : {}),
             ...(key ? { 'idempotency-key': key } : {})
@@ -134,6 +164,14 @@ export function createVoiceBatchApi(options: {
           ...(body !== undefined || audio
             ? { body: audio ?? JSON.stringify(body) }
             : {})
+        });
+        recordVoiceDiagnostic('response', {
+          operation,
+          captureId: b.captureId,
+          sessionId,
+          requestId,
+          status: response.status,
+          elapsedMs: performance.now() - started
         });
         await check(b);
         if ([400, 403, 404, 410, 422].includes(response.status))
@@ -167,7 +205,18 @@ export function createVoiceBatchApi(options: {
         return value;
       },
       audio ? 30000 : 10000
-    );
+    ).catch((error: unknown) => {
+      recordVoiceDiagnostic('request-error', {
+        operation,
+        captureId: b.captureId,
+        sessionId,
+        requestId,
+        phase: 'failure',
+        elapsedMs: performance.now() - started
+      });
+      throw error;
+    });
+  };
   const update = async (
     b: { owner: string; epoch: number },
     operation: VoiceBatchOperation,
@@ -216,19 +265,22 @@ export function createVoiceBatchApi(options: {
     value: VoiceBatchResult
   ) => {
     if (terminal(value.status)) {
-      if (operation.audioReference && options.removeAudio) {
-        try {
-          await options.removeAudio(operation.audioReference);
-        } catch {
-          return value;
-        }
-      }
-      await update(b, operation, {
-        phase: value.status as 'completed' | 'cancelled' | 'failed',
-        audioReference: null,
-        createBody: null,
-        processBody: null
+      recordVoiceDiagnostic('batch-result', {
+        captureId: operation.id,
+        sessionId: value.sessionId,
+        phase: value.status
       });
+      const retired =
+        operation.phase === value.status &&
+        !operation.createBody &&
+        !operation.processBody
+          ? operation
+          : await update(b, operation, {
+              phase: value.status as 'completed' | 'cancelled' | 'failed',
+              createBody: null,
+              processBody: null
+            });
+      cleanupAudio(b, retired);
     }
     return value;
   };
@@ -249,16 +301,36 @@ export function createVoiceBatchApi(options: {
             createBody: null,
             processBody: null
           });
+    cleanupAudio(b, retired);
+    recordVoiceDiagnostic('batch-result', { captureId: retired.id, phase });
+  };
+  const cleanupAudio = (
+    b: { owner: string; epoch: number },
+    retired: VoiceBatchOperation
+  ) => {
     if (!retired.audioReference || !options.removeAudio) return;
     const key = b.owner + ':' + retired.id;
     if (localCleanups.has(key)) return;
     // Native cleanup cannot delay the already durable terminal outcome.
     const cleanup = (async () => {
       await check(b);
+      recordVoiceDiagnostic('cleanup', {
+        captureId: retired.id,
+        sessionId: retired.sessionId ?? undefined,
+        phase: 'start'
+      });
       await bounded(() => options.removeAudio!(retired.audioReference!));
       await update(b, retired, { audioReference: null });
+      recordVoiceDiagnostic('cleanup', {
+        captureId: retired.id,
+        phase: 'success'
+      });
     })()
       .catch(() => {
+        recordVoiceDiagnostic('cleanup-error', {
+          captureId: retired.id,
+          phase: 'failure'
+        });
         // Retain ownership solely for cleanup retry, including timeout/owner change.
       })
       .finally(() => {
@@ -267,7 +339,7 @@ export function createVoiceBatchApi(options: {
     localCleanups.set(key, cleanup);
   };
   const submit = async (id: string) => {
-    const b = await binding();
+    const b = await binding(id);
     let operation = (await loadVoiceBatches(b.owner)).find(
       (row) => row.id === id
     );
@@ -444,6 +516,11 @@ export function createVoiceBatchApi(options: {
     async queueBatch(audio, locale, offset) {
       const b = await binding();
       const id = randomUUID();
+      recordVoiceDiagnostic('journal-handoff', {
+        captureId: id,
+        phase: 'start',
+        durationMs: audio.durationMs
+      });
       await saveVoiceBatch(b.owner, {
         id,
         revision: 0,
@@ -460,6 +537,10 @@ export function createVoiceBatchApi(options: {
       });
       // Successful persistence transfers audio ownership even if auth changes during the write.
       // The captured owner can recover the operation later; the recorder must not delete it.
+      recordVoiceDiagnostic('journal-handoff', {
+        captureId: id,
+        phase: 'success'
+      });
       return id;
     },
     runBatch,
@@ -480,10 +561,12 @@ export function createVoiceBatchApi(options: {
       );
       // Return a recovery snapshot promptly; long polling never hides cancellation controls.
       for (const operation of local.filter(
-        (row) =>
-          !terminal(row.phase) ||
-          (!row.sessionId && Boolean(row.audioReference))
-      ))
+        (row) => !terminal(row.phase) || Boolean(row.audioReference)
+      )) {
+        if (terminal(operation.phase) && operation.sessionId) {
+          cleanupAudio(b, operation);
+          continue;
+        }
         void runBatch(operation.id).then(
           () => {
             if (epoch === b.epoch) recoveryFailures.delete(operation.id);
@@ -495,6 +578,7 @@ export function createVoiceBatchApi(options: {
             else recoveryFailures.add(operation.id);
           }
         );
+      }
       const values: VoiceBatchResult[] = [];
       let cursor = discoveryCursor;
       const remainingSessions = new Set(unresolved);
@@ -563,7 +647,16 @@ export function createVoiceBatchApi(options: {
         pendingIds: remaining
           .filter((row) => !terminal(row.phase))
           .map((row) => row.id),
-        localFailure: latestLocal?.phase === 'failed' && !latestLocal.sessionId
+        localFailure: latestLocal?.phase === 'failed' && !latestLocal.sessionId,
+        ...(remaining.some((row) => row.sessionId)
+          ? {
+              localSessions: Object.fromEntries(
+                remaining
+                  .filter((row) => row.sessionId)
+                  .map((row) => [row.id, row.sessionId!])
+              )
+            }
+          : {})
       };
     },
     async cancelBatch(id) {

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
-const mockDelete = jest.fn(async () => undefined);
+const mockDelete = jest.fn(async (): Promise<void> => {});
+const mockFileInfo = jest.fn(async () => ({ exists: true, size: 46885 }));
 const mockOpenSettings = jest.fn(async () => undefined);
 const mockListeners = new Set<
   (status: {
@@ -38,7 +39,7 @@ const mockGetRecordingPermissions = jest.fn(async () => ({
 
 jest.mock('expo-file-system/legacy', () => ({
   deleteAsync: mockDelete,
-  getInfoAsync: jest.fn(async () => ({ exists: true, size: 46885 }))
+  getInfoAsync: mockFileInfo
 }));
 jest.mock('expo-linking', () => ({ openSettings: mockOpenSettings }));
 jest.mock('expo-audio', () => ({
@@ -97,6 +98,100 @@ beforeEach(() => {
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+});
+
+it('bounds file inspection after successful Stop and fences its late result from the next recording', async () => {
+  jest.useFakeTimers();
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  let resolveInfo!: (value: never) => void;
+  mockFileInfo.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveInfo = resolve as typeof resolveInfo;
+      })
+  );
+  const service = createVoiceRecorderService();
+  const recording = await service.start();
+  const stopping = service.stop(recording.id);
+  await jest.advanceTimersByTimeAsync(0);
+  expect(resolveInfo).toBeDefined();
+  const outcome = Promise.race([
+    stopping.then(
+      () => 'accepted late audio',
+      (error: { code: string }) => error.code
+    ),
+    new Promise<string>((resolve) =>
+      setTimeout(() => resolve('file check still pending'), 5001)
+    )
+  ]);
+  try {
+    await jest.advanceTimersByTimeAsync(5001);
+    expect(await outcome).toBe('recording_interrupted');
+    expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+    const next = await service.start();
+    resolveInfo({ exists: true, size: 46885 } as never);
+    await jest.advanceTimersByTimeAsync(0);
+    expect(service.duration?.(next.id)).toBe(2832);
+    const cancelling = service.cancel(next.id);
+    await jest.advanceTimersByTimeAsync(0);
+    await cancelling;
+  } finally {
+    resolveInfo({ exists: true, size: 46885 } as never);
+    await stopping.catch(() => undefined);
+    const cancelling = service.cancel();
+    await jest.advanceTimersByTimeAsync(0);
+    await cancelling;
+  }
+});
+
+it('releases the capture lock when discard deletion hangs after a failed native Stop', async () => {
+  jest.useFakeTimers();
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: true,
+    canAskAgain: true
+  });
+  let resolveDelete!: () => void;
+  mockDelete.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      })
+  );
+  const nativeError = new Error('native stop failed');
+  mockAudioStop.mockRejectedValueOnce(nativeError);
+  const service = createVoiceRecorderService();
+  const recording = await service.start();
+  const stopping = service.stop(recording.id);
+  const outcome = Promise.race([
+    stopping.then(
+      () => null,
+      (error: unknown) => error
+    ),
+    new Promise<string>((resolve) =>
+      setTimeout(() => resolve('discard still pending'), 1)
+    )
+  ]);
+  try {
+    await jest.advanceTimersByTimeAsync(1);
+    expect(await outcome).toBe(nativeError);
+    expect(mockAudioRelease).toHaveBeenCalledTimes(1);
+    const next = await service.start();
+    resolveDelete();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(service.duration?.(next.id)).toBe(2832);
+    const cancelling = service.cancel(next.id);
+    await jest.advanceTimersByTimeAsync(0);
+    await cancelling;
+  } finally {
+    resolveDelete();
+    await stopping.catch(() => undefined);
+    const cancelling = service.cancel();
+    await jest.advanceTimersByTimeAsync(0);
+    await cancelling;
+  }
 });
 
 it('owns preparation before permission resolves so concurrent starts allocate once', async () => {

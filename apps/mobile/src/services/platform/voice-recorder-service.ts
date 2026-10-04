@@ -3,6 +3,7 @@ import type { AudioRecorder, RecordingStatus } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Linking from 'expo-linking';
 import { measureVoiceTiming, recordVoiceTiming } from './voice-timing';
+import { recordVoiceDiagnostic } from './voice-diagnostics';
 
 import {
   VOICE_MAX_DURATION_MS,
@@ -51,6 +52,38 @@ interface Capture {
 export function createVoiceRecorderService(): VoiceRecorderService {
   let active: Capture | null = null;
   let sequence = 0;
+  const discardedAudio = new Map<string, string>();
+  const discarding = new Set<string>();
+  const discardAudio = (uri: string, recordingId: string) => {
+    discardedAudio.set(uri, recordingId);
+    if (discarding.has(uri)) return;
+    discarding.add(uri);
+    recordVoiceDiagnostic('cleanup', { recordingId, phase: 'start' });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    void Promise.race([
+      removeTemporaryAudio(uri).then(() => {
+        discardedAudio.delete(uri);
+        recordVoiceDiagnostic('cleanup', { recordingId, phase: 'success' });
+      }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new VoiceCaptureError('recording_interrupted')),
+          10000
+        );
+      })
+    ])
+      .catch(() => {
+        recordVoiceDiagnostic('cleanup-error', {
+          recordingId,
+          phase: 'failure'
+        });
+        // The service retains ownership for a later cleanup attempt.
+      })
+      .finally(() => {
+        if (timeout) clearTimeout(timeout);
+        discarding.delete(uri);
+      });
+  };
 
   const observeDuration = (capture: Capture) => {
     if (!capture.recorder || capture.status?.isFinished)
@@ -75,9 +108,14 @@ export function createVoiceRecorderService(): VoiceRecorderService {
     } catch {
       /* Preserve the capture outcome. */
     }
-    if (discard) await removeTemporaryAudio(uri).catch(() => undefined);
+    capture.recorder = null;
     if (active === capture) active = null;
     recordVoiceTiming('native_release', performance.now() - started);
+    recordVoiceDiagnostic('native-release', {
+      recordingId: capture.id,
+      elapsedMs: performance.now() - started
+    });
+    if (discard && uri) discardAudio(uri, capture.id);
   };
 
   const preparing = async <T>(
@@ -108,9 +146,14 @@ export function createVoiceRecorderService(): VoiceRecorderService {
     capture.terminal = (async () => {
       let valid = false;
       let completionTimeout: ReturnType<typeof setTimeout> | undefined;
+      let fileTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const recorder = capture.recorder;
         if (!recorder) throw new VoiceCaptureError('recording_interrupted');
+        recordVoiceDiagnostic('native-stop', {
+          recordingId: capture.id,
+          phase: 'start'
+        });
         observeDuration(capture);
         const terminal = (async () => {
           if (!capture.status?.isFinished && !capture.status?.hasError) {
@@ -140,6 +183,11 @@ export function createVoiceRecorderService(): VoiceRecorderService {
             );
           })
         ]);
+        recordVoiceDiagnostic('native-stop', {
+          recordingId: capture.id,
+          phase: 'success',
+          durationMs: capture.durationMs
+        });
         const status = capture.status;
         if (
           capture.cancelled ||
@@ -149,8 +197,24 @@ export function createVoiceRecorderService(): VoiceRecorderService {
           capture.durationMs < 1
         )
           throw new VoiceCaptureError('recording_interrupted');
+        recordVoiceDiagnostic('file-check', {
+          recordingId: capture.id,
+          phase: 'start'
+        });
         const info = await measureVoiceTiming('file_check', () =>
-          FileSystem.getInfoAsync(status.url as string)
+          Promise.race([
+            FileSystem.getInfoAsync(status.url as string),
+            new Promise<never>((_, reject) => {
+              fileTimeout = setTimeout(() => {
+                capture.cancelled = true;
+                recordVoiceDiagnostic('file-check', {
+                  recordingId: capture.id,
+                  phase: 'timeout'
+                });
+                reject(new VoiceCaptureError('recording_interrupted'));
+              }, 5000);
+            })
+          ])
         );
         if (
           capture.cancelled ||
@@ -159,6 +223,11 @@ export function createVoiceRecorderService(): VoiceRecorderService {
           info.size < 1
         )
           throw new VoiceCaptureError('recording_interrupted');
+        recordVoiceDiagnostic('file-check', {
+          recordingId: capture.id,
+          phase: 'success',
+          bytes: info.size
+        });
         valid = true;
         return {
           uri: status.url,
@@ -168,6 +237,7 @@ export function createVoiceRecorderService(): VoiceRecorderService {
         };
       } finally {
         if (completionTimeout) clearTimeout(completionTimeout);
+        if (fileTimeout) clearTimeout(fileTimeout);
         await release(capture, !valid || capture.cancelled);
       }
     })();
@@ -193,6 +263,8 @@ export function createVoiceRecorderService(): VoiceRecorderService {
     start(maxDurationMs = VOICE_MAX_DURATION_MS) {
       if (maxDurationMs !== VOICE_MAX_DURATION_MS || active)
         return Promise.reject(new VoiceCaptureError('recording_interrupted'));
+      for (const [uri, recordingId] of discardedAudio)
+        discardAudio(uri, recordingId);
       let complete!: () => void;
       const capture: Capture = {
         id: 'recording-' + Date.now() + '-' + ++sequence,
@@ -207,14 +279,26 @@ export function createVoiceRecorderService(): VoiceRecorderService {
         complete: () => complete()
       };
       active = capture;
+      recordVoiceDiagnostic('capture-start', {
+        recordingId: capture.id,
+        phase: 'start'
+      });
       capture.starting = (async () => {
         try {
           const audio = audioModule();
+          recordVoiceDiagnostic('permission', {
+            recordingId: capture.id,
+            phase: 'start'
+          });
           const permission = permissionState(
             await measureVoiceTiming('permission', () =>
               preparing(capture, audio.getRecordingPermissionsAsync())
             )
           );
+          recordVoiceDiagnostic('permission', {
+            recordingId: capture.id,
+            phase: permission === 'granted' ? 'success' : 'failure'
+          });
           if (permission !== 'granted')
             throw new VoiceCaptureError(
               permission === 'permanently_denied'
@@ -258,6 +342,10 @@ export function createVoiceRecorderService(): VoiceRecorderService {
           if (!recorder.getStatus().isRecording || capture.status?.hasError)
             throw new VoiceCaptureError('recording_interrupted');
           capture.startedAt = Date.now();
+          recordVoiceDiagnostic('native-start', {
+            recordingId: capture.id,
+            phase: 'success'
+          });
           capture.timer = setInterval(() => observeDuration(capture), 250);
           return {
             id: capture.id,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { router } from 'expo-router';
 import { AppState, Linking, type AppStateStatus } from 'react-native';
 
@@ -45,6 +45,19 @@ export function AppShellProvider({
   const mode = resolveClientMode();
   const restoreQueue = useRef(Promise.resolve());
   const registeredPushSession = useRef<string | null>(null);
+  const initialLink = useRef<string | null>(null);
+  const linkRevision = useRef(0);
+  const linksMounted = useRef(false);
+  const session = useAppShellStore((state) => state.session);
+  const onboarding = useAppShellStore((state) => state.onboarding);
+  const privacyLock = useAppShellStore((state) => state.privacyLock);
+  const profileSetupStatus = useAppShellStore(
+    (state) => state.profileSetupStatus
+  );
+  const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
+  const firstLaunchCompleted = usePreferenceStore(
+    (state) => state.firstLaunchOnboardingCompleted
+  );
 
   useEffect(() => {
     if (mode !== 'live' && !hydrated) void hydrate();
@@ -86,37 +99,77 @@ export function AppShellProvider({
     };
   }, [liveClerkSessionKey, mode, bootstrapRevision]);
 
-  useEffect(() => {
-    async function retainSafeDestination(url: string | null, navigate = false) {
+  const retainSafeDestination = useCallback(
+    async (url: string | null, expectedRevision: number) => {
       if (!url) return;
       const destination = parseDeepLinkDestination(url);
       if (!destination) return;
-      await setPendingDestination(destination);
-      if (!navigate) return;
+      const owner = useAppShellStore.getState().session?.userId;
+      const isCurrent = () =>
+        linksMounted.current &&
+        expectedRevision === linkRevision.current &&
+        owner === useAppShellStore.getState().session?.userId;
+      await setPendingDestination(destination, isCurrent);
+      if (!isCurrent()) return;
       const { hydrated, session, onboarding, privacyLock, profileSetupStatus } =
         useAppShellStore.getState();
       const { firstLaunchOnboardingCompleted } = usePreferenceStore.getState();
-      router.replace(
-        resolveEntryRoute({
-          hydrated: hydrated && usePreferenceStore.getState().hydrated,
-          firstLaunchOnboardingCompleted,
-          profileSetupStatus,
-          session,
-          onboarding,
-          pendingDestination: destination,
-          privacyLock
-        })
-      );
-    }
+      const route = resolveEntryRoute({
+        hydrated: hydrated && usePreferenceStore.getState().hydrated,
+        firstLaunchOnboardingCompleted,
+        profileSetupStatus,
+        session,
+        onboarding,
+        pendingDestination: destination,
+        privacyLock
+      });
+      // Hydration owns the entry route. Do not race its mounted loading gate.
+      if (route !== '/index') router.replace(route);
+      if (route === destination) initialLink.current = null;
+    },
+    [setPendingDestination]
+  );
 
+  useEffect(() => {
+    linksMounted.current = true;
+    const expected = linkRevision.current;
     void Linking.getInitialURL()
-      .then((url) => retainSafeDestination(url))
+      .then((url) => {
+        if (!linksMounted.current || expected !== linkRevision.current) return;
+        initialLink.current = url && parseDeepLinkDestination(url) ? url : null;
+        return retainSafeDestination(initialLink.current, expected);
+      })
       .catch(() => undefined);
     const linkSubscription = Linking.addEventListener('url', ({ url }) => {
-      void retainSafeDestination(url, true);
+      if (!parseDeepLinkDestination(url)) return;
+      initialLink.current = url;
+      const expected = ++linkRevision.current;
+      void retainSafeDestination(url, expected).catch(() => undefined);
     });
-    return () => linkSubscription?.remove?.();
-  }, [setPendingDestination]);
+    return () => {
+      linksMounted.current = false;
+      linkRevision.current++;
+      linkSubscription?.remove?.();
+    };
+  }, [retainSafeDestination]);
+
+  useEffect(() => {
+    if (hydrated && initialLink.current)
+      void retainSafeDestination(
+        initialLink.current,
+        linkRevision.current
+      ).catch(() => undefined);
+  }, [
+    hydrated,
+    session?.userId,
+    session?.status,
+    onboarding,
+    privacyLock,
+    profileSetupStatus,
+    preferencesHydrated,
+    firstLaunchCompleted,
+    retainSafeDestination
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {

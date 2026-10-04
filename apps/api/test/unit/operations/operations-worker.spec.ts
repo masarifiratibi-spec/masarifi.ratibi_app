@@ -64,6 +64,30 @@ describe('operations job registry', () => {
     await expect(registry.run('shell.execute')).rejects.toThrow('OPERATIONS_JOB_UNKNOWN');
     await expect(registry.run('billing.reconcile')).rejects.toThrow('OPERATIONS_JOB_UNKNOWN');
   });
+
+  it('routes scheduled voice-media.purge to the AI handler, never engagement', async () => {
+    const ai = { runJob: jest.fn().mockResolvedValue(1) };
+    const engagement = { runJob: jest.fn().mockRejectedValue(new Error('ENGAGEMENT_JOB_UNKNOWN')) };
+    const registry = new OperationsJobRegistry(
+      { runJob: jest.fn() },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ai as never,
+      undefined,
+      engagement as never,
+    );
+    await expect(registry.run('voice-media.purge')).resolves.toEqual({
+      outcome: 'succeeded',
+      processed: 1,
+    });
+    expect(ai.runJob).toHaveBeenCalledWith('voice-media.purge');
+    expect(engagement.runJob).not.toHaveBeenCalled();
+  });
 });
 
 describe('OperationsWorker', () => {

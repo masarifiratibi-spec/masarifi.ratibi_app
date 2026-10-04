@@ -6,19 +6,23 @@ import { translate, translateDynamic } from '@/localization/i18n';
 import type { useVoiceBatches } from './useVoiceBatches';
 
 export function VoiceBatchStatus({
-  batches
+  batches,
+  showProgress = true
 }: {
   batches: ReturnType<typeof useVoiceBatches>;
+  showProgress?: boolean;
 }) {
   const result = batches.latest;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
-      {batches.processing && !batches.uncertain ? (
+      {showProgress && batches.processing && !batches.uncertain ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
       {batches.uncertain ? (
         <>
-          <StyledText>{translate('voice.batch.checking')}</StyledText>
+          {showProgress ? (
+            <StyledText>{translate('voice.batch.checking')}</StyledText>
+          ) : null}
           <ActionButton
             label="voice.batch.checkResult"
             onPress={() => void batches.recover()}
@@ -36,7 +40,7 @@ export function VoiceBatchStatus({
       {result?.status === 'failed' || batches.localFailure ? (
         <StyledText>{translate('voice.batch.failed')}</StyledText>
       ) : null}
-      {batches.pendingIds.map((id) => (
+      {batches.cancelIds.map((id) => (
         <ActionButton
           key={id}
           label="voice.action.cancel"
@@ -44,19 +48,6 @@ export function VoiceBatchStatus({
           onPress={() => void batches.cancel(id)}
         />
       ))}
-      {batches.results
-        .filter(
-          (value) =>
-            !['completed', 'cancelled', 'failed'].includes(value.status)
-        )
-        .map((value) => (
-          <ActionButton
-            key={value.sessionId}
-            label="voice.action.cancel"
-            variant="secondary"
-            onPress={() => void batches.cancel(value.sessionId)}
-          />
-        ))}
     </View>
   );
 }

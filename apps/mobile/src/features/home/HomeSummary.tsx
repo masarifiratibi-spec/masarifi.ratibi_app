@@ -108,7 +108,7 @@ export function HomeSummary({
     .filter(({ type }) => type === 'income')
     .slice(0, 2);
   const voiceRecording = voice.session.state === 'recording';
-  const voiceProcessing = [
+  const captureProcessing = [
     'requesting_permission',
     'preparing',
     'stopping',
@@ -119,6 +119,16 @@ export function HomeSummary({
     'saving',
     'confirmation_unknown'
   ].includes(voice.session.state);
+  const batchProcessing =
+    !voiceRecording &&
+    voice.automatic &&
+    (voice.batches.processing || voice.batches.uncertain);
+  const voiceProcessing = captureProcessing || batchProcessing;
+  const progressLabel = translate(
+    !captureProcessing && voice.batches.uncertain
+      ? 'voice.batch.checking'
+      : 'voice.state.processing'
+  );
   const unclearAudio =
     voice.session.state === 'failed' &&
     isUnclearAudioError(voice.session.errorCode);
@@ -384,7 +394,7 @@ export function HomeSummary({
         </View>
         {voiceProcessing ? (
           <View
-            accessibilityLabel={translate('voice.state.processing')}
+            accessibilityLabel={progressLabel}
             accessibilityLiveRegion="polite"
             testID="home-voice-processing-inline"
             style={[
@@ -420,7 +430,7 @@ export function HomeSummary({
                 }
               ]}
             >
-              {translate('voice.state.processing')}
+              {progressLabel}
             </Text>
             <ActivityIndicator
               color={theme.colors.content.onFinancialHero}
@@ -432,7 +442,8 @@ export function HomeSummary({
                 onPress={() => void voice.retry()}
               />
             ) : null}
-            {!['saving', 'confirmation_unknown'].includes(
+            {captureProcessing &&
+            !['saving', 'confirmation_unknown'].includes(
               voice.session.state
             ) ? (
               <ActionButton
@@ -453,7 +464,12 @@ export function HomeSummary({
           { backgroundColor: theme.colors.surfaces.page }
         ]}
       >
-        {voice.automatic ? <VoiceBatchStatus batches={voice.batches} /> : null}
+        {voice.automatic ? (
+          <VoiceBatchStatus
+            batches={voice.batches}
+            showProgress={!batchProcessing}
+          />
+        ) : null}
         {voiceError ? (
           <SurfaceCard
             testID="home-voice-error-card"

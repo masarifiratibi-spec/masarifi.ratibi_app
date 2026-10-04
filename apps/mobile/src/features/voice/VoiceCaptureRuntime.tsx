@@ -1,5 +1,7 @@
 import { useVoiceBatches } from './useVoiceBatches';
+import { randomUUID } from 'expo-crypto';
 import { recordVoiceTiming } from '@/services/platform/voice-timing';
+import { recordVoiceDiagnostic } from '@/services/platform/voice-diagnostics';
 import React, {
   createContext,
   useCallback,
@@ -39,6 +41,35 @@ import {
 } from '@/state/voice-capture';
 import { usePreferenceStore } from '@/state/preferences';
 import { useAppShellStore } from '@/state/app-shell';
+
+// Pre-journal audio remains cleanup-owned across component/owner changes.
+// Deletion never owns the capture lifecycle. Journal-owned audio uses its
+// separate durable cleanup path and must never enter this collection.
+const discardedCaptureAudio = new Set<string>();
+const captureAudioCleanups = new Map<string, Promise<boolean>>();
+function cleanupCaptureAudio(uri: string): Promise<boolean> {
+  discardedCaptureAudio.add(uri);
+  const existing = captureAudioCleanups.get(uri);
+  if (existing) return existing;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const task = Promise.race([
+    voiceRecorderService.remove(uri).then(() => {
+      discardedCaptureAudio.delete(uri);
+      return true;
+    }),
+    new Promise<boolean>((resolve) => {
+      timeout = setTimeout(() => resolve(false), 10000);
+    })
+  ])
+    .catch(() => false)
+    .finally(() => {
+      if (timeout) clearTimeout(timeout);
+      if (captureAudioCleanups.get(uri) === task)
+        captureAudioCleanups.delete(uri);
+    });
+  captureAudioCleanups.set(uri, task);
+  return task;
+}
 
 function safeError(error: unknown): VoiceErrorCode {
   if (error instanceof VoiceCaptureError) return error.code as VoiceErrorCode;
@@ -92,6 +123,7 @@ function useOwnedVoiceCapture() {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const startInFlight = useRef(false);
   const stopInFlight = useRef(false);
+  const captureTrace = useRef<string | null>(null);
   const reRecordInFlight = useRef(false);
   const saveInFlight = useRef(false);
   const suspendedTransport = useRef(false);
@@ -218,8 +250,15 @@ function useOwnedVoiceCapture() {
     )
       return;
     startInFlight.current = true;
+    for (const uri of discardedCaptureAudio) void cleanupCaptureAudio(uri);
     revision.current += 1;
     const attempt = snapshot();
+    const traceId = randomUUID();
+    captureTrace.current = traceId;
+    recordVoiceDiagnostic('capture-start', {
+      traceId,
+      phase: 'start'
+    });
     try {
       const permission = await voiceRecorderService.getPermission();
       if (!valid(attempt)) return;
@@ -233,6 +272,11 @@ function useOwnedVoiceCapture() {
       session.transition('preparing');
       const prepareTime = performance.now();
       const recording = await voiceRecorderService.start();
+      recordVoiceDiagnostic('native-start', {
+        traceId,
+        recordingId: recording.id,
+        phase: 'success'
+      });
       recordVoiceTiming('native_start', performance.now() - prepareTime);
       recordVoiceTiming('tap_to_recording', performance.now() - tapTime);
       if (!valid(attempt)) {
@@ -464,8 +508,14 @@ function useOwnedVoiceCapture() {
     if (!recordingId || stopInFlight.current) return;
     stopInFlight.current = true;
     const attempt = snapshot();
+    const traceId = captureTrace.current ?? undefined;
     clearTimer();
     session.transition('stopping');
+    recordVoiceDiagnostic('ui-state', {
+      traceId,
+      recordingId,
+      phase: 'stopping'
+    });
     let audioReference: string | null = null;
     let retainAudio = false;
     let handedOff = false;
@@ -492,6 +542,12 @@ function useOwnedVoiceCapture() {
         );
         batchHandoff.current = { uri: audio.uri, task: handoff };
         const captureId = await handoff;
+        recordVoiceDiagnostic('journal-handoff', {
+          traceId,
+          recordingId,
+          captureId,
+          phase: 'success'
+        });
         recordVoiceTiming('journal_handoff', performance.now() - releaseTime);
         const handoffTime = performance.now();
         retainAudio = true;
@@ -500,6 +556,7 @@ function useOwnedVoiceCapture() {
         if (!valid(attempt)) return;
         session.patch({
           state: 'ready',
+          durationMs: 0,
           audioReference: null,
           recordingId: null,
           transcript: null,
@@ -507,6 +564,11 @@ function useOwnedVoiceCapture() {
           errorCode: null
         });
         recordVoiceTiming('handoff_to_ready', performance.now() - handoffTime);
+        recordVoiceDiagnostic('ui-state', {
+          captureId,
+          phase: 'ready',
+          elapsedMs: performance.now() - handoffTime
+        });
         if (foreground.current) batches.submit(captureId);
         return;
       }
@@ -537,15 +599,12 @@ function useOwnedVoiceCapture() {
         ].includes(safeError(error));
       fail(error, attempt);
     } finally {
+      stopInFlight.current = false;
       if (batchHandoff.current?.uri === audioReference)
         batchHandoff.current = null;
       let cleanupFailed = false;
       if (audioReference && !retainAudio) {
-        try {
-          await voiceRecorderService.remove(audioReference);
-        } catch {
-          cleanupFailed = true;
-        }
+        cleanupFailed = !(await cleanupCaptureAudio(audioReference));
         if (!cleanupFailed && ownedAudio.current === audioReference)
           ownedAudio.current = null;
       }
@@ -557,7 +616,6 @@ function useOwnedVoiceCapture() {
               : null,
           recordingId: null
         });
-      stopInFlight.current = false;
     }
   };
 
@@ -577,8 +635,7 @@ function useOwnedVoiceCapture() {
         void handoff.task
           .then((id) => voiceAnalyzerService.cancelBatch?.(id))
           .catch(() => undefined);
-      if (audio && audio !== handoff?.uri)
-        await voiceRecorderService.remove(audio).catch(() => undefined);
+      if (audio && audio !== handoff?.uri) await cleanupCaptureAudio(audio);
       if (ownedAudio.current === audio) ownedAudio.current = null;
       if (!valid(attempt)) return;
       current.patch({ recordingId: null, audioReference: null, durationMs: 0 });
@@ -660,8 +717,7 @@ function useOwnedVoiceCapture() {
           state: 'ready'
         });
       await voiceRecorderService.cancel().catch(() => undefined);
-      if (audio && audio !== handoffAudio)
-        await voiceRecorderService.remove(audio).catch(() => undefined);
+      if (audio && audio !== handoffAudio) await cleanupCaptureAudio(audio);
     };
     const unregisterCleanup = registerVoiceCaptureCleanup(clearOwnedWork);
     const unsubscribe = useAppShellStore.subscribe((next, previous) => {
@@ -899,7 +955,7 @@ function useOwnedVoiceCapture() {
       await analyzeTranscript(pending.transcript, attempt);
       const audio = ownedAudio.current;
       if (audio) {
-        await voiceRecorderService.remove(audio).catch(() => undefined);
+        await cleanupCaptureAudio(audio);
         if (ownedAudio.current === audio) ownedAudio.current = null;
       }
     } catch (error) {
