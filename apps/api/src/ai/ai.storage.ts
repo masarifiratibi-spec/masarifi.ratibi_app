@@ -123,6 +123,43 @@ export class AiStorage {
     return key.split('/').map(encodeURIComponent).join('/');
   }
 
+  private async isMissingObject(response: Response, signal: AbortSignal): Promise<boolean> {
+    if (response.status === 404) return true;
+    if (response.status !== 400 || !response.body) return false;
+    // Hosted Storage also returns legacy HTTP400 with the precise NoSuchKey code.
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let bytes = 0;
+    const abort = () => {
+      void reader.cancel().catch(() => undefined);
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    try {
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) break;
+        bytes += next.value.byteLength;
+        if (bytes > 4096) {
+          await reader.cancel();
+          return false;
+        }
+        chunks.push(next.value);
+      }
+      const error: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      return (
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'NoSuchKey' &&
+        (!('statusCode' in error) || String(error.statusCode) === '404')
+      );
+    } finally {
+      signal.removeEventListener('abort', abort);
+      reader.releaseLock();
+    }
+  }
+
   private async request<T = Response>(
     path: string,
     init: RequestInit = {},
@@ -149,7 +186,7 @@ export class AiStorage {
           redirect: 'error',
           signal,
         });
-        if (!response.ok && !(allowMissing && response.status === 404))
+        if (!response.ok && !(allowMissing && (await this.isMissingObject(response, signal))))
           throw new Error('VOICE_STORAGE_UNAVAILABLE');
         return consume(response, signal);
       });
