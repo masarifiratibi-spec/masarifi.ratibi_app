@@ -1,4 +1,4 @@
-Current October 4 continuation: the [ten-event non-posting evidence](handoffs/2026-10-04-voice-v3-ten-event-nonposting-validation.md) supersedes the initial five-event limit and historical no-inference statements below. Automatic posting remains disabled; Production and final integration are untouched.
+Current October 4 continuation: read the [processing/accuracy repair handoff](handoffs/2026-10-04-voice-v3-processing-repair.md) and [execution plan](superpowers/plans/2026-10-04-voice-v3-processing-and-accuracy-repair.md) first. Runtime candidate30984cf has green exact-SHA CI; Staging still runsc6, compatiblev3 is installed, and human Arabic/English accuracy remains failed. The [ten-event non-posting evidence](handoffs/2026-10-04-voice-v3-ten-event-nonposting-validation.md) supersedes the initial five-event limit and historical no-inference statements below. Automatic posting remains disabled; Production and final integration are untouched.
 
 # Masarifi Voice v3 implementation and release ledger
 
