@@ -13,7 +13,7 @@ export function VoiceBatchStatus({
   const result = batches.latest;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
-      {batches.processing ? (
+      {batches.processing && !batches.uncertain ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
       {batches.uncertain ? (
