@@ -147,6 +147,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       ).toHaveLength(0);
     } finally {
       await pool.query('drop trigger voice_batch_item_fault on public.transactions');
+      await pool.query('drop function private.voice_batch_item_fault()');
     }
   });
   it('serializes item retry with the owner cancellation boundary without consuming attempts', async () => {
@@ -508,6 +509,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       ).toBe('eligible');
     } finally {
       await pool.query(`drop trigger voice_batch_test_fault on ${table}`);
+      await pool.query('drop function private.voice_batch_test_fault()');
     }
   });
   it('skips balance overflow without blocking a safe sibling on another account', async () => {

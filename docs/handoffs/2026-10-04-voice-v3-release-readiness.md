@@ -65,6 +65,8 @@ With those repairs, official pgTAP passed. Compiled migration application then e
 
 An additional retry/cancellation race regression failed because retry metadata did not acquire the owner cancellation lock. Item retry now locks owner, session and batch in the established order and shares the policy gate lock. The restricted Worker regression proves cancellation can hold that boundary without consuming an attempt; five fresh PostgreSQL Voice suites / 55 tests passed after the repair. No arbitrary recorder delay or provider change was introduced.
 
+The full integration-to-end-to-end sequence also caught two fault-injection helper functions left behind by tests. Their cleanup now removes both triggers and helper functions. The strict production inventory is unchanged; a reproduced dirty-inventory failure passes after rerunning the full Voice integration selection followed by migration application.
+
 ## Inherited dependency security findings
 
 The backend high-severity audit gate passes. An additional Mobile `npm audit --omit=dev` inspection reported 43 high and 22 moderate affected dependency nodes, not 65 distinct advisories. The Mobile dependency manifest and lockfile are identical to the accepted baseline. High root advisories include `braces` stack exhaustion and `node-forge` signature verification; their inspected paths run through the Metro/Jest toolchain and Expo CLI code-signing certificates. This is not evidence that all affected code ships or is reachable in the native Voice flow; runtime/bundle reachability still needs an explicit security disposition before public release. [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [node-forge advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
