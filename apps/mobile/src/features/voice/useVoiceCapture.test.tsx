@@ -29,11 +29,241 @@ import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 
 const mockCreateFromSource = jest.fn();
 
+it('hands audio to an independent batch and permits another recording without deleting that audio', async () => {
+  const priorQueue = voiceAnalyzerService.queueBatch;
+  const priorRun = voiceAnalyzerService.runBatch;
+  voiceAnalyzerService.queueBatch = jest.fn().mockResolvedValue('capture-a');
+  voiceAnalyzerService.runBatch = jest
+    .fn()
+    .mockReturnValue(new Promise(() => undefined));
+  jest
+    .spyOn(voiceRecorderService, 'getPermission')
+    .mockResolvedValue('granted');
+  jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue({
+    uri: 'private://batch-a',
+    durationMs: 3000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
+  jest
+    .spyOn(voiceRecorderService, 'start')
+    .mockResolvedValue({ id: 'recording-b', startedAt: Date.now() });
+  jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+  const remove = jest.spyOn(voiceRecorderService, 'remove').mockResolvedValue();
+  const { result, unmount } = renderVoiceHook('on-demand');
+  try {
+    act(() =>
+      useVoiceCaptureStore.getState().patch({
+        state: 'recording',
+        permission: 'granted',
+        recordingId: 'recording-a'
+      })
+    );
+    await act(async () => result.current.stop());
+    expect(result.current.session).toMatchObject({
+      state: 'ready',
+      audioReference: null,
+      group: null,
+      transcript: null
+    });
+    expect(result.current.batches.pendingIds).toEqual(['capture-a']);
+    await act(async () => result.current.start());
+    expect(result.current.session.state).toBe('recording');
+    await act(async () => result.current.cancelRecording());
+    expect(remove).not.toHaveBeenCalledWith('private://batch-a');
+  } finally {
+    unmount();
+    voiceAnalyzerService.queueBatch = priorQueue;
+    voiceAnalyzerService.runBatch = priorRun;
+  }
+});
+
 jest.mock('@/services/engagement-service', () => ({
   notificationService: {
     createFromSource: (event: unknown) => mockCreateFromSource(event)
   }
 }));
+
+it('does not delete audio while durable handoff is pending and cancels the handed-off operation', async () => {
+  const priorQueue = voiceAnalyzerService.queueBatch;
+  const priorRun = voiceAnalyzerService.runBatch;
+  const priorCancel = voiceAnalyzerService.cancelBatch;
+  let release: (_id: string) => void = () => undefined;
+  voiceAnalyzerService.queueBatch = jest.fn(
+    () =>
+      new Promise<string>((resolve) => {
+        release = resolve;
+      })
+  );
+  voiceAnalyzerService.runBatch = jest
+    .fn()
+    .mockReturnValue(new Promise(() => undefined));
+  const cancel = jest.fn().mockResolvedValue(null);
+  voiceAnalyzerService.cancelBatch = cancel;
+  jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue({
+    uri: 'private://handoff',
+    durationMs: 1000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
+  jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+  const remove = jest.spyOn(voiceRecorderService, 'remove').mockResolvedValue();
+  const { result, unmount } = renderVoiceHook('on-demand');
+  let stopping = Promise.resolve();
+  try {
+    act(() => {
+      useVoiceCaptureStore.getState().patch({
+        state: 'recording',
+        permission: 'granted',
+        recordingId: 'handoff'
+      });
+      stopping = result.current.stop();
+    });
+    await waitFor(() =>
+      expect(voiceAnalyzerService.queueBatch).toHaveBeenCalled()
+    );
+    await act(async () => result.current.cancelRecording());
+    expect(remove).not.toHaveBeenCalledWith('private://handoff');
+    await act(async () => {
+      release('capture-a');
+      await stopping;
+    });
+    expect(cancel).toHaveBeenCalledWith('capture-a');
+    expect(remove).not.toHaveBeenCalledWith('private://handoff');
+  } finally {
+    unmount();
+    voiceAnalyzerService.queueBatch = priorQueue;
+    voiceAnalyzerService.runBatch = priorRun;
+    voiceAnalyzerService.cancelBatch = priorCancel;
+  }
+});
+
+it('publishes Ready after backgrounding during v3 handoff without entering legacy recovery', async () => {
+  useAppShellStore.setState({ session: authenticatedSession });
+  const priorQueue = voiceAnalyzerService.queueBatch;
+  const priorRun = voiceAnalyzerService.runBatch;
+  const priorRecovery = voiceAnalyzerService.recoverPending;
+  const priorKind = voiceAnalyzerService.metadata.kind;
+  voiceAnalyzerService.metadata.kind = 'live';
+  let release!: (id: string) => void;
+  voiceAnalyzerService.queueBatch = jest.fn(
+    () =>
+      new Promise<string>((resolve) => {
+        release = resolve;
+      })
+  );
+  voiceAnalyzerService.runBatch = jest.fn(() => new Promise(() => undefined));
+  const legacyRecovery = jest.fn(() => new Promise<null>(() => undefined));
+  voiceAnalyzerService.recoverPending = legacyRecovery;
+  const listeners: ((state: AppStateStatus) => void)[] = [];
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((_event, listener) => {
+      listeners.push(listener);
+      return { remove: jest.fn() };
+    });
+  jest
+    .spyOn(voiceRecorderService, 'getPermission')
+    .mockResolvedValue('granted');
+  jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue({
+    uri: 'private://background-handoff',
+    durationMs: 1000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
+  const start = jest
+    .spyOn(voiceRecorderService, 'start')
+    .mockResolvedValue({ id: 'next-capture', startedAt: Date.now() });
+  jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+  const remove = jest.spyOn(voiceRecorderService, 'remove').mockResolvedValue();
+  const { result, unmount } = renderVoiceHook('on-demand');
+  let stopping!: Promise<void>;
+  try {
+    await waitFor(() => expect(legacyRecovery).toHaveBeenCalledTimes(1));
+    act(() => {
+      useVoiceCaptureStore.getState().patch({
+        state: 'recording',
+        permission: 'granted',
+        recordingId: 'prior-capture'
+      });
+      stopping = result.current.stop();
+    });
+    await waitFor(() =>
+      expect(voiceAnalyzerService.queueBatch).toHaveBeenCalledTimes(1)
+    );
+    act(() => listeners.forEach((listener) => listener('background')));
+    await act(async () => {
+      release('durable-capture');
+      await stopping;
+    });
+    expect(result.current.session.state).toBe('ready');
+    expect(voiceAnalyzerService.runBatch).not.toHaveBeenCalled();
+    act(() => listeners.forEach((listener) => listener('active')));
+    await act(async () => result.current.start());
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(result.current.session.state).toBe('recording');
+    expect(legacyRecovery).toHaveBeenCalledTimes(1);
+    expect(remove).not.toHaveBeenCalledWith('private://background-handoff');
+  } finally {
+    unmount();
+    voiceAnalyzerService.metadata.kind = priorKind;
+    voiceAnalyzerService.queueBatch = priorQueue;
+    voiceAnalyzerService.runBatch = priorRun;
+    voiceAnalyzerService.recoverPending = priorRecovery;
+  }
+});
+
+it('starts v3 recording while legacy startup recovery remains unresolved', async () => {
+  useAppShellStore.setState({ session: authenticatedSession });
+  const priorQueue = voiceAnalyzerService.queueBatch;
+  const priorRecovery = voiceAnalyzerService.recoverPending;
+  voiceAnalyzerService.queueBatch = jest.fn();
+  const recovery = jest.fn(() => new Promise<null>(() => undefined));
+  voiceAnalyzerService.recoverPending = recovery;
+  jest
+    .spyOn(voiceRecorderService, 'getPermission')
+    .mockResolvedValue('granted');
+  const nativeStart = jest
+    .spyOn(voiceRecorderService, 'start')
+    .mockResolvedValue({
+      id: 'independent-v3',
+      startedAt: Date.now()
+    });
+  jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+  const { result, unmount } = renderVoiceHook('on-demand');
+  try {
+    await waitFor(() => expect(recovery).toHaveBeenCalledTimes(1));
+    await act(async () => result.current.start());
+    expect(nativeStart).toHaveBeenCalledTimes(1);
+    expect(result.current.session.state).toBe('recording');
+  } finally {
+    unmount();
+    voiceAnalyzerService.queueBatch = priorQueue;
+    voiceAnalyzerService.recoverPending = priorRecovery;
+  }
+});
+
+it('still recovers an upgraded legacy operation when batch capture is available', async () => {
+  useAppShellStore.setState({ session: authenticatedSession });
+  const priorQueue = voiceAnalyzerService.queueBatch;
+  const priorRecovery = voiceAnalyzerService.recoverPending;
+  voiceAnalyzerService.queueBatch = jest.fn();
+  voiceAnalyzerService.recoverPending = jest.fn().mockResolvedValue({
+    saved: {
+      transactionIds: ['legacy-receipt'],
+      affectedScopes: ['transactions.list']
+    }
+  });
+  const { result, unmount } = renderVoiceHook('on-demand');
+  try {
+    await waitFor(() => expect(result.current.session.state).toBe('saved'));
+    expect(voiceAnalyzerService.recoverPending).toHaveBeenCalled();
+  } finally {
+    unmount();
+    voiceAnalyzerService.queueBatch = priorQueue;
+    voiceAnalyzerService.recoverPending = priorRecovery;
+  }
+});
 
 afterEach(() => {
   jest.restoreAllMocks();

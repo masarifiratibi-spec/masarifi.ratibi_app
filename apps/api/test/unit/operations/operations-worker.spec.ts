@@ -26,8 +26,8 @@ describe('operations job registry', () => {
   });
 
   it('contains every governed job once and no paid work', () => {
-    expect(GOVERNED_JOB_KEYS).toHaveLength(52);
-    expect(new Set(GOVERNED_JOB_KEYS).size).toBe(52);
+    expect(GOVERNED_JOB_KEYS).toHaveLength(53);
+    expect(new Set(GOVERNED_JOB_KEYS).size).toBe(53);
     expect(JSON.stringify(GOVERNED_JOB_KEYS)).not.toMatch(
       /billing|stripe|subscription|entitlement|checkout|promotion/iu,
     );

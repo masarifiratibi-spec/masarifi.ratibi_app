@@ -1,3 +1,10 @@
+import {
+  VOICE_BATCH_OUTPUT_SCHEMA,
+  VOICE_BATCH_PROMPT,
+  VOICE_BATCH_POLICY,
+  parseVoiceBatchEnvelope,
+  decideVoiceBatch,
+} from './voice-batch';
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { withAiAbort } from './ai.abort';
@@ -371,6 +378,7 @@ export class AiWorker implements OnModuleDestroy {
         'voice.transcribe_extract',
         'assistant.respond',
         'ai.evaluate_route',
+        'voice.finalize',
         'ai.usage_rollup',
         'voice-media.purge',
         'ai.reconcile',
@@ -385,6 +393,7 @@ export class AiWorker implements OnModuleDestroy {
   async runJob(
     job:
       | AiWorkClaim['kind']
+      | 'voice.finalize'
       | 'ai.usage_rollup'
       | 'voice-media.purge'
       | 'ai.reconcile'
@@ -395,6 +404,7 @@ export class AiWorker implements OnModuleDestroy {
       return this.config.getRequired('MASARIFI_AI_PROVIDER_ENABLED')
         ? this.processKind(job as AiWorkClaim['kind'])
         : 0;
+    if (job === 'voice.finalize') return this.repository.finalizeVoiceBatches(limit);
     if (job === 'ai.usage_rollup') {
       await this.repository.expire(limit);
       await this.repository.rollup(limit);
@@ -540,9 +550,17 @@ export class AiWorker implements OnModuleDestroy {
       version,
       data,
     }));
+    const batch = input.contractVersion === 3;
     let attemptNo = 0;
-    const completion = await this.gateway.complete({
-      route,
+    const completion = await this.gateway.complete<unknown>({
+      route: batch
+        ? {
+            ...route,
+            limits: { ...route.limits, outputTokens: Math.min(1200, route.limits.outputTokens) },
+            prompt: { template: VOICE_BATCH_PROMPT, schemaVersion: 3 },
+          }
+        : route,
+      voiceBatch: batch,
       userContent: [
         {
           type: 'text',
@@ -559,8 +577,9 @@ export class AiWorker implements OnModuleDestroy {
               legacyContext: input.captureContextLegacy,
             },
             references: descriptors,
-            instruction:
-              'Use only supplied aliases. Expenses use positive amountMinor; income uses negative amountMinor. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
+            instruction: batch
+              ? VOICE_BATCH_PROMPT
+              : 'Use only supplied aliases. Expenses use positive amountMinor; income uses negative amountMinor. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
           }),
         },
         {
@@ -568,8 +587,8 @@ export class AiWorker implements OnModuleDestroy {
           input_audio: { data: audio.toString('base64'), format: audioFormat(contentType) },
         },
       ],
-      schema: VOICE_OUTPUT_SCHEMA,
-      parse: parseVoiceWorkerOutput,
+      schema: batch ? VOICE_BATCH_OUTPUT_SCHEMA : VOICE_OUTPUT_SCHEMA,
+      parse: batch ? parseVoiceBatchEnvelope : parseVoiceWorkerOutput,
       requestId: String(input.operationId),
       signal,
       beforeDispatch: async (candidate) => {
@@ -593,7 +612,29 @@ export class AiWorker implements OnModuleDestroy {
           .recordVoiceAttempt(String(input.operationId), attemptNo, null, received)
           .then(() => undefined),
     });
-    const output = completion.value;
+    if (batch) {
+      const decisions = decideVoiceBatch(completion.value, {
+        recordedAt: String(input.recordedAt),
+        timezoneOffsetMinutes: Number(input.timezoneOffsetMinutes),
+        defaultAccountId:
+          typeof input.defaultAccountId === 'string' ? input.defaultAccountId : null,
+        references,
+      });
+      signal.throwIfAborted();
+      await this.repository.acceptVoiceBatch(
+        claim.id,
+        claim.claim_token,
+        decisions,
+        VOICE_BATCH_POLICY,
+      );
+      try {
+        await this.storage.delete(String(input.storageRef));
+      } catch {
+        recordAiJob('voice-media.purge', 'retry');
+      }
+      return;
+    }
+    const output = parseVoiceWorkerOutput(completion.value);
     assertConfiguredOutput(route, output.transcript, 'transcript');
     if (output.outcome === 'unsupported')
       throw new Error(`VOICE_INTENT_UNSUPPORTED_${output.unsupportedReason.toUpperCase()}`);

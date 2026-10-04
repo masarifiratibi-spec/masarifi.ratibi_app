@@ -1,0 +1,323 @@
+import {
+  createVoiceBatchApi,
+  VoiceBatchLocalTerminalError
+} from './voice-batch-api-service';
+import {
+  loadVoiceBatches,
+  saveVoiceBatch
+} from '@/storage/voice-batch-journal';
+import { waitFor } from '@testing-library/react-native';
+
+jest.mock('@/storage/voice-batch-journal', () => ({
+  loadVoiceBatches: jest.fn(),
+  pruneVoiceBatches: jest.fn().mockResolvedValue(undefined),
+  saveVoiceBatch: jest.fn()
+}));
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest
+    .fn()
+    .mockReturnValueOnce('11111111-1111-4111-8111-111111111111')
+    .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')
+}));
+
+it('durably queues separate captures without waiting for upload or provider processing', async () => {
+  const request = jest.fn();
+  const save = jest.mocked(saveVoiceBatch).mockResolvedValue(undefined);
+  jest.mocked(loadVoiceBatches).mockResolvedValue([]);
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request
+  });
+  const audio = {
+    uri: 'file://capture.m4a',
+    durationMs: 3000,
+    contentType: 'audio/m4a' as const,
+    recordedAt: Date.now()
+  };
+  const a = await api.queueBatch(audio, 'ar', -180);
+  const b = await api.queueBatch(audio, 'en', -180);
+  expect(a).not.toEqual(b);
+  expect(request).not.toHaveBeenCalled();
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(save.mock.calls[0][1]).toMatchObject({
+    id: a,
+    revision: 0,
+    phase: 'captured',
+    audioReference: audio.uri
+  });
+});
+
+it('keeps unresolved local transport visible even when server recovery returns no batches', async () => {
+  jest.mocked(loadVoiceBatches).mockResolvedValue([
+    {
+      id: '11111111-1111-4111-8111-111111111111',
+      revision: 0,
+      phase: 'captured',
+      audioReference: 'file://capture',
+      locale: 'en',
+      durationMs: 1000,
+      recordedAt: Date.now(),
+      timezoneOffsetMinutes: 0,
+      createBody: null,
+      sessionId: null,
+      version: null,
+      processBody: null
+    }
+  ]);
+  const request = jest.fn(async (url: string | URL | Request) => {
+    if (String(url).includes('/recovery'))
+      return { ok: true, json: async () => ({ items: [] }) } as Response;
+    throw new Error('network unavailable');
+  });
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request: request as typeof fetch
+  });
+  await api.recoverBatches();
+  await expect(
+    api.runBatch('11111111-1111-4111-8111-111111111111')
+  ).rejects.toThrow('network unavailable');
+  expect(await api.recoverBatches()).toEqual({
+    results: [],
+    uncertain: true,
+    localFailure: false,
+    pendingIds: ['11111111-1111-4111-8111-111111111111']
+  });
+});
+
+it.each(['cancelled', 'failed'] as const)(
+  'retires a pre-submission %s capture without waiting for a network response',
+  async (phase) => {
+    const operation = {
+      id: '11111111-1111-4111-8111-111111111111',
+      revision: 0,
+      phase: 'captured' as const,
+      audioReference: 'file://private.m4a',
+      locale: 'en' as const,
+      durationMs: 1000,
+      recordedAt: phase === 'failed' ? Date.now() - 86400001 : Date.now(),
+      timezoneOffsetMinutes: 0,
+      createBody: null,
+      sessionId: null,
+      version: null,
+      processBody: null
+    };
+    let saved =
+      operation as import('@/storage/voice-batch-journal').VoiceBatchOperation;
+    jest.mocked(loadVoiceBatches).mockImplementation(async () => [saved]);
+    jest.mocked(saveVoiceBatch).mockImplementation(async (_owner, value) => {
+      saved = value;
+    });
+    const request = jest.fn();
+    const removeAudio = jest.fn().mockResolvedValue(undefined);
+    const api = createVoiceBatchApi({
+      baseUrl: 'https://example.test',
+      owner: async () => 'owner',
+      token: async () => 'token',
+      request,
+      removeAudio
+    });
+    await expect(
+      phase === 'cancelled'
+        ? api.cancelBatch(operation.id)
+        : api.runBatch(operation.id)
+    ).rejects.toBeInstanceOf(VoiceBatchLocalTerminalError);
+    expect(request).not.toHaveBeenCalled();
+    expect(removeAudio).toHaveBeenCalledWith(operation.audioReference);
+    expect(saved).toMatchObject({
+      phase,
+      audioReference: null,
+      createBody: null,
+      processBody: null
+    });
+  }
+);
+
+it.each(['missing audio', 'invalid audio', 'rejected creation'])(
+  'retires a definitive pre-submission failure: %s',
+  async (failure) => {
+    let operation = {
+      id: '11111111-1111-4111-8111-111111111111',
+      revision: 0,
+      phase: 'captured',
+      audioReference: 'file://private.m4a',
+      locale: 'en',
+      durationMs: 1000,
+      recordedAt: Date.now(),
+      timezoneOffsetMinutes: 0,
+      createBody: failure === 'rejected creation' ? {} : null,
+      sessionId: null,
+      version: null,
+      processBody: null
+    } as import('@/storage/voice-batch-journal').VoiceBatchOperation;
+    jest.mocked(loadVoiceBatches).mockImplementation(async () => [operation]);
+    jest.mocked(saveVoiceBatch).mockImplementation(async (_owner, value) => {
+      operation = value;
+    });
+    const request = jest.fn().mockResolvedValue({
+      ok: failure === 'invalid audio',
+      status: failure === 'rejected creation' ? 422 : 404,
+      arrayBuffer: async () => new ArrayBuffer(0)
+    });
+    const removeAudio = jest.fn().mockResolvedValue(undefined);
+    const api = createVoiceBatchApi({
+      baseUrl: 'https://example.test',
+      owner: async () => 'owner',
+      token: async () => 'token',
+      request,
+      removeAudio
+    });
+    await expect(api.runBatch(operation.id)).rejects.toBeInstanceOf(
+      VoiceBatchLocalTerminalError
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(removeAudio).toHaveBeenCalledWith('file://private.m4a');
+    expect(operation).toMatchObject({
+      phase: 'failed',
+      audioReference: null,
+      createBody: null,
+      processBody: null,
+      sessionId: null
+    });
+  }
+);
+
+it('persists cancellation after a concurrent journal revision without losing intent', async () => {
+  let operation = {
+    id: '11111111-1111-4111-8111-111111111111',
+    revision: 1,
+    phase: 'created' as const,
+    audioReference: 'file://private.m4a',
+    locale: 'en' as const,
+    durationMs: 1000,
+    recordedAt: Date.now(),
+    timezoneOffsetMinutes: 0,
+    createBody: {},
+    sessionId: '22222222-2222-4222-8222-222222222222',
+    version: 1,
+    processBody: null
+  } as import('@/storage/voice-batch-journal').VoiceBatchOperation;
+  jest.mocked(loadVoiceBatches).mockImplementation(async () => [operation]);
+  let raced = false;
+  jest.mocked(saveVoiceBatch).mockImplementation(async (_owner, value) => {
+    if (!raced) {
+      raced = true;
+      operation = { ...operation, revision: 2, phase: 'uploaded' };
+      throw new Error('voice batch revision conflict');
+    }
+    operation = value;
+  });
+  const request = jest.fn().mockRejectedValue(new Error('offline'));
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request
+  });
+  await expect(api.cancelBatch(operation.id)).rejects.toThrow('offline');
+  expect(operation).toMatchObject({ revision: 3, phase: 'cancel_requested' });
+  expect(request).toHaveBeenCalledWith(
+    expect.stringContaining('/cancel'),
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        'idempotency-key': 'voice-cancel:11111111-1111-4111-8111-111111111111'
+      })
+    })
+  );
+});
+
+it('publishes restored cancellation controls before server recovery answers', async () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  jest.mocked(loadVoiceBatches).mockResolvedValue([
+    {
+      id,
+      revision: 0,
+      phase: 'captured',
+      audioReference: 'file://private',
+      locale: 'en',
+      durationMs: 1000,
+      recordedAt: Date.now(),
+      timezoneOffsetMinutes: 0,
+      createBody: null,
+      sessionId: null,
+      version: null,
+      processBody: null
+    }
+  ]);
+  let release: (response: Response) => void = () => undefined;
+  const response = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const request = jest.fn((url: string | URL | Request) =>
+    String(url).includes('/recovery')
+      ? response
+      : Promise.reject(new Error('offline'))
+  );
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request: request as typeof fetch
+  });
+  const pending = jest.fn();
+  const recovering = api.recoverBatches(pending);
+  await waitFor(() => expect(pending).toHaveBeenCalledWith([id]));
+  release({ ok: true, json: async () => ({ items: [] }) } as Response);
+  expect((await recovering).pendingIds).toEqual([id]);
+});
+
+it('discovers incrementally and polls unresolved sessions without replaying terminal history', async () => {
+  jest.mocked(loadVoiceBatches).mockResolvedValue([]);
+  const ids = [
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  ];
+  const value = (sessionId: string, status: 'completed' | 'analyzing') => ({
+    sessionId,
+    batchId: null,
+    status,
+    transactionIds: [],
+    addedCount: 0,
+    ledgerVersion: 0
+  });
+  let discoveries = 0;
+  const request = jest.fn(
+    async (url: string | URL | Request) =>
+      ({
+        ok: true,
+        json: async () =>
+          String(url).endsWith('/batch')
+            ? value(ids[1], 'completed')
+            : {
+                items:
+                  discoveries++ === 0
+                    ? ids.map((id, index) => ({
+                        ...value(id, index === 0 ? 'completed' : 'analyzing'),
+                        createdAt: `2026-10-04T00:00:0${index}.000Z`
+                      }))
+                    : []
+              }
+      }) as Response
+  );
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request: request as typeof fetch
+  });
+  await api.recoverBatches();
+  const recovered = await api.recoverBatches();
+  expect(recovered.results).toContainEqual(value(ids[1], 'completed'));
+  expect(request.mock.calls.map(([url]) => String(url))).toContain(
+    'https://example.test/api/v1/voice/batches/recovery?after=2026-10-04T00%3A00%3A01.000Z&afterId=' +
+      ids[1]
+  );
+  await api.recoverBatches();
+  expect(
+    request.mock.calls.filter(([url]) => String(url).endsWith('/batch'))
+  ).toHaveLength(1);
+});

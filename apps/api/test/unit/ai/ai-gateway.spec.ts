@@ -1,6 +1,7 @@
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 import { VOICE_OUTPUT_SCHEMA, parseVoiceWorkerOutput } from '../../../src/ai/ai.schemas';
+import { VOICE_BATCH_OUTPUT_SCHEMA, parseVoiceBatchEnvelope } from '../../../src/ai/voice-batch';
 
 const route: EffectiveAiRoute = {
   workload: 'financial_assistant',
@@ -60,6 +61,83 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  it.each(['ar', 'en'].flatMap((language) => [0, 1, 3, 5].map((count) => ({ language, count }))))(
+    'preserves the accepted Vertex transport for $language batches of $count events',
+    async ({ language, count }) => {
+      const voiceRoute: EffectiveAiRoute = {
+        ...route,
+        workload: 'voice_transcription',
+        primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+        fallbacks: [],
+        providerAllowlist: ['google-vertex'],
+        maxPrice: { prompt: '0.000001', completion: '0.000003' },
+        limits: { inputTokens: 128000, outputTokens: 1200, timeoutMs: 120000 },
+        prompt: { template: 'Versioned automatic batch fixture', schemaVersion: 3 },
+      };
+      const envelope = {
+        complete: true,
+        language,
+        events: Array.from({ length: count }, () => ({
+          kind: 'expense',
+          amountMinor: '2500',
+          currency: 'SAR',
+          currencySource: 'explicit',
+          accountId: 'ACCOUNT-1',
+          accountSource: 'explicit',
+          categoryId: 'CATEGORY-1',
+          date: '2026-10-03',
+          dateSource: 'explicit',
+          merchant: language === 'ar' ? 'فطور' : 'Breakfast',
+          note: '',
+          independent: true,
+          confidence: 1,
+        })),
+      };
+      let sent: Record<string, unknown> = {};
+      const fetcher = (_url: RequestInfo | URL, init?: RequestInit) => {
+        sent = requestBody(init);
+        return Promise.resolve(
+          response({
+            id: 'batch-fixture',
+            model: voiceRoute.primary.modelId,
+            choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(envelope) } }],
+            usage: { prompt_tokens: 100, completion_tokens: 900, cost: 0.00028 },
+          }),
+        );
+      };
+      const receipts: unknown[] = [];
+      const result = await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        voiceBatch: true,
+        userContent: [
+          { type: 'input_audio', input_audio: { data: 'synthetic-audio', format: 'm4a' } },
+        ],
+        schema: VOICE_BATCH_OUTPUT_SCHEMA,
+        parse: parseVoiceBatchEnvelope,
+        requestId: 'batch-fixture',
+        onReceipt: (receipt) => {
+          receipts.push(receipt);
+          return Promise.resolve();
+        },
+      });
+      expect(result.value).toEqual(envelope);
+      expect(sent.max_tokens).toBe(1200);
+      expect(sent).not.toHaveProperty('temperature');
+      expect(sent.provider).toMatchObject({
+        only: ['google-vertex/global'],
+        zdr: true,
+        data_collection: 'deny',
+        allow_fallbacks: false,
+      });
+      expect(sent.response_format).toMatchObject({
+        json_schema: {
+          name: 'voice_transcription_v3',
+          schema: { properties: { events: { type: 'array' } } },
+        },
+      });
+      expect(receipts).toHaveLength(1);
+    },
+  );
   it.each([
     ['en', 'Fictional groceries expense fifteen riyals'],
     ['ar', 'دفعت خمسة عشر ريالاً للبقالة'],

@@ -1,3 +1,4 @@
+import { VoiceBatchStatus } from './VoiceBatchStatus';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
@@ -168,6 +169,8 @@ export function VoiceCaptureScreen({
             onCancel={() => void voice.cancelRecording()}
           />
         ) : null}
+
+        {voice.automatic ? <VoiceBatchStatus batches={voice.batches} /> : null}
 
         {session.state === 'transcript_review' && session.transcript ? (
           <View style={styles.stack}>

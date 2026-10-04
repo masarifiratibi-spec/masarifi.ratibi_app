@@ -13,7 +13,7 @@ import { File } from 'expo-file-system';
 import { resolveClientMode } from '@/config/client-runtime';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 14;
+const CURRENT_SCHEMA_VERSION = 15;
 const LEGACY_OWNER_KEY = 'masarifi.database.legacyOwnerHash';
 const DATABASE_KEY_PREFIX = 'masarifi.database.key.';
 const LEGACY_MIGRATION_TABLE = '_masarifi_migration_state';
@@ -955,6 +955,11 @@ async function runMigrations(
       attempt_id TEXT NOT NULL,
       revision INTEGER NOT NULL CHECK (revision >= 0),
       payload TEXT NOT NULL
+    );
+
+    -- migration:15
+    CREATE TABLE IF NOT EXISTS voice_batch_operations (
+      id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK(revision >= 0), payload TEXT NOT NULL
     );
 
   `);

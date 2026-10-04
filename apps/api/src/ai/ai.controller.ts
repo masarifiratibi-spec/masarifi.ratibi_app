@@ -70,6 +70,21 @@ export class AiController {
     return this.ai.cancelVoiceSession(principal(request), id, key);
   }
 
+  @Get('voice/batches/recovery')
+  @ApiOperation({ operationId: 'listVoiceBatchRecovery' })
+  listVoiceBatchRecovery(
+    @Req() request: AiRequest,
+    @Query('after') after?: string,
+    @Query('afterId') afterId?: string,
+  ) {
+    return this.ai.listVoiceBatchRecovery(principal(request), after, afterId);
+  }
+  @Get('voice/sessions/:sessionId/batch')
+  @ApiOperation({ operationId: 'getVoiceBatchResult' })
+  getVoiceBatchResult(@Req() request: AiRequest, @Param('sessionId') id: string) {
+    return this.ai.getVoiceBatchResult(principal(request), id);
+  }
+
   @Get('voice/sessions/:sessionId/recovery')
   @ApiOperation({ operationId: 'getVoiceRecovery' })
   getVoiceRecovery(@Req() request: AiRequest, @Param('sessionId') id: string) {

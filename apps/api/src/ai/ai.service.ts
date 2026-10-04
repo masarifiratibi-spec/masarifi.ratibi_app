@@ -140,7 +140,8 @@ export class AiService {
   async createVoiceSession(principal: ClerkPrincipal, body: unknown, key: unknown, contract = '2') {
     const started = performance.now();
     await this.available('voice_transcription');
-    if (contract !== '2') throw new HttpException({ code: 'VOICE_CLIENT_UPGRADE_REQUIRED' }, 410);
+    if (!['2', '3'].includes(contract))
+      throw new HttpException({ code: 'VOICE_CLIENT_UPGRADE_REQUIRED' }, 410);
     const input = createVoiceV2(body);
     const result = resource(
       await this.repository.createVoiceSession(
@@ -148,6 +149,12 @@ export class AiService {
         input,
         idempotencyKey(key),
         this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
+        contract === '3'
+          ? {
+              maxAuthAge: this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
+              thresholds: this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS') ?? {},
+            }
+          : undefined,
       ),
     );
     const session = resource(result.resource);
@@ -181,8 +188,28 @@ export class AiService {
     return { id: sessionId, status: 'queued' };
   }
 
+  getVoiceBatchResult(principal: ClerkPrincipal, sessionId: string) {
+    return this.repository.getVoiceBatchResult(principal, uuid(sessionId));
+  }
+  listVoiceBatchRecovery(principal: ClerkPrincipal, after?: string, afterId?: string) {
+    if (
+      (after && !afterId) ||
+      (!after && afterId) ||
+      (after && !Number.isFinite(Date.parse(after)))
+    )
+      throw new HttpException({ code: 'VALIDATION_FAILED' }, 422);
+    return this.repository.listVoiceBatchRecovery(
+      principal,
+      after ?? null,
+      afterId ? uuid(afterId) : null,
+      100,
+    );
+  }
+
   async getVoiceSession(principal: ClerkPrincipal, sessionId: string) {
     let row = resource(await this.repository.getVoiceSession(principal, uuid(sessionId)));
+    if (row.contractVersion === 3)
+      return this.repository.getVoiceBatchResult(principal, uuid(sessionId));
     if (
       Date.parse(String(row.expiresAt)) <= Date.now() &&
       !['confirmed', 'expired', 'failed'].includes(String(row.status))
@@ -254,6 +281,16 @@ export class AiService {
 
   async getVoiceRecovery(principal: ClerkPrincipal, sessionId: string) {
     const row = await this.repository.getVoiceRecovery(principal, uuid(sessionId));
+    if (row.contractVersion === 3) {
+      return {
+        sessionId: row.sessionId,
+        batchId: row.batchId,
+        status: row.status,
+        transactionIds: row.transactionIds,
+        addedCount: row.addedCount,
+        ledgerVersion: row.ledgerVersion,
+      };
+    }
     return {
       phase: row.phase,
       session: publicVoiceSession(resource(row.session)),

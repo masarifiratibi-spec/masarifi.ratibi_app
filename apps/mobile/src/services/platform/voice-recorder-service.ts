@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import type { AudioRecorder, RecordingStatus } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Linking from 'expo-linking';
+import { measureVoiceTiming, recordVoiceTiming } from './voice-timing';
 
 import {
   VOICE_MAX_DURATION_MS,
@@ -61,6 +62,7 @@ export function createVoiceRecorderService(): VoiceRecorderService {
   };
 
   const release = async (capture: Capture, discard: boolean) => {
+    const started = performance.now();
     if (capture.timer) clearInterval(capture.timer);
     try {
       capture.listener?.remove();
@@ -75,6 +77,7 @@ export function createVoiceRecorderService(): VoiceRecorderService {
     }
     if (discard) await removeTemporaryAudio(uri).catch(() => undefined);
     if (active === capture) active = null;
+    recordVoiceTiming('native_release', performance.now() - started);
   };
 
   const preparing = async <T>(
@@ -112,7 +115,10 @@ export function createVoiceRecorderService(): VoiceRecorderService {
         const terminal = (async () => {
           if (!capture.status?.isFinished && !capture.status?.hasError) {
             // Android returns duration; other platforms use the pre-Stop status.
-            const stopped: unknown = await recorder.stop();
+            const stopped: unknown = await measureVoiceTiming(
+              'native_stop',
+              () => recorder.stop()
+            );
             if (stopped && typeof stopped === 'object') {
               const duration = Reflect.get(stopped, 'durationMillis');
               if (
@@ -123,7 +129,7 @@ export function createVoiceRecorderService(): VoiceRecorderService {
                 capture.durationMs = Math.min(duration, VOICE_MAX_DURATION_MS);
             }
           }
-          await capture.finished;
+          await measureVoiceTiming('native_completion', () => capture.finished);
         })();
         await Promise.race([
           terminal,
@@ -143,7 +149,9 @@ export function createVoiceRecorderService(): VoiceRecorderService {
           capture.durationMs < 1
         )
           throw new VoiceCaptureError('recording_interrupted');
-        const info = await FileSystem.getInfoAsync(status.url);
+        const info = await measureVoiceTiming('file_check', () =>
+          FileSystem.getInfoAsync(status.url as string)
+        );
         if (
           capture.cancelled ||
           !info.exists ||
@@ -203,7 +211,9 @@ export function createVoiceRecorderService(): VoiceRecorderService {
         try {
           const audio = audioModule();
           const permission = permissionState(
-            await preparing(capture, audio.getRecordingPermissionsAsync())
+            await measureVoiceTiming('permission', () =>
+              preparing(capture, audio.getRecordingPermissionsAsync())
+            )
           );
           if (permission !== 'granted')
             throw new VoiceCaptureError(
@@ -213,13 +223,15 @@ export function createVoiceRecorderService(): VoiceRecorderService {
             );
           if (capture.cancelled)
             throw new VoiceCaptureError('recording_interrupted');
-          await preparing(
-            capture,
-            audio.setAudioModeAsync({
-              allowsRecording: true,
-              playsInSilentMode: true,
-              interruptionMode: 'doNotMix'
-            })
+          await measureVoiceTiming('audio_mode', () =>
+            preparing(
+              capture,
+              audio.setAudioModeAsync({
+                allowsRecording: true,
+                playsInSilentMode: true,
+                interruptionMode: 'doNotMix'
+              })
+            )
           );
           if (capture.cancelled)
             throw new VoiceCaptureError('recording_interrupted');
@@ -234,9 +246,11 @@ export function createVoiceRecorderService(): VoiceRecorderService {
               if (status.isFinished || status.hasError) capture.complete();
             }
           );
-          await preparing(
-            capture,
-            recorder.prepareToRecordAsync(audio.RecordingPresets.HIGH_QUALITY)
+          await measureVoiceTiming('native_prepare', () =>
+            preparing(
+              capture,
+              recorder.prepareToRecordAsync(audio.RecordingPresets.HIGH_QUALITY)
+            )
           );
           if (capture.cancelled)
             throw new VoiceCaptureError('recording_interrupted');

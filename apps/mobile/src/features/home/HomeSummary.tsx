@@ -1,3 +1,4 @@
+import { VoiceBatchStatus } from '@/features/voice/VoiceBatchStatus';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -452,6 +453,7 @@ export function HomeSummary({
           { backgroundColor: theme.colors.surfaces.page }
         ]}
       >
+        {voice.automatic ? <VoiceBatchStatus batches={voice.batches} /> : null}
         {voiceError ? (
           <SurfaceCard
             testID="home-voice-error-card"

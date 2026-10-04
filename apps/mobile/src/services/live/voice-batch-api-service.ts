@@ -1,0 +1,573 @@
+import { randomUUID } from 'expo-crypto';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex } from '@noble/hashes/utils';
+import { z } from 'zod';
+import {
+  loadVoiceBatches,
+  pruneVoiceBatches,
+  saveVoiceBatch,
+  type VoiceBatchOperation
+} from '@/storage/voice-batch-journal';
+import {
+  VoiceCaptureError,
+  type VoiceCapturedAudio
+} from '@/services/contracts/voice-capture-service';
+
+export const voiceBatchResultSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    batchId: z.string().uuid().nullable(),
+    status: z.enum([
+      'uploading',
+      'queued',
+      'analyzing',
+      'finalizing',
+      'completed',
+      'cancelled',
+      'failed'
+    ]),
+    transactionIds: z.array(z.string().uuid()).max(5),
+    addedCount: z.number().int().min(0).max(5),
+    ledgerVersion: z.number().int().nonnegative()
+  })
+  .strict()
+  .refine(
+    (value) =>
+      value.addedCount === value.transactionIds.length &&
+      new Set(value.transactionIds).size === value.addedCount
+  );
+export type VoiceBatchResult = z.infer<typeof voiceBatchResultSchema>;
+export class VoiceBatchLocalTerminalError extends VoiceCaptureError {
+  constructor(public readonly phase: 'failed' | 'cancelled') {
+    super(phase === 'cancelled' ? 'operation_cancelled' : 'analysis_failed');
+  }
+}
+class VoiceBatchRequestRejected extends VoiceCaptureError {}
+export interface VoiceBatchApi {
+  queueBatch(
+    audio: VoiceCapturedAudio,
+    locale: 'ar' | 'en',
+    offset: number
+  ): Promise<string>;
+  runBatch(id: string): Promise<VoiceBatchResult>;
+  recoverBatches(onLocalPending?: (ids: string[]) => void): Promise<{
+    results: VoiceBatchResult[];
+    uncertain: boolean;
+    pendingIds: string[];
+    localFailure: boolean;
+  }>;
+  cancelBatch(id: string): Promise<VoiceBatchResult | null>;
+  pauseBatches(): void;
+}
+const terminal = (status: string) =>
+  ['completed', 'cancelled', 'failed'].includes(status);
+
+export function createVoiceBatchApi(options: {
+  baseUrl: string;
+  owner: () => Promise<string>;
+  token: () => Promise<string>;
+  request: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+  removeAudio?: (uri: string) => Promise<void>;
+}): VoiceBatchApi {
+  const inflight = new Map<string, Promise<VoiceBatchResult>>();
+  const recoveryFailures = new Set<string>();
+  const controllers = new Set<AbortController>();
+  let epoch = 0;
+  let recoveryOwner: string | null = null;
+  let discoveryCursor: { createdAt: string; sessionId: string } | null = null;
+  let unresolved = new Set<string>();
+  const sleep =
+    options.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const binding = async () => ({ owner: await options.owner(), epoch });
+  const check = async (b: { owner: string; epoch: number }) => {
+    if (b.epoch !== epoch || b.owner !== (await options.owner()))
+      throw new VoiceCaptureError('operation_cancelled');
+  };
+  const bounded = async <T>(
+    action: (signal: AbortSignal) => Promise<T>,
+    ms = 10000
+  ): Promise<T> => {
+    const controller = new AbortController();
+    controllers.add(controller);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        action(controller.signal),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new VoiceCaptureError('offline'));
+          }, ms);
+        })
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+      controllers.delete(controller);
+    }
+  };
+  const send = async (
+    b: { owner: string; epoch: number },
+    method: string,
+    path: string,
+    body?: unknown,
+    key?: string,
+    audio?: ArrayBuffer
+  ): Promise<unknown> =>
+    bounded(
+      async (signal) => {
+        await check(b);
+        const token = await options.token();
+        await check(b);
+        const response = await options.request(options.baseUrl + path, {
+          method,
+          signal,
+          headers: {
+            authorization: 'Bearer ' + token,
+            'X-Voice-Contract': '3',
+            'content-type': audio ? 'audio/m4a' : 'application/json',
+            ...(audio ? { 'content-length': String(audio.byteLength) } : {}),
+            ...(key ? { 'idempotency-key': key } : {})
+          },
+          ...(body !== undefined || audio
+            ? { body: audio ?? JSON.stringify(body) }
+            : {})
+        });
+        await check(b);
+        if ([400, 403, 404, 410, 422].includes(response.status))
+          throw new VoiceBatchRequestRejected('analysis_failed');
+        if (!response.ok)
+          throw new VoiceCaptureError(
+            response.status === 401 ? 'session_expired' : 'offline'
+          );
+        const value = await response.json();
+        await check(b);
+        return value;
+      },
+      audio ? 30000 : 10000
+    );
+  const update = async (
+    b: { owner: string; epoch: number },
+    operation: VoiceBatchOperation,
+    patch: Partial<VoiceBatchOperation>
+  ) => {
+    await check(b);
+    const next = { ...operation, ...patch, revision: operation.revision + 1 };
+    await saveVoiceBatch(b.owner, next);
+    await check(b);
+    return next;
+  };
+  const result = async (b: { owner: string; epoch: number }, session: string) =>
+    voiceBatchResultSchema.parse(
+      await send(b, 'GET', '/api/v1/voice/sessions/' + session + '/batch')
+    );
+  const poll = async (b: { owner: string; epoch: number }, session: string) => {
+    let current = await result(b, session);
+    for (let n = 0; n < 125 && !terminal(current.status); n++) {
+      await sleep(1000);
+      await check(b);
+      current = await result(b, session);
+    }
+    return current;
+  };
+  const readAudio = async (
+    b: { owner: string; epoch: number },
+    operation: VoiceBatchOperation
+  ) =>
+    bounded(async (signal) => {
+      await check(b);
+      if (!operation.audioReference)
+        throw new VoiceCaptureError('re_record_required');
+      const response = await options.request(operation.audioReference, {
+        signal
+      });
+      if (!response.ok) throw new VoiceCaptureError('re_record_required');
+      const bytes = await response.arrayBuffer();
+      await check(b);
+      if (bytes.byteLength < 12 || bytes.byteLength > 12582912)
+        throw new VoiceCaptureError('analysis_failed');
+      return bytes;
+    }, 30000);
+  const finish = async (
+    b: { owner: string; epoch: number },
+    operation: VoiceBatchOperation,
+    value: VoiceBatchResult
+  ) => {
+    if (terminal(value.status)) {
+      if (operation.audioReference && options.removeAudio) {
+        try {
+          await options.removeAudio(operation.audioReference);
+        } catch {
+          return value;
+        }
+      }
+      await update(b, operation, {
+        phase: value.status as 'completed' | 'cancelled' | 'failed',
+        audioReference: null,
+        createBody: null,
+        processBody: null
+      });
+    }
+    return value;
+  };
+  const retireLocal = async (
+    b: { owner: string; epoch: number },
+    operation: VoiceBatchOperation,
+    phase: 'failed' | 'cancelled'
+  ) => {
+    // Without a durably recorded session, upload/process cannot have been dispatched.
+    // A lost create response may leave an expiring upload slot, but cannot post money.
+    if (operation.audioReference && options.removeAudio)
+      await options.removeAudio(operation.audioReference);
+    await update(b, operation, {
+      phase,
+      audioReference: null,
+      createBody: null,
+      processBody: null
+    });
+  };
+  const submit = async (id: string) => {
+    const b = await binding();
+    let operation = (await loadVoiceBatches(b.owner)).find(
+      (row) => row.id === id
+    );
+    await check(b);
+    if (!operation) throw new VoiceCaptureError('analysis_failed');
+    if (
+      !operation.sessionId &&
+      (operation.phase === 'cancel_requested' ||
+        Date.now() - operation.recordedAt >= 86400000)
+    ) {
+      const phase =
+        operation.phase === 'cancel_requested' ? 'cancelled' : 'failed';
+      await retireLocal(b, operation, phase);
+      throw new VoiceBatchLocalTerminalError(phase);
+    }
+    if (terminal(operation.phase) && operation.sessionId)
+      return finish(b, operation, await result(b, operation.sessionId));
+    if (operation.phase === 'cancel_requested' && operation.sessionId) {
+      const value = voiceBatchResultSchema.parse(
+        await send(
+          b,
+          'POST',
+          '/api/v1/voice/sessions/' + operation.sessionId + '/cancel',
+          {},
+          'voice-cancel:' + operation.id
+        )
+      );
+      return finish(b, operation, value);
+    }
+    let bytes: ArrayBuffer | undefined;
+    if (!operation.createBody && !operation.sessionId) {
+      try {
+        bytes = await readAudio(b, operation);
+      } catch (error) {
+        if (
+          error instanceof VoiceCaptureError &&
+          ['re_record_required', 'analysis_failed'].includes(error.code)
+        ) {
+          await retireLocal(b, operation, 'failed');
+          throw new VoiceBatchLocalTerminalError('failed');
+        }
+        throw error;
+      }
+      operation = await update(b, operation, {
+        createBody: {
+          locale: operation.locale,
+          durationMs: operation.durationMs,
+          contentType: 'audio/m4a',
+          sizeBytes: bytes.byteLength,
+          contentHash: bytesToHex(sha256(new Uint8Array(bytes))),
+          recordedAt: new Date(operation.recordedAt).toISOString(),
+          timezoneOffsetMinutes: operation.timezoneOffsetMinutes
+        }
+      });
+    }
+    if (!operation.sessionId) {
+      try {
+        const created = z
+          .object({
+            session: z.object({
+              id: z.string().uuid(),
+              version: z.number().int().positive()
+            }),
+            upload: z.object({ path: z.string() })
+          })
+          .parse(
+            await send(
+              b,
+              'POST',
+              '/api/v1/voice/sessions',
+              operation.createBody,
+              'voice-create:' + operation.id
+            )
+          );
+        operation = await update(b, operation, {
+          sessionId: created.session.id,
+          version: created.session.version,
+          phase:
+            operation.phase === 'cancel_requested'
+              ? 'cancel_requested'
+              : 'created'
+        });
+      } catch (error) {
+        if (error instanceof VoiceBatchRequestRejected) {
+          await retireLocal(b, operation, 'failed');
+          throw new VoiceBatchLocalTerminalError('failed');
+        }
+        throw error;
+      }
+    }
+    const session = operation.sessionId!;
+    if (operation.phase === 'cancel_requested') {
+      return finish(
+        b,
+        operation,
+        voiceBatchResultSchema.parse(
+          await send(
+            b,
+            'POST',
+            '/api/v1/voice/sessions/' + session + '/cancel',
+            {},
+            'voice-cancel:' + id
+          )
+        )
+      );
+    }
+    // Read authoritative state before resending any uncertain upload/process request.
+    const server = await result(b, session);
+    if (terminal(server.status)) return finish(b, operation, server);
+    if (server.status === 'uploading') {
+      if (!operation.processBody) {
+        bytes = bytes ?? (await readAudio(b, operation));
+        if (
+          bytesToHex(sha256(new Uint8Array(bytes))) !==
+          operation.createBody?.contentHash
+        )
+          throw new VoiceCaptureError('analysis_failed');
+        const uploaded = z
+          .object({
+            id: z.string().uuid(),
+            version: z.number().int().positive(),
+            contentHash: z.string()
+          })
+          .parse(
+            await send(
+              b,
+              'PUT',
+              '/api/v1/voice/sessions/' + session + '/audio',
+              undefined,
+              undefined,
+              bytes
+            )
+          );
+        if (
+          uploaded.id !== session ||
+          uploaded.contentHash !== operation.createBody?.contentHash
+        )
+          throw new VoiceCaptureError('analysis_failed');
+        operation = await update(b, operation, {
+          phase: 'uploaded',
+          processBody: {
+            uploadCompleted: true,
+            expectedVersion: uploaded.version,
+            contentHash: uploaded.contentHash
+          }
+        });
+      }
+      await send(
+        b,
+        'POST',
+        '/api/v1/voice/sessions/' + session + '/process',
+        operation.processBody,
+        'voice-process:' + id
+      );
+    }
+    operation = await update(b, operation, { phase: 'processing' });
+    return finish(b, operation, await poll(b, session));
+  };
+  const runBatch = (id: string) => {
+    const existing = inflight.get(id);
+    if (existing) return existing;
+    const pending = submit(id).finally(() => {
+      if (inflight.get(id) === pending) inflight.delete(id);
+    });
+    inflight.set(id, pending);
+    return pending;
+  };
+  return {
+    async queueBatch(audio, locale, offset) {
+      const b = await binding();
+      const id = randomUUID();
+      await saveVoiceBatch(b.owner, {
+        id,
+        revision: 0,
+        phase: 'captured',
+        audioReference: audio.uri,
+        locale,
+        durationMs: audio.durationMs,
+        recordedAt: audio.recordedAt,
+        timezoneOffsetMinutes: offset,
+        createBody: null,
+        sessionId: null,
+        version: null,
+        processBody: null
+      });
+      // Successful persistence transfers audio ownership even if auth changes during the write.
+      // The captured owner can recover the operation later; the recorder must not delete it.
+      return id;
+    },
+    runBatch,
+    async recoverBatches(onLocalPending) {
+      const b = await binding();
+      if (recoveryOwner !== b.owner) {
+        recoveryOwner = b.owner;
+        discoveryCursor = null;
+        unresolved = new Set<string>();
+      }
+      await pruneVoiceBatches(b.owner);
+      const local = await loadVoiceBatches(b.owner);
+      await check(b);
+      onLocalPending?.(
+        local
+          .filter((operation) => !terminal(operation.phase))
+          .map((operation) => operation.id)
+      );
+      // Return a recovery snapshot promptly; long polling never hides cancellation controls.
+      for (const operation of local.filter((row) => !terminal(row.phase)))
+        void runBatch(operation.id).then(
+          () => {
+            if (epoch === b.epoch) recoveryFailures.delete(operation.id);
+          },
+          () => {
+            if (epoch === b.epoch) recoveryFailures.add(operation.id);
+          }
+        );
+      const values: VoiceBatchResult[] = [];
+      let cursor = discoveryCursor;
+      const remainingSessions = new Set(unresolved);
+      const discovered = new Set<string>();
+      let more: boolean;
+      do {
+        const page = z
+          .object({
+            items: z.array(
+              z.object({
+                createdAt: z.string(),
+                ...voiceBatchResultSchema.innerType().shape
+              })
+            )
+          })
+          .parse(
+            await send(
+              b,
+              'GET',
+              '/api/v1/voice/batches/recovery' +
+                (cursor
+                  ? '?after=' +
+                    encodeURIComponent(cursor.createdAt) +
+                    '&afterId=' +
+                    cursor.sessionId
+                  : '')
+            )
+          );
+        for (const entry of page.items) {
+          const { createdAt: _, ...value } = entry;
+          values.push(voiceBatchResultSchema.parse(value));
+          discovered.add(value.sessionId);
+          if (terminal(value.status)) remainingSessions.delete(value.sessionId);
+          else remainingSessions.add(value.sessionId);
+        }
+        const last = page.items.at(-1);
+        if (last)
+          cursor = { createdAt: last.createdAt, sessionId: last.sessionId };
+        more = page.items.length === 100;
+      } while (more);
+      for (const session of unresolved) {
+        if (discovered.has(session)) continue;
+        const value = await result(b, session);
+        values.push(value);
+        if (terminal(value.status)) remainingSessions.delete(session);
+      }
+      await check(b);
+      const remaining = await loadVoiceBatches(b.owner);
+      await check(b);
+      const latestLocal = remaining.reduce<VoiceBatchOperation | null>(
+        (latest, operation) =>
+          !latest || operation.recordedAt > latest.recordedAt
+            ? operation
+            : latest,
+        null
+      );
+      discoveryCursor = cursor;
+      unresolved = remainingSessions;
+      return {
+        results: [
+          ...new Map(values.map((value) => [value.sessionId, value])).values()
+        ],
+        uncertain: remaining.some((value) => recoveryFailures.has(value.id)),
+        pendingIds: remaining
+          .filter((row) => !terminal(row.phase))
+          .map((row) => row.id),
+        localFailure: latestLocal?.phase === 'failed' && !latestLocal.sessionId
+      };
+    },
+    async cancelBatch(id) {
+      const b = await binding();
+      let next: VoiceBatchOperation | undefined;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const local = await loadVoiceBatches(b.owner);
+        const operation = local.find(
+          (row) => row.id === id || row.sessionId === id
+        );
+        await check(b);
+        if (!operation)
+          return voiceBatchResultSchema.parse(
+            await send(
+              b,
+              'POST',
+              '/api/v1/voice/sessions/' + id + '/cancel',
+              {},
+              'voice-cancel:' + id
+            )
+          );
+        if (terminal(operation.phase))
+          return operation.sessionId ? result(b, operation.sessionId) : null;
+        try {
+          next =
+            operation.phase === 'cancel_requested'
+              ? operation
+              : await update(b, operation, { phase: 'cancel_requested' });
+          break;
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            error.message !== 'voice batch revision conflict'
+          )
+            throw error;
+        }
+      }
+      if (!next) throw new VoiceCaptureError('recovery_required');
+      if (!next.sessionId) {
+        await retireLocal(b, next, 'cancelled');
+        throw new VoiceBatchLocalTerminalError('cancelled');
+      }
+      const value = voiceBatchResultSchema.parse(
+        await send(
+          b,
+          'POST',
+          '/api/v1/voice/sessions/' + next.sessionId + '/cancel',
+          {},
+          'voice-cancel:' + next.id
+        )
+      );
+      return finish(b, next, value);
+    },
+    pauseBatches() {
+      epoch++;
+      for (const controller of controllers) controller.abort();
+      controllers.clear();
+    }
+  };
+}

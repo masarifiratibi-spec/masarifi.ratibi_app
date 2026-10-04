@@ -1,3 +1,5 @@
+import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
+import { createVoiceBatchApi } from './voice-batch-api-service';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { randomUUID } from 'expo-crypto';
@@ -669,6 +671,14 @@ export function createLiveVoiceApiService(
   };
 
   return {
+    ...createVoiceBatchApi({
+      baseUrl,
+      owner,
+      token,
+      request,
+      sleep,
+      removeAudio: voiceRecorderService.remove
+    }),
     metadata: {
       id: 'phase09-voice-http',
       capability: voiceAnalyzerServiceCapability.capability,

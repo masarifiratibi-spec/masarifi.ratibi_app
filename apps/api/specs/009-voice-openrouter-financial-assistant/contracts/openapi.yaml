@@ -12,6 +12,26 @@ tags:
   - name: Assistant
   - name: Admin AI
 paths:
+  /api/v1/voice/batches/recovery:
+    get:
+      operationId: listVoiceBatchRecovery
+      description: Owner-scoped v3 recovery of recent sessions (seven days) and unresolved batches ordered by createdAt and sessionId. Up to 100 items; continue with the last createdAt and sessionId as after/afterId. No candidates or skip diagnostics.
+      parameters:
+        - { name: after, in: query, schema: { type: string, format: date-time } }
+        - { name: afterId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Public batch receipts and processing states }
+  /api/v1/voice/sessions/{sessionId}/batch:
+    get:
+      operationId: getVoiceBatchResult
+      parameters:
+        - $ref: '#/components/parameters/AiVoiceSessionId'
+      responses:
+        '200':
+          description: Public v3 batch status and committed receipts only
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoiceBatchResult' }
   /api/v1/voice/sessions:
     post:
       tags: [Voice]
@@ -44,7 +64,10 @@ paths:
           description: Owner-safe status
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/VoiceSession' }
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/VoiceSession' }
+                  - { $ref: '#/components/schemas/VoiceBatchResult' }
         '404': { $ref: '#/components/responses/AiNotFound' }
   /api/v1/voice/sessions/{sessionId}/audio:
     put:
@@ -80,7 +103,11 @@ paths:
         '200':
           description: Authoritative cancellation or previously accepted confirmation
           content:
-            application/json: { schema: { $ref: '#/components/schemas/VoiceCancellation' } }
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/VoiceCancellation' }
+                  - { $ref: '#/components/schemas/VoiceBatchResult' }
         '409': { $ref: '#/components/responses/AiConflict' }
   /api/v1/voice/sessions/{sessionId}/recovery:
     get:
@@ -92,7 +119,11 @@ paths:
         '200':
           description: Owner-safe operation and financial outcome
           content:
-            application/json: { schema: { $ref: '#/components/schemas/VoiceRecovery' } }
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/VoiceRecovery' }
+                  - { $ref: '#/components/schemas/VoiceBatchResult' }
         '404': { $ref: '#/components/responses/AiNotFound' }
   /api/v1/voice/sessions/{sessionId}/process:
     post:
@@ -134,7 +165,7 @@ paths:
       tags: [Voice]
       operationId: confirmVoiceProposal
       parameters:
-        - $ref: '#/components/parameters/VoiceContract'
+        - $ref: '#/components/parameters/LegacyVoiceContract'
         - $ref: '#/components/parameters/ProposalId'
         - $ref: '#/components/parameters/AiIdempotencyKey'
       requestBody:
@@ -788,6 +819,11 @@ components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   parameters:
+    LegacyVoiceContract:
+      name: X-Voice-Contract
+      in: header
+      required: true
+      schema: { type: string, enum: ['2'] }
     AiIdempotencyKey:
       {
         name: Idempotency-Key,
@@ -809,7 +845,7 @@ components:
       name: X-Voice-Contract
       in: header
       required: true
-      schema: { type: string, const: '2' }
+      schema: { type: string, enum: ['2', '3'] }
     AiVoiceSessionId:
       { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
     ProposalId:
@@ -899,6 +935,22 @@ components:
         limit: { const: 5 }
         used: { type: integer, minimum: 5 }
         resetsAt: { type: string, format: date-time }
+    VoiceBatchResult:
+      type: object
+      additionalProperties: false
+      required: [sessionId, batchId, status, transactionIds, addedCount, ledgerVersion]
+      properties:
+        sessionId: { type: string, format: uuid }
+        batchId: { type: [string, 'null'], format: uuid }
+        status:
+          {
+            type: string,
+            enum: [uploading, queued, analyzing, finalizing, completed, cancelled, failed],
+          }
+        transactionIds:
+          { type: array, maxItems: 5, uniqueItems: true, items: { type: string, format: uuid } }
+        addedCount: { type: integer, minimum: 0, maximum: 5 }
+        ledgerVersion: { type: integer, minimum: 0 }
     CreateVoiceSessionRequest:
       type: object
       additionalProperties: false

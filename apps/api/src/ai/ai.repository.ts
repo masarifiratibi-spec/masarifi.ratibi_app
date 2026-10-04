@@ -68,7 +68,7 @@ function mapped(error: unknown): Error {
   if (/CONSENT|OWNER|PERMISSION|DENIED/.test(message))
     return new HttpException({ code: message }, 403);
   if (/QUOTA|BUDGET/.test(message)) return new HttpException({ code: message }, 429);
-  if (/ROUTE_UNAVAILABLE|PROMPT_UNAVAILABLE/.test(message))
+  if (/ROUTE_UNAVAILABLE|PROMPT_UNAVAILABLE|AUTOMATIC_UNAVAILABLE/.test(message))
     return new HttpException({ code: 'AI_UNAVAILABLE' }, 503);
   if (/INVALID|LIMIT|REQUIRED|SCHEMA/.test(message))
     return new HttpException({ code: message }, 422);
@@ -111,32 +111,47 @@ export class AiRepository {
     input: Record<string, unknown>,
     key: string,
     uploadSeconds = 300,
+    automatic?: { maxAuthAge: number; thresholds: Record<string, number> },
   ) {
     return this.idempotent(
       principal,
       'ai.voice-session.create',
       key,
-      input,
+      automatic ? { ...input, contractVersion: 3 } : input,
       201,
       async (client, operationId) =>
-        input.contentHash
+        automatic
           ? this.json(
               client,
-              'select private.create_voice_session_v2($1,$2::jsonb,$3::uuid,$4) result',
-              [principal.userId, JSON.stringify(input), operationId, uploadSeconds],
-            )
-          : this.json(
-              client,
-              'select private.create_voice_session($1,$2,$3,$4,$5,$6::uuid) result',
+              'select private.create_voice_session_v3($1,$2::jsonb,$3::uuid,$4,$5,$6,$7::jsonb) result',
               [
                 principal.userId,
-                input.locale,
-                input.durationMs,
-                input.contentType,
-                input.sizeBytes,
+                JSON.stringify(input),
                 operationId,
+                uploadSeconds,
+                principal.factorAgeSeconds,
+                automatic.maxAuthAge,
+                JSON.stringify(automatic.thresholds),
               ],
-            ),
+            )
+          : input.contentHash
+            ? this.json(
+                client,
+                'select private.create_voice_session_v2($1,$2::jsonb,$3::uuid,$4) result',
+                [principal.userId, JSON.stringify(input), operationId, uploadSeconds],
+              )
+            : this.json(
+                client,
+                'select private.create_voice_session($1,$2,$3,$4,$5,$6::uuid) result',
+                [
+                  principal.userId,
+                  input.locale,
+                  input.durationMs,
+                  input.contentType,
+                  input.sizeBytes,
+                  operationId,
+                ],
+              ),
     );
   }
 
@@ -166,6 +181,83 @@ export class AiRepository {
         );
       },
     );
+  }
+
+  getVoiceBatchResult(principal: ClerkPrincipal, sessionId: string) {
+    return this.ownerJson(principal, 'select private.get_voice_batch_result($1,$2::uuid) result', [
+      principal.userId,
+      sessionId,
+    ]);
+  }
+  listVoiceBatchRecovery(
+    principal: ClerkPrincipal,
+    after: string | null,
+    afterId: string | null,
+    limit: number,
+  ) {
+    return this.ownerJson(
+      principal,
+      'select private.list_voice_batch_recovery($1,$2::timestamptz,$3::uuid,$4) result',
+      [principal.userId, after, afterId, limit],
+    );
+  }
+  acceptVoiceBatch(id: string, token: string, decisions: unknown, policy: string) {
+    return this.workerJson(
+      'select private.accept_voice_batch($1::uuid,$2::uuid,$3::jsonb,$4) result',
+      [id, token, JSON.stringify(decisions), policy],
+    );
+  }
+  async finalizeVoiceBatches(limit: number): Promise<number> {
+    limit = Math.min(limit, 25);
+    await this.worker(async (client) => {
+      await client.query('select private.purge_expired_voice_commands($1)', [limit]);
+    });
+    const claims = await this.worker(
+      async (client) =>
+        (
+          await client.query<{ batch_id: string; token: string }>(
+            'select * from private.claim_voice_finalization($1)',
+            [limit],
+          )
+        ).rows,
+    );
+    for (const claim of claims) {
+      try {
+        const events = await this.worker(
+          async (client) =>
+            (
+              await client.query<{ result: { eventId: string }[] }>(
+                'select private.list_voice_finalization_events($1::uuid,$2::uuid) result',
+                [claim.batch_id, claim.token],
+              )
+            ).rows[0]?.result,
+        );
+        for (const next of events ?? []) {
+          try {
+            await this.workerJson(
+              'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
+              [claim.batch_id, claim.token, next.eventId],
+            );
+          } catch {
+            await this.worker(async (client) => {
+              await client.query('select private.retry_voice_event($1::uuid,$2::uuid,$3::uuid)', [
+                claim.batch_id,
+                claim.token,
+                next.eventId,
+              ]);
+            });
+          }
+        }
+      } finally {
+        await this.worker(async (client) => {
+          await client.query('select private.retry_voice_finalization($1::uuid,$2::uuid)', [
+            claim.batch_id,
+            claim.token,
+          ]);
+        });
+      }
+    }
+    return claims.length;
   }
 
   getVoiceSession(principal: ClerkPrincipal, sessionId: string) {

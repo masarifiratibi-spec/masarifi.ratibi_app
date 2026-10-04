@@ -55,6 +55,7 @@ export const GOVERNED_JOB_KEYS = Object.freeze([
   'tracking.reconcile',
   'ai.evaluate_route',
   'voice.transcribe_extract',
+  'voice.finalize',
   'assistant.respond',
   'ai.usage_rollup',
   'voice-media.purge',

@@ -47,6 +47,7 @@ interface CompletionInput<T> {
   schema: Record<string, unknown>;
   parse: (value: unknown) => T;
   requestId: string;
+  voiceBatch?: boolean;
   signal?: AbortSignal;
   beforeDispatch?: (candidate: Candidate) => Promise<void>;
   onReceipt?: (receipt: Omit<AiCompletion<T>, 'value'>) => Promise<void>;
@@ -143,7 +144,8 @@ export class AiGateway {
             json_schema: {
               name: `${input.route.workload}_v${input.route.prompt.schemaVersion.toString()}`,
               strict: true,
-              schema: vertexVoiceLite ? VERTEX_VOICE_OUTPUT_SCHEMA : input.schema,
+              schema:
+                vertexVoiceLite && !input.voiceBatch ? VERTEX_VOICE_OUTPUT_SCHEMA : input.schema,
             },
           },
           ...completionParameters,
@@ -273,7 +275,9 @@ export class AiGateway {
         }
         let value: T;
         try {
-          value = input.parse(vertexVoiceLite ? normalizeVertexVoiceOutput(decoded) : decoded);
+          value = input.parse(
+            vertexVoiceLite && !input.voiceBatch ? normalizeVertexVoiceOutput(decoded) : decoded,
+          );
         } catch {
           throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
         }

@@ -1,3 +1,4 @@
+import type { VoiceBatchApi } from '../live/voice-batch-api-service';
 import type {
   VoicePermissionState,
   VoiceProposalGroup,
@@ -46,7 +47,7 @@ export interface VoiceRecorderService {
   remove(audioReference: string): Promise<void>;
 }
 
-export interface VoiceAnalyzerService {
+export interface VoiceAnalyzerService extends Partial<VoiceBatchApi> {
   transcribe(
     audioReference: string,
     scenario: VoiceScenario,

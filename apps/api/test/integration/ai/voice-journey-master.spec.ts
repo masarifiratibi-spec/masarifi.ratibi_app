@@ -57,6 +57,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
           MASARIFI_AI_JOB_BATCH_SIZE: 4,
           MASARIFI_AI_MAX_CONCURRENCY: 4,
           MASARIFI_AI_LEASE_SECONDS: 120,
+          MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: 600,
         }) as Record<string, unknown>
       )[name],
     get: () => undefined,
@@ -129,6 +130,185 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       await pool.query('delete from private.ai_models where id=$1', [fixtureModelId]);
     await pool.onModuleDestroy();
   });
+  it.each(['ar', 'en'] as const)(
+    'automatically posts safe %s batch items through upload, provider accounting and durable finalization',
+    async (language) => {
+      await pool.query('update private.voice_automatic_policy set enabled=true');
+      await pool.query('update public.accounts set is_default=true where id=$1', [accountId]);
+      const bytes = Buffer.alloc(44);
+      bytes.write('ftyp', 4);
+      bytes.write('M4A ', 8);
+      const hash = createHash('sha256').update(bytes).digest('hex');
+      const created = uploadResponseSchema.parse(
+        await service.createVoiceSession(
+          principal,
+          {
+            locale: language,
+            durationMs: 3000,
+            contentType: 'audio/m4a',
+            sizeBytes: bytes.length,
+            contentHash: hash,
+            recordedAt: new Date().toISOString(),
+            timezoneOffsetMinutes: -180,
+          },
+          randomUUID(),
+          '3',
+        ),
+      );
+      const upload = uploadReceiptSchema.parse(
+        await service.uploadVoiceAudio(
+          principal,
+          created.session.id,
+          Object.assign(Readable.from([bytes]), {
+            headers: { 'content-type': 'audio/m4a', 'content-length': String(bytes.length) },
+          }) as unknown as Request,
+        ),
+      );
+      const processKey = randomUUID();
+      const processBody = {
+        uploadCompleted: true,
+        expectedVersion: upload.version,
+        contentHash: hash,
+      };
+      await service.processVoiceSession(principal, created.session.id, processBody, processKey);
+      await service.processVoiceSession(principal, created.session.id, processBody, processKey);
+      const originalClaim = repository.claimWork.bind(repository);
+      const claimSpy = jest
+        .spyOn(repository, 'claimWork')
+        .mockImplementation(async (kind, worker, _limit, lease) =>
+          (await originalClaim(kind, worker, 100, lease)).filter(
+            (item) => item.id === created.session.id,
+          ),
+        );
+      const fetcher = jest.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+        if (typeof init?.body !== 'string') throw new Error('expected provider body');
+        const body = JSON.parse(init.body) as {
+          model: string;
+          messages: { content: { text?: string }[] }[];
+        };
+        const context = JSON.parse(body.messages[1]?.content[0]?.text ?? '{}') as {
+          references: { alias: string; kind: string; data: { kind?: string } }[];
+        };
+        const category = context.references.find(
+          (item) => item.kind === 'category' && item.data.kind === 'expense',
+        );
+        if (!category) throw new Error('missing category fixture');
+        const event = {
+          kind: 'expense',
+          amountMinor: '2500',
+          currency: '',
+          currencySource: 'omitted',
+          accountId: '',
+          accountSource: 'omitted',
+          categoryId: category.alias,
+          date: '',
+          dateSource: 'omitted',
+          merchant: '',
+          note: '',
+          independent: true,
+          confidence: 1,
+        };
+        const envelope = {
+          complete: true,
+          language,
+          events: [
+            event,
+            { ...event, amountMinor: '4000' },
+            { ...event, amountMinor: '12000' },
+            { ...event, kind: 'repayment', amountMinor: '5000' },
+            { ...event, amountMinor: '', merchant: 'Private skipped content' },
+          ],
+        };
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'batch-generation-' + randomUUID(),
+              model: body.model,
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(envelope) } }],
+              usage: { prompt_tokens: 100, completion_tokens: 1000, cost: 0.000001 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      });
+      const worker = new AiWorker(
+        repository,
+        storage as never,
+        new AiGateway({ apiKey: 'offline-fixture', fetcher }),
+        config as never,
+      );
+      try {
+        await worker.runJob('voice.transcribe_extract');
+        expect(await service.getVoiceBatchResult(principal, created.session.id)).toMatchObject({
+          status: 'finalizing',
+          addedCount: 0,
+        });
+        for (let pass = 0; pass < 50; pass++) {
+          await worker.runJob('voice.finalize');
+          if (
+            (await service.getVoiceBatchResult(principal, created.session.id)).status ===
+            'completed'
+          )
+            break;
+        }
+        await worker.runJob('voice.finalize');
+        const result = await service.getVoiceBatchResult(principal, created.session.id);
+        expect(result).toMatchObject({
+          status: 'completed',
+          addedCount: 3,
+          transactionIds: expect.arrayContaining([
+            expect.any(String),
+            expect.any(String),
+            expect.any(String),
+          ]) as unknown,
+        });
+        expect(Object.keys(result).sort()).toEqual(
+          [
+            'sessionId',
+            'batchId',
+            'status',
+            'transactionIds',
+            'addedCount',
+            'ledgerVersion',
+          ].sort(),
+        );
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        expect(
+          (
+            await pool.query('select * from public.voice_transcripts where session_id=$1', [
+              created.session.id,
+            ])
+          ).rows,
+        ).toHaveLength(0);
+        expect(
+          (
+            await pool.query('select * from public.voice_proposals where session_id=$1', [
+              created.session.id,
+            ])
+          ).rows,
+        ).toHaveLength(0);
+        expect(
+          (
+            await pool.query(
+              'select * from private.voice_event_commands where event_id in(select e.id from private.voice_events e join private.voice_batches b on b.id=e.batch_id where b.session_id=$1)',
+              [created.session.id],
+            )
+          ).rows,
+        ).toHaveLength(0);
+        expect(
+          (
+            await pool.query<{ count: number }>(
+              'select count(*)::integer count from private.ai_usage_events where user_id=$1 and request_id in(select process_operation_id::text from public.voice_sessions where id=$2)',
+              [userId, created.session.id],
+            )
+          ).rows[0]?.count,
+        ).toBe(1);
+        expect(media.size).toBe(0);
+      } finally {
+        claimSpy.mockRestore();
+      }
+    },
+  );
   it.each([
     { language: 'ar', cancel: true },
     { language: 'ar', cancel: false },
@@ -136,6 +316,12 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
   ] as const)(
     '$language capture/upload/Worker/gateway/review (cancel=$cancel)',
     async ({ language, cancel }) => {
+      const transactionCountBefore = (
+        await pool.query<{ count: number }>(
+          'select count(*)::integer count from public.transactions where user_id=$1',
+          [userId],
+        )
+      ).rows[0]?.count;
       const bytes = Buffer.alloc(44);
       bytes.write('ftyp', 4);
       bytes.write('M4A ', 8);
@@ -316,7 +502,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
               [userId],
             )
           ).rows[0]?.count,
-        ).toBe(0);
+        ).toBe(transactionCountBefore);
       } else {
         const proposal = review.proposal;
         if (!proposal) throw new Error('expected review proposal');

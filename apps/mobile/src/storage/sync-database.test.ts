@@ -43,7 +43,7 @@ const { openDatabase, resetDatabaseForTests } =
   // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
   require('./database') as typeof import('./database');
 
-describe('sync schema through v14', () => {
+describe('sync schema through v15', () => {
   beforeEach(() => resetDatabaseForTests());
 
   it('adds sync metadata and later repairs while preserving populated v9 finance data', async () => {
@@ -57,7 +57,7 @@ describe('sync schema through v14', () => {
           'SELECT version FROM schema_migrations'
         )
       ).at(-1)
-    ).toEqual({ version: 14 });
+    ).toEqual({ version: 15 });
     for (const table of [
       'sync_state',
       'sync_mutation_queue',
