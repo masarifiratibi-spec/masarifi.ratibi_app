@@ -128,12 +128,14 @@ it.each(['cancelled', 'failed'] as const)(
     ).rejects.toBeInstanceOf(VoiceBatchLocalTerminalError);
     expect(request).not.toHaveBeenCalled();
     expect(removeAudio).toHaveBeenCalledWith(operation.audioReference);
-    expect(saved).toMatchObject({
-      phase,
-      audioReference: null,
-      createBody: null,
-      processBody: null
-    });
+    await waitFor(() =>
+      expect(saved).toMatchObject({
+        phase,
+        audioReference: null,
+        createBody: null,
+        processBody: null
+      })
+    );
   }
 );
 
@@ -176,13 +178,15 @@ it.each(['missing audio', 'invalid audio', 'rejected creation'])(
     );
     expect(request).toHaveBeenCalledTimes(1);
     expect(removeAudio).toHaveBeenCalledWith('file://private.m4a');
-    expect(operation).toMatchObject({
-      phase: 'failed',
-      audioReference: null,
-      createBody: null,
-      processBody: null,
-      sessionId: null
-    });
+    await waitFor(() =>
+      expect(operation).toMatchObject({
+        phase: 'failed',
+        audioReference: null,
+        createBody: null,
+        processBody: null,
+        sessionId: null
+      })
+    );
   }
 );
 

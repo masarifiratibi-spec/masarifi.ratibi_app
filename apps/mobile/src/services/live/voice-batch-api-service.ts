@@ -71,6 +71,7 @@ export function createVoiceBatchApi(options: {
   removeAudio?: (uri: string) => Promise<void>;
 }): VoiceBatchApi {
   const inflight = new Map<string, Promise<VoiceBatchResult>>();
+  const localCleanups = new Map<string, Promise<void>>();
   const recoveryFailures = new Set<string>();
   const controllers = new Set<AbortController>();
   let epoch = 0;
@@ -238,20 +239,32 @@ export function createVoiceBatchApi(options: {
   ) => {
     // Without a durably recorded session, upload/process cannot have been dispatched.
     // A lost create response may leave an expiring upload slot, but cannot post money.
-    const retired = await update(b, operation, {
-      phase,
-      createBody: null,
-      processBody: null
-    });
+    const retired =
+      operation.phase === phase &&
+      !operation.createBody &&
+      !operation.processBody
+        ? operation
+        : await update(b, operation, {
+            phase,
+            createBody: null,
+            processBody: null
+          });
     if (!retired.audioReference || !options.removeAudio) return;
-    await check(b);
-    try {
-      await options.removeAudio(retired.audioReference);
-    } catch {
-      // Terminality is durable; retain ownership solely for cleanup retry.
-      return;
-    }
-    await update(b, retired, { audioReference: null });
+    const key = b.owner + ':' + retired.id;
+    if (localCleanups.has(key)) return;
+    // Native cleanup cannot delay the already durable terminal outcome.
+    const cleanup = (async () => {
+      await check(b);
+      await bounded(() => options.removeAudio!(retired.audioReference!));
+      await update(b, retired, { audioReference: null });
+    })()
+      .catch(() => {
+        // Retain ownership solely for cleanup retry, including timeout/owner change.
+      })
+      .finally(() => {
+        if (localCleanups.get(key) === cleanup) localCleanups.delete(key);
+      });
+    localCleanups.set(key, cleanup);
   };
   const submit = async (id: string) => {
     const b = await binding();

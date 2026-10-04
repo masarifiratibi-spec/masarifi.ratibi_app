@@ -1,5 +1,11 @@
 import { openDatabase } from '@/storage/database';
-import { waitFor } from '@testing-library/react-native';
+import React from 'react';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useVoiceBatches } from '@/features/voice/useVoiceBatches';
+import { VoiceBatchStatus } from '@/features/voice/VoiceBatchStatus';
+import { voiceAnalyzerService } from '@/services/voice-analyzer-service';
+import { changeLocale, translate } from '@/localization/i18n';
 import {
   loadVoiceBatches,
   saveVoiceBatch
@@ -10,6 +16,10 @@ import {
 } from './voice-batch-api-service';
 
 jest.mock('@/storage/database', () => ({ openDatabase: jest.fn() }));
+// Wire the real API to its application adapter boundary; no batch behavior is mocked.
+jest.mock('@/services/voice-analyzer-service', () => ({
+  voiceAnalyzerService: {}
+}));
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '11111111-1111-4111-8111-111111111111'
 }));
@@ -89,18 +99,83 @@ const unavailable = () =>
     json: async () => ({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' })
   } as Response);
 
+it('reports the initial create rejection through the real hook before native cleanup settles', async () => {
+  let releaseCleanup!: () => void;
+  const cleanup = new Promise<void>((resolve) => {
+    releaseCleanup = resolve;
+  });
+  let cleanupCalls = 0;
+  const { api, calls } = fixture(unavailable, () => {
+    cleanupCalls++;
+    return cleanup;
+  });
+  Object.assign(voiceAnalyzerService, api);
+  changeLocale('en');
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } }
+  });
+  let batches!: ReturnType<typeof useVoiceBatches>;
+  function Harness() {
+    batches = useVoiceBatches(owner);
+    return React.createElement(VoiceBatchStatus, { batches });
+  }
+  const view = render(
+    React.createElement(
+      QueryClientProvider,
+      { client },
+      React.createElement(Harness)
+    )
+  );
+  try {
+    await act(async () => {});
+    const id = await api.queueBatch(audio, 'en', -180);
+    act(() => batches.submit(id));
+    await waitFor(() => expect(batches.localFailure).toBe(true));
+    expect(batches.pendingIds).toEqual([]);
+    expect(batches.processing).toBe(false);
+    expect(batches.uncertain).toBe(false);
+    expect(screen.getByText(translate('voice.batch.failed'))).toBeTruthy();
+    expect(screen.queryByText(translate('voice.state.processing'))).toBeNull();
+    expect(screen.queryByText(translate('voice.action.cancel'))).toBeNull();
+    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+      phase: 'failed',
+      audioReference: audio.uri,
+      createBody: null,
+      processBody: null
+    });
+    await act(async () => {
+      await batches.recover();
+    });
+    expect(batches.pendingIds).toEqual([]);
+    expect(batches.processing).toBe(false);
+    expect(cleanupCalls).toBe(1);
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  } finally {
+    await act(async () => {
+      releaseCleanup();
+    });
+    await waitFor(async () =>
+      expect((await loadVoiceBatches(owner))[0]?.audioReference).toBeNull()
+    );
+    view.unmount();
+    client.clear();
+  }
+});
+
 it('retires an exact pre-create unavailability response durably and reports local failure', async () => {
   const { api, calls } = fixture(unavailable);
   const id = await api.queueBatch(audio, 'en', -180);
   await expect(api.runBatch(id)).rejects.toMatchObject({ phase: 'failed' });
-  expect((await loadVoiceBatches(owner))[0]).toMatchObject({
-    id,
-    phase: 'failed',
-    sessionId: null,
-    audioReference: null,
-    createBody: null,
-    processBody: null
-  });
+  await waitFor(async () =>
+    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+      id,
+      phase: 'failed',
+      sessionId: null,
+      audioReference: null,
+      createBody: null,
+      processBody: null
+    })
+  );
   expect(await api.recoverBatches()).toEqual({
     results: [],
     uncertain: false,
@@ -108,6 +183,81 @@ it('retires an exact pre-create unavailability response durably and reports loca
     localFailure: true
   });
   expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+});
+
+it('bounds background deletion, ignores a late completion after pause and retries only cleanup', async () => {
+  jest.useFakeTimers();
+  try {
+    let releaseFirst!: () => void;
+    let cleanups = 0;
+    const { api, calls } = fixture(unavailable, () => {
+      cleanups++;
+      return cleanups === 1
+        ? new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+          })
+        : Promise.resolve();
+    });
+    const id = await api.queueBatch(audio, 'en', -180);
+    await expect(api.runBatch(id)).rejects.toMatchObject({ phase: 'failed' });
+    await api.recoverBatches();
+    expect(cleanups).toBe(1);
+    await jest.advanceTimersByTimeAsync(10000);
+    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+      phase: 'failed',
+      audioReference: audio.uri,
+      createBody: null,
+      processBody: null
+    });
+    api.pauseBatches();
+    releaseFirst();
+    await jest.advanceTimersByTimeAsync(0);
+    expect((await loadVoiceBatches(owner))[0]?.audioReference).toBe(audio.uri);
+    await api.recoverBatches();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(cleanups).toBe(2);
+    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+      phase: 'failed',
+      audioReference: null
+    });
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it('fences native cleanup completion when the owner epoch changes before its timeout', async () => {
+  jest.useFakeTimers();
+  try {
+    let release!: () => void;
+    let cleanups = 0;
+    const { api } = fixture(unavailable, () => {
+      cleanups++;
+      return cleanups === 1
+        ? new Promise<void>((resolve) => {
+            release = resolve;
+          })
+        : Promise.resolve();
+    });
+    const id = await api.queueBatch(audio, 'en', -180);
+    await expect(api.runBatch(id)).rejects.toMatchObject({ phase: 'failed' });
+    api.pauseBatches();
+    release();
+    await jest.advanceTimersByTimeAsync(0);
+    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+      phase: 'failed',
+      audioReference: audio.uri
+    });
+    await expect(api.runBatch(id)).rejects.toMatchObject({ phase: 'failed' });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(cleanups).toBe(2);
+    expect((await loadVoiceBatches(owner))[0]).toMatchObject({
+      phase: 'failed',
+      audioReference: null
+    });
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it('keeps pending controls and server receipts available while terminal audio deletion is stuck', async () => {
