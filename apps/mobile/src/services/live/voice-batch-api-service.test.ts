@@ -321,3 +321,31 @@ it('discovers incrementally and polls unresolved sessions without replaying term
     request.mock.calls.filter(([url]) => String(url).endsWith('/batch'))
   ).toHaveLength(1);
 });
+
+it('recovers all ten committed transaction receipts without a review step', async () => {
+  jest.mocked(loadVoiceBatches).mockResolvedValue([]);
+  const transactionIds = Array.from(
+    { length: 10 },
+    (_, index) => `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`
+  );
+  const receipt = {
+    sessionId: '11111111-1111-4111-8111-111111111111',
+    batchId: null,
+    status: 'completed',
+    transactionIds,
+    addedCount: 10,
+    ledgerVersion: 10
+  };
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request: jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [{ ...receipt, createdAt: '2026-10-04T00:00:00.000Z' }]
+      })
+    })) as unknown as typeof fetch
+  });
+  expect((await api.recoverBatches()).results).toEqual([receipt]);
+});

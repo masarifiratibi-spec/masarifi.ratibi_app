@@ -1,4 +1,4 @@
-import { decideVoiceBatch } from '../../../src/ai/voice-batch';
+import { decideVoiceBatch, parseVoiceBatchProviderOutput } from '../../../src/ai/voice-batch';
 
 const context = {
   recordedAt: '2026-10-03T21:30:00.000Z',
@@ -36,6 +36,18 @@ const event = (patch = {}) => ({
   ...patch,
 });
 const batch = (events: unknown[]) => ({ complete: true, language: 'en', events });
+const compactEvent = (patch = {}) => ({
+  k: 'e',
+  a: '2500',
+  c: 'o:',
+  b: 'o:',
+  g: 'CATEGORY-1',
+  d: 'o:',
+  m: '',
+  i: true,
+  q: 1,
+  ...patch,
+});
 
 describe('Voice batch automatic or silent skip', () => {
   beforeEach(() => {
@@ -79,12 +91,90 @@ describe('Voice batch automatic or silent skip', () => {
     expect(() => decideVoiceBatch({ ...batch([event()]), complete: false }, context)).toThrow(
       'AI_SCHEMA_INVALID',
     );
-    expect(() => decideVoiceBatch(batch(Array(6).fill(event())), context)).toThrow(
+    expect(() => decideVoiceBatch(batch(Array(11).fill(event())), context)).toThrow(
       'AI_SCHEMA_INVALID',
     );
-    expect(() => decideVoiceBatch(batch(Array(10).fill(event())), context)).toThrow(
+  });
+  it.each(['ar', 'en'])(
+    'accepts ten independent %s occurrences including identical purchases',
+    (language) => {
+      const decisions = decideVoiceBatch({ ...batch(Array(10).fill(event())), language }, context);
+      expect(decisions).toHaveLength(10);
+      expect(decisions.every((item) => item.status === 'eligible')).toBe(true);
+    },
+  );
+  it.each(['ar', 'en'])(
+    'normalizes ten compact %s events without losing per-item evidence',
+    (language) => {
+      const output = parseVoiceBatchProviderOutput({
+        complete: true,
+        language,
+        events: [
+          compactEvent(),
+          compactEvent(),
+          compactEvent({ a: '' }),
+          compactEvent({ b: 'a:' }),
+          compactEvent({ d: 'a:' }),
+          compactEvent({ k: 'r' }),
+          compactEvent({ k: 't' }),
+          compactEvent({ k: 'i', a: '-500000', g: '' }),
+          compactEvent({ c: 'e:SAR', b: 'e:ACCOUNT-1', d: 'e:2026-10-04' }),
+          compactEvent({ b: 'o:ACCOUNT-1' }),
+        ],
+      });
+      const decisions = decideVoiceBatch(output, context);
+      expect(decisions.map((item) => item.status)).toEqual([
+        'eligible',
+        'eligible',
+        'skipped',
+        'skipped',
+        'skipped',
+        'skipped',
+        'skipped',
+        'eligible',
+        'eligible',
+        'skipped',
+      ]);
+      expect(decisions[0]).toEqual(decisions[1]);
+      expect(decisions[7]).toMatchObject({
+        command: { kind: 'income', amountMinor: 500000, categoryId: null },
+      });
+      expect(decisions[8]).toMatchObject({
+        command: {
+          amountMinor: 2500,
+          accountId: context.defaultAccountId,
+          occurredAt: '2026-10-03T21:00:00.000Z',
+        },
+      });
+      expect(
+        decisions
+          .filter((item) => item.status === 'skipped')
+          .every((item) => Object.keys(item).length === 2),
+      ).toBe(true);
+    },
+  );
+  it('keeps malformed compact items isolated and rejects overflowing/incomplete provider envelopes', () => {
+    const malformed = [
+      compactEvent({ b: 'ACCOUNT-1' }),
+      { ...compactEvent(), reasoning: 'untrusted' },
+      { k: 'expense' },
+    ];
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput(batch([...malformed, compactEvent()])),
+      context,
+    );
+    expect(decisions).toEqual([
+      { status: 'skipped', reason: 'invalid_event' },
+      { status: 'skipped', reason: 'invalid_event' },
+      { status: 'skipped', reason: 'invalid_event' },
+      expect.objectContaining({ status: 'eligible' }),
+    ]);
+    expect(() => parseVoiceBatchProviderOutput(batch(Array(11).fill(compactEvent())))).toThrow(
       'AI_SCHEMA_INVALID',
     );
+    expect(() =>
+      parseVoiceBatchProviderOutput({ ...batch([compactEvent()]), complete: false }),
+    ).toThrow('AI_SCHEMA_INVALID');
   });
   it('never defaults contradictory omission or ambiguous currency evidence', () => {
     expect(

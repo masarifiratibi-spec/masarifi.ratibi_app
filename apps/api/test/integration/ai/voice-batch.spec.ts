@@ -25,6 +25,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
   async function fixture(
     decisions?: (command: Record<string, unknown>) => unknown[],
     thresholds = {},
+    beforeAccept?: (session: string, token: string) => Promise<void>,
   ) {
     const session = randomUUID(),
       token = randomUUID();
@@ -50,6 +51,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       source: 'voice',
       externalRef: null,
     };
+    await beforeAccept?.(session, token);
     const accepted = await pool.query<{ result: { batchId: string } }>(
       'select private.accept_voice_batch($1,$2,$3::jsonb,$4) result',
       [
@@ -259,6 +261,111 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
     expect(required(skipped).transaction_id).toBeNull();
     expect(required(skipped).reason_code).toBe('missing_amount');
     expect(Object.keys(required(skipped))).not.toContain('command');
+  });
+  it.each([10, 8])(
+    'posts %i safe siblings in a ten-event batch once and preserves the exact balance delta',
+    async (eligibleCount) => {
+      const before = required(
+        (
+          await pool.query(
+            'select coalesce((select confirmed_minor from public.account_balances where account_id=$1),0)::text confirmed_minor',
+            [account],
+          )
+        ).rows[0],
+      );
+      const { batch, claim, events } = await fixture((command) => [
+        ...Array.from({ length: eligibleCount }, () => ({ status: 'eligible', command })),
+        ...(eligibleCount === 8
+          ? [
+              { status: 'skipped', reason: 'missing_amount' },
+              { status: 'skipped', reason: 'unsupported_event' },
+            ]
+          : []),
+      ]);
+      expect(events).toHaveLength(10);
+      for (const event of events.filter((item) => item.status === 'eligible')) {
+        await Promise.all(
+          Array.from({ length: 2 }, () =>
+            pool.query('select private.execute_voice_event($1,$2,$3)', [
+              batch,
+              claim.token,
+              event.id,
+            ]),
+          ),
+        );
+      }
+      const refs = events.map((event) => 'voice-event:' + event.id);
+      const transactions = (
+        await pool.query<{ id: string }>(
+          'select id from public.transactions where user_id=$1 and external_ref=any($2)',
+          [user, refs],
+        )
+      ).rows;
+      expect(transactions).toHaveLength(eligibleCount);
+      expect(new Set(transactions.map((row) => row.id)).size).toBe(eligibleCount);
+      const after = required(
+        (
+          await pool.query(
+            'select confirmed_minor from public.account_balances where account_id=$1',
+            [account],
+          )
+        ).rows[0],
+      );
+      expect(Number(after.confirmed_minor) - Number(before.confirmed_minor)).toBe(
+        eligibleCount * 1250,
+      );
+      expect(
+        (
+          await pool.query('select * from private.voice_event_commands where event_id=any($1)', [
+            events.map((event) => event.id),
+          ])
+        ).rows,
+      ).toHaveLength(0);
+      expect(
+        (
+          await pool.query(
+            "select transaction_id from private.voice_events where batch_id=$1 and status='skipped'",
+            [batch],
+          )
+        ).rows,
+      ).toEqual(Array.from({ length: 10 - eligibleCount }, () => ({ transaction_id: null })));
+    },
+  );
+  it('supplies owner account labels and governed currency minor units only for v3', async () => {
+    await fixture(undefined, {}, async (session, token) => {
+      const input = required(
+        (
+          await pool.query<{
+            result: { aliases: { id: string; kind: string; data: Record<string, unknown> }[] };
+          }>('select private.get_ai_work_input($1,$2,$3) result', [
+            'voice.transcribe_extract',
+            session,
+            token,
+          ])
+        ).rows[0],
+      ).result;
+      const accounts = input.aliases.filter((ref) => ref.kind === 'account');
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0]?.id).toBe(account);
+      expect(accounts[0]?.data).toMatchObject({ name: 'Cash', currency: 'SAR', minorUnit: 2 });
+      await pool.query('update public.voice_sessions set contract_version=2 where id=$1', [
+        session,
+      ]);
+      const legacy = required(
+        (
+          await pool.query<{ result: { aliases: { data: Record<string, unknown> }[] } }>(
+            'select private.get_ai_work_input($1,$2,$3) result',
+            ['voice.transcribe_extract', session, token],
+          )
+        ).rows[0],
+      ).result;
+      expect(
+        legacy.aliases.every((ref) => !('name' in ref.data) && !('minorUnit' in ref.data)),
+      ).toBe(true);
+      await pool.query('update public.voice_sessions set contract_version=3 where id=$1', [
+        session,
+      ]);
+    });
   });
   it('cancels remaining items while preserving authoritative committed receipts', async () => {
     const { session, batch, claim, events } = await fixture();

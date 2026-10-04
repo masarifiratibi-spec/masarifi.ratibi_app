@@ -948,8 +948,8 @@ components:
             enum: [uploading, queued, analyzing, finalizing, completed, cancelled, failed],
           }
         transactionIds:
-          { type: array, maxItems: 5, uniqueItems: true, items: { type: string, format: uuid } }
-        addedCount: { type: integer, minimum: 0, maximum: 5 }
+          { type: array, maxItems: 10, uniqueItems: true, items: { type: string, format: uuid } }
+        addedCount: { type: integer, minimum: 0, maximum: 10 }
         ledgerVersion: { type: integer, minimum: 0 }
     CreateVoiceSessionRequest:
       type: object

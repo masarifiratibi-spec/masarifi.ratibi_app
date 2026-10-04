@@ -2,7 +2,7 @@ import {
   VOICE_BATCH_OUTPUT_SCHEMA,
   VOICE_BATCH_PROMPT,
   VOICE_BATCH_POLICY,
-  parseVoiceBatchEnvelope,
+  parseVoiceBatchProviderOutput,
   decideVoiceBatch,
 } from './voice-batch';
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
@@ -544,13 +544,18 @@ export class AiWorker implements OnModuleDestroy {
       throw new Error('VOICE_MEDIA_INVALID', { cause: 'hash_mismatch' });
     if (signal.aborted) throw new Error('AI_WORK_CANCELLED');
     const references = aliasReferences(input.aliases);
-    const descriptors = references.map(({ alias, kind, version, data }) => ({
-      alias,
-      kind,
-      version,
-      data,
-    }));
     const batch = input.contractVersion === 3;
+    const descriptors = references.map(({ alias, kind, version, data }) => {
+      if (batch && kind === 'account' && typeof data.name === 'string') {
+        data = { ...data };
+        try {
+          data.name = redactAiText(assertSafeAiInput(data.name as string));
+        } catch {
+          delete data.name;
+        }
+      }
+      return { alias, kind, version, data };
+    });
     let attemptNo = 0;
     const completion = await this.gateway.complete<unknown>({
       route: batch
@@ -588,7 +593,7 @@ export class AiWorker implements OnModuleDestroy {
         },
       ],
       schema: batch ? VOICE_BATCH_OUTPUT_SCHEMA : VOICE_OUTPUT_SCHEMA,
-      parse: batch ? parseVoiceBatchEnvelope : parseVoiceWorkerOutput,
+      parse: batch ? parseVoiceBatchProviderOutput : parseVoiceWorkerOutput,
       requestId: String(input.operationId),
       signal,
       beforeDispatch: async (candidate) => {

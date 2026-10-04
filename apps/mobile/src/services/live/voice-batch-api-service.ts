@@ -26,8 +26,8 @@ export const voiceBatchResultSchema = z
       'cancelled',
       'failed'
     ]),
-    transactionIds: z.array(z.string().uuid()).max(5),
-    addedCount: z.number().int().min(0).max(5),
+    transactionIds: z.array(z.string().uuid()).max(10),
+    addedCount: z.number().int().min(0).max(10),
     ledgerVersion: z.number().int().nonnegative()
   })
   .strict()
