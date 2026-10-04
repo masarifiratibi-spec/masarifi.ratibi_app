@@ -286,9 +286,13 @@ create function private.retry_voice_event(p_batch uuid,p_token uuid,p_event uuid
 language plpgsql security definer set search_path='' as $$
 declare b private.voice_batches; attempts integer;
 begin
+  select * into b from private.voice_batches where id=p_batch;
+  if not found then return false; end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(b.user_id,0));
+  perform id from public.voice_sessions where id=b.session_id for update;
   select * into b from private.voice_batches where id=p_batch and lease_token=p_token
     and lease_until>clock_timestamp() and status='finalizing' for update;
-  if not found or not (select enabled from private.voice_automatic_policy) then return false; end if;
+  if not found or not (select enabled from private.voice_automatic_policy for share) then return false; end if;
   update private.voice_events set attempt_count=attempt_count+1,next_attempt_at=clock_timestamp()+interval '30 seconds',
     status=case when attempt_count+1>=5 then 'execution_failed' else 'eligible' end,
     completed_at=case when attempt_count+1>=5 then clock_timestamp() else null end

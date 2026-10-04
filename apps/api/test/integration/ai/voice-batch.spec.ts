@@ -149,6 +149,50 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       await pool.query('drop trigger voice_batch_item_fault on public.transactions');
     }
   });
+  it('serializes item retry with the owner cancellation boundary without consuming attempts', async () => {
+    const { session, batch, claim, events } = await fixture();
+    const eventId = required(events[0]).id;
+    await pool.query('update private.voice_events set attempt_count=4 where id=$1', [eventId]);
+    await pool.withClient(async (holder) => {
+      await holder.query('begin');
+      try {
+        await holder.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [user]);
+        await pool.withClient(async (retry) => {
+          await retry.query('begin');
+          try {
+            await retry.query("set local role masarifi_worker; set local lock_timeout='100ms'");
+            await expect(
+              retry.query('select private.retry_voice_event($1,$2,$3)', [
+                batch,
+                claim.token,
+                eventId,
+              ]),
+            ).rejects.toMatchObject({ code: '55P03' });
+          } finally {
+            await retry.query('rollback');
+          }
+        });
+        await holder.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ sub: user }),
+        ]);
+        await holder.query('select private.cancel_voice_session($1,$2)', [user, session]);
+        await holder.query('commit');
+      } finally {
+        await holder.query('rollback');
+      }
+    });
+    expect(
+      (
+        await pool.query('select status,attempt_count from private.voice_events where id=$1', [
+          eventId,
+        ])
+      ).rows[0],
+    ).toMatchObject({ status: 'cancelled', attempt_count: 4 });
+    expect(
+      (await pool.query('select * from private.voice_event_commands where event_id=$1', [eventId]))
+        .rows,
+    ).toHaveLength(0);
+  });
   it('purges v3 unacknowledged uploads at the upload deadline', async () => {
     const session = randomUUID();
     await pool.query(
