@@ -1,3 +1,5 @@
+import { extractExpoPathFromURL } from 'expo-router/build/fork/extractPathFromURL';
+
 export function redirectSystemPath({
   path
 }: {
@@ -22,6 +24,14 @@ export function redirectSystemPath({
       path.split(/[?#]/u)[0].includes('sso-callback')
     )
       return '/';
+  }
+  // Reject malformed encodings before navigation; preserve Router's decoding depth.
+  try {
+    decodeURI(path);
+    extractExpoPathFromURL([], path);
+  } catch (error) {
+    if (error instanceof URIError || error instanceof TypeError) return '/';
+    throw error;
   }
   return path;
 }

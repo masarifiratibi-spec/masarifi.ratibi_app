@@ -21,6 +21,12 @@ export function recordVoiceTiming(
     ...(timings[stage] ?? []).slice(-19),
     Math.round(milliseconds)
   ];
+  if (
+    process.env.EXPO_PUBLIC_VOICE_TIMING_ENABLED === 'true' &&
+    process.env.EXPO_PUBLIC_API_URL ===
+      'https://api.staging.masarifiratibi.com'
+  )
+    console.info('VOICE_TIMING', stage, Math.round(milliseconds));
 }
 export async function measureVoiceTiming<T>(
   stage: VoiceTiming,

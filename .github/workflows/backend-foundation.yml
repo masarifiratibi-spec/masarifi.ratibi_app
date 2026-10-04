@@ -104,6 +104,8 @@ jobs:
       - run: npm run check:frontend-quality
       - run: npx expo prebuild --platform android --no-install
       - run: npx jest --forceExit
+      - name: Verify bounded native deep-link decoder mitigation
+        run: node --test scripts/deep-link-decoder.test.mjs
 
   admin:
     runs-on: ubuntu-24.04
@@ -147,6 +149,14 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --project=${{ matrix.project }}
+      - name: Preserve browser acceptance artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-evidence-${{ matrix.project }}
+          path: apps/admin-web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
 
   database:
     runs-on: ubuntu-24.04
