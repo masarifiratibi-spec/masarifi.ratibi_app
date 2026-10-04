@@ -61,6 +61,14 @@ The first official Supabase run additionally exposed a migration-role error: `RE
 
 The next run successfully applied/reset/linted the migration set, then the existing foundation security test detected the new migration's missing temporary-role revocation. The final migration follows the accepted sequence: keep the migration role for every capability update, reset it, and revoke the self-granted membership. The original pgTAP security assertion remains intact.
 
+With those repairs, official pgTAP passed. Compiled migration application then exposed its separate stale private-object inventory. Its explicit table/function allowlist now includes only the five intended v3 tables and intended capability/wrapper names. The assertion still rejects unexpected objects, and the full idempotent migration inventory test passed locally against the migrated database.
+
+## Inherited dependency security findings
+
+The backend high-severity audit gate passes. An additional Mobile `npm audit --omit=dev` inspection reported 43 high and 22 moderate affected dependency nodes, not 65 distinct advisories. The Mobile dependency manifest and lockfile are identical to the accepted baseline. High root advisories include `braces` stack exhaustion and `node-forge` signature verification; their inspected paths run through the Metro/Jest toolchain and Expo CLI code-signing certificates. This is not evidence that all affected code ships or is reachable in the native Voice flow; runtime/bundle reachability still needs an explicit security disposition before public release. [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [node-forge advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
+
+Neither advisory lists a patched version at inspection time. Do not claim a clean Mobile dependency audit or force incompatible Expo/React Native/Jest upgrades merely to suppress transitive audit labels. This continuation preserves the accepted native/provider stack and records the inherited security gate separately from Voice financial integrity and the scanned backend candidate.
+
 ## Recommended next acceptance (not performed)
 
 After the exact-SHA infrastructure gates pass, first use a controlled non-posting provider probe to settle capacity. Keep the automatic policy disabled. A shadow harness must invoke the accepted Gemini 3.5 Flash-Lite / `google-vertex/global` transport and basic structured schema with the same 60-second M4A, 1,200-token cap, ZDR, reservation and accounting controls. It must not accept a batch or call the ledger finalizer. Since the candidate enforces five, the ten-event probe needs an explicit shadow-only prompt/envelope variant; the normal production bound must not be changed merely to conduct the probe.
