@@ -493,3 +493,4 @@ begin
   return true;
 end $$;
 reset role;
+revoke masarifi_migration from current_user granted by current_user;
