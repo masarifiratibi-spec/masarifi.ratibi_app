@@ -590,14 +590,12 @@ it.each(['stop', 'cancel'] as const)(
       .spyOn(voiceRecorderService, 'getPermission')
       .mockResolvedValue('granted');
     jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
-    jest
-      .spyOn(voiceRecorderService, 'stop')
-      .mockResolvedValue({
-        uri: 'private://hung-' + operation,
-        durationMs: 3000,
-        contentType: 'audio/m4a',
-        recordedAt: Date.now()
-      });
+    jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue({
+      uri: 'private://hung-' + operation,
+      durationMs: 3000,
+      contentType: 'audio/m4a',
+      recordedAt: Date.now()
+    });
     const remove = jest
       .spyOn(voiceRecorderService, 'remove')
       .mockReturnValue(new Promise<void>(() => {}));
@@ -611,14 +609,12 @@ it.each(['stop', 'cancel'] as const)(
     try {
       await act(async () => {});
       act(() =>
-        useVoiceCaptureStore
-          .getState()
-          .patch({
-            recordingId: 'hung-recording',
-            state: operation === 'stop' ? 'recording' : 'failed',
-            audioReference:
-              operation === 'cancel' ? 'private://hung-cancel' : null
-          })
+        useVoiceCaptureStore.getState().patch({
+          recordingId: 'hung-recording',
+          state: operation === 'stop' ? 'recording' : 'failed',
+          audioReference:
+            operation === 'cancel' ? 'private://hung-cancel' : null
+        })
       );
       let settled = false;
       act(() => {
@@ -940,6 +936,203 @@ it('releases a recording that finishes starting after the capture owner unmounts
 
   expect(cancel).toHaveBeenCalled();
   expect(useVoiceCaptureStore.getState().state).not.toBe('recording');
+});
+
+it.each(['denied', 'permanently_denied', 'granted'] as const)(
+  'preserves the %s permission result across the Android permission Activity',
+  async (permission) => {
+    let changed!: (state: AppStateStatus) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        changed = listener;
+        return { remove: jest.fn() };
+      });
+    jest
+      .spyOn(voiceRecorderService, 'getPermission')
+      .mockResolvedValue('denied');
+    let resolvePermission!: (value: typeof permission) => void;
+    jest.spyOn(voiceRecorderService, 'requestPermission').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePermission = resolve;
+        })
+    );
+    const start = jest
+      .spyOn(voiceRecorderService, 'start')
+      .mockResolvedValue({ id: 'permission-capture', startedAt: Date.now() });
+    const cancel = jest
+      .spyOn(voiceRecorderService, 'cancel')
+      .mockResolvedValue();
+    const { result, unmount } = renderVoiceHook('on-demand');
+    let starting!: Promise<void>;
+    try {
+      act(() => {
+        starting = result.current.start();
+      });
+      await waitFor(() =>
+        expect(result.current.session.state).toBe('requesting_permission')
+      );
+      act(() => changed('background'));
+      act(() => changed('active'));
+      await act(async () => {
+        resolvePermission(permission);
+        await starting;
+      });
+      expect(cancel).not.toHaveBeenCalled();
+      if (permission === 'granted') {
+        expect(start).toHaveBeenCalledTimes(1);
+        expect(result.current.session.state).toBe('recording');
+      } else {
+        expect(start).not.toHaveBeenCalled();
+        expect(result.current.session).toMatchObject({
+          state: 'failed',
+          errorCode:
+            permission === 'denied'
+              ? 'permission_denied'
+              : 'permission_permanent'
+        });
+      }
+    } finally {
+      unmount();
+    }
+  }
+);
+
+it.each(['denied', 'permanently_denied'] as const)(
+  'keeps the %s error visible when the permission result precedes Activity resume',
+  async (permission) => {
+    let changed!: (state: AppStateStatus) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        changed = listener;
+        return { remove: jest.fn() };
+      });
+    jest
+      .spyOn(voiceRecorderService, 'getPermission')
+      .mockResolvedValue(permission);
+    let resolvePermission!: (value: typeof permission) => void;
+    jest.spyOn(voiceRecorderService, 'requestPermission').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePermission = resolve;
+        })
+    );
+    const start = jest.spyOn(voiceRecorderService, 'start');
+    const { result, unmount } = renderVoiceHook('on-demand');
+    let starting!: Promise<void>;
+    try {
+      act(() => {
+        starting = result.current.start();
+      });
+      await waitFor(() =>
+        expect(result.current.session.state).toBe('requesting_permission')
+      );
+      act(() => changed('background'));
+      await act(async () => {
+        resolvePermission(permission);
+        await starting;
+      });
+      await act(async () => changed('active'));
+      expect(start).not.toHaveBeenCalled();
+      expect(result.current.session).toMatchObject({
+        state: 'failed',
+        errorCode:
+          permission === 'denied' ? 'permission_denied' : 'permission_permanent'
+      });
+    } finally {
+      unmount();
+    }
+  }
+);
+
+it('waits for foreground when permission resolves before the Android Activity resumes', async () => {
+  const listeners: ((state: AppStateStatus) => void)[] = [];
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((_type, listener) => {
+      listeners.push(listener);
+      return { remove: jest.fn() };
+    });
+  jest.spyOn(voiceRecorderService, 'getPermission').mockResolvedValue('denied');
+  let grant!: () => void;
+  jest.spyOn(voiceRecorderService, 'requestPermission').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        grant = () => resolve('granted');
+      })
+  );
+  const start = jest
+    .spyOn(voiceRecorderService, 'start')
+    .mockResolvedValue({ id: 'foreground-permission', startedAt: Date.now() });
+  const { result, unmount } = renderVoiceHook('on-demand');
+  let starting!: Promise<void>;
+  try {
+    act(() => {
+      starting = result.current.start();
+    });
+    await waitFor(() =>
+      expect(result.current.session.state).toBe('requesting_permission')
+    );
+    act(() => listeners.forEach((listener) => listener('background')));
+    await act(async () => grant());
+    expect(start).not.toHaveBeenCalled();
+    await act(async () => {
+      listeners.forEach((listener) => listener('active'));
+      await starting;
+    });
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(result.current.session.state).toBe('recording');
+  } finally {
+    unmount();
+  }
+});
+
+it('releases a granted permission start if the app stays backgrounded', async () => {
+  const listeners: ((state: AppStateStatus) => void)[] = [];
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((_type, listener) => {
+      listeners.push(listener);
+      return { remove: jest.fn() };
+    });
+  jest.spyOn(voiceRecorderService, 'getPermission').mockResolvedValue('denied');
+  let grant!: () => void;
+  jest.spyOn(voiceRecorderService, 'requestPermission').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        grant = () => resolve('granted');
+      })
+  );
+  const start = jest.spyOn(voiceRecorderService, 'start');
+  const { result, unmount } = renderVoiceHook('on-demand');
+  let starting!: Promise<void>;
+  try {
+    act(() => {
+      starting = result.current.start();
+    });
+    await waitFor(() =>
+      expect(result.current.session.state).toBe('requesting_permission')
+    );
+    act(() => listeners.forEach((listener) => listener('background')));
+    jest.useFakeTimers();
+    await act(async () => grant());
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+      await starting;
+    });
+    expect(start).not.toHaveBeenCalled();
+    expect(result.current.session).toMatchObject({
+      state: 'ready',
+      permission: 'granted'
+    });
+    act(() => listeners.forEach((listener) => listener('active')));
+    expect(start).not.toHaveBeenCalled();
+  } finally {
+    unmount();
+    jest.useRealTimers();
+  }
 });
 
 it('cancels recording and reports interruption when the app backgrounds', async () => {

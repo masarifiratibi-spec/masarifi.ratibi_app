@@ -174,7 +174,10 @@ function useOwnedVoiceCapture() {
         const permission = await voiceRecorderService.getPermission();
         if (!valid(attempt)) return undefined;
         const current = useVoiceCaptureStore.getState();
-        if (canRefreshPermissionState(current.state, current.errorCode)) {
+        if (
+          canRefreshPermissionState(current.state, current.errorCode) &&
+          !(current.state === 'failed' && permission !== 'granted')
+        ) {
           current.patch({
             permission,
             state: permission === 'granted' ? 'ready' : 'permission_required'
@@ -202,9 +205,17 @@ function useOwnedVoiceCapture() {
 
   const requestPermission = async () => {
     const attempt = snapshot();
+    recordVoiceDiagnostic('permission', {
+      traceId: captureTrace.current ?? undefined,
+      phase: 'start'
+    });
     try {
       const permission = await voiceRecorderService.requestPermission();
       if (!valid(attempt)) return undefined;
+      recordVoiceDiagnostic('permission', {
+        traceId: captureTrace.current ?? undefined,
+        phase: permission === 'granted' ? 'success' : 'failure'
+      });
       session.patch({ permission });
       if (permission === 'granted') session.transition('ready');
       else
@@ -219,6 +230,25 @@ function useOwnedVoiceCapture() {
       fail(error, attempt);
       return undefined;
     }
+  };
+
+  const waitForForeground = async (): Promise<boolean> => {
+    if (foreground.current) return true;
+    // Android's permission Activity can resolve before our Activity resumes.
+    // Wait for that lifecycle event, without starting audio in the background.
+    return new Promise((resolve) => {
+      const subscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active') {
+          clearTimeout(timeout);
+          subscription.remove();
+          resolve(true);
+        }
+      });
+      const timeout = setTimeout(() => {
+        subscription.remove();
+        resolve(false);
+      }, 5000);
+    });
   };
 
   const start = async () => {
@@ -268,7 +298,12 @@ function useOwnedVoiceCapture() {
         if ((await requestPermission()) !== 'granted' || !valid(attempt))
           return;
       }
-      if (AppState.currentState === 'background') return;
+      if (
+        !(await waitForForeground()) ||
+        !valid(attempt) ||
+        !foreground.current
+      )
+        return;
       session.transition('preparing');
       const prepareTime = performance.now();
       const recording = await voiceRecorderService.start();
@@ -648,6 +683,11 @@ function useOwnedVoiceCapture() {
     const subscription = AppState.addEventListener('change', (state) => {
       foreground.current = state === 'active';
       const current = useVoiceCaptureStore.getState();
+      recordVoiceDiagnostic('ui-state', {
+        traceId: captureTrace.current ?? undefined,
+        recordingId: current.recordingId ?? undefined,
+        phase: state
+      });
       if (
         state === 'active' &&
         canRefreshPermissionState(current.state, current.errorCode)
@@ -658,9 +698,7 @@ function useOwnedVoiceCapture() {
         void resumeTransport.current?.();
       } else if (
         state === 'background' &&
-        ['recording', 'preparing', 'requesting_permission'].includes(
-          current.state
-        )
+        ['recording', 'preparing'].includes(current.state)
       )
         void cancelRecording('recording_interrupted');
       else if (

@@ -30,6 +30,9 @@ interface VoiceDiagnosticDetails {
   status?: number;
 }
 const phases = new Set([
+  'active',
+  'inactive',
+  'background',
   'start',
   'success',
   'failure',
