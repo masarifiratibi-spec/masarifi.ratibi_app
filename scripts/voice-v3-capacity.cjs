@@ -7,7 +7,7 @@ const { createRequire } = require("node:module");
 const root = "/app/dist/src";
 const load = createRequire(path.join(root, "ai/ai.worker.js"));
 const sha =
-  process.env.MASARIFI_CAPACITY_CANDIDATE_SHA ||
+  process.env.VOICE_CAPACITY_CANDIDATE_SHA ||
   "397677423b9336722bc9af2405f1a5b1d7b3a623";
 assert.match(sha, /^[a-f0-9]{40}$/);
 const ownerPin =
