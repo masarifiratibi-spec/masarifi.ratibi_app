@@ -61,6 +61,8 @@ function mapped(error: unknown): Error {
     error && typeof error === 'object' && 'message' in error
       ? String(Reflect.get(error, 'message'))
       : '';
+  if (message === 'VOICE_AUTOMATIC_UNAVAILABLE')
+    return new HttpException({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' }, 503);
   if (/NOT_FOUND/.test(message)) return new HttpException({ code: message }, 404);
   if (/EXPIRED/.test(message)) return new HttpException({ code: message }, 410);
   if (/CONFLICT|FENCE|IN_PROGRESS|REUSED/.test(message))

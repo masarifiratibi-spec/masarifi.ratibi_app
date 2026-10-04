@@ -1,6 +1,40 @@
-import { safeError } from '../../../src/platform/http/safe-exception.filter';
+import { HttpException, type ArgumentsHost } from '@nestjs/common';
+import { safeError, SafeExceptionFilter } from '../../../src/platform/http/safe-exception.filter';
 
 describe('safeError', () => {
+  it.each([
+    [503, 'VOICE_AUTOMATIC_UNAVAILABLE', 'Voice is unavailable'],
+    [500, 'INTERNAL_ERROR', 'Internal server error'],
+  ])(
+    'allowlists definitive Voice unavailability only at status %i without SQL details',
+    (status, code, message) => {
+      let envelope: unknown;
+      const response = {
+        status: () => response,
+        json: (value: unknown) => {
+          envelope = value;
+        },
+      };
+      const host = {
+        switchToHttp: () => ({
+          getRequest: () => ({ path: '/api/v1/voice/sessions', requestId: 'voice-request' }),
+          getResponse: () => response,
+        }),
+      } as unknown as ArgumentsHost;
+      new SafeExceptionFilter().catch(
+        new HttpException(
+          {
+            code: 'VOICE_AUTOMATIC_UNAVAILABLE',
+            message: 'SQL private.secret',
+            detail: 'must not leak',
+          },
+          status,
+        ),
+        host,
+      );
+      expect(envelope).toEqual({ code, message, requestId: 'voice-request' });
+    },
+  );
   it('maps internal errors to a stable bounded envelope', () => {
     const result = safeError(500, 'req-123');
 

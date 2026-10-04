@@ -53,6 +53,11 @@ paths:
         '409': { $ref: '#/components/responses/AiConflict' }
         '422': { $ref: '#/components/responses/AiValidationError' }
         '429': { $ref: '#/components/responses/QuotaError' }
+        '503':
+          description: VOICE_AUTOMATIC_UNAVAILABLE is a definitive pre-create rejection for a new v3 operation. Generic AI_UNAVAILABLE or other 503 replies remain uncertain and must reconcile the original create identity. Existing idempotent create receipts replay before the automatic gate.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/v1/voice/sessions/{sessionId}:
     get:
       tags: [Voice]

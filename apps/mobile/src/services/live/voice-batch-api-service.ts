@@ -137,6 +137,26 @@ export function createVoiceBatchApi(options: {
         await check(b);
         if ([400, 403, 404, 410, 422].includes(response.status))
           throw new VoiceBatchRequestRejected('analysis_failed');
+        if (
+          method === 'POST' &&
+          path === '/api/v1/voice/sessions' &&
+          response.status === 503
+        ) {
+          let value: unknown;
+          try {
+            value = await response.json();
+          } catch {
+            // A missing or malformed response cannot prove creation was rejected.
+          }
+          await check(b);
+          if (
+            value &&
+            typeof value === 'object' &&
+            'code' in value &&
+            value.code === 'VOICE_AUTOMATIC_UNAVAILABLE'
+          )
+            throw new VoiceBatchRequestRejected('analysis_failed');
+        }
         if (!response.ok)
           throw new VoiceCaptureError(
             response.status === 401 ? 'session_expired' : 'offline'
@@ -218,14 +238,20 @@ export function createVoiceBatchApi(options: {
   ) => {
     // Without a durably recorded session, upload/process cannot have been dispatched.
     // A lost create response may leave an expiring upload slot, but cannot post money.
-    if (operation.audioReference && options.removeAudio)
-      await options.removeAudio(operation.audioReference);
-    await update(b, operation, {
+    const retired = await update(b, operation, {
       phase,
-      audioReference: null,
       createBody: null,
       processBody: null
     });
+    if (!retired.audioReference || !options.removeAudio) return;
+    await check(b);
+    try {
+      await options.removeAudio(retired.audioReference);
+    } catch {
+      // Terminality is durable; retain ownership solely for cleanup retry.
+      return;
+    }
+    await update(b, retired, { audioReference: null });
   };
   const submit = async (id: string) => {
     const b = await binding();
@@ -234,6 +260,11 @@ export function createVoiceBatchApi(options: {
     );
     await check(b);
     if (!operation) throw new VoiceCaptureError('analysis_failed');
+    if (terminal(operation.phase) && !operation.sessionId) {
+      const phase = operation.phase === 'cancelled' ? 'cancelled' : 'failed';
+      await retireLocal(b, operation, phase);
+      throw new VoiceBatchLocalTerminalError(phase);
+    }
     if (
       !operation.sessionId &&
       (operation.phase === 'cancel_requested' ||
@@ -435,13 +466,20 @@ export function createVoiceBatchApi(options: {
           .map((operation) => operation.id)
       );
       // Return a recovery snapshot promptly; long polling never hides cancellation controls.
-      for (const operation of local.filter((row) => !terminal(row.phase)))
+      for (const operation of local.filter(
+        (row) =>
+          !terminal(row.phase) ||
+          (!row.sessionId && Boolean(row.audioReference))
+      ))
         void runBatch(operation.id).then(
           () => {
             if (epoch === b.epoch) recoveryFailures.delete(operation.id);
           },
-          () => {
-            if (epoch === b.epoch) recoveryFailures.add(operation.id);
+          (error: unknown) => {
+            if (epoch !== b.epoch) return;
+            if (error instanceof VoiceBatchLocalTerminalError)
+              recoveryFailures.delete(operation.id);
+            else recoveryFailures.add(operation.id);
           }
         );
       const values: VoiceBatchResult[] = [];
@@ -506,7 +544,9 @@ export function createVoiceBatchApi(options: {
         results: [
           ...new Map(values.map((value) => [value.sessionId, value])).values()
         ],
-        uncertain: remaining.some((value) => recoveryFailures.has(value.id)),
+        uncertain: remaining.some(
+          (value) => !terminal(value.phase) && recoveryFailures.has(value.id)
+        ),
         pendingIds: remaining
           .filter((row) => !terminal(row.phase))
           .map((row) => row.id),

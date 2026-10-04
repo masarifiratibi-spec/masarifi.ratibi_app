@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { AiRepository } from '../../../src/ai/ai.repository';
+import { HttpException } from '@nestjs/common';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 function required<T>(value: T | undefined): T {
@@ -21,6 +22,86 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
   });
   afterAll(async () => {
     await pool.onModuleDestroy();
+  });
+  it('returns a definitive gate-off rejection with no create effects, and replays accepted create before the gate', async () => {
+    const repository = new AiRepository(pool);
+    const principal = { userId: user, sessionId: 'voice-local-session', factorAgeSeconds: 0 };
+    const input = {
+      locale: 'en',
+      durationMs: 3000,
+      contentType: 'audio/m4a',
+      sizeBytes: 100,
+      contentHash: 'a'.repeat(64),
+      recordedAt: new Date().toISOString(),
+      timezoneOffsetMinutes: -180,
+    };
+    const automatic = { maxAuthAge: 300, thresholds: {} };
+    const before = (
+      await pool.query('select count(*) sessions from public.voice_sessions where user_id=$1', [
+        user,
+      ])
+    ).rows[0];
+    await pool.query('update private.voice_automatic_policy set enabled=false');
+    try {
+      let rejection: unknown;
+      try {
+        await repository.createVoiceSession(
+          principal,
+          input,
+          'voice-disabled-create',
+          300,
+          automatic,
+        );
+      } catch (error) {
+        rejection = error;
+      }
+      expect(rejection).toBeInstanceOf(HttpException);
+      expect((rejection as HttpException).getStatus()).toBe(503);
+      expect((rejection as HttpException).getResponse()).toEqual({
+        code: 'VOICE_AUTOMATIC_UNAVAILABLE',
+      });
+      expect(
+        (
+          await pool.query('select count(*) sessions from public.voice_sessions where user_id=$1', [
+            user,
+          ])
+        ).rows[0],
+      ).toEqual(before);
+      expect(
+        (await pool.query('select * from private.voice_batch_context where user_id=$1', [user]))
+          .rows,
+      ).toHaveLength(0);
+      expect(
+        (await pool.query('select * from public.transactions where user_id=$1', [user])).rows,
+      ).toHaveLength(0);
+      expect(
+        (
+          await pool.query(
+            'select p.* from public.transaction_postings p join public.transactions t on t.id=p.transaction_id where t.user_id=$1',
+            [user],
+          )
+        ).rows,
+      ).toHaveLength(0);
+      await pool.query('update private.voice_automatic_policy set enabled=true');
+      const accepted = await repository.createVoiceSession(
+        principal,
+        input,
+        'voice-accepted-create',
+        300,
+        automatic,
+      );
+      await pool.query('update private.voice_automatic_policy set enabled=false');
+      const replay = await repository.createVoiceSession(
+        principal,
+        input,
+        'voice-accepted-create',
+        300,
+        automatic,
+      );
+      expect(replay).toEqual({ ...accepted, replayed: true });
+    } finally {
+      await pool.query('update private.voice_automatic_policy set enabled=true');
+    }
   });
   async function fixture(
     decisions?: (command: Record<string, unknown>) => unknown[],

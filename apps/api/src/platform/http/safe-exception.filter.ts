@@ -141,6 +141,7 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   AI_CONSENT_POLICY_STALE: { status: 409, message: 'Assistant consent policy changed' },
   AI_ACTION_CONFLICT: { status: 409, message: 'AI action changed' },
   AI_UNAVAILABLE: { status: 503, message: 'AI is unavailable' },
+  VOICE_AUTOMATIC_UNAVAILABLE: { status: 503, message: 'Voice is unavailable' },
   AI_TEMPORARILY_UNAVAILABLE: { status: 503, message: 'AI is temporarily unavailable' },
   AI_QUOTA_EXCEEDED: { status: 429, message: 'AI request quota is exhausted' },
   IMPORT_QUOTA_EXCEEDED: { status: 429, message: 'Import quota is exhausted' },
