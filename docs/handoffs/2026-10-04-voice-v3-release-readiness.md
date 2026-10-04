@@ -67,6 +67,10 @@ An additional retry/cancellation race regression failed because retry metadata d
 
 The full integration-to-end-to-end sequence also caught two fault-injection helper functions left behind by tests. Their cleanup now removes both triggers and helper functions. The strict production inventory is unchanged; a reproduced dirty-inventory failure passes after rerunning the full Voice integration selection followed by migration application.
 
+## Performance fixture cleanup
+
+The full CI run exposed an inherited AI load-fixture race: the plan test inserts and rolls back a million usage rows, then immediately times quota admission before autovacuum necessarily reclaims them. Quota p95 reached 377 ms against the unchanged 300 ms gate, with all 2,677 functional checks passing. A local post-rollback query traversed 50,806 buffers for ten live usage rows and took 537 ms. The runner now explicitly vacuums/analyzes its three discarded plan-fixture tables before measuring admission. The million-row plan/index checks, workload, budgets, locks, accounting and latency/error thresholds remain unchanged. Official exact-SHA CI must verify this harness repair; the local full fixture rerun encountered disk exhaustion and is not acceptance evidence.
+
 ## Inherited dependency security findings
 
 The backend high-severity audit gate passes. An additional Mobile `npm audit --omit=dev` inspection reported 43 high and 22 moderate affected dependency nodes, not 65 distinct advisories. The Mobile dependency manifest and lockfile are identical to the accepted baseline. High root advisories include `braces` stack exhaustion and `node-forge` signature verification; their inspected paths run through the Metro/Jest toolchain and Expo CLI code-signing certificates. This is not evidence that all affected code ships or is reachable in the native Voice flow; runtime/bundle reachability still needs an explicit security disposition before public release. [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [node-forge advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
