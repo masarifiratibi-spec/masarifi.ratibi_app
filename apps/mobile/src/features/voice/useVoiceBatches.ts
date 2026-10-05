@@ -7,6 +7,7 @@ import {
   type VoiceBatchResult
 } from '@/services/live/voice-batch-api-service';
 import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
+import { voiceAnalysisKey } from './voice-analysis-query';
 const terminal = (status: string) =>
   ['completed', 'cancelled', 'failed'].includes(status);
 
@@ -37,6 +38,42 @@ export function useVoiceBatches(owner: string | null) {
     generation.current++;
   }, []);
   const client = useQueryClient();
+  useEffect(() => {
+    const scrub = (value: VoiceBatchResult): VoiceBatchResult =>
+      value.analysis &&
+      Date.parse(value.analysis.expiresAt) <= Date.now() &&
+      value.analysis.events.length
+        ? { ...value, analysis: { ...value.analysis, events: [] } }
+        : value;
+    const retireExpired = () => {
+      for (const [id, row] of receipts.current)
+        receipts.current.set(id, scrub(row));
+      setResults((previous) => previous.map(scrub));
+      if (owner)
+        client.setQueryData(
+          voiceAnalysisKey(owner),
+          [...receipts.current.values()]
+            .filter((row) => row.analysis)
+            .slice(-20)
+        );
+    };
+    const expired = results.some((row) => scrub(row) !== row);
+    if (expired) {
+      retireExpired();
+      return;
+    }
+    const expiry = Math.min(
+      ...results
+        .filter((row) => row.analysis?.events.length)
+        .map((row) => Date.parse(row.analysis!.expiresAt))
+    );
+    if (!Number.isFinite(expiry)) return;
+    const timer = setTimeout(
+      retireExpired,
+      Math.max(1, expiry - Date.now() + 1)
+    );
+    return () => clearTimeout(timer);
+  }, [results, owner, client]);
   const publish = useCallback(
     (result: VoiceBatchResult, expectedGeneration: number) => {
       if (!mounted.current || expectedGeneration !== generation.current) return;
@@ -48,6 +85,13 @@ export function useVoiceBatches(owner: string | null) {
       )
         return;
       receipts.current.set(result.sessionId, result);
+      if (ownerRef.current)
+        client.setQueryData(
+          voiceAnalysisKey(ownerRef.current),
+          [...receipts.current.values()]
+            .filter((row) => row.analysis)
+            .slice(-20)
+        );
       if (terminal(result.status)) {
         for (const [id, session] of Object.entries(localSessions.current))
           if (session === result.sessionId) settled.current.add(id);
@@ -120,6 +164,7 @@ export function useVoiceBatches(owner: string | null) {
     receipts.current.clear();
     localSessions.current = {};
     seen.current.clear();
+    client.removeQueries({ queryKey: voiceAnalysisKey(owner) });
     void recover();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') void recover();
@@ -135,8 +180,9 @@ export function useVoiceBatches(owner: string | null) {
       clearInterval(timer);
       subscription.remove();
       voiceAnalyzerService.pauseBatches?.();
+      client.removeQueries({ queryKey: voiceAnalysisKey(owner) });
     };
-  }, [owner, recover, invalidateGeneration]);
+  }, [owner, recover, invalidateGeneration, client]);
   const submit = (id: string) => {
     const expected = generation.current;
     active.current.add(id);

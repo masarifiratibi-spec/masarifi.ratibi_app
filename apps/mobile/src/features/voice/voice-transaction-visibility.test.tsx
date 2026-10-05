@@ -29,6 +29,7 @@ import {
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { useVoiceBatches } from './useVoiceBatches';
+import { useAppShellStore } from '@/state/app-shell';
 
 // Only external receipts/reads and unused recording controls are replaced.
 // The batch hook, query invalidation, queries and both rendered screens are real.
@@ -174,6 +175,85 @@ beforeEach(() => {
     pauseBatches: () => undefined
   });
 });
+
+it.each(['en', 'ar'] as const)(
+  'shows a real nonposting receipt on both screens in %s without inventing a saved row',
+  async (locale) => {
+    changeLocale(locale);
+    usePreferenceStore.setState({
+      locale,
+      direction: locale === 'ar' ? 'rtl' : 'ltr'
+    });
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'diagnostic-owner',
+        method: 'phone',
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + 600000,
+        restoration: 'restored'
+      }
+    });
+    jest
+      .mocked(coreFinanceService.getHomeSummary)
+      .mockResolvedValue(summary([]));
+    jest
+      .mocked(coreFinanceService.listTransactions)
+      .mockResolvedValue({ items: [], nextCursor: null });
+    Object.assign(voiceAnalyzerService, {
+      runBatch: async () => ({
+        ...completed,
+        transactionIds: [],
+        addedCount: 0,
+        ledgerVersion: 0,
+        analysis: {
+          mode: 'analysis_only',
+          persisted: false,
+          expiresAt: new Date(Date.now() + 900000).toISOString(),
+          events: [
+            {
+              ordinal: 0,
+              kind: 'expense',
+              amountMinor: 2500,
+              currency: 'SAR',
+              accountId: fixtureAccounts[0]!.id,
+              categoryId: null,
+              title: 'Unsaved voice breakfast',
+              merchant: null,
+              occurredAt: new Date().toISOString()
+            }
+          ]
+        }
+      })
+    });
+    const view = mount();
+    try {
+      await waitFor(() =>
+        expect(screen.getByTestId('home-horizon')).toBeTruthy()
+      );
+      await act(async () => view.batches.submit(capture));
+      await waitFor(() =>
+        expect(screen.getAllByText('Unsaved voice breakfast')).toHaveLength(2)
+      );
+      expect(
+        within(screen.getByTestId('diagnostic-transactions')).getByText(
+          'Unsaved voice breakfast'
+        )
+      ).toBeTruthy();
+      expect(
+        screen.queryByTestId(`home-transaction-row-${transactionId}`)
+      ).toBeNull();
+      expect(
+        screen.getAllByText(
+          locale === 'en' ? 'Analyzed — not saved' : 'تم التحليل — لم يتم الحفظ'
+        )
+      ).toHaveLength(2);
+    } finally {
+      view.close();
+      useAppShellStore.setState({ session: null });
+    }
+  }
+);
 
 it('shows an acknowledged voice transaction on Home and Transactions without refresh', async () => {
   let items: Transaction[] = [];

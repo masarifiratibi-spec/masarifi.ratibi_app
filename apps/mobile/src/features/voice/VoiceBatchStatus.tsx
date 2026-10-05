@@ -34,7 +34,9 @@ export function VoiceBatchStatus({
           {translateDynamic('voice.batch.added', { count: result.addedCount })}
         </StyledText>
       ) : null}
-      {result?.status === 'completed' && result.addedCount === 0 ? (
+      {result?.status === 'completed' &&
+      result.addedCount === 0 &&
+      !result.analysis ? (
         <StyledText>{translate('voice.batch.empty')}</StyledText>
       ) : null}
       {result?.status === 'failed' || batches.localFailure ? (

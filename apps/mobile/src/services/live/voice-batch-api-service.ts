@@ -29,13 +29,44 @@ export const voiceBatchResultSchema = z
     ]),
     transactionIds: z.array(z.string().uuid()).max(10),
     addedCount: z.number().int().min(0).max(10),
-    ledgerVersion: z.number().int().nonnegative()
+    ledgerVersion: z.number().int().nonnegative(),
+    analysis: z
+      .object({
+        mode: z.literal('analysis_only'),
+        persisted: z.literal(false),
+        expiresAt: z.string().datetime({ offset: true }),
+        events: z
+          .array(
+            z
+              .object({
+                ordinal: z.number().int().min(0).max(9),
+                kind: z.enum(['expense', 'income']),
+                amountMinor: z.number().int().positive().safe(),
+                currency: z.string().regex(/^[A-Z]{3}$/),
+                accountId: z.string().uuid(),
+                categoryId: z.string().uuid().nullable(),
+                title: z.string().min(1).max(40),
+                merchant: z.string().max(40).nullable(),
+                occurredAt: z.string().datetime({ offset: true })
+              })
+              .strict()
+          )
+          .max(10)
+      })
+      .strict()
+      .optional()
   })
   .strict()
   .refine(
     (value) =>
       value.addedCount === value.transactionIds.length &&
-      new Set(value.transactionIds).size === value.addedCount
+      new Set(value.transactionIds).size === value.addedCount &&
+      (!value.analysis ||
+        (value.status === 'completed' &&
+          value.addedCount === 0 &&
+          value.ledgerVersion === 0 &&
+          new Set(value.analysis.events.map((event) => event.ordinal)).size ===
+            value.analysis.events.length))
   );
 export type VoiceBatchResult = z.infer<typeof voiceBatchResultSchema>;
 export class VoiceBatchLocalTerminalError extends VoiceCaptureError {
@@ -712,6 +743,8 @@ export function createVoiceBatchApi(options: {
     },
     pauseBatches() {
       epoch++;
+      // A new UI runtime must rediscover still-visible terminal receipts.
+      discoveryCursor = null;
       for (const controller of controllers) controller.abort();
       controllers.clear();
     }

@@ -153,6 +153,7 @@ export class AiService {
           ? {
               maxAuthAge: this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
               thresholds: this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS') ?? {},
+              ...(this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') ? { analysisOnly: true } : {}),
             }
           : undefined,
       ),
@@ -289,6 +290,7 @@ export class AiService {
         transactionIds: row.transactionIds,
         addedCount: row.addedCount,
         ledgerVersion: row.ledgerVersion,
+        ...(row.analysis ? { analysis: row.analysis } : {}),
       };
     }
     return {

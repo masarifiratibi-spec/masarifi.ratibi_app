@@ -57,6 +57,7 @@ const applicationKeys = new Set([
   'MASARIFI_PRIVACY_HANDLER_MANIFEST',
   'OPENROUTER_API_KEY',
   'MASARIFI_AI_PROVIDER_ENABLED',
+  'MASARIFI_VOICE_ANALYSIS_ONLY',
   'MASARIFI_AI_WORKER_POLL_MS',
   'MASARIFI_AI_JOB_BATCH_SIZE',
   'MASARIFI_AI_LEASE_SECONDS',
@@ -297,6 +298,7 @@ const schema = Joi.object<PlatformEnvironment>({
     .optional(),
   OPENROUTER_API_KEY: Joi.string().trim().min(24).max(512).optional(),
   MASARIFI_AI_PROVIDER_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_VOICE_ANALYSIS_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_AI_WORKER_POLL_MS: Joi.number().integer().min(100).max(10_000).default(500),
   MASARIFI_AI_JOB_BATCH_SIZE: Joi.number().integer().min(1).max(25).default(25),
   MASARIFI_AI_LEASE_SECONDS: Joi.number().integer().min(10).max(300).default(120),
@@ -556,6 +558,12 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
+  if (
+    environment.MASARIFI_VOICE_ANALYSIS_ONLY &&
+    environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
+  ) {
+    invalidEnvironment(['MASARIFI_VOICE_ANALYSIS_ONLY']);
+  }
   if (
     environment.NODE_ENV === 'production' &&
     environment.MASARIFI_ENGAGEMENT_PROVIDER_MODE === 'deterministic'

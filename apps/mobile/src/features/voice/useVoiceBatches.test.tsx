@@ -15,6 +15,7 @@ import type {
 import { translate } from '@/localization/i18n';
 import { VoiceBatchStatus } from './VoiceBatchStatus';
 import { useVoiceBatches } from './useVoiceBatches';
+import { voiceAnalysisKey } from './voice-analysis-query';
 
 jest.mock('@/services/voice-analyzer-service', () => ({
   voiceAnalyzerService: {}
@@ -52,6 +53,7 @@ function mount() {
     </QueryClientProvider>
   );
   return {
+    client,
     get batches() {
       return batches;
     },
@@ -61,6 +63,61 @@ function mount() {
     }
   };
 }
+
+it('scrubs expired analysis fields from hook state and shared cache', async () => {
+  jest.useFakeTimers();
+  const expiresAt = new Date(Date.now() + 1000).toISOString();
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: async () => ({
+      results: [
+        {
+          ...receipt('completed'),
+          analysis: {
+            mode: 'analysis_only',
+            persisted: false,
+            expiresAt,
+            events: [
+              {
+                ordinal: 0,
+                kind: 'expense',
+                amountMinor: 2500,
+                currency: 'SAR',
+                accountId: capture,
+                categoryId: null,
+                title: 'Private breakfast',
+                merchant: null,
+                occurredAt: new Date().toISOString()
+              }
+            ]
+          }
+        }
+      ],
+      pendingIds: [],
+      uncertain: false,
+      localFailure: false
+    }),
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(view.batches.latest?.analysis?.events).toHaveLength(1);
+    await act(async () => {
+      jest.advanceTimersByTime(1001);
+    });
+    expect(view.batches.latest?.analysis?.events).toEqual([]);
+    expect(
+      view.client.getQueryData<
+        import('@/services/live/voice-batch-api-service').VoiceBatchResult[]
+      >(voiceAnalysisKey('fixture-owner'))?.[0]?.analysis?.events
+    ).toEqual([]);
+  } finally {
+    view.unmount();
+    jest.useRealTimers();
+  }
+});
 
 it('ignores an older recovery snapshot arriving after a terminal submit receipt', async () => {
   let finishRecovery!: (

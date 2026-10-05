@@ -65,6 +65,7 @@ export interface PlatformEnvironment {
   MASARIFI_PRIVACY_HANDLER_MANIFEST?: readonly string[];
   OPENROUTER_API_KEY?: string;
   MASARIFI_AI_PROVIDER_ENABLED: boolean;
+  MASARIFI_VOICE_ANALYSIS_ONLY: boolean;
   MASARIFI_AI_WORKER_POLL_MS: number;
   MASARIFI_AI_JOB_BATCH_SIZE: number;
   MASARIFI_AI_LEASE_SECONDS: number;

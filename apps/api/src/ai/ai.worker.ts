@@ -374,6 +374,11 @@ export class AiWorker implements OnModuleDestroy {
     this.running = true;
     this.abortController = new AbortController();
     try {
+      if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')) {
+        await this.runJob('voice.transcribe_extract');
+        await this.runJob('voice-media.purge');
+        return;
+      }
       for (const job of [
         'voice.transcribe_extract',
         'assistant.respond',
@@ -399,6 +404,11 @@ export class AiWorker implements OnModuleDestroy {
       | 'ai.reconcile'
       | 'financial-insights.generate',
   ): Promise<number> {
+    if (
+      this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') &&
+      !['voice.transcribe_extract', 'voice-media.purge'].includes(job)
+    )
+      throw new Error('VOICE_ANALYSIS_JOB_FORBIDDEN');
     const limit = this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE');
     if (['voice.transcribe_extract', 'assistant.respond', 'ai.evaluate_route'].includes(job))
       return this.config.getRequired('MASARIFI_AI_PROVIDER_ENABLED')
@@ -419,12 +429,13 @@ export class AiWorker implements OnModuleDestroy {
 
   private async processKind(kind: AiWorkClaim['kind']): Promise<number> {
     const concurrency = this.config.getRequired('MASARIFI_AI_MAX_CONCURRENCY');
-    const claims = await this.repository.claimWork(
-      kind,
-      this.workerId(),
-      Math.min(concurrency, this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE')),
-      this.config.getRequired('MASARIFI_AI_LEASE_SECONDS'),
-    );
+    const limit = Math.min(concurrency, this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'));
+    const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
+    const claims = this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+      ? kind === 'voice.transcribe_extract'
+        ? await this.repository.claimAnalysisWork(this.workerId(), limit, lease)
+        : []
+      : await this.repository.claimWork(kind, this.workerId(), limit, lease);
     for (let offset = 0; offset < claims.length; offset += concurrency)
       await Promise.all(
         claims.slice(offset, offset + concurrency).map((claim) => this.process(claim)),
@@ -713,11 +724,11 @@ export class AiWorker implements OnModuleDestroy {
   }
 
   private async purge(): Promise<number> {
-    const claims = await this.repository.claimPurges(
-      this.workerId(),
-      this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'),
-      this.config.getRequired('MASARIFI_AI_LEASE_SECONDS'),
-    );
+    const limit = this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE');
+    const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
+    const claims = this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+      ? await this.repository.claimAnalysisPurges(this.workerId(), limit, lease)
+      : await this.repository.claimPurges(this.workerId(), limit, lease);
     for (const claim of claims) {
       try {
         await this.storage.delete(claim.storage_ref);

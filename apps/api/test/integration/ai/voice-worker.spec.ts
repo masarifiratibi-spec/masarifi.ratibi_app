@@ -135,7 +135,7 @@ describe('voice transcription worker', () => {
               }) as Record<string, unknown>
             )[name],
         ),
-        get: jest.fn(() => 'voice-worker'),
+        get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
       };
       await new AiWorker(
         repository as never,
@@ -224,7 +224,7 @@ describe('voice transcription worker', () => {
             }) as Record<string, unknown>
           )[name],
       ),
-      get: jest.fn(() => 'voice-worker'),
+      get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
     };
     await new AiWorker(
       repository as never,
@@ -330,7 +330,7 @@ describe('voice transcription worker', () => {
               MASARIFI_AI_MAX_CONCURRENCY: 1,
             })[name as 'MASARIFI_AI_PROVIDER_ENABLED'],
         ),
-        get: jest.fn(() => 'voice-worker'),
+        get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
       };
 
       await new AiWorker(
@@ -420,7 +420,7 @@ describe('voice transcription worker', () => {
             }) as Record<string, unknown>
           )[name],
       ),
-      get: jest.fn(() => 'voice-worker'),
+      get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
     };
     const worker = new AiWorker(
       repository as never,

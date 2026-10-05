@@ -1101,6 +1101,11 @@ const ar: MessageCatalog = {
   'voice.action.checkResult': 'التحقق من نتيجة التأكيد',
   'voice.action.cancel': 'إلغاء',
   'voice.batch.added': 'تمت إضافة {{count}} معاملات.',
+  'voice.analysis.unsaved': 'تم التحليل — لم يتم الحفظ',
+  'voice.analysis.noPosting':
+    'تحليل تجريبي فقط. لم تُحفظ معاملات ولم تتغير الأرصدة.',
+  'voice.analysis.expense': 'مصروف',
+  'voice.analysis.income': 'دخل',
   'voice.batch.empty': 'لم تتم إضافة أي معاملات.',
   'voice.batch.failed': 'تعذر إكمال بعض المعالجة.',
   'voice.batch.checking': 'جارٍ التحقق من النتيجة…',

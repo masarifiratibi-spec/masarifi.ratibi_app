@@ -1124,6 +1124,11 @@ const en = {
   'voice.action.checkResult': 'Check confirmation result',
   'voice.action.cancel': 'Cancel',
   'voice.batch.added': 'Added {{count}} transactions.',
+  'voice.analysis.unsaved': 'Analyzed — not saved',
+  'voice.analysis.noPosting':
+    'Staging analysis only. No transactions saved; balances unchanged.',
+  'voice.analysis.expense': 'Expense',
+  'voice.analysis.income': 'Income',
   'voice.batch.empty': 'No transactions were added.',
   'voice.batch.failed': 'Some processing could not finish.',
   'voice.batch.checking': 'Checking the result…',

@@ -1,4 +1,5 @@
 import { VoiceBatchStatus } from '@/features/voice/VoiceBatchStatus';
+import { VoiceAnalysisResults } from '@/features/voice/VoiceAnalysisResults';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -470,6 +471,7 @@ export function HomeSummary({
             showProgress={!batchProcessing}
           />
         ) : null}
+        <VoiceAnalysisResults />
         {voiceError ? (
           <SurfaceCard
             testID="home-voice-error-card"

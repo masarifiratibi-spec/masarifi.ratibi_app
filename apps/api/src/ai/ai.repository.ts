@@ -113,19 +113,27 @@ export class AiRepository {
     input: Record<string, unknown>,
     key: string,
     uploadSeconds = 300,
-    automatic?: { maxAuthAge: number; thresholds: Record<string, number> },
+    automatic?: { maxAuthAge: number; thresholds: Record<string, number>; analysisOnly?: boolean },
   ) {
     return this.idempotent(
       principal,
       'ai.voice-session.create',
       key,
-      automatic ? { ...input, contractVersion: 3 } : input,
+      automatic
+        ? {
+            ...input,
+            contractVersion: 3,
+            ...(automatic.analysisOnly ? { analysisOnly: true } : {}),
+          }
+        : input,
       201,
       async (client, operationId) =>
         automatic
           ? this.json(
               client,
-              'select private.create_voice_session_v3($1,$2::jsonb,$3::uuid,$4,$5,$6,$7::jsonb) result',
+              automatic.analysisOnly
+                ? 'select private.create_voice_analysis_session($1,$2::jsonb,$3::uuid,$4,$5,$6,$7::jsonb) result'
+                : 'select private.create_voice_session_v3($1,$2::jsonb,$3::uuid,$4,$5,$6,$7::jsonb) result',
               [
                 principal.userId,
                 JSON.stringify(input),
@@ -866,6 +874,29 @@ export class AiRepository {
             limit,
             leaseSeconds,
           ])
+        ).rows,
+    );
+  }
+
+  claimAnalysisWork(workerId: string, limit: number, leaseSeconds: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<AiWorkClaim>(
+            'select * from private.claim_voice_analysis_work($1,$2,$3)',
+            [workerId, limit, leaseSeconds],
+          )
+        ).rows,
+    );
+  }
+  claimAnalysisPurges(workerId: string, limit: number, leaseSeconds: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<VoicePurgeClaim>(
+            'select * from private.claim_voice_analysis_purge($1,$2,$3)',
+            [workerId, limit, leaseSeconds],
+          )
         ).rows,
     );
   }

@@ -49,6 +49,38 @@ it('durably queues separate captures without waiting for upload or provider proc
   });
 });
 
+it('rediscovers an unexpired terminal receipt after the same owner resumes a new runtime', async () => {
+  jest.mocked(loadVoiceBatches).mockResolvedValue([]);
+  const value = {
+    sessionId: '55555555-5555-4555-8555-555555555555',
+    batchId: null,
+    status: 'completed',
+    transactionIds: [],
+    addedCount: 0,
+    ledgerVersion: 0,
+    createdAt: '2026-10-05T00:00:00.000Z'
+  };
+  const request = jest.fn(
+    async (url: string | URL | Request) =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: String(url).includes('?after=') ? [] : [value]
+        })
+      }) as Response
+  );
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    request: request as typeof fetch
+  });
+  expect((await api.recoverBatches()).results).toHaveLength(1);
+  api.pauseBatches();
+  expect((await api.recoverBatches()).results).toHaveLength(1);
+});
+
 it('keeps unresolved local transport visible even when server recovery returns no batches', async () => {
   jest.mocked(loadVoiceBatches).mockResolvedValue([
     {

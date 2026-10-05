@@ -66,6 +66,7 @@ import {
   type TransactionGroupedPosition
 } from './transaction-sections';
 import { CategoryFilterPicker } from './CategoryFilterPicker';
+import { VoiceAnalysisResults } from '@/features/voice/VoiceAnalysisResults';
 
 type LedgerRow =
   | { kind: 'header'; key: string; label: string }
@@ -324,6 +325,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       contentContainerStyle={styles.content}
       ListHeaderComponent={
         <View style={styles.header}>
+          <VoiceAnalysisResults />
           <View
             testID="transactions-page-header"
             style={[

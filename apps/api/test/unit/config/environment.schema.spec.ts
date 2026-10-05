@@ -26,6 +26,25 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('allows analysis-only exclusively on the pinned Staging Supabase origin', () => {
+    expect(
+      validateEnvironment({
+        ...valid,
+        SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+        MASARIFI_VOICE_ANALYSIS_ONLY: true,
+      }),
+    ).toMatchObject({ MASARIFI_VOICE_ANALYSIS_ONLY: true });
+    expect(() => validateEnvironment({ ...valid, MASARIFI_VOICE_ANALYSIS_ONLY: true })).toThrow(
+      'MASARIFI_VOICE_ANALYSIS_ONLY',
+    );
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        SUPABASE_URL: 'https://production.supabase.co',
+        MASARIFI_VOICE_ANALYSIS_ONLY: true,
+      }),
+    ).toThrow('MASARIFI_VOICE_ANALYSIS_ONLY');
+  });
   it('accepts the minimum valid API environment', () => {
     expect(validateEnvironment(valid)).toMatchObject({
       NODE_ENV: 'test',
