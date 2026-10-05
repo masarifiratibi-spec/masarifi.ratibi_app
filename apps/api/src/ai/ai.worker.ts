@@ -352,7 +352,7 @@ export class AiWorker implements OnModuleDestroy {
         recordAiJob('ai.worker', 'failure');
       });
     }, this.config.getRequired('MASARIFI_AI_WORKER_POLL_MS'));
-    this.timer.unref();
+    if (!this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')) this.timer.unref();
     void this.runOnce().catch(() => {
       recordAiJob('ai.worker', 'failure');
     });
