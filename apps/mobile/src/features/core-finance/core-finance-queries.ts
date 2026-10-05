@@ -159,8 +159,12 @@ export async function invalidateCoreFinanceScopes(
   scopes: readonly string[]
 ): Promise<void> {
   await Promise.all(
-    scopes.map((scope) =>
-      client.invalidateQueries({ queryKey: scopeToKey(scope) })
-    )
+    scopes.map(async (scope) => {
+      const queryKey = scopeToKey(scope);
+      // An initial fetch has no cached data, so invalidation alone can join a
+      // pre-mutation read and let its stale response clear the invalidation.
+      await client.cancelQueries({ queryKey });
+      await client.invalidateQueries({ queryKey });
+    })
   );
 }
