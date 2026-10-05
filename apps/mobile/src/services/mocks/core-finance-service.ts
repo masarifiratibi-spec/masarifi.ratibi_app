@@ -817,18 +817,31 @@ function coreFinanceError(error: unknown): CoreFinanceError {
   if (error instanceof CoreFinanceError) return error;
   if (error instanceof ZodError) return new CoreFinanceError('validation');
   if (!(error instanceof HttpError)) return new CoreFinanceError('unknown');
+  const metadata = {
+    domainCode: error.domainCode,
+    status: error.status,
+    requestId: error.requestId,
+    uncertain:
+      ['provider_unavailable', 'internal_error', 'contract_mismatch'].includes(
+        error.code
+      ) ||
+      error.domainCode === 'IDEMPOTENCY_IN_PROGRESS' ||
+      error.domainCode === 'LEDGER_BUSY'
+  };
   if (error.code === 'validation_error')
-    return new CoreFinanceError('validation');
-  if (error.code === 'not_found') return new CoreFinanceError('not_found');
-  if (error.code === 'conflict') return new CoreFinanceError('conflict');
-  if (error.code === 'gone') return new CoreFinanceError('expired');
+    return new CoreFinanceError('validation', metadata);
+  if (error.code === 'not_found')
+    return new CoreFinanceError('not_found', metadata);
+  if (error.code === 'conflict')
+    return new CoreFinanceError('conflict', metadata);
+  if (error.code === 'gone') return new CoreFinanceError('expired', metadata);
   if (
     error.code === 'provider_unavailable' ||
     error.code === 'session_expired' ||
     error.code === 'rate_limited'
   )
-    return new CoreFinanceError('offline');
-  return new CoreFinanceError('unknown');
+    return new CoreFinanceError('offline', metadata);
+  return new CoreFinanceError('unknown', metadata);
 }
 
 export function createProductionCoreFinanceService(locale: Locale = 'ar') {

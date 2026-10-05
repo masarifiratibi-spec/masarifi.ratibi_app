@@ -81,13 +81,13 @@ const transaction = (): Transaction =>
     status: 'posted'
   });
 const summary = (items: Transaction[]): HomeSummary => ({
-  totalBalanceMinor: 0,
+  totalBalanceMinor: items.length ? -2500 : 0,
   currencyCode: 'SAR',
   isEstimated: false,
   components: [],
   excludedAccountIds: [],
   periodIncomeMinor: 0,
-  periodExpenseMinor: 0,
+  periodExpenseMinor: items.length ? 2500 : 0,
   activeAccountCount: 1,
   recentTransactions: items,
   reviewCount: 0,
@@ -255,7 +255,7 @@ it.each(['en', 'ar'] as const)(
   }
 );
 
-it('shows an acknowledged voice transaction on Home and Transactions without refresh', async () => {
+it('renders a financial receipt only through normal saved components without refresh or duplicate representation', async () => {
   let items: Transaction[] = [];
   jest
     .mocked(coreFinanceService.getHomeSummary)
@@ -271,6 +271,10 @@ it('shows an acknowledged voice transaction on Home and Transactions without ref
     await waitFor(() =>
       expect(coreFinanceService.listTransactions).toHaveBeenCalled()
     );
+    expect(
+      screen.queryByTestId(`home-transaction-row-${transactionId}`)
+    ).toBeNull();
+    expect(completed.analysis).toBeUndefined();
     items = [transaction()];
     await act(async () => view.batches.submit(capture));
     await waitFor(() =>
@@ -298,6 +302,26 @@ it('shows an acknowledged voice transaction on Home and Transactions without ref
     });
     await act(async () => view.batches.recover());
     expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(reads);
+    expect(
+      screen.getAllByTestId(`home-transaction-row-${transactionId}`)
+    ).toHaveLength(1);
+    expect(
+      within(screen.getByTestId('diagnostic-transactions')).getAllByText(
+        'Diagnostic voice breakfast'
+      )
+    ).toHaveLength(1);
+    expect(screen.queryByText('Analyzed — not saved')).toBeNull();
+    expect(screen.queryByText('Review')).toBeNull();
+    expect(screen.queryByText('Confirm')).toBeNull();
+    const refreshed = view.client.getQueriesData<HomeSummary>({
+      queryKey: ['core-finance', 'home']
+    });
+    expect(
+      refreshed.some(
+        ([, data]) =>
+          data?.totalBalanceMinor === -2500 && data?.periodExpenseMinor === 2500
+      )
+    ).toBe(true);
   } finally {
     view.close();
   }
@@ -386,6 +410,12 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
       expect(coreFinanceService.getHomeSummary).toHaveBeenCalledTimes(
         homeReads
       );
+      expect(screen.queryByText('Analyzed — not saved')).toBeNull();
+      expect(
+        view.client
+          .getQueriesData({ queryKey: ['core-finance', 'transactions'] })
+          .every(([, data]) => !JSON.stringify(data).includes(transactionId))
+      ).toBe(true);
       expect(
         outcome === 'admission-rejected'
           ? view.batches.localFailure

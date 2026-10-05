@@ -33,12 +33,14 @@ export function CategorySelectionScreen({
   allowClear = false,
   excludedIds,
   selectedId,
+  financialType,
   onBack,
   onSelect
 }: {
   allowClear?: boolean;
   excludedIds: readonly string[];
   selectedId?: string;
+  financialType?: 'expense' | 'income';
   onBack: () => void;
   onSelect: (categoryId: string | null) => void;
 }) {
@@ -62,7 +64,9 @@ export function CategorySelectionScreen({
       ((categories.data ?? []) as Category[])
         .filter(
           (category) =>
-            category.status === 'active' && !excludedIds.includes(category.id)
+            category.status === 'active' &&
+            !excludedIds.includes(category.id) &&
+            (!financialType || category.financialType === financialType)
         )
         .map((category) =>
           projectCategory(
@@ -73,7 +77,7 @@ export function CategorySelectionScreen({
         )
         .filter((category) => matchesCategorySearch(category, search))
         .sort((a, b) => a.label.localeCompare(b.label)),
-    [byId, categories.data, excludedIds, locale, search]
+    [byId, categories.data, excludedIds, financialType, locale, search]
   );
   const favorite = filtered.filter(({ category }) => category.isFavorite);
   const other = filtered.filter(({ category }) => !category.isFavorite);

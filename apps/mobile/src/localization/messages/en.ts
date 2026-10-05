@@ -564,6 +564,25 @@ const en = {
   'coreFinance.action.retry': 'Try again',
   'coreFinance.action.expense': 'Add expense',
   'coreFinance.action.income': 'Add income',
+  'coreFinance.manual.uncertain':
+    'The save outcome is unknown. Retry to check the same submission.',
+  'coreFinance.manual.savedRefresh':
+    'Saved. Retry to refresh the list and finish cleanup.',
+  'coreFinance.manual.reconcile':
+    'This saved draft needs reconciliation before another submission.',
+  'coreFinance.manual.category':
+    'Choose an active category matching Expense or Income.',
+  'coreFinance.manual.account':
+    'Choose an active account with the transaction currency.',
+  'coreFinance.manual.auth': 'Sign in again before saving.',
+  'coreFinance.manual.rateLimit': 'Too many attempts. Try again later.',
+  'coreFinance.validation.amount':
+    'Enter a positive amount with valid grouping and currency precision.',
+  'coreFinance.manual.title':
+    'Use a description of at most 160 characters without control characters.',
+  'coreFinance.manual.note':
+    'Use a note of at most 500 characters without control characters.',
+  'coreFinance.manual.date': 'Choose a valid date on or before today.',
   'coreFinance.action.transfer': 'Transfer',
   'coreFinance.action.voice': 'Voice entry',
   'coreFinance.action.obligation': 'Pay obligation',

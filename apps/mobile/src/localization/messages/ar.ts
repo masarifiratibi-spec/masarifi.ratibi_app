@@ -547,6 +547,22 @@ const ar: MessageCatalog = {
   'coreFinance.action.retry': 'حاول مرة أخرى',
   'coreFinance.action.expense': 'إضافة مصروف',
   'coreFinance.action.income': 'إضافة دخل',
+  'coreFinance.manual.uncertain':
+    'نتيجة الحفظ غير معروفة. أعد المحاولة للتحقق من نفس العملية.',
+  'coreFinance.manual.savedRefresh':
+    'تم الحفظ. أعد المحاولة لتحديث القائمة وإكمال التنظيف.',
+  'coreFinance.manual.reconcile':
+    'تحتاج هذه المسودة إلى التحقق قبل إرسال عملية أخرى.',
+  'coreFinance.manual.category': 'اختر فئة نشطة متوافقة مع المصروف أو الدخل.',
+  'coreFinance.manual.account': 'اختر حسابًا نشطًا بنفس عملة المعاملة.',
+  'coreFinance.manual.auth': 'سجّل الدخول مجددًا قبل الحفظ.',
+  'coreFinance.manual.rateLimit': 'محاولات كثيرة. حاول مرة أخرى لاحقًا.',
+  'coreFinance.validation.amount':
+    'أدخل مبلغًا موجبًا بفواصل ودقة عشرية صحيحة للعملة.',
+  'coreFinance.manual.title':
+    'استخدم وصفًا لا يتجاوز 160 حرفًا دون محارف تحكم.',
+  'coreFinance.manual.note': 'استخدم ملاحظة لا تتجاوز 500 حرف دون محارف تحكم.',
+  'coreFinance.manual.date': 'اختر تاريخًا صحيحًا لا يتجاوز اليوم.',
   'coreFinance.action.transfer': 'تحويل',
   'coreFinance.action.voice': 'إدخال صوتي',
   'coreFinance.action.obligation': 'سداد التزام',

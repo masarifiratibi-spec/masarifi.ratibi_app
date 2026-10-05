@@ -53,6 +53,14 @@ export class CoreFinanceRepository {
   private cleanupLegacyFixtures: boolean;
   private replaceEmptyDefaultLedger: boolean;
 
+  private expectedUserId?: string;
+
+  bindOwner(userId: string): void {
+    if (this.expectedUserId && this.expectedUserId !== userId)
+      throw new Error('stale repository owner');
+    this.expectedUserId = userId;
+  }
+
   constructor(seed: CoreFinanceSeed = {}) {
     this.seed = copy(seed);
     this.accounts = seed.accounts?.map(accountWithTrackingDefault) ?? [];
@@ -111,7 +119,7 @@ export class CoreFinanceRepository {
     const seededAccounts = this.accounts.map(copy);
     const seededCategories = this.categories.map(copy);
     const seededTransactions = this.transactions.map(copy);
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     const [
       accounts,
       categories,
@@ -247,7 +255,7 @@ export class CoreFinanceRepository {
   }
 
   async persistAll(): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       await transaction.execAsync(
         'PRAGMA defer_foreign_keys = ON; DELETE FROM finance_sync_conflicts; DELETE FROM finance_corrections; DELETE FROM finance_transactions; DELETE FROM finance_drafts; DELETE FROM finance_categories; DELETE FROM finance_accounts;'
@@ -266,7 +274,7 @@ export class CoreFinanceRepository {
   }
 
   async persistAccounts(): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       for (const account of this.accounts)
         await persistAccount(transaction, account);
@@ -278,7 +286,7 @@ export class CoreFinanceRepository {
     database?: SQLiteDatabase
   ): Promise<void> {
     await runExclusiveDatabaseTransaction(
-      database ?? (await openDatabase()),
+      database ?? (await openDatabase(this.expectedUserId)),
       async (transaction) => persistCategory(transaction, category)
     );
   }
@@ -288,7 +296,7 @@ export class CoreFinanceRepository {
   ): Promise<Category[]> {
     let categories: Category[] = [];
     await runExclusiveDatabaseTransaction(
-      database ?? (await openDatabase()),
+      database ?? (await openDatabase(this.expectedUserId)),
       async (transaction) => {
         categories = parseRows<Category>(
           await transaction.getAllAsync<{ payload: string }>(
@@ -305,7 +313,7 @@ export class CoreFinanceRepository {
     database?: SQLiteDatabase
   ): Promise<void> {
     await runExclusiveDatabaseTransaction(
-      database ?? (await openDatabase()),
+      database ?? (await openDatabase(this.expectedUserId)),
       async (transaction) => {
         await transaction.execAsync('PRAGMA defer_foreign_keys = ON;');
         const pending = new Set(
@@ -326,7 +334,7 @@ export class CoreFinanceRepository {
     transaction: Transaction,
     operationId?: string
   ): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     if (!operationId) return persistTransaction(database, transaction);
     await runExclusiveDatabaseTransaction(
       database,
@@ -338,7 +346,7 @@ export class CoreFinanceRepository {
   }
 
   async persistDraft(draft: TransactionDraft): Promise<void> {
-    await persistDraft(await openDatabase(), draft);
+    await persistDraft(await openDatabase(this.expectedUserId), draft);
   }
 
   batchOperationResult(operationId: string): Transaction[] | null {
@@ -350,7 +358,7 @@ export class CoreFinanceRepository {
     operationId: string,
     transactions: readonly Transaction[]
   ): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       for (const item of transactions)
         await persistTransaction(transaction, item);
@@ -361,12 +369,12 @@ export class CoreFinanceRepository {
 
   async removePersistedDraft(id: string): Promise<void> {
     await (
-      await openDatabase()
+      await openDatabase(this.expectedUserId)
     ).runAsync('DELETE FROM finance_drafts WHERE id = ?', id);
   }
 
   async persistCategoryMerge(): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       await transaction.execAsync('PRAGMA defer_foreign_keys = ON;');
       for (const category of this.categories)
@@ -377,7 +385,7 @@ export class CoreFinanceRepository {
   }
 
   async persistConflictResolution(conflictId: string): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     const conflict = this.requireConflict(conflictId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       for (const ledgerEntry of this.transactions)
@@ -387,7 +395,7 @@ export class CoreFinanceRepository {
   }
 
   async persistDelete(transaction: Transaction): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(
       database,
       async (sqliteTransaction) => {
@@ -408,7 +416,7 @@ export class CoreFinanceRepository {
   }
 
   async persistUndo(transaction: Transaction): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(
       database,
       async (sqliteTransaction) => {
@@ -858,7 +866,7 @@ export class CoreFinanceRepository {
         this.saveTransaction(value, undefined, undefined, source)
       );
       if (persistent) {
-        const database = await openDatabase();
+        const database = await openDatabase(this.expectedUserId);
         await runExclusiveDatabaseTransaction(database, async (transaction) => {
           for (const item of created)
             await persistTransaction(transaction, item);
@@ -899,6 +907,9 @@ export class CoreFinanceRepository {
   }
 
   saveDraft(draft: TransactionDraft): TransactionDraft {
+    const prior = this.drafts.get(draft.id);
+    // Late editing autosaves cannot erase a durable submitted operation.
+    if (prior?.submission && draft.submission === undefined) return copy(prior);
     const saved = { ...draft, updatedAt: Date.now() };
     this.drafts.set(saved.id, saved);
     return copy(saved);
@@ -963,7 +974,7 @@ export class CoreFinanceRepository {
   }
 
   async persistConflictRecord(conflict: SyncConflict): Promise<void> {
-    await persistConflict(await openDatabase(), conflict);
+    await persistConflict(await openDatabase(this.expectedUserId), conflict);
   }
 
   requireConflict(id: string): SyncConflict {

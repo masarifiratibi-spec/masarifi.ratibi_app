@@ -15,6 +15,28 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it('retains only allowlisted domain/status/request metadata for actionable finance feedback', async () => {
+    await expect(
+      requestJson('/api/v1/transactions', schema, {
+        baseUrl: 'https://api.example',
+        token: 'fixture',
+        request: jest
+          .fn()
+          .mockResolvedValue(
+            response(409, {
+              code: 'ACCOUNT_NOT_POSTABLE',
+              requestId: 'request-fixture-1',
+              message: 'private contents'
+            })
+          )
+      })
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      status: 409,
+      domainCode: 'ACCOUNT_NOT_POSTABLE',
+      requestId: 'request-fixture-1'
+    });
+  });
   beforeEach(() =>
     configureMobileApiTokenProvider(async () => 'clerk-session')
   );

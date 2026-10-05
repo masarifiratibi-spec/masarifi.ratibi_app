@@ -2,6 +2,8 @@ import {
   emptyTransactionFilters,
   type Transaction
 } from '@/domain/core-finance';
+import { CoreFinanceRepository } from '@/storage/core-finance-repository';
+import * as database from '@/storage/database';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import {
   createLiveCoreFinanceSync,
@@ -39,6 +41,118 @@ const bridge = {
 beforeEach(() => {
   jest.clearAllMocks();
   registerLiveClerkBridge(bridge);
+});
+
+it('coalesces simultaneous explicit operations while allowing identical independent submissions', async () => {
+  let release!: (value: Response) => void;
+  let started!: () => void;
+  const requestStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const reply = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const request = jest.fn().mockImplementation(() => {
+    started();
+    return reply;
+  });
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const input = {
+    type: 'expense' as const,
+    amountMinor: 1000,
+    currencyCode: 'SAR',
+    accountId,
+    categoryId,
+    title: 'Groceries',
+    occurredAt: Date.parse(occurredAt)
+  };
+  const first = service.createTransaction(input, 'operation-a');
+  const duplicate = service.createTransaction(input, 'operation-a');
+  await requestStarted;
+  release(response(mutation(), 201));
+  await expect(first).resolves.toMatchObject({ value: { id: transactionId } });
+  await expect(duplicate).resolves.toMatchObject({
+    value: { id: transactionId }
+  });
+  expect(request).toHaveBeenCalledTimes(1);
+  request.mockResolvedValue(response(mutation(summary(linkedId)), 201));
+  await expect(
+    service.createTransaction(input, 'operation-b')
+  ).resolves.toMatchObject({ value: { id: linkedId } });
+  expect(
+    (request.mock.calls[1][1].headers as Record<string, string>)[
+      'Idempotency-Key'
+    ]
+  ).toBe('operation-b');
+});
+
+it('keeps multiline notes out of the single-line edit audit reason', async () => {
+  const request = jest
+    .fn()
+    .mockImplementation(async (_url, init) =>
+      init.method === 'PATCH'
+        ? response(mutation(summary(transactionId, { note: 'first\nsecond' })))
+        : response(detail())
+    );
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  await service.updateTransaction(transactionId, {
+    type: 'expense',
+    amountMinor: 1000,
+    currencyCode: 'SAR',
+    accountId,
+    categoryId,
+    title: 'Groceries',
+    occurredAt: Date.parse(occurredAt),
+    notes: 'first\nsecond'
+  });
+  const patch = request.mock.calls.find(([, init]) => init.method === 'PATCH')!;
+  expect(JSON.parse(patch[1].body)).toMatchObject({
+    reason: 'Mobile edit',
+    note: 'first\nsecond'
+  });
+});
+
+it('prepares a linked operation again after a failed read before any financial request', async () => {
+  const original = summary(transactionId);
+  const request = jest
+    .fn()
+    .mockRejectedValueOnce(new TypeError('fixture lost read'))
+    .mockImplementation(async (_url, init) =>
+      init.method === 'POST'
+        ? response({
+            ...mutation(summary(linkedId, { kind: 'refund' })),
+            original
+          })
+        : response(detail(original))
+    );
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const input = {
+    type: 'refund' as const,
+    amountMinor: 1000,
+    currencyCode: 'SAR',
+    accountId,
+    categoryId,
+    title: 'Refund',
+    occurredAt: Date.parse(occurredAt),
+    originalTransactionId: transactionId
+  };
+  await expect(
+    service.createTransaction(input, 'refund-operation')
+  ).rejects.toBeDefined();
+  await expect(
+    service.createTransaction(input, 'refund-operation')
+  ).resolves.toBeDefined();
+  const post = request.mock.calls.find(([, init]) => init.method === 'POST')!;
+  expect(JSON.parse(post[1].body).expectedVersion).toBe(2);
 });
 
 const response = (value: unknown, status = 200) =>
@@ -641,6 +755,7 @@ it('uploads ready mutations before bootstrapping and applying owner-scoped delta
 it('replays a live voice batch from its durable operation receipt', async () => {
   let receipt: Transaction[] | null = null;
   const drafts = {
+    bindOwner: jest.fn(),
     hydrate: jest.fn(async () => undefined),
     batchOperationResult: jest.fn(() => receipt),
     persistBatchOperationResult: jest.fn(
@@ -769,6 +884,7 @@ it('maps and resolves BE006 conflicts without exposing keep-both', async () => {
     }
   );
   const drafts = {
+    bindOwner: jest.fn(),
     hydrate: jest.fn(async () => undefined),
     saveConflict: jest.fn(),
     persistConflictRecord: jest.fn(async () => undefined),
@@ -801,4 +917,108 @@ it('maps and resolves BE006 conflicts without exposing keep-both', async () => {
     resolution: 'client',
     payload: { title: 'Client title' }
   });
+});
+
+it('isolates durable drafts after an owner changes without restarting', async () => {
+  const hydrate = jest
+    .spyOn(CoreFinanceRepository.prototype, 'hydrate')
+    .mockResolvedValue(undefined);
+  const opening = jest.spyOn(database, 'openDatabase').mockResolvedValue({
+    runAsync: jest.fn().mockResolvedValue({ changes: 1 })
+  } as never);
+  const service = createLiveLedgerService();
+  const draft = {
+    id: 'manual',
+    transactionType: 'expense' as const,
+    amountText: '50',
+    accountId,
+    destinationAccountId: null,
+    categoryId,
+    merchant: 'A private draft',
+    notes: null,
+    occurredAt: Date.now(),
+    status: 'editing' as const,
+    updatedAt: Date.now()
+  };
+  try {
+    await service.saveDraft(draft);
+    expect(opening).toHaveBeenLastCalledWith('user_owner-a');
+    registerLiveClerkBridge({
+      ...bridge,
+      getSession: async () => ({
+        ...(await bridge.getSession()),
+        id: 'session-b',
+        userId: 'user_owner-b'
+      })
+    });
+    expect(await service.loadDraft('manual')).toBeNull();
+    await service.saveDraft({ ...draft, merchant: 'B private draft' });
+    expect(opening).toHaveBeenLastCalledWith('user_owner-b');
+    registerLiveClerkBridge(bridge);
+    expect(await service.loadDraft('manual')).toMatchObject({
+      merchant: 'A private draft'
+    });
+  } finally {
+    hydrate.mockRestore();
+    opening.mockRestore();
+  }
+});
+
+it('replays a linked refund with its frozen version after recreating the service', async () => {
+  const request = jest
+    .fn()
+    .mockImplementation(async () =>
+      response({ ...mutation(), original: summary(transactionId) }, 201)
+    );
+  const input = {
+    type: 'refund' as const,
+    amountMinor: 100,
+    currencyCode: 'SAR',
+    accountId,
+    title: 'Refund',
+    occurredAt: Date.parse(occurredAt),
+    originalTransactionId: transactionId
+  };
+  await createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  }).createTransaction(input, 'refund-operation', undefined, 1);
+  const first = request.mock.calls[0][1];
+  await createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  }).createTransaction(input, 'refund-operation', undefined, 1);
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(request.mock.calls[1][1].body).toEqual(first.body);
+  expect(JSON.parse(first.body)).toMatchObject({ expectedVersion: 1 });
+});
+
+it('keeps post-acknowledgement session loss uncertain', async () => {
+  const request = jest.fn().mockImplementation(async () => {
+    registerLiveClerkBridge({
+      ...bridge,
+      getSession: async () => ({
+        ...(await bridge.getSession()),
+        id: 'renewed-session'
+      })
+    });
+    return response(mutation(), 201);
+  });
+  await expect(
+    createLiveLedgerService({
+      baseUrl: 'https://api.test',
+      request
+    }).createTransaction(
+      {
+        type: 'expense',
+        amountMinor: 100,
+        currencyCode: 'SAR',
+        accountId,
+        categoryId,
+        title: 'Food',
+        occurredAt: Date.parse(occurredAt)
+      },
+      'uncertain-session'
+    )
+  ).rejects.toMatchObject({ code: 'provider_unavailable' });
 });

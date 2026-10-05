@@ -349,12 +349,29 @@ export function createLiveLedgerService({
   request?: typeof fetch;
   drafts?: CoreFinanceRepository;
 } = {}): LedgerService {
-  let localReady: Promise<void> | null = null;
-  const ensureLocalReady = () => (localReady ??= drafts.hydrate());
+  const ownerRepositories = new Map<
+    string,
+    { repository: CoreFinanceRepository; ready: Promise<void> }
+  >();
+  const ensureLocalReady = async () => {
+    const owner = await captureLiveClerkIdentity();
+    let local = ownerRepositories.get(owner.userId);
+    if (!local) {
+      const repository =
+        ownerRepositories.size === 0 ? drafts : new CoreFinanceRepository();
+      repository.bindOwner(owner.userId);
+      local = { repository, ready: repository.hydrate() };
+      ownerRepositories.set(owner.userId, local);
+    }
+    await local.ready;
+    await owner.assertCurrent();
+    return { ...local, owner };
+  };
   const pending = new Map<
     string,
-    { operationId: string; expectedVersion?: number }
+    { operationId: string; expectedVersion?: number; prepared?: boolean }
   >();
+  const inFlight = new Map<string, Promise<unknown>>();
   const send = async <T>(
     method: string,
     path: string,
@@ -374,7 +391,12 @@ export function createLiveLedgerService({
       token: identity.token,
       headers: operationId ? { 'Idempotency-Key': operationId } : undefined
     });
-    await identity.assertCurrent();
+    try {
+      await identity.assertCurrent();
+    } catch (error) {
+      if (method !== 'GET') throw new HttpError('provider_unavailable', 503);
+      throw error;
+    }
     return value;
   };
   const mutate = async <T>(
@@ -386,27 +408,51 @@ export function createLiveLedgerService({
     }) => Promise<T>,
     operationId?: string
   ): Promise<T> => {
-    let state = pending.get(key);
-    if (!state) {
-      state = { operationId: operationId?.trim() || randomUUID() };
-      state.expectedVersion = await prepare();
-      pending.set(key, state);
-    }
+    const identity = await captureLiveClerkIdentity();
+    const scopedKey = `${identity.userId}:${operationId?.trim() ?? ''}:${key}`;
+    const active = inFlight.get(scopedKey);
+    if (active) return active as Promise<T>;
+    const operation = (async () => {
+      let state = pending.get(scopedKey);
+      if (!state) {
+        state = { operationId: operationId?.trim() || randomUUID() };
+        pending.set(scopedKey, state);
+      }
+      try {
+        if (!state.prepared) {
+          state.expectedVersion = await prepare();
+          state.prepared = true;
+        }
+        await identity.assertCurrent();
+        const value = await command(state);
+        try {
+          await identity.assertCurrent();
+        } catch {
+          throw new HttpError('provider_unavailable', 503);
+        }
+        pending.delete(scopedKey);
+        return value;
+      } catch (error) {
+        if (
+          !(error instanceof HttpError) ||
+          (![
+            'provider_unavailable',
+            'internal_error',
+            'contract_mismatch'
+          ].includes(error.code) &&
+            !['IDEMPOTENCY_IN_PROGRESS', 'LEDGER_BUSY'].includes(
+              error.domainCode ?? ''
+            ))
+        )
+          pending.delete(scopedKey);
+        throw error;
+      }
+    })();
+    inFlight.set(scopedKey, operation);
     try {
-      const value = await command(state);
-      pending.delete(key);
-      return value;
-    } catch (error) {
-      if (
-        !(error instanceof HttpError) ||
-        ![
-          'provider_unavailable',
-          'internal_error',
-          'contract_mismatch'
-        ].includes(error.code)
-      )
-        pending.delete(key);
-      throw error;
+      return await operation;
+    } finally {
+      inFlight.delete(scopedKey);
     }
   };
   const current = (id: string) =>
@@ -471,7 +517,7 @@ export function createLiveLedgerService({
       } while (cursor);
       return Math.max(0, original.amountMinor - refunded);
     },
-    async createTransaction(input, operationId, source) {
+    async createTransaction(input, operationId, source, preparedVersion) {
       const value = transactionInputSchema.parse(input);
       if (value.type === 'transfer') {
         const result = await mutate(
@@ -485,8 +531,8 @@ export function createLiveLedgerService({
       if (value.type === 'refund' || value.type === 'reversal') {
         const originalId = value.originalTransactionId!;
         const result = await mutate(
-          `${value.type}:${originalId}:${JSON.stringify(value)}`,
-          async () => (await current(originalId)).version,
+          `${value.type}:${originalId}:${JSON.stringify(value)}:${preparedVersion ?? ''}`,
+          async () => preparedVersion ?? (await current(originalId)).version,
           async ({ operationId: key, expectedVersion }) => {
             const path =
               value.type === 'refund'
@@ -556,7 +602,7 @@ export function createLiveLedgerService({
       return mutationResult({ ...value, transferPurpose: 'card_payoff' });
     },
     async createTransactionsAtomically(inputs, operationId, source) {
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       const replay = drafts.batchOperationResult(operationId);
       if (replay)
         return {
@@ -648,7 +694,7 @@ export function createLiveLedgerService({
             throw new CoreFinanceError('validation');
           const body: Record<string, unknown> = {
             expectedVersion,
-            reason: next.notes || 'Mobile edit'
+            reason: 'Mobile edit'
           };
           for (const [field, value] of [
             ['amountMinor', next.amountMinor],
@@ -673,19 +719,19 @@ export function createLiveLedgerService({
       return mutationResult(transactionFromDetail(result.transaction));
     },
     async saveDraft(draft: TransactionDraft) {
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       const value = drafts.saveDraft(draftInputSchema.parse(draft));
       await drafts.persistDraft(value);
       return value;
     },
     async loadDraft(id: string) {
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       return drafts.loadDraft(id);
     },
     async discardDraft(id: string) {
-      await ensureLocalReady();
-      drafts.discardDraft(id);
+      const { repository: drafts } = await ensureLocalReady();
       await drafts.removePersistedDraft(id);
+      drafts.discardDraft(id);
     },
     async deleteTransaction(id): Promise<DeleteResult> {
       const prior = await current(id);
@@ -736,7 +782,7 @@ export function createLiveLedgerService({
           request,
           current
         );
-        await ensureLocalReady();
+        const { repository: drafts } = await ensureLocalReady();
         drafts.saveConflict(conflict);
         await drafts.persistConflictRecord(conflict);
         return conflict;
@@ -745,7 +791,7 @@ export function createLiveLedgerService({
           error instanceof HttpError &&
           ['provider_unavailable', 'rate_limited'].includes(error.code)
         ) {
-          await ensureLocalReady();
+          const { repository: drafts } = await ensureLocalReady();
           return drafts.requireConflict(id);
         }
         throw error;
@@ -779,7 +825,7 @@ export function createLiveLedgerService({
         syncStatus: 'synced' as const
       };
       await remote.owner.assertCurrent();
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       drafts.saveConflict(conflict);
       await Promise.all([
         drafts.persistConflictRecord(conflict),

@@ -138,7 +138,8 @@ export interface CoreFinanceService {
   createTransaction(
     input: TransactionInput,
     operationId?: string,
-    source?: Transaction['source']
+    source?: Transaction['source'],
+    preparedVersion?: number
   ): Promise<MutationResult<Transaction>>;
   createCardPayoff(
     input: CardPayoffInput,
@@ -188,7 +189,15 @@ export type CoreFinanceErrorCode =
   | 'unknown';
 
 export class CoreFinanceError extends Error {
-  constructor(public readonly code: CoreFinanceErrorCode) {
+  constructor(
+    public readonly code: CoreFinanceErrorCode,
+    public readonly metadata?: {
+      domainCode?: string;
+      status?: number;
+      requestId?: string;
+      uncertain?: boolean;
+    }
+  ) {
     super(code);
     this.name = 'CoreFinanceError';
   }
