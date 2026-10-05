@@ -1,5 +1,9 @@
 # Paste this into the new engineering chat
 
+Latest state (October 5): first read `2026-10-05-voice-transaction-visibility-delivery.md` completely. It supersedes the historical runtime/task-focus statements below. Fresh ordinary candidate accc78b is installed on Samsung; full CI passed. The controlled missing transaction was rejected at admission because Posting is OFF. An independent receipt/cache race is repaired and verified with a nonposting Samsung fixture. Keep ten-event testing paused and stop before any unapproved financial canary. Full financial voice acceptance remains unverified.
+
+The historical startup prompt follows for earlier context; do not reinstall an older runtime or repeat completed diagnostics from it.
+
 Continue Masarifi Voice v3 processing/accuracy repair and Staging release validation. Perform all analysis, implementation, progress updates and reports in English. Use Superpowers systematic-debugging, executing-plans, test-driven-development and verification-before-completion, plus the Supabase skill for relevant work.
 
 First read both complete files:
