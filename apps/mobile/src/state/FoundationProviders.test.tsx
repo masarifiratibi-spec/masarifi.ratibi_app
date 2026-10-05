@@ -7,6 +7,8 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { resolveTheme } from '@/design-system/theme';
 import { usePreferenceStore } from '@/state/preferences';
 import { FoundationProviders } from './FoundationProviders';
+import { VoiceAnalysisResults } from '@/features/voice/VoiceAnalysisResults';
+import { useAppShellStore } from '@/state/app-shell';
 import {
   resetRuntimeIdentityData,
   resetRuntimeUserData
@@ -173,9 +175,91 @@ it('clears cached user data when runtime user data resets', () => {
   expect(client.getQueryData(['accounts', 'list'])).toBeUndefined();
 });
 
+it('keeps an unsaved voice result visible when switching language without refreshing', () => {
+  usePreferenceStore.setState({
+    hydrated: true,
+    locale: 'en',
+    direction: 'ltr'
+  });
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'voice-owner',
+      method: 'phone',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 600_000,
+      restoration: 'restored'
+    }
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity } }
+  });
+  client.setQueryData(
+    ['voice-analysis', 'voice-owner'],
+    [
+      {
+        sessionId: '11111111-1111-4111-8111-111111111111',
+        batchId: '22222222-2222-4222-8222-222222222222',
+        status: 'completed',
+        addedCount: 0,
+        transactionIds: [],
+        ledgerVersion: 0,
+        analysis: {
+          mode: 'analysis_only',
+          persisted: false,
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          events: [
+            {
+              ordinal: 0,
+              kind: 'expense',
+              amountMinor: 2500,
+              currency: 'SAR',
+              accountId: '33333333-3333-4333-8333-333333333333',
+              categoryId: null,
+              title: 'Breakfast',
+              merchant: null,
+              occurredAt: '2026-10-05T09:00:00.000Z'
+            }
+          ]
+        }
+      }
+    ]
+  );
+  client.setQueryData(['accounts', 'list'], [{ id: 'account-1' }]);
+  render(
+    <FoundationProviders client={client}>
+      <VoiceAnalysisResults />
+    </FoundationProviders>
+  );
+  expect(screen.getByText('Breakfast')).toBeVisible();
+  act(() => {
+    void usePreferenceStore.getState().setLocale('ar');
+  });
+  expect(client.getQueryData(['voice-analysis', 'voice-owner'])).toHaveLength(
+    1
+  );
+  expect(screen.getByText('Breakfast')).toBeVisible();
+  expect(client.getQueryData(['accounts', 'list'])).toBeUndefined();
+  act(() => {
+    void usePreferenceStore.getState().setLocale('en');
+  });
+  expect(screen.getByText('Breakfast')).toBeVisible();
+  act(() => {
+    resetRuntimeUserData();
+  });
+  expect(
+    client.getQueryData(['voice-analysis', 'voice-owner'])
+  ).toBeUndefined();
+  useAppShellStore.setState({ session: null });
+});
+
 it('clears cached user data when the authenticated identity changes', async () => {
   const client = new QueryClient();
   client.setQueryData(['accounts', 'list'], [{ id: 'account-1' }]);
+  client.setQueryData(
+    ['voice-analysis', 'voice-owner'],
+    [{ sessionId: 'session-1' }]
+  );
 
   render(
     <FoundationProviders client={client}>
@@ -186,4 +270,7 @@ it('clears cached user data when the authenticated identity changes', async () =
   await resetRuntimeIdentityData();
 
   expect(client.getQueryData(['accounts', 'list'])).toBeUndefined();
+  expect(
+    client.getQueryData(['voice-analysis', 'voice-owner'])
+  ).toBeUndefined();
 });
