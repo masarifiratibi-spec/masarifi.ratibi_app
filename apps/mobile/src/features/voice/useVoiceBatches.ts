@@ -16,6 +16,7 @@ export function useVoiceBatches(owner: string | null) {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [uncertainIds, setUncertainIds] = useState<string[]>([]);
   const [localFailure, setLocalFailure] = useState(false);
+  const [financeRefreshPending, setFinanceRefreshPending] = useState(false);
   const ownerRef = useRef(owner);
   const generation = useRef(0);
   if (ownerRef.current !== owner) generation.current++;
@@ -28,16 +29,58 @@ export function useVoiceBatches(owner: string | null) {
   const pollingNeeded = useRef(false);
   pollingNeeded.current =
     pendingIds.length > 0 ||
+    financeRefreshPending ||
     uncertainIds.length > 0 ||
     results.some(
       (row) => !['completed', 'cancelled', 'failed'].includes(row.status)
     );
   const mounted = useRef(true);
   const seen = useRef(new Set<string>());
+  const pendingFinance = useRef(new Set<string>());
+  const refreshingFinance = useRef<number | null>(null);
   const invalidateGeneration = useCallback(() => {
     generation.current++;
   }, []);
   const client = useQueryClient();
+  const refreshFinance = useCallback(
+    async (expected: number) => {
+      if (
+        !mounted.current ||
+        expected !== generation.current ||
+        refreshingFinance.current === expected ||
+        !pendingFinance.current.size
+      )
+        return;
+      refreshingFinance.current = expected;
+      const ids = [...pendingFinance.current];
+      try {
+        await invalidateCoreFinanceScopes(
+          client,
+          [
+            'home.summary',
+            'accounts.balances',
+            'transactions.list',
+            'reports.live',
+            'assistant.context'
+          ],
+          true
+        );
+        if (!mounted.current || expected !== generation.current) return;
+        ids.forEach((id) => {
+          seen.current.add(id);
+          pendingFinance.current.delete(id);
+        });
+      } catch {
+        // The receipt is saved; only authoritative finance reads need retrying.
+      } finally {
+        if (refreshingFinance.current === expected)
+          refreshingFinance.current = null;
+        if (mounted.current && expected === generation.current)
+          setFinanceRefreshPending(pendingFinance.current.size > 0);
+      }
+    },
+    [client]
+  );
   useEffect(() => {
     const scrub = (value: VoiceBatchResult): VoiceBatchResult =>
       value.analysis &&
@@ -103,17 +146,13 @@ export function useVoiceBatches(owner: string | null) {
         ].slice(-20)
       );
       const fresh = result.transactionIds.filter((id) => !seen.current.has(id));
-      fresh.forEach((id) => seen.current.add(id));
-      if (fresh.length)
-        void invalidateCoreFinanceScopes(client, [
-          'home.summary',
-          'accounts.balances',
-          'transactions.list',
-          'reports.live',
-          'assistant.context'
-        ]).catch(() => undefined);
+      fresh.forEach((id) => pendingFinance.current.add(id));
+      if (pendingFinance.current.size) {
+        setFinanceRefreshPending(true);
+        void refreshFinance(expectedGeneration);
+      }
     },
-    [client]
+    [client, refreshFinance]
   );
   const recover = useCallback(async () => {
     if (
@@ -125,6 +164,7 @@ export function useVoiceBatches(owner: string | null) {
     const expected = generation.current;
     recovering.current = expected;
     try {
+      await refreshFinance(expected);
       const values = await voiceAnalyzerService.recoverBatches((ids) => {
         if (expected === generation.current && mounted.current)
           setPendingIds(
@@ -152,18 +192,21 @@ export function useVoiceBatches(owner: string | null) {
     } finally {
       if (recovering.current === expected) recovering.current = null;
     }
-  }, [publish]);
+  }, [publish, refreshFinance]);
   useEffect(() => {
     mounted.current = true;
     setResults([]);
     setPendingIds([]);
     setUncertainIds([]);
     setLocalFailure(false);
+    setFinanceRefreshPending(false);
     active.current.clear();
     settled.current.clear();
     receipts.current.clear();
     localSessions.current = {};
     seen.current.clear();
+    pendingFinance.current.clear();
+    refreshingFinance.current = null;
     client.removeQueries({ queryKey: voiceAnalysisKey(owner) });
     void recover();
     const subscription = AppState.addEventListener('change', (state) => {
@@ -284,7 +327,7 @@ export function useVoiceBatches(owner: string | null) {
           .map((row) => row.sessionId)
       ])
     ],
-    uncertain: uncertainIds.length > 0,
+    uncertain: uncertainIds.length > 0 || financeRefreshPending,
     localFailure,
     processing:
       pendingIds.length > 0 ||

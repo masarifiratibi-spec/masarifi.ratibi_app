@@ -29,6 +29,10 @@ import { TransactionForm } from './TransactionForm';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import { transactionInputSchema } from '@/domain/core-finance';
+import {
+  clearManualDiagnostics,
+  readManualDiagnostics
+} from '@/services/platform/manual-diagnostics';
 
 let mockFocusEffectCallback: (() => void) | undefined;
 jest.mock('expo-crypto', () => ({
@@ -83,6 +87,50 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+it('retains the actual Manual failure stage and HTTP correlation after showing the generic banner', async () => {
+  const oldFlag = process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED;
+  const oldUrl = process.env.EXPO_PUBLIC_API_URL;
+  process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  jest
+    .mocked(coreFinanceService.loadDraft)
+    .mockResolvedValue(requiredDraft('50', 'Food'));
+  jest.mocked(coreFinanceService.createTransaction).mockRejectedValue(
+    new CoreFinanceError('unknown', {
+      domainCode: 'FORBIDDEN',
+      status: 403,
+      requestId: '22222222-2222-4222-8222-222222222222',
+      uncertain: false
+    })
+  );
+  try {
+    renderWithQueryData(<TransactionForm />, [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]);
+    await screen.findByDisplayValue('50');
+    fireEvent.press(screen.getByLabelText('Save transaction'));
+    await screen.findByText(translate('coreFinance.validation.invalid'));
+    expect(readManualDiagnostics()).toContainEqual(
+      expect.objectContaining({
+        stage: 'request',
+        failed: true,
+        status: 403,
+        domainCode: 'FORBIDDEN',
+        uncertain: false,
+        requestId: '22222222-2222-4222-8222-222222222222',
+        operationHash: expect.stringMatching(/^[a-f0-9]{16}$/)
+      })
+    );
+  } finally {
+    clearManualDiagnostics();
+    log.mockRestore();
+    process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = oldFlag;
+    process.env.EXPO_PUBLIC_API_URL = oldUrl;
+  }
 });
 
 it('blocks editing after a draft read fails and retries the original unknown operation', async () => {

@@ -176,6 +176,75 @@ beforeEach(() => {
   });
 });
 
+it('retries failed finance reads when recovering the same committed receipt', async () => {
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'diagnostic-owner',
+      method: 'phone',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 600000,
+      restoration: 'restored'
+    }
+  });
+  let saved = false;
+  let unavailable = false;
+  jest
+    .mocked(coreFinanceService.getHomeSummary)
+    .mockImplementation(async () => {
+      if (unavailable) throw new Error('offline read');
+      return summary(saved ? [transaction()] : []);
+    });
+  jest
+    .mocked(coreFinanceService.listTransactions)
+    .mockImplementation(async () => {
+      if (unavailable) throw new Error('offline read');
+      return { items: saved ? [transaction()] : [], nextCursor: null };
+    });
+  const view = mount();
+  try {
+    await waitFor(() =>
+      expect(screen.getByTestId('home-horizon')).toBeTruthy()
+    );
+    saved = true;
+    unavailable = true;
+    await act(async () => view.batches.submit(capture));
+    await waitFor(() =>
+      expect(view.batches.results[0]?.transactionIds).toEqual([transactionId])
+    );
+    await waitFor(() =>
+      expect(
+        view.client
+          .getQueryCache()
+          .findAll({ queryKey: ['core-finance', 'home'] })
+          .some((query) => query.state.status === 'error')
+      ).toBe(true)
+    );
+    unavailable = false;
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => ({
+        results: [completed],
+        pendingIds: [],
+        uncertain: false,
+        localFailure: false
+      })
+    });
+    await act(async () => view.batches.recover());
+    await waitFor(() =>
+      expect(
+        screen.getByTestId(`home-transaction-row-${transactionId}`)
+      ).toBeTruthy()
+    );
+    expect(
+      within(screen.getByTestId('diagnostic-transactions')).getAllByText(
+        'Diagnostic voice breakfast'
+      )
+    ).toHaveLength(1);
+  } finally {
+    view.close();
+  }
+});
+
 it.each(['en', 'ar'] as const)(
   'shows a real nonposting receipt on both screens in %s without inventing a saved row',
   async (locale) => {

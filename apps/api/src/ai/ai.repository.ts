@@ -231,6 +231,40 @@ export class AiRepository {
           )
         ).rows,
     );
+    await this.finalizeVoiceClaims(claims);
+    return claims.length;
+  }
+
+  async finalizeVoiceEpoch(epoch: string, limit: number, bounded = false): Promise<boolean> {
+    if (!bounded)
+      await this.worker(async (client) => {
+        await client.query('select private.expire_staging_voice_commands($1::uuid,$2)', [
+          epoch,
+          limit,
+        ]);
+      });
+    const claims = await this.worker(
+      async (client) =>
+        (
+          await client.query<{ batch_id: string; token: string }>(
+            'select * from private.claim_staging_voice_finalization($1::uuid,$2)',
+            [epoch, limit],
+          )
+        ).rows,
+    );
+    return this.finalizeVoiceClaims(
+      claims,
+      bounded
+        ? () => this.closeVoiceEpoch(epoch, 'execution_failed').then(() => undefined)
+        : undefined,
+    );
+  }
+
+  private async finalizeVoiceClaims(
+    claims: { batch_id: string; token: string }[],
+    stopOnFailure?: () => Promise<void>,
+  ): Promise<boolean> {
+    let failed = false;
     for (const claim of claims) {
       try {
         const events = await this.worker(
@@ -244,11 +278,21 @@ export class AiRepository {
         );
         for (const next of events ?? []) {
           try {
-            await this.workerJson(
+            const receipt = await this.workerJson(
               'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
               [claim.batch_id, claim.token, next.eventId],
             );
+            if (stopOnFailure && receipt.status !== 'committed') {
+              failed = true;
+              await stopOnFailure();
+              break;
+            }
           } catch {
+            if (stopOnFailure) {
+              failed = true;
+              await stopOnFailure();
+              break;
+            }
             await this.worker(async (client) => {
               await client.query('select private.retry_voice_event($1::uuid,$2::uuid,$3::uuid)', [
                 claim.batch_id,
@@ -259,15 +303,53 @@ export class AiRepository {
           }
         }
       } finally {
-        await this.worker(async (client) => {
-          await client.query('select private.retry_voice_finalization($1::uuid,$2::uuid)', [
-            claim.batch_id,
-            claim.token,
-          ]);
-        });
+        if (!failed)
+          await this.worker(async (client) => {
+            await client.query('select private.retry_voice_finalization($1::uuid,$2::uuid)', [
+              claim.batch_id,
+              claim.token,
+            ]);
+          });
       }
+      if (failed) break;
     }
-    return claims.length;
+    return !failed;
+  }
+
+  voiceEpochHeartbeat(epoch: string, workerId: string, sourceSha: string) {
+    return this.workerJson('select private.staging_voice_heartbeat($1::uuid,$2,$3) result', [
+      epoch,
+      workerId,
+      sourceSha,
+    ]);
+  }
+  closeVoiceEpoch(epoch: string, reason: string) {
+    return this.workerJson(
+      "select jsonb_build_object('closed',private.close_staging_voice_epoch($1::uuid,$2)) result",
+      [epoch, reason],
+    );
+  }
+  claimVoiceEpochWork(epoch: string, workerId: string, limit: number, lease: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<AiWorkClaim>(
+            'select * from private.claim_staging_voice_work($1::uuid,$2,$3,$4)',
+            [epoch, workerId, limit, lease],
+          )
+        ).rows,
+    );
+  }
+  claimVoiceEpochPurges(epoch: string, workerId: string, limit: number, lease: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<VoicePurgeClaim>(
+            'select * from private.claim_staging_voice_purge($1::uuid,$2,$3,$4)',
+            [epoch, workerId, limit, lease],
+          )
+        ).rows,
+    );
   }
 
   getVoiceSession(principal: ClerkPrincipal, sessionId: string) {

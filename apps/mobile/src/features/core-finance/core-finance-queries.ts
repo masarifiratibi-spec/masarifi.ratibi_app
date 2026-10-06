@@ -160,15 +160,23 @@ export async function invalidateCoreFinanceScopes(
   requireSuccess = false
 ): Promise<void> {
   await Promise.all(
-    scopes.map(async (scope) => {
-      const queryKey = scopeToKey(scope);
-      // An initial fetch has no cached data, so invalidation alone can join a
-      // pre-mutation read and let its stale response clear the invalidation.
-      await client.cancelQueries({ queryKey });
-      await client.invalidateQueries(
-        { queryKey },
-        { throwOnError: requireSuccess }
-      );
-    })
+    scopes
+      .flatMap((scope) =>
+        scope === 'reports.live'
+          ? [
+              ['reports', 'live'],
+              ['reports', 'net-worth']
+            ]
+          : [scopeToKey(scope)]
+      )
+      .map(async (queryKey) => {
+        // An initial fetch has no cached data, so invalidation alone can join a
+        // pre-mutation read and let its stale response clear the invalidation.
+        await client.cancelQueries({ queryKey });
+        await client.invalidateQueries(
+          { queryKey },
+          { throwOnError: requireSuccess }
+        );
+      })
   );
 }

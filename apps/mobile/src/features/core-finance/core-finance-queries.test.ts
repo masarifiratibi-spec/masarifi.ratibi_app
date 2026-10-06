@@ -1,4 +1,9 @@
-import { coreFinanceKeys, scopeToKey } from './core-finance-queries';
+import {
+  coreFinanceKeys,
+  scopeToKey,
+  invalidateCoreFinanceScopes
+} from './core-finance-queries';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { emptyTransactionFilters } from '@/domain/core-finance';
 
 it('creates stable isolated query keys', () => {
@@ -56,4 +61,30 @@ it('builds selector and conflict detail keys without durable data in Zustand', (
     'conflict',
     'c1'
   ]);
+});
+
+it('refreshes mounted net-worth after a financial receipt without invalidating immutable report attempts', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } }
+  });
+  let netWorth = 0;
+  const key = ['reports', 'net-worth', 'month', 'SAR'];
+  client.setQueryData(key, 0);
+  client.setQueryData(['reports', 'attempt', 'immutable-1'], 'retained');
+  const observer = new QueryObserver(client, {
+    queryKey: key,
+    queryFn: async () => netWorth
+  });
+  const stop = observer.subscribe(() => undefined);
+  try {
+    netWorth = -2500;
+    await invalidateCoreFinanceScopes(client, ['reports.live'], true);
+    expect(client.getQueryData(key)).toBe(-2500);
+    expect(
+      client.getQueryState(['reports', 'attempt', 'immutable-1'])?.isInvalidated
+    ).toBe(false);
+  } finally {
+    stop();
+    client.clear();
+  }
 });

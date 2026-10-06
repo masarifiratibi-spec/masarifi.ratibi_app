@@ -49,6 +49,8 @@ const SAFE_MESSAGES: Record<HttpErrorCode, string> = {
 };
 const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   VALIDATION_FAILED: 'validation_error',
+  AMOUNT_OUT_OF_RANGE: 'validation_error',
+  TRACKING_ACCOUNT_BLOCKED: 'conflict',
   IDEMPOTENCY_KEY_REQUIRED: 'validation_error',
   IDEMPOTENCY_KEY_REUSED: 'conflict',
   IDEMPOTENCY_IN_PROGRESS: 'conflict',
@@ -193,13 +195,15 @@ async function parseError(response: Response): Promise<HttpError> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload))
     return new HttpError('contract_mismatch', response.status);
   const code = Reflect.get(payload, 'code');
-  if (typeof code !== 'string' || !SERVER_CODES[code])
-    return new HttpError('contract_mismatch', response.status);
   const requestId = Reflect.get(payload, 'requestId');
   return new HttpError(
-    SERVER_CODES[code],
+    typeof code === 'string'
+      ? (SERVER_CODES[code] ?? 'contract_mismatch')
+      : 'contract_mismatch',
     response.status,
-    code,
+    typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(code)
+      ? code
+      : undefined,
     typeof requestId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/u.test(requestId)
       ? requestId
       : undefined

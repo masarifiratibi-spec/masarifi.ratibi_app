@@ -1,4 +1,5 @@
-import { HttpException, type ExecutionContext } from '@nestjs/common';
+import { HttpException, Logger, type ExecutionContext } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 
 import type { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
@@ -40,6 +41,40 @@ function context(request: Partial<Request> = {}): ExecutionContext {
 }
 
 describe('ClerkAuthGuard', () => {
+  it('correlates Staging Voice auth using only verified hashes and request identity', async () => {
+    const previous = { ...process.env };
+    process.env.SUPABASE_URL = 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
+    process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+    const info = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    try {
+      const clerk = { authenticateRequest: jest.fn().mockResolvedValue(state()) };
+      const guard = new ClerkAuthGuard(clerk as unknown as ClerkClientService, config);
+      const execution = context({
+        originalUrl: '/api/v1/voice/recovery',
+        headers: {
+          authorization: 'Bearer secret',
+          'x-request-id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        },
+      });
+      await guard.canActivate(execution);
+      expect(info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'voice-auth',
+          requestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          clerkSessionHash: createHash('sha256').update('sess_1').digest('hex'),
+        }),
+      );
+      expect(JSON.stringify(info.mock.calls)).not.toMatch(/user_phone_1|sess_1|Bearer|secret/);
+      info.mockClear();
+      await guard.canActivate(context());
+      process.env.SUPABASE_URL = 'https://another.supabase.co';
+      await guard.canActivate(execution);
+      expect(info).not.toHaveBeenCalled();
+    } finally {
+      process.env = previous;
+      info.mockRestore();
+    }
+  });
   it('uses the official request result and extracts only the verified principal', async () => {
     const clerk = { authenticateRequest: jest.fn().mockResolvedValue(state()) };
     const guard = new ClerkAuthGuard(clerk as unknown as ClerkClientService, config);

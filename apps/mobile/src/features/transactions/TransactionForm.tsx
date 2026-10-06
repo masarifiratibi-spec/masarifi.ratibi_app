@@ -66,6 +66,10 @@ import { TransactionDateField } from './TransactionDateField';
 import { TransactionActions } from './TransactionActions';
 import { MANUAL_TRANSACTION_DRAFT_ID } from './manual-transaction-draft';
 import {
+  recordManualDiagnostic,
+  type ManualDiagnosticStage
+} from '@/services/platform/manual-diagnostics';
+import {
   manualTitle,
   normalizeManualNote,
   parseManualAmount,
@@ -586,6 +590,7 @@ function TransactionFormContent({
     setSaving(true);
     let preparationPending = false;
     let financialDispatched = false;
+    let diagnosticStage: ManualDiagnosticStage = 'input';
     try {
       const input =
         submission.current?.input ??
@@ -620,12 +625,17 @@ function TransactionFormContent({
       }
       // Durable identity and immutable payload precede any financial transport.
       if (!transaction) {
+        diagnosticStage = 'prepare';
         preparationPending = true;
         await persistManualDraft();
         preparationPending = false;
       }
       if (!stillCurrent()) return;
       financialDispatched = true;
+      diagnosticStage = 'request';
+      recordManualDiagnostic(diagnosticStage, {
+        operationId: submission.current?.operationId
+      });
       const mutation = transaction
         ? await coreFinanceService.updateTransaction(transaction.id, input)
         : refundLocked
@@ -640,6 +650,10 @@ function TransactionFormContent({
               submission.current!.operationId
             );
       if (!stillCurrent()) return;
+      diagnosticStage = 'receipt';
+      recordManualDiagnostic(diagnosticStage, {
+        operationId: submission.current?.operationId
+      });
       if (submission.current)
         submission.current = {
           ...submission.current,
@@ -647,9 +661,15 @@ function TransactionFormContent({
           transactionId: mutation.value.id,
           affectedScopes: [...mutation.affectedScopes]
         };
+      diagnosticStage = 'refresh';
       await finishSaved(mutation.affectedScopes);
     } catch (caught) {
       if (!stillCurrent()) return;
+      recordManualDiagnostic(diagnosticStage, {
+        operationId: submission.current?.operationId,
+        failed: true,
+        ...(caught instanceof CoreFinanceError ? caught.metadata : {})
+      });
       if (
         preparationPending &&
         caught instanceof CoreFinanceError &&

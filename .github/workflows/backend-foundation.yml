@@ -17,6 +17,7 @@ on:
         "supabase/**",
         "docker/**",
         "scripts/voice-manual-canary/**",
+        "scripts/staging-voice/**",
         ".github/workflows/backend-foundation.yml",
       ]
   push:
@@ -88,6 +89,8 @@ jobs:
       - run: npm run migration:checksums
       - name: Verify bounded Voice canary closure and guards
         run: node --test ../../scripts/voice-manual-canary/canary-controls.test.cjs ../../scripts/voice-manual-canary/canary-closure.test.cjs
+      - name: Verify Staging Voice epoch closure and guards
+        run: node --test ../../scripts/staging-voice/controls.test.cjs
 
   mobile:
     runs-on: ubuntu-24.04
@@ -138,7 +141,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [desktop-1440, desktop-1280, tablet-1024, tablet-768, mobile-390]
+        project:
+          [desktop-1440, desktop-1280, tablet-1024, tablet-768, mobile-390]
     defaults:
       run:
         working-directory: apps/admin-web
@@ -309,7 +313,16 @@ jobs:
         run: npm run supabase:stop
 
   image:
-    needs: [secrets, sentinel-redaction, application, mobile, admin, admin-e2e, database]
+    needs:
+      [
+        secrets,
+        sentinel-redaction,
+        application,
+        mobile,
+        admin,
+        admin-e2e,
+        database,
+      ]
     runs-on: ubuntu-24.04
     permissions:
       contents: read

@@ -26,6 +26,14 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('rejects a financial Voice epoch outside the Staging worker configuration', () => {
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        MASARIFI_STAGING_VOICE_EPOCH_ID: '11111111-1111-4111-8111-111111111111',
+      }),
+    ).toThrow('MASARIFI_STAGING_VOICE_EPOCH_ID');
+  });
   it('allows analysis-only exclusively on the pinned Staging Supabase origin', () => {
     expect(
       validateEnvironment({

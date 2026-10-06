@@ -443,12 +443,19 @@ export class AiWorker implements OnModuleDestroy {
     return claims.length;
   }
 
-  private async process(claim: AiWorkClaim): Promise<void> {
+  async processVoiceClaim(claim: AiWorkClaim, signal?: AbortSignal): Promise<boolean> {
+    if (claim.kind !== 'voice.transcribe_extract') throw new Error('VOICE_SCOPE_INVALID');
+    return this.process(claim, signal);
+  }
+
+  private async process(claim: AiWorkClaim, externalSignal?: AbortSignal): Promise<boolean> {
     const startedAt = performance.now();
     const controller = new AbortController();
-    const signal = this.abortController
-      ? AbortSignal.any([controller.signal, this.abortController.signal])
-      : controller.signal;
+    const signal = AbortSignal.any([
+      controller.signal,
+      ...(this.abortController ? [this.abortController.signal] : []),
+      ...(externalSignal ? [externalSignal] : []),
+    ]);
     let renewal: NodeJS.Timeout | undefined;
     let deadline: NodeJS.Timeout | undefined;
     let renewing = false;
@@ -483,6 +490,7 @@ export class AiWorker implements OnModuleDestroy {
       } else if (claim.kind === 'assistant.respond') await this.assistant(claim);
       else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
+      return true;
     } catch (error) {
       if (error instanceof AiGatewayError && error.diagnostic)
         new PlatformLogger().warn('AI_PROVIDER_REQUEST_REJECTED', {
@@ -530,6 +538,7 @@ export class AiWorker implements OnModuleDestroy {
         code,
       );
       recordAiJob(claim.kind, retry ? 'retry' : 'failure');
+      return false;
     } finally {
       if (renewal) clearInterval(renewal);
       if (deadline) clearTimeout(deadline);
@@ -637,16 +646,19 @@ export class AiWorker implements OnModuleDestroy {
         references,
       });
       signal.throwIfAborted();
-      await this.repository.acceptVoiceBatch(
+      const acceptance = await this.repository.acceptVoiceBatch(
         claim.id,
         claim.claim_token,
         decisions,
         VOICE_BATCH_POLICY,
       );
-      try {
-        await this.storage.delete(String(input.storageRef));
-      } catch {
-        recordAiJob('voice-media.purge', 'retry');
+      if (acceptance.accepted !== true) throw new Error('VOICE_SCOPE_INVALID');
+      if (input.retainAcceptanceEvidence !== true) {
+        try {
+          await this.storage.delete(String(input.storageRef));
+        } catch {
+          recordAiJob('voice-media.purge', 'retry');
+        }
       }
       return;
     }

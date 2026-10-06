@@ -1,7 +1,55 @@
-import { HttpException, type ArgumentsHost } from '@nestjs/common';
+import { HttpException, Logger, type ArgumentsHost } from '@nestjs/common';
 import { safeError, SafeExceptionFilter } from '../../../src/platform/http/safe-exception.filter';
 
 describe('safeError', () => {
+  it('logs Staging ledger rejection correlation without identity or financial contents', () => {
+    const oldUrl = process.env.SUPABASE_URL;
+    const oldFlag = process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED;
+    process.env.SUPABASE_URL = 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
+    process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+    const log = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const response = { status: () => response, json: () => undefined };
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          path: '/api/v1/transactions',
+          requestId: '22222222-2222-4222-8222-222222222222',
+          headers: {
+            'idempotency-key': '11111111-1111-4111-8111-111111111111',
+            authorization: 'secret bearer',
+          },
+          body: { amountMinor: 5000, notes: 'private words' },
+        }),
+        getResponse: () => response,
+      }),
+    } as unknown as ArgumentsHost;
+    try {
+      new SafeExceptionFilter().catch(
+        new HttpException({ code: 'FORBIDDEN', message: 'private words' }, 403),
+        host,
+      );
+      expect(log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'api-rejection',
+          status: 403,
+          domainCode: 'FORBIDDEN',
+          requestId: '22222222-2222-4222-8222-222222222222',
+          operationHash: expect.stringMatching(/^[a-f0-9]{16}$/) as unknown,
+        }),
+      );
+      expect(JSON.stringify(log.mock.calls)).not.toMatch(
+        /11111111|private|bearer|amountMinor|notes|authorization/,
+      );
+      log.mockClear();
+      process.env.SUPABASE_URL = 'https://production.example';
+      new SafeExceptionFilter().catch(new HttpException({ code: 'FORBIDDEN' }, 403), host);
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      process.env.SUPABASE_URL = oldUrl;
+      process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = oldFlag;
+      log.mockRestore();
+    }
+  });
   it.each([
     [503, 'VOICE_AUTOMATIC_UNAVAILABLE', 'Voice is unavailable'],
     [500, 'INTERNAL_ERROR', 'Internal server error'],
