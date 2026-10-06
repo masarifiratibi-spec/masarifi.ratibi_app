@@ -46,6 +46,26 @@ it('records bounded correlation and safe failure metadata without financial cont
   copy.status = 200;
   expect(readManualDiagnostics()[0]?.status).toBe(403);
 });
+it('retains only known input validation rules and excludes arbitrary field contents', () => {
+  recordManualDiagnostic('input', {
+    failed: true,
+    validationRules: [
+      'category_type',
+      'category_type',
+      'account_reference',
+      'private words',
+      'Bearer secret'
+    ]
+  });
+  expect(readManualDiagnostics()[0]).toMatchObject({
+    stage: 'input',
+    failed: true,
+    validationRules: 'account_reference,category_type'
+  });
+  expect(JSON.stringify(readManualDiagnostics())).not.toMatch(
+    /private|Bearer|secret/
+  );
+});
 it('is disabled by default and outside the exact Staging API and retains at most 200 records', () => {
   process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = 'false';
   recordManualDiagnostic('input', {});

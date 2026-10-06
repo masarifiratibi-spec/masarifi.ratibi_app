@@ -10,9 +10,31 @@ interface Details {
   status?: number;
   uncertain?: boolean;
   failed?: boolean;
+  validationRules?: readonly string[];
 }
 const entries: Record<string, string | number | boolean>[] = [];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const validationRules = [
+  'amount',
+  'account_missing',
+  'title',
+  'note',
+  'linked_note_multiline',
+  'date',
+  'account_reference',
+  'account_status',
+  'account_currency',
+  'category_missing',
+  'destination_reference',
+  'destination_same',
+  'destination_currency',
+  'destination_status',
+  'category_reference',
+  'category_status',
+  'category_type',
+  'refund_reference',
+  'refund_eligibility'
+] as const;
 
 // Temporary Staging metadata only; never accept request bodies or Error objects.
 export function recordManualDiagnostic(
@@ -45,6 +67,10 @@ export function recordManualDiagnostic(
   if (typeof details.uncertain === 'boolean')
     entry.uncertain = details.uncertain;
   if (typeof details.failed === 'boolean') entry.failed = details.failed;
+  const failedRules = validationRules.filter((rule) =>
+    details.validationRules?.includes(rule)
+  );
+  if (failedRules.length) entry.validationRules = failedRules.join(',');
   entries.push(entry);
   if (entries.length > 200) entries.shift();
   console.info('MANUAL_DIAG', JSON.stringify(entry));

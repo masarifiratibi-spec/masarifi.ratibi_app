@@ -133,6 +133,60 @@ it('retains the actual Manual failure stage and HTTP correlation after showing t
   }
 });
 
+it.each([
+  [
+    'account_reference',
+    { accountId: 'missing-account' },
+    'coreFinance.validation.required'
+  ],
+  ['amount', { amountText: '0' }, 'coreFinance.validation.amount'],
+  ['date', { occurredAt: Date.UTC(2100, 0, 1) }, 'coreFinance.manual.date']
+] as const)(
+  'traces rejected Manual input %s before allocating or dispatching a financial operation',
+  async (rule, patch, message) => {
+    const previous = { ...process.env };
+    process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    clearManualDiagnostics();
+    jest.mocked(coreFinanceService.loadDraft).mockResolvedValue({
+      ...requiredDraft('50', 'Food'),
+      ...patch
+    });
+    try {
+      renderWithQueryData(<TransactionForm />, [
+        [coreFinanceKeys.accounts(false), fixtureAccounts],
+        [coreFinanceKeys.categories(false), fixtureCategories]
+      ]);
+      await screen.findByDisplayValue(
+        'amountText' in patch ? patch.amountText : '50'
+      );
+      fireEvent.press(screen.getByLabelText('Save transaction'));
+      await screen.findByText(translate(message));
+      expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+      expect(readManualDiagnostics()).toContainEqual(
+        expect.objectContaining({
+          stage: 'input',
+          failed: true,
+          validationRules: expect.stringContaining(rule)
+        })
+      );
+      for (const entry of readManualDiagnostics()) {
+        expect(entry.operationHash).toBeUndefined();
+        expect(entry.requestId).toBeUndefined();
+        expect(entry.status).toBeUndefined();
+      }
+      expect(JSON.stringify(readManualDiagnostics())).not.toMatch(
+        /Food|missing-account/
+      );
+    } finally {
+      clearManualDiagnostics();
+      log.mockRestore();
+      process.env = previous;
+    }
+  }
+);
+
 it('blocks editing after a draft read fails and retries the original unknown operation', async () => {
   const repository = new CoreFinanceRepository();
   const operationId = '90000000-0000-4000-8000-000000000098';

@@ -558,6 +558,54 @@ function TransactionFormContent({
             selectedCategory.financialType !== type)) ||
         (type === 'refund' && !resolvedOriginalTransactionId))
     ) {
+      const failedRules = {
+        amount: !amountMinor,
+        account_missing: !resolvedAccount,
+        title: !normalizedTitle,
+        note: normalizedNote === undefined,
+        linked_note_multiline: linkedReasonInvalid,
+        date: !validManualDate(occurredAt),
+        account_reference: !transaction && !selectedAccount,
+        account_status:
+          !transaction &&
+          Boolean(selectedAccount && selectedAccount.status !== 'active'),
+        account_currency:
+          !transaction &&
+          Boolean(
+            selectedAccount && selectedAccount.currencyCode !== currencyCode
+          ),
+        category_missing: categoryRequired,
+        destination_reference: type === 'transfer' && !selectedDestination,
+        destination_same:
+          type === 'transfer' && destinationAccountId === resolvedAccount,
+        destination_currency:
+          type === 'transfer' &&
+          Boolean(
+            selectedDestination &&
+            selectedDestination.currencyCode !== currencyCode
+          ),
+        destination_status:
+          type === 'transfer' &&
+          !transaction &&
+          Boolean(
+            selectedDestination && selectedDestination.status !== 'active'
+          ),
+        category_reference:
+          (type === 'expense' || type === 'income') && !selectedCategory,
+        category_status:
+          (type === 'expense' || type === 'income') &&
+          Boolean(selectedCategory && selectedCategory.status !== 'active'),
+        category_type:
+          (type === 'expense' || type === 'income') &&
+          Boolean(selectedCategory && selectedCategory.financialType !== type),
+        refund_reference: type === 'refund' && !resolvedOriginalTransactionId
+      };
+      recordManualDiagnostic('input', {
+        failed: true,
+        validationRules: Object.entries(failedRules)
+          .filter(([, failed]) => failed)
+          .map(([rule]) => rule)
+      });
       const message =
         amount && !amountMinor
           ? 'coreFinance.validation.amount'
@@ -583,6 +631,10 @@ function TransactionFormContent({
         !isConfirmedTransaction(lockedOriginal) ||
         amountMinor! > (refundable.data ?? 0))
     ) {
+      recordManualDiagnostic('input', {
+        failed: true,
+        validationRules: ['refund_eligibility']
+      });
       setError(translate('coreFinance.validation.refund'));
       savingRef.current = false;
       return;
