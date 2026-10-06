@@ -12,7 +12,7 @@ const image='ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:'+g.PIN.digest;
 const label='org.masarifi.scope=voice-manual-cb2';
 const service='masarifi-voice-manual-deadline';
 const envHashes={
-  'api.env':'abdb3bec68ec0489a06e3f5eaac682bf76679f6c1730210a7c7b49cde7085bef',
+  'api.env':'abdb3bec68ec0489a06e3f5eaac682bf76679f6c1730210a7c7b49cde7085bef', // gitleaks:allow -- SHA-256 file checksum, not an API credential.
   'worker.env':'968bd7f73bd3936cdd40aad8c099479df8bb40c668d27cc148d6f6bb244afb29',
   'migration.env':'75b5d7fe85405c7b0d1bc257f1c5cc3b884c6f3ec3a8f736223a24ac0669acf1',
   'compose.env':'73cf9a1abe1cc1e9f925cb43586f83c224f480c4bec1b7884f371ad7ced4040a',
