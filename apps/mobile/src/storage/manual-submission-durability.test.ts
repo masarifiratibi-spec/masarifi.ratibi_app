@@ -20,6 +20,51 @@ jest.mock('./database', () => ({
 }));
 const { DatabaseSync } = jest.requireActual('node:sqlite');
 
+it('rejects replacing an unresolved submission with another operation', () => {
+  const repository = new CoreFinanceRepository();
+  const first = draftInputSchema.parse({
+    id: 'manual-entry',
+    transactionType: 'expense',
+    amountText: '50',
+    accountId: 'account',
+    categoryId: 'food',
+    destinationAccountId: null,
+    merchant: null,
+    notes: null,
+    occurredAt: Date.now(),
+    status: 'editing',
+    updatedAt: Date.now(),
+    submission: {
+      version: 1,
+      operationId: '90000000-0000-4000-8000-000000000098',
+      input: {
+        type: 'expense',
+        amountMinor: 5000,
+        currencyCode: 'SAR',
+        accountId: 'account',
+        categoryId: 'food',
+        title: 'Food',
+        occurredAt: Date.now()
+      },
+      firstAttemptAt: Date.now(),
+      phase: 'unknown'
+    }
+  });
+  repository.saveDraft(first);
+  expect(() =>
+    repository.saveDraft({
+      ...first,
+      submission: {
+        ...first.submission!,
+        operationId: '90000000-0000-4000-8000-000000000099'
+      }
+    })
+  ).toThrow();
+  expect(repository.loadDraft(first.id)?.submission?.operationId).toBe(
+    '90000000-0000-4000-8000-000000000098'
+  );
+});
+
 it('restores the frozen manual operation from SQLite after restart and ignores a late editing save', async () => {
   const db = new DatabaseSync(':memory:');
   try {

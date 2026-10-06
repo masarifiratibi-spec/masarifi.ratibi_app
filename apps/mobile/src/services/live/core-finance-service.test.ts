@@ -1,14 +1,115 @@
 import {
   emptyTransactionFilters,
+  draftInputSchema,
   type Transaction
 } from '@/domain/core-finance';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
+import { createDefaultCategories } from '@/domain/core-finance-seeds';
 import * as database from '@/storage/database';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import {
   createLiveCoreFinanceSync,
   createLiveLedgerService
 } from './core-finance-service';
+
+it('retries failed hydration with one concurrent attempt and keeps each owner draft isolated', async () => {
+  const first = draftInputSchema.parse({
+    id: 'manual-entry',
+    transactionType: 'expense',
+    amountText: '50',
+    accountId,
+    destinationAccountId: null,
+    categoryId,
+    merchant: null,
+    notes: null,
+    occurredAt: Date.now(),
+    status: 'editing',
+    updatedAt: Date.now(),
+    submission: {
+      version: 1,
+      operationId: '90000000-0000-4000-8000-000000000002',
+      input: {
+        type: 'expense',
+        amountMinor: 5000,
+        currencyCode: 'SAR',
+        accountId,
+        categoryId,
+        title: 'Owner A',
+        occurredAt: Date.now()
+      },
+      firstAttemptAt: Date.now(),
+      phase: 'unknown'
+    }
+  });
+  const second = draftInputSchema.parse({
+    ...first,
+    amountText: '20',
+    submission: {
+      ...first.submission!,
+      operationId: '90000000-0000-4000-8000-000000000003',
+      input: { ...first.submission!.input, amountMinor: 2000, title: 'Owner B' }
+    }
+  });
+  let userId = 'user_owner-a';
+  registerLiveClerkBridge({
+    ...bridge,
+    getSession: async () => ({
+      id: 'session-' + userId,
+      userId,
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 9_999_999_999_999
+    })
+  });
+  const open = jest
+    .spyOn(database, 'openDatabase')
+    .mockRejectedValueOnce(new Error('temporary SQLite open failure'))
+    .mockImplementation(
+      async (owner) =>
+        ({
+          getAllAsync: async (sql: string) =>
+            sql.includes('finance_drafts')
+              ? [
+                  {
+                    payload: JSON.stringify(
+                      owner === 'user_owner-a' ? first : second
+                    )
+                  }
+                ]
+              : sql.includes('finance_categories')
+                ? createDefaultCategories().map((category) => ({
+                    payload: JSON.stringify(category)
+                  }))
+                : []
+        }) as never
+    );
+  const request = jest.fn();
+  const service = createLiveLedgerService({
+    baseUrl: 'https://inert.invalid',
+    request,
+    drafts: new CoreFinanceRepository()
+  });
+  try {
+    await expect(service.loadDraft('manual-entry')).rejects.toThrow(
+      'temporary SQLite open failure'
+    );
+    const recovered = await Promise.all([
+      service.loadDraft('manual-entry'),
+      service.loadDraft('manual-entry')
+    ]);
+    expect(recovered).toEqual([first, first]);
+    expect(open).toHaveBeenCalledTimes(2);
+    userId = 'user_owner-b';
+    await expect(service.loadDraft('manual-entry')).resolves.toEqual(second);
+    userId = 'user_owner-a';
+    await expect(service.loadDraft('manual-entry')).resolves.toEqual(first);
+    expect(open).toHaveBeenCalledTimes(3);
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    open.mockRestore();
+    registerLiveClerkBridge(bridge);
+  }
+});
 
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '90000000-0000-4000-8000-000000000001'

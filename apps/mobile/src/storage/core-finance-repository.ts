@@ -910,6 +910,15 @@ export class CoreFinanceRepository {
     const prior = this.drafts.get(draft.id);
     // Late editing autosaves cannot erase a durable submitted operation.
     if (prior?.submission && draft.submission === undefined) return copy(prior);
+    if (
+      prior?.submission &&
+      draft.submission &&
+      prior.submission.operationId !== draft.submission.operationId
+    )
+      throw new CoreFinanceError('conflict', {
+        domainCode: 'MANUAL_SUBMISSION_CONFLICT',
+        uncertain: false
+      });
     const saved = { ...draft, updatedAt: Date.now() };
     this.drafts.set(saved.id, saved);
     return copy(saved);

@@ -549,6 +549,8 @@ const ar: MessageCatalog = {
   'coreFinance.action.income': 'إضافة دخل',
   'coreFinance.manual.uncertain':
     'نتيجة الحفظ غير معروفة. أعد المحاولة للتحقق من نفس العملية.',
+  'coreFinance.manual.localSave':
+    'تعذر حفظ المسودة على هذا الجهاز. لم يُرسل طلب مالي. حاول الحفظ مجددًا.',
   'coreFinance.manual.savedRefresh':
     'تم الحفظ. أعد المحاولة لتحديث القائمة وإكمال التنظيف.',
   'coreFinance.manual.reconcile':

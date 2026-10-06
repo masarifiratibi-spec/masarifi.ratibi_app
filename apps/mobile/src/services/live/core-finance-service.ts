@@ -351,7 +351,7 @@ export function createLiveLedgerService({
 } = {}): LedgerService {
   const ownerRepositories = new Map<
     string,
-    { repository: CoreFinanceRepository; ready: Promise<void> }
+    { repository: CoreFinanceRepository; ready: Promise<void> | null }
   >();
   const ensureLocalReady = async () => {
     const owner = await captureLiveClerkIdentity();
@@ -360,10 +360,16 @@ export function createLiveLedgerService({
       const repository =
         ownerRepositories.size === 0 ? drafts : new CoreFinanceRepository();
       repository.bindOwner(owner.userId);
-      local = { repository, ready: repository.hydrate() };
+      local = { repository, ready: null };
       ownerRepositories.set(owner.userId, local);
     }
-    await local.ready;
+    const ready = (local.ready ??= local.repository.hydrate());
+    try {
+      await ready;
+    } catch (error) {
+      if (local.ready === ready) local.ready = null;
+      throw error;
+    }
     await owner.assertCurrent();
     return { ...local, owner };
   };

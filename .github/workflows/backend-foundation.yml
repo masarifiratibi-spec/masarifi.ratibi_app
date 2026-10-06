@@ -16,6 +16,7 @@ on:
         "apps/mobile/**",
         "supabase/**",
         "docker/**",
+        "scripts/voice-manual-canary/**",
         ".github/workflows/backend-foundation.yml",
       ]
   push:
@@ -85,6 +86,8 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=high
       - run: npm run migration:checksums
+      - name: Verify bounded Voice canary closure and guards
+        run: node --test ../../scripts/voice-manual-canary/canary-controls.test.cjs ../../scripts/voice-manual-canary/canary-closure.test.cjs
 
   mobile:
     runs-on: ubuntu-24.04

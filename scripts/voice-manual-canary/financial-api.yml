@@ -1,0 +1,4 @@
+services:
+  api:
+    environment:
+      MASARIFI_VOICE_ANALYSIS_ONLY: "false"

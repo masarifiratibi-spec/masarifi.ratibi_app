@@ -566,6 +566,8 @@ const en = {
   'coreFinance.action.income': 'Add income',
   'coreFinance.manual.uncertain':
     'The save outcome is unknown. Retry to check the same submission.',
+  'coreFinance.manual.localSave':
+    'Could not save the draft on this device. No financial request was sent. Try saving again.',
   'coreFinance.manual.savedRefresh':
     'Saved. Retry to refresh the list and finish cleanup.',
   'coreFinance.manual.reconcile':

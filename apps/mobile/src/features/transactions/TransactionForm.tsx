@@ -204,6 +204,8 @@ function TransactionFormContent({
   }, []);
   const [deleted, setDeleted] = useState(transaction?.status === 'deleted');
   const [draftReady, setDraftReady] = useState(Boolean(transaction));
+  const [draftLoadFailed, setDraftLoadFailed] = useState(false);
+  const [draftLoadAttempt, setDraftLoadAttempt] = useState(0);
   const skipNextDraftReload = useRef(false);
   const [picker, setPicker] = useState<'account' | 'destination' | null>(null);
   const meaningful = Boolean(
@@ -261,7 +263,11 @@ function TransactionFormContent({
   }, [draftId]);
   const { requestClose, leaveAfterSave } = useTransactionDraftGuard({
     meaningful:
-      !transaction && meaningful && !operationPending && !recoveryBlocked,
+      draftReady &&
+      !transaction &&
+      meaningful &&
+      !operationPending &&
+      !recoveryBlocked,
     discard
   });
   const sourceAccountId =
@@ -302,6 +308,8 @@ function TransactionFormContent({
     setSaving(false);
     savingRef.current = false;
     setDraftReady(Boolean(transaction));
+    setDraftLoadFailed(false);
+    skipNextDraftReload.current = false;
     setAmount('');
     setTitle('');
     setNotes('');
@@ -347,12 +355,15 @@ function TransactionFormContent({
 
   useFocusEffect(
     useCallback(() => {
-      if (transaction) return;
+      if (transaction || savingRef.current || submission.current) return;
       const expectedOwner = owner;
       if (skipNextDraftReload.current) {
         skipNextDraftReload.current = false;
         return;
       }
+      setDraftReady(false);
+      setDraftLoadFailed(false);
+      setError(undefined);
       void coreFinanceService
         .loadDraft(draftId)
         .then((draft) => {
@@ -402,16 +413,15 @@ function TransactionFormContent({
               }
             }
           }
+          setDraftReady(true);
         })
         .catch(() => {
-          if (expectedOwner === ownerRef.current && mounted.current)
+          if (expectedOwner === ownerRef.current && mounted.current) {
+            setDraftLoadFailed(true);
             setError(translate('coreFinance.state.error'));
-        })
-        .finally(() => {
-          if (expectedOwner === ownerRef.current && mounted.current)
-            setDraftReady(true);
+          }
         });
-    }, [initialType, draftId, transaction, owner])
+    }, [initialType, draftId, transaction, owner, draftLoadAttempt])
   );
 
   useEffect(() => {
@@ -441,7 +451,7 @@ function TransactionFormContent({
     transaction
   ]);
   const save = async () => {
-    if (savingRef.current || deleted || recoveryBlocked) return;
+    if (savingRef.current || deleted || recoveryBlocked || !draftReady) return;
     savingRef.current = true;
     const expectedOwner = ownerRef.current;
     const stillCurrent = () =>
@@ -574,6 +584,8 @@ function TransactionFormContent({
       return;
     }
     setSaving(true);
+    let preparationPending = false;
+    let financialDispatched = false;
     try {
       const input =
         submission.current?.input ??
@@ -607,8 +619,13 @@ function TransactionFormContent({
         setOperationPending(true);
       }
       // Durable identity and immutable payload precede any financial transport.
-      if (!transaction) await persistManualDraft();
+      if (!transaction) {
+        preparationPending = true;
+        await persistManualDraft();
+        preparationPending = false;
+      }
       if (!stillCurrent()) return;
+      financialDispatched = true;
       const mutation = transaction
         ? await coreFinanceService.updateTransaction(transaction.id, input)
         : refundLocked
@@ -633,15 +650,29 @@ function TransactionFormContent({
       await finishSaved(mutation.affectedScopes);
     } catch (caught) {
       if (!stillCurrent()) return;
+      if (
+        preparationPending &&
+        caught instanceof CoreFinanceError &&
+        caught.metadata?.domainCode === 'MANUAL_SUBMISSION_CONFLICT'
+      ) {
+        // Another unresolved operation owns the draft; never clear its journal.
+        submission.current = null;
+        setOperationPending(false);
+        setRecoveryBlocked(true);
+        setError(translate('coreFinance.manual.reconcile'));
+        return;
+      }
       if (submission.current?.phase === 'saved')
         setError(translate('coreFinance.manual.savedRefresh'));
       else {
         const uncertain =
           Boolean(submission.current) &&
           (submission.current?.phase === 'unknown' ||
-            !(caught instanceof CoreFinanceError) ||
-            caught.metadata?.uncertain === true ||
-            (!caught.metadata && ['offline', 'unknown'].includes(caught.code)));
+            (financialDispatched &&
+              (!(caught instanceof CoreFinanceError) ||
+                caught.metadata?.uncertain === true ||
+                (!caught.metadata &&
+                  ['offline', 'unknown'].includes(caught.code)))));
         if (submission.current) {
           if (uncertain)
             submission.current = { ...submission.current, phase: 'unknown' };
@@ -649,7 +680,7 @@ function TransactionFormContent({
           try {
             await persistManualDraft(!uncertain);
           } catch {
-            setRecoveryBlocked(true);
+            setRecoveryBlocked(uncertain);
           }
           setOperationPending(uncertain);
         }
@@ -661,17 +692,19 @@ function TransactionFormContent({
           translate(
             uncertain
               ? 'coreFinance.manual.uncertain'
-              : domain === 'CATEGORY_INVALID'
-                ? 'coreFinance.manual.category'
-                : domain?.startsWith('ACCOUNT_')
-                  ? 'coreFinance.manual.account'
-                  : caught instanceof CoreFinanceError &&
-                      caught.metadata?.status === 401
-                    ? 'coreFinance.manual.auth'
+              : preparationPending
+                ? 'coreFinance.manual.localSave'
+                : domain === 'CATEGORY_INVALID'
+                  ? 'coreFinance.manual.category'
+                  : domain?.startsWith('ACCOUNT_')
+                    ? 'coreFinance.manual.account'
                     : caught instanceof CoreFinanceError &&
-                        caught.metadata?.status === 429
-                      ? 'coreFinance.manual.rateLimit'
-                      : 'coreFinance.validation.invalid'
+                        caught.metadata?.status === 401
+                      ? 'coreFinance.manual.auth'
+                      : caught instanceof CoreFinanceError &&
+                          caught.metadata?.status === 429
+                        ? 'coreFinance.manual.rateLimit'
+                        : 'coreFinance.validation.invalid'
           )
         );
       }
@@ -682,6 +715,15 @@ function TransactionFormContent({
       }
     }
   };
+  if (draftLoadFailed)
+    return (
+      <StateView
+        state="error"
+        title={translate('coreFinance.state.error')}
+        actionLabel={translate('coreFinance.action.retry')}
+        onAction={() => setDraftLoadAttempt((attempt) => attempt + 1)}
+      />
+    );
   if (
     accounts.isLoading ||
     categories.isLoading ||
