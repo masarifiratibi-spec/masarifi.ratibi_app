@@ -64,10 +64,11 @@ export class ClerkAuthGuard implements CanActivate {
       typeof requestId === 'string' &&
       /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId)
     ) {
-      new Logger('VoiceAdmissionDiagnostics').log({
-        stage: 'voice-auth',
+      new Logger('VoiceAdmissionDiagnostics').log('voice.auth_binding', {
+        context: 'VoiceAdmissionDiagnostics',
+        failureStage: 'voice-auth',
         requestId,
-        clerkSessionHash: createHash('sha256')
+        resourceId: createHash('sha256')
           .update(request.clerkPrincipal.sessionId)
           .digest('hex'),
       });

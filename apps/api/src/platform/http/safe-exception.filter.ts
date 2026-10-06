@@ -265,13 +265,14 @@ export class SafeExceptionFilter implements ExceptionFilter {
       request.path === '/api/v1/transactions'
     ) {
       const operation = request.headers['idempotency-key'];
-      this.logger.warn({
-        stage: 'api-rejection',
-        status,
-        domainCode: envelope.code,
+      this.logger.warn('manual.finance_rejected', {
+        context: 'ManualFinanceDiagnostics',
+        failureStage: 'api-rejection',
+        httpStatus: status,
+        code: envelope.code,
         requestId: envelope.requestId,
         ...(typeof operation === 'string' && /^[0-9a-f-]{36}$/i.test(operation)
-          ? { operationHash: createHash('sha256').update(operation).digest('hex').slice(0, 16) }
+          ? { resourceId: createHash('sha256').update(operation).digest('hex').slice(0, 16) }
           : {}),
       });
     }

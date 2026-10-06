@@ -1,5 +1,6 @@
-import { HttpException, Logger, type ArgumentsHost } from '@nestjs/common';
+import { ConsoleLogger, HttpException, Logger, type ArgumentsHost } from '@nestjs/common';
 import { safeError, SafeExceptionFilter } from '../../../src/platform/http/safe-exception.filter';
+import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 
 describe('safeError', () => {
   it('logs Staging ledger rejection correlation without identity or financial contents', () => {
@@ -7,7 +8,8 @@ describe('safeError', () => {
     const oldFlag = process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED;
     process.env.SUPABASE_URL = 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
     process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = 'true';
-    const log = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const lines: string[] = [];
+    Logger.overrideLogger(new PlatformLogger((line) => lines.push(line)));
     const response = { status: () => response, json: () => undefined };
     const host = {
       switchToHttp: () => ({
@@ -28,26 +30,27 @@ describe('safeError', () => {
         new HttpException({ code: 'FORBIDDEN', message: 'private words' }, 403),
         host,
       );
-      expect(log).toHaveBeenCalledWith(
+      expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
         expect.objectContaining({
-          stage: 'api-rejection',
-          status: 403,
-          domainCode: 'FORBIDDEN',
+          context: 'ManualFinanceDiagnostics',
+          failureStage: 'api-rejection',
+          httpStatus: 403,
+          code: 'FORBIDDEN',
           requestId: '22222222-2222-4222-8222-222222222222',
-          operationHash: expect.stringMatching(/^[a-f0-9]{16}$/) as unknown,
+          resourceId: expect.stringMatching(/^[a-f0-9]{16}$/) as unknown,
         }),
+      ]);
+      expect(JSON.stringify(lines)).not.toMatch(
+        /11111111|private|bearer|amountMinor|notes|authorization|non_string_message/,
       );
-      expect(JSON.stringify(log.mock.calls)).not.toMatch(
-        /11111111|private|bearer|amountMinor|notes|authorization/,
-      );
-      log.mockClear();
+      lines.length = 0;
       process.env.SUPABASE_URL = 'https://production.example';
       new SafeExceptionFilter().catch(new HttpException({ code: 'FORBIDDEN' }, 403), host);
-      expect(log).not.toHaveBeenCalled();
+      expect(lines).toEqual([]);
     } finally {
       process.env.SUPABASE_URL = oldUrl;
       process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = oldFlag;
-      log.mockRestore();
+      Logger.overrideLogger(new ConsoleLogger());
     }
   });
   it.each([
