@@ -111,7 +111,8 @@ it('retains the actual Manual failure stage and HTTP correlation after showing t
       [coreFinanceKeys.accounts(false), fixtureAccounts],
       [coreFinanceKeys.categories(false), fixtureCategories]
     ]);
-    await screen.findByDisplayValue('50');
+    // Cold React Native hydration took 3.3s in the complete serial suite.
+    await screen.findByDisplayValue('50', {}, { timeout: 5000 });
     fireEvent.press(screen.getByLabelText('Save transaction'));
     await screen.findByText(translate('coreFinance.validation.invalid'));
     expect(readManualDiagnostics()).toContainEqual(
@@ -188,6 +189,7 @@ it.each([
 );
 
 it('blocks editing after a draft read fails and retries the original unknown operation', async () => {
+  const firstAttemptAt = Date.now();
   const repository = new CoreFinanceRepository();
   const operationId = '90000000-0000-4000-8000-000000000098';
   const input = transactionInputSchema.parse({
@@ -205,7 +207,7 @@ it('blocks editing after a draft read fails and retries the original unknown ope
       version: 1,
       operationId,
       input,
-      firstAttemptAt: Date.now(),
+      firstAttemptAt,
       phase: 'unknown'
     }
   });
@@ -522,6 +524,7 @@ it.each([401, 429])(
 );
 
 it('recovers the same unknown operation after reopening without automatically writing', async () => {
+  const firstAttemptAt = Date.now();
   const input = {
     type: 'expense' as const,
     amountMinor: 5000,
@@ -545,7 +548,7 @@ it('recovers the same unknown operation after reopening without automatically wr
       version: 1,
       operationId,
       input,
-      firstAttemptAt: Date.now(),
+      firstAttemptAt,
       phase: 'submitting'
     }
   });
@@ -566,6 +569,51 @@ it('recovers the same unknown operation after reopening without automatically wr
       operationId
     )
   );
+});
+
+it('correlates a restored unresolved draft without sending or exposing its frozen contents', async () => {
+  const priorFlag = process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED;
+  const priorUrl = process.env.EXPO_PUBLIC_API_URL;
+  process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const sink = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const firstAttemptAt = Date.now();
+  const draft = requiredDraft('57', 'salary');
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue({
+    ...draft,
+    submission: {
+      version: 1,
+      operationId: '90000000-0000-4000-8000-000000000098',
+      firstAttemptAt,
+      phase: 'unknown',
+      input: transactionInputSchema.parse({
+        type: 'income', amountMinor: 5700, currencyCode: 'SAR',
+        accountId: fixtureAccounts[0].id, categoryId: 'salary',
+        title: 'Private salary title', occurredAt: firstAttemptAt
+      })
+    }
+  });
+  clearManualDiagnostics();
+  try {
+    renderWithQueryData(<TransactionForm />, [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]);
+    await screen.findByText(translate('coreFinance.manual.uncertain'));
+    expect(readManualDiagnostics()).toContainEqual({
+      stage: 'restore', at: expect.any(Number),
+      operationHash: expect.stringMatching(/^[a-f0-9]{16}$/),
+      phase: 'unknown', firstAttemptAt
+    });
+    expect(JSON.stringify(readManualDiagnostics())).not.toMatch(/5700|Private salary|90000000/);
+    expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+    expect(coreFinanceService.saveDraft).not.toHaveBeenCalled();
+  } finally {
+    sink.mockRestore();
+    clearManualDiagnostics();
+    process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = priorFlag;
+    process.env.EXPO_PUBLIC_API_URL = priorUrl;
+  }
 });
 
 it('requires reconciliation for an unknown operation older than 24 hours', async () => {

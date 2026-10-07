@@ -679,7 +679,14 @@ export function createLiveCoreFinanceService(
       ]);
     }
   };
-  const ledger = createLiveLedgerService(options);
+  const ledger = createLiveLedgerService({
+    ...options,
+    categoryIds: {
+      prepare: categories.prepareCategoryIds,
+      toServer: categories.serverCategoryId,
+      toLocal: categories.localCategoryId
+    }
+  });
   Object.assign(target, ledger, {
     async getHomeSummary(
       profileCurrency: string,

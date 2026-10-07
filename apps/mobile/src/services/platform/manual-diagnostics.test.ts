@@ -46,6 +46,18 @@ it('records bounded correlation and safe failure metadata without financial cont
   copy.status = 200;
   expect(readManualDiagnostics()[0]?.status).toBe(403);
 });
+it('keeps financial control flow intact when the diagnostic sink fails', () => {
+  jest.mocked(console.info).mockImplementation(() => {
+    throw new Error('unavailable diagnostic sink');
+  });
+  expect(() =>
+    recordManualDiagnostic('receipt', { status: 201 })
+  ).not.toThrow();
+  expect(readManualDiagnostics()[0]).toMatchObject({
+    stage: 'receipt',
+    status: 201
+  });
+});
 it('retains only known input validation rules and excludes arbitrary field contents', () => {
   recordManualDiagnostic('input', {
     failed: true,

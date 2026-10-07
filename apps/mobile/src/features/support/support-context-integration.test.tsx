@@ -135,9 +135,15 @@ function mockConversationPage() {
         {
           id: 'response-1',
           question: 'private question',
-          blocks: [{ text: 'private answer' }],
+          blocks: [{ label: 'fact', key: 'private answer', values: {} }],
           responseType: 'direct',
-          snapshot: { reportReference: null },
+          conversationId: 'conversation-1',
+          snapshot: { reportReference: null, sources: [], values: [], completeness: {confirmed: 0, reviewRequired: 0, conflicts: 0, reasons: []} },
+          period: 'sample period',
+          dataAsOf: 0,
+          createdAt: 1,
+          limitations: [],
+          feedback: null,
           proposedActionIds: []
         }
       ],

@@ -5,17 +5,23 @@ import { getLinkingConfig } from 'expo-router/build/getLinkingConfig';
 import type { RouteNode } from 'expo-router/build/Route';
 import { extractExpoPathFromURL } from 'expo-router/build/fork/extractPathFromURL';
 
-test.each([true, false])(
-  'routes the %s native callback to clean bootstrap without copying its parameters',
-  (initial) => {
+test.each([
+  ['masarifi', true],
+  ['masarifi', false],
+  ['masarifi-dev', true],
+  ['masarifi-dev', false]
+] as const)(
+  'routes the %s native callback (initial=%s) to clean bootstrap without copying its parameters',
+  (scheme, initial) => {
     const callback =
-      'masarifi://sso-callback?rotating_token_nonce=fixture-only&code=fixture-only#fixture-only';
+      `${scheme}://sso-callback?rotating_token_nonce=fixture-only&code=fixture-only#fixture-only`;
     expect(redirectSystemPath({ path: callback, initial })).toBe('/');
     expect(parseDeepLinkDestination(callback)).toBeNull();
   }
 );
 test.each([
   'masarifi:///sso-callback?code=fixture-only',
+  'masarifi-dev:///sso-callback?code=fixture-only',
   '/sso-callback?code=fixture-only'
 ])('sanitizes alternate callback path %s', (path) => {
   expect(redirectSystemPath({ path, initial: false })).toBe('/');
@@ -45,6 +51,8 @@ test.each([
 
 test.each([
   ['masarifi://sso-callback?code=fixture-only', '/'],
+  ['masarifi-dev://sso-callback?code=fixture-only', '/'],
+  ['masarifi-dev://sso-callback?code=%C0%AF', '/'],
   ['masarifi://sso-callback?code=%C0%AF', '/'],
   ['masarifi://reports?label=%25C0%25AF', '/'],
   [

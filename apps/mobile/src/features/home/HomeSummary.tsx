@@ -125,11 +125,7 @@ export function HomeSummary({
     voice.automatic &&
     (voice.batches.processing || voice.batches.uncertain);
   const voiceProcessing = captureProcessing || batchProcessing;
-  const progressLabel = translate(
-    !captureProcessing && voice.batches.uncertain
-      ? 'voice.batch.checking'
-      : 'voice.state.processing'
-  );
+  const progressLabel = translate('voice.state.processing');
   const unclearAudio =
     voice.session.state === 'failed' &&
     isUnclearAudioError(voice.session.errorCode);
@@ -437,13 +433,15 @@ export function HomeSummary({
               color={theme.colors.content.onFinancialHero}
               testID="home-voice-processing-indicator"
             />
-            {voice.session.state === 'confirmation_unknown' ? (
+            {!voice.automatic &&
+            voice.session.state === 'confirmation_unknown' ? (
               <ActionButton
                 label="voice.action.checkResult"
                 onPress={() => void voice.retry()}
               />
             ) : null}
-            {captureProcessing &&
+            {!voice.automatic &&
+            captureProcessing &&
             !['saving', 'confirmation_unknown'].includes(
               voice.session.state
             ) ? (
@@ -506,7 +504,8 @@ export function HomeSummary({
                 onPress={recoverVoice}
                 testID="home-voice-error-action"
               />
-              {voice.session.state !== 'confirmation_unknown' ? (
+              {!voice.automatic &&
+              voice.session.state !== 'confirmation_unknown' ? (
                 <ActionButton
                   label="voice.action.cancel"
                   onPress={() => void voice.cancel()}
@@ -546,13 +545,15 @@ export function HomeSummary({
               onSave={() => void voice.save()}
               onSaveAll={() => void voice.save(true)}
             />
-            <ActionButton
-              disabled={voice.session.state !== 'proposal_review'}
-              label="voice.action.cancel"
-              onPress={() => void voice.cancel()}
-              testID="home-voice-review-cancel"
-              variant="secondary"
-            />
+            {!voice.automatic ? (
+              <ActionButton
+                disabled={voice.session.state !== 'proposal_review'}
+                label="voice.action.cancel"
+                onPress={() => void voice.cancel()}
+                testID="home-voice-review-cancel"
+                variant="secondary"
+              />
+            ) : null}
           </View>
         ) : null}
         {notice}
@@ -662,13 +663,15 @@ export function HomeSummary({
                 style={styles.unclearAction}
                 testID="home-voice-unclear-retry"
               />
-              <ActionButton
-                label="voice.action.cancel"
-                onPress={() => void voice.cancel()}
-                style={styles.unclearAction}
-                testID="home-voice-unclear-cancel"
-                variant="secondary"
-              />
+              {!voice.automatic ? (
+                <ActionButton
+                  label="voice.action.cancel"
+                  onPress={() => void voice.cancel()}
+                  style={styles.unclearAction}
+                  testID="home-voice-unclear-cancel"
+                  variant="secondary"
+                />
+              ) : null}
             </View>
           </SurfaceCard>
         </View>

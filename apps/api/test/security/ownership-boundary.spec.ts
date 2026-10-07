@@ -13,7 +13,12 @@ const owned = {
   ]),
   queues: new Set(['platform-events']),
   buckets: new Set(['support-attachments', 'report-exports', 'voice-temp']),
-  endpoints: new Set(['GET /health/live', 'GET /health/ready', 'GET /api/v1/meta']),
+  endpoints: new Set([
+    'GET /health/live',
+    'GET /health/ready',
+    'GET /health/compatibility',
+    'GET /api/v1/meta',
+  ]),
   jobs: new Set(['outbox.dispatch', 'migration.apply']),
   events: new Set([
     'platform.started',

@@ -172,11 +172,16 @@ export async function requestJson<T>(
     return await Promise.race([operation, aborted]);
   } catch (error) {
     const failure = normalizeFailure(error, controller.signal.aborted);
-    if (typeof __DEV__ !== 'undefined' && __DEV__)
-      console.info(
-        '[mobile:http-failure]',
-        sanitizeHttpLog({ path, error: failure, status: failure.status })
-      );
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      try {
+        console.info(
+          '[mobile:http-failure]',
+          sanitizeHttpLog({ path, error: failure, status: failure.status })
+        );
+      } catch {
+        // Preserve the actual HTTP outcome when the Dev log sink is unavailable.
+      }
+    }
     throw failure;
   } finally {
     clearTimeout(timer);

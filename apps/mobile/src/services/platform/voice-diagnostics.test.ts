@@ -44,6 +44,18 @@ it('exports only allowlisted metadata and hashed capture/session identities', ()
     operation: 'create'
   });
 });
+it('keeps recording and journal handoff intact when the diagnostic sink fails', () => {
+  jest.spyOn(console, 'info').mockImplementation(() => {
+    throw new Error('unavailable diagnostic sink');
+  });
+  expect(() =>
+    recordVoiceDiagnostic('journal-handoff', { phase: 'success' })
+  ).not.toThrow();
+  expect(readVoiceDiagnostics()[0]).toMatchObject({
+    stage: 'journal-handoff',
+    phase: 'success'
+  });
+});
 
 it('is disabled by default and outside the exact Staging API', () => {
   const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);

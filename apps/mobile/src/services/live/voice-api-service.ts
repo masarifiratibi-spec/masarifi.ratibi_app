@@ -670,15 +670,19 @@ export function createLiveVoiceApiService(
     await clearVoiceOperation(binding.ownerId, operation.attemptId);
   };
 
-  return {
-    ...createVoiceBatchApi({
+  const batchApi = createVoiceBatchApi({
       baseUrl,
       owner,
       token,
       request,
       sleep,
       removeAudio: voiceRecorderService.remove
-    }),
+    });
+  return {
+    ...batchApi,
+    // New ordinary captures use the existing transcript/proposal/explicit
+    // confirmation flow. Historical v3 operations retain their own recovery.
+    queueBatch: undefined,
     metadata: {
       id: 'phase09-voice-http',
       capability: voiceAnalyzerServiceCapability.capability,

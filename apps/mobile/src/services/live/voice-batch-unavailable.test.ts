@@ -132,10 +132,47 @@ const unavailable = () =>
     json: async () => ({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' })
   } as Response);
 
+it.each(['FORBIDDEN', 'malformed'] as const)(
+  'does not label a %s 403 as a canary rejection or recreate its retired capture',
+  async (code) => {
+    const { api, calls } = fixture(
+      async () =>
+        ({
+          ok: false,
+          status: 403,
+          json: async () => {
+            if (code === 'malformed') throw new SyntaxError('invalid response');
+            return { code };
+          }
+        }) as Response
+    );
+    const id = await api.queueBatch(audio, 'en', 0);
+    await expect(api.runBatch(id)).rejects.toMatchObject({
+      code: 'analysis_failed'
+    });
+    await expect(api.runBatch(id)).rejects.toMatchObject({
+      code: 'analysis_failed'
+    });
+    const row = (await loadVoiceBatches(owner))[0]!;
+    expect(row.phase).toBe('failed');
+    expect(row.failureCode).toBeUndefined();
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+    expect(
+      calls.some(
+        (call) => call.method === 'PUT' || call.url.endsWith('/process')
+      )
+    ).toBe(false);
+  }
+);
+
 it.each(['en', 'ar'] as const)(
   'reproduces hosted generic rejection versus precise rejection through the real Home capture flow in %s',
   async (locale) => {
-    for (const code of ['AI_UNAVAILABLE', 'VOICE_AUTOMATIC_UNAVAILABLE']) {
+    for (const code of [
+      'AI_UNAVAILABLE',
+      'VOICE_AUTOMATIC_UNAVAILABLE',
+      'VOICE_CANARY_RESTRICTED'
+    ]) {
       jest.clearAllMocks();
       db.exec('DELETE FROM voice_batch_operations');
       useVoiceCaptureStore.getState().reset();
@@ -146,7 +183,7 @@ it.each(['en', 'ar'] as const)(
         async () =>
           ({
             ok: false,
-            status: 503,
+            status: code === 'VOICE_CANARY_RESTRICTED' ? 403 : 503,
             json: async () => ({ code })
           }) as Response
       );
@@ -188,8 +225,10 @@ it.each(['en', 'ar'] as const)(
             screen.getByText(
               translate(
                 code === 'AI_UNAVAILABLE'
-                  ? 'voice.batch.checking'
-                  : 'voice.batch.failed'
+                  ? 'voice.state.processing'
+                  : code === 'VOICE_CANARY_RESTRICTED'
+                    ? 'voice.batch.restricted'
+                    : 'voice.batch.failed'
               )
             )
           ).toBeTruthy()
@@ -212,6 +251,15 @@ it.each(['en', 'ar'] as const)(
         });
         if (code === 'AI_UNAVAILABLE')
           expect(row.audioReference).toBe(audio.uri);
+        if (code === 'VOICE_CANARY_RESTRICTED') {
+          expect(row.failureCode).toBe('voice_canary_restricted');
+          const cold = fixture(unavailable).api;
+          await expect(cold.recoverBatches()).resolves.toMatchObject({
+            localFailure: true,
+            localFailureCode: 'voice_canary_restricted',
+            pendingIds: []
+          });
+        }
         expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
         expect(
           calls.some(

@@ -29,7 +29,8 @@ import {
 } from "@/core/localization/display-labels";
 import { useLocale, useT } from "@/core/localization/provider";
 import { hasPermission } from "@/core/permissions/role-map";
-import { useAttention, usePlatformOptions } from "@/features/foundation/hooks";
+import { useAdminSession, useAttention, usePlatformOptions } from "@/features/foundation/hooks";
+import { useAdminIdentity } from "@/app/providers";
 import {
   useOverviewActivity,
   useOverviewSummary,
@@ -361,6 +362,8 @@ function versionLabel(version: string, locale: Locale): string {
 
 export default function OverviewPage() {
   const demoMode = mocksEnabled();
+  const identity = useAdminIdentity();
+  const session = useAdminSession(identity.actorId);
   const role = useSimulatedRole();
   const { direction, locale } = useLocale();
   const t = useT();
@@ -468,7 +471,7 @@ export default function OverviewPage() {
     <div className="page overview-page" dir={direction}>
       <PageHeader
         eyebrow={t("overview.eyebrow")}
-        title={t("overview.greeting")}
+        title={t("overview.greeting", { name: demoMode ? "Waleed" : session.data?.displayName ?? t("common.loading") })}
         description={t("overview.description")}
         actions={
           <>

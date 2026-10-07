@@ -114,6 +114,7 @@ describe('Voice availability gate', () => {
       {} as never,
       {
         getRequired: (key: string) => (key === 'MASARIFI_AI_PROVIDER_ENABLED' ? true : 300),
+        get: () => undefined,
       } as never,
     );
     await expect(

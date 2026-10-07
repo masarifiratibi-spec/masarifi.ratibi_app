@@ -27,7 +27,6 @@ export function AssistantAskCard({
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     onAskQuestion(trimmed);
-    setText('');
   };
 
   return (

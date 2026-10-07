@@ -614,7 +614,7 @@ export class AiWorker implements OnModuleDestroy {
     const references = aliasReferences(input.aliases);
     const batch = input.contractVersion === 3;
     const descriptors = references.map(({ alias, kind, version, data }) => {
-      if (batch && kind === 'account' && typeof data.name === 'string') {
+      if (kind === 'account' && typeof data.name === 'string') {
         data = { ...data };
         try {
           data.name = redactAiText(assertSafeAiInput(data.name as string));

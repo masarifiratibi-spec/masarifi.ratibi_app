@@ -328,6 +328,93 @@ function mutation(
   };
 }
 
+it('accepts the destination posting on a saved income receipt and subsequent detail read', async () => {
+  // Samsung Dev, 2026-10-07: a committed 57 SAR income was reported as uncertain.
+  const income = summary(transactionId, {
+    kind: 'income',
+    amountMinor: 5700,
+    title: 'Salary'
+  });
+  const postings = [
+    {
+      id: '40000000-0000-4000-8000-000000000001',
+      accountId,
+      amountMinor: 5700,
+      clearingState: 'confirmed',
+      postingRole: 'destination',
+      occurredAt
+    }
+  ];
+  const request = jest.fn(async (_url, init) =>
+    init?.method === 'POST'
+      ? response(mutation(income, postings), 201)
+      : response(detail(income, postings))
+  );
+  const service = createLiveLedgerService({
+    baseUrl: 'https://inert.invalid',
+    request
+  });
+  const saved = await service.createTransaction(
+    {
+      type: 'income',
+      amountMinor: 5700,
+      currencyCode: 'SAR',
+      accountId,
+      categoryId,
+      title: 'Salary',
+      occurredAt: Date.parse(occurredAt)
+    },
+    'income-operation'
+  );
+  expect(saved.value).toMatchObject({
+    id: transactionId,
+    type: 'income',
+    amountMinor: 5700,
+    accountId
+  });
+  await expect(service.getTransaction(transactionId)).resolves.toMatchObject({
+    id: transactionId,
+    type: 'income',
+    amountMinor: 5700,
+    accountId
+  });
+});
+
+it.each([
+  ['wrong role', 'source', 5700],
+  ['wrong amount', 'destination', 5600]
+])(
+  'rejects a saved income detail with %s',
+  async (_case, postingRole, amountMinor) => {
+    const request = jest
+      .fn()
+      .mockResolvedValue(
+        response(
+          detail(
+            summary(transactionId, { kind: 'income', amountMinor: 5700 }),
+            [
+              {
+                id: '40000000-0000-4000-8000-000000000001',
+                accountId,
+                amountMinor,
+                clearingState: 'confirmed',
+                postingRole,
+                occurredAt
+              }
+            ]
+          )
+        )
+      );
+    const service = createLiveLedgerService({
+      baseUrl: 'https://inert.invalid',
+      request
+    });
+    await expect(service.getTransaction(transactionId)).rejects.toMatchObject({
+      code: 'contract_mismatch'
+    });
+  }
+);
+
 it('maps filtered transaction pages and preserves the server cursor', async () => {
   const request = jest.fn().mockResolvedValue(
     response({

@@ -166,7 +166,9 @@ export function VoiceCaptureScreen({
             durationMs={session.durationMs}
             onStart={() => void voice.start()}
             onStop={() => void voice.stop()}
-            onCancel={() => void voice.cancelRecording()}
+            onCancel={
+              voice.automatic ? undefined : () => void voice.cancelRecording()
+            }
           />
         ) : null}
 
@@ -270,14 +272,15 @@ export function VoiceCaptureScreen({
                   : 'voice.state.processing'
               )}
             />
-            {!['saving', 'confirmation_unknown'].includes(session.state) ? (
+            {!voice.automatic &&
+            !['saving', 'confirmation_unknown'].includes(session.state) ? (
               <ActionButton
                 label={translate('voice.action.cancel')}
                 variant="secondary"
                 onPress={() => void voice.cancel()}
               />
             ) : null}
-            {session.state === 'confirmation_unknown' ? (
+            {!voice.automatic && session.state === 'confirmation_unknown' ? (
               <ActionButton
                 label={translate('voice.action.checkResult')}
                 onPress={() => void voice.retry()}

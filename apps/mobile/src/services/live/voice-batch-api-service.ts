@@ -70,11 +70,23 @@ export const voiceBatchResultSchema = z
   );
 export type VoiceBatchResult = z.infer<typeof voiceBatchResultSchema>;
 export class VoiceBatchLocalTerminalError extends VoiceCaptureError {
-  constructor(public readonly phase: 'failed' | 'cancelled') {
-    super(phase === 'cancelled' ? 'operation_cancelled' : 'analysis_failed');
+  constructor(
+    public readonly phase: 'failed' | 'cancelled',
+    failureCode?: 'voice_canary_restricted'
+  ) {
+    super(
+      phase === 'cancelled'
+        ? 'operation_cancelled'
+        : (failureCode ?? 'analysis_failed')
+    );
   }
 }
 class VoiceBatchRequestRejected extends VoiceCaptureError {}
+class VoiceBatchRateLimited extends VoiceCaptureError {
+  constructor(public readonly retryAfterAt: number) {
+    super('quota_exceeded');
+  }
+}
 export interface VoiceBatchApi {
   queueBatch(
     audio: VoiceCapturedAudio,
@@ -87,6 +99,7 @@ export interface VoiceBatchApi {
     uncertain: boolean;
     pendingIds: string[];
     localFailure: boolean;
+    localFailureCode?: 'voice_canary_restricted';
     localSessions?: Record<string, string>;
   }>;
   cancelBatch(id: string): Promise<VoiceBatchResult | null>;
@@ -94,6 +107,7 @@ export interface VoiceBatchApi {
 }
 const terminal = (status: string) =>
   ['completed', 'cancelled', 'failed'].includes(status);
+const quotaRetryMs = 60000;
 
 export function createVoiceBatchApi(options: {
   baseUrl: string;
@@ -205,8 +219,57 @@ export function createVoiceBatchApi(options: {
           elapsedMs: performance.now() - started
         });
         await check(b);
-        if ([400, 403, 404, 410, 422].includes(response.status))
+        if (response.status === 429 && operation === 'process') {
+          let rejected: unknown;
+          try {
+            rejected = await bounded(() => response.json(), 1000);
+          } catch {
+            // A missing reset time still requires a bounded pause before retry.
+          }
+          await check(b);
+          const quota = z
+            .object({
+              code: z.enum(['AI_QUOTA_EXCEEDED', 'AI_BUDGET_EXHAUSTED']),
+              resetsAt: z.string().datetime({ offset: true })
+            })
+            .safeParse(rejected);
+          const now = Date.now();
+          const reset = quota.success ? Date.parse(quota.data.resetsAt) : NaN;
+          throw new VoiceBatchRateLimited(
+            reset > now ? Math.min(reset, now + quotaRetryMs) : now + quotaRetryMs
+          );
+        }
+        if ([400, 403, 404, 410, 422].includes(response.status)) {
+          if (
+            response.status === 403 &&
+            method === 'POST' &&
+            path === '/api/v1/voice/sessions'
+          ) {
+            let rejected: unknown;
+            try {
+              rejected = await bounded(() => response.json(), 1000);
+            } catch {
+              // The status still proves rejection when its body cannot be decoded.
+            }
+            await check(b);
+            if (
+              rejected &&
+              typeof rejected === 'object' &&
+              'code' in rejected &&
+              rejected.code === 'VOICE_CANARY_RESTRICTED'
+            ) {
+              recordVoiceDiagnostic('request-error', {
+                operation,
+                requestId,
+                captureId: b.captureId,
+                status: 403,
+                domainCode: 'VOICE_CANARY_RESTRICTED'
+              });
+              throw new VoiceBatchRequestRejected('voice_canary_restricted');
+            }
+          }
           throw new VoiceBatchRequestRejected('analysis_failed');
+        }
         if (
           method === 'POST' &&
           path === '/api/v1/voice/sessions' &&
@@ -308,6 +371,7 @@ export function createVoiceBatchApi(options: {
           ? operation
           : await update(b, operation, {
               phase: value.status as 'completed' | 'cancelled' | 'failed',
+              retryAfterAt: undefined,
               createBody: null,
               processBody: null
             });
@@ -318,7 +382,8 @@ export function createVoiceBatchApi(options: {
   const retireLocal = async (
     b: { owner: string; epoch: number },
     operation: VoiceBatchOperation,
-    phase: 'failed' | 'cancelled'
+    phase: 'failed' | 'cancelled',
+    failureCode?: 'voice_canary_restricted'
   ) => {
     // Without a durably recorded session, upload/process cannot have been dispatched.
     // A lost create response may leave an expiring upload slot, but cannot post money.
@@ -329,6 +394,7 @@ export function createVoiceBatchApi(options: {
         ? operation
         : await update(b, operation, {
             phase,
+            ...(failureCode ? { failureCode } : {}),
             createBody: null,
             processBody: null
           });
@@ -379,7 +445,7 @@ export function createVoiceBatchApi(options: {
     if (terminal(operation.phase) && !operation.sessionId) {
       const phase = operation.phase === 'cancelled' ? 'cancelled' : 'failed';
       await retireLocal(b, operation, phase);
-      throw new VoiceBatchLocalTerminalError(phase);
+      throw new VoiceBatchLocalTerminalError(phase, operation.failureCode);
     }
     if (
       !operation.sessionId &&
@@ -460,8 +526,10 @@ export function createVoiceBatchApi(options: {
         });
       } catch (error) {
         if (error instanceof VoiceBatchRequestRejected) {
-          await retireLocal(b, operation, 'failed');
-          throw new VoiceBatchLocalTerminalError('failed');
+          const failureCode =
+            error.code === 'voice_canary_restricted' ? error.code : undefined;
+          await retireLocal(b, operation, 'failed', failureCode);
+          throw new VoiceBatchLocalTerminalError('failed', failureCode);
         }
         throw error;
       }
@@ -486,6 +554,13 @@ export function createVoiceBatchApi(options: {
     const server = await result(b, session);
     if (terminal(server.status)) return finish(b, operation, server);
     if (server.status === 'uploading') {
+      if (operation.retryAfterAt && operation.retryAfterAt > Date.now()) {
+        // Quota entitlements can change while queued. Recheck at most once a minute,
+        // including journals written by the earlier reset-time-only implementation.
+        if (operation.retryAfterAt > Date.now() + quotaRetryMs)
+          await update(b, operation, { retryAfterAt: Date.now() + quotaRetryMs });
+        return server;
+      }
       if (!operation.processBody) {
         bytes = bytes ?? (await readAudio(b, operation));
         if (
@@ -523,15 +598,24 @@ export function createVoiceBatchApi(options: {
           }
         });
       }
-      await send(
-        b,
-        'POST',
-        '/api/v1/voice/sessions/' + session + '/process',
-        operation.processBody,
-        'voice-process:' + id
-      );
+      try {
+        await send(
+          b,
+          'POST',
+          '/api/v1/voice/sessions/' + session + '/process',
+          operation.processBody,
+          'voice-process:' + id
+        );
+      } catch (error) {
+        if (error instanceof VoiceBatchRateLimited)
+          await update(b, operation, { retryAfterAt: error.retryAfterAt });
+        throw error;
+      }
     }
-    operation = await update(b, operation, { phase: 'processing' });
+    operation = await update(b, operation, {
+      phase: 'processing',
+      retryAfterAt: undefined
+    });
     return finish(b, operation, await poll(b, session));
   };
   const runBatch = (id: string) => {
@@ -590,7 +674,7 @@ export function createVoiceBatchApi(options: {
           .filter((operation) => !terminal(operation.phase))
           .map((operation) => operation.id)
       );
-      // Return a recovery snapshot promptly; long polling never hides cancellation controls.
+      // Return promptly while automatic submission and reconciliation continue.
       for (const operation of local.filter(
         (row) => !terminal(row.phase) || Boolean(row.audioReference)
       )) {
@@ -679,6 +763,11 @@ export function createVoiceBatchApi(options: {
           .filter((row) => !terminal(row.phase))
           .map((row) => row.id),
         localFailure: latestLocal?.phase === 'failed' && !latestLocal.sessionId,
+        ...(latestLocal?.phase === 'failed' &&
+        !latestLocal.sessionId &&
+        latestLocal.failureCode
+          ? { localFailureCode: latestLocal.failureCode }
+          : {}),
         ...(remaining.some((row) => row.sessionId)
           ? {
               localSessions: Object.fromEntries(

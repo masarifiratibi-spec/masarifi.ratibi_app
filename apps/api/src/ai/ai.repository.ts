@@ -165,6 +165,28 @@ export class AiRepository {
     );
   }
 
+  createVoiceReviewSession(
+    principal: ClerkPrincipal,
+    input: Record<string, unknown>,
+    key: string,
+    uploadSeconds = 300,
+  ) {
+    // Keep the legacy create identity/hash so recovery cannot replace the operation.
+    return this.idempotent(
+      principal,
+      'ai.voice-session.create',
+      key,
+      input,
+      201,
+      (client, operationId) =>
+        this.json(
+          client,
+          'select private.create_voice_review_session($1,$2::jsonb,$3::uuid,$4) result',
+          [principal.userId, JSON.stringify(input), operationId, uploadSeconds],
+        ),
+    );
+  }
+
   processVoiceSession(
     principal: ClerkPrincipal,
     sessionId: string,

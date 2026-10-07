@@ -385,3 +385,102 @@ it('recovers all ten committed transaction receipts without a review step', asyn
   });
   expect((await api.recoverBatches()).results).toEqual([receipt]);
 });
+
+it('preserves a quota-blocked recording across restart and automatically resumes after its quota changes', async () => {
+  // Samsung Dev, 2026-10-07: HTTP 429 was retried every ten seconds.
+  let now = Date.now();
+  const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  const reset = now + 3600000;
+  let operation: import('@/storage/voice-batch-journal').VoiceBatchOperation = {
+    id: '11111111-1111-4111-8111-111111111111',
+    revision: 2,
+    phase: 'uploaded',
+    audioReference: 'file://retained.m4a',
+    locale: 'ar',
+    durationMs: 18000,
+    recordedAt: now,
+    timezoneOffsetMinutes: -180,
+    createBody: { contentHash: 'frozen-hash' },
+    sessionId: '55555555-5555-4555-8555-555555555555',
+    version: 1,
+    processBody: {
+      uploadCompleted: true,
+      expectedVersion: 2,
+      contentHash: 'frozen-hash'
+    }
+  };
+  jest.mocked(loadVoiceBatches).mockImplementation(async () => [operation]);
+  jest.mocked(saveVoiceBatch).mockImplementation(async (_owner, value) => {
+    operation = value;
+  });
+  let completed = false;
+  let quotaAvailable = false;
+  const request = jest.fn(async (url: string | URL | Request) => {
+    if (String(url).endsWith('/process')) {
+      if (!quotaAvailable)
+        return {
+          ok: false,
+          status: 429,
+          json: async () => ({
+            code: 'AI_QUOTA_EXCEEDED',
+            resetsAt: new Date(reset).toISOString()
+          })
+        } as Response;
+      completed = true;
+      return { ok: true, status: 202, json: async () => ({}) } as Response;
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        sessionId: operation.sessionId,
+        batchId: null,
+        status: completed ? 'completed' : 'uploading',
+        transactionIds: [],
+        addedCount: 0,
+        ledgerVersion: 0
+      })
+    } as Response;
+  });
+  const create = () =>
+    createVoiceBatchApi({
+      baseUrl: 'https://example.test',
+      owner: async () => 'owner',
+      token: async () => 'token',
+      request: request as typeof fetch
+    });
+  try {
+    await expect(create().runBatch(operation.id)).rejects.toMatchObject({
+      code: 'quota_exceeded'
+    });
+    const resumed = create();
+    now += 10000;
+    expect((await resumed.runBatch(operation.id)).status).toBe('uploading');
+    expect(operation.audioReference).toBe('file://retained.m4a');
+    const processCalls = () =>
+      request.mock.calls.filter(([url]) => String(url).endsWith('/process'));
+    expect(processCalls()).toHaveLength(1);
+    now += 50000;
+    quotaAvailable = true;
+    expect((await resumed.runBatch(operation.id)).status).toBe('completed');
+    expect(processCalls()).toHaveLength(2);
+    const requests = request.mock.calls as unknown as [string, RequestInit][];
+    const keys = requests
+      .filter(([url]) => url.endsWith('/process'))
+      .map(
+        ([, init]) =>
+          (init.headers as Record<string, string>)['idempotency-key']
+      );
+    expect(keys).toEqual([
+      'voice-process:' + operation.id,
+      'voice-process:' + operation.id
+    ]);
+    expect(
+      requests.some(
+        ([url]) => url.endsWith('/audio') || url.endsWith('/sessions')
+      )
+    ).toBe(false);
+  } finally {
+    clock.mockRestore();
+  }
+});

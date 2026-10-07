@@ -16,6 +16,9 @@ export function useVoiceBatches(owner: string | null) {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [uncertainIds, setUncertainIds] = useState<string[]>([]);
   const [localFailure, setLocalFailure] = useState(false);
+  const [localFailureCode, setLocalFailureCode] = useState<
+    'voice_canary_restricted' | undefined
+  >();
   const [financeRefreshPending, setFinanceRefreshPending] = useState(false);
   const ownerRef = useRef(owner);
   const generation = useRef(0);
@@ -182,6 +185,9 @@ export function useVoiceBatches(owner: string | null) {
         )
       );
       setLocalFailure(values.localFailure);
+      setLocalFailureCode(
+        values.localFailure ? values.localFailureCode : undefined
+      );
       setUncertainIds((previous) => [
         ...previous.filter((id) => active.current.has(id)),
         ...(values.uncertain ? ['recovery'] : [])
@@ -199,6 +205,7 @@ export function useVoiceBatches(owner: string | null) {
     setPendingIds([]);
     setUncertainIds([]);
     setLocalFailure(false);
+    setLocalFailureCode(undefined);
     setFinanceRefreshPending(false);
     active.current.clear();
     settled.current.clear();
@@ -230,6 +237,7 @@ export function useVoiceBatches(owner: string | null) {
     const expected = generation.current;
     active.current.add(id);
     setLocalFailure(false);
+    setLocalFailureCode(undefined);
     setPendingIds((previous) => [...new Set([...previous, id])]);
     void voiceAnalyzerService
       .runBatch?.(id)
@@ -257,7 +265,14 @@ export function useVoiceBatches(owner: string | null) {
             setPendingIds((previous) =>
               previous.filter((value) => value !== id)
             );
-            if (error.phase === 'failed') setLocalFailure(true);
+            if (error.phase === 'failed') {
+              setLocalFailure(true);
+              setLocalFailureCode(
+                error.code === 'voice_canary_restricted'
+                  ? error.code
+                  : undefined
+              );
+            }
             return;
           }
           setUncertainIds((previous) => [...new Set([...previous, id])]);
@@ -300,7 +315,12 @@ export function useVoiceBatches(owner: string | null) {
         settled.current.add(id);
         setPendingIds((previous) => previous.filter((value) => value !== id));
         setUncertainIds((previous) => previous.filter((value) => value !== id));
-        if (error.phase === 'failed') setLocalFailure(true);
+        if (error.phase === 'failed') {
+          setLocalFailure(true);
+          setLocalFailureCode(
+            error.code === 'voice_canary_restricted' ? error.code : undefined
+          );
+        }
         return;
       }
       if (expected === generation.current && mounted.current)
@@ -329,6 +349,7 @@ export function useVoiceBatches(owner: string | null) {
     ],
     uncertain: uncertainIds.length > 0 || financeRefreshPending,
     localFailure,
+    localFailureCode,
     processing:
       pendingIds.length > 0 ||
       results.some(

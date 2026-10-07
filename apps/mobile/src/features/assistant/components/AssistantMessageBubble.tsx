@@ -11,13 +11,14 @@ import { spacing } from '@/design-system/tokens';
 import type { AssistantResponse } from '@/domain/assistant';
 import { colorTokens } from '@/design-system/tokens';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { useAssistantFinancialVisibility } from '../useAssistantFinancialVisibility';
 
 export interface AssistantMessageBubbleProps {
   response: AssistantResponse;
   conversationId?: string;
   onReviewAction?: (previewId: string) => void;
   onViewReport?: () => void;
-  onFeedback?: (feedback: 'helpful' | 'reported') => void;
+  onFeedback?: (feedback: 'helpful' | 'not_helpful' | 'reported') => void;
   timestamp?: string;
   testID?: string;
 }
@@ -33,6 +34,7 @@ export function AssistantMessageBubble({
 }: AssistantMessageBubbleProps) {
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const { hidden, reveal } = useAssistantFinancialVisibility(response.id);
 
   // Check if snapshot contains financial values for structured card
   const snapshotValues = response.snapshot?.values ?? [];
@@ -85,7 +87,7 @@ export function AssistantMessageBubble({
                 }
               ]}
             >
-              {translateDynamic(block.key, block.values)}
+              {hidden ? '••••' : translateDynamic(block.key, block.values)}
             </StyledText>
           </View>
         ))}
@@ -105,13 +107,15 @@ export function AssistantMessageBubble({
         )}
 
         {/* Evidence Report Link */}
-        {response.snapshot?.reportReference && onViewReport && (
+        {response.snapshot?.reportReference && onViewReport && !hidden && (
           <ActionButton
             label={translate('assistant.evidence.report')}
             variant="secondary"
             onPress={onViewReport}
           />
         )}
+
+        {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
 
         {/* Proposed Actions */}
         {(response.proposedActionIds ?? []).map((previewId) => (
@@ -128,7 +132,7 @@ export function AssistantMessageBubble({
           <StyledText key={item} style={styles.limitationText}>
             {item === 'review_required_excluded'
               ? translate('assistant.limitation.reviewExcluded')
-              : item}
+              : translateDynamic(`assistant.limitation.${item}`) === `assistant.limitation.${item}` ? translateDynamic('assistant.limitation.data_incomplete') : translateDynamic(`assistant.limitation.${item}`)}
           </StyledText>
         ))}
 
@@ -158,9 +162,9 @@ export function AssistantMessageBubble({
                 <Text style={styles.feedbackEmoji}>👍</Text>
               </Pressable>
               <Pressable
-                onPress={() => onFeedback('reported')}
+                onPress={() => onFeedback('not_helpful')}
                 style={styles.feedbackBtn}
-                accessibilityLabel={translate('assistant.feedback.report')}
+                accessibilityLabel={translateDynamic('assistant.feedback.notHelpful')}
               >
                 <Text style={styles.feedbackEmoji}>👎</Text>
               </Pressable>

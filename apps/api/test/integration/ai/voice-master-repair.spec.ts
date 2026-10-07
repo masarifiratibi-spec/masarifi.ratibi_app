@@ -26,6 +26,7 @@ describeLiveDatabase('Master Voice operation identity', () => {
     {} as never,
     {} as never,
     {
+      get: () => undefined,
       getRequired: (key: string) =>
         key === 'MASARIFI_AI_PROVIDER_ENABLED'
           ? true

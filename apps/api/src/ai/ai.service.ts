@@ -145,19 +145,28 @@ export class AiService {
       throw new HttpException({ code: 'VOICE_CLIENT_UPGRADE_REQUIRED' }, 410);
     const input = createVoiceV2(body);
     const result = resource(
-      await this.repository.createVoiceSession(
-        principal,
-        input,
-        idempotencyKey(key),
-        this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
-        contract === '3'
-          ? {
-              maxAuthAge: this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
-              thresholds: this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS') ?? {},
-              ...(this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') ? { analysisOnly: true } : {}),
-            }
-          : undefined,
-      ),
+      contract === '2' && this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+        ? await this.repository.createVoiceReviewSession(
+            principal,
+            input,
+            idempotencyKey(key),
+            this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
+          )
+        : await this.repository.createVoiceSession(
+            principal,
+            input,
+            idempotencyKey(key),
+            this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
+            contract === '3'
+              ? {
+                  maxAuthAge: this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
+                  thresholds: this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS') ?? {},
+                  ...(this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+                    ? { analysisOnly: true }
+                    : {}),
+                }
+              : undefined,
+          ),
     );
     const session = resource(result.resource);
     if (typeof session.id !== 'string' || typeof session.uploadDeadline !== 'string')

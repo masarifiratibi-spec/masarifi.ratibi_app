@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { configureApiTokenProvider, requestJson } from "./client";
+import { clearApiSession, configureApiActorProvider, configureApiTokenProvider, requestJson } from "./client";
 import { ApiError } from "./errors";
 import { sanitizeForLog } from "./safe-log";
 
@@ -14,6 +14,19 @@ const response = (status: number, value?: unknown): Response =>
 
 describe("Admin strict HTTP client", () => {
   beforeEach(() => configureApiTokenProvider(async () => "clerk-session"));
+
+  test.each(["logout", "account-switch"])("discards a previous session response after %s", async (change) => {
+    let finish!: (value: Response) => void;
+    const request = vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.stubGlobal("fetch", request);
+    const pending = requestJson("/api/v1/admin/access/me", schema);
+    const rejected = expect(pending).rejects.toMatchObject({ code: "session_expired" });
+    await vi.waitFor(() => expect(request).toHaveBeenCalledOnce());
+    if (change === "logout") clearApiSession();
+    else configureApiActorProvider(() => "new-admin-account");
+    finish(response(200, { state: "ready" }));
+    await rejected;
+  });
 
   test("injects the Clerk bearer and preserves idempotency and version headers", async () => {
     const request = vi

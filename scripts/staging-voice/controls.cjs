@@ -118,23 +118,24 @@ function approve(p, a, now = Date.now()) {
 async function cleanup(a) {
   await a.target();
   const errors = [];
-  for (const step of ["stopApi", "stopScoped", "stopGeneral", "closeEpoch"]) {
+  for (const step of ["closeEpoch", "stopScoped"]) {
     try {
-      await a[step]();
+      const closed = await a[step]();
+      if (step === "closeEpoch") {
+        assert.equal(closed?.posting,false,"POSTING_CLOSURE_UNCONFIRMED");
+        assert.equal(closed?.state,"closed","EPOCH_CLOSURE_UNCONFIRMED");
+      }
     } catch (e) {
       errors.push(e);
     }
   }
   if (errors.length)
     throw new AggregateError(errors, "VOICE_CLOSURE_UNCONFIRMED");
-  await a.pins();
-  await a.restore();
-  await a.health();
   return {
     posting: false,
     admission: false,
-    generalWorker: false,
-    apiAnalysisOnly: true,
+    sharedApi: "preserved",
+    analysisRestoration: "explicit_guarded_cohort_required",
   };
 }
 function environment(env, p, kind) {

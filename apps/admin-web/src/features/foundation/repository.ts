@@ -21,7 +21,7 @@ import type {
 } from "./contracts";
 import { getLiveNavigation } from "./navigation";
 export interface FoundationRepository {
-  getSession(): Promise<AdminSession>;
+  getSession(signal?: AbortSignal): Promise<AdminSession>;
   getNavigation(role: AdminRole): Promise<NavigationResponse>;
   getAttention(role: AdminRole, input: AttentionQuery): Promise<AttentionResponse>;
   search(role: AdminRole, input: GlobalSearchQuery): Promise<GlobalSearchResponse>;
@@ -55,7 +55,7 @@ function sortAttention(items: AttentionResponse["items"]): AttentionResponse["it
 }
 
 export const foundationRepository: FoundationRepository = {
-  getSession: () => apiClient.get("/api/v1/admin/access/me", adminSelfContextSchema),
+  getSession: (signal) => apiClient.get("/api/v1/admin/access/me", adminSelfContextSchema, { signal }),
   async getNavigation(role) {
     if (!mocksEnabled()) return { groups: getLiveNavigation() };
     const roleQuery = mocksEnabled() ? queryString({ role }) : "";

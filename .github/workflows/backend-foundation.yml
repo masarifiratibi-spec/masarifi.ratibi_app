@@ -90,7 +90,9 @@ jobs:
       - name: Verify bounded Voice canary closure and guards
         run: node --test ../../scripts/voice-manual-canary/canary-controls.test.cjs ../../scripts/voice-manual-canary/canary-closure.test.cjs
       - name: Verify Staging Voice epoch closure and guards
-        run: node --test ../../scripts/staging-voice/controls.test.cjs
+        run: |
+          node --test ../../scripts/staging-voice/controls.test.cjs ../../scripts/staging-voice/deployment-guard.test.cjs ../../scripts/staging-voice/deploy-cohort.test.cjs ../../scripts/staging-voice/cross-feature-compatibility.test.cjs ../../scripts/staging-voice/collect-compatibility.test.cjs
+          python3 ../../scripts/staging-voice/operating-host.test.py
 
   mobile:
     runs-on: ubuntu-24.04
@@ -171,6 +173,7 @@ jobs:
       NODE_ENV: test
       MASARIFI_RELEASE_VERSION: ci
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      MASARIFI_DISPOSABLE_DATABASE_NAME: postgres
       K6_DATABASE_URL: postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
     defaults:
       run:
@@ -348,7 +351,7 @@ jobs:
           printf 'COMPOSE_SENTINEL=migration\n' > "$MASARIFI_MIGRATION_ENV_FILE"
           chmod 600 "$MASARIFI_API_ENV_FILE" "$MASARIFI_WORKER_ENV_FILE" "$MASARIFI_MIGRATION_ENV_FILE"
           docker compose -f docker/staging/compose.backend.yml --profile migrate config --format json | node docker/staging/verify-compose.mjs
-      - run: docker build --file docker/backend.Dockerfile --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
+      - run: docker build --file docker/backend.Dockerfile --label org.opencontainers.image.revision=${{ github.sha }} --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
       - run: npm --prefix apps/api run test:container
         env:
           MASARIFI_IMAGE_UNDER_TEST: masarifi-backend:${{ github.sha }}

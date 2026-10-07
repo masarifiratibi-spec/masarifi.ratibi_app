@@ -67,16 +67,6 @@ async function main(mode = process.argv[2]) {
     assert.equal(c.length, 1);
     return c[0];
   };
-  const stopService = async (n, s) => {
-    const c = await inspect(n);
-    assert.equal(
-      c.Config.Labels["com.docker.compose.project"],
-      "masarifi-staging",
-    );
-    assert.equal(c.Config.Labels["com.docker.compose.service"], s);
-    assert.equal(c.HostConfig.NetworkMode, "masarifi-staging_backend");
-    await run("docker", ["stop", "--time", "5", n], 20000);
-  };
   const stopScoped = async () => {
     const ids = (
       await run("docker", [
@@ -183,21 +173,8 @@ async function main(mode = process.argv[2]) {
   const close = () =>
     g.cleanup({
       target,
-      stopApi: () => stopService("masarifi-staging-api-1", "api"),
       stopScoped,
-      stopGeneral: () => stopService("masarifi-staging-worker-1", "worker"),
       closeEpoch: () => db("close"),
-      pins,
-      restore: () =>
-        run("docker", [
-          ...compose,
-          "up",
-          "-d",
-          "--no-deps",
-          "api",
-          "analysis-worker",
-        ]),
-      health: () => waitHealth(true),
     });
   if (mode === "cleanup" || mode === "rehearse") return close();
   await pins();

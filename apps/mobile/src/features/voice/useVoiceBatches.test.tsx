@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor
-} from '@testing-library/react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { voiceAnalyzerService } from '@/services/voice-analyzer-service';
 import type {
@@ -169,7 +163,7 @@ it('ignores an older recovery snapshot arriving after a terminal submit receipt'
   }
 });
 
-it('shows one cancellation target for a local capture and its server session, and clears both aliases', async () => {
+it('clears both cancellation aliases without exposing a manual cancellation control', async () => {
   Object.assign(voiceAnalyzerService, {
     recoverBatches: async () => ({
       results: [receipt('analyzing')],
@@ -185,9 +179,9 @@ it('shows one cancellation target for a local capture and its server session, an
   try {
     await waitFor(() => expect(view.batches.results).toHaveLength(1));
     expect(
-      screen.getAllByLabelText(translate('voice.action.cancel'))
-    ).toHaveLength(1);
-    fireEvent.press(screen.getByLabelText(translate('voice.action.cancel')));
+      screen.queryByLabelText(translate('voice.action.cancel'))
+    ).toBeNull();
+    await act(async () => view.batches.cancel(capture));
     await waitFor(() => expect(view.batches.latest?.status).toBe('cancelled'));
     expect(view.batches.pendingIds).toEqual([]);
     await act(async () => view.batches.recover());

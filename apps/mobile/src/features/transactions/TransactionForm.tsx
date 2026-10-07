@@ -392,6 +392,11 @@ function TransactionFormContent({
                 draft.submission
               );
               const now = Date.now();
+              recordManualDiagnostic('restore', {
+                operationId: draft.submission.operationId,
+                firstAttemptAt: draft.submission.firstAttemptAt,
+                phase: restored.success ? restored.data.phase : 'blocked'
+              });
               if (
                 !restored.success ||
                 draft.submission.firstAttemptAt > now ||

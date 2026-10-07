@@ -121,13 +121,17 @@ test("approval binds the immutable packet and exact window with no automatic ext
   assert.throws(() => approve(p, a, Date.parse(p.deadline)));
   assert.throws(() => approve(p, a, Date.parse(p.startsAt) - 1));
 });
+
+test("verified OFF canary cleanup preserves another API release and never restores an archived cohort", async () => {
+  const calls=[];
+  const result=await cleanup({target:async()=>{},closeEpoch:async()=>({posting:false,state:'closed'}),
+    ownedApi:async()=>null,stopApi:async()=>calls.push('stopApi'),stopScoped:async()=>calls.push('stopScoped'),
+    stopGeneral:async()=>calls.push('stopGeneral'),pins:async()=>{},restore:async()=>calls.push('restore'),health:async()=>{}});
+  assert.deepEqual(calls,['stopScoped']);
+  assert.equal(result.analysisRestoration,'explicit_guarded_cohort_required');
+});
 test("closure attempts every OFF step and refuses restoration on unconfirmed closure", async () => {
-  for (const failing of [
-    "stopApi",
-    "stopScoped",
-    "stopGeneral",
-    "closeEpoch",
-  ]) {
+  for (const failing of ["stopScoped", "closeEpoch"]) {
     const calls = [];
     const adapter = Object.fromEntries(
       [
@@ -144,20 +148,19 @@ test("closure attempts every OFF step and refuses restoration on unconfirmed clo
         async () => {
           calls.push(n);
           if (n === failing) throw Error("unavailable");
+          if (n === "closeEpoch") return {posting:false,state:"closed"};
         },
       ]),
     );
     await assert.rejects(cleanup(adapter), /CLOSURE/);
     assert.deepEqual(calls, [
       "target",
-      "stopApi",
-      "stopScoped",
-      "stopGeneral",
       "closeEpoch",
+      "stopScoped",
     ]);
   }
 });
-test("mutable pin drift cannot suppress OFF closure; successful closure restores healthy analysis", async () => {
+test("mutable pin drift cannot suppress Voice closure or trigger shared API restoration", async () => {
   const calls = [];
   let drift = true;
   const a = Object.fromEntries(
@@ -175,29 +178,22 @@ test("mutable pin drift cannot suppress OFF closure; successful closure restores
       async () => {
         calls.push(n);
         if (n === "pins" && drift) throw Error("drift");
+        if (n === "closeEpoch") return {posting:false,state:"closed"};
       },
     ]),
   );
-  await assert.rejects(cleanup(a), /drift/);
+  await cleanup(a);
   assert.deepEqual(calls, [
     "target",
-    "stopApi",
-    "stopScoped",
-    "stopGeneral",
     "closeEpoch",
-    "pins",
+    "stopScoped",
   ]);
   calls.length = 0;
   drift = false;
   await cleanup(a);
   assert.deepEqual(calls, [
     "target",
-    "stopApi",
-    "stopScoped",
-    "stopGeneral",
     "closeEpoch",
-    "pins",
-    "restore",
-    "health",
+    "stopScoped",
   ]);
 });

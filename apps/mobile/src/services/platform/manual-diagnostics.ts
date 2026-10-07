@@ -2,8 +2,10 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 
 export type ManualDiagnosticStage =
-  'input' | 'prepare' | 'request' | 'receipt' | 'refresh' | 'failure';
+  'restore' | 'input' | 'prepare' | 'request' | 'receipt' | 'refresh' | 'failure';
 interface Details {
+  phase?: string;
+  firstAttemptAt?: number;
   operationId?: string;
   requestId?: string;
   domainCode?: string;
@@ -50,6 +52,10 @@ export function recordManualDiagnostic(
     stage,
     at: Date.now()
   };
+  if (['submitting', 'unknown', 'saved', 'blocked'].includes(details.phase ?? ''))
+    entry.phase = details.phase!;
+  if (Number.isSafeInteger(details.firstAttemptAt) && details.firstAttemptAt! > 0)
+    entry.firstAttemptAt = details.firstAttemptAt!;
   if (details.operationId && uuid.test(details.operationId))
     entry.operationHash = bytesToHex(
       sha256(Uint8Array.from(details.operationId, (char) => char.charCodeAt(0)))
@@ -73,7 +79,11 @@ export function recordManualDiagnostic(
   if (failedRules.length) entry.validationRules = failedRules.join(',');
   entries.push(entry);
   if (entries.length > 200) entries.shift();
-  console.info('MANUAL_DIAG', JSON.stringify(entry));
+  try {
+    console.info('MANUAL_DIAG', JSON.stringify(entry));
+  } catch {
+    // Diagnostics are best effort; a failed sink must never change a ledger outcome.
+  }
 }
 export function readManualDiagnostics(): ReadonlyArray<
   Readonly<Record<string, string | number | boolean>>

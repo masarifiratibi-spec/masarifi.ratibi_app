@@ -22,11 +22,13 @@ it.each([
       cancelIds: ['capture-pending'],
       uncertain,
       localFailure: false,
+      localFailureCode: undefined,
       processing: true,
       latest: null
     };
     renderWithProviders(<VoiceBatchStatus batches={batches} />);
-    expect(screen.getByText(uncertain ? checking : analyzing)).toBeTruthy();
-    expect(screen.queryByText(uncertain ? analyzing : checking)).toBeNull();
+    expect(screen.getByText(analyzing)).toBeTruthy();
+    expect(screen.queryByText(checking)).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
   }
 );

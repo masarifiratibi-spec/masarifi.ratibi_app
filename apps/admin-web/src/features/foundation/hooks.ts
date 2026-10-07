@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { AdminRole } from "@/core/permissions/permissions";
 import type { AttentionQuery, GlobalSearchQuery } from "./contracts";
 import { foundationRepository } from "./repository";
+import { mocksEnabled } from "@/core/config/runtime";
+import { ApiError, safeApiMessage } from "@/core/api/errors";
 
 export const foundationQueryKeys = {
   all: ["foundation"] as const,
@@ -19,7 +21,14 @@ export const foundationQueryKeys = {
 export function useAdminSession(actorId: string) {
   return useQuery({
     queryKey: foundationQueryKeys.session(actorId),
-    queryFn: () => foundationRepository.getSession(),
+    queryFn: async ({ signal }) => {
+      const session = await foundationRepository.getSession(signal);
+      if (!mocksEnabled() && session.id !== actorId) {
+        throw new ApiError("session_expired", safeApiMessage("session_expired"), 401);
+      }
+      return session;
+    },
+    retry: (count, error) => !(error instanceof ApiError && error.code === "session_expired") && count < 1,
     enabled: actorId.length > 0,
   });
 }

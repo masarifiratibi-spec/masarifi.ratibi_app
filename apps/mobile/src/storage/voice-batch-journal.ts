@@ -5,6 +5,7 @@ export const voiceBatchOperationSchema = z
   .object({
     id: z.string().uuid(),
     revision: z.number().int().nonnegative(),
+    failureCode: z.literal('voice_canary_restricted').optional(),
     phase: z.enum([
       'captured',
       'created',
@@ -23,6 +24,7 @@ export const voiceBatchOperationSchema = z
     createBody: z.record(z.string(), z.unknown()).nullable(),
     sessionId: z.string().uuid().nullable(),
     version: z.number().int().positive().nullable(),
+    retryAfterAt: z.number().int().nonnegative().optional(),
     processBody: z.record(z.string(), z.unknown()).nullable()
   })
   .strict();

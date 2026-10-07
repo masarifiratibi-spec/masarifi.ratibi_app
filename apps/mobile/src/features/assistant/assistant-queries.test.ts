@@ -27,6 +27,19 @@ test('keys consent, conversation pages, immutable responses, action previews, an
   expect(queries.assistantKeys.context()).toEqual(['assistant', 'context', 'current']);
 });
 
+test('refreshes live financial destinations and insights while preserving immutable outputs', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+  const liveKeys = [['core-finance', 'accounts'], ['planning', 'goals'], ['reports', 'live'], ['reports', 'preview'], ['reports', 'breakdown'], ['reports', 'net-worth'], ['tracking', 'reviews'], queries.assistantKeys.insights()];
+  liveKeys.forEach((key) => client.setQueryData(key, { sample: true }));
+  client.setQueryData(['reports', 'output', 'sample'], { immutable: true });
+  client.setQueryData(queries.assistantKeys.response('sample'), { immutable: true });
+  await queries.invalidateAssistantScopes(client, ['financial.live', 'assistant.insights']);
+  liveKeys.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(true));
+  expect(client.getQueryState(['reports', 'output', 'sample'])?.isInvalidated).toBe(false);
+  expect(client.getQueryState(queries.assistantKeys.response('sample'))?.isInvalidated).toBe(false);
+  client.clear();
+});
+
 test('invalidates live assistant scopes without touching immutable responses or snapshots', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
   client.setQueryData(queries.assistantKeys.conversations({}), { items: [] });

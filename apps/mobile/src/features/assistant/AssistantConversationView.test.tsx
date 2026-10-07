@@ -7,6 +7,14 @@ import { AssistantConversationView } from './AssistantConversationView';
 import type { AssistantResponse } from '@/domain/assistant';
 
 describe('AssistantConversationView', () => {
+  it('uses the existing status area for a submission failure and retains the typed question', () => {
+    const onSendMessage = jest.fn();
+    renderWithProviders(<AssistantConversationView conversationId="conversation-1" responses={[]} onSendMessage={onSendMessage} error="Safe failure" />);
+    expect(screen.getByText('Safe failure')).toBeTruthy();
+    fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'Retained question');
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    expect(screen.getByTestId('assistant-composer-input').props.value).toBe('Retained question');
+  });
   beforeEach(() => {
     changeLocale('ar');
   });

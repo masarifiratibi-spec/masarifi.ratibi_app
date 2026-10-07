@@ -49,7 +49,7 @@ beforeEach(() => {
   mockAssistantQueries.useAssistantFeedback.mockReturnValue({ mutate: jest.fn() });
 });
 
-test('home shows consent disclosure, suggestions, history, and required data states', () => {
+test('original home shows consent disclosure, suggestions and required data states without a history redesign', () => {
   const create = jest.fn();
   mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create, error: { code: 'offline' } });
   mockAssistantQueries.useAssistantConversations.mockReturnValue({
@@ -64,7 +64,7 @@ test('home shows consent disclosure, suggestions, history, and required data sta
   expect(screen.getByText(t('assistant.consent.title'))).toBeTruthy();
   expect(screen.getByText(t('assistant.privacy.transactions'))).toBeTruthy();
   expect(screen.getByText(t('assistant.suggestions.spending'))).toBeTruthy();
-  expect(screen.getByText('January budget help')).toBeTruthy();
+  expect(screen.queryByText('January budget help')).toBeNull();
   expect(screen.getByText(t('assistant.state.offline'))).toBeTruthy();
   expect(screen.getByText(t('assistant.state.empty'))).toBeTruthy();
 
@@ -117,7 +117,7 @@ test('conversation renders structured labels, evidence, limitations, feedback, r
   fireEvent.press(screen.getByText(t('assistant.feedback.report')));
   act(() => rendered.UNSAFE_getByType(FlatList).props.onEndReached());
 
-  expect(ask).toHaveBeenCalledWith(expect.objectContaining({ conversationId: 'conversation-1', question: 'How can I save?' }));
+  expect(ask).toHaveBeenCalledWith(expect.objectContaining({ conversationId: 'conversation-1', question: 'How can I save?' }), expect.objectContaining({onSuccess: expect.any(Function), onError: expect.any(Function)}));
   expect(rename).toHaveBeenCalledWith(expect.objectContaining({ id: 'conversation-1', title: 'Renamed budget help' }));
   expect(remove).toHaveBeenCalledWith(expect.objectContaining({ id: 'conversation-1' }));
   expect(feedback).toHaveBeenCalledWith(expect.objectContaining({ responseId: 'response-1' }));

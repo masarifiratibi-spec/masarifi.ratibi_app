@@ -28,6 +28,7 @@ interface VoiceDiagnosticDetails {
   durationMs?: number;
   elapsedMs?: number;
   status?: number;
+  domainCode?: 'VOICE_CANARY_RESTRICTED' | 'VOICE_AUTOMATIC_UNAVAILABLE';
 }
 const phases = new Set([
   'active',
@@ -88,6 +89,11 @@ export function recordVoiceDiagnostic(
     entry.requestId = details.requestId;
   if (details.phase && phases.has(details.phase)) entry.phase = details.phase;
   if (
+    details.domainCode === 'VOICE_CANARY_RESTRICTED' ||
+    details.domainCode === 'VOICE_AUTOMATIC_UNAVAILABLE'
+  )
+    entry.domainCode = details.domainCode;
+  if (
     details.operation &&
     ['create', 'upload', 'process', 'status', 'cancel', 'recovery'].includes(
       details.operation
@@ -111,7 +117,11 @@ export function recordVoiceDiagnostic(
   }
   entries.push(entry);
   if (entries.length > 200) entries.shift();
-  console.info('VOICE_DIAG', JSON.stringify(entry));
+  try {
+    console.info('VOICE_DIAG', JSON.stringify(entry));
+  } catch {
+    // Recording and durable handoff must survive a failed diagnostic sink.
+  }
 }
 export function readVoiceDiagnostics(): ReadonlyArray<
   Readonly<Record<string, string | number>>

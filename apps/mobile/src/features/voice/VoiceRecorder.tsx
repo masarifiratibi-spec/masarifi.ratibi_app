@@ -4,7 +4,10 @@ import { StyleSheet, View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
-import { VOICE_MAX_DURATION_MS, type VoiceSessionState } from '@/domain/voice-capture';
+import {
+  VOICE_MAX_DURATION_MS,
+  type VoiceSessionState
+} from '@/domain/voice-capture';
 import { translate } from '@/localization/i18n';
 import { useTheme } from '@/state/theme-context';
 
@@ -19,7 +22,7 @@ export function VoiceRecorder({
   durationMs: number;
   onStart(): void;
   onStop(): void;
-  onCancel(): void;
+  onCancel?(): void;
 }) {
   const theme = useTheme();
   const recording = state === 'recording';
@@ -36,9 +39,7 @@ export function VoiceRecorder({
       <StyledText variant="subtitle">
         {translate(recording ? 'voice.record.active' : 'voice.record.ready')}
       </StyledText>
-      <StyledText variant="amount">
-        {elapsed}
-      </StyledText>
+      <StyledText variant="amount">{elapsed}</StyledText>
       <View accessibilityElementsHidden style={styles.waveform}>
         {Array.from({ length: 12 }, (_, index) => (
           <View
@@ -46,7 +47,9 @@ export function VoiceRecorder({
             style={[
               styles.bar,
               {
-                backgroundColor: recording ? theme.colors.primary : theme.colors.border,
+                backgroundColor: recording
+                  ? theme.colors.primary
+                  : theme.colors.border,
                 height: 8 + (index % 4) * 6
               }
             ]}
@@ -63,14 +66,19 @@ export function VoiceRecorder({
             onPress={onStop}
             style={styles.stop}
           />
-          <ActionButton
-            label={translate('voice.record.cancel')}
-            variant="quiet"
-            onPress={onCancel}
-          />
+          {onCancel ? (
+            <ActionButton
+              label={translate('voice.record.cancel')}
+              variant="quiet"
+              onPress={onCancel}
+            />
+          ) : null}
         </>
       ) : (
-        <ActionButton label={translate('voice.record.start')} onPress={onStart} />
+        <ActionButton
+          label={translate('voice.record.start')}
+          onPress={onStart}
+        />
       )}
     </SurfaceCard>
   );

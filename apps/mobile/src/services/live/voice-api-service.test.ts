@@ -186,6 +186,27 @@ function successfulRequest(
     );
 }
 
+it('routes ordinary live capture to transcript and proposal review without automatic financial submission', async () => {
+  const request = successfulRequest(undefined, proposal({
+    redactedTranscript: 'I spent 25 Saudi riyals on food from Voice Staging Test today',
+    payload: { ...proposal().payload, amountMinor: '2500' }
+  }));
+  const service = createLiveVoiceApiService({
+    baseUrl: 'https://api.test', token: async () => 'owner', request,
+    sleep: async () => {}, now: () => Date.parse(at)
+  });
+  // The capture runtime selects automatic processing only when this method is
+  // advertised. Ordinary capture must use the existing explicit review flow.
+  expect(service.queueBatch).toBeUndefined();
+  const transcript = await service.transcribe('file:///voice.wav', 'clear_en', 1234, 'en');
+  expect(transcript.text).toBe('I spent 25 Saudi riyals on food from Voice Staging Test today');
+  const group = await service.analyze({ transcript, scenario: 'clear_en', sessionId: id(1),
+    recordedAt: Date.parse(at), timezoneOffsetMinutes: 0 });
+  expect(group.proposals[0]).toMatchObject({ type: 'expense', amountMinor: 2500,
+    currencyCode: 'SAR', accountId: id(3), categoryId: id(4) });
+  expect(request.mock.calls.some(([url]) => String(url).endsWith('/confirm'))).toBe(false);
+});
+
 it('uploads native M4A recordings as M4A even when Android infers MP3, without confirming a transaction', async () => {
   const m4a = Uint8Array.from([
     0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32
