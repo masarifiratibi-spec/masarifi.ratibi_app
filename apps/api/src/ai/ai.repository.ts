@@ -657,7 +657,8 @@ export class AiRepository {
       `select jsonb_build_object('role',role,'content',content_redacted,'intent',intent) value
        from public.assistant_messages
        where conversation_id=$1 and user_id=$2 and work_status='completed'
-       order by created_at desc,id desc limit least($3,private.ai_history_turn_limit())`,
+       order by created_at desc,coalesce(reply_to_message_id,id) desc,
+         (role='assistant') desc,id desc limit least($3,private.ai_history_turn_limit())`,
       [conversationId, principal.userId, limit],
     ).then((rows) => rows.reverse() as unknown as AssistantTurn[]);
   }
