@@ -86,9 +86,8 @@ describeLiveDatabase('native assistant result and recovery under the API role', 
     await repository.saveDeterministicMessage(owner, conversationId, input, key);
     const turns = await repository.recentConversationTurns(owner, conversationId, 20);
     expect(turns.map((turn) => turn.content)).toEqual(['Sample spending?', 'Sample SAR 12.50']);
-    await expect(service.listMessages(owner, conversationId, { limit: 20 })).resolves.toMatchObject(
-      { items: expect.arrayContaining([expect.objectContaining({ id: messageId })]) },
-    );
+    const listed = await service.listMessages(owner, conversationId, { limit: 20 });
+    expect(listed.items.map((item) => item.id)).toContain(messageId);
   });
   it('does not disclose another owner’s acceptance, result or history', async () => {
     await expect(repository.messageAcceptance(other, conversationId, key)).rejects.toMatchObject({
