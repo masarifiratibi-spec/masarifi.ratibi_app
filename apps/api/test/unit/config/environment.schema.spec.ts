@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { load } from 'js-yaml';
 import { validateEnvironment } from '../../../src/platform/config/environment.schema';
 
 const pushKey = (byte: number): string => Buffer.alloc(32, byte).toString('base64url');
@@ -26,6 +29,31 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('accepts the actual CI migration environment without collector-only settings', () => {
+    const workflow = load(
+      readFileSync(
+        resolve(__dirname, '../../../../../.github/workflows/backend-foundation.yml'),
+        'utf8',
+      ),
+    ) as {
+      jobs: {
+        database: {
+          env: Record<string, unknown>;
+          steps: Array<{
+            run?: string;
+            env?: Record<string, unknown>;
+          }>;
+        };
+      };
+    };
+    const job = workflow.jobs.database;
+    const migration = job.steps.find((step) => step.run === 'npm run start:migration');
+    expect(migration).toBeDefined();
+    expect(validateEnvironment({ ...job.env, ...migration?.env })).toMatchObject({
+      MASARIFI_PROCESS_KIND: 'migration',
+      NODE_ENV: 'test',
+    });
+  });
   it('rejects a financial Voice epoch outside the Staging worker configuration', () => {
     expect(() =>
       validateEnvironment({
