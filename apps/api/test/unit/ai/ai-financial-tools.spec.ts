@@ -94,6 +94,35 @@ describe('AssistantFinancialTools', () => {
   });
   afterEach(() => jest.useRealTimers());
 
+  it('answers the largest-expense suggestion from the highest Reports category', async () => {
+    const result = await tools.resolve(
+      owner,
+      'category_breakdown',
+      'ما هي أكبر مصروفاتي؟',
+      'sample',
+      ['recent_transactions'],
+    );
+    expect(result.context.category).toEqual({
+      name: 'المطاعم',
+      totals: [{ amountMinor: '130000', currency: 'SAR' }],
+    });
+    expect(result.answer).toContain('المطاعم');
+    expect(result.evidence).toEqual(report.metadata.evidence);
+  });
+
+  it('reports net cash flow without mislabeling it as spending or an account balance', async () => {
+    const result = await tools.resolve(
+      owner,
+      'spending_summary',
+      'What is my net result this month?',
+      'sample',
+      ['recent_transactions'],
+    );
+    expect(result.context.totals).toEqual([{ amountMinor: '565000', currency: 'SAR' }]);
+    expect(result.answer).toMatch(/^Net result:/u);
+    expect(result.context).not.toHaveProperty('monthlySpendingMinor');
+  });
+
   it('does not silently use monthly Planning data for weekly advice', async () => {
     const result = await tools.resolve(
       owner,

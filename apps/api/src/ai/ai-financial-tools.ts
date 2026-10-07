@@ -310,29 +310,51 @@ function reportResult(
 ): FinancialToolResult {
   checkReport(report);
   if (intent === 'category_breakdown') {
-    const selected = report.breakdowns.filter(
+    let selected = report.breakdowns.filter(
       (item) => includesName(question, item.labelAr) || includesName(question, item.labelEn),
     );
+    const largest = /biggest|largest|highest|أكبر|اكبر|أعلى/iu.test(question);
+    if (!selected.length && largest) {
+      const maximumByCurrency = new Map<string, bigint>();
+      for (const item of report.breakdowns) {
+        const amount = exact(item.expenseMinor);
+        if (amount > (maximumByCurrency.get(item.currencyCode) ?? 0n))
+          maximumByCurrency.set(item.currencyCode, amount);
+      }
+      selected = report.breakdowns.filter(
+        (item) =>
+          exact(item.expenseMinor) > 0n &&
+          exact(item.expenseMinor) === maximumByCurrency.get(item.currencyCode),
+      );
+    }
     const category = selected[0];
-    if (!category || new Set(selected.map((item) => item.categoryId)).size > 1)
+    if (!category || (!largest && new Set(selected.map((item) => item.categoryId)).size > 1))
       return unavailable(resolved, 'entity_required');
     const totals = selected.map((item) => ({
       currency: item.currencyCode,
       amountMinor: exact(item.expenseMinor).toString(),
     }));
+    const name = [
+      ...new Set(selected.map((item) => (resolved.locale === 'ar' ? item.labelAr : item.labelEn))),
+    ].join(' / ');
     return {
-      answer: `${resolved.locale === 'ar' ? category.labelAr : category.labelEn}: ${totals.map((item) => money(item.amountMinor, item.currency, resolved.locale)).join(' / ')} (${resolved.startDate} – ${resolved.endDate}).`,
+      answer: `${selected.map((item) => `${resolved.locale === 'ar' ? item.labelAr : item.labelEn}: ${money(exact(item.expenseMinor).toString(), item.currencyCode, resolved.locale)}`).join(' / ')} (${resolved.startDate} – ${resolved.endDate}).`,
       context: {
         category: {
-          name: resolved.locale === 'ar' ? category.labelAr : category.labelEn,
+          name,
           totals,
         },
       },
       evidence: report.metadata.evidence,
     };
   }
+  const net = /net (?:result|income|cash flow)|صافي (?:الدخل|النتيجة|التدفق)/iu.test(question);
   const totals = report.summaries.map((summary) => {
-    const amount = intent === 'income_summary' ? summary.income : summary.expense;
+    const amount = net
+      ? summary.netCashFlow
+      : intent === 'income_summary'
+        ? summary.income
+        : summary.expense;
     return { amountMinor: exact(amount.amountMinor).toString(), currency: amount.currency };
   });
   if (!totals.length) return unavailable(resolved, 'no_data');
@@ -350,14 +372,17 @@ function reportResult(
   return {
     answer:
       resolved.locale === 'ar'
-        ? `${intent === 'income_summary' ? 'دخلك' : 'صرفت'} ${amount} ${current ? 'هذا الشهر' : `خلال ${resolved.startDate} – ${resolved.endDate}`}.`
-        : `${intent === 'income_summary' ? 'Income' : 'Spending'}: ${amount} (${resolved.startDate} – ${resolved.endDate}).`,
+        ? `${net ? 'صافي الدخل' : intent === 'income_summary' ? 'دخلك' : 'صرفت'} ${amount} ${current ? 'هذا الشهر' : `خلال ${resolved.startDate} – ${resolved.endDate}`}.`
+        : `${net ? 'Net result' : intent === 'income_summary' ? 'Income' : 'Spending'}: ${amount} (${resolved.startDate} – ${resolved.endDate}).`,
     context: {
       totals,
       ...(totals.length === 1 && firstTotal
         ? {
-            [intent === 'income_summary' ? 'monthlyIncomeMinor' : 'monthlySpendingMinor']:
-              firstTotal.amountMinor,
+            [net
+              ? 'monthlyNetResultMinor'
+              : intent === 'income_summary'
+                ? 'monthlyIncomeMinor'
+                : 'monthlySpendingMinor']: firstTotal.amountMinor,
             currency: firstTotal.currency,
           }
         : {}),

@@ -106,6 +106,10 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
     'unrelated',
   ],
   [/(?:تضخم|inflation|فائدة مركبة|compound interest)/iu, 'general_finance'],
+  [
+    /(?:analy[sz]e|advice|recommend).*(?:spend|expense|income|financ|saving|behavior)|(?:how).*(?:save|reduce.*spend|improve.*financ)|(?:حلل|حلّل|نصيحة|نصائح).*(?:صرف|مصروف|دخل|مالي|ادخار)|كيف.*(?:أوفر|اوفر|أدخر|ادخر)/iu,
+    'financial_advice',
+  ],
   [/(?:عد(?:ل|لّ)|غي(?:ر|رّ)|update).*(?:معامل|transaction)/iu, 'update_transaction'],
   [/(?:أنشئ|انشئ|create|add).*(?:هدف.*(?:ادخار|توفير)|saving.*goal)/iu, 'create_savings_goal'],
   [/(?:سجل|سجّل|record).*(?:دفعة|payment).*(?:التزام|obligation)/iu, 'record_obligation_payment'],
@@ -116,7 +120,7 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   [/(?:recent|latest|last).*(?:transactions)|(?:آخر|اخر).*(?:معامل)/iu, 'recent_transactions'],
   [/(?:ليه|لماذا|why|مقارن|compare|زاد|انخفض).*(?:صرف|مصروف|spend)/iu, 'period_comparison'],
   [
-    /(?:أعلى|اكبر|أكبر|فئة|category).*(?:صرف|مصروف|spend)|(?:صرف|spend|spent).*(?:فئة|category|\bon\b|\bfor\b|على|في (?!الشهر|سبتمبر|أكتوبر))/iu,
+    /(?:أعلى|اكبر|أكبر|فئة|category|biggest|largest|highest).*(?:صرف|مصروف|spend|expense)|(?:صرف|spend|spent).*(?:فئة|category|\bon\b|\bfor\b|على|في (?!الشهر|سبتمبر|أكتوبر))/iu,
     'category_breakdown',
   ],
   [
@@ -127,6 +131,7 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   [/(?:التزام|التزامات|obligation|debt)/iu, 'obligations_status'],
   [/(?:ادخار|توفير|savings|goal)/iu, 'savings_status'],
   [/(?:راتب|salary)/iu, 'salary_status'],
+  [/(?:net (?:result|income|cash flow)|صافي (?:الدخل|النتيجة|التدفق))/iu, 'spending_summary'],
   [/(?:دخل|income|كسبت)/iu, 'income_summary'],
   [/(?:صرف|مصروف|أنفقت|انفقت|spend|spent|expense)/iu, 'spending_summary'],
   [/(?:ميزاني|ادخار|مالي|فلوس|money|finance|budget|saving)/iu, 'financial_advice'],
