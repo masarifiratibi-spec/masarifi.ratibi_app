@@ -557,7 +557,11 @@ export class AiRepository {
         )
       ).rows[0];
       if (!row) throw new Error('AI_CONVERSATION_NOT_FOUND');
-      return publicValue(row) as Record<string, unknown>;
+      // pg returns bigint as text; the public optimistic-lock contract is a safe integer.
+      const version = Number(row.version);
+      if (!Number.isSafeInteger(version) || version < 1)
+        throw new Error('AI_CONVERSATION_SCHEMA_INVALID');
+      return publicValue({ ...row, version }) as Record<string, unknown>;
     });
   }
 
