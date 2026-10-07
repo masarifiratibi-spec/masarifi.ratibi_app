@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {deployCohort}=require('./deploy-cohort.cjs');
+const {deployCohort,waitApiReady}=require('./deploy-cohort.cjs');
 const image='ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:'+'a'.repeat(64);
 const packet={project:'qcffvfbpzvpwcwxwjyro',sourceSha:'b'.repeat(40),image,
   services:['api','analysis-worker'],voiceMode:'analysis'};
@@ -30,4 +30,20 @@ test('checks live state before application and verifies the explicit cohort afte
 test('propagates a failed postdeployment readiness check instead of claiming success',async()=>{
   await assert.rejects(deployCohort(packet,{snapshot:async()=>ready(),compatibility,apply:async()=>{},
     verify:async()=>{throw Error('VOICE_ADMISSION_UNAVAILABLE');}}),/VOICE_ADMISSION_UNAVAILABLE/);
+});
+test('startup connection reset and ready HTTP with starting container do not prematurely finish deployment',async()=>{
+  let probes=0;const waits=[];
+  await waitApiReady(async()=>{
+    probes+=1;
+    if(probes===1)throw Error('CONNECTION_RESET');
+    return {ready:{status:'ready'},api:{running:true,health:probes===2?'starting':'healthy'}};
+  },async ms=>waits.push(ms),3);
+  assert.equal(probes,3);assert.deepEqual(waits,[1000,1000]);
+});
+test('a persistently unhealthy container cannot pass even when the ready endpoint returns HTTP 200',async()=>{
+  let probes=0;
+  await assert.rejects(waitApiReady(async()=>{
+    probes+=1;return {ready:{status:'ready'},api:{running:true,health:'unhealthy'}};
+  },async()=>{},3),/API_READINESS_UNCONFIRMED/);
+  assert.equal(probes,3);
 });

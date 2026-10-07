@@ -21,6 +21,21 @@ async function deployCohort(packet, boundaries) {
   await boundaries.verify(packet,snapshot);
 }
 
+async function waitApiReady(probe,delay,attempts=15) {
+  for(let attempt=0;attempt<attempts;attempt+=1) {
+    try {
+      const state=await probe();
+      if(state.ready?.status==='ready' && state.api?.running===true && state.api.health==='healthy') return;
+    } catch {
+      // Startup resets/refusals are transient; bounded retry never changes runtime.
+    }
+    if(attempt+1<attempts) await delay(1000);
+  }
+  const failure=new Error('API_READINESS_UNCONFIRMED');
+  failure.code='API_READINESS_UNCONFIRMED';
+  throw failure;
+}
+
 function command(name,args,options={}) {
   try {
     return execFileSync(name,args,{encoding:'utf8',timeout:30000,maxBuffer:1024*1024,
@@ -167,8 +182,11 @@ async function main() {
     apply:async()=>{command('docker',[...compose(packet),'up','-d','--no-deps',...packet.services],{timeout:60000});},
     verify:async(candidate,before)=>{
       // Container readiness is asynchronous; bounded probing performs no restoration.
-      command('curl',['--fail','--silent','--max-time','10','--retry','10','--retry-delay','1',
-        '--retry-connrefused','http://127.0.0.1:3000/health/ready'],{timeout:30000});
+      await waitApiReady(async()=>({
+        ready:JSON.parse(command('curl',['--fail','--silent','--max-time','2',
+          'http://127.0.0.1:3000/health/ready'],{timeout:3000})),
+        api:container('api')
+      }),ms=>new Promise(resolve=>setTimeout(resolve,ms)));
       const after=snapshot(packet);
       if(candidate.voiceMode==='preserve') {
         assertDeploymentSafe(after,candidate);
@@ -186,4 +204,4 @@ if(require.main===module) main().catch(error=>{
   // Never forward Docker/PG stderr containing environment or credential data.
   console.error(error instanceof assert.AssertionError?error.message:error.code??'COHORT_DEPLOYMENT_UNCONFIRMED');process.exitCode=1;
 });
-module.exports={deployCohort};
+module.exports={deployCohort,waitApiReady};
