@@ -98,6 +98,36 @@ describeLiveDatabase('native assistant result and recovery under the API role', 
     });
     expect(await repository.recentConversationTurns(other, conversationId, 20)).toEqual([]);
   });
+  it('accepts and replays a typed question with no client intent hint', async () => {
+    const typedService = new AiService(
+      repository,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        resolve: () =>
+          Promise.resolve({
+            answer: 'Sample typed SAR 12.50',
+            context: {},
+            evidence: [],
+          }),
+      } as never,
+      {} as never,
+    );
+    const typedKey = `native-typed-${randomUUID()}`;
+    const body = { content: 'How much did I spend?', responseMode: 'async' };
+    const accepted = await typedService.createMessage(owner, conversationId, body, typedKey);
+    expect(accepted.status).toBe('completed');
+    const replay = await typedService.createMessage(owner, conversationId, body, typedKey);
+    expect(replay).toEqual({ ...accepted, replayed: true });
+    await expect(
+      typedService.getMessageResult(owner, conversationId, String(accepted.id)),
+    ).resolves.toMatchObject({
+      status: 'completed',
+      response: { content: 'Sample typed SAR 12.50' },
+    });
+  });
   it('preserves forced RLS and denies raw writes and public-client reads', async () => {
     const result = await pool.query<{ safe: boolean }>(`select bool_and(
       c.relrowsecurity and c.relforcerowsecurity

@@ -307,7 +307,7 @@ export function assistantMessage(input: unknown) {
     content,
     contextScope: normalizedScope as AssistantContextScope[],
     contextScopeProvided: value.contextScope !== undefined,
-    intent: intent as AssistantIntent | undefined,
+    ...(intent === undefined ? {} : { intent: intent as AssistantIntent }),
     responseMode: value.responseMode as 'async' | 'stream',
   };
 }
