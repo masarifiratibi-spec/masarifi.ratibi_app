@@ -52,7 +52,7 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
       )
     ).rows[0];
     const expectedDatabase =
-      process.env.MASARIFI_DISPOSABLE_DATABASE_NAME ?? 'voice_review_20261007';
+      process.env.CROSS_FEATURE_DISPOSABLE_DATABASE_NAME ?? 'voice_review_20261007';
     const connection = new URL(process.env.DATABASE_URL ?? '');
     if (db?.name !== expectedDatabase || !['127.0.0.1', 'localhost'].includes(connection.hostname))
       throw new Error('DISPOSABLE_DATABASE_REQUIRED');

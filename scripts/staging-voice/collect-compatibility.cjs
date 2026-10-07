@@ -35,7 +35,7 @@ async function assertDisposableDatabase() {
   assert.equal(process.env.MASARIFI_LIVE_DATABASE_TESTS,'1','LIVE_DISPOSABLE_TESTS_REQUIRED');
   const url=new URL(process.env.DATABASE_URL??'');
   assert(['127.0.0.1','localhost'].includes(url.hostname),'LOCAL_DISPOSABLE_DATABASE_REQUIRED');
-  const expected=process.env.MASARIFI_DISPOSABLE_DATABASE_NAME??'voice_review_20261007';
+  const expected=process.env.CROSS_FEATURE_DISPOSABLE_DATABASE_NAME??'voice_review_20261007';
   const db=new Client({connectionString:url.toString(),connectionTimeoutMillis:5000});
   await db.connect();
   try {assert.equal((await db.query('select current_database() name')).rows[0]?.name,expected,'DISPOSABLE_DATABASE_NAME_MISMATCH');}

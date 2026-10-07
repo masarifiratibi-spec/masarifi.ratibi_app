@@ -173,6 +173,7 @@ jobs:
       NODE_ENV: test
       MASARIFI_RELEASE_VERSION: ci
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: postgres
       K6_DATABASE_URL: postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
     defaults:
       run:
