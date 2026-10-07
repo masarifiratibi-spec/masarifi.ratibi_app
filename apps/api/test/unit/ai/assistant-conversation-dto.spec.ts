@@ -42,9 +42,10 @@ it.each(['9007199254740993', '0', '-1', 'invalid', null])(
     const repository = new AiRepository({
       withClient: async (callback: (client: unknown) => Promise<unknown>) =>
         callback({
-          query: async (sql: string) => ({
-            rows: sql.startsWith('select id,title') ? [{ version }] : [],
-          }),
+          query: (sql: string) =>
+            Promise.resolve({
+              rows: sql.startsWith('select id,title') ? [{ version }] : [],
+            }),
         }),
     } as never);
     await expect(
