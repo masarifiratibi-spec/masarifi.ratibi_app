@@ -552,7 +552,7 @@ export class AiRepository {
     return this.owner(principal, async (client) => {
       const row = (
         await client.query<Record<string, unknown>>(
-          `select id,title,status,last_message_at,version,created_at from public.assistant_conversations where id=$1 and user_id=$2 and status<>'deleted'`,
+          `select id,title,status,last_message_at,version,created_at,updated_at from public.assistant_conversations where id=$1 and user_id=$2 and status<>'deleted'`,
           [id, principal.userId],
         )
       ).rows[0];
@@ -583,7 +583,7 @@ export class AiRepository {
       principal,
       `ai.assistant-message.create.${conversationId}`,
       key,
-      input,
+      (input.requestIdentity as Record<string, unknown> | undefined) ?? input,
       202,
       async (client, operationId) => {
         const quota = await this.json(
@@ -622,7 +622,7 @@ export class AiRepository {
       principal,
       `ai.assistant-message.create.${conversationId}`,
       key,
-      input,
+      (input.requestIdentity as Record<string, unknown> | undefined) ?? input,
       202,
       (client, operationId) =>
         this.json(
@@ -684,6 +684,53 @@ export class AiRepository {
       'select private.get_assistant_message_result($1,$2::uuid) result',
       [principal.userId, messageId],
     );
+  }
+
+  async getMessage(principal: ClerkPrincipal, messageId: string) {
+    const rows = await this.ownerValues(
+      principal,
+      `select (to_jsonb(m)-array['user_id','claim_token','claimed_by','lease_until','context_scope','evidence_payload']) || jsonb_build_object(
+       'snapshot',(select to_jsonb(s)-array['user_id','message_id'] from public.assistant_response_snapshots s where s.message_id=m.id),
+       'preview',(select to_jsonb(a)-array['user_id','decision_token','decision_action','decision_lease_until','deleted_at'] from public.assistant_action_previews a where a.message_id=m.id order by a.created_at limit 1)) value
+       from public.assistant_messages m join public.assistant_conversations c on c.id=m.conversation_id
+       where m.id=$1::uuid and m.user_id=$2 and c.user_id=$2 and c.deleted_at is null`,
+      [messageId, principal.userId],
+    );
+    if (!rows[0]) throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return rows[0];
+  }
+
+  async messageAcceptance(principal: ClerkPrincipal, conversationId: string, key: string) {
+    const operationId = this.operationId(
+      principal,
+      `ai.assistant-message.create.${conversationId}`,
+      key,
+    );
+    const rows = await this.ownerValues(
+      principal,
+      `select jsonb_build_object('id',m.id,'status',m.work_status) value from public.assistant_messages m
+       join public.assistant_conversations c on c.id=m.conversation_id
+       where m.user_id=$1 and m.conversation_id=$2::uuid and m.operation_id=$3::uuid and m.role='user' and c.user_id=$1 and c.deleted_at is null`,
+      [principal.userId, conversationId, operationId],
+    );
+    if (!rows[0]) throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return rows[0];
+  }
+
+  async getPreviewTimezone(principal: ClerkPrincipal, previewId: string): Promise<string> {
+    const rows = await this.ownerValues(
+      principal,
+      `select jsonb_build_object('timezone',q.context_payload->>'timezone') value
+       from public.assistant_action_previews p join public.assistant_messages r on r.id=p.message_id
+       join public.assistant_messages q on q.id=r.reply_to_message_id
+       join public.assistant_conversations c on c.id=q.conversation_id
+       where p.id=$1::uuid and p.user_id=$2 and q.user_id=$2 and c.user_id=$2 and c.deleted_at is null`,
+      [previewId, principal.userId],
+    );
+    const timezone = rows[0]?.timezone;
+    if (typeof timezone !== 'string' || !timezone)
+      throw new HttpException({ code: 'AI_EVIDENCE_INCOMPLETE' }, 409);
+    return timezone;
   }
 
   cancelMessage(principal: ClerkPrincipal, messageId: string) {

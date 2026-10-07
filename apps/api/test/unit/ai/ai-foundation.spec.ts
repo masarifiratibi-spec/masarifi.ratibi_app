@@ -234,6 +234,7 @@ describe('Phase 09 AI trust boundaries', () => {
     });
 
     expect(payload).toEqual({
+      responseLanguage: 'ar',
       intent: 'period_comparison',
       question: 'ليه صرفي زاد؟',
       financialTruth: { currentExpenseMinor: 235000, currency: 'SAR' },

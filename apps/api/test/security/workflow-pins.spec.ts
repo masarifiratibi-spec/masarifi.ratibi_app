@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { load } from 'js-yaml';
 
 describe('backend workflow action pins', () => {
   const workflowPath = resolve(__dirname, '../../../../.github/workflows/backend-foundation.yml');
@@ -78,9 +79,10 @@ describe('backend workflow action pins', () => {
     expect(workflow).toContain(
       'K6_AUTO_EXTENSION_RESOLUTION=false "$binary" inspect /tmp/outbox-extension-check.js',
     );
-    expect(workflow).toContain(
-      'needs: [secrets, sentinel-redaction, application, mobile, admin, admin-e2e, database]',
-    );
+    const parsed = load(workflow) as { jobs: { image: { needs: string[] } } };
+    expect(parsed.jobs.image.needs).toEqual([
+      'secrets', 'sentinel-redaction', 'application', 'mobile', 'admin', 'admin-e2e', 'database',
+    ]);
     expect(workflow).toContain('working-directory: apps/mobile');
     expect(workflow).toContain('npx jest --forceExit');
     expect(workflow).not.toMatch(/supabase\/tests\/.*(?:migration|db push)/i);

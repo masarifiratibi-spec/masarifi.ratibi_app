@@ -440,6 +440,48 @@ paths:
         '403': { $ref: '#/components/responses/ConsentRequired' }
         '429': { $ref: '#/components/responses/QuotaError' }
         '503': { $ref: '#/components/responses/AiUnavailable' }
+  /api/v1/assistant/conversations/{conversationId}/messages/acceptance:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantMessageAcceptance
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/AiIdempotencyKey'
+      responses:
+        '200':
+          description: Owner-bound accepted operation identity; does not dispatch work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AcceptedWork' }
+        '404': { description: No accepted user message for this owner, conversation and operation }
+  /api/v1/assistant/conversations/{conversationId}/messages/{messageId}:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantMessage
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Owner and conversation bound message
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantMessage' }
+        '404': { description: Message unavailable to this owner and conversation }
+  /api/v1/assistant/conversations/{conversationId}/messages/{messageId}/result:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantMessageResult
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Durable request status and optional completed response; reading never cancels work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantMessageResult' }
+        '404': { description: User message unavailable to this owner and conversation }
   /api/v1/assistant/previews/{previewId}/confirm:
     post:
       tags: [Assistant]
@@ -1207,6 +1249,24 @@ components:
       additionalProperties: false
       required: [status, limit, used, remaining, resetsAt]
       properties:
+        schemaVersion: { const: 1 }
+        checkedAt: { type: string, format: date-time }
+        reasons: { type: array, items: { type: string } }
+        capabilities:
+          type: object
+          additionalProperties: false
+          required: [directRead, provider, actions]
+          properties:
+            directRead: { enum: [available, disabled, unknown] }
+            provider: { enum: [available, disabled, limit_reached, unknown] }
+            actions: { enum: [available, disabled, unknown] }
+        worker:
+          type: object
+          additionalProperties: false
+          required: [status, lastSeenAt]
+          properties:
+            status: { enum: [available, disabled, unknown] }
+            lastSeenAt: { type: [string, 'null'], format: date-time }
         status: { enum: [available, disabled, limit_reached] }
         limit: { type: integer, minimum: 0 }
         used: { type: integer, minimum: 0 }
@@ -1215,7 +1275,7 @@ components:
     AssistantConversation:
       type: object
       additionalProperties: false
-      required: [id, title, status, lastMessageAt, version, createdAt]
+      required: [id, title, status, lastMessageAt, version, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         title: { type: [string, 'null'], maxLength: 120 }
@@ -1223,6 +1283,7 @@ components:
         lastMessageAt: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
         createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     ConversationPage:
       type: object
       additionalProperties: false
@@ -1261,7 +1322,45 @@ components:
         failureCode: { type: [string, 'null'], maxLength: 64 }
         snapshot: { anyOf: [{ $ref: '#/components/schemas/ResponseSnapshot' }, { type: 'null' }] }
         preview: { anyOf: [{ $ref: '#/components/schemas/ActionPreview' }, { type: 'null' }] }
+        metadata: { anyOf: [{ $ref: '#/components/schemas/AssistantAnswerMetadata' }, { type: 'null' }] }
+        actionTimezone: { type: [string, 'null'], minLength: 1 }
         createdAt: { type: string, format: date-time }
+    AssistantAnswerMetadata:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, locale, timezone, startDate, endDate, currencies, responseType, generatedAt]
+      properties:
+        schemaVersion: { const: 1 }
+        locale: { enum: [ar, en] }
+        timezone: { type: string, minLength: 1 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        currencies: { type: array, items: { type: string, pattern: '^[A-Z]{3}$' } }
+        responseType: { enum: [fact, estimate, suggestion, missing] }
+        generatedAt: { type: string, format: date-time }
+        reasons: { type: array, items: { type: string } }
+        values:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [key, minor, currency, status]
+            properties:
+              key: { type: string }
+              minor: { type: string, pattern: '^-?[0-9]+$' }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
+              status: { enum: [available, estimated] }
+    AssistantMessageResult:
+      type: object
+      additionalProperties: false
+      required: [id, conversationId, status, failureCode, request, response]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        status: { enum: [queued, processing, completed, failed, cancelled] }
+        failureCode: { type: [string, 'null'] }
+        request: { $ref: '#/components/schemas/AssistantMessage' }
+        response: { anyOf: [{ $ref: '#/components/schemas/AssistantMessage' }, { type: 'null' }] }
     MessagePage:
       type: object
       additionalProperties: false
@@ -1288,6 +1387,7 @@ components:
               kind: { type: string, maxLength: 64 }
               alias: { type: string, maxLength: 64 }
               version: { type: integer, minimum: 0 }
+              asOf: { type: string, format: date-time }
         model: { type: string, maxLength: 160 }
         provider: { type: string, maxLength: 64 }
         createdAt: { type: string, format: date-time }

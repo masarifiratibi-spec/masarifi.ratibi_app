@@ -59,7 +59,7 @@ describe('assistant domain and intent routing', () => {
           { role: 'assistant', content: 'صرفت 2,350 ريال هذا الشهر.', intent: null },
         ],
       }),
-    ).toMatchObject({ intent: 'period_comparison', execution: 'provider' });
+    ).toMatchObject({ intent: 'spending_summary', execution: 'deterministic' });
   });
 
   it('keeps only the four newest relevant turns', () => {

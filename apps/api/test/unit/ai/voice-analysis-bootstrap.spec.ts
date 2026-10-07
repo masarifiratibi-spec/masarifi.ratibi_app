@@ -15,34 +15,33 @@ jest.mock('../../../src/platform/observability/platform-logger', () => ({
   },
 }));
 
-it('starts only the analysis worker from the real bootstrap selection', async () => {
-  const started: string[] = [];
-  const before = new Set(process.listeners('SIGTERM'));
-  const app = {
-    get: (token: unknown) => {
-      if (token === PlatformConfigService)
-        return {
-          get: (key: string) =>
-            key === 'MASARIFI_VOICE_ANALYSIS_ONLY'
-              ? true
-              : key === 'MASARIFI_SHUTDOWN_TIMEOUT_MS'
-                ? 1000
-                : undefined,
-        };
-      if (token === AiWorker)
-        return { start: () => started.push('analysis'), stop: () => Promise.resolve() };
-      if (token === OperationsWorker) throw new Error('GENERAL_WORKER_ACCESSED');
-      throw new Error('UNEXPECTED_PROVIDER');
-    },
-    useLogger: () => undefined,
-    close: () => Promise.resolve(),
-  };
-  jest.spyOn(NestFactory, 'createApplicationContext').mockResolvedValue(app as never);
-  try {
-    await bootstrapWorker();
-    expect(started).toEqual(['analysis']);
-  } finally {
-    for (const listener of process.listeners('SIGTERM'))
-      if (!before.has(listener)) process.removeListener('SIGTERM', listener);
-  }
-});
+it.each(['MASARIFI_VOICE_ANALYSIS_ONLY', 'MASARIFI_AI_ASSISTANT_ONLY'])(
+  'starts only the scoped AI worker for %s from the real bootstrap selection',
+  async (scopeFlag) => {
+    const started: string[] = [];
+    const before = new Set(process.listeners('SIGTERM'));
+    const app = {
+      get: (token: unknown) => {
+        if (token === PlatformConfigService)
+          return {
+            get: (key: string) =>
+              key === scopeFlag ? true : key === 'MASARIFI_SHUTDOWN_TIMEOUT_MS' ? 1000 : undefined,
+          };
+        if (token === AiWorker)
+          return { start: () => started.push('analysis'), stop: () => Promise.resolve() };
+        if (token === OperationsWorker) throw new Error('GENERAL_WORKER_ACCESSED');
+        throw new Error('UNEXPECTED_PROVIDER');
+      },
+      useLogger: () => undefined,
+      close: () => Promise.resolve(),
+    };
+    jest.spyOn(NestFactory, 'createApplicationContext').mockResolvedValue(app as never);
+    try {
+      await bootstrapWorker();
+      expect(started).toEqual(['analysis']);
+    } finally {
+      for (const listener of process.listeners('SIGTERM'))
+        if (!before.has(listener)) process.removeListener('SIGTERM', listener);
+    }
+  },
+);

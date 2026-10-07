@@ -57,6 +57,7 @@ const applicationKeys = new Set([
   'MASARIFI_PRIVACY_HANDLER_MANIFEST',
   'OPENROUTER_API_KEY',
   'MASARIFI_AI_PROVIDER_ENABLED',
+  'MASARIFI_AI_ASSISTANT_ONLY',
   'MASARIFI_VOICE_ANALYSIS_ONLY',
   'MASARIFI_FINANCE_DIAGNOSTICS_ENABLED',
   'MASARIFI_STAGING_VOICE_EPOCH_ID',
@@ -300,6 +301,7 @@ const schema = Joi.object<PlatformEnvironment>({
     .optional(),
   OPENROUTER_API_KEY: Joi.string().trim().min(24).max(512).optional(),
   MASARIFI_AI_PROVIDER_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_AI_ASSISTANT_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_VOICE_ANALYSIS_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_FINANCE_DIAGNOSTICS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_STAGING_VOICE_EPOCH_ID: Joi.string()
@@ -564,6 +566,11 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
+  if (
+    environment.MASARIFI_AI_ASSISTANT_ONLY &&
+    (environment.MASARIFI_VOICE_ANALYSIS_ONLY || environment.MASARIFI_STAGING_VOICE_EPOCH_ID)
+  )
+    invalidEnvironment(['MASARIFI_AI_ASSISTANT_ONLY']);
   if (
     environment.MASARIFI_STAGING_VOICE_EPOCH_ID &&
     (environment.MASARIFI_PROCESS_KIND !== 'worker' ||

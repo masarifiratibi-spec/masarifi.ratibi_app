@@ -46,6 +46,42 @@ export class ReportsService {
     return this.summary('report', principal, query, requestId, now);
   }
 
+  getAssistantContext(principal: ClerkPrincipal) {
+    return this.repository.getContext(principal);
+  }
+
+  /** Internal, authenticated read for assistant ranges; public report query semantics stay unchanged. */
+  async getAssistantSummary(
+    principal: ClerkPrincipal,
+    range: { startDate: string; endDate: string; timezone: string; currency: string | null },
+    requestId: string,
+  ) {
+    const context = await this.repository.getContext(principal);
+    if (context.timezone !== range.timezone)
+      throw new HttpException({ code: 'AI_CONTEXT_STALE' }, 409);
+    const next = new Date(`${range.endDate}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    const { zonedDateTimeToInstant } = await import('./reports.period');
+    return this.repository.getSummary(
+      principal,
+      'category_spending',
+      {
+        kind: 'monthly',
+        timezone: context.timezone,
+        startDate: range.startDate,
+        endDate: range.endDate,
+        startInstant: zonedDateTimeToInstant(range.startDate, '00:00', context.timezone),
+        endExclusiveInstant: zonedDateTimeToInstant(
+          next.toISOString().slice(0, 10),
+          '00:00',
+          context.timezone,
+        ),
+      },
+      range.currency,
+      requestId,
+    );
+  }
+
   async getDashboardHome(
     principal: ClerkPrincipal,
     query: unknown,

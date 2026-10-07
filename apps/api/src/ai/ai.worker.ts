@@ -11,7 +11,7 @@ import { withAiAbort } from './ai.abort';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { PlatformLogger } from '../platform/observability/platform-logger';
-import { recordAiJob } from './ai.observability';
+import { recordAiJob, recordAiResult } from './ai.observability';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
 import {
@@ -308,7 +308,13 @@ export function assistantProviderPayload(input: Record<string, unknown>) {
     data: redactAiContext(data),
   }));
   const history = Array.isArray(input.historyPayload) ? input.historyPayload.slice(-4) : [];
+  const context = object(input.contextPayload);
+  const metadata =
+    context.assistantMetadata && typeof context.assistantMetadata === 'object'
+      ? object(context.assistantMetadata)
+      : {};
   return {
+    responseLanguage: context.responseLocale ?? metadata.locale ?? 'ar',
     intent: String(input.intent),
     question: redactAiText(assertSafeAiInput(String(input.content))),
     financialTruth: redactAiContext(object(input.contextPayload)),
@@ -352,7 +358,11 @@ export class AiWorker implements OnModuleDestroy {
         recordAiJob('ai.worker', 'failure');
       });
     }, this.config.getRequired('MASARIFI_AI_WORKER_POLL_MS'));
-    if (!this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')) this.timer.unref();
+    if (
+      !this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') &&
+      !this.config.get('MASARIFI_AI_ASSISTANT_ONLY')
+    )
+      this.timer.unref();
     void this.runOnce().catch(() => {
       recordAiJob('ai.worker', 'failure');
     });
@@ -374,6 +384,12 @@ export class AiWorker implements OnModuleDestroy {
     this.running = true;
     this.abortController = new AbortController();
     try {
+      if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY')) {
+        if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY'))
+          throw new Error('ASSISTANT_SCOPE_INVALID');
+        await this.runJob('assistant.respond');
+        return;
+      }
       if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')) {
         await this.runJob('voice.transcribe_extract');
         await this.runJob('voice-media.purge');
@@ -404,6 +420,8 @@ export class AiWorker implements OnModuleDestroy {
       | 'ai.reconcile'
       | 'financial-insights.generate',
   ): Promise<number> {
+    if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY') && job !== 'assistant.respond')
+      throw new Error('ASSISTANT_SCOPE_INVALID');
     if (
       this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') &&
       !['voice.transcribe_extract', 'voice-media.purge'].includes(job)
@@ -428,6 +446,8 @@ export class AiWorker implements OnModuleDestroy {
   }
 
   private async processKind(kind: AiWorkClaim['kind']): Promise<number> {
+    if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY') && kind !== 'assistant.respond')
+      throw new Error('ASSISTANT_SCOPE_INVALID');
     const concurrency = this.config.getRequired('MASARIFI_AI_MAX_CONCURRENCY');
     const limit = Math.min(concurrency, this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'));
     const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
@@ -436,6 +456,11 @@ export class AiWorker implements OnModuleDestroy {
         ? await this.repository.claimAnalysisWork(this.workerId(), limit, lease)
         : []
       : await this.repository.claimWork(kind, this.workerId(), limit, lease);
+    if (
+      this.config.get('MASARIFI_AI_ASSISTANT_ONLY') &&
+      claims.some((claim) => claim.kind !== 'assistant.respond')
+    )
+      throw new Error('ASSISTANT_SCOPE_INVALID');
     for (let offset = 0; offset < claims.length; offset += concurrency)
       await Promise.all(
         claims.slice(offset, offset + concurrency).map((claim) => this.process(claim)),
@@ -459,6 +484,7 @@ export class AiWorker implements OnModuleDestroy {
     let renewal: NodeJS.Timeout | undefined;
     let deadline: NodeJS.Timeout | undefined;
     let renewing = false;
+    let outcome = 'failure';
     try {
       if (claim.kind === 'voice.transcribe_extract') {
         const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
@@ -487,9 +513,19 @@ export class AiWorker implements OnModuleDestroy {
           controller.abort();
         }, 180_000);
         await withAiAbort(signal, () => this.voice(claim, signal));
-      } else if (claim.kind === 'assistant.respond') await this.assistant(claim);
-      else await this.evaluate(claim);
+      } else if (claim.kind === 'assistant.respond') {
+        // No lease extension exists for assistant work. Bound all I/O inside the current fence.
+        const leaseMs = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS') * 1000;
+        deadline = setTimeout(
+          () => {
+            controller.abort();
+          },
+          Math.max(1, leaseMs - Math.min(1000, leaseMs / 3)),
+        );
+        await withAiAbort(signal, () => this.assistant(claim, signal));
+      } else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
+      outcome = 'success';
       return true;
     } catch (error) {
       if (error instanceof AiGatewayError && error.diagnostic)
@@ -538,10 +574,22 @@ export class AiWorker implements OnModuleDestroy {
         code,
       );
       recordAiJob(claim.kind, retry ? 'retry' : 'failure');
+      outcome = retry ? 'retry' : 'failure';
       return false;
     } finally {
       if (renewal) clearInterval(renewal);
       if (deadline) clearTimeout(deadline);
+      if (claim.kind === 'assistant.respond') {
+        const durationMs = Math.round(performance.now() - startedAt);
+        recordAiResult('assistant.respond', outcome, durationMs);
+        new PlatformLogger().log('ASSISTANT_WORK_FINISHED', {
+          eventName: 'assistant.work_finished',
+          jobName: claim.kind,
+          state: outcome,
+          durationMs,
+          requestId: createHash('sha256').update(claim.id).digest('hex').slice(0, 24),
+        });
+      }
     }
   }
 
@@ -683,9 +731,11 @@ export class AiWorker implements OnModuleDestroy {
     }
   }
 
-  private async assistant(claim: AiWorkClaim): Promise<void> {
+  private async assistant(claim: AiWorkClaim, signal: AbortSignal): Promise<void> {
     const input = object(await this.repository.workInput(claim.kind, claim.id, claim.claim_token));
+    signal.throwIfAborted();
     const route = await this.repository.getRoute('financial_assistant');
+    signal.throwIfAborted();
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
     const evidence = Array.isArray(input.evidence) ? input.evidence : [];
     const references = aliasReferences(input.aliases);
@@ -695,8 +745,9 @@ export class AiWorker implements OnModuleDestroy {
       schema: ASSISTANT_OUTPUT_SCHEMA,
       parse: parseAssistantWorkerOutput,
       requestId: String(input.operationId),
-      signal: this.abortController?.signal,
+      signal,
     });
+    signal.throwIfAborted();
     const allowed = new Set([
       ...evidence.map((item) => String(object(item).alias)),
       ...references.map(({ alias }) => alias),
@@ -708,7 +759,12 @@ export class AiWorker implements OnModuleDestroy {
       throw new AiGatewayError('AI_SCHEMA_INVALID', true);
     const refs = evidence.map((item) => {
       const value = object(item);
-      return { kind: value.kind, alias: value.alias, version: value.version };
+      return {
+        kind: value.kind,
+        alias: value.alias,
+        version: value.version,
+        ...(typeof value.asOf === 'string' ? { asOf: value.asOf } : {}),
+      };
     });
     const output = resolveAssistantOutput(completion.value, references);
     assertConfiguredOutput(route, output, 'answer');
@@ -718,6 +774,7 @@ export class AiWorker implements OnModuleDestroy {
       completion,
       String(input.operationId),
     );
+    signal.throwIfAborted();
     await this.repository.saveAssistantResult(claim.id, claim.claim_token, {
       provider: completion.provider,
       model: completion.model,

@@ -32,6 +32,7 @@ import { redactAiText } from './ai.schemas';
 import { AiStorage } from './ai.storage';
 import { AssistantFinancialTools } from './ai-financial-tools';
 import { routeAssistantMessage, selectConversationHistory } from './ai-routing';
+import { zonedDateTimeToInstant } from '../reports/reports.period';
 
 const CONSENT_POLICY = 'assistant-privacy-v1';
 const STREAM_TIMEOUT_MS = 65_000;
@@ -468,8 +469,31 @@ export class AiService {
     );
   }
 
-  getAssistantAvailability(principal: ClerkPrincipal) {
-    return this.repository.getAssistantAvailability(principal, CONSENT_POLICY);
+  async getAssistantAvailability(principal: ClerkPrincipal) {
+    const quota = await this.repository.getAssistantAvailability(principal, CONSENT_POLICY);
+    const consent = await this.repository.getConsent(principal, CONSENT_POLICY);
+    const admitted =
+      this.config.getRequired('MASARIFI_AI_PROVIDER_ENABLED') &&
+      (await this.repository.workloadAvailable('financial_assistant'));
+    return {
+      ...quota,
+      schemaVersion: 1,
+      checkedAt: new Date().toISOString(),
+      capabilities: {
+        directRead: consent.granted === true ? 'available' : 'disabled',
+        provider:
+          !admitted || consent.granted !== true
+            ? 'disabled'
+            : quota.remaining === 0
+              ? 'limit_reached'
+              : 'unknown',
+        actions: 'unknown',
+      },
+      worker: { status: 'unknown', lastSeenAt: null },
+      reasons: admitted
+        ? ['assistant_worker_telemetry_missing']
+        : ['provider_admission_disabled', 'assistant_worker_telemetry_missing'],
+    };
   }
   listInsights(principal: ClerkPrincipal) {
     return this.repository.listInsights(principal, 10).then((items) => ({ items }));
@@ -498,12 +522,9 @@ export class AiService {
 
   async listConversations(principal: ClerkPrincipal, query: unknown) {
     const input = page(query),
-      rows = await this.repository.listConversations(
-        principal,
-        cursor(input.cursor),
-        input.limit + 1,
-      );
-    return paged(rows, input.limit, 'lastMessageAt');
+      limit = Math.min(input.limit, 99),
+      rows = await this.repository.listConversations(principal, cursor(input.cursor), limit + 1);
+    return paged(rows, limit, 'lastMessageAt');
   }
 
   async createMessage(
@@ -516,7 +537,10 @@ export class AiService {
     const conversationIdValue = uuid(conversationId);
     let route = routeAssistantMessage({ content: input.content, intentHint: input.intent });
     let history: Array<{ role: 'user' | 'assistant'; content: string; intent: string | null }> = [];
-    if (route.execution === 'provider' && route.intent !== 'general_finance') {
+    const followUp = /^(?:what about|and |how about|وماذا عن|طيب|طب|وماذا|والشهر)/iu.test(
+      input.content.trim(),
+    );
+    if ((route.execution === 'provider' && route.intent !== 'general_finance') || followUp) {
       history = selectConversationHistory(
         await this.repository.recentConversationTurns(principal, conversationIdValue, 4),
       );
@@ -544,6 +568,7 @@ export class AiService {
             contextScope,
             evidence: [],
             responseMode: input.responseMode,
+            requestIdentity: input,
           },
           keyValue,
         ),
@@ -555,12 +580,13 @@ export class AiService {
       input.content,
       keyValue,
       contextScope,
+      ...(followUp ? [history.filter((turn) => turn.role === 'user').at(-1)?.content] : []),
     );
     const evidence = truth.evidence.map((item, index) => ({
       ...item,
       alias: `EVIDENCE-${(index + 1).toString()}`,
     }));
-    if (route.execution === 'deterministic') {
+    if (route.execution === 'deterministic' || truth.answer !== null) {
       return this.accepted(
         await this.repository.saveDeterministicMessage(
           principal,
@@ -573,6 +599,7 @@ export class AiService {
             contextScope,
             evidence,
             responseMode: input.responseMode,
+            requestIdentity: input,
           },
           keyValue,
         ),
@@ -591,6 +618,7 @@ export class AiService {
           evidence,
           history: history.map(({ role, content }) => ({ role, content: redactAiText(content) })),
           responseMode: input.responseMode,
+          requestIdentity: input,
         },
         keyValue,
       ),
@@ -600,11 +628,12 @@ export class AiService {
 
   async listMessages(principal: ClerkPrincipal, conversationId: string, query: unknown) {
     const input = page(query),
+      limit = Math.min(input.limit, 99),
       rows = await this.repository.listMessages(
         principal,
         uuid(conversationId),
         cursor(input.cursor),
-        input.limit + 1,
+        limit + 1,
       );
     const normalized = rows.map((row) => ({
       id: row.id,
@@ -617,8 +646,70 @@ export class AiService {
       snapshot: row.snapshot ?? null,
       preview: row.preview ?? null,
       createdAt: row.createdAt,
+      metadata: resource(row.contextPayload).assistantMetadata ?? null,
+      actionTimezone:
+        typeof resource(row.contextPayload).timezone === 'string'
+          ? resource(row.contextPayload).timezone
+          : null,
     }));
-    return paged(normalized, input.limit, 'createdAt');
+    return paged(normalized, limit, 'createdAt');
+  }
+
+  async getMessage(principal: ClerkPrincipal, conversationId: string, messageId: string) {
+    const row = await this.repository.getMessage(principal, uuid(messageId));
+    if (row.conversationId !== uuid(conversationId))
+      throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return this.publicMessage(row);
+  }
+
+  getMessageAcceptance(principal: ClerkPrincipal, conversationId: string, key: unknown) {
+    return this.repository.messageAcceptance(principal, uuid(conversationId), idempotencyKey(key));
+  }
+
+  async getMessageResult(principal: ClerkPrincipal, conversationId: string, messageId: string) {
+    const request = await this.repository.getMessage(principal, uuid(messageId));
+    if (request.conversationId !== uuid(conversationId) || request.role !== 'user')
+      throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    const result = resource(await this.repository.messageResult(principal, messageId));
+    let response: Record<string, unknown> | null = null;
+    if (result.response) {
+      const row = await this.repository.getMessage(principal, String(resource(result.response).id));
+      if (
+        row.conversationId !== conversationId ||
+        row.replyToMessageId !== messageId ||
+        row.role !== 'assistant'
+      )
+        throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+      response = this.publicMessage(row);
+    }
+    return {
+      id: messageId,
+      conversationId,
+      status: result.status,
+      failureCode: result.failureCode ?? null,
+      request: this.publicMessage(request),
+      response,
+    };
+  }
+
+  private publicMessage(row: Record<string, unknown>) {
+    return {
+      id: row.id,
+      conversationId: row.conversationId,
+      replyToMessageId: row.replyToMessageId ?? null,
+      role: row.role,
+      content: row.contentRedacted,
+      status: row.workStatus ?? null,
+      failureCode: row.failureCode ?? null,
+      snapshot: row.snapshot ?? null,
+      preview: row.preview ?? null,
+      createdAt: row.createdAt,
+      metadata: resource(row.contextPayload).assistantMetadata ?? null,
+      actionTimezone:
+        typeof resource(row.contextPayload).timezone === 'string'
+          ? resource(row.contextPayload).timezone
+          : null,
+    };
   }
 
   async *streamMessage(
@@ -808,21 +899,34 @@ export class AiService {
     const payload = resource(claim.payload),
       actionType = typeof claim.actionType === 'string' ? claim.actionType : '';
     const domainKey = `ai-action:${id}:v${decision.expectedVersion.toString()}`;
-    const result = await this.execute(actionType, payload, principal, domainKey, operationId);
+    const timezone =
+      actionType === 'transaction.create'
+        ? await this.repository.getPreviewTimezone(principal, id)
+        : undefined;
+    const result = await this.execute(
+      actionType,
+      payload,
+      principal,
+      domainKey,
+      operationId,
+      timezone,
+    );
     const idResult = resourceId(result);
     await this.repository.completeAction(principal, id, String(claim.decisionToken), idResult);
     return { sourceId: id, actionType, resourceId: idResult, status: 'executed', replayed: false };
   }
 
-  private execute(
+  private async execute(
     action: string,
     payload: Record<string, unknown>,
     principal: ClerkPrincipal,
     key: string,
     requestId: string,
+    timezone?: string,
   ): Promise<unknown> {
     if (action === 'transaction.create') {
       const amount = Number(payload.amountMinor);
+      if (!timezone) throw new HttpException({ code: 'AI_EVIDENCE_INCOMPLETE' }, 409);
       return this.ledger.createTransaction({
         principal,
         idempotencyKey: key,
@@ -833,13 +937,13 @@ export class AiService {
           currency: payload.currency,
           accountId: payload.accountId,
           categoryId: payload.categoryId ?? null,
-          title: payload.merchant ?? 'Voice transaction',
+          title: payload.merchant ?? 'Assistant transaction',
           merchant: payload.merchant ?? null,
           paymentMethod: null,
           note: payload.note ?? null,
-          occurredAt: `${String(payload.date)}T12:00:00.000Z`,
-          source: 'voice',
-          externalRef: `voice:${requestId}`,
+          occurredAt: zonedDateTimeToInstant(String(payload.date), '12:00', timezone).toISOString(),
+          source: 'platform_assisted',
+          externalRef: `assistant:${requestId}`,
         },
       });
     }

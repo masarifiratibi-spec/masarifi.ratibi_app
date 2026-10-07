@@ -305,6 +305,35 @@ export class AiController {
     return undefined;
   }
 
+  @Get('assistant/conversations/:conversationId/messages/:messageId/result')
+  @ApiOperation({ operationId: 'getAssistantMessageResult' })
+  getMessageResult(
+    @Req() request: AiRequest,
+    @Param('conversationId') conversationId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.ai.getMessageResult(principal(request), conversationId, messageId);
+  }
+
+  @Get('assistant/conversations/:conversationId/messages/acceptance')
+  @ApiOperation({ operationId: 'getAssistantMessageAcceptance' })
+  getMessageAcceptance(
+    @Req() request: AiRequest,
+    @Param('conversationId') conversationId: string,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.ai.getMessageAcceptance(principal(request), conversationId, key);
+  }
+  @Get('assistant/conversations/:conversationId/messages/:messageId')
+  @ApiOperation({ operationId: 'getAssistantMessage' })
+  getMessage(
+    @Req() request: AiRequest,
+    @Param('conversationId') conversationId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.ai.getMessage(principal(request), conversationId, messageId);
+  }
+
   @Post('assistant/previews/:previewId/confirm')
   @HttpCode(200)
   @ApiOperation({ operationId: 'confirmAssistantPreview' })

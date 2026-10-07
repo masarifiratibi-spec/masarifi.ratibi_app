@@ -23,8 +23,23 @@ describe('Phase 09 assistant contract', () => {
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
         .map(([, value]) => value.operationId),
     );
-    expect(operations).toHaveLength(54);
-    expect(new Set(operations).size).toBe(54);
+    expect(operations).toHaveLength(57);
+    expect(new Set(operations).size).toBe(57);
+    for (const [path, operationId] of [
+      [
+        '/api/v1/assistant/conversations/{conversationId}/messages/acceptance',
+        'getAssistantMessageAcceptance',
+      ],
+      [
+        '/api/v1/assistant/conversations/{conversationId}/messages/{messageId}',
+        'getAssistantMessage',
+      ],
+      [
+        '/api/v1/assistant/conversations/{conversationId}/messages/{messageId}/result',
+        'getAssistantMessageResult',
+      ],
+    ] as const)
+      expect(runtimePath(path)).toBe(operationId);
     const runtime = generateOpenApi(app);
     expect(runtime.paths['/api/v1/assistant/consent']?.put?.operationId).toBe(
       'grantAssistantConsent',
@@ -42,6 +57,9 @@ describe('Phase 09 assistant contract', () => {
       'confirmAssistantPreview',
     );
   });
+  function runtimePath(path: string) {
+    return generateOpenApi(app).paths[path]?.get?.operationId;
+  }
   it('uses defined authentication schemes for Voice recovery', () => {
     const document = contract as typeof contract & {
       components: { securitySchemes: Record<string, unknown> };

@@ -102,23 +102,21 @@ const PROVIDER_TOOLS: Partial<Record<AssistantIntent, FinancialTool[]>> = {
 
 const RULES: Array<[RegExp, AssistantIntent]> = [
   [
-    /(?:اكتب|write).*(?:كود|code|قصة|story|بوست|post)|(?:ترجم|translate)|(?:ماتش|match|رياضة|sports)|(?:لابتوب|laptop)/iu,
+    /(?:اكتب|write).*(?:كود|code|قصة|story|بوست|post)|(?:ترجم|translate)|(?:ماتش|match|رياضة|sports)/iu,
     'unrelated',
   ],
   [/(?:تضخم|inflation|فائدة مركبة|compound interest)/iu, 'general_finance'],
   [/(?:عد(?:ل|لّ)|غي(?:ر|رّ)|update).*(?:معامل|transaction)/iu, 'update_transaction'],
-  [/(?:أنشئ|انشئ|create|add).*(?:هدف).*(?:ادخار|توفير|saving)/iu, 'create_savings_goal'],
+  [/(?:أنشئ|انشئ|create|add).*(?:هدف.*(?:ادخار|توفير)|saving.*goal)/iu, 'create_savings_goal'],
   [/(?:سجل|سجّل|record).*(?:دفعة|payment).*(?:التزام|obligation)/iu, 'record_obligation_payment'],
   [/(?:اعتمد|حل|resolve).*(?:مراجعة|review).*(?:تتبع|tracking)/iu, 'resolve_tracking_review'],
   [/(?:خل.?[يى]|عد(?:ل|لّ)|غي(?:ر|رّ)).*(?:ميزاني|budget)/iu, 'update_budget'],
   [/(?:سجل|اضف|أضف|create|add).*(?:مصروف|دخل|transaction)/iu, 'create_transaction'],
-  [/(?:اشتريت|اشتري|شراء|afford|buy).*(?:هل|ميزاني|budget|ضغط)/iu, 'purchase_affordability'],
+  [/(?:اشتريت|أ?شتري|شراء|afford|buy|purchase)/iu, 'purchase_affordability'],
+  [/(?:recent|latest|last).*(?:transactions)|(?:آخر|اخر).*(?:معامل)/iu, 'recent_transactions'],
+  [/(?:ليه|لماذا|why|مقارن|compare|زاد|انخفض).*(?:صرف|مصروف|spend)/iu, 'period_comparison'],
   [
-    /(?:ليه|لماذا|why|مقارن|compare|زاد|انخفض).*(?:صرف|مصروف|spend)|(?:الشهر اللي قبله|previous month)/iu,
-    'period_comparison',
-  ],
-  [
-    /(?:أعلى|اكبر|أكبر|فئة|category).*(?:صرف|مصروف|spend)|(?:صرف|spend).*(?:فئة|category)/iu,
+    /(?:أعلى|اكبر|أكبر|فئة|category).*(?:صرف|مصروف|spend)|(?:صرف|spend|spent).*(?:فئة|category|\bon\b|\bfor\b|على|في (?!الشهر|سبتمبر|أكتوبر))/iu,
     'category_breakdown',
   ],
   [
@@ -130,12 +128,15 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   [/(?:ادخار|توفير|savings|goal)/iu, 'savings_status'],
   [/(?:راتب|salary)/iu, 'salary_status'],
   [/(?:دخل|income|كسبت)/iu, 'income_summary'],
-  [/(?:صرف|مصروف|أنفقت|انفقت|spend|expense)/iu, 'spending_summary'],
+  [/(?:صرف|مصروف|أنفقت|انفقت|spend|spent|expense)/iu, 'spending_summary'],
   [/(?:ميزاني|ادخار|مالي|فلوس|money|finance|budget|saving)/iu, 'financial_advice'],
 ];
 
 export function selectConversationHistory(turns: readonly AssistantTurn[]): AssistantTurn[] {
-  return turns.filter(({ intent }) => intent !== 'unrelated').slice(-4);
+  const boundary = turns.findLastIndex(
+    ({ intent }) => intent === 'unrelated' || intent === 'unsupported',
+  );
+  return turns.slice(boundary + 1).slice(-4);
 }
 
 export function routeAssistantMessage(input: {
@@ -169,7 +170,25 @@ function inferredIntent(content: string, history: readonly AssistantTurn[]): Ass
     .replace(/[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]/gu, '')
     .trim()
     .toLowerCase();
-  if (/(?:الشهر اللي قبله|previous month)/iu.test(normalized) && history.length > 0)
-    return 'period_comparison';
-  return RULES.find(([pattern]) => pattern.test(normalized))?.[1] ?? 'unsupported';
+  const explicitIntent = RULES.find(([pattern]) => pattern.test(normalized))?.[1];
+  if (explicitIntent) return explicitIntent;
+  if (/^(?:what about|and |how about|وماذا عن|طيب|طب|وماذا|والشهر)/iu.test(normalized)) {
+    const previous = [...history].reverse().find((turn) => turn.role === 'user');
+    if (
+      previous &&
+      [
+        'spending_summary',
+        'income_summary',
+        'category_breakdown',
+        'budget_status',
+        'savings_status',
+        'obligations_status',
+        'upcoming_obligations',
+        'salary_status',
+        'recent_transactions',
+      ].includes(previous.intent ?? '')
+    )
+      return previous.intent as AssistantIntent;
+  }
+  return 'unsupported';
 }
