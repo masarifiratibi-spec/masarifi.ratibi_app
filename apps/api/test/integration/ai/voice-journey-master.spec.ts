@@ -206,6 +206,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         );
         if (!category) throw new Error('missing category fixture');
         const event = {
+          s: 1,
           k: 'e',
           a: '2500',
           c: 'o:',
@@ -221,10 +222,11 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
           language,
           events: [
             event,
-            { ...event, a: '4000' },
-            { ...event, a: '12000' },
-            { ...event, k: 'r', a: '5000' },
-            { ...event, a: '', m: 'Private skipped content' },
+            { ...event, q: 0.95 }, // Same spoken occurrence extracted twice: one financial effect.
+            { ...event, s: 2, a: '4000' },
+            { ...event, s: 3, a: '12000' },
+            { ...event, s: 4, k: 'r', a: '5000' },
+            { ...event, s: 5, a: '', m: 'Private skipped content' },
           ],
         };
         return Promise.resolve(
