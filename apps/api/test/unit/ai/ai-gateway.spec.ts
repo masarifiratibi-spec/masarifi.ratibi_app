@@ -1,4 +1,5 @@
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import { AiWorker } from '../../../src/ai/ai.worker';
 import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 import { VOICE_OUTPUT_SCHEMA, parseVoiceWorkerOutput } from '../../../src/ai/ai.schemas';
 import { VOICE_BATCH_OUTPUT_SCHEMA, parseVoiceBatchEnvelope } from '../../../src/ai/voice-batch';
@@ -61,6 +62,145 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  // Samsung 2026-10-08: Azure rejected the action schema on an advice-only request.
+  it.each([
+    { name: 'advice', answer: output, expected: null },
+    {
+      name: 'unsolicited financial action',
+      answer: {
+        ...output,
+        actionPreview: {
+          schemaVersion: 1,
+          actionType: 'transaction.create',
+          payload: {
+            amountMinor: '2500',
+            currency: 'SAR',
+            accountId: 'ACCOUNT-1',
+            categoryId: null,
+            date: '2026-10-08',
+            merchant: null,
+            note: null,
+          },
+          evidenceIds: [],
+        },
+      },
+      expected: 'AI_SCHEMA_INVALID',
+    },
+    {
+      name: 'unverified citation',
+      answer: { ...output, evidenceIds: ['REPORT-99'] },
+      expected: 'AI_SCHEMA_INVALID',
+    },
+    {
+      name: 'duplicate citations',
+      answer: { ...output, evidenceIds: ['REPORT-1', 'REPORT-1'] },
+      expected: 'AI_SCHEMA_INVALID',
+    },
+  ])(
+    'completes strict Azure $name while retaining evidence validation',
+    async ({ answer, expected }) => {
+      const saved: unknown[] = [],
+        failures: string[] = [];
+      const compatible = (value: unknown): boolean => {
+        if (Array.isArray(value)) return value.every(compatible);
+        if (!value || typeof value !== 'object') return true;
+        const node = value as Record<string, unknown>;
+        if (
+          [
+            'uniqueItems',
+            'minProperties',
+            'maxLength',
+            'pattern',
+            'format',
+            'minimum',
+            'maximum',
+            'maxItems',
+            'const',
+          ].some((key) => key in node)
+        )
+          return false;
+        if (node.type === 'object') {
+          const properties = node.properties as Record<string, unknown>;
+          if (
+            node.additionalProperties !== false ||
+            !Array.isArray(node.required) ||
+            Object.keys(properties).some((key) => !(node.required as unknown[]).includes(key))
+          )
+            return false;
+        }
+        return Object.values(node).every(compatible);
+      };
+      const gateway = new AiGateway({
+        apiKey: 'sample-key',
+        fetcher: (_url, init) => {
+          const body = requestBody(init);
+          if (!compatible(body.response_format))
+            return Promise.resolve(
+              response({ error: { code: 400, message: 'Invalid strict schema' } }, 400),
+            );
+          return Promise.resolve(
+            response({
+              id: 'sample-generation',
+              model: route.primary.modelId,
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
+              usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.00005 },
+            }),
+          );
+        },
+      });
+      const repository = {
+        claimWork: () =>
+          Promise.resolve([
+            {
+              kind: 'assistant.respond',
+              id: 'sample-job',
+              user_id: 'sample-owner',
+              claim_token: 'sample-fence',
+              attempt_count: 1,
+            },
+          ]),
+        workInput: () =>
+          Promise.resolve({
+            intent: 'financial_advice',
+            operationId: 'sample-operation',
+            content: 'Sample data: how can I reduce spending?',
+            aliases: [],
+            contextPayload: { responseLocale: 'en' },
+            evidence: [{ kind: 'report', alias: 'REPORT-1', version: 19 }],
+          }),
+        getRoute: () => Promise.resolve(route),
+        recordUsage: () => Promise.resolve(undefined),
+        saveAssistantResult: (_id: string, _fence: string, value: unknown) => {
+          saved.push(value);
+          return Promise.resolve(undefined);
+        },
+        recordFailure: (_user: string, _workload: string, code: string) => {
+          failures.push(code);
+          return Promise.resolve(undefined);
+        },
+        completeWork: () => Promise.resolve(true),
+      };
+      const worker = new AiWorker(repository as never, {} as never, gateway, {
+        get: (key: string) => key === 'MASARIFI_AI_ASSISTANT_ONLY',
+        getRequired: (key: string) =>
+          key === 'MASARIFI_AI_PROVIDER_ENABLED'
+            ? true
+            : key === 'MASARIFI_AI_LEASE_SECONDS'
+              ? 120
+              : 1,
+      } as never);
+      await worker.runJob('assistant.respond');
+      if (expected) {
+        expect(saved).toEqual([]);
+        expect(failures).toEqual([expected]);
+      } else {
+        expect(saved).toEqual([
+          expect.objectContaining({ content: 'Safe answer', preview: null, provider: 'azure' }),
+        ]);
+        expect(failures).toEqual([]);
+      }
+    },
+  );
   it.each(['ar', 'en'].flatMap((language) => [0, 1, 3, 5].map((count) => ({ language, count }))))(
     'preserves the accepted Vertex transport for $language batches of $count events',
     async ({ language, count }) => {

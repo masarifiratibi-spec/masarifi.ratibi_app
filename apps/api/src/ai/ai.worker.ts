@@ -16,10 +16,12 @@ import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
 import {
   ASSISTANT_OUTPUT_SCHEMA,
+  ASSISTANT_ADVICE_OUTPUT_SCHEMA,
   VOICE_OUTPUT_SCHEMA,
   assertSafeAiInput,
   parseAssistantOutput,
   parseAssistantWorkerOutput,
+  parseAssistantAdviceWorkerOutput,
   parseVoiceWorkerOutput,
   redactAiContext,
   redactAiText,
@@ -742,8 +744,14 @@ export class AiWorker implements OnModuleDestroy {
     const completion = await this.gateway.complete({
       route,
       userContent: encodeAssistantProviderPayload(input, inputLimit(route)),
-      schema: ASSISTANT_OUTPUT_SCHEMA,
-      parse: parseAssistantWorkerOutput,
+      schema:
+        input.intent === 'financial_advice'
+          ? ASSISTANT_ADVICE_OUTPUT_SCHEMA
+          : ASSISTANT_OUTPUT_SCHEMA,
+      parse:
+        input.intent === 'financial_advice'
+          ? parseAssistantAdviceWorkerOutput
+          : parseAssistantWorkerOutput,
       requestId: String(input.operationId),
       signal,
     });

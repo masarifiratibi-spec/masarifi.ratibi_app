@@ -301,6 +301,20 @@ export const ASSISTANT_OUTPUT_SCHEMA = {
   },
 } as const;
 
+// Advice never proposes a financial mutation. Provider-side schema uses the
+// strict Azure subset; the existing parser still enforces bounds and evidence.
+export const ASSISTANT_ADVICE_OUTPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['schemaVersion', 'answer', 'evidenceIds', 'actionPreview'],
+  properties: {
+    schemaVersion: { type: 'integer', enum: [1] },
+    answer: { type: 'string' },
+    evidenceIds: { type: 'array', items: { type: 'string' } },
+    actionPreview: { type: 'null' },
+  },
+} as const;
+
 function invalid(): never {
   throw new Error('AI_SCHEMA_INVALID');
 }
@@ -721,6 +735,12 @@ export function parseAssistantOutput(input: unknown): AssistantOutput {
 
 export function parseAssistantWorkerOutput(input: unknown): AssistantOutput {
   return parseAssistantOutputValue(input, true);
+}
+
+export function parseAssistantAdviceWorkerOutput(input: unknown): AssistantOutput {
+  const output = parseAssistantWorkerOutput(input);
+  if (output.actionPreview !== null) invalid();
+  return output;
 }
 
 export function assertSafeAiInput(value: string, maximumBytes = 8_192): string {
