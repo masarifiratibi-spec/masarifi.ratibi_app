@@ -151,6 +151,7 @@ function systemHealthAccordion(group: NavigationGroup, pathname: string) {
       "health-database",
       "health-storage",
       "health-providers",
+      "ai-usage-limits",
     ], {
       health: "Health Overview",
     }),
@@ -181,7 +182,7 @@ export function buildSidebarSections(groups: NavigationGroup[], pathname: string
         return { ...group, items: communications ? [communications] : [] };
       }
       if (group.id === "platform") {
-        const groupedIds = new Set(["health", "health-api", "health-database", "health-storage", "health-providers", "jobs", "job-runs", "scheduled-jobs"]);
+        const groupedIds = new Set(["health", "health-api", "health-database", "health-storage", "health-providers", "ai-usage-limits", "jobs", "job-runs", "scheduled-jobs"]);
         const flatItems = group.items
           .filter((item) => !groupedIds.has(item.id))
           .map((item) => itemNode(item, pathname));
@@ -193,7 +194,9 @@ export function buildSidebarSections(groups: NavigationGroup[], pathname: string
     .filter((group) => group.items.length > 0);
 }
 
-const ROUTE_PERMISSION_RULES: ReadonlyArray<{ match: string; permission: PermissionKey }> = [
+type RoutePermission = PermissionKey | "operations.settings.read";
+
+const ROUTE_PERMISSION_RULES: ReadonlyArray<{ match: string; permission: RoutePermission }> = [
   { match: "/admin/security/authentication-events", permission: "security.events.read" },
   { match: "/admin/security/suspicious-activity", permission: "security.incidents.manage" },
   { match: "/admin/security/admins", permission: "security.admins.read" },
@@ -231,6 +234,7 @@ const ROUTE_PERMISSION_RULES: ReadonlyArray<{ match: string; permission: Permiss
   { match: "/admin/system-health/database", permission: "system-health.database.read" },
   { match: "/admin/system-health/storage", permission: "system-health.storage.read" },
   { match: "/admin/system-health/providers", permission: "system-health.providers.read" },
+  { match: "/admin/system-health/ai-usage-limits", permission: "operations.settings.read" },
   { match: "/admin/system-health", permission: "system-health.read" },
   { match: "/admin/jobs/queues", permission: "jobs.queues.read" },
   { match: "/admin/jobs/runs", permission: "jobs.runs.read" },
@@ -278,7 +282,7 @@ const PHASE9_EXACT_ROUTE_PERMISSIONS: Partial<Record<string, PermissionKey>> = {
   "/admin/settings/maintenance": "settings.maintenance.read",
 };
 
-export function resolveRoutePermission(pathname: string): PermissionKey | "forbidden" | undefined {
+export function resolveRoutePermission(pathname: string): RoutePermission | "forbidden" | undefined {
   const phase9ExactPermission = PHASE9_EXACT_ROUTE_PERMISSIONS[pathname];
   if (phase9ExactPermission) return phase9ExactPermission;
   if (/^\/admin\/admin-team\/(?:ADM-[A-Z0-9-]{3,64}|user_[A-Za-z0-9_-]{20,128})$/.test(pathname)) {

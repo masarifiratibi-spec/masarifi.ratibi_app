@@ -29,6 +29,7 @@ export const routeSchema = z.enum([
   "/admin/parsers/merchant-rules",
   "/admin/parsers/category-rules",
   "/admin/system-health",
+  "/admin/system-health/ai-usage-limits",
   "/admin/system-health/api",
   "/admin/system-health/database",
   "/admin/system-health/storage",
