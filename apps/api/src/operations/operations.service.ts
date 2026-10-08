@@ -25,6 +25,7 @@ type Store = Pick<
 >;
 
 const READ_KINDS = new Set([
+  'ai-usage',
   'providers',
   'scheduled-jobs',
   'job-runs',

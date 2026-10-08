@@ -33,12 +33,27 @@ describeLiveDatabase('Opt-in Staging Voice owner allowance', () => {
         throw error;
       }
     });
-  const configure = (value: unknown) =>
-    pool.query(
+  const configure = async (value: unknown) => {
+    await pool.query(
       `insert into private.system_settings(setting_key,value,sensitivity) values($1,$2,'internal')
      on conflict(setting_key) do update set value=excluded.value`,
       [setting, JSON.stringify(value)],
     );
+    // Replay the forward migration's carry-over against disposable owner fixtures.
+    await pool.query('delete from private.ai_user_quota_overrides where user_id in ($1,$2)', [
+      owner,
+      other,
+    ]);
+    const migration = readFileSync(
+      resolve(process.cwd(), '../../supabase/migrations/20261008121641_ai_usage_limits.sql'),
+      'utf8',
+    );
+    const carry = migration.slice(
+      migration.indexOf('insert into private.ai_user_quota_overrides'),
+      migration.indexOf('create function private.ai_quota_policy'),
+    );
+    await pool.query(carry);
+  };
 
   beforeAll(async () => {
     oldBudget = (
@@ -118,7 +133,11 @@ describeLiveDatabase('Opt-in Staging Voice owner allowance', () => {
     expect(await reserve(other)).toMatchObject({ allowed: false, limit: 5, used: 5 });
   });
   it('keeps the same owner Assistant allowance at five', async () => {
-    expect(await reserve(owner, 'financial_assistant')).toMatchObject({ allowed: false, limit: 5 });
+    expect(await reserve(owner, 'financial_assistant')).toMatchObject({
+      allowed: true,
+      limit: 5,
+      used: 1,
+    });
   });
   it.each([
     {},

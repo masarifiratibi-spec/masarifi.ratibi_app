@@ -48,6 +48,7 @@ import type { ChartPoint, Metric, SystemStatus } from "@/types/admin";
 import type { DateRangeInput } from "@/features/foundation/contracts";
 import { ApiError } from "@/core/api/errors";
 import { mocksEnabled } from "@/core/config/runtime";
+import { AiUsageLimitsSection } from "@/features/governance/AiUsageLimitsSection";
 import { formatDate } from "@/lib/admin-utils";
 
 const PERIOD_PRESETS = ["7d", "30d", "90d"] as const;
@@ -544,6 +545,7 @@ export default function OverviewPage() {
         }
       />
 
+      {!demoMode && <AiUsageLimitsSection />}
       <section aria-label={t("overview.metricsAria")}>
         <RegionState
           isPending={summary.isPending}
