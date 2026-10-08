@@ -100,9 +100,9 @@ function SettingEditor({ settingKey, initial, version, label, type = "daily", ca
 
 function QuotaTime({ at, locale }: { at: string; locale: "ar" | "en" }) {
   const formatted = new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-GB", {
-    dateStyle: "medium", timeStyle: "short", timeZone: "UTC",
+    year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC",
   }).format(new Date(at));
-  return <time dateTime={at} title={at} className={styles.time}>{formatted} UTC</time>;
+  return <time dateTime={at} title={at} className={styles.time}><bdi dir={locale === "ar" ? "rtl" : "ltr"}>{formatted}</bdi> <bdi>UTC</bdi></time>;
 }
 
 function UsageValues({ feature, copy, locale }: { feature: AiUsage["features"][number]; copy: Copy; locale: "ar" | "en" }) {
@@ -140,7 +140,7 @@ export function AiUsageLimitsSection() {
   };
   if (!identity.loaded || session.isPending) return null;
   if (!canRead) return null;
-  return <section className={styles.page} aria-label={copy.title}>
+  return <section className={`admin-page ${styles.page}`} aria-label={copy.title}>
     <PageHeader title={copy.title} description={copy.description} actions={<button className="button secondary" type="button" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={16} aria-hidden="true" />{copy.refresh}</button>} />
     <p className={styles.direct}>{copy.direct}</p>
     {notice && <p className={styles.notice} role="status">{notice}</p>}
