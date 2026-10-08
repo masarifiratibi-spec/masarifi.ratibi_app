@@ -17,16 +17,22 @@ const json = (value: unknown, status = 200) =>
   });
 
 const mockDatabases = new Map<string, ReturnType<typeof mockMakeDatabase>>();
+const originalAutomaticPosting = process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
 function mockMakeDatabase() {
   const { DatabaseSync } = require('node:sqlite');
   const native = new DatabaseSync(':memory:');
   native.exec(
     'CREATE TABLE voice_operation_journal(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
   );
+  native.exec(
+    'CREATE TABLE voice_batch_operations(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
+  );
   return {
     native,
     getFirstAsync: async (sql: string, ...args: string[]) =>
       native.prepare(sql).get(...args) ?? null,
+    getAllAsync: async (sql: string, ...args: (string | number)[]) =>
+      native.prepare(sql).all(...args),
     runAsync: async (sql: string, ...args: (string | number)[]) =>
       native.prepare(sql).run(...args)
   };
@@ -55,12 +61,15 @@ const createLiveVoiceApiService = (
   options: Parameters<typeof createService>[0]
 ) => createService({ owner: async () => 'owner-a', ...options });
 beforeEach(async () => {
+  delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
   for (const db of mockDatabases.values()) db.native.close();
   mockDatabases.clear();
   await AsyncStorage.clear();
 });
 afterAll(() => {
   for (const db of mockDatabases.values()) db.native.close();
+  if (originalAutomaticPosting === undefined) delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
+  else process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = originalAutomaticPosting;
 });
 function recovery(value: unknown = proposal()) {
   return {
@@ -206,6 +215,87 @@ it('routes ordinary live capture to transcript and proposal review without autom
     currencyCode: 'SAR', accountId: id(3), categoryId: id(4) });
   expect(request.mock.calls.some(([url]) => String(url).endsWith('/confirm'))).toBe(false);
 });
+
+it.each(['ar', 'en'] as const)(
+  'hands %s automatic capture to the durable batch without a confirmation request',
+  async (locale) => {
+    process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+    const request = jest.fn().mockRejectedValue(new Error('network must not be needed to journal'));
+    const service = createLiveVoiceApiService({
+      baseUrl: 'https://api.staging.masarifiratibi.com',
+      token: async () => 'owner', request
+    });
+    expect(service.queueBatch).toEqual(expect.any(Function));
+    const operation = await service.queueBatch!({
+      uri: 'file:///automatic.m4a', contentType: 'audio/m4a',
+      durationMs: 3000, recordedAt: Date.parse(at)
+    }, locale, -180);
+    const stored = mockDatabases.get('owner-a')!.native.prepare(
+      'SELECT payload FROM voice_batch_operations WHERE id=?'
+    ).get(operation);
+    expect(JSON.parse(stored.payload)).toMatchObject({
+      id: operation, phase: 'captured', locale, timezoneOffsetMinutes: -180,
+      audioReference: 'file:///automatic.m4a', createBody: null, sessionId: null
+    });
+    expect(service.runBatch).toEqual(expect.any(Function));
+    expect(request).not.toHaveBeenCalled();
+  }
+);
+
+it('enables the deployment switch only for the Staging API, leaving other environments on their existing flow', () => {
+  const previous = process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
+  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+  try {
+    expect(createLiveVoiceApiService({ baseUrl: 'https://api.staging.masarifiratibi.com' }).queueBatch)
+      .toEqual(expect.any(Function));
+    for (const baseUrl of ['https://api.masarifiratibi.com', 'https://api.staging.masarifiratibi.com.evil.test'])
+      expect(createLiveVoiceApiService({ baseUrl }).queueBatch).toBeUndefined();
+  } finally {
+    if (previous === undefined) delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
+    else process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = previous;
+  }
+});
+
+it.each(['ar', 'en'] as const)(
+  'recovers a committed %s automatic capture after response loss without another financial submission',
+  async (locale) => {
+    process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+    const result = { sessionId: id(1), batchId: id(2), status: 'completed',
+      transactionIds: [id(5)], addedCount: 1, ledgerVersion: 12 };
+    let processed = false;
+    const request = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const path = String(url);
+      if (path.startsWith('file:')) return new Response(wav);
+      if (path.endsWith('/sessions')) return json({ session: { id: id(1), version: 1 },
+        upload: { path: `/api/v1/voice/sessions/${id(1)}/audio` } }, 201);
+      if (path.endsWith('/audio')) return json({ ...uploadReceipt(), version: 2 });
+      if (path.endsWith('/process')) {
+        processed = true;
+        throw new Error('response lost after commit');
+      }
+      if (path.endsWith('/batch')) return json(processed ? result : {
+        ...result, batchId: null, status: 'uploading', transactionIds: [], addedCount: 0, ledgerVersion: 0
+      });
+      throw new Error(`Unexpected ${init?.method} endpoint`);
+    });
+    const options = { baseUrl: 'https://api.staging.masarifiratibi.com',
+      token: async () => 'owner', request, sleep: async () => {} };
+    const service = createLiveVoiceApiService(options);
+    const operation = await service.queueBatch!({ uri: 'file:///automatic.m4a',
+      contentType: 'audio/m4a', durationMs: 3000, recordedAt: Date.now() }, locale, -180);
+    await expect(Promise.all([service.runBatch!(operation), service.runBatch!(operation)]))
+      .rejects.toThrow('response lost after commit');
+    service.pauseBatches!();
+    const restarted = createLiveVoiceApiService(options);
+    await expect(restarted.runBatch!(operation)).resolves.toEqual(result);
+    await expect(restarted.runBatch!(operation)).resolves.toEqual(result);
+    expect(request.mock.calls.filter(([url]) => String(url).endsWith('/sessions'))).toHaveLength(1);
+    const processes = request.mock.calls.filter(([url]) => String(url).endsWith('/process'));
+    expect(processes).toHaveLength(1);
+    expect(processes[0]?.[1]?.headers).toMatchObject({ 'idempotency-key': 'voice-process:' + operation });
+    expect(request.mock.calls.some(([url]) => /\/(confirm|proposal)$/.test(String(url)))).toBe(false);
+  }
+);
 
 it('uploads native M4A recordings as M4A even when Android infers MP3, without confirming a transaction', async () => {
   const m4a = Uint8Array.from([
@@ -483,6 +573,23 @@ it('recovers only the current owner pending session and clears it after confirm'
   await expect(restored.recoverPending?.()).resolves.toMatchObject({
     saved: { transactionIds: [id(5)] }
   });
+});
+
+it('preserves an unconfirmed legacy proposal without reopening review during automatic capture', async () => {
+  const baseUrl = 'https://api.staging.masarifiratibi.com';
+  const first = createLiveVoiceApiService({ baseUrl, token: async () => 'owner',
+    request: successfulRequest(), sleep: async () => {}, now: () => 1 });
+  await first.transcribe('file:///voice.wav', 'clear_en', 1_234, 'en');
+  const previous = await loadVoiceOperation('owner-a');
+  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(recovery()));
+  const automatic = createLiveVoiceApiService({ baseUrl, token: async () => 'owner', request });
+  await expect(automatic.recoverPending?.()).resolves.toBeNull();
+  expect(await loadVoiceOperation('owner-a')).toEqual(previous);
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request.mock.calls[0][0]).toContain('/recovery');
+  expect(request.mock.calls[0][1]?.method ?? 'GET').toBe('GET');
 });
 
 it.each(['multiple', 'transfer', 'obligation'] as const)(

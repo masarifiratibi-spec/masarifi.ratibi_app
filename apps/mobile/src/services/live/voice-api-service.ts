@@ -196,6 +196,12 @@ export function createLiveVoiceApiService(
     process.env.EXPO_PUBLIC_API_URL ??
     ''
   ).replace(/\/$/u, '');
+  // Activate with the verified Staging financial cohort. This selects transport;
+  // server authorization, Posting and transaction validation remain authoritative.
+  const automaticCapture = (
+    baseUrl === 'https://api.staging.masarifiratibi.com' &&
+    process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true'
+  );
   const token = options.token ?? (() => tokenProvider());
   const readOwner = options.owner ?? (() => ownerProvider());
   const owner = async () => {
@@ -680,9 +686,9 @@ export function createLiveVoiceApiService(
     });
   return {
     ...batchApi,
-    // New ordinary captures use the existing transcript/proposal/explicit
-    // confirmation flow. Historical v3 operations retain their own recovery.
-    queueBatch: undefined,
+    // Keep legacy proposal recovery; new financial captures use the existing
+    // durable batch and normal transaction refresh, with no review route.
+    queueBatch: automaticCapture ? batchApi.queueBatch : undefined,
     metadata: {
       id: 'phase09-voice-http',
       capability: voiceAnalyzerServiceCapability.capability,
@@ -809,8 +815,13 @@ export function createLiveVoiceApiService(
       ) {
         return { saved: await executeConfirmation(binding, operation) };
       }
-      if (result.phase === 'proposed')
+      if (result.phase === 'proposed') {
+        // Preserve pre-switch, unconfirmed v2 evidence without reopening its
+        // review UI or migrating it into the automatic financial pipeline.
+        // Frozen confirmations are recovered above using their original key.
+        if (automaticCapture) return null;
         return remember(binding, operation, result);
+      }
       if (result.phase === 'uploaded')
         operation = await uploadAndProcess(binding, operation);
       if (result.phase === 'confirming' || result.phase === 'confirmed')

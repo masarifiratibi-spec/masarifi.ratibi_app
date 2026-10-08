@@ -20,6 +20,7 @@ const context = {
   ],
 };
 const event = (patch = {}) => ({
+  occurrence: 1,
   kind: 'expense',
   amountMinor: '2500',
   currency: '',
@@ -37,6 +38,7 @@ const event = (patch = {}) => ({
 });
 const batch = (events: unknown[]) => ({ complete: true, language: 'en', events });
 const compactEvent = (patch = {}) => ({
+  s: 1,
   k: 'e',
   a: '2500',
   c: 'o:',
@@ -50,13 +52,77 @@ const compactEvent = (patch = {}) => ({
 });
 
 describe('Voice batch automatic or silent skip', () => {
+  it.each([
+    ['ar', 'صرفت ٢٥ ريال سعودي على الطعام'],
+    ['en', 'I spent 25 Saudi riyals on food'],
+    ['ar', 'صرفت 25 Saudi riyals على food'],
+  ])('does not execute duplicate extraction of one %s spoken occurrence (%s)', (language) => {
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput({
+        complete: true,
+        language,
+        events: [compactEvent({ s: 1 }), compactEvent({ s: 1, q: 0.95 })],
+      }),
+      context,
+    );
+    expect(decisions.filter((item) => item.status === 'eligible')).toHaveLength(1);
+    expect(decisions[1]).toEqual({ status: 'skipped', reason: 'invalid_event' });
+  });
+  it.each(['ar', 'en'])('preserves identical %s statements actually spoken twice', (language) => {
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput({
+        complete: true,
+        language,
+        events: [compactEvent({ s: 1 }), compactEvent({ s: 2 })],
+      }),
+      context,
+    );
+    expect(decisions.map((item) => item.status)).toEqual(['eligible', 'eligible']);
+  });
+  it('does not guess between contradictory candidates for the same spoken occurrence', () => {
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput(
+        batch([compactEvent({ s: 1 }), compactEvent({ s: 1, a: '3500' }), compactEvent({ s: 2 })]),
+      ),
+      context,
+    );
+    expect(decisions.map((item) => item.status)).toEqual(['skipped', 'skipped', 'eligible']);
+  });
+  it('deduplicates the same financial effect despite different default/explicit aliases and merchant wording', () => {
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput(
+        batch([
+          compactEvent({ s: 1, m: 'Food' }),
+          compactEvent({ s: 1, c: 'e:SAR', b: 'e:ACCOUNT-1', d: 'e:2026-10-04', m: 'طعام' }),
+        ]),
+      ),
+      context,
+    );
+    expect(decisions.map((item) => item.status)).toEqual(['eligible', 'skipped']);
+  });
+  it('vetoes an occurrence when one extraction marks its account ambiguous', () => {
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput(
+        batch([compactEvent({ s: 1 }), compactEvent({ s: 1, b: 'a:' })]),
+      ),
+      context,
+    );
+    expect(decisions.map((item) => item.status)).toEqual(['skipped', 'skipped']);
+  });
+  it.each([undefined, 0, 11, 1.5, '1'])('rejects ungrounded occurrence %s', (s) => {
+    const decisions = decideVoiceBatch(
+      parseVoiceBatchProviderOutput(batch([compactEvent({ s })])),
+      context,
+    );
+    expect(decisions).toEqual([{ status: 'skipped', reason: 'invalid_event' }]);
+  });
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-10-04T12:00:00Z'));
   });
   afterEach(() => jest.useRealTimers());
   it('retains independent identical occurrences and defaults only omitted fields', () => {
-    const decisions = decideVoiceBatch(batch([event(), event()]), context);
+    const decisions = decideVoiceBatch(batch([event(), event({ occurrence: 2 })]), context);
     expect(decisions).toHaveLength(2);
     expect(decisions.map((d) => d.status)).toEqual(['eligible', 'eligible']);
     expect(decisions[0]).toMatchObject({
@@ -73,9 +139,9 @@ describe('Voice batch automatic or silent skip', () => {
     const decisions = decideVoiceBatch(
       batch([
         event(),
-        event({ amountMinor: '', merchant: 'private shop' }),
-        event({ accountSource: 'ambiguous', accountId: 'ACCOUNT-1' }),
-        event({ kind: 'repayment' }),
+        event({ occurrence: 2, amountMinor: '', merchant: 'private shop' }),
+        event({ occurrence: 3, accountSource: 'ambiguous', accountId: 'ACCOUNT-1' }),
+        event({ occurrence: 4, kind: 'repayment' }),
       ]),
       context,
     );
@@ -98,7 +164,13 @@ describe('Voice batch automatic or silent skip', () => {
   it.each(['ar', 'en'])(
     'accepts ten independent %s occurrences including identical purchases',
     (language) => {
-      const decisions = decideVoiceBatch({ ...batch(Array(10).fill(event())), language }, context);
+      const decisions = decideVoiceBatch(
+        {
+          ...batch(Array.from({ length: 10 }, (_, index) => event({ occurrence: index + 1 }))),
+          language,
+        },
+        context,
+      );
       expect(decisions).toHaveLength(10);
       expect(decisions.every((item) => item.status === 'eligible')).toBe(true);
     },
@@ -111,7 +183,7 @@ describe('Voice batch automatic or silent skip', () => {
         language,
         events: [
           compactEvent(),
-          compactEvent(),
+          compactEvent({ s: 2 }),
           compactEvent({ a: '' }),
           compactEvent({ b: 'a:' }),
           compactEvent({ d: 'a:' }),
@@ -120,7 +192,7 @@ describe('Voice batch automatic or silent skip', () => {
           compactEvent({ k: 'i', a: '-500000', g: '' }),
           compactEvent({ c: 'e:SAR', b: 'e:ACCOUNT-1', d: 'e:2026-10-04' }),
           compactEvent({ b: 'o:ACCOUNT-1' }),
-        ],
+        ].map((item, index) => ({ ...item, s: index + 1 })),
       });
       const decisions = decideVoiceBatch(output, context);
       expect(decisions.map((item) => item.status)).toEqual([
@@ -181,8 +253,8 @@ describe('Voice batch automatic or silent skip', () => {
       decideVoiceBatch(
         batch([
           event({ currencySource: 'ambiguous' }),
-          event({ dateSource: 'omitted', date: '2026-10-02' }),
-          event({ currencySource: 'explicit', currency: '' }),
+          event({ occurrence: 2, dateSource: 'omitted', date: '2026-10-02' }),
+          event({ occurrence: 3, currencySource: 'explicit', currency: '' }),
         ]),
         context,
       ),
@@ -197,8 +269,8 @@ describe('Voice batch automatic or silent skip', () => {
       decideVoiceBatch(
         batch([
           event({ dateSource: 'ambiguous' }),
-          event({ currency: 'USD' }),
-          event({ categoryId: 'CATEGORY-9' }),
+          event({ occurrence: 2, currency: 'USD' }),
+          event({ occurrence: 3, categoryId: 'CATEGORY-9' }),
         ]),
         context,
       ),
