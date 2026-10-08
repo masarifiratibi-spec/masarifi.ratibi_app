@@ -52,6 +52,41 @@ const compactEvent = (patch = {}) => ({
 });
 
 describe('Voice batch automatic or silent skip', () => {
+  it.each(['ar', 'en'])(
+    'preserves the immutable recording time for omitted and current-day %s dates on replay',
+    (language) => {
+      jest.setSystemTime(new Date('2026-10-08T18:00:00Z'));
+      const recorded = { ...context, recordedAt: '2026-10-08T17:27:50.536Z' };
+      for (const dateFields of [
+        { date: '', dateSource: 'omitted' },
+        { date: '2026-10-08', dateSource: 'explicit' },
+        { date: '2026-10-08', dateSource: 'shared' },
+      ]) {
+        const input = { ...batch([event(dateFields)]), language };
+        const decisions = decideVoiceBatch(input, recorded);
+        expect(decisions[0]).toMatchObject({
+          status: 'eligible',
+          command: { occurredAt: recorded.recordedAt },
+        });
+        jest.setSystemTime(new Date('2026-10-10T10:00:00Z'));
+        expect(decideVoiceBatch(input, recorded)).toEqual(decisions);
+      }
+    },
+  );
+  it('keeps an explicit historical date in the capture timezone', () => {
+    expect(
+      decideVoiceBatch(batch([event({ date: '2026-10-02', dateSource: 'explicit' })]), context)[0],
+    ).toMatchObject({ status: 'eligible', command: { occurredAt: '2026-10-01T21:00:00.000Z' } });
+  });
+  it.each([
+    { recordedAt: 'invalid' },
+    { timezoneOffsetMinutes: NaN },
+    { timezoneOffsetMinutes: 841 },
+  ])('fails closed for invalid capture context %j', (patch) => {
+    expect(decideVoiceBatch(batch([event()]), { ...context, ...patch })).toEqual([
+      { status: 'skipped', reason: 'invalid_date' },
+    ]);
+  });
   it.each([
     ['ar', 'صرفت ٢٥ ريال سعودي على الطعام'],
     ['en', 'I spent 25 Saudi riyals on food'],
@@ -131,7 +166,7 @@ describe('Voice batch automatic or silent skip', () => {
         amountMinor: 2500,
         currency: 'SAR',
         accountId: context.defaultAccountId,
-        occurredAt: '2026-10-03T21:00:00.000Z',
+        occurredAt: '2026-10-03T21:30:00.000Z',
       },
     });
   });
@@ -215,7 +250,7 @@ describe('Voice batch automatic or silent skip', () => {
         command: {
           amountMinor: 2500,
           accountId: context.defaultAccountId,
-          occurredAt: '2026-10-03T21:00:00.000Z',
+          occurredAt: '2026-10-03T21:30:00.000Z',
         },
       });
       expect(

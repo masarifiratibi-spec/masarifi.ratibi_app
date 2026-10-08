@@ -257,9 +257,14 @@ function decideEvent(input: unknown, context: BatchContext): VoiceEventDecision 
   );
   if ((value.kind === 'expense' && !category) || (value.categoryId !== '' && !category))
     return skip('invalid_category');
-  const captureLocalDate = new Date(
-    Date.parse(context.recordedAt) - context.timezoneOffsetMinutes * 60000,
+  const capturedAt = Date.parse(context.recordedAt);
+  if (
+    !Number.isFinite(capturedAt) ||
+    !Number.isInteger(context.timezoneOffsetMinutes) ||
+    Math.abs(context.timezoneOffsetMinutes) > 840
   )
+    return skip('invalid_date');
+  const captureLocalDate = new Date(capturedAt - context.timezoneOffsetMinutes * 60000)
     .toISOString()
     .slice(0, 10);
   const date = value.dateSource === 'omitted' && value.date === '' ? captureLocalDate : value.date;
@@ -286,8 +291,12 @@ function decideEvent(input: unknown, context: BatchContext): VoiceEventDecision 
       note: null,
       confidence: value.confidence,
     });
+    // Current-day speech inherits the immutable capture clock, including on replay.
+    // A historical date supplies no time: keep its existing local-day boundary.
     const occurredAt = new Date(
-      Date.parse(date + 'T00:00:00Z') + context.timezoneOffsetMinutes * 60000,
+      date === captureLocalDate
+        ? capturedAt
+        : Date.parse(date + 'T00:00:00Z') + context.timezoneOffsetMinutes * 60000,
     ).toISOString();
     return {
       status: 'eligible',

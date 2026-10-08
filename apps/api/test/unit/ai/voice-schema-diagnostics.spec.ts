@@ -259,7 +259,7 @@ describe('Voice schema failure diagnostics without output retention', () => {
       currency: 'SAR',
       accountId: 'b5b794eb-3bc4-4a6b-9724-a41c5d30b869',
       categoryId: '04000000-0000-4000-8000-000000000016',
-      occurredAt: '2026-10-07T21:00:00.000Z',
+      occurredAt: '2026-10-08T10:17:48.493Z',
       source: 'voice',
     });
   });

@@ -90,6 +90,89 @@ const category = {
   updatedAt: '2026-09-01T00:00:00.000Z'
 };
 
+it('keeps live Home expenses from older pages without changing full-history financial totals', async () => {
+  const rows = Array.from({ length: 7 }, (_, index) => ({
+    id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    kind: index < 5 ? 'income' : 'expense',
+    status: 'confirmed',
+    amountMinor: 100,
+    currency: 'SAR',
+    accountIds: [account.id],
+    sourceAccountId: account.id,
+    destinationAccountId: null,
+    feeMinor: 0,
+    categoryId: null,
+    title: `Row ${index}`,
+    merchant: null,
+    note: null,
+    occurredAt: new Date(
+      Date.UTC(2026, 9, 8, 17) - index * 60_000
+    ).toISOString(),
+    source: 'voice',
+    version: 1
+  }));
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
+    async (url) => {
+      const path = String(url);
+      if (path.includes('/categories?'))
+        return response({ items: [], nextCursor: null });
+      if (path.includes('/summary'))
+        return response({
+          accountId: account.id,
+          currency: 'SAR',
+          balance: {
+            accountId: account.id,
+            currency: 'SAR',
+            confirmedMinor: 300,
+            pendingMinor: 0,
+            ledgerVersion: 7,
+            reconciledAt: '2026-10-08T17:30:00.000Z'
+          },
+          recentTransactions: [],
+          ledgerVersion: 7,
+          requestId: 'balance'
+        });
+      if (path.includes('/accounts?'))
+        return response({ items: [account], nextCursor: null });
+      if (path.includes('/transactions?'))
+        return response({
+          items: path.includes('cursor=older')
+            ? rows.slice(5)
+            : rows.slice(0, 5),
+          nextCursor: path.includes('cursor=older') ? null : 'older',
+          ledgerVersion: 7,
+          requestId: 'list'
+        });
+      throw new Error(`Unexpected request: ${path}`);
+    }
+  );
+  const summary = await createLiveCoreFinanceService({
+    baseUrl: 'https://inert.invalid',
+    request
+  }).getHomeSummary('SAR');
+  expect(
+    summary.recentTransactions
+      .filter((item) => item.type === 'expense')
+      .map((item) => item.title)
+  ).toEqual(['Row 5', 'Row 6']);
+  expect(
+    summary.recentTransactions
+      .filter((item) => item.type === 'income')
+      .slice(0, 2)
+      .map((item) => item.title)
+  ).toEqual(['Row 0', 'Row 1']);
+  expect(summary).toMatchObject({
+    totalBalanceMinor: 300,
+    periodIncomeMinor: 500,
+    periodExpenseMinor: 200
+  });
+  expect(
+    request.mock.calls.every(
+      ([, init]) => !init?.method || init.method === 'GET'
+    )
+  ).toBe(true);
+});
+
 it.each([
   ['expense', 'food', '04000000-0000-4000-8000-000000000002'],
   ['income', 'salary', '04000000-0000-4000-8000-000000000016'],

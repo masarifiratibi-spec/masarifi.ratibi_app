@@ -201,7 +201,10 @@ export function createMockCoreFinanceService(
         periodIncomeMinor: periodTotals.incomeMinor,
         periodExpenseMinor: periodTotals.expenseMinor,
         activeAccountCount: accounts.length,
-        recentTransactions: repository.listTransactions(filters, null, 5).items,
+        recentTransactions: selectHomeTransactions(
+          repository.listTransactions(filters, null, periodTransactions.length)
+            .items
+        ),
         reviewCount: periodTransactions.filter(
           (item) => item.reviewStatus === 'required'
         ).length,
@@ -777,7 +780,7 @@ export function createLiveCoreFinanceService(
         periodIncomeMinor: periodTotals.incomeMinor,
         periodExpenseMinor: periodTotals.expenseMinor,
         activeAccountCount: selectedAccounts.length,
-        recentTransactions: transactions.slice(0, 5),
+        recentTransactions: selectHomeTransactions(transactions),
         reviewCount: transactions.filter(
           (transaction) => transaction.reviewStatus === 'required'
         ).length,
@@ -924,4 +927,20 @@ function result<T>(
 
 function uniqueScopes(affectedScopes: readonly string[]) {
   return [...new Set([...affectedScopes, ...derivedScopes])];
+}
+
+// Home renders two expenses and two incomes. Reserve those before its shared bound.
+function selectHomeTransactions(ordered: Transaction[]): Transaction[] {
+  const selected = new Set<string>();
+  for (const type of ['expense', 'income'] as const) {
+    ordered
+      .filter((item) => item.type === type)
+      .slice(0, 2)
+      .forEach((item) => selected.add(item.id));
+  }
+  for (const item of ordered) {
+    if (selected.size >= 5) break;
+    selected.add(item.id);
+  }
+  return ordered.filter((item) => selected.has(item.id));
 }
