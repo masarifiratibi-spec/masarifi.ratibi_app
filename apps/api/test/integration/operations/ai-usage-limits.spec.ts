@@ -83,6 +83,20 @@ describeLiveDatabase('governed independent AI usage limits', () => {
     ).rows[0]?.result as Record<string, unknown>;
   };
 
+  it.each([
+    ['ai.chat.user_override', { userId: owner, rollingLimit: 1, monthlyLimit: null }],
+    ['ai.voice.enabled', false],
+    ['ai.chat.monthly_limit', null],
+  ])('validates %s on a cold database plan without unrelated integer casts', async (key, value) => {
+    await scenario(async (c) => {
+      await c.query('discard plans');
+      expect(await update(c, key as string, value)).toMatchObject({
+        resourceId: key,
+        status: 'updated',
+      });
+    });
+  });
+
   it.each(['chat', 'voice'])(
     'updates %s daily limit through the governed command',
     async (feature) => {
