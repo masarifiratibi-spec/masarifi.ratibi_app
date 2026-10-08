@@ -168,7 +168,6 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       bytes.write('M4A ', 8);
       const hash = createHash('sha256').update(bytes).digest('hex');
       const recordedAt = new Date().toISOString();
-      const localDate = new Date(Date.parse(recordedAt) + 180 * 60_000).toISOString().slice(0, 10);
       const balanceBefore =
         (
           await pool.query<{ balance: string }>(
@@ -395,7 +394,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
                 [created.session.id],
               )
             ).rows[0]?.occurred_at,
-          ).toEqual(new Date(Date.parse(localDate + 'T00:00:00Z') - 180 * 60_000));
+          ).toEqual(new Date(recordedAt));
           expect(
             (
               await pool.query<{ balance: string }>(
