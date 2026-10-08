@@ -216,6 +216,9 @@ export class AiGateway {
         )
           throw new AiGatewayError('AI_SCHEMA_INVALID');
         const envelope = decodedEnvelope as Record<string, unknown>;
+        const completionFailure = embeddedProviderFailure(envelope);
+        // Error-only HTTP 200 responses have no receipt. Preserve conservative dispatch accounting.
+        if (completionFailure && envelope.usage === undefined) throw completionFailure;
         const usage = this.usage(envelope.usage);
         const maximumCost =
           usage.inputTokens * Number(input.route.maxPrice.prompt) +
@@ -245,6 +248,7 @@ export class AiGateway {
         dispatchState.accounted = true;
         if (voice && envelope.model !== candidate.modelId)
           throw schemaFailure(input.requestId, 'provider_identity', 'model', { keyword: 'const' });
+        if (completionFailure) throw completionFailure;
         const choices = Array.isArray(envelope.choices) ? (envelope.choices as unknown[]) : [];
         const choice = choices[0];
         if (!choice || typeof choice !== 'object' || choices.length !== 1)
@@ -400,6 +404,30 @@ export class AiGateway {
     this.failures = [...this.failures.filter((time) => time >= cutoff), this.now()];
     if (this.failures.length >= 5) this.openUntil = this.now() + 30_000;
   }
+}
+
+function embeddedProviderFailure(envelope: Record<string, unknown>): AiGatewayError | null {
+  const firstChoice = Array.isArray(envelope.choices) ? diagnosticObject(envelope.choices[0]) : {};
+  const container = Object.hasOwn(envelope, 'error') ? envelope : firstChoice;
+  if (!Object.hasOwn(container, 'error')) return null;
+  const providerError = diagnosticObject(container.error);
+  const status =
+    typeof providerError.code === 'number' &&
+    Number.isInteger(providerError.code) &&
+    providerError.code >= 400 &&
+    providerError.code <= 599
+      ? providerError.code
+      : undefined;
+  const retryable = status === 429 || (status !== undefined && status >= 500);
+  return new AiGatewayError(
+    retryable ? 'AI_TEMPORARILY_UNAVAILABLE' : 'AI_UNAVAILABLE',
+    retryable,
+    {
+      failureStage: 'provider_completion',
+      ...(status === undefined ? {} : { httpStatus: status }),
+      rejectedFields: ['error.code'],
+    },
+  );
 }
 
 function schemaFailure(

@@ -70,6 +70,57 @@ async function invoke(envelope: unknown) {
 }
 
 describe('Voice schema failure diagnostics without output retention', () => {
+  // Incident ff491825: matched generation hash; actual Google upstream status 429,
+  // gateway HTTP 200, zero native usage, null finish reason. Raw I/O was not retained.
+  // These are documented wire-shape variants of that observed provider failure.
+  it.each(['envelope', 'choice'])(
+    'maps an embedded 429 %s to bounded provider recovery before event parsing',
+    async (location) => {
+      const error = {
+        code: 429,
+        message: 'Rate limit exceeded',
+        metadata: { error_type: 'rate_limit_exceeded' },
+      };
+      const envelope = completion(
+        null,
+        location === 'envelope'
+          ? { error, choices: [] }
+          : { choices: [{ finish_reason: null, error, message: { content: null } }] },
+      );
+      await expect(invoke(envelope)).rejects.toMatchObject({
+        code: 'AI_TEMPORARILY_UNAVAILABLE',
+        retryable: true,
+        diagnostic: { failureStage: 'provider_completion', httpStatus: 429 },
+      });
+    },
+  );
+
+  it('does not accept valid financial content alongside an unknown provider error', async () => {
+    await expect(
+      invoke(
+        completion(
+          { complete: true, language: 'ar', events: [] },
+          {
+            error: { code: 'unrecognized', message: 'private body must never be logged' },
+          },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'AI_UNAVAILABLE', retryable: false });
+  });
+
+  it.each([
+    { code: 429, expected: 'AI_TEMPORARILY_UNAVAILABLE', retryable: true },
+    { code: 400, expected: 'AI_UNAVAILABLE', retryable: false },
+  ])(
+    'fails closed for an error-only response without fabricating usage ($code)',
+    async ({ code, expected, retryable }) => {
+      await expect(invoke({ error: { code } })).rejects.toMatchObject({
+        code: expected,
+        retryable,
+      });
+    },
+  );
+
   it.each([
     {
       content: { complete: false, language: 'ar', events: [] },

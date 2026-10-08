@@ -23,7 +23,8 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
   const userId = 'voice_journey_' + randomUUID(),
     adminId = 'voice_journey_admin_' + randomUUID(),
     accountId = randomUUID(),
-    categoryId = randomUUID();
+    categoryId = randomUUID(),
+    salaryCategoryId = randomUUID();
   const principal = { userId, sessionId: 'fictional-offline-session', factorAgeSeconds: 0 };
   let originalRoute: {
     primary_model_id: string;
@@ -31,6 +32,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     provider_allowlist: string[];
   };
   let fixtureModelId: string | undefined;
+  let originalRequestLimit: unknown;
   const media = new Map<string, Buffer>();
   const storage = {
     upload: (key: string, bytes: Buffer) => {
@@ -75,6 +77,15 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     config as never,
   );
   beforeAll(async () => {
+    originalRequestLimit = (
+      await pool.query(
+        "select value from private.system_settings where setting_key='ai.user.rolling_limit'",
+      )
+    ).rows[0]?.value;
+    // Six independent captures in this disposable fixture; preserve the product quota policy.
+    await pool.query(
+      "update private.system_settings set value='6' where setting_key='ai.user.rolling_limit'",
+    );
     const snapshot = (
       await pool.query<typeof originalRoute>(
         "select primary_model_id,fallback_model_ids,provider_allowlist from private.ai_feature_routes where workload='voice_transcription'",
@@ -114,6 +125,10 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       [categoryId, userId],
     );
     await pool.query(
+      "insert into public.categories(id,user_id,kind,label_ar,label_en) values($1,$2,'income','راتب تجريبي','Fictional journey salary')",
+      [salaryCategoryId, userId],
+    );
+    await pool.query(
       "update private.ai_prompt_versions set status='approved',evaluation_passed=true,approved_by=$1,published_at=clock_timestamp() where workload='voice_transcription'",
       [adminId],
     );
@@ -122,6 +137,10 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     );
   });
   afterAll(async () => {
+    await pool.query(
+      "update private.system_settings set value=$1 where setting_key='ai.user.rolling_limit'",
+      [JSON.stringify(originalRequestLimit)],
+    );
     await pool.query(
       "update private.ai_feature_routes set enabled=false,primary_model_id=$1,fallback_model_ids=$2,provider_allowlist=$3 where workload='voice_transcription'",
       [
@@ -135,11 +154,12 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     await pool.onModuleDestroy();
   });
   it.each([
-    ['ar', 'Cash test@example.com SA0380000000608010167519 4111111111111111'],
-    ['en', 'Cash test@example.com SA0380000000608010167519 4111111111111111'],
+    ['ar', 'Cash test@example.com SA0380000000608010167519 4111111111111111', false],
+    ['en', 'Cash test@example.com SA0380000000608010167519 4111111111111111', false],
+    ['ar', 'Voice Staging Test', true],
   ] as const)(
-    'automatically posts safe %s batch items with privacy-safe account labels (%s)',
-    async (language, accountName) => {
+    'automatically posts safe %s batch items (%s, recover embedded 429=%s)',
+    async (language, accountName, recover429) => {
       await pool.query('update private.voice_automatic_policy set enabled=true');
       await pool.query('update public.accounts set is_default=true where id=$1', [accountId]);
       await pool.query('update public.accounts set name=$2 where id=$1', [accountId, accountName]);
@@ -147,6 +167,15 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       bytes.write('ftyp', 4);
       bytes.write('M4A ', 8);
       const hash = createHash('sha256').update(bytes).digest('hex');
+      const recordedAt = new Date().toISOString();
+      const localDate = new Date(Date.parse(recordedAt) + 180 * 60_000).toISOString().slice(0, 10);
+      const balanceBefore =
+        (
+          await pool.query<{ balance: string }>(
+            'select confirmed_minor::text balance from public.account_balances where account_id=$1',
+            [accountId],
+          )
+        ).rows[0]?.balance ?? '0';
       const created = uploadResponseSchema.parse(
         await service.createVoiceSession(
           principal,
@@ -156,7 +185,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
             contentType: 'audio/m4a',
             sizeBytes: bytes.length,
             contentHash: hash,
-            recordedAt: new Date().toISOString(),
+            recordedAt,
             timezoneOffsetMinutes: -180,
           },
           randomUUID(),
@@ -178,6 +207,12 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         expectedVersion: upload.version,
         contentHash: hash,
       };
+      const countBefore = (
+        await pool.query<{ count: number }>(
+          'select count(*)::integer count from public.transactions where user_id=$1',
+          [userId],
+        )
+      ).rows[0]?.count;
       await service.processVoiceSession(principal, created.session.id, processBody, processKey);
       await service.processVoiceSession(principal, created.session.id, processBody, processKey);
       const originalClaim = repository.claimWork.bind(repository);
@@ -188,7 +223,9 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
             (item) => item.id === created.session.id,
           ),
         );
+      let dispatchCount = 0;
       const fetcher = jest.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+        dispatchCount++;
         if (typeof init?.body !== 'string') throw new Error('expected provider body');
         expect(init.body).not.toContain('test@example.com');
         expect(init.body).not.toContain('SA0380000000608010167519');
@@ -198,17 +235,34 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
           model: string;
           messages: { content: { text?: string }[] }[];
         };
+        // ff491825: actual upstream Google 429 at HTTP 200; documented error wire shape.
+        if (recover429 && dispatchCount === 1)
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: 'reproduced-rate-limit-generation',
+                model: body.model,
+                error: { code: 429, metadata: { error_type: 'rate_limit_exceeded' } },
+                choices: [],
+                usage: { prompt_tokens: 0, completion_tokens: 0, cost: 0 },
+              }),
+              { headers: { 'content-type': 'application/json' } },
+            ),
+          );
         const context = JSON.parse(body.messages[1]?.content[0]?.text ?? '{}') as {
-          references: { alias: string; kind: string; data: { kind?: string } }[];
+          references: { alias: string; kind: string; data: { kind?: string; labelEn?: string } }[];
         };
         const category = context.references.find(
-          (item) => item.kind === 'category' && item.data.kind === 'expense',
+          (item) =>
+            item.kind === 'category' &&
+            item.data.kind === (recover429 ? 'income' : 'expense') &&
+            (!recover429 || item.data.labelEn === 'Fictional journey salary'),
         );
         if (!category) throw new Error('missing category fixture');
         const event = {
           s: 1,
-          k: 'e',
-          a: '2500',
+          k: recover429 ? 'i' : 'e',
+          a: recover429 ? '-100' : '2500',
           c: 'o:',
           b: 'o:',
           g: category.alias,
@@ -220,14 +274,16 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         const envelope = {
           complete: true,
           language,
-          events: [
-            event,
-            { ...event, q: 0.95 }, // Same spoken occurrence extracted twice: one financial effect.
-            { ...event, s: 2, a: '4000' },
-            { ...event, s: 3, a: '12000' },
-            { ...event, s: 4, k: 'r', a: '5000' },
-            { ...event, s: 5, a: '', m: 'Private skipped content' },
-          ],
+          events: recover429
+            ? [event]
+            : [
+                event,
+                { ...event, q: 0.95 }, // Same spoken occurrence extracted twice: one financial effect.
+                { ...event, s: 2, a: '4000' },
+                { ...event, s: 3, a: '12000' },
+                { ...event, s: 4, k: 'r', a: '5000' },
+                { ...event, s: 5, a: '', m: 'Private skipped content' },
+              ],
         };
         return Promise.resolve(
           new Response(
@@ -249,6 +305,38 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       );
       try {
         await worker.runJob('voice.transcribe_extract');
+        if (recover429) {
+          expect(
+            (
+              await pool.query(
+                'select status,failure_code from public.voice_sessions where id=$1',
+                [created.session.id],
+              )
+            ).rows[0],
+          ).toMatchObject({ status: 'processing', failure_code: null });
+          expect(
+            (
+              await pool.query(
+                'select failure_code,retryable from private.ai_failure_events where request_id=$1 order by created_at desc limit 1',
+                [created.session.id],
+              )
+            ).rows[0],
+          ).toMatchObject({ failure_code: 'AI_TEMPORARILY_UNAVAILABLE', retryable: true });
+          expect(
+            (
+              await pool.query<{ count: number }>(
+                'select count(*)::integer count from public.transactions where user_id=$1',
+                [userId],
+              )
+            ).rows[0]?.count,
+          ).toBe(countBefore);
+          // Advance only this disposable test session's retry clock; no Staging mutation.
+          await pool.query(
+            'update public.voice_sessions set next_attempt_at=clock_timestamp() where id=$1',
+            [created.session.id],
+          );
+          await worker.runJob('voice.transcribe_extract');
+        }
         expect(await service.getVoiceBatchResult(principal, created.session.id)).toMatchObject({
           status: 'finalizing',
           addedCount: 0,
@@ -265,13 +353,9 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         const result = await service.getVoiceBatchResult(principal, created.session.id);
         expect(result).toMatchObject({
           status: 'completed',
-          addedCount: 3,
-          transactionIds: expect.arrayContaining([
-            expect.any(String),
-            expect.any(String),
-            expect.any(String),
-          ]) as unknown,
+          addedCount: recover429 ? 1 : 3,
         });
+        expect(result.transactionIds).toHaveLength(recover429 ? 1 : 3);
         expect(Object.keys(result).sort()).toEqual(
           [
             'sessionId',
@@ -282,7 +366,61 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
             'ledgerVersion',
           ].sort(),
         );
-        expect(fetcher).toHaveBeenCalledTimes(1);
+        if (recover429) {
+          const effects = (
+            await pool.query(
+              `select t.kind,t.amount_minor,t.currency_code,t.category_id,
+            (select p.account_id from public.transaction_postings p where p.transaction_id=t.id limit 1) account_id,
+            (select count(*)::integer from public.transaction_postings p where p.transaction_id=t.id) posting_count
+            from public.transactions t join private.voice_events e on e.transaction_id=t.id
+            join private.voice_batches b on b.id=e.batch_id where b.session_id=$1`,
+              [created.session.id],
+            )
+          ).rows;
+          expect(effects).toEqual([
+            {
+              kind: 'income',
+              amount_minor: '100',
+              currency_code: 'SAR',
+              account_id: accountId,
+              category_id: salaryCategoryId,
+              posting_count: 1,
+            },
+          ]);
+          expect(
+            (
+              await pool.query(
+                `select t.occurred_at from public.transactions t join private.voice_events e on e.transaction_id=t.id
+             join private.voice_batches b on b.id=e.batch_id where b.session_id=$1`,
+                [created.session.id],
+              )
+            ).rows[0]?.occurred_at,
+          ).toEqual(new Date(Date.parse(localDate + 'T00:00:00Z') - 180 * 60_000));
+          expect(
+            (
+              await pool.query<{ balance: string }>(
+                'select confirmed_minor::text balance from public.account_balances where account_id=$1',
+                [accountId],
+              )
+            ).rows[0]?.balance,
+          ).toBe(String(BigInt(balanceBefore) + 100n));
+          expect(
+            (
+              await pool.query<{ count: number }>(
+                'select count(*)::integer count from public.transactions where user_id=$1',
+                [userId],
+              )
+            ).rows[0]?.count,
+          ).toBe((countBefore ?? 0) + 1);
+          expect(
+            (
+              await pool.query<{ count: number }>(
+                'select count(*)::integer count from private.voice_provider_attempts where session_id=$1',
+                [created.session.id],
+              )
+            ).rows[0]?.count,
+          ).toBe(2);
+        }
         expect(
           (
             await pool.query('select * from public.voice_transcripts where session_id=$1', [
