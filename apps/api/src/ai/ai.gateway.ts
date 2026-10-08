@@ -244,11 +244,13 @@ export class AiGateway {
         await input.onReceipt?.(receipt);
         dispatchState.accounted = true;
         if (voice && envelope.model !== candidate.modelId)
-          throw new AiGatewayError('AI_SCHEMA_INVALID');
+          throw schemaFailure(input.requestId, 'provider_identity', 'model', { keyword: 'const' });
         const choices = Array.isArray(envelope.choices) ? (envelope.choices as unknown[]) : [];
         const choice = choices[0];
         if (!choice || typeof choice !== 'object' || choices.length !== 1)
-          throw new AiGatewayError('AI_SCHEMA_INVALID');
+          throw schemaFailure(input.requestId, 'provider_completion', 'choices', {
+            keyword: 'oneItem',
+          });
         const finishReason: unknown = Reflect.get(choice, 'finish_reason');
         if (finishReason === 'length') throw new AiGatewayError('AI_OUTPUT_TRUNCATED');
         if (finishReason === 'content_filter') throw new AiGatewayError('AI_REFUSED');
@@ -256,7 +258,9 @@ export class AiGateway {
           finishReason !== 'stop' &&
           (finishReason !== undefined || input.route.workload === 'voice_transcription')
         )
-          throw new AiGatewayError('AI_SCHEMA_INVALID');
+          throw schemaFailure(input.requestId, 'provider_completion', 'choices.finish_reason', {
+            keyword: 'enum',
+          });
         const message: unknown = Reflect.get(choice, 'message');
         if (message && typeof message === 'object' && Reflect.get(message, 'refusal'))
           throw new AiGatewayError('AI_REFUSED');
@@ -265,21 +269,46 @@ export class AiGateway {
             ? (choice as { message?: { content?: unknown } }).message?.content
             : undefined;
         if (typeof content !== 'string' || content.length > 65_536) {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
+          throw schemaFailure(input.requestId, 'provider_content', 'choices.message.content', {
+            keyword: 'typeOrSize',
+            retryable: !voice,
+          });
         }
         let decoded: unknown;
         try {
           decoded = JSON.parse(content);
         } catch {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
+          throw schemaFailure(input.requestId, 'provider_content', 'choices.message.content', {
+            keyword: 'json',
+            retryable: !voice,
+          });
         }
         let value: T;
         try {
           value = input.parse(
             vertexVoiceLite && !input.voiceBatch ? normalizeVertexVoiceOutput(decoded) : decoded,
           );
-        } catch {
-          throw new AiGatewayError('AI_SCHEMA_INVALID', !voice);
+        } catch (error) {
+          // Only closed field/constraint names survive; never retain provider output or values.
+          const cause = error instanceof Error ? diagnosticObject(error.cause) : {};
+          const field = ['$', 'complete', 'language', 'events'].includes(String(cause.field))
+            ? String(cause.field)
+            : '$';
+          const keyword = [
+            'type',
+            'required',
+            'additionalProperties',
+            'const',
+            'enum',
+            'maxItems',
+            'maxBytes',
+          ].includes(String(cause.keyword))
+            ? String(cause.keyword)
+            : 'canonical';
+          throw schemaFailure(input.requestId, 'provider_output', field, {
+            keyword,
+            retryable: !voice,
+          });
         }
         return {
           value,
@@ -371,6 +400,20 @@ export class AiGateway {
     this.failures = [...this.failures.filter((time) => time >= cutoff), this.now()];
     if (this.failures.length >= 5) this.openUntil = this.now() + 30_000;
   }
+}
+
+function schemaFailure(
+  requestId: string,
+  failureStage: string,
+  field: string,
+  constraint: { keyword: string; retryable?: boolean },
+): AiGatewayError {
+  return new AiGatewayError('AI_SCHEMA_INVALID', constraint.retryable ?? false, {
+    failureStage,
+    ...(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId) ? { requestId } : {}),
+    rejectedFields: [field],
+    rejectedKeywords: [constraint.keyword],
+  });
 }
 
 async function boundedText(

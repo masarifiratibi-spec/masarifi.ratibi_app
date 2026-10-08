@@ -155,19 +155,21 @@ export function parseVoiceBatchEnvelope(input: unknown): {
   events: unknown[];
 } {
   if (!input || typeof input !== 'object' || Array.isArray(input))
-    throw new Error('AI_SCHEMA_INVALID');
+    throw new Error('AI_SCHEMA_INVALID', { cause: { field: '$', keyword: 'type' } });
   const row = input as Record<string, unknown>;
-  if (
-    Object.keys(row).length !== 3 ||
-    !['complete', 'language', 'events'].every((key) => key in row) ||
-    row.complete !== true ||
-    !['ar', 'en'].includes(String(row.language)) ||
-    !Array.isArray(row.events) ||
-    row.events.length > VOICE_BATCH_MAX_EVENTS ||
-    Buffer.byteLength(JSON.stringify(input)) > 8192
-  )
-    throw new Error('AI_SCHEMA_INVALID');
+  const missing = ['complete', 'language', 'events'].find((key) => !(key in row));
+  if (missing) rejectEnvelope(missing, 'required');
+  if (Object.keys(row).length !== 3) rejectEnvelope('$', 'additionalProperties');
+  if (row.complete !== true) rejectEnvelope('complete', 'const');
+  if (!['ar', 'en'].includes(String(row.language))) rejectEnvelope('language', 'enum');
+  if (!Array.isArray(row.events)) rejectEnvelope('events', 'type');
+  if (row.events.length > VOICE_BATCH_MAX_EVENTS) rejectEnvelope('events', 'maxItems');
+  if (Buffer.byteLength(JSON.stringify(input)) > 8192) rejectEnvelope('$', 'maxBytes');
   return { complete: true, language: row.language as 'ar' | 'en', events: row.events };
+}
+
+function rejectEnvelope(field: string, keyword: string): never {
+  throw new Error('AI_SCHEMA_INVALID', { cause: { field, keyword } });
 }
 
 function normalizeProviderEvent(input: unknown): unknown {
