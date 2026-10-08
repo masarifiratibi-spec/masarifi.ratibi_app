@@ -1,3 +1,6 @@
+grant masarifi_migration to current_user with set true, inherit false;
+set local role masarifi_migration;
+
 -- Keep legacy numeric validators from casting unrelated quota JSON values.
 -- AND/OR order is not an evaluation boundary; a custom plan can fold the
 -- body parameter's cast before checking the setting key. The CASE input
@@ -19,3 +22,6 @@ begin
   end loop;
   execute definition;
 end $migration$;
+
+reset role;
+revoke masarifi_migration from current_user granted by current_user;
