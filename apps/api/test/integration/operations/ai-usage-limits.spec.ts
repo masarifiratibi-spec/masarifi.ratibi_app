@@ -90,7 +90,7 @@ describeLiveDatabase('governed independent AI usage limits', () => {
   ])('validates %s on a cold database plan without unrelated integer casts', async (key, value) => {
     await scenario(async (c) => {
       await c.query('discard plans');
-      expect(await update(c, key as string, value)).toMatchObject({
+      expect(await update(c, key, value)).toMatchObject({
         resourceId: key,
         status: 'updated',
       });
