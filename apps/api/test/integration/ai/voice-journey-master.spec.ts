@@ -79,12 +79,12 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
   beforeAll(async () => {
     originalRequestLimit = (
       await pool.query(
-        "select value from private.system_settings where setting_key='ai.user.rolling_limit'",
+        "select value from private.system_settings where setting_key='ai.voice.rolling_limit'",
       )
     ).rows[0]?.value;
     // Six independent captures in this disposable fixture; preserve the product quota policy.
     await pool.query(
-      "update private.system_settings set value='6' where setting_key='ai.user.rolling_limit'",
+      "update private.system_settings set value='6' where setting_key='ai.voice.rolling_limit'",
     );
     const snapshot = (
       await pool.query<typeof originalRoute>(
@@ -138,7 +138,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
   });
   afterAll(async () => {
     await pool.query(
-      "update private.system_settings set value=$1 where setting_key='ai.user.rolling_limit'",
+      "update private.system_settings set value=$1 where setting_key='ai.voice.rolling_limit'",
       [JSON.stringify(originalRequestLimit)],
     );
     await pool.query(
