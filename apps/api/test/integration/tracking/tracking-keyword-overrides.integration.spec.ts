@@ -17,8 +17,9 @@ describeLiveDatabase('persisted published keyword safety', () => {
         keyword: string;
         group_key: string;
         language_code: string;
+        priority: number;
       }>(
-        "select id,version,keyword,group_key,language_code from public.user_keyword_rules where user_id=$1 and keyword=$2 and origin='default'",
+        "select id,version,keyword,group_key,language_code,priority from public.user_keyword_rules where user_id=$1 and keyword=$2 and origin='default'",
         [owner, keyword],
       )
     ).rows[0];
@@ -65,7 +66,7 @@ describeLiveDatabase('persisted published keyword safety', () => {
       id: row.id,
       origin: 'default',
       enabled: false,
-      priority: 600,
+      priority: row.priority,
     });
   });
   it('does not disable lifecycle precedence through a default keyword toggle', async () => {
