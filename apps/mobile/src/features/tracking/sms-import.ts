@@ -36,7 +36,7 @@ interface Options {
   country?: string;
   bindings?: readonly {
     provider: string;
-    role: 'card' | 'account';
+    role: 'card' | 'account' | 'cash_card' | 'cash_account';
     suffix: string;
     accountId: string;
   }[];
@@ -154,18 +154,71 @@ export async function prepareFinancialMessageImport(
       ? classification.direction === 'incoming'
         ? destination
         : source
-      : selectAccount(
-          classification.currency,
-          classification.instruments,
-          options,
-          provider?.providerKey
-        );
+      : transfer &&
+          (classification.direction === 'incoming' ? destination : source)
+        ? classification.direction === 'incoming'
+          ? destination
+          : source
+        : selectAccount(
+            classification.currency,
+            classification.instruments,
+            options,
+            provider?.providerKey
+          );
+    const cashDestination =
+      classification.subtype === 'withdrawal' && selected
+        ? selectCashDestination(
+            classification.currency,
+            classification.instruments,
+            options,
+            provider?.providerKey
+          )
+        : null;
     const counterpart = ownedTransfer
       ? classification.direction === 'incoming'
         ? source
         : destination
-      : null;
+      : cashDestination;
+    const affectedSide =
+      classification.direction === 'incoming' ? 'destination' : 'source';
+    const oppositeHints = classification.instruments.filter(
+      (hint) => hint.side !== undefined && hint.side !== affectedSide
+    );
+    const anotherOwnedEndpoint = oppositeHints.some((hint) =>
+      options.accounts.some(
+        (candidate) =>
+          candidate.status === 'active' &&
+          candidate.currencyCode === classification.currency &&
+          (candidate.lastFour === hint.suffix ||
+            options.bindings?.some(
+              (binding) =>
+                binding.provider === provider?.providerKey &&
+                binding.role === hint.role &&
+                binding.suffix === hint.suffix &&
+                binding.accountId === candidate.id
+            ))
+      )
+    );
+    const externalTransfer =
+      transfer &&
+      selected &&
+      !ownedTransfer &&
+      !anotherOwnedEndpoint &&
+      classification.direction !== 'unknown' &&
+      classification.instruments.some(
+        (hint) =>
+          hint.side === affectedSide ||
+          (hint.side === undefined && classification.instruments.length === 1)
+      );
     if (ownedTransfer)
+      classification.reasonCodes = classification.reasonCodes.filter(
+        (code) => code !== 'transfer_counterparty_required'
+      );
+    if (cashDestination)
+      classification.reasonCodes = classification.reasonCodes.filter(
+        (code) => code !== 'cash_destination_required'
+      );
+    if (externalTransfer)
       classification.reasonCodes = classification.reasonCodes.filter(
         (code) => code !== 'transfer_counterparty_required'
       );
@@ -181,10 +234,13 @@ export async function prepareFinancialMessageImport(
       !classification.reasonCodes.length
         ? 'capture_candidate'
         : 'review';
-    const kind =
-      ['salary', 'deposit'].includes(classification.subtype) ||
-      (classification.subtype === 'generic_credit' &&
-        !classification.reasonCodes.includes('credit_origin_required'))
+    const kind = externalTransfer
+      ? classification.direction === 'incoming'
+        ? 'income'
+        : 'expense'
+      : ['salary', 'deposit'].includes(classification.subtype) ||
+          (classification.subtype === 'generic_credit' &&
+            !classification.reasonCodes.includes('credit_origin_required'))
         ? 'income'
         : ['refund', 'reversal'].includes(classification.subtype)
           ? 'refund'
@@ -197,7 +253,11 @@ export async function prepareFinancialMessageImport(
               : classification.direction === 'outgoing'
                 ? 'expense'
                 : undefined;
-    const { providerReference, originalProviderReference, ...safeClassification } = classification;
+    const {
+      providerReference,
+      originalProviderReference,
+      ...safeClassification
+    } = classification;
     const paymentRail = /apple\s*pay/i.test(body)
       ? 'apple_pay'
       : /مدى|\bmada\b/i.test(body)
@@ -217,7 +277,13 @@ export async function prepareFinancialMessageImport(
             providerReferenceDigest: await digest(`v2\n${providerReference}`)
           }
         : {}),
-      ...(originalProviderReference ? { originalProviderReferenceDigest: await digest(`v2\n${originalProviderReference}`) } : {}),
+      ...(originalProviderReference
+        ? {
+            originalProviderReferenceDigest: await digest(
+              `v2\n${originalProviderReference}`
+            )
+          }
+        : {}),
       ...(/https?:|\+?\d{4,}/i.test(sender)
         ? {}
         : { sender: sender.slice(0, 80) }),
@@ -235,7 +301,9 @@ export async function prepareFinancialMessageImport(
       ...(counterpart ? { destinationAccountId: counterpart.id } : {}),
       ...(classification.merchant ? { merchant: classification.merchant } : {}),
       metadata: {
-        ...(providerReference || originalProviderReference ? { referenceScheme: 'plain-v2' } : {}),
+        ...(providerReference || originalProviderReference
+          ? { referenceScheme: 'plain-v2' }
+          : {}),
         ...(sms
           ? { sourceIdentityDigest: await digest(normalizeSender(sender)) }
           : {}),
@@ -257,6 +325,36 @@ export async function prepareFinancialMessageImport(
     consume();
   }
   return result;
+}
+function selectCashDestination(
+  currency: string | null,
+  hints: { role: 'card' | 'account'; suffix: string }[],
+  options: Options,
+  provider?: string
+): Account | null {
+  if (!provider || !hints.length) return null;
+  const matches = hints.map((hint) => {
+    const bindings =
+      options.bindings?.filter(
+        (binding) =>
+          binding.provider === provider &&
+          binding.role === `cash_${hint.role}` &&
+          binding.suffix === hint.suffix
+      ) ?? [];
+    return options.accounts.filter(
+      (candidate) =>
+        candidate.type === 'cash' &&
+        candidate.status === 'active' &&
+        candidate.automaticTrackingEnabled &&
+        candidate.currencyCode === currency &&
+        bindings.some((binding) => binding.accountId === candidate.id)
+    );
+  });
+  return matches.every(
+    (rows) => rows.length === 1 && rows[0]?.id === matches[0]?.[0]?.id
+  )
+    ? (matches[0]?.[0] ?? null)
+    : null;
 }
 function selectAccount(
   currency: string | null,

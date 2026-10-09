@@ -38,7 +38,7 @@ export interface SmsRuleSnapshot {
   configurationRevision?: string;
   bindings?: {
     provider: string;
-    role: 'card' | 'account';
+    role: 'card' | 'account' | 'cash_card' | 'cash_account';
     suffix: string;
     accountId: string;
   }[];

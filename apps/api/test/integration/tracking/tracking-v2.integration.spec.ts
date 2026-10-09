@@ -444,6 +444,14 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
           status: 'queued',
           nextAttemptAt: null,
         },
+        {
+          channel: 'push',
+          provider: 'push',
+          title: 'Saved',
+          body: 'Saved',
+          status: 'queued',
+          nextAttemptAt: null,
+        },
       ]);
       const outcome = (
         await repository.listOwner(principal, 'items', String(linked.id), 1)
@@ -482,7 +490,14 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       } finally {
         fault.mockRestore();
       }
-      expect(itemFor(lost).status).toBe('parsed');
+      expect({
+        status: itemFor(lost).status,
+        reasons: (
+          await pool.query('select reason from public.review_items where import_item_id=$1', [
+            itemFor(lost).id,
+          ])
+        ).rows,
+      }).toEqual({ status: 'parsed', reasons: [] });
       await pool.query(
         'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
         [lost.sessionId],
@@ -545,7 +560,15 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
           key,
         ),
       );
-      expect(completed.status).toBe('accepted');
+      expect({
+        status: completed.status,
+        error: (
+          await pool.query<{ last_error_code: string | null }>(
+            'select last_error_code from public.import_sessions where id=$1',
+            [completed.sessionId],
+          )
+        ).rows[0]?.last_error_code,
+      }).toEqual({ status: 'accepted', error: null });
       expect(
         (
           await pool.query('select status from public.review_items where import_item_id=$1', [
@@ -1138,4 +1161,33 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       expect(retry).toMatchObject({ status: 'accepted', transactionId: saved.transactionId });
     },
   );
+  it('does not turn a transfer between owned accounts into an expense when the counterpart has tracking disabled', async () => {
+    const counterpart = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Disabled owned endpoint','bank','AED','2323',false)",
+      [counterpart, owner],
+    );
+    const text = 'Outgoing transfer AED8.49 from account XX4242 to account XX2323';
+    const {
+      providerReference: unused,
+      originalProviderReference: unusedOriginal,
+      ...classification
+    } = classifyFinancialMessage({ text, receivedAt: Date.parse('2026-09-26T10:00:00Z') });
+    void unused;
+    void unusedOriginal;
+    const held = itemFor(
+      await capture(text, 'external-owned-disabled', undefined, 'android_sms', 'adcb', {
+        kind: 'expense',
+        classification: { ...classification, disposition: 'capture_candidate', reasonCodes: [] },
+      }),
+    );
+    expect(held).toMatchObject({ status: 'review', transactionId: null });
+    const effects = (
+      await pool.query(
+        'select count(*)::int count from public.transactions where user_id=$1 and external_ref=$2',
+        [owner, 'tracking:' + String(held.canonicalHash)],
+      )
+    ).rows[0];
+    expect(effects?.count).toBe(0);
+  });
 });

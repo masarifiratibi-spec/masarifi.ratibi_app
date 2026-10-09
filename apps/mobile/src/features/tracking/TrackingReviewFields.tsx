@@ -97,9 +97,13 @@ export function TrackingReviewFields({
       typeof proposed.sourceProvider === 'string' ? (
         <View style={{ gap: 8 }}>
           <StyledText>
-            {ar
-              ? 'استخدام هذا الحساب للبطاقات والحسابات المقنّعة في الرسائل المستقبلية من هذا البنك'
-              : 'Use this account for these masked instruments in future messages from this bank'}
+            {classification?.subtype === 'withdrawal'
+              ? ar
+                ? 'حفظ الحساب البنكي والمحفظة النقدية المختارة للسحوبات المستقبلية من نفس المصدر والبطاقة'
+                : 'Remember this bank and selected cash wallet for future withdrawals from the same source and instrument'
+              : ar
+                ? 'استخدام هذا الحساب للبطاقات والحسابات المقنّعة في الرسائل المستقبلية من هذا البنك'
+                : 'Use this account for these masked instruments in future messages from this bank'}
           </StyledText>
           <Toggle
             accessibilityLabel={

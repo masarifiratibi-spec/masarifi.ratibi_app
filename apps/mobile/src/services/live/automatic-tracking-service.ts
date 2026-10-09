@@ -450,7 +450,12 @@ export function createLiveAutomaticTrackingService({
               const row = record(value);
               return {
                 provider: text(row.provider),
-                role: member(row.role, ['card', 'account']),
+                role: member(row.role, [
+                  'card',
+                  'account',
+                  'cash_card',
+                  'cash_account'
+                ]),
                 suffix: text(row.suffix),
                 accountId: text(row.accountId)
               };

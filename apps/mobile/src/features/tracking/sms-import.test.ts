@@ -76,34 +76,134 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
-  it.each(['incoming', 'outgoing'] as const)('classifies an external %s transfer as ordinary income/expense without requiring a counterpart mapping', async (direction) => {
-    const body = direction === 'incoming'
-      ? 'Incoming transfer SAR8.47 to account XX4242'
-      : 'Outgoing transfer SAR8.48 from account XX4242 to Ahmed';
-    const event = (await prepareSmsImport([message({ body })], options())).events[0];
-    expect(event).toMatchObject({ kind: direction === 'incoming' ? 'income' : 'expense', accountId: account().id, classification: { direction, subtype: direction === 'incoming' ? 'transfer_received' : 'transfer_sent', disposition: 'capture_candidate', reasonCodes: [] } });
-    expect(event?.destinationAccountId).toBeUndefined();
+  it('keeps a transfer to another owned but tracking-disabled account in review', async () => {
+    const event = (
+      await prepareSmsImport(
+        [
+          message({
+            body: 'Outgoing transfer SAR8.49 from account XX4242 to account XX2323'
+          })
+        ],
+        options({
+          accounts: [
+            account(),
+            account({
+              id: '10000000-0000-4000-8000-000000000003',
+              lastFour: '2323',
+              automaticTrackingEnabled: false
+            })
+          ]
+        })
+      )
+    ).events[0];
+    expect(event).toMatchObject({
+      kind: 'transfer',
+      classification: { disposition: 'review' }
+    });
+    expect(event?.classification?.reasonCodes).toContain(
+      'transfer_counterparty_required'
+    );
   });
+  it.each(['incoming', 'outgoing'] as const)(
+    'classifies an external %s transfer as ordinary income/expense without requiring a counterpart mapping',
+    async (direction) => {
+      const body =
+        direction === 'incoming'
+          ? 'Incoming transfer SAR8.47 to account XX4242'
+          : 'Outgoing transfer SAR8.48 from account XX4242 to Ahmed';
+      const event = (await prepareSmsImport([message({ body })], options()))
+        .events[0];
+      expect(event).toMatchObject({
+        kind: direction === 'incoming' ? 'income' : 'expense',
+        accountId: account().id,
+        classification: {
+          direction,
+          subtype:
+            direction === 'incoming' ? 'transfer_received' : 'transfer_sent',
+          disposition: 'capture_candidate',
+          reasonCodes: []
+        }
+      });
+      expect(event?.destinationAccountId).toBeUndefined();
+    }
+  );
   it('uses only a previously confirmed cash destination for a withdrawal', async () => {
     const bank = account({ currencyCode: 'AED' });
-    const cash = account({ id: '10000000-0000-4000-8000-000000000002', type: 'cash', currencyCode: 'AED', lastFour: null });
-    const input = message({ sender: 'ADCBAlert', body: 'Cash withdrawal AED8.19 card XX4242' });
-    const unmapped = (await prepareSmsImport([input], options({ accounts: [bank, cash] }))).events[0];
+    const cash = account({
+      id: '10000000-0000-4000-8000-000000000002',
+      type: 'cash',
+      currencyCode: 'AED',
+      lastFour: null
+    });
+    const input = message({
+      sender: 'ADCBAlert',
+      body: 'Cash withdrawal AED8.19 card XX4242'
+    });
+    const unmapped = (
+      await prepareSmsImport([input], options({ accounts: [bank, cash] }))
+    ).events[0];
     expect(unmapped?.destinationAccountId).toBeUndefined();
-    expect(unmapped?.classification?.reasonCodes).toContain('cash_destination_required');
-    const configured = { accounts: [bank, cash], senderRules: [{ ...sender(), normalizedSender: 'adcbalert' }], bindings: [{ provider: 'adcb', role: 'cash_card', suffix: '4242', accountId: cash.id }] };
-    const mapped = (await prepareSmsImport([input], options(configured))).events[0];
-    expect(mapped).toMatchObject({ kind: 'transfer', accountId: bank.id, destinationAccountId: cash.id, amountMinor: -819, currency: 'AED', classification: { subtype: 'withdrawal', direction: 'outgoing', disposition: 'capture_candidate', reasonCodes: [] } });
-    const disabled = (await prepareSmsImport([input], options({ ...configured, accounts: [bank, { ...cash, automaticTrackingEnabled: false }] }))).events[0];
+    expect(unmapped?.classification?.reasonCodes).toContain(
+      'cash_destination_required'
+    );
+    const configured = {
+      accounts: [bank, cash],
+      senderRules: [{ ...sender(), normalizedSender: 'adcbalert' }],
+      bindings: [
+        {
+          provider: 'adcb',
+          role: 'cash_card',
+          suffix: '4242',
+          accountId: cash.id
+        }
+      ]
+    };
+    const mapped = (await prepareSmsImport([input], options(configured)))
+      .events[0];
+    expect(mapped).toMatchObject({
+      kind: 'transfer',
+      accountId: bank.id,
+      destinationAccountId: cash.id,
+      amountMinor: -819,
+      currency: 'AED',
+      classification: {
+        subtype: 'withdrawal',
+        direction: 'outgoing',
+        disposition: 'capture_candidate',
+        reasonCodes: []
+      }
+    });
+    const disabled = (
+      await prepareSmsImport(
+        [input],
+        options({
+          ...configured,
+          accounts: [bank, { ...cash, automaticTrackingEnabled: false }]
+        })
+      )
+    ).events[0];
     expect(disabled?.destinationAccountId).toBeUndefined();
-    expect(disabled?.classification?.reasonCodes).toContain('cash_destination_required');
+    expect(disabled?.classification?.reasonCodes).toContain(
+      'cash_destination_required'
+    );
   });
   it('sends only a digest of the explicit original refund reference and keeps missing linkage in review', async () => {
-    const event = (await prepareSmsImport([message({ body: 'Refund SAR 5 card XX4242 original reference OLD123456' })], options())).events[0];
+    const event = (
+      await prepareSmsImport(
+        [
+          message({
+            body: 'Refund SAR 5 card XX4242 original reference OLD123456'
+          })
+        ],
+        options()
+      )
+    ).events[0];
     expect(event?.originalProviderReferenceDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(event?.providerReferenceDigest).toBeUndefined();
     expect(event?.metadata?.referenceScheme).toBe('plain-v2');
-    expect(event?.classification?.reasonCodes).toContain('original_transaction_required');
+    expect(event?.classification?.reasonCodes).toContain(
+      'original_transaction_required'
+    );
     expect(JSON.stringify(event)).not.toContain('OLD123456');
   });
   it('records the SMS native observation time as provenance without replacing the bank event timestamp', async () => {
