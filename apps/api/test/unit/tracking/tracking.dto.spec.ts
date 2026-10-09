@@ -8,10 +8,47 @@ import {
   normalizeTrackingOwnerFilters,
   normalizeVersion,
 } from '../../../src/tracking/tracking.dto';
+import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 
 const id = '80000000-0000-4000-8000-000000000001';
 
 describe('tracking DTO boundaries', () => {
+  it('accepts only a bounded digest for original transaction evidence', () => {
+    const { providerReference, ...classification } = classifyFinancialMessage({
+      text: 'Refund EGP 5',
+      country: 'EG',
+      receivedAt: Date.parse('2026-10-09T10:00:00Z'),
+    });
+    void providerReference;
+    const event = {
+      sourceItemKey: 'refund-1',
+      receivedAt: '2026-10-09T10:00:00Z',
+      amountMinor: 500,
+      currency: 'EGP',
+      kind: 'refund',
+      originalProviderReferenceDigest: 'a'.repeat(64),
+      classification,
+      transport: {
+        deviceId: 'test-device-00000001',
+        channel: 'android_notification',
+        nativeIdDigest: 'b'.repeat(64),
+        revisionDigest: 'c'.repeat(64),
+      },
+    };
+    const normalize = (input: unknown) =>
+      normalizeNormalizedImport({
+        schemaVersion: 2,
+        sourceType: 'provider',
+        sourceChannel: 'android_notification',
+        events: [input],
+      });
+    expect(normalize(event).events[0]).toMatchObject({
+      originalProviderReferenceDigest: event.originalProviderReferenceDigest,
+    });
+    expect(() =>
+      normalize({ ...event, originalProviderReferenceDigest: 'raw-reference' }),
+    ).toThrow();
+  });
   it('preserves and validates the second owned transfer account', () => {
     const event = {
       sourceItemKey: 'transfer-1',

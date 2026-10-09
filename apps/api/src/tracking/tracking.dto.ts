@@ -31,6 +31,7 @@ export interface NormalizedTrackingEvent {
     revisionDigest: string;
   };
   providerReferenceDigest?: string;
+  originalProviderReferenceDigest?: string;
 }
 
 export interface NormalizedImport {
@@ -218,6 +219,7 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     'classification',
     'transport',
     'providerReferenceDigest',
+    'originalProviderReferenceDigest',
   ]);
   const result: NormalizedTrackingEvent = {
     sourceItemKey: text(input.sourceItemKey, 1, 160),
@@ -277,6 +279,10 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     result.providerReferenceDigest = text(input.providerReferenceDigest, 64, 64);
     if (!/^[a-f0-9]{64}$/.test(result.providerReferenceDigest)) invalid();
   }
+  if (input.originalProviderReferenceDigest != null) {
+    result.originalProviderReferenceDigest = text(input.originalProviderReferenceDigest, 64, 64);
+    if (!/^[a-f0-9]{64}$/.test(result.originalProviderReferenceDigest)) invalid();
+  }
   return result;
 }
 
@@ -325,7 +331,13 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
     invalid();
   if (
     input.schemaVersion === 1 &&
-    events.some((event) => event.transport || event.classification || event.providerReferenceDigest)
+    events.some(
+      (event) =>
+        event.transport ||
+        event.classification ||
+        event.providerReferenceDigest ||
+        event.originalProviderReferenceDigest,
+    )
   )
     invalid();
   return {

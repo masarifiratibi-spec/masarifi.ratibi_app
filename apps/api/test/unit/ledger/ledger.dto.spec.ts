@@ -112,6 +112,17 @@ describe('transfer DTO normalization', () => {
     title: '  Wallet move  ',
     note: null,
   };
+  it('retains tracking provenance and its stable financial identity without changing ordinary transfer commands', () => {
+    expect(
+      normalizeTransfer(
+        { ...transfer, source: 'tracking-import', externalRef: 'tracking:' + 'a'.repeat(64) },
+        new Date('2026-08-30T08:01:00Z'),
+      ),
+    ).toMatchObject({ source: 'tracking-import', externalRef: 'tracking:' + 'a'.repeat(64) });
+    expect(() =>
+      normalizeTransfer({ ...transfer, source: ' ' }, new Date('2026-08-30T08:01:00Z')),
+    ).toThrow();
+  });
   it('returns one fixed transfer command with the source as default fee account', () => {
     expect(normalizeTransfer(transfer, new Date('2026-08-30T08:01:00Z'))).toEqual({
       sourceAccountId: accountId,

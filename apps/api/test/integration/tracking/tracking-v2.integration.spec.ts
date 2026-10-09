@@ -70,6 +70,10 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     ]);
     await pool.onModuleDestroy();
   });
+  beforeEach(async () => {
+    // Each independent journey gets its own quota window; quota behavior has a dedicated suite.
+    await pool.query('delete from private.user_job_quota_events where user_id=$1', [owner]);
+  });
   async function capture(
     text: string,
     nativeId: string,

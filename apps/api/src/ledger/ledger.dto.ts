@@ -137,6 +137,8 @@ export function normalizeTransfer(value: unknown, now = new Date()): Record<stri
     'occurredAt',
     'title',
     'note',
+    'source',
+    'externalRef',
   ]);
   const amount = input.amountMinor;
   const fee = input.feeMinor ?? 0;
@@ -170,6 +172,12 @@ export function normalizeTransfer(value: unknown, now = new Date()): Record<stri
     occurredAt: timestamp(input.occurredAt, now),
     title: text(input.title, 160),
     note: optionalNote(input.note),
+    ...(input.source !== undefined || input.externalRef !== undefined
+      ? {
+          source: input.source === undefined ? 'manual' : text(input.source, 64),
+          externalRef: optionalText(input.externalRef, 200),
+        }
+      : {}),
   };
 }
 

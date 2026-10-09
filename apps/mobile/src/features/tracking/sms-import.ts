@@ -197,7 +197,7 @@ export async function prepareFinancialMessageImport(
               : classification.direction === 'outgoing'
                 ? 'expense'
                 : undefined;
-    const { providerReference, ...safeClassification } = classification;
+    const { providerReference, originalProviderReference, ...safeClassification } = classification;
     const paymentRail = /apple\s*pay/i.test(body)
       ? 'apple_pay'
       : /مدى|\bmada\b/i.test(body)
@@ -214,11 +214,10 @@ export async function prepareFinancialMessageImport(
       classification: safeClassification,
       ...(providerReference
         ? {
-            providerReferenceDigest: await digest(
-              `${provider?.providerKey ?? normalizeSender(sender)}\n${providerReference}`
-            )
+            providerReferenceDigest: await digest(`v2\n${providerReference}`)
           }
         : {}),
+      ...(originalProviderReference ? { originalProviderReferenceDigest: await digest(`v2\n${originalProviderReference}`) } : {}),
       ...(/https?:|\+?\d{4,}/i.test(sender)
         ? {}
         : { sender: sender.slice(0, 80) }),
@@ -236,11 +235,15 @@ export async function prepareFinancialMessageImport(
       ...(counterpart ? { destinationAccountId: counterpart.id } : {}),
       ...(classification.merchant ? { merchant: classification.merchant } : {}),
       metadata: {
+        ...(providerReference || originalProviderReference ? { referenceScheme: 'plain-v2' } : {}),
+        ...(sms
+          ? { sourceIdentityDigest: await digest(normalizeSender(sender)) }
+          : {}),
         ...(options.configurationRevision
           ? { ruleConfigurationRevision: options.configurationRevision }
           : {}),
         ...(sms ? {} : { sourcePackage: sender }),
-        ...(!sms && input.observedAt !== undefined
+        ...(input.observedAt !== undefined
           ? { nativeObservedAt: input.observedAt }
           : {}),
         ...(paymentRail ? { paymentRail } : {}),

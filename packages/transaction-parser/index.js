@@ -151,7 +151,10 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   }
   const merchant = text.match(/(?:\bat\b|\bby\b|لدى|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\bcard\b|\baccount\b|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];
   result.merchant=merchant ? merchant.replace(/[.,\s]+$/,'').slice(0,160) : null;
-  result.providerReference = text.match(/(?:reference(?: number)?|ref\.?|الرقم المرجعي(?: للمعاملة هو)?)\s*[:#]?\s*([A-Za-z0-9-]{6,80})/iu)?.[1] || null;
+  const originalReference=text.match(/(?:original(?: transaction)? reference|مرجع العملية الأصلية|مرجع العملية الاصلية)\s*[:#]?\s*([A-Za-z0-9-]{6,80})/iu);
+  if(originalReference && ['refund','reversal'].includes(result.subtype)) result.originalProviderReference=originalReference[1];
+  const referenceText=originalReference ? text.slice(0,originalReference.index)+text.slice(originalReference.index+originalReference[0].length) : text;
+  result.providerReference = referenceText.match(/(?:reference(?: number)?|ref\.?|الرقم المرجعي(?: للمعاملة هو)?)\s*[:#]?\s*([A-Za-z0-9-]{6,80})/iu)?.[1] || null;
   if (!action) result.reasonCodes.push('action_unknown');
   if (result.subtype==='generic_credit' && (!result.instruments.some(h=>h.role==='account') || result.instruments.some(h=>h.role==='card'))) result.reasonCodes.push('credit_origin_required');
   if (['transfer_sent','transfer_received'].includes(result.subtype)) result.reasonCodes.push('transfer_counterparty_required');

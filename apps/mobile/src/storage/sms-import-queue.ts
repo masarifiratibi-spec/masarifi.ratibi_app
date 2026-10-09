@@ -251,7 +251,11 @@ const eventSchema = z
       })
       .strict()
       .optional(),
-    providerReferenceDigest: boundedText.optional()
+    providerReferenceDigest: boundedText.optional(),
+    originalProviderReferenceDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional()
   })
   .strict()
   .refine(
@@ -439,6 +443,11 @@ function minimizeEvent(event: TrackingImportEvent): TrackingImportEvent {
     ...(event.transport ? { transport: event.transport } : {}),
     ...(event.providerReferenceDigest
       ? { providerReferenceDigest: event.providerReferenceDigest }
+      : {}),
+    ...(event.originalProviderReferenceDigest
+      ? {
+          originalProviderReferenceDigest: event.originalProviderReferenceDigest
+        }
       : {})
   };
 }

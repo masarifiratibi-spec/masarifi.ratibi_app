@@ -3,6 +3,7 @@ export interface RawSmsMessage {
   sender: string;
   body: string;
   receivedAt: number;
+  observedAt?: number;
 }
 
 export interface SmsInboxService {

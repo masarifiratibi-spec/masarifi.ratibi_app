@@ -18,6 +18,7 @@ export interface Classification {
   instruments: {role: 'card' | 'account'; suffix: string; side?: 'source' | 'destination'}[];
   occurredAt: string | null; timeProvenance: 'embedded' | 'received' | 'ambiguous';
   providerReference: string | null; reasonCodes: string[]; appliedRuleKeys: string[];
+  originalProviderReference?: string;
   releaseId: string; engineVersion: string;
 }
 export function normalizeFinancialText(value: string): string;

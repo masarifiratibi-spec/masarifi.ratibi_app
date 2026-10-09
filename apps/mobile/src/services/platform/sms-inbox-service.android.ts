@@ -53,7 +53,9 @@ function validateMessage(value: unknown): RawSmsMessage {
     typeof row.body !== 'string' ||
     !row.body ||
     !Number.isSafeInteger(row.receivedAt) ||
-    Number(row.receivedAt) < 0
+    Number(row.receivedAt) < 0 ||
+    (row.observedAt !== undefined &&
+      (!Number.isSafeInteger(row.observedAt) || Number(row.observedAt) < 0))
   ) {
     throw new Error('sms_inbox_invalid_response');
   }
@@ -61,6 +63,9 @@ function validateMessage(value: unknown): RawSmsMessage {
     id: row.id,
     sender: row.sender,
     body: row.body,
-    receivedAt: Number(row.receivedAt)
+    receivedAt: Number(row.receivedAt),
+    ...(row.observedAt !== undefined
+      ? { observedAt: Number(row.observedAt) }
+      : {})
   };
 }

@@ -60,6 +60,29 @@ const submission: TrackingImportSubmission = {
 };
 
 describe('SMS import queue', () => {
+  it('retains minimized original-reference proof across an offline restart', async () => {
+    const storage = memoryStorage();
+    const originalProviderReferenceDigest = 'a'.repeat(64);
+    await new SmsImportQueue(storage).enqueue('owner-1', {
+      idempotencyKey: 'refund:one',
+      cursor: 42,
+      fingerprints: ['refund:one'],
+      submission: {
+        ...submission,
+        events: [
+          {
+            ...submission.events[0]!,
+            kind: 'refund',
+            originalProviderReferenceDigest
+          }
+        ]
+      }
+    });
+    expect(
+      (await new SmsImportQueue(storage).load('owner-1')).pending[0]?.submission
+        .events[0]
+    ).toMatchObject({ originalProviderReferenceDigest });
+  });
   it('retains both owned transfer account identities after offline persistence and restart', async () => {
     const destinationAccountId = '10000000-0000-4000-8000-000000000002';
     const storage = memoryStorage();

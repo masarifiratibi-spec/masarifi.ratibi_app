@@ -240,6 +240,8 @@ export class TrackingWorker implements OnModuleDestroy {
                     amountMinor: Math.abs(Number(command.amountMinor)),
                     currency: command.currency,
                     feeMinor: 0,
+                    source: 'tracking-import',
+                    externalRef: key,
                     occurredAt: command.occurredAt,
                     title: command.title ?? command.merchant ?? 'Imported transaction',
                     note: command.note ?? null,

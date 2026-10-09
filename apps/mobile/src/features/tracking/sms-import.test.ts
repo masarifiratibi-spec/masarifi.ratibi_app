@@ -76,6 +76,66 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('sends only a digest of the explicit original refund reference and keeps missing linkage in review', async () => {
+    const event = (await prepareSmsImport([message({ body: 'Refund SAR 5 card XX4242 original reference OLD123456' })], options())).events[0];
+    expect(event?.originalProviderReferenceDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(event?.providerReferenceDigest).toBeUndefined();
+    expect(event?.metadata?.referenceScheme).toBe('plain-v2');
+    expect(event?.classification?.reasonCodes).toContain('original_transaction_required');
+    expect(JSON.stringify(event)).not.toContain('OLD123456');
+  });
+  it('records the SMS native observation time as provenance without replacing the bank event timestamp', async () => {
+    const event = (
+      await prepareSmsImport(
+        [message({ observedAt: message().receivedAt + 5000 })],
+        options()
+      )
+    ).events[0];
+    expect(event?.metadata?.nativeObservedAt).toBe(message().receivedAt + 5000);
+    expect(event?.receivedAt).toBe(
+      new Date(message().receivedAt).toISOString()
+    );
+  });
+  it('retains equal reference digests across unknown notification and trusted SMS without trusting the unknown source', async () => {
+    const text = 'Purchase SAR 12 with card XX4242 reference ABC123456';
+    const captures = await prepareFinancialMessageImport(
+      [
+        message({ body: text }),
+        {
+          key: 'app-reference',
+          packageName: 'com.unknown.bank',
+          title: '',
+          text,
+          postedAt: message().receivedAt
+        }
+      ],
+      options()
+    );
+    expect(captures.events).toHaveLength(2);
+    expect(captures.events[0]?.providerReferenceDigest).toBe(
+      captures.events[1]?.providerReferenceDigest
+    );
+    expect(captures.events[1]?.metadata).toMatchObject({
+      referenceScheme: 'plain-v2',
+      sourcePackage: 'com.unknown.bank'
+    });
+    expect(captures.events[1]?.classification?.reasonCodes).toContain(
+      'source_untrusted'
+    );
+    expect(JSON.stringify(captures.events)).not.toContain('ABC123456');
+  });
+  it('keeps numeric SMS source identity as a digest so configured trust can be checked without a raw phone number', async () => {
+    const numeric = '+201012345678';
+    const event = (
+      await prepareSmsImport(
+        [message({ sender: numeric })],
+        options({ senderRules: [{ ...sender(), normalizedSender: numeric }] })
+      )
+    ).events[0];
+    expect(event?.sender).toBeUndefined();
+    expect(event?.metadata?.sourceIdentityDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(event)).not.toContain(numeric);
+  });
   it.each([
     [
       'تحويل صادر SAR 5 من حساب XX1111 إلى حساب XX2222',

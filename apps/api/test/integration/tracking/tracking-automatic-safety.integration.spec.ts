@@ -23,6 +23,9 @@ describeLiveDatabase('automatic tracking source assurance', () => {
       sessionId: 'safety-test',
       factorAgeSeconds: 0,
     });
+    await pool.query('update public.tracking_preferences set enabled=true where user_id=$1', [
+      owner,
+    ]);
     await pool.query(
       "insert into public.user_sender_rules(user_id,sender_pattern,display_label,trusted,enabled) values($1,'VERIFIEDBANK','Verified Bank',true,true)",
       [owner],

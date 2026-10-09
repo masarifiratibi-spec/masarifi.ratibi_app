@@ -30,6 +30,15 @@ test('transfer endpoints retain explicit source and destination evidence without
     [{role:'account',suffix:'1111',side:'source'},{role:'account',suffix:'2222',side:'destination'}]);
   assert.equal(parse('تحويل صادر ٥ جنيه من حساب XX1111 إلى حساب XX2222').disposition,'review');
 });
+test('refund reference evidence distinguishes the original purchase from the new refund identity',()=>{
+  const both=parse('Refund EGP 5 card XX4242 reference NEW123456 original reference OLD123456');
+  assert.equal(both.providerReference,'NEW123456');
+  assert.equal(both.originalProviderReference,'OLD123456');
+  const only=parse('Reversal EGP 5 card XX4242 original reference OLD123456');
+  assert.equal(only.providerReference,null);
+  assert.equal(only.originalProviderReference,'OLD123456');
+  assert.ok(only.reasonCodes.includes('original_transaction_required'));
+});
 test('a separate fee cannot silently disappear from an ordinary purchase posting',()=>{
   const result=parse('Purchase EGP 5 card XX4242 fee EGP 0.50');
   assert.equal(result.amountMinor,500);

@@ -101,6 +101,7 @@ export interface TrackingImportEvent {
     revisionDigest: string;
   };
   providerReferenceDigest?: string;
+  originalProviderReferenceDigest?: string;
 }
 
 export interface TrackingImportSubmission {

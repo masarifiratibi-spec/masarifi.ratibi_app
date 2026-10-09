@@ -23,7 +23,7 @@ class MasarifiSmsInboxModule : Module() {
       val id=afterId.toLongOrNull() ?: -1L
       context.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI,arrayOf("_id","address","body","date"),
         "date > ? OR (date = ? AND _id > ?)",arrayOf(since.toLong().toString(),since.toLong().toString(),id.toString()),"date ASC, _id ASC")?.use { cursor ->
-        while(messages.size<requestedLimit.coerceIn(1,100) && cursor.moveToNext()) messages.add(mapOf("id" to cursor.getString(0),"sender" to (cursor.getString(1)?:""),"body" to (cursor.getString(2)?:""),"receivedAt" to cursor.getLong(3)))
+        while(messages.size<requestedLimit.coerceIn(1,100) && cursor.moveToNext()) messages.add(mapOf("id" to cursor.getString(0),"sender" to (cursor.getString(1)?:""),"body" to (cursor.getString(2)?:""),"receivedAt" to cursor.getLong(3),"observedAt" to System.currentTimeMillis()))
       }
       messages
     }
@@ -71,7 +71,8 @@ class MasarifiSmsInboxModule : Module() {
               "id" to cursor.getString(id),
               "sender" to (cursor.getString(sender) ?: ""),
               "body" to (cursor.getString(body) ?: ""),
-              "receivedAt" to cursor.getLong(receivedAt)
+              "receivedAt" to cursor.getLong(receivedAt),
+              "observedAt" to System.currentTimeMillis()
             )
           )
         }
