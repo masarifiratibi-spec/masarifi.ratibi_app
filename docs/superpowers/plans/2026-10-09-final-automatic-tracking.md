@@ -87,27 +87,27 @@ Gaps and exact ownership:
 
 **Interfaces:** eligibility reports exact missing evidence; source registration is not discovery. Strong unknown-only text cannot prove authenticity; independently corroborated provider/reference evidence can join an eligible verified logical event without permanent source trust.
 
-- [ ] Add failing tests for complete trusted expenses/income/deposits, externally directed transfer vs own-account transfer, cash withdrawal mapping and safe refund/reversal linkage.
-- [ ] Extend deterministic Egypt/Arabic/English/mixed assets and aliases; keep protected lifecycle precedence.
-- [ ] Remove subtype blanket review only where existing ledger semantics and complete identities make operation safe; use specific missing-field reasons otherwise.
-- [ ] Add server-enforced independent-proof path for unknown observations; do not double-count message fields as independent authenticity; never automatically trust.
-- [ ] Separate unverified reference reservations from verified identities; no untrusted prior-review similarity can quarantine an otherwise genuine trusted event.
-- [ ] Prove lost-response/worker restart/channel revision recovery and same-amount independent events; run authoritative ledger tests; commit.
+- [x] Add failing tests for complete trusted expenses/income/deposits, externally directed transfer vs own-account transfer, cash withdrawal mapping and safe refund/reversal linkage.
+- [x] Extend deterministic Egypt/Arabic/English/mixed assets and aliases; keep protected lifecycle precedence.
+- [x] Remove subtype blanket review only where existing ledger semantics and complete identities make operation safe; use specific missing-field reasons otherwise.
+- [x] Add server-enforced independent-proof path for unknown observations; do not double-count message fields as independent authenticity; never automatically trust.
+- [x] Separate unverified reference reservations from verified identities; no untrusted prior-review similarity can quarantine an otherwise genuine trusted event.
+- [x] Prove lost-response/worker restart/channel revision recovery and same-amount independent events; run authoritative ledger tests; commit.
 
 ## Task 4 — scoped automatic rollout and confirmation
 
 **Files:** governed tracking rule/channel migration/API; existing scoped deployment scripts; confirmation service/native presentation; selected engagement worker path and tests.
 
-- [ ] Add failing owner-scope rollout tests: test owner can be automatic while every other owner remains review.
-- [ ] Require exact eligible rules/release and owner opt-in; initial discovery-only stage then bounded automatic cohort.
-- [ ] Generate post-commit localized amount/currency/direction notification and existing safe transaction navigation; one stable banner on retries.
-- [ ] Deliver only newly created tracking cohort events; preserve Voice worker/monitor, do not start broad backlog consumer.
-- [ ] Verify notification denial and response-loss financial independence; commit.
+- [x] Add failing owner-scope rollout tests: test owner can be automatic while every other owner remains review.
+- [x] Require exact eligible rules/release and owner opt-in; initial discovery-only stage then bounded automatic cohort.
+- [x] Generate post-commit localized amount/currency/direction notification and existing safe transaction navigation; one stable banner on retries.
+- [x] Deliver only newly created tracking cohort events; preserve Voice worker/monitor, do not start broad backlog consumer.
+- [x] Verify notification denial and response-loss financial independence; commit.
 
 ## Task 5 — exact candidate verification, deployment and Dev APK
 
-- [ ] Mobile Jest/typecheck/lint, parser corpus, native listener/admission/queue JUnit, API unit/contracts/security, real DB integration/migrations/seed, Voice/Assistant/Manual/ledger regressions.
-- [ ] Fresh whole-branch reviewer and one test-first repair pass for material findings.
+- [x] Mobile Jest/typecheck/lint, parser corpus, native listener/admission/queue JUnit, API unit/contracts/security, real DB integration/migrations/seed, Voice/Assistant/Manual/ledger regressions.
+- [x] Fresh whole-branch reviewer and one test-first repair pass for material findings.
 - [ ] Push isolated candidate for exact-commit CI/image scanning; no main merge.
 - [ ] Verify exact-image cross-feature compatibility; deploy API/scoped tracking/confirmation worker only to Staging after gates pass.
 - [ ] Build new signed `com.masarifi.mobile.dev` APK with existing compatible signing key; verify signer/application ID before `adb install -r`; preserve owner/sign-in and prior SAR data.

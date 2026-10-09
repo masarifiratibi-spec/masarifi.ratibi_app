@@ -359,6 +359,16 @@ jobs:
           printf 'COMPOSE_SENTINEL=migration\n' > "$MASARIFI_MIGRATION_ENV_FILE"
           chmod 600 "$MASARIFI_API_ENV_FILE" "$MASARIFI_WORKER_ENV_FILE" "$MASARIFI_MIGRATION_ENV_FILE"
           docker compose -f docker/staging/compose.backend.yml --profile migrate config --format json | node docker/staging/verify-compose.mjs
+      - name: Configure public Docker Hub cache on the ephemeral runner
+        run: |
+          if sudo test -s /etc/docker/daemon.json; then
+            sudo cat /etc/docker/daemon.json
+          else
+            printf '{}\n'
+          fi | jq '.["registry-mirrors"] = ((.["registry-mirrors"] // []) + ["https://mirror.gcr.io"] | unique)' > "$RUNNER_TEMP/masarifi-docker-daemon.json"
+          sudo install -D -m 644 "$RUNNER_TEMP/masarifi-docker-daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format '{{json .RegistryConfig.Mirrors}}'
       - run: docker build --file docker/backend.Dockerfile --label org.opencontainers.image.revision=${{ github.sha }} --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
       - run: npm --prefix apps/api run test:container
         env:
