@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "releaseId": "bundled-sa-ae-eg-2026-10-09",
+  "releaseId": "bundled-sa-ae-eg-requests-2026-10-09",
   "engineVersion": "2.0.0",
   "rules": [
     {
@@ -148,7 +148,19 @@
         "will be transferred",
         "سيتم تحويل",
         "طلب دفع",
-        "دفع مستحق"
+        "دفع مستحق",
+        "deposit request",
+        "refund request",
+        "withdrawal request",
+        "transfer request",
+        "request for a refund",
+        "request for deposit",
+        "requested refund",
+        "طلب إيداع",
+        "طلب ايداع",
+        "طلب استرداد",
+        "طلب تحويل",
+        "طلب refund"
       ],
       "effects": {
         "status": "pending",

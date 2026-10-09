@@ -242,7 +242,7 @@ export class TrackingRepository {
           : name === 'user_sender_rules'
             ? "||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)))"
             : name === 'import_items'
-              ? "-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',x.normalized_payload-'body'-'sender'-'metadata'-'sourceText','notification_id',(select n.id from public.notification_events n where n.user_id=x.user_id and n.data->>'targetId'=x.transaction_id::text and n.type in ('transaction.created','transfer.created') order by n.created_at limit 1))"
+              ? "-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',x.normalized_payload-'body'-'sender'-'metadata'-'sourceText','notification_id',(select n.id from public.notification_events n where n.user_id=x.user_id and n.data->>'targetId'=x.transaction_id::text and n.type in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') order by n.created_at limit 1))"
               : name === 'review_items'
                 ? "-'decision_token'-'decision_lease_until'"
                 : name === 'duplicate_candidates'

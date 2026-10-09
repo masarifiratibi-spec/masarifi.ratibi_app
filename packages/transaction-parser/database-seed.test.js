@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {defaultSnapshot,evidenceCorpus}=require('./index');
 test('new database migration carries the exact governed bilingual Egypt rule asset',()=>{
-  const source=fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261009190000_tracking_egypt_rule_pack.sql'),'utf8');
+  const source=fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261009232000_tracking_financial_request_precedence.sql'),'utf8');
   const payload=source.match(/\$tracking_pack\$([\s\S]*?)\$tracking_pack\$::jsonb/);
   assert.ok(payload,'seed must embed one reviewable rule snapshot');
   assert.deepEqual(JSON.parse(payload[1]),defaultSnapshot);

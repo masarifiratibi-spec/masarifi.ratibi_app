@@ -15,6 +15,9 @@ export function captureEffectsAgree(
     existing.kind === expectedKind &&
     Math.abs(Number(existing.amountMinor)) === Math.abs(Number(values.amountMinor)) &&
     existing.currency === values.currency &&
+    (!['refund', 'reversal'].includes(String(expectedKind)) ||
+      (typeof values.originalTransactionId === 'string' &&
+        existing.originalTransactionId === values.originalTransactionId)) &&
     (existing.kind === 'transfer'
       ? existing.sourceAccountId === (incoming ? values.destinationAccountId : values.accountId) &&
         existing.destinationAccountId ===

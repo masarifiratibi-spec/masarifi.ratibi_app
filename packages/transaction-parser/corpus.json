@@ -292,5 +292,60 @@
       "status": "administrative",
       "disposition": "ignore"
     }
+  },
+  {
+    "id": "financial-request-pending-0",
+    "evidence": "synthetic",
+    "sender": "SAMPLEBANK",
+    "country": "EG",
+    "text": "Deposit request AED10 account XX4242",
+    "expected": {
+      "status": "pending",
+      "disposition": "review"
+    }
+  },
+  {
+    "id": "financial-request-pending-1",
+    "evidence": "synthetic",
+    "sender": "SAMPLEBANK",
+    "country": "EG",
+    "text": "Refund request AED1 card XX4242 original reference BANKREF1234",
+    "expected": {
+      "status": "pending",
+      "disposition": "review"
+    }
+  },
+  {
+    "id": "financial-request-pending-2",
+    "evidence": "synthetic",
+    "sender": "SAMPLEBANK",
+    "country": "EG",
+    "text": "طلب إيداع SAR ١٠ حساب XX4242",
+    "expected": {
+      "status": "pending",
+      "disposition": "review"
+    }
+  },
+  {
+    "id": "financial-request-pending-3",
+    "evidence": "synthetic",
+    "sender": "SAMPLEBANK",
+    "country": "EG",
+    "text": "طلب استرداد EGP ١ بطاقة XX4242",
+    "expected": {
+      "status": "pending",
+      "disposition": "review"
+    }
+  },
+  {
+    "id": "financial-request-pending-4",
+    "evidence": "synthetic",
+    "sender": "SAMPLEBANK",
+    "country": "EG",
+    "text": "طلب refund AED1 card XX4242",
+    "expected": {
+      "status": "pending",
+      "disposition": "review"
+    }
   }
 ]

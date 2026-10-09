@@ -1,10 +1,16 @@
 {
   "schemaVersion": 2,
   "engineVersion": "2.0.0",
-  "releaseId": "bundled-sa-ae-eg-2026-10-09",
-  "releaseNo": 2,
+  "releaseId": "bundled-sa-ae-eg-requests-2026-10-09",
+  "releaseNo": 3,
   "aiEnabled": false,
-  "discoveryContexts": ["transaction", "bank account", "معاملة", "عملية مالية", "حساب بنكي"],
+  "discoveryContexts": [
+    "transaction",
+    "bank account",
+    "معاملة",
+    "عملية مالية",
+    "حساب بنكي"
+  ],
   "currencies": [
     {
       "code": "SAR",
@@ -265,7 +271,19 @@
         "will be transferred",
         "سيتم تحويل",
         "طلب دفع",
-        "دفع مستحق"
+        "دفع مستحق",
+        "deposit request",
+        "refund request",
+        "withdrawal request",
+        "transfer request",
+        "request for a refund",
+        "request for deposit",
+        "requested refund",
+        "طلب إيداع",
+        "طلب ايداع",
+        "طلب استرداد",
+        "طلب تحويل",
+        "طلب refund"
       ],
       "effects": {
         "status": "pending",
@@ -578,7 +596,9 @@
       "providerKey": "instapay",
       "country": "EG",
       "senders": [],
-      "packages": ["com.egyptianbanks.instapay"]
+      "packages": [
+        "com.egyptianbanks.instapay"
+      ]
     },
     {
       "providerKey": "du",

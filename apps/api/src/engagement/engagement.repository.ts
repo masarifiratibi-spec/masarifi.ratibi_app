@@ -315,7 +315,7 @@ export class EngagementRepository {
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
          values($1::uuid,$2::text,$3::text,$4::text,$5::text,jsonb_build_object(
-             'route','notification_detail','sourceEventId',$1::uuid::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and exists(select 1 from public.transactions t where t.id::text=$8::text and t.source='tracking-import')),'actions',
+             'route','notification_detail','sourceEventId',$1::uuid::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and private.is_tracking_notification_capture($2::text,$8::text)),'actions',
            case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
              jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
              jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))
