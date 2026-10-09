@@ -47,3 +47,6 @@ c65efc62cdcdab0c25ccf2ca0801b505243df371:apps/api/specs/003-admin-rbac-security/
 
 # Historical fictional idempotency fixture; shortened to delete-op in the next commit.
 17a70ff2ec2a7091f78e1a750a5b7a651ff11713:apps/mobile/src/services/live/auth-service.test.ts:generic-api-key:442
+
+# Historical SHA-256 of api.env used to verify environment preservation; not a credential.
+1ee3ef3bf50fd97d8c1a573f606d0b8ad8458e6c:scripts/voice-manual-canary/canary-host.cjs:generic-api-key:15
