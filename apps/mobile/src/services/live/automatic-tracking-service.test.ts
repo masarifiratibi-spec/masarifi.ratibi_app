@@ -32,6 +32,33 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe('live automatic tracking adapter', () => {
+  it.each([
+    'source_proof_required',
+    'account_proof_required',
+    'lifecycle_not_completed',
+    'original_transaction_required',
+    'configuration_stale'
+  ])('preserves the specific exception reason %s', async (reason) => {
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request: jest.fn().mockResolvedValue(
+        response({
+          id: 'review-safety',
+          importItemId: 'item-safety',
+          status: 'pending',
+          reason,
+          proposedValues: {},
+          version: 1,
+          reviewedAt: null,
+          createdAt: '2026-10-09T10:00:00Z',
+          updatedAt: '2026-10-09T10:00:00Z'
+        })
+      )
+    });
+    await expect(service.getReviewItem('review-safety')).resolves.toMatchObject(
+      { reasonCodes: [reason] }
+    );
+  });
   it.each(['before capture', 'during token acquisition'])(
     'rejects an owner A import or session poll after switching to B %s',
     async (timing) => {

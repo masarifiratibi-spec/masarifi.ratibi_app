@@ -88,15 +88,22 @@ function moneyCandidates(text, snapshot) {
   return candidates;
 }
 function extractTime(text, input) {
-  const offset = input.country === 'SA' ? '+03:00' : input.country === 'AE' ? '+04:00' : null;
+  const zone = {SA:'Asia/Riyadh',AE:'Asia/Dubai',EG:'Africa/Cairo'}[input.country];
   const build = (year,month,day,hour,minute,second='00') => {
-    if (!offset || +month < 1 || +month > 12 || +day < 1 || +day > 31 || +hour > 23 || +minute > 59 || +second > 59) return null;
-    const stamp = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}T${String(hour).padStart(2,'0')}:${minute}:${second}${offset}`;
-    const date = new Date(stamp);
-    if (!Number.isFinite(date.valueOf())) return null;
-    // Reject rollover dates such as 31 February.
-    const local = new Date(date.valueOf() + (offset === '+03:00' ? 3 : 4)*3600000);
-    return local.getUTCDate() === +day && local.getUTCMonth()+1 === +month ? date.toISOString() : null;
+    if (!zone || +month < 1 || +month > 12 || +day < 1 || +day > 31 || +hour > 23 || +minute > 59 || +second > 59) return null;
+    const target=Date.UTC(+year,+month-1,+day,+hour,+minute,+second);
+    const format=new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+    const localTime=instant=>{
+      const fields=Object.fromEntries(format.formatToParts(new Date(instant)).map(p=>[p.type,p.value]));
+      return Date.UTC(+fields.year,+fields.month-1,+fields.day,+fields.hour,+fields.minute,+fields.second);
+    };
+    // Try all offsets near the local day. DST gaps and repeated times are
+    // unresolved instead of silently shifting the financial timestamp.
+    const offsets=new Set([-86400000,0,86400000].map(delta=>localTime(target+delta)-(target+delta)));
+    const matches=[...offsets].map(offset=>target-offset).filter(instant=>localTime(instant)===target);
+    const normalized=new Date(target);
+    if(normalized.getUTCDate()!==+day || normalized.getUTCMonth()+1!==+month || matches.length!==1) return null;
+    return new Date(matches[0]).toISOString();
   };
   let m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (m) return {occurredAt:build(m[1],m[2],m[3],m[4],m[5],m[6]), timeProvenance:'embedded'};
@@ -129,6 +136,7 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   if (lifecycle) Object.assign(result,lifecycle.effects);
   if (exclusion) { Object.assign(result,exclusion.effects); result.reasonCodes.push('administrative_or_excluded'); return result; }
   const candidates = moneyCandidates(text,snapshot);
+  if(result.subtype!=='fee' && candidates.some(c=>c.role==='fee' && c.amountMinor!==null)) result.reasonCodes.push('fee_components_required');
   const amounts = candidates.filter(c=>c.role==='transaction' || result.subtype==='fee' && c.role==='fee');
   if (amounts.length === 1) {result.amountMinor=amounts[0].amountMinor; result.currency=amounts[0].currency; if(!amounts[0].supported) result.reasonCodes.push('unsupported_currency');}
   else result.reasonCodes.push(amounts.length ? 'amount_conflict':'amount_missing');
@@ -141,7 +149,10 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   result.merchant=merchant ? merchant.replace(/[.,\s]+$/,'').slice(0,160) : null;
   result.providerReference = text.match(/(?:reference(?: number)?|ref\.?|الرقم المرجعي(?: للمعاملة هو)?)\s*[:#]?\s*([A-Za-z0-9-]{6,80})/iu)?.[1] || null;
   if (!action) result.reasonCodes.push('action_unknown');
-  if (['generic_credit','deposit','transfer_sent','transfer_received','withdrawal','refund','reversal'].includes(result.subtype)) result.reasonCodes.push('accounting_review_required');
+  if (result.subtype==='generic_credit' && (!result.instruments.some(h=>h.role==='account') || result.instruments.some(h=>h.role==='card'))) result.reasonCodes.push('credit_origin_required');
+  if (['transfer_sent','transfer_received'].includes(result.subtype)) result.reasonCodes.push('transfer_counterparty_required');
+  if (result.subtype==='withdrawal') result.reasonCodes.push('cash_destination_required');
+  if (['refund','reversal'].includes(result.subtype)) result.reasonCodes.push('original_transaction_required');
   if (result.timeProvenance === 'ambiguous' || result.timeProvenance === 'embedded' && !result.occurredAt) result.reasonCodes.push('date_ambiguous');
   if (!lifecycle && action && !result.reasonCodes.length) result.disposition='capture_candidate';
   if (/\b(?:offer|promo|discount)\b|عرض|خصم\s*\d+\s*%/iu.test(lower)) result.disposition='ignore';
@@ -156,7 +167,7 @@ function validateClassification(value) {
     !(value.merchant===null || typeof value.merchant==='string' && value.merchant.length<=160) || !boundedStrings(value.reasonCodes,32) || !boundedStrings(value.appliedRuleKeys,64) ||
     !['embedded','received','ambiguous'].includes(value.timeProvenance) || !(value.occurredAt===null || typeof value.occurredAt==='string' && Number.isFinite(Date.parse(value.occurredAt)) && /Z$/.test(value.occurredAt)) ||
     !Array.isArray(value.instruments) || value.instruments.length>8 || value.instruments.some(h=>!h || !['card','account'].includes(h.role) || !/^\d{4,12}$/.test(h.suffix))) fail();
-  if(value.disposition==='capture_candidate' && (value.status!=='completed' || value.direction==='unknown' || value.amountMinor===null || value.currency===null || value.reasonCodes.length || ['generic_credit','deposit','transfer_sent','transfer_received','withdrawal','refund','reversal'].includes(value.subtype))) fail();
+  if(value.disposition==='capture_candidate' && (value.status!=='completed' || value.direction==='unknown' || value.amountMinor===null || value.currency===null || value.reasonCodes.length)) fail();
   return value;
 }
 function effectiveFinancialSnapshot(snapshot, overrides = []) {

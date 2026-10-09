@@ -13,7 +13,8 @@ const ar: MessageCatalog = {
   'assistant.messageStatus.pending': 'قيد المعالجة',
   'assistant.messageStatus.failed': 'تعذر الإكمال',
   'assistant.messageStatus.unknown': 'غير مؤكد',
-  'assistant.operation.checkFailed': 'تعذر إكمال الطلب. تم الاحتفاظ بالسؤال الأصلي؛ تحقق من حالته قبل إرسال سؤال آخر.',
+  'assistant.operation.checkFailed':
+    'تعذر إكمال الطلب. تم الاحتفاظ بالسؤال الأصلي؛ تحقق من حالته قبل إرسال سؤال آخر.',
   'assistant.history.title': 'سجل المحادثات',
   'assistant.history.hiddenTitle': 'محادثة مخفية — افتحها للمراجعة',
   'assistant.history.loadMore': 'تحميل المزيد من المحادثات',
@@ -22,13 +23,16 @@ const ar: MessageCatalog = {
   'assistant.feedback.notHelpful': 'غير مفيد',
   'assistant.operation.title': 'حالة السؤال',
   'assistant.operation.state.pending': 'تم قبول السؤال. بانتظار النتيجة.',
-  'assistant.operation.state.failed': 'تعذر إكمال هذا السؤال. يمكنك إرسال سؤال جديد.',
-  'assistant.operation.state.unknown': 'النتيجة غير معروفة. تحقق من السؤال الأصلي قبل إرسال سؤال آخر.',
+  'assistant.operation.state.failed':
+    'تعذر إكمال هذا السؤال. يمكنك إرسال سؤال جديد.',
+  'assistant.operation.state.unknown':
+    'النتيجة غير معروفة. تحقق من السؤال الأصلي قبل إرسال سؤال آخر.',
   'assistant.operation.state.completed': 'اكتمل السؤال.',
   'assistant.operation.check': 'التحقق من حالة السؤال',
   'assistant.operation.open': 'فتح هذه المحادثة',
   'assistant.operation.retrySame': 'إعادة محاولة العملية الأصلية',
-  'assistant.operation.retryExplanation': 'تحتفظ المحاولة بالسؤال الأصلي ومفتاح العملية نفسه، ولا تنشئ سؤالًا بديلًا.',
+  'assistant.operation.retryExplanation':
+    'تحتفظ المحاولة بالسؤال الأصلي ومفتاح العملية نفسه، ولا تنشئ سؤالًا بديلًا.',
   'assistant.capability.title': 'قدرات المساعد',
   'assistant.capability.directRead': 'قراءة البيانات المالية الموثقة',
   'assistant.capability.provider': 'نصائح مزود الذكاء الاصطناعي',
@@ -39,11 +43,14 @@ const ar: MessageCatalog = {
   'assistant.capability.state.unknown': 'لم يتم التحقق من الجاهزية',
   'assistant.capability.state.loading': 'جارٍ التحقق من القدرة',
   'assistant.capability.provider.available': 'نصائح المزود متاحة',
-  'assistant.capability.provider.disabled': 'نصائح المزود غير متاحة. قراءة البيانات المالية قدرة مستقلة.',
-  'assistant.capability.provider.limit_reached': 'تم الوصول للحد المسموح لنصائح المزود',
+  'assistant.capability.provider.disabled':
+    'نصائح المزود غير متاحة. قراءة البيانات المالية قدرة مستقلة.',
+  'assistant.capability.provider.limit_reached':
+    'تم الوصول للحد المسموح لنصائح المزود',
   'assistant.capability.provider.unknown': 'لم يتم التحقق من جاهزية المزود',
   'assistant.scope.title': 'النطاق المدعوم',
-  'assistant.scope.excluded': 'تستخدم القراءات المالية السجلات الموثقة. تقييم القدرة على الشراء وإجمالي جميع الأقساط والتخطيط التاريخي والبحث في العمليات وإجراءات الدفعات الزائدة غير مدعومة في هذا الإصدار.',
+  'assistant.scope.excluded':
+    'تستخدم القراءات المالية السجلات الموثقة. تقييم القدرة على الشراء وإجمالي جميع الأقساط والتخطيط التاريخي والبحث في العمليات وإجراءات الدفعات الزائدة غير مدعومة في هذا الإصدار.',
   'assistant.evidence.title': 'أدلة الإجابة',
   'assistant.evidence.period': 'الفترة المطلوبة',
   'assistant.evidence.timezone': 'المنطقة الزمنية',
@@ -59,23 +66,35 @@ const ar: MessageCatalog = {
   'assistant.evidence.kind.goal': 'دليل هدف الادخار',
   'assistant.evidence.kind.report': 'دليل التقرير',
   'assistant.evidence.kind.ledger': 'دليل السجل المالي',
-  'assistant.limitation.next_installment_only': 'تشمل الإجابة القسط التالي فقط، وليست إجمالي جميع الأقساط المستحقة خلال الفترة.',
-  'assistant.limitation.total_outstanding': 'هذا إجمالي الالتزامات المتبقية، وليس مجموع الأقساط المستحقة خلال الفترة.',
-  'assistant.limitation.data_incomplete': 'البيانات الموثقة غير مكتملة. لا تعتبر المعلومات المفقودة صفرًا.',
-  'assistant.limitation.answer_metadata_unavailable': 'لا تتوفر لهذه الإجابة القديمة بيانات موثقة عن الفترة والعملات.',
-  'assistant.limitation.source_time_unavailable': 'بعض المصادر دون وقت مسجل. لم يتم التحقق من حداثتها.',
-  'assistant.limitation.liquidity_incomplete': 'تقييم القدرة على الشراء غير مدعوم لعدم توفر السيولة المتاحة كاملة.',
-  'assistant.limitation.planning_period_unsupported': 'فترة التخطيط هذه غير مدعومة.',
-  'assistant.limitation.historical_state_unavailable': 'بيانات التخطيط التاريخية الموثقة غير متوفرة.',
-  'assistant.limitation.transaction_scope_required': 'نطاق البحث في العمليات أو العملة هذا غير مدعوم.',
+  'assistant.limitation.next_installment_only':
+    'تشمل الإجابة القسط التالي فقط، وليست إجمالي جميع الأقساط المستحقة خلال الفترة.',
+  'assistant.limitation.total_outstanding':
+    'هذا إجمالي الالتزامات المتبقية، وليس مجموع الأقساط المستحقة خلال الفترة.',
+  'assistant.limitation.data_incomplete':
+    'البيانات الموثقة غير مكتملة. لا تعتبر المعلومات المفقودة صفرًا.',
+  'assistant.limitation.answer_metadata_unavailable':
+    'لا تتوفر لهذه الإجابة القديمة بيانات موثقة عن الفترة والعملات.',
+  'assistant.limitation.source_time_unavailable':
+    'بعض المصادر دون وقت مسجل. لم يتم التحقق من حداثتها.',
+  'assistant.limitation.liquidity_incomplete':
+    'تقييم القدرة على الشراء غير مدعوم لعدم توفر السيولة المتاحة كاملة.',
+  'assistant.limitation.planning_period_unsupported':
+    'فترة التخطيط هذه غير مدعومة.',
+  'assistant.limitation.historical_state_unavailable':
+    'بيانات التخطيط التاريخية الموثقة غير متوفرة.',
+  'assistant.limitation.transaction_scope_required':
+    'نطاق البحث في العمليات أو العملة هذا غير مدعوم.',
   'assistant.limitation.comparison_period_required': 'حدد فترة مقارنة مدعومة.',
-  'assistant.limitation.entity_required': 'حدد السجل المالي المطلوب بدقة؛ لا يتم اختيار أول سجل تلقائيًا.',
+  'assistant.limitation.entity_required':
+    'حدد السجل المالي المطلوب بدقة؛ لا يتم اختيار أول سجل تلقائيًا.',
   'assistant.limitation.no_data': 'لا توجد سجلات موثقة لهذا النطاق.',
   'assistant.limitation.salary_missing': 'بيانات الراتب الموثقة غير متوفرة.',
   'assistant.limitation.salary_currency_missing': 'عملة الراتب غير متوفرة.',
   'assistant.limitation.due_schedule_incomplete': 'جدول الأقساط غير مكتمل.',
-  'assistant.limitation.period_required': 'حدد فترة واحدة مدعومة. الفترات اليومية أو المتعارضة غير مدعومة.',
-  'assistant.limitation.currency_required': 'حدد عملة واحدة؛ لا يتم جمع العملات المختلفة.',
+  'assistant.limitation.period_required':
+    'حدد فترة واحدة مدعومة. الفترات اليومية أو المتعارضة غير مدعومة.',
+  'assistant.limitation.currency_required':
+    'حدد عملة واحدة؛ لا يتم جمع العملات المختلفة.',
   'assistant.limitation.price_required': 'حدد سعر الشراء الدقيق وعملته.',
   'assistant.limitation.scope_required': 'حدد نطاقًا ماليًا مدعومًا.',
   'googleAuth.brand': 'مصاريفي',
@@ -1101,6 +1120,29 @@ const ar: MessageCatalog = {
   'tracking.reason.duplicate': 'احتمال وجود معاملة مكررة',
   'tracking.reason.rule_conflict': 'يوجد تعارض في قواعد التتبع',
   'tracking.reason.ambiguous_account': 'حساب الدفع غير مؤكد',
+  'tracking.reason.source_proof_required': 'لم يتم التحقق من المصدر',
+  'tracking.reason.source_blocked': 'هذا المصدر متوقف',
+  'tracking.reason.account_proof_required': 'لم يتم تحديد الحساب المتأثر',
+  'tracking.reason.lifecycle_not_completed': 'لم يتم تأكيد اكتمال المعاملة',
+  'tracking.reason.configuration_stale':
+    'تغيرت قواعد التتبع؛ راجع هذه المعاملة',
+  'tracking.reason.cash_destination_required':
+    'يجب تحديد الحساب النقدي المستلم',
+  'tracking.reason.transfer_counterparty_required':
+    'الطرف الآخر للتحويل غير واضح',
+  'tracking.reason.original_transaction_required': 'يجب تحديد المعاملة الأصلية',
+  'tracking.reason.credit_origin_required': 'مصدر المبلغ المضاف غير واضح',
+  'tracking.reason.fee_components_required':
+    'تحتاج الرسوم المنفصلة إلى تفاصيل محاسبية',
+  'tracking.reason.unsupported_accounting_operation':
+    'تحتاج هذه العملية إلى تفاصيل محاسبية',
+  'tracking.reason.amount_missing': 'مبلغ المعاملة غير موجود',
+  'tracking.reason.amount_invalid': 'مبلغ المعاملة غير صالح',
+  'tracking.reason.unsupported_currency': 'هذه العملة غير مدعومة',
+  'tracking.reason.date_ambiguous': 'تاريخ المعاملة غير واضح',
+  'tracking.reason.conflicting_direction':
+    'يوجد تعارض بين بيانات الوارد والصادر',
+  'tracking.reason.action_unknown': 'نوع المعاملة غير واضح',
   'tracking.reason.ambiguous_lifecycle': 'حالة المعاملة غير مؤكدة',
   'tracking.reason.multiple_obligations': 'قد تتطابق عدة التزامات',
   'tracking.reason.invalid_input': 'بعض بيانات المعاملة غير صحيحة',
@@ -1901,20 +1943,32 @@ const ar: MessageCatalog = {
   'assistant.actionPreview.action.back': 'رجوع',
   'assistant.actionPreview.action.confirmNow': 'تأكيد الإجراء',
   'assistant.actionPreview.confirm.title': 'تأكيد هذا الإجراء؟',
-  'assistant.actionPreview.state.incomplete': 'تفاصيل الأثر المطلوبة غير مكتملة. التأكيد معطّل؛ حدّث المعاينة.',
-  'assistant.actionPreview.state.unknown': 'النتيجة غير معروفة. تحقّق من الحالة قبل إعادة المحاولة؛ تستخدم المحاولة نفس العملية الأصلية.',
+  'assistant.actionPreview.state.incomplete':
+    'تفاصيل الأثر المطلوبة غير مكتملة. التأكيد معطّل؛ حدّث المعاينة.',
+  'assistant.actionPreview.state.unknown':
+    'النتيجة غير معروفة. تحقّق من الحالة قبل إعادة المحاولة؛ تستخدم المحاولة نفس العملية الأصلية.',
   'assistant.actionPreview.state.completed': 'اكتمل الإجراء.',
   'assistant.actionPreview.state.cancelled': 'تم إلغاء الاقتراح.',
-  'assistant.actionPreview.action.checkStatus': 'التحقّق من الحالة / تحديث المعاينة',
-  'assistant.actionPreview.action.revealEffects': 'إظهار أثر هذا الإجراء لمراجعته بأمان',
-  'assistant.actionPreview.scope.unavailable': 'لا يمكن التحقّق من الأثر الكامل بعد.',
-  'assistant.actionPreview.scope.createTransaction': 'يسجّل دخلاً أو مصروفًا في الحساب المحدّد بالتاريخ والوقت المحلي المعروضين.',
-  'assistant.actionPreview.scope.createGoal': 'ينشئ هدف ادخار بالتقدّم الافتتاحي المسجّل المعروض. لا يحوّل هذا الإجراء أموالاً.',
-  'assistant.actionPreview.scope.updateTransaction': 'يعدّل هذه المعاملة. راجع قيمها الحالية والقيم الناتجة أدناه.',
-  'assistant.actionPreview.scope.updateBudget': 'يعدّل هذه الميزانية فقط. راجع جميع القيم الناتجة، بما فيها الحالة أو الحذف.',
-  'assistant.actionPreview.scope.recordPayment': 'يوزّع المعاملة المؤكدة الموجودة على الأقساط المحدّدة. لا ينشئ معاملة بنكية أخرى.',
-  'assistant.actionPreview.scope.acceptReview': 'يعتمد هذه المراجعة ويسجّل معاملتها المستوردة أو يعيد استخدام الموجودة. تقارن القيم قبل وبعد بين الاقتراح الحالي والقيم المعتمدة.',
-  'assistant.actionPreview.scope.rejectReview': 'يرفض هذه المراجعة دون إنشاء معاملة مالية.',
+  'assistant.actionPreview.action.checkStatus':
+    'التحقّق من الحالة / تحديث المعاينة',
+  'assistant.actionPreview.action.revealEffects':
+    'إظهار أثر هذا الإجراء لمراجعته بأمان',
+  'assistant.actionPreview.scope.unavailable':
+    'لا يمكن التحقّق من الأثر الكامل بعد.',
+  'assistant.actionPreview.scope.createTransaction':
+    'يسجّل دخلاً أو مصروفًا في الحساب المحدّد بالتاريخ والوقت المحلي المعروضين.',
+  'assistant.actionPreview.scope.createGoal':
+    'ينشئ هدف ادخار بالتقدّم الافتتاحي المسجّل المعروض. لا يحوّل هذا الإجراء أموالاً.',
+  'assistant.actionPreview.scope.updateTransaction':
+    'يعدّل هذه المعاملة. راجع قيمها الحالية والقيم الناتجة أدناه.',
+  'assistant.actionPreview.scope.updateBudget':
+    'يعدّل هذه الميزانية فقط. راجع جميع القيم الناتجة، بما فيها الحالة أو الحذف.',
+  'assistant.actionPreview.scope.recordPayment':
+    'يوزّع المعاملة المؤكدة الموجودة على الأقساط المحدّدة. لا ينشئ معاملة بنكية أخرى.',
+  'assistant.actionPreview.scope.acceptReview':
+    'يعتمد هذه المراجعة ويسجّل معاملتها المستوردة أو يعيد استخدام الموجودة. تقارن القيم قبل وبعد بين الاقتراح الحالي والقيم المعتمدة.',
+  'assistant.actionPreview.scope.rejectReview':
+    'يرفض هذه المراجعة دون إنشاء معاملة مالية.',
   'assistant.actionPreview.field.scope': 'نطاق الإجراء',
   'assistant.actionPreview.field.before': 'قبل',
   'assistant.actionPreview.field.after': 'بعد',
@@ -1938,7 +1992,8 @@ const ar: MessageCatalog = {
   'assistant.actionPreview.field.source': 'المصدر',
   'assistant.actionPreview.field.name': 'الاسم',
   'assistant.actionPreview.field.targetMinor': 'المبلغ المستهدف',
-  'assistant.actionPreview.field.openingTrackedMinor': 'التقدّم الافتتاحي المسجّل',
+  'assistant.actionPreview.field.openingTrackedMinor':
+    'التقدّم الافتتاحي المسجّل',
   'assistant.actionPreview.field.targetDate': 'التاريخ المستهدف',
   'assistant.actionPreview.field.linkedAccountId': 'سجل الحساب المرتبط',
   'assistant.actionPreview.field.iconKey': 'معرّف الأيقونة المحفوظ',

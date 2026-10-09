@@ -158,14 +158,21 @@ describe('SMS import queue', () => {
     const queue = new SmsImportQueue(storage);
     await queue.saveRules('owner-1', {
       keywords: [{ value: 'paid', enabled: true }],
-      senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }]
+      senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }],
+      configurationRevision: 'c'.repeat(64)
     });
 
     await expect(queue.load('owner-1')).resolves.toMatchObject({
       rules: {
         keywords: [{ value: 'paid', enabled: true }],
-        senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }]
+        senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }],
+        configurationRevision: 'c'.repeat(64)
       }
+    });
+    await expect(
+      new SmsImportQueue(storage).load('owner-1')
+    ).resolves.toMatchObject({
+      rules: { configurationRevision: 'c'.repeat(64) }
     });
     await expect(queue.load('owner-2')).resolves.toMatchObject({
       ownerId: 'owner-2',

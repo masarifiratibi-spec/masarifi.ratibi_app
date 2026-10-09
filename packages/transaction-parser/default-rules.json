@@ -1,9 +1,10 @@
 {
   "schemaVersion": 2,
   "engineVersion": "2.0.0",
-  "releaseId": "bundled-sa-ae-2026-10-09",
-  "releaseNo": 1,
+  "releaseId": "bundled-sa-ae-eg-2026-10-09",
+  "releaseNo": 2,
   "aiEnabled": false,
+  "discoveryContexts": ["transaction", "bank account", "معاملة", "عملية مالية", "حساب بنكي"],
   "currencies": [
     {
       "code": "SAR",
@@ -51,7 +52,9 @@
       "scale": 2,
       "supported": true,
       "aliases": [
-        "GBP"
+        "GBP",
+        "جنيه استرليني",
+        "جنيه إسترليني"
       ]
     },
     {
@@ -60,7 +63,11 @@
       "supported": true,
       "aliases": [
         "EGP",
-        "جنيه مصري"
+        "جنيه مصري",
+        "جنيه",
+        "ج.م",
+        "E£",
+        "LE"
       ]
     },
     {
@@ -251,7 +258,14 @@
         "قيد المعالجة",
         "معلق",
         "سيتم إيداع",
-        "سيتم ايداع"
+        "سيتم ايداع",
+        "payment request",
+        "scheduled payment",
+        "payment due",
+        "will be transferred",
+        "سيتم تحويل",
+        "طلب دفع",
+        "دفع مستحق"
       ],
       "effects": {
         "status": "pending",
@@ -396,7 +410,10 @@
         "transfer to",
         "transferred to",
         "outgoing transfer",
-        "تحويل صادر"
+        "تحويل صادر",
+        "تم تحويل",
+        "transfer sent",
+        "money sent successfully"
       ],
       "effects": {
         "direction": "outgoing",
@@ -412,7 +429,10 @@
       "any": [
         "transfer from",
         "incoming transfer",
-        "تحويل وارد"
+        "تحويل وارد",
+        "تم استلام",
+        "transfer received",
+        "money received successfully"
       ],
       "effects": {
         "direction": "incoming",
@@ -508,7 +528,9 @@
         "deposit",
         "deposited",
         "إيداع",
-        "ايداع"
+        "ايداع",
+        "تم إيداع",
+        "تم ايداع"
       ],
       "effects": {
         "direction": "incoming",
@@ -551,6 +573,12 @@
         "ADCBAlert"
       ],
       "packages": []
+    },
+    {
+      "providerKey": "instapay",
+      "country": "EG",
+      "senders": [],
+      "packages": ["com.egyptianbanks.instapay"]
     },
     {
       "providerKey": "du",

@@ -129,6 +129,8 @@ class MasarifiSmsInboxModule : Module() {
           "title" to record.title,
           "text" to record.text,
           "postedAt" to record.postedAt,
+          "observedAt" to record.observedAt,
+          "discovered" to record.discovered,
           "nativeKey" to record.nativeKey
         )
       }

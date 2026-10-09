@@ -16,6 +16,7 @@ import type {
   TrackingReasonCode,
   TrackingStatusSnapshot
 } from '@/domain/automatic-tracking';
+import { trackingReasonCodes } from '@/domain/automatic-tracking';
 import type { KeywordRule } from '@/domain/app-shell';
 import {
   TrackingError,
@@ -114,23 +115,7 @@ function nullableEpoch(value: unknown): number | null {
 }
 
 function reasons(value: unknown): TrackingReasonCode[] {
-  const allowed = new Set<TrackingReasonCode>([
-    'clear_success',
-    'low_confidence',
-    'review_all',
-    'paused',
-    'failed_event',
-    'otp',
-    'marketing',
-    'amount_conflict',
-    'duplicate',
-    'rule_conflict',
-    'ambiguous_account',
-    'ambiguous_lifecycle',
-    'multiple_obligations',
-    'invalid_input',
-    'source_expired'
-  ]);
+  const allowed = new Set<TrackingReasonCode>(trackingReasonCodes);
   const aliases: Record<string, TrackingReasonCode> = {
     duplicate_candidate: 'duplicate',
     review_required: 'review_all'
@@ -406,6 +391,13 @@ export function createLiveAutomaticTrackingService({
       )
         throw new TrackingError('unknown');
       const snapshot = validateRuleSnapshot(configuration.snapshot);
+      const configurationRevision = configuration.configurationRevision;
+      if (
+        configurationRevision !== undefined &&
+        (typeof configurationRevision !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(configurationRevision))
+      )
+        throw new TrackingError('unknown');
 
       // Rules and overrides are retrieved together below; the legacy list remains the public UI contract.
       const bundledKeywords = Array.isArray(configuration.keywords)
@@ -416,6 +408,9 @@ export function createLiveAutomaticTrackingService({
         : [];
       return {
         snapshot,
+        ...(typeof configurationRevision === 'string'
+          ? { configurationRevision }
+          : {}),
         rolloutMode: member(configuration.rolloutMode, [
           'shadow',
           'review',

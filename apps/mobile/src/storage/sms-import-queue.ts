@@ -35,6 +35,7 @@ export interface SmsRuleSnapshot {
     trusted: boolean;
   }[];
   snapshot?: RuleSnapshot;
+  configurationRevision?: string;
   bindings?: {
     provider: string;
     role: 'card' | 'account';
@@ -356,7 +357,11 @@ const queueSchema = z
           )
           .max(1000)
           .optional(),
-        rolloutMode: z.enum(['shadow', 'review', 'automatic']).optional()
+        rolloutMode: z.enum(['shadow', 'review', 'automatic']).optional(),
+        configurationRevision: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional()
       })
       .strict()
   })

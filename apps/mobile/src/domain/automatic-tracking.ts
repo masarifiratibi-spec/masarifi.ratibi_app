@@ -52,7 +52,24 @@ export const trackingReasonCodes = [
   'ambiguous_lifecycle',
   'multiple_obligations',
   'invalid_input',
-  'source_expired'
+  'source_expired',
+  'source_proof_required',
+  'source_blocked',
+  'account_proof_required',
+  'lifecycle_not_completed',
+  'configuration_stale',
+  'cash_destination_required',
+  'transfer_counterparty_required',
+  'original_transaction_required',
+  'credit_origin_required',
+  'fee_components_required',
+  'unsupported_accounting_operation',
+  'amount_missing',
+  'amount_invalid',
+  'unsupported_currency',
+  'date_ambiguous',
+  'conflicting_direction',
+  'action_unknown'
 ] as const;
 
 export type TrackingPlatform = (typeof trackingPlatforms)[number];

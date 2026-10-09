@@ -230,6 +230,7 @@ export function createAutomaticTrackingCoordinator(
           knownFingerprints: fingerprints,
           deviceId,
           snapshot: config.snapshot,
+          configurationRevision: config.configurationRevision,
           bindings: config.bindings
         });
         prepared.events = prepared.events.filter(
@@ -409,7 +410,7 @@ function cachedRules(rules: SmsRuleSnapshot): {
   return {
     keywordRules: rules.keywords.map((rule, index) => ({
       id: rule.id ?? `cached-keyword-${index}`,
-      group: rule.group ?? 'expense',
+      group: rule.group ?? 'financial',
       language: rule.language ?? 'en',
       value: rule.value,
       normalizedValue: rule.value.normalize('NFKC').toLocaleLowerCase('en'),

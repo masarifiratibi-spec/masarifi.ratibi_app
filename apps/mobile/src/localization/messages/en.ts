@@ -11,7 +11,8 @@ const en = {
   'assistant.messageStatus.pending': 'Pending',
   'assistant.messageStatus.failed': 'Failed',
   'assistant.messageStatus.unknown': 'Unconfirmed',
-  'assistant.operation.checkFailed': 'The request failed. The original question is preserved; check its status before sending another question.',
+  'assistant.operation.checkFailed':
+    'The request failed. The original question is preserved; check its status before sending another question.',
   'assistant.history.title': 'Conversation history',
   'assistant.history.hiddenTitle': 'Hidden conversation — open to review',
   'assistant.history.loadMore': 'Load more conversations',
@@ -19,14 +20,18 @@ const en = {
   'assistant.action.revealFinancial': 'Show financial details',
   'assistant.feedback.notHelpful': 'Not helpful',
   'assistant.operation.title': 'Question status',
-  'assistant.operation.state.pending': 'Question accepted. Waiting for the result.',
-  'assistant.operation.state.failed': 'This question failed. You can send a new question.',
-  'assistant.operation.state.unknown': 'The outcome is unknown. Check the original question before sending another.',
+  'assistant.operation.state.pending':
+    'Question accepted. Waiting for the result.',
+  'assistant.operation.state.failed':
+    'This question failed. You can send a new question.',
+  'assistant.operation.state.unknown':
+    'The outcome is unknown. Check the original question before sending another.',
   'assistant.operation.state.completed': 'Question completed.',
   'assistant.operation.check': 'Check question status',
   'assistant.operation.open': 'Open this conversation',
   'assistant.operation.retrySame': 'Retry the original operation',
-  'assistant.operation.retryExplanation': 'Retry keeps the original question and operation key. It does not create a replacement question.',
+  'assistant.operation.retryExplanation':
+    'Retry keeps the original question and operation key. It does not create a replacement question.',
   'assistant.capability.title': 'Assistant capabilities',
   'assistant.capability.directRead': 'Verified financial reads',
   'assistant.capability.provider': 'Provider advice',
@@ -37,11 +42,15 @@ const en = {
   'assistant.capability.state.unknown': 'Readiness has not been verified',
   'assistant.capability.state.loading': 'Checking capability',
   'assistant.capability.provider.available': 'Provider advice is available',
-  'assistant.capability.provider.disabled': 'Provider advice is unavailable. Financial reads are a separate capability.',
-  'assistant.capability.provider.limit_reached': 'Provider advice quota has been reached',
-  'assistant.capability.provider.unknown': 'Provider readiness has not been verified',
+  'assistant.capability.provider.disabled':
+    'Provider advice is unavailable. Financial reads are a separate capability.',
+  'assistant.capability.provider.limit_reached':
+    'Provider advice quota has been reached',
+  'assistant.capability.provider.unknown':
+    'Provider readiness has not been verified',
   'assistant.scope.title': 'Supported scope',
-  'assistant.scope.excluded': 'Supported financial reads use verified records. Affordability, full installment totals, historical Planning, transaction search and excess-payment actions are not supported in this release.',
+  'assistant.scope.excluded':
+    'Supported financial reads use verified records. Affordability, full installment totals, historical Planning, transaction search and excess-payment actions are not supported in this release.',
   'assistant.evidence.title': 'Answer evidence',
   'assistant.evidence.period': 'Requested period',
   'assistant.evidence.timezone': 'Time zone',
@@ -57,24 +66,42 @@ const en = {
   'assistant.evidence.kind.goal': 'Savings goal evidence',
   'assistant.evidence.kind.report': 'Report evidence',
   'assistant.evidence.kind.ledger': 'Ledger evidence',
-  'assistant.limitation.next_installment_only': 'Only the next installment is covered; this is not the total of all installments due in the period.',
-  'assistant.limitation.total_outstanding': 'This is total outstanding obligations, not a due-in-period schedule total.',
-  'assistant.limitation.data_incomplete': 'Verified data is incomplete. Do not treat missing information as zero.',
-  'assistant.limitation.answer_metadata_unavailable': 'This older answer has no verified period/currency metadata.',
-  'assistant.limitation.source_time_unavailable': 'Some sources have no timestamp. Freshness has not been verified.',
-  'assistant.limitation.liquidity_incomplete': 'Affordability is unsupported: complete spendable funds are unavailable.',
-  'assistant.limitation.planning_period_unsupported': 'This Planning period is not supported.',
-  'assistant.limitation.historical_state_unavailable': 'Verified historical Planning data is unavailable.',
-  'assistant.limitation.transaction_scope_required': 'This transaction search or currency scope is not supported.',
-  'assistant.limitation.comparison_period_required': 'Specify a supported comparison period.',
-  'assistant.limitation.entity_required': 'Select the exact financial record; no first-record fallback is used.',
-  'assistant.limitation.no_data': 'There are no verified records for this scope.',
-  'assistant.limitation.salary_missing': 'Verified salary information is unavailable.',
-  'assistant.limitation.salary_currency_missing': 'The salary currency is unavailable.',
-  'assistant.limitation.due_schedule_incomplete': 'The installment schedule is incomplete.',
-  'assistant.limitation.period_required': 'Specify one supported period. Daily or conflicting periods are not supported.',
-  'assistant.limitation.currency_required': 'Specify one currency; currencies are never added together.',
-  'assistant.limitation.price_required': 'Specify an exact purchase price and currency.',
+  'assistant.limitation.next_installment_only':
+    'Only the next installment is covered; this is not the total of all installments due in the period.',
+  'assistant.limitation.total_outstanding':
+    'This is total outstanding obligations, not a due-in-period schedule total.',
+  'assistant.limitation.data_incomplete':
+    'Verified data is incomplete. Do not treat missing information as zero.',
+  'assistant.limitation.answer_metadata_unavailable':
+    'This older answer has no verified period/currency metadata.',
+  'assistant.limitation.source_time_unavailable':
+    'Some sources have no timestamp. Freshness has not been verified.',
+  'assistant.limitation.liquidity_incomplete':
+    'Affordability is unsupported: complete spendable funds are unavailable.',
+  'assistant.limitation.planning_period_unsupported':
+    'This Planning period is not supported.',
+  'assistant.limitation.historical_state_unavailable':
+    'Verified historical Planning data is unavailable.',
+  'assistant.limitation.transaction_scope_required':
+    'This transaction search or currency scope is not supported.',
+  'assistant.limitation.comparison_period_required':
+    'Specify a supported comparison period.',
+  'assistant.limitation.entity_required':
+    'Select the exact financial record; no first-record fallback is used.',
+  'assistant.limitation.no_data':
+    'There are no verified records for this scope.',
+  'assistant.limitation.salary_missing':
+    'Verified salary information is unavailable.',
+  'assistant.limitation.salary_currency_missing':
+    'The salary currency is unavailable.',
+  'assistant.limitation.due_schedule_incomplete':
+    'The installment schedule is incomplete.',
+  'assistant.limitation.period_required':
+    'Specify one supported period. Daily or conflicting periods are not supported.',
+  'assistant.limitation.currency_required':
+    'Specify one currency; currencies are never added together.',
+  'assistant.limitation.price_required':
+    'Specify an exact purchase price and currency.',
   'assistant.limitation.scope_required': 'Specify a supported financial scope.',
   'googleAuth.brand': 'Masarifi',
   'googleAuth.incomplete':
@@ -1124,6 +1151,33 @@ const en = {
   'tracking.reason.duplicate': 'Possible duplicate transaction',
   'tracking.reason.rule_conflict': 'Tracking rules conflict',
   'tracking.reason.ambiguous_account': 'Funding account is uncertain',
+  'tracking.reason.source_proof_required': 'The source has not been verified',
+  'tracking.reason.source_blocked': 'This source is disabled',
+  'tracking.reason.account_proof_required':
+    'The affected account has not been identified',
+  'tracking.reason.lifecycle_not_completed':
+    'Completion has not been confirmed',
+  'tracking.reason.configuration_stale':
+    'Tracking rules changed; review this event',
+  'tracking.reason.cash_destination_required':
+    'The receiving cash account is needed',
+  'tracking.reason.transfer_counterparty_required':
+    'The other side of the transfer is unclear',
+  'tracking.reason.original_transaction_required':
+    'The original transaction is needed',
+  'tracking.reason.credit_origin_required':
+    'The source of this credit is unclear',
+  'tracking.reason.fee_components_required':
+    'The separate fee needs accounting details',
+  'tracking.reason.unsupported_accounting_operation':
+    'This operation needs accounting details',
+  'tracking.reason.amount_missing': 'The transaction amount is missing',
+  'tracking.reason.amount_invalid': 'The transaction amount is invalid',
+  'tracking.reason.unsupported_currency': 'This currency is not supported',
+  'tracking.reason.date_ambiguous': 'The transaction date is unclear',
+  'tracking.reason.conflicting_direction':
+    'Incoming and outgoing details conflict',
+  'tracking.reason.action_unknown': 'The transaction type is unclear',
   'tracking.reason.ambiguous_lifecycle': 'Transaction status is uncertain',
   'tracking.reason.multiple_obligations': 'More than one obligation may match',
   'tracking.reason.invalid_input': 'Some transaction details are invalid',
@@ -1979,20 +2033,32 @@ const en = {
   'assistant.actionPreview.action.back': 'Back',
   'assistant.actionPreview.action.confirmNow': 'Confirm action',
   'assistant.actionPreview.confirm.title': 'Confirm this action?',
-  'assistant.actionPreview.state.incomplete': 'Required effect details are missing. Confirmation is disabled; refresh the preview.',
-  'assistant.actionPreview.state.unknown': 'The outcome is unknown. Check status before retrying; a retry uses the original operation.',
+  'assistant.actionPreview.state.incomplete':
+    'Required effect details are missing. Confirmation is disabled; refresh the preview.',
+  'assistant.actionPreview.state.unknown':
+    'The outcome is unknown. Check status before retrying; a retry uses the original operation.',
   'assistant.actionPreview.state.completed': 'The action is completed.',
   'assistant.actionPreview.state.cancelled': 'The proposal was cancelled.',
-  'assistant.actionPreview.action.checkStatus': 'Check status / refresh preview',
-  'assistant.actionPreview.action.revealEffects': 'Show these effects to review safely',
-  'assistant.actionPreview.scope.unavailable': 'The full effect cannot be verified yet.',
-  'assistant.actionPreview.scope.createTransaction': 'Records income or an expense on the selected account at the date and local time shown.',
-  'assistant.actionPreview.scope.createGoal': 'Creates a savings goal with the opening tracked progress shown. This does not transfer money.',
-  'assistant.actionPreview.scope.updateTransaction': 'Revises this transaction. Review its current values and resulting values below.',
-  'assistant.actionPreview.scope.updateBudget': 'Updates this budget only. Review every resulting field, including status or deletion.',
-  'assistant.actionPreview.scope.recordPayment': 'Allocates the existing confirmed transaction to the specified installments. It does not create another bank transaction.',
-  'assistant.actionPreview.scope.acceptReview': 'Accepts this review and records or reuses its imported transaction. Before/after compares the current proposal with accepted values.',
-  'assistant.actionPreview.scope.rejectReview': 'Rejects this review without creating a financial transaction.',
+  'assistant.actionPreview.action.checkStatus':
+    'Check status / refresh preview',
+  'assistant.actionPreview.action.revealEffects':
+    'Show these effects to review safely',
+  'assistant.actionPreview.scope.unavailable':
+    'The full effect cannot be verified yet.',
+  'assistant.actionPreview.scope.createTransaction':
+    'Records income or an expense on the selected account at the date and local time shown.',
+  'assistant.actionPreview.scope.createGoal':
+    'Creates a savings goal with the opening tracked progress shown. This does not transfer money.',
+  'assistant.actionPreview.scope.updateTransaction':
+    'Revises this transaction. Review its current values and resulting values below.',
+  'assistant.actionPreview.scope.updateBudget':
+    'Updates this budget only. Review every resulting field, including status or deletion.',
+  'assistant.actionPreview.scope.recordPayment':
+    'Allocates the existing confirmed transaction to the specified installments. It does not create another bank transaction.',
+  'assistant.actionPreview.scope.acceptReview':
+    'Accepts this review and records or reuses its imported transaction. Before/after compares the current proposal with accepted values.',
+  'assistant.actionPreview.scope.rejectReview':
+    'Rejects this review without creating a financial transaction.',
   'assistant.actionPreview.field.scope': 'Action scope',
   'assistant.actionPreview.field.before': 'Before',
   'assistant.actionPreview.field.after': 'After',
@@ -2004,7 +2070,8 @@ const en = {
   'assistant.actionPreview.field.currency': 'Currency',
   'assistant.actionPreview.field.currencyCode': 'Currency',
   'assistant.actionPreview.field.accountId': 'Account record',
-  'assistant.actionPreview.field.destinationAccountId': 'Destination account record',
+  'assistant.actionPreview.field.destinationAccountId':
+    'Destination account record',
   'assistant.actionPreview.field.categoryId': 'Category record',
   'assistant.actionPreview.field.date': 'Date',
   'assistant.actionPreview.field.timezone': 'Original timezone',
@@ -2016,7 +2083,8 @@ const en = {
   'assistant.actionPreview.field.source': 'Source',
   'assistant.actionPreview.field.name': 'Name',
   'assistant.actionPreview.field.targetMinor': 'Target amount',
-  'assistant.actionPreview.field.openingTrackedMinor': 'Opening tracked progress',
+  'assistant.actionPreview.field.openingTrackedMinor':
+    'Opening tracked progress',
   'assistant.actionPreview.field.targetDate': 'Target date',
   'assistant.actionPreview.field.linkedAccountId': 'Linked account record',
   'assistant.actionPreview.field.iconKey': 'Stored icon identifier',
@@ -2043,7 +2111,8 @@ const en = {
   'assistant.actionPreview.field.paidMinor': 'Installment paid amount',
   'assistant.actionPreview.field.reviewId': 'Review record',
   'assistant.actionPreview.field.decision': 'Review decision',
-  'assistant.actionPreview.field.transactionEffect': 'Financial transaction effect',
+  'assistant.actionPreview.field.transactionEffect':
+    'Financial transaction effect',
   'assistant.actionPreview.value.none': 'None',
   'assistant.actionPreview.value.true': 'Yes',
   'assistant.actionPreview.value.false': 'No',

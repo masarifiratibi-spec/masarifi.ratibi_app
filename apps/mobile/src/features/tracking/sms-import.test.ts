@@ -76,6 +76,15 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('binds eligibility to the exact owner configuration used for capture', async () => {
+    const configurationRevision = 'b'.repeat(64);
+    const event = (
+      await prepareSmsImport([message()], options({ configurationRevision }))
+    ).events[0];
+    expect(event?.metadata?.ruleConfigurationRevision).toBe(
+      configurationRevision
+    );
+  });
   it.each(['Hello SAR 5', 'MyBank alert SAR 5', 'Available Balance SAR 5'])(
     'discards weak unknown content without submitting financial fields: %s',
     async (body) => {
@@ -150,7 +159,34 @@ describe('financial capture preparation', () => {
       )
     ).events[0];
     expect(event?.classification?.disposition).toBe('review');
-    expect(event?.kind).not.toBe('income');
+    if (!body.startsWith('deposit')) expect(event?.kind).not.toBe('income');
+  });
+  it.each([
+    'Deposited SAR 5 to account XX4242',
+    'SAR 5 credited to account XX4242'
+  ])('prepares a complete bank credit as ordinary income: %s', async (body) => {
+    const event = (await prepareSmsImport([message({ body })], options()))
+      .events[0];
+    expect(event).toMatchObject({
+      kind: 'income',
+      amountMinor: 500,
+      accountId: account().id,
+      classification: {
+        direction: 'incoming',
+        status: 'completed',
+        disposition: 'capture_candidate'
+      }
+    });
+  });
+  it('does not map a trusted EGP notification to the only EGP account without instrument proof', async () => {
+    const event = (
+      await prepareSmsImport(
+        [message({ body: 'Payment EGP 5' })],
+        options({ accounts: [account({ currencyCode: 'EGP' })] })
+      )
+    ).events[0];
+    expect(event?.accountId).toBeUndefined();
+    expect(event?.classification?.reasonCodes).toContain('ambiguous_account');
   });
   it('treats explicit salary as income', async () => {
     const event = (

@@ -36,6 +36,11 @@ describeLiveDatabase('automatic tracking source assurance', () => {
     patch: Record<string, unknown> = {},
   ) {
     const native = randomUUID();
+    const config = await repository.ruleSnapshot({
+      userId: owner,
+      sessionId: 'safety-test',
+      factorAgeSeconds: 0,
+    });
     const { providerReference, ...classification } = classifyFinancialMessage({
       text,
       country: 'EG',
@@ -60,7 +65,12 @@ describeLiveDatabase('automatic tracking source assurance', () => {
           kind: classification.direction === 'incoming' ? 'income' : 'expense',
           accountId: account,
           classification,
-          metadata: { sourceProvider: 'asserted-provider' },
+          metadata: {
+            sourceProvider: 'asserted-provider',
+            ...(typeof config.configurationRevision === 'string'
+              ? { ruleConfigurationRevision: config.configurationRevision }
+              : {}),
+          },
           transport: {
             deviceId: 'assurance-device-0001',
             channel: 'android_sms',

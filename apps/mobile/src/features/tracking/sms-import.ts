@@ -32,6 +32,7 @@ interface Options {
   knownFingerprints: ReadonlySet<string>;
   deviceId?: string;
   snapshot?: RuleSnapshot;
+  configurationRevision?: string;
   country?: string;
   bindings?: readonly {
     provider: string;
@@ -128,8 +129,7 @@ export async function prepareFinancialMessageImport(
       classification.currency,
       classification.instruments,
       options,
-      provider?.providerKey,
-      trusted
+      provider?.providerKey
     );
     if (!selected) {
       classification.reasonCodes.push('ambiguous_account');
@@ -138,7 +138,9 @@ export async function prepareFinancialMessageImport(
     if (classification.reasonCodes.length)
       classification.disposition = 'review';
     const kind =
-      classification.subtype === 'salary'
+      ['salary', 'deposit'].includes(classification.subtype) ||
+      (classification.subtype === 'generic_credit' &&
+        !classification.reasonCodes.includes('credit_origin_required'))
         ? 'income'
         : ['refund', 'reversal'].includes(classification.subtype)
           ? 'refund'
@@ -189,7 +191,13 @@ export async function prepareFinancialMessageImport(
       ...(selected ? { accountId: selected.id } : {}),
       ...(classification.merchant ? { merchant: classification.merchant } : {}),
       metadata: {
+        ...(options.configurationRevision
+          ? { ruleConfigurationRevision: options.configurationRevision }
+          : {}),
         ...(sms ? {} : { sourcePackage: sender }),
+        ...(!sms && input.observedAt !== undefined
+          ? { nativeObservedAt: input.observedAt }
+          : {}),
         ...(paymentRail ? { paymentRail } : {}),
         ...(provider ? { sourceProvider: provider.providerKey } : {})
       },
@@ -206,8 +214,7 @@ function selectAccount(
   currency: string | null,
   hints: { role: 'card' | 'account'; suffix: string }[],
   options: Options,
-  provider?: string,
-  allowCurrencyFallback = true
+  provider?: string
 ): Account | null {
   const eligible = options.accounts.filter(
     (a) => a.currencyCode === currency && accountAllowsAutomaticTracking(a)
@@ -241,8 +248,7 @@ function selectAccount(
       ? (matches[0]?.[0] ?? null)
       : null;
   }
-  if (!allowCurrencyFallback) return null;
-  if (eligible.length === 1) return eligible[0] ?? null;
-  const defaults = eligible.filter((a) => a.isDefault);
-  return defaults.length === 1 ? (defaults[0] ?? null) : null;
+  // Currency/default selection is not evidence of the account affected by
+  // a captured event. An explicit instrument or verified binding is required.
+  return null;
 }

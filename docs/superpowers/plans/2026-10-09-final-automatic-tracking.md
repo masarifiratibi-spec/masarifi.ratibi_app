@@ -63,11 +63,11 @@ Gaps and exact ownership:
 
 **Interfaces:** `compileFinancialDiscoveryPolicy(snapshot, overrides)` produces versioned immutable native policy; `discoverFinancialMessage(input, snapshot, overrides)` returns financial evidence and classification using the shared matcher. Native policy returns discard/trusted/discovered, never posting authority.
 
-- [ ] Add failing tests: published action/status + transaction amount/currency; custom + independent financial context; custom alone/amount alone/promos/OTP/chat rejected; AR/EN/mixed/digits; blocked/self/consent disabled; missing config.
-- [ ] Run focused mobile/parser/native tests and record expected failures.
-- [ ] Implement one shared rule-derived policy; native admission only stores admitted candidates; preserve package, lifecycle and owner generation.
-- [ ] Add independent unknown queue quota/per-package cap, retention and counters without bodies in diagnostics.
-- [ ] Verify native/shared parity, privacy no-persist/no-enqueue, offline/restart/revisions; commit checked deliverable.
+- [x] Add failing tests: published action/status + transaction amount/currency; custom + independent financial context; custom alone/amount alone/promos/OTP/chat rejected; AR/EN/mixed/digits; blocked/self/consent disabled; missing config.
+- [x] Run focused mobile/parser/native tests and record expected failures.
+- [x] Implement one shared rule-derived policy; native admission only stores admitted candidates; preserve package, lifecycle and owner generation.
+- [x] Add independent unknown queue quota/per-package cap, retention and counters without bodies in diagnostics.
+- [x] Verify native/shared parity, privacy no-persist/no-enqueue, offline/restart/revisions; commit checked deliverable.
 
 ## Task 2 — keyword semantics and configuration lifecycle
 
@@ -75,11 +75,11 @@ Gaps and exact ownership:
 
 **Interfaces:** persisted neutral financial phrase; `enabled` override suppresses wording; published status safety stays protected. Mutation completes with refreshed cached and native configuration, or reports refresh failure without losing saved state.
 
-- [ ] Reproduce default delete/edit reactivation and current missing individual toggle in failing integration/UI tests.
-- [ ] Add neutral group; preserve legacy groups; forbid published default wording edits/deletes through API; mobile default action toggles only, custom edit/delete.
-- [ ] Make phrase deduplication match DB ownership/case semantics; preserve custom and disabled rows under default seeding/restoration.
-- [ ] Refresh effective rules/native configuration after successful save/restore; last-valid cache offline and reconnect tests.
-- [ ] Update explicit notification consent/local retention wording; verify UI layouts and Admin legacy/v2 distinction; commit.
+- [x] Reproduce default delete/edit reactivation and current missing individual toggle in failing integration/UI tests.
+- [x] Add neutral group; preserve legacy groups; forbid published default wording edits/deletes through API; mobile default action toggles only, custom edit/delete.
+- [x] Make phrase deduplication match DB ownership/case semantics; preserve custom and disabled rows under default seeding/restoration.
+- [x] Refresh effective rules/native configuration after successful save/restore; last-valid cache offline and reconnect tests.
+- [x] Update explicit notification consent/local retention wording; verify UI layouts and Admin legacy/v2 distinction; commit.
 
 ## Task 3 — financial eligibility, source assurance and duplicates
 

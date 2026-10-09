@@ -23,7 +23,7 @@ describeLiveDatabase('automatic database tracking defaults', () => {
        from public.user_keyword_rules where user_id=$1 and origin='default'`,
       [owner],
     );
-    expect(result.rows[0]).toEqual({ total: 86, ar: 40, en: 46 });
+    expect(result.rows[0]).toEqual({ total: 101, ar: 47, en: 54 });
   });
 
   it('seeds idempotently while retaining disabled defaults and custom wording', async () => {
@@ -45,7 +45,7 @@ describeLiveDatabase('automatic database tracking defaults', () => {
        from public.user_keyword_rules where user_id=$1`,
       [owner],
     );
-    expect(result.rows[0]).toEqual({ total: 87, purchase: false, custom: 1 });
+    expect(result.rows[0]).toEqual({ total: 102, purchase: false, custom: 1 });
   });
 
   it('restores from the active database pack and includes protected status wording', async () => {
@@ -66,7 +66,7 @@ describeLiveDatabase('automatic database tracking defaults', () => {
     expect(entries.get('شراء عبر نقاط بيع')).toBe(820);
     expect(entries.get('سدادك')).toBe(790);
     expect(entries.has('my custom purchase')).toBe(true);
-    expect(result.rows).toHaveLength(87);
+    expect(result.rows).toHaveLength(102);
   });
 
   it('backfills an existing empty profile and safely repeats the seed migration', async () => {
@@ -115,7 +115,7 @@ describeLiveDatabase('automatic database tracking defaults', () => {
           )
         ).rows;
         expect(second).toEqual(first);
-        expect(second).toHaveLength(86);
+        expect(second).toHaveLength(101);
         expect(second.find((row) => row.keyword === 'purchase')).toMatchObject({
           enabled: false,
           origin: 'custom',

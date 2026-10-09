@@ -7,6 +7,8 @@ export interface RawBankNotification {
   text: string;
   postedAt: number;
   nativeKey?: string;
+  observedAt?: number;
+  discovered?: boolean;
 }
 
 export interface BankNotificationService {

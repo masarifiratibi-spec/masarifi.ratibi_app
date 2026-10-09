@@ -76,6 +76,12 @@ function parseNotification(value: unknown): RawBankNotification | null {
     title: row.title,
     text: row.text,
     postedAt: Number(row.postedAt),
+    ...(Number.isSafeInteger(row.observedAt) && Number(row.observedAt) >= 0
+      ? { observedAt: Number(row.observedAt) }
+      : {}),
+    ...(typeof row.discovered === 'boolean'
+      ? { discovered: row.discovered }
+      : {}),
     ...(typeof row.nativeKey === 'string' ? { nativeKey: row.nativeKey } : {})
   };
 }

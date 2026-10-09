@@ -21,7 +21,9 @@ describe('bank notification platform service', () => {
           packageName: 'com.bank.app',
           title: 'Bank',
           text: 'Paid SAR 10',
-          postedAt: 1_800_000_000_000
+          postedAt: 1_800_000_000_000,
+          observedAt: 1_800_000_000_125,
+          discovered: true
         },
         { key: '', packageName: 'bad', title: '', text: '', postedAt: -1 }
       ]),
@@ -36,7 +38,9 @@ describe('bank notification platform service', () => {
         packageName: 'com.bank.app',
         title: 'Bank',
         text: 'Paid SAR 10',
-        postedAt: 1_800_000_000_000
+        postedAt: 1_800_000_000_000,
+        observedAt: 1_800_000_000_125,
+        discovered: true
       }
     ]);
     await service.acknowledge(['', 'n-1']);

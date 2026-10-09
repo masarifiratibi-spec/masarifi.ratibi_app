@@ -37,7 +37,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     originalChannel = channel;
     await pool.query("insert into public.profiles(id,status) values($1,'active')", [owner]);
     await pool.query(
-      "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Capture bank','bank','AED',true)",
+      "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Capture bank','bank','AED','4242',true)",
       [accountId, owner],
     );
     await repository.getPreferences(principal);
@@ -77,6 +77,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     channel = 'android_sms',
     provider = 'adcb',
   ) {
+    const configuration = await repository.ruleSnapshot(principal);
     const parsed = classifyFinancialMessage({
       text,
       sender: 'ADCBAlert',
@@ -111,7 +112,10 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
           accountId,
           merchant: classification.merchant,
           classification,
-          metadata: { sourceProvider: provider },
+          metadata: {
+            sourceProvider: provider,
+            ruleConfigurationRevision: configuration.configurationRevision,
+          },
           transport: {
             deviceId: 'integration-device-0001',
             channel,
