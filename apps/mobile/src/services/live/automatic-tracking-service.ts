@@ -436,6 +436,7 @@ export function createLiveAutomaticTrackingService({
             'subscription',
             'installment',
             'fee',
+            'financial',
             'failed_transaction',
             'reversal'
           ] as const),
@@ -695,6 +696,7 @@ export function createLiveAutomaticTrackingService({
               'subscription',
               'installment',
               'fee',
+              'financial',
               'failed_transaction',
               'reversal'
             ]),

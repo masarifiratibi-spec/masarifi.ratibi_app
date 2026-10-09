@@ -19,6 +19,7 @@ import type { TrackingStatusSnapshot } from '@/domain/automatic-tracking';
 import { usePreferenceStore } from '@/state/preferences';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
+import * as coordinator from '@/services/automatic-tracking-coordinator';
 
 const openSmsSettings = jest.fn(async () => undefined);
 
@@ -52,6 +53,45 @@ function renderStatus(
 }
 
 describe('TrackingStatusScreen', () => {
+  it('refreshes effective native configuration after saving a keyword override', async () => {
+    const refreshed = jest
+      .spyOn(coordinator, 'resyncAutomaticTracking')
+      .mockResolvedValue(
+        {} as Awaited<ReturnType<typeof coordinator.resyncAutomaticTracking>>
+      );
+    jest
+      .spyOn(automaticTrackingService, 'listKeywordRules')
+      .mockResolvedValue(defaultKeywordRules);
+    jest
+      .spyOn(automaticTrackingService, 'saveKeywordRules')
+      .mockImplementation(async (rules) => ({
+        value: [...rules],
+        affectedScopes: ['tracking.keywords']
+      }));
+    renderStatus({
+      platform: 'android',
+      mode: 'review_all',
+      permissionStatus: 'granted',
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 22,
+      activeSenderCount: 0,
+      lastUpdatedAt: Date.now()
+    });
+    const toggle = await screen.findByTestId(
+      'tracking-keyword-toggle-expense-en-default'
+    );
+    await act(async () => {
+      fireEvent.press(toggle);
+    });
+    expect(refreshed).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByTestId('tracking-keyword-toggle-expense-en-default')
+    ).toHaveAccessibilityState({ checked: false });
+  });
   beforeEach(async () => {
     openSmsSettings.mockClear();
     const storage = createAppShellStorage();
@@ -627,15 +667,19 @@ describe('TrackingStatusScreen', () => {
       expect(screen.getByText('StarbucksCoffee')).toBeOnTheScreen();
     });
     fireEvent.press(
-      screen.getByTestId('tracking-keyword-remove-expense-ar-starbuckscoffee')
+      screen.getByTestId('tracking-keyword-remove-financial-ar-starbuckscoffee')
     );
     await waitFor(() =>
       expect(screen.queryByText('StarbucksCoffee')).toBeNull()
     );
     fireEvent.press(
-      screen.getByTestId('tracking-keyword-remove-expense-en-default')
+      screen.getByTestId('tracking-keyword-toggle-expense-en-default')
     );
-    await waitFor(() => expect(screen.queryByText('Grocery')).toBeNull());
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('tracking-keyword-toggle-expense-en-default')
+      ).toHaveAccessibilityState({ checked: false })
+    );
   });
 
   it('allows editing a keyword', async () => {
@@ -654,15 +698,28 @@ describe('TrackingStatusScreen', () => {
     });
 
     await screen.findByText('Grocery');
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('tracking-add-keyword-toggle'));
+    });
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByTestId('tracking-new-keyword-input'),
+        'Cafe'
+      );
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('tracking-submit-add-keyword'));
+    });
+    await screen.findByText('Cafe');
     fireEvent.press(
-      screen.getByTestId('tracking-keyword-edit-expense-en-default')
+      screen.getByTestId('tracking-keyword-edit-financial-ar-cafe')
     );
     fireEvent.changeText(
-      screen.getByTestId('tracking-keyword-edit-input-expense-en-default'),
+      screen.getByTestId('tracking-keyword-edit-input-financial-ar-cafe'),
       'Groceries'
     );
     fireEvent.press(
-      screen.getByTestId('tracking-keyword-save-expense-en-default')
+      screen.getByTestId('tracking-keyword-save-financial-ar-cafe')
     );
 
     expect(await screen.findByText('Groceries')).toBeOnTheScreen();

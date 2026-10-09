@@ -318,6 +318,7 @@ const queueSchema = z
                     'subscription',
                     'installment',
                     'fee',
+                    'financial',
                     'failed_transaction',
                     'reversal'
                   ])

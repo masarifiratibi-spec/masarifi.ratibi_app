@@ -23,20 +23,24 @@ describe('keyword rules', () => {
   it('normalizes, rejects empty values, and rejects duplicates by group and language', () => {
     expect(normalizeKeyword('  Grocery  ', 'en')).toBe('grocery');
 
-    expect(addKeywordRule([baseRule], {
-      group: 'expense',
-      language: 'en',
-      value: ' '
-    })).toMatchObject({ error: 'empty' });
+    expect(
+      addKeywordRule([baseRule], {
+        group: 'expense',
+        language: 'en',
+        value: ' '
+      })
+    ).toMatchObject({ error: 'empty' });
 
-    expect(addKeywordRule([baseRule], {
-      group: 'expense',
-      language: 'en',
-      value: 'grocery'
-    })).toMatchObject({ error: 'duplicate' });
+    expect(
+      addKeywordRule([baseRule], {
+        group: 'expense',
+        language: 'en',
+        value: 'grocery'
+      })
+    ).toMatchObject({ error: 'duplicate' });
   });
 
-  it('adds custom rules and deletes rules of either origin', () => {
+  it('adds custom rules and preserves a disabled override for defaults', () => {
     const added = addKeywordRule([baseRule], {
       group: 'expense',
       language: 'en',
@@ -52,6 +56,7 @@ describe('keyword rules', () => {
       })
     );
     expect(deleteKeywordRule(added.rules, 'expense-en-default')).toEqual([
+      expect.objectContaining({ origin: 'default', enabled: false }),
       expect.objectContaining({ origin: 'custom' })
     ]);
     expect(deleteKeywordRule(added.rules, added.rules[1].id)).toHaveLength(1);
@@ -77,15 +82,24 @@ describe('keyword rules', () => {
     );
   });
 
-  it('disables, warns on last enabled rule, and restores defaults', () => {
+  it('disables even the final action rule and restores defaults', () => {
     const disabled = disableKeywordRule([baseRule], baseRule.id);
-    expect(disabled).toMatchObject({ warning: 'last_enabled' });
+    expect(disabled.rules[0]?.enabled).toBe(false);
 
-    const second = { ...baseRule, id: 'expense-en-cafe', value: 'Cafe', normalizedValue: 'cafe' };
-    expect(disableKeywordRule([baseRule, second], baseRule.id).rules[0]).toMatchObject({
+    const second = {
+      ...baseRule,
+      id: 'expense-en-cafe',
+      value: 'Cafe',
+      normalizedValue: 'cafe'
+    };
+    expect(
+      disableKeywordRule([baseRule, second], baseRule.id).rules[0]
+    ).toMatchObject({
       enabled: false
     });
-    expect(restoreDefaultKeywordRules([{ ...baseRule, enabled: false }])[0]).toMatchObject({
+    expect(
+      restoreDefaultKeywordRules([{ ...baseRule, enabled: false }])[0]
+    ).toMatchObject({
       enabled: true
     });
   });

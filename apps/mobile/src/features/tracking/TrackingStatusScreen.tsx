@@ -81,24 +81,35 @@ export function TrackingStatusScreen() {
 
   async function handleKeywordsChange(newRules: KeywordRule[]) {
     const previousRules = keywordRules;
+    let persisted = false;
+    setActionFailed(false);
+    setUpdating(true);
     setKeywordRules(newRules);
     try {
       const savedRules =
         await automaticTrackingService.saveKeywordRules(newRules);
       setKeywordRules(savedRules.value);
+      persisted = true;
+      await resyncAutomaticTracking();
     } catch {
-      setKeywordRules(previousRules);
+      if (!persisted) setKeywordRules(previousRules);
       setActionFailed(true);
+    } finally {
+      setUpdating(false);
     }
   }
 
   async function restoreKeywords() {
     setActionFailed(false);
+    setUpdating(true);
     try {
       const restored = await automaticTrackingService.restoreDefaultKeywords();
       setKeywordRules(restored.value);
+      await resyncAutomaticTracking();
     } catch {
       setActionFailed(true);
+    } finally {
+      setUpdating(false);
     }
   }
 

@@ -10,7 +10,10 @@ export type KeywordRuleSummary = KeywordRule & {
   lastUsedAt: number | null;
 };
 
-export function normalizeKeyword(value: string, language: KeywordRule['language']): string {
+export function normalizeKeyword(
+  value: string,
+  language: KeywordRule['language']
+): string {
   return value.trim().toLocaleLowerCase(language);
 }
 
@@ -20,14 +23,7 @@ export function addKeywordRule(
 ): KeywordChange {
   const normalizedValue = normalizeKeyword(input.value, input.language);
   if (!normalizedValue) return { rules, error: 'empty' };
-  if (
-    rules.some(
-      (rule) =>
-        rule.group === input.group &&
-        rule.language === input.language &&
-        rule.normalizedValue === normalizedValue
-    )
-  ) {
+  if (rules.some((rule) => rule.normalizedValue === normalizedValue)) {
     return { rules, error: 'duplicate' };
   }
   return {
@@ -46,8 +42,14 @@ export function addKeywordRule(
   };
 }
 
-export function deleteKeywordRule(rules: KeywordRule[], id: string): KeywordRule[] {
-  return rules.filter((rule) => rule.id !== id);
+export function deleteKeywordRule(
+  rules: KeywordRule[],
+  id: string
+): KeywordRule[] {
+  const target = rules.find((rule) => rule.id === id);
+  return target?.origin === 'default'
+    ? setKeywordRuleEnabled(rules, id, false)
+    : rules.filter((rule) => rule.id !== id);
 }
 
 export function editKeywordRule(
@@ -56,15 +58,11 @@ export function editKeywordRule(
   value: string
 ): KeywordChange {
   const target = rules.find((rule) => rule.id === id);
-  if (!target) return { rules };
+  if (!target || target.origin === 'default') return { rules };
   const normalizedValue = normalizeKeyword(value, target.language);
   if (!normalizedValue) return { rules, error: 'empty' };
   const duplicate = rules.some(
-    (rule) =>
-      rule.id !== id &&
-      rule.group === target.group &&
-      rule.language === target.language &&
-      rule.normalizedValue === normalizedValue
+    (rule) => rule.id !== id && rule.normalizedValue === normalizedValue
   );
   if (duplicate) return { rules, error: 'duplicate' };
   return {
@@ -74,24 +72,29 @@ export function editKeywordRule(
   };
 }
 
-export function disableKeywordRule(rules: KeywordRule[], id: string): KeywordChange {
-  const target = rules.find((rule) => rule.id === id);
-  if (!target) return { rules };
-  const enabledPeers = rules.filter(
-    (rule) =>
-      rule.group === target.group &&
-      rule.language === target.language &&
-      rule.enabled
-  );
-  if (enabledPeers.length <= 1) return { rules, warning: 'last_enabled' };
-  return {
-    rules: rules.map((rule) =>
-      rule.id === id ? { ...rule, enabled: false } : rule
-    )
-  };
+export function disableKeywordRule(
+  rules: KeywordRule[],
+  id: string
+): KeywordChange {
+  return { rules: setKeywordRuleEnabled(rules, id, false) };
 }
 
-export function restoreDefaultKeywordRules(rules: KeywordRule[]): KeywordRule[] {
+export function setKeywordRuleEnabled(
+  rules: KeywordRule[],
+  id: string,
+  enabled: boolean
+): KeywordRule[] {
+  return rules.map((rule) =>
+    rule.id === id &&
+    !(rule.origin === 'default' && rule.group === 'failed_transaction')
+      ? { ...rule, enabled }
+      : rule
+  );
+}
+
+export function restoreDefaultKeywordRules(
+  rules: KeywordRule[]
+): KeywordRule[] {
   return rules.map((rule) =>
     rule.origin === 'default' ? { ...rule, enabled: true } : rule
   );
@@ -99,7 +102,10 @@ export function restoreDefaultKeywordRules(rules: KeywordRule[]): KeywordRule[] 
 
 export function deriveKeywordRuleSummaries(
   rules: KeywordRule[],
-  recentUseByRuleId: Record<string, { count: number; lastUsedAt: number | null }> = {}
+  recentUseByRuleId: Record<
+    string,
+    { count: number; lastUsedAt: number | null }
+  > = {}
 ): KeywordRuleSummary[] {
   return rules.map((rule) => ({
     ...rule,

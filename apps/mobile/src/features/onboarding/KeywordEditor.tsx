@@ -47,7 +47,7 @@ export function KeywordEditor({
 
   function commitAdd() {
     const result = addKeywordRule(rules, {
-      group: 'expense',
+      group: 'financial',
       language,
       value: draft
     });

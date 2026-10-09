@@ -16,7 +16,8 @@ import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import {
   addKeywordRule,
   deleteKeywordRule,
-  editKeywordRule
+  editKeywordRule,
+  setKeywordRuleEnabled
 } from '@/features/onboarding/keyword-rules';
 
 export interface TrackingKeywordChipsProps {
@@ -49,7 +50,6 @@ export function TrackingKeywordChips({
   const activeCount = rules.filter((r) => r.enabled).length;
 
   const visibleRules = rules.filter((rule) => {
-    if (!rule.enabled) return false;
     if (languageFilter === 'all') return true;
     return rule.language === languageFilter;
   });
@@ -57,7 +57,7 @@ export function TrackingKeywordChips({
   const handleAddSubmit = () => {
     if (!draftKeyword.trim()) return;
     const result = addKeywordRule(rules, {
-      group: 'expense',
+      group: 'financial',
       language: draftLang,
       value: draftKeyword.trim()
     });
@@ -346,65 +346,101 @@ export function TrackingKeywordChips({
                 </StyledText>
               )}
 
-              <Pressable
-                testID={
-                  editingId === rule.id
-                    ? `tracking-keyword-save-${rule.id}`
-                    : `tracking-keyword-edit-${rule.id}`
-                }
-                onPress={() => {
-                  if (editingId === rule.id) submitKeywordEdit(rule);
-                  else {
-                    setEditingId(rule.id);
-                    setEditKeyword(rule.value);
-                    setAddError(null);
+              {rule.origin === 'custom' ? (
+                <Pressable
+                  testID={
+                    editingId === rule.id
+                      ? `tracking-keyword-save-${rule.id}`
+                      : `tracking-keyword-edit-${rule.id}`
                   }
-                }}
-                disabled={disabled}
-                hitSlop={6}
-                style={styles.chipRemoveButton}
-                accessibilityLabel={translate(
-                  editingId === rule.id ? 'tracking.action.save' : 'trust.edit'
-                )}
-                accessibilityRole="button"
-              >
-                <DesignIcon
-                  name={editingId === rule.id ? 'check' : 'edit'}
-                  size="xs"
-                  color={colorTokens.ink['700']}
-                  direction={direction}
-                  decorative
-                />
-              </Pressable>
+                  onPress={() => {
+                    if (editingId === rule.id) submitKeywordEdit(rule);
+                    else {
+                      setEditingId(rule.id);
+                      setEditKeyword(rule.value);
+                      setAddError(null);
+                    }
+                  }}
+                  disabled={disabled}
+                  hitSlop={6}
+                  style={styles.chipRemoveButton}
+                  accessibilityLabel={translate(
+                    editingId === rule.id
+                      ? 'tracking.action.save'
+                      : 'trust.edit'
+                  )}
+                  accessibilityRole="button"
+                >
+                  <DesignIcon
+                    name={editingId === rule.id ? 'check' : 'edit'}
+                    size="xs"
+                    color={colorTokens.ink['700']}
+                    direction={direction}
+                    decorative
+                  />
+                </Pressable>
+              ) : null}
 
               {/* END: Remove button × */}
+              {rule.origin === 'custom' ? (
+                <Pressable
+                  testID={
+                    editingId === rule.id
+                      ? `tracking-keyword-cancel-${rule.id}`
+                      : `tracking-keyword-remove-${rule.id}`
+                  }
+                  onPress={() => {
+                    if (editingId === rule.id) {
+                      setEditingId(null);
+                      setAddError(null);
+                    } else handleRemove(rule);
+                  }}
+                  disabled={disabled}
+                  hitSlop={6}
+                  style={styles.chipRemoveButton}
+                  accessibilityLabel={
+                    editingId === rule.id
+                      ? translate('designSystem.action.cancel')
+                      : translate('appShell.tracking.keywords.delete').replace(
+                          '{{value}}',
+                          rule.value
+                        )
+                  }
+                  accessibilityRole="button"
+                >
+                  <DesignIcon
+                    name="close"
+                    size="xs"
+                    color={colorTokens.ink['700']}
+                    direction={direction}
+                    decorative
+                  />
+                </Pressable>
+              ) : null}
               <Pressable
-                testID={
-                  editingId === rule.id
-                    ? `tracking-keyword-cancel-${rule.id}`
-                    : `tracking-keyword-remove-${rule.id}`
+                testID={`tracking-keyword-toggle-${rule.id}`}
+                onPress={() =>
+                  onChange(setKeywordRuleEnabled(rules, rule.id, !rule.enabled))
                 }
-                onPress={() => {
-                  if (editingId === rule.id) {
-                    setEditingId(null);
-                    setAddError(null);
-                  } else handleRemove(rule);
+                disabled={
+                  disabled ||
+                  (rule.origin === 'default' &&
+                    rule.group === 'failed_transaction')
+                }
+                accessibilityRole="switch"
+                accessibilityState={{
+                  checked: rule.enabled,
+                  disabled:
+                    disabled ||
+                    (rule.origin === 'default' &&
+                      rule.group === 'failed_transaction')
                 }}
-                disabled={disabled}
+                accessibilityLabel={`${translate(rule.enabled ? 'tracking.action.disable' : 'tracking.action.enable')} ${rule.value}`}
                 hitSlop={6}
                 style={styles.chipRemoveButton}
-                accessibilityLabel={
-                  editingId === rule.id
-                    ? translate('designSystem.action.cancel')
-                    : translate('appShell.tracking.keywords.delete').replace(
-                        '{{value}}',
-                        rule.value
-                      )
-                }
-                accessibilityRole="button"
               >
                 <DesignIcon
-                  name="close"
+                  name={rule.enabled ? 'check' : 'add'}
                   size="xs"
                   color={colorTokens.ink['700']}
                   direction={direction}

@@ -143,6 +143,7 @@ export const keywordRuleSchema = z
   .object({
     id: z.string().min(1),
     group: z.enum([
+      'financial',
       'expense',
       'income',
       'transfer',

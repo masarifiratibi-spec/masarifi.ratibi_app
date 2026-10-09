@@ -1040,7 +1040,7 @@ const en = {
     'Some devices (Xiaomi, Samsung, Huawei, etc.) restrict background apps. Tap here to learn how to adjust this for your device.',
   'tracking.keywords.sectionTitle': 'Keywords',
   'tracking.keywords.explanation':
-    'Only messages containing these keywords will be processed',
+    'Enabled phrases help detect financial SMS and app notifications. A phrase alone cannot save a transaction. Safety status rules always stay active.',
   'tracking.keywords.addTitle': 'Add keyword',
   'tracking.keywords.filterAll': 'All',
   'tracking.status.title': 'Tracking status',
