@@ -37,6 +37,8 @@ interface MutationInput {
 }
 interface ExistingMutationInput extends MutationInput {
   transactionId: string;
+  // Internal worker identity; never accepted from a public ledger request body.
+  trackingCaptureId?: string;
 }
 
 @Injectable()
@@ -194,6 +196,15 @@ export class LedgerService {
           ? normalizeRefund(input.body, input.now)
           : normalizeReverse(input.body, input.now);
       transactionId = normalizeTransactionId(input.transactionId);
+      if (input.trackingCaptureId !== undefined) {
+        if (!/^tracking:[a-f0-9]{64}$/.test(input.idempotencyKey))
+          throw new Error('INVALID_TRACKING_IDENTITY');
+        normalized = {
+          ...normalized,
+          trackingCaptureId: normalizeTransactionId(input.trackingCaptureId),
+          trackingCaptureKey: input.idempotencyKey,
+        };
+      }
     } catch {
       throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
     }

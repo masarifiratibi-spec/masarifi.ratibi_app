@@ -399,6 +399,32 @@ describe('LedgerService revision', () => {
 
 describe('LedgerService linked compensation', () => {
   const transactionId = '10000000-0000-4000-8000-000000000003';
+  it('passes an internal automatic capture identity without widening the public refund body', async () => {
+    const { service, repository } = harness();
+    const input = {
+      principal,
+      transactionId,
+      trackingCaptureId: '20000000-0000-4000-8000-000000000002',
+      body: {
+        expectedVersion: 3,
+        amountMinor: 100,
+        reason: 'Automatic refund',
+        occurredAt: '2026-08-30T08:00:00Z',
+      },
+      idempotencyKey: `tracking:${'a'.repeat(64)}`,
+      requestId: 'tracking-request',
+      now: new Date('2026-08-30T08:01:00Z'),
+    };
+    await service.refundTransaction(input);
+    const calls = repository.mutate.mock.calls as unknown[][];
+    const mutation: unknown = calls[0]?.[0];
+    expect(mutation).toMatchObject({
+      command: {
+        trackingCaptureId: input.trackingCaptureId,
+        trackingCaptureKey: input.idempotencyKey,
+      },
+    });
+  });
   it('checks current effect/version and delegates refund and reversal relationships', async () => {
     const { service, repository } = harness();
     await service.refundTransaction({

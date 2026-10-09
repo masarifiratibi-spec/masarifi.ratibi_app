@@ -230,6 +230,7 @@ export class TrackingWorker implements OnModuleDestroy {
                 command.kind === 'reversal'
                   ? this.ledger.reverseTransaction({
                       ...common,
+                      trackingCaptureId: String(item.id),
                       transactionId: String(command.originalTransactionId),
                       body: {
                         expectedVersion: command.originalTransactionVersion,
@@ -239,6 +240,7 @@ export class TrackingWorker implements OnModuleDestroy {
                     })
                   : this.ledger.refundTransaction({
                       ...common,
+                      trackingCaptureId: String(item.id),
                       transactionId: String(command.originalTransactionId),
                       body: {
                         expectedVersion: command.originalTransactionVersion,

@@ -257,6 +257,16 @@ export class EngagementRepository {
     });
   }
 
+  async claimTrackingSourceEvents(limit: number): Promise<SourceNotificationClaim[]> {
+    return this.worker(async (client) => {
+      const result = await client.query<SourceNotificationClaim>(
+        'select * from private.tracking_confirmation_sources($1)',
+        [limit],
+      );
+      return result.rows;
+    });
+  }
+
   async listReminderCandidates(limit: number): Promise<ReminderCandidate[]> {
     return this.worker(async (client) => {
       const result = await client.query<{
@@ -305,7 +315,7 @@ export class EngagementRepository {
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
          values($1,$2,$3,$4,$5,jsonb_build_object(
-             'route','notification_detail','sourceEventId',$1::text,'automaticCapture',($3::text in ('transaction.created','transfer.created') and exists(select 1 from public.transactions t where t.id::text=$8 and t.source='tracking-import')),'actions',
+             'route','notification_detail','sourceEventId',$1::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and exists(select 1 from public.transactions t where t.id::text=$8 and t.source='tracking-import')),'actions',
            case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
              jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
              jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))

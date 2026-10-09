@@ -236,7 +236,7 @@ begin
       accepted_values=proposed_values||jsonb_build_object('transactionId',new.transaction_id,'corroboratedByItemId',new.id)
       where id=pending.review_id;
     update public.import_items set status='accepted',canonical_identity_hash=evidence->>'identityHash',
-      transaction_id=new.transaction_id,operation_id=(evidence->>'operationId')::uuid where id=item.id;
+      transaction_id=new.transaction_id,operation_id=null where id=item.id;
     select source_type into session_source from public.import_sessions where id=item.session_id;
     insert into public.tracking_history(user_id,source_type,source_ref,outcome,reason_codes,parser_version_id,applied_rule_ids,review_item_id,operation_id,transaction_id)
       values(item.user_id,session_source,item.id::text,'duplicate',array['independently_correlated'],item.parser_version_id,item.applied_rule_ids,

@@ -31,6 +31,7 @@ import { ClamAvAttachmentScanner, DeterministicAttachmentScanner } from './suppo
 import { SupportStorage } from './support.storage';
 
 export type EngagementJob =
+  | 'tracking.confirmation.prepare'
   | 'source.consume'
   | 'notification.dispatch'
   | 'notification.expire'
@@ -84,6 +85,7 @@ export class EngagementWorker implements OnModuleDestroy {
   }
 
   runJob(job: string): Promise<number> {
+    if (job === 'tracking.confirmation.prepare') return this.prepareTrackingConfirmations();
     if (job === 'notification.reminders.evaluate') return this.evaluateReminders();
     if (!(ENGAGEMENT_JOBS as readonly string[]).includes(job))
       return Promise.reject(new Error('ENGAGEMENT_JOB_UNKNOWN'));
@@ -136,6 +138,14 @@ export class EngagementWorker implements OnModuleDestroy {
       performance.now() - startedAt,
     );
     this.observability?.backlog('source.consume', sources.length);
+    return sources.length;
+  }
+
+  private async prepareTrackingConfirmations(): Promise<number> {
+    const sources = await this.repository.claimTrackingSourceEvents(
+      this.config.getRequired('MASARIFI_NOTIFICATION_BATCH_SIZE'),
+    );
+    for (const source of sources) await this.ingest(source);
     return sources.length;
   }
 

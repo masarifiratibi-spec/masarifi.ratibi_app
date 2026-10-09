@@ -350,15 +350,25 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     );
     acceptProbe.mockRestore();
     if (acceptanceFailure instanceof Error) throw acceptanceFailure;
-    if (acceptanceFailure) throw new Error('CAPTURE_ACCEPTANCE_FAILED', { cause: acceptanceFailure });
+    if (acceptanceFailure)
+      throw new Error('CAPTURE_ACCEPTANCE_FAILED', { cause: acceptanceFailure });
     expect(known.status).toBe('accepted');
     expect(
       (
-        await pool.query('select status,transaction_id from public.import_items where id=$1', [
-          unknown.id,
-        ])
+        await pool.query(
+          'select status,transaction_id,operation_id from public.import_items where id=$1',
+          [unknown.id],
+        )
       ).rows[0],
-    ).toEqual({ status: 'accepted', transaction_id: known.transactionId });
+    ).toEqual({ status: 'accepted', transaction_id: known.transactionId, operation_id: null });
+    expect(
+      (
+        await pool.query(
+          "select transaction_id,outcome from public.tracking_history where source_ref=$1 and reason_codes @> array['independently_correlated']",
+          [unknown.id],
+        )
+      ).rows,
+    ).toEqual([{ transaction_id: known.transactionId, outcome: 'duplicate' }]);
     expect(
       (
         await pool.query(

@@ -996,6 +996,19 @@ export class LedgerRepository {
       return row.result;
     }
     if (input.operation === 'refundTransaction' || input.operation === 'reverseTransaction') {
+      if (input.command.trackingCaptureId !== undefined) {
+        const row = (
+          await client.query<CommandResult>(
+            'select private.create_tracking_compensation($1,$2::jsonb) result',
+            [
+              input.principal.userId,
+              JSON.stringify({ ...input.command, trackingOperation: input.operation }),
+            ],
+          )
+        ).rows[0];
+        if (!row) throw new Error('LEDGER_RESULT_MISSING');
+        return row.result;
+      }
       const refund = input.operation === 'refundTransaction';
       const sql = refund
         ? 'select private.refund_transaction($1,$2::uuid,$3::bigint,$4::bigint,$5::uuid,$6::timestamptz,$7) result'

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
+import { EngagementRepository } from '../../../src/engagement/engagement.repository';
 import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
@@ -100,7 +101,7 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
     await repository.prepareImport(session, claim.claim_token);
     const finalized = await repository.finalizeImport(session, claim.claim_token);
     await repository.completeImport(session, claim.claim_token, 'succeeded', null);
-    return { config, finalized };
+    return { config, finalized, principal, account, session };
   }
   it('allows only the opted-in owner/device while the global rollout stays review', async () => {
     const approved = await journey('cohort-approved-device');
@@ -119,5 +120,94 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
     expect(
       (await journey('cohort-approved-device', { expired: true })).finalized.autoItems,
     ).toHaveLength(0);
+  });
+
+  it('prepares one confirmation for a committed cohort capture and leaves unrelated events alone', async () => {
+    const { principal, account, session } = await journey('cohort-approved-device');
+    const transaction = (
+      await pool.query<{ result: { transactionId: string } }>(
+        'select private.post_transaction($1,$2::jsonb) result',
+        [
+          principal.userId,
+          JSON.stringify({
+            kind: 'expense',
+            accountId: account,
+            amountMinor: 500,
+            currency: 'EGP',
+            title: 'Cohort purchase',
+            occurredAt: '2026-10-09T10:00:00Z',
+            source: 'tracking-import',
+          }),
+        ],
+      )
+    ).rows[0]?.result.transactionId;
+    if (!transaction) throw new Error('TRANSACTION_EXPECTED');
+    await pool.query(
+      "update public.import_items set status='accepted',transaction_id=$1 where session_id=$2",
+      [transaction, session],
+    );
+    await pool.query(
+      "select private.enqueue_outbox_event('transaction.created','transaction',$1,jsonb_build_object('userId',$2::text))",
+      [transaction, principal.userId],
+    );
+    const unrelated = randomUUID();
+    await pool.query(
+      "select private.enqueue_outbox_event('assistant.message.completed','assistant-message',$1,jsonb_build_object('userId',$2::text))",
+      [unrelated, principal.userId],
+    );
+    const engagement = new EngagementRepository(pool, {} as never);
+    const sources = (await engagement.claimTrackingSourceEvents(100)).filter(
+      (source) => source.user_id === principal.userId,
+    );
+    expect(sources).toHaveLength(1);
+    const source = sources[0];
+    if (!source) throw new Error('CONFIRMATION_SOURCE_EXPECTED');
+    expect(source).toMatchObject({ source_id: transaction, event_type: 'transaction.created' });
+    await engagement.createNotificationFromSource(source, [
+      {
+        channel: 'in_app',
+        provider: 'database',
+        title: 'Saved',
+        body: 'Saved',
+        status: 'queued',
+        nextAttemptAt: null,
+      },
+      {
+        channel: 'push',
+        provider: 'push',
+        title: 'Saved',
+        body: 'Saved',
+        status: 'queued',
+        nextAttemptAt: null,
+      },
+    ]);
+    expect(
+      (await engagement.claimTrackingSourceEvents(100)).filter(
+        (source) => source.user_id === principal.userId,
+      ),
+    ).toHaveLength(0);
+    expect(
+      (
+        await pool.query('select published_at from private.outbox_events where aggregate_id=$1', [
+          unrelated,
+        ])
+      ).rows,
+    ).toEqual([{ published_at: null }]);
+    expect(
+      await repository.confirmation(
+        principal,
+        String(
+          (
+            await pool.query('select id from public.notification_events where source_event_id=$1', [
+              source.source_event_id,
+            ])
+          ).rows[0]?.id,
+        ),
+      ),
+    ).toMatchObject({
+      ready: true,
+      allowed: true,
+      transaction: { amountMinor: 500, currency: 'EGP', direction: 'outgoing' },
+    });
   });
 });
