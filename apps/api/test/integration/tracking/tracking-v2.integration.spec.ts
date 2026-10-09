@@ -588,7 +588,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     },
   );
   it('keeps a completed native revision in review when another unlinked same-amount effect already exists', async () => {
-    const text = 'Purchase AED5.91 card XX4242 at AMBIGUOUS PROGRESSION SHOP';
+    const text = 'Purchase AED5.93 card XX4242 at AMBIGUOUS PROGRESSION SHOP';
     const first = itemFor(
       await capture(text, 'progression-existing', 'progression-existing-reference'),
     );
@@ -627,7 +627,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     expect(
       (
         await pool.query(
-          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=591 and kind=$2',
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=593 and kind=$2',
           [owner, 'expense'],
         )
       ).rows[0]?.count,

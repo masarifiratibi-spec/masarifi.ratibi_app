@@ -210,9 +210,17 @@ jobs:
       - run: npm run test:foundation:e2e
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:integration
+      - run: npm run test:integration -- --json --outputFile=/tmp/masarifi-fresh-integration.json
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - name: Preserve fresh-database compatibility results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.sha }}-fresh-integration
+          path: /tmp/masarifi-fresh-integration.json
+          if-no-files-found: warn
+          retention-days: 14
       - run: npm run test:e2e
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"

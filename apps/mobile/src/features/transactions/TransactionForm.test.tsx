@@ -132,7 +132,9 @@ it('retains the actual Manual failure stage and HTTP correlation after showing t
     process.env.EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED = oldFlag;
     process.env.EXPO_PUBLIC_API_URL = oldUrl;
   }
-});
+  // The first React Native render includes cold module hydration (7.9s observed).
+  // Keep the bounded UI waits and assertions; allow the complete test to finish.
+}, 15000);
 
 it.each([
   [
