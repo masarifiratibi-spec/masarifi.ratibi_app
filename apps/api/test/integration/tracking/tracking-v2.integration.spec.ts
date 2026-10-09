@@ -76,6 +76,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     reference?: string,
     channel = 'android_sms',
     provider = 'adcb',
+    patch: Record<string, unknown> = {},
   ) {
     const configuration = await repository.ruleSnapshot(principal);
     const parsed = classifyFinancialMessage({
@@ -112,9 +113,11 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
           accountId,
           merchant: classification.merchant,
           classification,
+          ...patch,
           metadata: {
             sourceProvider: provider,
             ruleConfigurationRevision: configuration.configurationRevision,
+            ...((patch.metadata as Record<string, unknown>) ?? {}),
           },
           transport: {
             deviceId: 'integration-device-0001',
@@ -290,6 +293,109 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     if (!item) throw new Error('ITEM_EXPECTED');
     return item;
   }
+  it('posts two independently verified references even when their amount, merchant and time are identical', async () => {
+    const first = itemFor(
+      await capture(
+        'Purchase AED6.12 card XX4242 at INDEPENDENT SHOP',
+        'independent-first',
+        'independent-ref-1',
+      ),
+    );
+    const second = itemFor(
+      await capture(
+        'Purchase AED6.12 card XX4242 at INDEPENDENT SHOP',
+        'independent-second',
+        'independent-ref-2',
+      ),
+    );
+    expect(first.status).toBe('accepted');
+    expect(second.status).toBe('accepted');
+    expect(second.transactionId).not.toBe(first.transactionId);
+  });
+  it('links a complete unknown app observation to unique independent verified evidence without another ledger effect', async () => {
+    const text = 'Purchase AED6.19 card XX4242 at CORRELATED SHOP';
+    const known = itemFor(
+      await capture(text, 'correlated-known', 'correlated-ref', 'android_sms', 'adcb', {
+        metadata: { referenceScheme: 'plain-v2' },
+      }),
+    );
+    const unknown = itemFor(
+      await capture(
+        text,
+        'correlated-unknown',
+        'correlated-ref',
+        'android_notification',
+        'asserted-provider',
+        {
+          sender: 'com.unknown.financial',
+          metadata: { sourcePackage: 'com.unknown.financial', referenceScheme: 'plain-v2' },
+        },
+      ),
+    );
+    expect(known.status).toBe('accepted');
+    expect(unknown).toMatchObject({ status: 'accepted', transactionId: known.transactionId });
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=619',
+          [owner],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.user_sender_rules where user_id=$1 and sender_pattern=$2',
+          [owner, 'com.unknown.financial'],
+        )
+      ).rows[0]?.count,
+    ).toBe(0);
+  });
+  it.each(['outgoing', 'incoming'])(
+    'automatically posts an explicitly identified owned %s transfer with two opposite postings',
+    async (direction) => {
+      const other = randomUUID();
+      const suffix = direction === 'outgoing' ? '1111' : '2222';
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Owned transfer endpoint','bank','AED',$3,true)",
+        [other, owner, suffix],
+      );
+      const text =
+        direction === 'outgoing'
+          ? 'Outgoing transfer AED3.41 from account XX4242 to account XX1111'
+          : 'Incoming transfer AED3.42 from account XX2222 to account XX4242';
+      const { providerReference: unused, ...classification } = classifyFinancialMessage({
+        text,
+        country: 'AE',
+        receivedAt: Date.parse('2026-09-26T10:00:00Z'),
+      });
+      void unused;
+      classification.reasonCodes = [];
+      classification.disposition = 'capture_candidate';
+      const result = itemFor(
+        await capture(text, 'owned-' + direction, 'owned-ref-' + direction, 'android_sms', 'adcb', {
+          kind: 'transfer',
+          destinationAccountId: other,
+          classification,
+        }),
+      );
+      expect(result.status).toBe('accepted');
+      const minor = direction === 'outgoing' ? '341' : '342';
+      const entries = (
+        await pool.query(
+          'select account_id,amount_minor::text amount from public.transaction_postings where transaction_id=$1',
+          [result.transactionId],
+        )
+      ).rows;
+      expect(entries).toHaveLength(2);
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          { account_id: direction === 'incoming' ? other : accountId, amount: '-' + minor },
+          { account_id: direction === 'incoming' ? accountId : other, amount: minor },
+        ]),
+      );
+    },
+  );
   it('reuses the refund saved by a secondary review across settlement progression', async () => {
     const purchase = itemFor(
       await capture('Debit card XX4242 was used for AED24.30 at SAMPLE NOVA', 'refund-original'),
