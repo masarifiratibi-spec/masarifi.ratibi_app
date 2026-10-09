@@ -89,7 +89,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       country: 'AE',
       receivedAt: Date.parse('2026-09-26T10:00:00Z'),
     });
-    const { providerReference, ...classification } = parsed;
+    const { providerReference, originalProviderReference, ...classification } = parsed;
     expect(providerReference).toBeNull();
     const command = normalizeNormalizedImport({
       schemaVersion: 2,
@@ -119,6 +119,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
           classification,
           ...patch,
           metadata: {
+            ...(originalProviderReference ? { referenceScheme: 'plain-v2' } : {}),
             sourceProvider: provider,
             ruleConfigurationRevision: configuration.configurationRevision,
             ...((patch.metadata as Record<string, unknown>) ?? {}),
@@ -129,7 +130,8 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
             nativeIdDigest: hash(nativeId),
             revisionDigest: hash(text),
           },
-          ...(reference ? { providerReferenceDigest: hash(reference) } : {}),
+          ...(reference ? { providerReferenceDigest: hash((patch.metadata as Record<string, unknown> | undefined)?.referenceScheme === 'plain-v2' ? 'v2\n' + reference : reference) } : {}),
+          ...(originalProviderReference ? { originalProviderReferenceDigest: hash('v2\n' + originalProviderReference) } : {}),
         },
       ],
     });
@@ -297,6 +299,28 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     if (!item) throw new Error('ITEM_EXPECTED');
     return item;
   }
+  it('reconciles an unknown-first review only after a corresponding verified capture commits', async () => {
+    const text = 'Purchase AED6.23 card XX4242 at UNKNOWN FIRST SHOP';
+    const unknown = itemFor(await capture(text, 'unknown-first-observation', 'unknown-first-reference', 'android_notification', 'asserted', { sender: 'com.unregistered.wallet', metadata: { sourcePackage: 'com.unregistered.wallet', referenceScheme: 'plain-v2' } }));
+    expect(unknown.status).toBe('review');
+    const known = itemFor(await capture(text, 'known-second-observation', 'unknown-first-reference', 'android_sms', 'adcb', { metadata: { referenceScheme: 'plain-v2' } }));
+    expect(known.status).toBe('accepted');
+    expect((await pool.query('select status,transaction_id from public.import_items where id=$1', [unknown.id])).rows[0]).toEqual({ status: 'accepted', transaction_id: known.transactionId });
+    expect((await pool.query('select count(*)::int count from public.transaction_postings where transaction_id=$1', [known.transactionId])).rows[0]?.count).toBe(1);
+  });
+  it.each(['refund', 'reversal'])('automatically posts an explicitly linked completed %s through the existing compensation ledger', async (subtype) => {
+    const minor = subtype === 'refund' ? 429 : 431;
+    const reference = subtype === 'refund' ? 'BANKREF429000' : 'BANKREF431000';
+    const original = itemFor(await capture(`Purchase AED${minor / 100} card XX4242 at LINKED SHOP`, 'linked-original-'+subtype, reference, 'android_sms', 'adcb', { metadata: { referenceScheme: 'plain-v2' } }));
+    expect(original.status).toBe('accepted');
+    const amount = subtype === 'refund' ? 102 : minor;
+    const linked = itemFor(await capture(`${subtype} AED${amount / 100} card XX4242 original reference ${reference}`, 'linked-'+subtype));
+    expect(linked.status).toBe('accepted');
+    const transaction = (await pool.query('select kind,reverses_transaction_id from public.transactions where id=$1', [linked.transactionId])).rows[0];
+    expect(transaction).toEqual({ kind: subtype, reverses_transaction_id: original.transactionId });
+    const posting = (await pool.query('select account_id,amount_minor::text amount from public.transaction_postings where transaction_id=$1', [linked.transactionId])).rows;
+    expect(posting).toEqual([{ account_id: accountId, amount: String(amount) }]);
+  });
   it('posts two independently verified references even when their amount, merchant and time are identical', async () => {
     const first = itemFor(
       await capture(

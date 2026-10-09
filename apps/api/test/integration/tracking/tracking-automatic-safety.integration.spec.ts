@@ -146,4 +146,13 @@ describeLiveDatabase('automatic tracking source assurance', () => {
       reason: 'lifecycle_not_completed',
     });
   });
+  it('resolves configured numeric SMS identity from its digest without storing a phone number', async () => {
+    const numeric = '+201012345678';
+    await pool.query("insert into public.user_sender_rules(user_id,sender_pattern,display_label,trusted,enabled) values($1,$2,'Numeric bank identity',true,true)", [owner, numeric]);
+    const config = await repository.ruleSnapshot({ userId: owner, sessionId: 'safety-test', factorAgeSeconds: 0 });
+    const result = await prepare('Purchase EGP 5 card XX4242', '', undefined, { sender: undefined, metadata: { sourceIdentityDigest: hash(numeric), ruleConfigurationRevision: config.configurationRevision } });
+    expect(result?.status).toBe('parsed');
+    const saved = (await pool.query('select normalized_payload from public.import_items where id=$1', [result?.id])).rows[0]?.normalized_payload;
+    expect(JSON.stringify(saved)).not.toContain(numeric);
+  });
 });
