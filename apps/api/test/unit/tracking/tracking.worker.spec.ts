@@ -4,6 +4,63 @@ import { TRACKING_METRICS } from '../../../src/platform/observability/platform-m
 import * as platformMetrics from '../../../src/platform/observability/platform-metrics';
 
 describe('tracking worker', () => {
+  it.each(['refund', 'reversal'])(
+    'uses the compensation ledger for an automatically linked %s',
+    async (subtype) => {
+      const repository = {
+        claimImports: jest.fn(() => Promise.resolve([{ id: 'session', claim_token: 'fence' }])),
+        prepareImport: jest.fn(() => Promise.resolve({ parserItems: [] })),
+        finalizeImport: jest.fn(() =>
+          Promise.resolve({
+            autoItems: [
+              {
+                id: 'capture',
+                userId: 'owner',
+                values: {
+                  kind: 'refund',
+                  classification: { subtype, direction: 'incoming' },
+                  amountMinor: 102,
+                  currency: 'AED',
+                  accountId: 'account',
+                  originalTransactionId: 'original',
+                  originalTransactionVersion: 3,
+                  occurredAt: '2026-09-26T10:00:00Z',
+                },
+              },
+            ],
+          }),
+        ),
+        getImportSourceIdentityHash: jest.fn(() => Promise.resolve('f'.repeat(64))),
+        acceptImportItem: jest.fn(() => Promise.resolve()),
+        completeImport: jest.fn(() => Promise.resolve()),
+      };
+      const response = { transaction: { transaction: { id: 'compensation' } } };
+      const ledger = {
+        createTransaction: jest.fn(),
+        transfer: jest.fn(),
+        refundTransaction: jest.fn(() => Promise.resolve(response)),
+        reverseTransaction: jest.fn(() => Promise.resolve(response)),
+      };
+      await new TrackingWorker(repository as never, ledger as never, {} as never).runJob(
+        'import.parse',
+      );
+      const method = subtype === 'refund' ? ledger.refundTransaction : ledger.reverseTransaction;
+      expect(method).toHaveBeenCalledTimes(1);
+      expect((method.mock.calls as unknown[][])[0]?.[0]).toMatchObject({
+        transactionId: 'original',
+        idempotencyKey: `tracking:${'f'.repeat(64)}`,
+        body: { expectedVersion: 3, occurredAt: '2026-09-26T10:00:00Z' },
+      });
+      expect(ledger.createTransaction).not.toHaveBeenCalled();
+      expect(repository.acceptImportItem).toHaveBeenCalledWith(
+        'capture',
+        'fence',
+        expect.any(String),
+        'compensation',
+      );
+    },
+  );
+
   it('coalesces concurrent runs and completes parse, raw purge, reconciliation, and metrics', async () => {
     let release!: () => void;
     const claim = new Promise<Array<never>>((resolve) => {

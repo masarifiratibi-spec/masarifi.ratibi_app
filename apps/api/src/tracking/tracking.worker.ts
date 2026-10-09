@@ -225,45 +225,68 @@ export class TrackingWorker implements OnModuleDestroy {
             requestId: stableUuid(key),
           };
           const response = record(
-            command.kind === 'transfer'
-              ? await this.ledger.transfer({
-                  ...common,
-                  body: {
-                    sourceAccountId:
-                      record(command.classification ?? {}).direction === 'incoming'
-                        ? command.destinationAccountId
-                        : command.accountId,
-                    destinationAccountId:
-                      record(command.classification ?? {}).direction === 'incoming'
-                        ? command.accountId
-                        : command.destinationAccountId,
-                    amountMinor: Math.abs(Number(command.amountMinor)),
-                    currency: command.currency,
-                    feeMinor: 0,
-                    source: 'tracking-import',
-                    externalRef: key,
-                    occurredAt: command.occurredAt,
-                    title: command.title ?? command.merchant ?? 'Imported transaction',
-                    note: command.note ?? null,
-                  },
-                })
-              : await this.ledger.createTransaction({
-                  ...common,
-                  body: {
-                    kind: command.kind === 'fee' ? 'expense' : command.kind,
-                    amountMinor: Math.abs(Number(command.amountMinor)),
-                    currency: command.currency,
-                    accountId: command.accountId,
-                    categoryId: command.categoryId ?? null,
-                    title: command.title ?? command.merchant ?? 'Imported transaction',
-                    merchant: command.merchant ?? null,
-                    paymentMethod: command.paymentMethod ?? null,
-                    note: command.note ?? null,
-                    occurredAt: command.occurredAt,
-                    source: 'tracking-import',
-                    externalRef: key,
-                  },
-                }),
+            command.kind === 'refund' || command.kind === 'reversal'
+              ? await (record(command.classification ?? {}).subtype === 'reversal' ||
+                command.kind === 'reversal'
+                  ? this.ledger.reverseTransaction({
+                      ...common,
+                      transactionId: String(command.originalTransactionId),
+                      body: {
+                        expectedVersion: command.originalTransactionVersion,
+                        occurredAt: command.occurredAt,
+                        reason: 'Automatic tracking reversal',
+                      },
+                    })
+                  : this.ledger.refundTransaction({
+                      ...common,
+                      transactionId: String(command.originalTransactionId),
+                      body: {
+                        expectedVersion: command.originalTransactionVersion,
+                        amountMinor: Math.abs(Number(command.amountMinor)),
+                        accountId: command.accountId,
+                        occurredAt: command.occurredAt,
+                        reason: 'Automatic tracking refund',
+                      },
+                    }))
+              : command.kind === 'transfer'
+                ? await this.ledger.transfer({
+                    ...common,
+                    body: {
+                      sourceAccountId:
+                        record(command.classification ?? {}).direction === 'incoming'
+                          ? command.destinationAccountId
+                          : command.accountId,
+                      destinationAccountId:
+                        record(command.classification ?? {}).direction === 'incoming'
+                          ? command.accountId
+                          : command.destinationAccountId,
+                      amountMinor: Math.abs(Number(command.amountMinor)),
+                      currency: command.currency,
+                      feeMinor: 0,
+                      source: 'tracking-import',
+                      externalRef: key,
+                      occurredAt: command.occurredAt,
+                      title: command.title ?? command.merchant ?? 'Imported transaction',
+                      note: command.note ?? null,
+                    },
+                  })
+                : await this.ledger.createTransaction({
+                    ...common,
+                    body: {
+                      kind: command.kind === 'fee' ? 'expense' : command.kind,
+                      amountMinor: Math.abs(Number(command.amountMinor)),
+                      currency: command.currency,
+                      accountId: command.accountId,
+                      categoryId: command.categoryId ?? null,
+                      title: command.title ?? command.merchant ?? 'Imported transaction',
+                      merchant: command.merchant ?? null,
+                      paymentMethod: command.paymentMethod ?? null,
+                      note: command.note ?? null,
+                      occurredAt: command.occurredAt,
+                      source: 'tracking-import',
+                      externalRef: key,
+                    },
+                  }),
           );
           const transaction = record(record(response.transaction).transaction);
           await this.repository.acceptImportItem(
