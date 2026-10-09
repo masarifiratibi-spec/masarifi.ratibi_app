@@ -311,6 +311,18 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     return item;
   }
   it('reconciles an unknown-first review only after a corresponding verified capture commits', async () => {
+    let acceptanceFailure: unknown;
+    const originalAccept = repository.acceptImportItem.bind(repository);
+    const acceptProbe = jest
+      .spyOn(repository, 'acceptImportItem')
+      .mockImplementation(async (...args) => {
+        try {
+          await originalAccept(...args);
+        } catch (error) {
+          acceptanceFailure = error;
+          throw error;
+        }
+      });
     const text = 'Purchase AED6.23 card XX4242 at UNKNOWN FIRST SHOP';
     const unknown = itemFor(
       await capture(
@@ -336,6 +348,9 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
         { metadata: { referenceScheme: 'plain-v2' } },
       ),
     );
+    acceptProbe.mockRestore();
+    if (acceptanceFailure instanceof Error) throw acceptanceFailure;
+    if (acceptanceFailure) throw new Error('CAPTURE_ACCEPTANCE_FAILED', { cause: acceptanceFailure });
     expect(known.status).toBe('accepted');
     expect(
       (
