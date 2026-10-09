@@ -604,6 +604,36 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     ).toEqual([{ provider: 'adcb', role: 'card', suffix: '4242', account_id: accountId }]);
   });
 
+  it('remembers the source and destination instruments against their actual reviewed transfer accounts', async () => {
+    const destination = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Binding destination','bank','AED','5678',true)",
+      [destination, owner],
+    );
+    const review = itemFor(
+      await capture(
+        'Pending outgoing transfer AED2.27 from account XX4242 to account XX5678',
+        'transfer-binding-review',
+        undefined,
+        'android_sms',
+        'adcb',
+        { destinationAccountId: destination },
+      ),
+    );
+    await accept(review, { settlementConfirmed: true, rememberAccountBinding: true });
+    expect(
+      (
+        await pool.query(
+          'select suffix,account_id from public.tracking_account_bindings where user_id=$1 and role=$2 order by suffix',
+          [owner, 'account'],
+        )
+      ).rows,
+    ).toEqual([
+      { suffix: '4242', account_id: accountId },
+      { suffix: '5678', account_id: destination },
+    ]);
+  });
+
   it('rejects swapped transfer replay edits without posting a second transfer', async () => {
     const source = randomUUID();
     await pool.query(
