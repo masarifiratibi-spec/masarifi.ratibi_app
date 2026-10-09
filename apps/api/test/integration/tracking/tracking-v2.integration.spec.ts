@@ -537,9 +537,10 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     async (withReference) => {
       const key = 'progression-' + String(withReference);
       const reference = withReference ? key + '-reference' : undefined;
+      const amount = withReference ? '5.87' : '5.89';
       const pending = itemFor(
         await capture(
-          'Purchase AED5.87 pending card XX4242 at PROGRESSION SHOP',
+          `Purchase AED${amount} pending card XX4242 at PROGRESSION SHOP`,
           key + '-pending',
           reference,
           'android_sms',
@@ -551,7 +552,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       expect(pending.status).toBe('review');
       const completed = itemFor(
         await capture(
-          'Purchase AED5.87 card XX4242 at PROGRESSION SHOP',
+          `Purchase AED${amount} card XX4242 at PROGRESSION SHOP`,
           key + '-complete',
           reference,
           'android_sms',
@@ -586,6 +587,52 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       ).toBe(1);
     },
   );
+  it('keeps a completed native revision in review when another unlinked same-amount effect already exists', async () => {
+    const text = 'Purchase AED5.91 card XX4242 at AMBIGUOUS PROGRESSION SHOP';
+    const first = itemFor(
+      await capture(text, 'progression-existing', 'progression-existing-reference'),
+    );
+    expect(first.status).toBe('accepted');
+    const pending = itemFor(
+      await capture(
+        text.replace('card', 'pending card'),
+        'ambiguous-pending',
+        undefined,
+        'android_sms',
+        'adcb',
+        {},
+        'ambiguous-native',
+      ),
+    );
+    expect(pending.status).toBe('review');
+    const completed = itemFor(
+      await capture(
+        text,
+        'ambiguous-completed',
+        undefined,
+        'android_sms',
+        'adcb',
+        {},
+        'ambiguous-native',
+      ),
+    );
+    expect(completed).toMatchObject({ status: 'review', transactionId: null });
+    expect(
+      (
+        await pool.query('select reason from public.review_items where import_item_id=$1', [
+          completed.id,
+        ])
+      ).rows,
+    ).toEqual([{ reason: 'duplicate_candidate' }]);
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=591 and kind=$2',
+          [owner, 'expense'],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
   it.each([
     'Deposit request AED10 account XX4242',
     'Refund request AED1 card XX4242 original reference REQUEST-ORIGINAL',
