@@ -112,7 +112,8 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
             ? 'income'
             : ['refund', 'reversal'].includes(classification.subtype)
               ? 'refund'
-              : classification.subtype.startsWith('transfer_')
+              : classification.subtype.startsWith('transfer_') ||
+                  classification.subtype === 'withdrawal'
                 ? 'transfer'
                 : 'expense',
           accountId,
@@ -1014,5 +1015,73 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       )
     ).rows;
     expect(postings).toEqual([{ amount: '37' }, { amount: '682' }]);
+  });
+  it('automatically withdraws only into the explicitly reviewed cash destination with no net money creation', async () => {
+    const cash = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Verified cash destination','cash','AED',true)",
+      [cash, owner],
+    );
+    const first = itemFor(await capture('Cash withdrawal AED8.19 card XX4242', 'withdrawal-first'));
+    expect(first.status).toBe('review');
+    await accept(first, {
+      kind: 'transfer',
+      destinationAccountId: cash,
+      rememberAccountBinding: true,
+    });
+    const learned = (
+      await pool.query(
+        "select role,account_id from public.tracking_account_bindings where user_id=$1 and role='cash_card' and suffix='4242'",
+        [owner],
+      )
+    ).rows;
+    expect(learned).toEqual([{ role: 'cash_card', account_id: cash }]);
+    const text = 'Cash withdrawal AED8.23 card XX4242';
+    const {
+      providerReference: unused,
+      originalProviderReference: unusedOriginal,
+      ...classification
+    } = classifyFinancialMessage({ text, receivedAt: Date.parse('2026-09-26T10:00:00Z') });
+    void unused;
+    void unusedOriginal;
+    classification.reasonCodes = [];
+    classification.disposition = 'capture_candidate';
+    const second = itemFor(
+      await capture(text, 'withdrawal-mapped', 'withdrawal-reference', 'android_sms', 'adcb', {
+        kind: 'transfer',
+        destinationAccountId: cash,
+        classification,
+      }),
+    );
+    expect(second.status).toBe('accepted');
+    const postings = (
+      await pool.query(
+        'select account_id,amount_minor::text amount from public.transaction_postings where transaction_id=$1 order by amount_minor',
+        [second.transactionId],
+      )
+    ).rows;
+    expect(postings).toEqual([
+      { account_id: accountId, amount: '-823' },
+      { account_id: cash, amount: '823' },
+    ]);
+    await pool.query('update public.accounts set automatic_tracking_enabled=false where id=$1', [
+      cash,
+    ]);
+    const stopped = itemFor(
+      await capture(
+        text.replace('8.23', '8.24'),
+        'withdrawal-disabled',
+        undefined,
+        'android_sms',
+        'adcb',
+        {
+          kind: 'transfer',
+          destinationAccountId: cash,
+          classification: { ...classification, amountMinor: 824 },
+          amountMinor: -824,
+        },
+      ),
+    );
+    expect(stopped).toMatchObject({ status: 'review', transactionId: null });
   });
 });

@@ -76,6 +76,20 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('uses only a previously confirmed cash destination for a withdrawal', async () => {
+    const bank = account({ currencyCode: 'AED' });
+    const cash = account({ id: '10000000-0000-4000-8000-000000000002', type: 'cash', currencyCode: 'AED', lastFour: null });
+    const input = message({ sender: 'ADCBAlert', body: 'Cash withdrawal AED8.19 card XX4242' });
+    const unmapped = (await prepareSmsImport([input], options({ accounts: [bank, cash] }))).events[0];
+    expect(unmapped?.destinationAccountId).toBeUndefined();
+    expect(unmapped?.classification?.reasonCodes).toContain('cash_destination_required');
+    const configured = { accounts: [bank, cash], bindings: [{ provider: 'adcb', role: 'cash_card', suffix: '4242', accountId: cash.id }] };
+    const mapped = (await prepareSmsImport([input], options(configured))).events[0];
+    expect(mapped).toMatchObject({ kind: 'transfer', accountId: bank.id, destinationAccountId: cash.id, amountMinor: -819, currency: 'AED', classification: { subtype: 'withdrawal', direction: 'outgoing', disposition: 'capture_candidate', reasonCodes: [] } });
+    const disabled = (await prepareSmsImport([input], options({ ...configured, accounts: [bank, { ...cash, automaticTrackingEnabled: false }] }))).events[0];
+    expect(disabled?.destinationAccountId).toBeUndefined();
+    expect(disabled?.classification?.reasonCodes).toContain('cash_destination_required');
+  });
   it('sends only a digest of the explicit original refund reference and keeps missing linkage in review', async () => {
     const event = (await prepareSmsImport([message({ body: 'Refund SAR 5 card XX4242 original reference OLD123456' })], options())).events[0];
     expect(event?.originalProviderReferenceDigest).toMatch(/^[a-f0-9]{64}$/);
