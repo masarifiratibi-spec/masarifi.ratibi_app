@@ -76,6 +76,14 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it.each(['incoming', 'outgoing'] as const)('classifies an external %s transfer as ordinary income/expense without requiring a counterpart mapping', async (direction) => {
+    const body = direction === 'incoming'
+      ? 'Incoming transfer SAR8.47 to account XX4242'
+      : 'Outgoing transfer SAR8.48 from account XX4242 to Ahmed';
+    const event = (await prepareSmsImport([message({ body })], options())).events[0];
+    expect(event).toMatchObject({ kind: direction === 'incoming' ? 'income' : 'expense', accountId: account().id, classification: { direction, subtype: direction === 'incoming' ? 'transfer_received' : 'transfer_sent', disposition: 'capture_candidate', reasonCodes: [] } });
+    expect(event?.destinationAccountId).toBeUndefined();
+  });
   it('uses only a previously confirmed cash destination for a withdrawal', async () => {
     const bank = account({ currencyCode: 'AED' });
     const cash = account({ id: '10000000-0000-4000-8000-000000000002', type: 'cash', currencyCode: 'AED', lastFour: null });
@@ -83,7 +91,7 @@ describe('financial capture preparation', () => {
     const unmapped = (await prepareSmsImport([input], options({ accounts: [bank, cash] }))).events[0];
     expect(unmapped?.destinationAccountId).toBeUndefined();
     expect(unmapped?.classification?.reasonCodes).toContain('cash_destination_required');
-    const configured = { accounts: [bank, cash], bindings: [{ provider: 'adcb', role: 'cash_card', suffix: '4242', accountId: cash.id }] };
+    const configured = { accounts: [bank, cash], senderRules: [{ ...sender(), normalizedSender: 'adcbalert' }], bindings: [{ provider: 'adcb', role: 'cash_card', suffix: '4242', accountId: cash.id }] };
     const mapped = (await prepareSmsImport([input], options(configured))).events[0];
     expect(mapped).toMatchObject({ kind: 'transfer', accountId: bank.id, destinationAccountId: cash.id, amountMinor: -819, currency: 'AED', classification: { subtype: 'withdrawal', direction: 'outgoing', disposition: 'capture_candidate', reasonCodes: [] } });
     const disabled = (await prepareSmsImport([input], options({ ...configured, accounts: [bank, { ...cash, automaticTrackingEnabled: false }] }))).events[0];

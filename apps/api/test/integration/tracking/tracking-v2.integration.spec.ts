@@ -1084,4 +1084,58 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     );
     expect(stopped).toMatchObject({ status: 'review', transactionId: null });
   });
+  it.each(['incoming', 'outgoing'])(
+    'posts a complete external %s transfer as ordinary income/expense with one posting and preserves its subtype',
+    async (direction) => {
+      const text =
+        direction === 'incoming'
+          ? 'Incoming transfer AED8.47 to account XX4242'
+          : 'Outgoing transfer AED8.48 from account XX4242 to Ahmed';
+      const {
+        providerReference: unused,
+        originalProviderReference: unusedOriginal,
+        ...classification
+      } = classifyFinancialMessage({ text, receivedAt: Date.parse('2026-09-26T10:00:00Z') });
+      void unused;
+      void unusedOriginal;
+      classification.reasonCodes = [];
+      classification.disposition = 'capture_candidate';
+      const kind = direction === 'incoming' ? 'income' : 'expense';
+      const saved = itemFor(
+        await capture(
+          text,
+          'external-' + direction,
+          'external-ref-' + direction,
+          'android_sms',
+          'adcb',
+          { kind, classification },
+        ),
+      );
+      expect(saved.status).toBe('accepted');
+      expect((saved.normalizedPayload as Record<string, unknown>).classification).toMatchObject({
+        subtype: direction === 'incoming' ? 'transfer_received' : 'transfer_sent',
+        direction,
+      });
+      const postings = (
+        await pool.query(
+          'select t.kind,p.account_id,p.amount_minor::text amount from public.transactions t join public.transaction_postings p on p.transaction_id=t.id where t.id=$1',
+          [saved.transactionId],
+        )
+      ).rows;
+      expect(postings).toEqual([
+        { kind, account_id: accountId, amount: direction === 'incoming' ? '847' : '-848' },
+      ]);
+      const retry = itemFor(
+        await capture(
+          text,
+          'external-retry-' + direction,
+          'external-ref-' + direction,
+          'android_notification',
+          'adcb',
+          { kind, classification },
+        ),
+      );
+      expect(retry).toMatchObject({ status: 'accepted', transactionId: saved.transactionId });
+    },
+  );
 });
