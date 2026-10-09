@@ -82,8 +82,24 @@ export interface AutomaticTrackingService {
     idempotencyKey: string,
     expectedOwnerId?: string
   ): Promise<TrackingImportSession>;
-  getImportSession(id: string, expectedOwnerId?: string): Promise<TrackingImportSession>;
+  getImportSession(
+    id: string,
+    expectedOwnerId?: string
+  ): Promise<TrackingImportSession>;
   listImportItemIds(sessionId: string): Promise<string[]>;
+  listImportOutcomes?(
+    sessionId: string
+  ): Promise<
+    {
+      itemId: string;
+      status: string;
+      transactionId: string | null;
+      notificationId: string | null;
+    }[]
+  >;
+  getRuleConfiguration?(): Promise<
+    import('@/storage/sms-import-queue').SmsRuleSnapshot
+  >;
   listDuplicates(): Promise<DuplicateCandidate[]>;
   getStatus(): Promise<TrackingStatusSnapshot>;
   setMode(mode: TrackingMode): Promise<TrackingStatusSnapshot>;

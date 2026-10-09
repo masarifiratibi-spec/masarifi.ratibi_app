@@ -37,6 +37,17 @@ type Input = {
 @UseGuards(ClerkAuthGuard)
 export class TrackingController {
   constructor(readonly tracking: TrackingService) {}
+  @Get('api/v1/tracking/confirmations/:notificationId')
+  @ApiOperation({ operationId: 'getTrackingConfirmation' })
+  confirmation(@Req() request: Request, @Param('notificationId') id: string) {
+    return this.tracking.confirmation(this.principal(request), id);
+  }
+
+  @Get('api/v1/tracking/rule-snapshot')
+  @ApiOperation({ operationId: 'getTrackingRuleSnapshot' })
+  ruleSnapshot(@Req() request: Request) {
+    return this.tracking.ruleSnapshot(this.principal(request));
+  }
 
   @Get('api/v1/tracking/preferences')
   @ApiOperation({ operationId: 'getTrackingPreferences' })

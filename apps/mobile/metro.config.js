@@ -2,6 +2,12 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const path = require('node:path');
+config.watchFolders = [
+  path.resolve(__dirname, '../../packages/transaction-parser')
+];
+config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
 
 config.resolver.assetExts.push('wasm');
 

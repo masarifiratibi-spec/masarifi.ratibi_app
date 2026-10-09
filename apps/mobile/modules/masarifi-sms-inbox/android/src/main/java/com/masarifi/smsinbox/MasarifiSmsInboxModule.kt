@@ -16,6 +16,29 @@ class MasarifiSmsInboxModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("MasarifiSmsInbox")
 
+    AsyncFunction("readSmsPage") { since: Double, afterId: String, requestedLimit: Int ->
+      val context=appContext.reactContext ?: throw IllegalStateException("sms_context_unavailable")
+      if(context.checkSelfPermission(Manifest.permission.READ_SMS)!=PackageManager.PERMISSION_GRANTED) throw SecurityException("sms_permission_required")
+      val messages=mutableListOf<Map<String,Any>>()
+      val id=afterId.toLongOrNull() ?: -1L
+      context.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI,arrayOf("_id","address","body","date"),
+        "date > ? OR (date = ? AND _id > ?)",arrayOf(since.toLong().toString(),since.toLong().toString(),id.toString()),"date ASC, _id ASC")?.use { cursor ->
+        while(messages.size<requestedLimit.coerceIn(1,100) && cursor.moveToNext()) messages.add(mapOf("id" to cursor.getString(0),"sender" to (cursor.getString(1)?:""),"body" to (cursor.getString(2)?:""),"receivedAt" to cursor.getLong(3)))
+      }
+      messages
+    }
+    AsyncFunction("configureTrackingOwner") { owner:String,generation:String,sms:Boolean,notifications:Boolean,packages:List<String> ->
+      val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
+      TrackingOwner.configure(context,owner,generation,sms,notifications,packages.filter {it.matches(Regex("[a-zA-Z][\\w]*(\\.[\\w]+)+"))})
+    }
+    AsyncFunction("suspendTrackingOwner") {appContext.reactContext?.let {TrackingOwner.suspend(it)}}
+    AsyncFunction("clearTrackingOwner") {appContext.reactContext?.let {TrackingOwner.clear(it)}}
+    AsyncFunction("finishTrackingWork") {workId:String,succeeded:Boolean -> TrackingWorker.finish(workId,succeeded)}
+    AsyncFunction("presentCaptureConfirmation") {ownerId:String,notificationId:String,title:String,body:String ->
+      val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
+      CaptureConfirmation.present(context,ownerId,notificationId,title,body)
+    }
+
     AsyncFunction("readRecentSms") { since: Double, requestedLimit: Int ->
       val context = appContext.reactContext
         ?: throw IllegalStateException("sms_context_unavailable")
@@ -103,7 +126,8 @@ class MasarifiSmsInboxModule : Module() {
           "packageName" to record.packageName,
           "title" to record.title,
           "text" to record.text,
-          "postedAt" to record.postedAt
+          "postedAt" to record.postedAt,
+          "nativeKey" to record.nativeKey
         )
       }
     }

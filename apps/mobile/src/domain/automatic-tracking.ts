@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import type { KeywordRule, TrackingPreference } from './app-shell';
 import type { TransactionInput } from './core-finance';
+import type { Classification } from '@masarifi/transaction-parser';
 
 export const trackingPlatforms = ['android', 'ios', 'conservative'] as const;
 export const trackingServiceStates = [
@@ -74,10 +75,18 @@ export interface TrackingImportEvent {
   kind?: 'income' | 'expense' | 'transfer' | 'refund' | 'fee';
   accountId?: string;
   categoryId?: string;
+  classification?: Omit<Classification, 'providerReference'>;
+  transport?: {
+    deviceId: string;
+    channel: 'android_sms' | 'android_notification';
+    nativeIdDigest: string;
+    revisionDigest: string;
+  };
+  providerReferenceDigest?: string;
 }
 
 export interface TrackingImportSubmission {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   sourceType: 'sms' | 'provider' | 'manual';
   sourceChannel?:
     | 'android_sms'

@@ -8,6 +8,65 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/tracking/rule-snapshot:
+    get:
+      operationId: getTrackingRuleSnapshot
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/tracking/confirmations/{notificationId}:
+    get:
+      operationId: getTrackingConfirmation
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TrackingUuid' }
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/admin/tracking/rule-releases:
+    get:
+      operationId: listTrackingRuleReleases
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      x-admin-permission: parsers.coverage.read
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+    post:
+      operationId: createTrackingRuleRelease
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      x-admin-permission: parsers.versions.manage
+      x-requires-recent-auth: true
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
+      responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/admin/tracking/rule-releases/{releaseId}:
+    get:
+      operationId: getTrackingRuleRelease
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: releaseId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TrackingUuid' }
+      x-admin-permission: parsers.coverage.read
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/admin/tracking/rule-releases/{releaseId}/action:
+    post:
+      operationId: actOnTrackingRuleRelease
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: releaseId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TrackingUuid' }
+      x-admin-permission: parsers.versions.manage
+      x-requires-recent-auth: true
+      requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
+      responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
   /api/v1/tracking/preferences:
     get:
       operationId: getTrackingPreferences
@@ -1004,14 +1063,51 @@ components:
               expectedVersion: { type: integer, minimum: 1 }
               patch: { type: object, maxProperties: 12 }
   schemas:
+    TrackingMessageTransport:
+      type: object
+      additionalProperties: false
+      required: [deviceId, channel, nativeIdDigest, revisionDigest]
+      properties:
+        deviceId: { type: string, minLength: 8, maxLength: 200 }
+        channel: { type: string, enum: [android_sms, android_notification] }
+        nativeIdDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        revisionDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+    TrackingMessageClassification:
+      type: object
+      additionalProperties: false
+      required: [direction, subtype, status, disposition, amountMinor, currency, merchant, instruments, occurredAt, timeProvenance, reasonCodes, appliedRuleKeys, releaseId, engineVersion]
+      properties:
+        direction: { type: string, enum: [outgoing, incoming, internal, unknown] }
+        subtype: { type: string, maxLength: 64 }
+        status: { type: string, enum: [completed, pending, failed, declined, cancelled, administrative, unknown] }
+        disposition: { type: string, enum: [capture_candidate, review, ignore] }
+        amountMinor: { type: [integer, 'null'], minimum: 1, maximum: 9007199254740991 }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        merchant: { type: [string, 'null'], maxLength: 200 }
+        instruments:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, suffix]
+            properties:
+              role: { type: string, enum: [card, account] }
+              suffix: { type: string, pattern: '^[0-9]{4,12}$' }
+        occurredAt: { type: [string, 'null'], format: date-time }
+        timeProvenance: { type: string, enum: [embedded, received, ambiguous] }
+        reasonCodes: { type: array, maxItems: 32, items: { type: string, maxLength: 100 } }
+        appliedRuleKeys: { type: array, maxItems: 100, items: { type: string, maxLength: 100 } }
+        releaseId: { type: string, minLength: 1, maxLength: 200 }
+        engineVersion: { type: string, const: '2.0.0' }
     TrackingUuid: { type: string, format: uuid }
     TrackingNormalizedImportRequest:
       type: object
       additionalProperties: false
       required: [schemaVersion, sourceType, events]
       properties:
-        schemaVersion: { type: integer, const: 1 }
-        sourceType: { type: string, enum: [sms, manual] }
+        schemaVersion: { type: integer, enum: [1, 2] }
+        sourceType: { type: string, enum: [sms, provider, manual] }
         sourceChannel:
           {
             type: string,
@@ -1042,6 +1138,12 @@ components:
               merchant: { type: string, minLength: 1, maxLength: 200 }
               receivedAt: { type: string, format: date-time }
               occurredAt: { type: string, format: date-time }
+              kind: { type: string, enum: [income, expense, transfer, refund, fee] }
+              accountId: { $ref: '#/components/schemas/TrackingUuid' }
+              categoryId: { $ref: '#/components/schemas/TrackingUuid' }
+              classification: { $ref: '#/components/schemas/TrackingMessageClassification' }
+              transport: { $ref: '#/components/schemas/TrackingMessageTransport' }
+              providerReferenceDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
               metadata:
                 type: object
                 maxProperties: 12
@@ -1171,7 +1273,7 @@ components:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         sourceType: { type: string, enum: [sms, file, manual, provider] }
         sourceName: { type: [string, 'null'], maxLength: 120 }
-        schemaVersion: { const: 1 }
+        schemaVersion: { type: integer, enum: [1, 2] }
         status: { type: string, enum: [received, processing, review, complete, failed, cancelled] }
         itemCount: { type: integer, minimum: 0, maximum: 10000 }
         acceptedCount: { type: integer, minimum: 0 }

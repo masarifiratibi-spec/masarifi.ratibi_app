@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
+import {
+  validateClassification,
+  validateRuleSnapshot,
+  type RuleSnapshot
+} from '@masarifi/transaction-parser';
+import type { KeywordRule } from '@/domain/app-shell';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 
 import type {
@@ -22,12 +28,20 @@ export interface SmsImportQueueEntry {
 }
 
 export interface SmsRuleSnapshot {
-  keywords: { value: string; enabled: boolean }[];
+  keywords: ({ value: string; enabled: boolean } & Partial<KeywordRule>)[];
   senders: {
     normalizedSender: string;
     enabled: boolean;
     trusted: boolean;
   }[];
+  snapshot?: RuleSnapshot;
+  bindings?: {
+    provider: string;
+    role: 'card' | 'account';
+    suffix: string;
+    accountId: string;
+  }[];
+  rolloutMode?: 'shadow' | 'review' | 'automatic';
 }
 
 export interface SmsImportQueueState {
@@ -35,6 +49,7 @@ export interface SmsImportQueueState {
   ownerId: string;
   pending: SmsImportQueueEntry[];
   cursor: number | null;
+  cursorId?: string;
   fingerprints: string[];
   mode: TrackingMode | null;
   rules: SmsRuleSnapshot;
@@ -53,6 +68,7 @@ export class SmsImportQueue {
       idempotencyKey: string;
       submission: TrackingImportSubmission;
       cursor: number;
+      cursorId?: string;
       fingerprints: readonly string[];
       mode?: TrackingMode;
     }
@@ -71,6 +87,7 @@ export class SmsImportQueue {
         });
       }
       state.cursor = Math.max(state.cursor ?? 0, input.cursor);
+      if (input.cursorId) state.cursorId = input.cursorId;
       state.fingerprints = [
         ...new Set([...state.fingerprints, ...input.fingerprints])
       ].slice(-500);
@@ -82,10 +99,12 @@ export class SmsImportQueue {
     ownerId: string,
     cursor: number,
     fingerprints: readonly string[],
-    mode?: TrackingMode
+    mode?: TrackingMode,
+    cursorId?: string
   ): Promise<SmsImportQueueState> {
     return this.update(ownerId, (state) => {
       state.cursor = Math.max(state.cursor ?? 0, cursor);
+      if (cursorId) state.cursorId = cursorId;
       state.fingerprints = [
         ...new Set([...state.fingerprints, ...fingerprints])
       ].slice(-500);
@@ -123,19 +142,8 @@ export class SmsImportQueue {
     rules: SmsRuleSnapshot
   ): Promise<SmsImportQueueState> {
     return this.update(ownerId, (state) => {
-      state.rules = {
-        keywords: rules.keywords.map(({ value, enabled }) => ({
-          value,
-          enabled
-        })),
-        senders: rules.senders.map(
-          ({ normalizedSender, enabled, trusted }) => ({
-            normalizedSender,
-            enabled,
-            trusted
-          })
-        )
-      };
+      if (rules.snapshot) validateRuleSnapshot(rules.snapshot);
+      state.rules = rules;
     });
   }
 
@@ -163,7 +171,9 @@ export class SmsImportQueue {
         'singleton'
       );
       legacy = await this.storage.getItem(storageKey);
-      const stored = parseState(row?.payload ?? legacy, ownerId);
+      const stored = row
+        ? parseState(row.payload, ownerId)
+        : parseLegacyState(legacy, ownerId);
       state = stored ?? empty(ownerId);
       if (mutate) mutate(state);
       if (mutate || (!row && stored)) {
@@ -225,11 +235,28 @@ const eventSchema = z
       .optional(),
     kind: z.enum(['income', 'expense', 'transfer', 'refund', 'fee']).optional(),
     accountId: z.string().uuid().optional(),
-    categoryId: z.string().uuid().optional()
+    categoryId: z.string().uuid().optional(),
+    classification: z
+      .unknown()
+      .transform((value) => validateClassification(value))
+      .optional(),
+    transport: z
+      .object({
+        deviceId: boundedText,
+        channel: z.enum(['android_sms', 'android_notification']),
+        nativeIdDigest: boundedText,
+        revisionDigest: boundedText
+      })
+      .strict()
+      .optional(),
+    providerReferenceDigest: boundedText.optional()
   })
   .strict()
   .refine(
-    (value) => value.body !== undefined || value.amountMinor !== undefined
+    (value) =>
+      value.body !== undefined ||
+      value.amountMinor !== undefined ||
+      value.classification !== undefined
   );
 const queueSchema = z
   .object({
@@ -243,7 +270,7 @@ const queueSchema = z
             sessionId: boundedText.nullable(),
             submission: z
               .object({
-                schemaVersion: z.literal(1),
+                schemaVersion: z.union([z.literal(1), z.literal(2)]),
                 sourceType: z.enum(['sms', 'provider', 'manual']),
                 sourceChannel: z
                   .enum([
@@ -268,13 +295,38 @@ const queueSchema = z
           items.length
       ),
     cursor: z.number().int().safe().nonnegative().nullable(),
+    cursorId: z.string().max(80).optional(),
     fingerprints: z.array(boundedText).max(500),
     mode: z.enum(['automatic_clear', 'review_all', 'paused']).nullable(),
     rules: z
       .object({
         keywords: z
           .array(
-            z.object({ value: boundedText, enabled: z.boolean() }).strict()
+            z
+              .object({
+                value: boundedText,
+                enabled: z.boolean(),
+                id: boundedText.optional(),
+                group: z
+                  .enum([
+                    'expense',
+                    'income',
+                    'transfer',
+                    'withdrawal',
+                    'deposit',
+                    'refund',
+                    'subscription',
+                    'installment',
+                    'fee',
+                    'failed_transaction',
+                    'reversal'
+                  ])
+                  .optional(),
+                language: z.enum(['ar', 'en']).optional(),
+                normalizedValue: z.string().optional(),
+                origin: z.enum(['default', 'custom']).optional()
+              })
+              .passthrough()
           )
           .max(1000),
         senders: z
@@ -285,9 +337,25 @@ const queueSchema = z
                 enabled: z.boolean(),
                 trusted: z.boolean()
               })
-              .strict()
+              .passthrough()
+          )
+          .max(1000),
+        snapshot: z
+          .unknown()
+          .transform((value) => validateRuleSnapshot(value))
+          .optional(),
+        bindings: z
+          .array(
+            z.object({
+              provider: boundedText,
+              role: z.enum(['card', 'account']),
+              suffix: boundedText,
+              accountId: z.string().uuid()
+            })
           )
           .max(1000)
+          .optional(),
+        rolloutMode: z.enum(['shadow', 'review', 'automatic']).optional()
       })
       .strict()
   })
@@ -302,7 +370,20 @@ function parseState(
     const state = queueSchema.parse(JSON.parse(raw));
     return state.ownerId === ownerId ? state : null;
   } catch {
-    return null;
+    throw new Error('sms_queue_corrupt');
+  }
+}
+// Legacy AsyncStorage is unencrypted and has no reliable owner fence; invalid legacy data is purged.
+function parseLegacyState(
+  raw: string | null,
+  ownerId: string
+): SmsImportQueueState | null {
+  try {
+    return parseState(raw, ownerId);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'sms_queue_corrupt')
+      return null;
+    throw error;
   }
 }
 
@@ -320,7 +401,7 @@ function empty(ownerId: string): SmsImportQueueState {
 
 function minimize(input: TrackingImportSubmission): TrackingImportSubmission {
   return {
-    schemaVersion: 1,
+    schemaVersion: input.schemaVersion,
     sourceType: input.sourceType,
     ...(input.sourceChannel ? { sourceChannel: input.sourceChannel } : {}),
     events: input.events.map(minimizeEvent)
@@ -343,6 +424,11 @@ function minimizeEvent(event: TrackingImportEvent): TrackingImportEvent {
     ...(event.metadata ? { metadata: event.metadata } : {}),
     ...(event.kind ? { kind: event.kind } : {}),
     ...(event.accountId ? { accountId: event.accountId } : {}),
-    ...(event.categoryId ? { categoryId: event.categoryId } : {})
+    ...(event.categoryId ? { categoryId: event.categoryId } : {}),
+    ...(event.classification ? { classification: event.classification } : {}),
+    ...(event.transport ? { transport: event.transport } : {}),
+    ...(event.providerReferenceDigest
+      ? { providerReferenceDigest: event.providerReferenceDigest }
+      : {})
   };
 }

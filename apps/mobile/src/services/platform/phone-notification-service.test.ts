@@ -1,6 +1,6 @@
 import {
   createPhoneNotificationService,
-  getPushDeviceRegistration,
+  getPushDeviceRegistration
 } from './phone-notification-service';
 import { changeLocale } from '@/localization/i18n';
 import { Platform } from 'react-native';
@@ -8,15 +8,17 @@ import { Platform } from 'react-native';
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
-    expoConfig: { version: '0.0.1', extra: { eas: { projectId: 'project-1' } } },
-  },
+    expoConfig: { version: '0.0.1', extra: { eas: { projectId: 'project-1' } } }
+  }
 }));
 
-jest.mock('expo-crypto', () => ({ randomUUID: () => 'device-fingerprint-000000000001' }));
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => 'device-fingerprint-000000000001'
+}));
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
-  setItemAsync: jest.fn(),
+  setItemAsync: jest.fn()
 }));
 
 jest.mock('expo-notifications', () => ({
@@ -142,6 +144,7 @@ describe('phone notification platform service', () => {
       expect.any(Object)
     );
     expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith({
+      identifier: 'notification-1',
       content: {
         title: 'Safe title',
         body: 'Safe body',
@@ -199,7 +202,7 @@ describe('phone notification platform service', () => {
   it('returns a persistent installation fingerprint with the Expo push token', async () => {
     mockSecureStore.getItemAsync.mockResolvedValueOnce(null);
     mockNotifications.getExpoPushTokenAsync.mockResolvedValueOnce({
-      data: 'ExponentPushToken[device-registration]',
+      data: 'ExponentPushToken[device-registration]'
     });
 
     await expect(getPushDeviceRegistration()).resolves.toEqual({
@@ -207,14 +210,14 @@ describe('phone notification platform service', () => {
       platform: Platform.OS,
       appVersion: '0.0.1',
       pushToken: 'ExponentPushToken[device-registration]',
-      pushProvider: 'expo',
+      pushProvider: 'expo'
     });
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       'masarifi.notification-device-fingerprint.v1',
-      'device-fingerprint-000000000001',
+      'device-fingerprint-000000000001'
     );
     expect(mockNotifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
-      projectId: 'project-1',
+      projectId: 'project-1'
     });
   });
 });

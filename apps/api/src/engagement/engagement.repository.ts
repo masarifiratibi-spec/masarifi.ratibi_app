@@ -305,7 +305,7 @@ export class EngagementRepository {
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
          values($1,$2,$3,$4,$5,jsonb_build_object(
-           'route','notification_detail','sourceEventId',$1::text,'actions',
+             'route','notification_detail','sourceEventId',$1::text,'automaticCapture',($3::text in ('transaction.created','transfer.created') and exists(select 1 from public.transactions t where t.id::text=$8 and t.source='tracking-import')),'actions',
            case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
              jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
              jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))
@@ -365,7 +365,7 @@ export class EngagementRepository {
       const claims = await client.query<NotificationDeliveryClaim>(
         `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
           coalesce(d.rendered_title,e.title,t.subject,'Masarifi') title,coalesce(d.rendered_body,e.body_safe,t.body) body_safe,
-          coalesce(d.rendered_data,e.data,jsonb_build_object('route','notification_detail')) data,
+           coalesce(e.data,'{}'::jsonb)||coalesce(d.rendered_data,jsonb_build_object('route','notification_detail')) data,
           p.token_ciphertext,p.device_id token_device_id,p.provider token_provider
          from private.claim_notification_deliveries($1,$2,60) d
          left join public.notification_events e on e.id=d.event_id

@@ -1,5 +1,9 @@
 import { Platform } from 'react-native';
-import { randomUUID } from 'expo-crypto';
+import {
+  randomUUID,
+  digestStringAsync,
+  CryptoDigestAlgorithm
+} from 'expo-crypto';
 
 import type {
   AutomaticFeedback,
@@ -27,6 +31,10 @@ import {
 } from '@/services/contracts/automatic-tracking-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { captureLiveClerkIdentity } from './auth-service';
+import {
+  canonicalJson,
+  validateRuleSnapshot
+} from '@masarifi/transaction-parser';
 
 type Json = Record<string, unknown>;
 type TokenProvider = () => Promise<string>;
@@ -196,9 +204,13 @@ export function createLiveAutomaticTrackingService({
     method: string,
     path: string,
     body?: unknown,
-    { idempotencyKey, expectedOwnerId }: { idempotencyKey?: string; expectedOwnerId?: string } = {}
+    {
+      idempotencyKey,
+      expectedOwnerId
+    }: { idempotencyKey?: string; expectedOwnerId?: string } = {}
   ): Promise<unknown> => {
-    const identity = expectedOwnerId === undefined ? null : await captureLiveClerkIdentity();
+    const identity =
+      expectedOwnerId === undefined ? null : await captureLiveClerkIdentity();
     if (identity && identity.userId !== expectedOwnerId)
       throw new TrackingError('permission_required');
     const accessToken = identity ? identity.token : await token();
@@ -345,20 +357,110 @@ export function createLiveAutomaticTrackingService({
     async submitImport(input, idempotencyKey, expectedOwnerId) {
       return importSession(
         resource(
-          await send('POST', '/api/v1/imports', input, { idempotencyKey, expectedOwnerId })
+          await send('POST', '/api/v1/imports', input, {
+            idempotencyKey,
+            expectedOwnerId
+          })
         )
       );
     },
     getImportSession: async (id, expectedOwnerId) =>
       importSession(
-        record(await send('GET', `/api/v1/imports/${encodeURIComponent(id)}`, undefined, { expectedOwnerId }))
+        record(
+          await send(
+            'GET',
+            `/api/v1/imports/${encodeURIComponent(id)}`,
+            undefined,
+            { expectedOwnerId }
+          )
+        )
       ),
     async listImportItemIds(sessionId) {
       return (
-        await allPages(
-          `/api/v1/imports/${encodeURIComponent(sessionId)}/items`
-        )
+        await allPages(`/api/v1/imports/${encodeURIComponent(sessionId)}/items`)
       ).map((item) => text(item.id));
+    },
+    async listImportOutcomes(sessionId) {
+      return (
+        await allPages(`/api/v1/imports/${encodeURIComponent(sessionId)}/items`)
+      ).map((item) => ({
+        itemId: text(item.id),
+        status: text(item.status),
+        transactionId:
+          typeof item.transactionId === 'string' ? item.transactionId : null,
+        notificationId:
+          typeof item.notificationId === 'string' ? item.notificationId : null
+      }));
+    },
+    async getRuleConfiguration(): Promise<
+      import('@/storage/sms-import-queue').SmsRuleSnapshot
+    > {
+      const configuration = record(await get('/api/v1/tracking/rule-snapshot'));
+      const { configurationHash, ...content } = configuration;
+      if (
+        typeof configurationHash !== 'string' ||
+        (await digestStringAsync(
+          CryptoDigestAlgorithm.SHA256,
+          canonicalJson(content)
+        )) !== configurationHash
+      )
+        throw new TrackingError('unknown');
+      const snapshot = validateRuleSnapshot(configuration.snapshot);
+
+      // Rules and overrides are retrieved together below; the legacy list remains the public UI contract.
+      const bundledKeywords = Array.isArray(configuration.keywords)
+        ? configuration.keywords.map(record)
+        : [];
+      const bundledSenders = Array.isArray(configuration.senders)
+        ? configuration.senders.map(record)
+        : [];
+      return {
+        snapshot,
+        rolloutMode: member(configuration.rolloutMode, [
+          'shadow',
+          'review',
+          'automatic'
+        ] as const),
+        keywords: bundledKeywords.map((rule) => ({
+          origin: rule.origin === 'default' ? 'default' : 'custom',
+          id: text(rule.id),
+          value: text(rule.keyword),
+          enabled: boolean(rule.enabled),
+          group: member(rule.group_key ?? rule.groupKey, [
+            'expense',
+            'income',
+            'transfer',
+            'withdrawal',
+            'deposit',
+            'refund',
+            'subscription',
+            'installment',
+            'fee',
+            'failed_transaction',
+            'reversal'
+          ] as const),
+          language: member(rule.language_code ?? rule.languageCode, [
+            'ar',
+            'en'
+          ] as const)
+        })),
+        senders: bundledSenders.map((rule) => ({
+          normalizedSender: text(rule.sender_pattern ?? rule.senderPattern),
+          enabled: boolean(rule.enabled),
+          trusted: boolean(rule.trusted)
+        })),
+        bindings: Array.isArray(configuration.bindings)
+          ? configuration.bindings.map((value) => {
+              const row = record(value);
+              return {
+                provider: text(row.provider),
+                role: member(row.role, ['card', 'account']),
+                suffix: text(row.suffix),
+                accountId: text(row.accountId)
+              };
+            })
+          : []
+      };
     },
     async listDuplicates() {
       return (await allPages('/api/v1/duplicates')).map(duplicate);
@@ -617,9 +719,13 @@ export function createLiveAutomaticTrackingService({
       const nextIds = new Set(rules.map((rule) => rule.id));
       const changedRules = rules.filter((rule) => {
         const persisted = persistedById.get(rule.id);
-        return !persisted || persisted.value !== rule.value ||
-          persisted.group !== rule.group || persisted.language !== rule.language ||
-          persisted.enabled !== rule.enabled;
+        return (
+          !persisted ||
+          persisted.value !== rule.value ||
+          persisted.group !== rule.group ||
+          persisted.language !== rule.language ||
+          persisted.enabled !== rule.enabled
+        );
       });
       await Promise.all([
         ...persistedRules

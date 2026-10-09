@@ -17,7 +17,10 @@ import {
   type Theme as NavigationTheme
 } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaInsetsContext, SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaInsetsContext,
+  SafeAreaView
+} from 'react-native-safe-area-context';
 
 import { resolveTheme } from '@/design-system/theme';
 import type { ResolvedTheme } from '@/design-system/theme';
@@ -30,6 +33,7 @@ import {
   registerRuntimeUserDataReset
 } from '@/storage/runtime-user-data-reset';
 import { SensitiveVisibilityProvider } from './SensitiveVisibilityProvider';
+import { subscribeTrackingSaves } from '@/services/tracking-save-events';
 
 initI18n();
 
@@ -68,9 +72,13 @@ export function FoundationProviders({
     const clear = () => client.clear();
     const unregisterUserReset = registerRuntimeUserDataReset(clear);
     const unregisterIdentityReset = registerRuntimeIdentityReset(clear);
+    const unsubscribeSaves = subscribeTrackingSaves(() => {
+      void client.invalidateQueries();
+    });
     return () => {
       unregisterUserReset();
       unregisterIdentityReset();
+      unsubscribeSaves();
     };
   }, [client]);
 
@@ -118,7 +126,11 @@ export function FoundationProviders({
         <NavigationThemeProvider value={navigationTheme}>
           <StatusBar
             backgroundColor={safeAreaColor}
-            style={obligationHeroVisible || resolved.mode === 'dark' ? 'light' : 'dark'}
+            style={
+              obligationHeroVisible || resolved.mode === 'dark'
+                ? 'light'
+                : 'dark'
+            }
           />
           <SensitiveVisibilityProvider>
             <SafeAreaView
@@ -133,7 +145,14 @@ export function FoundationProviders({
               {obligationHeroVisible ? (
                 <View
                   pointerEvents="none"
-                  style={{ backgroundColor: safeAreaColor, height: insets?.top ?? 0, left: 0, position: 'absolute', right: 0, top: 0 }}
+                  style={{
+                    backgroundColor: safeAreaColor,
+                    height: insets?.top ?? 0,
+                    left: 0,
+                    position: 'absolute',
+                    right: 0,
+                    top: 0
+                  }}
                 />
               ) : null}
             </SafeAreaView>

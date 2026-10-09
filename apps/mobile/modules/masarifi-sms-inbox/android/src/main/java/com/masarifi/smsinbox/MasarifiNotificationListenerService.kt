@@ -13,7 +13,8 @@ data class CapturedNotification(
   val packageName: String,
   val title: String,
   val text: String,
-  val postedAt: Long
+  val postedAt: Long,
+  val nativeKey: String = key
 )
 
 object NotificationCaptureState {
@@ -39,6 +40,7 @@ object NotificationQueuePolicy {
   fun prune(records: List<CapturedNotification>, now: Long): List<CapturedNotification> =
     records
       .filter { it.postedAt in (now - MAX_AGE_MS)..now }
+      .asReversed()
       .distinctBy { it.key }
       .sortedByDescending { it.postedAt }
       .take(MAX_RECORDS)
@@ -49,34 +51,39 @@ object NotificationQueuePolicy {
   ): List<CapturedNotification> = records.filterNot { it.key in keys }
 }
 
-internal class NotificationQueue(context: Context) {
+internal class NotificationQueue(private val context: Context) {
+  private val encrypted = TrackingEncryptedStore(context,"masarifi_notification_queue_v2")
   private val preferences: SharedPreferences = context.getSharedPreferences(
     "masarifi_notification_queue_v1",
     Context.MODE_PRIVATE
   )
 
-  fun add(record: CapturedNotification) = synchronized(lock) {
-    write(NotificationQueuePolicy.prune(readStored() + record, System.currentTimeMillis()))
+  fun add(record: CapturedNotification) = synchronized(TrackingOwner) {
+    val stored=readStored()+record
+    val pruned=NotificationQueuePolicy.prune(stored,System.currentTimeMillis())
+    if(stored.count {it.postedAt>=System.currentTimeMillis()-NotificationQueuePolicy.MAX_AGE_MS}>200) {
+      preferences.edit().putLong("overflowCount",preferences.getLong("overflowCount",0)+1).commit()
+    }
+    write(pruned)
   }
 
-  fun read(limit: Int): List<CapturedNotification> = synchronized(lock) {
+  fun read(limit: Int): List<CapturedNotification> = synchronized(TrackingOwner) {
     val records = NotificationQueuePolicy.prune(readStored(), System.currentTimeMillis())
     write(records)
-    records.take(limit.coerceIn(1, 100))
+    records.sortedBy { it.postedAt }.take(limit.coerceIn(1, 100))
   }
 
-  fun acknowledge(keys: Set<String>) = synchronized(lock) {
+  fun acknowledge(keys: Set<String>) = synchronized(TrackingOwner) {
     write(NotificationQueuePolicy.acknowledge(readStored(), keys))
   }
 
-  fun clear() = synchronized(lock) {
-    write(emptyList())
+  fun clear() = synchronized(TrackingOwner) {
+    encrypted.clear()
+    preferences.edit().remove("records").commit()
   }
 
   private fun readStored(): List<CapturedNotification> {
-    val array = runCatching {
-      JSONArray(preferences.getString("records", "[]"))
-    }.getOrElse { JSONArray() }
+    val array = JSONArray(encrypted.read() ?: "[]")
     return buildList {
       for (index in 0 until array.length()) {
         val item = array.optJSONObject(index) ?: continue
@@ -90,7 +97,8 @@ internal class NotificationQueue(context: Context) {
             packageName,
             item.optString("title"),
             item.optString("text"),
-            postedAt
+            postedAt,
+            item.optString("nativeKey",key)
           )
         )
       }
@@ -107,9 +115,11 @@ internal class NotificationQueue(context: Context) {
           .put("title", record.title)
           .put("text", record.text)
           .put("postedAt", record.postedAt)
+          .put("nativeKey",record.nativeKey)
       )
     }
-    preferences.edit().putString("records", array.toString()).apply()
+    encrypted.write(array.toString())
+    preferences.edit().remove("records").commit()
   }
 
   private companion object {
@@ -118,24 +128,26 @@ internal class NotificationQueue(context: Context) {
 }
 
 class MasarifiNotificationListenerService : NotificationListenerService() {
-  override fun onNotificationPosted(notification: StatusBarNotification) {
-    if (!NotificationCaptureState.isEnabled(this)) return
-    if (notification.packageName == packageName) return
+  override fun onNotificationPosted(notification: StatusBarNotification) = synchronized(TrackingOwner) {
+    if (!NotificationCaptureState.isEnabled(this)) return@synchronized
+    if (notification.packageName == packageName || !TrackingOwner.allows(this,notification.packageName)) return@synchronized
     val extras = notification.notification.extras
     val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
     val text = (
       extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
         ?: extras.getCharSequence(Notification.EXTRA_TEXT)
       )?.toString().orEmpty()
-    if (title.isBlank() && text.isBlank()) return
+    if ((title.isBlank() && text.isBlank()) || title.length+text.length>8000) return@synchronized
     NotificationQueue(this).add(
       CapturedNotification(
-        notification.key,
+        notification.key+":"+notification.postTime+":"+trackingDigest(title+"\n"+text),
         notification.packageName,
         title,
         text,
-        notification.postTime
+        notification.postTime,
+        notification.key
       )
     )
+    TrackingScheduler.incoming(this)
   }
 }

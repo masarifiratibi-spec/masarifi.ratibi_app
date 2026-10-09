@@ -1,11 +1,9 @@
 import { MasarifiSmsInbox } from '../../../modules/masarifi-sms-inbox';
-import type {
-  RawSmsMessage,
-  SmsInboxService
-} from './sms-inbox-service';
+import type { RawSmsMessage, SmsInboxService } from './sms-inbox-service';
 
 interface NativeSmsInbox {
   readRecentSms(since: number, limit: number): Promise<unknown>;
+  readSmsPage?(since: number, afterId: string, limit: number): Promise<unknown>;
   isNetworkAvailable(): Promise<unknown>;
 }
 
@@ -14,7 +12,7 @@ export function createAndroidSmsInboxService(
 ): SmsInboxService {
   return {
     available: native !== null,
-    async readRecent({ since, limit }) {
+    async readRecent({ since, limit, afterId }) {
       if (
         !Number.isSafeInteger(since) ||
         since < 0 ||
@@ -25,7 +23,9 @@ export function createAndroidSmsInboxService(
         throw new Error('sms_inbox_invalid_request');
       }
       if (!native) return [];
-      const value = await native.readRecentSms(since, limit);
+      const value = native.readSmsPage
+        ? await native.readSmsPage(since, afterId ?? '', limit)
+        : await native.readRecentSms(since, limit);
       if (!Array.isArray(value)) throw new Error('sms_inbox_invalid_response');
       return value.map(validateMessage);
     },
@@ -64,4 +64,3 @@ function validateMessage(value: unknown): RawSmsMessage {
     receivedAt: Number(row.receivedAt)
   };
 }
-

@@ -1,6 +1,7 @@
 /** @type {import('jest').Config} */
 module.exports = {
   preset: 'jest-expo',
+  modulePaths: ['<rootDir>/node_modules'],
   transformIgnorePatterns: [
     'node_modules/(?!(.pnpm|((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|expo-router|expo-localization|@tanstack/react-query|zustand|react-hook-form|i18next|@testing-library))'
   ],

@@ -2,7 +2,7 @@
   "name": "@masarifi/mobile",
   "version": "0.0.1",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@clerk/expo": "4.6.5",
+    "@masarifi/transaction-parser": "file:../../packages/transaction-parser",
     "@noble/hashes": "^1.8.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.6.0",
@@ -51,6 +52,7 @@
     "expo-sqlite": "~55.0.20",
     "expo-status-bar": "~55.0.6",
     "expo-symbols": "~55.0.9",
+    "expo-task-manager": "~55.0.20",
     "expo-web-browser": "~55.0.20",
     "i18next": "^23.12.0",
     "react": "19.2.0",

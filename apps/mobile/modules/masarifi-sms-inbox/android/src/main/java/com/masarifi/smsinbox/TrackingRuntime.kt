@@ -1,0 +1,152 @@
+package com.masarifi.smsinbox
+
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.provider.Telephony
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import androidx.work.*
+import com.facebook.react.ReactApplication
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.jstasks.HeadlessJsTaskConfig
+import com.facebook.react.jstasks.HeadlessJsTaskContext
+import java.security.KeyStore
+import java.security.MessageDigest
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import org.json.JSONObject
+
+internal fun trackingDigest(value: String): String = MessageDigest.getInstance("SHA-256")
+  .digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
+internal object TrackingOwner {
+  private const val PREFS = "masarifi_tracking_owner_v2"
+  private fun preferences(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+  fun read(context: Context): JSONObject = runCatching { JSONObject(preferences(context).getString("context", "{}")!!) }.getOrElse { JSONObject() }
+  @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean, packages: List<String>) {
+    require(owner.matches(Regex("[a-f0-9]{64}")) && generation.length in 16..80)
+    val old = read(context)
+    if (old.optString("owner") != owner) NotificationQueue(context).clear()
+    val value = JSONObject().put("owner",owner).put("generation",generation).put("sms",sms).put("notification",notification)
+      .put("packages",org.json.JSONArray(packages.distinct().take(100)))
+    check(preferences(context).edit().putString("context",value.toString()).commit())
+    TrackingScheduler.configure(context)
+  }
+  @Synchronized fun suspend(context: Context) {
+    val state=read(context).put("sms",false).put("notification",false)
+    check(preferences(context).edit().putString("context",state.toString()).commit())
+    WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
+  }
+  @Synchronized fun clear(context: Context) {
+    NotificationQueue(context).clear()
+    check(preferences(context).edit().clear().commit())
+    WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
+  }
+  fun allows(context: Context, packageName: String): Boolean {
+    val state=read(context)
+    if (!state.optBoolean("notification") || state.optString("owner").isBlank()) return false
+    val packages=state.optJSONArray("packages") ?: return false
+    return (0 until packages.length()).any { packages.optString(it)==packageName }
+  }
+}
+
+internal class TrackingEncryptedStore(private val context: Context, private val name: String) {
+  private fun alias(): String = "masarifi.tracking."+TrackingOwner.read(context).optString("owner")
+  private fun key(): SecretKey = synchronized(TrackingOwner) {
+    val store=KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+    (store.getKey(alias(),null) as? SecretKey)?.let { return@synchronized it }
+    KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").apply {
+      init(KeyGenParameterSpec.Builder(alias(),KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+        .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
+    }.generateKey()
+  }
+  fun read(): String? {
+    val encoded=context.getSharedPreferences(name+"_"+TrackingOwner.read(context).optString("owner"),Context.MODE_PRIVATE).getString("ciphertext",null) ?: return null
+    val bytes=Base64.decode(encoded,Base64.NO_WRAP)
+    val cipher=Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
+    return String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8)
+  }
+  fun write(value: String) {
+    val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE,key()) }
+    val encoded=Base64.encodeToString(cipher.iv+cipher.doFinal(value.toByteArray(Charsets.UTF_8)),Base64.NO_WRAP)
+    check(context.getSharedPreferences(name+"_"+TrackingOwner.read(context).optString("owner"),Context.MODE_PRIVATE).edit().putString("ciphertext",encoded).commit())
+  }
+  fun clear() {check(context.getSharedPreferences(name+"_"+TrackingOwner.read(context).optString("owner"),Context.MODE_PRIVATE).edit().clear().commit())}
+}
+
+internal object TrackingScheduler {
+  private fun request(context: Context): Data {
+    val owner=TrackingOwner.read(context)
+    return workDataOf("ownerDigest" to owner.optString("owner"),"generation" to owner.optString("generation"))
+  }
+  fun configure(context: Context) {
+    val owner=TrackingOwner.read(context)
+    val manager=WorkManager.getInstance(context)
+    if (!owner.optBoolean("sms") && !owner.optBoolean("notification")) { manager.cancelAllWorkByTag("masarifi-tracking");return }
+    manager.enqueueUniquePeriodicWork("masarifi-tracking-periodic",ExistingPeriodicWorkPolicy.UPDATE,
+      PeriodicWorkRequestBuilder<TrackingWorker>(15,TimeUnit.MINUTES).setInputData(request(context)).addTag("masarifi-tracking").build())
+    watchSms(context)
+  }
+  fun watchSms(context: Context) {
+    if (!TrackingOwner.read(context).optBoolean("sms")) return
+    val constraints=Constraints.Builder().addContentUriTrigger(Telephony.Sms.Inbox.CONTENT_URI,true)
+      .setTriggerContentUpdateDelay(3,TimeUnit.SECONDS).setTriggerContentMaxDelay(15,TimeUnit.SECONDS).build()
+    WorkManager.getInstance(context).enqueueUniqueWork("masarifi-tracking-sms",ExistingWorkPolicy.KEEP,
+      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).setConstraints(constraints).addTag("masarifi-tracking").build())
+  }
+  fun incoming(context: Context) {
+    WorkManager.getInstance(context).enqueueUniqueWork("masarifi-tracking-incoming",ExistingWorkPolicy.KEEP,
+      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).addTag("masarifi-tracking").build())
+  }
+}
+
+class TrackingWorker(context: Context, parameters: WorkerParameters): Worker(context,parameters) {
+  override fun doWork(): Result {
+    val owner=TrackingOwner.read(applicationContext)
+    val generation=inputData.getString("generation")
+    if (owner.optString("owner")!=inputData.getString("ownerDigest") || owner.optString("generation")!=generation) return Result.success()
+    val host=(applicationContext as? ReactApplication)?.reactHost ?: return Result.retry()
+    val workId=UUID.randomUUID().toString()
+    val completion=Completion()
+    completions[workId]=completion
+    return try {
+      val startup=host.start()
+      if(!startup.waitForCompletion(30,TimeUnit.SECONDS) || startup.isFaulted()) return Result.retry()
+      Handler(Looper.getMainLooper()).post {
+        val context=host.currentReactContext
+        if(context==null) {finish(workId,false);return@post}
+        val args=Arguments.createMap().apply {putString("ownerDigest",owner.optString("owner"));putString("generation",generation);putString("workId",workId)}
+        runCatching {HeadlessJsTaskContext.getInstance(context).startTask(HeadlessJsTaskConfig("MasarifiTracking",args,90000,true))}
+          .onFailure {finish(workId,false)}
+      }
+      if(completion.latch.await(100,TimeUnit.SECONDS) && completion.succeeded) Result.success() else Result.retry()
+    } finally {
+      completions.remove(workId)
+      if(NotificationQueue(applicationContext).read(1).isNotEmpty()) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-drain-next",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<NotificationDrainWorker>().setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
+      // Replace the completed content-trigger work so the next SMS can wake the process.
+      if (owner.optBoolean("sms")) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-sms-next",ExistingWorkPolicy.REPLACE,
+        OneTimeWorkRequestBuilder<SmsWatchWorker>().setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
+    }
+  }
+  private class Completion {val latch=CountDownLatch(1);@Volatile var succeeded=false}
+  companion object {
+    private val completions=ConcurrentHashMap<String,Completion>()
+    fun finish(workId:String,succeeded:Boolean) {completions[workId]?.let {it.succeeded=succeeded;it.latch.countDown()}}
+  }
+}
+class SmsWatchWorker(context:Context,parameters:WorkerParameters):Worker(context,parameters) {
+  override fun doWork():Result {TrackingScheduler.watchSms(applicationContext);return Result.success()}
+}
+
+class NotificationDrainWorker(context:Context,parameters:WorkerParameters):Worker(context,parameters) {
+  override fun doWork():Result {if(NotificationQueue(applicationContext).read(1).isNotEmpty()) TrackingScheduler.incoming(applicationContext);return Result.success()}
+}

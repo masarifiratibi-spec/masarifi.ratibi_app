@@ -400,7 +400,7 @@ describe('automatic tracking coordinator', () => {
         status: expected
       });
       await expect(context.queue.load('owner-1')).resolves.toMatchObject({
-        pending: []
+        pending: backend === 'failed' ? expect.any(Array) : []
       });
     }
   );
@@ -502,4 +502,27 @@ describe('automatic tracking coordinator', () => {
     await first;
     expect(context.inbox.readRecent).toHaveBeenCalledTimes(1);
   });
+});
+
+it('resync waits for the stale pass then installs current source configuration', async () => {
+  let ready!: () => void;
+  const entered = new Promise<void>((r) => {
+    ready = r;
+  });
+  let resume!: () => void;
+  const background = jest.fn(async () => undefined);
+  const context = setup({ configureBackground: background });
+  context.tracking.getStatus.mockImplementationOnce(async () => {
+    ready();
+    await new Promise<void>((r) => {
+      resume = r;
+    });
+    return status();
+  });
+  const first = context.coordinator.sync();
+  await entered;
+  const second = context.coordinator.resync();
+  resume();
+  await Promise.all([first, second]);
+  expect(background).toHaveBeenCalledTimes(2);
 });

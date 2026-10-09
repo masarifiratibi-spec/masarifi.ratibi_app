@@ -6,6 +6,7 @@ export interface PushInput {
   title: string;
   body: string;
   route: string;
+  automaticCapture?: boolean;
 }
 
 export type ProviderResult =
@@ -62,10 +63,22 @@ export class ExpoPushProvider implements NotificationProvider {
   ) {}
 
   async send(input: PushInput): Promise<ProviderResult> {
+    const payload = safePushPayload(input);
     const response = await this.transport({
       url: 'https://exp.host/--/api/v2/push/send',
       headers: { authorization: `Bearer ${this.accessToken}`, 'content-type': 'application/json' },
-      body: safePushPayload(input),
+      body: input.automaticCapture
+        ? {
+            to: input.token,
+            data: {
+              notificationId: input.notificationId,
+              route: input.route,
+              automaticCapture: true,
+            },
+            _contentAvailable: true,
+            priority: 'high',
+          }
+        : payload,
       timeoutMs: 5_000,
     });
     if (response.status === 429 || response.status >= 500)
@@ -98,8 +111,13 @@ export class FcmPushProvider implements NotificationProvider {
       body: {
         message: {
           token: payload.to,
-          notification: { title: payload.title, body: payload.body },
-          data: payload.data,
+          ...(input.automaticCapture
+            ? { android: { priority: 'high' } }
+            : { notification: { title: payload.title, body: payload.body } }),
+          data: {
+            ...payload.data,
+            ...(input.automaticCapture ? { automaticCapture: 'true' } : {}),
+          },
         },
       },
       timeoutMs: 5_000,

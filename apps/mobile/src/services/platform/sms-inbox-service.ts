@@ -7,7 +7,11 @@ export interface RawSmsMessage {
 
 export interface SmsInboxService {
   available: boolean;
-  readRecent(input: { since: number; limit: number }): Promise<RawSmsMessage[]>;
+  readRecent(input: {
+    since: number;
+    limit: number;
+    afterId?: string;
+  }): Promise<RawSmsMessage[]>;
   isNetworkAvailable(): Promise<boolean>;
 }
 

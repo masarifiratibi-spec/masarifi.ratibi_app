@@ -35,21 +35,25 @@ export async function getPushDeviceRegistration(): Promise<PushDeviceRegistratio
     return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   const appVersion = Constants.expoConfig?.version;
-  if (typeof projectId !== 'string' || typeof appVersion !== 'string') return null;
+  if (typeof projectId !== 'string' || typeof appVersion !== 'string')
+    return null;
   try {
-    let deviceFingerprint = await SecureStore.getItemAsync(deviceFingerprintKey);
+    let deviceFingerprint =
+      await SecureStore.getItemAsync(deviceFingerprintKey);
     if (!deviceFingerprint || deviceFingerprint.length < 16) {
       deviceFingerprint = randomUUID();
       await SecureStore.setItemAsync(deviceFingerprintKey, deviceFingerprint);
     }
-    const pushToken = (await ExpoNotifications.getExpoPushTokenAsync({ projectId })).data;
+    const pushToken = (
+      await ExpoNotifications.getExpoPushTokenAsync({ projectId })
+    ).data;
     if (typeof pushToken !== 'string' || pushToken.length < 16) return null;
     return {
       deviceFingerprint,
       platform: Platform.OS,
       appVersion,
       pushToken,
-      pushProvider: 'expo',
+      pushProvider: 'expo'
     };
   } catch {
     return null;
@@ -133,6 +137,7 @@ export function createPhoneNotificationService(): PhoneNotificationService {
       }
       try {
         const identifier = await ExpoNotifications.scheduleNotificationAsync({
+          identifier: input.notificationId,
           content: {
             title: input.title,
             body: input.body,

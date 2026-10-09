@@ -2,6 +2,7 @@ FROM node:24.16.0-bookworm-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c57
 
 WORKDIR /workspace/apps/api
 COPY apps/api/package.json apps/api/package-lock.json ./
+COPY packages/transaction-parser /workspace/packages/transaction-parser
 RUN npm ci --ignore-scripts
 COPY apps/api/nest-cli.json apps/api/tsconfig.json apps/api/tsconfig.build.json ./
 COPY apps/api/src ./src
@@ -32,6 +33,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build --chown=65532:65532 /workspace/apps/api/dist ./dist/src
 COPY --from=build --chown=65532:65532 /workspace/apps/api/node_modules ./node_modules
+COPY --from=build --chown=65532:65532 /workspace/packages/transaction-parser /packages/transaction-parser
 COPY --chown=65532:65532 apps/mobile/assets/fonts/NotoSansArabicUI-Regular.ttf ./assets/fonts/NotoSansArabicUI-Regular.ttf
 COPY --chown=65532:65532 supabase/migrations ./supabase/migrations
 COPY --chown=65532:65532 supabase/migration-checksums.sha256 ./supabase/migration-checksums.sha256

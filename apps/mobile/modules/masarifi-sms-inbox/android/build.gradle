@@ -15,6 +15,10 @@ android {
 }
 
 dependencies {
+  implementation 'com.facebook.react:react-android'
+  implementation 'androidx.work:work-runtime-ktx:2.10.1'
+  def notificationsVersion = new groovy.json.JsonSlurper().parse(file('../../../node_modules/expo-notifications/package.json')).version
+  implementation(findProject(':expo-notifications') ?: "host.exp.exponent:expo.modules.notifications:${notificationsVersion}")
   testImplementation 'junit:junit:4.13.2'
 }
 

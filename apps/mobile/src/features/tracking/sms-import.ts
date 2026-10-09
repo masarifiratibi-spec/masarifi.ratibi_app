@@ -1,5 +1,10 @@
 import * as Crypto from 'expo-crypto';
-
+import {
+  classifyFinancialMessage,
+  defaultSnapshot,
+  normalizeFinancialText,
+  type RuleSnapshot
+} from '@masarifi/transaction-parser';
 import type { KeywordRule } from '@/domain/app-shell';
 import {
   normalizeSender,
@@ -10,7 +15,6 @@ import {
   accountAllowsAutomaticTracking,
   type Account
 } from '@/domain/core-finance';
-import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import type { RawSmsMessage } from '@/services/platform/sms-inbox-service';
 import type { RawBankNotification } from '@/services/platform/bank-notification-service';
 
@@ -21,305 +25,272 @@ export interface PreparedSmsImport {
   accountRequiredCount: number;
   consumedSourceKeys: string[];
 }
-
-const otpPattern =
-  /\botp\b|one[\s-]?time|verification\s*code|رمز\s*(?:التحقق|الأمان)|كود\s*التحقق/iu;
-const marketingPattern =
-  /\boffer\b|\bpromo(?:tion)?\b|\bdiscount\s+\d+\s*%|عرض\s+(?:خاص|حصري)|خصم\s+\d+\s*%|اشتر(?:\s+\S+){0,3}\s+واحصل/iu;
-const negativeTransactionPattern =
-  /\b(?:failed|declined|rejected|unsuccessful|cancelled|canceled|reversed)\b|\binsufficient\s+funds\b|\bexceed(?:ed|ing)\b.{0,40}\bpin\s+attempts?\b|فشلت?|رفضت?|مرفوض(?:ة)?|لم\s+تتم|غير\s+ناجح(?:ة)?|ملغ(?:ى|اة)|عكس\s+(?:القيد|العملية)/iu;
-const kindPatterns: [NonNullable<TrackingImportEvent['kind']>, RegExp][] = [
-  ['refund', /\brefund(?:ed)?\b|استرداد|مسترد/iu],
-  [
-    'income',
-    /\bsalary\b|\bcr\.?\s*(?:transaction|txn)\b|\bcredit(?:ed)?\b|\bdeposit(?:ed)?\b|\bincoming\s+transfer\b|\btransfer(?:red)?\s+from\b|\breceived\b|راتب|إيداع|ايداع|إضافة|اضافة|استلام|تحويل\s+وارد/iu
-  ],
-  [
-    'fee',
-    /\b(?:foreign\s+(?:transaction|txn)\s+)?fees?\b|\bservice\s+charge\b|\bcommission\b|رسوم|عمولة/iu
-  ],
-  ['transfer', /\btransfer(?:red)?\b|تحويل/iu],
-  [
-    'expense',
-    /\bwithdraw(?:al|n)?\b|\bcash\s+withdrawal\b|\batm\b|سحب(?:\s+نقدي)?/iu
-  ],
-  [
-    'expense',
-    /\bused\s+for\b|\bpaid\b|\bpayment\b|\bpurchase\b|\bspent\b|\bdebit(?:ed|\s+(?:transaction|txn))?\b|\bcharged\b|شراء|دفع|سداد|خصم/iu
-  ]
-];
-const paymentRailPatterns: [string, RegExp][] = [
-  ['apple_pay', /\bapple\s+pay\b/iu],
-  ['mada', /\bmada\b|مدى/iu],
-  ['pos', /\bpos\b/iu],
-  ['visa', /\bvisa\b/iu],
-  ['mastercard', /\bmastercard\b/iu]
-];
-const keywordKind: Record<
-  KeywordRule['group'],
-  NonNullable<TrackingImportEvent['kind']> | null
-> = {
-  expense: 'expense',
-  income: 'income',
-  transfer: 'transfer',
-  withdrawal: 'expense',
-  deposit: 'income',
-  refund: 'refund',
-  subscription: 'expense',
-  installment: 'expense',
-  fee: 'fee',
-  failed_transaction: null,
-  reversal: 'refund'
-};
-const currencies: [string, string][] = [
-  ['SAR', 'SAR|ر\s*\.\s*س|ريال(?:\s+سعودي)?'],
-  ['AED', 'AED|د\s*\.\s*إ|درهم(?:\s+إماراتي)?'],
-  ['USD', 'USD|US\\$|دولار'],
-  ['KWD', 'KWD|د\s*\.\s*ك|دينار(?:\s+كويتي)?'],
-  ['QAR', 'QAR|ر\s*\.\s*ق|ريال(?:\s+قطري)']
-];
-
-export async function prepareSmsImport(
-  messages: readonly RawSmsMessage[],
-  options: {
-    keywordRules: readonly KeywordRule[];
-    senderRules: readonly SenderRule[];
-    accounts: readonly Account[];
-    knownFingerprints: ReadonlySet<string>;
-  }
-): Promise<PreparedSmsImport> {
-  return prepareFinancialMessageImport(messages, options);
+interface Options {
+  keywordRules: readonly KeywordRule[];
+  senderRules: readonly SenderRule[];
+  accounts: readonly Account[];
+  knownFingerprints: ReadonlySet<string>;
+  deviceId?: string;
+  snapshot?: RuleSnapshot;
+  country?: string;
+  bindings?: readonly {
+    provider: string;
+    role: 'card' | 'account';
+    suffix: string;
+    accountId: string;
+  }[];
 }
+const digest = async (value: string) =>
+  Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, value);
+export const prepareSmsImport = (
+  messages: readonly RawSmsMessage[],
+  options: Options
+) => prepareFinancialMessageImport(messages, options);
 
 export async function prepareFinancialMessageImport(
   messages: readonly (RawSmsMessage | RawBankNotification)[],
-  options: {
-    keywordRules: readonly KeywordRule[];
-    senderRules: readonly SenderRule[];
-    accounts: readonly Account[];
-    knownFingerprints: ReadonlySet<string>;
-  }
+  options: Options
 ): Promise<PreparedSmsImport> {
-  const events: TrackingImportEvent[] = [];
-  const skippedFingerprints: string[] = [];
-  const consumedSourceKeys: string[] = [];
-  let newestReceivedAt: number | null = null;
-  let accountRequiredCount = 0;
-
+  const result: PreparedSmsImport = {
+    events: [],
+    skippedFingerprints: [],
+    newestReceivedAt: null,
+    accountRequiredCount: 0,
+    consumedSourceKeys: []
+  };
   for (const input of messages) {
-    const message = normalizeMessage(input);
-    newestReceivedAt = Math.max(newestReceivedAt ?? 0, message.receivedAt);
-    const normalized = normalize(message.body);
-    const fingerprint = await fingerprintMessage(message, normalized);
-    if (
-      options.knownFingerprints.has(fingerprint) ||
-      otpPattern.test(normalized) ||
-      marketingPattern.test(normalized)
-    ) {
-      skippedFingerprints.push(fingerprint);
-      if (message.packageName) consumedSourceKeys.push(message.sourceKey);
-      continue;
-    }
-    const parsed = parseAmount(normalized);
-    const kind = detectKind(normalized, message.sender, options);
-    if (!parsed || kind === null) {
-      skippedFingerprints.push(fingerprint);
-      if (message.packageName) consumedSourceKeys.push(message.sourceKey);
-      continue;
-    }
-    const selectedAccount = selectAccount(
-      normalized,
-      parsed.currency,
-      options.accounts
+    const sms = 'body' in input;
+    const nativeId = sms ? input.id : input.key;
+    const sender = sms ? input.sender : input.packageName;
+    const body = sms
+      ? input.body
+      : [input.title, input.text].filter(Boolean).join('\n');
+    const receivedAt = sms ? input.receivedAt : input.postedAt;
+    if (!Number.isSafeInteger(receivedAt) || receivedAt < 0) continue;
+    result.newestReceivedAt = Math.max(
+      result.newestReceivedAt ?? 0,
+      receivedAt
     );
-    if (!selectedAccount) {
-      accountRequiredCount += 1;
+    const normalizedBody = normalizeFinancialText(body);
+    const channel = sms ? 'android_sms' : 'android_notification';
+    const nativeIdDigest = await digest(
+      `${sender}\n${sms ? nativeId : (input.nativeKey ?? nativeId)}`
+    );
+    const revisionDigest = await digest(normalizedBody);
+    const key = `sha256:${await digest(`${options.deviceId ?? 'legacy-device'}\n${channel}\n${nativeIdDigest}${sms ? '' : '\n' + revisionDigest}`)}`;
+    const consume = () => {
+      if (!sms) result.consumedSourceKeys.push(nativeId);
+    };
+    if (options.knownFingerprints.has(key)) {
+      result.skippedFingerprints.push(key);
+      consume();
       continue;
     }
-    const receivedAt = new Date(message.receivedAt);
-    if (Number.isNaN(receivedAt.valueOf())) {
-      skippedFingerprints.push(fingerprint);
-      if (message.packageName) consumedSourceKeys.push(message.sourceKey);
+    const configured = options.snapshot ?? defaultSnapshot;
+    const provider = configured.providers?.find((p) =>
+      [...p.senders, ...p.packages].some(
+        (s) => normalizeSender(s) === normalizeSender(sender)
+      )
+    );
+    const country = options.country ?? provider?.country;
+    const overrides = new Map(
+      options.keywordRules.map((rule) => [
+        normalizeFinancialText(rule.value).toLowerCase(),
+        rule.enabled
+      ])
+    );
+    const snapshot: RuleSnapshot = {
+      ...configured,
+      rules: configured.rules
+        .map((rule) => ({
+          ...rule,
+          any:
+            rule.family === 'action'
+              ? rule.any.filter(
+                  (phrase) =>
+                    overrides.get(
+                      normalizeFinancialText(phrase).toLowerCase()
+                    ) !== false
+                )
+              : rule.any
+        }))
+        .filter((rule) => rule.any.length > 0)
+    };
+    const classification = classifyFinancialMessage(
+      { text: normalizedBody, sender, country, channel, receivedAt },
+      snapshot
+    );
+    // Custom wording can identify a candidate, but cannot bypass accounting review or protected lifecycle rules.
+    if (classification.status === 'unknown') {
+      const custom = options.keywordRules.filter(
+        (rule) =>
+          rule.enabled &&
+          rule.origin === 'custom' &&
+          normalizedBody
+            .toLowerCase()
+            .includes(normalizeFinancialText(rule.value).toLowerCase())
+      );
+      if (custom.length) {
+        classification.reasonCodes.push('custom_rule_review');
+        classification.appliedRuleKeys.push(
+          ...custom.map(
+            (rule) =>
+              `custom.${rule.id.replace(/[^a-z0-9._-]/gi, '_').slice(0, 80)}`
+          )
+        );
+        classification.direction = custom.every((rule) =>
+          ['expense', 'fee', 'subscription', 'installment'].includes(rule.group)
+        )
+          ? 'outgoing'
+          : custom.every((rule) =>
+                ['income', 'deposit', 'refund'].includes(rule.group)
+              )
+            ? 'incoming'
+            : 'unknown';
+        classification.subtype =
+          classification.direction === 'outgoing'
+            ? 'generic_debit'
+            : classification.direction === 'incoming'
+              ? 'generic_credit'
+              : 'unknown';
+      }
+    }
+    if (classification.disposition === 'ignore') {
+      result.skippedFingerprints.push(key);
+      consume();
       continue;
     }
-    const amountMinor =
-      kind === 'income' || kind === 'refund'
-        ? parsed.amountMinor
-        : -parsed.amountMinor;
-    const safeSender = minimizedSender(message.sender);
-    const paymentRail = detectPaymentRail(normalized);
-    const merchant = kind === 'expense' ? extractMerchant(message.body) : null;
-    events.push({
-      sourceItemKey: fingerprint,
-      ...(safeSender ? { sender: safeSender } : {}),
-      amountMinor,
-      currency: parsed.currency,
-      kind,
-      ...(merchant ? { merchant } : {}),
-      accountId: selectedAccount.id,
-      ...(message.packageName
+    const trusted = options.senderRules.some(
+      (rule) =>
+        rule.enabled &&
+        rule.trusted &&
+        normalizeSender(rule.normalizedSender) === normalizeSender(sender)
+    );
+    if (
+      !classification.appliedRuleKeys.length &&
+      classification.amountMinor === null
+    ) {
+      result.skippedFingerprints.push(key);
+      consume();
+      continue;
+    }
+    if (!trusted) classification.reasonCodes.push('source_untrusted');
+    const selected = selectAccount(
+      classification.currency,
+      classification.instruments,
+      options,
+      provider?.providerKey
+    );
+    if (!selected) {
+      classification.reasonCodes.push('ambiguous_account');
+      result.accountRequiredCount++;
+    }
+    if (classification.reasonCodes.length)
+      classification.disposition = 'review';
+    const kind =
+      classification.subtype === 'salary'
+        ? 'income'
+        : ['refund', 'reversal'].includes(classification.subtype)
+          ? 'refund'
+          : ['transfer_sent', 'transfer_received', 'withdrawal'].includes(
+                classification.subtype
+              )
+            ? 'transfer'
+            : classification.subtype === 'fee'
+              ? 'fee'
+              : classification.direction === 'outgoing'
+                ? 'expense'
+                : undefined;
+    const { providerReference, ...safeClassification } = classification;
+    const paymentRail = /apple\s*pay/i.test(body)
+      ? 'apple_pay'
+      : /مدى|\bmada\b/i.test(body)
+        ? 'mada'
+        : null;
+    result.events.push({
+      sourceItemKey: key,
+      transport: {
+        deviceId: options.deviceId ?? 'legacy-device',
+        channel,
+        nativeIdDigest,
+        revisionDigest
+      },
+      classification: safeClassification,
+      ...(providerReference
         ? {
-            metadata: {
-              sourcePackage: message.packageName,
-              ...(paymentRail ? { paymentRail } : {})
-            }
+            providerReferenceDigest: await digest(
+              `${provider?.providerKey ?? normalizeSender(sender)}\n${providerReference}`
+            )
           }
         : {}),
-      receivedAt: receivedAt.toISOString(),
-      occurredAt: receivedAt.toISOString()
+      ...(/https?:|\+?\d{4,}/i.test(sender)
+        ? {}
+        : { sender: sender.slice(0, 80) }),
+      ...(classification.amountMinor !== null
+        ? {
+            amountMinor:
+              classification.direction === 'incoming'
+                ? classification.amountMinor
+                : -classification.amountMinor
+          }
+        : {}),
+      ...(classification.currency ? { currency: classification.currency } : {}),
+      ...(kind ? { kind } : {}),
+      ...(selected ? { accountId: selected.id } : {}),
+      ...(classification.merchant ? { merchant: classification.merchant } : {}),
+      metadata: {
+        ...(sms ? {} : { sourcePackage: sender }),
+        ...(paymentRail ? { paymentRail } : {}),
+        ...(provider ? { sourceProvider: provider.providerKey } : {})
+      },
+      receivedAt: new Date(receivedAt).toISOString(),
+      ...(classification.occurredAt
+        ? { occurredAt: classification.occurredAt }
+        : {})
     });
-    if (message.packageName) consumedSourceKeys.push(message.sourceKey);
+    consume();
   }
-
-  return {
-    events,
-    skippedFingerprints,
-    newestReceivedAt,
-    accountRequiredCount,
-    consumedSourceKeys
-  };
+  return result;
 }
-
-interface NormalizedFinancialMessage {
-  sourceKey: string;
-  sender: string;
-  packageName: string | null;
-  body: string;
-  receivedAt: number;
-}
-
-function normalizeMessage(
-  message: RawSmsMessage | RawBankNotification
-): NormalizedFinancialMessage {
-  if ('body' in message) {
-    return {
-      sourceKey: message.id,
-      sender: message.sender,
-      packageName: null,
-      body: message.body,
-      receivedAt: message.receivedAt
-    };
-  }
-  return {
-    sourceKey: message.key,
-    sender: message.packageName,
-    packageName: message.packageName,
-    body: message.text || message.title,
-    receivedAt: message.postedAt
-  };
-}
-
-async function fingerprintMessage(
-  message: NormalizedFinancialMessage,
-  normalizedBody: string
-): Promise<string> {
-  const digest = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    `${Math.floor(message.receivedAt / 300_000)}\n${normalizedBody}`
-  );
-  return `sha256:${digest}`;
-}
-
-function normalize(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-    .replace(/٫/g, '.')
-    .replace(/٬/g, ',')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLocaleLowerCase('en');
-}
-
-function detectKind(
-  value: string,
-  sender: string,
-  options: {
-    keywordRules: readonly KeywordRule[];
-    senderRules: readonly SenderRule[];
-  }
-): NonNullable<TrackingImportEvent['kind']> | null {
-  if (negativeTransactionPattern.test(value)) return null;
-  const structuredKind = kindPatterns.find(([, pattern]) =>
-    pattern.test(value)
-  )?.[0];
-  if (structuredKind) return structuredKind;
-  const normalizedSender = normalizeSender(sender);
-  const trustedSender = options.senderRules.some(
-    (rule) =>
-      rule.enabled &&
-      rule.trusted &&
-      normalizeSender(rule.normalizedSender) === normalizedSender
-  );
-  if (!trustedSender) return null;
-  const keyword = options.keywordRules.find(
-    (rule) => rule.enabled && value.includes(normalize(rule.value))
-  );
-  return keyword ? keywordKind[keyword.group] : null;
-}
-
-function detectPaymentRail(value: string): string | null {
-  return (
-    paymentRailPatterns.find(([, pattern]) => pattern.test(value))?.[0] ?? null
-  );
-}
-
-function extractMerchant(value: string): string | null {
-  const match = value.match(
-    /(?:\bat\b|\bfrom\b|لدى|من)\s+(.+?)(?=\s+(?:using|with|via|card|account|ending|بواسطة|عن\s+طريق)\b|$)/iu
-  )?.[1];
-  return match?.trim().slice(0, 160) || null;
-}
-
-function parseAmount(
-  value: string
-): { amountMinor: number; currency: string } | null {
-  for (const [currency, token] of currencies) {
-    const after = value.match(
-      new RegExp(`([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(?:${token})`, 'iu')
-    );
-    const before = value.match(
-      new RegExp(`(?:${token})\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'iu')
-    );
-    const raw = after?.[1] ?? before?.[1];
-    if (!raw) continue;
-    const amount = Number(raw.replace(/,/g, ''));
-    const amountMinor = Math.round(
-      amount * 10 ** getCurrencyMinorUnitScale(currency)
-    );
-    if (Number.isSafeInteger(amountMinor) && amountMinor > 0)
-      return { amountMinor, currency };
-  }
-  return null;
-}
-
 function selectAccount(
-  body: string,
-  currency: string,
-  accounts: readonly Account[]
+  currency: string | null,
+  hints: { role: 'card' | 'account'; suffix: string }[],
+  options: Options,
+  provider?: string
 ): Account | null {
-  const eligible = accounts.filter(
-    (account) =>
-      account.currencyCode === currency &&
-      accountAllowsAutomaticTracking(account)
+  const eligible = options.accounts.filter(
+    (a) => a.currencyCode === currency && accountAllowsAutomaticTracking(a)
   );
-  const hinted = body.match(
-    /(?:card|account|acct|ending|بطاقة|حساب)[^0-9]{0,20}([0-9]{4})(?![0-9])/iu
-  )?.[1];
-  if (hinted) {
-    const exact = eligible.filter((account) => account.lastFour === hinted);
-    if (exact.length === 1) return exact[0] ?? null;
-    if (exact.length > 1) return null;
+  if (hints.length) {
+    const matches = hints.map((hint) => {
+      const binding =
+        options.bindings?.filter(
+          (b) =>
+            provider &&
+            b.provider === provider &&
+            b.role === hint.role &&
+            b.suffix === hint.suffix
+        ) ?? [];
+      if (binding.length)
+        return eligible.filter((a) =>
+          binding.some((b) => b.accountId === a.id)
+        );
+      if (
+        options.bindings?.some(
+          (b) => b.role === hint.role && b.suffix === hint.suffix
+        )
+      )
+        return [];
+      return hint.suffix.length === 4
+        ? eligible.filter((a) => a.lastFour === hint.suffix)
+        : [];
+    });
+    if (matches.some((m) => m.length !== 1)) return null;
+    return matches.every((m) => m[0]?.id === matches[0]?.[0]?.id)
+      ? (matches[0]?.[0] ?? null)
+      : null;
   }
   if (eligible.length === 1) return eligible[0] ?? null;
-  const defaults = eligible.filter((account) => account.isDefault);
+  const defaults = eligible.filter((a) => a.isDefault);
   return defaults.length === 1 ? (defaults[0] ?? null) : null;
-}
-
-function minimizedSender(value: string): string | null {
-  const normalized = value.normalize('NFKC').trim();
-  return /https?:|\+?\d{4,}/iu.test(normalized)
-    ? null
-    : normalized.slice(0, 80);
 }

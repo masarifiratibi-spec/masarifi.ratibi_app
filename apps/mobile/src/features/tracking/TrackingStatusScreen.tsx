@@ -32,6 +32,7 @@ import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 import {
   syncAutomaticTracking,
+  resyncAutomaticTracking,
   type AutomaticTrackingSyncState
 } from '@/services/automatic-tracking-coordinator';
 
@@ -69,6 +70,7 @@ export function TrackingStatusScreen() {
                 await automaticTrackingService.setMode('automatic_clear');
             }
           }
+          await resyncAutomaticTracking();
           await refetchTrackingStatus();
         })().catch(() => setActionFailed(true));
         void automaticTrackingService.listKeywordRules().then(setKeywordRules);
@@ -152,6 +154,7 @@ export function TrackingStatusScreen() {
         if (!query.data?.notificationTrackingEnabled)
           await automaticTrackingService.setMode('paused');
       }
+      await resyncAutomaticTracking();
       await query.refetch();
     } catch {
       setActionFailed(true);
@@ -168,6 +171,7 @@ export function TrackingStatusScreen() {
       await automaticTrackingService.setMode(
         nextValue ? 'automatic_clear' : 'paused'
       );
+      await resyncAutomaticTracking();
       await query.refetch();
     } catch {
       setActionFailed(true);
@@ -198,6 +202,7 @@ export function TrackingStatusScreen() {
         if (!query.data?.smsTrackingEnabled)
           await automaticTrackingService.setMode('paused');
       }
+      await resyncAutomaticTracking();
       await query.refetch();
     } catch {
       setActionFailed(true);

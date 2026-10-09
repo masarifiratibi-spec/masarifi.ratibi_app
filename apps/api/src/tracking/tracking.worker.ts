@@ -13,6 +13,7 @@ import {
 import { TrackingRepository, type ImportClaim } from './tracking.repository';
 import { executeParserDefinition } from './tracking.parser';
 import { TrackingStorage } from './tracking.storage';
+import { captureEffectsAgree } from './tracking-capture-agreement';
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -181,10 +182,42 @@ export class TrackingWorker implements OnModuleDestroy {
           factorAgeSeconds: null,
           mfaAgeSeconds: null,
         };
-        const key = `tracking:${await this.repository.getImportSourceIdentityHash(
-          principal,
-          String(item.id),
-        )}`;
+        const reservation = command.transport
+          ? await this.repository.reserveCapture(String(item.id), claim.claim_token)
+          : null;
+        const key = `tracking:${
+          reservation
+            ? String(reservation.identityHash)
+            : await this.repository.getImportSourceIdentityHash(principal, String(item.id))
+        }`;
+        if (typeof reservation?.transactionId === 'string') {
+          const saved = record(
+            record(
+              await this.ledger.getTransaction(
+                principal,
+                reservation.transactionId,
+                stableUuid(key),
+              ),
+            ).transaction,
+          );
+          if (!captureEffectsAgree(saved, command)) {
+            await this.repository.deferImportItem(
+              String(item.id),
+              claim.claim_token,
+              'duplicate_candidate',
+            );
+            continue;
+          }
+          await this.repository.acceptImportItem(
+            String(item.id),
+            claim.claim_token,
+            null,
+            reservation.transactionId,
+          );
+          continue;
+        }
+        if (reservation && reservation.primaryItemId !== String(item.id))
+          throw new Error('IMPORT_CAPTURE_IN_PROGRESS');
         try {
           const common = {
             principal,
@@ -209,7 +242,7 @@ export class TrackingWorker implements OnModuleDestroy {
               : await this.ledger.createTransaction({
                   ...common,
                   body: {
-                    kind: command.kind,
+                    kind: command.kind === 'fee' ? 'expense' : command.kind,
                     amountMinor: Math.abs(Number(command.amountMinor)),
                     currency: command.currency,
                     accountId: command.accountId,

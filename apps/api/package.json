@@ -107,6 +107,7 @@
   },
   "dependencies": {
     "@clerk/backend": "3.16.12",
+    "@masarifi/transaction-parser": "file:../../packages/transaction-parser",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",

@@ -6,6 +6,14 @@ import org.junit.Test
 
 class NotificationQueueTest {
   private val now = 1_800_000_000_000L
+  @Test
+  fun keepsRevisionsOfOneNativeNotificationAndAcknowledgesOnlyCommittedRevision() {
+    val first=CapturedNotification("native:revision1","com.bank","Bank","Pending",now-1,"native")
+    val settled=CapturedNotification("native:revision2","com.bank","Bank","Paid SAR12",now,"native")
+    val records=NotificationQueuePolicy.prune(listOf(first,first,settled),now)
+    assertEquals(2,records.size)
+    assertEquals(listOf(settled),NotificationQueuePolicy.acknowledge(records,setOf(first.key)))
+  }
 
   @Test
   fun capsExpiresAndAcknowledgesRecords() {

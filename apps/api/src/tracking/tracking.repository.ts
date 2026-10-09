@@ -73,6 +73,89 @@ function mappedError(error: unknown): HttpException | Error {
 export class TrackingRepository {
   constructor(private readonly pool: PoolService) {}
 
+  ruleSnapshot(principal: ClerkPrincipal): Promise<Record<string, unknown>> {
+    return this.ownerJson(principal, 'select private.get_tracking_rule_snapshot($1) result', [
+      principal.userId,
+    ]);
+  }
+  confirmation(principal: ClerkPrincipal, id: string) {
+    return this.ownerJson(
+      principal,
+      'select private.get_tracking_confirmation($1,$2::uuid) result',
+      [principal.userId, id],
+    );
+  }
+  captureTransaction(
+    principal: ClerkPrincipal,
+    itemId: string,
+  ): Promise<{ transactionId: string | null; operationId: string | null } | null> {
+    return this.owner(
+      principal,
+      async (client) =>
+        (
+          await client.query<{
+            capture: { transactionId: string | null; operationId: string | null } | null;
+          }>('select private.read_tracking_capture_transaction($1,$2::uuid) capture', [
+            principal.userId,
+            itemId,
+          ])
+        ).rows[0]?.capture ?? null,
+    );
+  }
+  releaseRead(principal: ClerkPrincipal, id: string | null): Promise<Record<string, unknown>> {
+    return this.ownerJson(
+      principal,
+      "select jsonb_build_object('items',private.read_tracking_releases($1::uuid)) result",
+      [id],
+    );
+  }
+  releaseMutate(
+    principal: ClerkPrincipal,
+    id: string | null,
+    action: string,
+    patch: Record<string, unknown>,
+    version: number,
+    reason: string,
+    key: string,
+    requestId: string,
+  ) {
+    return this.idempotent(
+      principal,
+      'tracking.admin.release.' + action,
+      key,
+      { id, action, patch, version, reason },
+      200,
+      requestId,
+      (client) =>
+        this.queryJson(
+          client,
+          'select private.mutate_tracking_release($1::uuid,$2,$3::jsonb,$4,$5,$6) result',
+          [id, action, JSON.stringify(patch), version, reason, principal.userId],
+        ),
+      true,
+    );
+  }
+  accountType(principal: ClerkPrincipal, id: string): Promise<string | null> {
+    return this.owner(
+      principal,
+      async (client) =>
+        (
+          await client.query<{ type: string }>(
+            "select type from public.accounts where id=$1::uuid and user_id=$2 and status='active'",
+            [id, principal.userId],
+          )
+        ).rows[0]?.type ?? null,
+    );
+  }
+  reserveCapture(itemId: string, fence: string): Promise<Record<string, unknown>> {
+    return this.worker((client) =>
+      this.queryJson(client, 'select private.reserve_tracking_capture($1::uuid,$2::uuid) result', [
+        itemId,
+        fence,
+      ]),
+    );
+  }
+
   getPreferences(principal: ClerkPrincipal): Promise<Record<string, unknown>> {
     return this.ownerJson(principal, 'select private.get_tracking_preferences($1) result', [
       principal.userId,
@@ -159,7 +242,7 @@ export class TrackingRepository {
           : name === 'user_sender_rules'
             ? "||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)))"
             : name === 'import_items'
-              ? "-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',x.normalized_payload-'body'-'sender'-'metadata'-'sourceText')"
+              ? "-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',x.normalized_payload-'body'-'sender'-'metadata'-'sourceText','notification_id',(select n.id from public.notification_events n where n.user_id=x.user_id and n.data->>'targetId'=x.transaction_id::text and n.type in ('transaction.created','transfer.created') order by n.created_at limit 1))"
               : name === 'review_items'
                 ? "-'decision_token'-'decision_lease_until'"
                 : name === 'duplicate_candidates'
@@ -229,14 +312,21 @@ export class TrackingRepository {
   getImportSourceIdentityHash(principal: ClerkPrincipal, itemId: string): Promise<string> {
     return this.owner(principal, async (client) => {
       const row = (
-        await client.query<{ source_type: string; source_item_key: string } & QueryResultRow>(
-          `select s.source_type,i.source_item_key from public.import_items i
+        await client.query<
+          {
+            source_type: string;
+            source_item_key: string;
+            canonical_identity_hash: string | null;
+          } & QueryResultRow
+        >(
+          `select s.source_type,i.source_item_key,i.canonical_identity_hash from public.import_items i
            join public.import_sessions s on s.id=i.session_id and s.user_id=i.user_id
            where i.id=$1::uuid and i.user_id=$2`,
           [itemId, principal.userId],
         )
       ).rows[0];
       if (!row) throw new HttpException({ code: 'IMPORT_ITEM_NOT_FOUND' }, 404);
+      if (row.canonical_identity_hash) return row.canonical_identity_hash;
       return createHash('sha256')
         .update(`${row.source_type}\0${row.source_item_key}`)
         .digest('hex');
@@ -313,13 +403,14 @@ export class TrackingRepository {
         const sourceType = input.sourceType;
         const row = await this.queryJson(
           client,
-          'select private.create_import_session($1,$2,$3,1,$4,$5::jsonb) result',
+          'select private.create_import_session($1,$2,$3,$6,$4,$5::jsonb) result',
           [
             principal.userId,
             sourceType,
             request.sourceName,
             requestHash,
             JSON.stringify(input.events),
+            input.schemaVersion,
           ],
         );
         if (request.raw)
@@ -829,7 +920,7 @@ export class TrackingRepository {
   acceptImportItem(
     id: string,
     token: string,
-    operationId: string,
+    operationId: string | null,
     transactionId: string,
   ): Promise<void> {
     return this.worker(async (client) => {

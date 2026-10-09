@@ -12,6 +12,26 @@ import {
 const id = '80000000-0000-4000-8000-000000000001';
 
 describe('tracking DTO boundaries', () => {
+  it.each(['1', '2', null, true])(
+    'rejects a nonnumeric schema version %p before version-specific gates',
+    (schemaVersion) => {
+      expect(() =>
+        normalizeNormalizedImport({
+          schemaVersion,
+          sourceType: 'sms',
+          sourceChannel: 'android_sms',
+          events: [
+            {
+              sourceItemKey: 'native-one',
+              receivedAt: '2026-09-02T00:00:00Z',
+              amountMinor: -1200,
+              currency: 'SAR',
+            },
+          ],
+        }),
+      ).toThrow();
+    },
+  );
   it('normalizes IDs, versions, cursors, lists, and one bounded event', () => {
     expect(normalizeTrackingId(id)).toBe(id);
     expect(normalizeVersion(2)).toBe(2);

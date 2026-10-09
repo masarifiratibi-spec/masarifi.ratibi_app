@@ -31,6 +31,43 @@ type Request = AdminPrincipalRequest & { requestId?: string };
 export class TrackingAdminController {
   constructor(readonly tracking: TrackingService) {}
 
+  @Get('api/v1/admin/tracking/rule-releases')
+  @ApiOperation({ operationId: 'listTrackingRuleReleases' })
+  @adminPermission('parsers.coverage.read')
+  releases(@Req() r: Request) {
+    return this.tracking.releaseRead(this.principal(r), null);
+  }
+
+  @Get('api/v1/admin/tracking/rule-releases/:releaseId')
+  @ApiOperation({ operationId: 'getTrackingRuleRelease' })
+  @adminPermission('parsers.coverage.read')
+  release(@Req() r: Request, @Param('releaseId') id: string) {
+    return this.tracking.releaseRead(this.principal(r), id);
+  }
+
+  @Post('api/v1/admin/tracking/rule-releases')
+  @ApiOperation({ operationId: 'createTrackingRuleRelease' })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
+  createRelease(
+    @Req() r: Request,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.tracking.releaseMutate(null, this.input(r, body, key));
+  }
+
+  @Post('api/v1/admin/tracking/rule-releases/:releaseId/action')
+  @ApiOperation({ operationId: 'actOnTrackingRuleRelease' })
+  @adminPermission('parsers.versions.manage', { recentAuth: true })
+  releaseAction(
+    @Req() r: Request,
+    @Param('releaseId') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.tracking.releaseMutate(id, this.input(r, body, key));
+  }
+
   @Get('api/v1/admin/imports/overview')
   @ApiOperation({ operationId: 'getAdminImportsOverview' })
   @adminPermission('imports.read')

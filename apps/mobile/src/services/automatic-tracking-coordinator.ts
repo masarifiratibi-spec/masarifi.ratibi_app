@@ -1,4 +1,7 @@
 import * as Crypto from 'expo-crypto';
+import { getTrackingDeviceId } from './tracking-device';
+import { reconcileTrackingSaves } from './tracking-save-confirmation';
+import { configureTrackingBackground } from './tracking-background-runtime';
 
 import { resolveClientMode } from '@/config/client-runtime';
 import type {
@@ -36,6 +39,7 @@ import {
 } from './platform/bank-notification-service';
 import {
   trackingSourcePreferences,
+  trackingConsentEpoch,
   type TrackingSourcePreferences
 } from './tracking-source-preferences';
 
@@ -72,6 +76,8 @@ interface CoordinatorDependencies {
     | 'listImportItemIds'
     | 'listReviewItems'
     | 'listDuplicates'
+    | 'getRuleConfiguration'
+    | 'listImportOutcomes'
   >;
   permission: Pick<TrackingPermissionService, 'getState'>;
   inbox: SmsInboxService;
@@ -82,6 +88,14 @@ interface CoordinatorDependencies {
   queue: SmsImportQueue;
   prepare: typeof prepareFinancialMessageImport;
   now(): number;
+  deviceId?(): Promise<string>;
+  onSaved?(ownerId: string, sessionId: string): Promise<boolean | void>;
+  configureBackground?(
+    ownerId: string,
+    rules: SmsRuleSnapshot,
+    mode?: string,
+    epoch?: number
+  ): Promise<void>;
 }
 
 const idleState: AutomaticTrackingSyncState = {
@@ -118,6 +132,7 @@ export function createAutomaticTrackingCoordinator(
     }
     try {
       const ownerId = session.userId;
+      const epoch = trackingConsentEpoch();
       const queue = await dependencies.queue.load(ownerId);
       const online = await dependencies.inbox.isNetworkAvailable();
       let mode = queue.mode ?? dependencies.offlineMode();
@@ -127,135 +142,192 @@ export function createAutomaticTrackingCoordinator(
         mode = status.mode;
       }
       if (mode === 'paused' || status?.serviceState === 'unavailable') {
+        await dependencies.configureBackground?.(
+          ownerId,
+          queue.rules,
+          'paused',
+          epoch
+        );
         return update('idle');
       }
+      const stillOwner = () => {
+        if (epoch !== trackingConsentEpoch())
+          throw new Error('tracking_consent_changed');
+        if (
+          dependencies.session()?.userId !== ownerId ||
+          dependencies.session()?.status !== 'authenticated'
+        )
+          throw new Error('tracking_owner_changed');
+      };
+      let last: AutomaticTrackingSyncState | null = null;
       const sources = await dependencies.sources.load();
+      if (online && queue.pending.length)
+        last = await flush(
+          ownerId,
+          queue.pending.filter((entry) =>
+            entry.submission.sourceChannel === 'android_notification'
+              ? sources.notificationEnabled
+              : sources.smsEnabled
+          ),
+          dependencies,
+          update,
+          stillOwner
+        );
+      stillOwner();
       if (!sources.smsEnabled && !sources.notificationEnabled)
-        return update('idle');
+        return last ?? update('idle');
       const [permission, notificationAccess] = await Promise.all([
         dependencies.permission.getState(),
         dependencies.bankNotifications.getAccessState()
       ]);
-      if (
-        (!sources.smsEnabled ||
-          permission.status !== 'granted' ||
-          !dependencies.inbox.available) &&
-        (!sources.notificationEnabled || notificationAccess !== 'granted')
-      )
-        return update('idle');
-
-      if (online && queue.pending.length) {
-        return await flush(ownerId, queue.pending, dependencies, update);
+      let config = queue.rules;
+      if (online) {
+        try {
+          config = dependencies.tracking.getRuleConfiguration
+            ? await dependencies.tracking.getRuleConfiguration()
+            : await onlineRuleSnapshot(dependencies);
+          stillOwner();
+          await dependencies.queue.saveRules(ownerId, config);
+        } catch {
+          /* Keep the complete last-known-good release. Unconfigured capture is held for review. */
+        }
       }
-
-      const rules = online
-        ? await onlineRules(ownerId, mode!, dependencies)
-        : cachedRules(queue.rules);
+      const rules = cachedRules(config);
+      const deviceId = dependencies.deviceId
+        ? await dependencies.deviceId()
+        : 'legacy-device';
       const accounts = online
         ? await dependencies.listAccounts()
         : await dependencies.listCachedAccounts();
-      update('scanning');
-      const since =
+      stillOwner();
+      await dependencies.configureBackground?.(
+        ownerId,
+        config,
+        mode ?? undefined,
+        epoch
+      );
+      let cursor =
         queue.cursor ?? Math.max(0, dependencies.now() - 7 * 86_400_000);
-      if (sources.notificationEnabled && notificationAccess === 'granted') {
-        const notifications =
-          await dependencies.bankNotifications.readRecent(100);
-        if (notifications.length > 0) {
-          const prepared = await dependencies.prepare(notifications, {
-            ...rules,
-            accounts,
-            knownFingerprints: new Set(queue.fingerprints)
-          });
-          if (prepared.events.length > 0) {
-            const idempotencyKey = await importKey(prepared, 'provider');
-            const queued = await dependencies.queue.enqueue(ownerId, {
-              idempotencyKey,
-              submission: {
-                schemaVersion: 1,
-                sourceType: 'provider',
-                sourceChannel: 'android_notification',
-                events: prepared.events
-              },
-              cursor: queue.cursor ?? 0,
-              fingerprints: [
-                ...prepared.events.map((event) => event.sourceItemKey),
-                ...prepared.skippedFingerprints
-              ],
-              mode: mode ?? undefined
-            });
-            await dependencies.bankNotifications.acknowledge(
-              prepared.consumedSourceKeys
-            );
-            if (!online)
-              return update(
-                prepared.accountRequiredCount ? 'account_required' : 'queued'
-              );
-            return await flush(ownerId, queued.pending, dependencies, update);
+      let cursorId = queue.cursorId;
+      let fingerprints = new Set(queue.fingerprints);
+      let captured = false;
+      let accountRequired = false;
+      update('scanning');
+      // Each pass gives both channels a bounded quantum. Unresolved items are durably queued before progress.
+      const capture = async (
+        inputs: Parameters<typeof prepareFinancialMessageImport>[0],
+        source: 'sms' | 'provider'
+      ) => {
+        const prepared = await dependencies.prepare(inputs, {
+          ...rules,
+          accounts,
+          knownFingerprints: fingerprints,
+          deviceId,
+          snapshot: config.snapshot,
+          bindings: config.bindings
+        });
+        prepared.events = prepared.events.filter(
+          (event) => !fingerprints.has(event.sourceItemKey)
+        );
+        accountRequired ||= prepared.accountRequiredCount > 0;
+        stillOwner();
+        if (config.rolloutMode !== 'automatic')
+          for (const event of prepared.events)
+            if (event.classification) {
+              event.classification.disposition = 'review';
+              if (!event.classification.reasonCodes.includes('rollout_review'))
+                event.classification.reasonCodes.push('rollout_review');
+            }
+        if (source === 'sms' && inputs.length) {
+          const tail = inputs[inputs.length - 1];
+          if (tail && 'body' in tail) {
+            cursor = tail.receivedAt;
+            cursorId = tail.id;
           }
+        }
+        const seen = [
+          ...prepared.events.map((e) => e.sourceItemKey),
+          ...prepared.skippedFingerprints
+        ];
+        if (prepared.events.length) {
+          await dependencies.queue.enqueue(ownerId, {
+            idempotencyKey: await importKey(prepared, source),
+            submission: {
+              schemaVersion: prepared.events.every(
+                (e) => e.classification && e.transport
+              )
+                ? 2
+                : 1,
+              sourceType: source,
+              sourceChannel:
+                source === 'sms' ? 'android_sms' : 'android_notification',
+              events: prepared.events
+            },
+            cursor,
+            cursorId,
+            fingerprints: seen,
+            mode: mode ?? undefined
+          });
+          captured = true;
+        } else
           await dependencies.queue.checkpoint(
             ownerId,
-            queue.cursor ?? 0,
-            prepared.skippedFingerprints,
-            mode ?? undefined
+            cursor,
+            seen,
+            mode ?? undefined,
+            cursorId
           );
+        stillOwner();
+        if (source === 'provider')
           await dependencies.bankNotifications.acknowledge(
             prepared.consumedSourceKeys
           );
-          if (prepared.accountRequiredCount) return update('account_required');
+        fingerprints = new Set([...fingerprints, ...seen]);
+      };
+      if (sources.notificationEnabled && notificationAccess === 'granted')
+        await capture(
+          await dependencies.bankNotifications.readRecent(100),
+          'provider'
+        );
+      if (
+        sources.smsEnabled &&
+        permission.status === 'granted' &&
+        dependencies.inbox.available
+      ) {
+        for (let page = 0; page < 4; page++) {
+          const messages = await dependencies.inbox.readRecent({
+            since: cursor,
+            afterId: cursorId,
+            limit: 100
+          });
+          if (!messages.length) break;
+          const priorId = cursorId,
+            priorCursor = cursor;
+          await capture(messages, 'sms');
+          if (
+            messages.length < 100 ||
+            (priorId === cursorId && priorCursor === cursor)
+          )
+            break;
         }
       }
-
-      if (
-        !sources.smsEnabled ||
-        permission.status !== 'granted' ||
-        !dependencies.inbox.available
-      )
-        return update('idle');
-      const messages = await dependencies.inbox.readRecent({
-        since,
-        limit: 100
-      });
-      const prepared = await dependencies.prepare(messages, {
-        ...rules,
-        accounts,
-        knownFingerprints: new Set(queue.fingerprints)
-      });
-      if (!prepared.events.length) {
-        if (prepared.accountRequiredCount) return update('account_required');
-        if (prepared.newestReceivedAt !== null)
-          await dependencies.queue.checkpoint(
-            ownerId,
-            prepared.newestReceivedAt,
-            prepared.skippedFingerprints,
-            mode ?? undefined
-          );
-        return update('idle');
-      }
-
-      const idempotencyKey = await importKey(prepared, 'sms');
-      const cursor = prepared.accountRequiredCount
-        ? (queue.cursor ?? since)
-        : (prepared.newestReceivedAt ?? since);
-      const queued = await dependencies.queue.enqueue(ownerId, {
-        idempotencyKey,
-        submission: {
-          schemaVersion: 1,
-          sourceType: 'sms',
-          sourceChannel: 'android_sms',
-          events: prepared.events
-        },
-        cursor,
-        fingerprints: [
-          ...prepared.events.map((event) => event.sourceItemKey),
-          ...prepared.skippedFingerprints
-        ],
-        mode: mode ?? undefined
-      });
-      if (!online)
-        return update(
-          prepared.accountRequiredCount ? 'account_required' : 'queued'
+      stillOwner();
+      const pending = (await dependencies.queue.load(ownerId)).pending;
+      if (online && pending.length)
+        return await flush(
+          ownerId,
+          pending.filter((entry) =>
+            entry.submission.sourceChannel === 'android_notification'
+              ? sources.notificationEnabled
+              : sources.smsEnabled
+          ),
+          dependencies,
+          update,
+          stillOwner
         );
-      return await flush(ownerId, queued.pending, dependencies, update);
+      return captured
+        ? update('queued')
+        : (last ?? update(accountRequired ? 'account_required' : 'idle'));
     } catch {
       return update('error', { errorCode: 'sync_failed' });
     }
@@ -269,6 +341,10 @@ export function createAutomaticTrackingCoordinator(
       });
       return running;
     },
+    async resync(): Promise<AutomaticTrackingSyncState> {
+      if (running) await running;
+      return this.sync();
+    },
     getState: () => state,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -277,25 +353,14 @@ export function createAutomaticTrackingCoordinator(
   };
 }
 
-async function onlineRules(
-  ownerId: string,
-  mode: TrackingMode,
+async function onlineRuleSnapshot(
   dependencies: CoordinatorDependencies
-) {
-  const [keywordRules, senderRules] = await Promise.all([
+): Promise<SmsRuleSnapshot> {
+  const [keywords, senders] = await Promise.all([
     dependencies.tracking.listKeywordRules(),
     dependencies.tracking.listSenderRules()
   ]);
-  await dependencies.queue.saveRules(ownerId, {
-    keywords: keywordRules.map(({ value, enabled }) => ({ value, enabled })),
-    senders: senderRules.map(({ normalizedSender, enabled, trusted }) => ({
-      normalizedSender,
-      enabled,
-      trusted
-    }))
-  });
-  await dependencies.queue.checkpoint(ownerId, 0, [], mode);
-  return { keywordRules, senderRules };
+  return { keywords, senders };
 }
 
 function cachedRules(rules: SmsRuleSnapshot): {
@@ -304,13 +369,13 @@ function cachedRules(rules: SmsRuleSnapshot): {
 } {
   return {
     keywordRules: rules.keywords.map((rule, index) => ({
-      id: `cached-keyword-${index}`,
-      group: 'expense',
-      language: 'en',
+      id: rule.id ?? `cached-keyword-${index}`,
+      group: rule.group ?? 'expense',
+      language: rule.language ?? 'en',
       value: rule.value,
       normalizedValue: rule.value.normalize('NFKC').toLocaleLowerCase('en'),
-      origin: 'custom',
-      enabled: rule.enabled,
+      origin: rule.origin ?? 'custom',
+      enabled: rule.enabled && rule.group !== undefined,
       recentUseCount: 0,
       lastUsedAt: null
     })),
@@ -348,10 +413,17 @@ async function flush(
   update: (
     status: AutomaticTrackingSyncStatus,
     patch?: Partial<AutomaticTrackingSyncState>
-  ) => AutomaticTrackingSyncState
+  ) => AutomaticTrackingSyncState,
+  fence: () => void = () => undefined
 ): Promise<AutomaticTrackingSyncState> {
   let last = update('idle');
   for (const entry of pending) {
+    fence();
+    if (
+      dependencies.session()?.userId !== ownerId ||
+      dependencies.session()?.status !== 'authenticated'
+    )
+      throw new Error('tracking_owner_changed');
     let current: TrackingImportSession;
     if (entry.sessionId) {
       current = await dependencies.tracking.getImportSession(
@@ -370,8 +442,17 @@ async function flush(
         current.id
       );
     }
-    if (current.status === 'received' || current.status === 'processing')
-      return update('processing', { sessionId: current.id });
+    if (current.status === 'received' || current.status === 'processing') {
+      last = update('processing', { sessionId: current.id });
+      continue;
+    }
+    if (
+      current.acceptedCount > 0 &&
+      (await dependencies.onSaved?.(ownerId, current.id)) === false
+    ) {
+      last = update('processing', { sessionId: current.id });
+      continue;
+    }
     if (current.status === 'review') {
       const itemIds = new Set(
         await dependencies.tracking.listImportItemIds(current.id)
@@ -397,9 +478,16 @@ async function flush(
             reviewId: review?.id ?? null
           });
     }
+    if (current.status === 'failed')
+      return update('error', {
+        sessionId: current.id,
+        errorCode: 'import_failed'
+      });
     await dependencies.queue.markTerminal(ownerId, entry.idempotencyKey);
     if (current.status === 'complete')
-      last = update('imported', { sessionId: current.id });
+      last = update(current.acceptedCount > 0 ? 'imported' : 'idle', {
+        sessionId: current.id
+      });
     else
       return update('error', {
         sessionId: current.id,
@@ -430,8 +518,6 @@ async function findReview(
   return null;
 }
 
-const cachedAccounts = new CoreFinanceRepository();
-let cachedAccountsReady: Promise<void> | null = null;
 const coordinator = createAutomaticTrackingCoordinator({
   isLive: () => resolveClientMode() === 'live',
   session: () => useAppShellStore.getState().session,
@@ -444,16 +530,20 @@ const coordinator = createAutomaticTrackingCoordinator({
   sources: trackingSourcePreferences,
   listAccounts: (...args) => coreFinanceService.listAccounts(...args),
   async listCachedAccounts() {
-    cachedAccountsReady ??= cachedAccounts.hydrate();
-    await cachedAccountsReady;
+    const cachedAccounts = new CoreFinanceRepository();
+    await cachedAccounts.hydrate();
     return cachedAccounts.listAccounts();
   },
   queue: new SmsImportQueue(),
   prepare: prepareFinancialMessageImport,
-  now: Date.now
+  now: Date.now,
+  deviceId: getTrackingDeviceId,
+  onSaved: reconcileTrackingSaves,
+  configureBackground: configureTrackingBackground
 });
 
 export const syncAutomaticTracking = () => coordinator.sync();
+export const resyncAutomaticTracking = () => coordinator.resync();
 export const getAutomaticTrackingSyncState = () => coordinator.getState();
 export const subscribeAutomaticTrackingSyncState = (listener: () => void) =>
   coordinator.subscribe(listener);

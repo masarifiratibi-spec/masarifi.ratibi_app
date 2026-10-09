@@ -75,6 +75,7 @@ function parseNotification(value: unknown): RawBankNotification | null {
     packageName: row.packageName,
     title: row.title,
     text: row.text,
-    postedAt: Number(row.postedAt)
+    postedAt: Number(row.postedAt),
+    ...(typeof row.nativeKey === 'string' ? { nativeKey: row.nativeKey } : {})
   };
 }

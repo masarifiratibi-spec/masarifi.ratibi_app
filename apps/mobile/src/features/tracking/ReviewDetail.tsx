@@ -23,6 +23,7 @@ import { currentLocale } from '@/localization/i18n';
 import { useTheme } from '@/state/theme-context';
 import { trackingFieldLabel, trackingReasonSummary } from './tracking-display';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
+import { TrackingReviewFields } from './TrackingReviewFields';
 import {
   invalidateTrackingScopes,
   useReviewItem
@@ -36,6 +37,7 @@ export function ReviewDetail({ id }: { id: string }) {
   const categories = useCategories(true);
   const [resolving, setResolving] = useState(false);
   const [resolutionError, setResolutionError] = useState(false);
+  const [edits, setEdits] = useState<Record<string, unknown>>({});
   if (query.isLoading)
     return (
       <StateView state="loading" title={translate('tracking.state.loading')} />
@@ -55,7 +57,10 @@ export function ReviewDetail({ id }: { id: string }) {
     setResolutionError(false);
     try {
       const result = await automaticTrackingService.resolveReview(item.id, {
-        action
+        action,
+        ...(action === 'confirm' && Object.keys(edits).length
+          ? { values: edits }
+          : {})
       });
       await invalidateTrackingScopes(client, result.affectedScopes);
       router.back();
@@ -156,6 +161,11 @@ export function ReviewDetail({ id }: { id: string }) {
           title={translate('tracking.review.resolveError')}
         />
       ) : null}
+      <TrackingReviewFields
+        proposed={proposed}
+        edits={edits}
+        onChange={setEdits}
+      />
       <ActionButton
         label={translate('tracking.action.confirm')}
         loading={resolving}

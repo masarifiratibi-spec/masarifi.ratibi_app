@@ -433,6 +433,7 @@ export class EngagementWorker implements OnModuleDestroy {
       title: claim.title,
       body: claim.body_safe,
       route: typeof claim.data.route === 'string' ? claim.data.route : 'notification_detail',
+      automaticCapture: claim.data.automaticCapture === true,
     };
   }
 

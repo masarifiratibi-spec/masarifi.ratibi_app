@@ -2,6 +2,7 @@ import {
   ApnsPushProvider,
   DeterministicNotificationProvider,
   ExpoPushProvider,
+  FcmPushProvider,
   NotificationEmailProvider,
   safePushPayload,
   type HttpTransport,
@@ -120,3 +121,30 @@ test('provider circuit opens after repeated transient failures and resets on acc
   circuit.recordProviderResult('fcm', { status: 'accepted', providerRef: 'message-1' }, 1_002);
   expect(circuit.circuitOpen('fcm', 1_003)).toBe(false);
 });
+
+it.each(['expo', 'fcm'] as const)(
+  'uses ID-only capture push for %s and retains visible ordinary alerts',
+  async (provider) => {
+    const requests: Parameters<HttpTransport>[0][] = [];
+    const transport: HttpTransport = (request) => {
+      requests.push(request);
+      return Promise.resolve({ status: 200, json: { data: { status: 'ok', id: 'expo-id' }, name: 'fcm-id' } });
+    };
+    const push =
+      provider === 'expo'
+        ? new ExpoPushProvider(transport, 'fixture-token')
+        : new FcmPushProvider(transport, 'fixture-project', 'fixture-token');
+    expect(await push.send({ ...input, automaticCapture: true })).toMatchObject({
+      status: 'accepted',
+    });
+    expect(await push.send(input)).toMatchObject({ status: 'accepted' });
+    const automatic = JSON.stringify(requests[0]?.body),
+      ordinary = JSON.stringify(requests[1]?.body);
+    expect(automatic).toContain(input.notificationId);
+    expect(automatic).toContain('automaticCapture');
+    expect(automatic).not.toContain(input.title);
+    expect(automatic).not.toContain(input.body);
+    expect(ordinary).toContain(input.title);
+    expect(ordinary).toContain(input.body);
+  },
+);

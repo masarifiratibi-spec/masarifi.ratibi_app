@@ -1,5 +1,6 @@
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CURRENCY = /^[A-Z]{3}$/;
+import { validateClassification, type Classification } from '@masarifi/transaction-parser';
 
 type JsonObject = Record<string, unknown>;
 
@@ -21,10 +22,18 @@ export interface NormalizedTrackingEvent {
   kind?: 'income' | 'expense' | 'transfer' | 'refund' | 'fee';
   accountId?: string;
   categoryId?: string;
+  classification?: Omit<Classification, 'providerReference'>;
+  transport?: {
+    deviceId: string;
+    channel: 'android_sms' | 'android_notification';
+    nativeIdDigest: string;
+    revisionDigest: string;
+  };
+  providerReferenceDigest?: string;
 }
 
 export interface NormalizedImport {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   sourceType: 'sms' | 'provider' | 'manual';
   sourceChannel?:
     | 'android_sms'
@@ -204,6 +213,9 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     'kind',
     'accountId',
     'categoryId',
+    'classification',
+    'transport',
+    'providerReferenceDigest',
   ]);
   const result: NormalizedTrackingEvent = {
     sourceItemKey: text(input.sourceItemKey, 1, 160),
@@ -215,7 +227,7 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor === 0) invalid();
     result.amountMinor = input.amountMinor as number;
   }
-  if (!result.body && result.amountMinor == null) invalid();
+  if (!result.body && result.amountMinor == null && !input.classification) invalid();
   if (input.currency != null) {
     const currency = text(input.currency, 3, 3);
     if (!CURRENCY.test(currency)) invalid();
@@ -234,6 +246,33 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
   }
   if (input.accountId != null) result.accountId = normalizeTrackingId(input.accountId);
   if (input.categoryId != null) result.categoryId = normalizeTrackingId(input.categoryId);
+  if (input.classification != null) {
+    result.classification = validateClassification(input.classification);
+    if (
+      result.classification.amountMinor !== null &&
+      Math.abs(result.amountMinor ?? 0) !== result.classification.amountMinor
+    )
+      invalid();
+    if (result.classification.currency !== (result.currency ?? null)) invalid();
+  }
+  if (input.transport != null) {
+    const transport = object(input.transport);
+    keys(transport, ['deviceId', 'channel', 'nativeIdDigest', 'revisionDigest']);
+    if (!['android_sms', 'android_notification'].includes(String(transport.channel))) invalid();
+    const nativeIdDigest = text(transport.nativeIdDigest, 64, 64),
+      revisionDigest = text(transport.revisionDigest, 64, 64);
+    if (!/^[a-f0-9]{64}$/.test(nativeIdDigest) || !/^[a-f0-9]{64}$/.test(revisionDigest)) invalid();
+    result.transport = {
+      deviceId: text(transport.deviceId, 16, 80),
+      channel: transport.channel as 'android_sms' | 'android_notification',
+      nativeIdDigest,
+      revisionDigest,
+    };
+  }
+  if (input.providerReferenceDigest != null) {
+    result.providerReferenceDigest = text(input.providerReferenceDigest, 64, 64);
+    if (!/^[a-f0-9]{64}$/.test(result.providerReferenceDigest)) invalid();
+  }
   return result;
 }
 
@@ -241,7 +280,7 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   const input = object(value);
   keys(input, ['schemaVersion', 'sourceType', 'sourceChannel', 'events']);
   if (
-    input.schemaVersion !== 1 ||
+    (input.schemaVersion !== 1 && input.schemaVersion !== 2) ||
     typeof input.sourceType !== 'string' ||
     !['sms', 'provider', 'manual'].includes(input.sourceType)
   )
@@ -269,13 +308,29 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   if (!Array.isArray(input.events) || input.events.length < 1 || input.events.length > 100)
     invalid();
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 512 * 1024) invalid();
+  const events = input.events.map(normalizeEvent);
+  if (
+    input.schemaVersion === 2 &&
+    events.some(
+      (event) =>
+        !event.transport ||
+        !event.classification ||
+        event.transport.channel !== input.sourceChannel,
+    )
+  )
+    invalid();
+  if (
+    input.schemaVersion === 1 &&
+    events.some((event) => event.transport || event.classification || event.providerReferenceDigest)
+  )
+    invalid();
   return {
-    schemaVersion: 1,
+    schemaVersion: input.schemaVersion,
     sourceType: input.sourceType as 'sms' | 'provider' | 'manual',
     ...(input.sourceChannel == null
       ? {}
       : { sourceChannel: input.sourceChannel as NormalizedImport['sourceChannel'] }),
-    events: input.events.map(normalizeEvent),
+    events,
   };
 }
 
