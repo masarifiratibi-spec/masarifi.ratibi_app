@@ -108,16 +108,18 @@ Gaps and exact ownership:
 
 - [x] Mobile Jest/typecheck/lint, parser corpus, native listener/admission/queue JUnit, API unit/contracts/security, real DB integration/migrations/seed, Voice/Assistant/Manual/ledger regressions.
 - [x] Fresh whole-branch reviewer and one test-first repair pass for material findings.
-- [ ] Push isolated candidate for exact-commit CI/image scanning; no main merge.
-- [ ] Verify exact-image cross-feature compatibility; deploy API/scoped tracking/confirmation worker only to Staging after gates pass.
+- [x] Push isolated candidate for exact-commit CI/image scanning; no main merge. db5ad20 CI38001344876 passed all12 gates.
+- [x] Verify exact-image cross-feature compatibility; deploy API/scoped tracking/confirmation worker only to Staging after gates pass. db5ad20 deployed2026-10-09T23:21:30Z; Voice/Assistant/monitor preserved.
 - [x] Build new signed `com.masarifi.mobile.dev` APK with existing compatible signing key; verify signer/application ID before `adb install -r`; preserve owner/sign-in and prior SAR data.
-- [ ] Sync native policy and verify rule/engine/release/migration/API/worker versions on device and Staging.
+- [x] Sync native policy and verify rule/engine/release/migration/API/worker versions on device and Staging. Actual113keywords/23structuredrules/13currencies, engine2.0.0/release3/migration20261009235000; AI off/Review.
 
 ## Task 6 — physical Samsung acceptance and handoff
 
 Acceptance preparation on 2026-10-10 deployed exact green 7b19296 API/scoped worker, migration20261009235000 and113default rules, preserving Voice/Assistant/ledger. In-place signed Dev install preserved sign-in and permissions. Real Samsung inspection found two defects: obsolete cached mandatory safety rules blocked encrypted queue loading, and keyword pagination truncated PostgreSQL microseconds and returned100/113. Repair only these defects with regression tests: preserve queued financial events/cursors/fingerprints; hold native/capture offline until current rules refresh; retain microseconds across both cursor boundaries. Re-run exact candidate CI/compatibility and deploy the repair before READY. No native production change or APK rebuild is required for these repairs.
 
-- [ ] Create authorized `EGP Tracking Test` bank/wallet with opening 0 EGP, tracking enabled; map only verified source/instruments and preserve SAR.
+Both defects were repaired and db5ad20 deployed after full green CI. Samsung then exposed an Android background network defect: native WorkManager enters JS, but RN fetch and fresh Clerk authentication wait for foreground resume. An isolated Expo-native transport diagnostic completed both while the app remained backgrounded. Repair the bootstrap to dispatch Android background/headless fetch through the existing Expo-native module before auth/service factories initialize; preserve original foreground/iOS/web fetch, request body/headers/signal, fresh authentication and rejection/no-replay semantics. Bootstrap regression failed503 then passed200; actual background TrackingWorker finished SUCCESS2026-10-10 02:40:26local without foreground resume. This forced worker diagnostic is not a genuine financial capture acceptance. Run the complete mobile regression suite and exact-commit CI before READY. No native change/new APK is required.
+
+- [x] Create authorized `EGP Tracking Test` bank/wallet with opening 0 EGP, tracking enabled; preserve SAR. No account binding invented; map only after actual source/instrument evidence is established.
 - [ ] Prepare permissions/switches/Listener connection/device state and clean queue/review/transaction/posting/balance baseline.
 - [ ] Say READY only after baseline; user makes genuine EGP 1–5 transfer. Inspect actual SMS/app source and both intake paths without assumed sender.
 - [ ] Prove discovery-only first, then scoped zero-touch ledger posting and one confirmation; report unresolved fields accurately.
