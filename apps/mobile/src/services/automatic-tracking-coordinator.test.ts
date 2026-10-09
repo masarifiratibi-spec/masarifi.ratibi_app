@@ -7,6 +7,39 @@ import { permissionState } from './mocks/tracking-permission-service';
 import { SmsImportQueue } from '@/storage/sms-import-queue';
 import { createAutomaticTrackingCoordinator } from './automatic-tracking-coordinator';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
+import { defaultSnapshot } from '@masarifi/transaction-parser';
+
+it('applies a persisted keyword change to cached and native policy even if refresh loses network', async () => {
+  const configured = jest.fn(async () => undefined);
+  const runtime = setup({ configureBackground: configured });
+  await runtime.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: []
+  });
+  const rules = [
+    {
+      id: 'purchase-override',
+      origin: 'default' as const,
+      group: 'expense' as const,
+      language: 'en' as const,
+      value: 'purchase',
+      normalizedValue: 'purchase',
+      enabled: false
+    }
+  ];
+  runtime.tracking.getStatus.mockRejectedValueOnce(new Error('offline'));
+  await expect(
+    runtime.coordinator.updateKeywordConfiguration(rules)
+  ).rejects.toThrow('tracking_configuration_refresh_failed');
+  expect((await runtime.queue.load('owner-1')).rules.keywords).toEqual(rules);
+  expect(configured).toHaveBeenCalledWith(
+    'owner-1',
+    expect.objectContaining({ keywords: rules }),
+    expect.any(String),
+    expect.any(Number)
+  );
+});
 
 let mockDatabase: StatefulSqlite;
 jest.mock('@/storage/database', () => ({

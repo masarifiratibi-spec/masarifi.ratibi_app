@@ -14,8 +14,9 @@ internal fun notificationAdmission(
 ): NotificationAdmission {
   if (!enabled || source == self || source in blocked || text.isBlank() || text.length > 8000)
     return NotificationAdmission.DISCARD
-  if (source in trusted) return NotificationAdmission.TRUSTED
-  return if (policy?.isStrong(text, source) == true) NotificationAdmission.DISCOVERED
+  if (policy == null) return NotificationAdmission.DISCARD
+  if (source in trusted) return if(policy.isFinancial(text,source)) NotificationAdmission.TRUSTED else NotificationAdmission.DISCARD
+  return if (policy.isStrong(text, source)) NotificationAdmission.DISCOVERED
     else NotificationAdmission.DISCARD
 }
 
@@ -24,7 +25,10 @@ internal class FinancialDiscoveryPolicy private constructor(
   private val contexts: List<String>, private val custom: List<String>,
   private val providers: List<JSONObject>, private val marketing: Regex
 ) {
-  fun isStrong(raw: String, sender: String): Boolean {
+  fun isStrong(raw:String,sender:String): Boolean = inspect(raw,sender,true)
+  fun isFinancial(raw:String,sender:String): Boolean = inspect(raw,sender,false)
+
+  private fun inspect(raw: String, sender: String, requireMoney:Boolean): Boolean {
     if (raw.length > 8000) return false
     val text = normalize(raw)
     val country = providers.firstOrNull { strings(it.optJSONArray("packages")).contains(sender) }
@@ -44,8 +48,8 @@ internal class FinancialDiscoveryPolicy private constructor(
     }) return false
     val actions = matched.filter { it.optString("family") == "action" }
     val evidence = actions.isNotEmpty() || custom.any { phrase(text, it) } && contexts.any { phrase(text, it) }
-    return evidence && money(text, actions.maxByOrNull { it.optInt("priority") }
-      ?.getJSONObject("effects")?.optString("subtype") == "fee")
+    return evidence && (!requireMoney || money(text, actions.maxByOrNull { it.optInt("priority") }
+      ?.getJSONObject("effects")?.optString("subtype") == "fee"))
   }
 
   private fun money(text: String, fee: Boolean): Boolean {

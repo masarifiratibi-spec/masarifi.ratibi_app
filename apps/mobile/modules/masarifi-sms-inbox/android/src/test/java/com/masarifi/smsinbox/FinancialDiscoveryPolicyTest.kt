@@ -45,4 +45,14 @@ class FinancialDiscoveryPolicyTest {
     assertEquals(1,writes)
     assertEquals(1,wakes)
   }
+  @Test fun TrustDoesNotOverridePrivacyExclusionsOrLifecycleAndMissingPolicyFailsClosed() {
+    listOf("OTP 123456 purchase EGP5","Purchase SAR5 failed","Special offer purchase SAR5").forEach { text ->
+      assertEquals(text,NotificationAdmission.DISCARD,notificationAdmission("com.trusted.bank","com.masarifi.mobile.dev",
+        true,setOf("com.trusted.bank"),emptySet(),policy(),text))
+    }
+    assertEquals(NotificationAdmission.DISCARD,notificationAdmission("com.trusted.bank","com.masarifi.mobile.dev",
+      true,setOf("com.trusted.bank"),emptySet(),null,"Purchase SAR5"))
+    assertEquals(NotificationAdmission.TRUSTED,notificationAdmission("com.trusted.bank","com.masarifi.mobile.dev",
+      true,setOf("com.trusted.bank"),emptySet(),policy(),"Purchase amount missing"))
+  }
 }

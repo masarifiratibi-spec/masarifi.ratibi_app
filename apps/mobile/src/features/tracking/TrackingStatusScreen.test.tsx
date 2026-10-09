@@ -55,17 +55,25 @@ function renderStatus(
 describe('TrackingStatusScreen', () => {
   it('refreshes effective native configuration after saving a keyword override', async () => {
     const refreshed = jest
-      .spyOn(coordinator, 'resyncAutomaticTracking')
-      .mockResolvedValue(
-        {} as Awaited<ReturnType<typeof coordinator.resyncAutomaticTracking>>
-      );
+      .spyOn(coordinator, 'updateAutomaticTrackingKeywords')
+      .mockResolvedValue(undefined);
     jest
       .spyOn(automaticTrackingService, 'listKeywordRules')
-      .mockResolvedValue(defaultKeywordRules);
+      .mockResolvedValue(
+        defaultKeywordRules.map((rule) => ({
+          ...rule,
+          recentUseCount: 0,
+          lastUsedAt: null
+        }))
+      );
     jest
       .spyOn(automaticTrackingService, 'saveKeywordRules')
       .mockImplementation(async (rules) => ({
-        value: [...rules],
+        value: rules.map((rule) => ({
+          ...rule,
+          recentUseCount: 0,
+          lastUsedAt: null
+        })),
         affectedScopes: ['tracking.keywords']
       }));
     renderStatus({
@@ -671,6 +679,11 @@ describe('TrackingStatusScreen', () => {
     );
     await waitFor(() =>
       expect(screen.queryByText('StarbucksCoffee')).toBeNull()
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('tracking-keyword-toggle-expense-en-default')
+      ).toBeEnabled()
     );
     fireEvent.press(
       screen.getByTestId('tracking-keyword-toggle-expense-en-default')

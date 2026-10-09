@@ -28,11 +28,13 @@ import { bankNotificationService } from '@/services/platform/bank-notification-s
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import type { KeywordRule } from '@/domain/app-shell';
+import { useAppShellStore } from '@/state/app-shell';
 import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 import {
   syncAutomaticTracking,
   resyncAutomaticTracking,
+  updateAutomaticTrackingKeywords,
   type AutomaticTrackingSyncState
 } from '@/services/automatic-tracking-coordinator';
 
@@ -81,6 +83,7 @@ export function TrackingStatusScreen() {
 
   async function handleKeywordsChange(newRules: KeywordRule[]) {
     const previousRules = keywordRules;
+    const owner = useAppShellStore.getState().session?.userId;
     let persisted = false;
     setActionFailed(false);
     setUpdating(true);
@@ -90,7 +93,7 @@ export function TrackingStatusScreen() {
         await automaticTrackingService.saveKeywordRules(newRules);
       setKeywordRules(savedRules.value);
       persisted = true;
-      await resyncAutomaticTracking();
+      await updateAutomaticTrackingKeywords(savedRules.value, owner);
     } catch {
       if (!persisted) setKeywordRules(previousRules);
       setActionFailed(true);
@@ -100,12 +103,13 @@ export function TrackingStatusScreen() {
   }
 
   async function restoreKeywords() {
+    const owner = useAppShellStore.getState().session?.userId;
     setActionFailed(false);
     setUpdating(true);
     try {
       const restored = await automaticTrackingService.restoreDefaultKeywords();
       setKeywordRules(restored.value);
-      await resyncAutomaticTracking();
+      await updateAutomaticTrackingKeywords(restored.value, owner);
     } catch {
       setActionFailed(true);
     } finally {

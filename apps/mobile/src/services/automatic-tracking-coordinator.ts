@@ -12,6 +12,7 @@ import type {
   TrackingStatusSnapshot
 } from '@/domain/automatic-tracking';
 import type { Account } from '@/domain/core-finance';
+import type { KeywordRule } from '@/domain/app-shell';
 import {
   prepareFinancialMessageImport,
   type PreparedSmsImport
@@ -121,7 +122,9 @@ export function createAutomaticTrackingCoordinator(
     return state;
   };
 
-  const execute = async (): Promise<AutomaticTrackingSyncState> => {
+  const execute = async (
+    requireFreshConfiguration = false
+  ): Promise<AutomaticTrackingSyncState> => {
     const session = dependencies.session();
     if (
       !dependencies.isLive() ||
@@ -135,6 +138,8 @@ export function createAutomaticTrackingCoordinator(
       const epoch = trackingConsentEpoch();
       const queue = await dependencies.queue.load(ownerId);
       const online = await dependencies.inbox.isNetworkAvailable();
+      if (requireFreshConfiguration && !online)
+        throw new Error('tracking_configuration_refresh_failed');
       let mode = queue.mode ?? dependencies.offlineMode();
       let status: TrackingStatusSnapshot | null = null;
       if (online) {
@@ -188,7 +193,8 @@ export function createAutomaticTrackingCoordinator(
             : await onlineRuleSnapshot(dependencies);
           stillOwner();
           await dependencies.queue.saveRules(ownerId, config);
-        } catch {
+        } catch (error) {
+          if (requireFreshConfiguration) throw error;
           /* Keep the complete last-known-good release. Unconfigured capture is held for review. */
         }
       }
@@ -334,16 +340,49 @@ export function createAutomaticTrackingCoordinator(
   };
 
   return {
-    sync(): Promise<AutomaticTrackingSyncState> {
+    sync(
+      requireFreshConfiguration = false
+    ): Promise<AutomaticTrackingSyncState> {
       if (running) return running;
-      running = execute().finally(() => {
+      running = execute(requireFreshConfiguration).finally(() => {
         running = null;
       });
       return running;
     },
-    async resync(): Promise<AutomaticTrackingSyncState> {
+    async resync(
+      requireFreshConfiguration = false
+    ): Promise<AutomaticTrackingSyncState> {
       if (running) await running;
-      return this.sync();
+      return this.sync(requireFreshConfiguration);
+    },
+    async updateKeywordConfiguration(
+      rules: readonly KeywordRule[],
+      expectedOwner: string | null | undefined = dependencies.session()?.userId
+    ): Promise<void> {
+      if (!dependencies.isLive()) return;
+      const epoch = trackingConsentEpoch();
+      const current = () =>
+        dependencies.session()?.status === 'authenticated' &&
+        dependencies.session()?.userId === expectedOwner &&
+        epoch === trackingConsentEpoch();
+      if (!expectedOwner || !current())
+        throw new Error('tracking_owner_changed');
+      if (running) await running;
+      if (!current()) throw new Error('tracking_owner_changed');
+      const queue = await dependencies.queue.load(expectedOwner);
+      if (!current()) throw new Error('tracking_owner_changed');
+      const config = { ...queue.rules, keywords: [...rules] };
+      await dependencies.queue.saveRules(expectedOwner, config);
+      if (!current()) throw new Error('tracking_owner_changed');
+      await dependencies.configureBackground?.(
+        expectedOwner,
+        config,
+        queue.mode ?? dependencies.offlineMode() ?? undefined,
+        epoch
+      );
+      if (!current()) throw new Error('tracking_owner_changed');
+      if ((await this.resync(true)).status === 'error')
+        throw new Error('tracking_configuration_refresh_failed');
     },
     getState: () => state,
     subscribe(listener: () => void) {
@@ -544,6 +583,10 @@ const coordinator = createAutomaticTrackingCoordinator({
 
 export const syncAutomaticTracking = () => coordinator.sync();
 export const resyncAutomaticTracking = () => coordinator.resync();
+export const updateAutomaticTrackingKeywords = (
+  rules: readonly KeywordRule[],
+  ownerId?: string | null
+) => coordinator.updateKeywordConfiguration(rules, ownerId);
 export const getAutomaticTrackingSyncState = () => coordinator.getState();
 export const subscribeAutomaticTrackingSyncState = (listener: () => void) =>
   coordinator.subscribe(listener);

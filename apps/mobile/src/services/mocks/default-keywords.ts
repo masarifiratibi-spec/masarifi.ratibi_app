@@ -18,6 +18,7 @@ const labels: Record<
   KeywordRule['group'],
   Record<KeywordRule['language'], readonly string[]>
 > = {
+  financial: { ar: [], en: [] },
   expense: {
     ar: ['مصروف', 'شراء', 'شراء إنترنت', 'دفع', 'سداد', 'خصم'],
     en: [

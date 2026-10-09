@@ -10,7 +10,7 @@ describeLiveDatabase('persisted published keyword safety', () => {
   });
   afterAll(async () => pool.onModuleDestroy());
   async function defaultRow(keyword = 'purchase') {
-    return (
+    const row = (
       await pool.query<{
         id: string;
         version: string;
@@ -21,7 +21,9 @@ describeLiveDatabase('persisted published keyword safety', () => {
         "select id,version,keyword,group_key,language_code from public.user_keyword_rules where user_id=$1 and keyword=$2 and origin='default'",
         [owner, keyword],
       )
-    ).rows[0]!;
+    ).rows[0];
+    if (!row) throw new Error('Seeded default keyword missing');
+    return row;
   }
   it('accepts a persisted neutral financial keyword', async () => {
     const result = await pool.query<{ rule: { group_key: string; origin: string } }>(

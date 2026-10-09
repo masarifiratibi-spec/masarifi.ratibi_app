@@ -1001,7 +1001,7 @@ const ar: MessageCatalog = {
     'قراءة الرسائل المالية ومطابقتها مع كلمات التتبع',
   'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
   'tracking.source.notificationTrackingDescription':
-    'قراءة إشعارات البنوك والمحافظ وتطبيقات الدفع',
+    'فحص نص الإشعارات محلياً لاكتشاف التنبيهات المالية، بما فيها التطبيقات الجديدة. يُتجاهل النص غير المالي وتُشفّر الحالات المحتفظ بها.',
   'tracking.status.demo': 'تتبّع تجريبي — ليست بيانات إنتاج',
   'tracking.permission.warning': 'لم يتم منح أذونات الرسائل. اضغط للتفعيل.',
   'tracking.permission.unavailableMessage':

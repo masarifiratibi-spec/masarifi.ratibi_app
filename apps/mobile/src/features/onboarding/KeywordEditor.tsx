@@ -22,7 +22,10 @@ import {
 interface KeywordEditorProps {
   rules: KeywordRule[];
   onChange: (rules: KeywordRule[]) => void;
-  recentUseByRuleId?: Record<string, { count: number; lastUsedAt: number | null }>;
+  recentUseByRuleId?: Record<
+    string,
+    { count: number; lastUsedAt: number | null }
+  >;
 }
 
 export function KeywordEditor({
@@ -40,7 +43,9 @@ export function KeywordEditor({
       deriveKeywordRuleSummaries(rules, recentUseByRuleId).filter(
         (rule) =>
           rule.language === language &&
-          rule.value.toLocaleLowerCase(currentLocale()).includes(query.toLocaleLowerCase(currentLocale()))
+          rule.value
+            .toLocaleLowerCase(currentLocale())
+            .includes(query.toLocaleLowerCase(currentLocale()))
       ),
     [language, query, recentUseByRuleId, rules]
   );
@@ -100,15 +105,16 @@ export function KeywordEditor({
         label={translate('appShell.tracking.keywords.add')}
         onPress={commitAdd}
       />
-      {error ? <StyledText accessibilityRole="alert">{error}</StyledText> : null}
+      {error ? (
+        <StyledText accessibilityRole="alert">{error}</StyledText>
+      ) : null}
       {visibleRules.map((rule) => (
         <GroupedList key={rule.id} label={rule.value}>
           <NavigationRow
             label={rule.value}
-            description={translate('appShell.tracking.keywords.useCount').replace(
-              '{{value}}',
-              String(rule.recentUseCount)
-            )}
+            description={translate(
+              'appShell.tracking.keywords.useCount'
+            ).replace('{{value}}', String(rule.recentUseCount))}
             status={translate('tracking.action.disable')}
             onPress={() => commitDisable(rule.id)}
           />

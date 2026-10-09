@@ -1023,7 +1023,7 @@ const en = {
     'Read financial SMS and match your tracking keywords',
   'tracking.source.notificationTracking': 'Transaction notification tracking',
   'tracking.source.notificationTrackingDescription':
-    'Read transaction alerts from banks, wallets, and payment apps',
+    'Inspect notification text locally for financial alerts, including new apps. Unrelated text is discarded; retained candidates are encrypted.',
   'tracking.status.demo': 'Demo tracking — not production data',
   'tracking.permission.warning':
     'Message permissions not granted. Tap to enable.',
