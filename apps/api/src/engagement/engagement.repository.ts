@@ -314,21 +314,21 @@ export class EngagementRepository {
       const inApp = deliveries.find((item) => item.channel === 'in_app');
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
-         values($1,$2,$3,$4,$5,jsonb_build_object(
-             'route','notification_detail','sourceEventId',$1::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and exists(select 1 from public.transactions t where t.id::text=$8 and t.source='tracking-import')),'actions',
+         values($1::uuid,$2::text,$3::text,$4::text,$5::text,jsonb_build_object(
+             'route','notification_detail','sourceEventId',$1::uuid::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and exists(select 1 from public.transactions t where t.id::text=$8::text and t.source='tracking-import')),'actions',
            case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
              jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
              jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))
            ) else jsonb_build_array(jsonb_build_object('key','view','expiresAt',null)) end,
-           'targetKind',coalesce($9,case
+           'targetKind',coalesce($9::text,case
              when $3 like 'transaction.%' or $3 like 'transfer.%' then 'transaction'
              when $3 like 'planning.obligation_%' then 'obligation'
              when $3='account.credit_card_payment_due' then 'account'
              when $3 like 'planning.savings_%' then 'goal'
              when $3 like 'tracking.review.%' then 'review'
              else 'settings' end),
-           'targetId',case when $9 is null then coalesce($8,'notifications') end,
-           'cycleBaseline',$10
+           'targetId',case when $9::text is null then coalesce($8::text,'notifications') end,
+           'cycleBaseline',$10::text
          ),$6,$7)
          on conflict(source_event_id) do nothing returning id`,
         [

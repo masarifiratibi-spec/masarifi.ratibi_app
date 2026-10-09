@@ -111,7 +111,7 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
       (await pool.query<{ mode: string }>('select mode from public.tracking_rule_channels limit 1'))
         .rows[0]?.mode,
     ).toBe('review');
-    expect((await journey('another-device')).finalized.autoItems).toHaveLength(0);
+    expect((await journey('another-device-0001')).finalized.autoItems).toHaveLength(0);
   });
   it('requires owner opt-in and a nonexpired cohort', async () => {
     expect(
