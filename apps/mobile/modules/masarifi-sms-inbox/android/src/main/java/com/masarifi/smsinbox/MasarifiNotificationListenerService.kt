@@ -14,7 +14,9 @@ data class CapturedNotification(
   val title: String,
   val text: String,
   val postedAt: Long,
-  val nativeKey: String = key
+  val nativeKey: String = key,
+  val discovered: Boolean = false,
+  val observedAt: Long = postedAt
 )
 
 object NotificationCaptureState {
@@ -35,15 +37,20 @@ object NotificationCaptureState {
 
 object NotificationQueuePolicy {
   const val MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
+  const val DISCOVERY_MAX_AGE_MS = 24L * 60 * 60 * 1000
   private const val MAX_RECORDS = 200
 
-  fun prune(records: List<CapturedNotification>, now: Long): List<CapturedNotification> =
-    records
-      .filter { it.postedAt in (now - MAX_AGE_MS)..now }
+  fun prune(records: List<CapturedNotification>, now: Long): List<CapturedNotification> {
+    val eligible=records
+      .filter { it.postedAt in (now - if(it.discovered) DISCOVERY_MAX_AGE_MS else MAX_AGE_MS)..now }
       .asReversed()
       .distinctBy { it.key }
       .sortedByDescending { it.postedAt }
-      .take(MAX_RECORDS)
+    val trusted=eligible.filterNot {it.discovered}.take(MAX_RECORDS)
+    val discovered=eligible.filter {it.discovered}.groupBy {it.packageName}.values
+      .flatMap {it.take(10)}.sortedByDescending {it.postedAt}.take(50)
+    return (trusted+discovered).sortedByDescending {it.postedAt}
+  }
 
   fun acknowledge(
     records: List<CapturedNotification>,
@@ -98,7 +105,9 @@ internal class NotificationQueue(private val context: Context) {
             item.optString("title"),
             item.optString("text"),
             postedAt,
-            item.optString("nativeKey",key)
+            item.optString("nativeKey",key),
+            item.optBoolean("discovered",false),
+            item.optLong("observedAt",postedAt)
           )
         )
       }
@@ -116,6 +125,8 @@ internal class NotificationQueue(private val context: Context) {
           .put("text", record.text)
           .put("postedAt", record.postedAt)
           .put("nativeKey",record.nativeKey)
+          .put("discovered",record.discovered)
+          .put("observedAt",record.observedAt)
       )
     }
     encrypted.write(array.toString())
@@ -127,10 +138,26 @@ internal class NotificationQueue(private val context: Context) {
   }
 }
 
+internal fun retainAdmittedNotification(
+  record: CapturedNotification, admission: NotificationAdmission,
+  persist: (CapturedNotification) -> Unit, wake: () -> Unit
+): Boolean {
+  if(admission==NotificationAdmission.DISCARD) return false
+  persist(record.copy(discovered=admission==NotificationAdmission.DISCOVERED))
+  wake()
+  return true
+}
+
 class MasarifiNotificationListenerService : NotificationListenerService() {
   override fun onNotificationPosted(notification: StatusBarNotification) = synchronized(TrackingOwner) {
     if (!NotificationCaptureState.isEnabled(this)) return@synchronized
-    if (notification.packageName == packageName || !TrackingOwner.allows(this,notification.packageName)) return@synchronized
+    val state=TrackingOwner.read(this)
+    if (!state.optBoolean("notification") || state.optString("owner").isBlank() || notification.packageName == packageName) return@synchronized
+    fun packages(field:String): Set<String> = state.optJSONArray(field)?.let { values ->
+      (0 until values.length()).map { values.optString(it) }.toSet()
+    } ?: emptySet()
+    val blocked=packages("blockedPackages")
+    if(notification.packageName in blocked) return@synchronized
     val extras = notification.notification.extras
     val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
     val text = (
@@ -138,16 +165,25 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
         ?: extras.getCharSequence(Notification.EXTRA_TEXT)
       )?.toString().orEmpty()
     if ((title.isBlank() && text.isBlank()) || title.length+text.length>8000) return@synchronized
-    NotificationQueue(this).add(
+    val admission=notificationAdmission(notification.packageName,packageName,true,packages("packages"),blocked,
+      FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy")),title+"\n"+text)
+    val counters=getSharedPreferences("masarifi_tracking_admission_counters",Context.MODE_PRIVATE)
+    if(admission==NotificationAdmission.DISCARD) {
+      counters.edit().putLong("discarded",counters.getLong("discarded",0)+1).apply()
+      return@synchronized
+    }
+    retainAdmittedNotification(
       CapturedNotification(
         notification.key+":"+notification.postTime+":"+trackingDigest(title+"\n"+text),
         notification.packageName,
         title,
         text,
         notification.postTime,
-        notification.key
-      )
+        notification.key,
+        admission==NotificationAdmission.DISCOVERED,
+        System.currentTimeMillis()
+      ), admission, {NotificationQueue(this).add(it)}, {TrackingScheduler.incoming(this)}
     )
-    TrackingScheduler.incoming(this)
+    counters.edit().putLong("admitted",counters.getLong("admitted",0)+1).apply()
   }
 }

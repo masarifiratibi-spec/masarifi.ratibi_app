@@ -32,6 +32,7 @@ function validateRuleSnapshot(value) {
     keys.add(rule.ruleKey);
   }
   const codes = new Set();
+  if(value.discoveryContexts !== undefined && !boundedStrings(value.discoveryContexts)) fail();
   for (const currency of value.currencies) {
     if (!currency || !/^[A-Z]{3}$/.test(currency.code) || codes.has(currency.code) || !Number.isInteger(currency.scale) || currency.scale < 0 || currency.scale > 3 || typeof currency.supported !== 'boolean' || !boundedStrings(currency.aliases, 16) || !currency.aliases.length) fail();
     codes.add(currency.code);
@@ -158,4 +159,44 @@ function validateClassification(value) {
   if(value.disposition==='capture_candidate' && (value.status!=='completed' || value.direction==='unknown' || value.amountMinor===null || value.currency===null || value.reasonCodes.length || ['generic_credit','deposit','transfer_sent','transfer_received','withdrawal','refund','reversal'].includes(value.subtype))) fail();
   return value;
 }
-module.exports = {canonicalJson, classifyFinancialMessage,normalizeFinancialText,validateRuleSnapshot,validateClassification,defaultSnapshot,evidenceCorpus};
+function effectiveFinancialSnapshot(snapshot, overrides = []) {
+  validateRuleSnapshot(snapshot);
+  const disabled = new Set(overrides.filter(r=>r.enabled===false).map(r=>normalizeFinancialText(r.value).toLowerCase()));
+  return {...snapshot, rules:snapshot.rules.map(rule=>({...rule,
+    any:rule.family==='action' ? rule.any.filter(phrase=>!disabled.has(normalizeFinancialText(phrase).toLowerCase())) : rule.any
+  })).filter(rule=>rule.any.length)};
+}
+function customFinancialEvidence(overrides) {
+  return overrides.filter(r=>r.enabled && r.origin==='custom' && typeof r.id==='string' &&
+    typeof r.value==='string' && r.value.trim().length>0 && r.value.length<=160).slice(0,256)
+    .map(r=>({ruleKey:`custom.${r.id.replace(/[^a-z0-9._-]/gi,'_').slice(0,80)}`,phrase:normalizeFinancialText(r.value).toLowerCase()}));
+}
+// This pattern is structural marketing syntax shared with the classifier;
+// published exclusions supply the editable phrase vocabulary.
+const marketingPattern = '\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%';
+function compileFinancialDiscoveryPolicy(snapshot, overrides = []) {
+  const effective=effectiveFinancialSnapshot(snapshot,overrides);
+  return {version:1,releaseId:effective.releaseId,engineVersion:ENGINE_VERSION,
+    rules:effective.rules.map(rule=>({...rule,any:rule.any.map(p=>normalizeFinancialText(p).toLowerCase()),
+      all:(rule.all||[]).map(p=>normalizeFinancialText(p).toLowerCase()),not:(rule.not||[]).map(p=>normalizeFinancialText(p).toLowerCase())})),
+    currencies:effective.currencies,contexts:(effective.discoveryContexts||[]).map(p=>normalizeFinancialText(p).toLowerCase()),
+    custom:customFinancialEvidence(overrides),providers:effective.providers||[],marketingPattern};
+}
+function discoverFinancialMessage(input, snapshot = defaultSnapshot, overrides = []) {
+  const effective=effectiveFinancialSnapshot(snapshot,overrides);
+  const classification=classifyFinancialMessage(input,effective);
+  const text=normalizeFinancialText(input.text.slice(0,8000)).toLowerCase();
+  const matched=effective.rules.filter(rule=>applies(rule,input,text));
+  const custom=customFinancialEvidence(overrides).filter(rule=>phraseMatches(text,rule.phrase));
+  const customRuleKeys=custom.map(rule=>rule.ruleKey);
+  classification.appliedRuleKeys=[...new Set([...classification.appliedRuleKeys,...customRuleKeys])].slice(0,64);
+  const monetaryEvidence=moneyCandidates(text,effective).some(c=>c.amountMinor!==null &&
+    (c.role==='transaction' || classification.subtype==='fee' && c.role==='fee'));
+  const financialEvidence=matched.some(rule=>rule.family==='action') || custom.length>0 &&
+    (effective.discoveryContexts||[]).some(phrase=>phraseMatches(text,phrase));
+  // Discovery grants retention, never source trust, completion or posting authority.
+  const strong=classification.disposition!=='ignore' && monetaryEvidence && Boolean(financialEvidence);
+  return {strong,classification,customRuleKeys};
+}
+module.exports = {canonicalJson, classifyFinancialMessage,normalizeFinancialText,validateRuleSnapshot,validateClassification,defaultSnapshot,evidenceCorpus,
+  effectiveFinancialSnapshot,compileFinancialDiscoveryPolicy,discoverFinancialMessage};

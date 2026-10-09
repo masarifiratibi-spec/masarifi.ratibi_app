@@ -76,6 +76,34 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it.each(['Hello SAR 5', 'MyBank alert SAR 5', 'Available Balance SAR 5'])(
+    'discards weak unknown content without submitting financial fields: %s',
+    async (body) => {
+      const result = await prepareSmsImport(
+        [message({ body, sender: 'UNKNOWN' })],
+        options({ keywordRules: [keyword('MyBank alert')] })
+      );
+      expect(result.events).toHaveLength(0);
+    }
+  );
+  it('blocks a disabled source even if its content is strongly financial', async () => {
+    const result = await prepareSmsImport(
+      [message()],
+      options({ senderRules: [sender(false)] })
+    );
+    expect(result.events).toHaveLength(0);
+  });
+  it('retains unknown strong evidence without assigning the single currency account', async () => {
+    const result = await prepareSmsImport(
+      [message({ sender: 'UNKNOWN', body: 'Purchase SAR 5' })],
+      options()
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]?.accountId).toBeUndefined();
+    expect(result.events[0]?.classification?.reasonCodes).toContain(
+      'source_untrusted'
+    );
+  });
   it.each([
     'OTP 123456 purchase SAR 12',
     'payee addition request SAR 12',
@@ -296,22 +324,19 @@ describe('financial capture preparation', () => {
     );
     expect(result.events).toHaveLength(2);
   });
-  it('retains custom wording as review without guessing earned income', async () => {
+  it('custom wording without independent financial evidence cannot invent income', async () => {
     const result = await prepareSmsImport(
       [message({ body: 'Funding SAR 12' })],
       options({ keywordRules: [{ ...keyword('Funding'), group: 'income' }] })
     );
-    expect(result.events[0]).toMatchObject({
-      classification: { disposition: 'review', subtype: 'generic_credit' }
-    });
-    expect(result.events[0]?.kind).toBeUndefined();
+    expect(result.events).toHaveLength(0);
   });
   it('disabling action wording prevents automatic eligibility', async () => {
     const result = await prepareSmsImport(
       [message()],
       options({ keywordRules: [keyword('paid', false)] })
     );
-    expect(result.events[0]?.classification?.disposition).toBe('review');
+    expect(result.events).toHaveLength(0);
   });
   it('contains no raw body or reference number in durable financial payload', async () => {
     const result = await prepareSmsImport(

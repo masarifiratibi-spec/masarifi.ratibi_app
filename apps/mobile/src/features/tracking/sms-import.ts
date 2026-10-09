@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import {
-  classifyFinancialMessage,
+  discoverFinancialMessage,
   defaultSnapshot,
   normalizeFinancialText,
   type RuleSnapshot
@@ -93,82 +93,31 @@ export async function prepareFinancialMessageImport(
       )
     );
     const country = options.country ?? provider?.country;
-    const overrides = new Map(
-      options.keywordRules.map((rule) => [
-        normalizeFinancialText(rule.value).toLowerCase(),
-        rule.enabled
-      ])
+    const sourceRules = options.senderRules.filter(
+      (rule) =>
+        normalizeSender(rule.normalizedSender) === normalizeSender(sender)
     );
-    const snapshot: RuleSnapshot = {
-      ...configured,
-      rules: configured.rules
-        .map((rule) => ({
-          ...rule,
-          any:
-            rule.family === 'action'
-              ? rule.any.filter(
-                  (phrase) =>
-                    overrides.get(
-                      normalizeFinancialText(phrase).toLowerCase()
-                    ) !== false
-                )
-              : rule.any
-        }))
-        .filter((rule) => rule.any.length > 0)
-    };
-    const classification = classifyFinancialMessage(
-      { text: normalizedBody, sender, country, channel, receivedAt },
-      snapshot
-    );
-    // Custom wording can identify a candidate, but cannot bypass accounting review or protected lifecycle rules.
-    if (classification.status === 'unknown') {
-      const custom = options.keywordRules.filter(
-        (rule) =>
-          rule.enabled &&
-          rule.origin === 'custom' &&
-          normalizedBody
-            .toLowerCase()
-            .includes(normalizeFinancialText(rule.value).toLowerCase())
-      );
-      if (custom.length) {
-        classification.reasonCodes.push('custom_rule_review');
-        classification.appliedRuleKeys.push(
-          ...custom.map(
-            (rule) =>
-              `custom.${rule.id.replace(/[^a-z0-9._-]/gi, '_').slice(0, 80)}`
-          )
-        );
-        classification.direction = custom.every((rule) =>
-          ['expense', 'fee', 'subscription', 'installment'].includes(rule.group)
-        )
-          ? 'outgoing'
-          : custom.every((rule) =>
-                ['income', 'deposit', 'refund'].includes(rule.group)
-              )
-            ? 'incoming'
-            : 'unknown';
-        classification.subtype =
-          classification.direction === 'outgoing'
-            ? 'generic_debit'
-            : classification.direction === 'incoming'
-              ? 'generic_credit'
-              : 'unknown';
-      }
-    }
-    if (classification.disposition === 'ignore') {
+    if (sourceRules.some((rule) => !rule.enabled)) {
       result.skippedFingerprints.push(key);
       consume();
       continue;
     }
-    const trusted = options.senderRules.some(
-      (rule) =>
-        rule.enabled &&
-        rule.trusted &&
-        normalizeSender(rule.normalizedSender) === normalizeSender(sender)
+    const trusted = sourceRules.some((rule) => rule.enabled && rule.trusted);
+    const discovery = discoverFinancialMessage(
+      { text: normalizedBody, sender, country, channel, receivedAt },
+      configured,
+      options.keywordRules
+    );
+    const classification = discovery.classification;
+    const publishedFinancialMatch = classification.appliedRuleKeys.some(
+      (ruleKey) =>
+        configured.rules.some(
+          (rule) => rule.ruleKey === ruleKey && rule.family === 'action'
+        )
     );
     if (
-      !classification.appliedRuleKeys.length &&
-      classification.amountMinor === null
+      classification.disposition === 'ignore' ||
+      (!discovery.strong && !(trusted && publishedFinancialMatch))
     ) {
       result.skippedFingerprints.push(key);
       consume();
@@ -179,7 +128,8 @@ export async function prepareFinancialMessageImport(
       classification.currency,
       classification.instruments,
       options,
-      provider?.providerKey
+      provider?.providerKey,
+      trusted
     );
     if (!selected) {
       classification.reasonCodes.push('ambiguous_account');
@@ -256,7 +206,8 @@ function selectAccount(
   currency: string | null,
   hints: { role: 'card' | 'account'; suffix: string }[],
   options: Options,
-  provider?: string
+  provider?: string,
+  allowCurrencyFallback = true
 ): Account | null {
   const eligible = options.accounts.filter(
     (a) => a.currencyCode === currency && accountAllowsAutomaticTracking(a)
@@ -290,6 +241,7 @@ function selectAccount(
       ? (matches[0]?.[0] ?? null)
       : null;
   }
+  if (!allowCurrencyFallback) return null;
   if (eligible.length === 1) return eligible[0] ?? null;
   const defaults = eligible.filter((a) => a.isDefault);
   return defaults.length === 1 ? (defaults[0] ?? null) : null;

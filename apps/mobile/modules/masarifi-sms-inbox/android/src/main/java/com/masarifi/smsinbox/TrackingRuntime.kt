@@ -31,12 +31,15 @@ internal object TrackingOwner {
   private const val PREFS = "masarifi_tracking_owner_v2"
   private fun preferences(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
   fun read(context: Context): JSONObject = runCatching { JSONObject(preferences(context).getString("context", "{}")!!) }.getOrElse { JSONObject() }
-  @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean, packages: List<String>) {
+  @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean,
+    packages: List<String>, blockedPackages: List<String>, discoveryPolicy: String?) {
     require(owner.matches(Regex("[a-f0-9]{64}")) && generation.length in 16..80)
     val old = read(context)
     if (old.optString("owner") != owner) NotificationQueue(context).clear()
     val value = JSONObject().put("owner",owner).put("generation",generation).put("sms",sms).put("notification",notification)
       .put("packages",org.json.JSONArray(packages.distinct().take(100)))
+      .put("blockedPackages",org.json.JSONArray(blockedPackages.distinct().take(100)))
+      .put("discoveryPolicy",if(FinancialDiscoveryPolicy.parse(discoveryPolicy) != null) discoveryPolicy else JSONObject.NULL)
     check(preferences(context).edit().putString("context",value.toString()).commit())
     TrackingScheduler.configure(context)
   }
@@ -53,6 +56,8 @@ internal object TrackingOwner {
   fun allows(context: Context, packageName: String): Boolean {
     val state=read(context)
     if (!state.optBoolean("notification") || state.optString("owner").isBlank()) return false
+    val blocked=state.optJSONArray("blockedPackages")
+    if (blocked != null && (0 until blocked.length()).any { blocked.optString(it)==packageName }) return false
     val packages=state.optJSONArray("packages") ?: return false
     return (0 until packages.length()).any { packages.optString(it)==packageName }
   }

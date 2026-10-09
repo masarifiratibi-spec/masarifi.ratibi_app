@@ -20,5 +20,6 @@ dependencies {
   def notificationsVersion = new groovy.json.JsonSlurper().parse(file('../../../node_modules/expo-notifications/package.json')).version
   implementation(findProject(':expo-notifications') ?: "host.exp.exponent:expo.modules.notifications:${notificationsVersion}")
   testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.json:json:20180813'
 }
 

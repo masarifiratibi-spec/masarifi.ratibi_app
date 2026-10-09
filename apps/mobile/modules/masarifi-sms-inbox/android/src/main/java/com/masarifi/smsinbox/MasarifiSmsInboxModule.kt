@@ -27,9 +27,11 @@ class MasarifiSmsInboxModule : Module() {
       }
       messages
     }
-    AsyncFunction("configureTrackingOwner") { owner:String,generation:String,sms:Boolean,notifications:Boolean,packages:List<String> ->
+    AsyncFunction("configureTrackingOwner") { owner:String,generation:String,sms:Boolean,notifications:Boolean,packages:List<String>,blocked:List<String>,policy:String? ->
       val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
-      TrackingOwner.configure(context,owner,generation,sms,notifications,packages.filter {it.matches(Regex("[a-zA-Z][\\w]*(\\.[\\w]+)+"))})
+      TrackingOwner.configure(context,owner,generation,sms,notifications,
+        packages.filter {it.matches(Regex("[a-zA-Z][\\w]*(\\.[\\w]+)+"))},
+        blocked.filter {it.matches(Regex("[a-zA-Z][\\w]*(\\.[\\w]+)+"))},policy)
     }
     AsyncFunction("suspendTrackingOwner") {appContext.reactContext?.let {TrackingOwner.suspend(it)}}
     AsyncFunction("clearTrackingOwner") {appContext.reactContext?.let {TrackingOwner.clear(it)}}

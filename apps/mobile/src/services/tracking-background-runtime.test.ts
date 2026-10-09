@@ -101,6 +101,36 @@ it('configures both sources with trusted package scope for the active owner', as
     expect.any(String),
     false,
     true,
-    ['com.bank.app']
+    ['com.bank.app'],
+    [],
+    null
   );
+});
+it('syncs a validated discovery policy and disabled packages without trusting unknown packages', async () => {
+  const { defaultSnapshot } = require('@masarifi/transaction-parser');
+  jest
+    .spyOn(AsyncStorage, 'getItem')
+    .mockResolvedValue(
+      JSON.stringify({ smsEnabled: true, notificationEnabled: true })
+    );
+  await configureTrackingBackground(
+    'owner-a',
+    {
+      ...rules,
+      snapshot: defaultSnapshot,
+      senders: [
+        ...rules.senders,
+        { normalizedSender: 'com.blocked.app', enabled: false, trusted: true }
+      ]
+    },
+    'review_all'
+  );
+  const call = (MasarifiSmsInbox?.configureTrackingOwner as jest.Mock).mock
+    .calls[0];
+  expect(call[4]).toEqual(['com.bank.app']);
+  expect(call[5]).toEqual(['com.blocked.app']);
+  expect(JSON.parse(call[6])).toMatchObject({
+    version: 1,
+    releaseId: defaultSnapshot.releaseId
+  });
 });

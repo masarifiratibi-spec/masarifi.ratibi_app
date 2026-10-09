@@ -8,7 +8,9 @@ export interface MasarifiSmsInboxModule {
     generation: string,
     smsEnabled: boolean,
     notificationEnabled: boolean,
-    packages: string[]
+    packages: string[],
+    blockedPackages: string[],
+    discoveryPolicy: string | null
   ): Promise<void>;
   suspendTrackingOwner(): Promise<void>;
   clearTrackingOwner(): Promise<void>;

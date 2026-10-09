@@ -1,0 +1,618 @@
+{
+  "version": 1,
+  "releaseId": "bundled-sa-ae-2026-10-09",
+  "engineVersion": "2.0.0",
+  "rules": [
+    {
+      "ruleKey": "exclude.otp",
+      "family": "exclusion",
+      "enabled": true,
+      "priority": 1000,
+      "any": [
+        "otp",
+        "verification code",
+        "one-time password",
+        "رمز التحقق",
+        "رمز الأمان",
+        "كود التحقق"
+      ],
+      "effects": {
+        "status": "administrative",
+        "subtype": "administrative",
+        "direction": "unknown",
+        "disposition": "ignore"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "exclude.payee",
+      "family": "exclusion",
+      "enabled": true,
+      "priority": 990,
+      "any": [
+        "payee addition request",
+        "beneficiary added",
+        "إضافة مستفيد",
+        "اضافة مستفيد",
+        "transfers will be enabled"
+      ],
+      "effects": {
+        "status": "administrative",
+        "subtype": "administrative",
+        "direction": "unknown",
+        "disposition": "ignore"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "exclude.promo",
+      "family": "exclusion",
+      "enabled": true,
+      "priority": 980,
+      "any": [
+        "special offer",
+        "promo code",
+        "عرض خاص",
+        "عرض حصري",
+        "واحصل"
+      ],
+      "effects": {
+        "status": "administrative",
+        "subtype": "administrative",
+        "direction": "unknown",
+        "disposition": "ignore"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "lifecycle.declined",
+      "family": "status",
+      "enabled": true,
+      "priority": 950,
+      "any": [
+        "declined",
+        "rejected",
+        "insufficient funds",
+        "مرفوض",
+        "مرفوضة",
+        "رفضت",
+        "تم رفض",
+        "رفض العملية"
+      ],
+      "effects": {
+        "status": "declined",
+        "disposition": "ignore"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "lifecycle.failed",
+      "family": "status",
+      "enabled": true,
+      "priority": 940,
+      "any": [
+        "failed",
+        "unsuccessful",
+        "فشل",
+        "فشلت",
+        "لم تتم",
+        "غير ناجحة",
+        "غير ناجح",
+        "غير ناجحة"
+      ],
+      "effects": {
+        "status": "failed",
+        "disposition": "ignore"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "lifecycle.cancelled",
+      "family": "status",
+      "enabled": true,
+      "priority": 930,
+      "any": [
+        "cancelled",
+        "canceled",
+        "ملغاة",
+        "ملغى"
+      ],
+      "effects": {
+        "status": "cancelled",
+        "disposition": "ignore"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "lifecycle.pending",
+      "family": "status",
+      "enabled": true,
+      "priority": 920,
+      "any": [
+        "pending",
+        "will be credited",
+        "working days",
+        "قيد المعالجة",
+        "معلق",
+        "سيتم إيداع",
+        "سيتم ايداع"
+      ],
+      "effects": {
+        "status": "pending",
+        "disposition": "review"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.reversal",
+      "family": "action",
+      "enabled": true,
+      "priority": 850,
+      "any": [
+        "reversed",
+        "reversal",
+        "عكس القيد",
+        "عكس العملية"
+      ],
+      "effects": {
+        "direction": "incoming",
+        "subtype": "reversal",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.refund",
+      "family": "action",
+      "enabled": true,
+      "priority": 840,
+      "any": [
+        "refund",
+        "refunded",
+        "استرداد",
+        "مسترد"
+      ],
+      "effects": {
+        "direction": "incoming",
+        "subtype": "refund",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.salary",
+      "family": "action",
+      "enabled": true,
+      "priority": 830,
+      "any": [
+        "salary",
+        "راتب"
+      ],
+      "effects": {
+        "direction": "incoming",
+        "subtype": "salary",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.pos",
+      "family": "action",
+      "enabled": true,
+      "priority": 820,
+      "any": [
+        "شراء عبر نقاط بيع",
+        "pos purchase"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "pos_purchase",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.online",
+      "family": "action",
+      "enabled": true,
+      "priority": 810,
+      "any": [
+        "شراء إنترنت",
+        "شراء انترنت",
+        "online purchase",
+        "internet purchase"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "online_purchase",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.card",
+      "family": "action",
+      "enabled": true,
+      "priority": 800,
+      "any": [
+        "used for"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "card_purchase",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.bill",
+      "family": "action",
+      "enabled": true,
+      "priority": 790,
+      "any": [
+        "سدادك",
+        "bill payment",
+        "فاتورة"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "bill_payment",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.withdrawal",
+      "family": "action",
+      "enabled": true,
+      "priority": 780,
+      "any": [
+        "cash withdrawal",
+        "withdrawal",
+        "withdrawn",
+        "سحب نقدي",
+        "سحب"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "withdrawal",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.transfer.sent",
+      "family": "action",
+      "enabled": true,
+      "priority": 770,
+      "any": [
+        "transfer to",
+        "transferred to",
+        "outgoing transfer",
+        "تحويل صادر"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "transfer_sent",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.transfer.received",
+      "family": "action",
+      "enabled": true,
+      "priority": 760,
+      "any": [
+        "transfer from",
+        "incoming transfer",
+        "تحويل وارد"
+      ],
+      "effects": {
+        "direction": "incoming",
+        "subtype": "transfer_received",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.debit",
+      "family": "action",
+      "enabled": true,
+      "priority": 750,
+      "any": [
+        "dr. transaction",
+        "dr transaction",
+        "debit transaction",
+        "debited",
+        "خصم"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "generic_debit",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.purchase",
+      "family": "action",
+      "enabled": true,
+      "priority": 740,
+      "any": [
+        "purchase",
+        "شراء",
+        "spent"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "purchase",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.payment",
+      "family": "action",
+      "enabled": true,
+      "priority": 730,
+      "any": [
+        "paid",
+        "payment",
+        "charged",
+        "دفع",
+        "سداد"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "payment",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.fee",
+      "family": "action",
+      "enabled": true,
+      "priority": 755,
+      "any": [
+        "fee",
+        "fees",
+        "service charge",
+        "commission",
+        "رسوم",
+        "عمولة"
+      ],
+      "effects": {
+        "direction": "outgoing",
+        "subtype": "fee",
+        "status": "completed"
+      },
+      "not": [
+        "purchase",
+        "used for",
+        "شراء",
+        "paid",
+        "dr. transaction",
+        "debited"
+      ],
+      "all": []
+    },
+    {
+      "ruleKey": "action.deposit",
+      "family": "action",
+      "enabled": true,
+      "priority": 710,
+      "any": [
+        "deposit",
+        "deposited",
+        "إيداع",
+        "ايداع"
+      ],
+      "effects": {
+        "direction": "incoming",
+        "subtype": "deposit",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    },
+    {
+      "ruleKey": "action.credit",
+      "family": "action",
+      "enabled": true,
+      "priority": 700,
+      "any": [
+        "credited",
+        "cr. transaction",
+        "cr transaction",
+        "إضافة",
+        "اضافة"
+      ],
+      "effects": {
+        "direction": "incoming",
+        "subtype": "generic_credit",
+        "status": "completed"
+      },
+      "all": [],
+      "not": []
+    }
+  ],
+  "currencies": [
+    {
+      "code": "SAR",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "SAR",
+        "ريال سعودي",
+        "ريال",
+        "ر.س"
+      ]
+    },
+    {
+      "code": "AED",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "AED",
+        "درهم إماراتي",
+        "درهم",
+        "د.إ"
+      ]
+    },
+    {
+      "code": "USD",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "USD",
+        "US$",
+        "دولار"
+      ]
+    },
+    {
+      "code": "EUR",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "EUR",
+        "يورو"
+      ]
+    },
+    {
+      "code": "GBP",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "GBP"
+      ]
+    },
+    {
+      "code": "EGP",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "EGP",
+        "جنيه مصري"
+      ]
+    },
+    {
+      "code": "KWD",
+      "scale": 3,
+      "supported": true,
+      "aliases": [
+        "KWD",
+        "دينار كويتي",
+        "د.ك"
+      ]
+    },
+    {
+      "code": "QAR",
+      "scale": 2,
+      "supported": true,
+      "aliases": [
+        "QAR",
+        "ريال قطري",
+        "ر.ق"
+      ]
+    },
+    {
+      "code": "OMR",
+      "scale": 3,
+      "supported": true,
+      "aliases": [
+        "OMR"
+      ]
+    },
+    {
+      "code": "BHD",
+      "scale": 3,
+      "supported": true,
+      "aliases": [
+        "BHD"
+      ]
+    },
+    {
+      "code": "JOD",
+      "scale": 3,
+      "supported": true,
+      "aliases": [
+        "JOD"
+      ]
+    },
+    {
+      "code": "JPY",
+      "scale": 0,
+      "supported": true,
+      "aliases": [
+        "JPY"
+      ]
+    },
+    {
+      "code": "SEK",
+      "scale": 2,
+      "supported": false,
+      "aliases": [
+        "SEK"
+      ]
+    }
+  ],
+  "contexts": [
+    "transaction",
+    "معاملة"
+  ],
+  "custom": [
+    {
+      "ruleKey": "custom.my-phrase",
+      "phrase": "mybank alert"
+    }
+  ],
+  "providers": [
+    {
+      "providerKey": "alinma",
+      "country": "SA",
+      "senders": [
+        "alinma"
+      ],
+      "packages": []
+    },
+    {
+      "providerKey": "adcb",
+      "country": "AE",
+      "senders": [
+        "ADCBAlert"
+      ],
+      "packages": []
+    },
+    {
+      "providerKey": "du",
+      "country": "AE",
+      "senders": [
+        "du"
+      ],
+      "packages": []
+    }
+  ],
+  "marketingPattern": "\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"
+}

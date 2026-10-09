@@ -6,6 +6,17 @@ import org.junit.Test
 
 class NotificationQueueTest {
   private val now = 1_800_000_000_000L
+  @Test fun UnknownFloodCannotEvictTrustedRecordsAndHasSeparateRetention() {
+    val trusted=CapturedNotification("trusted","com.bank","Bank","Purchase SAR5",now-1000)
+    val unknown=(1..100).map { CapturedNotification("u-$it","com.unknown.bank","Bank","Purchase SAR5",now-it,
+      discovered=true) }
+    val expired=CapturedNotification("old-unknown","com.other.bank","Bank","Purchase SAR5",now-25*60*60*1000,
+      discovered=true)
+    val records=NotificationQueuePolicy.prune(listOf(trusted,expired)+unknown,now)
+    assertEquals(11,records.size)
+    assertEquals(1,records.count { !it.discovered })
+    assertFalse(records.any {it.key=="old-unknown"})
+  }
   @Test
   fun keepsRevisionsOfOneNativeNotificationAndAcknowledgesOnlyCommittedRevision() {
     val first=CapturedNotification("native:revision1","com.bank","Bank","Pending",now-1,"native")

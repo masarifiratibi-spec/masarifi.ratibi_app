@@ -10,6 +10,7 @@ export interface RuleSnapshot {
   schemaVersion: 2; engineVersion: string; releaseId: string; releaseNo: number; aiEnabled: false;
   currencies: {code: string; scale: number; supported: boolean; aliases: string[]}[]; rules: Rule[];
   providers?: {providerKey:string;country:string;senders:string[];packages:string[]}[];
+  discoveryContexts?: string[];
 }
 export interface Classification {
   direction: Direction; subtype: string; status: FinancialStatus; disposition: Disposition;
@@ -27,3 +28,11 @@ export const defaultSnapshot: RuleSnapshot;
 export const evidenceCorpus: {id:string; evidence:string; sender:string; country:string|null; text:string; expected:Record<string,string|number|null>}[];
 
 export function canonicalJson(value: unknown): string;
+export interface FinancialKeywordOverride {id?:string;value:string;enabled:boolean;origin?:string}
+export interface FinancialDiscoveryPolicy {
+  version:1;releaseId:string;engineVersion:string;rules:Rule[];
+  currencies:RuleSnapshot['currencies'];contexts:string[];custom:{ruleKey:string;phrase:string}[];providers:NonNullable<RuleSnapshot['providers']>;marketingPattern:string;
+}
+export function effectiveFinancialSnapshot(snapshot:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[]):RuleSnapshot;
+export function compileFinancialDiscoveryPolicy(snapshot:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[]):FinancialDiscoveryPolicy;
+export function discoverFinancialMessage(input:Parameters<typeof classifyFinancialMessage>[0],snapshot?:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[]):{strong:boolean;classification:Classification;customRuleKeys:string[]};

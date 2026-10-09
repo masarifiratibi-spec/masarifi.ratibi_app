@@ -21,6 +21,7 @@ import {
   trackingConsentEpoch
 } from './tracking-source-preferences';
 import type { SmsRuleSnapshot } from '@/storage/sms-import-queue';
+import { compileFinancialDiscoveryPolicy } from '@masarifi/transaction-parser';
 
 const contextKey = 'masarifi.tracking.background-context.v2';
 const clerkSessionCache: TokenCache = {
@@ -49,7 +50,10 @@ export async function configureTrackingBackground(
       expectedEpoch === trackingConsentEpoch() &&
       useAppShellStore.getState().session?.userId === ownerId;
     if (!current()) return;
-    if (Platform.OS !== 'android' || !trackingNativeRuntime?.configureTrackingOwner)
+    if (
+      Platform.OS !== 'android' ||
+      !trackingNativeRuntime?.configureTrackingOwner
+    )
       return;
     const sources = await trackingSourcePreferences.load();
     const raw = await SecureStore.getItemAsync(contextKey);
@@ -80,7 +84,18 @@ export async function configureTrackingBackground(
       generation,
       mode !== 'paused' && sources.smsEnabled,
       mode !== 'paused' && sources.notificationEnabled,
-      packages
+      packages,
+      rules.senders
+        .filter(
+          (s) =>
+            !s.enabled && /^[a-zA-Z][\w]*(?:\.[\w]+)+$/.test(s.normalizedSender)
+        )
+        .map((s) => s.normalizedSender),
+      rules.snapshot
+        ? JSON.stringify(
+            compileFinancialDiscoveryPolicy(rules.snapshot, rules.keywords)
+          )
+        : null
     );
     if (!current()) {
       await trackingNativeRuntime.clearTrackingOwner();
