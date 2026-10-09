@@ -97,7 +97,7 @@ begin
   updated:=replace(updated,'if subtype in (''transfer_sent'',''transfer_received'') then',
     'cash_destination:=private.tracking_cash_destination(i.id); external_transfer:=private.tracking_external_transfer_account(i.id); if subtype=''withdrawal'' and cash_destination is null then return ''cash_destination_required''; end if; if subtype in (''transfer_sent'',''transfer_received'') and not external_transfer then');
   updated:=replace(updated,'expected_account:=affected;',
-    'if external_transfer and hint->>''side''=case when i.normalized_payload#>>''{classification,direction}''=''incoming'' then ''source'' else ''destination'' end then continue; end if; expected_account:=affected;');
+    'if external_transfer and hint->>''side''=(case when i.normalized_payload#>>''{classification,direction}''=''incoming'' then ''source'' else ''destination'' end) then continue; end if; expected_account:=affected;');
   updated:=replace(updated,'where value not in (''source_untrusted'')',
     'where value not in (''source_untrusted'') and not(value=''cash_destination_required'' and cash_destination is not null) and not(value=''transfer_counterparty_required'' and external_transfer)');
   updated:=replace(updated,'and original_proof is null then return ''invalid_input'';',
