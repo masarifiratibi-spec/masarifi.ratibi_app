@@ -40,7 +40,8 @@ function validateRuleSnapshot(value) {
   // Lifecycle/exclusion safety is a publishing invariant, even when action wording is customized.
   for(const required of defaultSnapshot.rules.filter(r=>r.family!=='action')) {
     const configured=value.rules.find(r=>r.ruleKey===required.ruleKey);
-    if(!configured?.enabled || ['family','priority','any','all','not','countries','locales','providers','channels','effects'].some(key => canonicalJson(configured[key]) !== canonicalJson(required[key]))) fail();
+    if(!configured?.enabled || !required.any.every(phrase=>configured.any.includes(phrase)) ||
+      ['family','priority','all','not','countries','locales','providers','channels','effects'].some(key => canonicalJson(configured[key]) !== canonicalJson(required[key]))) fail();
   }
   return value;
 }
@@ -113,7 +114,10 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   validateRuleSnapshot(snapshot);
   const text = normalizeFinancialText(input.text.slice(0,8000)), lower = text.toLowerCase();
   const matched = snapshot.rules.filter(r => applies(r,input,lower)).sort((a,b) => b.priority-a.priority || a.ruleKey.localeCompare(b.ruleKey));
-  const protectedMatches=defaultSnapshot.rules.filter(r=>r.family!=='action' && applies(r,input,lower)).sort((a,b)=>b.priority-a.priority);
+  // Published database wording can extend the safety vocabulary. The baseline
+  // constrains safety effects/precedence; it is not the runtime phrase catalog.
+  const protectedKeys=new Set(defaultSnapshot.rules.filter(r=>r.family!=='action').map(r=>r.ruleKey));
+  const protectedMatches=matched.filter(r=>protectedKeys.has(r.ruleKey));
   const exclusion = protectedMatches.find(r => r.family==='exclusion') ?? matched.find(r => r.family==='exclusion');
   const action = matched.find(r => r.family==='action');
   const lifecycle = protectedMatches.find(r => r.family==='status') ?? matched.find(r => r.family==='status');
