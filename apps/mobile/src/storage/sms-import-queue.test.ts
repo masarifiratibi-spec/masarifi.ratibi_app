@@ -60,6 +60,26 @@ const submission: TrackingImportSubmission = {
 };
 
 describe('SMS import queue', () => {
+  it('retains both owned transfer account identities after offline persistence and restart', async () => {
+    const destinationAccountId = '10000000-0000-4000-8000-000000000002';
+    const storage = memoryStorage();
+    await new SmsImportQueue(storage).enqueue('owner-1', {
+      idempotencyKey: 'transfer:one',
+      cursor: 42,
+      fingerprints: ['transfer:one'],
+      submission: {
+        ...submission,
+        events: [
+          { ...submission.events[0]!, kind: 'transfer', destinationAccountId }
+        ]
+      }
+    });
+    const restored = await new SmsImportQueue(storage).load('owner-1');
+    expect(restored.pending[0]?.submission.events[0]).toMatchObject({
+      accountId: submission.events[0]?.accountId,
+      destinationAccountId
+    });
+  });
   it('persists a bounded minimized queue before advancing its cursor', async () => {
     const storage = memoryStorage();
     const queue = new SmsImportQueue(storage);

@@ -229,8 +229,14 @@ export class TrackingWorker implements OnModuleDestroy {
               ? await this.ledger.transfer({
                   ...common,
                   body: {
-                    sourceAccountId: command.accountId,
-                    destinationAccountId: command.destinationAccountId,
+                    sourceAccountId:
+                      record(command.classification ?? {}).direction === 'incoming'
+                        ? command.destinationAccountId
+                        : command.accountId,
+                    destinationAccountId:
+                      record(command.classification ?? {}).direction === 'incoming'
+                        ? command.accountId
+                        : command.destinationAccountId,
                     amountMinor: Math.abs(Number(command.amountMinor)),
                     currency: command.currency,
                     feeMinor: 0,

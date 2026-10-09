@@ -52,7 +52,7 @@ reset role;
 select set_config('request.jwt.claims','{"sub":"tracking-rls-owner-a","role":"authenticated"}',true);
 set local role authenticated;
 select is((select count(*) from public.tracking_preferences),1::bigint,'owner RLS exposes one preference row');
-select is((select count(*) from public.user_keyword_rules),87::bigint,'owner RLS exposes seeded defaults and one custom keyword');
+select is((select count(*) from public.user_keyword_rules),102::bigint,'owner RLS exposes seeded defaults and one custom keyword');
 select is((select count(*) from public.user_keyword_rules where user_id<>'tracking-rls-owner-a'),0::bigint,'cross-owner defaults and custom rules stay hidden');
 select is((select keyword from public.user_keyword_rules where origin='custom'),'Fictional A','cross-owner custom rule stays hidden');
 reset role;

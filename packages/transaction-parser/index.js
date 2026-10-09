@@ -143,7 +143,11 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   if (result.amountMinor===null) result.reasonCodes.push('amount_invalid');
   for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
     const label = (m[1]||m[2]).toLowerCase(), suffix=m[3].replace(/[^0-9]/g,'');
-    result.instruments.push({role:/card|بطاقة|ending/.test(label)?'card':'account',suffix});
+    const prefix=lower.slice(0,m.index).trimEnd();
+    const side=['transfer_sent','transfer_received','withdrawal'].includes(result.subtype)
+      ? /(?:\bfrom|من)$/u.test(prefix) ? 'source' : /(?:\bto|إلى|الى)$/u.test(prefix) ? 'destination' : undefined
+      : undefined;
+    result.instruments.push({role:/card|بطاقة|ending/.test(label)?'card':'account',suffix,...(side?{side}:{})});
   }
   const merchant = text.match(/(?:\bat\b|\bby\b|لدى|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\bcard\b|\baccount\b|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];
   result.merchant=merchant ? merchant.replace(/[.,\s]+$/,'').slice(0,160) : null;
@@ -166,7 +170,7 @@ function validateClassification(value) {
     !(value.amountMinor===null || Number.isSafeInteger(value.amountMinor) && value.amountMinor>0) || !(value.currency===null || /^[A-Z]{3}$/.test(value.currency)) ||
     !(value.merchant===null || typeof value.merchant==='string' && value.merchant.length<=160) || !boundedStrings(value.reasonCodes,32) || !boundedStrings(value.appliedRuleKeys,64) ||
     !['embedded','received','ambiguous'].includes(value.timeProvenance) || !(value.occurredAt===null || typeof value.occurredAt==='string' && Number.isFinite(Date.parse(value.occurredAt)) && /Z$/.test(value.occurredAt)) ||
-    !Array.isArray(value.instruments) || value.instruments.length>8 || value.instruments.some(h=>!h || !['card','account'].includes(h.role) || !/^\d{4,12}$/.test(h.suffix))) fail();
+    !Array.isArray(value.instruments) || value.instruments.length>8 || value.instruments.some(h=>!h || Object.keys(h).some(k=>!['role','suffix','side'].includes(k)) || !['card','account'].includes(h.role) || !/^\d{4,12}$/.test(h.suffix) || h.side!==undefined && !['source','destination'].includes(h.side))) fail();
   if(value.disposition==='capture_candidate' && (value.status!=='completed' || value.direction==='unknown' || value.amountMinor===null || value.currency===null || value.reasonCodes.length)) fail();
   return value;
 }

@@ -12,6 +12,28 @@ import {
 const id = '80000000-0000-4000-8000-000000000001';
 
 describe('tracking DTO boundaries', () => {
+  it('preserves and validates the second owned transfer account', () => {
+    const event = {
+      sourceItemKey: 'transfer-1',
+      receivedAt: '2026-10-09T10:00:00Z',
+      amountMinor: -500,
+      currency: 'EGP',
+      kind: 'transfer',
+      accountId: id,
+      destinationAccountId: '80000000-0000-4000-8000-000000000002',
+    };
+    const normalize = (input: unknown) =>
+      normalizeNormalizedImport({
+        schemaVersion: 1,
+        sourceType: 'provider',
+        sourceChannel: 'android_notification',
+        events: [input],
+      });
+    expect(normalize(event).events[0]).toMatchObject({
+      destinationAccountId: event.destinationAccountId,
+    });
+    expect(() => normalize({ ...event, destinationAccountId: 'invented' })).toThrow();
+  });
   it.each(['1', '2', null, true])(
     'rejects a nonnumeric schema version %p before version-specific gates',
     (schemaVersion) => {

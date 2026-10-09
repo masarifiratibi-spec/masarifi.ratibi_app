@@ -21,6 +21,7 @@ export interface NormalizedTrackingEvent {
   metadata?: Record<string, string | number | boolean | null>;
   kind?: 'income' | 'expense' | 'transfer' | 'refund' | 'fee';
   accountId?: string;
+  destinationAccountId?: string;
   categoryId?: string;
   classification?: Omit<Classification, 'providerReference'>;
   transport?: {
@@ -212,6 +213,7 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     'metadata',
     'kind',
     'accountId',
+    'destinationAccountId',
     'categoryId',
     'classification',
     'transport',
@@ -245,6 +247,8 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     result.kind = input.kind as NormalizedTrackingEvent['kind'];
   }
   if (input.accountId != null) result.accountId = normalizeTrackingId(input.accountId);
+  if (input.destinationAccountId != null)
+    result.destinationAccountId = normalizeTrackingId(input.destinationAccountId);
   if (input.categoryId != null) result.categoryId = normalizeTrackingId(input.categoryId);
   if (input.classification != null) {
     result.classification = validateClassification(input.classification);

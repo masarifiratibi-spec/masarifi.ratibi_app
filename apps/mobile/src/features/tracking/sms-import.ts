@@ -125,18 +125,62 @@ export async function prepareFinancialMessageImport(
       continue;
     }
     if (!trusted) classification.reasonCodes.push('source_untrusted');
-    const selected = selectAccount(
-      classification.currency,
-      classification.instruments,
-      options,
-      provider?.providerKey
+    const transfer = ['transfer_sent', 'transfer_received'].includes(
+      classification.subtype
     );
+    const source = transfer
+      ? selectAccount(
+          classification.currency,
+          classification.instruments.filter((h) => h.side === 'source'),
+          options,
+          provider?.providerKey
+        )
+      : null;
+    const destination = transfer
+      ? selectAccount(
+          classification.currency,
+          classification.instruments.filter((h) => h.side === 'destination'),
+          options,
+          provider?.providerKey
+        )
+      : null;
+    const ownedTransfer =
+      transfer &&
+      source &&
+      destination &&
+      source.id !== destination.id &&
+      classification.instruments.every((h) => h.side !== undefined);
+    const selected = ownedTransfer
+      ? classification.direction === 'incoming'
+        ? destination
+        : source
+      : selectAccount(
+          classification.currency,
+          classification.instruments,
+          options,
+          provider?.providerKey
+        );
+    const counterpart = ownedTransfer
+      ? classification.direction === 'incoming'
+        ? source
+        : destination
+      : null;
+    if (ownedTransfer)
+      classification.reasonCodes = classification.reasonCodes.filter(
+        (code) => code !== 'transfer_counterparty_required'
+      );
     if (!selected) {
       classification.reasonCodes.push('ambiguous_account');
       result.accountRequiredCount++;
     }
-    if (classification.reasonCodes.length)
-      classification.disposition = 'review';
+    classification.disposition =
+      classification.status === 'completed' &&
+      classification.direction !== 'unknown' &&
+      classification.amountMinor !== null &&
+      classification.currency !== null &&
+      !classification.reasonCodes.length
+        ? 'capture_candidate'
+        : 'review';
     const kind =
       ['salary', 'deposit'].includes(classification.subtype) ||
       (classification.subtype === 'generic_credit' &&
@@ -189,6 +233,7 @@ export async function prepareFinancialMessageImport(
       ...(classification.currency ? { currency: classification.currency } : {}),
       ...(kind ? { kind } : {}),
       ...(selected ? { accountId: selected.id } : {}),
+      ...(counterpart ? { destinationAccountId: counterpart.id } : {}),
       ...(classification.merchant ? { merchant: classification.merchant } : {}),
       metadata: {
         ...(options.configurationRevision

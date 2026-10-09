@@ -76,6 +76,52 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it.each([
+    [
+      'تحويل صادر SAR 5 من حساب XX1111 إلى حساب XX2222',
+      'outgoing',
+      -500,
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    ],
+    [
+      'Incoming transfer SAR 5 from account XX1111 to account XX2222',
+      'incoming',
+      500,
+      '10000000-0000-4000-8000-000000000002',
+      '10000000-0000-4000-8000-000000000001'
+    ]
+  ])(
+    'resolves both owned transfer endpoints without converting movement into expense/income: %s',
+    async (body, direction, amountMinor, accountId, destinationAccountId) => {
+      const event = (
+        await prepareSmsImport(
+          [message({ body: String(body) })],
+          options({
+            accounts: [
+              account({ lastFour: '1111' }),
+              account({
+                id: '10000000-0000-4000-8000-000000000002',
+                lastFour: '2222'
+              })
+            ]
+          })
+        )
+      ).events[0];
+      expect(event).toMatchObject({
+        kind: 'transfer',
+        amountMinor,
+        accountId,
+        destinationAccountId,
+        classification: {
+          direction,
+          status: 'completed',
+          disposition: 'capture_candidate',
+          reasonCodes: []
+        }
+      });
+    }
+  );
   it('binds eligibility to the exact owner configuration used for capture', async () => {
     const configurationRevision = 'b'.repeat(64);
     const event = (

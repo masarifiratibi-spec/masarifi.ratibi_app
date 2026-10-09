@@ -91,6 +91,7 @@ export interface TrackingImportEvent {
   metadata?: Record<string, string | number | boolean | null>;
   kind?: 'income' | 'expense' | 'transfer' | 'refund' | 'fee';
   accountId?: string;
+  destinationAccountId?: string;
   categoryId?: string;
   classification?: Omit<Classification, 'providerReference'>;
   transport?: {

@@ -25,6 +25,11 @@ test('linked operations state their missing accounting identity',()=>{
     assert.equal(parse(text).disposition,'review');
   }
 });
+test('transfer endpoints retain explicit source and destination evidence without assuming ownership',()=>{
+  assert.deepEqual(parse('تحويل صادر ٥ جنيه من حساب XX1111 إلى حساب XX2222').instruments,
+    [{role:'account',suffix:'1111',side:'source'},{role:'account',suffix:'2222',side:'destination'}]);
+  assert.equal(parse('تحويل صادر ٥ جنيه من حساب XX1111 إلى حساب XX2222').disposition,'review');
+});
 test('a separate fee cannot silently disappear from an ordinary purchase posting',()=>{
   const result=parse('Purchase EGP 5 card XX4242 fee EGP 0.50');
   assert.equal(result.amountMinor,500);

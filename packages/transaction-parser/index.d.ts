@@ -15,7 +15,7 @@ export interface RuleSnapshot {
 export interface Classification {
   direction: Direction; subtype: string; status: FinancialStatus; disposition: Disposition;
   amountMinor: number | null; currency: string | null; merchant: string | null;
-  instruments: {role: 'card' | 'account'; suffix: string}[];
+  instruments: {role: 'card' | 'account'; suffix: string; side?: 'source' | 'destination'}[];
   occurredAt: string | null; timeProvenance: 'embedded' | 'received' | 'ambiguous';
   providerReference: string | null; reasonCodes: string[]; appliedRuleKeys: string[];
   releaseId: string; engineVersion: string;

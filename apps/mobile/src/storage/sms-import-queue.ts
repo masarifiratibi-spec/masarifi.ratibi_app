@@ -236,6 +236,7 @@ const eventSchema = z
       .optional(),
     kind: z.enum(['income', 'expense', 'transfer', 'refund', 'fee']).optional(),
     accountId: z.string().uuid().optional(),
+    destinationAccountId: z.string().uuid().optional(),
     categoryId: z.string().uuid().optional(),
     classification: z
       .unknown()
@@ -430,6 +431,9 @@ function minimizeEvent(event: TrackingImportEvent): TrackingImportEvent {
     ...(event.metadata ? { metadata: event.metadata } : {}),
     ...(event.kind ? { kind: event.kind } : {}),
     ...(event.accountId ? { accountId: event.accountId } : {}),
+    ...(event.destinationAccountId
+      ? { destinationAccountId: event.destinationAccountId }
+      : {}),
     ...(event.categoryId ? { categoryId: event.categoryId } : {}),
     ...(event.classification ? { classification: event.classification } : {}),
     ...(event.transport ? { transport: event.transport } : {}),
