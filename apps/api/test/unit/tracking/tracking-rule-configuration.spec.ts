@@ -5,6 +5,18 @@ import {
 } from '@masarifi/transaction-parser';
 
 describe('database configured lifecycle wording', () => {
+  it.each([
+    'Deposit request AED10 account XX4242',
+    'Refund request AED1 card XX4242 original reference BANKREF1234',
+    'طلب إيداع SAR ١٠ حساب XX4242',
+    'طلب استرداد EGP ١ بطاقة XX4242',
+    'طلب refund AED1 card XX4242',
+  ])('never treats an uncompleted request as settled: %s', (text) => {
+    expect(classifyFinancialMessage({ text })).toMatchObject({
+      status: 'pending',
+      disposition: 'review',
+    });
+  });
   it('accepts added pending wording without permitting removal of safety phrases', () => {
     const configured = structuredClone(defaultSnapshot);
     const pending = configured.rules.find((rule) => rule.ruleKey === 'lifecycle.pending');

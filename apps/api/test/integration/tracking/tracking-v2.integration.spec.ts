@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
+import { EngagementRepository } from '../../../src/engagement/engagement.repository';
 import { classifyFinancialMessage, defaultSnapshot } from '@masarifi/transaction-parser';
 import { LedgerRepository } from '../../../src/ledger/ledger.repository';
 import { LedgerService } from '../../../src/ledger/ledger.service';
@@ -81,6 +82,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
     channel = 'android_sms',
     provider = 'adcb',
     patch: Record<string, unknown> = {},
+    nativeIdentity = nativeId,
   ) {
     const configuration = await repository.ruleSnapshot(principal);
     const parsed = classifyFinancialMessage({
@@ -127,7 +129,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
           transport: {
             deviceId: 'integration-device-0001',
             channel,
-            nativeIdDigest: hash(nativeId),
+            nativeIdDigest: hash(nativeIdentity),
             revisionDigest: hash(text),
           },
           ...(reference
@@ -381,6 +383,9 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
   it.each(['refund', 'reversal'])(
     'automatically posts an explicitly linked completed %s through the existing compensation ledger',
     async (subtype) => {
+      await pool.query(`insert into private.tracking_automatic_cohorts(user_id,device_id,release_id,engine_version,expires_at,reason)
+        select $1,'integration-device-0001',release_id,'2.0.0',clock_timestamp()+interval '1 hour','Compensation confirmation verification'
+        from public.tracking_rule_channels on conflict(user_id,device_id) do update set enabled=true,expires_at=excluded.expires_at,release_id=excluded.release_id`, [owner]);
       const minor = subtype === 'refund' ? 429 : 431;
       const reference = subtype === 'refund' ? 'BANKREF429000' : 'BANKREF431000';
       const original = itemFor(
@@ -419,6 +424,64 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
         )
       ).rows;
       expect(posting).toEqual([{ account_id: accountId, amount: String(amount) }]);
+      const engagement = new EngagementRepository(pool, {} as never);
+      const source = (await engagement.claimTrackingSourceEvents(100)).find(
+        (event) => event.source_id === linked.transactionId,
+      );
+      expect(source?.event_type).toBe('transaction.' + (subtype === 'refund' ? 'refunded' : 'reversed'));
+      if (!source) throw new Error('COMPENSATION_CONFIRMATION_EXPECTED');
+      const notice = await engagement.createNotificationFromSource(source, [{
+        channel: 'in_app', provider: 'database', title: 'Saved', body: 'Saved', status: 'queued', nextAttemptAt: null,
+      }]);
+      const outcome = (await repository.listOwner(principal, 'items', String(linked.id), 1))[0] as Record<string, unknown>;
+      expect(outcome.notificationId).toBeTruthy();
+      expect(notice).toBeTruthy();
+      expect(await repository.confirmation(principal, String(outcome.notificationId))).toMatchObject({ ready: true, transaction: { amountMinor: amount, direction: 'incoming' } });
+    },
+  );
+  it.each(['partial-refund', 'full-refund', 'reversal'])(
+    'recovers a committed %s after import acknowledgement loss and coalesces reference replay',
+    async (scenario) => {
+      const subtype = scenario === 'reversal' ? 'reversal' : 'refund';
+      const originalReference = 'RECOVERY-' + scenario;
+      const original = itemFor(await capture('Purchase AED9.71 card XX4242 at RECOVERY SHOP', 'recovery-original-' + scenario, originalReference, 'android_sms', 'adcb', { metadata: { referenceScheme: 'plain-v2' } }));
+      expect(original.status).toBe('accepted');
+      const amount = scenario === 'partial-refund' ? 123 : 971;
+      const text = `${subtype} AED${amount / 100} card XX4242 original reference ${originalReference}`;
+      const fault = jest.spyOn(repository, 'acceptImportItem').mockRejectedValueOnce(new Error('ACK_RESPONSE_LOST'));
+      let lost: Awaited<ReturnType<typeof capture>>;
+      try {
+        lost = await capture(text, 'lost-' + scenario, 'recovery-compensation-' + scenario);
+      } finally { fault.mockRestore(); }
+      expect(itemFor(lost).status).toBe('parsed');
+      await pool.query('update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1', [lost.sessionId]);
+      await worker.runJob('import.parse');
+      const recovered = (await repository.listOwner(principal, 'items', String(itemFor(lost).id), 1))[0] as Record<string, unknown>;
+      expect(recovered.status).toBe('accepted');
+      const repeated = itemFor(await capture(text, 'replayed-' + scenario, 'recovery-compensation-' + scenario));
+      expect(repeated).toMatchObject({ status: 'accepted', transactionId: recovered.transactionId });
+      expect((await pool.query("select count(*)::int count from public.transactions where user_id=$1 and reverses_transaction_id=$2 and kind=$3", [owner, original.transactionId, subtype])).rows[0]?.count).toBe(1);
+      expect((await pool.query('select count(*)::int count from public.transaction_postings where transaction_id=$1', [recovered.transactionId])).rows[0]?.count).toBe(1);
+    },
+  );
+  it.each([true, false])('promotes a matching pending native revision to completion (reference=%s)', async (withReference) => {
+    const key = 'progression-' + String(withReference);
+    const reference = withReference ? key + '-reference' : undefined;
+    const pending = itemFor(await capture('Purchase AED5.87 pending card XX4242 at PROGRESSION SHOP', key + '-pending', reference, 'android_sms', 'adcb', {}, key));
+    expect(pending.status).toBe('review');
+    const completed = itemFor(await capture('Purchase AED5.87 card XX4242 at PROGRESSION SHOP', key + '-complete', reference, 'android_sms', 'adcb', {}, key));
+    expect(completed.status).toBe('accepted');
+    expect((await pool.query('select status from public.review_items where import_item_id=$1', [pending.id])).rows[0]?.status).toBe('rejected');
+    expect((await pool.query('select count(*)::int count from public.transaction_postings where transaction_id=$1', [completed.transactionId])).rows[0]?.count).toBe(1);
+  });
+  it.each(['Deposit request AED10 account XX4242', 'Refund request AED1 card XX4242 original reference REQUEST-ORIGINAL'])(
+    'holds uncompleted financial requests without posting: %s', async (text) => {
+      const original = itemFor(await capture('Purchase AED10 card XX4242 at REQUEST SHOP', 'request-original-' + hash(text).slice(0, 8), 'REQUEST-ORIGINAL', 'android_sms', 'adcb', { metadata: { referenceScheme: 'plain-v2' } }));
+      expect(original.status).toBe('accepted');
+      const requested = itemFor(await capture(text, 'request-' + hash(text).slice(0, 8)));
+      expect(requested.status).toBe('review');
+      expect(requested.transactionId).toBeNull();
+      expect((requested.normalizedPayload as Record<string, unknown>).classification).toMatchObject({ status: 'pending' });
     },
   );
   it('posts two independently verified references even when their amount, merchant and time are identical', async () => {
