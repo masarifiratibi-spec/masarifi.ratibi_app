@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { classifyFinancialMessage, validateRuleSnapshot } from '@masarifi/transaction-parser';
+import { decodeTrackingCursor, encodeTrackingCursor, type TrackingCursor } from '../../../src/tracking/tracking.dto';
+import { TrackingRepository } from '../../../src/tracking/tracking.repository';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('automatic database tracking defaults', () => {
@@ -24,6 +26,25 @@ describeLiveDatabase('automatic database tracking defaults', () => {
       [owner],
     );
     expect(result.rows[0]).toEqual({ total: 113, ar: 52, en: 61 });
+  });
+
+  it('returns every seeded default across pages sharing a PostgreSQL microsecond timestamp', async () => {
+    const repository = new TrackingRepository(pool);
+    const principal = {userId:owner,sessionId:'tracking-default-pages',factorAgeSeconds:0};
+    const identifiers: string[] = [];
+    let cursor: TrackingCursor | null = null;
+    for (let page = 0; page < 3; page += 1) {
+      const rows = await repository.listOwner(principal, 'keywords', null, 100, cursor) as {id:string;createdAt:string}[];
+      identifiers.push(...rows.map(row => row.id));
+      if (rows.length < 100) break;
+      const last = rows.at(-1);
+      if (!last) throw new Error('DEFAULT_PAGE_EMPTY');
+      cursor = decodeTrackingCursor(encodeTrackingCursor({at:last.createdAt,id:last.id}));
+    }
+    const expected = await pool.query<{id:string}>('select id from public.user_keyword_rules where user_id=$1', [owner]);
+    expect(expected.rows).toHaveLength(113);
+    expect(identifiers.sort()).toEqual(expected.rows.map(row=>row.id).sort());
+    expect(new Set(identifiers).size).toBe(113);
   });
 
   it('seeds idempotently while retaining disabled defaults and custom wording', async () => {

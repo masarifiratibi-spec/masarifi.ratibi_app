@@ -82,8 +82,8 @@ export async function configureTrackingBackground(
     await trackingNativeRuntime.configureTrackingOwner(
       ownerDigest,
       generation,
-      mode !== 'paused' && sources.smsEnabled,
-      mode !== 'paused' && sources.notificationEnabled,
+      !rules.requiresRefresh && mode !== 'paused' && sources.smsEnabled,
+      !rules.requiresRefresh && mode !== 'paused' && sources.notificationEnabled,
       packages,
       rules.senders
         .filter(

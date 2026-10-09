@@ -198,6 +198,10 @@ export function createAutomaticTrackingCoordinator(
           /* Keep the complete last-known-good release. Unconfigured capture is held for review. */
         }
       }
+      if (config.requiresRefresh) {
+        await dependencies.configureBackground?.(ownerId, config, 'paused', epoch);
+        throw new Error('tracking_configuration_refresh_failed');
+      }
       const rules = cachedRules(config);
       const deviceId = dependencies.deviceId
         ? await dependencies.deviceId()

@@ -110,10 +110,12 @@ Gaps and exact ownership:
 - [x] Fresh whole-branch reviewer and one test-first repair pass for material findings.
 - [ ] Push isolated candidate for exact-commit CI/image scanning; no main merge.
 - [ ] Verify exact-image cross-feature compatibility; deploy API/scoped tracking/confirmation worker only to Staging after gates pass.
-- [ ] Build new signed `com.masarifi.mobile.dev` APK with existing compatible signing key; verify signer/application ID before `adb install -r`; preserve owner/sign-in and prior SAR data.
+- [x] Build new signed `com.masarifi.mobile.dev` APK with existing compatible signing key; verify signer/application ID before `adb install -r`; preserve owner/sign-in and prior SAR data.
 - [ ] Sync native policy and verify rule/engine/release/migration/API/worker versions on device and Staging.
 
 ## Task 6 — physical Samsung acceptance and handoff
+
+Acceptance preparation on 2026-10-10 deployed exact green 7b19296 API/scoped worker, migration20261009235000 and113default rules, preserving Voice/Assistant/ledger. In-place signed Dev install preserved sign-in and permissions. Real Samsung inspection found two defects: obsolete cached mandatory safety rules blocked encrypted queue loading, and keyword pagination truncated PostgreSQL microseconds and returned100/113. Repair only these defects with regression tests: preserve queued financial events/cursors/fingerprints; hold native/capture offline until current rules refresh; retain microseconds across both cursor boundaries. Re-run exact candidate CI/compatibility and deploy the repair before READY. No native production change or APK rebuild is required for these repairs.
 
 - [ ] Create authorized `EGP Tracking Test` bank/wallet with opening 0 EGP, tracking enabled; map only verified source/instruments and preserve SAR.
 - [ ] Prepare permissions/switches/Listener connection/device state and clean queue/review/transaction/posting/balance baseline.

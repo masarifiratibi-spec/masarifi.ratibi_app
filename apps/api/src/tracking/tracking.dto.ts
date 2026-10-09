@@ -107,9 +107,20 @@ export function normalizeVersion(value: unknown): number {
   return value as number;
 }
 
+function cursorInstant(value: unknown): string {
+  const normalized = instant(value);
+  const fraction = String(value).match(/\.(\d+)(?=[zZ]|[+-]\d\d:\d\d$)/)?.[1];
+  if (fraction && fraction.length > 6) invalid();
+  // PostgreSQL sorts timestamps at microsecond precision. Date.toISOString()
+  // truncates the cursor and skips rows seeded in the same database instant.
+  return fraction && fraction.length > 3
+    ? normalized.replace(/\.\d{3}Z$/, `.${fraction}Z`)
+    : normalized;
+}
+
 export function encodeTrackingCursor(cursor: TrackingCursor): string {
   return Buffer.from(
-    JSON.stringify({ at: instant(cursor.at), id: normalizeTrackingId(cursor.id) }),
+    JSON.stringify({ at: cursorInstant(cursor.at), id: normalizeTrackingId(cursor.id) }),
   ).toString('base64url');
 }
 
@@ -118,7 +129,7 @@ export function decodeTrackingCursor(value: unknown): TrackingCursor {
     if (typeof value !== 'string' || value.length > 512) invalid();
     const parsed = object(JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown);
     keys(parsed, ['at', 'id']);
-    return { at: instant(parsed.at), id: normalizeTrackingId(parsed.id) };
+    return { at: cursorInstant(parsed.at), id: normalizeTrackingId(parsed.id) };
   } catch {
     invalid();
   }

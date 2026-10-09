@@ -43,6 +43,7 @@ export interface SmsRuleSnapshot {
     accountId: string;
   }[];
   rolloutMode?: 'shadow' | 'review' | 'automatic';
+  requiresRefresh?: boolean;
 }
 
 export interface SmsImportQueueState {
@@ -366,7 +367,8 @@ const queueSchema = z
         configurationRevision: z
           .string()
           .regex(/^[a-f0-9]{64}$/)
-          .optional()
+          .optional(),
+        requiresRefresh: z.boolean().optional()
       })
       .strict()
   })
@@ -378,7 +380,19 @@ function parseState(
 ): SmsImportQueueState | null {
   if (!raw || raw.length > 64 * 1024 * 1024) return null;
   try {
-    const state = queueSchema.parse(JSON.parse(raw));
+    const decoded = JSON.parse(raw) as SmsImportQueueState;
+    if (decoded?.rules && Object.prototype.hasOwnProperty.call(decoded.rules, 'snapshot')) {
+      try {
+        validateRuleSnapshot(decoded.rules.snapshot);
+      } catch {
+        // A cached release can become obsolete when mandatory lifecycle safety
+        // wording changes. Keep financial events and checkpoints intact; hold
+        // capture until a current server configuration replaces this cache.
+        delete decoded.rules.snapshot;
+        decoded.rules.requiresRefresh = true;
+      }
+    }
+    const state = queueSchema.parse(decoded);
     return state.ownerId === ownerId ? state : null;
   } catch {
     throw new Error('sms_queue_corrupt');

@@ -13,6 +13,13 @@ import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 const id = '80000000-0000-4000-8000-000000000001';
 
 describe('tracking DTO boundaries', () => {
+  it('preserves PostgreSQL microseconds through both cursor boundaries so seeded rules are not skipped', () => {
+    const at = '2026-10-09T13:43:31.263088+00:00';
+    const cursor = encodeTrackingCursor({at,id});
+    expect(decodeTrackingCursor(cursor)).toEqual({at:'2026-10-09T13:43:31.263088Z',id});
+    expect(normalizeTrackingList({cursor,limit:'100'})).toEqual({cursor,limit:100});
+  });
+
   it('accepts only a bounded digest for original transaction evidence', () => {
     const { providerReference, ...classification } = classifyFinancialMessage({
       text: 'Refund EGP 5',

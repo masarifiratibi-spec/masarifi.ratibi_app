@@ -53,6 +53,11 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 afterEach(() => jest.restoreAllMocks());
+it('disables both native intake mechanisms when cached lifecycle safety rules need refresh', async () => {
+  await configureTrackingBackground('owner-a', {...rules,requiresRefresh:true}, 'automatic_clear');
+  expect(MasarifiSmsInbox?.configureTrackingOwner).toHaveBeenCalledWith('digest:owner-a','generation-test',false,false,['com.bank.app'],[],null);
+});
+
 it('does not resurrect native capture when consent changes while storage is awaited', async () => {
   let loaded!: () => void;
   const awaiting = new Promise<void>((resolve) => {

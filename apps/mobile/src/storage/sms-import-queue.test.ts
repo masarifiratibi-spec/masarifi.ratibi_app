@@ -2,6 +2,7 @@ import type { TrackingImportSubmission } from '@/domain/automatic-tracking';
 import { SmsImportQueue } from './sms-import-queue';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
 import { runExclusiveDatabaseTransaction } from './database';
+import { defaultSnapshot } from '@masarifi/transaction-parser';
 
 let mockDatabase: StatefulSqlite;
 jest.mock('./database', () => ({
@@ -60,6 +61,23 @@ const submission: TrackingImportSubmission = {
 };
 
 describe('SMS import queue', () => {
+  it('refreshes obsolete cached safety rules without losing pending events or duplicate checkpoints', async () => {
+    const stored = { ...legacy(), rules: { ...legacy().rules, snapshot: { ...defaultSnapshot, rules: defaultSnapshot.rules.filter(rule => rule.ruleKey !== 'lifecycle.pending') } } };
+    await mockDatabase.runAsync('INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)', 'singleton', JSON.stringify(stored));
+    const queue = new SmsImportQueue(memoryStorage());
+    const recovered = await queue.load('owner-1');
+    expect(recovered).toMatchObject({pending:stored.pending,cursor:stored.cursor,fingerprints:stored.fingerprints,mode:'review_all',rules:{requiresRefresh:true}});
+    expect(recovered.rules.snapshot).toBeUndefined();
+    expect(JSON.parse(String(mockDatabase.read('sms_import_queue')[0]?.payload))).toEqual(stored);
+    await queue.saveRules('owner-1', { keywords: [], senders: [], snapshot: defaultSnapshot });
+    const refreshed = await new SmsImportQueue(memoryStorage()).load('owner-1');
+    expect(refreshed.pending).toHaveLength(1);
+    expect(refreshed.cursor).toBe(42);
+    expect(refreshed.fingerprints).toEqual(['sha256:one']);
+    expect(refreshed.rules.snapshot).toEqual(defaultSnapshot);
+    expect(refreshed.rules.requiresRefresh).toBeUndefined();
+  });
+
   it('retains minimized original-reference proof across an offline restart', async () => {
     const storage = memoryStorage();
     const originalProviderReferenceDigest = 'a'.repeat(64);

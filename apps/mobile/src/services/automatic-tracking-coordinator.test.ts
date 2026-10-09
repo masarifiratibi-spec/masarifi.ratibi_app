@@ -202,6 +202,30 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it('replaces obsolete cached safety rules online and resumes with the original intake checkpoint', async () => {
+    const context = setup();
+    await mockDatabase.runAsync('INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)', 'singleton', JSON.stringify({version:1,ownerId:'owner-1',pending:[],cursor:42,cursorId:'old-sms',fingerprints:['seen'],mode:'review_all',rules:{keywords:[],senders:[],snapshot:{...defaultSnapshot,rules:[]}}}));
+    Object.assign(context.tracking, {getRuleConfiguration:jest.fn().mockResolvedValue({keywords:[],senders:[],snapshot:defaultSnapshot})});
+    context.inbox.readRecent.mockResolvedValue([]);
+    expect(await context.coordinator.sync()).toMatchObject({status:'idle',errorCode:null});
+    const refreshed = await context.queue.load('owner-1');
+    expect(refreshed).toMatchObject({pending:[],cursor:42,cursorId:'old-sms',fingerprints:['seen'],rules:{snapshot:defaultSnapshot}});
+    expect(refreshed.rules.requiresRefresh).toBeUndefined();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+
+  it('holds stale safety configuration offline without reading either capture channel', async () => {
+    const configureBackground = jest.fn(async () => undefined);
+    const context = setup({configureBackground});
+    await mockDatabase.runAsync('INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)', 'singleton', JSON.stringify({version:1,ownerId:'owner-1',pending:[],cursor:42,fingerprints:['seen'],mode:'review_all',rules:{keywords:[],senders:[],snapshot:{...defaultSnapshot,rules:[]}}}));
+    context.setOnline(false);
+    expect(await context.coordinator.sync()).toMatchObject({status:'error',errorCode:'sync_failed'});
+    expect(context.inbox.readRecent).not.toHaveBeenCalled();
+    expect(context.bankNotifications.readRecent).not.toHaveBeenCalled();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect(await context.queue.load('owner-1')).toMatchObject({cursor:42,fingerprints:['seen'],pending:[],rules:{requiresRefresh:true}});
+  });
+
   it('does not read SMS when only notification tracking is enabled', async () => {
     const context = setup({
       sources: {
