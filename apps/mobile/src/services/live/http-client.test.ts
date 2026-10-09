@@ -15,6 +15,95 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it('preserves a definite ledger rejection when debug logging fails', async () => {
+    const log = jest.spyOn(console, 'info').mockImplementation(() => {
+      throw new Error('diagnostic sink unavailable');
+    });
+    try {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'fixture',
+          request: async () =>
+            response(400, {
+              code: 'VALIDATION_FAILED',
+              requestId: 'request-400'
+            })
+        })
+      ).rejects.toMatchObject({
+        code: 'validation_error',
+        status: 400,
+        domainCode: 'VALIDATION_FAILED',
+        requestId: 'request-400'
+      });
+    } finally {
+      log.mockRestore();
+    }
+  });
+  it('retains safe correlation for an unknown server code without treating it as a definite rejection', async () => {
+    await expect(
+      requestJson('/api/v1/transactions', schema, {
+        baseUrl: 'https://api.example',
+        token: 'fixture',
+        request: async () =>
+          response(400, {
+            code: 'FUTURE_VALIDATION_CODE',
+            requestId: '22222222-2222-4222-8222-222222222222',
+            message: 'private contents'
+          })
+      })
+    ).rejects.toMatchObject({
+      code: 'contract_mismatch',
+      status: 400,
+      domainCode: 'FUTURE_VALIDATION_CODE',
+      requestId: '22222222-2222-4222-8222-222222222222'
+    });
+  });
+  it.each([
+    ['AMOUNT_OUT_OF_RANGE', 400, 'validation_error'],
+    ['TRACKING_ACCOUNT_BLOCKED', 409, 'conflict']
+  ])(
+    'preserves the definite %s rejection and its request correlation',
+    async (domainCode, status, code) => {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://api.example',
+          token: 'fixture',
+          request: async () =>
+            response(status as number, {
+              code: domainCode,
+              requestId: 'request-finance-1',
+              message: 'private note'
+            })
+        })
+      ).rejects.toMatchObject({
+        code,
+        status,
+        domainCode,
+        requestId: 'request-finance-1'
+      });
+    }
+  );
+  it('retains only allowlisted domain/status/request metadata for actionable finance feedback', async () => {
+    await expect(
+      requestJson('/api/v1/transactions', schema, {
+        baseUrl: 'https://api.example',
+        token: 'fixture',
+        request: jest.fn().mockResolvedValue(
+          response(409, {
+            code: 'ACCOUNT_NOT_POSTABLE',
+            requestId: 'request-fixture-1',
+            message: 'private contents'
+          })
+        )
+      })
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      status: 409,
+      domainCode: 'ACCOUNT_NOT_POSTABLE',
+      requestId: 'request-fixture-1'
+    });
+  });
   beforeEach(() =>
     configureMobileApiTokenProvider(async () => 'clerk-session')
   );

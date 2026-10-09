@@ -43,11 +43,19 @@ jest.mock('@/design-system/typography', () => ({
   FontGate: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
-jest.mock('@/state/FoundationProviders', () => ({
-  FoundationProviders: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  )
-}));
+jest.mock('@/state/FoundationProviders', () => {
+  const { QueryClient, QueryClientProvider } = jest.requireActual(
+    '@tanstack/react-query'
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } }
+  });
+  return {
+    FoundationProviders: ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+  };
+});
 
 jest.mock('@/state/AppShellProvider', () => ({
   AppShellProvider: ({ children }: { children: React.ReactNode }) => (

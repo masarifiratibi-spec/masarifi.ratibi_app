@@ -7,6 +7,7 @@ import {
   fireEvent
 } from '@testing-library/react-native';
 import { Text } from 'react-native';
+import Constants from 'expo-constants';
 
 import {
   MobileIdentityProvider,
@@ -29,6 +30,11 @@ let authState = {
 const mockUseAuth = jest.fn(() => authState);
 const mockRegisterLiveClerkBridge = jest.fn();
 const mockStartSSOFlow = jest.fn();
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { scheme: 'masarifi' } }
+}));
 
 it.each(['user-1', 'user-other', null])(
   'only returns the current authenticated owner name for %s',
@@ -193,6 +199,28 @@ it.each(['new', 'existing'] as const)(
   }
 );
 
+it.each([
+  ['masarifi', 'masarifi://sso-callback'],
+  ['masarifi-dev', 'masarifi-dev://sso-callback']
+])('returns Google authentication to the installed %s app', async (scheme, redirectUrl) => {
+  const config = Constants.expoConfig!;
+  const previousScheme = config.scheme;
+  config.scheme = scheme;
+  try {
+    mockStartSSOFlow.mockResolvedValue({ authSessionResult: { type: 'cancel' } });
+    render(
+      <MobileIdentityProvider>
+        <SessionProbe />
+      </MobileIdentityProvider>
+    );
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => { await bridge.signInWithGoogle(); });
+    expect(mockStartSSOFlow).toHaveBeenCalledWith({ strategy: 'oauth_google', redirectUrl });
+  } finally {
+    config.scheme = previousScheme;
+  }
+});
+
 it('does not misclassify incomplete Google registration as cancellation', async () => {
   mockStartSSOFlow.mockResolvedValue({
     createdSessionId: null,
@@ -212,6 +240,34 @@ it('does not misclassify incomplete Google registration as cancellation', async 
       'googleAuth.incomplete'
     );
   });
+});
+
+it('reports a development SSO rejection without exposing OAuth contents', async () => {
+  const config = Constants.expoConfig!;
+  const oldScheme = config.scheme;
+  const oldUrl = process.env.EXPO_PUBLIC_API_URL;
+  config.scheme = 'masarifi-dev';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const failure = { status: 422, errors: [{ code: 'form_redirect_url_invalid', message: 'private nonce and email' }] };
+  mockStartSSOFlow.mockRejectedValue(failure);
+  try {
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => { await expect(bridge.signInWithGoogle()).rejects.toBe(failure); });
+    expect(screen.getByText('error')).toBeOnTheScreen();
+    expect(log.mock.calls.filter(([label]) => label === 'DEV_AUTH_DIAG')).toEqual([
+      ['DEV_AUTH_DIAG', expect.stringContaining('"stage":"sso_start"')],
+      ['DEV_AUTH_DIAG', expect.stringContaining('"stage":"sso_failure"')]
+    ]);
+    const output = log.mock.calls.map((args) => args.join(' ')).join(' ');
+    expect(output).toContain('form_redirect_url_invalid');
+    expect(output).not.toMatch(/nonce|email|private/);
+  } finally {
+    log.mockRestore();
+    config.scheme = oldScheme;
+    process.env.EXPO_PUBLIC_API_URL = oldUrl;
+  }
 });
 
 function StatusProbe() {

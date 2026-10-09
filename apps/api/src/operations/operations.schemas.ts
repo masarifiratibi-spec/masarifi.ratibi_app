@@ -73,6 +73,12 @@ const PAGE_FILTERS: Readonly<Record<string, readonly string[]>> = Object.freeze(
 
 export function parseOperationsReadQuery(kind: string, value: unknown): Record<string, unknown> {
   const input = record(value);
+  if (kind === 'ai-usage') {
+    exact(input, ['userId']);
+    const userId = input.userId === undefined ? null : text(input.userId, 1, 128);
+    if (userId !== null && !/^[A-Za-z0-9_-]+$/u.test(userId)) throw new Error(INVALID);
+    return { userId };
+  }
   if (kind === 'job-run') {
     exact(input, ['runId']);
     const runId = text(input.runId, 36, 36);

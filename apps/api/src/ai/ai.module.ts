@@ -46,6 +46,6 @@ export class AiModule {}
     },
     AiWorker,
   ],
-  exports: [AiWorker],
+  exports: [AiWorker, AiRepository, AiStorage],
 })
 export class AiWorkerModule {}

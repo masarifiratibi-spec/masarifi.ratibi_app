@@ -1,6 +1,7 @@
 export function replaceLocalDate(
   timestamp: number,
-  selectedTimestamp: number
+  selectedTimestamp: number,
+  maximumTimestamp?: number
 ): number {
   const current = new Date(timestamp);
   const selected = new Date(selectedTimestamp);
@@ -9,5 +10,7 @@ export function replaceLocalDate(
     selected.getMonth(),
     selected.getDate()
   );
-  return current.getTime();
+  return maximumTimestamp === undefined
+    ? current.getTime()
+    : Math.min(current.getTime(), maximumTimestamp);
 }

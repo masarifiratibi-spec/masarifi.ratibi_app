@@ -3,6 +3,7 @@ import {
   assertSafeAiInput,
   parseAssistantOutput,
   parseVoiceProposal,
+  parseVoiceWorkerOutput,
   redactAiContext,
   redactAiText,
 } from '../../../src/ai/ai.schemas';
@@ -33,6 +34,86 @@ describe('Phase 09 AI trust boundaries', () => {
     expect(parseVoiceProposal(voice)).toEqual(voice);
     expect(() => parseVoiceProposal({ ...voice, tool: 'sql' })).toThrow('AI_SCHEMA_INVALID');
     expect(() => parseVoiceProposal({ ...voice, amountMinor: 12.5 })).toThrow('AI_SCHEMA_INVALID');
+  });
+
+  it.each([
+    { language: ['en'] },
+    { language: null },
+    { outcome: ['supported'] },
+    { proposal: { ...voice, amountMinor: '9007199254740992' } },
+    { proposal: { ...voice, amountMinor: '-9007199254740992' } },
+    { proposal: { ...voice, date: '2026-02-30' } },
+    { proposal: { ...voice, date: '2026-13-01' } },
+    { proposal: { ...voice, amountMinor: '0' } },
+    { proposal: { ...voice, amountMinor: 1500 } },
+    { proposal: { ...voice, accountId: null } },
+    { proposal: { ...voice, accountId: 'CATEGORY-1' } },
+    { proposal: { ...voice, categoryId: 'ACCOUNT-1' } },
+    { proposal: { ...voice, tool: 'sql' } },
+    { authorization: 'forbidden' },
+  ])('rejects noncanonical Voice output %# before reference resolution', (patch) => {
+    expect(() =>
+      parseVoiceWorkerOutput({
+        schemaVersion: 1,
+        outcome: 'supported',
+        transcript: 'Fictional purchase',
+        language: 'en',
+        confidence: 0.9,
+        proposal: voice,
+        ...patch,
+      }),
+    ).toThrow('AI_SCHEMA_INVALID');
+  });
+
+  it('requires a string unsupported reason', () => {
+    expect(() =>
+      parseVoiceWorkerOutput({
+        schemaVersion: 1,
+        outcome: 'unsupported',
+        transcript: 'Fictional transfer',
+        language: 'en',
+        confidence: 0.9,
+        unsupportedReason: ['transfer'],
+      }),
+    ).toThrow('AI_SCHEMA_INVALID');
+  });
+
+  it.each(['9007199254740991', '-9007199254740991', '1500', '-1500'])(
+    'preserves safe signed Voice minor units %s and nullable fields',
+    (amountMinor) => {
+      expect(
+        parseVoiceProposal({
+          ...voice,
+          amountMinor,
+          date: '2024-02-29',
+          merchant: null,
+          note: null,
+        }),
+      ).toMatchObject({ amountMinor, date: '2024-02-29', merchant: null, note: null });
+    },
+  );
+
+  it('preserves supported aliases and the unsupported branch without coercion', () => {
+    expect(
+      parseVoiceWorkerOutput({
+        schemaVersion: 1,
+        outcome: 'supported',
+        transcript: 'Fictional purchase',
+        language: 'en',
+        confidence: 0.9,
+        proposal: { ...voice, accountId: 'ACCOUNT-1', categoryId: 'CATEGORY-1' },
+      }),
+    ).toMatchObject({ proposal: { accountId: 'ACCOUNT-1', categoryId: 'CATEGORY-1' } });
+    expect(
+      parseVoiceWorkerOutput({
+        schemaVersion: 1,
+        outcome: 'unsupported',
+        transcript: 'Fictional transfer',
+        language: 'ar',
+        confidence: 0.9,
+        unsupportedReason: 'transfer',
+      }),
+    ).toMatchObject({ outcome: 'unsupported', unsupportedReason: 'transfer' });
   });
 
   it('accepts alias-only assistant evidence and rejects arbitrary tools', () => {
@@ -153,6 +234,7 @@ describe('Phase 09 AI trust boundaries', () => {
     });
 
     expect(payload).toEqual({
+      responseLanguage: 'ar',
       intent: 'period_comparison',
       question: 'ليه صرفي زاد؟',
       financialTruth: { currentExpenseMinor: 235000, currency: 'SAR' },

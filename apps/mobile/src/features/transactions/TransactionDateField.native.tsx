@@ -18,11 +18,13 @@ export function TransactionDateField({
   value,
   disabled = false,
   label: providedLabel,
+  maximumDate,
   onChange
 }: {
   value: number;
   disabled?: boolean;
   label?: string;
+  maximumDate?: Date;
   onChange: (value: number) => void;
 }) {
   const theme = useTheme();
@@ -31,12 +33,19 @@ export function TransactionDateField({
   const label = providedLabel ?? translate('coreFinance.transaction.date');
   const update = (event: DateTimePickerEvent, selected?: Date) => {
     if (event.type === 'set' && selected) {
-      onChange(replaceLocalDate(value, selected.getTime()));
+      onChange(
+        replaceLocalDate(value, selected.getTime(), maximumDate?.getTime())
+      );
     }
   };
   const open = () => {
     if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({ value: new Date(value), mode: 'date', onChange: update });
+      DateTimePickerAndroid.open({
+        value: new Date(value),
+        maximumDate,
+        mode: 'date',
+        onChange: update
+      });
     } else {
       setVisible(true);
     }
@@ -84,11 +93,16 @@ export function TransactionDateField({
         />
       </Pressable>
       {Platform.OS === 'ios' ? (
-        <AppSheet title={label} visible={visible} onDismiss={() => setVisible(false)}>
+        <AppSheet
+          title={label}
+          visible={visible}
+          onDismiss={() => setVisible(false)}
+        >
           <DateTimePicker
             display="inline"
             mode="date"
             value={new Date(value)}
+            maximumDate={maximumDate}
             onChange={update}
           />
         </AppSheet>

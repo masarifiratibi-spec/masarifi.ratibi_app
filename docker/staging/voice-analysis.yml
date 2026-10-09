@@ -1,0 +1,16 @@
+# Nonposting Voice cohort. Deploy with scripts/staging-voice/deploy-cohort.cjs.
+services:
+  api:
+    environment:
+      MASARIFI_VOICE_ANALYSIS_ONLY: "true"
+  analysis-worker:
+    extends:
+      file: compose.backend.yml
+      service: worker
+    environment:
+      MASARIFI_RELEASE_VERSION: ${MASARIFI_RELEASE_VERSION:?pin the cohort release SHA}
+      MASARIFI_VOICE_ANALYSIS_ONLY: "true"
+      MASARIFI_AI_PROVIDER_ENABLED: "true"
+      MASARIFI_AI_JOB_BATCH_SIZE: "1"
+      MASARIFI_AI_MAX_CONCURRENCY: "1"
+      MASARIFI_WORKER_ID: voice-analysis-staging-${MASARIFI_RELEASE_VERSION:?pin the cohort release SHA}

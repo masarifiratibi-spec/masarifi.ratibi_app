@@ -201,7 +201,10 @@ export function createMockCoreFinanceService(
         periodIncomeMinor: periodTotals.incomeMinor,
         periodExpenseMinor: periodTotals.expenseMinor,
         activeAccountCount: accounts.length,
-        recentTransactions: repository.listTransactions(filters, null, 5).items,
+        recentTransactions: selectHomeTransactions(
+          repository.listTransactions(filters, null, periodTransactions.length)
+            .items
+        ),
         reviewCount: periodTransactions.filter(
           (item) => item.reviewStatus === 'required'
         ).length,
@@ -679,7 +682,14 @@ export function createLiveCoreFinanceService(
       ]);
     }
   };
-  const ledger = createLiveLedgerService(options);
+  const ledger = createLiveLedgerService({
+    ...options,
+    categoryIds: {
+      prepare: categories.prepareCategoryIds,
+      toServer: categories.serverCategoryId,
+      toLocal: categories.localCategoryId
+    }
+  });
   Object.assign(target, ledger, {
     async getHomeSummary(
       profileCurrency: string,
@@ -770,7 +780,7 @@ export function createLiveCoreFinanceService(
         periodIncomeMinor: periodTotals.incomeMinor,
         periodExpenseMinor: periodTotals.expenseMinor,
         activeAccountCount: selectedAccounts.length,
-        recentTransactions: transactions.slice(0, 5),
+        recentTransactions: selectHomeTransactions(transactions),
         reviewCount: transactions.filter(
           (transaction) => transaction.reviewStatus === 'required'
         ).length,
@@ -817,18 +827,31 @@ function coreFinanceError(error: unknown): CoreFinanceError {
   if (error instanceof CoreFinanceError) return error;
   if (error instanceof ZodError) return new CoreFinanceError('validation');
   if (!(error instanceof HttpError)) return new CoreFinanceError('unknown');
+  const metadata = {
+    domainCode: error.domainCode,
+    status: error.status,
+    requestId: error.requestId,
+    uncertain:
+      ['provider_unavailable', 'internal_error', 'contract_mismatch'].includes(
+        error.code
+      ) ||
+      error.domainCode === 'IDEMPOTENCY_IN_PROGRESS' ||
+      error.domainCode === 'LEDGER_BUSY'
+  };
   if (error.code === 'validation_error')
-    return new CoreFinanceError('validation');
-  if (error.code === 'not_found') return new CoreFinanceError('not_found');
-  if (error.code === 'conflict') return new CoreFinanceError('conflict');
-  if (error.code === 'gone') return new CoreFinanceError('expired');
+    return new CoreFinanceError('validation', metadata);
+  if (error.code === 'not_found')
+    return new CoreFinanceError('not_found', metadata);
+  if (error.code === 'conflict')
+    return new CoreFinanceError('conflict', metadata);
+  if (error.code === 'gone') return new CoreFinanceError('expired', metadata);
   if (
     error.code === 'provider_unavailable' ||
     error.code === 'session_expired' ||
     error.code === 'rate_limited'
   )
-    return new CoreFinanceError('offline');
-  return new CoreFinanceError('unknown');
+    return new CoreFinanceError('offline', metadata);
+  return new CoreFinanceError('unknown', metadata);
 }
 
 export function createProductionCoreFinanceService(locale: Locale = 'ar') {
@@ -904,4 +927,20 @@ function result<T>(
 
 function uniqueScopes(affectedScopes: readonly string[]) {
   return [...new Set([...affectedScopes, ...derivedScopes])];
+}
+
+// Home renders two expenses and two incomes. Reserve those before its shared bound.
+function selectHomeTransactions(ordered: Transaction[]): Transaction[] {
+  const selected = new Set<string>();
+  for (const type of ['expense', 'income'] as const) {
+    ordered
+      .filter((item) => item.type === type)
+      .slice(0, 2)
+      .forEach((item) => selected.add(item.id));
+  }
+  for (const item of ordered) {
+    if (selected.size >= 5) break;
+    selected.add(item.id);
+  }
+  return ordered.filter((item) => selected.has(item.id));
 }

@@ -31,7 +31,6 @@ export function AssistantComposer({
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     onSendMessage(trimmed);
-    setText('');
   };
 
   return (

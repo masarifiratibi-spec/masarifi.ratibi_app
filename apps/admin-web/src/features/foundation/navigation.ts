@@ -54,6 +54,14 @@ const LIVE_ADMIN_NAVIGATION: NavigationGroup[] = [
         availability: "active",
       },
       {
+        id: "ai-usage-limits",
+        labelKey: "AI Usage Limits",
+        route: "/admin/system-health/ai-usage-limits",
+        iconKey: "settings",
+        permission: "operations.settings.read",
+        availability: "active",
+      },
+      {
         id: "jobs",
         labelKey: "المهام وقوائم الانتظار",
         route: "/admin/jobs/queues",

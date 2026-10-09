@@ -117,6 +117,7 @@ export function createLiveCategoryLifecycleService({
   if (token) configureMobileApiTokenProvider(token);
   const serverToLocal = new Map<string, string>();
   const localToServer = new Map<string, string>();
+  let categoryIdsReady = false;
   const localCategories = new CoreFinanceRepository();
   const captureOwner = async (): Promise<CategoryOwner> => {
     const identity = await captureLiveClerkIdentity();
@@ -195,6 +196,18 @@ export function createLiveCategoryLifecycleService({
   ];
 
   const service = {
+    async prepareCategoryIds(): Promise<void> {
+      if (!categoryIdsReady) await service.listCategories(true);
+    },
+    serverCategoryId(id: string): string {
+      const mapped = localToServer.get(id) ?? id;
+      if (!z.string().uuid().safeParse(mapped).success)
+        throw new HttpError('validation_error', 400, 'CATEGORY_INVALID');
+      return mapped;
+    },
+    localCategoryId(id: string): string {
+      return serverToLocal.get(id) ?? id;
+    },
     async listCategories(
       includeArchived = false,
       capturedOwner?: CategoryOwner
@@ -224,6 +237,7 @@ export function createLiveCategoryLifecycleService({
       await owner.identity.assertCurrent();
       await runExclusiveDatabaseTransaction(database, async () => {
         rememberSystemCategories(categories);
+        categoryIdsReady = true;
       });
       const favorites = new Map(defaultFavorites);
       for (const category of await localCategories.readPersistedCategories(
@@ -358,6 +372,9 @@ export function createLiveCategoryLifecycleService({
       };
     }
   } satisfies CategoryLifecycleService & {
+    prepareCategoryIds(): Promise<void>;
+    serverCategoryId(id: string): string;
+    localCategoryId(id: string): string;
     listCategories(includeArchived?: boolean): Promise<VersionedCategory[]>;
     createCategory(input: CategoryInput): Promise<VersionedCategory>;
     updateCategory(

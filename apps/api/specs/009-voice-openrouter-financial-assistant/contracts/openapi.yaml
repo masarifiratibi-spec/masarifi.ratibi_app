@@ -12,11 +12,32 @@ tags:
   - name: Assistant
   - name: Admin AI
 paths:
+  /api/v1/voice/batches/recovery:
+    get:
+      operationId: listVoiceBatchRecovery
+      description: Owner-scoped v3 recovery of recent sessions (seven days) and unresolved batches ordered by createdAt and sessionId. Up to 100 items; continue with the last createdAt and sessionId as after/afterId. No candidates or skip diagnostics.
+      parameters:
+        - { name: after, in: query, schema: { type: string, format: date-time } }
+        - { name: afterId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Public batch receipts and processing states }
+  /api/v1/voice/sessions/{sessionId}/batch:
+    get:
+      operationId: getVoiceBatchResult
+      parameters:
+        - $ref: '#/components/parameters/AiVoiceSessionId'
+      responses:
+        '200':
+          description: Public v3 batch status and committed receipts only
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoiceBatchResult' }
   /api/v1/voice/sessions:
     post:
       tags: [Voice]
       operationId: createVoiceSession
       parameters:
+        - $ref: '#/components/parameters/VoiceContract'
         - $ref: '#/components/parameters/AiIdempotencyKey'
       requestBody:
         required: true
@@ -32,6 +53,11 @@ paths:
         '409': { $ref: '#/components/responses/AiConflict' }
         '422': { $ref: '#/components/responses/AiValidationError' }
         '429': { $ref: '#/components/responses/QuotaError' }
+        '503':
+          description: VOICE_AUTOMATIC_UNAVAILABLE is a definitive pre-create rejection for a new v3 operation. Generic AI_UNAVAILABLE or other 503 replies remain uncertain and must reconcile the original create identity. Existing idempotent create receipts replay before the automatic gate.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/v1/voice/sessions/{sessionId}:
     get:
       tags: [Voice]
@@ -43,7 +69,66 @@ paths:
           description: Owner-safe status
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/VoiceSession' }
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/VoiceSession' }
+                  - { $ref: '#/components/schemas/VoiceBatchResult' }
+        '404': { $ref: '#/components/responses/AiNotFound' }
+  /api/v1/voice/sessions/{sessionId}/audio:
+    put:
+      tags: [Voice]
+      operationId: uploadVoiceAudio
+      parameters:
+        - $ref: '#/components/parameters/AiVoiceSessionId'
+      requestBody:
+        required: true
+        content:
+          audio/m4a: { schema: { type: string, format: binary } }
+          audio/mp4: { schema: { type: string, format: binary } }
+          audio/wav: { schema: { type: string, format: binary } }
+          audio/mpeg: { schema: { type: string, format: binary } }
+          audio/ogg: { schema: { type: string, format: binary } }
+          audio/webm: { schema: { type: string, format: binary } }
+      responses:
+        '200':
+          description: Immutable upload verified within the server deadline
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/VoiceUploadReceipt' } }
+        '409': { $ref: '#/components/responses/AiConflict' }
+        '410': { $ref: '#/components/responses/Expired' }
+        '422': { $ref: '#/components/responses/AiValidationError' }
+  /api/v1/voice/sessions/{sessionId}/cancel:
+    post:
+      tags: [Voice]
+      operationId: cancelVoiceSession
+      parameters:
+        - $ref: '#/components/parameters/AiVoiceSessionId'
+        - $ref: '#/components/parameters/AiIdempotencyKey'
+      responses:
+        '200':
+          description: Authoritative cancellation or previously accepted confirmation
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/VoiceCancellation' }
+                  - { $ref: '#/components/schemas/VoiceBatchResult' }
+        '409': { $ref: '#/components/responses/AiConflict' }
+  /api/v1/voice/sessions/{sessionId}/recovery:
+    get:
+      tags: [Voice]
+      operationId: getVoiceRecovery
+      parameters:
+        - $ref: '#/components/parameters/AiVoiceSessionId'
+      responses:
+        '200':
+          description: Owner-safe operation and financial outcome
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/VoiceRecovery' }
+                  - { $ref: '#/components/schemas/VoiceBatchResult' }
         '404': { $ref: '#/components/responses/AiNotFound' }
   /api/v1/voice/sessions/{sessionId}/process:
     post:
@@ -85,6 +170,7 @@ paths:
       tags: [Voice]
       operationId: confirmVoiceProposal
       parameters:
+        - $ref: '#/components/parameters/LegacyVoiceContract'
         - $ref: '#/components/parameters/ProposalId'
         - $ref: '#/components/parameters/AiIdempotencyKey'
       requestBody:
@@ -354,6 +440,48 @@ paths:
         '403': { $ref: '#/components/responses/ConsentRequired' }
         '429': { $ref: '#/components/responses/QuotaError' }
         '503': { $ref: '#/components/responses/AiUnavailable' }
+  /api/v1/assistant/conversations/{conversationId}/messages/acceptance:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantMessageAcceptance
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/AiIdempotencyKey'
+      responses:
+        '200':
+          description: Owner-bound accepted operation identity; does not dispatch work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AcceptedWork' }
+        '404': { description: No accepted user message for this owner, conversation and operation }
+  /api/v1/assistant/conversations/{conversationId}/messages/{messageId}:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantMessage
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Owner and conversation bound message
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantMessage' }
+        '404': { description: Message unavailable to this owner and conversation }
+  /api/v1/assistant/conversations/{conversationId}/messages/{messageId}/result:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantMessageResult
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Durable request status and optional completed response; reading never cancels work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantMessageResult' }
+        '404': { description: User message unavailable to this owner and conversation }
   /api/v1/assistant/previews/{previewId}/confirm:
     post:
       tags: [Assistant]
@@ -738,6 +866,11 @@ components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   parameters:
+    LegacyVoiceContract:
+      name: X-Voice-Contract
+      in: header
+      required: true
+      schema: { type: string, enum: ['2'] }
     AiIdempotencyKey:
       {
         name: Idempotency-Key,
@@ -755,6 +888,11 @@ components:
         required: false,
         schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
       }
+    VoiceContract:
+      name: X-Voice-Contract
+      in: header
+      required: true
+      schema: { type: string, enum: ['2', '3'] }
     AiVoiceSessionId:
       { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
     ProposalId:
@@ -844,15 +982,35 @@ components:
         limit: { const: 5 }
         used: { type: integer, minimum: 5 }
         resetsAt: { type: string, format: date-time }
+    VoiceBatchResult:
+      type: object
+      additionalProperties: false
+      required: [sessionId, batchId, status, transactionIds, addedCount, ledgerVersion]
+      properties:
+        sessionId: { type: string, format: uuid }
+        batchId: { type: [string, 'null'], format: uuid }
+        status:
+          {
+            type: string,
+            enum: [uploading, queued, analyzing, finalizing, completed, cancelled, failed],
+          }
+        transactionIds:
+          { type: array, maxItems: 10, uniqueItems: true, items: { type: string, format: uuid } }
+        addedCount: { type: integer, minimum: 0, maximum: 10 }
+        ledgerVersion: { type: integer, minimum: 0 }
     CreateVoiceSessionRequest:
       type: object
       additionalProperties: false
-      required: [locale, durationMs, contentType, sizeBytes]
+      required:
+        [locale, durationMs, contentType, sizeBytes, contentHash, recordedAt, timezoneOffsetMinutes]
       properties:
         locale: { enum: [ar, en] }
-        durationMs: { type: integer, minimum: 1, maximum: 120000 }
+        durationMs: { type: integer, minimum: 1, maximum: 60000 }
         contentType: { enum: [audio/m4a, audio/mp4, audio/mpeg, audio/ogg, audio/wav, audio/webm] }
         sizeBytes: { type: integer, minimum: 1, maximum: 12582912 }
+        contentHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        recordedAt: { type: string, format: date-time }
+        timezoneOffsetMinutes: { type: integer, minimum: -840, maximum: 840 }
     VoiceUploadResponse:
       type: object
       additionalProperties: false
@@ -862,12 +1020,68 @@ components:
         upload:
           type: object
           additionalProperties: false
-          required: [url, token, expiresAt, headers]
+          required: [method, path, expiresAt]
           properties:
-            url: { type: string, format: uri }
-            token: { type: string }
+            method: { const: PUT }
+            path: { type: string, pattern: '^/api/v1/voice/sessions/[0-9a-f-]+/audio$' }
             expiresAt: { type: string, format: date-time }
-            headers: { type: object, additionalProperties: { type: string } }
+    VoiceUploadReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, version, contentHash, sizeBytes]
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        contentHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        sizeBytes: { type: integer, minimum: 1, maximum: 12582912 }
+    VoiceCancellation:
+      type: object
+      additionalProperties: false
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid }
+        status: { enum: [cancelled, expired, failed, confirming, confirmed] }
+        transactionId: { type: [string, 'null'], format: uuid }
+    VoiceRecovery:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          phase,
+          session,
+          proposal,
+          recordedAt,
+          timezoneOffsetMinutes,
+          captureContextLegacy,
+          transcriptLanguage,
+          transcriptConfidence,
+          transactionId,
+        ]
+      properties:
+        phase:
+          {
+            enum:
+              [
+                awaiting_audio,
+                uploaded,
+                queued,
+                processing,
+                proposed,
+                confirming,
+                confirmed,
+                cancelled,
+                expired,
+                failed,
+              ],
+          }
+        session: { $ref: '#/components/schemas/VoiceSession' }
+        proposal: { anyOf: [{ $ref: '#/components/schemas/VoiceProposal' }, { type: 'null' }] }
+        recordedAt: { type: string, format: date-time }
+        timezoneOffsetMinutes: { type: integer, minimum: -840, maximum: 840 }
+        captureContextLegacy: { type: boolean }
+        transcriptLanguage: { enum: [ar, en, mixed, unsupported, null] }
+        transcriptConfidence: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        transactionId: { type: [string, 'null'], format: uuid }
     VoiceSession:
       type: object
       additionalProperties: false
@@ -958,13 +1172,17 @@ components:
     ConfirmVoiceProposalRequest:
       type: object
       additionalProperties: false
-      required: [expectedVersion]
+      required: [expectedVersion, editedFields, occurredAt, timezoneOffsetMinutes]
       properties:
         expectedVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        timezoneOffsetMinutes: { type: integer, minimum: -840, maximum: 840 }
+        reason: { type: [string, 'null'], maxLength: 500 }
         editedFields:
           type: object
           additionalProperties: false
           minProperties: 1
+          required: [amountMinor, currency, categoryId, accountId, date, merchant, note]
           properties:
             amountMinor: { type: string, pattern: '^-?[1-9][0-9]{0,18}$' }
             currency: { type: string, pattern: '^[A-Z]{3}$' }
@@ -1031,6 +1249,24 @@ components:
       additionalProperties: false
       required: [status, limit, used, remaining, resetsAt]
       properties:
+        schemaVersion: { const: 1 }
+        checkedAt: { type: string, format: date-time }
+        reasons: { type: array, items: { type: string } }
+        capabilities:
+          type: object
+          additionalProperties: false
+          required: [directRead, provider, actions]
+          properties:
+            directRead: { enum: [available, disabled, unknown] }
+            provider: { enum: [available, disabled, limit_reached, unknown] }
+            actions: { enum: [available, disabled, unknown] }
+        worker:
+          type: object
+          additionalProperties: false
+          required: [status, lastSeenAt]
+          properties:
+            status: { enum: [available, disabled, unknown] }
+            lastSeenAt: { type: [string, 'null'], format: date-time }
         status: { enum: [available, disabled, limit_reached] }
         limit: { type: integer, minimum: 0 }
         used: { type: integer, minimum: 0 }
@@ -1039,7 +1275,7 @@ components:
     AssistantConversation:
       type: object
       additionalProperties: false
-      required: [id, title, status, lastMessageAt, version, createdAt]
+      required: [id, title, status, lastMessageAt, version, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         title: { type: [string, 'null'], maxLength: 120 }
@@ -1047,6 +1283,7 @@ components:
         lastMessageAt: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
         createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     ConversationPage:
       type: object
       additionalProperties: false
@@ -1062,7 +1299,19 @@ components:
     AssistantMessage:
       type: object
       additionalProperties: false
-      required: [id, conversationId, replyToMessageId, role, content, status, failureCode, snapshot, preview, createdAt]
+      required:
+        [
+          id,
+          conversationId,
+          replyToMessageId,
+          role,
+          content,
+          status,
+          failureCode,
+          snapshot,
+          preview,
+          createdAt,
+        ]
       properties:
         id: { type: string, format: uuid }
         conversationId: { type: string, format: uuid }
@@ -1073,7 +1322,45 @@ components:
         failureCode: { type: [string, 'null'], maxLength: 64 }
         snapshot: { anyOf: [{ $ref: '#/components/schemas/ResponseSnapshot' }, { type: 'null' }] }
         preview: { anyOf: [{ $ref: '#/components/schemas/ActionPreview' }, { type: 'null' }] }
+        metadata: { anyOf: [{ $ref: '#/components/schemas/AssistantAnswerMetadata' }, { type: 'null' }] }
+        actionTimezone: { type: [string, 'null'], minLength: 1 }
         createdAt: { type: string, format: date-time }
+    AssistantAnswerMetadata:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, locale, timezone, startDate, endDate, currencies, responseType, generatedAt]
+      properties:
+        schemaVersion: { const: 1 }
+        locale: { enum: [ar, en] }
+        timezone: { type: string, minLength: 1 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        currencies: { type: array, items: { type: string, pattern: '^[A-Z]{3}$' } }
+        responseType: { enum: [fact, estimate, suggestion, missing] }
+        generatedAt: { type: string, format: date-time }
+        reasons: { type: array, items: { type: string } }
+        values:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [key, minor, currency, status]
+            properties:
+              key: { type: string }
+              minor: { type: string, pattern: '^-?[0-9]+$' }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
+              status: { enum: [available, estimated] }
+    AssistantMessageResult:
+      type: object
+      additionalProperties: false
+      required: [id, conversationId, status, failureCode, request, response]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        status: { enum: [queued, processing, completed, failed, cancelled] }
+        failureCode: { type: [string, 'null'] }
+        request: { $ref: '#/components/schemas/AssistantMessage' }
+        response: { anyOf: [{ $ref: '#/components/schemas/AssistantMessage' }, { type: 'null' }] }
     MessagePage:
       type: object
       additionalProperties: false
@@ -1100,13 +1387,29 @@ components:
               kind: { type: string, maxLength: 64 }
               alias: { type: string, maxLength: 64 }
               version: { type: integer, minimum: 0 }
+              asOf: { type: string, format: date-time }
         model: { type: string, maxLength: 160 }
         provider: { type: string, maxLength: 64 }
         createdAt: { type: string, format: date-time }
     ActionPreview:
       type: object
       additionalProperties: false
-      required: [id, messageId, schemaVersion, actionType, payload, status, expiresAt, confirmedAt, executedResourceId, confirmationOperationId, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          messageId,
+          schemaVersion,
+          actionType,
+          payload,
+          status,
+          expiresAt,
+          confirmedAt,
+          executedResourceId,
+          confirmationOperationId,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { type: string, format: uuid }
         messageId: { type: string, format: uuid }

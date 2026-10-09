@@ -43,6 +43,7 @@ describe('same-image process commands', () => {
   it.each([
     ['dist/src/main.js', 'API_BOOTSTRAP_FAILED'],
     ['dist/src/worker.js', 'WORKER_BOOTSTRAP_FAILED'],
+    ['dist/src/staging-voice-worker.js', 'VOICE_SCOPED_BOOTSTRAP_FAILED'],
     ['dist/src/migration.js', 'MIGRATION_FAILED'],
   ])(
     'runs %s from the reviewed image and fails closed without runtime configuration',

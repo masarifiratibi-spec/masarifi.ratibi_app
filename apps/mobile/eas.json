@@ -14,7 +14,12 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
-      "env": { "EXPO_PUBLIC_APP_LOCK_ENABLED": "false" },
+      "env": {
+        "EXPO_PUBLIC_APP_LOCK_ENABLED": "false",
+        "EXPO_PUBLIC_VOICE_TIMING_ENABLED": "true",
+        "EXPO_PUBLIC_VOICE_DIAGNOSTICS_ENABLED": "true",
+        "EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED": "true"
+      },
       "node": "24.16.0"
     },
     "production": {

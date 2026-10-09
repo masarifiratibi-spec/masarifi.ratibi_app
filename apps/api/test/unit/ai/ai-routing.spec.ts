@@ -2,6 +2,36 @@ import { routeAssistantMessage, selectConversationHistory } from '../../../src/a
 
 describe('assistant domain and intent routing', () => {
   it.each([
+    'Analyze my spending behavior.',
+    'How can I save more next month?',
+    'Give me financial advice based on my recent behavior.',
+    'حلل سلوك مصروفاتي',
+    'كيف أقدر أوفر أكثر الشهر القادم؟',
+  ])('keeps reasoning request %s on the provider path', (content) => {
+    expect(routeAssistantMessage({ content })).toMatchObject({
+      intent: 'financial_advice',
+      execution: 'provider',
+    });
+  });
+
+  it.each(['What is my net result this month?', 'كم صافي الدخل هذا الشهر؟'])(
+    'routes period net result %s to Reports',
+    (content) => {
+      expect(routeAssistantMessage({ content })).toMatchObject({
+        intent: 'spending_summary',
+        execution: 'deterministic',
+        financialTools: ['reports.monthly_summary'],
+      });
+    },
+  );
+
+  it('routes typed biggest expenses through the same category tool as suggestions', () => {
+    expect(routeAssistantMessage({ content: 'What are my biggest expenses?' })).toMatchObject({
+      intent: 'category_breakdown',
+      execution: 'deterministic',
+    });
+  });
+  it.each([
     ['اكتبلي كود React', 'unrelated'],
     ['مين كسب ماتش الهلال؟', 'unrelated'],
     ['اكتب قصة قصيرة', 'unrelated'],
@@ -59,7 +89,7 @@ describe('assistant domain and intent routing', () => {
           { role: 'assistant', content: 'صرفت 2,350 ريال هذا الشهر.', intent: null },
         ],
       }),
-    ).toMatchObject({ intent: 'period_comparison', execution: 'provider' });
+    ).toMatchObject({ intent: 'spending_summary', execution: 'deterministic' });
   });
 
   it('keeps only the four newest relevant turns', () => {

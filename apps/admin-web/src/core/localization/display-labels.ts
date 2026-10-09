@@ -141,6 +141,7 @@ const navigationLabels: Record<string, Record<Locale, string>> = {
   "health-database": { ar: "مراقبة قاعدة البيانات", en: "Database Monitoring" },
   "health-storage": { ar: "مراقبة التخزين", en: "Storage Monitoring" },
   "health-providers": { ar: "صحة المزودين", en: "Provider Health" },
+  "ai-usage-limits": { ar: "حدود استخدام الذكاء الاصطناعي", en: "AI Usage Limits" },
   "system-health": { ar: "صحة النظام", en: "System Health" },
   "jobs-and-queues": { ar: "المهام وقوائم الانتظار", en: "Jobs and Queues" },
   jobs: { ar: "قوائم الانتظار", en: "Queue Overview" },

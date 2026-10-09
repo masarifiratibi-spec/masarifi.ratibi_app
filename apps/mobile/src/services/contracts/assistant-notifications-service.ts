@@ -6,6 +6,7 @@ import type {
   AssistantResponse,
   AssistantResponseFeedback
 } from '@/domain/assistant';
+import type { AssistantUserTurn } from '@/domain/assistant';
 import type {
   NotificationActionKind,
   NotificationEvent,
@@ -176,13 +177,16 @@ export type AssistantFinancialInsight = {
 };
 
 export interface AssistantService {
+  readQuestionOperation?(): Promise<{ operationId: string; phase: string; conversationId: string | null; messageId: string | null; question: string | undefined; createdAt?: number } | null>;
+  resumeQuestion?(): Promise<MutationResult<AssistantResponse>>;
+  retryQuestionOperation?(): Promise<MutationResult<{ conversationId: string }>>;
   getConsent(): Promise<AssistantConsent>;
-  getAvailability(): Promise<{ status: 'available' | 'disabled' | 'limit_reached'; remainingQuestions: number }>;
+  getAvailability(): Promise<{ status: 'available' | 'disabled' | 'limit_reached'; remainingQuestions: number; capabilities?: { directRead: 'available' | 'disabled' | 'unknown'; provider: 'available' | 'disabled' | 'limit_reached' | 'unknown'; actions: 'available' | 'disabled' | 'unknown' }; checkedAt?: string; reasons?: string[] }>;
   listInsights(): Promise<AssistantFinancialInsight[]>;
   setConsent(enabled: boolean, expectedVersion: number, operationId: string): Promise<MutationResult<AssistantConsent>>;
   listConversations(input: AssistantConversationQuery): Promise<Page<AssistantConversation>>;
   createConversation(input: { question: string; intent?: AssistantQuestionIntent }, operationId: string): Promise<MutationResult<AssistantConversation>>;
-  getConversation(id: string, cursor?: string): Promise<{ conversation: AssistantConversation; responses: Page<AssistantResponse> }>;
+  getConversation(id: string, cursor?: string): Promise<{ conversation: AssistantConversation; responses: Page<AssistantResponse>; userTurns?: AssistantUserTurn[]; pendingMessageIds?: string[]; failureCode?: string | null }>;
   getResponse(id: string): Promise<AssistantResponse>;
   ask(conversationId: string, question: string, operationId: string, intent?: AssistantQuestionIntent): Promise<MutationResult<AssistantResponse>>;
   renameConversation(id: string, title: string, expectedVersion: number, operationId: string): Promise<MutationResult<AssistantConversation>>;

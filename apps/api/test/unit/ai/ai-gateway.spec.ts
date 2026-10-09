@@ -1,4 +1,8 @@
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import { AiWorker } from '../../../src/ai/ai.worker';
+import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
+import { VOICE_OUTPUT_SCHEMA, parseVoiceWorkerOutput } from '../../../src/ai/ai.schemas';
+import { VOICE_BATCH_OUTPUT_SCHEMA, parseVoiceBatchEnvelope } from '../../../src/ai/voice-batch';
 
 const route: EffectiveAiRoute = {
   workload: 'financial_assistant',
@@ -58,6 +62,1013 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  // Samsung 2026-10-08: Azure rejected the action schema on an advice-only request.
+  it.each([
+    { name: 'advice', answer: output, expected: null },
+    {
+      name: 'unsolicited financial action',
+      answer: {
+        ...output,
+        actionPreview: {
+          schemaVersion: 1,
+          actionType: 'transaction.create',
+          payload: {
+            amountMinor: '2500',
+            currency: 'SAR',
+            accountId: 'ACCOUNT-1',
+            categoryId: null,
+            date: '2026-10-08',
+            merchant: null,
+            note: null,
+          },
+          evidenceIds: [],
+        },
+      },
+      expected: 'AI_SCHEMA_INVALID',
+    },
+    {
+      name: 'unverified citation',
+      answer: { ...output, evidenceIds: ['REPORT-99'] },
+      expected: 'AI_SCHEMA_INVALID',
+    },
+    {
+      name: 'duplicate citations',
+      answer: { ...output, evidenceIds: ['REPORT-1', 'REPORT-1'] },
+      expected: 'AI_SCHEMA_INVALID',
+    },
+  ])(
+    'completes strict Azure $name while retaining evidence validation',
+    async ({ answer, expected }) => {
+      const saved: unknown[] = [],
+        failures: string[] = [];
+      const compatible = (value: unknown): boolean => {
+        if (Array.isArray(value)) return value.every(compatible);
+        if (!value || typeof value !== 'object') return true;
+        const node = value as Record<string, unknown>;
+        if (
+          [
+            'uniqueItems',
+            'minProperties',
+            'maxLength',
+            'pattern',
+            'format',
+            'minimum',
+            'maximum',
+            'maxItems',
+            'const',
+          ].some((key) => key in node)
+        )
+          return false;
+        if (node.type === 'object') {
+          const properties = node.properties as Record<string, unknown>;
+          if (
+            node.additionalProperties !== false ||
+            !Array.isArray(node.required) ||
+            Object.keys(properties).some((key) => !(node.required as unknown[]).includes(key))
+          )
+            return false;
+        }
+        return Object.values(node).every(compatible);
+      };
+      const gateway = new AiGateway({
+        apiKey: 'sample-key',
+        fetcher: (_url, init) => {
+          const body = requestBody(init);
+          if (!compatible(body.response_format))
+            return Promise.resolve(
+              response({ error: { code: 400, message: 'Invalid strict schema' } }, 400),
+            );
+          return Promise.resolve(
+            response({
+              id: 'sample-generation',
+              model: route.primary.modelId,
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
+              usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.00005 },
+            }),
+          );
+        },
+      });
+      const repository = {
+        claimWork: () =>
+          Promise.resolve([
+            {
+              kind: 'assistant.respond',
+              id: 'sample-job',
+              user_id: 'sample-owner',
+              claim_token: 'sample-fence',
+              attempt_count: 1,
+            },
+          ]),
+        workInput: () =>
+          Promise.resolve({
+            intent: 'financial_advice',
+            operationId: 'sample-operation',
+            content: 'Sample data: how can I reduce spending?',
+            aliases: [],
+            contextPayload: { responseLocale: 'en' },
+            evidence: [{ kind: 'report', alias: 'REPORT-1', version: 19 }],
+          }),
+        getRoute: () => Promise.resolve(route),
+        recordUsage: () => Promise.resolve(undefined),
+        saveAssistantResult: (_id: string, _fence: string, value: unknown) => {
+          saved.push(value);
+          return Promise.resolve(undefined);
+        },
+        recordFailure: (_user: string, _workload: string, code: string) => {
+          failures.push(code);
+          return Promise.resolve(undefined);
+        },
+        completeWork: () => Promise.resolve(true),
+      };
+      const worker = new AiWorker(repository as never, {} as never, gateway, {
+        get: (key: string) => key === 'MASARIFI_AI_ASSISTANT_ONLY',
+        getRequired: (key: string) =>
+          key === 'MASARIFI_AI_PROVIDER_ENABLED'
+            ? true
+            : key === 'MASARIFI_AI_LEASE_SECONDS'
+              ? 120
+              : 1,
+      } as never);
+      await worker.runJob('assistant.respond');
+      if (expected) {
+        expect(saved).toEqual([]);
+        expect(failures).toEqual([expected]);
+      } else {
+        expect(saved).toEqual([
+          expect.objectContaining({ content: 'Safe answer', preview: null, provider: 'azure' }),
+        ]);
+        expect(failures).toEqual([]);
+      }
+    },
+  );
+  it.each(['ar', 'en'].flatMap((language) => [0, 1, 3, 5].map((count) => ({ language, count }))))(
+    'preserves the accepted Vertex transport for $language batches of $count events',
+    async ({ language, count }) => {
+      const voiceRoute: EffectiveAiRoute = {
+        ...route,
+        workload: 'voice_transcription',
+        primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+        fallbacks: [],
+        providerAllowlist: ['google-vertex'],
+        maxPrice: { prompt: '0.000001', completion: '0.000003' },
+        limits: { inputTokens: 128000, outputTokens: 1200, timeoutMs: 120000 },
+        prompt: { template: 'Versioned automatic batch fixture', schemaVersion: 3 },
+      };
+      const envelope = {
+        complete: true,
+        language,
+        events: Array.from({ length: count }, () => ({
+          kind: 'expense',
+          amountMinor: '2500',
+          currency: 'SAR',
+          currencySource: 'explicit',
+          accountId: 'ACCOUNT-1',
+          accountSource: 'explicit',
+          categoryId: 'CATEGORY-1',
+          date: '2026-10-03',
+          dateSource: 'explicit',
+          merchant: language === 'ar' ? 'فطور' : 'Breakfast',
+          note: '',
+          independent: true,
+          confidence: 1,
+        })),
+      };
+      let sent: Record<string, unknown> = {};
+      const fetcher = (_url: RequestInfo | URL, init?: RequestInit) => {
+        sent = requestBody(init);
+        return Promise.resolve(
+          response({
+            id: 'batch-fixture',
+            model: voiceRoute.primary.modelId,
+            choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(envelope) } }],
+            usage: { prompt_tokens: 100, completion_tokens: 900, cost: 0.00028 },
+          }),
+        );
+      };
+      const receipts: unknown[] = [];
+      const result = await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        voiceBatch: true,
+        userContent: [
+          { type: 'input_audio', input_audio: { data: 'synthetic-audio', format: 'm4a' } },
+        ],
+        schema: VOICE_BATCH_OUTPUT_SCHEMA,
+        parse: parseVoiceBatchEnvelope,
+        requestId: 'batch-fixture',
+        onReceipt: (receipt) => {
+          receipts.push(receipt);
+          return Promise.resolve();
+        },
+      });
+      expect(result.value).toEqual(envelope);
+      expect(sent.max_tokens).toBe(1200);
+      expect(sent).not.toHaveProperty('temperature');
+      expect(sent.provider).toMatchObject({
+        only: ['google-vertex/global'],
+        zdr: true,
+        data_collection: 'deny',
+        allow_fallbacks: false,
+      });
+      expect(sent.response_format).toMatchObject({
+        json_schema: {
+          name: 'voice_transcription_v3',
+          schema: { properties: { events: { type: 'array' } } },
+        },
+      });
+      expect(receipts).toHaveLength(1);
+    },
+  );
+  it.each([
+    ['en', 'Fictional groceries expense fifteen riyals'],
+    ['ar', 'دفعت خمسة عشر ريالاً للبقالة'],
+  ])('pins Voice Lite and validates %s output', async (language, transcript) => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+      fallbacks: [],
+      providerAllowlist: ['google-vertex'],
+      maxPrice: { prompt: '0.000001', completion: '0.000003' },
+      limits: { inputTokens: 128000, outputTokens: 1200, timeoutMs: 120000 },
+    };
+    const voiceOutput = {
+      schemaVersion: 1,
+      outcome: 'supported',
+      transcript,
+      language,
+      confidence: 0.9,
+      proposal: {
+        schemaVersion: 1,
+        type: 'transaction.create',
+        amountMinor: '1500',
+        currency: 'SAR',
+        categoryId: 'CATEGORY-1',
+        accountId: 'ACCOUNT-1',
+        date: '2026-10-02',
+        merchant: null,
+        note: null,
+        confidence: 0.9,
+      },
+    };
+    const providerOutput = {
+      outcome: 'supported',
+      transcript,
+      language,
+      confidence: 0.9,
+      unsupportedReason: '',
+      amountMinor: '1500',
+      currency: 'SAR',
+      accountId: 'ACCOUNT-1',
+      categoryId: 'CATEGORY-1',
+      date: '2026-10-02',
+      merchant: '',
+      note: '',
+      proposalConfidence: 0.9,
+    };
+    const audio = {
+      type: 'input_audio',
+      input_audio: { data: 'fictional-fixture', format: 'm4a' },
+    };
+    let sent: Record<string, unknown> = {};
+    const fetcher = (_url: RequestInfo | URL, init?: RequestInit) => {
+      sent = requestBody(init);
+      return Promise.resolve(
+        response({
+          id: 'synthetic-generation',
+          model: voiceRoute.primary.modelId,
+          choices: [
+            { finish_reason: 'stop', message: { content: JSON.stringify(providerOutput) } },
+          ],
+          usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.00028 },
+        }),
+      );
+    };
+    const result = await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      route: voiceRoute,
+      userContent: [{ type: 'text', text: '{}' }, audio],
+      schema: VOICE_OUTPUT_SCHEMA,
+      parse: parseVoiceWorkerOutput,
+      requestId: 'synthetic-voice',
+      beforeDispatch: (candidate) => {
+        expect(candidate).toEqual(voiceRoute.primary);
+        return Promise.resolve();
+      },
+    });
+    expect(sent.provider).toEqual({
+      only: ['google-vertex/global'],
+      allow_fallbacks: false,
+      require_parameters: true,
+      data_collection: 'deny',
+      zdr: true,
+      max_price: { prompt: 1, completion: 3 },
+    });
+    expect(sent).not.toHaveProperty('temperature');
+    expect(sent.max_tokens).toBe(1200);
+    expect(sent.response_format).toMatchObject({
+      type: 'json_schema',
+      json_schema: {
+        name: 'voice_transcription_v1',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            amountMinor: { type: 'string' },
+            unsupportedReason: { type: 'string' },
+            proposalConfidence: { type: 'number' },
+          },
+        },
+      },
+    });
+    const schema = (sent.response_format as { json_schema: { schema: Record<string, unknown> } })
+      .json_schema.schema;
+    expect(schema).not.toHaveProperty('oneOf');
+    expect(schema).not.toHaveProperty('properties.proposal');
+    expect(sent.messages).toEqual([
+      { role: 'system', content: voiceRoute.prompt.template },
+      { role: 'user', content: [{ type: 'text', text: '{}' }, audio] },
+    ]);
+    expect(result.value).toEqual(voiceOutput);
+    expect(() => parseVoiceWorkerOutput({ ...voiceOutput, tool: 'forbidden' })).toThrow();
+  });
+
+  it.each([
+    ['missing model', { model: undefined }],
+    ['null model', { model: null }],
+    ['blank model', { model: ' ' }],
+    ['missing generation', { id: undefined }],
+    ['null generation', { id: null }],
+    ['blank generation', { id: ' ' }],
+  ])(
+    'rejects Voice %s without inventing provider identity or falling back',
+    async (_label, fields) => {
+      const voiceRoute: EffectiveAiRoute = {
+        ...route,
+        workload: 'voice_transcription',
+        primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+      };
+      const fetcher = jest.fn(() =>
+        Promise.resolve(
+          response({
+            id: 'synthetic-generation',
+            model: voiceRoute.primary.modelId,
+            choices: [{ finish_reason: 'stop', message: { content: '{}' } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            ...fields,
+          }),
+        ),
+      );
+      const parse = jest.fn((value: unknown) => value);
+      const onReceipt = jest.fn(() => Promise.resolve());
+      const onDispatchFailure = jest.fn(() => Promise.resolve());
+      await expect(
+        new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+          route: voiceRoute,
+          userContent: '{}',
+          schema: {},
+          parse,
+          requestId: 'local-operation',
+          onReceipt,
+          onDispatchFailure,
+        }),
+      ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+      expect(parse).not.toHaveBeenCalled();
+      expect(onReceipt).not.toHaveBeenCalled();
+      expect(onDispatchFailure).toHaveBeenCalledWith(true);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('accounts a real wrong-model Voice receipt before terminal rejection', async () => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+    };
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        response({
+          id: 'actual-wrong-model-generation',
+          model: 'google/gemini-3.1-flash-lite',
+          choices: [{ finish_reason: 'stop', message: { content: '{}' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      ),
+    );
+    const parse = jest.fn((value: unknown) => value);
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const onDispatchFailure = jest.fn(() => Promise.resolve());
+    await expect(
+      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        userContent: '{}',
+        schema: {},
+        parse,
+        requestId: 'local-operation',
+        onReceipt,
+        onDispatchFailure,
+      }),
+    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+    expect(onReceipt).toHaveBeenCalledTimes(1);
+    expect(onReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'google/gemini-3.1-flash-lite',
+        generationId: 'actual-wrong-model-generation',
+        usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+      }),
+    );
+    expect(parse).not.toHaveBeenCalled();
+    expect(onDispatchFailure).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    'invalid envelope JSON',
+    'null envelope',
+    'invalid content JSON',
+    'non-string content',
+    'canonical rejection',
+  ])('rejects Voice %s without a second dispatch', async (failure) => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+    };
+    const envelope = {
+      id: 'actual-malformed-generation',
+      model: voiceRoute.primary.modelId,
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: {
+            content:
+              failure === 'invalid content JSON'
+                ? '{'
+                : failure === 'non-string content'
+                  ? null
+                  : JSON.stringify({
+                      outcome: 'unsupported',
+                      transcript: 'Fictional transfer',
+                      language: 'en',
+                      confidence: 0.8,
+                      unsupportedReason: 'transfer',
+                      amountMinor: '',
+                      currency: '',
+                      accountId: '',
+                      categoryId: '',
+                      date: '',
+                      merchant: '',
+                      note: '',
+                      proposalConfidence: 0,
+                    }),
+          },
+        },
+      ],
+      usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+    };
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        failure === 'invalid envelope JSON'
+          ? new Response('{', { headers: { 'content-type': 'application/json' } })
+          : response(failure === 'null envelope' ? null : envelope),
+      ),
+    );
+    const parse = jest.fn(() => {
+      throw new Error('CANONICAL_REJECTED');
+    });
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const onDispatchFailure = jest.fn(() => Promise.resolve());
+    await expect(
+      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        userContent: '{}',
+        schema: {},
+        parse,
+        requestId: 'local-operation',
+        onReceipt,
+        onDispatchFailure,
+      }),
+    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    if (failure === 'invalid envelope JSON' || failure === 'null envelope') {
+      expect(onReceipt).not.toHaveBeenCalled();
+      expect(onDispatchFailure).toHaveBeenCalledWith(true);
+    } else {
+      expect(onReceipt).toHaveBeenCalledTimes(1);
+      expect(onDispatchFailure).not.toHaveBeenCalled();
+    }
+    expect(parse).toHaveBeenCalledTimes(failure === 'canonical rejection' ? 1 : 0);
+  });
+
+  it('rejects Voice with no completion status after recording known usage', async () => {
+    const voiceRoute: EffectiveAiRoute = {
+      ...route,
+      workload: 'voice_transcription',
+      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+    };
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        response({
+          id: 'synthetic-generation',
+          model: voiceRoute.primary.modelId,
+          choices: [{ message: { content: '{}' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      ),
+    );
+    const parse = jest.fn((value: unknown) => value);
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const onDispatchFailure = jest.fn(() => Promise.resolve());
+    await expect(
+      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        route: voiceRoute,
+        userContent: '{}',
+        schema: {},
+        parse,
+        requestId: 'local-operation',
+        onReceipt,
+        onDispatchFailure,
+      }),
+    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+    expect(parse).not.toHaveBeenCalled();
+    expect(onReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: 'synthetic-generation',
+        usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+      }),
+    );
+    expect(onDispatchFailure).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['financial_assistant', 'google/gemini-3.5-flash-lite'],
+    ['voice_transcription', 'google/gemini-2.5-flash'],
+    ['voice_transcription', 'google/gemini-3.1-flash-lite'],
+  ])('preserves the existing transport for %s / %s', async (workload, modelId) => {
+    let sent: Record<string, unknown> = {};
+    const fetcher = (_url: RequestInfo | URL, init?: RequestInit) => {
+      sent = requestBody(init);
+      return Promise.resolve(
+        response({
+          id: 'synthetic-unrelated-generation',
+          model: modelId,
+          choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      );
+    };
+    await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      route: { ...route, workload, primary: { modelId, provider: 'google-vertex' }, fallbacks: [] },
+      userContent: '{}',
+      schema: {},
+      parse: (value) => value,
+      requestId: 'synthetic-unrelated',
+    });
+    expect(sent.temperature).toBe(0);
+    expect(sent.provider).toMatchObject({ only: ['google-vertex'] });
+    expect(sent.response_format).toMatchObject({ json_schema: { strict: true, schema: {} } });
+  });
+
+  it.each(['length', 'content_filter', 'error'])(
+    'rejects a %s completion even when its content parses',
+    async (reason) => {
+      const fetcher = jest.fn(() =>
+        Promise.resolve(
+          response({
+            id: 'incomplete',
+            model: route.primary.modelId,
+            choices: [{ finish_reason: reason, message: { content: JSON.stringify(output) } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+          }),
+        ),
+      );
+      await expect(
+        new AiGateway({ apiKey: 'secret', fetcher }).complete({
+          route,
+          userContent: '{}',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'incomplete',
+        }),
+      ).rejects.toMatchObject({ retryable: false });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+  it.each([
+    {
+      message:
+        '* GenerateContentRequest.generation_config.response_schema.one_of[0].properties[proposal].any_of[0].min_length: PRIVATE_CUSTOMER',
+      fields: [
+        'GenerateContentRequest.generation_config.response_schema.one_of[0].properties[proposal].any_of[0].min_length',
+      ],
+      keywords: [],
+      reason: undefined,
+    },
+    {
+      message:
+        'Unable to submit request because one or more response schemas specified unsupported field min_length. PRIVATE_CUSTOMER',
+      fields: [],
+      keywords: ['min_length'],
+      reason: undefined,
+    },
+    {
+      message:
+        'Unable to submit request because one or more response schemas specified unsupported field PRIVATE_CUSTOMER.',
+      fields: [],
+      keywords: [],
+      reason: undefined,
+    },
+    {
+      message: 'Request contains an invalid argument.',
+      fields: [],
+      keywords: [],
+      reason: 'UNSPECIFIED_INVALID_ARGUMENT',
+    },
+    {
+      message: 'Request contains an invalid argument. PRIVATE_CUSTOMER',
+      fields: [],
+      keywords: [],
+      reason: undefined,
+    },
+  ])(
+    'retains only recognized snake-case or unspecified Google rejection metadata: $message',
+    async ({ message, fields, keywords, reason }) => {
+      const fetcher = () =>
+        Promise.resolve(
+          response(
+            {
+              error: {
+                metadata: {
+                  raw: JSON.stringify({ error: { status: 'INVALID_ARGUMENT', message } }),
+                },
+              },
+            },
+            400,
+          ),
+        );
+      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+        .complete({
+          route,
+          userContent: 'PRIVATE_CUSTOMER',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'request',
+        })
+        .catch((failure: unknown) => failure);
+      if (!(error instanceof AiGatewayError)) throw new Error('EXPECTED_GATEWAY_REJECTION');
+      const lines: string[] = [];
+      new PlatformLogger((line) => lines.push(line)).warn(
+        'AI_PROVIDER_REQUEST_REJECTED',
+        error.diagnostic,
+      );
+      const logged = JSON.parse(lines[0] ?? '{}') as Record<string, unknown>;
+      expect(logged).toMatchObject({
+        httpStatus: 400,
+        providerCode: 'INVALID_ARGUMENT',
+        rejectedFields: fields,
+        rejectedKeywords: keywords,
+      });
+      expect(logged.providerReason).toBe(reason);
+      expect(lines.join('')).not.toContain('PRIVATE_CUSTOMER');
+    },
+  );
+  it.each([
+    [
+      '* GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      [
+        'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      ],
+    ],
+    [
+      'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      [
+        'GenerateContentRequest.generation_config.response_schema.properties[schemaVersion].enum[0]',
+      ],
+    ],
+    [
+      'GenerateContentRequest.generation_config.response_schema.properties[PRIVATE_CUSTOMER].enum[0]',
+      [],
+    ],
+    ['PRIVATE_CUSTOMER.generation_config.response_schema.properties[schemaVersion].enum[0]', []],
+    [
+      'GenerateContentRequest.generation_config.response_schema.properties[https://signed.invalid/secret].enum[0]',
+      [],
+    ],
+  ])(
+    'retains only completely allowlisted Google field paths in colon-prefixed errors: %s',
+    async (field, expected) => {
+      const privateText = 'PRIVATE_CUSTOMER audio-base64 Clerk-token API-key';
+      const fetcher = jest.fn(() =>
+        Promise.resolve(
+          response(
+            {
+              error: {
+                metadata: {
+                  raw: JSON.stringify({
+                    error: { status: 'INVALID_ARGUMENT', message: `${field}: ${privateText}` },
+                  }),
+                },
+              },
+            },
+            400,
+          ),
+        ),
+      );
+      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+        .complete({
+          route,
+          userContent: privateText,
+          schema: {},
+          parse: (value) => value,
+          requestId: 'request',
+        })
+        .catch((failure: unknown) => failure);
+      expect(error).toMatchObject({
+        code: 'AI_UNAVAILABLE',
+        retryable: false,
+        diagnostic: {
+          providerCode: 'INVALID_ARGUMENT',
+          rejectedFields: expected,
+        },
+      });
+      expect(JSON.stringify(error)).not.toContain(privateText);
+      expect(JSON.stringify(error)).not.toContain('signed.invalid');
+      expect(JSON.stringify(error)).not.toContain('PRIVATE_CUSTOMER');
+    },
+  );
+  it('does not wait for a stalled stream cancellation after the diagnostic size limit', async () => {
+    jest.useFakeTimers();
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start: (controller) => {
+              controller.enqueue(new Uint8Array(8_193));
+            },
+            cancel: () => new Promise<void>(() => undefined),
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    const outcome = Promise.race([
+      new AiGateway({ apiKey: 'secret', fetcher })
+        .complete({
+          route,
+          userContent: '{}',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'request',
+        })
+        .catch((failure: unknown) => failure),
+      new Promise<string>((resolve) =>
+        setTimeout(() => {
+          resolve('DIAGNOSTIC_STALLED');
+        }, 1_000),
+      ),
+    ]);
+    await jest.advanceTimersByTimeAsync(1_001);
+    expect(await outcome).toMatchObject({
+      code: 'AI_UNAVAILABLE',
+      retryable: false,
+      diagnostic: { httpStatus: 400 },
+    });
+  });
+  it('keeps recognized invalid-value paths and never serializes provider secrets through the real logger', async () => {
+    const privateText = 'PRIVATE_CUSTOMER https://signed.invalid/private?secret=key audio-base64';
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: {
+              metadata: {
+                raw: JSON.stringify({
+                  error: {
+                    status: 'INVALID_ARGUMENT',
+                    message: `Invalid value at 'generation_config.response_schema.properties[0].value.type' ${privateText}`,
+                  },
+                }),
+              },
+            },
+          }),
+          { status: 400, headers: { 'x-request-id': privateText } },
+        ),
+      ),
+    );
+    const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+      .complete({
+        route,
+        userContent: privateText,
+        schema: {},
+        parse: (value) => value,
+        requestId: 'a11ef56f-a148-4e14-baa0-7b42cbab3101',
+      })
+      .catch((failure: unknown) => failure);
+    if (!(error instanceof AiGatewayError)) throw new Error('EXPECTED_GATEWAY_REJECTION');
+    const lines: string[] = [];
+    new PlatformLogger((line) => lines.push(line)).warn(
+      'AI_PROVIDER_REQUEST_REJECTED',
+      error.diagnostic,
+    );
+    const logged = JSON.parse(lines[0] ?? '{}') as { providerRequestIdHash?: unknown };
+    expect(logged).toMatchObject({
+      httpStatus: 400,
+      providerCode: 'INVALID_ARGUMENT',
+      rejectedFields: ['generation_config.response_schema.properties[0].value.type'],
+    });
+    expect(logged.providerRequestIdHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(lines.join('')).not.toContain(privateText);
+    expect(lines.join('')).not.toContain('signed.invalid');
+  });
+
+  it('cancels stalled diagnostic reads without retrying the original HTTP 400', async () => {
+    jest.useFakeTimers();
+    const canceled = jest.fn();
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            cancel: canceled,
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    const promise = new AiGateway({ apiKey: 'secret', fetcher }).complete({
+      route,
+      userContent: '{}',
+      schema: {},
+      parse: (value) => value,
+      requestId: 'request',
+    });
+    const rejection = expect(promise).rejects.toMatchObject({
+      code: 'AI_UNAVAILABLE',
+      retryable: false,
+      diagnostic: { httpStatus: 400, failureStage: 'provider_request' },
+    });
+    await jest.advanceTimersByTimeAsync(501);
+    await rejection;
+    expect(canceled).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('retains only allowlisted Vertex rejection diagnostics without retrying HTTP 400', async () => {
+    const privateText = 'PRIVATE_CUSTOMER audio-base64 signed-url Clerk-token API-key';
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        response(
+          {
+            error: {
+              code: 400,
+              message: privateText,
+              metadata: {
+                raw: JSON.stringify({
+                  error: {
+                    status: 'INVALID_ARGUMENT',
+                    message: `Invalid JSON payload received. Unknown name "const" at 'generation_config.response_schema.properties[0].value': Cannot find field. ${privateText}`,
+                    details: [
+                      {
+                        fieldViolations: [
+                          {
+                            field: 'generation_config.response_schema.properties[0].value',
+                            description: privateText,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          },
+          400,
+        ),
+      ),
+    );
+    const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+      .complete({
+        route,
+        userContent: privateText,
+        schema: {},
+        parse: (value) => value,
+        requestId: 'a11ef56f-a148-4e14-baa0-7b42cbab3101',
+      })
+      .catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(AiGatewayError);
+    expect(error).toMatchObject({
+      code: 'AI_UNAVAILABLE',
+      retryable: false,
+      diagnostic: {
+        httpStatus: 400,
+        failureStage: 'provider_request',
+        providerCode: 'INVALID_ARGUMENT',
+        rejectedFields: ['generation_config.response_schema.properties[0].value'],
+        rejectedKeywords: ['const'],
+        requestId: 'a11ef56f-a148-4e14-baa0-7b42cbab3101',
+      },
+    });
+    expect(JSON.stringify(error)).not.toContain(privateText);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {
+      error: {
+        code: 'PRIVATE_CUSTOMER',
+        message: 'PRIVATE_CUSTOMER',
+        param: 'contents.PRIVATE_CUSTOMER',
+        metadata: { raw: 'PRIVATE_CUSTOMER' },
+      },
+    },
+    {
+      error: {
+        status: 'PRIVATE_CUSTOMER',
+        details: [{ fieldViolations: [{ field: 'PRIVATE_CUSTOMER' }] }],
+      },
+    },
+    null,
+    'PRIVATE_CUSTOMER',
+  ])('drops unrecognized provider text from every diagnostic field: %j', async (body) => {
+    const fetcher = jest.fn(() => Promise.resolve(response(body, 400)));
+    const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+      .complete({
+        route,
+        userContent: '{}',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'PRIVATE_CUSTOMER',
+      })
+      .catch((failure: unknown) => failure);
+    expect(error).toMatchObject({
+      code: 'AI_UNAVAILABLE',
+      retryable: false,
+      diagnostic: {
+        httpStatus: 400,
+        failureStage: 'provider_request',
+        rejectedFields: [],
+        rejectedKeywords: [],
+      },
+    });
+    expect(JSON.stringify(error)).not.toContain('PRIVATE_CUSTOMER');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds diagnostic bodies and keeps malformed or oversized HTTP 400 non-retryable', async () => {
+    for (const body of ['not-json PRIVATE_CUSTOMER', 'PRIVATE_CUSTOMER'.repeat(1000)]) {
+      const fetcher = jest.fn(() => Promise.resolve(new Response(body, { status: 400 })));
+      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+        .complete({
+          route,
+          userContent: '{}',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'request',
+        })
+        .catch((failure: unknown) => failure);
+      expect(error).toMatchObject({
+        code: 'AI_UNAVAILABLE',
+        retryable: false,
+        diagnostic: { httpStatus: 400 },
+      });
+      expect(JSON.stringify(error)).not.toContain('PRIVATE_CUSTOMER');
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+  });
+  it('requires durable dispatch authorization and records usage before rejecting model output', async () => {
+    const beforeDispatch = jest.fn(() => Promise.resolve());
+    const onReceipt = jest.fn(() => Promise.resolve());
+    const fetcher = jest.fn(() =>
+      Promise.resolve(
+        response({
+          id: 'billed-malformed',
+          model: route.primary.modelId,
+          choices: [{ message: { content: 'malformed' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+      ),
+    );
+    await expect(
+      new AiGateway({ apiKey: 'secret', fetcher }).complete({
+        route: { ...route, fallbacks: [] },
+        userContent: '{}',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'billed-malformed',
+        beforeDispatch,
+        onReceipt,
+      }),
+    ).rejects.toThrow('AI_SCHEMA_INVALID');
+    expect(beforeDispatch).toHaveBeenCalledWith(route.primary);
+    expect(onReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: 'billed-malformed',
+        usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+      }),
+    );
+    expect(beforeDispatch.mock.invocationCallOrder[0]).toBeLessThan(
+      fetcher.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
   it('pins every privacy, provider, structured-output, token, and price parameter', async () => {
     const fetcher = jest.fn<Promise<Response>, [RequestInfo | URL, RequestInit?]>(() =>
       Promise.resolve(
@@ -173,26 +1184,54 @@ describe('AiGateway', () => {
     jest.useRealTimers();
   });
 
-  it('enforces the three-second connection deadline independently of the full deadline', async () => {
+  it('allows non-streaming inference headers after three seconds within the governed deadline', async () => {
     jest.useFakeTimers();
     const fetcher = jest.fn(
       (_url: RequestInfo | URL, init?: RequestInit) =>
-        new Promise<Response>((_resolve, reject) =>
+        new Promise<Response>((resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
-            reject(new DOMException('private provider body', 'AbortError'));
-          }),
-        ),
+            reject(new DOMException('aborted', 'AbortError'));
+          });
+          setTimeout(() => {
+            resolve(
+              response({
+                id: 'g-delayed',
+                model: route.primary.modelId,
+                choices: [{ message: { content: JSON.stringify(output) } }],
+                usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+              }),
+            );
+          }, 4_000);
+        }),
     );
     const promise = new AiGateway({ apiKey: 'secret', fetcher }).complete({
       route: { ...route, fallbacks: [] },
       userContent: '{}',
       schema: {},
       parse: (value) => value,
-      requestId: 'request-00000006',
+      requestId: 'slow-completion',
     });
-    const rejection = expect(promise).rejects.toThrow('AI_TEMPORARILY_UNAVAILABLE');
-    await jest.advanceTimersByTimeAsync(3_001);
-    await rejection;
+    const result = expect(promise).resolves.toMatchObject({ generationId: 'g-delayed' });
+    await jest.advanceTimersByTimeAsync(4_001);
+    await result;
+    jest.useRealTimers();
+  });
+
+  it('does not dispatch or fall back when cancellation already occurred', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetcher = jest.fn();
+    await expect(
+      new AiGateway({ apiKey: 'secret', fetcher }).complete({
+        route,
+        userContent: '{}',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'cancelled',
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('AI_WORK_CANCELLED');
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('rejects provider model, token, cost, and response-size accounting violations', async () => {

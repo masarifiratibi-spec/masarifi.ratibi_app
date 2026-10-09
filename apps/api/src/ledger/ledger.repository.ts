@@ -480,8 +480,9 @@ export class LedgerRepository {
           and ($8::timestamptz is null or t.occurred_at <= $8)
           and ($9::text is null or to_tsvector('simple',coalesce(t.title,'')||' '||coalesce(t.merchant,''))
             @@ to_tsquery('simple',$9))
-          and ($10::timestamptz is null or (t.occurred_at,t.id)<($10,$11::uuid))
-        order by t.occurred_at desc,t.id desc limit $12`,
+          and ($10::timestamptz is null or (t.occurred_at,t.created_at,t.id)<
+            ($10,(select c.created_at from public.transactions c where c.id=$11::uuid and c.user_id=$1),$11::uuid))
+        order by t.occurred_at desc,t.created_at desc,t.id desc limit $12`,
             [
               principal.userId,
               normalized.accountId,

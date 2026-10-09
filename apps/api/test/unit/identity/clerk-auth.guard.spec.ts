@@ -1,9 +1,11 @@
-import { HttpException, type ExecutionContext } from '@nestjs/common';
+import { ConsoleLogger, HttpException, Logger, type ExecutionContext } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 
 import type { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
 import type { ClerkClientService } from '../../../src/identity/clerk-client.service';
 import { ClerkAuthGuard, type ClerkPrincipalRequest } from '../../../src/identity/clerk-auth.guard';
+import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 
 const config = {
   getRequired: jest.fn((key: string) => {
@@ -40,6 +42,42 @@ function context(request: Partial<Request> = {}): ExecutionContext {
 }
 
 describe('ClerkAuthGuard', () => {
+  it('correlates Staging Voice auth using only verified hashes and request identity', async () => {
+    const previous = { ...process.env };
+    process.env.SUPABASE_URL = 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
+    process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+    const lines: string[] = [];
+    Logger.overrideLogger(new PlatformLogger((line) => lines.push(line)));
+    try {
+      const clerk = { authenticateRequest: jest.fn().mockResolvedValue(state()) };
+      const guard = new ClerkAuthGuard(clerk as unknown as ClerkClientService, config);
+      const execution = context({
+        originalUrl: '/api/v1/voice/recovery',
+        headers: {
+          authorization: 'Bearer secret',
+          'x-request-id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        },
+      });
+      await guard.canActivate(execution);
+      expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
+        expect.objectContaining({
+          context: 'VoiceAdmissionDiagnostics',
+          failureStage: 'voice-auth',
+          requestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          resourceId: createHash('sha256').update('sess_1').digest('hex'),
+        }),
+      ]);
+      expect(JSON.stringify(lines)).not.toMatch(/user_phone_1|sess_1|Bearer|secret|non_string_message/);
+      lines.length = 0;
+      await guard.canActivate(context());
+      process.env.SUPABASE_URL = 'https://another.supabase.co';
+      await guard.canActivate(execution);
+      expect(lines).toEqual([]);
+    } finally {
+      process.env = previous;
+      Logger.overrideLogger(new ConsoleLogger());
+    }
+  });
   it('uses the official request result and extracts only the verified principal', async () => {
     const clerk = { authenticateRequest: jest.fn().mockResolvedValue(state()) };
     const guard = new ClerkAuthGuard(clerk as unknown as ClerkClientService, config);

@@ -95,6 +95,57 @@ describeLiveDatabase('ledger read repository', () => {
 
   afterAll(() => pool.onModuleDestroy());
 
+  it('orders equal-date records by creation time and retains every row across cursor pages', async () => {
+    const tieAccountId = randomUUID();
+    const ids = [randomUUID(), randomUUID()].sort();
+    await pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query('set local role masarifi_migration');
+        // Seed immutable timestamps in a disposable fixture; never rewrite existing rows.
+        await client.query("select set_config('masarifi.ledger_command','on',true)");
+        await client.query(
+          "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Tie fixture','cash','SAR')",
+          [tieAccountId, owner.userId],
+        );
+        for (const [index, id] of ids.entries()) {
+          await client.query(
+            `insert into public.transactions(id,user_id,kind,amount_minor,currency_code,title,occurred_at,created_at)
+            values($1,$2,'expense',100,'SAR','Tie fixture',$3,$4)`,
+            [
+              id,
+              owner.userId,
+              occurredAt,
+              index === 0 ? '2026-08-30T10:00:00Z' : '2026-08-30T09:00:00Z',
+            ],
+          );
+          await client.query(
+            "select private.ledger_apply_posting($1,$2,-100,'confirmed','source',$3,$4)",
+            [id, tieAccountId, occurredAt, index + 1],
+          );
+        }
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
+    const first = await reads.listTransactions(owner, { accountId: tieAccountId, limit: 1 });
+    expect(first.items.map((item) => item.id)).toEqual([ids[0]]);
+    const second = await reads.listTransactions(owner, {
+      accountId: tieAccountId,
+      limit: 1,
+      cursor: first.nextCursor,
+    });
+    expect(second.items.map((item) => item.id)).toEqual([ids[1]]);
+    expect(second.nextCursor).toBeNull();
+    const foreign = await reads.listTransactions(
+      { ...owner, userId: `other_${randomUUID()}` },
+      { cursor: first.nextCursor, limit: 1 },
+    );
+    expect(foreign.items).toEqual([]);
+  });
+
   it('uses a deterministic occurred-at/UUID keyset page without duplicate boundary rows', async () => {
     const first = await reads.listTransactions(owner, { accountId, limit: 2 });
     const second = await reads.listTransactions(owner, {

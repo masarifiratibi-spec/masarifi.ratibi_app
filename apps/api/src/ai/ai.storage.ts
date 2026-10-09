@@ -1,3 +1,4 @@
+import { withAiAbort } from './ai.abort';
 import { Injectable, Optional } from '@nestjs/common';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
@@ -17,16 +18,33 @@ export class AiStorage {
     this.credential = config.getRequired('SUPABASE_SERVICE_ROLE_KEY');
   }
 
+  async upload(key: string, body: Buffer, contentType: string): Promise<void> {
+    if (
+      body.length < 1 ||
+      body.length > 12_582_912 ||
+      !['audio/m4a', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm'].includes(
+        contentType,
+      )
+    )
+      throw new Error('VOICE_MEDIA_INVALID');
+    await this.request('/storage/v1/object/voice-temp/' + this.encoded(key), {
+      method: 'POST',
+      body: new Uint8Array(body),
+      headers: { 'content-type': contentType, 'x-upsert': 'false' },
+    });
+  }
+
   async signedUpload(
     key: string,
-    seconds: number,
+    _seconds: number,
     contentType: string,
   ): Promise<{ url: string; token: string; expiresAt: string; headers: Record<string, string> }> {
-    const result = await this.request(
+    const value = await this.request(
       `/storage/v1/object/upload/sign/voice-temp/${this.encoded(key)}`,
       { method: 'POST', body: JSON.stringify({ upsert: false }) },
+      false,
+      async (result) => (await result.json()) as { url?: unknown; token?: unknown },
     );
-    const value = (await result.json()) as { url?: unknown; token?: unknown };
     if (
       typeof value.url !== 'string' ||
       typeof value.token !== 'string' ||
@@ -42,40 +60,54 @@ export class AiStorage {
     return {
       url: url.toString(),
       token: value.token,
-      expiresAt: new Date(Date.now() + seconds * 1_000).toISOString(),
+      expiresAt: new Date(Date.now() + 7_200 * 1_000).toISOString(),
       headers: { 'content-type': contentType },
     };
   }
 
-  async download(key: string, expectedBytes: number): Promise<Buffer> {
+  async download(key: string, expectedBytes: number, signal?: AbortSignal): Promise<Buffer> {
     if (!Number.isInteger(expectedBytes) || expectedBytes < 1 || expectedBytes > 12_582_912)
       throw new Error('VOICE_MEDIA_INVALID', { cause: 'expected_size' });
-    const response = await this.request(
+    return this.request(
       `/storage/v1/object/authenticated/voice-temp/${this.encoded(key)}`,
+      { signal },
+      false,
+      async (response, requestSignal) => {
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length !== expectedBytes)
+          throw new Error('VOICE_MEDIA_INVALID', {
+            cause: response.headers.has('content-length') ? 'declared_length' : 'header_missing',
+          });
+        if (!response.body) throw new Error('VOICE_MEDIA_INVALID', { cause: 'response_body' });
+        const reader = response.body.getReader(),
+          chunks: Buffer[] = [];
+        const abort = () => {
+          void reader.cancel().catch(() => undefined);
+        };
+        requestSignal.addEventListener('abort', abort, { once: true });
+        if (requestSignal.aborted) abort();
+        try {
+          let received = 0;
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            received += value.byteLength;
+            if (received > expectedBytes) {
+              await reader.cancel();
+              throw new Error('VOICE_MEDIA_INVALID', { cause: 'stream_overflow' });
+            }
+            chunks.push(Buffer.from(value));
+          }
+          const body = Buffer.concat(chunks, received);
+          if (body.length !== expectedBytes)
+            throw new Error('VOICE_MEDIA_INVALID', { cause: 'stream_length' });
+          return body;
+        } finally {
+          requestSignal.removeEventListener('abort', abort);
+          reader.releaseLock();
+        }
+      },
     );
-    const length = Number(response.headers.get('content-length'));
-    if (Number.isFinite(length) && length !== expectedBytes)
-      throw new Error('VOICE_MEDIA_INVALID', {
-        cause: response.headers.has('content-length') ? 'declared_length' : 'header_missing',
-      });
-    if (!response.body) throw new Error('VOICE_MEDIA_INVALID', { cause: 'response_body' });
-    const reader = response.body.getReader(),
-      chunks: Buffer[] = [];
-    let received = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      received += value.byteLength;
-      if (received > expectedBytes) {
-        await reader.cancel();
-        throw new Error('VOICE_MEDIA_INVALID', { cause: 'stream_overflow' });
-      }
-      chunks.push(Buffer.from(value));
-    }
-    const body = Buffer.concat(chunks, received);
-    if (body.length !== expectedBytes)
-      throw new Error('VOICE_MEDIA_INVALID', { cause: 'stream_length' });
-    return body;
   }
 
   async delete(key: string): Promise<void> {
@@ -91,29 +123,73 @@ export class AiStorage {
     return key.split('/').map(encodeURIComponent).join('/');
   }
 
-  private async request(
+  private async isMissingObject(response: Response, signal: AbortSignal): Promise<boolean> {
+    if (response.status === 404) return true;
+    if (response.status !== 400 || !response.body) return false;
+    // Hosted Storage also returns legacy HTTP400 with the precise NoSuchKey code.
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let bytes = 0;
+    const abort = () => {
+      void reader.cancel().catch(() => undefined);
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    try {
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) break;
+        bytes += next.value.byteLength;
+        if (bytes > 4096) {
+          await reader.cancel();
+          return false;
+        }
+        chunks.push(next.value);
+      }
+      const error: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      return (
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'NoSuchKey' &&
+        (!('statusCode' in error) || String(error.statusCode) === '404')
+      );
+    } finally {
+      signal.removeEventListener('abort', abort);
+      reader.releaseLock();
+    }
+  }
+
+  private async request<T = Response>(
     path: string,
     init: RequestInit = {},
     allowMissing = false,
-  ): Promise<Response> {
+    consume: (response: Response, signal: AbortSignal) => Promise<T> = (response) =>
+      Promise.resolve(response as T),
+  ): Promise<T> {
     const controller = new AbortController();
+    const signal = init.signal
+      ? AbortSignal.any([controller.signal, init.signal])
+      : controller.signal;
     const timeout = setTimeout(() => {
       controller.abort();
     }, 10_000);
     const headers = new Headers(init.headers);
     headers.set('authorization', `Bearer ${this.credential}`);
     headers.set('apikey', this.credential);
-    if (init.body) headers.set('content-type', 'application/json');
+    if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
     try {
-      const response = await this.fetcher(new URL(path, this.origin), {
-        ...init,
-        headers,
-        redirect: 'error',
-        signal: controller.signal,
+      return await withAiAbort(signal, async () => {
+        const response = await this.fetcher(new URL(path, this.origin), {
+          ...init,
+          headers,
+          redirect: 'error',
+          signal,
+        });
+        if (!response.ok && !(allowMissing && (await this.isMissingObject(response, signal))))
+          throw new Error('VOICE_STORAGE_UNAVAILABLE');
+        return consume(response, signal);
       });
-      if (!response.ok && !(allowMissing && response.status === 404))
-        throw new Error('VOICE_STORAGE_UNAVAILABLE');
-      return response;
     } catch (error) {
       if (
         error instanceof Error &&

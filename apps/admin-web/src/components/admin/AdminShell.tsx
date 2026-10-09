@@ -31,6 +31,7 @@ import { EnvironmentIndicator } from "./EnvironmentIndicator";
 import { GlobalSearch } from "./GlobalSearch";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { SessionExpired } from "./SessionExpired";
+import { SignOutButton } from "./SignOutButton";
 import { SidebarNavigationList } from "./SidebarAccordion";
 import { ToastRegion } from "./ToastRegion";
 import { buildSidebarSections, nextTheme, resolveRoutePermission } from "./shell-state";
@@ -89,15 +90,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [range, setRange] = useState<DateRangeInput>(defaultRange);
   const mobileTrigger = useRef<HTMLButtonElement>(null);
   const simulatedRole = useSimulatedRole();
-  const serverRole = session.data?.roleKeys.find((key): key is AdminRole =>
+  const currentSession = (demoMode || (identity.loaded && session.data?.id === identity.actorId)) && !session.error ? session.data : undefined;
+  const serverRole = currentSession?.roleKeys.find((key): key is AdminRole =>
     ADMIN_ROLES.some((role) => role === key),
   );
   const role = demoMode ? simulatedRole : (serverRole ?? "support-agent");
   const effectivePermissions = new Set(
-    (session.data?.effectivePermissionKeys ?? []).map(toClientPermission),
+    (currentSession?.effectivePermissionKeys ?? []).map(toClientPermission),
   );
   const navigation = useAdminNavigation(role);
-  const groups = navigation.data?.groups ?? [];
+  const groups = demoMode || currentSession ? navigation.data?.groups ?? [] : [];
+  const displayName = currentSession?.displayName ?? (demoMode ? "Waleed" : t(locale, "common.loading"));
   // Communications is temporarily hidden from the Admin Dashboard sidebar.
   // Its implementation, routes, and navigation configuration are intentionally preserved for future use.
   // Restore it by adding the communications navigation configuration back to this rendered sidebar array.
@@ -139,7 +142,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   };
 
   if (session.error instanceof ApiError && session.error.code === "session_expired") {
-    return <SessionExpired temporary onReturn={() => window.location.assign("/admin")} />;
+    return <><SessionExpired temporary onReturn={() => window.location.assign("/admin")} /><SignOutButton /></>;
   }
 
   return (
@@ -177,13 +180,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
             </button>
             {demoMode && <AttentionPanel role={role} />}
+            <SignOutButton />
             <div className="profile">
-              <div className="avatar profile-photo" role="img" aria-label={t(locale, "shell.profilePhoto", { name: session.data?.displayName ?? "Waleed" })} />
-              <div><strong>{session.data?.displayName ?? "Waleed"}</strong><small>{getRoleLabel(locale, role)}</small></div>
+              <div className="avatar profile-photo" role="img" aria-label={t(locale, "shell.profilePhoto", { name: displayName })} />
+              <div><strong>{displayName}</strong><small>{demoMode || serverRole ? getRoleLabel(locale, role) : ""}</small></div>
             </div>
           </div>
         </header>
-        <main>{deniedPermission ? <AccessDenied permission={deniedPermission} /> : children}</main>
+        <main>{!demoMode && !currentSession ? <p role="status">{t(locale, "common.loading")}</p> : deniedPermission ? <AccessDenied permission={deniedPermission} /> : children}</main>
       </div>
       <ToastRegion messages={[]} />
     </div>

@@ -7,6 +7,7 @@ import {
   type TokenCache
 } from '@clerk/expo';
 import { useSSO } from '@clerk/expo/experimental';
+import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -20,6 +21,7 @@ import React, {
 } from 'react';
 
 import { resolveClientRuntime } from '@/config/client-runtime';
+import { recordDevelopmentAuthDiagnostic } from '@/services/platform/development-auth-diagnostics';
 import type {
   AuthResult,
   PhoneVerificationAttempt
@@ -93,7 +95,10 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<IdentityStatus>('loading');
   useEffect(() => {
     if (status !== 'loading') return;
-    const timer = setTimeout(() => setStatus('error'), 30_000);
+    const timer = setTimeout(() => {
+      recordDevelopmentAuthDiagnostic('identity_timeout');
+      setStatus('error');
+    }, 30_000);
     return () => clearTimeout(timer);
   }, [status]);
   return (
@@ -110,7 +115,10 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
                 Platform.OS === 'web' ? {} : { runtimeEnvironment: 'headless' }
             })
             .then(() => setStatus(clerk.status === 'ready' ? 'ready' : 'error'))
-            .catch(() => setStatus('error'));
+            .catch((error: unknown) => {
+              recordDevelopmentAuthDiagnostic('identity_retry_failure', error);
+              setStatus('error');
+            });
         }
       }}
     >
@@ -274,15 +282,22 @@ function ClerkBridgeInstaller({
       return phoneAttempt(sessionId, attempt.countryCode, attempt.phoneValue);
     },
     async signInWithGoogle() {
-      if (!latest.current.auth.isLoaded || ssoPending.current)
+      if (!latest.current.auth.isLoaded || ssoPending.current) {
+        recordDevelopmentAuthDiagnostic('sso_failure', new Error('appShell.auth.unavailable'));
         throw new Error('appShell.auth.unavailable');
+      }
       ssoPending.current = true;
       onStatus('sso');
+      recordDevelopmentAuthDiagnostic('sso_start');
       try {
         const result = await latest.current.startSSOFlow({
           strategy: 'oauth_google',
-          redirectUrl: 'masarifi://sso-callback'
+          redirectUrl:
+            Constants.expoConfig?.scheme === 'masarifi-dev'
+              ? 'masarifi-dev://sso-callback'
+              : 'masarifi://sso-callback'
         });
+        recordDevelopmentAuthDiagnostic('sso_result', { code: `auth_session_${result.authSessionResult?.type ?? 'missing'}` });
         if (
           result.authSessionResult?.type === 'cancel' ||
           result.authSessionResult?.type === 'dismiss'
@@ -305,9 +320,11 @@ function ClerkBridgeInstaller({
         if (!session || session.id !== activatedId)
           throw new Error('Clerk session missing');
         onStatus('ready');
+        recordDevelopmentAuthDiagnostic('sso_ready');
         onSessionKey(session.id);
         return session;
       } catch (error) {
+        recordDevelopmentAuthDiagnostic('sso_failure', error);
         if (!(
           error instanceof Error && error.message === 'googleAuth.incomplete'
         ))
@@ -337,7 +354,10 @@ function ClerkBridgeInstaller({
     const clerk = getClerkInstance();
     const update = (status: string) => {
       if (ssoPending.current) return;
-      if (status === 'error' || status === 'degraded') onStatus('error');
+      if (status === 'error' || status === 'degraded') {
+        recordDevelopmentAuthDiagnostic('identity_error');
+        onStatus('error');
+      }
       else if (status === 'ready' || auth.isLoaded) onStatus('ready');
     };
     update(clerk?.status ?? (auth.isLoaded ? 'ready' : 'loading'));

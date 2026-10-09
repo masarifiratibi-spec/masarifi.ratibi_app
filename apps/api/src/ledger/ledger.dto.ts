@@ -29,6 +29,15 @@ function optionalText(value: unknown, max: number): string | null {
   return value === undefined ? null : text(value, max, true);
 }
 
+// LF is allowed only in optional notes; titles and audit reasons keep CONTROL.
+function optionalNote(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') invalid();
+  const normalized = value.replace(/\r\n?/g, '\n');
+  if (CONTROL.test(normalized.replace(/\n/g, '')) || normalized.trim().length > 500) invalid();
+  return normalized.trim() || null;
+}
+
 function timestamp(value: unknown, now: Date): string {
   if (typeof value !== 'string') invalid();
   const parsed = new Date(value);
@@ -109,7 +118,7 @@ export function normalizeCreateTransaction(
     title: text(input.title, 160) as string,
     merchant: optionalText(input.merchant, 160),
     paymentMethod: optionalText(input.paymentMethod, 80),
-    note: optionalText(input.note, 500),
+    note: optionalNote(input.note),
     occurredAt: timestamp(input.occurredAt, now),
     source: input.source === undefined ? 'manual' : (text(input.source, 64) as string),
     externalRef: optionalText(input.externalRef, 200),
@@ -160,7 +169,7 @@ export function normalizeTransfer(value: unknown, now = new Date()): Record<stri
     feeAccountId: input.feeAccountId ?? input.sourceAccountId,
     occurredAt: timestamp(input.occurredAt, now),
     title: text(input.title, 160),
-    note: optionalText(input.note, 500),
+    note: optionalNote(input.note),
   };
 }
 
@@ -205,9 +214,9 @@ export function normalizeRevision(
   for (const [field, max] of [
     ['merchant', 160],
     ['paymentMethod', 80],
-    ['note', 500],
   ] as const)
     if (field in input) patch[field] = text(input[field], max, true);
+  if ('note' in input) patch.note = optionalNote(input.note);
   if ('occurredAt' in input) patch.occurredAt = timestamp(input.occurredAt, now);
   return {
     expectedVersion: version(input.expectedVersion),

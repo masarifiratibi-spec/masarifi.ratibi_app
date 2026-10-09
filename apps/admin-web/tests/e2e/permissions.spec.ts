@@ -18,6 +18,29 @@ const navigationRoutes = [
   "/admin/system-health",
 ] as const;
 
+// The System Health accordion also contains domain-scoped provider/job reads.
+// Permission to those children does not grant the Health Overview route.
+const healthChildRoutes = [
+  "/admin/system-health",
+  "/admin/system-health/api",
+  "/admin/system-health/database",
+  "/admin/system-health/storage",
+  "/admin/system-health/providers",
+  "/admin/jobs/queues",
+  "/admin/jobs/runs",
+  "/admin/jobs/scheduled",
+] as const;
+const domainHealthRoutes = healthChildRoutes.slice(4);
+const healthRoutesByRole = {
+  "super-admin": healthChildRoutes,
+  "support-agent": [],
+  "billing-operator": domainHealthRoutes,
+  "import-operator": domainHealthRoutes,
+  "ai-operator": domainHealthRoutes,
+  "content-manager": domainHealthRoutes,
+  "security-administrator": healthChildRoutes,
+} as const;
+
 test.beforeEach(({}, testInfo) => {
   test.skip(
     testInfo.project.name !== "desktop-1440",
@@ -148,12 +171,19 @@ test("seven simulated roles expose only their allowed route links", async ({ pag
     await page.evaluate((nextRole) => sessionStorage.setItem("admin-simulated-role", nextRole), role);
     await page.reload();
     const healthButton = page.getByRole("button", { name: /صحة النظام|System Health/ });
-    if (allowedRoutes.includes("/admin/system-health" as never)) {
+    const allowedHealthRoutes: readonly string[] = healthRoutesByRole[role as keyof typeof matrix];
+    if (allowedHealthRoutes.length > 0) {
       await expect(healthButton).toHaveAttribute("aria-expanded", "false");
       await healthButton.click();
       await expect(healthButton).toHaveAttribute("aria-expanded", "true");
+      if (allowedHealthRoutes.includes("/admin/jobs/queues")) {
+        await page.getByRole("button", { name: /المهام وقوائم الانتظار|Jobs and Queues/ }).click();
+      }
     } else {
       await expect(healthButton).toHaveCount(0);
+    }
+    for (const route of healthChildRoutes) {
+      await expect(page.locator(`nav a[href="${route}"]`)).toHaveCount(allowedHealthRoutes.includes(route) ? 1 : 0);
     }
     for (const route of navigationRoutes) {
       const link = page.locator(`nav a[href="${route}"]`);

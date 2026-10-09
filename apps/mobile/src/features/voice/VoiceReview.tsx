@@ -16,10 +16,12 @@ import {
   CheckboxRow,
   RadioCard
 } from '@/design-system/components/forms/SelectionControls';
-import { parseAmountToMinor, type Account, type Category } from '@/domain/core-finance';
 import {
-  minorToMajorAmountText
-} from '@/domain/currencies';
+  parseAmountToMinor,
+  type Account,
+  type Category
+} from '@/domain/core-finance';
+import { minorToMajorAmountText } from '@/domain/currencies';
 import type {
   VoiceField,
   VoiceTransactionProposal
@@ -27,7 +29,7 @@ import type {
 import { spacing } from '@/design-system/tokens';
 import { translate, currentLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatDate } from '@/utils/format-financial-value';
+import { TransactionDateField } from '@/features/transactions/TransactionDateField';
 import { VoiceRecurringReview } from './VoiceRecurringReview';
 import { AccountPicker } from '@/features/transactions/AccountPicker';
 import { openCategorySelection } from '@/features/categories/category-selection-session';
@@ -60,6 +62,7 @@ function resolveField(
 
 export function VoiceReview({
   proposal,
+  live = false,
   accounts,
   categories,
   onChange,
@@ -67,6 +70,7 @@ export function VoiceReview({
   onRemove
 }: {
   proposal: VoiceTransactionProposal;
+  live?: boolean;
   accounts: Account[];
   categories: Category[];
   onChange(value: Partial<VoiceTransactionProposal>): void;
@@ -94,7 +98,8 @@ export function VoiceReview({
       ? category.labelAr
       : category.labelEn
     : undefined;
-  const typeLabels = transactionTypes.map((type) =>
+  const supportedTypes = live ? transactionTypes.slice(0, 2) : transactionTypes;
+  const typeLabels = supportedTypes.map((type) =>
     translate(`coreFinance.type.${type}` as never)
   );
   const paymentLabels = paymentMethods.map((method) =>
@@ -180,7 +185,12 @@ export function VoiceReview({
           const index = typeLabels.indexOf(label);
           if (index >= 0)
             onChange({
-              type: transactionTypes[index],
+              type: supportedTypes[index],
+              categoryId:
+                categories.find((item) => item.id === proposal.categoryId)
+                  ?.financialType === supportedTypes[index]
+                  ? proposal.categoryId
+                  : null,
               assessments: resolveField(proposal, 'type')
             });
         }}
@@ -190,10 +200,7 @@ export function VoiceReview({
         variant="amount"
         value={
           proposal.amountMinor !== null && amountCurrencyCode
-            ? minorToMajorAmountText(
-                proposal.amountMinor,
-                amountCurrencyCode
-              )
+            ? minorToMajorAmountText(proposal.amountMinor, amountCurrencyCode)
             : ''
         }
         onChangeText={(text) => {
@@ -201,10 +208,7 @@ export function VoiceReview({
             ? parseAmountToMinor(text, amountCurrencyCode)
             : null;
           onChange({
-            amountMinor:
-              parsed !== null && parsed > 0
-                ? parsed
-                : null,
+            amountMinor: parsed !== null && parsed > 0 ? parsed : null,
             assessments: resolveField(proposal, 'amount')
           });
         }}
@@ -217,6 +221,11 @@ export function VoiceReview({
         onChangeText={(currencyCode) =>
           onChange({
             currencyCode: currencyCode.trim().toUpperCase() || null,
+            accountId:
+              selectedAccount?.currencyCode ===
+              currencyCode.trim().toUpperCase()
+                ? proposal.accountId
+                : null,
             assessments: resolveField(proposal, 'currency')
           })
         }
@@ -226,31 +235,39 @@ export function VoiceReview({
         value={proposal.merchant ?? ''}
         onChangeText={(merchant) =>
           onChange({
-            merchant,
-            title: merchant,
+            merchant: merchant.trim() || null,
+            title: merchant.trim(),
             assessments: resolveField(proposal, 'merchant')
           })
         }
       />
-      <StyledText variant="subtitle">
-        {translate('voice.review.paymentMethod')}
-      </StyledText>
-      <ChipSelector
-        options={paymentLabels}
-        selected={
-          proposal.paymentMethod
-            ? [translate(`voice.payment.${proposal.paymentMethod}` as never)]
-            : []
-        }
-        onToggle={(label) => {
-          const index = paymentLabels.indexOf(label);
-          if (index >= 0)
-            onChange({
-              paymentMethod: paymentMethods[index],
-              assessments: resolveField(proposal, 'payment_method')
-            });
-        }}
-      />
+      {!live ? (
+        <>
+          <StyledText variant="subtitle">
+            {translate('voice.review.paymentMethod')}
+          </StyledText>
+          <ChipSelector
+            options={paymentLabels}
+            selected={
+              proposal.paymentMethod
+                ? [
+                    translate(
+                      `voice.payment.${proposal.paymentMethod}` as never
+                    )
+                  ]
+                : []
+            }
+            onToggle={(label) => {
+              const index = paymentLabels.indexOf(label);
+              if (index >= 0)
+                onChange({
+                  paymentMethod: paymentMethods[index],
+                  assessments: resolveField(proposal, 'payment_method')
+                });
+            }}
+          />
+        </>
+      ) : null}
       <PickerField
         label={translate('voice.review.account')}
         value={accountName}
@@ -274,8 +291,17 @@ export function VoiceReview({
             onPress={() =>
               openCategorySelection({
                 selectedId: proposal.categoryId ?? undefined,
+                excludedIds: categories
+                  .filter(
+                    (item) =>
+                      (item.financialType !== null &&
+                        item.financialType !== proposal.type) ||
+                      item.status !== 'active'
+                  )
+                  .map((item) => item.id),
+                allowClear: proposal.type === 'income',
                 onSelect: (categoryId) => {
-                  if (!categoryId) return;
+                  if (!categoryId && proposal.type !== 'income') return;
                   onChange({
                     categoryId,
                     assessments: resolveField(proposal, 'category')
@@ -284,7 +310,7 @@ export function VoiceReview({
               })
             }
           />
-          {proposal.merchant ? (
+          {!live && proposal.merchant ? (
             <View style={styles.stack}>
               <StyledText>{translate('voice.category.prompt')}</StyledText>
               {(
@@ -334,6 +360,7 @@ export function VoiceReview({
               } else {
                 onChange({
                   accountId: account.id,
+                  currencyCode: account.currencyCode,
                   destinationAccountId:
                     proposal.destinationAccountId === account.id
                       ? null
@@ -346,12 +373,24 @@ export function VoiceReview({
           />
         </AppSheet>
       ) : null}
-      {proposal.occurredAt ? (
-        <StyledText>
-          {translate('voice.review.date')}:{' '}
-          {formatDate(proposal.occurredAt, currentLocale())}
-        </StyledText>
-      ) : null}
+      <TransactionDateField
+        value={proposal.occurredAt ?? Date.now()}
+        label={translate('voice.review.date')}
+        onChange={(occurredAt) =>
+          onChange({ occurredAt, assessments: resolveField(proposal, 'date') })
+        }
+      />
+      <FormField
+        label={translate('coreFinance.form.note')}
+        value={proposal.notes ?? ''}
+        multiline
+        onChangeText={(notes) =>
+          onChange({
+            notes: notes.trim() || null,
+            assessments: resolveField(proposal, 'notes')
+          })
+        }
+      />
       {uncertain.map((item) => (
         <View key={item.field} style={styles.uncertain}>
           <StyledText>

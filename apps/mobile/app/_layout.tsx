@@ -17,6 +17,7 @@ import {
 import { useTheme } from '@/state/theme-context';
 import { MobileIdentityProvider } from '@/services/live/clerk-provider';
 import { isAppLockEnabled } from '@/config/client-runtime';
+import { VoiceCaptureProvider } from '@/features/voice/VoiceCaptureRuntime';
 
 export default function RootLayout() {
   const appLockEnabled = isAppLockEnabled();
@@ -45,24 +46,26 @@ export default function RootLayout() {
       <FontGate>
         <FoundationProviders>
           <AppShellProvider>
-            <AppPrivacyGate
-              immediate={
-                appLockEnabled &&
-                autoLockDuration === 'immediate' &&
-                pathname !== '/security/unlock'
-              }
-              lockAfterMs={appLockEnabled ? lockAfterMs : null}
-              locked={
-                appLockEnabled &&
-                appLockStatus !== undefined &&
-                appLockStatus !== 'unlocked' &&
-                pathname !== '/security/unlock'
-              }
-              onLock={appLockEnabled ? handleLock : undefined}
-            >
-              <NotificationResponseRuntime />
-              <RootStack />
-            </AppPrivacyGate>
+            <VoiceCaptureProvider>
+              <AppPrivacyGate
+                immediate={
+                  appLockEnabled &&
+                  autoLockDuration === 'immediate' &&
+                  pathname !== '/security/unlock'
+                }
+                lockAfterMs={appLockEnabled ? lockAfterMs : null}
+                locked={
+                  appLockEnabled &&
+                  appLockStatus !== undefined &&
+                  appLockStatus !== 'unlocked' &&
+                  pathname !== '/security/unlock'
+                }
+                onLock={appLockEnabled ? handleLock : undefined}
+              >
+                <NotificationResponseRuntime />
+                <RootStack />
+              </AppPrivacyGate>
+            </VoiceCaptureProvider>
           </AppShellProvider>
         </FoundationProviders>
       </FontGate>

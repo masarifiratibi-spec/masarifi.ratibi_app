@@ -15,7 +15,9 @@ export type HttpErrorCode =
 export class HttpError extends Error {
   constructor(
     readonly code: HttpErrorCode,
-    readonly status: number
+    readonly status: number,
+    readonly domainCode?: string,
+    readonly requestId?: string
   ) {
     super(SAFE_MESSAGES[code]);
     this.name = 'HttpError';
@@ -47,6 +49,8 @@ const SAFE_MESSAGES: Record<HttpErrorCode, string> = {
 };
 const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   VALIDATION_FAILED: 'validation_error',
+  AMOUNT_OUT_OF_RANGE: 'validation_error',
+  TRACKING_ACCOUNT_BLOCKED: 'conflict',
   IDEMPOTENCY_KEY_REQUIRED: 'validation_error',
   IDEMPOTENCY_KEY_REUSED: 'conflict',
   IDEMPOTENCY_IN_PROGRESS: 'conflict',
@@ -61,9 +65,21 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   CATEGORY_CYCLE: 'conflict',
   ACCOUNT_CURRENCY_LOCKED: 'conflict',
   ACCOUNT_CLOSED: 'conflict',
+  ACCOUNT_NOT_POSTABLE: 'conflict',
+  CURRENCY_MISMATCH: 'conflict',
+  TRANSACTION_NOT_EDITABLE: 'conflict',
+  TRANSACTION_HAS_DEPENDENTS: 'conflict',
+  REVERSAL_EXISTS: 'conflict',
+  REFUND_EXCEEDS_AVAILABLE: 'conflict',
+  UNDO_EXPIRED: 'conflict',
+  FINANCIAL_ACCESS_DENIED: 'forbidden',
+  RECENT_AUTH_REQUIRED: 'session_expired',
+  LEDGER_BUSY: 'conflict',
+  LEDGER_UNAVAILABLE: 'provider_unavailable',
   DUPLICATE_RESOURCE: 'conflict',
   LEDGER_NOT_AVAILABLE: 'conflict',
   AUTH_TOKEN_INVALID: 'session_expired',
+  UNAUTHORIZED: 'session_expired',
   GONE: 'gone',
   RATE_LIMITED: 'rate_limited',
   SERVICE_UNAVAILABLE: 'provider_unavailable',
@@ -156,11 +172,16 @@ export async function requestJson<T>(
     return await Promise.race([operation, aborted]);
   } catch (error) {
     const failure = normalizeFailure(error, controller.signal.aborted);
-    if (typeof __DEV__ !== 'undefined' && __DEV__)
-      console.info(
-        '[mobile:http-failure]',
-        sanitizeHttpLog({ path, error: failure, status: failure.status })
-      );
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      try {
+        console.info(
+          '[mobile:http-failure]',
+          sanitizeHttpLog({ path, error: failure, status: failure.status })
+        );
+      } catch {
+        // Preserve the actual HTTP outcome when the Dev log sink is unavailable.
+      }
+    }
     throw failure;
   } finally {
     clearTimeout(timer);
@@ -179,9 +200,19 @@ async function parseError(response: Response): Promise<HttpError> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload))
     return new HttpError('contract_mismatch', response.status);
   const code = Reflect.get(payload, 'code');
-  if (typeof code !== 'string' || !SERVER_CODES[code])
-    return new HttpError('contract_mismatch', response.status);
-  return new HttpError(SERVER_CODES[code], response.status);
+  const requestId = Reflect.get(payload, 'requestId');
+  return new HttpError(
+    typeof code === 'string'
+      ? (SERVER_CODES[code] ?? 'contract_mismatch')
+      : 'contract_mismatch',
+    response.status,
+    typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(code)
+      ? code
+      : undefined,
+    typeof requestId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/u.test(requestId)
+      ? requestId
+      : undefined
+  );
 }
 
 function parseKnownValue<T>(

@@ -5,7 +5,8 @@ import {
 } from './contracts/assistant-notifications-service';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { createLiveAssistantApiService } from './live/assistant-api-service';
-import { getLiveClerkToken } from './live/auth-service';
+import { getLiveClerkToken, captureLiveClerkIdentity } from './live/auth-service';
+import { assistantSecureJournal } from '@/storage/assistant-secure-journal';
 import { assistantService as fixtureAssistantService } from './mocks/assistant-service';
 
 const unavailable: CapabilityProviderHandle<AssistantService> = {
@@ -50,5 +51,5 @@ export function selectAssistantService(
 
 export const assistantService = selectAssistantService(
   isFixtureModeEnabled(),
-  createLiveAssistantApiService({ token: getLiveClerkToken })
+  createLiveAssistantApiService({ token: getLiveClerkToken, identity: captureLiveClerkIdentity, journal: assistantSecureJournal })
 );

@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import { HttpException, Injectable } from '@nestjs/common';
+import type { Request } from 'express';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { LedgerService } from '../ledger/ledger.service';
@@ -13,7 +15,7 @@ import {
   consent,
   conversationCreate,
   conversationUpdate,
-  createVoice,
+  createVoiceV2,
   feedback,
   idempotencyKey,
   page,
@@ -22,6 +24,7 @@ import {
   responseReport,
   uuid,
   voicePreference,
+  voiceDecision,
 } from './ai.dto';
 import { recordAiResult } from './ai.observability';
 import { AiRepository } from './ai.repository';
@@ -29,6 +32,7 @@ import { redactAiText } from './ai.schemas';
 import { AiStorage } from './ai.storage';
 import { AssistantFinancialTools } from './ai-financial-tools';
 import { routeAssistantMessage, selectConversationHistory } from './ai-routing';
+import { zonedDateTimeToInstant } from '../reports/reports.period';
 
 const CONSENT_POLICY = 'assistant-privacy-v1';
 const STREAM_TIMEOUT_MS = 65_000;
@@ -69,6 +73,20 @@ function resourceId(value: unknown): string {
 
 function resultResource(value: unknown): Record<string, unknown> {
   return resource(resource(value).resource);
+}
+
+function publicVoiceSession(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    locale: row.locale,
+    status: row.status,
+    durationMs: row.durationMs,
+    expiresAt: row.expiresAt,
+    confirmedAt: row.confirmedAt ?? null,
+    failureCode: row.failureCode ?? null,
+    version: row.version,
+    createdAt: row.createdAt,
+  };
 }
 
 function cursor(value: string | undefined): { time: string | null; id: string | null } {
@@ -120,27 +138,48 @@ export class AiService {
     private readonly config: PlatformConfigService,
   ) {}
 
-  async createVoiceSession(principal: ClerkPrincipal, body: unknown, key: unknown) {
+  async createVoiceSession(principal: ClerkPrincipal, body: unknown, key: unknown, contract = '2') {
     const started = performance.now();
-    const input = createVoice(body);
     await this.available('voice_transcription');
+    if (!['2', '3'].includes(contract))
+      throw new HttpException({ code: 'VOICE_CLIENT_UPGRADE_REQUIRED' }, 410);
+    const input = createVoiceV2(body);
     const result = resource(
-      await this.repository.createVoiceSession(principal, input, idempotencyKey(key)),
+      contract === '2' && this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+        ? await this.repository.createVoiceReviewSession(
+            principal,
+            input,
+            idempotencyKey(key),
+            this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
+          )
+        : await this.repository.createVoiceSession(
+            principal,
+            input,
+            idempotencyKey(key),
+            this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
+            contract === '3'
+              ? {
+                  maxAuthAge: this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
+                  thresholds: this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS') ?? {},
+                  ...(this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+                    ? { analysisOnly: true }
+                    : {}),
+                }
+              : undefined,
+          ),
     );
     const session = resource(result.resource);
-    if (typeof session.storageRef !== 'string')
+    if (typeof session.id !== 'string' || typeof session.uploadDeadline !== 'string')
       throw new HttpException({ code: 'AI_UNAVAILABLE' }, 503);
-    const storageRef = session.storageRef;
-    const upload = await this.storage.signedUpload(
-      storageRef,
-      this.config.getRequired('MASARIFI_AI_SIGNED_UPLOAD_SECONDS'),
-      input.contentType,
-    );
-    Reflect.deleteProperty(session, 'storageRef');
-    Reflect.deleteProperty(session, 'contentType');
-    Reflect.deleteProperty(session, 'sizeBytes');
     recordAiResult('voice_session_create', 'success', performance.now() - started);
-    return { session, upload };
+    return {
+      session: publicVoiceSession(session),
+      upload: {
+        method: 'PUT',
+        path: '/api/v1/voice/sessions/' + session.id + '/audio',
+        expiresAt: session.uploadDeadline,
+      },
+    };
   }
 
   async processVoiceSession(
@@ -160,8 +199,121 @@ export class AiService {
     return { id: sessionId, status: 'queued' };
   }
 
-  getVoiceSession(principal: ClerkPrincipal, sessionId: string) {
-    return this.repository.getVoiceSession(principal, uuid(sessionId));
+  getVoiceBatchResult(principal: ClerkPrincipal, sessionId: string) {
+    return this.repository.getVoiceBatchResult(principal, uuid(sessionId));
+  }
+  listVoiceBatchRecovery(principal: ClerkPrincipal, after?: string, afterId?: string) {
+    if (
+      (after && !afterId) ||
+      (!after && afterId) ||
+      (after && !Number.isFinite(Date.parse(after)))
+    )
+      throw new HttpException({ code: 'VALIDATION_FAILED' }, 422);
+    return this.repository.listVoiceBatchRecovery(
+      principal,
+      after ?? null,
+      afterId ? uuid(afterId) : null,
+      100,
+    );
+  }
+
+  async getVoiceSession(principal: ClerkPrincipal, sessionId: string) {
+    let row = resource(await this.repository.getVoiceSession(principal, uuid(sessionId)));
+    if (row.contractVersion === 3)
+      return this.repository.getVoiceBatchResult(principal, uuid(sessionId));
+    if (
+      Date.parse(String(row.expiresAt)) <= Date.now() &&
+      !['confirmed', 'expired', 'failed'].includes(String(row.status))
+    ) {
+      row = resource((await this.repository.getVoiceRecovery(principal, uuid(sessionId))).session);
+    }
+    return publicVoiceSession(row);
+  }
+
+  async uploadVoiceAudio(principal: ClerkPrincipal, sessionId: string, request: Request) {
+    const id = uuid(sessionId);
+    const upload = await this.repository.beginVoiceUpload(principal, id);
+    const token = typeof upload.uploadToken === 'string' ? upload.uploadToken : null;
+    const timer = setTimeout(
+      () => request.destroy(),
+      Math.min(30_000, this.config.getRequired('MASARIFI_REQUEST_TIMEOUT_MS')),
+    );
+    try {
+      if (
+        request.headers['content-type'] !== upload.contentType ||
+        Number(request.headers['content-length']) !== Number(upload.sizeBytes)
+      )
+        throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 422);
+      const chunks: Buffer[] = [];
+      const hash = createHash('sha256');
+      let size = 0;
+      for await (const part of request) {
+        if (!Buffer.isBuffer(part)) throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 422);
+        size += part.length;
+        if (size > Number(upload.sizeBytes) || size > 12_582_912)
+          throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 413);
+        hash.update(part);
+        chunks.push(part);
+      }
+      const digest = hash.digest('hex');
+      if (size !== Number(upload.sizeBytes) || digest !== upload.contentHash)
+        throw new HttpException({ code: 'VOICE_MEDIA_INVALID' }, 422);
+      if (upload.completed === true)
+        return { id, version: upload.version, contentHash: digest, sizeBytes: size };
+      if (!token) throw new HttpException({ code: 'VOICE_UPLOAD_IN_PROGRESS' }, 409);
+      try {
+        await this.storage.upload(
+          String(upload.storageRef),
+          Buffer.concat(chunks, size),
+          String(upload.contentType),
+        );
+      } catch (error) {
+        // A lost Storage acknowledgement can leave the immutable object behind.
+        const existing = await this.storage
+          .download(String(upload.storageRef), size)
+          .catch(() => null);
+        if (!existing || createHash('sha256').update(existing).digest('hex') !== digest)
+          throw error;
+      }
+      // Unknown SQL acknowledgement must preserve accepted media. Cancellation/expiry purge owns deletion.
+      return await this.repository.finishVoiceUpload(principal, id, token, digest);
+    } finally {
+      clearTimeout(timer);
+      if (token)
+        await this.repository.releaseVoiceUpload(principal, id, token).catch(() => undefined);
+    }
+  }
+
+  async cancelVoiceSession(principal: ClerkPrincipal, sessionId: string, key: unknown) {
+    return resultResource(
+      await this.repository.cancelVoiceSession(principal, uuid(sessionId), idempotencyKey(key)),
+    );
+  }
+
+  async getVoiceRecovery(principal: ClerkPrincipal, sessionId: string) {
+    const row = await this.repository.getVoiceRecovery(principal, uuid(sessionId));
+    if (row.contractVersion === 3) {
+      return {
+        sessionId: row.sessionId,
+        batchId: row.batchId,
+        status: row.status,
+        transactionIds: row.transactionIds,
+        addedCount: row.addedCount,
+        ledgerVersion: row.ledgerVersion,
+        ...(row.analysis ? { analysis: row.analysis } : {}),
+      };
+    }
+    return {
+      phase: row.phase,
+      session: publicVoiceSession(resource(row.session)),
+      proposal: row.proposalId ? await this.getVoiceProposal(principal, sessionId) : null,
+      recordedAt: row.recordedAt,
+      timezoneOffsetMinutes: row.timezoneOffsetMinutes,
+      captureContextLegacy: row.captureContextLegacy,
+      transcriptLanguage: row.transcriptLanguage ?? null,
+      transcriptConfidence: row.transcriptConfidence ?? null,
+      transactionId: row.transactionId ?? null,
+    };
   }
 
   async getVoiceProposal(principal: ClerkPrincipal, sessionId: string) {
@@ -212,13 +364,65 @@ export class AiService {
     );
   }
 
-  confirmVoice(principal: ClerkPrincipal, proposalId: string, body: unknown, key: unknown) {
-    return this.confirm(
+  async confirmVoice(principal: ClerkPrincipal, proposalId: string, body: unknown, key: unknown) {
+    const id = uuid(proposalId);
+    const operationId = this.repository.operationId(
       principal,
-      uuid(proposalId),
-      actionDecision(body, true),
+      `ai.action.confirm:${id}`,
       idempotencyKey(key),
     );
+    const decision = voiceDecision(body, operationId);
+    const claim = resource(
+      await this.repository.claimVoiceAction(principal, id, operationId, decision),
+    );
+    if (claim.inProgress === true)
+      throw new HttpException({ code: 'VOICE_CONFIRMATION_IN_PROGRESS' }, 409);
+    if (claim.replayed === true)
+      return {
+        sourceId: id,
+        actionType: 'transaction.create',
+        resourceId: claim.resourceId,
+        status: 'executed',
+        replayed: true,
+      };
+    let result: unknown;
+    try {
+      result = await this.ledger.createTransaction({
+        principal,
+        idempotencyKey: String(claim.ledgerKey),
+        requestId: operationId,
+        body: claim.command,
+      });
+    } catch (error) {
+      // Only a definitive local validation failure can release an authorization.
+      if (
+        error instanceof HttpException &&
+        error.getStatus() >= 400 &&
+        error.getStatus() < 500 &&
+        ![408, 409, 429].includes(error.getStatus())
+      ) {
+        await this.repository.abandonVoiceAction(principal, id, String(claim.decisionToken));
+      }
+      throw error;
+    }
+    const idResult = resourceId(result);
+    try {
+      await this.repository.completeVoiceAction(
+        principal,
+        id,
+        String(claim.decisionToken),
+        idResult,
+      );
+    } catch {
+      /* Ledger receipt is authoritative; an identical retry repairs Voice bookkeeping. */
+    }
+    return {
+      sourceId: id,
+      actionType: 'transaction.create',
+      resourceId: idResult,
+      status: 'executed',
+      replayed: false,
+    };
   }
 
   async reject(principal: ClerkPrincipal, id: string, body: unknown, key: unknown) {
@@ -274,8 +478,31 @@ export class AiService {
     );
   }
 
-  getAssistantAvailability(principal: ClerkPrincipal) {
-    return this.repository.getAssistantAvailability(principal, CONSENT_POLICY);
+  async getAssistantAvailability(principal: ClerkPrincipal) {
+    const quota = await this.repository.getAssistantAvailability(principal, CONSENT_POLICY);
+    const consent = await this.repository.getConsent(principal, CONSENT_POLICY);
+    const admitted =
+      this.config.getRequired('MASARIFI_AI_PROVIDER_ENABLED') &&
+      (await this.repository.workloadAvailable('financial_assistant'));
+    return {
+      ...quota,
+      schemaVersion: 1,
+      checkedAt: new Date().toISOString(),
+      capabilities: {
+        directRead: consent.granted === true ? 'available' : 'disabled',
+        provider:
+          !admitted || consent.granted !== true
+            ? 'disabled'
+            : quota.remaining === 0
+              ? 'limit_reached'
+              : 'unknown',
+        actions: 'unknown',
+      },
+      worker: { status: 'unknown', lastSeenAt: null },
+      reasons: admitted
+        ? ['assistant_worker_telemetry_missing']
+        : ['provider_admission_disabled', 'assistant_worker_telemetry_missing'],
+    };
   }
   listInsights(principal: ClerkPrincipal) {
     return this.repository.listInsights(principal, 10).then((items) => ({ items }));
@@ -304,12 +531,9 @@ export class AiService {
 
   async listConversations(principal: ClerkPrincipal, query: unknown) {
     const input = page(query),
-      rows = await this.repository.listConversations(
-        principal,
-        cursor(input.cursor),
-        input.limit + 1,
-      );
-    return paged(rows, input.limit, 'lastMessageAt');
+      limit = Math.min(input.limit, 99),
+      rows = await this.repository.listConversations(principal, cursor(input.cursor), limit + 1);
+    return paged(rows, limit, 'lastMessageAt');
   }
 
   async createMessage(
@@ -322,7 +546,10 @@ export class AiService {
     const conversationIdValue = uuid(conversationId);
     let route = routeAssistantMessage({ content: input.content, intentHint: input.intent });
     let history: Array<{ role: 'user' | 'assistant'; content: string; intent: string | null }> = [];
-    if (route.execution === 'provider' && route.intent !== 'general_finance') {
+    const followUp = /^(?:what about|and |how about|وماذا عن|طيب|طب|وماذا|والشهر)/iu.test(
+      input.content.trim(),
+    );
+    if ((route.execution === 'provider' && route.intent !== 'general_finance') || followUp) {
       history = selectConversationHistory(
         await this.repository.recentConversationTurns(principal, conversationIdValue, 4),
       );
@@ -350,6 +577,7 @@ export class AiService {
             contextScope,
             evidence: [],
             responseMode: input.responseMode,
+            requestIdentity: input,
           },
           keyValue,
         ),
@@ -361,12 +589,13 @@ export class AiService {
       input.content,
       keyValue,
       contextScope,
+      ...(followUp ? [history.filter((turn) => turn.role === 'user').at(-1)?.content] : []),
     );
     const evidence = truth.evidence.map((item, index) => ({
       ...item,
       alias: `EVIDENCE-${(index + 1).toString()}`,
     }));
-    if (route.execution === 'deterministic') {
+    if (route.execution === 'deterministic' || truth.answer !== null) {
       return this.accepted(
         await this.repository.saveDeterministicMessage(
           principal,
@@ -379,6 +608,7 @@ export class AiService {
             contextScope,
             evidence,
             responseMode: input.responseMode,
+            requestIdentity: input,
           },
           keyValue,
         ),
@@ -397,6 +627,7 @@ export class AiService {
           evidence,
           history: history.map(({ role, content }) => ({ role, content: redactAiText(content) })),
           responseMode: input.responseMode,
+          requestIdentity: input,
         },
         keyValue,
       ),
@@ -406,11 +637,12 @@ export class AiService {
 
   async listMessages(principal: ClerkPrincipal, conversationId: string, query: unknown) {
     const input = page(query),
+      limit = Math.min(input.limit, 99),
       rows = await this.repository.listMessages(
         principal,
         uuid(conversationId),
         cursor(input.cursor),
-        input.limit + 1,
+        limit + 1,
       );
     const normalized = rows.map((row) => ({
       id: row.id,
@@ -423,8 +655,70 @@ export class AiService {
       snapshot: row.snapshot ?? null,
       preview: row.preview ?? null,
       createdAt: row.createdAt,
+      metadata: resource(row.contextPayload).assistantMetadata ?? null,
+      actionTimezone:
+        typeof resource(row.contextPayload).timezone === 'string'
+          ? resource(row.contextPayload).timezone
+          : null,
     }));
-    return paged(normalized, input.limit, 'createdAt');
+    return paged(normalized, limit, 'createdAt');
+  }
+
+  async getMessage(principal: ClerkPrincipal, conversationId: string, messageId: string) {
+    const row = await this.repository.getMessage(principal, uuid(messageId));
+    if (row.conversationId !== uuid(conversationId))
+      throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return this.publicMessage(row);
+  }
+
+  getMessageAcceptance(principal: ClerkPrincipal, conversationId: string, key: unknown) {
+    return this.repository.messageAcceptance(principal, uuid(conversationId), idempotencyKey(key));
+  }
+
+  async getMessageResult(principal: ClerkPrincipal, conversationId: string, messageId: string) {
+    const request = await this.repository.getMessage(principal, uuid(messageId));
+    if (request.conversationId !== uuid(conversationId) || request.role !== 'user')
+      throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    const result = resource(await this.repository.messageResult(principal, messageId));
+    let response: Record<string, unknown> | null = null;
+    if (result.response) {
+      const row = await this.repository.getMessage(principal, String(resource(result.response).id));
+      if (
+        row.conversationId !== conversationId ||
+        row.replyToMessageId !== messageId ||
+        row.role !== 'assistant'
+      )
+        throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+      response = this.publicMessage(row);
+    }
+    return {
+      id: messageId,
+      conversationId,
+      status: result.status,
+      failureCode: result.failureCode ?? null,
+      request: this.publicMessage(request),
+      response,
+    };
+  }
+
+  private publicMessage(row: Record<string, unknown>) {
+    return {
+      id: row.id,
+      conversationId: row.conversationId,
+      replyToMessageId: row.replyToMessageId ?? null,
+      role: row.role,
+      content: row.contentRedacted,
+      status: row.workStatus ?? null,
+      failureCode: row.failureCode ?? null,
+      snapshot: row.snapshot ?? null,
+      preview: row.preview ?? null,
+      createdAt: row.createdAt,
+      metadata: resource(row.contextPayload).assistantMetadata ?? null,
+      actionTimezone:
+        typeof resource(row.contextPayload).timezone === 'string'
+          ? resource(row.contextPayload).timezone
+          : null,
+    };
   }
 
   async *streamMessage(
@@ -614,21 +908,34 @@ export class AiService {
     const payload = resource(claim.payload),
       actionType = typeof claim.actionType === 'string' ? claim.actionType : '';
     const domainKey = `ai-action:${id}:v${decision.expectedVersion.toString()}`;
-    const result = await this.execute(actionType, payload, principal, domainKey, operationId);
+    const timezone =
+      actionType === 'transaction.create'
+        ? await this.repository.getPreviewTimezone(principal, id)
+        : undefined;
+    const result = await this.execute(
+      actionType,
+      payload,
+      principal,
+      domainKey,
+      operationId,
+      timezone,
+    );
     const idResult = resourceId(result);
     await this.repository.completeAction(principal, id, String(claim.decisionToken), idResult);
     return { sourceId: id, actionType, resourceId: idResult, status: 'executed', replayed: false };
   }
 
-  private execute(
+  private async execute(
     action: string,
     payload: Record<string, unknown>,
     principal: ClerkPrincipal,
     key: string,
     requestId: string,
+    timezone?: string,
   ): Promise<unknown> {
     if (action === 'transaction.create') {
       const amount = Number(payload.amountMinor);
+      if (!timezone) throw new HttpException({ code: 'AI_EVIDENCE_INCOMPLETE' }, 409);
       return this.ledger.createTransaction({
         principal,
         idempotencyKey: key,
@@ -639,13 +946,13 @@ export class AiService {
           currency: payload.currency,
           accountId: payload.accountId,
           categoryId: payload.categoryId ?? null,
-          title: payload.merchant ?? 'Voice transaction',
+          title: payload.merchant ?? 'Assistant transaction',
           merchant: payload.merchant ?? null,
           paymentMethod: null,
           note: payload.note ?? null,
-          occurredAt: `${String(payload.date)}T12:00:00.000Z`,
-          source: 'voice',
-          externalRef: `voice:${requestId}`,
+          occurredAt: zonedDateTimeToInstant(String(payload.date), '12:00', timezone).toISOString(),
+          source: 'platform_assisted',
+          externalRef: `assistant:${requestId}`,
         },
       });
     }

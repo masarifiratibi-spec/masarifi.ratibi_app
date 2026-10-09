@@ -36,6 +36,9 @@ export const messages = {
       mobileClose: "إغلاق القائمة",
       mobileOpen: "فتح القائمة",
       profilePhoto: "صورة {name}",
+      signOut: "تسجيل الخروج",
+      signingOut: "جارٍ تسجيل الخروج…",
+      signOutFailed: "تعذر تسجيل الخروج. حاول مرة أخرى.",
       themeToggle: "تبديل المظهر",
     },
     search: {
@@ -77,7 +80,7 @@ export const messages = {
     },
     overview: {
       eyebrow: "المنصة / نظرة عامة",
-      greeting: "صباح الخير، Waleed",
+      greeting: "صباح الخير، {name}",
       description: "ملخص تشغيلي لما يحتاج انتباه فريق الإدارة اليوم. جميع البيانات المعروضة تجريبية.",
       refresh: "تحديث",
       metricsAria: "ملخص المؤشرات",
@@ -158,6 +161,9 @@ export const messages = {
       mobileClose: "Close menu",
       mobileOpen: "Open menu",
       profilePhoto: "{name} profile photo",
+      signOut: "Sign out",
+      signingOut: "Signing out…",
+      signOutFailed: "Could not sign out. Please try again.",
       themeToggle: "Toggle theme",
     },
     search: {
@@ -199,7 +205,7 @@ export const messages = {
     },
     overview: {
       eyebrow: "Platform / Overview",
-      greeting: "Good morning, Waleed",
+      greeting: "Good morning, {name}",
       description: "An operational summary of what needs the admin team's attention today. All displayed data is mock data.",
       refresh: "Refresh",
       metricsAria: "Metrics summary",

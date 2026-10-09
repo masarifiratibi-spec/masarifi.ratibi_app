@@ -65,7 +65,10 @@ interface AppShellState {
   ) => Promise<OnboardingProgress | null>;
   skipOnboarding: (now?: number) => Promise<void>;
   setTrackingPreference: (preference: TrackingPreference) => Promise<void>;
-  setPendingDestination: (destination: string | null) => Promise<void>;
+  setPendingDestination: (
+    destination: string | null,
+    isCurrent?: () => boolean
+  ) => Promise<void>;
   setPrivacyLock: (lock: PrivacyLockPreference) => Promise<void>;
   configurePrivacyLock: (
     credential: PinCredential,
@@ -323,9 +326,10 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set({ onboarding: updated });
   },
 
-  setPendingDestination: async (pendingDestination) => {
+  setPendingDestination: async (pendingDestination, isCurrent = () => true) => {
+    if (!isCurrent()) return;
     await storage.savePendingDestination(pendingDestination);
-    set({ pendingDestination });
+    if (isCurrent()) set({ pendingDestination });
   },
 
   setPrivacyLock: async (privacyLock) => {

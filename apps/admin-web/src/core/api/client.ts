@@ -28,13 +28,56 @@ const AUTOMATIC_OPERATION_TTL_MS = 24 * 60 * 60 * 1_000;
 const MAX_AUTOMATIC_OPERATIONS = 256;
 let tokenProvider: TokenProvider | null = null;
 let actorProvider: ActorProvider | null = null;
+let sessionGeneration = 0;
+let activeSessionKey: string | null = null;
+let configuredActor: string | null = null;
+const activeRequests = new Set<AbortController>();
+
+function retireSession(): void {
+  sessionGeneration += 1;
+  for (const controller of activeRequests) controller.abort();
+  activeRequests.clear();
+  cursorPages.clear();
+  automaticOperationIds.clear();
+}
+
+export function clearApiSession(): void {
+  retireSession();
+  tokenProvider = null;
+  actorProvider = null;
+  activeSessionKey = null;
+  configuredActor = null;
+}
+
+// Bind actor and token together after React commits the active Clerk session.
+// The returned cleanup owns only this binding, never a later account's session.
+export function bindApiSession(actorId: string, sessionId: string, provider: TokenProvider): () => void {
+  const key = `${actorId}:${sessionId}`;
+  if (activeSessionKey !== key) retireSession();
+  activeSessionKey = key;
+  configuredActor = actorId;
+  actorProvider = () => actorId;
+  tokenProvider = provider;
+  const generation = sessionGeneration;
+  return () => {
+    if (generation === sessionGeneration && activeSessionKey === key) clearApiSession();
+  };
+}
 
 export function configureApiTokenProvider(provider: TokenProvider): void {
   tokenProvider = provider;
 }
 
 export function configureApiActorProvider(provider: ActorProvider): void {
+  const actor = provider();
+  if (configuredActor !== actor) retireSession();
+  configuredActor = actor;
   actorProvider = provider;
+}
+
+function requireCurrentSession(generation: number): void {
+  if (generation !== sessionGeneration)
+    throw new ApiError("session_expired", safeApiMessage("session_expired"), 401);
 }
 
 export function apiActorCacheKey(): string {
@@ -156,7 +199,11 @@ export async function requestJson<T>(
   schema: z.ZodType<T>,
   options: RequestOptions<T> = {},
 ): Promise<T> {
+  const generation = sessionGeneration;
+  const requestTokenProvider = tokenProvider;
+  const actor = actorProvider?.();
   const controller = new AbortController();
+  activeRequests.add(controller);
   const abort = () => controller.abort();
   if (options.signal?.aborted) abort();
   else options.signal?.addEventListener("abort", abort, { once: true });
@@ -192,14 +239,17 @@ export async function requestJson<T>(
       !headers["Idempotency-Key"]
     ) {
       automaticOperationKey = await operationKey([
-        actorProvider?.() ?? "mock",
+        actor ?? "mock",
         options.method,
         path,
         options.body,
       ]);
+      requireCurrentSession(generation);
       headers["Idempotency-Key"] = automaticOperationId(automaticOperationKey);
     }
-    const token = await tokenProvider?.();
+    const token = await requestTokenProvider?.();
+    requireCurrentSession(generation);
+    if (controller.signal.aborted) throw new ApiError("provider_unavailable", safeApiMessage("provider_unavailable"), 503);
     if (token) setHeader(headers, "Authorization", `Bearer ${token}`);
     else if (!mocksEnabled())
       throw new ApiError(
@@ -217,6 +267,7 @@ export async function requestJson<T>(
         options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
     });
+    requireCurrentSession(generation);
     if (response.status === 204) {
       const value = parseKnownValue(schema, options, "emptyValue");
       if (automaticOperationKey)
@@ -241,6 +292,7 @@ export async function requestJson<T>(
       );
     }
     const parsed = schema.safeParse(payload);
+    requireCurrentSession(generation);
     if (!parsed.success) {
       throw new ApiError(
         "contract_mismatch",
@@ -253,7 +305,9 @@ export async function requestJson<T>(
     return parsed.data;
   } catch (error) {
     const failure =
-      controller.signal.aborted ||
+      generation !== sessionGeneration
+        ? new ApiError("session_expired", safeApiMessage("session_expired"), 401)
+        : controller.signal.aborted ||
       (error instanceof Error &&
         (error.name === "AbortError" || error.name === "TypeError"))
         ? new ApiError(
@@ -276,6 +330,7 @@ export async function requestJson<T>(
     });
     throw failure;
   } finally {
+    activeRequests.delete(controller);
     clearTimeout(timer);
     options.signal?.removeEventListener("abort", abort);
   }

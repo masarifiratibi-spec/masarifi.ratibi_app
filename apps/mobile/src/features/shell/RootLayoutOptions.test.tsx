@@ -18,16 +18,30 @@ jest.mock('@/design-system/typography', () => ({
   FontGate: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
-jest.mock('@/state/FoundationProviders', () => ({
-  FoundationProviders: ({ children }: { children: React.ReactNode }) => <>{children}</>
-}));
+jest.mock('@/state/FoundationProviders', () => {
+  const { QueryClient, QueryClientProvider } = jest.requireActual(
+    '@tanstack/react-query'
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } }
+  });
+  return {
+    FoundationProviders: ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+  };
+});
 
 jest.mock('@/state/AppShellProvider', () => ({
-  AppShellProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  AppShellProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  )
 }));
 
 jest.mock('@/features/security/AppPrivacyGate', () => ({
-  AppPrivacyGate: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  AppPrivacyGate: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  )
 }));
 
 jest.mock('@/features/shell/ProtectedRouteGate', () => ({
@@ -57,13 +71,16 @@ describe('RootLayout navigation chrome', () => {
     ['assistant', AssistantLayout],
     ['profile', ProfileLayout],
     ['security', SecurityLayout]
-  ])('does not expose nested %s route filenames as headers', (_name, Layout) => {
-    render(<Layout />);
+  ])(
+    'does not expose nested %s route filenames as headers',
+    (_name, Layout) => {
+      render(<Layout />);
 
-    expect(mockStack).toHaveBeenCalledWith(
-      expect.objectContaining({
-        screenOptions: { headerShown: false }
-      })
-    );
-  });
+      expect(mockStack).toHaveBeenCalledWith(
+        expect.objectContaining({
+          screenOptions: { headerShown: false }
+        })
+      );
+    }
+  );
 });

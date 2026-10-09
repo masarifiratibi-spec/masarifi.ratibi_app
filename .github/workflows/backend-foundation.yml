@@ -16,6 +16,8 @@ on:
         "apps/mobile/**",
         "supabase/**",
         "docker/**",
+        "scripts/voice-manual-canary/**",
+        "scripts/staging-voice/**",
         ".github/workflows/backend-foundation.yml",
       ]
   push:
@@ -71,6 +73,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci --ignore-scripts
+      # The integrated Voice journey validates the actual Mobile parser.
+      - run: npm --prefix ../mobile ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
@@ -83,6 +87,12 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=high
       - run: npm run migration:checksums
+      - name: Verify bounded Voice canary closure and guards
+        run: node --test ../../scripts/voice-manual-canary/canary-controls.test.cjs ../../scripts/voice-manual-canary/canary-closure.test.cjs
+      - name: Verify Staging Voice epoch closure and guards
+        run: |
+          node --test ../../scripts/staging-voice/controls.test.cjs ../../scripts/staging-voice/deployment-guard.test.cjs ../../scripts/staging-voice/deploy-cohort.test.cjs ../../scripts/staging-voice/cross-feature-compatibility.test.cjs ../../scripts/staging-voice/collect-compatibility.test.cjs
+          python3 ../../scripts/staging-voice/operating-host.test.py
 
   mobile:
     runs-on: ubuntu-24.04
@@ -102,6 +112,8 @@ jobs:
       - run: npm run check:frontend-quality
       - run: npx expo prebuild --platform android --no-install
       - run: npx jest --forceExit
+      - name: Verify bounded native deep-link decoder mitigation
+        run: node --test scripts/deep-link-decoder.test.mjs
 
   admin:
     runs-on: ubuntu-24.04
@@ -131,7 +143,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [desktop-1440, desktop-1280, tablet-1024, tablet-768, mobile-390]
+        project:
+          [desktop-1440, desktop-1280, tablet-1024, tablet-768, mobile-390]
     defaults:
       run:
         working-directory: apps/admin-web
@@ -145,6 +158,14 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --project=${{ matrix.project }}
+      - name: Preserve browser acceptance artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-evidence-${{ matrix.project }}
+          path: apps/admin-web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
 
   database:
     runs-on: ubuntu-24.04
@@ -152,6 +173,7 @@ jobs:
       NODE_ENV: test
       MASARIFI_RELEASE_VERSION: ci
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: postgres
       K6_DATABASE_URL: postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
     defaults:
       run:
@@ -168,6 +190,8 @@ jobs:
         with:
           k6-version: "1.8.0"
       - run: npm ci --ignore-scripts
+      # The integrated Voice journey validates the actual Mobile parser.
+      - run: npm --prefix ../mobile ci --ignore-scripts
       - run: npm run supabase:start
       - run: npm run db:reset
       - run: npm run db:lint
@@ -292,7 +316,16 @@ jobs:
         run: npm run supabase:stop
 
   image:
-    needs: [secrets, sentinel-redaction, application, mobile, admin, admin-e2e, database]
+    needs:
+      [
+        secrets,
+        sentinel-redaction,
+        application,
+        mobile,
+        admin,
+        admin-e2e,
+        database,
+      ]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -318,7 +351,7 @@ jobs:
           printf 'COMPOSE_SENTINEL=migration\n' > "$MASARIFI_MIGRATION_ENV_FILE"
           chmod 600 "$MASARIFI_API_ENV_FILE" "$MASARIFI_WORKER_ENV_FILE" "$MASARIFI_MIGRATION_ENV_FILE"
           docker compose -f docker/staging/compose.backend.yml --profile migrate config --format json | node docker/staging/verify-compose.mjs
-      - run: docker build --file docker/backend.Dockerfile --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
+      - run: docker build --file docker/backend.Dockerfile --label org.opencontainers.image.revision=${{ github.sha }} --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
       - run: npm --prefix apps/api run test:container
         env:
           MASARIFI_IMAGE_UNDER_TEST: masarifi-backend:${{ github.sha }}

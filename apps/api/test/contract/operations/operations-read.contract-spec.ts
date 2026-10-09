@@ -3,8 +3,16 @@ import { OPERATIONS_PERMISSION_KEYS } from '../../../src/security/permission-man
 
 describe('operations route contract', () => {
   it('maps every approved Admin operation to an exact permission', () => {
-    expect(OPERATIONS_ROUTES).toHaveLength(23);
-    expect(new Set(OPERATIONS_ROUTES.map((route) => route.operation)).size).toBe(23);
+    expect(OPERATIONS_ROUTES).toHaveLength(24);
+    expect(new Set(OPERATIONS_ROUTES.map((route) => route.operation)).size).toBe(24);
+    expect(OPERATIONS_ROUTES).toContainEqual({
+      method: 'GET',
+      path: 'api/v1/admin/ai/usage-limits',
+      operation: 'getAiUsageLimits',
+      status: 200,
+      permission: 'operations.settings.read',
+      recentAuth: false,
+    });
     for (const route of OPERATIONS_ROUTES) {
       expect(OPERATIONS_PERMISSION_KEYS).toContain(route.permission);
       expect(route.permission).not.toContain('*');

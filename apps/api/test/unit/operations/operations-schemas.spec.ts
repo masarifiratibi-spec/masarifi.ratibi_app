@@ -9,6 +9,16 @@ import {
 } from '../../../src/operations/operations.schemas';
 
 describe('operations schemas', () => {
+  it('bounds the AI usage lookup to a selected user and rejects bypass fields', () => {
+    expect(parseOperationsReadQuery('ai-usage', {})).toEqual({ userId: null });
+    expect(parseOperationsReadQuery('ai-usage', { userId: 'user_example' })).toEqual({
+      userId: 'user_example',
+    });
+    expect(() =>
+      parseOperationsReadQuery('ai-usage', { userId: 'user_example', sql: 'select 1' }),
+    ).toThrow();
+    expect(() => parseOperationsReadQuery('ai-usage', { userId: 'https://example.com' })).toThrow();
+  });
   it('defaults and bounds cursor pages without accepting extra fields', () => {
     expect(parsePageQuery({})).toEqual({ limit: 25, cursor: null });
     expect(parsePageQuery({ limit: '100', cursor: 'cursor-1' })).toEqual({

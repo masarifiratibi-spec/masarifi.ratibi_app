@@ -10,6 +10,11 @@ export type VoiceSessionState =
   | 'idle'
   | 'permission_required'
   | 'ready'
+  | 'requesting_permission'
+  | 'preparing'
+  | 'uploading'
+  | 'recovering'
+  | 'confirmation_unknown'
   | 'recording'
   | 'stopping'
   | 'transcribing'
@@ -53,6 +58,9 @@ export type VoiceErrorCode =
   | 'auth_unavailable'
   | 'quota_exhausted'
   | 'processing_timed_out'
+  | 'operation_cancelled'
+  | 're_record_required'
+  | 'recovery_required'
   | 'session_expired'
   | 'unsupported_intent'
   | 'offline'
@@ -220,14 +228,24 @@ export function proposalErrors(
     'date',
     'account'
   ]);
-  if (proposal.type !== 'transfer') required.add('category');
+  if (proposal.type !== 'transfer' && proposal.type !== 'income')
+    required.add('category');
   if (!proposal.type) errors.add('type');
-  if (!proposal.amountMinor || proposal.amountMinor <= 0) errors.add('amount');
+  if (
+    !Number.isSafeInteger(proposal.amountMinor) ||
+    !proposal.amountMinor ||
+    proposal.amountMinor <= 0
+  )
+    errors.add('amount');
   if (!proposal.currencyCode || !/^[A-Z]{3}$/.test(proposal.currencyCode))
     errors.add('currency');
   if (!proposal.occurredAt) errors.add('date');
   if (!proposal.accountId) errors.add('account');
-  if (proposal.type !== 'transfer' && !proposal.categoryId)
+  if (
+    proposal.type !== 'transfer' &&
+    proposal.type !== 'income' &&
+    !proposal.categoryId
+  )
     errors.add('category');
   if (
     proposal.type === 'transfer' &&

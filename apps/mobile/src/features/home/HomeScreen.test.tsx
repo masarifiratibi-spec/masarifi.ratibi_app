@@ -32,8 +32,8 @@ jest.mock('@/services/platform/voice-recorder-service', () => ({
     openSettings: jest.fn(),
     start: jest.fn(),
     stop: jest.fn(),
-    cancel: jest.fn(),
-    remove: jest.fn()
+    cancel: jest.fn(async () => undefined),
+    remove: jest.fn(async () => undefined)
   }
 }));
 jest.mock('@/features/settings/settings-queries', () => ({
@@ -71,7 +71,7 @@ beforeEach(() => {
   useVoiceCaptureStore.getState().reset();
   jest
     .mocked(voiceRecorderService.getPermission)
-    .mockImplementation(() => new Promise(() => undefined));
+    .mockResolvedValue('not_requested');
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -357,9 +357,6 @@ it('starts voice recording inline without navigating away from Home', async () =
     await waitFor(() =>
       expect(voiceRecorderService.requestPermission).toHaveBeenCalledTimes(1)
     );
-    expect(voiceRecorderService.start).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId('home-quick-action-voice'));
-
     expect(
       await screen.findByTestId('home-inline-voice-recording')
     ).toBeTruthy();
@@ -379,12 +376,17 @@ it('starts voice recording inline without navigating away from Home', async () =
 it('starts recording on the first tap after a granted-permission foreground resume', async () => {
   const appStateListeners = new Set<(state: AppStateStatus) => void>();
   let resolvePermission!: (permission: 'granted') => void;
-  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
-    appStateListeners.add(listener);
-    return { remove: () => appStateListeners.delete(listener) } as never;
-  });
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((_type, listener) => {
+      appStateListeners.add(listener);
+      return { remove: () => appStateListeners.delete(listener) } as never;
+    });
   jest.mocked(voiceRecorderService.getPermission).mockImplementation(
-    () => new Promise((resolve) => { resolvePermission = resolve; })
+    () =>
+      new Promise((resolve) => {
+        resolvePermission = resolve;
+      })
   );
   jest.mocked(voiceRecorderService.start).mockResolvedValue({
     id: 'recording-after-resume',
@@ -495,9 +497,12 @@ it('shows unclear audio after the empty default result without creating a transa
   jest.useFakeTimers();
   try {
     changeLocale('en');
-    jest
-      .mocked(voiceRecorderService.stop)
-      .mockResolvedValue('private://voice-audio');
+    jest.mocked(voiceRecorderService.stop).mockResolvedValue({
+      uri: 'private://voice-audio',
+      durationMs: 3000,
+      contentType: 'audio/m4a',
+      recordedAt: Date.now()
+    });
     jest.mocked(voiceRecorderService.remove).mockResolvedValue();
     const createTransactions = jest.spyOn(
       coreFinanceService,
@@ -542,61 +547,69 @@ it('shows unclear audio after the empty default result without creating a transa
 it.each([
   ['en', 'Record Again'],
   ['ar', 'إعادة التسجيل']
-] as const)('clears unclear audio and starts recording from the %s action', async (locale, label) => {
-  changeLocale(locale);
-  jest.mocked(voiceRecorderService.getPermission).mockResolvedValue('granted');
-  jest.mocked(voiceRecorderService.start).mockResolvedValue({
-    id: 'recording-after-unclear-audio',
-    startedAt: Date.now()
-  });
-  useVoiceCaptureStore.getState().patch({
-    permission: 'granted',
-    state: 'failed',
-    errorCode: 'no_speech',
-    durationMs: 3_000,
-    transcript: fixtureTranscript('no_speech')
-  });
-  renderWithProviders(<HomeScreen summary={summary} />);
+] as const)(
+  'clears unclear audio and starts recording from the %s action',
+  async (locale, label) => {
+    changeLocale(locale);
+    jest
+      .mocked(voiceRecorderService.getPermission)
+      .mockResolvedValue('granted');
+    jest.mocked(voiceRecorderService.start).mockResolvedValue({
+      id: 'recording-after-unclear-audio',
+      startedAt: Date.now()
+    });
+    useVoiceCaptureStore.getState().patch({
+      permission: 'granted',
+      state: 'failed',
+      errorCode: 'no_speech',
+      durationMs: 3_000,
+      transcript: fixtureTranscript('no_speech')
+    });
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  fireEvent.press(screen.getByLabelText(label));
+    fireEvent.press(screen.getByLabelText(label));
 
-  await waitFor(() =>
-    expect(useVoiceCaptureStore.getState()).toMatchObject({
-      state: 'recording',
-      recordingId: 'recording-after-unclear-audio',
-      audioReference: null,
-      durationMs: 0,
-      transcript: null,
-      group: null,
-      errorCode: null
-    })
-  );
-  expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
-  expect(screen.getByTestId('home-inline-voice-recording')).toBeTruthy();
-  expect(voiceRecorderService.start).toHaveBeenCalledTimes(1);
-  expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
-});
+    await waitFor(() =>
+      expect(useVoiceCaptureStore.getState()).toMatchObject({
+        state: 'recording',
+        recordingId: 'recording-after-unclear-audio',
+        audioReference: null,
+        durationMs: 0,
+        transcript: null,
+        group: null,
+        errorCode: null
+      })
+    );
+    expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
+    expect(screen.getByTestId('home-inline-voice-recording')).toBeTruthy();
+    expect(voiceRecorderService.start).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
+  }
+);
 
 it.each([
   ['en', 'Cancel'],
   ['ar', 'إلغاء']
-] as const)('dismisses unclear audio and stays on Home from the %s action', async (locale, label) => {
-  changeLocale(locale);
-  useVoiceCaptureStore.getState().patch({
-    permission: 'granted',
-    state: 'failed',
-    errorCode: 'background_noise'
-  });
-  renderWithProviders(<HomeScreen summary={summary} />);
+] as const)(
+  'dismisses unclear audio and stays on Home from the %s action',
+  async (locale, label) => {
+    changeLocale(locale);
+    useVoiceCaptureStore.getState().patch({
+      permission: 'granted',
+      state: 'failed',
+      errorCode: 'background_noise'
+    });
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  fireEvent.press(screen.getByLabelText(label));
+    fireEvent.press(screen.getByLabelText(label));
 
-  await waitFor(() =>
-    expect(useVoiceCaptureStore.getState().state).toBe('idle')
-  );
-  expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
-  expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
-});
+    await waitFor(() =>
+      expect(useVoiceCaptureStore.getState().state).toBe('ready')
+    );
+    expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
+    expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
+  }
+);
 
 it('stops inline recording, shows review and permits cancellation without saving on Home', async () => {
   changeLocale('en');
@@ -604,9 +617,12 @@ it('stops inline recording, shows review and permits cancellation without saving
   jest
     .mocked(voiceRecorderService.getPermission)
     .mockImplementation(() => new Promise(() => undefined));
-  jest
-    .mocked(voiceRecorderService.stop)
-    .mockResolvedValue('private://voice-audio');
+  jest.mocked(voiceRecorderService.stop).mockResolvedValue({
+    uri: 'private://voice-audio',
+    durationMs: 3000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
   jest.mocked(voiceRecorderService.remove).mockResolvedValue();
   jest.spyOn(voiceAnalyzerService, 'transcribe').mockImplementation(
     () =>
@@ -648,18 +664,26 @@ it('stops inline recording, shows review and permits cancellation without saving
   expect(screen.queryByTestId('home-voice-processing-inline')).toBeNull();
 
   fireEvent.press(screen.getByTestId('home-voice-review-cancel'));
-  await waitFor(() => expect(useVoiceCaptureStore.getState()).toMatchObject({
-    state: 'idle', group: null, transcript: null, audioReference: null
-  }));
+  await waitFor(() =>
+    expect(useVoiceCaptureStore.getState()).toMatchObject({
+      state: 'ready',
+      group: null,
+      transcript: null,
+      audioReference: null
+    })
+  );
   expect(screen.queryByTestId(/^voice-review-card-/)).toBeNull();
   expect(createTransactions).not.toHaveBeenCalled();
 });
 
 it('keeps multiple analyzed transactions as separate review cards on Home', async () => {
   changeLocale('en');
-  jest
-    .mocked(voiceRecorderService.stop)
-    .mockResolvedValue('private://voice-audio');
+  jest.mocked(voiceRecorderService.stop).mockResolvedValue({
+    uri: 'private://voice-audio',
+    durationMs: 3000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
   jest.mocked(voiceRecorderService.remove).mockResolvedValue();
   jest
     .spyOn(voiceAnalyzerService, 'transcribe')
@@ -815,9 +839,9 @@ it.each([
       height: 84,
       minHeight: 84
     });
-    expect(
-      screen.getByText('Al Nakheel Restaurant').props.numberOfLines
-    ).toBe(1);
+    expect(screen.getByText('Al Nakheel Restaurant').props.numberOfLines).toBe(
+      1
+    );
     expect(
       screen.getByTestId('home-period-label').props.numberOfLines
     ).toBeUndefined();

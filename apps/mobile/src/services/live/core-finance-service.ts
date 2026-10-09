@@ -7,7 +7,6 @@ import {
   draftInputSchema,
   matchesFilters,
   transactionInputSchema,
-  transactionSources,
   type Transaction,
   type TransactionDraft,
   type TransactionFilterSet,
@@ -27,141 +26,12 @@ import { SyncRepository } from '@/storage/sync-repository';
 import { SyncHttpService } from '@/services/contracts/sync-service';
 import { captureLiveClerkIdentity } from './auth-service';
 import { HttpError, requestJson } from './http-client';
+import { ledgerDetailSchema as detailSchema, ledgerSummarySchema as summarySchema, serverKind, serverStatus } from './ledger-api-contract';
 
 const uuid = z.string().uuid();
 const instant = z.string().datetime({ offset: true });
 const nullableInstant = instant.nullable();
 const safeMinor = z.number().int().safe();
-const serverKind = z.enum([
-  'income',
-  'expense',
-  'transfer',
-  'opening',
-  'refund',
-  'reversal',
-  'adjustment'
-]);
-const serverStatus = z.enum([
-  'draft',
-  'pending',
-  'confirmed',
-  'reversed',
-  'deleted'
-]);
-const summarySchema = z
-  .object({
-    id: uuid,
-    kind: serverKind,
-    status: serverStatus,
-    amountMinor: safeMinor.positive(),
-    currency: z.string().regex(/^[A-Z]{3}$/u),
-    accountIds: z
-      .array(uuid)
-      .min(1)
-      .max(3)
-      .refine((ids) => new Set(ids).size === ids.length),
-    sourceAccountId: uuid,
-    destinationAccountId: uuid.nullable(),
-    feeMinor: safeMinor.nonnegative(),
-    categoryId: uuid.nullable().optional().default(null),
-    title: z.string().min(1).max(160),
-    merchant: z.string().max(160).nullable().optional().default(null),
-    paymentMethod: z.string().max(80).nullable().optional().default(null),
-    note: z.string().max(500).nullable().optional().default(null),
-    occurredAt: instant,
-    source: z.enum(transactionSources),
-    originalTransactionId: uuid.nullable().optional().default(null),
-    version: z.number().int().safe().positive(),
-    deletedAt: nullableInstant.optional().default(null),
-    undoExpiresAt: nullableInstant.optional().default(null)
-  })
-  .strict();
-const postingSchema = z
-  .object({
-    id: uuid,
-    accountId: uuid,
-    amountMinor: safeMinor,
-    clearingState: z.enum(['pending', 'confirmed']),
-    postingRole: z.enum([
-      'source',
-      'destination',
-      'fee',
-      'opening',
-      'refund',
-      'reversal',
-      'adjustment'
-    ]),
-    occurredAt: instant
-  })
-  .strict();
-const revisionSchema = z
-  .object({
-    revisionNo: z.number().int().positive(),
-    reason: z.string().min(1).max(500),
-    createdAt: instant
-  })
-  .strict();
-const detailSchema = z
-  .object({
-    transaction: summarySchema,
-    postings: z.array(postingSchema).max(1_000),
-    revisions: z.array(revisionSchema).max(1_000),
-    ledgerVersion: z.number().int().safe().nonnegative(),
-    requestId: z.string().min(1).max(128)
-  })
-  .strict()
-  .superRefine(({ transaction, postings }, context) => {
-    const accounts = new Set(transaction.accountIds);
-    if (
-      postings.length === 0 ||
-      postings.some((posting) => !accounts.has(posting.accountId)) ||
-      transaction.accountIds.some(
-        (accountId) =>
-          !postings.some((posting) => posting.accountId === accountId)
-      )
-    )
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'posting account mismatch'
-      });
-    const source = postings.find((posting) => posting.postingRole === 'source');
-    const destination = postings.find(
-      (posting) => posting.postingRole === 'destination'
-    );
-    const fee = postings.find((posting) => posting.postingRole === 'fee');
-    if (transaction.kind === 'transfer') {
-      if (
-        !source ||
-        !destination ||
-        source.accountId === destination.accountId ||
-        source.amountMinor >= 0 ||
-        destination.amountMinor <= 0 ||
-        Math.abs(destination.amountMinor) !== transaction.amountMinor ||
-        (fee
-          ? fee.amountMinor !== -transaction.feeMinor
-          : transaction.feeMinor !== 0)
-      )
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'invalid transfer postings'
-        });
-    } else if (
-      transaction.kind === 'expense' &&
-      (!source || source.amountMinor !== -transaction.amountMinor)
-    )
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'invalid expense posting'
-      });
-    else if (
-      transaction.kind === 'income' &&
-      (!source || source.amountMinor !== transaction.amountMinor)
-    )
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'invalid income posting'
-      });
-  });
 const pageSchema = z
   .object({
     items: z.array(summarySchema).max(100),
@@ -343,18 +213,47 @@ type LedgerService = Pick<
 export function createLiveLedgerService({
   baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '',
   request = fetch,
-  drafts = new CoreFinanceRepository()
+  drafts = new CoreFinanceRepository(),
+  categoryIds
 }: {
   baseUrl?: string;
   request?: typeof fetch;
   drafts?: CoreFinanceRepository;
+  categoryIds?: {
+    prepare(): Promise<void>;
+    toServer(id: string): string;
+    toLocal(id: string): string;
+  };
 } = {}): LedgerService {
-  let localReady: Promise<void> | null = null;
-  const ensureLocalReady = () => (localReady ??= drafts.hydrate());
+  const ownerRepositories = new Map<
+    string,
+    { repository: CoreFinanceRepository; ready: Promise<void> | null }
+  >();
+  const ensureLocalReady = async () => {
+    const owner = await captureLiveClerkIdentity();
+    let local = ownerRepositories.get(owner.userId);
+    if (!local) {
+      const repository =
+        ownerRepositories.size === 0 ? drafts : new CoreFinanceRepository();
+      repository.bindOwner(owner.userId);
+      local = { repository, ready: null };
+      ownerRepositories.set(owner.userId, local);
+    }
+    const ready = (local.ready ??= local.repository.hydrate());
+    try {
+      await ready;
+    } catch (error) {
+      if (local.ready === ready) local.ready = null;
+      throw error;
+    }
+    await owner.assertCurrent();
+    return { ...local, owner };
+  };
   const pending = new Map<
     string,
-    { operationId: string; expectedVersion?: number }
+    { operationId: string; expectedVersion?: number; prepared?: boolean }
   >();
+  const inFlight = new Map<string, Promise<unknown>>();
   const send = async <T>(
     method: string,
     path: string,
@@ -365,16 +264,30 @@ export function createLiveLedgerService({
     if (method !== 'GET' && !operationId?.trim())
       throw new HttpError('validation_error', 400);
     const identity = await captureLiveClerkIdentity();
+    await categoryIds?.prepare();
     await identity.assertCurrent();
+    const serverBody =
+      body && typeof body.categoryId === 'string'
+        ? {
+            ...body,
+            categoryId:
+              categoryIds?.toServer(body.categoryId) ?? body.categoryId
+          }
+        : body;
     const value = await requestJson(path, schema, {
       baseUrl,
       request,
       method,
-      body,
+      body: serverBody,
       token: identity.token,
       headers: operationId ? { 'Idempotency-Key': operationId } : undefined
     });
-    await identity.assertCurrent();
+    try {
+      await identity.assertCurrent();
+    } catch (error) {
+      if (method !== 'GET') throw new HttpError('provider_unavailable', 503);
+      throw error;
+    }
     return value;
   };
   const mutate = async <T>(
@@ -386,35 +299,67 @@ export function createLiveLedgerService({
     }) => Promise<T>,
     operationId?: string
   ): Promise<T> => {
-    let state = pending.get(key);
-    if (!state) {
-      state = { operationId: operationId?.trim() || randomUUID() };
-      state.expectedVersion = await prepare();
-      pending.set(key, state);
-    }
+    const identity = await captureLiveClerkIdentity();
+    const scopedKey = `${identity.userId}:${operationId?.trim() ?? ''}:${key}`;
+    const active = inFlight.get(scopedKey);
+    if (active) return active as Promise<T>;
+    const operation = (async () => {
+      let state = pending.get(scopedKey);
+      if (!state) {
+        state = { operationId: operationId?.trim() || randomUUID() };
+        pending.set(scopedKey, state);
+      }
+      try {
+        if (!state.prepared) {
+          state.expectedVersion = await prepare();
+          state.prepared = true;
+        }
+        await identity.assertCurrent();
+        const value = await command(state);
+        try {
+          await identity.assertCurrent();
+        } catch {
+          throw new HttpError('provider_unavailable', 503);
+        }
+        pending.delete(scopedKey);
+        return value;
+      } catch (error) {
+        if (
+          !(error instanceof HttpError) ||
+          (![
+            'provider_unavailable',
+            'internal_error',
+            'contract_mismatch'
+          ].includes(error.code) &&
+            !['IDEMPOTENCY_IN_PROGRESS', 'LEDGER_BUSY'].includes(
+              error.domainCode ?? ''
+            ))
+        )
+          pending.delete(scopedKey);
+        throw error;
+      }
+    })();
+    inFlight.set(scopedKey, operation);
     try {
-      const value = await command(state);
-      pending.delete(key);
-      return value;
-    } catch (error) {
-      if (
-        !(error instanceof HttpError) ||
-        ![
-          'provider_unavailable',
-          'internal_error',
-          'contract_mismatch'
-        ].includes(error.code)
-      )
-        pending.delete(key);
-      throw error;
+      return await operation;
+    } finally {
+      inFlight.delete(scopedKey);
     }
   };
+  const localTransaction = (transaction: Transaction): Transaction => ({
+    ...transaction,
+    categoryId: transaction.categoryId
+      ? (categoryIds?.toLocal(transaction.categoryId) ?? transaction.categoryId)
+      : null
+  });
+  const detailTransaction = (value: unknown) =>
+    localTransaction(transactionFromDetail(value));
   const current = (id: string) =>
     send(
       'GET',
       `/api/v1/transactions/${encodeURIComponent(id)}`,
       detailSchema
-    ).then(transactionFromDetail);
+    ).then(detailTransaction);
   const mutationResult = (value: Transaction): MutationResult<Transaction> => ({
     value,
     affectedScopes: transactionScopes(value.id)
@@ -428,14 +373,26 @@ export function createLiveLedgerService({
     ): Promise<TransactionPage> {
       if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
         throw new CoreFinanceError('validation');
-      const query = ledgerQuery(filters, cursor, pageSize);
+      const owner = await captureLiveClerkIdentity();
+      await categoryIds?.prepare();
+      await owner.assertCurrent();
+      const query = ledgerQuery(
+        {
+          ...filters,
+          categoryIds: filters.categoryIds.map(
+            (id) => categoryIds?.toServer(id) ?? id
+          )
+        },
+        cursor,
+        pageSize
+      );
       const page = await send(
         'GET',
         `/api/v1/transactions?${query.toString()}`,
         pageSchema
       );
       const items = page.items
-        .map((item) => transactionFromSummary(item))
+        .map((item) => localTransaction(transactionFromSummary(item)))
         .filter((item) => matchesFilters(item, filters));
       return { items, nextCursor: page.nextCursor };
     },
@@ -471,7 +428,7 @@ export function createLiveLedgerService({
       } while (cursor);
       return Math.max(0, original.amountMinor - refunded);
     },
-    async createTransaction(input, operationId, source) {
+    async createTransaction(input, operationId, source, preparedVersion) {
       const value = transactionInputSchema.parse(input);
       if (value.type === 'transfer') {
         const result = await mutate(
@@ -485,8 +442,8 @@ export function createLiveLedgerService({
       if (value.type === 'refund' || value.type === 'reversal') {
         const originalId = value.originalTransactionId!;
         const result = await mutate(
-          `${value.type}:${originalId}:${JSON.stringify(value)}`,
-          async () => (await current(originalId)).version,
+          `${value.type}:${originalId}:${JSON.stringify(value)}:${preparedVersion ?? ''}`,
+          async () => preparedVersion ?? (await current(originalId)).version,
           async ({ operationId: key, expectedVersion }) => {
             const path =
               value.type === 'refund'
@@ -509,7 +466,7 @@ export function createLiveLedgerService({
           },
           operationId
         );
-        return mutationResult(transactionFromDetail(result.transaction));
+        return mutationResult(detailTransaction(result.transaction));
       }
       if (value.type !== 'income' && value.type !== 'expense')
         throw new CoreFinanceError('validation');
@@ -532,7 +489,7 @@ export function createLiveLedgerService({
           send('POST', '/api/v1/transactions', mutationSchema, body, key),
         operationId
       );
-      return mutationResult(transactionFromDetail(result.transaction));
+      return mutationResult(detailTransaction(result.transaction));
     },
     async createCardPayoff(input, operationId) {
       const transfer: TransactionInput = {
@@ -556,7 +513,7 @@ export function createLiveLedgerService({
       return mutationResult({ ...value, transferPurpose: 'card_payoff' });
     },
     async createTransactionsAtomically(inputs, operationId, source) {
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       const replay = drafts.batchOperationResult(operationId);
       if (replay)
         return {
@@ -574,6 +531,8 @@ export function createLiveLedgerService({
       )
         throw new CoreFinanceError('validation');
       const owner = await captureLiveClerkIdentity();
+      await categoryIds?.prepare();
+      await owner.assertCurrent();
       const deviceId = await currentDeviceId(baseUrl, request, owner.token);
       const client = new SyncHttpService(
         baseUrl,
@@ -598,7 +557,9 @@ export function createLiveLedgerService({
               amountMinor: input.amountMinor,
               currency: input.currencyCode,
               accountId: input.accountId,
-              categoryId: input.categoryId,
+              categoryId: input.categoryId
+                ? (categoryIds?.toServer(input.categoryId) ?? input.categoryId)
+                : null,
               title: input.title,
               merchant: input.merchant,
               note: input.notes,
@@ -620,7 +581,7 @@ export function createLiveLedgerService({
       )
         throw new CoreFinanceError('conflict');
       const transactions = batch.data.receipts.map((receipt) =>
-        transactionFromDetail(mutationSchema.parse(receipt.result).transaction)
+        detailTransaction(mutationSchema.parse(receipt.result).transaction)
       );
       await owner.assertCurrent();
       await drafts.persistBatchOperationResult(operationId, transactions);
@@ -648,7 +609,7 @@ export function createLiveLedgerService({
             throw new CoreFinanceError('validation');
           const body: Record<string, unknown> = {
             expectedVersion,
-            reason: next.notes || 'Mobile edit'
+            reason: 'Mobile edit'
           };
           for (const [field, value] of [
             ['amountMinor', next.amountMinor],
@@ -670,22 +631,22 @@ export function createLiveLedgerService({
           );
         }
       );
-      return mutationResult(transactionFromDetail(result.transaction));
+      return mutationResult(detailTransaction(result.transaction));
     },
     async saveDraft(draft: TransactionDraft) {
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       const value = drafts.saveDraft(draftInputSchema.parse(draft));
       await drafts.persistDraft(value);
       return value;
     },
     async loadDraft(id: string) {
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       return drafts.loadDraft(id);
     },
     async discardDraft(id: string) {
-      await ensureLocalReady();
-      drafts.discardDraft(id);
+      const { repository: drafts } = await ensureLocalReady();
       await drafts.removePersistedDraft(id);
+      drafts.discardDraft(id);
     },
     async deleteTransaction(id): Promise<DeleteResult> {
       const prior = await current(id);
@@ -726,7 +687,7 @@ export function createLiveLedgerService({
             operationId
           )
       );
-      return mutationResult(transactionFromDetail(result.transaction));
+      return mutationResult(detailTransaction(result.transaction));
     },
     async getConflict(id) {
       try {
@@ -736,7 +697,7 @@ export function createLiveLedgerService({
           request,
           current
         );
-        await ensureLocalReady();
+        const { repository: drafts } = await ensureLocalReady();
         drafts.saveConflict(conflict);
         await drafts.persistConflictRecord(conflict);
         return conflict;
@@ -745,7 +706,7 @@ export function createLiveLedgerService({
           error instanceof HttpError &&
           ['provider_unavailable', 'rate_limited'].includes(error.code)
         ) {
-          await ensureLocalReady();
+          const { repository: drafts } = await ensureLocalReady();
           return drafts.requireConflict(id);
         }
         throw error;
@@ -779,7 +740,7 @@ export function createLiveLedgerService({
         syncStatus: 'synced' as const
       };
       await remote.owner.assertCurrent();
-      await ensureLocalReady();
+      const { repository: drafts } = await ensureLocalReady();
       drafts.saveConflict(conflict);
       await Promise.all([
         drafts.persistConflictRecord(conflict),

@@ -94,6 +94,16 @@ describeLiveDatabase('AI worker recovery', () => {
     expect(purge).toMatchObject({ id: sessionId });
     if (!purge) throw new Error('AI_PURGE_CLAIM_MISSING');
     await expect(repository.completePurge(purge.id, purge.purge_token, false)).resolves.toBe(true);
+    expect(
+      (await repository.claimPurges('purge-before-backoff', 100, 120)).some(
+        ({ id }) => id === sessionId,
+      ),
+    ).toBe(false);
+    // Advance this fixture's cleanup deadline and actual legacy upload capability lifetime.
+    await pool.query(
+      "update public.voice_sessions set next_attempt_at=clock_timestamp()-interval '1 second',media_capability_expires_at=clock_timestamp()-interval '1 second' where id=$1",
+      [sessionId],
+    );
     const retry = (await repository.claimPurges('purge-worker-retry', 100, 120)).find(
       ({ id }) => id === sessionId,
     );

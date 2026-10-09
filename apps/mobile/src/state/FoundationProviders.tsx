@@ -84,7 +84,13 @@ export function FoundationProviders({
 
   useEffect(() => {
     changeLocale(locale);
-    if (previousLocale.current !== locale) client.clear();
+    if (previousLocale.current !== locale) {
+      // Voice receipts are owner-scoped data, not locale-dependent query results.
+      client.removeQueries({
+        predicate: (query) => query.queryKey[0] !== 'voice-analysis'
+      });
+      client.getMutationCache().clear();
+    }
     previousLocale.current = locale;
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.documentElement.dir = direction;

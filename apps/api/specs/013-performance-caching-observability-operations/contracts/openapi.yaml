@@ -8,6 +8,91 @@ servers:
 security:
   - ClerkBearer: []
 paths:
+  /api/v1/admin/ai/usage-limits:
+    get:
+      operationId: getAiUsageLimits
+      tags: [Configuration]
+      description: Requires operations.settings.read. Returns only independent quota policies, effective usage, estimated/reserved costs and bounded audit history (audit.read). Mutations use the existing governed settings endpoint with operations.settings.manage, ai.routes.manage, recent authentication, version and idempotency checks. Deterministic financial reads consume no provider quota.
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
+      responses:
+        '200':
+          description: Separate Chat and Voice limits and current selected-user usage. Monthly per-user windows are UTC calendar months; daily windows are rolling 24 hours. Null overrides inherit feature defaults.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [userId, settings, features, projectEstimatedCostUsd, monthlyProjectResetsAt, history, directReadsConsumeQuota]
+                properties:
+                  userId: { type: string, minLength: 1, maxLength: 128 }
+                  directReadsConsumeQuota: { type: boolean, const: false }
+                  projectEstimatedCostUsd: { type: number, minimum: 0 }
+                  monthlyProjectResetsAt: { type: string, format: date-time }
+                  settings:
+                    type: array
+                    minItems: 10
+                    maxItems: 10
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [key, value, version]
+                      properties:
+                        key: { type: string, enum: [ai.user.rolling_limit, ai.global.monthly_budget, ai.chat.rolling_limit, ai.chat.monthly_limit, ai.chat.enabled, ai.chat.user_override, ai.voice.rolling_limit, ai.voice.monthly_limit, ai.voice.enabled, ai.voice.user_override] }
+                        value: { description: Allowlisted validated quota setting value; monthly null means no cap. }
+                        version: { type: integer, minimum: 1 }
+                  features:
+                    type: array
+                    minItems: 2
+                    maxItems: 2
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [feature, limit, monthlyLimit, enabled, routeEnabled, override, used, remaining, resetsAt, windowHours, monthlyUsed, monthlyRemaining, monthlyResetsAt, estimatedCostUsd]
+                      properties:
+                        feature: { type: string, enum: [chat, voice] }
+                        limit: { type: integer, minimum: 1, maximum: 1000 }
+                        monthlyLimit: { type: [integer, 'null'], minimum: 1, maximum: 1000000 }
+                        enabled: { type: boolean }
+                        routeEnabled: { type: boolean }
+                        override:
+                          type: object
+                          additionalProperties: false
+                          required: [rollingLimit, monthlyLimit]
+                          properties:
+                            rollingLimit: { type: [integer, 'null'], minimum: 1, maximum: 1000 }
+                            monthlyLimit: { type: [integer, 'null'], minimum: 1, maximum: 1000000 }
+                        used: { type: integer, minimum: 0 }
+                        remaining: { type: integer, minimum: 0 }
+                        resetsAt: { type: string, format: date-time }
+                        windowHours: { type: integer, const: 24 }
+                        monthlyUsed: { type: integer, minimum: 0 }
+                        monthlyRemaining: { type: [integer, 'null'], minimum: 0 }
+                        monthlyResetsAt: { type: string, format: date-time }
+                        estimatedCostUsd: { type: number, minimum: 0 }
+                  history:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [id, key, at, actorId, reason, before, after]
+                      properties:
+                        id: { type: string }
+                        key: { type: string }
+                        at: { type: string, format: date-time }
+                        actorId: { type: string }
+                        reason: { type: [string, 'null'] }
+                        before: { type: [string, 'null'] }
+                        after: { type: [string, 'null'] }
+        '400': { $ref: '#/components/responses/SafeError' }
+        '401': { $ref: '#/components/responses/SafeError' }
+        '403': { $ref: '#/components/responses/SafeError' }
+        '404': { $ref: '#/components/responses/SafeError' }
+        '503': { $ref: '#/components/responses/SafeError' }
   /api/v1/admin/system-health/overview:
     get:
       operationId: getOperationsHealthOverview

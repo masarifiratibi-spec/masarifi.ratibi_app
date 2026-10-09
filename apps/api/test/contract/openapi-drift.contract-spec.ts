@@ -90,6 +90,15 @@ describe('OpenAPI drift', () => {
 
   afterAll(async () => app.close());
 
+  it('publishes ten-event Voice v3 receipt limits', () => {
+    const ai = loadContract(
+      '../../specs/009-voice-openrouter-financial-assistant/contracts/openapi.yaml',
+    );
+    const result = ai.components?.schemas?.VoiceBatchResult?.properties;
+    expect(result?.transactionIds).toMatchObject({ maxItems: 10, uniqueItems: true });
+    expect(result?.addedCount).toMatchObject({ minimum: 0, maximum: 10 });
+  });
+
   it('matches the combined approved endpoint and schema surface', () => {
     const foundation = loadContract('../../specs/001-backend-foundation/contracts/openapi.yaml');
     const identity = loadContract(

@@ -26,8 +26,8 @@ describe('operations job registry', () => {
   });
 
   it('contains every governed job once and no paid work', () => {
-    expect(GOVERNED_JOB_KEYS).toHaveLength(52);
-    expect(new Set(GOVERNED_JOB_KEYS).size).toBe(52);
+    expect(GOVERNED_JOB_KEYS).toHaveLength(53);
+    expect(new Set(GOVERNED_JOB_KEYS).size).toBe(53);
     expect(JSON.stringify(GOVERNED_JOB_KEYS)).not.toMatch(
       /billing|stripe|subscription|entitlement|checkout|promotion/iu,
     );
@@ -63,6 +63,30 @@ describe('operations job registry', () => {
     });
     await expect(registry.run('shell.execute')).rejects.toThrow('OPERATIONS_JOB_UNKNOWN');
     await expect(registry.run('billing.reconcile')).rejects.toThrow('OPERATIONS_JOB_UNKNOWN');
+  });
+
+  it('routes scheduled voice-media.purge to the AI handler, never engagement', async () => {
+    const ai = { runJob: jest.fn().mockResolvedValue(1) };
+    const engagement = { runJob: jest.fn().mockRejectedValue(new Error('ENGAGEMENT_JOB_UNKNOWN')) };
+    const registry = new OperationsJobRegistry(
+      { runJob: jest.fn() },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ai as never,
+      undefined,
+      engagement as never,
+    );
+    await expect(registry.run('voice-media.purge')).resolves.toEqual({
+      outcome: 'succeeded',
+      processed: 1,
+    });
+    expect(ai.runJob).toHaveBeenCalledWith('voice-media.purge');
+    expect(engagement.runJob).not.toHaveBeenCalled();
   });
 });
 

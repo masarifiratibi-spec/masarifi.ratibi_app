@@ -135,6 +135,7 @@ export interface TransactionDraft {
   occurredAt: number | null;
   status: 'editing' | 'valid' | 'saving' | 'saved' | 'discarded';
   updatedAt: number;
+  submission?: ManualSubmission | null;
 }
 
 export interface TransactionFilterSet {
@@ -390,6 +391,35 @@ export const transactionInputSchema = z
     }
   });
 
+export const manualSubmissionSchema = z
+  .object({
+    version: z.literal(1),
+    operationId: z.string().uuid(),
+    input: transactionInputSchema,
+    expectedVersion: z.number().int().positive().optional(),
+    firstAttemptAt: z.number().int().nonnegative(),
+    phase: z.enum(['submitting', 'unknown', 'saved']),
+    transactionId: z.string().min(1).max(128).optional(),
+    affectedScopes: z.array(z.string().max(160)).max(20).optional()
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      (value.input.type === 'refund' || value.input.type === 'reversal') &&
+      !value.expectedVersion
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'missing prepared linked version'
+      });
+    if ((value.phase === 'saved') !== Boolean(value.transactionId))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'inconsistent saved submission'
+      });
+  });
+export type ManualSubmission = z.infer<typeof manualSubmissionSchema>;
+
 export const draftInputSchema = z.object({
   id: z.string().min(1),
   transactionType: z.enum(transactionTypes).nullable(),
@@ -401,7 +431,8 @@ export const draftInputSchema = z.object({
   notes: z.string().trim().max(500).nullable(),
   occurredAt: z.number().int().nonnegative().nullable(),
   status: z.enum(['editing', 'valid', 'saving', 'saved', 'discarded']),
-  updatedAt: z.number().int().nonnegative()
+  updatedAt: z.number().int().nonnegative(),
+  submission: manualSubmissionSchema.nullable().optional()
 });
 
 export const conflictResolutionSchema = z.enum([
