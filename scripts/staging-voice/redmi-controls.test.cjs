@@ -14,7 +14,7 @@ function packet() {
   return {
     version: 2, mode: "canary", project: "qcffvfbpzvpwcwxwjyro", device: "f66a40694eca",
     attemptId: "11111111-1111-4111-8111-111111111111",
-    sourceSha: "a".repeat(40), imageDigest: "b".repeat(64), apkHash: "c".repeat(64),
+    sourceSha: service().sourceSha, imageDigest: service().imageDigest, apkHash: "c".repeat(64),
     controlHash: "d".repeat(64), migrationHash: "e".repeat(64),
     ownerId: "user_LOCALRedmiFixture", clerkSessionHash: "f".repeat(64),
     accountId: "22222222-2222-4222-8222-222222222222",
@@ -89,7 +89,12 @@ test("reordered JSON and a later fresh window preserve approval while financial 
     ["categoryId", "44444444-4444-4444-8444-444444444444"],
     ["sourceSha", "6".repeat(40)], ["imageDigest", "6".repeat(64)],
     ["apkHash", "6".repeat(64)], ["controlHash", "6".repeat(64)], ["migrationHash", "6".repeat(64)],
-  ]) assert.throws(() => approve(changed(scope, path, replacement), humanEvidence, NOW), /MISMATCH/, path);
+  ]) assert.throws(() => approve(changed(scope, path, replacement), humanEvidence, NOW), /MISMATCH|SOURCE_CHANGED|IMAGE_CHANGED/, path);
+});
+
+test("the target worker must use the verified API source and image", () => {
+  assert.throws(() => validatePacket(changed(packet(), "sourceSha", "a".repeat(40)), NOW), /SOURCE_CHANGED/);
+  assert.throws(() => validatePacket(changed(packet(), "imageDigest", "b".repeat(64)), NOW), /IMAGE_CHANGED/);
 });
 
 test("broadened or malformed scope, runtime, baseline and safety declarations fail closed", () => {

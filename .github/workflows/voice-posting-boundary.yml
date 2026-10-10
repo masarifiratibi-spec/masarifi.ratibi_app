@@ -28,6 +28,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci --ignore-scripts
+      - name: Verify bounded operator approval controls
+        run: node --test ../../scripts/staging-voice/redmi-controls.test.cjs
       - name: Start disposable local Supabase
         run: npm run supabase:start
       - run: npm run db:reset

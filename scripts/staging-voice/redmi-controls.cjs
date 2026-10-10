@@ -127,6 +127,8 @@ function validatePacket(packet, now = Date.now()) {
   encodedIdentifier(packet.sourceSha, SHA40, 40);
   for (const field of ["imageDigest", "apkHash", "controlHash", "migrationHash", "clerkSessionHash"])
     encodedIdentifier(packet[field], HEX64, 64);
+  assert.equal(packet.sourceSha, API_SOURCE, "PACKET_RUNTIME_SOURCE_CHANGED");
+  assert.equal(packet.imageDigest, API_IMAGE, "PACKET_RUNTIME_IMAGE_CHANGED");
   validateBaseline(packet.baseline);
   validateRuntime(packet.runtime);
   validatePreservation(packet);

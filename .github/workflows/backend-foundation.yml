@@ -95,7 +95,7 @@ jobs:
         run: node --test ../../scripts/voice-manual-canary/canary-controls.test.cjs ../../scripts/voice-manual-canary/canary-closure.test.cjs
       - name: Verify Staging Voice epoch closure and guards
         run: |
-          node --test ../../scripts/staging-voice/controls.test.cjs ../../scripts/staging-voice/deployment-guard.test.cjs ../../scripts/staging-voice/deploy-cohort.test.cjs ../../scripts/staging-voice/cross-feature-compatibility.test.cjs ../../scripts/staging-voice/collect-compatibility.test.cjs ../../scripts/staging-voice/tracking-runtime.test.cjs
+          node --test ../../scripts/staging-voice/controls.test.cjs ../../scripts/staging-voice/redmi-controls.test.cjs ../../scripts/staging-voice/deployment-guard.test.cjs ../../scripts/staging-voice/deploy-cohort.test.cjs ../../scripts/staging-voice/cross-feature-compatibility.test.cjs ../../scripts/staging-voice/collect-compatibility.test.cjs ../../scripts/staging-voice/tracking-runtime.test.cjs
           python3 ../../scripts/staging-voice/operating-host.test.py
 
   mobile:
