@@ -9,6 +9,10 @@ import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 
 jest.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void) => {
+    const React = jest.requireActual<typeof import('react')>('react');
+    React.useEffect(callback, [callback]);
+  },
   router: {
     push: jest.fn(),
     replace: jest.fn(),

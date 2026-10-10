@@ -6,6 +6,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import {
   draftInputSchema,
   matchesFilters,
+  safeMinorSum,
   transactionInputSchema,
   type Transaction,
   type TransactionDraft,
@@ -27,6 +28,7 @@ import { SyncHttpService } from '@/services/contracts/sync-service';
 import { captureLiveClerkIdentity } from './auth-service';
 import { HttpError, requestJson } from './http-client';
 import { ledgerDetailSchema as detailSchema, ledgerSummarySchema as summarySchema, serverKind, serverStatus } from './ledger-api-contract';
+import { readHomeTodayActivity } from '@/services/home-today-activity';
 
 const uuid = z.string().uuid();
 const instant = z.string().datetime({ offset: true });
@@ -194,6 +196,7 @@ const devicePageSchema = z
 
 type LedgerService = Pick<
   CoreFinanceService,
+  | 'getHomeTodayActivity'
   | 'listTransactions'
   | 'getTransaction'
   | 'getRemainingRefundableMinor'
@@ -259,7 +262,8 @@ export function createLiveLedgerService({
     path: string,
     schema: z.ZodType<T>,
     body?: Record<string, unknown>,
-    operationId?: string
+    operationId?: string,
+    signal?: AbortSignal
   ): Promise<T> => {
     if (method !== 'GET' && !operationId?.trim())
       throw new HttpError('validation_error', 400);
@@ -278,6 +282,7 @@ export function createLiveLedgerService({
       baseUrl,
       request,
       method,
+      signal,
       body: serverBody,
       token: identity.token,
       headers: operationId ? { 'Idempotency-Key': operationId } : undefined
@@ -365,12 +370,12 @@ export function createLiveLedgerService({
     affectedScopes: transactionScopes(value.id)
   });
 
-  return {
-    async listTransactions(
-      filters,
-      cursor = null,
-      pageSize = 25
-    ): Promise<TransactionPage> {
+  const listTransactions = async (
+      filters: TransactionFilterSet,
+      cursor: string | null = null,
+      pageSize = 25,
+      signal?: AbortSignal
+    ): Promise<TransactionPage> => {
       if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
         throw new CoreFinanceError('validation');
       const owner = await captureLiveClerkIdentity();
@@ -389,12 +394,42 @@ export function createLiveLedgerService({
       const page = await send(
         'GET',
         `/api/v1/transactions?${query.toString()}`,
-        pageSchema
+        pageSchema,
+        undefined,
+        undefined,
+        signal
       );
       const items = page.items
         .map((item) => localTransaction(transactionFromSummary(item)))
         .filter((item) => matchesFilters(item, filters));
       return { items, nextCursor: page.nextCursor };
+    };
+  return {
+    listTransactions,
+    async getHomeTodayActivity(filters, signal) {
+      const owner = await captureLiveClerkIdentity();
+      const activity = await readHomeTodayActivity({
+        filters, signal, listTransactions,
+        readSignedEffect: async (transaction) => {
+          const detail = await send('GET', `/api/v1/transactions/${transaction.id}`, detailSchema, undefined, undefined, signal);
+          if (detail.transaction.version !== transaction.version || detail.transaction.id !== transaction.id ||
+              detail.transaction.currency !== transaction.currencyCode || detail.postings.some((posting) => posting.clearingState !== 'confirmed'))
+            throw new CoreFinanceError('conflict');
+          if (detail.transaction.kind === 'opening') return null;
+          if (detail.transaction.kind === 'reversal' && detail.transaction.originalTransactionId) {
+            const original = await send('GET', `/api/v1/transactions/${detail.transaction.originalTransactionId}`, detailSchema, undefined, undefined, signal);
+            if (original.transaction.kind === 'transfer' || original.transaction.kind === 'opening') return null;
+          }
+          return detail.postings.filter((posting) => posting.clearingState === 'confirmed')
+            .reduce((total, posting) => {
+              const sum = safeMinorSum(total, posting.amountMinor);
+              if (sum === null) throw new CoreFinanceError('unknown');
+              return sum;
+            }, 0);
+        }
+      });
+      await owner.assertCurrent();
+      return activity;
     },
     getTransaction: current,
     async getRemainingRefundableMinor(originalTransactionId, excludedRefundId) {

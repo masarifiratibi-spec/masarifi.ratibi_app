@@ -8,7 +8,7 @@ import {
   within
 } from '@testing-library/react-native';
 import { QueryClient } from '@tanstack/react-query';
-import type { HomeSummary, Transaction } from '@/domain/core-finance';
+import type { HomeSummary, Transaction, TransactionFilterSet as MockTransactionFilterSet } from '@/domain/core-finance';
 import { FoundationProviders } from '@/state/FoundationProviders';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { usePreferenceStore } from '@/state/preferences';
@@ -39,6 +39,16 @@ jest.mock('@/services/voice-analyzer-service', () => ({
 jest.mock('@/services/mocks/core-finance-service', () => ({
   coreFinanceService: {
     getHomeSummary: jest.fn(),
+    getHomeTodayActivity: (...args: unknown[]) => {
+      const { readHomeTodayActivity } = jest.requireActual<typeof import('@/services/home-today-activity')>('@/services/home-today-activity');
+      const { coreFinanceService } = jest.requireMock('@/services/mocks/core-finance-service');
+      return readHomeTodayActivity({
+        filters: args[0] as MockTransactionFilterSet,
+        signal: args[1] as AbortSignal | undefined,
+        listTransactions: coreFinanceService.listTransactions,
+        readSignedEffect: async () => null
+      });
+    },
     listTransactions: jest.fn(),
     listAccounts: jest.fn(),
     listCategories: jest.fn()
@@ -51,7 +61,13 @@ jest.mock('@/features/voice/useVoiceCapture', () => ({
     batches: { uncertain: false, processing: false }
   })
 }));
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+  useFocusEffect: (callback: () => void) => {
+    const React = jest.requireActual<typeof import('react')>('react');
+    React.useEffect(callback, [callback]);
+  }
+}));
 jest.mock('@/services/live/clerk-provider', () => ({
   getLiveClerkDisplayName: () => null
 }));
@@ -462,7 +478,7 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
         expect(screen.getByTestId('home-horizon')).toBeTruthy()
       );
       await waitFor(() =>
-        expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(1)
+        expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(2)
       );
       const homeReads = jest.mocked(coreFinanceService.getHomeSummary).mock
         .calls.length;
@@ -475,7 +491,7 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
           'Diagnostic voice breakfast'
         )
       ).toBeNull();
-      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(1);
+      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(2);
       expect(coreFinanceService.getHomeSummary).toHaveBeenCalledTimes(
         homeReads
       );
@@ -548,7 +564,7 @@ it('shows authoritative read failures instead of inventing cards or hiding them 
       expect(screen.getByTestId('home-horizon')).toBeTruthy()
     );
     await waitFor(() =>
-      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(1)
+      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(2)
     );
     await act(async () => view.batches.submit(capture));
     await waitFor(() =>

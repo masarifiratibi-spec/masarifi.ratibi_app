@@ -115,11 +115,12 @@ export function formatFinancialDisplayValue({
   return { text, accessibilityLabel: text };
 }
 
-export function formatDate(timestamp: number, locale: Locale): string {
+export function formatDate(timestamp: number, locale: Locale, timeZone?: string): string {
   return new Intl.DateTimeFormat(LATIN_NUMERAL_LOCALES[locale], {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone
   }).format(new Date(timestamp));
 }
 

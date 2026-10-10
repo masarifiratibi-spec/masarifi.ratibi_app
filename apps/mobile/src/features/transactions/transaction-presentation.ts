@@ -25,7 +25,8 @@ export function projectTransaction(
   transaction: Transaction,
   locale: Locale,
   account?: Account,
-  category?: Category
+  category?: Category,
+  timeZone?: string
 ): TransactionPresentation {
   return {
     transaction,
@@ -37,7 +38,7 @@ export function projectTransaction(
         ? category.labelAr
         : category.labelEn
       : null,
-    dateLabel: formatDate(transaction.occurredAt, locale),
+    dateLabel: formatDate(transaction.occurredAt, locale, timeZone),
     meaning: financialMeaning(transaction),
     sourceLabelKey: `coreFinance.source.${transaction.source}`,
     syncLabelKey:

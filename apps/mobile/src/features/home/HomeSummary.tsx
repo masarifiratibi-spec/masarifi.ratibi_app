@@ -28,8 +28,7 @@ import {
 import type {
   Account,
   Category,
-  HomeSummary as HomeSummaryValue,
-  Transaction
+  HomeSummary as HomeSummaryValue
 } from '@/domain/core-finance';
 import { TransactionCard } from '@/features/transactions/TransactionCard';
 import { useVoiceCapture } from '@/features/voice/useVoiceCapture';
@@ -39,6 +38,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { useTheme } from '@/state/theme-context';
 import { formatFinancialDisplayValue } from '@/utils/format-financial-value';
+import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
 import { AccountScopeSheet } from '@/features/accounts/AccountScopeSheet';
 
 export function HomeSummary({
@@ -46,13 +46,17 @@ export function HomeSummary({
   categories,
   notice,
   selectedAccount = null,
-  summary
+  summary,
+  todayActivity = [],
+  activityStatus
 }: {
   accounts?: Account[];
   categories?: Category[];
   notice?: React.ReactNode;
   selectedAccount?: Account | null;
   summary: HomeSummaryValue;
+  todayActivity?: HomeTodayActivity[];
+  activityStatus?: React.ReactNode;
 }) {
   const { revealed, reveal } = useSensitiveVisibility();
   const [accountsSheetVisible, setAccountsSheetVisible] = useState(false);
@@ -102,12 +106,8 @@ export function HomeSummary({
             : 'confirmed'
       })
     : null;
-  const expenses = summary.recentTransactions
-    .filter(({ type }) => type === 'expense')
-    .slice(0, 2);
-  const income = summary.recentTransactions
-    .filter(({ type }) => type === 'income')
-    .slice(0, 2);
+  const expenses = todayActivity.filter(({ group }) => group === 'expense');
+  const income = todayActivity.filter(({ group }) => group === 'income');
   const voiceRecording = voice.session.state === 'recording';
   const captureProcessing = [
     'requesting_permission',
@@ -557,6 +557,7 @@ export function HomeSummary({
           </View>
         ) : null}
         {notice}
+        {activityStatus}
         {expenses.length ? (
           <ActivitySection
             accounts={accounts}
@@ -577,13 +578,11 @@ export function HomeSummary({
             transactions={income}
           />
         ) : null}
-        {!expenses.length && !income.length ? (
+        {!activityStatus && !expenses.length && !income.length ? (
           <Text
             style={[styles.empty, { color: theme.colors.content.secondary }]}
           >
-            {scoped
-              ? translate('coreFinance.home.accountEmpty')
-              : translate('coreFinance.ledger.empty')}
+            {translate('coreFinance.home.todayEmpty')}
           </Text>
         ) : null}
       </View>
@@ -855,26 +854,45 @@ function ActivitySection({
   largeText: boolean;
   testID: 'home-expense-section' | 'home-income-section';
   title: string;
-  transactions: Transaction[];
+  transactions: HomeTodayActivity[];
 }) {
+  const theme = useTheme();
   return (
     <View testID={testID} style={styles.section}>
       <SectionHeading testID={`${testID}-heading`} title={title} />
       <View
         testID={`home-transaction-list-${testID === 'home-expense-section' ? 'expense' : 'income'}`}
-        style={styles.transactionList}
+        style={[
+          styles.transactionList,
+          {
+            backgroundColor: theme.colors.surfaces.card,
+            borderColor: theme.colors.horizon.sheetBorder
+          }
+        ]}
       >
-        {transactions.map((transaction) => (
-          <TransactionCard
-            key={transaction.id}
-            accountName={
-              accounts?.find(({ id }) => id === transaction.accountId)?.name
-            }
-            hidden={hidden}
-            largeText={largeText}
-            testIDPrefix="home"
-            transaction={transaction}
-          />
+        {transactions.map(({ transaction, group, sign }, index) => (
+          <React.Fragment key={transaction.id}>
+            {index > 0 ? (
+              <View
+                style={[
+                  styles.transactionDivider,
+                  { backgroundColor: theme.colors.horizon.sheetBorder }
+                ]}
+              />
+            ) : null}
+            <TransactionCard
+              accountName={
+                accounts?.find(({ id }) => id === transaction.accountId)?.name
+              }
+              contained
+              hidden={hidden}
+              largeText={largeText}
+              testIDPrefix="home"
+              transaction={transaction}
+              financialGroup={group}
+              sign={sign}
+            />
+          </React.Fragment>
         ))}
       </View>
     </View>
@@ -1079,7 +1097,13 @@ const styles = StyleSheet.create({
   sectionAction: { justifyContent: 'center', minHeight: minTouchTarget },
   sectionActionText: { fontSize: 12, fontWeight: '700' },
   empty: { padding: spacing.xl, textAlign: 'center' },
-  transactionList: { gap: spacing.sm },
+  transactionList: {
+    ...elevation.card,
+    borderRadius: radius.group,
+    borderWidth: borderWidth.default,
+    overflow: 'hidden'
+  },
+  transactionDivider: { height: StyleSheet.hairlineWidth },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

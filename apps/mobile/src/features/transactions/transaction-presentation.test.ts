@@ -60,3 +60,12 @@ it('formats the visible month and relative transaction timestamps', () => {
     formatTransactionTimestamp(Date.UTC(2026, 7, 10, 9, 5), now, 'en', 'UTC')
   ).toContain('Aug 10, 2026');
 });
+
+it.each(['ar', 'en'] as const)('uses the saved timezone for the transaction date in %s', (locale) => {
+  const transaction = { ...fixtureTransactions[0], occurredAt: Date.parse('2026-10-07T21:05:00Z') };
+  const options = { year: 'numeric', month: 'short', day: 'numeric' } as const;
+  expect(projectTransaction(transaction, locale, undefined, undefined, 'Asia/Riyadh').dateLabel)
+    .toBe(new Intl.DateTimeFormat(locale === 'ar' ? 'ar-u-nu-latn' : 'en-US-u-nu-latn', { ...options, timeZone: 'Asia/Riyadh' }).format(transaction.occurredAt));
+  expect(projectTransaction(transaction, locale, undefined, undefined, 'UTC').dateLabel)
+    .not.toBe(projectTransaction(transaction, locale, undefined, undefined, 'Asia/Riyadh').dateLabel);
+});

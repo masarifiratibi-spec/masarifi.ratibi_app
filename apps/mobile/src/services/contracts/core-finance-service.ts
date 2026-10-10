@@ -38,6 +38,12 @@ export interface TransactionPage {
   total?: number;
 }
 
+export interface HomeTodayActivity {
+  transaction: Transaction;
+  group: 'expense' | 'income';
+  sign: 'negative' | 'positive';
+}
+
 export interface AccountBalanceProjection {
   accountId: string;
   balanceMinor: number;
@@ -89,6 +95,10 @@ export interface DeleteResult extends MutationResult<Transaction> {
 }
 
 export interface CoreFinanceService {
+  getHomeTodayActivity(
+    filters: TransactionFilterSet,
+    signal?: AbortSignal
+  ): Promise<HomeTodayActivity[]>;
   getHomeSummary(
     profileCurrency: string,
     filters?: TransactionFilterSet
@@ -128,7 +138,8 @@ export interface CoreFinanceService {
   listTransactions(
     filters: TransactionFilterSet,
     cursor?: string | null,
-    pageSize?: number
+    pageSize?: number,
+    signal?: AbortSignal
   ): Promise<TransactionPage>;
   getTransaction(id: string): Promise<Transaction>;
   getRemainingRefundableMinor(

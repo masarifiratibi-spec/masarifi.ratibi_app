@@ -7,6 +7,7 @@ import {
   emptyTransactionFilters,
   matchesFilters,
   projectTransactionEffects,
+  projectTransactionEffect,
   safeMinorSum,
   transactionInputSchema,
   type AccountInput,
@@ -50,6 +51,7 @@ import { HttpError } from '@/services/live/http-client';
 import { calculateCreditCardPayoff } from '@/domain/credit-card-payoff';
 import { createLiveLedgerService } from '@/services/live/core-finance-service';
 import { ZodError } from 'zod';
+import { readHomeTodayActivity } from '@/services/home-today-activity';
 
 const scopes = {
   account: (id: string) => [
@@ -137,6 +139,21 @@ export function createMockCoreFinanceService(
       majorVersion: coreFinanceServiceCapability.majorVersion,
       kind: 'mock',
       availability: 'available'
+    },
+    async getHomeTodayActivity(filters, signal) {
+      await ensureReady();
+      return readHomeTodayActivity({
+        filters, signal,
+        listTransactions: async (dayFilters, cursor, size) => repository.listTransactions(dayFilters, cursor, size),
+        readSignedEffect: async (transaction) => {
+          const original = transaction.originalTransactionId
+            ? repository.requireTransaction(transaction.originalTransactionId) : null;
+          if (original?.type === 'transfer') return null;
+          const committedOriginal = original && ['posted', 'refunded', 'reversed'].includes(original.status)
+            ? { ...original, status: 'posted' as const } : original;
+          return projectTransactionEffect({ ...transaction, status: 'posted' }, transaction.accountId, committedOriginal).confirmed.accountDeltaMinor;
+        }
+      });
     },
     async getHomeSummary(
       profileCurrency,

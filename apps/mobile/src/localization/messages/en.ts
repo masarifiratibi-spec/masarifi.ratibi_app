@@ -629,8 +629,9 @@ const en = {
   'coreFinance.home.accountScope.title': 'Choose account',
   'coreFinance.home.balance': 'Balance',
   'coreFinance.home.accountsNeedAttention': 'Accounts needing attention',
-  'coreFinance.home.recentExpenses': 'Recent expenses',
-  'coreFinance.home.recentIncome': 'Recent income',
+  'coreFinance.home.recentExpenses': "Today's expenses",
+  'coreFinance.home.recentIncome': "Today's income",
+  'coreFinance.home.todayEmpty': 'No transactions today',
   'coreFinance.home.manageAccounts': 'Manage accounts',
   'coreFinance.home.howBalancesWork': 'How balances work',
   'coreFinance.home.balanceExplanation':

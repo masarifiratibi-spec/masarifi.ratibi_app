@@ -32,16 +32,20 @@ import {
 } from '@/state/core-finance-view-state';
 import { useTheme } from '@/state/theme-context';
 import { HomeSummary } from './HomeSummary';
+import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
+import { useHomeTodayActivity } from './useHomeTodayActivity';
 
 export function HomeScreen({
   accounts,
   categories,
   summary,
+  todayActivity = [],
   notice
 }: {
   accounts?: Account[];
   categories?: Category[];
   summary?: HomeSummaryValue;
+  todayActivity?: HomeTodayActivity[];
   notice?: React.ReactNode;
 }) {
   const timeZone = usePreferenceStore((state) => state.timeZone);
@@ -63,6 +67,7 @@ export function HomeScreen({
           notice={summary.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={summary}
+          todayActivity={todayActivity}
         />
       </HomeLayout>
     );
@@ -100,6 +105,7 @@ function QueriedHomeScreen({
     (state) => state.baseCurrencyCode
   );
   const query = useHomeSummary(baseCurrencyCode, scopedFilters);
+  const activity = useHomeTodayActivity(selectedAccountId);
   const accounts = useAccounts(true);
   const categories = useCategories();
   const homeSummary = query.data;
@@ -141,6 +147,15 @@ function QueriedHomeScreen({
           notice={homeSummary.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={homeSummary}
+          todayActivity={activity.isError ? [] : activity.data ?? []}
+          activityStatus={activity.isPending || activity.isError ? (
+            <StateView
+              state={activity.isError ? 'error' : 'loading'}
+              title={translate(activity.isError ? 'coreFinance.state.error' : 'coreFinance.state.loading')}
+              actionLabel={activity.isError ? translate('coreFinance.action.retry') : undefined}
+              onAction={activity.isError ? () => void activity.refetch() : undefined}
+            />
+          ) : undefined}
         />
       ) : null}
     </HomeLayout>

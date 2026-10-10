@@ -23,31 +23,37 @@ import { colorTokens } from '@/design-system/tokens';
 
 export function TransactionCard({
   accountName,
+  contained = false,
   groupedPosition,
   hidden,
   largeText,
   testIDPrefix,
-  transaction
+  transaction,
+  financialGroup,
+  sign
 }: {
   accountName?: string;
+  contained?: boolean;
   groupedPosition?: 'first' | 'middle' | 'last' | 'only';
   hidden: boolean;
   largeText: boolean;
   testIDPrefix: 'account' | 'home';
   transaction: Transaction;
+  financialGroup?: 'expense' | 'income';
+  sign?: 'negative' | 'positive';
 }) {
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
-  const presentation = projectTransaction(transaction, locale);
+  const timeZone = usePreferenceStore((state) => state.timeZone);
+  const presentation = projectTransaction(transaction, locale, undefined, undefined, timeZone);
   const localizedAccountName = localizedDemoTransactionTitle(
     transaction.id,
     locale
   )
     ? localizedDemoAccountName(transaction.accountId, locale) ?? accountName
     : accountName;
-  const visualKey =
-    transaction.categoryId ?? (transaction.type === 'income' ? 'salary' : null);
+  const visualKey = transaction.categoryId;
   const category = resolveCategoryVisual(visualKey, 'category');
   const categoryLabel = translateDynamic(
     category?.labelKey ??
@@ -57,7 +63,7 @@ export function TransactionCard({
     {},
     locale
   );
-  const fixedHomeCard = testIDPrefix === 'home' && !groupedPosition;
+  const fixedHomeCard = testIDPrefix === 'home' && !groupedPosition && !largeText;
 
   return (
     <Pressable
@@ -75,7 +81,8 @@ export function TransactionCard({
       style={({ pressed }) => [
         styles.card,
         fixedHomeCard && styles.fixedHome,
-        !groupedPosition && elevation.card,
+        !groupedPosition && !contained && elevation.card,
+        contained && styles.contained,
         groupedPosition && styles.grouped,
         largeText && !fixedHomeCard
           ? styles.stacked
@@ -164,6 +171,7 @@ export function TransactionCard({
                 numberOfLines={largeText && !fixedHomeCard ? undefined : 1}
                 style={[
                   styles.accountText,
+                  largeText && testIDPrefix === 'home' && styles.wrappingAccountText,
                   { color: theme.colors.content.secondary }
                 ]}
               >
@@ -191,7 +199,8 @@ export function TransactionCard({
         <AmountText
           currency={transaction.currencyCode}
           masked={hidden}
-          meaning={presentation.meaning}
+          meaning={financialGroup && transaction.type !== 'refund' ? financialGroup : presentation.meaning}
+          sign={sign}
           minorUnits={transaction.amountMinor}
           size={groupedPosition ? 'compact' : 'home'}
         />
@@ -233,6 +242,7 @@ const styles = StyleSheet.create({
     minHeight: 84,
     paddingVertical: spacing.sm
   },
+  contained: { borderRadius: 0, borderWidth: 0 },
   grouped: {
     borderRadius: 0,
     borderWidth: 0,
@@ -264,6 +274,7 @@ const styles = StyleSheet.create({
     maxWidth: '100%'
   },
   accountText: { fontSize: 11, lineHeight: 15, writingDirection: 'auto' },
+  wrappingAccountText: { flexShrink: 1 },
   accountDot: { borderRadius: radius.pill, height: 6, width: 6 },
   amount: { flexShrink: 0, gap: 2, maxWidth: '45%' },
   amountStacked: { maxWidth: '100%' },

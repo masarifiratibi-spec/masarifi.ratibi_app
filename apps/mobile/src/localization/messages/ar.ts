@@ -604,8 +604,9 @@ const ar: MessageCatalog = {
   'coreFinance.home.accountScope.title': 'اختر الحساب',
   'coreFinance.home.balance': 'الرصيد',
   'coreFinance.home.accountsNeedAttention': 'حسابات تحتاج الانتباه',
-  'coreFinance.home.recentExpenses': 'المصروفات الأخيرة',
-  'coreFinance.home.recentIncome': 'الدخل الأخير',
+  'coreFinance.home.recentExpenses': 'مصروفات اليوم',
+  'coreFinance.home.recentIncome': 'دخل اليوم',
+  'coreFinance.home.todayEmpty': 'لا توجد معاملات اليوم',
   'coreFinance.home.manageAccounts': 'إدارة الحسابات',
   'coreFinance.home.howBalancesWork': 'كيف تعمل الأرصدة',
   'coreFinance.home.balanceExplanation':

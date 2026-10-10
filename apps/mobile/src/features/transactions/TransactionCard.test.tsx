@@ -4,6 +4,7 @@ import { elevation } from '@/design-system/tokens';
 import { renderWithProviders } from '@/test-utils/render';
 import { fixtureTransactions } from '@/test-utils/core-finance-fixtures';
 import { TransactionCard } from './TransactionCard';
+import { changeLocale, translate } from '@/localization/i18n';
 
 const transaction = fixtureTransactions[0];
 
@@ -21,6 +22,16 @@ function renderTransactionCard(groupedPosition?: 'only') {
 }
 
 describe('TransactionCard surface hierarchy', () => {
+  afterEach(() => changeLocale('ar'));
+
+  it.each(['ar', 'en'] as const)('does not classify an uncategorized income as salary in %s', (locale) => {
+    changeLocale(locale);
+    const screen = renderWithProviders(
+      <TransactionCard accountName="Voice Staging Test" groupedPosition="only" hidden={false} largeText={false} testIDPrefix="home" transaction={{ ...transaction, type: 'income', categoryId: null }} />
+    );
+    expect(screen.getByLabelText(translate('coreFinance.ledger.uncategorized', locale))).toBeTruthy();
+    expect(screen.queryByTestId('category-visual-openmoji-salary')).toBeNull();
+  });
   it('elevates a standalone home transaction card', () => {
     const screen = renderTransactionCard();
 

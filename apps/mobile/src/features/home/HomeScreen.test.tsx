@@ -1,6 +1,6 @@
 import React from 'react';
-import { AppState, PixelRatio, type AppStateStatus } from 'react-native';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { AppState, PixelRatio, StyleSheet, type AppStateStatus } from 'react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
@@ -19,7 +19,27 @@ import {
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
-import { HomeScreen } from './HomeScreen';
+import { HomeScreen as ActualHomeScreen } from './HomeScreen';
+
+function HomeScreen(props: React.ComponentProps<typeof ActualHomeScreen>) {
+  const todayActivity = props.todayActivity ?? (props.summary?.recentTransactions ?? [])
+    .filter(({ type }) => type === 'expense' || type === 'income')
+    .map((transaction) => ({ transaction, group: transaction.type as 'expense' | 'income', sign: transaction.type === 'income' ? 'positive' as const : 'negative' as const }));
+  return <ActualHomeScreen {...props} todayActivity={todayActivity} />;
+}
+
+it.each(['ar', 'en'] as const)('shows every supplied committed daily row in %s instead of using the truncated monthly summary', (locale) => {
+  changeLocale(locale);
+  const todayActivity = ['manual', 'voice', 'automatic', 'platform_assisted'].flatMap((source, index) =>
+    (['expense', 'income'] as const).map((group, kind) => ({
+      transaction: makeTransaction(100 + index * 2 + kind, { title: `Today ${index} ${group}`, source: source as 'manual' | 'voice' | 'automatic' | 'platform_assisted', type: group }),
+      group, sign: group === 'income' ? 'positive' as const : 'negative' as const
+    })));
+  renderWithProviders(<HomeScreen summary={summary} todayActivity={todayActivity} />);
+  for (const { transaction } of todayActivity)
+    expect(screen.getByTestId(`home-transaction-row-${transaction.id}`)).toBeTruthy();
+  expect(screen.queryByText('Al Nakheel Restaurant')).toBeNull();
+});
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/features/transactions/AccountPicker', () => ({
@@ -176,7 +196,7 @@ it('keeps the financial hierarchy visible when there are no accounts', () => {
   expect(screen.getByTestId('home-horizon')).toBeTruthy();
   expect(screen.getByTestId('home-account-card')).toBeTruthy();
   expect(screen.getByTestId('home-action-tray')).toBeTruthy();
-  expect(screen.getByText(translate('coreFinance.ledger.empty'))).toBeTruthy();
+  expect(screen.getByText(translate('coreFinance.home.todayEmpty'))).toBeTruthy();
 });
 
 it('masks all Home amounts when Hide Balances is enabled', () => {
@@ -217,10 +237,10 @@ it('shows recent expenses before income and excludes transfers from both section
     />
   );
 
-  const headings = screen.getAllByText(/Recent expenses|Recent income/);
+  const headings = screen.getAllByText(/Today's expenses|Today's income/);
   expect(headings.map((heading) => heading.props.children)).toEqual([
-    'Recent expenses',
-    'Recent income'
+    "Today's expenses",
+    "Today's income"
   ]);
   expect(screen.getByText('Coffee shop')).toBeTruthy();
   expect(screen.getByText('August salary')).toBeTruthy();
@@ -239,7 +259,7 @@ it('shows recent expenses before income and excludes transfers from both section
   ).toBeTruthy();
 });
 
-it('renders every recent transaction as an independent card without dividers', () => {
+it('shares one surface between recent rows without removing their individual actions', () => {
   jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);
   changeLocale('en');
   renderWithProviders(
@@ -255,15 +275,19 @@ it('renders every recent transaction as an independent card without dividers', (
   );
 
   expect(screen.getByTestId('home-transaction-list-expense')).toHaveStyle({
-    gap: 8
+    borderRadius: radius.group,
+    borderWidth: 1,
+    overflow: 'hidden'
   });
   for (const id of ['transaction-2', 'transaction-3']) {
     expect(screen.getByTestId(`home-transaction-row-${id}`)).toHaveStyle({
-      borderRadius: radius.card,
-      borderWidth: 1,
+      borderRadius: 0,
+      borderWidth: 0,
       height: 84,
       minHeight: 84
     });
+    fireEvent.press(screen.getByTestId(`home-transaction-row-${id}`));
+    expect(router.push).toHaveBeenLastCalledWith(`/transactions/${id}/edit`);
   }
 });
 
@@ -317,8 +341,8 @@ it('omits an activity section when it has no matching transactions', () => {
     />
   );
 
-  expect(screen.getByText('Recent expenses')).toBeTruthy();
-  expect(screen.queryByText('Recent income')).toBeNull();
+  expect(screen.getByText("Today's expenses")).toBeTruthy();
+  expect(screen.queryByText("Today's income")).toBeNull();
 });
 
 it('uses existing quick-action routes and opens Accounts as a modal', () => {
@@ -817,34 +841,36 @@ it('keeps secondary planning and shortcut content off Home', () => {
 });
 
 it.each([
-  ['ar', 'row-reverse'],
-  ['en', 'row']
+  ['ar', 'rtl'],
+  ['en', 'ltr']
 ] as const)(
-  'keeps Home transaction cards fixed at 200%% text in %s',
-  (locale, flexDirection) => {
+  'reflows full Home title, category and account labels at 200%% text in %s',
+  (locale, direction) => {
     jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
     changeLocale(locale);
-    usePreferenceStore.setState({
-      locale,
-      direction: locale === 'ar' ? 'rtl' : 'ltr'
-    });
-
-    renderWithProviders(<HomeScreen summary={summary} />);
-
-    expect(
-      screen.getByTestId('home-transaction-row-transaction-2')
-    ).toHaveStyle({
-      alignItems: 'center',
-      flexDirection,
-      height: 84,
-      minHeight: 84
-    });
-    expect(screen.getByText('Al Nakheel Restaurant').props.numberOfLines).toBe(
-      1
-    );
-    expect(
-      screen.getByTestId('home-period-label').props.numberOfLines
-    ).toBeUndefined();
+    usePreferenceStore.setState({ locale, direction });
+    const title = locale === 'ar'
+      ? 'مشتريات منزلية طويلة التفاصيل تستحق أن تظهر كاملة دون اختصار'
+      : 'Long household purchase description that must remain completely readable';
+    const accountName = locale === 'ar'
+      ? 'حساب المصروفات اليومية الطويل الاسم بالكامل'
+      : 'Daily household spending account with a long complete name';
+    renderWithProviders(<HomeScreen
+      accounts={fixtureAccounts.map(account => ({ ...account, name: accountName }))}
+      summary={{ ...summary, recentTransactions: [
+        { ...summary.recentTransactions[0], title },
+        summary.recentTransactions[1]
+      ] }}
+    />);
+    const row = screen.getByTestId('home-transaction-row-transaction-2');
+    expect(row).toHaveStyle({ alignItems: 'stretch', flexDirection: 'column' });
+    expect(StyleSheet.flatten(row.props.style).height).toBeUndefined();
+    expect(within(row).getByText(title).props.numberOfLines).toBeUndefined();
+    expect(within(row).getByText(translate('coreFinance.category.shopping')).props.numberOfLines).toBeUndefined();
+    const accountLabel = within(row).getByText(accountName);
+    expect(accountLabel.props.numberOfLines).toBeUndefined();
+    expect(accountLabel).toHaveStyle({ flexShrink: 1 });
+    expect(screen.getByTestId('home-period-label').props.numberOfLines).toBeUndefined();
   }
 );
 
@@ -973,7 +999,7 @@ describe('selected account scope', () => {
       />
     );
 
-    expect(screen.getByText('No activity in this account yet')).toBeTruthy();
+    expect(screen.getByText('No transactions today')).toBeTruthy();
   });
 
   it('updates immediately when switching between accounts', () => {

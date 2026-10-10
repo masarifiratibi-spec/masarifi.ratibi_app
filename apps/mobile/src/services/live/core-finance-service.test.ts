@@ -139,6 +139,56 @@ const bridge = {
   signOut: jest.fn()
 } satisfies LiveClerkBridge;
 
+it('reads the complete owner-bound day across pages with no source filter and keeps only the newest version of a replayed row', async () => {
+  const rows = Array.from({ length: 100 }, (_, index) => summary(`30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`, {
+    source: ['manual', 'voice', 'automatic', 'platform_assisted'][index % 4],
+    kind: index % 2 ? 'income' : 'expense'
+  }));
+  const request = jest.fn(async (url: string, init: RequestInit) => {
+    expect(init.method).toBe('GET');
+    const query = new URL(url).searchParams;
+    expect(query.get('from')).toBe('2026-09-07T21:00:00.000Z');
+    expect(query.get('to')).toBe('2026-09-08T20:59:59.999Z');
+    expect(query.get('limit')).toBe('100');
+    expect(query.has('source')).toBe(false);
+    expect(query.has('kind')).toBe(false);
+    return response({ items: query.has('cursor') ? [
+      { ...rows[0], version: 3, title: 'Latest committed version' },
+      summary('30000000-0000-4000-8000-000000000101')
+    ] : rows, nextCursor: query.has('cursor') ? null : 'next-page', ledgerVersion: 3, requestId: 'today-page' });
+  });
+  const service = createLiveLedgerService({ baseUrl: 'https://api.test', request: request as typeof fetch });
+  const activity = await service.getHomeTodayActivity({ ...emptyTransactionFilters, periodStart: Date.parse('2026-09-07T21:00:00Z'), periodEnd: Date.parse('2026-09-08T20:59:59.999Z') });
+  expect(activity).toHaveLength(101);
+  expect(activity.find(({ transaction }) => transaction.id === rows[0].id)?.transaction.title).toBe('Latest committed version');
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+it.each(['failed-page', 'repeated-cursor'] as const)('rejects %s instead of returning an incomplete daily list', async (failure) => {
+  let page = 0;
+  const request = jest.fn(async () => {
+    if (page++ > 0 && failure === 'failed-page') return response({ error: { code: 'SERVICE_UNAVAILABLE' } }, 503);
+    return response({ items: [summary()], nextCursor: 'same-cursor', ledgerVersion: 2, requestId: 'today-page' });
+  });
+  const service = createLiveLedgerService({ baseUrl: 'https://api.test', request });
+  await expect(service.getHomeTodayActivity({ ...emptyTransactionFilters, periodStart: Date.parse('2026-09-07T21:00:00Z'), periodEnd: Date.parse('2026-09-08T20:59:59.999Z') })).rejects.toThrow();
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+it('uses committed reversal postings when the original income is from an earlier day', async () => {
+  const original = summary(transactionId, { kind: 'income', status: 'reversed', occurredAt: '2026-09-06T12:00:00Z' });
+  const reversal = summary(linkedId, { kind: 'reversal', originalTransactionId: original.id });
+  const request = jest.fn(async (url: string) => {
+    if (url.includes('?')) return response({ items: [reversal], nextCursor: null, ledgerVersion: 2, requestId: 'today-page' });
+    if (url.endsWith(linkedId)) return response(detail(reversal, [{ id: '40000000-0000-4000-8000-000000000002', accountId, amountMinor: -1000, clearingState: 'confirmed', postingRole: 'reversal', occurredAt }]));
+    return response(detail(original, [{ id: '40000000-0000-4000-8000-000000000001', accountId, amountMinor: 1000, clearingState: 'confirmed', postingRole: 'destination', occurredAt: original.occurredAt }]));
+  });
+  const service = createLiveLedgerService({ baseUrl: 'https://api.test', request: request as typeof fetch });
+  await expect(service.getHomeTodayActivity({ ...emptyTransactionFilters, periodStart: Date.parse('2026-09-07T21:00:00Z'), periodEnd: Date.parse('2026-09-08T20:59:59.999Z') })).resolves.toEqual([
+    expect.objectContaining({ transaction: expect.objectContaining({ id: linkedId }), group: 'expense', sign: 'negative' })
+  ]);
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   registerLiveClerkBridge(bridge);
