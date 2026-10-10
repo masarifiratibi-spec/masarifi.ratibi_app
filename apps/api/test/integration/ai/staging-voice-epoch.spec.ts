@@ -85,8 +85,8 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     epoch = String(prepared.epochId);
     if (activate)
       await query(
-        "select private.activate_staging_voice_epoch($1,$2,clock_timestamp()+interval '600 seconds')",
-        [epoch, prepared.manifestHash],
+        'select private.activate_staging_voice_epoch($1,$2,clock_timestamp()+make_interval(secs=>$3))',
+        [epoch, prepared.manifestHash, version === 2 ? 300 : 600],
       );
     return prepared;
   }
@@ -213,6 +213,32 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       await expect(create()).rejects.toMatchObject({ status: 503 });
     },
   );
+  it.each([301, 600])(
+    'single Arabic expense rejects a %i-second activation without opening Posting',
+    async (seconds) => {
+      await query('update private.voice_automatic_policy set enabled=false');
+      const prepared = await prepare('canary', false, 2);
+      await expect(
+        query(
+          'select private.activate_staging_voice_epoch($1,$2,clock_timestamp()+make_interval(secs=>$3))',
+          [epoch, prepared.manifestHash, seconds],
+        ),
+      ).rejects.toMatchObject({ message: 'VOICE_SCOPE_INVALID' });
+      expect(
+        row(
+          (
+            await query(
+              'select state,started_at,expires_at from private.staging_voice_epochs where id=$1',
+              [epoch],
+            )
+          ).rows[0],
+        ),
+      ).toEqual({ state: 'prepared', started_at: null, expires_at: null });
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(false);
+    },
+  );
   it.each([
     { maxTransactions: 2 },
     { maxTransactions: '1' },
@@ -323,6 +349,113 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     });
     await expect(create('ar', user, '2'.repeat(64))).rejects.toMatchObject({ status: 503 });
     expect(await ledgerState()).toEqual(after);
+  });
+  it('single Arabic expense repeated acceptance preserves the accepted batch before execution', async () => {
+    await prepare('canary', true, 2);
+    const session = await create('ar');
+    await accept(session, { amountMinor: 1000 });
+    const before = row(
+      (
+        await query('select to_jsonb(s) session from public.voice_sessions s where id=$1', [
+          session,
+        ])
+      ).rows[0],
+    ).session;
+    const ledgerBefore = await ledgerState();
+    expect(
+      row(
+        (
+          await query(
+            "select private.accept_voice_batch($1,$2,'[]'::jsonb,'automatic-or-skip-v3.1') result",
+            [session, randomUUID()],
+          )
+        ).rows[0],
+      ).result,
+    ).toEqual({ accepted: true });
+    expect(
+      row(
+        (
+          await query('select to_jsonb(s) session from public.voice_sessions s where id=$1', [
+            session,
+          ])
+        ).rows[0],
+      ).session,
+    ).toEqual(before);
+    expect(
+      row(
+        (await query('select state from private.staging_voice_epochs where id=$1', [epoch]))
+          .rows[0],
+      ).state,
+    ).toBe('active');
+    expect(
+      row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+    ).toBe(true);
+    expect(
+      row(
+        (
+          await query(
+            'select count(*)::int n from private.voice_events where batch_id=(select id from private.voice_batches where session_id=$1)',
+            [session],
+          )
+        ).rows[0],
+      ).n,
+    ).toBe(1);
+    expect(await ledgerState()).toEqual(ledgerBefore);
+  });
+  it('single Arabic expense repeated acceptance returns its receipt after automatic closure without another effect', async () => {
+    await prepare('canary', true, 2);
+    const session = await create('ar');
+    await commit(session, { amountMinor: 1000 });
+    const before = row(
+      (
+        await query('select to_jsonb(s) session from public.voice_sessions s where id=$1', [
+          session,
+        ])
+      ).rows[0],
+    ).session;
+    const ledgerBefore = await ledgerState();
+    expect(
+      row(
+        (
+          await query(
+            "select private.accept_voice_batch($1,$2,'[]'::jsonb,'automatic-or-skip-v3.1') result",
+            [session, randomUUID()],
+          )
+        ).rows[0],
+      ).result,
+    ).toEqual({ accepted: true });
+    expect(
+      row(
+        (
+          await query('select to_jsonb(s) session from public.voice_sessions s where id=$1', [
+            session,
+          ])
+        ).rows[0],
+      ).session,
+    ).toEqual(before);
+    expect(
+      row(
+        (
+          await query('select state,closed_reason from private.staging_voice_epochs where id=$1', [
+            epoch,
+          ])
+        ).rows[0],
+      ),
+    ).toEqual({ state: 'closed', closed_reason: 'completed' });
+    expect(
+      row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+    ).toBe(false);
+    expect(
+      row(
+        (
+          await query(
+            'select count(*)::int n from private.voice_events where batch_id=(select id from private.voice_batches where session_id=$1)',
+            [session],
+          )
+        ).rows[0],
+      ).n,
+    ).toBe(1);
+    expect(await ledgerState()).toEqual(ledgerBefore);
   });
   it.each([
     ['owner', 'ar', other, 'epoch-test'],
