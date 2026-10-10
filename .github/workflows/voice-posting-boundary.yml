@@ -1,0 +1,43 @@
+name: Voice Posting Boundary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  financial-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      MASARIFI_RELEASE_VERSION: ci
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      MASARIFI_LIVE_DATABASE_TESTS: "1"
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Start disposable local Supabase
+        run: npm run supabase:start
+      - run: npm run db:reset
+      - name: Verify the actual database financial boundary
+        run: npm run test:integration -- --runTestsByPath test/integration/ai/staging-voice-epoch.spec.ts --json --outputFile=/tmp/voice-posting-boundary.json
+      - name: Retain exact-commit results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: voice-posting-boundary-${{ github.sha }}
+          path: /tmp/voice-posting-boundary.json
+          if-no-files-found: warn
+      - name: Stop disposable local Supabase
+        if: always()
+        run: npm run supabase:stop

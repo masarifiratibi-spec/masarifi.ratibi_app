@@ -50,10 +50,10 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
   afterAll(async () => {
     await pool.onModuleDestroy();
   });
-  async function prepare(mode = 'canary', activate = true) {
+  async function prepare(mode = 'canary', activate = true, version = 1, patch = {}) {
     epochMode = mode;
     const manifest = {
-      version: 1,
+      version,
       mode,
       sourceSha: 'a'.repeat(40),
       imageDigest: 'b'.repeat(64),
@@ -63,6 +63,16 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ownerId: user,
       accountId: account,
       categoryId: category,
+      ...(version === 2
+        ? {
+            maxTransactions: 1,
+            maxExpenseMinor: 1000,
+            expenseMinor: 1000,
+            currency: 'SAR',
+            locale: 'ar',
+          }
+        : {}),
+      ...patch,
     };
     const prepared = row(
       (
@@ -157,8 +167,8 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).rows[0],
     ).result as Record<string, unknown>;
   }
-  async function commit(session: string) {
-    await accept(session);
+  async function commit(session: string, patch = {}) {
+    await accept(session, patch);
     const claim = row(
       (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch]))
         .rows[0],
@@ -179,13 +189,223 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       event: String(event.id),
     };
   }
-  it('preparation keeps Posting disabled and financial admission closed', async () => {
-    await query('update private.voice_automatic_policy set enabled=false');
-    await prepare('canary', false);
+  async function ledgerState() {
+    return row(
+      (
+        await query(
+          `select
+            (select count(*)::int from public.transactions where user_id=$1) transactions,
+            (select count(*)::int from public.transaction_postings p join public.transactions t on t.id=p.transaction_id where t.user_id=$1) postings,
+            coalesce((select confirmed_minor::text from public.account_balances where account_id=$2),'0') balance`,
+          [user, account],
+        )
+      ).rows[0],
+    );
+  }
+  it.each([1, 2])(
+    'version %i preparation keeps Posting disabled and financial admission closed',
+    async (version) => {
+      await query('update private.voice_automatic_policy set enabled=false');
+      await prepare('canary', false, version);
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(false);
+      await expect(create()).rejects.toMatchObject({ status: 503 });
+    },
+  );
+  it.each([
+    { maxTransactions: 2 },
+    { maxTransactions: '1' },
+    { maxTransactions: null },
+    { maxExpenseMinor: 1001 },
+    { maxExpenseMinor: '1000' },
+    { maxExpenseMinor: null },
+    { expenseMinor: 2500 },
+    { expenseMinor: '1000' },
+    { expenseMinor: null },
+    { locale: 'en' },
+    { currency: 'USD' },
+    { version: 3 },
+    { mode: 'operating' },
+  ])(
+    'rejects an invalid single Arabic expense manifest without changing controls %j',
+    async (patch) => {
+      await query('update private.voice_automatic_policy set enabled=false');
+      const before = row(
+        (
+          await query(`select
+      (select count(*)::int from private.staging_voice_epochs) epochs,
+      (select to_jsonb(c) from private.staging_voice_runtime_control c) control`)
+        ).rows[0],
+      );
+      await expect(prepare('canary', false, 2, patch)).rejects.toMatchObject({
+        message: 'VOICE_SCOPE_INVALID',
+      });
+      expect(
+        row(
+          (
+            await query(`select
+      (select count(*)::int from private.staging_voice_epochs) epochs,
+      (select to_jsonb(c) from private.staging_voice_runtime_control c) control`)
+          ).rows[0],
+        ),
+      ).toEqual(before);
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(false);
+    },
+  );
+  it('single Arabic expense commits 1000 SAR minor once and automatically closes Posting', async () => {
+    const before = await ledgerState();
+    await prepare('canary', true, 2);
+    const session = await create('ar');
+    const committed = await commit(session, { amountMinor: 1000 });
+    const transaction = row(
+      (
+        await query('select transaction_id from private.voice_events where id=$1', [
+          committed.event,
+        ])
+      ).rows[0],
+    ).transaction_id;
+    const after = await ledgerState();
+    expect(after.transactions).toBe(Number(before.transactions) + 1);
+    expect(after.postings).toBe(Number(before.postings) + 1);
+    expect(BigInt(String(after.balance)) - BigInt(String(before.balance))).toBe(-1000n);
+    expect(
+      row(
+        (
+          await query('select state,closed_reason from private.staging_voice_epochs where id=$1', [
+            epoch,
+          ])
+        ).rows[0],
+      ),
+    ).toEqual({ state: 'closed', closed_reason: 'completed' });
     expect(
       row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
     ).toBe(false);
-    await expect(create()).rejects.toMatchObject({ status: 503 });
+    expect(
+      row(
+        (
+          await query(
+            'select command_evidence from private.staging_voice_members where session_id=$1',
+            [session],
+          )
+        ).rows[0],
+      ).command_evidence,
+    ).toMatchObject({
+      kind: 'expense',
+      amountMinor: 1000,
+      currency: 'SAR',
+      accountId: account,
+      categoryId: category,
+    });
+    const execute = () =>
+      query('select private.execute_voice_event($1,$2,$3) result', [
+        committed.batch_id,
+        committed.token,
+        committed.event,
+      ]);
+    const replays = await Promise.all([execute(), execute()]);
+    expect(replays.map((result) => row(result.rows[0]).result)).toEqual([
+      { status: 'committed', transactionId: transaction },
+      { status: 'committed', transactionId: transaction },
+    ]);
+    const receipt = row(
+      (await query('select private.get_voice_batch_result($1,$2) result', [user, session])).rows[0],
+    ).result;
+    expect(receipt).toMatchObject({
+      status: 'completed',
+      addedCount: 1,
+      transactionIds: [transaction],
+    });
+    await expect(create('ar', user, '2'.repeat(64))).rejects.toMatchObject({ status: 503 });
+    expect(await ledgerState()).toEqual(after);
+  });
+  it.each([
+    ['owner', 'ar', other, 'epoch-test'],
+    ['Clerk session', 'ar', user, 'another-device'],
+    ['locale', 'en', user, 'epoch-test'],
+  ])(
+    'single Arabic expense rejects a mismatched %s without admission',
+    async (_name, locale, owner, authSession) => {
+      const before = await ledgerState();
+      await prepare('canary', true, 2);
+      await expect(create(locale, owner, '1'.repeat(64), authSession)).rejects.toMatchObject({
+        status: 503,
+      });
+      expect(
+        row(
+          (
+            await query(
+              'select count(*)::int n from private.staging_voice_members where epoch_id=$1',
+              [epoch],
+            )
+          ).rows[0],
+        ).n,
+      ).toBe(0);
+      expect(await ledgerState()).toEqual(before);
+    },
+  );
+  it.each([
+    { amountMinor: 1001 },
+    { currency: 'USD' },
+    { categoryId: '04000000-0000-4000-8000-000000000003' },
+    { accountId: otherAccount },
+    { occurredAt: '2026-01-01T00:00:00.000Z' },
+  ])(
+    'single Arabic expense closes before accepting a mismatched extracted command %j',
+    async (patch) => {
+      const before = await ledgerState();
+      await prepare('canary', true, 2);
+      const session = await create('ar');
+      expect(await accept(session, { amountMinor: 1000, ...patch })).toMatchObject({
+        accepted: false,
+        scopeMismatch: true,
+      });
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(false);
+      expect(
+        row(
+          (await query('select state from private.staging_voice_epochs where id=$1', [epoch]))
+            .rows[0],
+        ).state,
+      ).toBe('closed');
+      expect(
+        row(
+          (
+            await query(
+              'select count(*)::int n from private.voice_events where batch_id=(select id from private.voice_batches where session_id=$1)',
+              [session],
+            )
+          ).rows[0],
+        ).n,
+      ).toBe(0);
+      expect(await ledgerState()).toEqual(before);
+    },
+  );
+  it('concurrent single Arabic expense captures admit only one slot', async () => {
+    const before = await ledgerState();
+    await prepare('canary', true, 2);
+    const attempts = await Promise.allSettled([
+      create('ar', user, '1'.repeat(64)),
+      create('ar', user, '2'.repeat(64)),
+    ]);
+    expect(attempts.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const rejected = attempts.filter((result) => result.status === 'rejected');
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ status: 503 });
+    expect(
+      row(
+        (
+          await query(
+            'select count(*)::int n from private.staging_voice_members where epoch_id=$1',
+            [epoch],
+          )
+        ).rows[0],
+      ).n,
+    ).toBe(1);
+    expect(await ledgerState()).toEqual(before);
   });
   it('rejects the wrong owner, Arabic-first and a third capture without financial effects', async () => {
     await prepare();
@@ -237,10 +457,11 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).n,
     ).toBe(0);
   });
-  it('fences in-flight execution after revocation and permits only committed receipt replay', async () => {
-    await prepare();
-    const session = await create();
-    await accept(session);
+  it.each([1, 2])('version %i fences in-flight execution after revocation', async (version) => {
+    const before = await ledgerState();
+    await prepare('canary', true, version);
+    const session = await create(version === 2 ? 'ar' : 'en');
+    await accept(session, { amountMinor: version === 2 ? 1000 : 2500 });
     const claim = row(
       (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch]))
         .rows[0],
@@ -257,6 +478,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         event.id,
       ]),
     ).rejects.toMatchObject({ message: 'VOICE_AUTOMATIC_PAUSED' });
+    expect(await ledgerState()).toEqual(before);
   });
   it('replays a committed event after the transaction commits without another posting', async () => {
     await prepare();
@@ -300,12 +522,17 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).n,
     ).toBe(1);
   });
-  it.each(['account-lock', 'deferred-commit'])(
-    'rolls back all ledger effects when %s crosses the exact deadline',
-    async (boundary) => {
-      await prepare();
-      const session = await create();
-      await accept(session);
+  it.each([
+    [1, 'account-lock'],
+    [1, 'deferred-commit'],
+    [2, 'account-lock'],
+    [2, 'deferred-commit'],
+  ] as const)(
+    'version %i rolls back all ledger effects when %s crosses the exact deadline',
+    async (version, boundary) => {
+      await prepare('canary', true, version);
+      const session = await create(version === 2 ? 'ar' : 'en');
+      await accept(session, { amountMinor: version === 2 ? 1000 : 2500 });
       const claim = row(
         (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch]))
           .rows[0],
@@ -418,61 +645,84 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ),
     ).rejects.toMatchObject({ status: 404 });
   });
-  it('claims concurrently without duplication and recovers only expired leases', async () => {
-    await prepare('operating');
-    const a = await create(),
-      b = await create('ar', other);
-    const results = await Promise.all([
-      query("select * from private.claim_staging_voice_work($1,'worker-a',1,120)", [epoch]),
-      query("select * from private.claim_staging_voice_work($1,'worker-b',1,120)", [epoch]),
-    ]);
-    expect(new Set(results.flatMap((r) => r.rows.map((row) => row.id)))).toEqual(new Set([a, b]));
-    expect(
-      (await query("select * from private.claim_staging_voice_work($1,'worker-c',1,120)", [epoch]))
-        .rows,
-    ).toHaveLength(0);
-    const old = row(results.flatMap((r) => r.rows).find((r) => r.id === a));
-    await query(
-      "update public.voice_sessions set lease_until=clock_timestamp()-interval '1 second' where id=$1",
-      [a],
-    );
-    const recovered = row(
-      (await query("select * from private.claim_staging_voice_work($1,'worker-c',1,120)", [epoch]))
-        .rows[0],
-    );
-    expect(recovered.id).toBe(a);
-    expect(recovered.claim_token).not.toBe(old.claim_token);
-    await expect(
-      query("select private.accept_voice_batch($1,$2,'[]'::jsonb,'automatic-or-skip-v3.1')", [
-        a,
-        old.claim_token,
-      ]),
-    ).rejects.toBeDefined();
-  });
-  it('expired epoch stops claims and heartbeat disables Posting', async () => {
-    await prepare('operating');
-    await create();
-    await query(
-      "update private.staging_voice_epochs set expires_at=clock_timestamp()-interval '1 second' where id=$1",
-      [epoch],
-    );
-    expect(
-      (await query("select * from private.claim_staging_voice_work($1,'expired',1,120)", [epoch]))
-        .rows,
-    ).toHaveLength(0);
-    const state = row(
-      (
-        await query("select private.staging_voice_heartbeat($1,'expired',$2) result", [
-          epoch,
-          'a'.repeat(40),
-        ])
-      ).rows[0],
-    ).result as Record<string, unknown>;
-    expect(state.enabled).toBe(false);
-    expect(
-      row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
-    ).toBe(false);
-  });
+  it.each([1, 2])(
+    'version %i claims without duplication and recovers only expired leases',
+    async (version) => {
+      await prepare(version === 2 ? 'canary' : 'operating', true, version);
+      const a = await create(version === 2 ? 'ar' : 'en');
+      const sessions = version === 2 ? [a] : [a, await create('ar', other)];
+      const results = await Promise.all([
+        query("select * from private.claim_staging_voice_work($1,'worker-a',1,120)", [epoch]),
+        query("select * from private.claim_staging_voice_work($1,'worker-b',1,120)", [epoch]),
+      ]);
+      const claimed = results.flatMap((r) => r.rows);
+      expect(claimed).toHaveLength(sessions.length);
+      expect(new Set(claimed.map((row) => row.id))).toEqual(new Set(sessions));
+      expect(
+        (
+          await query("select * from private.claim_staging_voice_work($1,'worker-c',1,120)", [
+            epoch,
+          ])
+        ).rows,
+      ).toHaveLength(0);
+      const old = row(claimed.find((r) => r.id === a));
+      await query(
+        "update public.voice_sessions set lease_until=clock_timestamp()-interval '1 second' where id=$1",
+        [a],
+      );
+      const recovered = row(
+        (
+          await query("select * from private.claim_staging_voice_work($1,'worker-c',1,120)", [
+            epoch,
+          ])
+        ).rows[0],
+      );
+      expect(recovered.id).toBe(a);
+      expect(recovered.claim_token).not.toBe(old.claim_token);
+      await expect(
+        query("select private.accept_voice_batch($1,$2,'[]'::jsonb,'automatic-or-skip-v3.1')", [
+          a,
+          old.claim_token,
+        ]),
+      ).rejects.toBeDefined();
+      const work = row(
+        (
+          await query("select private.get_ai_work_input('voice.transcribe_extract',$1,$2) result", [
+            a,
+            recovered.claim_token,
+          ])
+        ).rows[0],
+      ).result;
+      expect(work).toMatchObject({ retainAcceptanceEvidence: version === 2 });
+    },
+  );
+  it.each([1, 2])(
+    'version %i expired epoch stops claims and heartbeat disables Posting',
+    async (version) => {
+      await prepare(version === 2 ? 'canary' : 'operating', true, version);
+      await create(version === 2 ? 'ar' : 'en');
+      await query(
+        "update private.staging_voice_epochs set expires_at=clock_timestamp()-interval '1 second' where id=$1",
+        [epoch],
+      );
+      expect(
+        (await query("select * from private.claim_staging_voice_work($1,'expired',1,120)", [epoch]))
+          .rows,
+      ).toHaveLength(0);
+      const state = row(
+        (
+          await query("select private.staging_voice_heartbeat($1,'expired',$2) result", [
+            epoch,
+            'a'.repeat(40),
+          ])
+        ).rows[0],
+      ).result as Record<string, unknown>;
+      expect(state.enabled).toBe(false);
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(false);
+    },
+  );
   it('scoped cleanup preserves historical sessions and private controls are capability-only', async () => {
     await query('update private.staging_voice_runtime_control set enforced=false');
     await query('update private.voice_automatic_policy set enabled=true');
@@ -499,25 +749,54 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
   });
   it('keeps persistent operating Posting through worker replacement and committed receipt recovery', async () => {
     const prepared = await prepare('operating', false);
-    await query('select private.activate_staging_voice_epoch($1,$2,null)', [epoch, prepared.manifestHash]);
-    const count = async () => row((await query(`select
+    await query('select private.activate_staging_voice_epoch($1,$2,null)', [
+      epoch,
+      prepared.manifestHash,
+    ]);
+    const count = async () =>
+      row(
+        (
+          await query(
+            `select
       (select count(*)::int from public.transactions where user_id=$1) transactions,
       (select count(*)::int from public.transaction_postings p join public.transactions t on t.id=p.transaction_id where t.user_id=$1) postings,
-      coalesce((select confirmed_minor::text from public.account_balances where account_id=$2),'0') balance`, [user, account])).rows[0]);
+      coalesce((select confirmed_minor::text from public.account_balances where account_id=$2),'0') balance`,
+            [user, account],
+          )
+        ).rows[0],
+      );
     const before = await count();
-    for (const [locale, worker] of [['en', 'before-restart'], ['ar', 'after-restart']]) {
-      const state = row((await query('select private.staging_voice_heartbeat($1,$2,$3) result',
-        [epoch, worker, 'a'.repeat(40)])).rows[0]).result as Record<string, unknown>;
+    for (const [locale, worker] of [
+      ['en', 'before-restart'],
+      ['ar', 'after-restart'],
+    ]) {
+      const state = row(
+        (
+          await query('select private.staging_voice_heartbeat($1,$2,$3) result', [
+            epoch,
+            worker,
+            'a'.repeat(40),
+          ])
+        ).rows[0],
+      ).result as Record<string, unknown>;
       expect(state.enabled).toBe(true);
       const session = await create(locale);
       const committed = await commit(session);
-      const execute = () => query('select private.execute_voice_event($1,$2,$3) result',
-        [committed.batch_id, committed.token, committed.event]);
+      const execute = () =>
+        query('select private.execute_voice_event($1,$2,$3) result', [
+          committed.batch_id,
+          committed.token,
+          committed.event,
+        ]);
       const replay = await Promise.all([execute(), execute()]);
-      expect(replay.map(r => (r.rows[0]?.result as Record<string, unknown>).status))
-        .toEqual(['committed', 'committed']);
-      const receipt = row((await query('select private.get_voice_batch_result($1,$2) result',
-        [user, session])).rows[0]).result as Record<string, unknown>;
+      expect(replay.map((r) => (r.rows[0]?.result as Record<string, unknown>).status)).toEqual([
+        'committed',
+        'committed',
+      ]);
+      const receipt = row(
+        (await query('select private.get_voice_batch_result($1,$2) result', [user, session]))
+          .rows[0],
+      ).result as Record<string, unknown>;
       expect(receipt).toMatchObject({ status: 'completed', addedCount: 1 });
       expect(receipt.transactionIds).toHaveLength(1);
     }
@@ -525,9 +804,17 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     expect(after.transactions).toBe(Number(before.transactions) + 2);
     expect(after.postings).toBe(Number(before.postings) + 2);
     expect(BigInt(String(after.balance)) - BigInt(String(before.balance))).toBe(-5000n);
-    expect(row((await query('select state,expires_at from private.staging_voice_epochs where id=$1', [epoch])).rows[0]))
-      .toMatchObject({ state: 'active', expires_at: null });
-    expect(row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled).toBe(true);
+    expect(
+      row(
+        (
+          await query('select state,expires_at from private.staging_voice_epochs where id=$1', [
+            epoch,
+          ])
+        ).rows[0],
+      ),
+    ).toMatchObject({ state: 'active', expires_at: null });
+    expect(
+      row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+    ).toBe(true);
   });
-
 });
