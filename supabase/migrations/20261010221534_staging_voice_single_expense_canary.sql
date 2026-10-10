@@ -74,17 +74,21 @@ begin
   if not found then raise exception 'VOICE_SCOPE_INVALID'; end if;
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(m.user_id,0));
   select * into e from private.staging_voice_epochs where id=m.epoch_id for update;
-  if not private.voice_epoch_open(e.id) then raise exception 'VOICE_AUTOMATIC_PAUSED'; end if;
   select * into s from public.voice_sessions where id=p_session for update;
+  if s.user_id is distinct from m.user_id or s.content_hash is distinct from m.content_hash or s.capture_at is distinct from m.capture_at or s.locale is distinct from m.locale then raise exception 'VOICE_SCOPE_INVALID'; end if;
+  -- Already accepted extraction is a receipt read, including after closure.
+  -- Do not reinterpret duplicate decisions or change the accepted command.
+  if exists(select 1 from private.voice_batches where session_id=p_session) then
+    return private.accept_voice_batch_unscoped(p_session,p_token,p_decisions,p_policy);
+  end if;
+  if not private.voice_epoch_open(e.id) then raise exception 'VOICE_AUTOMATIC_PAUSED'; end if;
   -- A stale extraction response must not close a valid canary before the shared
   -- acceptance implementation checks its lease. Existing batch receipts retain
   -- the underlying idempotent path; new acceptance uses the same work fence.
-  if not exists(select 1 from private.voice_batches where session_id=p_session)
-    and (s.status<>'processing' or s.claim_token is distinct from p_token
+  if s.status<>'processing' or s.claim_token is distinct from p_token
       or s.lease_until is null or s.lease_until<=clock_timestamp()
       or s.cancelled_at is not null or s.deleted_at is not null
-      or s.expires_at<=clock_timestamp()) then raise exception 'AI_WORK_FENCE_INVALID'; end if;
-  if s.user_id is distinct from m.user_id or s.content_hash is distinct from m.content_hash or s.capture_at is distinct from m.capture_at or s.locale is distinct from m.locale then raise exception 'VOICE_SCOPE_INVALID'; end if;
+      or s.expires_at<=clock_timestamp() then raise exception 'AI_WORK_FENCE_INVALID'; end if;
   if e.mode='canary' then
     expense_minor:=case when e.manifest->>'version'='2' then 1000 else 2500 end;
     cmd:=p_decisions->0->'command';
@@ -141,6 +145,24 @@ begin
     perform private.close_staging_voice_epoch(e.id,'completed');
   end if;
   return result;
+end $$;
+
+-- The v2 financial acceptance window is enforced in SQL as well as by its operator.
+-- Historical v1 canaries retain their original ten-minute ceiling.
+create or replace function private.activate_staging_voice_epoch(p_epoch uuid,p_hash text,p_deadline timestamptz) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare e private.staging_voice_epochs; started timestamptz:=clock_timestamp(); max_seconds integer;
+begin
+  perform singleton from private.staging_voice_runtime_control where enforced and current_epoch=p_epoch for update;
+  if not found then raise exception 'VOICE_SCOPE_INVALID'; end if;
+  select * into e from private.staging_voice_epochs where id=p_epoch for update;
+  max_seconds:=case when e.manifest->>'version'='2' then 300 else 600 end;
+  if e.state is distinct from 'prepared' or p_hash is distinct from e.manifest_hash
+    or (p_deadline is not null and p_deadline<=started)
+    or (e.mode='canary' and (p_deadline is null or p_deadline>started+make_interval(secs=>max_seconds))) then raise exception 'VOICE_SCOPE_INVALID'; end if;
+  update private.staging_voice_epochs set state='active',started_at=started,expires_at=p_deadline where id=e.id;
+  update private.voice_automatic_policy set enabled=true;
+  return jsonb_build_object('epochId',e.id,'startedAt',started,'expiresAt',p_deadline);
 end $$;
 
 reset role;

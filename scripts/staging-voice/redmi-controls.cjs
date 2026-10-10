@@ -5,8 +5,8 @@ const { createHash } = require("node:crypto");
 const HEX64 = /^[a-f0-9]{64}$/;
 const SHA40 = /^[a-f0-9]{40}$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
-const API_SOURCE = "ac7bc92ab2e6e6c2e50a969de6c69463688febae";
-const API_IMAGE = "a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383";
+const VERIFIED_SOURCE_SHA = "ac7bc92ab2e6e6c2e50a969de6c69463688febae";
+const VERIFIED_IMAGE_DIGEST = "a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383";
 const FINANCIAL_SOURCE = "976dd92fe73fccb0f4f9bde42e1fa41b8aa934bb";
 const FIVE_MINUTES = 300000;
 
@@ -96,8 +96,8 @@ function validateRuntime(runtime) {
   exactKeys(runtime, ["api", "analysis", "assistant", "financial", "automaticPosting", "activeFinancialEpochs"]);
   for (const service of [runtime.api, runtime.analysis, runtime.assistant]) {
     exactKeys(service, ["sourceSha", "imageDigest", "running"]);
-    assert.equal(service.sourceSha, API_SOURCE, "PACKET_RUNTIME_SOURCE_CHANGED");
-    assert.equal(service.imageDigest, API_IMAGE, "PACKET_RUNTIME_IMAGE_CHANGED");
+    assert.equal(service.sourceSha, VERIFIED_SOURCE_SHA, "PACKET_RUNTIME_SOURCE_CHANGED");
+    assert.equal(service.imageDigest, VERIFIED_IMAGE_DIGEST, "PACKET_RUNTIME_IMAGE_CHANGED");
     assert.equal(service.running, true, "PACKET_RUNTIME_NOT_RUNNING");
   }
   exactKeys(runtime.financial, ["sourceSha", "running"]);
@@ -127,8 +127,8 @@ function validatePacket(packet, now = Date.now()) {
   encodedIdentifier(packet.sourceSha, SHA40, 40);
   for (const field of ["imageDigest", "apkHash", "controlHash", "migrationHash", "clerkSessionHash"])
     encodedIdentifier(packet[field], HEX64, 64);
-  assert.equal(packet.sourceSha, API_SOURCE, "PACKET_RUNTIME_SOURCE_CHANGED");
-  assert.equal(packet.imageDigest, API_IMAGE, "PACKET_RUNTIME_IMAGE_CHANGED");
+  assert.equal(packet.sourceSha, VERIFIED_SOURCE_SHA, "PACKET_RUNTIME_SOURCE_CHANGED");
+  assert.equal(packet.imageDigest, VERIFIED_IMAGE_DIGEST, "PACKET_RUNTIME_IMAGE_CHANGED");
   validateBaseline(packet.baseline);
   validateRuntime(packet.runtime);
   validatePreservation(packet);

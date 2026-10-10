@@ -20,7 +20,7 @@ its card under Yesterday on October 11; Today filtering is intentional.
 ## Candidate preparation, no live activation
 
 - Add forward migration `20261010221534_staging_voice_single_expense_canary.sql`.
-  It replaces four existing runtime wrappers only. Version 1 remains two 25-SAR
+  It replaces five existing runtime wrappers only. Version 1 remains two 25-SAR
   EN/AR captures; version 2 admits one Arabic 10-SAR expense and closes Posting
   after that single commit. There is no top-level financial/control DML or activation.
 - Preserve owner/session binding, immutable fresh capture membership, account/category
@@ -29,6 +29,9 @@ its card under Yesterday on October 11; Today filtering is intentional.
 - Validate the worker lease before interpreting a canary response. Real database tests
   exposed an inherited stale-response path that could close admission before its lease
   was checked; the new wrapper rejects that response with `AI_WORK_FENCE_INVALID`.
+- Accepted extraction replay returns the existing batch receipt before interpreting
+  duplicate decisions, including after closure; it cannot fail the session or close
+  an accepted scope. Version-2 activation is limited to 300 seconds by SQL itself.
 - Separate pure `redmi-controls.cjs` binds the approval to the identities, amount,
   financial hashes, pinned image/source, APK, migration and controls. Only activation
   timestamps and baseline observation time can refresh after the human replies.
@@ -121,3 +124,14 @@ First GREEN attempt: 38090847664 (37a360b4), 44/46 pass; stale lease and invalid
 fixture diagnosed above. Corrected actual database CI: 38091280680 (0dbed67e), 46/46 PASS.
 Final exact-commit cross-feature CI and independent review are recorded in the release
 packet before requesting deployment approval. No real financial test has run in preparation.
+
+Independent review added four database regressions. RED CI 38091764474 (c1f21ddf)
+passed 46 and failed all four new checks: 301/600-second v2 activation and duplicate
+extraction acceptance before execution/after closure. The candidate now limits SQL
+activation to 300 seconds and returns an immutable accepted-batch receipt before
+lease/decision processing; complete exact-commit re-verification is required.
+
+Gitleaks classified public pinned revision/image digests named API_SOURCE/API_IMAGE
+as generic credentials at historical 0dbed67e lines 8/9. Those values were verified
+against runtime/image provenance. The constants were renamed, and only these two
+exact historical fingerprints were recorded as false positives; scanning remains active.
