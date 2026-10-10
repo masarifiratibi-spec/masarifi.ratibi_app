@@ -11,6 +11,7 @@ import { withAiAbort } from './ai.abort';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { PlatformLogger } from '../platform/observability/platform-logger';
+import { workerErrorFields } from '../platform/observability/worker-error';
 import { recordAiJob, recordAiResult } from './ai.observability';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
@@ -385,15 +386,19 @@ export class AiWorker implements OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     this.abortController = new AbortController();
+    let stage = 'scope';
     try {
       if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY')) {
         if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY'))
           throw new Error('ASSISTANT_SCOPE_INVALID');
+        stage = 'assistant.respond';
         await this.runJob('assistant.respond');
         return;
       }
       if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')) {
+        stage = 'voice.transcribe_extract';
         await this.runJob('voice.transcribe_extract');
+        stage = 'voice-media.purge';
         await this.runJob('voice-media.purge');
         return;
       }
@@ -405,8 +410,17 @@ export class AiWorker implements OnModuleDestroy {
         'ai.usage_rollup',
         'voice-media.purge',
         'ai.reconcile',
-      ] as const)
+      ] as const) {
+        stage = job;
         await this.runJob(job);
+      }
+    } catch (error) {
+      new PlatformLogger().error('AI_WORKER_RUNTIME_FAILED', {
+        context: 'AiWorker',
+        failureStage: stage,
+        ...workerErrorFields(error),
+      });
+      throw error;
     } finally {
       this.abortController = undefined;
       this.running = false;

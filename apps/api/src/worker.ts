@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { PlatformConfigService } from './platform/config/platform-config.service';
 import { GracefulShutdown } from './platform/observability/graceful-shutdown';
 import { PlatformLogger } from './platform/observability/platform-logger';
+import { workerErrorFields } from './platform/observability/worker-error';
 import { startTelemetry } from './platform/observability/telemetry';
 import { OperationsWorker } from './operations/operations.worker';
 import { AiWorker } from './ai/ai.worker';
@@ -47,8 +48,11 @@ export async function bootstrapWorker(): Promise<INestApplicationContext> {
 }
 
 if (require.main === module) {
-  void bootstrapWorker().catch(() => {
-    process.stderr.write('WORKER_BOOTSTRAP_FAILED\n');
+  void bootstrapWorker().catch((error: unknown) => {
+    new PlatformLogger((line) => process.stderr.write(line + '\n')).error(
+      'WORKER_BOOTSTRAP_FAILED',
+      { failureStage: 'bootstrap', ...workerErrorFields(error) },
+    );
     process.exitCode = 1;
   });
 }

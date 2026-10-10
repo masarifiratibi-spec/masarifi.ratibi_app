@@ -4,6 +4,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { StagingVoiceWorker } from './ai/staging-voice.worker';
 import { PlatformConfigService } from './platform/config/platform-config.service';
 import { PlatformLogger } from './platform/observability/platform-logger';
+import { workerErrorFields } from './platform/observability/worker-error';
 import { GracefulShutdown } from './platform/observability/graceful-shutdown';
 import { startTelemetry } from './platform/observability/telemetry';
 
@@ -39,8 +40,11 @@ export async function bootstrapStagingVoiceWorker(): Promise<INestApplicationCon
   return app;
 }
 if (require.main === module) {
-  void bootstrapStagingVoiceWorker().catch(() => {
-    process.stderr.write('VOICE_SCOPED_BOOTSTRAP_FAILED\n');
+  void bootstrapStagingVoiceWorker().catch((error: unknown) => {
+    new PlatformLogger((line) => process.stderr.write(line + '\n')).error(
+      'VOICE_SCOPED_BOOTSTRAP_FAILED',
+      { failureStage: 'bootstrap', ...workerErrorFields(error) },
+    );
     process.exitCode = 1;
   });
 }

@@ -1,6 +1,77 @@
 import { StagingVoiceWorker } from '../../../src/ai/staging-voice.worker';
 import type { AiWorker } from '../../../src/ai/ai.worker';
 
+it('retains the root database exception and stage without exposing query or owner contents', async () => {
+  const f = fixture();
+  const root = Object.assign(new Error('Query read timeout'), {
+    code: '57014',
+    query: 'SECRET_SQL',
+  });
+  root.stack =
+    'Error: SECRET_AUDIO\n    at query (/app/dist/src/platform/database/pool.service.js:41:9)';
+  const error = new Error(
+    'SECRET_OWNER SECRET_TRANSCRIPT postgres://user:SECRET_PASSWORD@host/db',
+    { cause: root },
+  );
+  f.repository.claimVoiceEpochWork = () => Promise.reject(error);
+  const lines: string[] = [];
+  const output = jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
+    lines.push(String(line));
+    return true;
+  });
+  try {
+    await f.worker.tick();
+    const record = lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .find((line) => line.message === 'VOICE_SCOPED_RUNTIME_FAILED');
+    expect(record).toMatchObject({
+      failureStage: 'claim',
+      exception: {
+        name: 'Error',
+        code: '57014',
+        reason: 'Query read timeout',
+        frames: ['platform/database/pool.service.js:41:9'],
+      },
+    });
+    expect(lines.join('')).not.toMatch(/SECRET_|postgres:\/\//);
+    expect(f.effects).toEqual(['closed:runtime_failed']);
+  } finally {
+    output.mockRestore();
+  }
+});
+
+it('reports a separate safe closure exception without replacing the original failure', async () => {
+  const f = fixture();
+  f.repository.claimVoiceEpochWork = () => Promise.reject(new Error('Query read timeout'));
+  f.repository.closeVoiceEpoch = () =>
+    Promise.reject(Object.assign(new Error('SECRET_CLOSURE'), { code: 'ECONNRESET' }));
+  const lines: string[] = [];
+  const output = jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
+    lines.push(String(line));
+    return true;
+  });
+  try {
+    await f.worker.tick();
+    const records = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: 'VOICE_SCOPED_RUNTIME_FAILED',
+          exception: expect.objectContaining({ reason: 'Query read timeout' }) as unknown,
+        }),
+        expect.objectContaining({
+          message: 'VOICE_SCOPED_CLOSURE_FAILED',
+          failureStage: 'close',
+          exception: expect.objectContaining({ code: 'ECONNRESET', reason: 'unclassified' }) as unknown,
+        }),
+      ]),
+    );
+    expect(lines.join('')).not.toContain('SECRET_CLOSURE');
+  } finally {
+    output.mockRestore();
+  }
+});
+
 const epoch = '11111111-1111-4111-8111-111111111111';
 const claim = {
   kind: 'voice.transcribe_extract',
@@ -119,12 +190,21 @@ it('does not overlap polls or finalize while an extraction is still in flight', 
 it('graceful operating worker stop aborts in-flight extraction without closing persistent Posting', async () => {
   const f = fixture('operating');
   let started!: () => void;
-  const ready = new Promise<void>(resolve => { started = resolve; });
-  f.engine.processVoiceClaim = (_claim: unknown, signal?: AbortSignal) => new Promise<boolean>(resolve => {
-    if (!signal) throw new Error('VOICE_ABORT_SIGNAL_REQUIRED');
-    signal.addEventListener('abort', () => { resolve(false); }, { once: true });
-    started();
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
   });
+  f.engine.processVoiceClaim = (_claim: unknown, signal?: AbortSignal) =>
+    new Promise<boolean>((resolve) => {
+      if (!signal) throw new Error('VOICE_ABORT_SIGNAL_REQUIRED');
+      signal.addEventListener(
+        'abort',
+        () => {
+          resolve(false);
+        },
+        { once: true },
+      );
+      started();
+    });
   const running = f.worker.tick();
   await ready;
   await f.worker.stop();
@@ -133,7 +213,12 @@ it('graceful operating worker stop aborts in-flight extraction without closing p
   expect(f.effects).toEqual(['scoped-claim']);
   const replacement = fixture('operating');
   await replacement.worker.tick();
-  expect(replacement.effects).toEqual(['scoped-claim', 'existing-extraction', 'scoped-finalize', 'scoped-purge']);
+  expect(replacement.effects).toEqual([
+    'scoped-claim',
+    'existing-extraction',
+    'scoped-finalize',
+    'scoped-purge',
+  ]);
 });
 
 it('actual operating runtime failure closes only its financial generation', async () => {

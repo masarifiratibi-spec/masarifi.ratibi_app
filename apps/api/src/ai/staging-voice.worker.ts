@@ -2,6 +2,7 @@ import { AiRepository } from './ai.repository';
 import { AiStorage } from './ai.storage';
 import { AiWorker } from './ai.worker';
 import { PlatformLogger } from '../platform/observability/platform-logger';
+import { workerErrorFields } from '../platform/observability/worker-error';
 
 // A separate lifecycle: never boot the general scheduler or AiWorker's broad loop.
 export class StagingVoiceWorker {
@@ -26,7 +27,7 @@ export class StagingVoiceWorker {
     if (this.timer || this.stopping) return;
     this.timer = setInterval(() => void this.tick(), 500);
     this.heartbeatTimer = setInterval(() => {
-      void this.pulse().catch(() => this.fail());
+      void this.pulse().catch((error: unknown) => this.fail(error, 'heartbeat'));
     }, 5000);
     void this.tick();
   }
@@ -41,14 +42,17 @@ export class StagingVoiceWorker {
   async tick(): Promise<void> {
     if (this.busy || this.stopping) return;
     this.busy = true;
+    let stage = 'heartbeat';
     try {
       const state = await this.pulse();
       if (!state.enabled) return;
       if (state.mode !== 'canary' && state.mode !== 'operating')
         throw new Error('VOICE_SCOPE_INVALID');
+      stage = 'claim';
       const claims = await this.repository.claimVoiceEpochWork(this.epoch, this.workerId, 1, 120);
       for (const claim of claims) {
         if (this.isStopping()) return;
+        stage = 'extract';
         const succeeded = await this.engine.processVoiceClaim(claim, this.abort.signal);
         if (!succeeded && state.mode === 'canary') {
           await this.repository.closeVoiceEpoch(this.epoch, 'extraction_failed');
@@ -56,10 +60,12 @@ export class StagingVoiceWorker {
         }
       }
       if (this.isStopping()) return;
+      stage = 'finalize';
       if (!(await this.repository.finalizeVoiceEpoch(this.epoch, 1, state.mode === 'canary')))
         return;
       // Bounded captures are retained as acceptance evidence; ordinary retention is scoped.
       if (state.mode === 'canary') return;
+      stage = 'purge';
       const purges = await this.repository.claimVoiceEpochPurges(this.epoch, this.workerId, 1, 120);
       for (const claim of purges) {
         try {
@@ -69,8 +75,8 @@ export class StagingVoiceWorker {
           await this.repository.completePurge(claim.id, claim.purge_token, false);
         }
       }
-    } catch {
-      await this.fail();
+    } catch (error) {
+      await this.fail(error, stage);
     } finally {
       this.busy = false;
     }
@@ -99,13 +105,21 @@ export class StagingVoiceWorker {
   private isStopping(): boolean {
     return this.stopping;
   }
-  private async fail(): Promise<void> {
+  private async fail(error: unknown, stage: string): Promise<void> {
     this.abort.abort();
-    new PlatformLogger().error('VOICE_SCOPED_RUNTIME_FAILED', { context: 'StagingVoiceWorker' });
+    new PlatformLogger().error('VOICE_SCOPED_RUNTIME_FAILED', {
+      context: 'StagingVoiceWorker',
+      failureStage: stage,
+      ...workerErrorFields(error),
+    });
     try {
       await this.repository.closeVoiceEpoch(this.epoch, 'runtime_failed');
-    } catch {
-      new PlatformLogger().error('VOICE_SCOPED_CLOSURE_FAILED', { context: 'StagingVoiceWorker' });
+    } catch (closureError) {
+      new PlatformLogger().error('VOICE_SCOPED_CLOSURE_FAILED', {
+        context: 'StagingVoiceWorker',
+        failureStage: 'close',
+        ...workerErrorFields(closureError),
+      });
     }
   }
 }
