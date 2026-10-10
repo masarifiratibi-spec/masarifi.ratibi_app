@@ -479,9 +479,21 @@ describeLiveDatabase('migration application', () => {
       'validate_ai_usage_setting',
       'validate_assistant_action',
       'validate_support_grant_invariant',
+      'voice_analysis_eligible',
       'voice_command_skip_reason',
       'voice_committed_receipt',
       'voice_epoch_open',
+    ]);
+
+    const helperGrants = await pool.query<{ role: string; allowed: boolean }>(
+      `select role,has_function_privilege(role,'private.voice_analysis_eligible(text)','EXECUTE') allowed
+       from unnest(array['anon','authenticated','masarifi_api','masarifi_worker']) as role order by role`,
+    );
+    expect(helperGrants.rows).toEqual([
+      { role: 'anon', allowed: false },
+      { role: 'authenticated', allowed: false },
+      { role: 'masarifi_api', allowed: false },
+      { role: 'masarifi_worker', allowed: false },
     ]);
 
     const roles = await pool.query<{ name: string; login: boolean }>(
