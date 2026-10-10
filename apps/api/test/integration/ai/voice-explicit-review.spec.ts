@@ -133,6 +133,71 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
     timezoneOffsetMinutes: -180,
   });
 
+  it('admits and claims independent active customers in authenticated audience without financial writes', async () => {
+    // Before the forward migration this leaves the old owner-only policy intact,
+    // so the regression fails at actual non-owner admission rather than missing DDL.
+    await pool.query(`do $$ begin
+      if exists(select 1 from information_schema.columns where table_schema='private'
+        and table_name='voice_analysis_policy' and column_name='audience') then
+        update private.voice_analysis_policy set audience='authenticated';
+      end if;
+    end $$`);
+    try {
+      const before = (
+        await pool.query(
+          'select (select count(*) from public.transactions) transactions,(select count(*) from public.transaction_postings) postings',
+        )
+      ).rows;
+      const second = { ...principal, userId: other };
+      const created = await service.createVoiceSession(second, input(), randomUUID());
+      const id = String((created.session as Record<string, unknown>).id);
+      await expect(repository.getVoiceSession(principal, id)).rejects.toMatchObject({
+        status: 404,
+      });
+      await expect(
+        service.createVoiceSession({ ...principal, userId: admin }, input(), randomUUID()),
+      ).rejects.toMatchObject({ status: 403 });
+      await pool.query(
+        "update public.voice_sessions set status='uploaded',uploaded_at=clock_timestamp(),finalized_at=clock_timestamp() where id=$1",
+        [id],
+      );
+      const claims = await repository.claimAnalysisWork('ordinary-client-review', 25, 120);
+      expect(claims).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id, user_id: other })]),
+      );
+      await expect(
+        repository.workInput('voice.transcribe_extract', id, randomUUID()),
+      ).rejects.toMatchObject({ status: 409 });
+      const quota = await pool.query<{ limit: number }>(
+        "select private.ai_effective_rolling_limit($1,'voice_transcription') as limit",
+        [other],
+      );
+      expect(quota.rows[0]?.limit).toBe(5);
+      expect((await pool.query('select enabled from private.voice_automatic_policy')).rows).toEqual(
+        [{ enabled: false }],
+      );
+      expect(
+        (
+          await pool.query(
+            'select (select count(*) from public.transactions) transactions,(select count(*) from public.transaction_postings) postings',
+          )
+        ).rows,
+      ).toEqual(before);
+      await pool.query('update private.voice_analysis_policy set enabled=false');
+      await expect(service.createVoiceSession(second, input(), randomUUID())).rejects.toMatchObject(
+        { status: 503 },
+      );
+    } finally {
+      await pool.query(`do $$ begin
+        if exists(select 1 from information_schema.columns where table_schema='private'
+          and table_name='voice_analysis_policy' and column_name='audience') then
+          update private.voice_analysis_policy set audience='owner';
+        end if;
+      end $$`);
+      await pool.query('update private.voice_analysis_policy set enabled=true,owner_id=$1', [user]);
+    }
+  });
+
   it('rejects non-owner review admission while retaining the automatic Posting gate', async () => {
     await expect(
       service.createVoiceSession({ ...principal, userId: other }, input(), randomUUID()),

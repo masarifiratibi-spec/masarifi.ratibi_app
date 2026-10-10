@@ -1,0 +1,29 @@
+name: Staging Client Regression
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: postgres
+      MASARIFI_LIVE_DATABASE_TESTS: "1"
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run supabase:start
+      - run: npm run test:integration -- --runTestsByPath test/integration/ai/voice-explicit-review.spec.ts

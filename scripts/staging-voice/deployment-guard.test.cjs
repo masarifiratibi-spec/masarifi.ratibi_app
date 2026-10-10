@@ -20,6 +20,18 @@ test('rejects the API replacement that would trip the active financial Voice mon
 test('rejects the closed restoration with an unrelated analysis owner',()=>{
   assert.throws(()=>assertDeploymentSafe({...snapshot(),analysisOwnerMatches:false},candidate(),now),/VOICE_ANALYSIS_OWNER_MISMATCH/);
 });
+
+test('permits an explicit authenticated analysis audience without an owner allowlist',()=>{
+  assert.doesNotThrow(()=>assertDeploymentSafe({...snapshot(),analysisOwnerMatches:false,
+    analysisAudience:'authenticated'}, {...candidate(),analysisAudience:'authenticated'},now));
+});
+
+test('requires an exact audience pin and does not infer universal access from an owner mismatch',()=>{
+  assert.throws(()=>assertDeploymentSafe({...snapshot(),analysisOwnerMatches:true,
+    analysisAudience:'authenticated'}, {...candidate(),analysisAudience:'owner'},now),/VOICE_ANALYSIS_AUDIENCE_MISMATCH/);
+  assert.throws(()=>assertDeploymentSafe({...snapshot(),analysisOwnerMatches:false,
+    analysisAudience:'owner'}, {...candidate(),analysisAudience:'authenticated'},now),/VOICE_ANALYSIS_AUDIENCE_MISMATCH/);
+});
 test('rejects API-only image drift while permitting an explicit API and analysis cohort',()=>{
   const next={...candidate(),image:image.replace(/a{64}$/,'c'.repeat(64)),sourceSha:'d'.repeat(40)};
   next.compatibility={...next.compatibility,image:next.image,sourceSha:next.sourceSha};
