@@ -59,6 +59,14 @@ type ServerProposal = z.infer<typeof proposalSchema>;
 const pollIntervalMs = 1_000;
 const maxPollAttempts = 125;
 
+function hasPendingVoiceConfirmation(operation: VoiceOperation): boolean {
+  return Boolean(
+    operation.confirmationKey ||
+      operation.confirmationBody ||
+      ['confirming', 'confirmation_unknown'].includes(operation.phase)
+  );
+}
+
 function failClosed<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new VoiceCaptureError('analysis_failed');
@@ -772,6 +780,8 @@ export function createLiveVoiceApiService(
         return null;
       }
       if (!operation.sessionId) {
+        if (automaticCapture && !hasPendingVoiceConfirmation(operation))
+          return null;
         if (retryAudio) operation = await uploadAndProcess(binding, operation);
         else {
           await discard(binding, operation);
@@ -781,10 +791,16 @@ export function createLiveVoiceApiService(
       const result = await recovery(binding, operation.sessionId!);
       if (
         automaticCapture &&
-        !operation.confirmationKey &&
-        !operation.confirmationBody &&
-        !['confirming', 'confirmation_unknown'].includes(operation.phase) &&
-        ['awaiting_audio', 'uploaded', 'queued', 'processing'].includes(result.phase)
+        !hasPendingVoiceConfirmation(operation) &&
+        [
+          'awaiting_audio',
+          'uploaded',
+          'queued',
+          'processing',
+          'expired',
+          'failed',
+          'cancelled'
+        ].includes(result.phase)
       ) {
         // Legacy unconfirmed audio must not be replayed, discarded or allowed
         // to block new batch capture while its old worker is unavailable.

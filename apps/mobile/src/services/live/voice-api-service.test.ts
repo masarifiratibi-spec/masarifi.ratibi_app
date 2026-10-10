@@ -596,7 +596,10 @@ it.each([
   ['awaiting_audio', false], ['awaiting_audio', true],
   ['uploaded', false], ['uploaded', true],
   ['queued', false], ['queued', true],
-  ['processing', false], ['processing', true]
+  ['processing', false], ['processing', true],
+  ['expired', false], ['expired', true],
+  ['failed', false], ['failed', true],
+  ['cancelled', false], ['cancelled', true]
 ] as const)(
   'preserves legacy %s evidence without replay or polling in automatic capture (retryAudio=%s)',
   async (phase, retryAudio) => {
@@ -612,7 +615,10 @@ it.each([
     process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
     const recovered = { ...recovery(null), phase,
       session: { ...recovery().session,
-        status: phase === 'queued' || phase === 'processing' ? 'processing' : 'uploaded' } };
+        status: phase === 'queued' || phase === 'processing' ? 'processing'
+          : phase === 'expired' ? 'expired'
+          : phase === 'failed' || phase === 'cancelled' ? 'failed' : 'uploaded',
+        failureCode: phase === 'cancelled' ? 'VOICE_CANCELLED' : null } };
     const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
       async (url, init) => {
         if (String(url).endsWith('/recovery') && (init?.method ?? 'GET') === 'GET')
@@ -631,6 +637,26 @@ it.each([
     expect(request).toHaveBeenCalledTimes(1);
   }
 );
+
+it.each([false, true])('preserves unsubmitted legacy audio during automatic capture (retryAudio=%s)', async (retryAudio) => {
+  const baseUrl = 'https://api.staging.masarifiratibi.com';
+  const legacy = createLiveVoiceApiService({ baseUrl, token: async () => 'owner',
+    request: successfulRequest(), sleep: async () => {}, now: () => 1 });
+  await legacy.transcribe('file:///voice.wav', 'clear_en', 1234, 'en');
+  const previous = (await loadVoiceOperation('owner-a'))!;
+  await saveVoiceOperation('owner-a', { ...previous, revision: previous.revision + 1,
+    phase: 'captured', sessionId: null, sessionVersion: null, processBody: null,
+    proposalId: null, proposalVersion: null });
+  const evidence = await loadVoiceOperation('owner-a');
+  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(async () => {
+    throw new Error('unexpected legacy audio submission');
+  });
+  const automatic = createLiveVoiceApiService({ baseUrl, token: async () => 'owner', request });
+  await expect(automatic.recoverPending?.(retryAudio)).resolves.toBeNull();
+  expect(await loadVoiceOperation('owner-a')).toEqual(evidence);
+  expect(request).not.toHaveBeenCalled();
+});
 
 it.each(['multiple', 'transfer', 'obligation'] as const)(
   'does not let the hidden %s fixture scenario determine live semantics or locale',
