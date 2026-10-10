@@ -75,7 +75,15 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(m.user_id,0));
   select * into e from private.staging_voice_epochs where id=m.epoch_id for update;
   if not private.voice_epoch_open(e.id) then raise exception 'VOICE_AUTOMATIC_PAUSED'; end if;
-  select * into s from public.voice_sessions where id=p_session;
+  select * into s from public.voice_sessions where id=p_session for update;
+  -- A stale extraction response must not close a valid canary before the shared
+  -- acceptance implementation checks its lease. Existing batch receipts retain
+  -- the underlying idempotent path; new acceptance uses the same work fence.
+  if not exists(select 1 from private.voice_batches where session_id=p_session)
+    and (s.status<>'processing' or s.claim_token is distinct from p_token
+      or s.lease_until is null or s.lease_until<=clock_timestamp()
+      or s.cancelled_at is not null or s.deleted_at is not null
+      or s.expires_at<=clock_timestamp()) then raise exception 'AI_WORK_FENCE_INVALID'; end if;
   if s.user_id is distinct from m.user_id or s.content_hash is distinct from m.content_hash or s.capture_at is distinct from m.capture_at or s.locale is distinct from m.locale then raise exception 'VOICE_SCOPE_INVALID'; end if;
   if e.mode='canary' then
     expense_minor:=case when e.manifest->>'version'='2' then 1000 else 2500 end;

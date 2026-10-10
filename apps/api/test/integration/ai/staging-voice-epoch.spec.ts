@@ -676,7 +676,10 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
           a,
           old.claim_token,
         ]),
-      ).rejects.toBeDefined();
+      ).rejects.toMatchObject({ message: 'AI_WORK_FENCE_INVALID' });
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(true);
       const work = row(
         (
           await query("select private.get_ai_work_input('voice.transcribe_extract',$1,$2) result", [
@@ -694,7 +697,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       await prepare(version === 2 ? 'canary' : 'operating', true, version);
       await create(version === 2 ? 'ar' : 'en');
       await query(
-        "update private.staging_voice_epochs set expires_at=clock_timestamp()-interval '1 second' where id=$1",
+        "update private.staging_voice_epochs set started_at=clock_timestamp()-interval '2 seconds',expires_at=clock_timestamp()-interval '1 second' where id=$1",
         [epoch],
       );
       expect(
