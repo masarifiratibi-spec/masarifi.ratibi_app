@@ -107,19 +107,27 @@ export class StagingVoiceWorker {
   }
   private async fail(error: unknown, stage: string): Promise<void> {
     this.abort.abort();
-    new PlatformLogger().error('VOICE_SCOPED_RUNTIME_FAILED', {
-      context: 'StagingVoiceWorker',
-      failureStage: stage,
-      ...workerErrorFields(error),
-    });
+    try {
+      new PlatformLogger().error('VOICE_SCOPED_RUNTIME_FAILED', {
+        context: 'StagingVoiceWorker',
+        failureStage: stage,
+        ...workerErrorFields(error),
+      });
+    } catch {
+      // Diagnostic output must never prevent closing financial admission.
+    }
     try {
       await this.repository.closeVoiceEpoch(this.epoch, 'runtime_failed');
     } catch (closureError) {
-      new PlatformLogger().error('VOICE_SCOPED_CLOSURE_FAILED', {
-        context: 'StagingVoiceWorker',
-        failureStage: 'close',
-        ...workerErrorFields(closureError),
-      });
+      try {
+        new PlatformLogger().error('VOICE_SCOPED_CLOSURE_FAILED', {
+          context: 'StagingVoiceWorker',
+          failureStage: 'close',
+          ...workerErrorFields(closureError),
+        });
+      } catch {
+        // Keep the abort in force even when both closure and logging fail.
+      }
     }
   }
 }

@@ -7,8 +7,10 @@ it('retains the root database exception and stage without exposing query or owne
     code: '57014',
     query: 'SECRET_SQL',
   });
-  root.stack =
-    'Error: SECRET_AUDIO\n    at query (/app/dist/src/platform/database/pool.service.js:41:9)';
+  Object.defineProperty(root, 'stack', {
+    value:
+      'Error: SECRET_AUDIO\n    at query (/app/dist/src/platform/database/pool.service.js:41:9)',
+  });
   const error = new Error(
     'SECRET_OWNER SECRET_TRANSCRIPT postgres://user:SECRET_PASSWORD@host/db',
     { cause: root },
@@ -62,7 +64,10 @@ it('reports a separate safe closure exception without replacing the original fai
         expect.objectContaining({
           message: 'VOICE_SCOPED_CLOSURE_FAILED',
           failureStage: 'close',
-          exception: expect.objectContaining({ code: 'ECONNRESET', reason: 'unclassified' }) as unknown,
+          exception: expect.objectContaining({
+            code: 'ECONNRESET',
+            reason: 'unclassified',
+          }) as unknown,
         }),
       ]),
     );
@@ -226,4 +231,44 @@ it('actual operating runtime failure closes only its financial generation', asyn
   f.repository.claimVoiceEpochWork = () => Promise.reject(new Error('database unavailable'));
   await f.worker.tick();
   expect(f.effects).toEqual(['closed:runtime_failed']);
+});
+
+it.each(['heartbeat', 'claim'])('closes its epoch after a hostile %s rejection', async (stage) => {
+  const f = fixture('operating');
+  const hostile = new Proxy(new Error(), {
+    getPrototypeOf() {
+      throw new Error('SECRET_TRAP');
+    },
+  });
+  const rejection = () => Promise.reject(hostile);
+  if (stage === 'heartbeat') f.repository.voiceEpochHeartbeat = rejection;
+  else f.repository.claimVoiceEpochWork = rejection;
+  await expect(f.worker.tick()).resolves.toBeUndefined();
+  expect(f.effects).toEqual(['closed:runtime_failed']);
+});
+
+it('contains a revoked proxy closure rejection after aborting financial work', async () => {
+  const f = fixture('operating');
+  const revoked = Proxy.revocable(new Error(), {});
+  revoked.revoke();
+  f.repository.claimVoiceEpochWork = () => Promise.reject(new Error('Query read timeout'));
+  const close = jest.fn(() => Promise.reject(revoked.proxy));
+  f.repository.closeVoiceEpoch = close;
+  await expect(f.worker.tick()).resolves.toBeUndefined();
+  expect(close).toHaveBeenCalledWith(epoch, 'runtime_failed');
+  expect(f.effects).toEqual([]);
+});
+
+it('still closes its epoch when the diagnostic output itself fails', async () => {
+  const f = fixture('operating');
+  f.repository.claimVoiceEpochWork = () => Promise.reject(new Error('Query read timeout'));
+  const output = jest.spyOn(process.stdout, 'write').mockImplementation(() => {
+    throw new Error('OUTPUT_UNAVAILABLE');
+  });
+  try {
+    await expect(f.worker.tick()).resolves.toBeUndefined();
+    expect(f.effects).toEqual(['closed:runtime_failed']);
+  } finally {
+    output.mockRestore();
+  }
 });
