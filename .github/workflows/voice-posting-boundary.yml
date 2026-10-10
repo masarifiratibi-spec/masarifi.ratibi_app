@@ -2,6 +2,8 @@ name: Voice Posting Boundary
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/voice-auto-save-restoration-2026-10-11]
 
 permissions:
   contents: read
