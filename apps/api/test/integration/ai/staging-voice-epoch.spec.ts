@@ -217,12 +217,15 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     { maxTransactions: 2 },
     { maxTransactions: '1' },
     { maxTransactions: null },
+    { maxTransactions: undefined },
     { maxExpenseMinor: 1001 },
     { maxExpenseMinor: '1000' },
     { maxExpenseMinor: null },
+    { maxExpenseMinor: undefined },
     { expenseMinor: 2500 },
     { expenseMinor: '1000' },
     { expenseMinor: null },
+    { expenseMinor: undefined },
     { locale: 'en' },
     { currency: 'USD' },
     { version: 3 },
@@ -408,6 +411,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     expect(await ledgerState()).toEqual(before);
   });
   it('rejects the wrong owner, Arabic-first and a third capture without financial effects', async () => {
+    const before = await ledgerState();
     await prepare();
     await expect(create('en', other)).rejects.toMatchObject({ status: 503 });
     await expect(create('en', user, '1'.repeat(64), 'another-device')).rejects.toMatchObject({
@@ -417,22 +421,10 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     await commit(await create('en'));
     await commit(await create('ar', user, '2'.repeat(64)));
     await expect(create()).rejects.toMatchObject({ status: 503 });
-    expect(
-      row(
-        (await query('select count(*)::int n from public.transactions where user_id=$1', [user]))
-          .rows[0],
-      ).n,
-    ).toBe(2);
-    expect(
-      row(
-        (
-          await query(
-            'select confirmed_minor::text amount from public.account_balances where account_id=$1',
-            [account],
-          )
-        ).rows[0],
-      ).amount,
-    ).toBe('-5000');
+    const after = await ledgerState();
+    expect(after.transactions).toBe(Number(before.transactions) + 2);
+    expect(after.postings).toBe(Number(before.postings) + 2);
+    expect(BigInt(String(after.balance)) - BigInt(String(before.balance))).toBe(-5000n);
   });
   it.each([
     { amountMinor: 2501 },
