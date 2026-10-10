@@ -44,20 +44,25 @@ export class PoolService implements OnModuleDestroy {
     const client = await this.connect();
     const query = client.query<T>(text, [...values]);
     let timer: NodeJS.Timeout | undefined;
-    let timedOut = false;
+    let failed = false;
     try {
       return await Promise.race([
         query,
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
-            timedOut = true;
+            failed = true;
             reject(new Error('DATABASE_QUERY_TIMEOUT'));
           }, timeoutMs);
         }),
       ]);
+    } catch (error) {
+      // The driver's own timeout may reject before our deadline, leaving work
+      // running on this connection. Treat every failed query as uncertain.
+      failed = true;
+      throw error;
     } finally {
       if (timer) clearTimeout(timer);
-      client.release(timedOut);
+      client.release(failed);
     }
   }
 
