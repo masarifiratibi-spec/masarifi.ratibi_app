@@ -67,10 +67,16 @@ export class PoolService implements OnModuleDestroy {
 
   async withClient<T>(action: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.connect();
+    let failed = false;
     try {
       return await action(client);
+    } catch (error) {
+      // A driver timeout can also time out a queued ROLLBACK. Never return an
+      // uncertain transaction or owner-local settings to another request.
+      failed = true;
+      throw error;
     } finally {
-      client.release();
+      client.release(failed);
     }
   }
 
