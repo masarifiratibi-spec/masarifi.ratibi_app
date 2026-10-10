@@ -135,3 +135,20 @@ Gitleaks classified public pinned revision/image digests named API_SOURCE/API_IM
 as generic credentials at historical 0dbed67e lines 8/9. Those values were verified
 against runtime/image provenance. The constants were renamed, and only these two
 exact historical fingerprints were recorded as false positives; scanning remains active.
+
+The independent scoped rollback helper and root-only systemd template are preserved
+under scripts/staging-voice and will be verified by final Linux CI, including Python optimization.
+The descriptor binds the normalized helper/template, Compose and validator hashes,
+original environment/CA/Compose pins and preserved service identities. A malformed
+database receipt still stops the owned new writer and reports OFF unconfirmed.
+Prepared arming accepts the original NULL database expiry only while Posting is OFF,
+waits at most 30 seconds, and never activates or extends a financial deadline.
+Actual loaded-unit/detached-lifetime and never-activated Staging closure rehearsal
+must pass after deployment approval and before any financial activation.
+
+The full 4d88d292 workflow exposed an inherited Reports test scheduler race: real
+query updates were outside React act and the one-second query assertion expired.
+37bb6792 makes only that test use the same notification boundary/cleanup as its
+adjacent ReportsJourney suite. Assertions and timeout remain unchanged; no Mobile
+production source, approved cards or installed bundle changed. Exact final CI must
+pass, including the four-ABI Android build, before the scoped approval is requested.

@@ -30,6 +30,10 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Verify bounded operator approval controls
         run: node --test ../../scripts/staging-voice/redmi-controls.test.cjs
+      - name: Verify independent rollback and arming guards
+        run: |
+          python3 ../../scripts/staging-voice/test_redmi_voice_rollback_watchdog.py
+          python3 -O ../../scripts/staging-voice/test_redmi_voice_rollback_watchdog.py
       - name: Start disposable local Supabase
         run: npm run supabase:start
       - run: npm run db:reset
