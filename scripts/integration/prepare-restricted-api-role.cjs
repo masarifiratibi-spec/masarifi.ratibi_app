@@ -20,10 +20,11 @@ const location = relative(resolve(process.env.RUNNER_TEMP), environmentFile);
 assert.ok(location && !location.startsWith('..') && !isAbsolute(location));
 
 const { Client } = createRequire(resolve(__dirname, '../../apps/api/package.json'))('pg');
-const role = `masarifi_ci_api_${randomBytes(6).toString('hex')}`;
+// Keep disposable logins outside the migration-owned masarifi_* namespace.
+const role = `ci_api_${randomBytes(6).toString('hex')}`;
 const password = randomBytes(32).toString('hex');
 // Identifier and password contain only generated safe ASCII, never operator input.
-assert.match(role, /^masarifi_ci_api_[a-f0-9]{12}$/);
+assert.match(role, /^ci_api_[a-f0-9]{12}$/);
 assert.match(password, /^[a-f0-9]{64}$/);
 const restricted = new URL(connection);
 restricted.username = role;
