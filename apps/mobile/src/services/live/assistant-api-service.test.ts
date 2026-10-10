@@ -23,6 +23,30 @@ const conversation = {
   updatedAt: '2026-09-03T00:00:02.000Z'
 };
 
+it('bounds stalled authentication and ignores its late resolution without sending a question', async () => {
+  jest.useFakeTimers();
+  try {
+    let release!: (token: string) => void;
+    const token = new Promise<string>((resolve) => { release = resolve; });
+    const request = jest.fn();
+    const journal = createMemoryAssistantJournal();
+    const service = createLiveAssistantApiService({
+      baseUrl: 'https://api.test', token: () => token, request, journal,
+      requestTimeoutMs: 10
+    });
+    const outcome = service.ask(id(1), 'Income?', 'sample-auth-timeout-key')
+      .then(() => 'completed', (error: {code: string}) => error.code);
+    await jest.advanceTimersByTimeAsync(20);
+    expect(await Promise.race([outcome, Promise.resolve('still_pending')])).toBe('offline');
+    release('late-auth-token');
+    await jest.advanceTimersByTimeAsync(20);
+    expect(request).not.toHaveBeenCalled();
+    expect(await journal.read('inert-adapter-owner', 'question')).toBeNull();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
 it('recovers the original conversation when the deployed getter serializes its bigint version as decimal text', async () => {
   const journal = createMemoryAssistantJournal();
   const key = 'sample-bigint-recovery-0001';

@@ -56,6 +56,7 @@ export function createLiveReportsService(
     token?: TokenProvider;
     request?: typeof fetch;
     repository?: ReportsRepository;
+    requestTimeoutMs?: number;
   } = {}
 ): CapabilityProviderHandle<ReportsService> {
   const baseUrl = options.baseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -67,19 +68,22 @@ export function createLiveReportsService(
   const previews = new Map<string, ReportPreview>();
   const attempts = new Map<string, ReportOutputAttempt>();
 
-  const send = async (
+  const sendRequest = async (
     method: string,
     path: string,
-    body?: unknown,
-    key?: string
+    requestContext: { body?: unknown; key?: string; signal: AbortSignal }
   ): Promise<unknown> => {
+    const { body, key, signal } = requestContext;
     if (!baseUrl) throw new ReportsApiError('reports_unavailable');
     let response: Response;
     try {
+      const sessionToken = await token();
+      if (signal?.aborted) throw new ReportsApiError('offline');
       response = await request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
         method,
+        signal,
         headers: {
-          Authorization: `Bearer ${await token()}`,
+          Authorization: `Bearer ${sessionToken}`,
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           ...(key ? { 'Idempotency-Key': key } : {})
         },
@@ -107,6 +111,24 @@ export function createLiveReportsService(
                 : 'reports_unavailable'
       );
     return value;
+  };
+
+  const send = async (method: string, path: string, body?: unknown, key?: string) => {
+    const controller = new AbortController();
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        sendRequest(method, path, { body, key, signal: controller.signal }),
+        new Promise<never>((_resolve, reject) => {
+          deadline = setTimeout(() => {
+            controller.abort();
+            reject(new ReportsApiError('offline'));
+          }, Math.min(options.requestTimeoutMs ?? 15000, 15000));
+        })
+      ]);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+    }
   };
 
   const report = async (

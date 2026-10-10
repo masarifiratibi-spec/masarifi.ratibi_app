@@ -61,6 +61,26 @@ function service(request: jest.Mock) {
 }
 
 describe('live reports strict mapping', () => {
+  it('stops waiting for authentication and never sends a request when a late token arrives', async () => {
+    jest.useFakeTimers();
+    try {
+      let release!: (token: string) => void;
+      const token = new Promise<string>((resolve) => { release = resolve; });
+      const request = jest.fn();
+      const reports = createLiveReportsService({
+        baseUrl: 'https://api.example.test', token: () => token, request,
+        requestTimeoutMs: 10
+      });
+      const outcome = reports.getReport(input).then(() => 'completed', (error: ReportsApiError) => error.code);
+      await jest.advanceTimersByTimeAsync(20);
+      expect(await Promise.race([outcome, Promise.resolve('still_pending')])).toBe('offline');
+      release('late-token');
+      await jest.advanceTimersByTimeAsync(20);
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
   it('sends the exact anchor and validates the server-owned range and timezone', async () => {
     const request = jest.fn().mockResolvedValue(json(summary()));
     const reports = service(request);

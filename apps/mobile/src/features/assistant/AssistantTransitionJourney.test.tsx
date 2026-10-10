@@ -19,7 +19,8 @@ const mockAssistantQueries = {
   useAssistantFeedback: jest.fn(),
   useAssistantAvailability: jest.fn(),
   useAssistantQuestionOperation: jest.fn(),
-  useResumeAssistantQuestion: jest.fn()
+  useResumeAssistantQuestion: jest.fn(),
+  useRetryAssistantQuestion: jest.fn()
 };
 
 jest.mock('expo-router', () => ({
@@ -39,6 +40,7 @@ describe('Assistant Transition & Chat Journey', () => {
     mockAssistantQueries.useAssistantAvailability.mockReturnValue({data: undefined});
     mockAssistantQueries.useAssistantQuestionOperation.mockReturnValue({data: null});
     mockAssistantQueries.useResumeAssistantQuestion.mockReturnValue({isError: false});
+    mockAssistantQueries.useRetryAssistantQuestion.mockReturnValue({isError: false});
     changeLocale('ar');
     mockAssistantQueries.useAssistantInsights.mockReturnValue({ data: [] });
     usePreferenceStore.setState({ hideBalances: false });
@@ -217,6 +219,28 @@ describe('Assistant Transition & Chat Journey', () => {
     mockAssistantQueries.useResumeAssistantQuestion.mockReturnValue({isError: true});
     renderWithProviders(<AssistantHomeScreen initialConversationId="conv-101" />);
     expect(screen.queryByTestId('assistant-inline-recovery')).toBeNull();
+  });
+
+  it.each(['check', 'retry'] as const)('clears the failed send only after successful original-operation %s', action => {
+    const reset = jest.fn();
+    mockAssistantQueries.useAskAssistant.mockReturnValue({
+      mutate: jest.fn(), isPending: false, isError: true,
+      error: {code: 'outcome_unknown'}, reset
+    });
+    mockAssistantQueries.useAssistantQuestionOperation.mockReturnValue({data: {
+      operationId: 'original-recovery-operation', phase: 'prepared',
+      conversationId: 'conv-101', question: 'Sample income question?'
+    }});
+    let callbacks: {onSuccess?: () => void} | undefined;
+    const mutate = jest.fn((_input, options) => {callbacks = options;});
+    if (action === 'check') mockAssistantQueries.useResumeAssistantQuestion.mockReturnValue({mutate});
+    else mockAssistantQueries.useRetryAssistantQuestion.mockReturnValue({mutate});
+    renderWithProviders(<AssistantHomeScreen initialConversationId="conv-101" />);
+    fireEvent.press(screen.getByText(action === 'check' ? 'التحقق من حالة السؤال' : 'إعادة محاولة العملية الأصلية'));
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(reset).not.toHaveBeenCalled();
+    act(() => callbacks?.onSuccess?.());
+    expect(reset).toHaveBeenCalledTimes(1);
   });
 
   it.each([false, true])('handles native Back from a conversation with router history=%s', hasHistory => {

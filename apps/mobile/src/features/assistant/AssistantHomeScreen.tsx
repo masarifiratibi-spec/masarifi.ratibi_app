@@ -274,8 +274,8 @@ export function AssistantConversationScreen({
         }}
         availability={availability?.data ?? null}
         functionalStatus={unresolvedQuestion || operation?.isError || recoveryFailed ? <AssistantQuestionRecovery operation={operation?.data} loading={resume?.isPending || retry?.isPending} error={operation?.isError || recoveryFailed}
-          onCheck={() => {resume?.mutate(undefined, {onSettled: () => {operation?.refetch(); latest.refetch?.();}});}}
-          onRetry={() => retry?.mutate(undefined, {onSuccess: () => {setOptimisticTurn(null); latest.refetch?.();}})} /> : undefined}
+          onCheck={() => {resume?.mutate(undefined, {onSuccess: () => {ask.reset?.(); setOptimisticTurn(null);}, onSettled: () => {operation?.refetch(); latest.refetch?.();}});}}
+          onRetry={() => retry?.mutate(undefined, {onSuccess: () => {ask.reset?.(); setOptimisticTurn(null); latest.refetch?.();}})} /> : undefined}
         onSendMessage={handleSendMessage}
         onReviewAction={handleReviewAction}
         onViewReport={handleViewReport}

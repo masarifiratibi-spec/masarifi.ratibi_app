@@ -388,13 +388,31 @@ export function createLiveAssistantApiService(
   const reviewedDisclosures = new Map<string, string>();
   const journal = options.journal ?? createMemoryAssistantJournal();
   const now = options.now ?? Date.now;
-  const identity =
+  const captureIdentity =
     options.identity ??
     (async () => ({
       userId: 'inert-adapter-owner',
       token: await token(),
       assertCurrent: async () => {}
     }));
+  // Authentication is part of the request boundary. A late token must never
+  // resume a question after the caller has already entered recovery.
+  const identity = async () => {
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        captureIdentity(),
+        new Promise<never>((_resolve, reject) => {
+          deadline = setTimeout(
+            () => reject(new AssistantApiError('offline')),
+            Math.min(options.requestTimeoutMs ?? 15000, 15000)
+          );
+        })
+      ]);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+    }
+  };
 
   const send = async (
     method: string,
