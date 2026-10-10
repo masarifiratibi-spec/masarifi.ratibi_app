@@ -51,6 +51,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm --prefix apps/api ci --ignore-scripts
+      # These cross-feature tests import the real Mobile financial parsers.
+      - run: npm --prefix apps/mobile ci --ignore-scripts
       - name: Verify the immutable container identity
         env:
           GH_TOKEN: ${{ github.token }}
