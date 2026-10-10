@@ -150,23 +150,53 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
       ).rows;
       const second = { ...principal, userId: other };
       const created = await service.createVoiceSession(second, input(), randomUUID());
-      const id = String((created.session as Record<string, unknown>).id);
-      await expect(repository.getVoiceSession(principal, id)).rejects.toMatchObject({
-        status: 404,
-      });
-      await expect(
-        service.createVoiceSession({ ...principal, userId: admin }, input(), randomUUID()),
-      ).rejects.toMatchObject({ status: 403 });
+      const v3 = await service.createVoiceSession(second, input(), randomUUID(), '3');
+      const ids = [created, v3].map((value) => String(value.session.id));
+      for (const id of ids) {
+        await expect(repository.getVoiceSession(principal, id)).rejects.toMatchObject({
+          status: 404,
+        });
+      }
+      for (const contract of ['2', '3']) {
+        await expect(
+          service.createVoiceSession(
+            { ...principal, userId: admin },
+            input(),
+            randomUUID(),
+            contract,
+          ),
+        ).rejects.toMatchObject({ status: 403 });
+      }
       await pool.query(
-        "update public.voice_sessions set status='uploaded',uploaded_at=clock_timestamp(),finalized_at=clock_timestamp() where id=$1",
-        [id],
+        "update public.voice_sessions set status='uploaded',uploaded_at=clock_timestamp(),finalized_at=clock_timestamp() where id=any($1::uuid[])",
+        [ids],
       );
-      const claims = await repository.claimAnalysisWork('ordinary-client-review', 25, 120);
-      expect(claims).toEqual(
-        expect.arrayContaining([expect.objectContaining({ id, user_id: other })]),
-      );
+      await pool.query("update public.profiles set status='suspended' where id=$1", [other]);
+      const suspended = await repository.claimAnalysisWork('suspended-client-review', 25, 120);
+      expect(suspended.some((claim) => ids.includes(claim.id))).toBe(false);
       await expect(
-        repository.workInput('voice.transcribe_extract', id, randomUUID()),
+        service.createVoiceSession(second, input(), randomUUID(), '3'),
+      ).rejects.toMatchObject({ status: 403 });
+      await pool.query("update public.profiles set status='active' where id=$1", [other]);
+      await pool.query("insert into public.admin_profiles(user_id,status) values($1,'active')", [
+        other,
+      ]);
+      const administrative = await repository.claimAnalysisWork(
+        'administrative-client-review',
+        25,
+        120,
+      );
+      expect(administrative.some((claim) => ids.includes(claim.id))).toBe(false);
+      await pool.query('delete from public.admin_profiles where user_id=$1', [other]);
+      const claims = await repository.claimAnalysisWork('ordinary-client-review', 25, 120);
+      for (const id of ids)
+        expect(claims).toEqual(
+          expect.arrayContaining([expect.objectContaining({ id, user_id: other })]),
+        );
+      const leased = await repository.claimAnalysisWork('second-client-review', 25, 120);
+      expect(leased.some((claim) => ids.includes(claim.id))).toBe(false);
+      await expect(
+        repository.workInput('voice.transcribe_extract', String(created.session.id), randomUUID()),
       ).rejects.toMatchObject({ status: 409 });
       const quota = await pool.query<{ limit: number }>(
         "select private.ai_effective_rolling_limit($1,'voice_transcription') as limit",
@@ -191,6 +221,8 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
         { status: 503 },
       );
     } finally {
+      await pool.query('delete from public.admin_profiles where user_id=$1', [other]);
+      await pool.query("update public.profiles set status='active' where id=$1", [other]);
       await pool.query(`do $$ begin
         if exists(select 1 from information_schema.columns where table_schema='private'
           and table_name='voice_analysis_policy' and column_name='audience') then

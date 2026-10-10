@@ -1,6 +1,8 @@
 name: Staging Client Regression
 
 on:
+  push:
+    branches: [codex/staging-client-readiness-2026-10-10]
   workflow_dispatch:
 
 permissions:
