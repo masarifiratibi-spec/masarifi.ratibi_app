@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { lightThemeColors, radius } from '@/design-system/tokens';
-import type { HomeSummary } from '@/domain/core-finance';
+import type { Category, HomeSummary } from '@/domain/core-finance';
 import { changeLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { voiceAnalyzerService } from '@/services/mocks/voice-analyzer-service';
@@ -16,6 +16,7 @@ import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useVoiceCaptureStore } from '@/state/voice-capture';
 import {
   fixtureAccounts,
+  fixtureCategories,
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
@@ -84,6 +85,47 @@ const summary: HomeSummary = {
   pendingSyncCount: 1,
   dataState: 'ready'
 };
+
+it.each([
+  ['ar', 'expense', 'العناية بالحيوانات'],
+  ['en', 'expense', 'Pet care'],
+  ['ar', 'income', 'عمل مستقل'],
+  ['en', 'income', 'Freelance work']
+] as const)(
+  'shows the actual custom %s %s category on Home',
+  (locale, type, expectedLabel) => {
+    changeLocale(locale);
+    const category: Category = {
+      ...fixtureCategories[0],
+      id: '91000000-0000-4000-8000-000000000001',
+      kind: 'custom',
+      financialType: type,
+      labelAr: type === 'expense' ? 'العناية بالحيوانات' : 'عمل مستقل',
+      labelEn: type === 'expense' ? 'Pet care' : 'Freelance work'
+    };
+    const transaction = makeTransaction(100, {
+      categoryId: category.id,
+      title: 'Custom category transaction',
+      type
+    });
+    renderWithProviders(
+      <HomeScreen
+        categories={[fixtureCategories[0], category]}
+        summary={summary}
+        todayActivity={[{
+          transaction,
+          group: type,
+          sign: type === 'income' ? 'positive' : 'negative'
+        }]}
+      />
+    );
+
+    expect(screen.getByText(expectedLabel)).toBeTruthy();
+    expect(screen.getByRole('button', {
+      name: new RegExp(`Custom category transaction, ${expectedLabel},`)
+    })).toBeTruthy();
+  }
+);
 
 beforeEach(() => {
   jest.clearAllMocks();

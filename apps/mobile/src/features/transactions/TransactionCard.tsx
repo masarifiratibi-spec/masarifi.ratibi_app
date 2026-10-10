@@ -9,7 +9,7 @@ import {
 } from '@/design-system/components/financial/FinancialPrimitives';
 import { resolveCategoryVisual } from '@/design-system/components/financial/category-visuals';
 import { borderWidth, elevation, radius, spacing } from '@/design-system/tokens';
-import type { Transaction } from '@/domain/core-finance';
+import type { Category, Transaction } from '@/domain/core-finance';
 import {
   localizedDemoAccountName,
   localizedDemoTransactionTitle
@@ -23,6 +23,7 @@ import { colorTokens } from '@/design-system/tokens';
 
 export function TransactionCard({
   accountName,
+  category,
   contained = false,
   groupedPosition,
   hidden,
@@ -33,6 +34,7 @@ export function TransactionCard({
   sign
 }: {
   accountName?: string;
+  category?: Category;
   contained?: boolean;
   groupedPosition?: 'first' | 'middle' | 'last' | 'only';
   hidden: boolean;
@@ -46,7 +48,7 @@ export function TransactionCard({
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
-  const presentation = projectTransaction(transaction, locale, undefined, undefined, timeZone);
+  const presentation = projectTransaction(transaction, locale, undefined, category, timeZone);
   const localizedAccountName = localizedDemoTransactionTitle(
     transaction.id,
     locale
@@ -54,9 +56,9 @@ export function TransactionCard({
     ? localizedDemoAccountName(transaction.accountId, locale) ?? accountName
     : accountName;
   const visualKey = transaction.categoryId;
-  const category = resolveCategoryVisual(visualKey, 'category');
-  const categoryLabel = translateDynamic(
-    category?.labelKey ??
+  const categoryVisual = resolveCategoryVisual(visualKey, 'category');
+  const categoryLabel = presentation.categoryName ?? translateDynamic(
+    categoryVisual?.labelKey ??
       (transaction.categoryId
         ? `coreFinance.meaning.${presentation.meaning}`
         : 'coreFinance.ledger.uncategorized'),

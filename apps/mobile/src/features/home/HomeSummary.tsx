@@ -561,6 +561,7 @@ export function HomeSummary({
         {expenses.length ? (
           <ActivitySection
             accounts={accounts}
+            categories={categories}
             hidden={hidden}
             largeText={largeText}
             testID="home-expense-section"
@@ -571,6 +572,7 @@ export function HomeSummary({
         {income.length ? (
           <ActivitySection
             accounts={accounts}
+            categories={categories}
             hidden={hidden}
             largeText={largeText}
             testID="home-income-section"
@@ -843,6 +845,7 @@ function formatVoiceDuration(durationMs: number) {
 
 function ActivitySection({
   accounts,
+  categories,
   hidden,
   largeText,
   testID,
@@ -850,6 +853,7 @@ function ActivitySection({
   transactions
 }: {
   accounts?: Account[];
+  categories?: Category[];
   hidden: boolean;
   largeText: boolean;
   testID: 'home-expense-section' | 'home-income-section';
@@ -884,6 +888,7 @@ function ActivitySection({
               accountName={
                 accounts?.find(({ id }) => id === transaction.accountId)?.name
               }
+              category={categories?.find(({ id }) => id === transaction.categoryId)}
               contained
               hidden={hidden}
               largeText={largeText}
