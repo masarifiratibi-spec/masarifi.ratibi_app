@@ -1,582 +1,85 @@
-name: Backend Foundation
-
+name: Staging Candidate Compatibility Verification
 on:
   workflow_dispatch:
     inputs:
-      run_k6:
-        description: Run k6 performance and stress gates
+      source_sha:
+        description: Exact application candidate SHA
         required: true
-        default: false
-        type: boolean
-  pull_request:
-    paths:
-      [
-        "apps/api/**",
-        "apps/admin-web/**",
-        "apps/mobile/**",
-        "supabase/**",
-        "docker/**",
-        "scripts/voice-manual-canary/**",
-        "scripts/staging-voice/**",
-        "scripts/integration/**",
-        "docs/reviews/2026-10-04-voice-processing/**",
-        ".github/workflows/backend-foundation.yml",
-      ]
-  push:
-    branches: [main, codex/masarifi-complete-integration-2026-10-10]
-    tags: ["backend-v*"]
-
-concurrency:
-  group: backend-foundation-${{ github.ref }}
-  cancel-in-progress: true
-
+        type: string
+      image:
+        description: Scanned backend image pinned by digest
+        required: true
+        type: string
+      foundation_run:
+        description: Successful full exact-commit CI run
+        required: true
+        type: string
 permissions:
   contents: read
-  pull-requests: read
-
+  actions: read
+  packages: read
 jobs:
-  secrets:
+  compatibility:
     runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  sentinel-redaction:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: apps/api
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/api/package-lock.json
-      - run: npm ci --ignore-scripts
-      - run: npm run test:unit -- logger.spec.ts safe-exception-filter.spec.ts queue-publisher.spec.ts
-
-  application:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: apps/api
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/api/package-lock.json
-      - run: npm ci --ignore-scripts
-      # The integrated Voice journey validates the actual Mobile parser.
-      - run: npm --prefix ../mobile ci --ignore-scripts
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test:unit
-      - run: npm run test:contract
-      - run: npm run test:openapi
-      - run: npm run test:integration
-      - run: npm run test:e2e
-      - run: npm run test:sync:logic
-      - run: npm run test:planning:logic
-      - run: npm run build
-      - name: Verify recovered offline Voice diagnostics and compiled idle workers
-        run: node --test ../../docs/reviews/2026-10-04-voice-processing/*.test.cjs ../../scripts/integration/compiled-idle-worker.test.cjs
-      - run: npm audit --audit-level=high
-      - run: npm run migration:checksums
-      - name: Verify bounded Voice canary closure and guards
-        run: node --test ../../scripts/voice-manual-canary/canary-controls.test.cjs ../../scripts/voice-manual-canary/canary-closure.test.cjs
-      - name: Verify Staging Voice epoch closure and guards
-        run: |
-          node --test ../../scripts/staging-voice/controls.test.cjs ../../scripts/staging-voice/deployment-guard.test.cjs ../../scripts/staging-voice/deploy-cohort.test.cjs ../../scripts/staging-voice/cross-feature-compatibility.test.cjs ../../scripts/staging-voice/collect-compatibility.test.cjs ../../scripts/staging-voice/tracking-runtime.test.cjs
-          python3 ../../scripts/staging-voice/operating-host.test.py
-
-  mobile:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: apps/mobile
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/mobile/package-lock.json
-      - run: npm ci --ignore-scripts
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run check:frontend-quality
-      - run: npx expo prebuild --platform android --no-install
-      - run: npx jest --forceExit
-      - name: Verify bounded native deep-link decoder mitigation
-        run: node --test scripts/deep-link-decoder.test.mjs
-      - name: Verify standalone Staging client scope
-        run: node --test scripts/staging-client-profile.test.mjs
-
-  android-build:
-    needs: mobile
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 25
     env:
-      EXPO_PUBLIC_CLIENT_MODE: live
-      EXPO_PUBLIC_API_URL: https://api.example.invalid
-      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_bWFzYXJpZmkudGVzdCQ
-      NODE_OPTIONS: --max-old-space-size=1536
-    defaults:
-      run:
-        working-directory: apps/mobile
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/mobile/package-lock.json
-      - run: npm ci --ignore-scripts
-      - name: Verify unchanged package, EAS, Firebase and slug identities
-        run: node ../../scripts/integration/verify-android-identity.cjs
-      - name: Select the runner Java 17 installation
-        shell: bash
-        run: |
-          test -d "$JAVA_HOME_17_X64"
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
-      - run: java -version
-      - run: npx expo prebuild --platform android --no-install
-      - name: Compile the Android release candidate for supported ABIs
-        working-directory: apps/mobile/android
-        env:
-          NODE_ENV: production
-        run: |
-          chmod +x gradlew
-          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64 --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
-      - name: Verify the packaged identity and record exact-commit evidence
-        shell: bash
-        run: |
-          apk=android/app/build/outputs/apk/release/app-release.apk
-          test -s "$apk"
-          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
-          test -x "$aapt"
-          "$aapt" dump badging "$apk" > android-candidate-badging.txt
-          grep -q "package: name='com.masarifi.mobile'" android-candidate-badging.txt
-          grep -q "application-label:'Masarifi.Ratibi'" android-candidate-badging.txt
-          printf '%s\n' "$GITHUB_SHA" > android-candidate-commit.txt
-          sha256sum "$apk" > android-candidate-sha256.txt
-      - name: Preserve the compiled candidate and identity evidence
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: android-${{ github.sha }}-candidate
-          path: |
-            apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            apps/mobile/android-candidate-*.txt
-          if-no-files-found: warn
-          retention-days: 14
-
-  admin:
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: apps/admin-web
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/admin-web/package-lock.json
-      - run: npm ci --ignore-scripts
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: https://api.example.invalid
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_bWFzYXJpZmkudGVzdCQ
-          CLERK_SECRET_KEY: sk_live_replace_with_server_key
-      # Protected production timing needs a Clerk test session; tracked in Phase 14 external gates.
-
-  admin-e2e:
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        project:
-          [desktop-1440, desktop-1280, tablet-1024, tablet-768, mobile-390]
-    defaults:
-      run:
-        working-directory: apps/admin-web
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/admin-web/package-lock.json
-      - run: npm ci --ignore-scripts
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --project=${{ matrix.project }}
-      - name: Preserve browser acceptance artifacts
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: browser-evidence-${{ matrix.project }}
-          path: apps/admin-web/test-results
-          if-no-files-found: ignore
-          retention-days: 14
-
-  database:
-    runs-on: ubuntu-24.04
-    env:
-      NODE_ENV: test
-      MASARIFI_RELEASE_VERSION: ci
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: postgres
-      K6_DATABASE_URL: postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
-    defaults:
-      run:
-        working-directory: apps/api
+      MASARIFI_LIVE_DATABASE_TESTS: "1"
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      CANDIDATE_IMAGE: ${{ inputs.image }}
+      FOUNDATION_RUN: ${{ inputs.foundation_run }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/api/package-lock.json
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065
-        with:
-          k6-version: "1.8.0"
-      - run: npm ci --ignore-scripts
-      # The integrated Voice journey validates the actual Mobile parser.
-      - run: npm --prefix ../mobile ci --ignore-scripts
-      - run: npm run supabase:start
-      - name: Verify both exact historical main migration prefixes
-        run: node ../../scripts/integration/verify-migration-baselines.cjs "$RUNNER_TEMP/masarifi-main-baselines.json"
-      - name: Verify the older local-main ledger and Savings upgrade
-        run: |
-          npx supabase db reset --local --version 20260915150000 --no-seed --workdir ../.. --yes
-          node ../../scripts/integration/main-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-local-main-upgrade.json"
-          npx supabase migration up --local --workdir ../..
-          node ../../scripts/integration/main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-local-main-upgrade.json"
-      - name: Restore the exact current canonical-main migration baseline
-        run: npx supabase db reset --local --version 20260922220434 --no-seed --workdir ../.. --yes
-      - name: Seed committed ledger and Savings upgrade evidence
-        run: |
-          node ../../scripts/integration/main-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-main-upgrade.json"
-          npx supabase migration list --local --workdir ../.. > "$RUNNER_TEMP/masarifi-main-migrations.txt"
-      - run: npm run build
-      - name: Apply every candidate migration and verify unchanged financial history
-        run: |
-          npm run start:migration
-          node ../../scripts/integration/main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-main-upgrade.json"
-          npx supabase migration list --local --workdir ../.. > "$RUNNER_TEMP/masarifi-upgraded-migrations.txt"
+          ref: ${{ inputs.source_sha }}
+      - name: Verify exact application source and completed foundation gates
         env:
-          MASARIFI_PROCESS_KIND: migration
-      - run: npm run test:migration
-        env:
-          MASARIFI_PROCESS_KIND: migration
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - name: Prepare disposable API-only role verification on the upgraded database
-        run: node ../../scripts/integration/prepare-restricted-api-role.cjs
-      - name: Verify all integrations against the upgraded database
-        run: npm run test:integration -- --json --outputFile=/tmp/masarifi-upgrade-integration.json
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - name: Preserve existing-main upgrade verification
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: backend-${{ github.sha }}-main-upgrade
-          path: |
-            ${{ runner.temp }}/masarifi-main-baselines.json
-            ${{ runner.temp }}/masarifi-local-main-upgrade.json
-            ${{ runner.temp }}/masarifi-main-upgrade.json
-            ${{ runner.temp }}/masarifi-main-migrations.txt
-            ${{ runner.temp }}/masarifi-upgraded-migrations.txt
-            /tmp/masarifi-upgrade-integration.json
-          if-no-files-found: warn
-          retention-days: 14
-      - run: npm run db:reset
-      - run: npm run db:lint
-      - run: npm run test:db
-      - run: npm run build
-      - run: npm run start:migration
-        env:
-          MASARIFI_PROCESS_KIND: migration
-      - run: npm run test:migration
-        env:
-          MASARIFI_PROCESS_KIND: migration
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:database:integration
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:foundation:e2e
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - name: Prepare disposable API-only role verification on the fresh database
-        run: node ../../scripts/integration/prepare-restricted-api-role.cjs
-      - run: npm run test:integration -- --json --outputFile=/tmp/masarifi-fresh-integration.json
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - name: Preserve fresh-database compatibility results
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: backend-${{ github.sha }}-fresh-integration
-          path: /tmp/masarifi-fresh-integration.json
-          if-no-files-found: warn
-          retention-days: 14
-      - run: npm run test:e2e
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:ledger:integration
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - name: Verify all cross-feature security boundaries on the fresh database
-        run: npm run security:workflow-pins
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:ledger:security
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:ledger:recovery
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:sync:integration
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:sync:security
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:sync:recovery
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:planning:integration
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:planning:security
-      - run: npm run test:planning:recovery
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:reports:integration
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:reports:security
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:reports:recovery
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:performance:reports
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:stress:reports
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:performance:engagement
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:stress:engagement
-        env:
-          MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - run: npm run test:performance:security
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:performance:ledger
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:performance:sync
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:performance:planning
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:performance:tracking
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:stress:tracking
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:performance:platform
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:performance:ai
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:stress:ai
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run perf:seed:outbox
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -o pipefail
-          npm run perf:explain:outbox | tee test/performance/artifacts/outbox-explain.txt
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:outbox:performance
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        name: Reuse provisioned outbox k6 binary
-        shell: bash
-        run: |
-          cat > /tmp/outbox-extension-check.js <<'EOF'
-          import sql from 'k6/x/sql';
-          import postgres from 'k6/x/sql/driver/postgres';
-          export default function () {}
-          EOF
-          for binary in "$HOME"/.cache/k6/builds/*/k6; do
-            if K6_AUTO_EXTENSION_RESOLUTION=false "$binary" inspect /tmp/outbox-extension-check.js >/dev/null 2>&1; then
-              echo "$(dirname "$binary")" >> "$GITHUB_PATH"
-              exit 0
-            fi
-          done
-          exit 1
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run perf:seed:outbox
-      - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
-        run: npm run test:stress
-        env:
-          K6_AUTO_EXTENSION_RESOLUTION: "false"
-      - if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: backend-${{ github.sha }}-performance-evidence
-          path: apps/api/test/performance/artifacts/
-          if-no-files-found: warn
-      - if: always()
-        run: npm run supabase:stop
-
-  image:
-    needs:
-      [
-        secrets,
-        sentinel-redaction,
-        application,
-        mobile,
-        android-build,
-        admin,
-        admin-e2e,
-        database,
-      ]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$CANDIDATE_IMAGE" =~ ^ghcr\.io/masarifiratibi-spec/masarifi-backend@sha256:[a-f0-9]{64}$ ]]
+          [[ "$FOUNDATION_RUN" =~ ^[0-9]+$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FOUNDATION_RUN" > /tmp/foundation.json
+          jq -e --arg sha "$SOURCE_SHA" '.head_sha==$sha and .status=="completed" and .conclusion=="success"' /tmp/foundation.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm --prefix apps/api ci --ignore-scripts
-      - name: Verify staging Compose contract
+      - name: Verify the immutable container identity
         env:
-          MASARIFI_BACKEND_REPOSITORY: ghcr.io/example/masarifi-backend
-          MASARIFI_BACKEND_DIGEST: "0000000000000000000000000000000000000000000000000000000000000000"
-          MASARIFI_API_ENV_FILE: ${{ runner.temp }}/masarifi-api.env
-          MASARIFI_WORKER_ENV_FILE: ${{ runner.temp }}/masarifi-worker.env
-          MASARIFI_MIGRATION_ENV_FILE: ${{ runner.temp }}/masarifi-migration.env
-        run: |
-          printf 'COMPOSE_SENTINEL=api\n' > "$MASARIFI_API_ENV_FILE"
-          printf 'COMPOSE_SENTINEL=worker\n' > "$MASARIFI_WORKER_ENV_FILE"
-          printf 'COMPOSE_SENTINEL=migration\n' > "$MASARIFI_MIGRATION_ENV_FILE"
-          chmod 600 "$MASARIFI_API_ENV_FILE" "$MASARIFI_WORKER_ENV_FILE" "$MASARIFI_MIGRATION_ENV_FILE"
-          docker compose -f docker/staging/compose.backend.yml --profile migrate config --format json | node docker/staging/verify-compose.mjs
-      - name: Configure public Docker Hub cache on the ephemeral runner
-        run: |
-          if sudo test -s /etc/docker/daemon.json; then
-            sudo cat /etc/docker/daemon.json
-          else
-            printf '{}\n'
-          fi | jq '.["registry-mirrors"] = ((.["registry-mirrors"] // []) + ["https://mirror.gcr.io"] | unique)' > "$RUNNER_TEMP/masarifi-docker-daemon.json"
-          sudo install -D -m 644 "$RUNNER_TEMP/masarifi-docker-daemon.json" /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker info --format '{{json .RegistryConfig.Mirrors}}'
-      - run: docker build --file docker/backend.Dockerfile --label org.opencontainers.image.revision=${{ github.sha }} --tag masarifi-backend:spec-be-001 --tag masarifi-backend:${{ github.sha }} .
-      - run: npm --prefix apps/api run test:container
-        env:
-          MASARIFI_IMAGE_UNDER_TEST: masarifi-backend:${{ github.sha }}
-      - run: test "$(docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Config.User}}')" = "65532:65532"
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-        with:
-          image-ref: masarifi-backend:${{ github.sha }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
-      - name: Record local image evidence
-        if: github.event_name != 'workflow_dispatch'
-        run: docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Id}}' > backend-image-digest.txt
-      - name: Publish scanned staging image
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          IMAGE_REPOSITORY: ghcr.io/${{ github.repository_owner }}/masarifi-backend
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-          docker tag "masarifi-backend:${GITHUB_SHA}" "${IMAGE_REPOSITORY}:${GITHUB_SHA}"
-          docker push "${IMAGE_REPOSITORY}:${GITHUB_SHA}"
-          docker image inspect "${IMAGE_REPOSITORY}:${GITHUB_SHA}" --format '{{index .RepoDigests 0}}' \
-            | sed 's/.*@//' > backend-image-digest.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: backend-${{ github.sha }}-image-evidence
-          path: backend-image-digest.txt
-
-  signed-release-evidence:
-    if: startsWith(github.ref, 'refs/tags/backend-v')
-    needs: image
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-        with:
-          name: backend-${{ github.sha }}-image-evidence
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: apps/api/.nvmrc
-      - run: cd apps/api && npm ci --omit=dev --ignore-scripts && npx --yes @cyclonedx/cyclonedx-npm@4.1.1 --omit dev --output-file ../../backend-sbom.cdx.json
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
-        with:
-          cosign-release: v3.0.6
-      - name: Create SLSA v1 provenance predicate
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          jq -n \
-            --arg repository "https://github.com/${GITHUB_REPOSITORY}" \
-            --arg ref "${GITHUB_REF}" \
-            --arg sha "${GITHUB_SHA}" \
-            --arg invocation "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}" \
-            '{
-              buildDefinition: {
-                buildType: "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
-                externalParameters: { repository: $repository, ref: $ref, workflow: ".github/workflows/backend-foundation.yml" },
-                internalParameters: { runner: "ubuntu-24.04" },
-                resolvedDependencies: [{ uri: ("git+" + $repository + "@" + $ref), digest: { gitCommit: $sha } }]
-              },
-              runDetails: {
-                builder: { id: "https://github.com/actions/runner" },
-                metadata: { invocationId: $invocation }
-              }
-            }' > backend-provenance.json
-      - run: cosign attest-blob --yes --bundle backend-provenance.sigstore.json --predicate backend-provenance.json --type slsaprovenance1 backend-image-digest.txt
-      - run: cosign verify-blob-attestation --bundle backend-provenance.sigstore.json --type slsaprovenance1 --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/backend-foundation.yml@refs/tags/backend-v.*" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" backend-image-digest.txt
-      - run: cosign attest-blob --yes --bundle backend-sbom-attestation.sigstore.json --predicate backend-sbom.cdx.json --type cyclonedx backend-image-digest.txt
-      - run: cosign verify-blob-attestation --bundle backend-sbom-attestation.sigstore.json --type cyclonedx --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/backend-foundation.yml@refs/tags/backend-v.*" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" backend-image-digest.txt
-      - run: cosign sign-blob --yes --bundle backend-sbom.sigstore.json backend-sbom.cdx.json
-      - run: cosign verify-blob --bundle backend-sbom.sigstore.json --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/backend-foundation.yml@refs/tags/backend-v.*" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" backend-sbom.cdx.json
+          set -euo pipefail
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker pull "$CANDIDATE_IMAGE"
+          test "$(docker image inspect "$CANDIDATE_IMAGE" --format '{{.Config.User}}')" = '65532:65532'
+          test "$(docker image inspect "$CANDIDATE_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$SOURCE_SHA"
+          docker image inspect "$CANDIDATE_IMAGE" --format '{{json .RepoDigests}}' > /tmp/immutable-image.json
+      - name: Start an isolated disposable database
+        run: npm --prefix apps/api run supabase:start
+      - name: Collect all nine controlled cross-feature compatibility cases
+        run: node scripts/staging-voice/collect-compatibility.cjs "$SOURCE_SHA" "$CANDIDATE_IMAGE" .superpowers/staging-image-compatibility
+      - name: Compare declared contracts from the actual container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --entrypoint /nodejs/bin/node "$CANDIDATE_IMAGE" -e 'const {HealthController}=require("./dist/src/platform/health/health.controller");process.stdout.write(JSON.stringify(new HealthController({}).compatibility().contracts));' > /tmp/image-contracts.json
+          node -e 'const fs=require("node:fs"),assert=require("node:assert/strict");assert.deepEqual(JSON.parse(fs.readFileSync("/tmp/image-contracts.json")),JSON.parse(fs.readFileSync(".superpowers/staging-image-compatibility/compatibility.json")).contracts);'
+          cp /tmp/immutable-image.json /tmp/image-contracts.json .superpowers/staging-image-compatibility/
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: backend-${{ github.sha }}-signed-evidence
-          path: |
-            backend-image-digest.txt
-            backend-sbom.cdx.json
-            backend-provenance.json
-            backend-provenance.sigstore.json
-            backend-sbom-attestation.sigstore.json
-            backend-sbom.sigstore.json
+          name: staging-${{ inputs.source_sha }}-image-compatibility
+          path: .superpowers/staging-image-compatibility/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop only the disposable runner database
+        if: always()
+        run: npm --prefix apps/api run supabase:stop
