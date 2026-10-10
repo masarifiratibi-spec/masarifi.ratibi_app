@@ -81,7 +81,7 @@ describe('backend workflow action pins', () => {
     );
     const parsed = load(workflow) as { jobs: { image: { needs: string[] } } };
     expect(parsed.jobs.image.needs).toEqual([
-      'secrets', 'sentinel-redaction', 'application', 'mobile', 'admin', 'admin-e2e', 'database',
+      'secrets', 'sentinel-redaction', 'application', 'mobile', 'android-build', 'admin', 'admin-e2e', 'database',
     ]);
     expect(workflow).toContain('working-directory: apps/mobile');
     expect(workflow).toContain('npx jest --forceExit');
@@ -104,5 +104,77 @@ describe('backend workflow action pins', () => {
     expect(workflow).toContain('cosign-release: v3.0.6');
     expect(workflow).not.toContain('attestations: write');
     expect(workflow).not.toContain('artifact-metadata: write');
+  });
+});
+
+describe('isolated consolidation candidate verification policy', () => {
+  type Step = { name?: string; run?: string; if?: string; env?: Record<string, string> };
+  type Job = { needs?: string | string[]; env?: Record<string, string>; steps: Step[] };
+  function requireJob(jobs: Record<string, Job>, name: string): Job {
+    const job = jobs[name];
+    if (!job) throw new Error(`Missing workflow job: ${name}`);
+    return job;
+  }
+  function policy() {
+    return load(readFileSync(resolve(__dirname, '../../../../.github/workflows/backend-foundation.yml'), 'utf8')) as {
+      on: { push: { branches: string[] } };
+      jobs: Record<string, Job>;
+    };
+  }
+
+  it('runs the full candidate push gates without publishing or deploying', () => {
+    const workflow = policy();
+    expect(workflow.on.push.branches).toEqual(['main', 'codex/masarifi-complete-integration-2026-10-10']);
+    const publication = requireJob(workflow.jobs, 'image').steps.filter(step => step.run?.includes('docker push '));
+    expect(publication).toHaveLength(1);
+    expect(publication[0]?.if).toBe("github.event_name == 'workflow_dispatch'");
+    expect(requireJob(workflow.jobs, 'image').steps.find(step => step.name === 'Record local image evidence')?.if).toBe("github.event_name != 'workflow_dispatch'");
+    const allCommands = Object.values(workflow.jobs).flatMap(job => job.steps).map(step => step.run ?? '').join('\n');
+    expect(allCommands).not.toMatch(/\b(?:ssh|scp)\s|\beas\s+(?:build|update|submit)\b/);
+  });
+
+  it('verifies committed ledger and Savings history through main-schema upgrades before fresh reset', () => {
+    const database = requireJob(policy().jobs, 'database');
+    expect(database.env).toMatchObject({ NODE_ENV: 'test', CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: 'postgres' });
+    expect(database.env?.DATABASE_URL).toContain('@127.0.0.1:54322/postgres');
+    const steps = database.steps.map(step => step.run ?? '');
+    const baseline = steps.findIndex(command => command.includes('db reset --local --version 20260922220434 --no-seed'));
+    const seed = steps.findIndex((command, index) => index > baseline && command.includes('main-upgrade-fixture.cjs seed'));
+    const upgrade = steps.findIndex((command, index) => index > seed && command.includes('npm run start:migration'));
+    const upgradedIntegration = steps.findIndex(command => command.includes('masarifi-upgrade-integration.json'));
+    const fresh = steps.findIndex(command => command === 'npm run db:reset');
+    expect(baseline).toBeGreaterThan(-1);
+    expect(steps.slice(0, baseline).join('\n')).toContain('verify-migration-baselines.cjs');
+    expect(steps.slice(0, baseline).join('\n')).toContain('db reset --local --version 20260915150000 --no-seed');
+    expect(steps.slice(0, baseline).join('\n')).toContain('main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-local-main-upgrade.json"');
+    expect(seed).toBeGreaterThan(baseline);
+    expect(upgrade).toBeGreaterThan(seed);
+    expect(steps.slice(seed + 1, upgrade)).toContain('npm run build');
+    expect(database.steps[upgrade]?.env?.MASARIFI_PROCESS_KIND).toBe('migration');
+    expect(steps[upgrade]).toContain('main-upgrade-fixture.cjs verify');
+    expect(upgradedIntegration).toBeGreaterThan(upgrade);
+    expect(fresh).toBeGreaterThan(upgradedIntegration);
+    expect(steps.slice(fresh)).toContain('npm run security:workflow-pins');
+    for (const command of ['npm run test:performance:tracking', 'npm run test:stress:tracking']) {
+      const step = database.steps.find(entry => entry.run === command);
+      expect(step).toBeDefined();
+      expect(step?.if).toBe("github.event_name != 'workflow_dispatch' || inputs.run_k6");
+    }
+  });
+
+  it('blocks the candidate image on compiled arm64 Android identity evidence', () => {
+    const workflow = policy();
+    expect(requireJob(workflow.jobs, 'image').needs).toContain('android-build');
+    const android = requireJob(workflow.jobs, 'android-build');
+    expect(android.needs).toBe('mobile');
+    expect(android.env?.EXPO_PUBLIC_API_URL).toBe('https://api.example.invalid');
+    const commands = android.steps.map(step => step.run ?? '').join('\n');
+    expect(commands).toContain('verify-android-identity.cjs');
+    expect(commands).toContain(':app:assembleRelease');
+    expect(commands).toContain('-PreactNativeArchitectures=arm64-v8a');
+    expect(commands).toContain("package: name='com.masarifi.mobile'");
+    expect(commands).toContain("application-label:'Masarifi.Ratibi'");
+    expect(commands).toContain('sha256sum "$apk"');
+    expect(commands).toContain('"$GITHUB_SHA"');
   });
 });
