@@ -33,6 +33,7 @@ if(actualEas.build['staging-client']) {
   assert.equal(profile.env.EXPO_PUBLIC_CLIENT_MODE,'live');
   assert.equal(profile.env.EXPO_PUBLIC_API_URL,'https://api.staging.masarifiratibi.com');
   assert.equal(profile.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING,'true');
+  assert.equal(profile.env.EXPO_PUBLIC_APP_LOCK_ENABLED,'true');
   assert.equal(profile.env.MASARIFI_APP_VARIANT,undefined);
   delete actualEas.build['staging-client'];
 }

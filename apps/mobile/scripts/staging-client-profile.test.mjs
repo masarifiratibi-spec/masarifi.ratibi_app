@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { URL } from 'node:url';
 
 test('client acceptance is standalone, Staging-only and has no user/device cohort', () => {
   const eas = JSON.parse(
@@ -17,6 +18,7 @@ test('client acceptance is standalone, Staging-only and has no user/device cohor
     'https://api.staging.masarifiratibi.com'
   );
   assert.equal(profile.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING, 'true');
+  assert.equal(profile.env.EXPO_PUBLIC_APP_LOCK_ENABLED, 'true');
   assert.equal(profile.env.MASARIFI_APP_VARIANT, undefined);
   assert.doesNotMatch(
     JSON.stringify(profile),
