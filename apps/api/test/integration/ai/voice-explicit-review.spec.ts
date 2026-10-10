@@ -172,7 +172,10 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
         "select private.ai_effective_rolling_limit($1,'voice_transcription') as limit",
         [other],
       );
-      expect(quota.rows[0]?.limit).toBe(5);
+      const configured = await pool.query<{ limit: number }>(
+        "select (value#>>'{}')::integer as limit from private.system_settings where setting_key='ai.user.rolling_limit'",
+      );
+      expect(quota.rows[0]?.limit).toBe(configured.rows[0]?.limit);
       expect((await pool.query('select enabled from private.voice_automatic_policy')).rows).toEqual(
         [{ enabled: false }],
       );

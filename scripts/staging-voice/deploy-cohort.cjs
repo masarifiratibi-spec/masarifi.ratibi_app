@@ -70,6 +70,7 @@ function database(packet) {
     (select count(*)::int from private.staging_voice_epochs where state='active') "activeEpochs",
     (select coalesce(jsonb_agg(id order by id),'[]'::jsonb) from private.staging_voice_epochs where state='active') "activeEpochIds",
     (select enabled from private.voice_analysis_policy) "analysisEnabled",
+    coalesce((select to_jsonb(p)->>'audience' from private.voice_analysis_policy p),'owner') "analysisAudience",
     (select owner_id=(select user_id from public.assistant_conversations where id=$1) from private.voice_analysis_policy) "analysisOwnerMatches",
     (select count(*)::int from public.voice_sessions s join private.voice_batch_context c on c.session_id=s.id where c.analysis_only and s.status in ('uploaded','processing')) "analysisJobs",
     (select coalesce(jsonb_agg(jsonb_build_object('workload',workload,'version',version,'enabled',enabled,

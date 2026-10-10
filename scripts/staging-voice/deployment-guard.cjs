@@ -64,7 +64,11 @@ function assertDeploymentSafe(snapshot, candidate, now = Date.now()) {
     return;
   }
   assert.equal(snapshot.analysisEnabled, true, 'VOICE_ANALYSIS_NOT_ENABLED');
-  assert.equal(snapshot.analysisOwnerMatches, true, 'VOICE_ANALYSIS_OWNER_MISMATCH');
+  const audience=candidate.analysisAudience??'owner';
+  assert(['owner','authenticated'].includes(audience),'VOICE_ANALYSIS_AUDIENCE_INVALID');
+  assert.equal(snapshot.analysisAudience??'owner',audience,'VOICE_ANALYSIS_AUDIENCE_MISMATCH');
+  if(audience==='owner')
+    assert.equal(snapshot.analysisOwnerMatches, true, 'VOICE_ANALYSIS_OWNER_MISMATCH');
   assert.equal(snapshot.voiceRouteAvailable, true, 'VOICE_ROUTE_UNAVAILABLE');
   if (!candidate.services.includes('analysis-worker')) {
     assert.equal(snapshot.analysisWorker?.analysisOnly, true, 'WORKER_VOICE_MODE_MISMATCH');
@@ -81,7 +85,7 @@ function assertRuntimePreserved(before,after,scope={services:['api'],voiceMode:'
   assert(Array.isArray(services) && services.includes('api') &&
     services.every(service=>['api','analysis-worker'].includes(service)),'RUNTIME_PRESERVATION_SERVICE_SCOPE');
   assert.equal(after.project,before.project,'RUNTIME_PRESERVATION_PROJECT');
-  for(const field of ['posting','activeEpochs','monitorActive','analysisEnabled','analysisOwnerMatches','voiceRouteAvailable'])
+  for(const field of ['posting','activeEpochs','monitorActive','analysisEnabled','analysisAudience','analysisOwnerMatches','voiceRouteAvailable'])
     assert.deepEqual(after[field],before[field],'RUNTIME_PRESERVATION_'+field);
   assert(Array.isArray(before.activeEpochIds) && Array.isArray(after.activeEpochIds),'RUNTIME_PRESERVATION_EPOCH_EVIDENCE');
   assert.deepEqual([...after.activeEpochIds].sort(),[...before.activeEpochIds].sort(),'RUNTIME_PRESERVATION_EPOCH');
