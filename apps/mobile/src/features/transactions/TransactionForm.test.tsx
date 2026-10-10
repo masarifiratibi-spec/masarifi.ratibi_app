@@ -2028,3 +2028,113 @@ it('disables editing after deletion and restores it after undo', async () => {
     ).toBe(false)
   );
 });
+
+it.each([0, 1])('recovers a frozen Manual submission only when firstAttemptAt respects updatedAt (offset %s)', async (offset) => {
+  const fixtureTime = Date.now() - 1000;
+  const input = transactionInputSchema.parse({
+    type: 'expense', amountMinor: 5000, currencyCode: 'SAR',
+    accountId: fixtureAccounts[0].id, categoryId: 'food',
+    title: 'Frozen Food', occurredAt: fixtureTime
+  });
+  const operationId = '90000000-0000-4000-8000-000000000098';
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue({
+    ...requiredDraft('50', 'Food'), updatedAt: fixtureTime,
+    submission: { version: 1, operationId, input, firstAttemptAt: fixtureTime + offset, phase: 'submitting' }
+  });
+  jest.mocked(coreFinanceService.createTransaction).mockResolvedValue({ value: fixtureTransactions[0], affectedScopes: [] });
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await screen.findByText(translate(offset === 0 ? 'coreFinance.manual.uncertain' : 'coreFinance.manual.reconcile'));
+  expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+  if (offset === 1) return;
+  expect(screen.getByLabelText('Amount')).toHaveProp('editable', false);
+  fireEvent.press(screen.getByLabelText('Save transaction'));
+  await waitFor(() => expect(coreFinanceService.createTransaction).toHaveBeenCalledWith(input, operationId));
+});
+
+it.each([
+  ['validation400', 'validation', { status: 400, domainCode: 'VALIDATION_FAILED' }, 'coreFinance.validation.invalid'],
+  ['forbidden403', 'unknown', { status: 403, domainCode: 'FORBIDDEN' }, 'coreFinance.validation.invalid'],
+  ['profile403', 'unknown', { status: 403, domainCode: 'PROFILE_INACTIVE' }, 'coreFinance.validation.invalid'],
+  ['notfound404', 'not_found', { status: 404, domainCode: 'NOT_FOUND' }, 'coreFinance.validation.invalid'],
+  ['conflict409', 'conflict', { status: 409, domainCode: 'IDEMPOTENCY_KEY_REUSED' }, 'coreFinance.validation.invalid'],
+  ['currency409', 'conflict', { status: 409, domainCode: 'CURRENCY_MISMATCH' }, 'coreFinance.validation.invalid'],
+  ['localSchema', 'validation', undefined, 'coreFinance.validation.invalid'],
+  ['auth401', 'offline', { status: 401, domainCode: 'AUTH_TOKEN_INVALID' }, 'coreFinance.manual.auth'],
+  ['rate429', 'offline', { status: 429, domainCode: 'RATE_LIMITED' }, 'coreFinance.manual.rateLimit'],
+  ['category409', 'conflict', { status: 409, domainCode: 'CATEGORY_INVALID' }, 'coreFinance.manual.category'],
+  ['account409', 'conflict', { status: 409, domainCode: 'ACCOUNT_CLOSED' }, 'coreFinance.manual.account'],
+  ['timeout503', 'offline', { status: 503, uncertain: true }, 'coreFinance.manual.uncertain'],
+  ['receiptMismatch', 'unknown', { status: 502, uncertain: true }, 'coreFinance.manual.uncertain']
+] as const)('shows the Arabic Manual %s banner without exposing the request ID', async (_name, code, metadata, message) => {
+  changeLocale('ar');
+  const requestId = '10000000-0000-4000-8000-000000000077';
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(requiredDraft('50', 'Food'));
+  jest.mocked(coreFinanceService.createTransaction).mockRejectedValue(new CoreFinanceError(code, metadata ? { ...metadata, requestId } : undefined));
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await screen.findByDisplayValue('50');
+  fireEvent.press(screen.getByLabelText(translate('coreFinance.form.save')));
+  await screen.findByText(translate(message));
+  expect(coreFinanceService.createTransaction).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText(requestId)).toBeNull();
+});
+
+it.each([
+  [400, 'VALIDATION_FAILED', 'coreFinance.validation.invalid'],
+  [403, 'FORBIDDEN', 'coreFinance.validation.invalid'],
+  [403, 'PROFILE_INACTIVE', 'coreFinance.validation.invalid'],
+  [401, 'AUTH_TOKEN_INVALID', 'coreFinance.manual.auth'],
+  [429, 'RATE_LIMITED', 'coreFinance.manual.rateLimit'],
+  [503, 'LEDGER_UNAVAILABLE', 'coreFinance.manual.uncertain'],
+  [400, 'AMOUNT_OUT_OF_RANGE', 'coreFinance.validation.invalid']
+] as const)('preserves HTTP %s %s metadata through the live adapter and Arabic Manual banner', async (status, domainCode, message) => {
+  const { registerLiveClerkBridge } = jest.requireActual<typeof import('@/services/live/auth-service')>('@/services/live/auth-service');
+  const { createLiveCoreFinanceService } = jest.requireActual<typeof import('@/services/mocks/core-finance-service')>('@/services/mocks/core-finance-service');
+  const unavailable = async (): Promise<never> => { throw new Error('INERT_IDENTITY_OPERATION_DISABLED'); };
+  registerLiveClerkBridge({
+    getSession: async () => ({ id: 'session-inert', userId: 'user_inert', method: 'google', issuedAt: 1, expiresAt: 9999999999999 }),
+    getToken: async () => 'inert-token', startPhone: unavailable, verifyPhone: unavailable,
+    resendPhone: unavailable, signInWithGoogle: unavailable, reverifyConflict: unavailable, signOut: unavailable
+  });
+  const requestId = '10000000-0000-4000-8000-000000000077';
+  const request = jest.fn(async () => new Response(JSON.stringify({ code: domainCode, requestId }), { status }));
+  const categoryModule = jest.requireActual<typeof import('@/services/live/category-lifecycle-service')>('@/services/live/category-lifecycle-service');
+  const createCategories = categoryModule.createLiveCategoryLifecycleService;
+  const categorySetup = jest.spyOn(categoryModule, 'createLiveCategoryLifecycleService').mockImplementation(options => ({
+    ...createCategories(options),
+    // This fixture supplies prepared IDs; HTTP, ledger and error mapping remain real.
+    prepareCategoryIds: async () => undefined,
+    serverCategoryId: id => id === 'food' ? '10000000-0000-4000-8000-000000000001' : id
+  }));
+  try {
+    const live = createLiveCoreFinanceService({ baseUrl: 'https://api.example.invalid', request });
+    changeLocale('ar');
+    jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(requiredDraft('50', 'Food'));
+    const caught: unknown[] = [];
+    jest.mocked(coreFinanceService.createTransaction).mockImplementation(async (...args) => {
+      try { return await live.createTransaction(...args); }
+      catch (error) { caught.push(error); throw error; }
+    });
+    renderWithQueryData(<TransactionForm />, [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), fixtureCategories]
+    ]);
+    await screen.findByDisplayValue('50');
+    fireEvent.press(screen.getByLabelText(translate('coreFinance.form.save')));
+    await waitFor(() => expect(caught).toHaveLength(1));
+    expect(request).toHaveBeenCalledTimes(1);
+    const error = caught[0];
+    expect(error).toBeInstanceOf(CoreFinanceError);
+    if (!(error instanceof CoreFinanceError)) throw new Error('Expected a mapped CoreFinanceError');
+    expect(error.metadata).toMatchObject({ status, domainCode, requestId });
+    await screen.findByText(translate(message));
+    expect(screen.queryByText(requestId)).toBeNull();
+  } finally {
+    categorySetup.mockRestore();
+  }
+});
