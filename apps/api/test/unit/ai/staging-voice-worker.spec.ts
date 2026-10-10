@@ -1,4 +1,5 @@
 import { StagingVoiceWorker } from '../../../src/ai/staging-voice.worker';
+import type { AiWorker } from '../../../src/ai/ai.worker';
 
 const epoch = '11111111-1111-4111-8111-111111111111';
 const claim = {
@@ -45,7 +46,7 @@ function fixture(mode = 'canary') {
       throw new Error('GLOBAL_PURGE');
     },
   };
-  const engine = {
+  const engine: Pick<AiWorker, 'processVoiceClaim' | 'start' | 'runOnce'> = {
     processVoiceClaim: () => {
       effects.push('existing-extraction');
       return Promise.resolve(true);
@@ -113,4 +114,31 @@ it('does not overlap polls or finalize while an extraction is still in flight', 
   finish(true);
   await first;
   expect(f.effects).toEqual(['scoped-claim', 'scoped-finalize']);
+});
+
+it('graceful operating worker stop aborts in-flight extraction without closing persistent Posting', async () => {
+  const f = fixture('operating');
+  let started!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  f.engine.processVoiceClaim = (_claim: unknown, signal?: AbortSignal) => new Promise<boolean>(resolve => {
+    if (!signal) throw new Error('VOICE_ABORT_SIGNAL_REQUIRED');
+    signal.addEventListener('abort', () => { resolve(false); }, { once: true });
+    started();
+  });
+  const running = f.worker.tick();
+  await ready;
+  await f.worker.stop();
+  await running;
+  await f.worker.tick();
+  expect(f.effects).toEqual(['scoped-claim']);
+  const replacement = fixture('operating');
+  await replacement.worker.tick();
+  expect(replacement.effects).toEqual(['scoped-claim', 'existing-extraction', 'scoped-finalize', 'scoped-purge']);
+});
+
+it('actual operating runtime failure closes only its financial generation', async () => {
+  const f = fixture('operating');
+  f.repository.claimVoiceEpochWork = () => Promise.reject(new Error('database unavailable'));
+  await f.worker.tick();
+  expect(f.effects).toEqual(['closed:runtime_failed']);
 });

@@ -101,6 +101,15 @@ def wait_health(financial,worker=False):
   except Exception: time.sleep(1)
  raise RuntimeError('OPERATING_HEALTH_UNCONFIRMED')
 
+def switch_api():
+ pins(); health(False)
+ command=BASE+['-f',str(ROOT/'financial-api.yml')]
+ # Reject invalid configuration before stopping any healthy runtime component.
+ run(command+['config','--quiet'])
+ stop_checked('masarifi-staging-analysis-worker-1','analysis-worker')
+ run(command+['up','-d','--no-deps','api'])
+ return wait_health(True)
+
 def close():
  target()
  errors=[]
@@ -125,10 +134,7 @@ target()
 if mode=='preflight':
  pins(); print(json.dumps(health(False)))
 elif mode=='switch-api':
- pins(); health(False)
- stop_checked('masarifi-staging-analysis-worker-1','analysis-worker')
- run(BASE+['-f',str(ROOT/'financial-api.yml'),'up','-d','--no-deps','api'])
- print(json.dumps(wait_health(True)))
+ print(json.dumps(switch_api()))
 elif mode=='start-worker':
  pins(); health(True); e=epoch()
  ENV['MASARIFI_STAGING_VOICE_EPOCH_ID']=e['epochId']

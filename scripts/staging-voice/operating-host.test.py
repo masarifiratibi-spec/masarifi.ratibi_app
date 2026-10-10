@@ -53,6 +53,23 @@ def closure_fixture(foreign_api=False, closure_error=False):
 
 
 class VoiceClosureOwnership(unittest.TestCase):
+    def test_invalid_compose_is_rejected_before_stopping_analysis(self):
+        source = pathlib.Path(__file__).with_name('operating-host.py').read_text(encoding='utf-8-sig')
+        tree = ast.parse(source)
+        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+        calls = []
+        namespace = {'BASE': ['docker', 'compose'], 'ROOT': pathlib.Path('/owned-voice'), 'json': json}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), 'operating-host.py', 'exec'), namespace)
+        def run(args):
+            calls.append(args[-2:])
+            raise RuntimeError('invalid compose project')
+        namespace.update({'mode': 'switch-api', 'pins': lambda: None, 'health': lambda financial: None, 'run': run,
+                          'stop_checked': lambda *args: calls.append('stop'),
+                          'wait_health': lambda financial: None})
+        with self.assertRaisesRegex(RuntimeError, 'invalid compose project'):
+            exec(compile(ast.Module(body=[tree.body[-1]], type_ignores=[]), 'operating-host.py', 'exec'), namespace)
+        self.assertEqual(calls, [['config', '--quiet']])
+
     def test_voice_failure_preserves_even_the_original_healthy_shared_api(self):
         close, calls = closure_fixture()
         result = close()

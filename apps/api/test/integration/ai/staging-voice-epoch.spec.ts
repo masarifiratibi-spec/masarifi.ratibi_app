@@ -497,4 +497,37 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     );
     expect(privileges).toEqual({ dml: false, exposed: false, activate: false, scoped: true });
   });
+  it('keeps persistent operating Posting through worker replacement and committed receipt recovery', async () => {
+    const prepared = await prepare('operating', false);
+    await query('select private.activate_staging_voice_epoch($1,$2,null)', [epoch, prepared.manifestHash]);
+    const count = async () => row((await query(`select
+      (select count(*)::int from public.transactions where user_id=$1) transactions,
+      (select count(*)::int from public.transaction_postings p join public.transactions t on t.id=p.transaction_id where t.user_id=$1) postings,
+      coalesce((select confirmed_minor::text from public.account_balances where account_id=$2),'0') balance`, [user, account])).rows[0]);
+    const before = await count();
+    for (const [locale, worker] of [['en', 'before-restart'], ['ar', 'after-restart']]) {
+      const state = row((await query('select private.staging_voice_heartbeat($1,$2,$3) result',
+        [epoch, worker, 'a'.repeat(40)])).rows[0]).result as Record<string, unknown>;
+      expect(state.enabled).toBe(true);
+      const session = await create(locale);
+      const committed = await commit(session);
+      const execute = () => query('select private.execute_voice_event($1,$2,$3) result',
+        [committed.batch_id, committed.token, committed.event]);
+      const replay = await Promise.all([execute(), execute()]);
+      expect(replay.map(r => (r.rows[0]?.result as Record<string, unknown>).status))
+        .toEqual(['committed', 'committed']);
+      const receipt = row((await query('select private.get_voice_batch_result($1,$2) result',
+        [user, session])).rows[0]).result as Record<string, unknown>;
+      expect(receipt).toMatchObject({ status: 'completed', addedCount: 1 });
+      expect(receipt.transactionIds).toHaveLength(1);
+    }
+    const after = await count();
+    expect(after.transactions).toBe(Number(before.transactions) + 2);
+    expect(after.postings).toBe(Number(before.postings) + 2);
+    expect(BigInt(String(after.balance)) - BigInt(String(before.balance))).toBe(-5000n);
+    expect(row((await query('select state,expires_at from private.staging_voice_epochs where id=$1', [epoch])).rows[0]))
+      .toMatchObject({ state: 'active', expires_at: null });
+    expect(row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled).toBe(true);
+  });
+
 });
