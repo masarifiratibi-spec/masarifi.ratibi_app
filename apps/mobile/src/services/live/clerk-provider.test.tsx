@@ -383,3 +383,62 @@ it.each(['ready', 'degraded'] as const)(
     ).toBeOnTheScreen();
   }
 );
+
+it('keeps Google retry available when development diagnostic logging throws', async () => {
+  const config = Constants.expoConfig!;
+  const previousScheme = config.scheme;
+  const previousUrl = process.env.EXPO_PUBLIC_API_URL;
+  config.scheme = 'masarifi-dev';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const log = jest.spyOn(console, 'info').mockImplementation(() => {
+    throw new Error('Diagnostic sink unavailable');
+  });
+  mockStartSSOFlow.mockResolvedValue({ authSessionResult: { type: 'cancel' } });
+  try {
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(mockStartSSOFlow).toHaveBeenCalledTimes(2);
+  } finally {
+    log.mockRestore();
+    config.scheme = previousScheme;
+    process.env.EXPO_PUBLIC_API_URL = previousUrl;
+  }
+});
+
+it('retains the provider failure and releases Google pending state when diagnostics fail', async () => {
+  const config = Constants.expoConfig!;
+  const previousScheme = config.scheme;
+  const previousUrl = process.env.EXPO_PUBLIC_API_URL;
+  config.scheme = 'masarifi-dev';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const providerError = new Error('Provider unavailable');
+  const log = jest.spyOn(console, 'info').mockImplementation(() => {
+    throw new Error('Diagnostic sink unavailable');
+  });
+  mockStartSSOFlow.mockRejectedValueOnce(providerError)
+    .mockResolvedValueOnce({ authSessionResult: { type: 'cancel' } });
+  try {
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).rejects.toBe(providerError);
+    });
+    expect(screen.getByText('error')).toBeOnTheScreen();
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(mockStartSSOFlow).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+  } finally {
+    log.mockRestore();
+    config.scheme = previousScheme;
+    process.env.EXPO_PUBLIC_API_URL = previousUrl;
+  }
+});

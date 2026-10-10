@@ -24,3 +24,21 @@ it('does not emit in the ordinary package or outside Staging', () => {
   recordDevelopmentAuthDiagnostic('sso_start');
   expect(log).not.toHaveBeenCalled();
 });
+
+it('isolates a diagnostic sink failure from authentication', () => {
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  jest.spyOn(console, 'info').mockImplementation(() => {
+    throw new Error('Diagnostic sink unavailable');
+  });
+  expect(() => recordDevelopmentAuthDiagnostic('sso_start')).not.toThrow();
+});
+
+it('isolates untrusted diagnostic metadata getters', () => {
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const error = Object.defineProperty({}, 'status', {
+    get() { throw new Error('Metadata unavailable'); }
+  });
+  expect(() => recordDevelopmentAuthDiagnostic('sso_failure', error)).not.toThrow();
+  expect(log).not.toHaveBeenCalled();
+});
