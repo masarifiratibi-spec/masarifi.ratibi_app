@@ -272,3 +272,15 @@ it('still closes its epoch when the diagnostic output itself fails', async () =>
     output.mockRestore();
   }
 });
+
+it('never resumes financial claims or finalization after runtime failure when closure also fails', async () => {
+  const f = fixture('operating');
+  const claimWork = f.repository.claimVoiceEpochWork;
+  f.repository.claimVoiceEpochWork = () => Promise.reject(new Error('Query read timeout'));
+  f.repository.closeVoiceEpoch = () => Promise.reject(new Error('Connection terminated'));
+  await f.worker.tick();
+  // Database availability returning must not silently reopen a failed runtime.
+  f.repository.claimVoiceEpochWork = claimWork;
+  await f.worker.tick();
+  expect(f.effects).toEqual([]);
+});

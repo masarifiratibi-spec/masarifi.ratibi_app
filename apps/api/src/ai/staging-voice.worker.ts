@@ -106,6 +106,11 @@ export class StagingVoiceWorker {
     return this.stopping;
   }
   private async fail(error: unknown, stage: string): Promise<void> {
+    this.stopping = true;
+    if (this.timer) clearInterval(this.timer);
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.timer = undefined;
+    this.heartbeatTimer = undefined;
     this.abort.abort();
     try {
       new PlatformLogger().error('VOICE_SCOPED_RUNTIME_FAILED', {
