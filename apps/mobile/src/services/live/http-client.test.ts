@@ -15,6 +15,35 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it.each(['server', 'cancelled', 'timeout', 'network'] as const)(
+    'distinguishes %s failures from an actual HTTP 503 without logging protected data',
+    async (kind) => {
+      const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+      const controller = new AbortController();
+      if (kind === 'cancelled') controller.abort();
+      const request = jest.fn(async () => {
+        if (kind === 'server') return response(503, {
+          code: 'LEDGER_UNAVAILABLE', requestId: 'safe-request-503', message: 'private balance'
+        });
+        if (kind === 'timeout') return new Promise<Response>(() => {});
+        throw new TypeError('private network information');
+      });
+      try {
+        await expect(requestJson('/api/v1/transactions?account=private-owner', schema, {
+          baseUrl: 'https://inert.invalid', token: 'private-token', request,
+          signal: controller.signal, timeoutMs: 5
+        })).rejects.toMatchObject({ status: 503, code: 'provider_unavailable' });
+        expect(log).toHaveBeenCalledWith('[mobile:http-failure]', expect.objectContaining({
+          failureSource: kind === 'server' ? 'http_response' : kind,
+          httpStatus: kind === 'server' ? 503 : null,
+          endpointGroup: 'ledger', method: 'GET', status: 503,
+          elapsedMs: expect.any(Number)
+        }));
+        expect(JSON.stringify(log.mock.calls)).not.toMatch(/private-owner|private-token|private balance|private network/);
+        expect(request).toHaveBeenCalledTimes(kind === 'cancelled' ? 0 : 1);
+      } finally { log.mockRestore(); }
+    }
+  );
   it('preserves a definite ledger rejection when debug logging fails', async () => {
     const log = jest.spyOn(console, 'info').mockImplementation(() => {
       throw new Error('diagnostic sink unavailable');

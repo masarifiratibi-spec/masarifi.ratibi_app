@@ -112,11 +112,21 @@ export async function requestJson<T>(
   schema: z.ZodType<T>,
   options: RequestOptions<T> = {}
 ): Promise<T> {
+  const startedAt = Date.now();
+  let httpStatus: number | null = null;
+  let abortSource: 'cancelled' | 'timeout' | null = null;
+  const diagnostic: { stage: 'auth' | 'transport' | 'decode' } = { stage: 'auth' };
   const controller = new AbortController();
-  const abort = () => controller.abort();
+  const abort = () => {
+    abortSource ??= 'cancelled';
+    controller.abort();
+  };
   if (options.signal?.aborted) abort();
   else options.signal?.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(abort, options.timeoutMs ?? 15_000);
+  const timer = setTimeout(() => {
+    abortSource ??= 'timeout';
+    controller.abort();
+  }, options.timeoutMs ?? 15_000);
   let rejectAborted!: () => void;
   const aborted = new Promise<never>((_resolve, reject) => {
     rejectAborted = () => reject(new HttpError('provider_unavailable', 503));
@@ -145,6 +155,7 @@ export async function requestJson<T>(
       ).replace(/\/+$/u, '');
       if (!baseUrl || !path.startsWith('/'))
         throw new HttpError('contract_mismatch', 500);
+      diagnostic.stage = 'transport';
       const response = await request(`${baseUrl}${path}`, {
         method: options.method,
         headers,
@@ -152,6 +163,8 @@ export async function requestJson<T>(
           options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: controller.signal
       });
+      httpStatus = response.status;
+      diagnostic.stage = 'decode';
 
       if (response.status === 204)
         return parseKnownValue(schema, options, 'emptyValue');
@@ -176,7 +189,17 @@ export async function requestJson<T>(
       try {
         console.info(
           '[mobile:http-failure]',
-          sanitizeHttpLog({ path, error: failure, status: failure.status })
+          sanitizeHttpLog({
+            path, error: failure, status: failure.status,
+            httpStatus,
+            failureSource: abortSource ?? (httpStatus !== null ? 'http_response' : diagnostic.stage === 'transport' ? 'network' : 'client'),
+            stage: diagnostic.stage,
+            endpointGroup: httpEndpointGroup(path),
+            method: /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/u.test(options.method ?? 'GET') ? options.method ?? 'GET' : 'OTHER',
+            elapsedMs: Math.max(0, Date.now() - startedAt),
+            ...(failure.domainCode && /^[A-Z][A-Z0-9_]{0,79}$/u.test(failure.domainCode) ? { domainCode: failure.domainCode } : {}),
+            ...(failure.requestId && /^[a-zA-Z0-9_-]{1,128}$/u.test(failure.requestId) ? { requestId: failure.requestId } : {})
+          })
         );
       } catch {
         // Preserve the actual HTTP outcome when the Dev log sink is unavailable.
@@ -188,6 +211,13 @@ export async function requestJson<T>(
     controller.signal.removeEventListener('abort', rejectAborted);
     options.signal?.removeEventListener('abort', abort);
   }
+}
+
+function httpEndpointGroup(path: string): string {
+  if (/^\/api\/v1\/(transactions|transfers|accounts)(?:[/?]|$)/u.test(path)) return 'ledger';
+  if (/^\/api\/v1\/reports(?:[/?]|$)/u.test(path)) return 'reports';
+  if (/^\/api\/v1\/ai(?:[/?]|$)/u.test(path)) return 'ai';
+  return 'other';
 }
 
 async function parseError(response: Response): Promise<HttpError> {
