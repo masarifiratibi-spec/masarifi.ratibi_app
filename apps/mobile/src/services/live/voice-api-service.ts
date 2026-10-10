@@ -780,6 +780,17 @@ export function createLiveVoiceApiService(
       }
       const result = await recovery(binding, operation.sessionId!);
       if (
+        automaticCapture &&
+        !operation.confirmationKey &&
+        !operation.confirmationBody &&
+        !['confirming', 'confirmation_unknown'].includes(operation.phase) &&
+        ['awaiting_audio', 'uploaded', 'queued', 'processing'].includes(result.phase)
+      ) {
+        // Legacy unconfirmed audio must not be replayed, discarded or allowed
+        // to block new batch capture while its old worker is unavailable.
+        return null;
+      }
+      if (
         result.phase === 'cancelled' ||
         result.phase === 'expired' ||
         result.phase === 'failed'

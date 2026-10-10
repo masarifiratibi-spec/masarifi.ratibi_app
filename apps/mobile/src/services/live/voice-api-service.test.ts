@@ -1,6 +1,6 @@
 import { createLiveVoiceApiService as createService } from './voice-api-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadVoiceOperation } from '@/storage/voice-pending-session';
+import { loadVoiceOperation, saveVoiceOperation } from '@/storage/voice-pending-session';
 
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '00000000-0000-4000-8000-000000000001'
@@ -592,6 +592,46 @@ it('preserves an unconfirmed legacy proposal without reopening review during aut
   expect(request.mock.calls[0][1]?.method ?? 'GET').toBe('GET');
 });
 
+it.each([
+  ['awaiting_audio', false], ['awaiting_audio', true],
+  ['uploaded', false], ['uploaded', true],
+  ['queued', false], ['queued', true],
+  ['processing', false], ['processing', true]
+] as const)(
+  'preserves legacy %s evidence without replay or polling in automatic capture (retryAudio=%s)',
+  async (phase, retryAudio) => {
+    // Redmi 2026-10-10: an old uploaded v2 session blocked fresh v3 recording.
+    const baseUrl = 'https://api.staging.masarifiratibi.com';
+    const legacy = createLiveVoiceApiService({ baseUrl, token: async () => 'owner',
+      request: successfulRequest(), sleep: async () => {}, now: () => 1 });
+    await legacy.transcribe('file:///voice.wav', 'clear_en', 1234, 'en');
+    const previous = (await loadVoiceOperation('owner-a'))!;
+    await saveVoiceOperation('owner-a', { ...previous, revision: previous.revision + 1,
+      phase: 'processing', proposalId: null, proposalVersion: null });
+    const evidence = await loadVoiceOperation('owner-a');
+    process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+    const recovered = { ...recovery(null), phase,
+      session: { ...recovery().session,
+        status: phase === 'queued' || phase === 'processing' ? 'processing' : 'uploaded' } };
+    const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
+      async (url, init) => {
+        if (String(url).endsWith('/recovery') && (init?.method ?? 'GET') === 'GET')
+          return json(recovered);
+        throw new Error('unexpected legacy replay, cancellation, or polling');
+      }
+    );
+    const automatic = createLiveVoiceApiService({ baseUrl, token: async () => 'owner',
+      request, sleep: async () => {}, now: () => 1 });
+    await expect(automatic.recoverPending?.(retryAudio)).resolves.toBeNull();
+    expect(await loadVoiceOperation('owner-a')).toEqual(evidence);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(await automatic.queueBatch!({ uri: 'file:///fresh.m4a', contentType: 'audio/m4a',
+      durationMs: 3000, recordedAt: Date.parse(at) }, 'ar', -180)).toEqual(expect.any(String));
+    expect(await loadVoiceOperation('owner-a')).toEqual(evidence);
+    expect(request).toHaveBeenCalledTimes(1);
+  }
+);
+
 it.each(['multiple', 'transfer', 'obligation'] as const)(
   'does not let the hidden %s fixture scenario determine live semantics or locale',
   async (scenario) => {
@@ -768,7 +808,7 @@ it('returns a definitively rejected confirmation to editable review and uses a n
   expect(calls[0]?.[1]?.headers).not.toEqual(calls[1]?.[1]?.headers);
 });
 
-it('replays the exact authorized confirmation after response loss and restart, then discards Saved locally', async () => {
+it.each([false, true])('replays the exact authorized confirmation after response loss and restart (automatic=%s), then discards Saved locally', async (automatic) => {
   const initial = successfulRequest();
   const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
     async (...args) => {
@@ -778,7 +818,7 @@ it('replays the exact authorized confirmation after response loss and restart, t
     }
   );
   const service = createLiveVoiceApiService({
-    baseUrl: 'https://api.test',
+    baseUrl: 'https://api.staging.masarifiratibi.com',
     token: async () => 'token',
     request
   });
@@ -813,8 +853,9 @@ it('replays the exact authorized confirmation after response loss and restart, t
         replayed: true
       })
     );
+  if (automatic) process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
   const resumed = createLiveVoiceApiService({
-    baseUrl: 'https://api.test',
+    baseUrl: 'https://api.staging.masarifiratibi.com',
     token: async () => 'token',
     request: resumedRequest
   });
