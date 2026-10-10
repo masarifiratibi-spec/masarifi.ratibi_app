@@ -177,4 +177,18 @@ describe('isolated consolidation candidate verification policy', () => {
     expect(commands).toContain('sha256sum "$apk"');
     expect(commands).toContain('"$GITHUB_SHA"');
   });
+
+  it('runs API-only role integration tests after both upgraded and fresh schemas', () => {
+    const database = requireJob(policy().jobs, 'database');
+    const commands = database.steps.map(step => step.run ?? '');
+    const setup = commands.flatMap((command, index) =>
+      command.includes('prepare-restricted-api-role.cjs') ? [index] : []);
+    const integration = commands.flatMap((command, index) =>
+      command.includes('npm run test:integration -- --json') ? [index] : []);
+    expect(setup).toHaveLength(2);
+    expect(integration).toHaveLength(2);
+    expect(setup[0]).toBeLessThan(integration[0] ?? -1);
+    expect(setup[1]).toBeLessThan(integration[1] ?? -1);
+    expect(setup[1]).toBeGreaterThan(commands.indexOf('npm run db:reset'));
+  });
 });

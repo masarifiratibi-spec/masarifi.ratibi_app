@@ -287,6 +287,8 @@ jobs:
         env:
           MASARIFI_PROCESS_KIND: migration
           MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - name: Prepare disposable API-only role verification on the upgraded database
+        run: node ../../scripts/integration/prepare-restricted-api-role.cjs
       - name: Verify all integrations against the upgraded database
         run: npm run test:integration -- --json --outputFile=/tmp/masarifi-upgrade-integration.json
         env:
@@ -322,6 +324,8 @@ jobs:
       - run: npm run test:foundation:e2e
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - name: Prepare disposable API-only role verification on the fresh database
+        run: node ../../scripts/integration/prepare-restricted-api-role.cjs
       - run: npm run test:integration -- --json --outputFile=/tmp/masarifi-fresh-integration.json
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"

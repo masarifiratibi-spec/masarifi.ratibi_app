@@ -22,7 +22,7 @@ NEEDS DECISION denotes preserved, deliberately unexecuted operational/provider/d
 4. Manual draft timestamp/error-banner/cross-layer HTTP regressions; current accounting and definite-validation semantics retained.
 5. Voice operating persistence/concurrent replay regressions, scoped stop/abort behavior, preflight-before-stop guards; safe offline accuracy/capacity/capture/visibility tests.
 6. Display name `Masarifi.Ratibi` only. Android package, slug, EAS identity, Firebase config, Savings and newer Tracking/Voice/Admin/ledger/security implementations retained.
-7. Exact-commit candidate CI: existing gates, fresh database plus genuine 68/70-migration main upgrades with ledger/Savings history checks, compiled idle workers, and an arm64 Android release APK identity check. Candidate pushes do not publish or deploy.
+7. Exact-commit candidate CI: existing gates, fresh database plus genuine 68/70-migration main upgrades with ledger/Savings history checks, compiled idle workers, and an arm64 Android release APK identity check. Four restricted API-role tests receive a synthetic API-only login on both upgraded and fresh schemas; the setup refuses execution outside GitHub's disposable loopback database. Candidate pushes do not publish or deploy.
 
 ## Verified preservation
 
