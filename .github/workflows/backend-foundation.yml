@@ -118,6 +118,8 @@ jobs:
       - run: npx jest --forceExit
       - name: Verify bounded native deep-link decoder mitigation
         run: node --test scripts/deep-link-decoder.test.mjs
+      - name: Verify standalone Staging client scope
+        run: node --test scripts/staging-client-profile.test.mjs
 
   android-build:
     needs: mobile
@@ -151,13 +153,13 @@ jobs:
           echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
       - run: java -version
       - run: npx expo prebuild --platform android --no-install
-      - name: Compile the arm64 Android release candidate
+      - name: Compile the Android release candidate for supported ABIs
         working-directory: apps/mobile/android
         env:
           NODE_ENV: production
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
+          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64 --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
       - name: Verify the packaged identity and record exact-commit evidence
         shell: bash
         run: |

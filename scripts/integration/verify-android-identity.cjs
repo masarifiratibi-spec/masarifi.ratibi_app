@@ -19,7 +19,25 @@ assert.deepEqual(actual, expected, 'Only the approved display name may change fr
 assert.equal(actual.expo.android.package, 'com.masarifi.mobile');
 assert.equal(actual.expo.slug, 'masarifiratibi');
 assert.equal(actual.expo.extra.eas.projectId, 'c8cc3dd3-a7e9-4737-ac4d-32f076107600');
-for (const file of ['apps/mobile/eas.json', 'apps/mobile/google-services.json', 'apps/mobile/app.config.js', 'apps/mobile/index.js']) {
+// The client release adds one Staging-only standalone profile. Existing EAS
+// settings/profiles and the project identity remain frozen to Tracking.
+const easPath='apps/mobile/eas.json';
+const expectedEas=JSON.parse(baseFile(easPath).toString('utf8'));
+const actualEas=JSON.parse(readFileSync(resolve(root,easPath),'utf8'));
+if(actualEas.build['staging-client']) {
+  const profile=actualEas.build['staging-client'];
+  assert.equal(profile.developmentClient,false);
+  assert.equal(profile.distribution,'internal');
+  assert.equal(profile.environment,'preview');
+  assert.deepEqual(profile.android,{buildType:'apk'});
+  assert.equal(profile.env.EXPO_PUBLIC_CLIENT_MODE,'live');
+  assert.equal(profile.env.EXPO_PUBLIC_API_URL,'https://api.staging.masarifiratibi.com');
+  assert.equal(profile.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING,'true');
+  assert.equal(profile.env.MASARIFI_APP_VARIANT,undefined);
+  delete actualEas.build['staging-client'];
+}
+assert.deepEqual(actualEas,expectedEas,'Existing EAS configuration and profiles must be preserved.');
+for (const file of ['apps/mobile/google-services.json', 'apps/mobile/app.config.js', 'apps/mobile/index.js']) {
   const normalize = bytes => bytes.toString('utf8').replace(/\r\n/g, '\n');
   assert.equal(normalize(readFileSync(resolve(root, file))), normalize(baseFile(file)), `${file} must retain the existing identity/native configuration.`);
 }
