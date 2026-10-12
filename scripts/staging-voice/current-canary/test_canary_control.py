@@ -6,6 +6,7 @@ NOW=1791832800
 
 def fixture():
  scope={'host':g.HOST,'project':g.PROJECT,'source':g.SOURCE,'image':g.IMAGE,'apkHash':g.APK,'attempt':'11111111-1111-4111-8111-111111111111','expiresAt':NOW+3600,'ownerId':g.OWNER,'accountId':g.ACCOUNT,'categoryId':g.CATEGORY,'clerkSessionHash':'1'*64,'baseline':{'confirmedMinor':-31000,'pendingMinor':0,'ledgerVersion':4},'financialAPIID':'3'*64,'financialAPIConfigurationHash':'4'*64,'publicAPIID':'5'*64,'publicAPIConfigurationHash':'6'*64,'workerTemplateID':'7'*64,'workerTemplateConfigurationHash':'8'*64,'analysisID':'9'*64,'analysisConfigurationHash':'a'*64,'nginxBeforeHash':'b'*64,'nginxAfterHash':'c'*64,'files':{'canary-control.py':'d'*64,'canary-host.py':'e'*64,'canary-db.cjs':'f'*64},'backupHash':'0'*64,'backupRestoreHash':'1'*64,'offReadinessProofHash':'2'*64,'envHashes':{'worker.env':'3'*64,'migration.env':'4'*64},'caHash':'5'*64,'otherContainers':[]}
+ scope.update(amountMinor=1000,maxTransactions=1,maxPostings=1,currency='SAR',locale='ar',durationSeconds=300,armingSeconds=90)
  approval={'kind':'direct-human-financial-canary-approval','scopeHash':g.digest(scope),'receivedAt':NOW,'messageReference':'test-only-human-turn','verbatim':'TEST ONLY approve bounded fresh 10 SAR scope'}
  return scope,approval
 
