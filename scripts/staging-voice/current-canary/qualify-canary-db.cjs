@@ -33,6 +33,11 @@ async function capture(state,recordedAt){
  }catch(e){await db.query('rollback');throw e;}
 }
 (async()=>{let count=0;await db.connect();try{
+ await db.query('grant masarifi_migration,masarifi_api,masarifi_worker to current_user with set true, inherit false');
+ await db.query('set role masarifi_migration');
+ // The hosted migration login already has these read grants. Provision only the disposable login.
+ await db.query('grant usage on schema public,private to postgres');
+ await db.query('grant select on all tables in schema public,private to postgres');
  await db.query("insert into public.profiles(id,status) values($1,'active')",[scope.ownerId]);
  await db.query("insert into public.accounts(id,user_id,name,type,currency_code,is_default) values($1,$2,'Test','cash','SAR',true)",[scope.accountId,scope.ownerId]);
  // Zero-commit closure, lost-response lookup, exact manifest and drift refusal.
