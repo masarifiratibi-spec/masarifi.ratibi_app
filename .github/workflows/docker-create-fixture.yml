@@ -1,0 +1,22 @@
+name: Disposable Docker Create Fixture
+on:
+  push:
+    branches: [codex/financial-mode-create-fixture-2026-10-12]
+    paths: [.github/workflows/docker-create-fixture.yml]
+permissions:
+  contents: read
+jobs:
+  create-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Reproduce scrubbed create inputs without starting a container
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,RUNNER_TEMP python3 scripts/staging-voice/docker-create-fixture.py scripts/staging-voice/scrubbed-docker-create-fixture.json
+      - name: Retain bounded Engine responses
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: docker-create-fixture-${{ github.sha }}
+          path: ${{ runner.temp }}/docker-create-report.json
+          if-no-files-found: error
