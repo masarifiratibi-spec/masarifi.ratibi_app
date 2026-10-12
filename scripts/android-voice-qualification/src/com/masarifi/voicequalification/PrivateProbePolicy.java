@@ -12,10 +12,11 @@ final class PrivateProbePolicy {
     static final String UPGRADE_APK="be33158e282efa4d8ae6b5f1ad9541e1a90ac9a3a42d0d830bbbf7d601346c9f";
     static final String PRESERVATION_APK="23a5653f5d5c1351189b1bc7f3de4a71c47a391b69bdb9c29edd49267b9aad83";
     static final String COLD_OWNER_APK="41100c383f0cd52ab2170d435fcb487d8f42b50d45a1bd1e5b3bc339953c9932";
+    static final String PROFILE_SAVE_APK="03b7e13ec3a7c145b81b86792d3554f25808f7bc9300d3e3e61f8c2eccfdaeaf";
     static final String CERTIFICATE="fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c";
-    /** Admission is bound to the exact combined JS/native cold-owner preservation build. */
+    /** Admission is bound to the exact qualified profile-save preservation build. */
     static void requireAdmissionTarget(String targetApk) {
-        if(!COLD_OWNER_APK.equals(targetApk))throw new IllegalStateException("PROBE_IDENTITY_INDETERMINATE");
+        if(!PROFILE_SAVE_APK.equals(targetApk))throw new IllegalStateException("PROBE_IDENTITY_INDETERMINATE");
     }
     record Identity(String packageName,String process,int api,int uid,int targetUid,String targetApk,
                     String certificate,String probeCertificate,String application,String factory,
@@ -26,7 +27,7 @@ final class PrivateProbePolicy {
     }
     static void requireIdentity(Identity value) {
         if(value==null || !TARGET.equals(value.packageName) || !PROCESS.equals(value.process) || value.api!=35 ||
-            value.uid<10000 || value.uid!=value.targetUid || !(HISTORICAL_APK.equals(value.targetApk)||UPGRADE_APK.equals(value.targetApk)||PRESERVATION_APK.equals(value.targetApk)||COLD_OWNER_APK.equals(value.targetApk)) ||
+            value.uid<10000 || value.uid!=value.targetUid || !(HISTORICAL_APK.equals(value.targetApk)||UPGRADE_APK.equals(value.targetApk)||PRESERVATION_APK.equals(value.targetApk)||COLD_OWNER_APK.equals(value.targetApk)||PROFILE_SAVE_APK.equals(value.targetApk)) ||
             !CERTIFICATE.equals(value.certificate) || !CERTIFICATE.equals(value.probeCertificate) ||
             !"com.masarifi.mobile.MainApplication".equals(value.application) ||
             !"androidx.core.app.CoreComponentFactory".equals(value.factory) || value.debuggable || value.splits!=0 ||

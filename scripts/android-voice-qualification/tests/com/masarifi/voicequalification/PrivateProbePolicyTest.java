@@ -49,8 +49,13 @@ public final class PrivateProbePolicyTest {
         for(String root:List.of("/data/user/10/com.masarifi.mobile","/data/data/com.other","/data/user/0/com.masarifi.mobile/../com.other"))
             invalid(identity(null,null,35,10123,10123,null,null,null,null,null,false,0,providers(),List.of(PrivateProbePolicy.TARGET),root));
         rejected(() -> PrivateProbePolicy.requireIdentity(null));
-        PrivateProbePolicy.requireAdmissionTarget(coldOwner);checks++;
-        for(String apk:new String[]{PrivateProbePolicy.HISTORICAL_APK,PrivateProbePolicy.UPGRADE_APK,preservation,null,"0".repeat(64)})
+        String profileSave="03b7e13ec3a7c145b81b86792d3554f25808f7bc9300d3e3e61f8c2eccfdaeaf";
+        valid(identity(null,null,35,10123,10123,profileSave,null,null,null,null,false,0,providers(),List.of(PrivateProbePolicy.TARGET),null));
+        invalid(identity(null,null,35,10123,10123,profileSave,"0".repeat(64),null,null,null,false,0,providers(),List.of(PrivateProbePolicy.TARGET),null));
+        invalid(identity(null,PrivateProbePolicy.TARGET,35,10123,10123,profileSave,null,null,null,null,false,0,providers(),List.of(PrivateProbePolicy.TARGET),null));
+        invalid(identity(null,null,35,10123,10124,profileSave,null,null,null,null,false,0,providers(),List.of(PrivateProbePolicy.TARGET),null));
+        PrivateProbePolicy.requireAdmissionTarget(profileSave);checks++;
+        for(String apk:new String[]{PrivateProbePolicy.HISTORICAL_APK,PrivateProbePolicy.UPGRADE_APK,preservation,coldOwner,null,"0".repeat(64)})
             rejected(() -> PrivateProbePolicy.requireAdmissionTarget(apk));
         PrivateProbePolicy.requireObservedBinding(10123,"10123","a".repeat(64),"a".repeat(64));checks++;
         for(String uid:new String[]{"","0","10124","010123","+10123","secret\n10123"})

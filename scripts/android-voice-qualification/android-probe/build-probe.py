@@ -18,13 +18,14 @@ TARGET_SHA="0c0dd12035bd22eeb6f45b1597731462b967533cb394a23d3f9430a0d7a78685"
 UPGRADE_SHA="be33158e282efa4d8ae6b5f1ad9541e1a90ac9a3a42d0d830bbbf7d601346c9f"
 PRESERVATION_SHA="23a5653f5d5c1351189b1bc7f3de4a71c47a391b69bdb9c29edd49267b9aad83"
 COLD_OWNER_SHA="41100c383f0cd52ab2170d435fcb487d8f42b50d45a1bd1e5b3bc339953c9932"
+PROFILE_SAVE_SHA="03b7e13ec3a7c145b81b86792d3554f25808f7bc9300d3e3e61f8c2eccfdaeaf"
 ANDROID="{http://schemas.android.com/apk/res/android}"
 ANDROID35_JAR_SHA="4566663c3876e022b4fa4ced8c8697c4ab1688267f090114fd92d027b32e619b"
 
 
 def identity_metadata():
-    return {"supportedTargetApkSha256":[TARGET_SHA,UPGRADE_SHA,PRESERVATION_SHA,COLD_OWNER_SHA],
-            "admissionTargetApkSha256":COLD_OWNER_SHA}
+    return {"supportedTargetApkSha256":[TARGET_SHA,UPGRADE_SHA,PRESERVATION_SHA,COLD_OWNER_SHA,PROFILE_SAVE_SHA],
+            "admissionTargetApkSha256":PROFILE_SAVE_SHA}
 
 def gate(condition):
     if not condition:raise RuntimeError("PROBE_BUILD_GATE")
