@@ -323,7 +323,7 @@ it('leaves cold authentication uninitialized when ownership cannot be proven', a
   }
 });
 
-it('removes the previous owner background context only after native cross-owner cleanup succeeds', async () => {
+it('blocks cold restoration of a different saved owner without native cleanup or context deletion', async () => {
   mockNativeNotifications = ['previous-owner-notification'];
   jest.mocked(SecureStore.getItemAsync).mockResolvedValue(
     JSON.stringify({
@@ -331,17 +331,26 @@ it('removes the previous owner background context only after native cross-owner 
       generation: '11111111-1111-4111-8111-111111111111'
     })
   );
-  jest
-    .mocked(MasarifiSmsInbox!.restoreTrackingOwner)
-    .mockImplementationOnce(async () => {
-      mockNativeNotifications = [];
-      return 'CLEARED';
-    });
-  await resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' });
-  expect(mockNativeNotifications).toEqual([]);
-  expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(
-    'masarifi.tracking.background-context.v2'
-  );
+  await expect(
+    resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' })
+  ).rejects.toThrow('tracking_restore_unavailable');
+  await configureTrackingBackground('owner-a', rules, 'automatic_clear');
+  expect(mockNativeNotifications).toEqual(['previous-owner-notification']);
+  expect(MasarifiSmsInbox?.restoreTrackingOwner).not.toHaveBeenCalled();
+  expect(MasarifiSmsInbox?.configureTrackingOwner).not.toHaveBeenCalled();
+  expect(MasarifiSmsInbox?.suspendTrackingOwner).toHaveBeenCalled();
+  expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+});
+
+it('rejects a destructive result from an older native restoration implementation', async () => {
+  mockNativeNotifications = ['retained-notification'];
+  jest.mocked(MasarifiSmsInbox!.restoreTrackingOwner).mockResolvedValueOnce('CLEARED');
+  await expect(
+    resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' })
+  ).rejects.toThrow('tracking_restore_unavailable');
+  await configureTrackingBackground('owner-a', rules, 'automatic_clear');
+  expect(MasarifiSmsInbox?.configureTrackingOwner).not.toHaveBeenCalled();
+  expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
 });
 
 it('rejects ambiguous native ownership while retaining durable notifications and saved context', async () => {

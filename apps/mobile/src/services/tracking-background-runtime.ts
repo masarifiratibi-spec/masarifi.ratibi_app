@@ -146,6 +146,9 @@ async function restoreTrackingBackground(ownerId: string): Promise<void> {
         stored = candidate as { ownerId: string; generation: string };
       }
       if (generation !== nativeGeneration) throw new Error();
+      // Cold SDK restoration is not an explicit account switch or sign-out.
+      // A different retained owner must stay dormant without losing its data.
+      if (stored && stored.ownerId !== ownerId) throw new Error();
       if (Platform.OS === 'android') {
         if (!trackingNativeRuntime?.restoreTrackingOwner) throw new Error();
         const ownerDigest = await Crypto.digestStringAsync(
@@ -157,12 +160,9 @@ async function restoreTrackingBackground(ownerId: string): Promise<void> {
           ownerDigest,
           stored?.ownerId === ownerId ? stored.generation : null
         );
-        if (!['PRESERVED', 'CLEARED', 'EMPTY'].includes(outcome))
+        if (!['PRESERVED', 'EMPTY'].includes(outcome))
           throw new Error();
       }
-      if (generation !== nativeGeneration) throw new Error();
-      if (stored && stored.ownerId !== ownerId)
-        await SecureStore.deleteItemAsync(contextKey);
       if (generation !== nativeGeneration) throw new Error();
       restorationBlocked = false;
     } catch {

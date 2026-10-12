@@ -55,3 +55,31 @@ required. Fresh successful read-only Staging verification is an operator dispatc
 prerequisite before invoking the unchanged device controller; the controller
 also repeats its own preflight. No new device observations or full client
 acceptance are established by these read-only transport findings.
+
+Subsequent execution: the user separately approved both exact scopes. The one
+firewall command added the current source rule, preserving the previous 18 rules
+and active state. Strict pinned SSH and fresh external read-only Staging
+verification passed before device approval was recorded. The candidate remained
+healthy, posting OFF, and the financial/historical baseline unchanged.
+`ssh-current-ip-recovery/RESULT-INDEPENDENT-REVIEW.md` independently passed the
+narrow recovery audit (SHA256
+`f2e9322a846d0bf87e6afd3914cab84cc01de37c910947d509767ba0c5464e65`).
+
+The renewed conditional Redmi attempt then ran once and stopped at PRE_ADMISSION:
+both JS/native contexts are PRESENT, so no MainActivity launch occurred. The
+complete pre-admission private Voice receipt matches the f2 baseline after only
+the approved diagnostic-hash substitution; package enabled/stopped states were
+verified restored. No final private snapshot was collected. Independent truthful
+failure review passed, retained in
+`preservation-first-launch-after-ip-recovery/RESULT-INDEPENDENT-REVIEW.md` (SHA256
+`40ecd3a40f71338706e386ba21f14d23353fd9bcfd482347314d3bebb05a4e5a`).
+Both approvals are consumed and authorize no retry.
+
+Repository publication note: evidence commit `a0cfc9fa` was initially pushed to
+the older `origin` remote, creating the same feature branch there. It was then
+pushed to the intended `ratibi` remote and its exact remote head verified.
+No protected branch was changed. Duplicate disposable CI on `origin` was
+cancelled where still running; one inert preparation job had already succeeded
+and two jobs were skipped. No deployment workflow ran. The extra feature branch
+was retained rather than deleted. The intended repository's posting-boundary
+run `38249480236` passed for this documentation commit.

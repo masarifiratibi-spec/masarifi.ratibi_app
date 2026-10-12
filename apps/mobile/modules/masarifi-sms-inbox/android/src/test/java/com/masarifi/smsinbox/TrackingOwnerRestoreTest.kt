@@ -56,15 +56,15 @@ class TrackingOwnerRestoreTest {
     assertFalse(TrackingOwner.read(context).optBoolean("sms"))
     assertFalse(TrackingOwner.allows(context,"com.bank.app"))
   }
-  @Test fun differentAuthenticatedOwnerClearsOnlyPreviousOwnerQueue() {
-    seed()
+  @Test fun differentAuthenticatedOwnerBlocksColdRestoreAndPreservesAllPreviousData() {
+    val ciphertext=seed();val original=ownerPrefs().getString("context",null)
     prefs("masarifi_notification_queue_v2_" + other).edit().clear().commit()
     prefs("masarifi_notification_queue_v2_" + "c".repeat(64)).edit().putString("ciphertext","unrelated").commit()
-    assertEquals("CLEARED",TrackingOwner.restore(context,other,null))
-    assertFalse(queue().contains("ciphertext"))
-    assertFalse(prefs("masarifi_notification_queue_v1").contains("records"))
+    assertEquals("BLOCKED",TrackingOwner.restore(context,other,null))
+    assertEquals(ciphertext,queue().getString("ciphertext",null))
+    assertEquals("[public legacy notification]",prefs("masarifi_notification_queue_v1").getString("records",null))
     assertEquals("unrelated",prefs("masarifi_notification_queue_v2_" + "c".repeat(64)).getString("ciphertext",null))
-    assertFalse(ownerPrefs().contains("context"));assertTrue(TrackingOwner.isSuspended(context))
+    assertEquals(original,ownerPrefs().getString("context",null));assertTrue(TrackingOwner.isSuspended(context))
   }
   @Test fun changingOwnerNeverAdoptsUnboundTargetCiphertextOrClearsPreviousQueue() {
     val ciphertext=seed()

@@ -54,10 +54,9 @@ internal object TrackingOwner {
     val priorGeneration=state.opt("generation") as? String ?: return "BLOCKED"
     if(!priorOwner.matches(Regex("[a-f0-9]{64}")) || priorGeneration.length !in 16..80 ||
         state.opt("sms") !is Boolean || state.opt("notification") !is Boolean) return "BLOCKED"
-    if(priorOwner!=owner) {
-      if(context.getSharedPreferences("masarifi_notification_queue_v2_"+owner,Context.MODE_PRIVATE).contains("ciphertext")) return "BLOCKED"
-      clear(context);return "CLEARED"
-    }
+    // Cold authentication restoration must not erase a different retained owner.
+    // Keep intake suspended; only an explicit reset may clear its durable data.
+    if(priorOwner!=owner) return "BLOCKED"
     return if(priorGeneration==generation) "PRESERVED" else "BLOCKED"
   }
   @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean,
