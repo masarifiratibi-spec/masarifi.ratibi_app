@@ -159,4 +159,10 @@ class Tests(unittest.TestCase):
   self.assertEqual(h.g.monitor({'startsAt':NOW,'deadline':NOW+300},x),'scope_failure')
   self.assertEqual(events[0],('cancel','scope_failure'))
 
+ def test_cancellation_arriving_inside_readiness_probe_escapes_wait_immediately(self):
+  with tempfile.TemporaryDirectory() as t:
+   x=Inert(t)
+   def probe():(pathlib.Path(t)/'close-request.json').write_text('{}');return True
+   with self.assertRaisesRegex(RuntimeError,'CLOSURE_ALREADY_REQUESTED'):x.wait({'deadline':NOW+300},probe)
+
 if __name__=='__main__':unittest.main()
