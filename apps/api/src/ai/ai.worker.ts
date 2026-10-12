@@ -39,6 +39,19 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+// Database-authored predicate labels only; never log rejected command values.
+const voiceScopeReasons = new Set([
+  'decision_count',
+  'decision_status',
+  'command_validity',
+  'kind',
+  'amount',
+  'currency',
+  'account',
+  'category',
+  'capture_date',
+]);
+
 function audioFormat(contentType: string): string {
   return (
     (
@@ -769,6 +782,16 @@ export class AiWorker implements OnModuleDestroy {
           failureStage: 'batch_acceptance',
           code: 'VOICE_SCOPE_INVALID',
           state: acceptance.scopeMismatch === true ? 'scope_mismatch' : 'acceptance_rejected',
+          ...(acceptance.scopeMismatch === true
+            ? {
+                rejectedFields: [
+                  typeof acceptance.scopeMismatchReason === 'string' &&
+                  voiceScopeReasons.has(acceptance.scopeMismatchReason)
+                    ? acceptance.scopeMismatchReason
+                    : 'unknown',
+                ],
+              }
+            : {}),
           ...diagnosticCounts,
         });
         throw new Error('VOICE_SCOPE_INVALID');

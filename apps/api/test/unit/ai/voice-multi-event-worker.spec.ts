@@ -56,6 +56,7 @@ it.each(
       allSkipped: false,
       rejectAcceptance: true,
       scopeMismatch: true,
+      scopeMismatchReason: 'category',
     },
     {
       language: 'ar',
@@ -71,10 +72,22 @@ it.each(
       rejectAcceptance: true,
       scopeMismatch: 'true',
     },
-  ].map((test) => ({ scopeMismatch: false as unknown, ...test })),
+    {
+      language: 'ar',
+      empty: false,
+      allSkipped: false,
+      rejectAcceptance: true,
+      scopeMismatch: true,
+      scopeMismatchReason: 'DO_NOT_LOG_PRIVATE_ACCEPTANCE',
+    },
+  ].map((test) => ({
+    scopeMismatch: false as unknown,
+    scopeMismatchReason: undefined as unknown,
+    ...test,
+  })),
 )(
   'preserves event decisions and private diagnostic counts for %j',
-  async ({ language, empty, allSkipped, rejectAcceptance, scopeMismatch }) => {
+  async ({ language, empty, allSkipped, rejectAcceptance, scopeMismatch, scopeMismatchReason }) => {
     const lines: string[] = [];
     const diagnostic = jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
       lines.push(String(line));
@@ -141,6 +154,7 @@ it.each(
           return Promise.resolve({
             accepted: !rejectAcceptance,
             scopeMismatch,
+            scopeMismatchReason,
             privateCommand: 'DO_NOT_LOG_PRIVATE_ACCEPTANCE',
           });
         },
@@ -247,6 +261,9 @@ it.each(
               failureStage: 'batch_acceptance',
               code: 'VOICE_SCOPE_INVALID',
               state: scopeMismatch === true ? 'scope_mismatch' : 'acceptance_rejected',
+              ...(scopeMismatch === true
+                ? { rejectedFields: [scopeMismatchReason === 'category' ? 'category' : 'unknown'] }
+                : {}),
               extractedEventCount: 4,
               eligibleEventCount: 3,
               skippedEventCount: 1,

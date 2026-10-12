@@ -587,20 +587,27 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     },
   );
   it.each([
-    { amountMinor: 1001 },
-    { currency: 'USD' },
-    { categoryId: '04000000-0000-4000-8000-000000000003' },
-    { accountId: otherAccount },
-    { occurredAt: '2026-01-01T00:00:00.000Z' },
+    [{ amountMinor: 1001 }, 'amount'],
+    [{ currency: 'USD' }, 'currency'],
+    [{ categoryId: '04000000-0000-4000-8000-000000000003' }, 'category'],
+    [{ categoryId: null }, 'category'],
+    [{ accountId: otherAccount }, 'account'],
+    [{ occurredAt: '2026-01-01T00:00:00.000Z' }, 'capture_date'],
+    [{ kind: 'income' }, 'kind'],
+    [{ amountMinor: '1000' }, 'command_validity'],
+    [{ note: 'private text' }, 'command_validity'],
+    [{ occurredAt: 'invalid-date' }, 'command_validity'],
+    [{ currency: 'USD', categoryId: null }, 'currency'],
   ])(
     'single Arabic expense closes before accepting a mismatched extracted command %j',
-    async (patch) => {
+    async (patch, reason) => {
       const before = await ledgerState();
       await prepare('canary', true, 2);
       const session = await create('ar');
       expect(await accept(session, { amountMinor: 1000, ...patch })).toMatchObject({
         accepted: false,
         scopeMismatch: true,
+        scopeMismatchReason: reason,
       });
       expect(
         row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
@@ -618,6 +625,43 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
               'select count(*)::int n from private.voice_events where batch_id=(select id from private.voice_batches where session_id=$1)',
               [session],
             )
+          ).rows[0],
+        ).n,
+      ).toBe(0);
+      expect(await ledgerState()).toEqual(before);
+    },
+  );
+  it.each([
+    [[], 'decision_count'],
+    [[{ status: 'skipped', reason: 'invalid_event' }], 'decision_status'],
+    [[{ status: 'eligible', command: null }], 'command_validity'],
+    [
+      [
+        { status: 'eligible', command: {} },
+        { status: 'eligible', command: {} },
+      ],
+      'decision_count',
+    ],
+  ])(
+    'malformed canary decisions report only the failed predicate %j',
+    async (decisions, reason) => {
+      const before = await ledgerState();
+      await prepare('canary', true, 2);
+      const session = await create('ar');
+      expect(await accept(session, { amountMinor: 1000 }, decisions as unknown[])).toEqual({
+        accepted: false,
+        scopeMismatch: true,
+        scopeMismatchReason: reason,
+      });
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(false);
+      expect(
+        row(
+          (
+            await query('select count(*)::int n from private.voice_batches where session_id=$1', [
+              session,
+            ])
           ).rows[0],
         ).n,
       ).toBe(0);
