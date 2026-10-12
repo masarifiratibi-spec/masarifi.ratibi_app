@@ -1,5 +1,5 @@
 """Bounded fresh-capture canary. Preparation never constitutes human approval."""
-import hashlib,json,re
+import contextlib,hashlib,json,re
 
 HOST='srv2006836'
 PROJECT='qcffvfbpzvpwcwxwjyro'
@@ -60,7 +60,8 @@ def begin(scope,approval,host):
 
 def close(state,host,reason='closure_requested'):
  host.request_close(reason)
- with host.closure_lock():return close_owned(state,host)
+ with host.closure_lock():
+  with host.cleanup_budget() if hasattr(host,'cleanup_budget') else contextlib.nullcontext():return close_owned(state,host)
 
 def close_owned(state,host):
  state=host.state() if hasattr(host,'state') and callable(host.state) else state
