@@ -45,6 +45,41 @@ These logs remain preserved and are not counted as test passes. A local external
 Gradle init script bounded test memory and concurrency; it changed no production
 source or test assertions. The final native run completed successfully offline.
 
-Full exact-commit CI, signed-artifact qualification and new explicit device
-approval are still required before installation or launch. This is not full
-application acceptance and grants no financial activation or deployment authority.
+Combined client source `eea4bca27462d94c347598fedd22f74191e1adc5` subsequently
+passed exact-source CI `38254168481`: 481 mobile suites / 3,009 tests, 17 native
+tests, type checking, lint, dependency-security checks and the signed universal
+APK build. Artifact `41100c383f0cd52ab2170d435fcb487d8f42b50d45a1bd1e5b3bc339953c9932`
+passed independent packaged qualification. The retained certificate, Staging
+endpoint/public auth configuration, four ABIs and 92 native libraries were
+verified; both 64-bit ABIs passed 16 KB alignment checks. Evidence is in
+`E:/Masarifi-local-readiness-2026-10-12/client-eea4bca2/`.
+
+Probe binding source `e8350c286f68de91dd98af6b6389204ec01c74a0` permits ordinary
+read-only diagnostics for the historical exact APKs and the new candidate, but
+admits only the new candidate to this diagnostic build's admission extension.
+It does not change local classification or relax any launch gate. Reviewed
+identity/build tests passed, followed by CI `38257879199` including all nine
+disposable Android 15 encrypted phases (57 scenarios and 38 v2/v3 observations
+per phase), and posting-boundary CI `38257879148`. Offline signed diagnostic
+`0dd3203caa92fb4f65b3e6badb4c2632a33a71d06425fe2f798ee9a6cec89ed3` and exact-source
+receipts are in `E:/Masarifi-staging-acceptance-2026-10-12/cold-owner-probe-qualification/`;
+its independent qualification passed, with report SHA256
+`735ae45bad23653df64210c11860502277010101640a5fb3ce2b90183bc65eca`.
+
+The new installation-only preparation strictly binds the consumed `5f1b7278`
+result and independent review, exact retained Voice facts, the new client, and
+disabled-state/cleanup safeguards. Twenty-five offline tests pass normally and
+with Python optimization. Independent review confirmed the cleanup test rejects
+a deliberately renewed cleanup budget. No new scope approval, device command,
+installation or launch has occurred. Fresh read-only Staging verification passed
+with posting OFF, healthy candidate, zero restarts and unchanged history.
+
+The prepared installation-only scope is
+`9b9221813c3821802217a6d2a7d86aa0546fe746726611bf9e7ba84c6dc20330`, with 45 file
+pins, one diagnostic/client installation each, two private observations and zero
+launches. Its directory is
+`E:/Masarifi-staging-acceptance-2026-10-12/cold-owner-client-upgrade-preparation/`.
+Final immutable-packet review passed, report SHA256
+`0786b652e1d09a7effd0b3e99c73bc72f32de162bce878acd17fb44796129f2f`.
+New explicit device approval remains required. This is not full application
+acceptance and grants no financial activation or deployment authority.
