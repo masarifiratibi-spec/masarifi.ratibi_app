@@ -26,6 +26,43 @@ class Inert(h.LocalHost):
  def route_guard(self):raise RuntimeError('UNRELATED_ROUTE_DRIFT')
 
 class Tests(unittest.TestCase):
+ def test_public_health_uses_selected_private_readiness_without_exposing_it(self):
+  for financial,port in [(False,'3001'),(True,'3003')]:
+   x=Inert(P);routes=b'INERT financial route' if financial else b'INERT original route';key='nginxAfterHash' if financial else 'nginxBeforeHash';x.scope[key]=h.sha(routes)
+   x.route_guard=lambda:None;x.container={'State':{'Running':True,'Health':{'Status':'healthy'}},'Config':{'Env':['MASARIFI_VOICE_ANALYSIS_ONLY='+('false' if financial else 'true')]}};x.candidate=lambda:x.container
+   requests=[]
+   def http(url):
+    requests.append(url)
+    if url.endswith('/health/live'):return {'version':h.g.SOURCE}
+    if url.endswith('/health/compatibility'):return {'schemaVersion':1,'contracts':{'voiceSession':2,'voiceBatch':3,'voiceExtraction':3,'voiceWorker':1,'voiceConfirmation':2,'assistantDirect':2,'assistantProvider':1,'manualReceipt':1}}
+    self.assertEqual(url,'http://127.0.0.1:'+port+'/health/ready');return {'status':'ready'}
+   x.http=http
+   with patch.object(pathlib.Path,'read_bytes',return_value=routes):x.public_ready(financial)
+   self.assertEqual(requests,[h.PUBLIC+'/health/live',h.PUBLIC+'/health/compatibility','http://127.0.0.1:'+port+'/health/ready'])
+ def test_wrong_selected_route_refuses_readiness_before_network(self):
+  x=Inert(P);x.route_guard=lambda:None;x.http=lambda _:self.fail('network must not be called')
+  with patch.object(pathlib.Path,'read_bytes',return_value=b'foreign'):
+   with self.assertRaisesRegex(RuntimeError,'SELECTED_PUBLIC_ROUTE_REQUIRED'):x.public_ready(True)
+ def test_stopped_candidate_cannot_be_qualified_by_some_other_ready_listener(self):
+  x=Inert(P);routes=b'INERT';x.scope['nginxAfterHash']=h.sha(routes);x.route_guard=lambda:None
+  x.candidate=lambda:{'State':{'Running':False,'Health':{'Status':'healthy'}}};x.http=lambda _:self.fail('HTTP must not be used to qualify stopped candidate')
+  with patch.object(pathlib.Path,'read_bytes',return_value=routes):
+   with self.assertRaisesRegex(RuntimeError,'SELECTED_API_LIVE_HEALTH_REQUIRED'):x.public_ready(True)
+ def test_systemd_approved_link_or_target_fragment_passes_but_foreign_alias_fails(self):
+  with tempfile.TemporaryDirectory() as t:
+   x=Inert(t);target=pathlib.Path(t)/x.unit();linked=pathlib.Path('/etc/systemd/system')/x.unit()
+   target.write_text(x.unit_content());(pathlib.Path(t)/'monitor-invocation.json').write_text(json.dumps({'invocation':'a'*32,'unitHash':h.sha(x.unit_content().encode())}))
+   for fragment in [str(linked),str(target),'/foreign-alias.service']:
+    def run(args,**kw):
+     if '--property=FragmentPath' in args:return fragment
+     if '--property=DropInPaths' in args:return ''
+     if '--property=InvocationID' in args:return 'a'*32
+     return 'active'
+    x.run=run
+    with patch.object(pathlib.Path,'lstat',return_value=types.SimpleNamespace(st_mode=h.stat.S_IFREG|0o600,st_uid=0)),patch.object(pathlib.Path,'is_symlink',return_value=True),patch.object(pathlib.Path,'resolve',return_value=target):
+     if fragment=='/foreign-alias.service':
+      with self.assertRaisesRegex(RuntimeError,'MONITOR_FRAGMENT_CHANGED'):x.monitor_proof()
+     else:x.monitor_proof()
  def test_cleanup_commands_share_one_aggregate_deadline(self):
   s,a=fixture();x=h.LocalHost(P,s,a)
   reply=types.SimpleNamespace(returncode=0,stdout='INERT')
