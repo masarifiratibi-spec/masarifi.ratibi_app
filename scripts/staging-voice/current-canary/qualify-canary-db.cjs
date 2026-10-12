@@ -52,6 +52,15 @@ async function capture(state,recordedAt){
  assert.equal((await helper('activate',s,{baseline:{...scope.baseline,confirmedMinor:123}})).ok,false);count++;
  await success('close',s);assert.equal((await success('verify',s)).committed,0);count++;
  assert.equal((await success('reconcile',{...s,packet:{...s.packet,attemptId:randomUUID()}})),null);count++;
+ // A DB row lock held across approval expiry must never enable posting.
+ for(const relation of ['private.staging_voice_runtime_control','private.staging_voice_epochs','private.voice_automatic_policy']){
+  s=await prepared();await db.query('begin');
+  await db.query('select 1 from '+relation+' for update');
+  const pending=helper('activate',s,{expiresAt:Date.now()/1000+.3});
+  await new Promise(resolve=>setTimeout(resolve,900));await db.query('commit');
+  assert.equal((await pending).ok,false);assert.equal((await success('status',s)).state,'prepared');assert.equal((await success('status',s)).posting,false);
+  await success('close',s);count++;
+ }
  // Fresh one-capture actual ledger path; legacy timestamp must be rejected before admission.
  s=await prepared();await success('activate',s);assert.equal((await success('status',s)).posting,true);count++;
  await assert.rejects(capture(s,new Date((s.startsAt-1)*1000).toISOString()));count++;
@@ -66,9 +75,15 @@ async function capture(state,recordedAt){
  const status=await success('status',s);assert.equal(status.committed,1);assert.equal(status.posting,false);count++;
  await success('close',s);const verified=await success('verify',s);assert.equal(verified.committed,1);assert.equal(verified.confirmedMinor,scope.baseline.confirmedMinor-1000);count++;
  await db.query('select private.execute_voice_event($1,$2,$3)',[claim.batch_id,claim.token,event.id]);assert.deepEqual(await success('verify',s),verified);count++;
- await db.query('begin');try{await db.query('update public.account_balances set confirmed_minor=confirmed_minor-1 where account_id=$1',[scope.accountId]);
+ let corrupted=false;await db.query('begin');try{
+ await db.query("set local masarifi.ledger_command='on'");
+ await db.query('update public.account_balances set confirmed_minor=confirmed_minor-1 where account_id=$1',[scope.accountId]);
  // Mutation in this transaction is invisible to helper; commit then reverse within disposable database.
- await db.query('commit');assert.equal((await helper('verify',s)).ok,false);count++;
- }finally{await db.query('update public.account_balances set confirmed_minor=confirmed_minor+1 where account_id=$1',[scope.accountId]);}
+ await db.query('commit');corrupted=true;assert.equal((await helper('verify',s)).ok,false);count++;
+ }catch(error){await db.query('rollback');throw error;
+ }finally{if(corrupted){await db.query('begin');try{
+ await db.query("set local masarifi.ledger_command='on'");
+ await db.query('update public.account_balances set confirmed_minor=confirmed_minor+1 where account_id=$1',[scope.accountId]);
+ await db.query('commit');}catch(error){await db.query('rollback');throw error;}}}
  console.log(JSON.stringify({status:'PASS',behavioralCases:count,transport:'disposable loopback only',actualProductionHelperSQL:true,productionOrStagingAccess:false}));
  }finally{await db.end();}})().catch(e=>{console.error(e);process.exitCode=1});
