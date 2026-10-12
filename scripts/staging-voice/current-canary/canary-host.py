@@ -40,7 +40,13 @@ def worker_payload(template,scope,epoch,image_labels=None):
 
 class LocalHost:
  def __init__(self,root,scope,approval):
-  self.root=pathlib.Path(root);self.scope=scope;self.approval=approval;self.sequence_lock=None
+  self.root=pathlib.Path(root);self.scope=scope;self.approval=approval;self.sequence_lock=None;self.cleanup_deadline=None
+ @contextlib.contextmanager
+ def cleanup_budget(self):
+  previous=self.cleanup_deadline;deadline=time.monotonic()+180
+  self.cleanup_deadline=min(previous,deadline) if previous is not None else deadline
+  try:yield
+  finally:self.cleanup_deadline=previous
  @contextlib.contextmanager
  def closure_lock(self):
   if self.sequence_lock is not None:
@@ -66,6 +72,10 @@ class LocalHost:
  def now(self):return time.time()
  def pause(self,seconds):time.sleep(seconds)
  def run(self,args,timeout=20,input=None):
+  if self.cleanup_deadline is not None:
+   remaining=self.cleanup_deadline-time.monotonic()
+   g.require(remaining>0,'AGGREGATE_CLEANUP_BUDGET_EXHAUSTED')
+   timeout=min(timeout,remaining)
   try:r=subprocess.run(args,input=input,capture_output=True,text=True,timeout=timeout,env={'PATH':'/usr/sbin:/usr/bin:/sbin:/bin','DOCKER_HOST':'unix:///var/run/docker.sock'})
   except subprocess.SubprocessError:raise RuntimeError('BOUNDED_HOST_COMMAND_TIMEOUT') from None
   g.require(r.returncode==0,'BOUNDED_HOST_COMMAND_FAILED');return r.stdout.strip()
