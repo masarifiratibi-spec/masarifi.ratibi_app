@@ -5,7 +5,7 @@ on:
       target:
         type: choice
         default: all
-        options: [all, engine, database]
+        options: [all, engine, database, executor]
 permissions:
   contents: read
 jobs:
@@ -18,9 +18,10 @@ jobs:
       - name: Behavioral adapter and lifecycle tests
         working-directory: scripts/staging-voice/current-canary
         run: |
-          python3 -m unittest -v test_canary_control.py test_canary_host.py
-          python3 -O -m unittest test_canary_control.py test_canary_host.py
+          python3 -m unittest -v test_canary_control.py test_canary_host.py test_canary_executor.py
+          python3 -O -m unittest test_canary_control.py test_canary_host.py test_canary_executor.py
       - name: Exact Engine create and inspect without starting an application
+        if: inputs.target != 'executor'
         run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,RUNNER_TEMP bash scripts/staging-voice/current-canary/qualify-engine.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
@@ -33,7 +34,7 @@ jobs:
             ${{ runner.temp }}/docker-exact-daemon.log
           if-no-files-found: warn
   actual-database:
-    if: inputs.target != 'engine'
+    if: inputs.target == 'all' || inputs.target == 'database'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
