@@ -26,6 +26,31 @@ class Inert(h.LocalHost):
  def route_guard(self):raise RuntimeError('UNRELATED_ROUTE_DRIFT')
 
 class Tests(unittest.TestCase):
+ def worker_fixture(self,oom=False):
+  s,a=fixture();x=h.LocalHost(P,s,a)
+  expected={'Hostname':'','Image':h.g.IMAGE,'Env':['PIN=INERT'],'Labels':{'org.masarifi.scope':'masarifi-canary-'+s['attempt']},'HostConfig':{'OomKillDisable':False,'ReadonlyRootfs':True,'Privileged':False,'RestartPolicy':{'Name':'no'}}}
+  c={'Id':'a'*64,'Name':'/masarifi-canary-worker-'+s['attempt'],'Config':{k:copy.deepcopy(v) for k,v in expected.items() if k!='HostConfig'},'HostConfig':copy.deepcopy(expected['HostConfig']),'State':{'Running':True}}
+  c['Config']['Hostname']='engine-generated';c['HostConfig']['OomKillDisable']=oom
+  state={'workerID':c['Id'],'workerPayloadHash':h.g.digest(expected)}
+  x.inspect=lambda _:c;x.guard=lambda _:None
+  return x,c,state
+ def test_worker_runtime_null_and_false_oom_forms_match_pinned_payload_without_mutation(self):
+  for value in [False,None]:
+   x,c,state=self.worker_fixture(value);self.assertIs(x.worker(state),c);self.assertIs(c['HostConfig']['OomKillDisable'],value)
+ def test_worker_runtime_true_missing_string_and_zero_oom_rejected(self):
+  for value in [True,'false',0,'MISSING']:
+   x,c,state=self.worker_fixture(value)
+   if value=='MISSING':del c['HostConfig']['OomKillDisable']
+   with self.assertRaisesRegex(RuntimeError,'WRITER_CONFIGURATION_CHANGED'):x.worker(state)
+ def test_null_oom_never_masks_unrelated_worker_configuration_drift(self):
+  for section,key,value in [('Config','Image','foreign'),('Config','Env',['PIN=CHANGED']),('Config','Labels',{}),('HostConfig','Privileged',True),('HostConfig','ReadonlyRootfs',False),('HostConfig','RestartPolicy',{'Name':'always'})]:
+   x,c,state=self.worker_fixture(None);c[section][key]=value
+   with self.assertRaisesRegex(RuntimeError,'WRITER_CONFIGURATION_CHANGED'):x.worker(state)
+ def test_owned_runtime_null_oom_worker_is_stopped_by_original_closure_method(self):
+  x,c,state=self.worker_fixture(None);commands=[]
+  def run(args,**kw):commands.append(args);c['State']['Running']=False;return ''
+  x.run=run;x.stop_worker(state)
+  self.assertEqual(commands,[['docker','stop','--time','5','a'*64]]);self.assertFalse(c['State']['Running'])
  def test_public_health_uses_selected_private_readiness_without_exposing_it(self):
   for financial,port in [(False,'3001'),(True,'3003')]:
    x=Inert(P);routes=b'INERT financial route' if financial else b'INERT original route';key='nginxAfterHash' if financial else 'nginxBeforeHash';x.scope[key]=h.sha(routes)
@@ -220,3 +245,4 @@ class Tests(unittest.TestCase):
    with self.assertRaisesRegex(RuntimeError,'CLOSURE_ALREADY_REQUESTED'):x.wait({'deadline':NOW+300},probe)
 
 if __name__=='__main__':unittest.main()
+
