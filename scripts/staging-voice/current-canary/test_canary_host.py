@@ -110,4 +110,27 @@ class Tests(unittest.TestCase):
    with patch.object(pathlib.Path,'lstat',private_stat),patch.object(pathlib.Path,'is_symlink',return_value=True),patch.object(pathlib.Path,'resolve',return_value=target):
     with self.assertRaisesRegex(RuntimeError,'INVOCATION_CHANGED'):x.monitor_proof()
 
+ def test_activation_metadata_persistence_between_snapshot_and_guard_does_not_close_scope(self):
+  x=Inert(P);state={'epochId':'a','startsAt':NOW,'deadline':NOW+300};x.saved=copy.deepcopy(state)
+  x.reply={'state':'active','posting':True,'currentEpochMatches':True,'committed':0,'members':0,'deadline':None}
+  def concurrent_guard(current):
+   x.saved['activationRequestedAt']=NOW+1
+   h.synchronize_runtime(current,x.state())
+  x.guard=concurrent_guard
+  observed=x.snapshot(state)
+  self.assertTrue(observed['scopeValid']);self.assertEqual(state['activationRequestedAt'],NOW+1)
+ def test_activation_metadata_never_relaxes_immutable_epoch_manifest_or_deadline(self):
+  original={'epochId':'a','packet':{'controlHash':'x'},'startsAt':NOW,'deadline':NOW+300}
+  for key,value in [('epochId','b'),('packet',{'controlHash':'y'}),('deadline',NOW+600),('activationRequestedAt',NOW+90)]:
+   observed={**original,key:value}
+   with self.assertRaises(RuntimeError):h.synchronize_runtime(copy.deepcopy(original),observed)
+
+ def test_environment_or_ca_rotation_does_not_prevent_owned_worker_stop(self):
+  x=Inert(P);x.qualified=lambda:(_ for _ in ()).throw(RuntimeError('PIN_CHANGED'))
+  x.close_epoch=lambda _:(_ for _ in ()).throw(RuntimeError('PIN_CHANGED'))
+  x.closure_lock=lambda:contextlib.nullcontext();x.saved={'workerID':'a'*64}
+  receipt=h.g.close(x.saved,x)
+  self.assertFalse(receipt['postingOff']);self.assertTrue(receipt['workerStopped'])
+  self.assertIn(['docker','stop','--time','5','a'*64],x.commands)
+
 if __name__=='__main__':unittest.main()
