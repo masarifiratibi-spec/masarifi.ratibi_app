@@ -225,7 +225,8 @@ class LocalHost:
   g.require(stat.S_ISREG(st.st_mode) and st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o600 and target.read_text()==self.unit_content(),'MONITOR_SOURCE_CHANGED')
   linked=pathlib.Path('/etc/systemd/system')/self.unit()
   g.require(linked.is_symlink() and linked.resolve()==target,'MONITOR_LINK_CHANGED')
-  g.require(self.run(['systemctl','show',self.unit(),'--property=FragmentPath','--value'])==str(target),'MONITOR_FRAGMENT_CHANGED')
+  fragment=self.run(['systemctl','show',self.unit(),'--property=FragmentPath','--value'])
+  g.require(fragment in [str(target),str(linked)] and pathlib.Path(fragment).resolve()==target,'MONITOR_FRAGMENT_CHANGED')
   g.require(not self.run(['systemctl','show',self.unit(),'--property=DropInPaths','--value']),'MONITOR_DROPINS_REJECTED')
   g.require(self.run(['systemctl','is-active',self.unit()])=='active','INDEPENDENT_MONITOR_REQUIRED')
   receipt=json.loads((self.root/'monitor-invocation.json').read_text())
@@ -286,13 +287,18 @@ class LocalHost:
   self.replace_route((self.root/'nginx-after.conf').read_bytes(),(self.root/'nginx-before.conf').read_bytes())
   self.public_ready(True)
  def public_ready(self,financial):
-  live=self.http(PUBLIC+'/health/live');ready=self.http(PUBLIC+'/health/ready');compat=self.http(PUBLIC+'/health/compatibility')
+  self.route_guard()
+  g.require(sha(SITE.read_bytes())==self.scope['nginxAfterHash' if financial else 'nginxBeforeHash'],'SELECTED_PUBLIC_ROUTE_REQUIRED')
+  c=self.candidate() if financial else self.inspect(self.scope['publicAPIID'])
+  g.require(c['State']['Running'] and c['State'].get('Health',{}).get('Status')=='healthy','SELECTED_API_LIVE_HEALTH_REQUIRED')
+  env=dict(x.split('=',1) for x in c['Config']['Env'])
+  g.require(env.get('MASARIFI_VOICE_ANALYSIS_ONLY')==('false' if financial else 'true'),'API_VOICE_MODE_REQUIRED')
+  # /health/ready is deliberately private in the qualified ingress configuration.
+  live=self.http(PUBLIC+'/health/live');compat=self.http(PUBLIC+'/health/compatibility')
+  ready=self.http('http://127.0.0.1:'+('3003' if financial else '3001')+'/health/ready')
   g.require(live.get('version')==g.SOURCE and ready.get('status')=='ready','PUBLIC_READINESS_REQUIRED')
   expected={'voiceSession':2,'voiceBatch':3,'voiceExtraction':3,'voiceWorker':1,'voiceConfirmation':2,'assistantDirect':2,'assistantProvider':1,'manualReceipt':1}
   g.require(compat.get('schemaVersion')==1 and compat.get('contracts')==expected,'PUBLIC_CONTRACTS_REQUIRED')
-  c=self.candidate() if financial else self.inspect(self.scope['publicAPIID'])
-  env=dict(x.split('=',1) for x in c['Config']['Env'])
-  g.require(env.get('MASARIFI_VOICE_ANALYSIS_ONLY')==('false' if financial else 'true'),'API_VOICE_MODE_REQUIRED')
  def activate(self,state):
   self.advancing(state);self.auth();self.cohort(False);self.public_ready(True);self.monitor_proof()
   g.require(self.now()<state['startsAt']+90,'FIXED_ARMING_WINDOW_EXPIRED')
