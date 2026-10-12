@@ -54,7 +54,10 @@ jobs:
       - run: npm run supabase:start
       - run: npm run db:reset
       - name: Execute unchanged helper SQL against disposable database
-        run: node ../../scripts/staging-voice/current-canary/qualify-canary-db.cjs | tee /tmp/canary-helper-result.json
+        run: |
+          set -o pipefail
+          node ../../scripts/staging-voice/current-canary/qualify-canary-db.cjs | tee /tmp/canary-helper-result.json
+          node -e "const x=require('/tmp/canary-helper-result.json');if(x.status!=='PASS'||x.behavioralCases<13)process.exit(1)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
