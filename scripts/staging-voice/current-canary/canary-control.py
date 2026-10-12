@@ -21,11 +21,14 @@ def digest(value):
 def validate(scope,approval,now,activation=True):
  for key,value in [('host',HOST),('project',PROJECT),('source',SOURCE),('image',IMAGE),('apkHash',APK),('ownerId',OWNER),('accountId',ACCOUNT),('categoryId',CATEGORY)]:
   require(scope.get(key)==value,'EXACT_STAGING_CANARY_REQUIRED')
+ for key,value in [('amountMinor',1000),('maxTransactions',1),('maxPostings',1),('currency','SAR'),('locale','ar'),('durationSeconds',300),('armingSeconds',90)]:
+  require(type(scope.get(key)) is type(value) and scope[key]==value,'BOUNDED_FINANCIAL_LIMITS_REQUIRED')
  require(UUID.fullmatch(scope.get('attempt','')),'ATTEMPT_REQUIRED')
  for key in ['clerkSessionHash','financialAPIID','financialAPIConfigurationHash','publicAPIID','publicAPIConfigurationHash','workerTemplateID','workerTemplateConfigurationHash','analysisID','analysisConfigurationHash','nginxBeforeHash','nginxAfterHash','backupHash','backupRestoreHash','offReadinessProofHash','caHash']:
   require(HEX.fullmatch(scope.get(key,'')),'EXACT_PINS_REQUIRED')
  require(set(scope['files'])=={'canary-control.py','canary-host.py','canary-db.cjs'} and all(HEX.fullmatch(x) for x in scope['files'].values()),'CONTROL_PINS_REQUIRED')
  require(set(scope['envHashes'])=={'worker.env','migration.env'} and all(HEX.fullmatch(x) for x in scope['envHashes'].values()),'ENVIRONMENT_PINS_REQUIRED')
+ require(type(scope.get('expiresAt')) in (int,float) and scope['expiresAt']>0,'SCOPE_EXPIRY_REQUIRED')
  require(approval and approval.get('kind')=='direct-human-financial-canary-approval' and approval.get('scopeHash')==digest(scope),'DIRECT_FINANCIAL_APPROVAL_REQUIRED')
  require(isinstance(approval.get('verbatim'),str) and 8<=len(approval['verbatim'].strip())<=4096 and isinstance(approval.get('messageReference'),str) and 8<=len(approval['messageReference'])<=256,'HUMAN_EVIDENCE_REQUIRED')
  require(type(approval.get('receivedAt')) in (int,float) and approval['receivedAt']<=now,'APPROVAL_FUTURE')
