@@ -53,9 +53,16 @@ process.stdin.on('end', async () => {
     if(writes){
       const existing=(await db.query("select exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member) present")).rows[0];
       assert.equal(existing.present,false); // Never overwrite or revoke a pre-existing self-granted membership.
+    }
+    let elevated=false;
+    const elevate=async()=>{
       await db.query('grant masarifi_migration to current_user with set true, inherit false');
       await db.query('set local role masarifi_migration');
-    }
+      elevated=true;
+    };
+    const reset=async()=>{
+      await db.query('reset role');await db.query('revoke masarifi_migration from current_user granted by current_user');elevated=false;
+    };
     let result;
     if(c.action==='baseline') result={financial:await finance(),admission:await admission()};
     if(c.action==='reconcile'){
@@ -71,17 +78,23 @@ process.stdin.on('end', async () => {
       assert.equal(p.currency,'SAR'); assert.equal(p.locale,'ar');
       assert.equal(p.ownerId,s.ownerId); assert.equal(p.accountId,s.accountId); assert.equal(p.categoryId,s.categoryId);
       assert.equal(p.clerkSessionHash,s.clerkSessionHash); assert.equal(p.controlHash,c.scopeHash);
+      await elevate();
       result=(await db.query('select private.prepare_staging_voice_epoch($1,$2::jsonb) result',[s.project,JSON.stringify(p)])).rows[0].result;
     }
     if(c.action==='activate'){
       await db.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[s.ownerId]);
       await off();const e=await epoch();assert.equal(e.state,'prepared');
       const now=Date.now();assert(now<c.state.deadline*1000 && now-c.state.startsAt*1000<90000);
-      result=(await db.query('select private.activate_staging_voice_epoch($1::uuid,$2,$3::timestamptz) result',[e.id,e.manifest_hash,new Date(c.state.deadline*1000).toISOString()])).rows[0].result;
+      assert(now<s.expiresAt*1000 && now-c.approvalReceivedAt*1000<=3600000 && now>=c.approvalReceivedAt*1000);
+      await elevate();
+      const activated=await db.query("select private.activate_staging_voice_epoch($1::uuid,$2,$3::timestamptz) result where clock_timestamp()<to_timestamp($4) and clock_timestamp()<=to_timestamp($5)+interval '1 hour' and clock_timestamp()>=to_timestamp($5)",[e.id,e.manifest_hash,new Date(c.state.deadline*1000).toISOString(),s.expiresAt,c.approvalReceivedAt]);
+      assert.equal(activated.rows.length,1);result=activated.rows[0].result;
     }
     if(['status','close'].includes(c.action)){
       const e=await epoch();
-      if(c.action==='close')await db.query("select private.close_staging_voice_epoch($1::uuid,'bounded_canary_closed')",[e.id]);
+      if(c.action==='close'){
+        await elevate();await db.query("select private.close_staging_voice_epoch($1::uuid,'bounded_canary_closed')",[e.id]);await reset();
+      }
       result=(await db.query(`select jsonb_build_object('state',e.state,'posting',(select enabled from private.voice_automatic_policy),'currentEpochMatches',exists(select 1 from private.staging_voice_runtime_control where current_epoch=e.id),'deadline',e.expires_at,'heartbeatAt',e.heartbeat_at,'members',(select count(*) from private.staging_voice_members where epoch_id=e.id),'committed',(select count(*) from private.voice_events v join private.voice_batches b on b.id=v.batch_id join private.staging_voice_members m on m.session_id=b.session_id where m.epoch_id=e.id and v.status='committed')) result from private.staging_voice_epochs e where id=$1::uuid`,[e.id])).rows[0].result;
     }
     if(c.action==='verify'){
@@ -108,7 +121,7 @@ process.stdin.on('end', async () => {
         result={committed:1,transactionId:id,confirmedMinor:after.confirmedMinor,pendingMinor:after.pendingMinor,ledgerVersion:after.ledgerVersion,financialPreserved:true};
       }
     }
-    if(writes){await db.query('reset role');await db.query('revoke masarifi_migration from current_user granted by current_user');}
+    if(elevated)await reset();
     await db.query('commit');console.log(JSON.stringify(result));
   } catch(error){
     if(db)await db.query('rollback').catch(()=>{});
