@@ -71,3 +71,67 @@ installation report SHA256
 External pre-consumption Staging PASS is an operator gate; the unchanged controller
 performs its additional internal preflight after consuming approval. Both gates
 are required. All new protected operations still await direct user approval.
+
+
+## 12 October 2026, 14:22 UTC — approved preservation installation passed
+
+After explicit approvals, firewall scope a1bad713 added exactly one TCP/22 rule
+for 188.48.81.79/32. Strict pinned-key SSH succeeded; active UFW retained all 19
+prior rules (20 total). Fresh external Staging verification passed before device
+approval consumption, with posting OFF and historical/financial baseline unchanged.
+
+Installation scope a6f5d1f6 executed once, 14:21:43–14:22:11 UTC, verdict
+PASS_INSTALLATION_PRESERVATION_ONLY: 66 device commands, one diagnostic install,
+one client install, two read-only private observations, no MainActivity launch.
+Installed client SHA256 41100c383f0cd52ab2170d435fcb487d8f42b50d45a1bd1e5b3bc339953c9932;
+diagnostic 0dd3203caa92fb4f65b3e6badb4c2632a33a71d06425fe2f798ee9a6cec89ed3.
+Both captured Voice receipts match apart from the approved client identity:
+fingerprint b1298fa6ddcd588ad44301292865fb4436868226442dd3f7f2a7ee965ce3bf4c,
+116 frames, nine rows, eight terminal, one pending and one owned audio item.
+The legacy pending work remains BLOCKED. No replay, cancellation or submission.
+
+Original client and diagnostic enabled/stopped states were restored, exact
+identities checked and processes verified quiet. This proves captured Voice
+fingerprint/summary preservation and final package state, not whole-device,
+authentication-cache or audio-byte equality. No private snapshot follows cleanup.
+The new APKs remain installed; old archives and evidence remain preserved.
+
+Post-installation v2 admission observed zero finance/Tracking/prunable rows,
+current schema, no legacy cleanup and inactive sources/intake. It still reports
+BLOCKED_EXTERNAL_ASSURANCES_REQUIRED and does not grant launch authority.
+The next launch preparation must assess retained owner contexts under the new
+combined JS/native fix, preserve v3 observations and all other gates, and pass
+independent review before a new exact device approval. No launch/deployment or
+financial approval remains unused. Post-installation read-only Staging also passed.
+
+
+Independent result reviews passed: firewall report SHA256
+69e808425be6e9c6e2c7d88ddf72290963d74a694d88aef7bdaaece3229d8598;
+installation report SHA256
+99ed9a914b48e6829529565a1b1afb34e86508752622c53665efbf45df6b794e.
+Source review supports a narrowly bound first-launch host exception for known
+ABSENT/PRESENT owner contexts only on exact client 41100c38. Fresh v3 facts remain
+mandatory; raw BLOCKED classification, all other gates and explicit approval stay.
+
+New host-only preparation reuses the installed diagnostic and performs zero
+installations. Independent review found an inherited double cleanup-reserve bug;
+a RED regression reproduced it, and ordinary stop/disable now stays within the
+original primary deadline. Sixteen offline tests pass normally and optimized;
+a deliberately restored double reserve fails outside the controller catch.
+No Android/product/collector/parser code changed or device action followed the
+completed installation. Evidence: cold-owner-first-launch-preparation on E:.
+Final host and frozen packet qualification remain pending at this entry.
+
+
+First-launch preparation is now independently qualified and frozen as
+1ddb06a951d63d7b6fdc297c627ddca50a684543f3ec11b18b0f9a8fd52e1b27 (61 pins).
+Source review: ffe372b84ea1e72292f8e9405e815a20ed24b462104a163a5d8725af89b06cf9;
+host review: 6a785f5ad795a1a2592fffdf3b8754cf17938c91585fa4f794fc48fa12ef55c9;
+final packet review: a254990da554d98c2214b869108681fceadaeb53f338e69c19fc3920a05f3de9.
+Exact scope/limits: E:/Masarifi-staging-acceptance-2026-10-12/cold-owner-first-launch-preparation/REVIEW.md.
+This allows no installation, at most two private observations, one 45-second
+no-tap launch trial, one private PNG and original package-state restoration.
+Fresh external Staging PASS must precede consumption, and the controller repeats
+its own preflight. Start before 13 October 2026 12:00 Riyadh. Explicit new device
+approval is still required. No first launch, financial activation or full client
+acceptance is claimed; all completed installation and firewall approvals are consumed.
