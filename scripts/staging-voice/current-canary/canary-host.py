@@ -55,6 +55,14 @@ class LocalHost:
  def release_sequence(self):
   if self.sequence_lock is not None:
    self.sequence_lock.close();self.sequence_lock=None
+ def request_close(self,reason):
+  g.require(reason in ['closure_requested','deadline','scope_failure','completed','arming_timeout','runtime_unhealthy'],'CLOSURE_REASON_REQUIRED')
+  state=self.state();self.guard(state)
+  target=self.root/'close-request.json'
+  try:self.save('close-request.json',{'epochId':state['epochId'],'scopeHash':g.digest(self.scope),'reason':reason,'requestedAt':self.now()})
+  except FileExistsError:
+   value=json.loads(target.read_text());g.require(value['epochId']==state['epochId'] and value['scopeHash']==g.digest(self.scope),'FOREIGN_CANCELLATION_PRESERVED')
+ def not_cancelled(self):g.require(not (self.root/'close-request.json').exists(),'CANARY_CLOSURE_ALREADY_REQUESTED')
  def now(self):return time.time()
  def pause(self,seconds):time.sleep(seconds)
  def run(self,args,timeout=20,input=None):
@@ -109,7 +117,7 @@ class LocalHost:
   for name,digest in self.scope['envHashes'].items():self.pin('/etc/masarifi/'+name,digest)
   self.pin('/etc/masarifi/supabase-ca.crt',self.scope['caHash'])
  def advancing(self,state):
-  self.guard(state);g.validate(self.scope,self.approval,self.now())
+  self.guard(state);self.not_cancelled();g.validate(self.scope,self.approval,self.now())
   g.require(self.now()<min(state['deadline'],state['startsAt']+90),'FIXED_ARMING_WINDOW_EXPIRED')
   value=self.database('status',state)
   g.require(value['currentEpochMatches'] and value['state']=='prepared' and value['posting'] is False and value['members']==0,'PREPARED_OFF_FORWARD_FENCE_REQUIRED')
@@ -126,7 +134,8 @@ class LocalHost:
     key,value=line.split('=',1);env[key]=value.strip().strip('"').strip("'")
   code=(self.root/'canary-db.cjs').read_text() if (self.root/'canary-db.cjs').exists() else (HERE/'canary-db.cjs').read_text()
   g.require(sha(code.encode())==self.scope['files']['canary-db.cjs'],'APPROVED_DATABASE_HELPER_REQUIRED')
-  request={'action':action,'scope':self.scope,'scopeHash':g.digest(self.scope),'state':state,'url':env['DATABASE_URL']}
+  if action=='activate':self.not_cancelled();g.validate(self.scope,self.approval,self.now())
+  request={'action':action,'scope':self.scope,'scopeHash':g.digest(self.scope),'state':state,'url':env['DATABASE_URL'],'approvalReceivedAt':self.approval['receivedAt']}
   return json.loads(self.run(['docker','exec','-i',self.scope['publicAPIID'],'/nodejs/bin/node','-e',code],input=json.dumps(request),timeout=25))
  def auth(self):
   code="""const {createClerkClient}=require('@clerk/backend');const {createHash}=require('node:crypto');(async()=>{if(process.env.CLERK_INSTANCE_DOMAIN!=='clerk.staging.masarifiratibi.com')throw Error();const x=await createClerkClient({secretKey:process.env.CLERK_SECRET_KEY}).sessions.getSessionList({userId:'user_3K2ItVcURds22ueEf31Py6e305q',status:'active',limit:100});console.log(JSON.stringify({total:x.totalCount,hashes:x.data.filter(s=>s.latestActivity?.isMobile&&s.userId==='user_3K2ItVcURds22ueEf31Py6e305q').map(s=>createHash('sha256').update(s.id).digest('hex'))}));})().catch(()=>{process.exitCode=1;});"""
@@ -222,6 +231,7 @@ class LocalHost:
   self.save('monitor-invocation.json',{'invocation':invocation,'unitHash':sha(unit.encode())})
   end=min(self.now()+15,state['startsAt']+90)
   while self.now()<end:
+   self.not_cancelled()
    lines=self.run(['journalctl','_SYSTEMD_INVOCATION_ID='+invocation,'--no-pager','-o','cat'])
    if 'CANARY_MONITOR_ARMED' in lines:self.monitor_proof();return
    g.require(self.run(['systemctl','is-active',self.unit()])=='active','MONITOR_NOT_ACTIVE');self.pause(.2)
@@ -272,13 +282,19 @@ class LocalHost:
  def activate(self,state):
   self.advancing(state);self.auth();self.cohort(False);self.public_ready(True);self.monitor_proof()
   g.require(self.now()<state['startsAt']+90,'FIXED_ARMING_WINDOW_EXPIRED')
+  self.not_cancelled();g.validate(self.scope,self.approval,self.now())
   state['activationRequestedAt']=self.now();self.persist(state)
   result=self.database('activate',state);self.save('activation-receipt.json',result)
  def ready(self,state):
+  self.not_cancelled()
   self.wait(state,lambda:self.runtime(state).get('enabled') is True,20)
   self.run(['docker','exec',state['workerID'],'/nodejs/bin/node','dist/src/staging-voice-healthcheck.js'])
   self.public_ready(True)
- def save_ready(self,state):self.save('ready.json',{'status':'AUTHORIZED_SINGLE_FRESH_10_SAR_WINDOW_READY','deadline':state['deadline'],'epochId':state['epochId'],'workerID':state['workerID']})
+ def save_ready(self,state):
+  self.not_cancelled()
+  status=self.database('status',state)
+  g.require(status['currentEpochMatches'] and status['state']=='active' and status['posting'] is True and status['committed']==0,'LIVE_UNCOMMITTED_CANARY_REQUIRED')
+  self.not_cancelled();self.save('ready.json',{'status':'AUTHORIZED_SINGLE_FRESH_10_SAR_WINDOW_READY','deadline':state['deadline'],'epochId':state['epochId'],'workerID':state['workerID']})
  def snapshot(self,state):
   synchronize_runtime(state,self.state())
   self.guard(state);value=self.database('status',state)
