@@ -38,6 +38,7 @@ process.stdin.on('end', async () => {
       'assistantJobs',(select count(*) from public.assistant_messages where work_status in ('queued','processing')),
       'eligible',exists(select 1 from public.accounts a join public.profiles p on p.id=a.user_id cross join public.categories k cross join public.currencies u where a.id=$1::uuid and a.user_id=$2 and a.is_default and a.currency_code='SAR' and a.status='active' and a.deleted_at is null and p.status='active' and k.id=$3::uuid and k.kind='expense' and k.active and k.deleted_at is null and (k.user_id is null or k.user_id=$2) and u.code='SAR' and u.enabled and not exists(select 1 from public.admin_profiles where user_id=$2)),
       'currentState',(select e.state from private.staging_voice_epochs e join private.staging_voice_runtime_control r on r.current_epoch=e.id),
+      'migrationSelfGrant',exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member),
       'migrations',(select jsonb_agg(version order by version) from supabase_migrations.schema_migrations)) result`,[s.accountId,s.ownerId,s.categoryId])).rows[0].result;
     const off = async () => {
       const a = await admission(); assert.equal(a.posting,false); assert.equal(a.activeEpochs,0);
@@ -87,7 +88,11 @@ process.stdin.on('end', async () => {
       const now=Date.now();assert(now<c.state.deadline*1000 && now-c.state.startsAt*1000<90000);
       assert(now<s.expiresAt*1000 && now-c.approvalReceivedAt*1000<=3600000 && now>=c.approvalReceivedAt*1000);
       await elevate();
-      const activated=await db.query("select private.activate_staging_voice_epoch($1::uuid,$2,$3::timestamptz) result where clock_timestamp()<to_timestamp($4) and clock_timestamp()<=to_timestamp($5)+interval '1 hour' and clock_timestamp()>=to_timestamp($5)",[e.id,e.manifest_hash,new Date(c.state.deadline*1000).toISOString(),s.expiresAt,c.approvalReceivedAt]);
+      // Obtain every row lock the capability will need before checking live DB clocks.
+      await db.query('select singleton from private.staging_voice_runtime_control where enforced and current_epoch=$1::uuid for update',[e.id]);
+      await db.query('select id from private.staging_voice_epochs where id=$1::uuid for update',[e.id]);
+      await db.query('select singleton from private.voice_automatic_policy for update');
+      const activated=await db.query("select private.activate_staging_voice_epoch($1::uuid,$2,$3::timestamptz) result where clock_timestamp()<to_timestamp($4) and clock_timestamp()<=to_timestamp($5)+interval '1 hour' and clock_timestamp()>=to_timestamp($5) and clock_timestamp()<to_timestamp($6)+interval '90 seconds' and clock_timestamp()<$3::timestamptz",[e.id,e.manifest_hash,new Date(c.state.deadline*1000).toISOString(),s.expiresAt,c.approvalReceivedAt,c.state.startsAt]);
       assert.equal(activated.rows.length,1);result=activated.rows[0].result;
     }
     if(['status','close'].includes(c.action)){
