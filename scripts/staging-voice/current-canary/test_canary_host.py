@@ -26,6 +26,23 @@ class Inert(h.LocalHost):
  def route_guard(self):raise RuntimeError('UNRELATED_ROUTE_DRIFT')
 
 class Tests(unittest.TestCase):
+ def test_cleanup_commands_share_one_aggregate_deadline(self):
+  s,a=fixture();x=h.LocalHost(P,s,a)
+  reply=types.SimpleNamespace(returncode=0,stdout='INERT')
+  with patch.object(h.time,'monotonic',side_effect=[100,279,280]),patch.object(h.subprocess,'run',return_value=reply) as transport:
+   with x.cleanup_budget():
+    x.run(['INERT'],timeout=25)
+    self.assertEqual(transport.call_args.kwargs['timeout'],1)
+    with self.assertRaisesRegex(RuntimeError,'AGGREGATE_CLEANUP_BUDGET_EXHAUSTED'):x.run(['INERT'])
+   transport.assert_called_once();self.assertIsNone(x.cleanup_deadline)
+ def test_nested_cleanup_never_extends_outer_deadline(self):
+  s,a=fixture();x=h.LocalHost(P,s,a)
+  with patch.object(h.time,'monotonic',side_effect=[100,200]):
+   with x.cleanup_budget():
+    self.assertEqual(x.cleanup_deadline,280)
+    with x.cleanup_budget():self.assertEqual(x.cleanup_deadline,280)
+    self.assertEqual(x.cleanup_deadline,280)
+   self.assertIsNone(x.cleanup_deadline)
  def test_worker_stop_independent_of_public_api_health_or_route_drift(self):
   x=Inert(P);x.stop_worker({'workerID':'a'*64});self.assertFalse(x.container['State']['Running'])
   self.assertEqual(x.commands,['provenance',['docker','stop','--time','5','a'*64]])
