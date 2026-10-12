@@ -9,10 +9,10 @@ assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_
 const code=fs.readFileSync(__dirname+'/canary-db.cjs','utf8');
 const db=new Client({connectionString:local});
 const scope={expiresAt:Date.now()/1000+3600,project:'qcffvfbpzvpwcwxwjyro',ownerId:'user_3K2ItVcURds22ueEf31Py6e305q',accountId:'3161601e-1584-40b0-86ec-d170c018b551',categoryId:'04000000-0000-4000-8000-000000000006',clerkSessionHash:createHash('sha256').update('local-test-session').digest('hex')};
-async function helper(action,state,patch={}){
+async function helper(action,state,patch={},observer=null){
  const stdin=new EventEmitter();let output='',error='',exitCode=0;
  return new Promise(resolve=>{
-  class LocalClient extends Client{constructor(){super({connectionString:local});}async end(){await super.end();resolve({ok:!exitCode,result:output?JSON.parse(output):null,error});}}
+  class LocalClient extends Client{constructor(){super({connectionString:local});}async connect(){await super.connect();if(observer)observer.pid=this.processID;}async end(){await super.end();resolve({ok:!exitCode,result:output?JSON.parse(output):null,error});}}
   const proc={env:{SUPABASE_URL:'https://'+scope.project+'.supabase.co'},stdin,get exitCode(){return exitCode},set exitCode(x){exitCode=x}};
   assert.equal(code.split('} catch(error){').length,2);
   Function('require','process','console','qualificationError',code.replace('} catch(error){','} catch(error){qualificationError(error);'))(x=>x==='pg'?{Client:LocalClient}:require(x),proc,{log:x=>output+=x,error:x=>error+=x},e=>{error+=e.stack;});
@@ -56,8 +56,18 @@ async function capture(state,recordedAt){
  for(const relation of ['private.staging_voice_runtime_control','private.staging_voice_epochs','private.voice_automatic_policy']){
   s=await prepared();await db.query('begin');
   await db.query('select 1 from '+relation+' for update');
-  const pending=helper('activate',s,{expiresAt:Date.now()/1000+.3});
-  await new Promise(resolve=>setTimeout(resolve,900));await db.query('commit');
+  const expiresAt=Date.now()/1000+3,observer={};
+  const pending=helper('activate',s,{expiresAt},observer);
+  let blocked=false;
+  try{
+   while(Date.now()/1000<expiresAt){
+    if(observer.pid){const wait=(await db.query('select cardinality(pg_blocking_pids($1))>0 blocked',[observer.pid])).rows[0];if(wait.blocked){blocked=true;break;}}
+    await new Promise(resolve=>setTimeout(resolve,10));
+   }
+   assert(blocked,'helper must demonstrably wait on the held '+relation+' lock before expiry');
+   while(Date.now()/1000<=expiresAt+.1)await new Promise(resolve=>setTimeout(resolve,20));
+   await db.query('commit');
+  }catch(error){await db.query('rollback');await pending;throw error;}
   assert.equal((await pending).ok,false);assert.equal((await success('status',s)).state,'prepared');assert.equal((await success('status',s)).posting,false);
   await success('close',s);count++;
  }
