@@ -25,6 +25,8 @@ def worker_payload(template,scope,epoch,image_labels=None):
  payload['Healthcheck']={'Test':['CMD','/nodejs/bin/node','dist/src/staging-voice-healthcheck.js'],'Interval':5000000000,'Timeout':3000000000,'StartPeriod':10000000000,'Retries':2}
  payload['Labels']={**(image_labels or {}),'org.masarifi.scope':'masarifi-canary-'+scope['attempt'],'org.masarifi.epoch':epoch}
  host['RestartPolicy']={'Name':'no','MaximumRetryCount':0}
+ # Docker 29.8.1 canonicalizes null to false; explicitly retain its enabled OOM killer.
+ if host.get('OomKillDisable') is None:host['OomKillDisable']=False
  g.require(host['NetworkMode']=='masarifi-staging_backend' and host['ReadonlyRootfs'] and not host['Privileged'] and not host.get('CapAdd') and host['CapDrop']==['ALL'] and not host.get('PortBindings'),'ISOLATED_SCOPED_WRITER_REQUIRED')
  return {**payload,'HostConfig':host}
 
@@ -186,7 +188,7 @@ class LocalHost:
   g.require(g.digest(actual)==state['workerPayloadHash'],'WRITER_CONFIGURATION_CHANGED');return c
  def unit(self):return 'masarifi-canary-'+self.scope['attempt']+'.service'
  def unit_content(self):
-  return '[Unit]\nDescription=Approved bounded Staging Voice canary\nAfter=docker.service\n[Service]\nType=exec\nUser=root\nWorkingDirectory='+str(self.root)+'\nExecStart=/usr/bin/python3 '+str(self.root)+'/canary-host.py monitor\nExecStopPost=/usr/bin/python3 '+str(self.root)+'/canary-host.py close\nRestart=on-failure\nRestartSec=1\nTimeoutStopSec=120\n'
+  return '[Unit]\nDescription=Approved bounded Staging Voice canary\nAfter=docker.service\n[Service]\nType=exec\nUser=root\nWorkingDirectory='+str(self.root)+'\nExecStart=/usr/bin/python3 '+str(self.root)+'/canary-host.py monitor\nExecStopPost=/usr/bin/python3 '+str(self.root)+'/canary-host.py close\nRestart=no\nTimeoutStopSec=180\n'
  def monitor_proof(self):
   target=self.root/self.unit();st=target.lstat()
   g.require(stat.S_ISREG(st.st_mode) and st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o600 and target.read_text()==self.unit_content(),'MONITOR_SOURCE_CHANGED')
