@@ -9,6 +9,8 @@ class Inert(h.LocalHost):
  def __init__(self,root,scope=None):
   s,a=fixture();super().__init__(root,scope or s,a);self.commands=[];self.saved=None;self.container={'Id':'a'*64,'State':{'Running':True}}
  def guard(self,state):self.commands.append('provenance')
+ def request_close(self,reason):self.commands.append('cancel')
+ def save_closure(self,receipt):self.receipt=receipt
  def inspect(self,id):return self.container
  def worker(self,state):return self.container
  def run(self,args,**kw):
@@ -132,5 +134,29 @@ class Tests(unittest.TestCase):
   receipt=h.g.close(x.saved,x)
   self.assertFalse(receipt['postingOff']);self.assertTrue(receipt['workerStopped'])
   self.assertIn(['docker','stop','--time','5','a'*64],x.commands)
+
+ def test_closure_request_blocks_forward_actions_and_ready(self):
+  with tempfile.TemporaryDirectory() as t:
+   x=Inert(t);(pathlib.Path(t)/'close-request.json').write_text('{}')
+   for action in [x.arm,x.start_api,x.start_worker_off,x.stop_analysis,x.promote,x.activate,x.ready,x.save_ready]:
+    with self.assertRaisesRegex(RuntimeError,'CLOSURE_ALREADY_REQUESTED'):action({'startsAt':NOW,'deadline':NOW+300})
+   self.assertTrue(all(c=='provenance' for c in x.commands))
+ def test_authority_expiring_during_auth_prevents_activation_dispatch(self):
+  x=Inert(P);x.advancing=lambda _:None;x.scope['expiresAt']=NOW+1
+  x.approval['scopeHash']=h.g.digest(x.scope);x.auth=lambda:setattr(x,'now',lambda:NOW+2)
+  x.cohort=lambda *a:None;x.public_ready=lambda _:None;x.monitor_proof=lambda:None
+  x.reply={'state':'active'}
+  with self.assertRaisesRegex(RuntimeError,'AUTHORITY_EXPIRED'):x.activate({'startsAt':NOW,'deadline':NOW+300})
+  self.assertIsNone(x.saved)
+ def test_monitor_close_decision_is_published_before_waiting_for_begin_lock(self):
+  from test_canary_control import Host
+  x=Host();events=[]
+  x.request_close=lambda reason:events.append(('cancel',reason))
+  @contextlib.contextmanager
+  def wait_for_begin():
+   self.assertEqual(events,[('cancel','scope_failure')]);events.append(('lock','acquired'));yield
+  x.closure_lock=wait_for_begin;x.statuses=[{'scopeValid':False}]
+  self.assertEqual(h.g.monitor({'startsAt':NOW,'deadline':NOW+300},x),'scope_failure')
+  self.assertEqual(events[0],('cancel','scope_failure'))
 
 if __name__=='__main__':unittest.main()
