@@ -51,6 +51,8 @@ process.stdin.on('end', async () => {
       return e;
     };
     if(writes){
+      const existing=(await db.query("select exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member) present")).rows[0];
+      assert.equal(existing.present,false); // Never overwrite or revoke a pre-existing self-granted membership.
       await db.query('grant masarifi_migration to current_user with set true, inherit false');
       await db.query('set local role masarifi_migration');
     }
