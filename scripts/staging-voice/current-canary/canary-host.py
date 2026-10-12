@@ -10,6 +10,12 @@ PUBLIC='https://api.staging.masarifiratibi.com'
 def sha(value):return hashlib.sha256(value).hexdigest()
 def configuration(container):return sha(json.dumps({k:container[k] for k in ('Config','HostConfig','Mounts')},sort_keys=True).encode())
 
+def inspected_worker_payload(container):
+ actual={**copy.deepcopy(container['Config']),'HostConfig':copy.deepcopy(container['HostConfig'])};actual['Hostname']=''
+ # Docker may clear this optional false value at startup; disabling OOM remains rejected.
+ if 'OomKillDisable' in actual['HostConfig'] and actual['HostConfig']['OomKillDisable'] is None:actual['HostConfig']['OomKillDisable']=False
+ return actual
+
 def synchronize_runtime(expected,observed):
  g.require({k:v for k,v in observed.items() if k!='activationRequestedAt'}=={k:v for k,v in expected.items() if k!='activationRequestedAt'},'MONITOR_RUNTIME_CHANGED')
  if 'activationRequestedAt' in observed:
@@ -215,7 +221,7 @@ class LocalHost:
  def worker(self,state):
   if state['workerID'] is None:return None
   c=self.inspect(state['workerID']);g.require(c['Name']=='/masarifi-canary-worker-'+self.scope['attempt'],'WRITER_IDENTITY_CHANGED')
-  actual={**copy.deepcopy(c['Config']),'HostConfig':copy.deepcopy(c['HostConfig'])};actual['Hostname']=''
+  actual=inspected_worker_payload(c)
   g.require(g.digest(actual)==state['workerPayloadHash'],'WRITER_CONFIGURATION_CHANGED');return c
  def unit(self):return 'masarifi-canary-'+self.scope['attempt']+'.service'
  def unit_content(self):
@@ -368,3 +374,4 @@ def main():
    receipt=g.close(state,host);print(json.dumps(receipt),flush=True);g.require(receipt['restored'] and not receipt['blockers'],'CLOSURE_UNCONFIRMED')
 
 if __name__=='__main__':main()
+
