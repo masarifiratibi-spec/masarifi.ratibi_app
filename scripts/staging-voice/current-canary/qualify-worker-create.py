@@ -18,6 +18,8 @@ try:
  with tempfile.TemporaryDirectory(prefix='canary-create-only-') as temporary:
   host=h.LocalHost(temporary,scope,None);identity=host.create_worker(payload);scope['workerTemplateID']=identity
   state={'workerID':identity,'workerPayloadHash':h.g.digest(payload)}
+  inspected=host.inspect(identity);actual={**copy.deepcopy(inspected['Config']),'HostConfig':copy.deepcopy(inspected['HostConfig'])};actual['Hostname']=''
+  report['normalizationDifferences']={key:{'requested':payload.get(key),'inspected':actual.get(key)} for key in sorted(set(payload)|set(actual)) if payload.get(key)!=actual.get(key)}
   container=host.worker(state)
   if container['State']['Running']:raise RuntimeError('INERT_FIXTURE_STARTED')
   report.update(status='PASS',exactPayloadMatchesInspection=True,engineHostname=container['Config']['Hostname'])
