@@ -1,0 +1,16 @@
+name: Current Canary Executor
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  executor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Inert source, ownership, authorization, lifecycle and one-shot checks
+        working-directory: scripts/staging-voice/current-canary
+        run: |
+          python3 -m unittest -v test_canary_control.py test_canary_host.py test_canary_executor.py
+          python3 -O -m unittest test_canary_control.py test_canary_host.py test_canary_executor.py
