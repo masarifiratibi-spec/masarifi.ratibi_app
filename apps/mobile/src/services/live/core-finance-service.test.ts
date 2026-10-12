@@ -240,6 +240,30 @@ it('coalesces simultaneous explicit operations while allowing identical independ
   ).toBe('operation-b');
 });
 
+it('sends the selected Shopping system key as its existing database UUID', async () => {
+  const shoppingId = '04000000-0000-4000-8000-000000000006';
+  let prepared = false;
+  const request = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    expect(prepared).toBe(true);
+    expect(JSON.parse(init?.body as string)).toMatchObject({ categoryId: shoppingId });
+    return response(mutation(summary(transactionId, { categoryId: shoppingId })), 201);
+  });
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test', request,
+    categoryIds: {
+      prepare: async () => { prepared = true; },
+      toServer: (id) => id === 'shopping' ? shoppingId : id,
+      toLocal: (id) => id === shoppingId ? 'shopping' : id
+    }
+  });
+  await expect(service.createTransaction({
+    type: 'expense', amountMinor: 2000, currencyCode: 'SAR', accountId,
+    categoryId: 'shopping', title: 'Shopping', occurredAt: Date.parse(occurredAt)
+  }, '90000000-0000-4000-8000-000000000099')).resolves.toMatchObject({
+    value: { categoryId: 'shopping' }
+  });
+});
+
 it('keeps multiline notes out of the single-line edit audit reason', async () => {
   const request = jest
     .fn()

@@ -843,7 +843,7 @@ it('clears Expense Food on switching to Income and requests an Income-only picke
   ]);
   fireEvent.changeText(await screen.findByLabelText('Amount'), '50');
   fireEvent.changeText(screen.getByLabelText('Description'), 'food');
-  fireEvent.press(screen.getByLabelText('Category, Choose category'));
+  fireEvent.press(screen.getByLabelText('Category, Shopping'));
   await waitFor(() => expect(router.push).toHaveBeenCalled());
   const request = jest.mocked(router.push).mock.calls.at(-1)![0] as unknown as {
     params: { requestId: string };
@@ -890,7 +890,7 @@ it('keeps amount-first entry values and shows localized validation before save',
   expect(screen.getByDisplayValue('Lunch')).toBeTruthy();
 });
 
-it('uses compact controlled pickers without defaulting the category', async () => {
+it('uses compact controlled pickers with Shopping selected for a new expense', async () => {
   renderWithQueryData(<TransactionForm />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
     [coreFinanceKeys.categories(false), fixtureCategories]
@@ -903,7 +903,7 @@ it('uses compact controlled pickers without defaulting the category', async () =
 
   expect(screen.getAllByText(fixtureAccounts[0].name)).toHaveLength(1);
   expect(screen.queryByText(fixtureAccounts[1].name)).toBeNull();
-  expect(screen.getByText('Choose category')).toBeTruthy();
+  expect(screen.getByLabelText('Category, Shopping')).toBeTruthy();
   expect(screen.queryByText(fixtureCategories[0].labelEn)).toBeNull();
   expect(screen.queryByText(fixtureCategories[7].labelEn)).toBeNull();
 });
@@ -914,14 +914,12 @@ it('uses compact picker hierarchy and card-colored text fields', async () => {
     [coreFinanceKeys.categories(false), fixtureCategories]
   ]);
 
-  const categoryPicker = await screen.findByLabelText(
-    'Category, Choose category'
-  );
+  const categoryPicker = await screen.findByLabelText('Category, Shopping');
   expect(categoryPicker).toHaveStyle({
     minHeight: 60,
     shadowOpacity: elevation.card.shadowOpacity
   });
-  expect(screen.getByText('Choose category')).toHaveStyle({
+  expect(screen.getByText('Shopping')).toHaveStyle({
     fontSize: 16,
     fontWeight: '600'
   });
@@ -934,10 +932,14 @@ it('uses compact picker hierarchy and card-colored text fields', async () => {
   });
 });
 
-it('requires an explicit category before saving a new expense', async () => {
+it('requires explicit selection when the existing Shopping category is unavailable', async () => {
+  const categories = fixtureCategories.filter(
+    (category) => category.id !== 'shopping'
+  );
+  jest.mocked(coreFinanceService.listCategories).mockResolvedValue(categories);
   renderWithQueryData(<TransactionForm />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
-    [coreFinanceKeys.categories(false), fixtureCategories]
+    [coreFinanceKeys.categories(false), categories]
   ]);
 
   fireEvent.changeText(
@@ -955,6 +957,140 @@ it('requires an explicit category before saving a new expense', async () => {
   );
   expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
 });
+
+it('submits the existing Shopping selection without a category-picker interaction', async () => {
+  jest.mocked(coreFinanceService.createTransaction).mockResolvedValue({
+    value: fixtureTransactions[0],
+    affectedScopes: []
+  });
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await screen.findByLabelText('Category, Shopping');
+  fireEvent.changeText(screen.getByLabelText('Amount'), '20');
+  fireEvent.press(screen.getByLabelText('Save transaction'));
+  await waitFor(() =>
+    expect(coreFinanceService.createTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'expense',
+        categoryId: 'shopping',
+        amountMinor: 2000
+      }),
+      expect.anything()
+    )
+  );
+});
+
+it.each([
+  { status: 'archived' as const },
+  { status: 'merged' as const },
+  { financialType: 'income' as const }
+])(
+  'never defaults to unavailable or incompatible Shopping (%j)',
+  async (patch) => {
+    const categories = fixtureCategories.map((category) =>
+      category.id === 'shopping' ? { ...category, ...patch } : category
+    );
+    jest
+      .mocked(coreFinanceService.listCategories)
+      .mockResolvedValue(categories);
+    renderWithQueryData(<TransactionForm />, [
+      [coreFinanceKeys.accounts(false), fixtureAccounts],
+      [coreFinanceKeys.categories(false), categories]
+    ]);
+    await screen.findByLabelText('Category, Choose category');
+    fireEvent.changeText(screen.getByLabelText('Amount'), '20');
+    fireEvent.changeText(screen.getByLabelText('Description'), 'Shopping');
+    fireEvent.press(screen.getByLabelText('Save transaction'));
+    expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+  }
+);
+
+it('keeps initial Income category selection explicit', async () => {
+  renderWithQueryData(<TransactionForm initialType="income" />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await screen.findByLabelText('Category, Choose category');
+  expect(screen.queryByText('Shopping')).toBeNull();
+});
+
+it('waits for draft restoration and preserves a valid existing choice', async () => {
+  let restore!: (draft: ReturnType<typeof requiredDraft>) => void;
+  jest.mocked(coreFinanceService.loadDraft).mockReturnValue(
+    new Promise((resolve) => {
+      restore = resolve;
+    })
+  );
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  expect(screen.queryByText('Shopping')).toBeNull();
+  await act(async () => restore(requiredDraft()));
+  await screen.findByLabelText('Category, Food');
+  expect(screen.queryByText('Shopping')).toBeNull();
+});
+
+it('loads the default from delayed categories and allows a normal override', async () => {
+  let load!: (categories: typeof fixtureCategories) => void;
+  jest.mocked(coreFinanceService.listCategories).mockReturnValue(
+    new Promise((resolve) => {
+      load = resolve;
+    })
+  );
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts]
+  ]);
+  await screen.findByLabelText(translate('coreFinance.state.loading'));
+  await act(async () => load(fixtureCategories));
+  fireEvent.press(await screen.findByLabelText('Category, Shopping'));
+  await waitFor(() => expect(router.push).toHaveBeenCalled());
+  const route = jest.mocked(router.push).mock.calls.at(-1)![0] as unknown as {
+    params: { requestId: string };
+  };
+  expect(getCategorySelectionSession(route.params.requestId)?.selectedId).toBe('shopping');
+  act(() => completeCategorySelection(route.params.requestId, 'food'));
+  await screen.findByLabelText('Category, Food');
+});
+
+it.each(['ar', 'en'] as const)(
+  'centers the empty and entered zero in %s without changing amount dimensions',
+  async (locale) => {
+    await changeLocale(locale);
+    try {
+      renderWithQueryData(<TransactionForm />, [
+        [coreFinanceKeys.accounts(false), fixtureAccounts],
+        [coreFinanceKeys.categories(false), fixtureCategories]
+      ]);
+      const amount = await screen.findByLabelText(
+        translate('coreFinance.form.amount')
+      );
+      expect(amount).toHaveProp('placeholder', '0');
+      expect(amount).toHaveStyle({
+        textAlign: 'center',
+        textAlignVertical: 'center',
+        fontSize: 46,
+        lineHeight: 58,
+        minWidth: 40,
+        padding: 0
+      });
+      fireEvent.changeText(amount, '0');
+      expect(screen.getByDisplayValue('0')).toHaveStyle({
+        textAlign: 'center',
+        textAlignVertical: 'center'
+      });
+      fireEvent.changeText(amount, '125');
+      expect(screen.getByDisplayValue('125')).toHaveStyle({
+        textAlign: 'right',
+        writingDirection: 'ltr'
+      });
+    } finally {
+      await changeLocale('en');
+    }
+  }
+);
 
 it('passes the source currency to the destination picker for a new transfer', async () => {
   renderWithQueryData(<TransactionForm />, [

@@ -212,6 +212,20 @@ function TransactionFormContent({
   const [draftLoadAttempt, setDraftLoadAttempt] = useState(0);
   const skipNextDraftReload = useRef(false);
   const [picker, setPicker] = useState<'account' | 'destination' | null>(null);
+  const defaultCategory =
+    !transaction &&
+    !refundDraft &&
+    type === 'expense' &&
+    !operationPending &&
+    !recoveryBlocked
+      ? categories.data?.find(
+          (item: Category) =>
+            item.id === 'shopping' &&
+            item.kind === 'system' &&
+            item.status === 'active' &&
+            item.financialType === 'expense'
+        )
+      : undefined;
   const meaningful = Boolean(
     amount || title || accountId || destinationAccountId || categoryId || notes
   );
@@ -224,7 +238,7 @@ function TransactionFormContent({
         amountText: amount,
         accountId: accountId || null,
         destinationAccountId: destinationAccountId || null,
-        categoryId: categoryId || null,
+        categoryId: categoryId || defaultCategory?.id || null,
         merchant: title || null,
         notes: notes || null,
         occurredAt,
@@ -250,6 +264,7 @@ function TransactionFormContent({
       accountId,
       amount,
       categoryId,
+      defaultCategory?.id,
       destinationAccountId,
       notes,
       occurredAt,
@@ -277,7 +292,12 @@ function TransactionFormContent({
   const sourceAccountId =
     lockedAccountId || accountId || accounts.data?.[0]?.id;
   const resolvedCategoryId =
-    type === 'transfer' ? '' : lockedCategoryId || categoryId;
+    type === 'transfer'
+      ? ''
+      : lockedCategoryId ||
+        categoryId ||
+        (draftReady ? defaultCategory?.id : '') ||
+        '';
   const selectedAccount = accounts.data?.find(
     (item: Account) => item.id === sourceAccountId
   );
@@ -894,7 +914,7 @@ function TransactionFormContent({
     if (target === 'category') {
       if (!transaction) await saveManualDraft();
       openCategorySelection({
-        selectedId: categoryId,
+        selectedId: resolvedCategoryId,
         financialType:
           type === 'expense' || type === 'income' ? type : undefined,
         onSelect: (nextCategoryId) => {
@@ -1091,6 +1111,9 @@ function TransactionFormContent({
                   styles.amountInput,
                   {
                     color: theme.colors.content.primary,
+                    ...(amount === '' || amount === '0'
+                      ? { textAlign: 'center', textAlignVertical: 'center' }
+                      : {}),
                     width: Math.min(300, Math.max(40, amount.length * 27))
                   }
                 ]}

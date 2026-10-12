@@ -88,6 +88,45 @@ const mergedCategory = {
   updatedAt: '2026-09-08T00:00:00.000Z'
 };
 
+it('maps the existing Shopping database category for manual expense submission without creating a category', async () => {
+  const id = '04000000-0000-4000-8000-000000000006';
+  const request = jest.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+    response({
+      items: [
+        {
+          ...mergedCategory,
+          id,
+          scope: 'system',
+          systemKey: 'shopping',
+          labelAr: 'التسوق',
+          labelEn: 'Shopping',
+          status: 'active',
+          active: true,
+          mergedIntoId: null
+        }
+      ],
+      nextCursor: null
+    })
+  );
+  const service = createLiveCategoryLifecycleService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const categories = await service.listCategories();
+  expect(categories).toContainEqual(
+    expect.objectContaining({
+      id: 'shopping',
+      financialType: 'expense',
+      status: 'active'
+    })
+  );
+  await service.prepareCategoryIds();
+  expect(service.serverCategoryId('shopping')).toBe(id);
+  expect(service.localCategoryId(id)).toBe('shopping');
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request.mock.calls[0]?.[1]).toMatchObject({ method: 'GET' });
+});
+
 describe.each(['usage', 'archive', 'restore', 'merge'] as const)(
   '%s remote category operation',
   (operation) => {
