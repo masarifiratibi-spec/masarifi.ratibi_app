@@ -86,6 +86,9 @@ def main():
                         raise RuntimeError('FIXTURE_MUST_NEVER_START')
                     report['cases'][-1]['running'] = False
         finally:
+            # Keep Engine responses even if a subsequent cleanup command fails.
+            report['cleanupVerified'] = False
+            output.write_text(json.dumps(report, indent=2))
             errors = []
             for name in names:
                 existing = run('docker', 'ps', '-a', '--filter', 'name=^/' + name + '$', '--format', '{{.ID}}')
