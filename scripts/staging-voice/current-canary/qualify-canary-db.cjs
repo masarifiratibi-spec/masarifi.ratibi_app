@@ -40,6 +40,9 @@ async function capture(state,recordedAt){
  await db.query('grant select on all tables in schema public,private to postgres');
  await db.query("insert into public.profiles(id,status) values($1,'active')",[scope.ownerId]);
  await db.query("insert into public.accounts(id,user_id,name,type,currency_code,is_default) values($1,$2,'Test','cash','SAR',true)",[scope.accountId,scope.ownerId]);
+ await db.query('insert into public.account_balances(account_id) values($1)',[scope.accountId]);
+ const setup=new Client({connectionString:local});await setup.connect();
+ try{await setup.query('revoke masarifi_migration from current_user granted by current_user');}finally{await setup.end();}
  // Zero-commit closure, lost-response lookup, exact manifest and drift refusal.
  let s=await prepared();count++;
  const reconciled=await success('reconcile',{...s,epochId:null,manifestHash:null});assert.equal(reconciled.epochId,s.epochId);count++;
