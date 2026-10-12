@@ -9,6 +9,20 @@ build=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(build)
 
 class ProbeBuildGates(unittest.TestCase):
+    def test_metadata_binds_cold_owner_candidate_and_retains_old_diagnostics(self):
+        metadata=build.identity_metadata()
+        candidate='41100c383f0cd52ab2170d435fcb487d8f42b50d45a1bd1e5b3bc339953c9932'
+        self.assertEqual(metadata['admissionTargetApkSha256'],candidate)
+        self.assertEqual(metadata['supportedTargetApkSha256'],[
+            build.TARGET_SHA,build.UPGRADE_SHA,build.PRESERVATION_SHA,candidate])
+        # Compare the build receipt with the Java policy that is actually compiled.
+        import re
+        policy=(build.ROOT/'src/com/masarifi/voicequalification/PrivateProbePolicy.java').read_text()
+        declarations=dict(re.findall(r'static final String ([A-Z_]+)="([0-9a-f]{64})";',policy))
+        self.assertEqual([declarations[key] for key in ('HISTORICAL_APK','UPGRADE_APK','PRESERVATION_APK','COLD_OWNER_APK')],
+                         metadata['supportedTargetApkSha256'])
+        self.assertIn('if(!COLD_OWNER_APK.equals(targetApk))',policy)
+
     def test_runtime_provenance_binds_the_actual_target_wrapper(self):
         wrapper="android-probe/PrivateJournalDiagnostic.java"
         self.assertIn(wrapper,build.source_hashes())

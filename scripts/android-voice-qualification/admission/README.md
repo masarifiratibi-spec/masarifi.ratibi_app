@@ -36,11 +36,14 @@ without SharedPreferences initialization or writes. The additional XML has
 private integrity coverage while the original Voice fingerprint is unchanged.
 Missing opt-in, malformed values or ambiguous state cannot prove inactivity.
 
-Version-2 native suspension semantics are bound to the exact preservation
-client APK in `PrivateProbePolicy.requireAdmissionTarget`. Historical allowed
-APKs retain ordinary Voice diagnostics but cannot request this admission
-extension. The old client ignored the native suspension preference, so the
-new interpretation must never be applied to its bytes.
+The admission extension is bound to the exact combined JavaScript/native
+cold-owner preservation APK `41100c38…9932` in
+`PrivateProbePolicy.requireAdmissionTarget`. Earlier allowed APKs, including
+`23a565…ad83`, retain ordinary Voice diagnostics but cannot request admission
+from this diagnostic build. The new client additionally blocks cross-owner
+cold restoration without deleting retained contexts or notification records.
+This binding does not relax version-3 absence classification or grant launch
+permission; context presence still produces the conservative blocked receipt.
 
 The implemented receipt has no owner/session binding, token or identifier
 fields. The four-producer schema below is only a future offline design and is
