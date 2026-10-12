@@ -80,6 +80,10 @@ class LocalHost:
   for item in self.scope['nginxIncludes']:
    p=pathlib.Path(item['path']);g.require(str(p.resolve())==item['resolved'],'NGINX_INCLUDE_CHANGED')
    if item['resolved']!=str(SITE):self.pin(item['resolved'],item['sha256'])
+  includes=[]
+  for line in self.run(['nginx','-T']).splitlines():
+   if line.startswith('# configuration file '):includes.append(line[len('# configuration file '):].rstrip(':'))
+  g.require(sorted(includes)==sorted(x['path'] for x in self.scope['nginxIncludes']),'NGINX_INCLUDE_SET_CHANGED')
  def guard(self,state):
   g.require(socket.gethostname()==g.HOST and os.getuid()==0,'ROOT_STAGING_REQUIRED')
   g.validate(self.scope,self.approval,self.now(),activation=False)
@@ -269,7 +273,7 @@ class LocalHost:
   value['scopeValid']=value['currentEpochMatches'] and value['members']<=1 and (value['deadline'] is None or abs(datetime.datetime.fromisoformat(value['deadline']).timestamp()-state['deadline'])<.001)
   value['apiReady']=False;value['workerHealthy']=False
   if value['state']=='active' and value['committed']==0:
-   try:self.monitor_proof();value['apiReady']=self.api_ready();value['workerHealthy']=self.runtime(state).get('enabled') is True
+   try:self.monitor_proof();self.cohort(False);self.route_guard();self.public_ready(True);value['apiReady']=self.api_ready();value['workerHealthy']=self.runtime(state).get('enabled') is True
    except (RuntimeError,OSError,ValueError,KeyError):pass
   return value
  def close_epoch(self,state):
