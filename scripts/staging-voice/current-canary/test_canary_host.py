@@ -1,5 +1,5 @@
 """Adapter regressions. No subprocess, device or hosted network access."""
-import contextlib,copy,importlib.util,json,pathlib,tempfile,unittest
+import contextlib,copy,importlib.util,json,os,pathlib,tempfile,threading,time,types,unittest
 from unittest.mock import patch
 P=pathlib.Path(__file__).parent
 sp=importlib.util.spec_from_file_location('host',P/'canary-host.py');h=importlib.util.module_from_spec(sp);sp.loader.exec_module(h)
@@ -75,5 +75,39 @@ class Tests(unittest.TestCase):
     # On Windows st_uid=0; on CI temporary file belongs to runner, so mismatch also rejects.
     with self.assertRaisesRegex(RuntimeError,'MONITOR_SOURCE'):x.monitor_proof()
    self.assertEqual(x.commands,[])
+
+ @unittest.skipIf(os.name=='nt','POSIX lifecycle locks qualified in Linux CI')
+ def test_begin_lifecycle_lock_blocks_monitor_closure_until_forward_work_exits(self):
+  import fcntl
+  with tempfile.TemporaryDirectory() as t:
+   x=Inert(t);y=Inert(t);lock=pathlib.Path(t)/'lifecycle.lock';lock.write_text('');lock.chmod(0o600)
+   x.sequence_lock=lock.open('r');fcntl.flock(x.sequence_lock,fcntl.LOCK_EX)
+   entered=threading.Event();finished=threading.Event();errors=[]
+   def closure():
+    try:
+     with y.closure_lock():entered.set()
+    except Exception as e:errors.append(e)
+    finally:finished.set()
+   original=pathlib.Path.lstat
+   def private_stat(p):
+    v=original(p);return types.SimpleNamespace(st_mode=h.stat.S_IFREG|0o600,st_uid=0)
+   with patch.object(pathlib.Path,'lstat',private_stat):
+    thread=threading.Thread(target=closure);thread.start();self.assertFalse(entered.wait(.1))
+    x.release_sequence();self.assertTrue(finished.wait(2));thread.join(2)
+   self.assertEqual(errors,[]);self.assertTrue(entered.is_set())
+ def test_wrong_supervisor_invocation_rejected_even_when_active(self):
+  with tempfile.TemporaryDirectory() as t:
+   x=Inert(t);target=pathlib.Path(t)/x.unit();target.write_text(x.unit_content());target.chmod(0o600)
+   (pathlib.Path(t)/'monitor-invocation.json').write_text(json.dumps({'invocation':'a'*32,'unitHash':h.sha(x.unit_content().encode())}))
+   def run(args,**kw):
+    if '--property=FragmentPath' in args:return str(target)
+    if '--property=DropInPaths' in args:return ''
+    if '--property=InvocationID' in args:return 'b'*32
+    return 'active'
+   x.run=run;original=pathlib.Path.lstat
+   def private_stat(p):
+    v=original(p);return types.SimpleNamespace(st_mode=h.stat.S_IFREG|0o600,st_uid=0)
+   with patch.object(pathlib.Path,'lstat',private_stat),patch.object(pathlib.Path,'is_symlink',return_value=True),patch.object(pathlib.Path,'resolve',return_value=target):
+    with self.assertRaisesRegex(RuntimeError,'INVOCATION_CHANGED'):x.monitor_proof()
 
 if __name__=='__main__':unittest.main()
