@@ -760,7 +760,19 @@ export class AiWorker implements OnModuleDestroy {
         decisions,
         VOICE_BATCH_POLICY,
       );
-      if (acceptance.accepted !== true) throw new Error('VOICE_SCOPE_INVALID');
+      if (acceptance.accepted !== true) {
+        // Acceptance can reject an otherwise successful extraction. Keep that
+        // boundary visible without logging the decisions or response payload.
+        logger.warn('VOICE_BATCH_REJECTED', {
+          context: 'AiWorker',
+          eventName: 'voice.batch_rejected',
+          failureStage: 'batch_acceptance',
+          code: 'VOICE_SCOPE_INVALID',
+          state: acceptance.scopeMismatch === true ? 'scope_mismatch' : 'acceptance_rejected',
+          ...diagnosticCounts,
+        });
+        throw new Error('VOICE_SCOPE_INVALID');
+      }
       logger.info('VOICE_BATCH_ACCEPTED', {
         context: 'AiWorker',
         eventName: 'voice.batch_accepted',

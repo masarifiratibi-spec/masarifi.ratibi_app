@@ -44,15 +44,37 @@ const compact = (patch = {}) => ({
   ...patch,
 });
 
-it.each([
-  { language: 'ar', empty: false, allSkipped: false, rejectAcceptance: false },
-  { language: 'en', empty: false, allSkipped: false, rejectAcceptance: false },
-  { language: 'ar', empty: true, allSkipped: false, rejectAcceptance: false },
-  { language: 'ar', empty: false, allSkipped: true, rejectAcceptance: false },
-  { language: 'ar', empty: false, allSkipped: false, rejectAcceptance: true },
-])(
+it.each(
+  [
+    { language: 'ar', empty: false, allSkipped: false, rejectAcceptance: false },
+    { language: 'en', empty: false, allSkipped: false, rejectAcceptance: false },
+    { language: 'ar', empty: true, allSkipped: false, rejectAcceptance: false },
+    { language: 'ar', empty: false, allSkipped: true, rejectAcceptance: false },
+    {
+      language: 'ar',
+      empty: false,
+      allSkipped: false,
+      rejectAcceptance: true,
+      scopeMismatch: true,
+    },
+    {
+      language: 'ar',
+      empty: false,
+      allSkipped: false,
+      rejectAcceptance: true,
+      scopeMismatch: false,
+    },
+    {
+      language: 'ar',
+      empty: false,
+      allSkipped: false,
+      rejectAcceptance: true,
+      scopeMismatch: 'true',
+    },
+  ].map((test) => ({ scopeMismatch: false as unknown, ...test })),
+)(
   'preserves event decisions and private diagnostic counts for %j',
-  async ({ language, empty, allSkipped, rejectAcceptance }) => {
+  async ({ language, empty, allSkipped, rejectAcceptance, scopeMismatch }) => {
     const lines: string[] = [];
     const diagnostic = jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
       lines.push(String(line));
@@ -116,7 +138,11 @@ it.each([
         recordVoiceAttempt: () => Promise.resolve(),
         acceptVoiceBatch: (_id: string, _token: string, decisions: VoiceEventDecision[]) => {
           accepted.push(decisions);
-          return Promise.resolve({ accepted: !rejectAcceptance });
+          return Promise.resolve({
+            accepted: !rejectAcceptance,
+            scopeMismatch,
+            privateCommand: 'DO_NOT_LOG_PRIVATE_ACCEPTANCE',
+          });
         },
         recordFailure: (_owner: string, _workload: string, code: string) => {
           failures.push(code);
@@ -213,7 +239,23 @@ it.each([
       );
       if (rejectAcceptance) {
         expect(records().some((record) => record.message === 'VOICE_BATCH_ACCEPTED')).toBe(false);
+        expect(records()).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: 'VOICE_BATCH_REJECTED',
+              eventName: 'voice.batch_rejected',
+              failureStage: 'batch_acceptance',
+              code: 'VOICE_SCOPE_INVALID',
+              state: scopeMismatch === true ? 'scope_mismatch' : 'acceptance_rejected',
+              extractedEventCount: 4,
+              eligibleEventCount: 3,
+              skippedEventCount: 1,
+              skipReasonCounts: { missing_amount: 1 },
+            }),
+          ]),
+        );
       } else {
+        expect(records().some((record) => record.message === 'VOICE_BATCH_REJECTED')).toBe(false);
         expect(records()).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
@@ -237,6 +279,7 @@ it.each([
         'الراجحي',
         '1000',
         '10000',
+        'DO_NOT_LOG_PRIVATE_ACCEPTANCE',
       ]) {
         expect(lines.join('')).not.toContain(privateValue);
       }
