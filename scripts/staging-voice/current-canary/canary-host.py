@@ -10,6 +10,14 @@ PUBLIC='https://api.staging.masarifiratibi.com'
 def sha(value):return hashlib.sha256(value).hexdigest()
 def configuration(container):return sha(json.dumps({k:container[k] for k in ('Config','HostConfig','Mounts')},sort_keys=True).encode())
 
+def synchronize_runtime(expected,observed):
+ g.require({k:v for k,v in observed.items() if k!='activationRequestedAt'}=={k:v for k,v in expected.items() if k!='activationRequestedAt'},'MONITOR_RUNTIME_CHANGED')
+ if 'activationRequestedAt' in observed:
+  value=observed['activationRequestedAt']
+  g.require(type(value) in (int,float) and observed['startsAt']<=value<observed['startsAt']+90,'ACTIVATION_METADATA_INVALID')
+  expected['activationRequestedAt']=value
+ return expected
+
 def promoted(before):
  old=b'proxy_pass http://127.0.0.1:3001;'
  g.require(before.count(old)==2,'EXACT_TWO_API_ROUTES_REQUIRED')
@@ -93,27 +101,31 @@ class LocalHost:
   for name in ['scope.json','approval.json','runtime.json']:
    st=(self.root/name).lstat();g.require(stat.S_ISREG(st.st_mode) and st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o600,'PRIVATE_CONTROL_REQUIRED')
   st=self.root.lstat();g.require(st.st_uid==0 and stat.S_IMODE(st.st_mode)==0o700,'PRIVATE_ROOT_REQUIRED')
-  g.require(json.loads((self.root/'scope.json').read_text())==self.scope and json.loads((self.root/'approval.json').read_text())==self.approval and self.state()==state,'CONTROL_CHANGED')
+  g.require(json.loads((self.root/'scope.json').read_text())==self.scope and json.loads((self.root/'approval.json').read_text())==self.approval,'CONTROL_CHANGED')
+  synchronize_runtime(state,self.state())
+  # Closure provenance deliberately does not depend on any service's health.
+ def qualified(self):
   for name,digest in self.scope['files'].items():self.pin(self.root/name,digest)
   for name,digest in self.scope['envHashes'].items():self.pin('/etc/masarifi/'+name,digest)
   self.pin('/etc/masarifi/supabase-ca.crt',self.scope['caHash'])
-  # Closure provenance deliberately does not depend on any service's health.
  def advancing(self,state):
   self.guard(state);g.validate(self.scope,self.approval,self.now())
   g.require(self.now()<min(state['deadline'],state['startsAt']+90),'FIXED_ARMING_WINDOW_EXPIRED')
   value=self.database('status',state)
   g.require(value['currentEpochMatches'] and value['state']=='prepared' and value['posting'] is False and value['members']==0,'PREPARED_OFF_FORWARD_FENCE_REQUIRED')
-  self.cohort();self.candidate();self.route_guard()
+  self.qualified();self.cohort();self.candidate();self.route_guard()
  def database(self,action,state=None):
   g.require(action in ['baseline','prepare','reconcile','activate','status','close','verify'],'DATABASE_ACTION_REQUIRED')
   if state is not None:self.guard(state)
   self.pin('/etc/masarifi/migration.env',self.scope['envHashes']['migration.env'])
+  self.pin('/etc/masarifi/supabase-ca.crt',self.scope['caHash'])
   g.require(configuration(self.inspect(self.scope['publicAPIID']))==self.scope['publicAPIConfigurationHash'],'DATABASE_READER_IDENTITY_CHANGED')
   env={}
   for line in pathlib.Path('/etc/masarifi/migration.env').read_text().splitlines():
    if '=' in line and not line.lstrip().startswith('#'):
     key,value=line.split('=',1);env[key]=value.strip().strip('"').strip("'")
   code=(self.root/'canary-db.cjs').read_text() if (self.root/'canary-db.cjs').exists() else (HERE/'canary-db.cjs').read_text()
+  g.require(sha(code.encode())==self.scope['files']['canary-db.cjs'],'APPROVED_DATABASE_HELPER_REQUIRED')
   request={'action':action,'scope':self.scope,'scopeHash':g.digest(self.scope),'state':state,'url':env['DATABASE_URL']}
   return json.loads(self.run(['docker','exec','-i',self.scope['publicAPIID'],'/nodejs/bin/node','-e',code],input=json.dumps(request),timeout=25))
  def auth(self):
@@ -268,14 +280,12 @@ class LocalHost:
   self.public_ready(True)
  def save_ready(self,state):self.save('ready.json',{'status':'AUTHORIZED_SINGLE_FRESH_10_SAR_WINDOW_READY','deadline':state['deadline'],'epochId':state['epochId'],'workerID':state['workerID']})
  def snapshot(self,state):
-  fresh=self.state()
-  g.require({k:v for k,v in fresh.items() if k!='activationRequestedAt'}=={k:v for k,v in state.items() if k!='activationRequestedAt'},'MONITOR_RUNTIME_CHANGED')
-  state.clear();state.update(fresh)
+  synchronize_runtime(state,self.state())
   self.guard(state);value=self.database('status',state)
   value['scopeValid']=value['currentEpochMatches'] and value['members']<=1 and (value['deadline'] is None or abs(datetime.datetime.fromisoformat(value['deadline']).timestamp()-state['deadline'])<.001)
   value['apiReady']=False;value['workerHealthy']=False
   if value['state']=='active' and value['committed']==0:
-   try:self.monitor_proof();self.cohort(False);self.route_guard();self.public_ready(True);value['apiReady']=self.api_ready();value['workerHealthy']=self.runtime(state).get('enabled') is True
+   try:self.qualified();self.monitor_proof();self.cohort(False);self.route_guard();self.public_ready(True);value['apiReady']=self.api_ready();value['workerHealthy']=self.runtime(state).get('enabled') is True
    except (RuntimeError,OSError,ValueError,KeyError):pass
   return value
  def close_epoch(self,state):
@@ -316,6 +326,7 @@ def main():
   g.require(action in ['monitor','close'],'CANARY_MODE_REQUIRED')
   scope=json.loads((root/'scope.json').read_text());approval=json.loads((root/'approval.json').read_text());host=LocalHost(root,scope,approval);state=host.state();host.guard(state)
   if action=='monitor':
+   host.qualified()
    host.database('status',state);print('CANARY_MONITOR_ARMED',flush=True);print(json.dumps({'closedReason':g.monitor(state,host)}),flush=True)
   else:
    receipt=g.close(state,host);print(json.dumps(receipt),flush=True);g.require(receipt['restored'] and not receipt['blockers'],'CLOSURE_UNCONFIRMED')
