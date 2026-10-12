@@ -86,7 +86,7 @@ def main():
   receipt=json.loads(result.stdout);g.require(receipt.get('status')=='AUTHORIZED_SINGLE_FRESH_10_SAR_WINDOW_READY','LIVE_READY_NOT_CONFIRMED')
   print(json.dumps(receipt))
  except subprocess.TimeoutExpired:
-  (attempt/'transport-uncertain.json').write_text(json.dumps({'neverRetry':True,'independentMonitorOwnsClosure':True,'readOnlyReconciliationRequired':True}),encoding='utf-8')
+  (attempt/'transport-uncertain.json').write_text(json.dumps({'neverRetry':True,'independentMonitorStatus':'unconfirmed','readOnlyReconciliationRequired':True}),encoding='utf-8')
   raise RuntimeError('TRANSPORT_UNCERTAIN_DO_NOT_RETRY') from None
 
 if __name__=='__main__':main()
