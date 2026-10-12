@@ -1,0 +1,60 @@
+name: Current Voice Canary Controls
+on:
+  push:
+    branches: [codex/financial-mode-create-fixture-2026-10-12]
+    paths: [scripts/staging-voice/current-canary/**, .github/workflows/current-canary-controls.yml]
+permissions:
+  contents: read
+jobs:
+  adapter-and-engine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Behavioral adapter and lifecycle tests
+        working-directory: scripts/staging-voice/current-canary
+        run: |
+          python3 -m unittest -v test_canary_control.py test_canary_host.py
+          python3 -O -m unittest test_canary_control.py test_canary_host.py
+      - name: Exact Engine create and inspect without starting an application
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,RUNNER_TEMP bash scripts/staging-voice/current-canary/qualify-engine.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: current-canary-engine-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/worker-create-report.json
+            ${{ runner.temp }}/docker-engine-archive.sha256
+            ${{ runner.temp }}/docker-engine-version.txt
+            ${{ runner.temp }}/docker-exact-daemon.log
+          if-no-files-found: warn
+  actual-database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      MASARIFI_RELEASE_VERSION: ci
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run supabase:start
+      - run: npm run db:reset
+      - name: Execute unchanged helper SQL against disposable database
+        run: node ../../scripts/staging-voice/current-canary/qualify-canary-db.cjs | tee /tmp/canary-helper-result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: current-canary-database-${{ github.sha }}
+          path: /tmp/canary-helper-result.json
+          if-no-files-found: warn
+      - run: npm run supabase:stop
+        if: always()
