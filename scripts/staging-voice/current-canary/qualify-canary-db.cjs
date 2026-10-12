@@ -8,14 +8,15 @@ assert(['127.0.0.1','localhost'].includes(u.hostname)&&u.port==='54322');
 assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,'masarifiratibi-spec/masarifi.ratibi_app');
 const code=fs.readFileSync(__dirname+'/canary-db.cjs','utf8');
 const db=new Client({connectionString:local});
-const scope={project:'qcffvfbpzvpwcwxwjyro',ownerId:'user_3K2ItVcURds22ueEf31Py6e305q',accountId:'3161601e-1584-40b0-86ec-d170c018b551',categoryId:'04000000-0000-4000-8000-000000000006',clerkSessionHash:createHash('sha256').update('local-test-session').digest('hex')};
+const scope={expiresAt:Date.now()/1000+3600,project:'qcffvfbpzvpwcwxwjyro',ownerId:'user_3K2ItVcURds22ueEf31Py6e305q',accountId:'3161601e-1584-40b0-86ec-d170c018b551',categoryId:'04000000-0000-4000-8000-000000000006',clerkSessionHash:createHash('sha256').update('local-test-session').digest('hex')};
 async function helper(action,state,patch={}){
  const stdin=new EventEmitter();let output='',error='',exitCode=0;
  return new Promise(resolve=>{
   class LocalClient extends Client{constructor(){super({connectionString:local});}async end(){await super.end();resolve({ok:!exitCode,result:output?JSON.parse(output):null,error});}}
   const proc={env:{SUPABASE_URL:'https://'+scope.project+'.supabase.co'},stdin,get exitCode(){return exitCode},set exitCode(x){exitCode=x}};
-  Function('require','process','console',code)(x=>x==='pg'?{Client:LocalClient}:require(x),proc,{log:x=>output+=x,error:x=>error+=x});
-  stdin.emit('data',JSON.stringify({action,state,scope:{...scope,...patch},scopeHash:'a'.repeat(64),url:'postgresql://postgres.'+scope.project+':INERT@inert.supabase.com/postgres'}));stdin.emit('end');
+  assert.equal(code.split('} catch(error){').length,2);
+  Function('require','process','console','qualificationError',code.replace('} catch(error){','} catch(error){qualificationError(error);'))(x=>x==='pg'?{Client:LocalClient}:require(x),proc,{log:x=>output+=x,error:x=>error+=x},e=>{error+=e.stack;});
+  stdin.emit('data',JSON.stringify({action,state,approvalReceivedAt:Date.now()/1000,scope:{...scope,...patch},scopeHash:'a'.repeat(64),url:'postgresql://postgres.'+scope.project+':INERT@inert.supabase.com/postgres'}));stdin.emit('end');
  });
 }
 async function success(action,state){const r=await helper(action,state);assert(r.ok,action+':'+r.error);return r.result;}
