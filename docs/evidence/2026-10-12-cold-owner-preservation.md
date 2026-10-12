@@ -83,3 +83,37 @@ Final immutable-packet review passed, report SHA256
 `0786b652e1d09a7effd0b3e99c73bc72f32de162bce878acd17fb44796129f2f`.
 New explicit device approval remains required. This is not full application
 acceptance and grants no financial activation or deployment authority.
+
+
+## 12 October 2026, 14:07 UTC — approved installation scope consumed without device operations
+
+The user approved scope `9b922181` once. Its exclusive execution stopped at
+`STAGING_PREFLIGHT` (`NONZERO_EXIT`), verdict INDETERMINATE. All device command,
+installation and instrumentation counters are zero. No restoration was needed;
+no new physical preservation or authentication finding is claimed. The scope
+must never be rerun. Independent result review passed the failure accounting.
+
+Read-only SSH investigation returned timeout. The computer's current public IPv4
+is 188.48.81.79. The provider console showed exact host srv2006836, active UFW,
+19 existing rules and kernel UFW BLOCK records for this source to
+187.77.81.97 TCP/22. This confirms the changed-IP firewall obstacle. No security
+rule was changed. Previous Staging verification remains historical.
+
+Two fresh approval packets are prepared: firewall `a1bad713` under
+`E:/Masarifi-staging-acceptance-2026-10-12/ssh-current-ip-188-recovery/`, and
+installation-only `a6f5d1f6` under
+`E:/Masarifi-staging-acceptance-2026-10-12/cold-owner-upgrade-after-ip-188-recovery/`.
+The latter retains byte-identical qualified host tools, APKs and test evidence.
+It may start only after separately approved SSH recovery AND fresh external
+read-only posting-OFF Staging verification PASS; its controller rechecks Staging.
+Both need independent final review and new explicit approval before operations.
+The legacy Voice session remains untouched by this attempt. No launch, deployment,
+financial action or Production change occurred. Full acceptance remains open.
+
+Independent final packet reviews now PASS: firewall report SHA256
+`f2a36c68c8fede4dd483e7d8f17bdc50c23417e26f6b61425c78a0b1e3984101`;
+installation report SHA256
+`64e6715d00c76a4e9039922334d14168e6c9b7178c3ff5b1a5eb0538799e4e44`.
+External pre-consumption Staging PASS is an operator gate; the unchanged controller
+performs its additional internal preflight after consuming approval. Both gates
+are required. All new protected operations still await direct user approval.
