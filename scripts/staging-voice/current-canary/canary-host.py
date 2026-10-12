@@ -151,7 +151,7 @@ class LocalHost:
   g.require(not self.run(['docker','ps','-a','--filter','name=^/masarifi-canary-worker-'+scope['attempt']+'$','--format','{{.ID}}']),'WRITER_NAME_ALREADY_USED')
   with socket.socket() as probe:probe.bind(('127.0.0.1',3003))
   observed=self.database('baseline');g.require(observed['financial']==scope['baseline'],'FINANCIAL_BASELINE_CHANGED')
-  a=observed['admission'];g.require(a['posting'] is False and a['activeEpochs']==0 and a['analysisJobs']==0 and a['assistantJobs']==0 and a['eligible'] and a['currentState'] in [None,'closed'],'OFF_IDLE_ELIGIBLE_REQUIRED')
+  a=observed['admission'];g.require(a['posting'] is False and a['activeEpochs']==0 and a['analysisJobs']==0 and a['assistantJobs']==0 and a['eligible'] and a['currentState'] in [None,'closed'] and a['migrationSelfGrant'] is False,'OFF_IDLE_ELIGIBLE_REQUIRED')
  def claim(self,scope,approval):
   self.root.mkdir(mode=0o700)
   import fcntl
@@ -239,9 +239,13 @@ class LocalHost:
  def wait(self,state,probe,seconds=30):
   end=min(self.now()+seconds,state['deadline'])
   while self.now()<end:
+   self.not_cancelled()
+   available=False
    try:
-    if probe():return
+    available=probe()
    except (RuntimeError,OSError,ValueError,KeyError):pass
+   self.not_cancelled()
+   if available:return
    self.pause(.5)
   raise RuntimeError('BOUNDED_READINESS_NOT_CONFIRMED')
  def api_ready(self):
