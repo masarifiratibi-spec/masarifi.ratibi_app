@@ -58,7 +58,8 @@ def begin(scope,approval,host):
    require(receipt['restored'] and not receipt['blockers'],'FAILED_BEGIN_CLOSURE_UNCONFIRMED')
   raise
 
-def close(state,host):
+def close(state,host,reason='closure_requested'):
+ host.request_close(reason)
  with host.closure_lock():return close_owned(state,host)
 
 def close_owned(state,host):
@@ -99,7 +100,7 @@ def monitor(state,host):
     failures=0 if snapshot.get('apiReady') and snapshot.get('workerHealthy') else failures+1
     if failures>=3 and now>=state.get('activationRequestedAt',state['startsAt'])+15:reason='runtime_unhealthy'
   if reason:
-   receipt=close(state,host)
+   receipt=close(state,host,reason)
    require(receipt['restored'] and not receipt['blockers'],'WATCHDOG_CLOSURE_UNCONFIRMED')
    return reason
   host.pause(2)
