@@ -11,6 +11,7 @@ def fixture():
  return scope,approval
 
 class Host:
+ def request_close(self,reason):self.action('close_request')
  def closure_lock(self):return contextlib.nullcontext()
  def __init__(self):self.calls=[];self.state=None;self.fail=None;self.statuses=[{'scopeValid':True,'state':'closed','committed':1,'posting':False}]
  def now(self):return NOW
@@ -76,7 +77,7 @@ class Tests(unittest.TestCase):
   self.assertTrue(result['postingOff']);self.assertFalse(result['workerStopped']);self.assertNotIn('restore_route',h.calls)
  def test_expiry_does_not_revoke_closure(self):
   h=Host();result=g.close({'deadline':NOW-1},h)
-  self.assertTrue(result['restored']);self.assertEqual(h.calls,['guard','close_epoch','stop_worker','restore_route','stop_api','restore_analysis','verify_restored'])
+  self.assertTrue(result['restored']);self.assertEqual(h.calls,['close_request','guard','close_epoch','stop_worker','restore_route','stop_api','restore_analysis','verify_restored'])
  def test_new_commit_closes_before_considering_shutdown_health(self):
   h=Host();state={'deadline':NOW+300,'startsAt':NOW};reason=g.monitor(state,h)
   self.assertEqual(reason,'completed');self.assertIn('close_epoch',h.calls)
