@@ -142,7 +142,8 @@ export async function requestJson<T>(
         throw new HttpError('provider_unavailable', 503);
       if (!token) throw new HttpError('session_expired', 401);
       const headers = headerRecord(options.headers);
-      setHeader(headers, 'accept', 'application/json');
+      if (!Object.keys(headers).some((name) => name.toLowerCase() === 'accept'))
+        setHeader(headers, 'accept', 'application/json');
       if (options.body !== undefined)
         setHeader(headers, 'content-type', 'application/json');
       setHeader(headers, 'Authorization', `Bearer ${token}`);

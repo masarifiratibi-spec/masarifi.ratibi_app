@@ -15,6 +15,33 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it.each<HeadersInit>([
+    { Accept: 'application/json; currency-onboarding=1' },
+    { accept: 'application/json; currency-onboarding=1' },
+    [['Accept', 'application/json; currency-onboarding=1']] as [
+      string,
+      string
+    ][]
+  ])(
+    'preserves negotiated Accept through the authenticated transport',
+    async (headers) => {
+      const request = jest
+        .fn()
+        .mockResolvedValue(response(200, { state: 'ready' }));
+      await requestJson('/api/v1/me/preferences', schema, {
+        baseUrl: 'https://inert.invalid',
+        token: 'real-owner-token',
+        request,
+        headers
+      });
+      const sent = new Headers(request.mock.calls[0][1].headers);
+      expect(sent.get('accept')).toBe(
+        'application/json; currency-onboarding=1'
+      );
+      expect(sent.get('authorization')).toBe('Bearer real-owner-token');
+    }
+  );
+
   it.each(['server', 'cancelled', 'timeout', 'network'] as const)(
     'distinguishes %s failures from an actual HTTP 503 without logging protected data',
     async (kind) => {
@@ -160,6 +187,7 @@ describe('Mobile strict HTTP client', () => {
       'https://api.example/api/v1/me',
       expect.objectContaining({
         headers: expect.objectContaining({
+          accept: 'application/json',
           Authorization: 'Bearer clerk-session',
           'Idempotency-Key': 'profile-1',
           'If-Match': '"7"'

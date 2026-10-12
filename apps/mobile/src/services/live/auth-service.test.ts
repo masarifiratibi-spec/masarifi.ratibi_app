@@ -884,6 +884,69 @@ describe('live profile setup', () => {
     ).rejects.toMatchObject({ code: 'validation_error' });
   });
 
+  test('completes profile setup through the HTTP transport with currency negotiation', async () => {
+    const writes: string[] = [];
+    const saveLocalProfile = jest.fn();
+    const transport = jest.fn(
+      async (url: string | URL | Request, init?: RequestInit) => {
+        const path = new URL(String(url)).pathname;
+        const writing = init?.method === 'PUT' || init?.method === 'PATCH';
+        if (writing) writes.push(path);
+        let value: unknown;
+        if (path === '/api/v1/me') value = profile;
+        else if (path === '/api/v1/me/preferences') {
+          value = {
+            ...preferences,
+            ...(new Headers(init?.headers)
+              .get('accept')
+              ?.includes('currency-onboarding=1')
+              ? { currencySelectionRequired: !writing }
+              : {})
+          };
+        } else if (path === '/api/v1/me/onboarding') {
+          value = writing
+            ? {
+                ...onboarding,
+                step: 'tracking_intro',
+                completedSteps: ['welcome']
+              }
+            : onboarding;
+        } else throw new Error('unexpected fixture request');
+        return new Response(JSON.stringify(value), { status: 200 });
+      }
+    );
+    const service = createLiveIdentityService({
+      saveLocalProfile,
+      request: (path, options) =>
+        requestJson(path, z.unknown(), {
+          ...options,
+          baseUrl: 'https://inert.invalid',
+          token: 'fixture-token',
+          request: transport
+        })
+    });
+    const snapshot = await service.getProfileSetup();
+    saveLocalProfile.mockClear();
+    await expect(
+      service.saveProfileSetup(
+        { name: 'Fixture customer', currency: 'SAR' },
+        snapshot,
+        'profile-transport-test'
+      )
+    ).resolves.toMatchObject({
+      value: {
+        complete: true,
+        preferences: { currencySelectionRequired: false }
+      }
+    });
+    expect(writes).toEqual([
+      '/api/v1/me',
+      '/api/v1/me/preferences',
+      '/api/v1/me/onboarding'
+    ]);
+    expect(saveLocalProfile).toHaveBeenCalledTimes(1);
+  });
+
   test('saves name and currency before marking welcome complete', async () => {
     const calls: { path: string; options: Record<string, unknown> }[] = [];
     const request = jest.fn(
