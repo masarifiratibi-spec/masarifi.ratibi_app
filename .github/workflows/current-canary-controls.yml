@@ -1,12 +1,16 @@
 name: Current Voice Canary Controls
 on:
-  push:
-    branches: [codex/financial-mode-create-fixture-2026-10-12]
-    paths: [scripts/staging-voice/current-canary/**, .github/workflows/current-canary-controls.yml]
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        default: all
+        options: [all, engine, database]
 permissions:
   contents: read
 jobs:
   adapter-and-engine:
+    if: inputs.target != 'database'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -29,6 +33,7 @@ jobs:
             ${{ runner.temp }}/docker-exact-daemon.log
           if-no-files-found: warn
   actual-database:
+    if: inputs.target != 'engine'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
