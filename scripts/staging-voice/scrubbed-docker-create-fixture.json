@@ -1,0 +1,255 @@
+{
+  "server": {
+    "Platform": {
+      "Name": "Docker Engine - Community"
+    },
+    "Version": "29.8.1",
+    "ApiVersion": "1.56",
+    "MinAPIVersion": "1.40",
+    "Os": "linux",
+    "Arch": "amd64",
+    "Components": [
+      {
+        "Name": "Engine",
+        "Version": "29.8.1",
+        "Details": {
+          "ApiVersion": "1.56",
+          "Arch": "amd64",
+          "BuildTime": "Tue Sep 15 16:25:42 2026",
+          "Experimental": "false",
+          "GitCommit": "464cd50",
+          "GoVersion": "go1.26.8",
+          "KernelVersion": "7.0.0-38-generic",
+          "MinAPIVersion": "1.40",
+          "Module": "github.com/moby/moby/v2",
+          "ModuleVersion": "v2.0.0+unknown",
+          "Os": "linux"
+        }
+      },
+      {
+        "Name": "containerd",
+        "Version": "v2.3.6",
+        "Details": {
+          "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+        }
+      },
+      {
+        "Name": "runc",
+        "Version": "1.5.1",
+        "Details": {
+          "GitCommit": "v1.5.1-0-g8f2685a4"
+        }
+      },
+      {
+        "Name": "docker-init",
+        "Version": "0.19.0",
+        "Details": {
+          "GitCommit": "de40ad0"
+        }
+      }
+    ],
+    "GitCommit": "464cd50",
+    "GoVersion": "go1.26.8",
+    "KernelVersion": "7.0.0-38-generic",
+    "BuildTime": "2026-09-15T16:25:42.000000000+00:00"
+  },
+  "payload": {
+    "Hostname": "masarifi-staging-financial-readiness-3019da32-5995-4a3d-a45f-00809a2c3c09",
+    "Domainname": "",
+    "User": "65532:65532",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "CLERK_AUTHORIZED_PARTIES=INERT_FIXTURE",
+      "CLERK_INSTANCE_DOMAIN=INERT_FIXTURE",
+      "CLERK_PUBLISHABLE_KEY=INERT_FIXTURE",
+      "CLERK_SECRET_KEY=INERT_FIXTURE",
+      "CLERK_WEBHOOK_SIGNING_SECRET=INERT_FIXTURE",
+      "DATABASE_URL=INERT_FIXTURE",
+      "MASARIFI_ADMIN_INVITATION_REDIRECT_URL=INERT_FIXTURE",
+      "MASARIFI_ADMIN_ROUTES_ENABLED=INERT_FIXTURE",
+      "MASARIFI_AI_PROVIDER_ENABLED=INERT_FIXTURE",
+      "MASARIFI_AI_SIGNED_UPLOAD_SECONDS=INERT_FIXTURE",
+      "MASARIFI_CAMPAIGN_APPROVAL_THRESHOLD=INERT_FIXTURE",
+      "MASARIFI_CLERK_API_TIMEOUT_MS=INERT_FIXTURE",
+      "MASARIFI_CORS_ORIGINS=INERT_FIXTURE",
+      "MASARIFI_DATABASE_POOL_MAX=INERT_FIXTURE",
+      "MASARIFI_DELETION_COOLING_OFF_HOURS=INERT_FIXTURE",
+      "MASARIFI_EXPORT_RETENTION_HOURS=INERT_FIXTURE",
+      "MASARIFI_EXPORT_SIGNED_URL_SECONDS=INERT_FIXTURE",
+      "MASARIFI_HTTP_BODY_LIMIT_BYTES=INERT_FIXTURE",
+      "MASARIFI_HTTP_PORT=INERT_FIXTURE",
+      "MASARIFI_LOG_LEVEL=INERT_FIXTURE",
+      "MASARIFI_PROCESS_KIND=INERT_FIXTURE",
+      "MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS=INERT_FIXTURE",
+      "MASARIFI_PUSH_TOKEN_HASH_KEY=INERT_FIXTURE",
+      "MASARIFI_READINESS_CACHE_TTL_MS=INERT_FIXTURE",
+      "MASARIFI_READINESS_TIMEOUT_MS=INERT_FIXTURE",
+      "MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS=INERT_FIXTURE",
+      "MASARIFI_RELEASE_VERSION=INERT_FIXTURE",
+      "MASARIFI_REPORT_RETENTION_HOURS=INERT_FIXTURE",
+      "MASARIFI_REPORT_SIGNED_URL_SECONDS=INERT_FIXTURE",
+      "MASARIFI_REQUEST_TIMEOUT_MS=INERT_FIXTURE",
+      "MASARIFI_SECURITY_IP_HASH_KEYS=INERT_FIXTURE",
+      "MASARIFI_SHUTDOWN_TIMEOUT_MS=INERT_FIXTURE",
+      "MASARIFI_SUPPORT_ATTACHMENT_MAX_BYTES=INERT_FIXTURE",
+      "MASARIFI_SUPPORT_SIGNED_URL_SECONDS=INERT_FIXTURE",
+      "MASARIFI_SYNC_DELTA_LIMIT=INERT_FIXTURE",
+      "MASARIFI_SYNC_PAYLOAD_LIMIT_BYTES=INERT_FIXTURE",
+      "MASARIFI_VOICE_ANALYSIS_ONLY=INERT_FIXTURE",
+      "NODE_ENV=INERT_FIXTURE",
+      "NODE_EXTRA_CA_CERTS=INERT_FIXTURE",
+      "PATH=INERT_FIXTURE",
+      "SSL_CERT_FILE=INERT_FIXTURE",
+      "SUPABASE_SERVICE_ROLE_KEY=INERT_FIXTURE",
+      "SUPABASE_URL=INERT_FIXTURE"
+    ],
+    "Cmd": [
+      "dist/src/main.js"
+    ],
+    "Healthcheck": {
+      "Test": [
+        "CMD",
+        "/nodejs/bin/node",
+        "dist/src/platform/health/container-healthcheck.js"
+      ],
+      "Interval": 10000000000,
+      "Timeout": 2000000000,
+      "StartPeriod": 10000000000,
+      "Retries": 3
+    },
+    "Image": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:8ee5100f2f9de7b5930867eb7cf901c94344452ba8a3ed62954223bbc8fb2bab",
+    "Volumes": null,
+    "WorkingDir": "/app",
+    "Entrypoint": [
+      "/nodejs/bin/node"
+    ],
+    "Labels": {
+      "org.masarifi.api-qualification": "INERT_FIXTURE",
+      "org.opencontainers.image.revision": "INERT_FIXTURE",
+      "org.masarifi.scope": "INERT_FIXTURE"
+    },
+    "HostConfig": {
+      "Binds": [
+        "/etc/masarifi/supabase-ca.crt:/etc/ssl/certs/masarifi-database-ca.crt:ro"
+      ],
+      "ContainerIDFile": "",
+      "LogConfig": {
+        "Type": "json-file",
+        "Config": {
+          "max-file": "2",
+          "max-size": "1m"
+        }
+      },
+      "NetworkMode": "masarifi-staging_backend",
+      "PortBindings": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3003"
+          }
+        ]
+      },
+      "RestartPolicy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "AutoRemove": false,
+      "VolumeDriver": "",
+      "VolumesFrom": null,
+      "ConsoleSize": [
+        0,
+        0
+      ],
+      "CapAdd": null,
+      "CapDrop": [
+        "ALL"
+      ],
+      "CgroupnsMode": "private",
+      "Dns": null,
+      "DnsOptions": [],
+      "DnsSearch": [],
+      "ExtraHosts": null,
+      "GroupAdd": null,
+      "IpcMode": "none",
+      "Cgroup": "",
+      "Links": null,
+      "OomScoreAdj": 0,
+      "PidMode": "",
+      "Privileged": false,
+      "PublishAllPorts": false,
+      "ReadonlyRootfs": true,
+      "SecurityOpt": [
+        "no-new-privileges"
+      ],
+      "Tmpfs": {
+        "/tmp": "rw,noexec,nosuid,size=64m"
+      },
+      "UTSMode": "",
+      "UsernsMode": "",
+      "ShmSize": 67108864,
+      "Runtime": "runc",
+      "Isolation": "",
+      "CpuShares": 0,
+      "Memory": 536870912,
+      "NanoCpus": 1000000000,
+      "CgroupParent": "",
+      "BlkioWeight": 0,
+      "BlkioWeightDevice": [],
+      "BlkioDeviceReadBps": [],
+      "BlkioDeviceWriteBps": [],
+      "BlkioDeviceReadIOps": [],
+      "BlkioDeviceWriteIOps": [],
+      "CpuPeriod": 0,
+      "CpuQuota": 0,
+      "CpuRealtimePeriod": 0,
+      "CpuRealtimeRuntime": 0,
+      "CpusetCpus": "",
+      "CpusetMems": "",
+      "Devices": [],
+      "DeviceCgroupRules": null,
+      "DeviceRequests": null,
+      "MemoryReservation": 0,
+      "MemorySwap": 1073741824,
+      "MemorySwappiness": null,
+      "OomKillDisable": null,
+      "PidsLimit": 256,
+      "Ulimits": null,
+      "CpuCount": 0,
+      "CpuPercent": 0,
+      "IOMaximumIOps": 0,
+      "IOMaximumBandwidth": 0,
+      "MaskedPaths": [
+        "/proc/acpi",
+        "/proc/asound",
+        "/proc/interrupts",
+        "/proc/kcore",
+        "/proc/keys",
+        "/proc/latency_stats",
+        "/proc/sched_debug",
+        "/proc/scsi",
+        "/proc/timer_list",
+        "/proc/timer_stats",
+        "/sys/devices/virtual/powercap",
+        "/sys/firmware"
+      ],
+      "ReadonlyPaths": [
+        "/proc/bus",
+        "/proc/fs",
+        "/proc/irq",
+        "/proc/sys",
+        "/proc/sysrq-trigger"
+      ],
+      "Init": true,
+      "StorageOpt": {}
+    }
+  },
+  "requestName": "masarifi-staging-financial-readiness-3019da32-5995-4a3d-a45f-00809a2c3c09"
+}
