@@ -20,6 +20,8 @@ jobs:
         run: |
           python3 -m unittest -v test_canary_control.py test_canary_host.py test_canary_executor.py
           python3 -O -m unittest test_canary_control.py test_canary_host.py test_canary_executor.py
+      - name: Actual systemd proof with inert service on disposable runner
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,RUNNER_TEMP python3 scripts/staging-voice/current-canary/qualify-systemd-monitor.py
       - name: Exact Engine create and inspect without starting an application
         if: inputs.target != 'executor'
         run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,RUNNER_TEMP bash scripts/staging-voice/current-canary/qualify-engine.sh
@@ -28,6 +30,7 @@ jobs:
         with:
           name: current-canary-engine-${{ github.sha }}
           path: |
+            ${{ runner.temp }}/systemd-monitor-report.json
             ${{ runner.temp }}/worker-create-report.json
             ${{ runner.temp }}/docker-engine-archive.sha256
             ${{ runner.temp }}/docker-engine-version.txt
