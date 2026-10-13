@@ -41,7 +41,11 @@ async function main() {
     // Force a post-DDL preservation failure and prove the entire migration rolls back.
     const contaminated = sql.replace('reset role;', 'update private.voice_automatic_policy set enabled=true;\nreset role;');
     await assert.rejects(g.applyDiagnostic(client, { ...packet, sql:contaminated, sqlHash:g.sha(contaminated) }),
-      { code:'ERR_ASSERTION', message:'FINANCIAL_VOICE_AND_SESSION_DATA_PRESERVED' });
+      (error) => {
+        console.error(JSON.stringify({ stage, code:error.code || null,
+          assertion:error.code === 'ERR_ASSERTION' ? error.message.split('\n')[0] : null }));
+        return error.code === 'ERR_ASSERTION' && error.message.split('\n')[0] === 'FINANCIAL_VOICE_AND_SESSION_DATA_PRESERVED';
+      });
     assert.deepEqual(await g.snapshot(client), before);
     stage = 'concurrent-qualification';
     // The shared platform lock admits exactly one install, even under concurrency.

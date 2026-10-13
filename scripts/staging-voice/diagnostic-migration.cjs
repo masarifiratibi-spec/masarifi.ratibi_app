@@ -53,6 +53,8 @@ async function checkAfter(client, before, packet) {
   assert.deepEqual(after.protected, before.protected, 'FINANCIAL_VOICE_AND_SESSION_DATA_PRESERVED');
   assert.deepEqual(after.migrations, [...before.migrations, VERSION], 'EXACT_ONE_MIGRATION_REQUIRED');
   assert.equal(after.historyHash, before.historyHash, 'EXISTING_MIGRATION_HISTORY_PRESERVED');
+  assert.deepEqual((await client.query('select name,statements from supabase_migrations.schema_migrations where version=$1',
+    [VERSION])).rows, [{ name:NAME, statements:[packet.sql] }], 'EXACT_NEW_MIGRATION_HISTORY_REQUIRED');
   assert.deepEqual(after.acceptance, { ...before.acceptance, bodyHash: packet.acceptanceBodyHash }, 'ACCEPTANCE_METADATA_PRESERVED');
   assert(after.helper && after.helper.owner === 'masarifi_migration' && !after.helper.definer,
     'PRIVATE_INVOKER_HELPER_REQUIRED');
