@@ -1,7 +1,7 @@
 "use strict";
 // Fixed env-only helper for a separately authorized host adapter. No live authority is created here.
 const assert=require('node:assert/strict'),crypto=require('node:crypto'),{createRequire}=require('node:module');
-const actions=['status','prepare','reconcile','activate','close'];
+const actions=['status','monitor','prepare','reconcile','activate','close'];
 const action=process.env.OPERATING_ACTION;
 let stage='configuration';
 const acceptance={bodyHash:'683de0fd60086962c86b256983b5feadd00f4c300166a82bfc782250de29ebec',owner:'masarifi_migration',definer:true,config:['search_path=""'],acl:'{masarifi_migration=X/masarifi_migration,masarifi_worker=X/masarifi_migration}'};
@@ -60,6 +60,14 @@ async function snapshot(db) {
   assert(rows.length<=10000);fingerprints[name]=crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
  }
  return {...row,fingerprints};
+}
+async function monitorSnapshot(db) {
+ // Recurring safety checks need current policy/schema/owned epoch, not the
+ // unrelated historical backlog or an activation-only financial baseline.
+ // Keep the same read-only snapshot and timeout; unavailable guards fail closed.
+ return (await db.query(`select
+  (select enabled from private.voice_automatic_policy) posting,
+  (select coalesce(jsonb_agg(version order by version),'[]'::jsonb) from supabase_migrations.schema_migrations) migrations`)).rows[0];
 }
 async function freshBaseline(Pool,c) {
  // Main owns SHARE locks. This original-login reader gets a new snapshot after
@@ -152,13 +160,13 @@ async function run() {
    }
    // Reads fix the serializable snapshot before row locks. A heartbeat change then raises 40001.
    let s;
-   if(action!=='close'){stage='status';s=await snapshot(db);await schema(db,c,s);}
+   if(action!=='close'){stage='status';s=action==='monitor'?await monitorSnapshot(db):await snapshot(db);await schema(db,c,s);}
    let result;
    if(action==='reconcile'){
     stage='reconcile';const rows=await manifestRows(db,c);assert(rows.length<=1);
     if(rows.length){assert(uuid(rows[0].id)&&hash(rows[0].manifest_hash));if(c.epochId!==null){assert.equal(rows[0].id,c.epochId);assert.equal(rows[0].manifest_hash,c.manifestHash);}}
     result=rows.length?{epochId:rows[0].id,manifestHash:rows[0].manifest_hash,state:rows[0].state,matches:true}:null;
-   }else if(action==='status'){
+   }else if(action==='status'||action==='monitor'){
     stage='status';const current=(await db.query('select current_epoch,enforced from private.staging_voice_runtime_control')).rows[0];assert(current);
     const e=c.epochId===null?null:await epoch(db,c);
     result={...s,currentEpoch:current.current_epoch,enforced:current.enforced,epoch:e?{epochId:e.id,state:e.state,mode:e.mode,manifestHash:e.manifest_hash,matches:e.matches&&e.manifest_hash===c.manifestHash,expiresAt:e.expiresAt,heartbeatAt:e.heartbeatAt}:null,...await counts(db,c.epochId)};

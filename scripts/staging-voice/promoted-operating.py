@@ -761,7 +761,7 @@ class LocalHost(legacy.LocalHost):
             state['lastRecoveryAt']=int(self.now());del state['recoveryRequestedAt'];self.persist(state)
 
     def database(self,action,state=None):
-        require(action in ['status','prepare','reconcile','activate','close'],'DATABASE_ACTION_REQUIRED')
+        require(action in ['status','monitor','prepare','reconcile','activate','close'],'DATABASE_ACTION_REQUIRED')
         if action=='close':self.guard(state);identity=state;scope=state['scope']
         else:
             self.validate(activation=action in ['prepare','activate']);identity=state or self.identity();scope=self.packet
@@ -884,7 +884,18 @@ class LocalHost(legacy.LocalHost):
 
     def snapshot(self,state):
         self.guard(state);self.not_cancelled();self.validate(activation=False)
-        value=self.database('status',state);epoch=value.get('epoch') or {}
+        try:value=self.database('monitor',state)
+        except (RuntimeError,OSError,ValueError,KeyError,TypeError) as error:
+            # Retain a finite diagnostic in the service journal. Never emit SQL,
+            # environment, command stderr or arbitrary exception text. Reporting
+            # must not replace the original error or obstruct fail-closed cleanup.
+            match=re.fullmatch(r'OPERATING_DATABASE_FAILED_MONITOR_(CONFIGURATION|CONNECTION|TRANSACTION|STATUS|SCHEMA|COMMIT)_([A-Z0-9]{5}|ERR_ASSERTION|UNAVAILABLE)',str(error))
+            diagnostic={'error':'OPERATING_MONITOR_DATABASE_FAILED','stage':match[1].lower() if match else 'unavailable',
+                        'code':match[2] if match else 'UNAVAILABLE'}
+            try:sys.stderr.write(json.dumps(diagnostic)+'\n')
+            except (OSError,ValueError,TypeError):pass
+            raise
+        epoch=value.get('epoch') or {}
         result={**value,'state':epoch.get('state'),'mode':epoch.get('mode'),
                 'currentEpochMatches':value.get('currentEpoch')==state['epochId'] and epoch.get('matches') is True and
                     epoch.get('manifestHash')==state['manifestHash'] and epoch.get('epochId')==state['epochId'],

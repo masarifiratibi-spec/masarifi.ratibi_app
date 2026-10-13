@@ -294,6 +294,19 @@ async function main(){
   await assert.rejects(capture(c,new Date(Date.parse(activation.startedAt)-1000).toISOString()));
   assert.equal((await success('status',c)).members,0);passed('stale legacy capture cannot join the fresh operating epoch');
   const first=await commitExpense(c,1000);let status=await success('status',c);assert.equal(status.committed,1);assert.equal(status.posting,true);assert.equal(status.epoch.state,'active');
+  // Reproduce the failure boundary with real locks on the unrelated backlog and
+  // activation baseline tables. Recurring checks must not touch those relations.
+  await witness.query('begin read write');
+  try{
+   await witness.query('lock table private.outbox_events,public.accounts,public.transactions,public.transaction_postings,public.account_balances in access exclusive mode');
+   const observation={},result=await helper('monitor',c,observation);assert.equal(result.ok,true,JSON.stringify(result.errors));
+   const monitored=result.result;
+   assert.equal(monitored.posting,true);assert.equal(monitored.enforced,true);assert.equal(monitored.epoch.matches,true);
+   assert.equal(monitored.epoch.epochId,c.epochId);assert.equal(monitored.epoch.state,'active');assert.equal(monitored.committed,1);
+   assert.deepEqual(monitored.migrations,c.requiredMigrations);assert.equal(monitored.fingerprints,undefined);assert.equal(monitored.historical,undefined);
+   assert.equal(observation.readSnapshotStarted,true);assert.equal(observation.roleMutations||0,0);
+  }finally{await witness.query('rollback');}
+  passed('recurring monitor stays read-only and responsive while unrelated backlog and baseline tables are exclusively locked');
   const afterFirst=await financial();assert.equal(BigInt(afterFirst.confirmed_minor),BigInt(before.confirmed_minor)-1000n);assert.equal(afterFirst.pending_minor,before.pending_minor);assert.equal(afterFirst.transactions,before.transactions+1);assert.equal(afterFirst.postings,before.postings+1);
   await db.query('select private.execute_voice_event($1,$2,$3)',[first.claim.batch_id,first.claim.token,first.event.id]);assert.deepEqual(await financial(),afterFirst);passed('duplicate execute creates exactly one transaction/posting/balance effect');
   await commitExpense(c,2000);status=await success('status',c);assert.equal(status.committed,2);assert.equal(status.posting,true);assert.equal(status.epoch.state,'active');assert.equal(status.epoch.expiresAt,null);

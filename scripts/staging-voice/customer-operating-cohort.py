@@ -983,8 +983,8 @@ class LocalHost:
             try:
                 diagnostic = parse_json(completed.stderr.strip())
                 require(diagnostic.get('error') == 'OPERATING_DATABASE_FAILED' and
-                        diagnostic.get('action') in ('status', 'prepare', 'activate', 'close', 'invalid') and
-                        diagnostic.get('stage') in ('configuration', 'connection', 'transaction', 'migrations',
+                        diagnostic.get('action') in ('status', 'monitor', 'prepare', 'activate', 'close', 'invalid') and
+                        diagnostic.get('stage') in ('configuration', 'connection', 'transaction', 'migrations', 'schema',
                                                   'ownership', 'admission', 'prepare', 'activate', 'close', 'status', 'commit') and
                         re.fullmatch(r'[A-Z][A-Z0-9_]{0,63}|[0-9][A-Z0-9]{4}', diagnostic.get('code', '')),
                         'HOST_COMMAND_FAILED')

@@ -19,6 +19,7 @@ async function exercise(action='status',change={}) {
   async connect(){return this;} release(){} async end(){}
   async query(sql,args=[]) {
    queries.push({sql,args,pool:this.id});
+   if(change.backlogTimeout&&sql.includes('outboxUnpublished'))throw Object.assign(Error('SECRET'),{code:'57014'});
    if(sql==='begin isolation level serializable'){attempts++;this.writes=true;}
    if(sql==='rollback'&&change.rollbackUncertain)throw Object.assign(Error('SECRET'),{code:'ECONNRESET'});
    if(sql==='commit'&&this.writes&&change.commitFailure)throw Object.assign(Error('SECRET'),{code:change.commitFailure});
@@ -29,6 +30,7 @@ async function exercise(action='status',change={}) {
    if(sql.includes('pg_proc'))return {rows:[{...(args[0].includes('close_staging')?closure:args[0].includes('accept_voice_batch')?acceptance:diagnostic),...(args[0].includes('close_staging')?change.closureMetadata:change.metadata||{})}]};
    if(sql.startsWith('select to_jsonb(t) row'))return {rows:this.id%2===1&&change.freshFinancialDrift?[{row:{changed:true}}]:[]};
    if(sql.includes('outboxUnpublished'))return {rows:[{posting:false,activeEpochs:0,analysisJobs:0,migrations:change.history||versions,historical:{voicePending:0,assistantPending:0,outboxUnpublished:8},...(change.snapshot||{})}]};
+   if(sql.includes('jsonb_agg(version order by version)'))return {rows:[{posting:change.snapshot?.posting??false,migrations:change.history||versions}]};
    if(sql.startsWith('select id,manifest_hash,state from'))return {rows:change.reconciled===undefined?[]:change.reconciled};
    if(sql.includes('currentEpochMatches'))return {rows:[{epochId,state:'closed',posting:false,currentEpochMatches:true}]};
    if(sql.includes('from private.staging_voice_runtime_control'))return {rows:[{current_epoch:change.foreignCurrent?'22222222-2222-4222-8222-222222222222':action==='prepare'?null:epochId,enforced:change.enforced!==false}]};
@@ -62,6 +64,25 @@ test('status returns the OFF fingerprint/count baseline using read-only SQL and 
  assert.equal(status.currentEpoch,epochId);assert.equal(status.epoch.matches,true);assert.equal(status.epoch.expiresAt,null);assert.equal(typeof status.epoch.heartbeatAt,'number');
  assert.deepEqual([status.members,status.committed,status.rejected,status.executionFailed],[0,0,0,0]);
  assert(r.queries.some(q=>q.sql==='begin isolation level repeatable read read only'));assert(!r.queries.some(q=>/^(grant|revoke|set local role)/i.test(q.sql)));
+});
+test('recurring monitor does not read unrelated backlog or financial baseline tables',async()=>{
+ const r=await exercise('monitor',{backlogTimeout:true,epoch:{state:'active'},snapshot:{posting:true}}),v=success(r);
+ assert.equal(v.posting,true);assert.equal(v.enforced,true);assert.equal(v.currentEpoch,epochId);
+ assert.equal(v.epoch.state,'active');assert.equal(v.epoch.matches,true);assert.equal(v.epoch.expiresAt,null);
+ assert.deepEqual(v.migrations,versions);assert.deepEqual([v.members,v.committed,v.rejected,v.executionFailed],[0,0,0,0]);
+ assert(!r.queries.some(q=>/outbox_events|assistant_messages|select to_jsonb\(t\) row/.test(q.sql)));
+ assert(r.queries.some(q=>q.sql==='begin isolation level repeatable read read only'));
+ assert(!r.queries.some(q=>/^(grant|revoke|set local role|lock table)/i.test(q.sql)));
+ assert.equal(r.queries.filter(q=>q.sql.includes('pg_proc')).length,2);
+ assert.equal(v.historical,undefined);assert.equal(v.fingerprints,undefined);
+ // Admission still refuses an unavailable full baseline; monitoring alone omits it.
+ refused(await exercise('status',{backlogTimeout:true}));
+ refused(await exercise('activate',{backlogTimeout:true}));
+});
+test('recurring monitor preserves migration/provenance and enforcement checks',async()=>{
+ for(const change of [{history:versions.slice(1)},{metadata:{bodyHash:'drift'}},{metadata:{owner:'drift'}},{metadata:{acl:'drift'}}])refused(await exercise('monitor',change));
+ assert.equal(success(await exercise('monitor',{enforced:false})).enforced,false);
+ assert.notEqual(success(await exercise('monitor',{foreignCurrent:true})).currentEpoch,epochId);
 });
 test('reconcile reports a unique exact manifest without preparing or granting',async()=>{
  const r=await exercise('reconcile',{reconciled:[{id:epochId,manifest_hash:hash,state:'prepared'}]});assert.deepEqual(success(r),{epochId,manifestHash:hash,state:'prepared',matches:true});

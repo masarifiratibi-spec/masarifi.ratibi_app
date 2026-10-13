@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import io
 import pathlib
 import tempfile
 import unittest
@@ -384,7 +385,9 @@ class HostTests(unittest.TestCase):
             def db(action,state=None):
                 nonlocal committed
                 result=database(action,state)
-                if action=='status':committed+=1;result['committed']=committed;result['executionFailed']=0
+                if action=='monitor':
+                    committed+=1;self.assertLessEqual(committed,10,'monitor fixture must terminate')
+                    result['committed']=committed;result['executionFailed']=0
                 return result
             self.host.database=db
             original_pause=self.host.pause
@@ -470,12 +473,41 @@ class HostTests(unittest.TestCase):
             self.host.database=rejected;self.assertTrue(self.host.snapshot(state)['scopeValid'])
             def failed(action,state=None):return {**original(action,state),'executionFailed':1,'rejected':0}
             self.host.database=failed;self.assertFalse(self.host.snapshot(state)['scopeValid'])
+    def test_snapshot_uses_recurring_monitor_without_repeating_full_admission_scan(self):
+        with self.chain():
+            state=m.lifecycle.begin(self.host);original=self.host.database
+            def backlog_timeout(action,state=None):
+                if action=='status':raise RuntimeError('OPERATING_DATABASE_FAILED_STATUS_STATUS_57014')
+                return original(action,state)
+            self.host.database=backlog_timeout
+            snapshot=self.host.snapshot(state)
+            self.assertTrue(snapshot['scopeValid']);self.assertTrue(snapshot['apiReady']);self.assertTrue(snapshot['workerHealthy'])
+            self.assertEqual(self.epoch['state'],'active');self.assertIsNone(self.host.read_json('close-request.json'))
+    def test_monitor_database_failure_reports_only_finite_stage_and_preserves_closure(self):
+        with self.chain():
+            state=m.lifecycle.begin(self.host);original=self.host.database
+            def failed(action,state=None):
+                if action=='monitor':raise RuntimeError('OPERATING_DATABASE_FAILED_MONITOR_STATUS_57014')
+                return original(action,state)
+            self.host.database=failed
+            output=io.StringIO()
+            with contextlib.redirect_stderr(output):
+                self.assertEqual(m.lifecycle.monitor(state,self.host),'scope_failure')
+            diagnostic=json.loads(output.getvalue())
+            self.assertEqual(diagnostic,{'error':'OPERATING_MONITOR_DATABASE_FAILED','stage':'status','code':'57014'})
+            self.assertEqual(self.epoch['state'],'closed');self.assertFalse(self.containers['7'*64]['State']['Running'])
+    def test_monitor_diagnostic_omits_arbitrary_error_and_logging_failure_does_not_block_guard(self):
+        state=self.prepare();self.host.database=lambda action,state=None:(_ for _ in ()).throw(RuntimeError('SECRET_SQL_CREDENTIAL'))
+        output=io.StringIO()
+        with contextlib.redirect_stderr(output),self.assertRaisesRegex(RuntimeError,'SECRET_SQL_CREDENTIAL'):self.host.snapshot(state)
+        self.assertEqual(json.loads(output.getvalue()),{'error':'OPERATING_MONITOR_DATABASE_FAILED','stage':'unavailable','code':'UNAVAILABLE'})
+        with patch.object(m.sys,'stderr',types.SimpleNamespace(write=lambda value:(_ for _ in ()).throw(OSError('output unavailable')))),self.assertRaisesRegex(RuntimeError,'SECRET_SQL_CREDENTIAL'):self.host.snapshot(state)
     def test_lost_runtime_enforcement_refuses_ready_and_closes_owned_epoch(self):
         with self.chain():
             state=m.lifecycle.begin(self.host);original=self.host.database
             def unscoped(action,state=None):
                 result=original(action,state)
-                if action=='status':result['enforced']=False
+                if action in ['status','monitor']:result['enforced']=False
                 return result
             self.host.database=unscoped
             with self.assertRaises(RuntimeError):self.host.save_ready(state)
