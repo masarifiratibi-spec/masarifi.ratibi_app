@@ -19,7 +19,10 @@ async function helper(action,state,patch={},observer=null){
    if(observer?.race && sql.startsWith('select id from private.staging_voice_epochs') && (observer.races||0)<observer.race){
     observer.races=(observer.races||0)+1;
     const heartbeat=new Client({connectionString:local});await heartbeat.connect();
-    try{await heartbeat.query('select private.staging_voice_heartbeat($1,$2,$3)',[state.epochId,'concurrent-fixture-heartbeat',state.packet.sourceSha]);}
+    try{
+     await heartbeat.query('set role masarifi_worker');
+     await heartbeat.query('select private.staging_voice_heartbeat($1,$2,$3)',[state.epochId,'concurrent-fixture-heartbeat',state.packet.sourceSha]);
+    }
     finally{await heartbeat.end();}
    }
    return super.query(sql,args);
