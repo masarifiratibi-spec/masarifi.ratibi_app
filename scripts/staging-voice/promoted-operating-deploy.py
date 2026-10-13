@@ -33,6 +33,16 @@ SCOPE_FIELDS = {'kind', 'version', 'project', 'host', 'generation', 'packetHash'
                 'localEvidence', 'knownHostsHash'}
 APPROVAL_FIELDS = {'kind', 'scopeHash', 'receivedAt', 'activationExpiresAt',
                    'messageReference', 'verbatimMessage', 'operatingApproval'}
+INSTALL_STAGES = {'target', 'payload', 'coordination_lock', 'freshness', 'private_install',
+                  'precheck', 'unit_install', 'start', 'readiness'}
+INSTALL_ERROR_CODES = {'INSTALLER_FAILURE', 'EXACT_ROOT_STAGING_TARGET_REQUIRED',
+                       'EXACT_COORDINATION_DIRECTORY_REQUIRED', 'SAFE_ROOT_COORDINATION_DIRECTORY_REQUIRED',
+                       'REMOTE_PARENT_SYMLINK_REFUSED', 'ROOT_OWNED_REMOTE_PARENT_REQUIRED',
+                       'SAFE_COORDINATION_LOCK_REQUIRED', 'COORDINATION_LOCK_REPLACED',
+                       'BOUNDED_DEPLOYMENT_DEADLINE', 'ACTIVATION_WINDOW_EXPIRED',
+                       'FRESH_REMOTE_PATH_REQUIRED', 'FRESH_SYSTEMD_UNIT_REQUIRED',
+                       'INSTALLED_CONTROLLER_SOURCE_CHANGED', 'PIN_CHANGED',
+                       'HOST_COMMAND_FAILED', 'BOUNDED_HOST_COMMAND_FAILED', 'BOOTSTRAP_NOT_READY_NEVER_RETRY'}
 HASH = re.compile(r'[a-f0-9]{64}')
 UUID = re.compile(r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}')
 
@@ -286,11 +296,15 @@ def transport_result(scope, run, source, known_hosts, reconcile_only=False):
             UUID.fullmatch(value['epochId']) and isinstance(value.get('workerID'), str) and HASH.fullmatch(value['workerID'])
         readonly = isinstance(value, dict) and value.get('status') == 'OWNED_OPERATING_READ_ONLY' and \
             value.get('scopeHash') == scope_hash(scope) and value.get('readOnly') is True
+        rejected = isinstance(value, dict) and set(value) == {'status', 'scopeHash', 'stage', 'code', 'neverRetry'} and \
+            value.get('status') == 'OPERATING_INSTALLER_REJECTED' and value.get('scopeHash') == scope_hash(scope) and \
+            isinstance(value.get('stage'), str) and value['stage'] in INSTALL_STAGES and \
+            isinstance(value.get('code'), str) and value['code'] in INSTALL_ERROR_CODES and value.get('neverRetry') is True
         return {'outcome': 'readOnly' if reconcile_only and readonly and completed.returncode == 0 else
                 'ready' if ready and completed.returncode == 0 else 'unknown',
                 'exitCode': completed.returncode, 'stdoutSha256': sha(stdout.encode()),
                 'stderrSha256': sha(stderr.encode()), 'scopeHash': scope_hash(scope), 'neverRetry': True,
-                'receipt': value if (ready or readonly) else None}
+                'receipt': value if (ready or readonly or rejected) else None}
     except (subprocess.SubprocessError, OSError) as error:
         result = {'outcome': 'unknown', 'exitCode': None, 'scopeHash': scope_hash(scope), 'neverRetry': True}
         for field, observed in [('stdoutSha256', getattr(error, 'output', None)),
@@ -370,6 +384,22 @@ class RemotePlatform:
             require(stat.S_ISDIR(metadata.st_mode) and metadata.st_uid == 0 and
                     not metadata.st_mode & 0o022, 'ROOT_OWNED_REMOTE_PARENT_REQUIRED')
 
+    def coordination_parent(self, path):
+        # Only the fixed coordination directory may use root-owned sticky1777.
+        # Deployment roots, unit directories and /run ancestors stay strict.
+        require(path == pathlib.Path('/run/lock') and path.resolve() == path.absolute(),
+                'EXACT_COORDINATION_DIRECTORY_REQUIRED')
+        self.parent(path.parent)
+        metadata = path.lstat()
+        require(stat.S_ISDIR(metadata.st_mode) and metadata.st_uid == 0 and
+                (not metadata.st_mode & 0o022 or stat.S_IMODE(metadata.st_mode) == 0o1777),
+                'SAFE_ROOT_COORDINATION_DIRECTORY_REQUIRED')
+
+    def lock_identity(self, metadata):
+        require(stat.S_ISREG(metadata.st_mode) and metadata.st_uid == 0 and metadata.st_nlink == 1 and
+                stat.S_IMODE(metadata.st_mode) in (0o600, 0o644), 'SAFE_COORDINATION_LOCK_REQUIRED')
+        return metadata.st_dev, metadata.st_ino
+
     def absent(self, path):
         require(not os.path.lexists(path), 'FRESH_REMOTE_PATH_REQUIRED')
 
@@ -412,18 +442,27 @@ class RemotePlatform:
     def deployment_lock(self, deadline):
         import fcntl
         path = pathlib.Path('/run/lock/masarifi-staging-deployment.lock')
-        self.parent(path.parent)
+        self.coordination_parent(path.parent)
+        try:
+            before = self.lock_identity(path.lstat())
+        except FileNotFoundError:
+            before = None
         descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
-            metadata = os.fstat(descriptor)
-            require(stat.S_ISREG(metadata.st_mode) and metadata.st_uid == 0 and metadata.st_nlink == 1 and
-                    stat.S_IMODE(metadata.st_mode) == 0o600, 'PRIVATE_DEPLOYMENT_LOCK_REQUIRED')
+            identity = self.lock_identity(os.fstat(descriptor))
+            require((before is None or before == identity) and identity == self.lock_identity(path.lstat()),
+                    'COORDINATION_LOCK_REPLACED')
             while True:
+                remaining(self, deadline)
                 try:
                     fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     break
                 except BlockingIOError:
                     self.pause(min(.05, remaining(self, deadline)))
+            require(identity == self.lock_identity(os.fstat(descriptor)) == self.lock_identity(path.lstat()),
+                    'COORDINATION_LOCK_REPLACED')
+            self.coordination_parent(path.parent)
+            remaining(self, deadline)
             yield
         finally:
             os.close(descriptor)
@@ -497,8 +536,10 @@ class RemotePlatform:
 
 def install_remote(payload, platform=None):
     platform = platform or RemotePlatform()
+    platform.stage = 'target'
     platform.target()
     deadline = platform.deadline(120)
+    platform.stage = 'payload'
     require(isinstance(payload, dict) and set(payload) == {'scope', 'approval', 'bundle'}, 'EXACT_REMOTE_PAYLOAD_REQUIRED')
     scope, approval = payload['scope'], payload['approval']
     validate_scope(scope)
@@ -506,10 +547,13 @@ def install_remote(payload, platform=None):
     packet, files = decode_bundle(scope, payload['bundle'])
     root = platform.root_path(scope)
     units = [scope['bootstrapUnit'], 'masarifi-customer-voice-' + scope['generation'] + '-monitor.service']
+    platform.stage = 'coordination_lock'
     with platform.deployment_lock(deadline):
+        platform.stage = 'freshness'
         platform.absent(root)
         platform.fresh_units(units, deadline)
         remaining(platform, deadline)
+        platform.stage = 'private_install'
         platform.mkdir(root)
         for name, data in sorted(files.items()):
             remaining(platform, deadline)
@@ -517,8 +561,10 @@ def install_remote(payload, platform=None):
         platform.write(root / 'approval.json', canonical(approval['operatingApproval']))
         platform.write(root / 'deployment-scope.json', canonical(scope))
         platform.write(root / 'deployment-approval.json', canonical(approval))
+        platform.stage = 'precheck'
         platform.precheck(root, packet, approval['operatingApproval'], deadline)
         validate_approval(scope, approval, platform.now())
+        platform.stage = 'unit_install'
         platform.write(root / scope['bootstrapUnit'], bootstrap_text(scope).encode())
         platform.link(platform.unit_path(scope['bootstrapUnit']), root / scope['bootstrapUnit'])
         platform.run(['systemctl', 'daemon-reload'], deadline)
@@ -526,10 +572,12 @@ def install_remote(payload, platform=None):
         remaining(platform, deadline)
     # Host.begin acquires this same deployment lock. Release it before the one
     # nonblocking start; systemd owns its cleanup even if SSH disappears.
+    platform.stage = 'start'
     validate_approval(scope, approval, platform.now())
     platform.run(['systemctl', 'start', '--no-block', scope['bootstrapUnit']], deadline)
     ready_deadline = platform.monotonic() + 500
     platform.ready_deadline = ready_deadline
+    platform.stage = 'readiness'
     while True:
         remaining(platform, ready_deadline)
         receipt = platform.ready(root, packet, scope)
@@ -538,6 +586,13 @@ def install_remote(payload, platform=None):
             return receipt
         require(state.get('ActiveState') not in ['failed', 'inactive'], 'BOOTSTRAP_NOT_READY_NEVER_RETRY')
         platform.pause(min(.5, remaining(platform, ready_deadline)))
+
+
+def installer_failure(scope, platform, error):
+    stage = platform.stage if platform.stage in INSTALL_STAGES else 'payload'
+    code = error.args[0] if len(error.args) == 1 and isinstance(error.args[0], str) else None
+    return {'status': 'OPERATING_INSTALLER_REJECTED', 'scopeHash': scope_hash(scope), 'stage': stage,
+            'code': code if code in INSTALL_ERROR_CODES else 'INSTALLER_FAILURE', 'neverRetry': True}
 
 
 class OwnedReader:
@@ -580,7 +635,8 @@ def runtime_source(names):
     imports = ('import base64,contextlib,hashlib,importlib.util,json,os,pathlib,re,socket,stat,subprocess,sys,time\n'
                'sys.dont_write_bytecode=True\n')
     constants = '\n'.join(name + '=set(' + repr(sorted(globals()[name])) + ')'
-                          for name in ['CONTROLLER_FILES', 'SCOPE_FIELDS', 'APPROVAL_FIELDS'])
+                          for name in ['CONTROLLER_FILES', 'SCOPE_FIELDS', 'APPROVAL_FIELDS',
+                                       'INSTALL_STAGES', 'INSTALL_ERROR_CODES'])
     constants += '\nHASH=re.compile(' + repr(HASH.pattern) + ')\nUUID=re.compile(' + repr(UUID.pattern) + ')\n'
     # AST spans also work for importlib-loaded modules absent from sys.modules;
     # only explicitly listed fixed definitions enter the remote interpreter.
@@ -594,10 +650,12 @@ def runtime_source(names):
 def remote_source(payload):
     names = ['require', 'canonical', 'sha', 'scope_hash', 'parse', 'load_host', 'regular_bytes',
              'validate_scope', 'validate_approval', 'decode_bundle', 'sync_directory', 'exclusive_write',
-             'remaining', 'bootstrap_text', 'RemotePlatform', 'OwnedReader', 'install_remote']
+             'remaining', 'bootstrap_text', 'RemotePlatform', 'OwnedReader', 'install_remote', 'installer_failure']
     encoded = base64.b64encode(canonical(payload)).decode()
     return runtime_source(names) + '\npayload=parse(base64.b64decode(' + repr(encoded) + ',validate=True))\n' + \
-        'result=install_remote(payload)\nprint(canonical(result).decode())\n'
+        'platform=RemotePlatform()\ntry:\n result=install_remote(payload,platform)\n' + \
+        'except Exception as error:\n print(canonical(installer_failure(payload["scope"],platform,error)).decode())\n' + \
+        ' raise SystemExit(1)\nprint(canonical(result).decode())\n'
 
 
 def readonly_source(scope):

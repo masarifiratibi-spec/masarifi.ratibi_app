@@ -6,6 +6,7 @@ import os
 import pathlib
 import re
 import socket
+import stat
 import subprocess
 import time
 import uuid
@@ -57,7 +58,33 @@ def main():
     units = []
     cases = []
     started = time.monotonic()
+    coordination = pathlib.Path('/run/lock/masarifi-staging-deployment.lock')
+    directory = coordination.parent.lstat()
+    require(stat.S_ISDIR(directory.st_mode) and directory.st_uid == 0 and
+            stat.S_IMODE(directory.st_mode) == 0o1777 and
+            coordination.parent.resolve() == coordination.parent,
+            'ACTUAL_ROOT_OWNED_STICKY_1777_COORDINATION_DIRECTORY_REQUIRED')
+    # This fixed production coordination path is exercised only on the guarded
+    # disposable runner, and only if absent. Never adopt an existing runner file.
+    exclusive(coordination, b'', 0o644)
     try:
+        before = coordination.stat()
+        require(before.st_uid == 0 and before.st_nlink == 1 and before.st_mode & 0o777 == 0o644,
+                'DISPOSABLE_EXISTING_COORDINATION_MODE_REQUIRED')
+        platform = deploy.RemotePlatform()
+        probe = ("import fcntl,os,sys\nfd=os.open(sys.argv[1],os.O_RDWR|os.O_NOFOLLOW)\n"
+                 "try:\n fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)\n print('ACQUIRED')\n"
+                 "except BlockingIOError:print('BLOCKED')\nfinally:os.close(fd)\n")
+        with platform.deployment_lock(platform.deadline(5)):
+            require(command(['/usr/bin/python3', '-c', probe, str(coordination)]).stdout.strip() == 'BLOCKED',
+                    'ACTUAL_COORDINATION_LOCK_MUST_EXCLUDE_COMPETING_WRITER')
+        require(command(['/usr/bin/python3', '-c', probe, str(coordination)]).stdout.strip() == 'ACQUIRED',
+                'ACTUAL_COORDINATION_LOCK_MUST_RELEASE')
+        after = coordination.stat()
+        require((before.st_dev, before.st_ino, before.st_mode, before.st_uid, before.st_size) ==
+                (after.st_dev, after.st_ino, after.st_mode, after.st_uid, after.st_size),
+                'EXISTING_COORDINATION_FILE_MUST_REMAIN_UNCHANGED')
+        cases.append('actual root-owned sticky1777 directory and0644 coordination lock exclude competitor, release and preserve permissions/inode')
         for outcome in ['success', 'failed']:
             require(time.monotonic() - started < 60, 'DISPOSABLE_SYSTEMD_QUALIFICATION_BUDGET')
             fixture = root / outcome
@@ -113,6 +140,10 @@ def main():
             unit.unlink()
         if units:
             command(['systemctl', 'daemon-reload'])
+        current = coordination.lstat()
+        require((current.st_dev, current.st_ino) == (before.st_dev, before.st_ino),
+                'ONLY_EXCLUSIVELY_OWNED_DISPOSABLE_COORDINATION_FILE_MAY_BE_REMOVED')
+        coordination.unlink()
     print(json.dumps({'status': 'PASS', 'behavioralCases': len(cases), 'cases': cases,
                       'executorSha256': hashlib.sha256(source.read_bytes()).hexdigest(),
                       'disposableOnly': True, 'productionOrStagingAccess': False,

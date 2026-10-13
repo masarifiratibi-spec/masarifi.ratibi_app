@@ -139,6 +139,21 @@ class DeployTests(unittest.TestCase):
   self.assertEqual(result['outcome'],'unknown');self.assertEqual(result['exitCode'],1)
   with self.assertRaises(RuntimeError):self.execute()
   self.assertEqual(len(self.calls),1)
+ def test_finite_installer_failure_receipt_preserves_stage_without_raw_secrets(self):
+  platform=types.SimpleNamespace(stage='coordination_lock')
+  receipt=m.installer_failure(self.scope,platform,RuntimeError('SAFE_ROOT_COORDINATION_DIRECTORY_REQUIRED'))
+  self.assertEqual(receipt['stage'],'coordination_lock');self.assertEqual(receipt['code'],'SAFE_ROOT_COORDINATION_DIRECTORY_REQUIRED')
+  def rejected(args,**kwargs):return subprocess.CompletedProcess(args,1,enc(receipt).decode(),'')
+  result=m.transport_result(self.scope,rejected,'inert source',self.known)
+  self.assertEqual(result['outcome'],'unknown');self.assertEqual(result['receipt'],receipt)
+  secret=m.installer_failure(self.scope,platform,RuntimeError('secret connection string'))
+  self.assertEqual(secret['code'],'INSTALLER_FAILURE');self.assertNotIn('secret',json.dumps(secret))
+  foreign={**receipt,'code':'secret connection string'}
+  def forged(args,**kwargs):return subprocess.CompletedProcess(args,1,enc(foreign).decode(),'')
+  self.assertIsNone(m.transport_result(self.scope,forged,'inert source',self.known)['receipt'])
+  for field in ['stage','code']:
+   foreign={**receipt,field:{'unexpected':'object'}}
+   self.assertIsNone(m.transport_result(self.scope,forged,'inert source',self.known)['receipt'])
  def test_durable_marker_write_failure_prevents_transport_and_consumes_reservation(self):
   original=m.exclusive_write
   def fail_marker(path,data):
@@ -161,6 +176,19 @@ class DeployTests(unittest.TestCase):
   result=namespace['result']
   self.assertEqual(result['status'],'AUTHORIZED_PERSISTENT_OPERATING_READY')
   self.assertEqual(platform.events.count('start'),1)
+ def test_hydrated_remote_rejection_emits_bound_finite_stage_and_exits_once(self):
+  payload=m.checked(self.scope,self.approval,NOW);source=m.remote_source(payload)
+  platform=FakePlatform(self.root/'rejected-installer',self.scope)
+  @contextlib.contextmanager
+  def refused(deadline):raise RuntimeError('SAFE_COORDINATION_LOCK_REQUIRED');yield
+  platform.deployment_lock=refused;definitions,tail=source.split('\npayload=parse(',1)
+  namespace={'platform':platform};output=__import__('io').StringIO()
+  with contextlib.redirect_stdout(output),self.assertRaises(SystemExit) as result:
+   exec(definitions+'\nRemotePlatform=lambda:platform\npayload=parse('+tail,namespace)
+  self.assertEqual(result.exception.code,1)
+  receipt=json.loads(output.getvalue());self.assertEqual(receipt['stage'],'coordination_lock')
+  self.assertEqual(receipt['code'],'SAFE_COORDINATION_LOCK_REQUIRED');self.assertEqual(receipt['scopeHash'],m.scope_hash(self.scope))
+  self.assertNotIn('start',platform.events);self.assertFalse(platform.root.exists())
  def test_readonly_hydrated_source_has_no_mutation_or_helper_dispatch(self):
   namespace={};exec(m.readonly_source(self.scope).split('\nscope=parse(',1)[0],namespace)
   class ReadonlyPlatform:
@@ -314,5 +342,90 @@ class FakePlatform:
 
 class AvailabilityTests(unittest.TestCase):
  def test_deployment_executor_exists(self):self.assertTrue(P.exists(),'one-time operating deployment executor missing')
+
+class CoordinationLockTests(unittest.TestCase):
+ def metadata(self,mode=0o100644,uid=0,links=1,inode=7):
+  return types.SimpleNamespace(st_mode=mode,st_uid=uid,st_nlink=links,st_dev=1,st_ino=inode)
+ def test_exact_sticky_root_coordination_parent_is_allowed_without_relaxing_ordinary_parent(self):
+  platform=m.RemotePlatform();lockdir=pathlib.Path('/run/lock')
+  def metadata(path):return self.metadata(0o41777 if path==lockdir else 0o40755)
+  with patch.object(pathlib.Path,'resolve',lambda path:path.absolute()),patch.object(pathlib.Path,'lstat',metadata):
+   platform.coordination_parent(lockdir)
+   with self.assertRaises(RuntimeError):platform.parent(lockdir)
+ def test_coordination_parent_refuses_foreign_nonsticky_or_nonexact_writable_directory(self):
+  platform=m.RemotePlatform();lockdir=pathlib.Path('/run/lock')
+  for mode,uid in [(0o40777,0),(0o41777,1),(0o43777,0),(0o120777,0)]:
+   def metadata(path):return self.metadata(mode,uid) if path==lockdir else self.metadata(0o40755)
+   with self.subTest(mode=mode,uid=uid),patch.object(pathlib.Path,'resolve',lambda path:path.absolute()),patch.object(pathlib.Path,'lstat',metadata):
+    with self.assertRaises(RuntimeError):platform.coordination_parent(lockdir)
+  with self.assertRaises(RuntimeError):platform.coordination_parent(pathlib.Path('/tmp'))
+ def test_coordination_parent_requires_strict_run_and_ancestors(self):
+  lockdir=pathlib.Path('/run/lock')
+  def metadata(path):return self.metadata(0o41777 if path==lockdir else 0o40777)
+  with patch.object(pathlib.Path,'resolve',lambda path:path.absolute()),patch.object(pathlib.Path,'lstat',metadata):
+   with self.assertRaises(RuntimeError):m.RemotePlatform().coordination_parent(lockdir)
+ def test_safe_existing_coordination_600_and_644_are_accepted_but_unsafe_metadata_is_refused(self):
+  platform=m.RemotePlatform()
+  for mode in [0o100600,0o100644]:self.assertEqual(platform.lock_identity(self.metadata(mode)),(1,7))
+  for metadata in [self.metadata(0o100666),self.metadata(0o100664),self.metadata(uid=1),
+                   self.metadata(links=2),self.metadata(0o120777),self.metadata(0o40600)]:
+   with self.subTest(metadata=metadata),self.assertRaises(RuntimeError):platform.lock_identity(metadata)
+ def test_descriptor_path_replacement_after_flock_is_refused(self):
+  platform=m.RemotePlatform();original=self.metadata();path_metadata={'value':original}
+  def flock(*args):path_metadata['value']=self.metadata(inode=8)
+  fcntl=types.SimpleNamespace(LOCK_EX=2,LOCK_NB=4,flock=flock)
+  with patch.dict(__import__('sys').modules,{'fcntl':fcntl}),patch.object(platform,'coordination_parent',lambda path:None),\
+       patch.object(pathlib.Path,'lstat',lambda path:path_metadata['value']),\
+       patch.object(m.os,'open',return_value=123),patch.object(m.os,'close'),patch.object(m.os,'fstat',return_value=original),\
+       patch.object(m.os,'O_NOFOLLOW',0x20000,create=True):
+   with self.assertRaises(RuntimeError):
+    with platform.deployment_lock(platform.deadline(120)):self.fail('replacement lock entered')
+
+@unittest.skipUnless(os.name=='posix','requires actual Linux file modes and flock')
+class LinuxCoordinationLockTests(unittest.TestCase):
+ @contextlib.contextmanager
+ def disposable_lock(self, mode=0o644):
+  with tempfile.TemporaryDirectory() as folder:
+   root=pathlib.Path(folder);root.chmod(0o1777);lock=root/'coordination.lock';lock.write_text('retained');lock.chmod(mode)
+   actual_open,actual_fstat,actual_lstat=os.open,os.fstat,pathlib.Path.lstat
+   def owned(observed):
+    return types.SimpleNamespace(st_mode=observed.st_mode,st_uid=0,st_nlink=observed.st_nlink,st_dev=observed.st_dev,st_ino=observed.st_ino)
+   def mapped(path):
+    if str(path)=='/run/lock':return root
+    if str(path)=='/run/lock/masarifi-staging-deployment.lock':return lock
+    return path
+   # Only fixed paths and root UID are modeled. Modes, inodes, O_NOFOLLOW,
+   # flock acquisition/contention and file preservation use the real kernel.
+   with patch.object(m.os,'open',lambda path,*args,**kwargs:actual_open(mapped(path),*args,**kwargs)),\
+        patch.object(m.os,'fstat',lambda fd:owned(actual_fstat(fd))),\
+        patch.object(pathlib.Path,'lstat',lambda path:owned(actual_lstat(pathlib.Path(mapped(path))))):
+    yield m.RemotePlatform(),lock
+ def test_existing_600_and_644_modes_are_preserved_with_real_contention_and_release(self):
+  import fcntl
+  for mode in [0o600,0o644]:
+   with self.subTest(mode=mode),self.disposable_lock(mode) as (platform,lock):
+    before=lock.stat()
+    with platform.deployment_lock(platform.deadline(120)):
+     with lock.open('r') as contender:
+      with self.assertRaises(BlockingIOError):fcntl.flock(contender,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    with lock.open('r') as contender:fcntl.flock(contender,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    after=lock.stat();self.assertEqual(after.st_mode&0o777,mode)
+    self.assertEqual((before.st_dev,before.st_ino),(after.st_dev,after.st_ino));self.assertEqual(lock.read_text(),'retained')
+ def test_real_contention_timeout_is_bounded_without_changing_lock(self):
+  import fcntl
+  with self.disposable_lock() as (platform,lock),lock.open('r') as owner:
+   fcntl.flock(owner,fcntl.LOCK_EX);before=lock.stat()
+   with self.assertRaises(RuntimeError):
+    with platform.deployment_lock(platform.deadline(.01)):self.fail('contended lock entered')
+   self.assertEqual(lock.stat().st_ino,before.st_ino);self.assertEqual(lock.stat().st_mode&0o777,0o644)
+ def test_real_inode_replacement_after_flock_is_refused_and_original_preserved(self):
+  import fcntl
+  actual_flock=fcntl.flock
+  with self.disposable_lock() as (platform,lock):
+   def replaced(fd,operation):
+    actual_flock(fd,operation);lock.rename(lock.with_name('original.lock'));lock.write_text('replacement');lock.chmod(0o644)
+   with patch.object(fcntl,'flock',replaced),self.assertRaises(RuntimeError):
+    with platform.deployment_lock(platform.deadline(120)):self.fail('replacement lock entered')
+   self.assertEqual(lock.with_name('original.lock').read_text(),'retained');self.assertEqual(lock.read_text(),'replacement')
 
 if __name__=='__main__':unittest.main()

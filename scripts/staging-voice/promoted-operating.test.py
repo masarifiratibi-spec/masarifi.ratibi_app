@@ -482,20 +482,115 @@ class HostTests(unittest.TestCase):
             self.assertEqual(m.lifecycle.monitor(state,self.host),'scope_failure')
             self.assertEqual(self.epoch['state'],'closed');self.assertFalse(self.containers['7'*64]['State']['Running'])
 
+class SequenceMetadataTests(unittest.TestCase):
+    def metadata(self,mode,uid=0,inode=7):
+        return types.SimpleNamespace(st_mode=mode,st_uid=uid,st_nlink=1,st_dev=1,st_ino=inode)
+    def sequence_context(self, directory_mode=0o41777, directory_uid=0, run_mode=0o40755, symlink=False, drift=False):
+        @contextlib.contextmanager
+        def context():
+            with tempfile.TemporaryDirectory() as folder:
+                p,a,_=fixture();h=m.LocalHost(pathlib.Path(folder),p,a);h.target=lambda *args,**kwargs:None
+                lockdir=pathlib.Path('/run/lock');changed={'value':False}
+                def metadata(path):
+                    if path==lockdir:return self.metadata(0o40777 if changed['value'] else directory_mode,directory_uid)
+                    if path==pathlib.Path('/run'):return self.metadata(run_mode)
+                    if path==pathlib.Path('/'):return self.metadata(0o40755)
+                    return self.metadata(0o100644 if path.name=='masarifi-staging-deployment.lock' else 0o100600,
+                                         inode=7 if path.name=='masarifi-staging-deployment.lock' else 8)
+                def flock(*args):
+                    if drift:changed['value']=True
+                fcntl=types.SimpleNamespace(LOCK_EX=2,flock=flock)
+                with patch.dict(sys.modules,{'fcntl':fcntl}),patch.object(pathlib.Path,'lstat',metadata),\
+                     patch.object(pathlib.Path,'resolve',lambda path:pathlib.Path('/foreign').absolute() if symlink and path==lockdir else path.absolute()),\
+                     patch.object(m.os,'open',side_effect=[42,43]) as opened,patch.object(m.os,'close'),\
+                     patch.object(m.os,'fstat',lambda fd:self.metadata(0o100644 if fd==42 else 0o100600,inode=7 if fd==42 else 8)),\
+                     patch.object(m.os,'O_NOFOLLOW',0,create=True):
+                    yield h,opened
+        return context()
+    def test_exact_sticky_parent_and_644_shared_lock_keep_private_lock_600(self):
+        with self.sequence_context() as (host,opened):
+            with host.sequence():
+                with host.sequence():pass
+            self.assertEqual(opened.call_count,2)
+    def test_foreign_parent_or_ancestor_is_refused_before_open_and_drift_after_flock_is_refused(self):
+        for options in [{'directory_mode':0o40777},{'directory_uid':1},{'run_mode':0o40777},{'symlink':True}]:
+            with self.subTest(options=options),self.sequence_context(**options) as (host,opened):
+                with self.assertRaises(RuntimeError):
+                    with host.sequence():self.fail('unsafe coordination parent accepted')
+                opened.assert_not_called()
+        with self.sequence_context(drift=True) as (host,opened),self.assertRaises(RuntimeError):
+            with host.sequence():self.fail('changed coordination parent accepted')
+
 @unittest.skipUnless(m is not None and os.name=='posix','requires actual Linux private file/locking primitives')
 class PrivateLinuxTests(unittest.TestCase):
+    @contextlib.contextmanager
+    def disposable_sequence_files(self, global_lock):
+        actual_open, actual_fstat, actual_lstat = os.open, os.fstat, pathlib.Path.lstat
+        def owned(observed):
+            return types.SimpleNamespace(st_mode=observed.st_mode,st_uid=0,st_nlink=observed.st_nlink,
+                                         st_dev=observed.st_dev,st_ino=observed.st_ino)
+        def mapped(path):
+            if str(path)=='/run/lock/masarifi-staging-deployment.lock':return global_lock
+            if str(path)=='/run/lock':return global_lock.parent
+            return path
+        with patch.object(m.os,'open',lambda path,*args,**kwargs:actual_open(mapped(path),*args,**kwargs)),\
+             patch.object(m.os,'fstat',lambda descriptor:owned(actual_fstat(descriptor))),\
+             patch.object(pathlib.Path,'lstat',lambda path:owned(actual_lstat(pathlib.Path(mapped(path))))):
+            yield
+    def test_existing_global_644_is_reentrant_serialized_and_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=pathlib.Path(folder);p,a,_=fixture();h=m.LocalHost(root,p,a);h.target=lambda *args,**kwargs:None
+            lock=root/'global.lock';lock.write_text('retained coordination lock');lock.chmod(0o644)
+            before=lock.stat()
+            with self.disposable_sequence_files(lock):
+                import fcntl
+                with h.sequence():
+                    with h.sequence():
+                        with lock.open('r') as competing:
+                            with self.assertRaises(BlockingIOError):fcntl.flock(competing,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                with lock.open('r') as competing:fcntl.flock(competing,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            after=lock.stat();self.assertEqual(after.st_mode&0o777,0o644)
+            self.assertEqual((before.st_dev,before.st_ino),(after.st_dev,after.st_ino))
+            self.assertEqual(lock.read_text(),'retained coordination lock')
+    def test_private_lifecycle_644_is_refused_without_mode_change(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=pathlib.Path(folder);p,a,_=fixture();h=m.LocalHost(root,p,a);h.target=lambda *args,**kwargs:None
+            global_lock=root/'global.lock';global_lock.touch(mode=0o644)
+            private=root/'lifecycle.lock';private.touch(mode=0o644)
+            with self.disposable_sequence_files(global_lock),self.assertRaises(RuntimeError):
+                with h.sequence():self.fail('nonprivate lifecycle accepted')
+            self.assertEqual(private.stat().st_mode&0o777,0o644)
+    def test_unsafe_global_modes_symlink_and_hardlink_are_refused(self):
+        for kind in ['group-write','world-write','symlink','hardlink']:
+            with self.subTest(kind=kind),tempfile.TemporaryDirectory() as folder:
+                root=pathlib.Path(folder);p,a,_=fixture();h=m.LocalHost(root,p,a);h.target=lambda *args,**kwargs:None
+                lock=root/'global.lock';target=root/'retained.lock';target.write_text('sentinel');target.chmod(0o644)
+                if kind=='symlink':lock.symlink_to(target)
+                elif kind=='hardlink':os.link(target,lock)
+                else:lock.write_text('sentinel');lock.chmod(0o664 if kind=='group-write' else 0o666)
+                with self.disposable_sequence_files(lock),self.assertRaises((RuntimeError,OSError)):
+                    with h.sequence():self.fail('unsafe global lock accepted')
+                self.assertEqual(target.read_text(),'sentinel')
+    def test_global_path_replaced_after_kernel_flock_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=pathlib.Path(folder);p,a,_=fixture();h=m.LocalHost(root,p,a);h.target=lambda *args,**kwargs:None
+            lock=root/'global.lock';lock.write_text('original');lock.chmod(0o644)
+            import fcntl
+            actual_flock=fcntl.flock
+            def replace_after_flock(fd,operation):
+                actual_flock(fd,operation);lock.rename(root/'preserved-original.lock')
+                lock.write_text('replacement');lock.chmod(0o644)
+            with self.disposable_sequence_files(lock),patch.object(fcntl,'flock',replace_after_flock),self.assertRaises(RuntimeError):
+                with h.sequence():self.fail('replacement entered sequence')
+            self.assertEqual((root/'preserved-original.lock').read_text(),'original')
+            self.assertEqual(lock.read_text(),'replacement')
     def test_kernel_lock_is_reentrant_and_cancellation_durable_before_wait(self):
         with tempfile.TemporaryDirectory() as folder:
             root=pathlib.Path(folder);p,a,_=fixture();h=m.LocalHost(root,p,a);h.target=lambda *args,**kwargs:None
-            global_lock=root/'private-global.lock';actual_open=os.open;actual_fstat=os.fstat
-            def opened(path,*args,**kwargs):
-                return actual_open(global_lock if str(path)=='/run/lock/masarifi-staging-deployment.lock' else path,*args,**kwargs)
-            def metadata(fd):
-                observed=actual_fstat(fd)
-                return types.SimpleNamespace(st_mode=observed.st_mode,st_uid=0,st_nlink=observed.st_nlink)
+            global_lock=root/'private-global.lock'
             # Only the Staging root ownership metadata is modeled. flock, fsync,
             # O_NOFOLLOW and all files operate on the disposable private root.
-            with patch.object(m.os,'open',opened),patch.object(m.os,'fstat',metadata):
+            with self.disposable_sequence_files(global_lock):
                 import fcntl
                 blocked=[]
                 with h.sequence():
@@ -509,17 +604,12 @@ class PrivateLinuxTests(unittest.TestCase):
         try:
             h=fixture_case.host;state=fixture_case.prepare();root=fixture_case.root
             h.restore_route=lambda state:None;h.route_restore_checks=lambda state:None;h.verify_restored=lambda state:None
-            actual_open=os.open;actual_fstat=os.fstat;global_lock=root/'private-global.lock'
-            def opened(path,*args,**kwargs):
-                return actual_open(global_lock if str(path)=='/run/lock/masarifi-staging-deployment.lock' else path,*args,**kwargs)
-            def metadata(fd):
-                observed=actual_fstat(fd)
-                return types.SimpleNamespace(st_mode=observed.st_mode,st_uid=0,st_nlink=observed.st_nlink)
+            actual_open=os.open;global_lock=root/'private-global.lock'
             errors=[];receipts=[]
             def close():
                 try:receipts.append(m.lifecycle.close(state,h))
                 except BaseException as error:errors.append(error)
-            with patch.object(m.os,'open',opened),patch.object(m.os,'fstat',metadata):
+            with self.disposable_sequence_files(global_lock):
                 import fcntl
                 descriptor=actual_open(global_lock,os.O_RDWR|os.O_CREAT,0o600)
                 fcntl.flock(descriptor,fcntl.LOCK_EX)

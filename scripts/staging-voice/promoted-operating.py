@@ -289,13 +289,34 @@ class LocalHost(legacy.LocalHost):
         self.target(self.packet['generation'])
         import fcntl
         descriptors=[]
+        def coordination_parent():
+            directory=pathlib.Path('/run/lock')
+            require(directory.resolve()==directory.absolute(),'PRIVATE_SEQUENCE_PARENT_REQUIRED')
+            for parent in [directory,*directory.parents]:
+                metadata=parent.lstat()
+                require(stat.S_ISDIR(metadata.st_mode) and metadata.st_uid==0 and
+                        (not metadata.st_mode&0o022 or
+                         (parent==directory and stat.S_IMODE(metadata.st_mode)==0o1777)),
+                        'PRIVATE_SEQUENCE_PARENT_REQUIRED')
         try:
             for path in ['/run/lock/masarifi-staging-deployment.lock',self.root/'lifecycle.lock']:
+                shared=path=='/run/lock/masarifi-staging-deployment.lock'
+                if shared:coordination_parent()
+                def identity(metadata):
+                    require(stat.S_ISREG(metadata.st_mode) and metadata.st_uid==0 and metadata.st_nlink==1 and
+                            stat.S_IMODE(metadata.st_mode) in ((0o600,0o644) if shared else (0o600,)),
+                            'PRIVATE_SEQUENCE_LOCK_REQUIRED')
+                    return metadata.st_dev,metadata.st_ino
+                target=pathlib.Path(path)
+                try:before=identity(target.lstat())
+                except FileNotFoundError:before=None
                 descriptor=os.open(path,os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600);descriptors.append(descriptor)
-                metadata=os.fstat(descriptor)
-                require(stat.S_ISREG(metadata.st_mode) and metadata.st_uid==0 and metadata.st_nlink==1 and
-                        stat.S_IMODE(metadata.st_mode)==0o600,'PRIVATE_SEQUENCE_LOCK_REQUIRED')
+                opened=identity(os.fstat(descriptor))
+                require((before is None or before==opened) and opened==identity(target.lstat()),
+                        'SEQUENCE_LOCK_REPLACED')
                 fcntl.flock(descriptor,fcntl.LOCK_EX)
+                if shared:coordination_parent()
+                require(opened==identity(os.fstat(descriptor))==identity(target.lstat()),'SEQUENCE_LOCK_REPLACED')
             self._sequence_depth=1
             try:yield
             finally:self._sequence_depth=0
