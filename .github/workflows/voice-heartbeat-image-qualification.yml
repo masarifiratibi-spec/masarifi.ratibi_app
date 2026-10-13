@@ -1,5 +1,8 @@
 name: Voice Heartbeat Image Qualification
 on:
+  push:
+    branches: [codex/voice-promoted-operating-2026-10-13]
+    paths: [.github/workflows/voice-heartbeat-image-qualification.yml]
   workflow_dispatch:
     inputs:
       qualification_run:
@@ -30,8 +33,8 @@ jobs:
       - name: Bind unchanged applications to the completed full qualification
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          QUALIFICATION_RUN: ${{ inputs.qualification_run }}
-          QUALIFICATION_SHA: ${{ inputs.qualification_sha }}
+          QUALIFICATION_RUN: ${{ github.event_name == 'push' && '38416326128' || inputs.qualification_run }}
+          QUALIFICATION_SHA: ${{ github.event_name == 'push' && 'b8e2d46e1e0ba35ba201a9daa60396f2702076ad' || inputs.qualification_sha }}
         shell: bash
         run: |
           set -euo pipefail

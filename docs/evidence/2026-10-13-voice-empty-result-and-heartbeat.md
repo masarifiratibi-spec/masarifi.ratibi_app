@@ -29,7 +29,7 @@ Independent source review is retained privately outside Git. [CI run 38416326128
 
 The local signed Staging APK has SHA-256 `55df69b435348d8788de59c1865904e18098ad39a0aa879f53d56384e61542a9`. Independent signature/ZIP comparison confirms the original certificate, 92 native libraries, six DEX files, manifest and resources are preserved. Only `assets/index.android.bundle` differs from the installed qualified base. It has not been installed or physically accepted.
 
-The dispatch-only image qualification workflow binds both successful CI jobs to the exact branch, workflow path and source SHA, refuses application drift, then exercises container contracts and vulnerability scanning before publishing an immutable CI image. It supplies no hosted deployment or activation command. Image qualification is pending until that separate workflow completes.
+The image qualification workflow binds both successful CI jobs to the exact branch, workflow path and source SHA, refuses application drift, then exercises container contracts and vulnerability scanning before publishing an immutable CI image. It runs on an edit to its own workflow on this branch, or an explicit workflow dispatch. Matching pushes bind the pinned successful regression source and still refuse application drift; manual dispatch requires explicit qualification inputs. It supplies no hosted deployment or activation command. Image qualification is pending until that separate workflow completes.
 
 ## Preservation and release boundaries
 
