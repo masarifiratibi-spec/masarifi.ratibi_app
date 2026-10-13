@@ -35,7 +35,9 @@ def execute(scope,approval,host):
  host.claim(scope,approval)
  applied=False
  try:
+  validate(scope,approval,host.now())
   host.pull(scope)
+  validate(scope,approval,host.now())
   applied=True
   host.apply_once(scope)
   report=host.verify(scope)

@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { applyDiagnostic, checkBefore } = require('./diagnostic-migration.cjs');
+const { applyDiagnostic, checkAuthority, checkBefore, settledSnapshot } = require('./diagnostic-migration.cjs');
 const before = { protected: { accounts: 'unchanged', voice: 'unchanged' }, posting: false,
   activeEpochs: 0, analysisJobs: 0, assistantJobs: 0, migrationSelfGrant: false,
   migrations: ['old'], acceptance: { bodyHash: 'old-body', owner: 'migration', definer: true,
@@ -29,4 +29,17 @@ test('an unavailable platform migration lock prevents DDL', async () => {
     calls.push(sql); return { rows: [{ locked: false }] };
   } }, packet), /MIGRATION_LOCK_UNAVAILABLE/);
   assert.equal(calls.length, 1);
+});
+test('missing expired future or out-of-scope deployment authority rejects', () => {
+  const now=1791874800;
+  for (const authority of [null,{}, {receivedAt:now+1,expiresAt:now+60},
+    {receivedAt:now-3601,expiresAt:now+60},{receivedAt:now,expiresAt:now},
+    {receivedAt:now,expiresAt:1791882001}]) assert.throws(()=>checkAuthority(authority,now));
+  checkAuthority({receivedAt:now-10,expiresAt:now+60},now);
+});
+test('held installer lock cannot be misclassified as unchanged pre-commit state', async () => {
+  const queries=[];
+  await assert.rejects(settledSnapshot({query:async(sql)=>{queries.push(sql);return {rows:[{locked:false}]};}}),
+    /INSTALLER_STILL_IN_FLIGHT/);
+  assert.equal(queries.length,1);
 });

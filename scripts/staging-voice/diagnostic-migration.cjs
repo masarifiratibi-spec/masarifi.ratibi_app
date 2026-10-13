@@ -70,7 +70,21 @@ async function checkAfter(client, before, packet) {
   assert.equal(after.migrationSelfGrant, false);
   return after;
 }
-async function applyDiagnostic(client, packet) {
+function checkAuthority(authority, now = Date.now() / 1000) {
+  assert(authority && Number.isFinite(authority.receivedAt) && Number.isFinite(authority.expiresAt) &&
+    authority.receivedAt <= now && now - authority.receivedAt <= 3600 && now < authority.expiresAt &&
+    authority.expiresAt <= 1791882000, 'DEPLOYMENT_AUTHORITY_EXPIRED');
+}
+async function settledSnapshot(client) {
+  const lock = await client.query('select pg_try_advisory_lock($1::bigint) locked', ['5574319470126001']);
+  assert.equal(lock.rows[0]?.locked, true, 'INSTALLER_STILL_IN_FLIGHT');
+  try {
+    await client.query('begin isolation level repeatable read read only');
+    try { return await snapshot(client); } finally { await client.query('rollback'); }
+  } finally { await client.query('select pg_advisory_unlock($1::bigint)', ['5574319470126001']); }
+}
+async function applyDiagnostic(client, packet, authorityGate = () => {}) {
+  authorityGate();
   assert(packet.version === VERSION && packet.name === NAME && typeof packet.sql === 'string' &&
     sha(packet.sql) === packet.sqlHash, 'EXACT_DIAGNOSTIC_MIGRATION_REQUIRED');
   const lock = await client.query('select pg_try_advisory_lock($1::bigint) locked', ['5574319470126001']);
@@ -92,10 +106,12 @@ async function applyDiagnostic(client, packet) {
       await client.query('reset role');
       await client.query('revoke masarifi_migration from current_user granted by current_user');
       checkBefore(await snapshot(client), packet);
+      authorityGate();
       await client.query(packet.sql);
       await client.query('insert into supabase_migrations.schema_migrations(version,statements,name) values($1,$2,$3)',
         [VERSION, [packet.sql], NAME]);
       await checkAfter(client, before, packet);
+      authorityGate();
       await client.query('commit');
     } catch (error) {
       await client.query('rollback');
@@ -109,7 +125,7 @@ async function applyDiagnostic(client, packet) {
     await client.query('select pg_advisory_unlock($1::bigint)', ['5574319470126001']);
   }
 }
-module.exports = { snapshot, checkBefore, checkAfter, applyDiagnostic, metadata, sha, VERSION, NAME };
+module.exports = { snapshot, settledSnapshot, checkAuthority, checkBefore, checkAfter, applyDiagnostic, metadata, sha, VERSION, NAME };
 function runCLI() {
   let raw = '';
   process.stdin.on('data', (part) => { raw += part; if (raw.length > 1048576) process.exit(2); });
@@ -118,22 +134,24 @@ function runCLI() {
     const deadline = setTimeout(() => process.exit(2), 45000);
     try {
       const input = JSON.parse(raw);
-      assert(['read', 'verify', 'apply'].includes(input.action));
+      assert(['read', 'settled-read', 'verify', 'apply'].includes(input.action));
       assert.equal(process.env.SUPABASE_URL, 'https://qcffvfbpzvpwcwxwjyro.supabase.co');
       const url = new URL(input.url);
       assert(url.hostname.endsWith('.supabase.com') && decodeURIComponent(url.username).endsWith('.qcffvfbpzvpwcwxwjyro'));
-      if (input.action === 'apply') {
+      if (['apply', 'settled-read'].includes(input.action)) {
         // Session advisory locks must never run through a transaction pooler.
         const endpoint = { hostname:url.hostname, port:url.port || '5432',
           usernameHash:sha(decodeURIComponent(url.username)), database:url.pathname };
         assert.equal(endpoint.port, '5432', 'SESSION_MIGRATION_ENDPOINT_REQUIRED');
         assert.deepEqual(endpoint, input.endpoint, 'EXACT_APPROVED_MIGRATION_ENDPOINT_REQUIRED');
+        if (input.action === 'apply') checkAuthority(input.authority);
       }
       const { Client } = require('pg');
       client = new Client({ connectionString: input.url, connectionTimeoutMillis:5000, query_timeout:15000 });
       await client.connect();
       let result;
-      if (input.action === 'apply') result = await applyDiagnostic(client, input.packet);
+      if (input.action === 'apply') result = await applyDiagnostic(client, input.packet, () => checkAuthority(input.authority));
+      else if (input.action === 'settled-read') result = await settledSnapshot(client);
       else {
         await client.query('begin isolation level repeatable read read only');
         try { result = input.action === 'verify' ? await checkAfter(client, input.packet.expected, input.packet) : await snapshot(client); }

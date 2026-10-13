@@ -38,6 +38,14 @@ async function main() {
     stage = 'rollback-qualification';
     const packet = { version: g.VERSION, name: g.NAME, sql, sqlHash:g.sha(sql),
       acceptanceBodyHash:g.sha(body), helperBodyHash:g.sha(sql.split('as $$')[1].split('end $$;')[0]+'end '), expected:before };
+    await client.query('select pg_advisory_lock($1::bigint)', ['5574319470126001']);
+    await assert.rejects(g.settledSnapshot(second), (error)=>error.code==='ERR_ASSERTION' &&
+      error.message.split('\n')[0]==='INSTALLER_STILL_IN_FLIGHT');
+    await client.query('select pg_advisory_unlock($1::bigint)', ['5574319470126001']);
+    let gates=0;
+    await assert.rejects(g.applyDiagnostic(client,packet,()=>{if(++gates===2)throw Error('FIXTURE_AUTHORITY_EXPIRED');}),
+      { message:'FIXTURE_AUTHORITY_EXPIRED' });
+    assert.deepEqual(await g.settledSnapshot(client),before);
     // Force a post-DDL preservation failure and prove the entire migration rolls back.
     const contaminated = sql.replace('reset role;', 'update private.voice_automatic_policy set enabled=true;\nreset role;');
     await assert.rejects(g.applyDiagnostic(client, { ...packet, sql:contaminated, sqlHash:g.sha(contaminated) }),
@@ -64,7 +72,8 @@ async function main() {
     assert.deepEqual(await g.snapshot(client), after);
     console.log(JSON.stringify({ status:'PASS', fixtureOnly:true, stagingAccess:false,
       rollbackPreserved:true, concurrentInstallCount:1, repeatRejected:true,
-      protectedTableCount:Object.keys(before.protected).length, financialActivation:false }));
+      protectedTableCount:Object.keys(before.protected).length, expiredAuthorityRolledBack:true,
+      inFlightInstallerNotMisclassified:true, financialActivation:false }));
   } finally { await client.end(); await second.end(); }
 }
 main().catch((error)=>{process.stderr.write(JSON.stringify({ event:'DISPOSABLE_DIAGNOSTIC_QUALIFICATION_FAILED',

@@ -6,7 +6,7 @@ API_SOURCE='093b5d0c42f3d68eb2de619aff94b44fbf088a02'
 NODE='/nodejs/bin/node'
 class Host:
  def __init__(self,node):
-  self.node=node;self.deadline=time.monotonic()+300;self.directory=None;self.scope=None;self.reconciled=False
+  self.node=node;self.deadline=time.monotonic()+300;self.directory=None;self.scope=None;self.reconciled=False;self.approval=None
  def now(self):return time.time()
  def run(self,args,input=None,limit=30):
   remaining=self.deadline-time.monotonic()
@@ -26,6 +26,7 @@ class Host:
  def database(self,action='read',scope=None):
   request={'action':action,'url':self.environment()['DATABASE_URL']}
   if scope:request.update(packet=scope['packet'],endpoint=scope['endpoint'])
+  if action=='apply':request['authority']={'receivedAt':self.approval['receivedAt'],'expiresAt':scope['expiresAt']}
   # The credential is private child stdin, never a shell argument, file or output.
   return json.loads(self.run(['docker','exec','-i',API,NODE,'-e',self.node+'\nrunCLI();'],json.dumps(request),50))
  def collect(self):
@@ -58,7 +59,7 @@ class Host:
   g.require(self.endpoint()==scope['endpoint'],'EXACT_SESSION_ENDPOINT_REQUIRED')
  def claim(self,scope,approval):
   g.validate(scope,approval,self.now())
-  self.scope=scope
+  self.scope=scope;self.approval=approval
   base=pathlib.Path('/opt/masarifi');info=base.lstat()
   g.require(not base.is_symlink() and stat.S_ISDIR(info.st_mode) and info.st_uid==0 and base.resolve()==base,'PRIVATE_OWNED_PARENT_REQUIRED')
   directory=base/('voice-diagnostic-'+scope['attempt'])
@@ -76,7 +77,10 @@ class Host:
   g.require(g.IMAGE in image['RepoDigests'] and image['Config']['Labels'].get('org.opencontainers.image.revision')==g.SOURCE,'EXACT_QUALIFIED_IMAGE_REQUIRED')
   # Fresh preservation and policy check after pulling, before any database DDL.
   self.preflight(scope)
- def apply_once(self,scope):self.database('apply',scope)
+ def apply_once(self,scope):
+  g.validate(scope,self.approval,self.now())
+  g.require(self.deadline-time.monotonic()>=50,'INSUFFICIENT_BOUNDED_INSTALL_TIME')
+  self.database('apply',scope)
  def verify(self,scope):
   self.database('verify',scope)
   current=self.collect();expected={**scope['baseline'],'database':current['database']}
@@ -87,7 +91,9 @@ class Host:
   # One fresh read determines commit state; never replays DDL or changes any records.
   g.require(not self.reconciled,'ONE_RECONCILIATION_ONLY');self.reconciled=True
   self.deadline+=60
+  settled=self.database('settled-read',scope)
   current=self.collect()
+  g.require(current['database']==settled,'SETTLED_DATABASE_STATE_CHANGED')
   if g.VERSION in current['database']['migrations']:return self.verify(scope)
   g.require(current==scope['baseline'],'FAILED_ATTEMPT_PRESERVATION_UNCONFIRMED')
   return {'migrationVerified':False,'posting':False,'protectedTableCount':16,'hostAuthRoutesPreserved':True,'retryAllowed':False}

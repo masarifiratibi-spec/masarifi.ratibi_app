@@ -51,6 +51,18 @@ class Tests(unittest.TestCase):
   h=Host('pull')
   with self.assertRaises(RuntimeError):g.execute(self.s,self.a,h)
   self.assertNotIn('apply',h.calls);self.assertEqual(h.calls.count('read-only-reconcile'),1)
+ def test_authority_expiring_during_claim_prevents_pull(self):
+  h=Host();clock=[h.now()];h.now=lambda:clock[0]
+  def claim(s,a):h.step('claim');clock[0]=s['expiresAt']
+  h.claim=claim
+  with self.assertRaisesRegex(RuntimeError,'APPROVAL_EXPIRED|SCOPE_EXPIRED'):g.execute(self.s,self.a,h)
+  self.assertNotIn('pull',h.calls);self.assertNotIn('apply',h.calls)
+ def test_authority_expiring_during_pull_or_second_preflight_prevents_ddl(self):
+  h=Host();clock=[h.now()];h.now=lambda:clock[0]
+  def pull(s):h.step('pull');clock[0]=s['expiresAt']
+  h.pull=pull
+  with self.assertRaisesRegex(RuntimeError,'APPROVAL_EXPIRED|SCOPE_EXPIRED'):g.execute(self.s,self.a,h)
+  self.assertNotIn('apply',h.calls);self.assertEqual(h.calls.count('read-only-reconcile'),1)
  def test_uncertain_commit_never_replays_and_read_only_reconciles(self):
   for fail in ['apply','verify']:
    h=Host(fail,committed=True)
