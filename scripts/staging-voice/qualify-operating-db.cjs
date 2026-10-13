@@ -7,16 +7,23 @@ assert.equal(process.env.GITHUB_ACTIONS,'true');
 assert.equal(process.env.GITHUB_REPOSITORY,'masarifiratibi-spec/masarifi.ratibi_app');
 assert.equal(process.env.GITHUB_REF,'refs/heads/codex/voice-promoted-operating-2026-10-13');
 const {Client,Pool}=require('../../apps/api/node_modules/pg');
-const source=fs.readFileSync(__dirname+'/operating-db.cjs','utf8'),db=new Client({connectionString:local});
+const fixtureOptions={connectionString:local,connectionTimeoutMillis:5000,query_timeout:10000,statement_timeout:10000,lock_timeout:5000,idle_in_transaction_session_timeout:15000};
+const fixtureClients=new Set(),fixturePools=new Set(),barrierReleases=new Set();
+function fixtureClient(){const client=new Client({...fixtureOptions}),end=client.end.bind(client);fixtureClients.add(client);client.end=async()=>{try{return await end();}finally{fixtureClients.delete(client);}};return client;}
+const source=fs.readFileSync(__dirname+'/operating-db.cjs','utf8'),db=fixtureClient(),witness=fixtureClient();
 const project='qcffvfbpzvpwcwxwjyro',ownerId='operating-local-'+randomUUID(),accountId=randomUUID(),categoryId='04000000-0000-4000-8000-000000000006';
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const caseNames=[];
-function passed(name){caseNames.push(name);}
+function passed(name){caseNames.push(name);console.error(JSON.stringify({status:'OPERATING_SQL_CASE_PASS',completedCases:caseNames.length,case:name}));}
+async function boundedBarrier(barrier,timeout=5000){let timer;try{return await Promise.race([barrier,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(Error('disposable fixture barrier deadline'),{code:'FIXTURE_BARRIER_TIMEOUT'})),timeout);})]);}finally{clearTimeout(timer);}}
+function fixtureBarrier(){let resolve;const barrier=new Promise(done=>{resolve=done;});const release=()=>{barrierReleases.delete(release);resolve();};barrierReleases.add(release);return {barrier,release};}
+async function closeFixtures(){for(const release of [...barrierReleases])release();await Promise.allSettled([...fixtureClients].map(client=>client.end()));await Promise.allSettled([...fixturePools].map(pool=>pool.end()));}
 async function waitUntil(check,timeout=2000){const end=Date.now()+timeout;while(Date.now()<end){if(await check())return;await new Promise(resolve=>setTimeout(resolve,10));}assert.fail('disposable contention barrier not reached');}
 async function helper(action,c,observer={}) {
  const output=[],errors=[];const proc={env:{MASARIFI_PROCESS_KIND:'migration',DATABASE_URL:'postgresql://postgres.'+project+':INERT@inert.supabase.com/postgres',OPERATING_ACTION:action,OPERATING_CONTROL:JSON.stringify(c)}};
  class LocalPool extends Pool {
-  constructor(){super({connectionString:local,max:1});}
+  constructor(){super({...fixtureOptions,max:1});fixturePools.add(this);}
+  async end(){try{return await super.end();}finally{fixturePools.delete(this);}}
   async connect(){
    const conn=await super.connect(),query=conn.query.bind(conn);let writes=false;
    conn.query=async(sql,args)=>{
@@ -27,17 +34,17 @@ async function helper(action,c,observer={}) {
     if(writes&&sql.startsWith('select private.activate_staging_voice_epoch'))observer.activations=(observer.activations||0)+1;
     if(observer.race&&sql.includes('from private.staging_voice_epochs where id=')&&sql.endsWith('for update')&&(observer.races||0)<observer.race){
      observer.races=(observer.races||0)+1;
-     const heartbeat=new Client({connectionString:local});await heartbeat.connect();
+     const heartbeat=fixtureClient();await heartbeat.connect();
      try{await heartbeat.query('set role masarifi_worker');await heartbeat.query('select private.staging_voice_heartbeat($1,$2,$3)',[c.epochId,'local-qualification-heartbeat',c.manifest.sourceSha]);}finally{await heartbeat.end();}
     }
     try{
-     if(writes&&sql==='commit'&&observer.commitBarrier){observer.commitReached=true;await observer.commitBarrier;}
+     if(writes&&sql==='commit'&&observer.commitBarrier){observer.commitReached=true;await boundedBarrier(observer.commitBarrier);}
      if(writes&&sql==='commit'&&observer.failBeforeCommit)throw Object.assign(Error('disposable precommit transport loss'),{code:'ECONNRESET'});
-     if(writes&&sql==='rollback'&&observer.rollbackBarrier){observer.rollbackReached=true;await observer.rollbackBarrier;}
+     if(writes&&sql==='rollback'&&observer.rollbackBarrier){observer.rollbackReached=true;await boundedBarrier(observer.rollbackBarrier);}
      const result=await query(sql,args);
      if(writes&&sql.startsWith('lock table '))observer.financialHeld=true;
-     if(!writes&&observer.financialBarrier&&observer.financialHeld&&sql.startsWith('select to_jsonb(t) row from public.account_balances')){observer.financialReached=true;await observer.financialBarrier;}
-     if(writes&&observer.cleanupBarrier&&sql.startsWith('revoke masarifi_migration')){observer.cleanupReached=true;await observer.cleanupBarrier;}
+     if(!writes&&observer.financialBarrier&&observer.financialHeld&&sql.startsWith('select to_jsonb(t) row from public.account_balances')){observer.financialReached=true;await boundedBarrier(observer.financialBarrier);}
+     if(writes&&observer.cleanupBarrier&&sql.startsWith('revoke masarifi_migration')){observer.cleanupReached=true;await boundedBarrier(observer.cleanupBarrier);}
      // A transport response can be lost after PostgreSQL has acknowledged/committed.
      // SQL is always executed; these faults test only whether the controller replays it.
      if((writes&&sql==='rollback'&&observer.uncertainRollback)||(writes&&sql==='commit'&&observer.lostCommit))throw Object.assign(Error('disposable transport response lost'),{code:'ECONNRESET'});
@@ -54,7 +61,7 @@ async function helper(action,c,observer={}) {
 }
 async function success(action,c){const r=await helper(action,c);assert(r.ok,action+':'+JSON.stringify(r.errors));return r.result;}
 async function freshControl(){
- const original=new Client({connectionString:local});await original.connect();let requiredMigrations;
+ const original=fixtureClient();await original.connect();let requiredMigrations;
  try{await original.query('begin isolation level repeatable read read only');requiredMigrations=(await original.query('select version from supabase_migrations.schema_migrations order by version')).rows.map(r=>r.version);await original.query('commit');}finally{await original.end();}
  assert.equal(requiredMigrations.length,110);assert(requiredMigrations.includes('20261013053237'));
  const now=Date.now()/1000;
@@ -91,7 +98,7 @@ async function financial(){
  from public.account_balances where account_id=$1`,[accountId])).rows[0];
 }
 async function manualWriter(){
- const writer=new Client({connectionString:local});await writer.connect();await writer.query('begin');
+ const writer=fixtureClient();await writer.connect();await writer.query('begin');
  await writer.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify({role:'authenticated',sub:ownerId,sid:'disposable-manual-session'})]);await writer.query('set local role masarifi_api');
  return writer;
 }
@@ -100,14 +107,14 @@ async function manualExpense(writer,amountMinor=1){
 }
 async function cleanupExpiry(action){
  const c=action==='activate'?await prepared():await freshControl();
- let release;const observer={cleanupBarrier:new Promise(resolve=>{release=resolve;})};
+ const {barrier,release}=fixtureBarrier(),observer={cleanupBarrier:barrier};
  const expired=Date.now()/1000+2,pending=helper(action,{...c,activationExpiresAt:expired},observer);
  try{
   await waitUntil(()=>observer.cleanupReached,1500);
   // The capability has executed inside the real transaction, but is not visible yet.
   assert.equal((await db.query('select enabled from private.voice_automatic_policy')).rows[0].enabled,false);
   while(Date.now()/1000<=expired+.1)await new Promise(resolve=>setTimeout(resolve,20));
- }finally{release();}
+ }catch(error){release();await pending;throw error;}finally{release();}
  assert.equal((await pending).ok,false);assert.equal(observer.attempts,1);
  if(action==='activate'){assert.equal((await success('status',c)).epoch.state,'prepared');await success('close',c);}
  else assert.equal(await success('reconcile',c),null);
@@ -116,28 +123,29 @@ async function cleanupExpiry(action){
 async function financialRaces(){
  // A writer already holding RowExclusive commits while main waits for SHARE.
  // The fresh reader must see its intended effect even though main's snapshot is older.
- let c=await prepared(),before=await financial(),writer=await manualWriter(),observer={};
- await writer.query('lock table public.transactions in row exclusive mode');
- const pending=helper('activate',c,observer);let effect;
+ let c=await prepared(),before=await financial(),writer=await manualWriter(),observer={},pending,effect;
  try{
-  await waitUntil(async()=>observer.pid&&(await db.query('select cardinality(pg_blocking_pids($1))>0 blocked',[observer.pid])).rows[0].blocked);
-  effect=await manualExpense(writer);await writer.query('commit');
- }catch(error){await writer.query('rollback');await pending;throw error;}finally{await writer.end();}
+  // The existing API capability performs the real uncommitted INSERT and holds
+  // RowExclusive itself; API has no raw LOCK TABLE privilege and needs none.
+  effect=await manualExpense(writer);pending=helper('activate',c,observer);
+  await waitUntil(async()=>observer.pid&&(await witness.query('select pg_blocking_pids($1) pids',[observer.pid])).rows[0].pids.includes(writer.processID));
+  await writer.query('commit');
+ }catch(error){await writer.query('rollback');if(pending)await pending;throw error;}finally{await writer.end();}
  assert.equal((await pending).ok,false);assert.equal(observer.activations||0,0);
  let status=await success('status',c);assert.equal(status.posting,false);assert.equal(status.epoch.state,'prepared');
  let after=await financial();assert.equal(BigInt(after.confirmed_minor),BigInt(before.confirmed_minor)-1n);assert.equal(after.transactions,before.transactions+1);assert.equal(after.postings,before.postings+1);
  assert.equal((await db.query('select count(*)::int n from public.transactions where id=$1',[effect.transactionId])).rows[0].n,1);
- const original=new Client({connectionString:local});await original.connect();try{assert.equal((await original.query("select exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member) present")).rows[0].present,false);}finally{await original.end();}
+ const original=fixtureClient();await original.connect();try{assert.equal((await original.query("select exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member) present")).rows[0].present,false);}finally{await original.end();}
  await success('close',c);passed('preceding disjoint manual writer commits during SHARE wait; fresh reader refuses ON, preserves writer effect and rolls back own grant');
  // A subsequent disjoint writer is demonstrably blocked until controller commits.
- c=await prepared();before=await financial();let release;
- observer={financialBarrier:new Promise(resolve=>{release=resolve;})};const activating=helper('activate',c,observer);
+ c=await prepared();before=await financial();const {barrier,release}=fixtureBarrier();
+ observer={financialBarrier:barrier};const activating=helper('activate',c,observer);
  writer=await manualWriter();let writing;
  try{
   await waitUntil(()=>observer.financialReached);
-  const locks=(await db.query("select count(*)::int n from pg_locks where pid=$1 and mode='ShareLock' and granted and relation=any(array['public.accounts'::regclass,'public.transactions'::regclass,'public.transaction_postings'::regclass,'public.account_balances'::regclass])",[observer.pid])).rows[0].n;assert.equal(locks,4);
+  const locks=(await witness.query("select count(*)::int n from pg_locks where pid=$1 and mode='ShareLock' and granted and relation=any(array['public.accounts'::regclass,'public.transactions'::regclass,'public.transaction_postings'::regclass,'public.account_balances'::regclass])",[observer.pid])).rows[0].n;assert.equal(locks,4);
   writing=manualExpense(writer);
-  await waitUntil(async()=>{const blockers=(await db.query('select pg_blocking_pids($1) pids',[writer.processID])).rows[0].pids;return blockers.includes(observer.pid);});
+  await waitUntil(async()=>{const blockers=(await witness.query('select pg_blocking_pids($1) pids',[writer.processID])).rows[0].pids;return blockers.includes(observer.pid);});
   assert.deepEqual(await financial(),before);release();assert.equal((await activating).ok,true);
   await writing;await writer.query('commit');
  }catch(error){release();await writer.query('rollback');await activating;if(writing)await writing.catch(()=>{});throw error;}finally{await writer.end();}
@@ -164,7 +172,7 @@ async function legacyHash(legacy){
 }
 async function driftClosure(){
  let c=await prepared();await success('activate',c);
- const registry=new Client({connectionString:local});await registry.connect();
+ const registry=fixtureClient();await registry.connect();
  try{
   const last=c.requiredMigrations.at(-1),saved=(await registry.query('select * from supabase_migrations.schema_migrations where version=$1',[last])).rows[0];
   await registry.query('delete from supabase_migrations.schema_migrations where version=$1',[last]);
@@ -182,22 +190,22 @@ async function driftClosure(){
 }
 async function settledPreparation(){
  for(const outcome of ['commit','rollback']){
-  const c=await freshControl();let release;
-  const observer=outcome==='commit'?{commitBarrier:new Promise(resolve=>{release=resolve;}),lostCommit:true}:{rollbackBarrier:new Promise(resolve=>{release=resolve;}),failBeforeCommit:true};
+  const c=await freshControl(),{barrier,release}=fixtureBarrier();
+  const observer=outcome==='commit'?{commitBarrier:barrier,lostCommit:true}:{rollbackBarrier:barrier,failBeforeCommit:true};
   const pendingPrepare=helper('prepare',c,observer);let pendingReader,reader={};
   try{
    await waitUntil(()=>outcome==='commit'?observer.commitReached:observer.rollbackReached);
    // Reordered object keys are the same exact JSONB manifest and therefore the same lock.
    pendingReader=helper('reconcile',{...c,manifest:Object.fromEntries(Object.entries(c.manifest).reverse())},reader);
    let delivered=false;pendingReader.then(()=>{delivered=true;});
-   await waitUntil(async()=>reader.settlementPid&&(await db.query('select pg_blocking_pids($1) pids',[reader.settlementPid])).rows[0].pids.includes(observer.pid));
+   await waitUntil(async()=>reader.settlementPid&&(await witness.query('select pg_blocking_pids($1) pids',[reader.settlementPid])).rows[0].pids.includes(observer.pid));
    assert.equal(delivered,false);assert.equal(reader.readSnapshotStarted,undefined);
    // Distinct manifests do not inherit this wait or access its uncommitted prepared row.
    assert.equal(await success('reconcile',{...c,manifest:{...c.manifest,controlHash:digest(randomUUID())}}),null);
-  }finally{release();}
+  }catch(error){release();await Promise.allSettled([pendingPrepare,pendingReader].filter(Boolean));throw error;}finally{release();}
   const preparedResult=await pendingPrepare,readResult=await pendingReader;
   assert.equal(preparedResult.ok,false);assert.equal(observer.attempts,1);assert.equal(readResult.ok,true);assert.equal(reader.roleMutations||0,0);assert.equal(reader.readSnapshotStarted,true);
-  assert.equal((await db.query("select count(*)::int n from pg_locks where pid=$1 and locktype='advisory'",[reader.settlementPid])).rows[0].n,0);
+  assert.equal((await witness.query("select count(*)::int n from pg_locks where pid=$1 and locktype='advisory'",[reader.settlementPid])).rows[0].n,0);
   if(outcome==='commit'){
    assert(readResult.result&&readResult.result.matches&&readResult.result.state==='prepared');
    assert.equal((await db.query('select count(*)::int n from private.staging_voice_epochs where manifest=$1::jsonb',[JSON.stringify(c.manifest)])).rows[0].n,1);
@@ -223,7 +231,7 @@ async function lockExpiry(relation){
  let blocked=false;
  try{
   while(Date.now()/1000<expires){
-   if(observer.pid){blocked=(await db.query('select cardinality(pg_blocking_pids($1))>0 blocked',[observer.pid])).rows[0].blocked;if(blocked)break;}
+   if(observer.pid){blocked=(await witness.query('select pg_blocking_pids($1) pids',[observer.pid])).rows[0].pids.includes(db.processID);if(blocked)break;}
    await new Promise(resolve=>setTimeout(resolve,10));
   }
   assert(blocked,'activation must actually block on '+relation);
@@ -233,13 +241,14 @@ async function lockExpiry(relation){
  passed('authority expires while '+relation+' lock is held');
 }
 async function main(){
+ await witness.connect();await witness.query('set default_transaction_read_only=on');
  await db.connect();try{
   await db.query('grant masarifi_migration,masarifi_api,masarifi_worker to current_user with set true,inherit false');await db.query('set role masarifi_migration');
   // Hosted migration login already has read access. These grants are disposable fixture setup only.
   await db.query('grant usage on schema public,private to postgres');await db.query('grant select on all tables in schema public,private to postgres');
   await db.query("insert into public.profiles(id,status) values($1,'active')",[ownerId]);
   await db.query("insert into public.accounts(id,user_id,name,type,currency_code,is_default) values($1,$2,'Disposable','cash','SAR',true)",[accountId,ownerId]);await db.query('insert into public.account_balances(account_id) values($1)',[accountId]);
-  const setup=new Client({connectionString:local});await setup.connect();try{await setup.query('revoke masarifi_migration from current_user granted by current_user');}finally{await setup.end();}
+  const setup=fixtureClient();await setup.connect();try{await setup.query('revoke masarifi_migration from current_user granted by current_user');}finally{await setup.end();}
   const legacy=await seedLegacy(),legacyBefore=await legacyHash(legacy);
   let c=await freshControl();assert.equal((await success('status',c)).migrations.length,110);passed('full actual 110-version history and exact diagnostic metadata');
   // Lost prepare response is reconciled read-only. Another prepare must never create another epoch.
@@ -253,7 +262,7 @@ async function main(){
   c=await prepared();
   assert.equal((await helper('activate',{...c,baseline:{...c.baseline,fingerprints:{...c.baseline.fingerprints,balances:'0'.repeat(64)}}})).ok,false);await success('close',c);passed('exact financial baseline drift refuses activation');
   // Each metadata component and full history drift is checked by production SQL/controller.
-  c=await prepared();const last=c.requiredMigrations.at(-1),registry=new Client({connectionString:local});await registry.connect();
+  c=await prepared();const last=c.requiredMigrations.at(-1),registry=fixtureClient();await registry.connect();
   try{
    const saved=(await registry.query('select * from supabase_migrations.schema_migrations where version=$1',[last])).rows[0];
    await registry.query('delete from supabase_migrations.schema_migrations where version=$1',[last]);
@@ -266,7 +275,7 @@ async function main(){
   const original=(await db.query("select pg_get_functiondef('private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)'::regprocedure) body")).rows[0].body;
   await db.query("create or replace function private.voice_canary_scope_mismatch_reason(p_decisions jsonb,p_minor integer,p_manifest jsonb,p_capture timestamptz) returns text language sql set search_path='' as $$select 'inert_local_drift'::text$$");
   try{assert.equal((await helper('activate',c)).ok,false);}finally{await db.query(original);}await success('close',c);passed('actual diagnostic body drift refuses');
-  c=await prepared();const grantClient=new Client({connectionString:local});await grantClient.connect();
+  c=await prepared();const grantClient=fixtureClient();await grantClient.connect();
   try{
    await grantClient.query('grant masarifi_migration to current_user with set true,inherit false');
    for(const action of ['prepare','activate','close'])assert.equal((await helper(action,action==='prepare'?{...c,epochId:null,manifestHash:null}:c)).ok,false);
@@ -300,7 +309,8 @@ async function main(){
   await success('close',{...c,approvalReceivedAt:1,activationExpiresAt:2,startsAt:1});assert.equal((await success('status',c)).posting,false);passed('owned closure remains available after activation authority expires');
   assert.equal(await legacyHash(legacy),legacyBefore);passed('retained pending Voice rows and empty batch/event receipts remain unchanged through owned closure');
   const foreign=await prepared();await success('activate',foreign);assert.equal((await helper('close',c)).ok,false);status=await success('status',foreign);assert.equal(status.posting,true);assert.equal(status.executionFailed,0);assert.equal(status.rejected,0);await success('close',foreign);passed('foreign current epoch cannot be disabled and terminal failures remain scoped to their owning epoch');
-  console.log(JSON.stringify({status:'PASS',behavioralCases:caseNames.length,cases:caseNames,transport:'disposable loopback54322 CI only',actualProductionHelperSQL:true,productionOrStagingAccess:false}));
+  return {status:'PASS',behavioralCases:caseNames.length,cases:caseNames,transport:'disposable loopback54322 CI only',actualProductionHelperSQL:true,productionOrStagingAccess:false};
  }finally{await db.end();}
 }
-main().catch(error=>{console.error(JSON.stringify({status:'OPERATING_SQL_QUALIFICATION_FAILED',completedCases:caseNames.length,lastCompletedCase:caseNames.at(-1)||null,code:/^[A-Z0-9]{5}$/.test(error.code||'')?error.code:error.code==='ERR_ASSERTION'?'ERR_ASSERTION':'UNAVAILABLE'}));process.exitCode=1;});
+const overallBudget=setTimeout(()=>{for(const release of [...barrierReleases])release();console.error(JSON.stringify({status:'OPERATING_SQL_QUALIFICATION_FAILED',completedCases:caseNames.length,lastCompletedCase:caseNames.at(-1)||null,code:'FIXTURE_OVERALL_TIMEOUT'}));process.exit(1);},140000);
+main().then(async result=>{await closeFixtures();console.log(JSON.stringify(result));}).catch(error=>{console.error(JSON.stringify({status:'OPERATING_SQL_QUALIFICATION_FAILED',completedCases:caseNames.length,lastCompletedCase:caseNames.at(-1)||null,code:/^[A-Z0-9]{5}$/.test(error.code||'')?error.code:['ERR_ASSERTION','FIXTURE_BARRIER_TIMEOUT'].includes(error.code)?error.code:'UNAVAILABLE'}));process.exitCode=1;}).finally(async()=>{try{await closeFixtures();}finally{clearTimeout(overallBudget);}});

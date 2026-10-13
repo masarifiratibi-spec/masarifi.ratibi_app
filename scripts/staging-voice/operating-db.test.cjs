@@ -170,3 +170,19 @@ test('status exposes enforcement drift, activation refuses it and owned OFF rema
  assert.equal(success(await exercise('close',{enforced:false})).posting,false);
  const foreign=await exercise('close',{enforced:false,foreignCurrent:true});refused(foreign);assert(!foreign.queries.some(q=>q.sql.startsWith('select private.close_staging_voice_epoch')));
 });
+test('disposable qualifier bounds every fixture connection and barrier and emits progress on stderr only',async()=>{
+ const fixturePath=path.join(__dirname,'qualify-operating-db.cjs'),configs=[],receipts=[];
+ class FakeClient{constructor(config){this.options=config;configs.push(config);}async end(){}}
+ class FakePool extends FakeClient{}
+ const stub="module.exports=(async()=>{const {Pool}=require('node:module').createRequire()('pg');const p=new Pool();await p.end();console.log('{}');})();";
+ const fixture=fs.readFileSync(fixturePath,'utf8').split('const overallBudget=')[0];
+ const loaded=Function('require','process','console','__dirname',fixture+';return {db,fixtureClient,helper,passed,boundedBarrier};')(
+  name=>name==='../../apps/api/node_modules/pg'?{Client:FakeClient,Pool:FakePool}:name==='node:fs'?{...fs,readFileSync:()=>stub}:require(name),
+  {env:{DATABASE_URL:'postgresql://postgres:INERT@localhost:54322/postgres',GITHUB_ACTIONS:'true',GITHUB_REPOSITORY:'masarifiratibi-spec/masarifi.ratibi_app',GITHUB_REF:'refs/heads/codex/voice-promoted-operating-2026-10-13'}},
+  {error:line=>receipts.push(JSON.parse(line)),log:()=>assert.fail('fixture progress leaked to stdout')},__dirname);
+ loaded.fixtureClient();await loaded.helper('status',{});loaded.passed('bounded fixture regression');
+ assert.equal(configs.length,4);
+ for(const config of configs){assert.equal(config.connectionTimeoutMillis,5000);assert.equal(config.query_timeout,10000);assert.equal(config.statement_timeout,10000);assert.equal(config.lock_timeout,5000);assert.equal(config.idle_in_transaction_session_timeout,15000);}
+ assert.equal(receipts[0].status,'OPERATING_SQL_CASE_PASS');assert.equal(receipts[0].completedCases,1);
+ await assert.rejects(loaded.boundedBarrier(new Promise(()=>{}),10),error=>error.code==='FIXTURE_BARRIER_TIMEOUT');
+});
