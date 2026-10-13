@@ -6,6 +6,18 @@ on:
 permissions:
   contents: read
 jobs:
+  offline-host-controls:
+    if: github.repository == 'masarifiratibi-spec/masarifi.ratibi_app' && github.ref == 'refs/heads/codex/voice-diagnostic-controls-2026-10-13'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Test preservation-only OFF controls and reused-API ON controls without network access
+        run: |
+          python3 -m unittest discover -s scripts/staging-voice/diagnostic-off -p 'test_*.py' -v
+          python3 -O -m unittest discover -s scripts/staging-voice/diagnostic-off -p 'test_*.py' -v
+          python3 -m unittest discover -s scripts/staging-voice/diagnostic-canary -p 'test_*.py' -v
+          python3 -O -m unittest discover -s scripts/staging-voice/diagnostic-canary -p 'test_*.py' -v
   disposable-controls:
     if: github.repository == 'masarifiratibi-spec/masarifi.ratibi_app' && github.ref == 'refs/heads/codex/voice-diagnostic-controls-2026-10-13'
     runs-on: ubuntu-24.04

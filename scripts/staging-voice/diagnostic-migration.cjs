@@ -81,10 +81,17 @@ async function applyDiagnostic(client, packet) {
       await client.query("set local statement_timeout='10s'");
       await client.query("set local lock_timeout='3s'");
       await client.query("set local idle_in_transaction_session_timeout='15s'");
-      // Hold the same runtime row used by activation until commit/rollback.
-      await client.query('select singleton from private.staging_voice_runtime_control for update');
       const before = await snapshot(client);
       checkBefore(before, packet);
+      // Hold the same runtime row used by activation until commit/rollback.
+      // The login has read-only table access; select the existing migration owner
+      // transiently for this row lock, then revoke before executing the migration.
+      await client.query('grant masarifi_migration to current_user with set true, inherit false');
+      await client.query('set local role masarifi_migration');
+      await client.query('select singleton from private.staging_voice_runtime_control for update');
+      await client.query('reset role');
+      await client.query('revoke masarifi_migration from current_user granted by current_user');
+      checkBefore(await snapshot(client), packet);
       await client.query(packet.sql);
       await client.query('insert into supabase_migrations.schema_migrations(version,statements,name) values($1,$2,$3)',
         [VERSION, [packet.sql], NAME]);
