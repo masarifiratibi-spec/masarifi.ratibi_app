@@ -67,11 +67,11 @@ it.each([
     'الحدث 3: لم يُضف — نوع الحدث غير مدعوم.'
   ]
 ] as const)(
-  'shows each authoritative saved/skipped outcome in %s without a confirmation action',
+  'keeps skipped explanations in %s without saved messages or a confirmation action',
   (locale, saved, ambiguous, unsupported) => {
     changeLocale(locale);
     renderWithProviders(<VoiceBatchStatus batches={fixture()} />);
-    expect(screen.getByText(saved)).toBeTruthy();
+    expect(screen.queryByText(saved)).toBeNull();
     expect(screen.getByText(ambiguous)).toBeTruthy();
     expect(screen.getByText(unsupported)).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();

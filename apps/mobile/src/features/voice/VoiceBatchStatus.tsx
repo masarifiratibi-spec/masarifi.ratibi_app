@@ -12,29 +12,11 @@ export function VoiceBatchStatus({
   showProgress?: boolean;
 }) {
   const result = batches.latest;
-  const saved =
-    result &&
-    !result.analysis &&
-    result.addedCount > 0 &&
-    result.ledgerVersion > 0 &&
-    result.transactionIds.length === result.addedCount &&
-    new Set(result.transactionIds).size === result.addedCount;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
-      {saved ? (
-        <StyledText>
-          {translateDynamic('voice.batch.added', { count: result.addedCount })}
-        </StyledText>
-      ) : null}
       {!result?.analysis
         ? result?.outcomes?.map((event) => {
-            if (
-              event.status === 'committed' &&
-              (!saved ||
-                !event.transactionId ||
-                !result.transactionIds.includes(event.transactionId))
-            )
-              return null;
+            if (event.status === 'committed') return null;
             const key =
               event.status === 'skipped'
                 ? `voice.batch.event.reason.${event.reason}`

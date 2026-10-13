@@ -6,7 +6,12 @@ import type {
   VoiceBatchApi,
   VoiceBatchResult
 } from '@/services/live/voice-batch-api-service';
-import { translate, translateDynamic } from '@/localization/i18n';
+import {
+  changeLocale,
+  currentLocale,
+  translate,
+  translateDynamic
+} from '@/localization/i18n';
 import { VoiceBatchStatus } from './VoiceBatchStatus';
 import { useVoiceBatches } from './useVoiceBatches';
 import { voiceAnalysisKey } from './voice-analysis-query';
@@ -73,7 +78,7 @@ function mount() {
   };
 }
 
-it('confirms the authoritative saved count for a multi-event receipt without another Save action', async () => {
+it('keeps the authoritative receipt without announcing a saved count', async () => {
   Object.assign(voiceAnalyzerService, {
     recoverBatches: async () => empty,
     runBatch: async () => ({
@@ -92,8 +97,10 @@ it('confirms the authoritative saved count for a multi-event receipt without ano
     await act(async () => {});
     await act(async () => view.batches.submit(capture));
     expect(
-      screen.getByText(translateDynamic('voice.batch.added', { count: 2 }))
-    ).toBeTruthy();
+      screen.queryByText(translateDynamic('voice.batch.added', { count: 2 }))
+    ).toBeNull();
+    expect(view.batches.latest?.addedCount).toBe(2);
+    expect(view.batches.latest?.transactionIds).toHaveLength(2);
     expect(screen.queryByText(translate('voice.batch.empty'))).toBeNull();
   } finally {
     view.unmount();
@@ -132,7 +139,7 @@ it.each([
   }
 );
 
-it('shows the committed count and remaining failure for a partial financial receipt', () => {
+it('keeps a partial failure visible without announcing its saved count', () => {
   const latest = {
     ...receipt('failed'),
     addedCount: 1,
@@ -141,9 +148,100 @@ it('shows the committed count and remaining failure for a partial financial rece
   };
   render(<VoiceBatchStatus batches={statusFixture(latest)} />);
   expect(
-    screen.getByText(translateDynamic('voice.batch.added', { count: 1 }))
-  ).toBeTruthy();
+    screen.queryByText(translateDynamic('voice.batch.added', { count: 1 }))
+  ).toBeNull();
   expect(screen.getByText(translate('voice.batch.failed'))).toBeTruthy();
+});
+
+it.each(['ar', 'en'] as const)(
+  'does not flash historical saving messages when restoring receipts in %s',
+  async (locale) => {
+    const previousLocale = currentLocale();
+    changeLocale(locale);
+    const completed: VoiceBatchResult = {
+      ...receipt('completed'),
+      addedCount: 1,
+      transactionIds: [capture],
+      ledgerVersion: 8,
+      outcomes: [
+        {
+          ordinal: 0,
+          kind: 'expense',
+          status: 'committed',
+          reason: null,
+          transactionId: capture
+        }
+      ]
+    };
+    const runBatch = jest.fn();
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => ({ ...empty, results: [completed] }),
+      runBatch,
+      pauseBatches: () => undefined
+    });
+    const view = mount();
+    try {
+      await waitFor(() => expect(view.batches.latest).toEqual(completed));
+      expect(
+        screen.queryByText(translateDynamic('voice.batch.added', { count: 1 }))
+      ).toBeNull();
+      expect(
+        screen.queryByText(
+          translateDynamic('voice.batch.event.result', {
+            number: 1,
+            result: translateDynamic('voice.batch.event.committed')
+          })
+        )
+      ).toBeNull();
+      expect(runBatch).not.toHaveBeenCalled();
+      expect(view.batches.latest?.transactionIds).toEqual([capture]);
+    } finally {
+      view.unmount();
+      changeLocale(previousLocale);
+    }
+  }
+);
+
+it('keeps skipped-event explanations visible while hiding committed-event messages', () => {
+  const latest: VoiceBatchResult = {
+    ...receipt('completed'),
+    addedCount: 1,
+    transactionIds: [capture],
+    ledgerVersion: 1,
+    outcomes: [
+      {
+        ordinal: 0,
+        kind: 'expense',
+        status: 'committed',
+        reason: null,
+        transactionId: capture
+      },
+      {
+        ordinal: 1,
+        kind: 'income',
+        status: 'skipped',
+        reason: 'invalid_category',
+        transactionId: null
+      }
+    ]
+  };
+  render(<VoiceBatchStatus batches={statusFixture(latest)} />);
+  expect(
+    screen.queryByText(
+      translateDynamic('voice.batch.event.result', {
+        number: 1,
+        result: translateDynamic('voice.batch.event.committed')
+      })
+    )
+  ).toBeNull();
+  expect(
+    screen.getByText(
+      translateDynamic('voice.batch.event.result', {
+        number: 2,
+        result: translateDynamic('voice.batch.event.reason.invalid_category')
+      })
+    )
+  ).toBeTruthy();
 });
 
 it('scrubs expired analysis fields from hook state and shared cache', async () => {
