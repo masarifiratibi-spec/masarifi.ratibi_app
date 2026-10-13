@@ -610,6 +610,31 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         scopeMismatchReason: reason,
       });
       expect(
+        row(
+          (
+            await query(
+              'select status,failure_code,claim_token,claimed_by,lease_until from public.voice_sessions where id=$1',
+              [session],
+            )
+          ).rows[0],
+        ),
+      ).toEqual({
+        status: 'failed',
+        failure_code: 'VOICE_SCOPE_INVALID',
+        claim_token: null,
+        claimed_by: null,
+        lease_until: null,
+      });
+      expect(
+        row(
+          (
+            await query('select count(*)::int n from private.voice_batches where session_id=$1', [
+              session,
+            ])
+          ).rows[0],
+        ).n,
+      ).toBe(0);
+      expect(
         row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
       ).toBe(false);
       expect(
@@ -654,6 +679,22 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         scopeMismatchReason: reason,
       });
       expect(
+        row(
+          (
+            await query(
+              'select status,failure_code,claim_token,claimed_by,lease_until from public.voice_sessions where id=$1',
+              [session],
+            )
+          ).rows[0],
+        ),
+      ).toEqual({
+        status: 'failed',
+        failure_code: 'VOICE_SCOPE_INVALID',
+        claim_token: null,
+        claimed_by: null,
+        lease_until: null,
+      });
+      expect(
         row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
       ).toBe(false);
       expect(
@@ -668,6 +709,68 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       expect(await ledgerState()).toEqual(before);
     },
   );
+  it('keeps the diagnostic helper private and uses the Riyadh date across UTC midnight', async () => {
+    expect(
+      row(
+        (
+          await query(
+            "select pg_get_userbyid(proowner) owner,prosecdef,proconfig from pg_proc where oid='private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)'::regprocedure",
+          )
+        ).rows[0],
+      ),
+    ).toEqual({ owner: 'masarifi_migration', prosecdef: false, proconfig: ['search_path=""'] });
+    for (const role of [
+      'anon',
+      'authenticated',
+      'service_role',
+      'masarifi_api',
+      'masarifi_worker',
+    ]) {
+      expect(
+        row(
+          (
+            await query(
+              "select has_function_privilege($1,'private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)','execute') allowed",
+              [role],
+            )
+          ).rows[0],
+        ).allowed,
+      ).toBe(false);
+    }
+    const command = {
+      kind: 'expense',
+      amountMinor: 1000,
+      currency: 'SAR',
+      accountId: account,
+      categoryId: category,
+      title: 'Voice transaction',
+      merchant: null,
+      paymentMethod: null,
+      note: null,
+      source: 'voice',
+      externalRef: null,
+      occurredAt: '2026-01-01T21:00:00.000Z',
+    };
+    const result = async (capture: string, occurredAt: string) =>
+      row(
+        (
+          await query(
+            'select private.voice_canary_scope_mismatch_reason($1::jsonb,1000,$2::jsonb,$3::timestamptz) reason',
+            [
+              JSON.stringify([{ status: 'eligible', command: { ...command, occurredAt } }]),
+              JSON.stringify({ accountId: account, categoryId: category }),
+              capture,
+            ],
+          )
+        ).rows[0],
+      ).reason;
+    // UTC day changes while the Riyadh date remains the same.
+    expect(await result('2026-01-01T21:00:00.000Z', '2026-01-02T00:00:00.000Z')).toBe('unknown');
+    // The millisecond before Riyadh midnight belongs to the preceding local day.
+    expect(await result('2026-01-01T21:00:00.000Z', '2026-01-01T20:59:59.999Z')).toBe(
+      'capture_date',
+    );
+  });
   it('concurrent single Arabic expense captures admit only one slot', async () => {
     const before = await ledgerState();
     await prepare('canary', true, 2);

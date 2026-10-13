@@ -67,7 +67,7 @@ jobs:
           git diff --name-only "$baseline" HEAD -- apps/api packages supabase docker > runtime-application-diff.txt
           while IFS= read -r path; do
             case "$path" in
-              apps/api/src/ai/ai.worker.ts|apps/api/test/unit/ai/voice-multi-event-worker.spec.ts|apps/api/test/integration/ai/staging-voice-epoch.spec.ts|supabase/migrations/20261013010000_voice_scope_rejection_diagnostics.sql|supabase/migration-checksums.sha256) ;;
+              apps/api/src/ai/ai.worker.ts|apps/api/test/unit/ai/voice-multi-event-worker.spec.ts|apps/api/test/integration/ai/staging-voice-epoch.spec.ts|supabase/migrations/20261013053237_voice_scope_rejection_diagnostics.sql|supabase/migration-checksums.sha256) ;;
               *) printf 'Unqualified application or Docker change: %s\n' "$path"; exit 1 ;;
             esac
           done < runtime-application-diff.txt
