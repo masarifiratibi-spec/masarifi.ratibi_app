@@ -13,6 +13,7 @@ async function exercise(action='readiness', change={}) {
   class Clock extends Date {static now(){return now;}}
   const baseline={confirmedMinor:-31000,pendingMinor:0};
   const admission={posting:false,activeEpochs:0,analysisJobs:0,assistantJobs:0,eligible:true,currentState:'closed',migrationSelfGrant:false,migrations:['20261010221534','20261011002702','20261011004500','20261011004600','20261011005920','20261013053237']};
+  const quotaAvailability=change.quotaAvailability || {quota:{enabled:true,limit:50,used:15,monthlyLimit:null,monthlyUsed:25},budgetAvailable:true};
   const metadata={acceptance:{...acceptance},helper:{...helper},...change};
   class Client {
     async connect(){} async end(){}
@@ -26,6 +27,7 @@ async function exercise(action='readiness', change={}) {
       if(sql.startsWith('select *,manifest='))return {rows:[{id:'11111111-1111-4111-8111-111111111111',manifest_hash:'a'.repeat(64),matches:true,state:'prepared'}]};
       if(sql.startsWith('select private.activate_staging_voice_epoch'))return {rows:[{result:{state:'active'}}]};
       if(sql.includes('pg_proc')) return {rows:metadata[args[0].includes('accept_voice_batch')?'acceptance':'helper']?[metadata[args[0].includes('accept_voice_batch')?'acceptance':'helper']]:[]};
+      if(sql.startsWith('with quota_policy as')) return {rows:[{result:quotaAvailability}]};
       if(sql.includes("'posting'")) return {rows:[{result:admission}]};
       if(sql.includes("'accounts'")) return {rows:[{result:change.finance || baseline}]};
       if(sql.includes('pg_auth_members')) return {rows:[{present:false}]};
@@ -86,4 +88,31 @@ test('elapsed recovery budget and expired arming or approval block serialization
     const r=await exercise('activate',{serializationFailures:1,advanceAfterFailure});assert.equal(r.exitCode,1);
     assert.equal(r.queries.filter(q=>q==='begin isolation level serializable').length,1);
   }
+});
+
+test('exhausted Voice quota refuses readiness, preparation and activation before any privilege or epoch write',async()=>{
+  for(const action of ['readiness','prepare','activate']) {
+    const r=await exercise(action,{quotaAvailability:{quota:{enabled:true,limit:15,used:15,monthlyLimit:null,monthlyUsed:25},budgetAvailable:true}});
+    assert.equal(r.exitCode,1,action);assert.equal(r.output.length,0);assert(r.queries.includes('rollback'));
+    assert(!r.queries.some(q=>/^(grant|revoke|set local role)/.test(q) || q.includes('prepare_staging_voice_epoch') || q.includes('activate_staging_voice_epoch')),action);
+  }
+});
+
+test('disabled Voice, exhausted monthly quota, unavailable budget and malformed limits refuse readiness',async()=>{
+  for(const change of [
+    {enabled:false},{monthlyLimit:25,monthlyUsed:25},{limit:0},{limit:1001},{limit:'50'},{used:-1},{used:1.5},{monthlyLimit:0},{monthlyUsed:-1},
+  ]) {
+    const r=await exercise('readiness',{quotaAvailability:{quota:{enabled:true,limit:50,used:15,monthlyLimit:null,monthlyUsed:25,...change},budgetAvailable:true}});
+    assert.equal(r.exitCode,1,JSON.stringify(change));assert.equal(r.output.length,0);
+  }
+  const r=await exercise('readiness',{quotaAvailability:{quota:{enabled:true,limit:50,used:15,monthlyLimit:null,monthlyUsed:25},budgetAvailable:false}});
+  assert.equal(r.exitCode,1);assert.equal(r.output.length,0);
+});
+
+test('available Voice quota qualifies readiness without consuming a request or budget reservation',async()=>{
+  const r=await exercise();assert.equal(r.exitCode,undefined);
+  assert.equal(r.output[0].quotaAvailability.quota.limit,50);
+  assert.equal(r.output[0].quotaAvailability.quota.used,15);
+  assert(r.queries.some(q=>q.startsWith('with quota_policy as')));
+  assert(!r.queries.some(q=>q.includes('reserve_ai_quota')));
 });

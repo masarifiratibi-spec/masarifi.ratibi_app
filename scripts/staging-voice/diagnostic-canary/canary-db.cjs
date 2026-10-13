@@ -43,6 +43,44 @@ process.stdin.on('end', async () => {
       'currentState',(select e.state from private.staging_voice_epochs e join private.staging_voice_runtime_control r on r.current_epoch=e.id),
       'migrationSelfGrant',exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member),
       'migrations',(select jsonb_agg(version order by version) from supabase_migrations.schema_migrations)) result`,[s.accountId,s.ownerId,s.categoryId])).rows[0].result;
+    const quotaAvailability = async () => {
+      const value = (await db.query(`with quota_policy as (
+        select coalesce(o.rolling_limit,
+          (select (value#>>'{}')::integer from private.system_settings where setting_key='ai.voice.rolling_limit'),
+          (select (value#>>'{}')::integer from private.system_settings where setting_key='ai.user.rolling_limit'),5) daily_limit,
+          coalesce(o.monthly_limit,(select (value#>>'{}')::integer from private.system_settings where setting_key='ai.voice.monthly_limit')) monthly_limit,
+          coalesce((select (value#>>'{}')::boolean from private.system_settings where setting_key='ai.voice.enabled'),true) enabled
+        from (select 1) singleton left join private.ai_user_quota_overrides o
+          on o.user_id=$1 and o.workload='voice_transcription'
+      ), owner_usage as (
+        select count(*) filter(where created_at>statement_timestamp()-interval '24 hours') used,
+          count(*) filter(where created_at>=date_trunc('month',statement_timestamp() at time zone 'UTC') at time zone 'UTC') monthly_used
+        from private.ai_usage_events where user_id=$1 and workload='voice_transcription' and reservation_status<>'released'
+      ), route as (
+        select (limits->>'monthlyBudget')::numeric budget,
+          ((limits->>'inputTokens')::numeric*(max_price->>'prompt')::numeric)
+          +((limits->>'outputTokens')::numeric*(max_price->>'completion')::numeric) reservation
+        from private.ai_feature_routes where workload='voice_transcription' and deleted_at is null
+      ), usage as (
+        select coalesce(sum(estimated_cost) filter(where workload='voice_transcription'),0) spent,
+          coalesce(sum(estimated_cost),0) global_spent from private.ai_usage_events
+        where budget_period=date_trunc('month',current_date)::date and reservation_status in ('reserved','completed','failed')
+      ) select jsonb_build_object('quota',jsonb_build_object('enabled',enabled,'limit',daily_limit,
+          'used',used,'monthlyLimit',monthly_limit,'monthlyUsed',monthly_used),
+        'budgetAvailable',exists(select 1 from route cross join usage where budget>0 and reservation>=0
+          and spent+reservation<budget and global_spent+reservation<coalesce(
+            (select (value#>>'{}')::numeric from private.system_settings where setting_key='ai.global.monthly_budget'),200))) result
+        from quota_policy cross join owner_usage`,[s.ownerId])).rows[0].result;
+      const q = value.quota;
+      assert.equal(q.enabled,true,'VOICE_FEATURE_REQUIRED');
+      assert(Number.isSafeInteger(q.limit) && q.limit>=1 && q.limit<=1000,'VALID_VOICE_QUOTA_REQUIRED');
+      assert(Number.isSafeInteger(q.used) && q.used>=0 && q.used<q.limit,'AVAILABLE_VOICE_QUOTA_REQUIRED');
+      assert(Number.isSafeInteger(q.monthlyUsed) && q.monthlyUsed>=0,'VALID_MONTHLY_USAGE_REQUIRED');
+      assert(q.monthlyLimit===null || (Number.isSafeInteger(q.monthlyLimit) && q.monthlyLimit>=1 &&
+        q.monthlyLimit<=1000000 && q.monthlyUsed<q.monthlyLimit),'AVAILABLE_MONTHLY_VOICE_QUOTA_REQUIRED');
+      assert.equal(value.budgetAvailable,true,'AVAILABLE_VOICE_RESERVATION_BUDGET_REQUIRED');
+      return value;
+    };
     const off = async () => {
       const a = await admission(); assert.equal(a.posting,false); assert.equal(a.activeEpochs,0);
       assert.equal(a.analysisJobs,0); assert.equal(a.assistantJobs,0); assert.equal(a.eligible,true);
@@ -59,6 +97,7 @@ process.stdin.on('end', async () => {
         definer:false,config:['search_path=""'],acl:'{masarifi_migration=X/masarifi_migration}'
       },'EXACT_PRIVATE_DIAGNOSTIC_REQUIRED');
       assert.deepEqual(await finance(),s.baseline);
+      return quotaAvailability();
     };
     const epoch = async () => {
       const e = (await db.query('select *,manifest=$2::jsonb matches from private.staging_voice_epochs where id=$1::uuid',[c.state.epochId,JSON.stringify(c.state.packet)])).rows[0];
@@ -81,9 +120,9 @@ process.stdin.on('end', async () => {
     let result;
     if(c.action==='baseline') result={financial:await finance(),admission:await admission()};
     if(c.action==='readiness'){
-      await off();const a=await admission();assert(a.currentState===null || a.currentState==='closed');
+      const quota=await off();const a=await admission();assert(a.currentState===null || a.currentState==='closed');
       assert.equal(a.migrationSelfGrant,false);
-      result={financial:await finance(),admission:a,diagnosticVerified:true};
+      result={financial:await finance(),admission:a,diagnosticVerified:true,quotaAvailability:quota};
     }
     if(c.action==='reconcile'){
       const rows=(await db.query('select id,manifest_hash,state from private.staging_voice_epochs where manifest=$1::jsonb',[JSON.stringify(c.state.packet)])).rows;
