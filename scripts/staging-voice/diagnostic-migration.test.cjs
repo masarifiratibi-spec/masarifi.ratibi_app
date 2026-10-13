@@ -35,7 +35,13 @@ test('missing expired future or out-of-scope deployment authority rejects', () =
   for (const authority of [null,{}, {receivedAt:now+1,expiresAt:now+60},
     {receivedAt:now-3601,expiresAt:now+60},{receivedAt:now,expiresAt:now},
     {receivedAt:now,expiresAt:1791882001}]) assert.throws(()=>checkAuthority(authority,now));
-  checkAuthority({receivedAt:now-10,expiresAt:now+60},now);
+  checkAuthority({receivedAt:now-10,expiresAt:now+60,dispatchDeadline:now+40},now);
+});
+test('delayed exec past its absolute deadline rejects before acquiring a lock or sending DDL', async () => {
+  const now=1791874800;const calls=[];
+  await assert.rejects(applyDiagnostic({query:async(...args)=>{calls.push(args);}},packet,
+    ()=>checkAuthority({receivedAt:now-10,expiresAt:now+60,dispatchDeadline:now},now)), /DEPLOYMENT_AUTHORITY_EXPIRED/);
+  assert.deepEqual(calls,[]);
 });
 test('held installer lock cannot be misclassified as unchanged pre-commit state', async () => {
   const queries=[];

@@ -73,7 +73,8 @@ async function checkAfter(client, before, packet) {
 function checkAuthority(authority, now = Date.now() / 1000) {
   assert(authority && Number.isFinite(authority.receivedAt) && Number.isFinite(authority.expiresAt) &&
     authority.receivedAt <= now && now - authority.receivedAt <= 3600 && now < authority.expiresAt &&
-    authority.expiresAt <= 1791882000, 'DEPLOYMENT_AUTHORITY_EXPIRED');
+    authority.expiresAt <= 1791882000 && Number.isFinite(authority.dispatchDeadline) &&
+    now < authority.dispatchDeadline && authority.dispatchDeadline <= now + 45, 'DEPLOYMENT_AUTHORITY_EXPIRED');
 }
 async function settledSnapshot(client) {
   const lock = await client.query('select pg_try_advisory_lock($1::bigint) locked', ['5574319470126001']);

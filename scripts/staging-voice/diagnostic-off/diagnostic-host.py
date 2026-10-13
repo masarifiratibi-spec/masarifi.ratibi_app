@@ -6,7 +6,7 @@ API_SOURCE='093b5d0c42f3d68eb2de619aff94b44fbf088a02'
 NODE='/nodejs/bin/node'
 class Host:
  def __init__(self,node):
-  self.node=node;self.deadline=time.monotonic()+300;self.directory=None;self.scope=None;self.reconciled=False;self.approval=None
+  self.node=node;self.deadline=time.monotonic()+300;self.directory=None;self.scope=None;self.reconciled=False;self.approval=None;self.installDeadline=None
  def now(self):return time.time()
  def run(self,args,input=None,limit=30):
   remaining=self.deadline-time.monotonic()
@@ -26,7 +26,7 @@ class Host:
  def database(self,action='read',scope=None):
   request={'action':action,'url':self.environment()['DATABASE_URL']}
   if scope:request.update(packet=scope['packet'],endpoint=scope['endpoint'])
-  if action=='apply':request['authority']={'receivedAt':self.approval['receivedAt'],'expiresAt':scope['expiresAt']}
+  if action=='apply':request['authority']={'receivedAt':self.approval['receivedAt'],'expiresAt':scope['expiresAt'],'dispatchDeadline':self.installDeadline}
   # The credential is private child stdin, never a shell argument, file or output.
   return json.loads(self.run(['docker','exec','-i',API,NODE,'-e',self.node+'\nrunCLI();'],json.dumps(request),50))
  def collect(self):
@@ -73,24 +73,34 @@ class Host:
    json.dump({'status':status,'observedAt':self.now(),'detail':detail},stream);stream.flush();os.fsync(stream.fileno())
  def pull(self,scope):
   self.run(['docker','pull',g.IMAGE],limit=120)
-  image=json.loads(self.run(['docker','image','inspect',g.IMAGE]))[0]
-  g.require(g.IMAGE in image['RepoDigests'] and image['Config']['Labels'].get('org.opencontainers.image.revision')==g.SOURCE,'EXACT_QUALIFIED_IMAGE_REQUIRED')
+  self.image_identity()
   # Fresh preservation and policy check after pulling, before any database DDL.
   self.preflight(scope)
+ def image_identity(self):
+  image=json.loads(self.run(['docker','image','inspect',g.IMAGE]))[0]
+  g.require(g.IMAGE in image['RepoDigests'] and image['Config']['Labels'].get('org.opencontainers.image.revision')==g.SOURCE,'EXACT_QUALIFIED_IMAGE_REQUIRED')
  def apply_once(self,scope):
   g.validate(scope,self.approval,self.now())
   g.require(self.deadline-time.monotonic()>=50,'INSUFFICIENT_BOUNDED_INSTALL_TIME')
+  self.installDeadline=self.now()+40
   self.database('apply',scope)
  def verify(self,scope):
   self.database('verify',scope)
+  self.image_identity()
   current=self.collect();expected={**scope['baseline'],'database':current['database']}
   g.require(current==expected,'HOST_AUTH_ROUTE_PRESERVATION_REQUIRED')
   g.require(current['database']['protected']==scope['baseline']['database']['protected'],'ALL_PROTECTED_ROWS_PRESERVED')
-  return {'migrationVerified':True,'posting':False,'activeEpochs':0,'protectedTableCount':16,'hostAuthRoutesPreserved':True,'retryAllowed':False}
+  return {'scopeHash':g.digest(scope),'migrationVerified':True,'imageStaged':g.IMAGE,'posting':False,'activeEpochs':0,'protectedTableCount':16,'hostAuthRoutesPreserved':True,'retryAllowed':False}
  def reconcile(self,scope):
   # One fresh read determines commit state; never replays DDL or changes any records.
   g.require(not self.reconciled,'ONE_RECONCILIATION_ONLY');self.reconciled=True
   self.deadline+=60
+  # Even a delayed exec which has not acquired its lock cannot start valid DDL
+  # after this absolute deadline. Then the session lock rules out a late commit.
+  if self.installDeadline is not None:
+   wait=max(0,self.installDeadline-self.now()+0.5)
+   g.require(wait<=40.5,'ABSOLUTE_INSTALL_DEADLINE_CHANGED')
+   if wait:time.sleep(wait)
   settled=self.database('settled-read',scope)
   current=self.collect()
   g.require(current['database']==settled,'SETTLED_DATABASE_STATE_CHANGED')
