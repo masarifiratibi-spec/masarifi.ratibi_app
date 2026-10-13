@@ -8,7 +8,7 @@ process.stdin.on('end', async () => {
   let db;
   try {
     const c = JSON.parse(input), s = c.scope;
-    const actions = ['baseline','prepare','reconcile','activate','status','close','verify'];
+    const actions = ['baseline','readiness','prepare','reconcile','activate','status','close','verify'];
     assert(actions.includes(c.action));
     assert.equal(process.env.SUPABASE_URL,'https://qcffvfbpzvpwcwxwjyro.supabase.co');
     const url = new URL(c.url);
@@ -44,8 +44,17 @@ process.stdin.on('end', async () => {
       const a = await admission(); assert.equal(a.posting,false); assert.equal(a.activeEpochs,0);
       assert.equal(a.analysisJobs,0); assert.equal(a.assistantJobs,0); assert.equal(a.eligible,true);
       for(const m of ['20261010221534','20261011002702','20261011004500','20261011004600','20261011005920','20261013053237']) assert(a.migrations.includes(m));
-      const diagnostic=(await db.query("select encode(extensions.digest(prosrc,'sha256'),'hex') body from pg_proc where oid=to_regprocedure('private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)')")).rows[0];
-      assert.equal(diagnostic?.body,'ce00e1b5da381a8baa4ac95f3e6882bb73dbccf107ff8007577e9c5410c1696b');
+      const metadata = async signature => (await db.query(`select encode(extensions.digest(prosrc,'sha256'),'hex') "bodyHash",
+        pg_get_userbyid(proowner) owner,prosecdef definer,proconfig config,proacl::text acl
+        from pg_proc where oid=to_regprocedure($1)`,[signature])).rows[0];
+      assert.deepEqual(await metadata('private.accept_voice_batch(uuid,uuid,jsonb,text)'),{
+        bodyHash:'683de0fd60086962c86b256983b5feadd00f4c300166a82bfc782250de29ebec',owner:'masarifi_migration',
+        definer:true,config:['search_path=""'],acl:'{masarifi_migration=X/masarifi_migration,masarifi_worker=X/masarifi_migration}'
+      },'EXACT_QUALIFIED_ACCEPTANCE_REQUIRED');
+      assert.deepEqual(await metadata('private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)'),{
+        bodyHash:'ce00e1b5da381a8baa4ac95f3e6882bb73dbccf107ff8007577e9c5410c1696b',owner:'masarifi_migration',
+        definer:false,config:['search_path=""'],acl:'{masarifi_migration=X/masarifi_migration}'
+      },'EXACT_PRIVATE_DIAGNOSTIC_REQUIRED');
       assert.deepEqual(await finance(),s.baseline);
     };
     const epoch = async () => {
@@ -68,6 +77,11 @@ process.stdin.on('end', async () => {
     };
     let result;
     if(c.action==='baseline') result={financial:await finance(),admission:await admission()};
+    if(c.action==='readiness'){
+      await off();const a=await admission();assert(a.currentState===null || a.currentState==='closed');
+      assert.equal(a.migrationSelfGrant,false);
+      result={financial:await finance(),admission:a,diagnosticVerified:true};
+    }
     if(c.action==='reconcile'){
       const rows=(await db.query('select id,manifest_hash,state from private.staging_voice_epochs where manifest=$1::jsonb',[JSON.stringify(c.state.packet)])).rows;
       assert(rows.length<=1);result=rows.length?{epochId:rows[0].id,manifestHash:rows[0].manifest_hash,state:rows[0].state}:null;

@@ -26,6 +26,19 @@ class Inert(h.LocalHost):
  def route_guard(self):raise RuntimeError('UNRELATED_ROUTE_DRIFT')
 
 class Tests(unittest.TestCase):
+ def test_preflight_requires_readonly_diagnostic_admission_before_claim(self):
+  with tempfile.TemporaryDirectory() as t:
+   s,a=fixture();x=h.LocalHost(pathlib.Path(t)/'unclaimed',s,a);calls=[]
+   x.cohort=lambda *args:None;x.candidate=lambda:{'State':{'Running':False}}
+   x.route_guard=lambda:None;x.auth=lambda:None;x.pin=lambda *args:None;x.run=lambda *args,**kwargs:''
+   route=b'INERT';s['nginxBeforeHash']=h.sha(route)
+   def database(action,state=None):
+    calls.append(action)
+    return {'diagnosticVerified':False,'financial':s['baseline']}
+   x.database=database
+   with patch.object(h.socket,'gethostname',return_value=h.g.HOST),patch.object(h.os,'getuid',return_value=0,create=True),patch.object(pathlib.Path,'read_bytes',return_value=route),patch.object(h.socket,'socket'):
+    with self.assertRaisesRegex(RuntimeError,'QUALIFIED_DIAGNOSTIC'):x.preflight(s)
+   self.assertEqual(calls,['readiness']);self.assertFalse(x.root.exists())
  def test_retained_api_uses_its_qualified_image_not_the_new_worker_image(self):
   s,a=fixture();x=h.LocalHost(P,s,a)
   c={'Config':{'Image':h.g.API_IMAGE},'HostConfig':{},'Mounts':[]}

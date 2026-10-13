@@ -139,7 +139,7 @@ class LocalHost:
   g.require(value['currentEpochMatches'] and value['state']=='prepared' and value['posting'] is False and value['members']==0,'PREPARED_OFF_FORWARD_FENCE_REQUIRED')
   self.qualified();self.cohort();self.candidate();self.route_guard()
  def database(self,action,state=None):
-  g.require(action in ['baseline','prepare','reconcile','activate','status','close','verify'],'DATABASE_ACTION_REQUIRED')
+  g.require(action in ['baseline','readiness','prepare','reconcile','activate','status','close','verify'],'DATABASE_ACTION_REQUIRED')
   if state is not None:self.guard(state)
   self.pin('/etc/masarifi/migration.env',self.scope['envHashes']['migration.env'])
   self.pin('/etc/masarifi/supabase-ca.crt',self.scope['caHash'])
@@ -166,7 +166,7 @@ class LocalHost:
   g.require(not self.root.exists(),'ATTEMPT_ALREADY_CONSUMED')
   g.require(not self.run(['docker','ps','-a','--filter','name=^/masarifi-canary-worker-'+scope['attempt']+'$','--format','{{.ID}}']),'WRITER_NAME_ALREADY_USED')
   with socket.socket() as probe:probe.bind(('127.0.0.1',3003))
-  observed=self.database('baseline');g.require(observed['financial']==scope['baseline'],'FINANCIAL_BASELINE_CHANGED')
+  observed=self.database('readiness');g.require(observed['diagnosticVerified'] is True and observed['financial']==scope['baseline'],'QUALIFIED_DIAGNOSTIC_AND_FINANCIAL_BASELINE_REQUIRED')
   a=observed['admission'];g.require(a['posting'] is False and a['activeEpochs']==0 and a['analysisJobs']==0 and a['assistantJobs']==0 and a['eligible'] and a['currentState'] in [None,'closed'] and a['migrationSelfGrant'] is False,'OFF_IDLE_ELIGIBLE_REQUIRED')
  def claim(self,scope,approval):
   self.root.mkdir(mode=0o700)
