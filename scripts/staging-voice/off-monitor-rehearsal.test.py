@@ -102,6 +102,67 @@ class OffOnlyRehearsal(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(adapter, 'A separate executable OFF-only adapter is unavailable')
 
+    def promoted_host(self):
+        host = FixtureHost()
+        host.packet['version'] = 2
+        ingress = existing.container('masarifi-staging-api-qualification-e6463072-36bc-44db-9ff9-e937c08e7afb',
+                                     '8' * 64, 'api', source='e' * 40, image_digest='d' * 64)
+        host.containers[ingress['Id']] = ingress
+        host.packet['readOnlyIngress'] = {
+            'name': ingress['Name'][1:], 'id': ingress['Id'], 'sourceSha': 'e' * 40,
+            'imageDigest': 'd' * 64, 'configurationHash': adapter.configuration_hash(ingress)}
+        cohort = host.packet['cohort']
+        cohort['containerIDs'].append(ingress['Id'])
+        cohort['runningIDs'].append(ingress['Id'])
+        proof_path = str(host.root / 'backup-restore.json')
+        proof = json.loads(host.files[proof_path])
+        proof['cohortHash'] = adapter.operating.canonical_hash({key: value for key, value in cohort.items()
+            if key not in ('backupDigest', 'backupRestoreReceiptHash')})
+        host.files[proof_path] = json.dumps(proof).encode()
+        cohort['backupRestoreReceiptHash'] = hash_bytes(host.files[proof_path])
+        approve(host.packet)
+        return host
+
+    def test_promoted_ingress_and_original_compose_api_are_both_preserved(self):
+        host = self.promoted_host()
+        before = copy.deepcopy(host.containers)
+        receipt = adapter.rehearse(host.packet, host)
+        self.assertTrue(receipt['helpersStoppedConfirmed'])
+        self.assertEqual(before, host.containers)
+        self.assertEqual(len(host.runners), 2)
+        self.assertFalse(any(entry['State']['Running'] for entry in host.runners.values()))
+        self.assertFalse(any(command[:2] in (['docker', 'start'], ['docker', 'stop']) and
+            command[-1] in host.containers for command in host.commands))
+
+    def test_promoted_ingress_drift_blocks_before_creating_any_helper(self):
+        for field, value in [('Running', False), ('Image', existing.IMAGE_PREFIX + 'a' * 64),
+                             ('Env', ['SUPABASE_URL=https://foreign.supabase.co'])]:
+            with self.subTest(field=field):
+                host = self.promoted_host()
+                section = 'State' if field == 'Running' else 'Config'
+                host.containers['8' * 64][section][field] = value
+                with self.assertRaises(existing.adapter.GuardError): adapter.rehearse(host.packet, host)
+                self.assertFalse(host.runners)
+        host = self.promoted_host()
+        host.containers['2' * 64]['State']['Running'] = False
+        with self.assertRaises(existing.adapter.GuardError): adapter.rehearse(host.packet, host)
+        self.assertFalse(host.runners)
+
+    def test_promoted_ingress_command_boundary_allows_inspection_only(self):
+        host = self.promoted_host()
+        native = adapter.RehearsalHost('/not-a-live-scope')
+        native.read_json, native.read_runner, native.target = host.read_json, host.read_runner, host.target
+        native.now = host.now
+        native.root = host.root
+        native.pin = host.pin
+        with patch.object(existing.adapter.LocalHost, 'run', return_value='INSPECTED') as boundary:
+            self.assertEqual(native.run(['docker', 'inspect', '8' * 64]), 'INSPECTED')
+            boundary.assert_called_once()
+            boundary.reset_mock()
+            for command in (['docker', 'start', '8' * 64], ['docker', 'stop', '--time', '1', '8' * 64]):
+                with self.assertRaises(existing.adapter.GuardError): native.run(command)
+            boundary.assert_not_called()
+
     def test_short_verbatim_approval_is_preserved_without_padding(self):
         host = FixtureHost()
         host.packet['approval']['verbatimMessage'] = 'Approve'

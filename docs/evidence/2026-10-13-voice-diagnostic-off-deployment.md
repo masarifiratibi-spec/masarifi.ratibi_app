@@ -1,6 +1,6 @@
 # Voice diagnostic deployment and next financial acceptance
 
-13 October 2026, Staging only. Recovery branch and existing unrelated uncommitted work are preserved. No Production, device, replay or new financial operation was performed.
+13 October 2026, Staging only. Recovery branch and existing unrelated uncommitted work are preserved. No Production, device or replay operation was performed. One separately approved new financial canary completed as recorded below.
 
 ## Completed deployment
 
@@ -39,3 +39,19 @@ CI 38362173386, source 6c6d33fcb4349965d62a6a2b8547edb175ecc248, passed 18 actua
 Fresh read-only readiness at 10:25:59 Riyadh again verifies posting OFF, no queued work, original finance/session/cohort and exact diagnostic metadata. A separate protected snapshot preserves 15 original hashes, excluding the one authorized new closed epoch; the runtime epoch pointer is the expected control metadata change. Legacy Voice and financial data remain unchanged.
 
 The unapproved replacement scope is 60109434985c22b3707fe8372997b0c9d84e4f6bac006269bc7562471ca2d237, attempt 74943692-b010-46f3-9e61-019a6d915c59, at `E:/Masarifi-three-changes-2026-10-12/voice-diagnostic-canary-preparation/serialization-correction`. It retains the same one-new-10-SAR allowance and all original service/financial/deadline/shutdown limits, explicitly declaring the known-rollback-only activation handling. The parent approved packet and attempt remain frozen. Final independent packet review and a new direct approval are required; the consumed c91cde0e approval cannot authorize another begin.
+
+## Approved financial acceptance succeeded, 10:34–10:36 Riyadh
+
+The preceding proposal is now historical. Direct approval `call_4138da13bbee46b9aab94b5e84e24cd1`, answer “Approve this replacement canary once; financial testing paused”, authorized scope 60109434 once. Attempt 74943692 was consumed once, executor returned READY with exit 0 and empty stderr, and no executor retry occurred. Epoch `73154b8a-e623-43f8-980e-2bdbad5ac47d` activated at 10:35:04.249 Riyadh, within its original five-minute window ending 10:39:41.400. The user reported “Submitted once” under READY reply `call_15cec434056f46e789be609f320f8ec8`.
+
+Fresh recording session `b0ff135b-a214-45f2-8ef8-edb641bddf21` was captured at 10:36:03.641 and confirmed at 10:36:21.790. Google Vertex / `google/gemini-3.5-flash-lite` completed one provider attempt. Batch `7fa8dfcf-c1b7-428f-9052-cdec99d7b02a` completed, and its single event `66aab611-ec8e-4d79-b758-2a8b86b158e1` committed transaction `919e2cef-4602-49c1-a626-95549ae530f6`. It is one confirmed 10 SAR Shopping expense with one −1000-minor-unit confirmed Test-account posting. Two completed idempotency receipts cover session creation (201) and processing (202); no additional Voice submission or duplicate financial test was performed.
+
+Two matching automatic financial-verification receipts and a separate fresh read-only reconciliation confirm 5 accounts, 34 transactions and 34 postings. Test confirmed balance changed −310→−320 SAR, pending stayed 0, ledger version changed 4→5. All old transactions/postings, accounts, other account balances and immutable Test balance fields match the qualified baseline. No historic 10 SAR, 50 SAR or legacy capture was replayed or posted.
+
+Automatic closure reason was `completed`, before the deadline. Both closure receipts report posting OFF, owned worker stopped, original routes/services restored and no blockers. Read-only reconciliation confirms the epoch closed with one member/commit; the owned financial worker and retained API on 3003 are stopped; the systemd monitor finished successfully with exit 0 and no recorded runtime errors. The original public API and Analysis worker are restored. No subsequent lifecycle command was needed.
+
+The additional read-only `collect-success-preservation.py` verifies the exact original active mobile Clerk session/hash. Nine full-row historic Voice/member/idempotency fingerprints match the pre-deployment baseline after excluding only the current fresh session's rows and the two new idempotency receipts. Financial and authentication preservation are independently reviewed PASS in `CANARY-RESULT-INDEPENDENT-REVIEW.md`. The original phone journal/audio was not reread, modified or replayed in this server-only test.
+
+Evidence: `retained-result-1791877001654182100.json`, `attempt-60109434-readonly-reconciliation-1791877004741486000.json`, the timestamped `success-preservation-*.json`, consumed execution/transport receipts and the independent result review in the frozen serialization-correction directory. The actual activation receipt does not expose retry count; success does not assert a real serialization retry occurred. Duplicate behavior is separately qualified by actual disposable database execution, not by resubmitting the user's real recording.
+
+This completes the approved bounded financial acceptance. The historic rejected predicate remains unavailable; the diagnostic defect and activation race handling are qualified without weakening financial validation. Posting is currently OFF. Indefinite customer operating mode and any further real transaction remain separately approval-gated. Reuse the installed Shopping/zero APK and qualified API/worker images; do not repeat this successful canary merely to qualify the next scope.

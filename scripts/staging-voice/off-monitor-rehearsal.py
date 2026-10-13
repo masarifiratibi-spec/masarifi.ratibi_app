@@ -29,8 +29,11 @@ def configuration_hash(container):
 def validate_packet(packet, now):
     fields = {'version', 'kind', 'host', 'project', 'generation', 'sourceSha', 'imageDigest',
               'expiresAt', 'requiredMigrations', 'files', 'cohort', 'baseline', 'financialEpochAuthority', 'approval'}
-    require(isinstance(packet, dict) and set(packet) == fields, 'OFF_PACKET_FIELDS_INVALID')
-    require(type(packet['version']) is int and packet['version'] == 1 and
+    require(isinstance(packet, dict), 'OFF_PACKET_FIELDS_INVALID')
+    promoted = packet.get('version') == 2
+    if promoted: fields.add('readOnlyIngress')
+    require(set(packet) == fields, 'OFF_PACKET_FIELDS_INVALID')
+    require(type(packet['version']) is int and packet['version'] in (1, 2) and
             packet['kind'] == 'posting-off-helper-rehearsal' and packet['host'] == 'srv2006836' and
             packet['project'] == operating.PROJECT, 'OFF_STAGING_SCOPE_REQUIRED')
     require(operating.UUID.fullmatch(packet['generation']) and operating.SHA.fullmatch(packet['sourceSha']) and
@@ -50,6 +53,17 @@ def validate_packet(packet, now):
             set(packet['files']) == {'customer-operating-cohort.py', 'off-monitor-rehearsal.py'} and
             all(operating.valid_hash(value) for value in packet['files'].values()), 'OFF_CONTROL_PINS_REQUIRED')
     validate_cohort(packet['cohort'], now)
+    if promoted:
+        ingress = packet['readOnlyIngress']
+        require(isinstance(ingress, dict) and set(ingress) ==
+                {'name', 'id', 'sourceSha', 'imageDigest', 'configurationHash'} and
+                isinstance(ingress['name'], str) and ingress['name'].startswith('masarifi-staging-api-qualification-') and
+                operating.UUID.fullmatch(ingress['name'][len('masarifi-staging-api-qualification-'):]) and
+                operating.SHA.fullmatch(ingress['sourceSha']) and
+                all(operating.valid_hash(ingress[key]) for key in ('id', 'imageDigest', 'configurationHash')) and
+                ingress['id'] in packet['cohort']['runningIDs'] and
+                ingress['id'] not in {entry['id'] for entry in packet['cohort']['services']},
+                'OFF_PROMOTED_INGRESS_PINS_REQUIRED')
     checked_snapshot(packet['baseline'], packet)
     return packet
 
@@ -122,6 +136,18 @@ def preserved_cohort(packet, host):
             require(operating.environment(container).get('MASARIFI_VOICE_ANALYSIS_ONLY') == 'true', 'OFF_ANALYSIS_MODE_REQUIRED')
         if entry['service'] == 'assistant-worker':
             require(operating.environment(container).get('MASARIFI_AI_ASSISTANT_ONLY') == 'true', 'OFF_ASSISTANT_SCOPE_REQUIRED')
+    if packet['version'] == 2:
+        ingress = packet['readOnlyIngress']
+        container = host.inspect(ingress['id'])
+        require(container['Id'] == ingress['id'] and container['Name'] == '/' + ingress['name'] and
+                container['State']['Running'] is True and
+                container['HostConfig']['NetworkMode'] == operating.NETWORK and
+                container['Config']['Image'] == operating.IMAGE_PREFIX + ingress['imageDigest'] and
+                configuration_hash(container) == ingress['configurationHash'], 'OFF_PROMOTED_INGRESS_CHANGED')
+        env = operating.environment(container)
+        require(env.get('SUPABASE_URL') == 'https://' + operating.PROJECT + '.supabase.co' and
+                env.get('MASARIFI_RELEASE_VERSION') == ingress['sourceSha'] and
+                env.get('MASARIFI_VOICE_ANALYSIS_ONLY') == 'true', 'OFF_PROMOTED_INGRESS_MODE_CHANGED')
     helper_ids, running_helpers = set(), set()
     for role in ('control', 'close'):
         journal = host.read_runner(role)
@@ -301,6 +327,8 @@ class RehearsalHost(operating.LocalHost):
         if packet:
             allowed |= len(command) == 3 and command[:2] == ['docker', 'inspect'] and command[-1] in {
                 entry[key] for entry in packet['cohort']['services'] for key in ('name', 'id')}
+            if packet['version'] == 2:
+                allowed |= command == ['docker', 'inspect', packet['readOnlyIngress']['id']]
         allowed |= command in ([ 'docker', 'ps', '--no-trunc', '--format', '{{.ID}}'],
                               ['docker', 'ps', '-a', '--no-trunc', '--format', '{{.ID}}'])
         allowed |= any(command == ['docker', 'ps', '-a', '--filter', 'name=^/' + name + '$', '--format', '{{.Names}}'] for name in names)
