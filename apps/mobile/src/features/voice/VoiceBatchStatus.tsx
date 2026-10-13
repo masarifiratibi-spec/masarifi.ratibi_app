@@ -31,7 +31,7 @@ export function VoiceBatchStatus({
             );
           })
         : null}
-      {showProgress && (batches.processing || batches.uncertain) ? (
+      {showProgress && batches.processing ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
       {result?.status === 'completed' &&

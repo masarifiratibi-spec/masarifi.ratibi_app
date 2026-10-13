@@ -125,9 +125,7 @@ export function HomeSummary({
     'confirmation_unknown'
   ].includes(voice.session.state);
   const batchProcessing =
-    !voiceRecording &&
-    voice.automatic &&
-    (voice.batches.processing || voice.batches.uncertain);
+    !voiceRecording && voice.automatic && voice.batches.processing;
   const voiceProcessing = captureProcessing || batchProcessing;
   const progressLabel = translate('voice.state.processing');
   const unclearAudio =

@@ -32,3 +32,32 @@ it.each([
     expect(screen.queryByRole('button')).toBeNull();
   }
 );
+
+it.each(['ar', 'en'] as const)(
+  'does not describe background recovery uncertainty as recording analysis in %s',
+  (locale) => {
+    changeLocale(locale);
+    renderWithProviders(
+      <VoiceBatchStatus
+        batches={{
+          submit: jest.fn(),
+          recover: async () => undefined,
+          cancel: async () => undefined,
+          results: [],
+          pendingIds: ['old-capture'],
+          cancelIds: ['old-capture'],
+          uncertain: true,
+          processing: false,
+          localFailure: false,
+          localFailureCode: undefined,
+          latest: null
+        }}
+      />
+    );
+    expect(
+      screen.queryByText(
+        locale === 'ar' ? 'جاري تحليل التسجيل...' : 'Analyzing recording...'
+      )
+    ).toBeNull();
+  }
+);

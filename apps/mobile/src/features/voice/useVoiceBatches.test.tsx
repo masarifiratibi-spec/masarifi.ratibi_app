@@ -1,4 +1,5 @@
 import React from 'react';
+import { AppState } from 'react-native';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { voiceAnalyzerService } from '@/services/voice-analyzer-service';
@@ -57,8 +58,9 @@ function mount() {
     defaultOptions: { queries: { retry: false } }
   });
   let batches!: ReturnType<typeof useVoiceBatches>;
+  let owner = 'fixture-owner';
   function Harness() {
-    batches = useVoiceBatches('fixture-owner');
+    batches = useVoiceBatches(owner);
     return <VoiceBatchStatus batches={batches} />;
   }
   const view = render(
@@ -71,12 +73,209 @@ function mount() {
     get batches() {
       return batches;
     },
+    setOwner(next: string) {
+      owner = next;
+      view.rerender(
+        <QueryClientProvider client={client}>
+          <Harness />
+        </QueryClientProvider>
+      );
+    },
     unmount() {
       view.unmount();
       client.clear();
     }
   };
 }
+
+it.each(['ar', 'en'] as const)(
+  'keeps an old queued receipt recoverable without showing current analysis in %s',
+  async (locale) => {
+    const previousLocale = currentLocale();
+    changeLocale(locale);
+    const oldCapture = '66666666-6666-4666-8666-666666666666';
+    const oldSession = '77777777-7777-4777-8777-777777777777';
+    const queued = { ...receipt('queued'), sessionId: oldSession };
+    const completed = {
+      ...receipt('completed'),
+      addedCount: 1,
+      transactionIds: [capture],
+      ledgerVersion: 10
+    };
+    const recover = jest.fn(async () => ({
+      ...empty,
+      results: [queued, completed],
+      pendingIds: [oldCapture],
+      localSessions: { [oldCapture]: oldSession }
+    }));
+    const runBatch = jest.fn(async () => receipt('completed'));
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: recover,
+      runBatch,
+      pauseBatches: () => undefined
+    });
+    const view = mount();
+    try {
+      await waitFor(() => expect(view.batches.latest).toEqual(completed));
+      expect(view.batches.results).toContainEqual(queued);
+      expect(view.batches.pendingIds).toEqual([oldCapture]);
+      expect(view.batches.processing).toBe(false);
+      expect(
+        screen.queryByText(translate('voice.state.processing'))
+      ).toBeNull();
+      await act(async () => view.batches.recover());
+      expect(recover).toHaveBeenCalledTimes(2);
+      expect(view.batches.pendingIds).toEqual([oldCapture]);
+      expect(runBatch).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      changeLocale(previousLocale);
+    }
+  }
+);
+
+it('shows a new capture until its receipt settles while preserving an older pending capture', async () => {
+  const oldCapture = '66666666-6666-4666-8666-666666666666';
+  const oldSession = '77777777-7777-4777-8777-777777777777';
+  const queued = { ...receipt('queued'), sessionId: oldSession };
+  let finish!: (result: VoiceBatchResult) => void;
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: async () => ({
+      ...empty,
+      results: [queued],
+      pendingIds: [oldCapture],
+      localSessions: { [oldCapture]: oldSession }
+    }),
+    runBatch: () =>
+      new Promise<VoiceBatchResult>((resolve) => {
+        finish = resolve;
+      }),
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await waitFor(() => expect(view.batches.results).toContainEqual(queued));
+    act(() => view.batches.submit(capture));
+    expect(view.batches.processing).toBe(true);
+    expect(screen.getByText(translate('voice.state.processing'))).toBeTruthy();
+    await act(async () => finish(receipt('queued')));
+    expect(view.batches.processing).toBe(true);
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => ({
+        ...empty,
+        results: [queued, receipt('completed')],
+        pendingIds: [oldCapture],
+        localSessions: { [oldCapture]: oldSession, [capture]: session }
+      })
+    });
+    await act(async () => view.batches.recover());
+    expect(view.batches.pendingIds).toEqual([oldCapture]);
+    expect(view.batches.results).toContainEqual(queued);
+    expect(view.batches.processing).toBe(false);
+    expect(screen.queryByText(translate('voice.state.processing'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
+it('drops former-owner foreground progress and ignores its late receipt after an owner change', async () => {
+  const otherCapture = '66666666-6666-4666-8666-666666666666';
+  const otherSession = '77777777-7777-4777-8777-777777777777';
+  const otherQueued = { ...receipt('queued'), sessionId: otherSession };
+  let finish!: (result: VoiceBatchResult) => void;
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: jest
+      .fn()
+      .mockResolvedValueOnce(empty)
+      .mockResolvedValue({
+        ...empty,
+        results: [otherQueued],
+        pendingIds: [otherCapture],
+        localSessions: { [otherCapture]: otherSession }
+      }),
+    runBatch: () =>
+      new Promise<VoiceBatchResult>((resolve) => {
+        finish = resolve;
+      }),
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {});
+    act(() => view.batches.submit(capture));
+    expect(view.batches.processing).toBe(true);
+    await act(async () => view.setOwner('other-owner'));
+    expect(view.batches.pendingIds).toEqual([otherCapture]);
+    expect(view.batches.processing).toBe(false);
+    await act(async () => finish(receipt('completed')));
+    expect(view.batches.results).toEqual([otherQueued]);
+    expect(view.batches.pendingIds).toEqual([otherCapture]);
+    expect(view.batches.processing).toBe(false);
+    expect(screen.queryByText(translate('voice.state.processing'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
+it('continues polling old pending work silently after reopening the runtime', async () => {
+  jest.useFakeTimers();
+  const previousState = AppState.currentState;
+  AppState.currentState = 'active';
+  const recover = jest.fn(async () => ({
+    ...empty,
+    results: [receipt('queued')],
+    pendingIds: [capture],
+    localSessions: { [capture]: session }
+  }));
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: recover,
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {});
+    expect(view.batches.processing).toBe(false);
+    await act(async () => {
+      jest.advanceTimersByTime(10000);
+    });
+    expect(recover).toHaveBeenCalledTimes(2);
+    expect(view.batches.pendingIds).toEqual([capture]);
+    expect(view.batches.results).toEqual([receipt('queued')]);
+    expect(screen.queryByText(translate('voice.state.processing'))).toBeNull();
+  } finally {
+    view.unmount();
+    AppState.currentState = previousState;
+    jest.useRealTimers();
+  }
+});
+
+it('keeps an uncertain new capture visible until its authoritative receipt arrives', async () => {
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: async () => empty,
+    runBatch: jest.fn().mockRejectedValue(new Error('response lost')),
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {});
+    await act(async () => view.batches.submit(capture));
+    expect(view.batches.uncertain).toBe(true);
+    expect(view.batches.processing).toBe(true);
+    expect(screen.getByText(translate('voice.state.processing'))).toBeTruthy();
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => ({
+        ...empty,
+        results: [receipt('completed')],
+        localSessions: { [capture]: session }
+      })
+    });
+    await act(async () => view.batches.recover());
+    expect(view.batches.processing).toBe(false);
+    expect(screen.queryByText(translate('voice.state.processing'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
 
 it.each(['ar', 'en'] as const)(
   'does not show recording analysis while refreshing completed historical finance in %s',

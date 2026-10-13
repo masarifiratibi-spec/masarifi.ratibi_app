@@ -26,6 +26,7 @@ export function useVoiceBatches(owner: string | null) {
   ownerRef.current = owner;
   const recovering = useRef<number | null>(null);
   const active = useRef(new Set<string>());
+  const foregroundCaptures = useRef(new Set<string>());
   const settled = useRef(new Set<string>());
   const receipts = useRef(new Map<string, VoiceBatchResult>());
   const localSessions = useRef<Record<string, string>>({});
@@ -208,6 +209,7 @@ export function useVoiceBatches(owner: string | null) {
     setLocalFailureCode(undefined);
     setFinanceRefreshPending(false);
     active.current.clear();
+    foregroundCaptures.current.clear();
     settled.current.clear();
     receipts.current.clear();
     localSessions.current = {};
@@ -235,6 +237,7 @@ export function useVoiceBatches(owner: string | null) {
   }, [owner, recover, invalidateGeneration, client]);
   const submit = (id: string) => {
     const expected = generation.current;
+    foregroundCaptures.current.add(id);
     active.current.add(id);
     setLocalFailure(false);
     setLocalFailureCode(undefined);
@@ -351,10 +354,16 @@ export function useVoiceBatches(owner: string | null) {
     uncertain: uncertainIds.length > 0,
     localFailure,
     localFailureCode,
+    // Historical recovery continues silently; it is not a new recording.
     processing:
-      pendingIds.length > 0 ||
+      pendingIds.some((id) => foregroundCaptures.current.has(id)) ||
       results.some(
-        (row) => !['completed', 'cancelled', 'failed'].includes(row.status)
+        (row) =>
+          !terminal(row.status) &&
+          Object.entries(localSessions.current).some(
+            ([id, session]) =>
+              foregroundCaptures.current.has(id) && session === row.sessionId
+          )
       ),
     latest: results.at(-1) ?? null
   };
