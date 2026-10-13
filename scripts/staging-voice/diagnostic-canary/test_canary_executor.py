@@ -1,11 +1,22 @@
 """One-shot local authorization boundary; transport is always inert."""
-import hashlib,importlib.util,json,os,pathlib,socket,stat,tempfile,types,unittest
+import hashlib,importlib.util,json,os,pathlib,socket,stat,sys,tempfile,types,unittest
 from unittest.mock import patch
 from test_canary_control import fixture,NOW
 sp=importlib.util.spec_from_file_location('executor',pathlib.Path(__file__).with_name('execute-approved-canary.py'))
 e=importlib.util.module_from_spec(sp);sp.loader.exec_module(e)
 
 class Tests(unittest.TestCase):
+ def test_arabic_approval_crosses_real_pipe_under_legacy_windows_encoding(self):
+  s,a=fixture();a['verbatim']='أوافق على الاختبار مرة واحدة'
+  packet={'scope':s,'approval':a,'files':{}}
+  # A real disposable child receives the packet; no SSH or hosted control runs.
+  child="import sys,json; body=sys.stdin.buffer.read().decode('utf-8'); assert bytes.fromhex('"+a['verbatim'].encode('utf-8').hex()+"').decode('utf-8') in body; print(json.dumps({'status':'AUTHORIZED_SINGLE_FRESH_10_SAR_WINDOW_READY'}))"
+  with tempfile.TemporaryDirectory() as folder:
+   root=pathlib.Path(folder);(root/'scope.json').write_text(json.dumps(s));(root/'approval.json').write_text(json.dumps(a))
+   with patch.object(e,'HERE',root),patch.object(e,'checked_packet',return_value=packet),patch.object(e,'SSH',[sys.executable,'-c',child]),patch.object(e.subprocess,'_text_encoding',return_value='cp1252'),patch.object(e.sys,'argv',['executor',str(root/'scope.json'),str(root/'approval.json')]):
+    e.main()
+   result=json.loads((root/('execution-'+s['attempt'])/'stdout.jsonl').read_text())
+   self.assertEqual(result['status'],'AUTHORIZED_SINGLE_FRESH_10_SAR_WINDOW_READY')
  def test_foreign_owned_runtime_never_dispatches_cleanup(self):
   s,a=fixture()
   with tempfile.TemporaryDirectory() as folder,patch.object(e.subprocess,'run') as transport:

@@ -79,7 +79,7 @@ def main():
  attempt=HERE/('execution-'+scope['attempt']);attempt.mkdir()
  (attempt/'consumed.json').write_text(json.dumps({'scopeHash':g.digest(scope),'consumedAt':time.time(),'approvalReference':approval['messageReference']}),encoding='utf-8')
  try:
-  result=subprocess.run(SSH,input=remote_source(packet),capture_output=True,text=True,timeout=530)
+  result=subprocess.run(SSH,input=remote_source(packet),capture_output=True,text=True,encoding='utf-8',timeout=530)
   (attempt/'stdout.jsonl').write_text(result.stdout,encoding='utf-8')
   (attempt/'transport.json').write_text(json.dumps({'returncode':result.returncode,'stderrSha256':hashlib.sha256(result.stderr.encode()).hexdigest(),'neverRetry':True}),encoding='utf-8')
   if result.returncode:raise RuntimeError('APPROVED_ATTEMPT_REQUIRES_READ_ONLY_RECONCILIATION')
