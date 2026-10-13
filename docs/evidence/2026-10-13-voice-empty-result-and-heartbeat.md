@@ -25,7 +25,11 @@ Regression tests reproduced both defects before the production changes. After th
 - API and Mobile TypeScript checks and targeted ESLint checks pass. The initial API test lint findings were corrected; the focused worker suite was rerun successfully afterward.
 - Workflow YAML parses. The dedicated qualification workflow runs only relevant regression checks and a disposable runner database. Two additional database cases verify repeated acknowledged heartbeats preserve a committed fixture's ledger/session and do not reopen a closed epoch. Hosted Staging credentials are not supplied to this workflow.
 
-Independent source review is retained privately outside Git. Disposable database CI results must be verified before release qualification is claimed.
+Independent source review is retained privately outside Git. [CI run 38416326128](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/38416326128) at `b8e2d46e1e0ba35ba201a9daa60396f2702076ad` completed successfully: 57 API, 23 Mobile, and 66 actual disposable database tests, all with zero failures. The first CI attempt exposed a premature assertion in the mixed-receipt test; waiting for its visible query notification fixed the test without changing production code or increasing its timeout.
+
+The local signed Staging APK has SHA-256 `55df69b435348d8788de59c1865904e18098ad39a0aa879f53d56384e61542a9`. Independent signature/ZIP comparison confirms the original certificate, 92 native libraries, six DEX files, manifest and resources are preserved. Only `assets/index.android.bundle` differs from the installed qualified base. It has not been installed or physically accepted.
+
+The dispatch-only image qualification workflow binds both successful CI jobs to the exact branch, workflow path and source SHA, refuses application drift, then exercises container contracts and vulnerability scanning before publishing an immutable CI image. It supplies no hosted deployment or activation command. Image qualification is pending until that separate workflow completes.
 
 ## Preservation and release boundaries
 
