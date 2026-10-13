@@ -16,6 +16,7 @@ on:
       - scripts/staging-voice/operating-lifecycle.test.py
       - scripts/staging-voice/promoted-operating.py
       - scripts/staging-voice/promoted-operating.test.py
+      - scripts/staging-voice/fixtures/voice-progress-apk-compatibility.json
       - scripts/staging-voice/customer-operating-cohort.py
       - scripts/staging-voice/diagnostic-canary/canary-host.py
       - scripts/staging-voice/diagnostic-canary/canary-control.py
@@ -66,6 +67,7 @@ jobs:
                  ['operating-ingress.py','operating-ingress.test.py','operating-lifecycle.py',
                   'operating-lifecycle.test.py','promoted-operating.py','promoted-operating.test.py',
                   'operating-db.cjs','operating-db.test.cjs','qualify-operating-db.cjs',
+                  'fixtures/voice-progress-apk-compatibility.json',
                   'customer-operating-cohort.py','diagnostic-canary/canary-host.py',
                   'diagnostic-canary/canary-control.py']]
           paths.append(pathlib.Path('.github/workflows/voice-promoted-operating.yml'))

@@ -43,6 +43,9 @@ PROOF_TYPES = {'helperOff':'posting-off-helper-rehearsal',
                'backupRestore':'selected-financial-backup-restore',
                'backendCI':'backend-source-ci', 'controllerCI':'operating-controller-source-ci',
                'apkRuntime':'retained-apk-delivery-and-native-reuse'}
+# Only the independently qualified507f→29c4 display delta may reuse its canary.
+UI_APK_COMPATIBILITY_DIGEST = '730af0becc9e1f3f2e6a98e7a6935566a5254bbf4e88243082d37b1708d1af9e'
+APK_COMPATIBILITY_PROOF_TYPE = 'exact-ui-only-canary-apk-compatibility'
 CONTROLLER_SOURCE_PATHS={name:'scripts/staging-voice/'+
                          ('diagnostic-canary/' if name in ['canary-host.py','canary-control.py'] else '')+name
                          for name in CONTROLLER_FILES}
@@ -67,7 +70,7 @@ def validate_packet(packet, approval, now, activation=True):
               'preservedWorkers','otherContainers','requiredMigrations','apiContracts','baseline',
               'artifacts','proofs','routes','database','apk','incident','recovery'}
     require(isinstance(packet,dict) and set(packet)==fields, 'OPERATING_PACKET_FIELDS_INVALID')
-    require(packet['kind']=='promoted-staging-voice-operating' and packet['version']==2 and
+    require(packet['kind']=='promoted-staging-voice-operating' and packet['version'] in (2,3) and
             type(packet['version']) is int and packet['mode']=='operating','OPERATING_PACKET_REQUIRED')
     require(packet['project']==legacy.PROJECT and packet['host']=='srv2006836' and
             legacy.UUID.fullmatch(packet['generation']) and legacy.SHA.fullmatch(packet['controlSourceSha']),
@@ -130,20 +133,35 @@ def validate_packet(packet, approval, now, activation=True):
     require(set(routes)=={'beforeHash','afterHash','includes'} and valid_hash(routes['beforeHash']) and
             valid_hash(routes['afterHash']) and routes['beforeHash']!=routes['afterHash'] and
             isinstance(routes['includes'],list),'EXACT_ROUTE_PINS_REQUIRED')
-    require(set(packet['proofs'])==set(PROOF_TYPES),'SEPARATE_RAW_PROOF_TYPES_REQUIRED')
-    for name,kind in PROOF_TYPES.items():
+    proof_types=dict(PROOF_TYPES)
+    if packet['version']==3:proof_types['apkCompatibility']=APK_COMPATIBILITY_PROOF_TYPE
+    require(set(packet['proofs'])==set(proof_types),'SEPARATE_RAW_PROOF_TYPES_REQUIRED')
+    for name,kind in proof_types.items():
         entry=packet['proofs'][name]
         require(entry.get('type')==kind and isinstance(entry.get('path'),str) and valid_hash(entry.get('sha256')),
                 'RAW_PROOF_TYPE_BINDING_REQUIRED')
     return packet
 
-def check_financial_proof(raw, preservation, packet):
+def qualified_canary_apk(packet, compatibility):
+    if packet['version']==2:
+        require(compatibility is None,'V2_APK_COMPATIBILITY_NOT_AUTHORIZED')
+        return packet['apk']['apkHash']
+    require(packet['version']==3 and isinstance(compatibility,dict) and
+            digest(compatibility)==UI_APK_COMPATIBILITY_DIGEST,'EXACT_UI_APK_COMPATIBILITY_REQUIRED')
+    require(compatibility['installedAPK']==packet['apk'] and
+            all(compatibility['worker'][key]==packet['worker'][key] for key in ['sourceSha','imageDigest']),
+            'UI_APK_COMPATIBILITY_SUBJECT_CHANGED')
+    return compatibility['referenceAPK']['apkHash']
+
+
+def check_financial_proof(raw, preservation, packet, compatibility=None):
     require(raw.get('readOnly') is True and valid_hash(raw.get('scopeHash')) and isinstance(raw.get('files'),dict),
             'RAW_FINANCIAL_CLOSURE_REQUIRED')
     files=raw['files'];state=files['runtime.json'];canary_packet=state['packet']
     require(canary_packet['mode']=='canary' and canary_packet['controlHash']==raw['scopeHash'] and
             canary_packet['project']==packet['project'] and canary_packet['sourceSha']==packet['worker']['sourceSha'] and
-            canary_packet['imageDigest']==packet['worker']['imageDigest'] and canary_packet['apkHash']==packet['apk']['apkHash'],
+            canary_packet['imageDigest']==packet['worker']['imageDigest'] and
+            canary_packet['apkHash']==qualified_canary_apk(packet,compatibility),
             'RAW_CANARY_RELEASE_BINDING_REQUIRED')
     closures=[v for k,v in files.items() if k.startswith('closure-')]
     verifications=[v for k,v in files.items() if k.startswith('financial-verification-')]
@@ -380,7 +398,8 @@ class LocalHost(legacy.LocalHost):
         check_helper_packet(helper,helper_packet,proofs['helperOff']['approvedPacket']['sha256'],self.packet)
         financial=self.proof(proofs['financialClosure'])
         preservation=self.proof(proofs['financialClosure']['successPreservation'])
-        check_financial_proof(financial,preservation,self.packet)
+        compatibility=self.proof(proofs['apkCompatibility']) if self.packet['version']==3 else None
+        check_financial_proof(financial,preservation,self.packet,compatibility)
         backup=self.proof(proofs['backupRestore'])
         require(backup.get('status')=='PASS' and backup.get('stagingModified') is False and
                 backup.get('ledgerBalanceMismatches')==0 and valid_hash(backup.get('backupSha256')) and

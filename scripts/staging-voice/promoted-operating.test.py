@@ -89,6 +89,63 @@ def fixture():
        'verbatimMessage':'Approve this exact persistent operating scope and incident restoration.'}
     return p,a,containers
 
+class ClientCompatibilityTests(unittest.TestCase):
+    def setUp(self):
+        self.compatibility=json.loads((PATH.parent/'fixtures/voice-progress-apk-compatibility.json').read_text())
+        self.p,self.approval,_=fixture()
+        self.p['version']=3
+        self.p['apk']=copy.deepcopy(self.compatibility['installedAPK'])
+        self.p['worker'].update(self.compatibility['worker'])
+        self.p['proofs']['apkCompatibility']={'type':'exact-ui-only-canary-apk-compatibility','path':'/proofs/compatibility.json','sha256':'9'*64}
+        self.approval['scopeHash']=digest(self.p)
+        self.raw={'readOnly':True,'scopeHash':'1'*64,'files':{
+            'runtime.json':{'packet':{'mode':'canary','controlHash':'1'*64,'project':self.p['project'],
+                **self.compatibility['worker'],'apkHash':self.compatibility['referenceAPK']['apkHash']}},
+            'closure-1.json':{'postingOff':True,'restored':True,'workerStopped':True,'blockers':[]},
+            'financial-verification-1.json':{'financialPreserved':True,'committed':1,'pendingMinor':0}}}
+        self.preservation={'authenticationPreserved':True,'result':{'control':{'posting':False},
+            'session':{'status':'confirmed'},'events':[{'status':'committed'}]}}
+    def test_v3_requires_separate_exact_compatibility_proof_and_keeps_current_manifest(self):
+        m.validate_packet(self.p,self.approval,NOW)
+        self.assertEqual(m.manifest(self.p)['apkHash'],self.compatibility['installedAPK']['apkHash'])
+        incomplete=copy.deepcopy(self.p);incomplete['proofs'].pop('apkCompatibility')
+        self.approval['scopeHash']=digest(incomplete)
+        with self.assertRaises(RuntimeError):m.validate_packet(incomplete,self.approval,NOW)
+    def test_exact_ui_delta_reuses_original_canary_without_rewriting_it(self):
+        before=copy.deepcopy(self.raw)
+        m.check_financial_proof(self.raw,self.preservation,self.p,self.compatibility)
+        self.assertEqual(self.raw,before)
+        self.assertNotEqual(self.raw['files']['runtime.json']['packet']['apkHash'],m.manifest(self.p)['apkHash'])
+    def test_v2_still_rejects_a_different_canary_apk(self):
+        self.p['version']=2;self.p['proofs'].pop('apkCompatibility')
+        with self.assertRaises(RuntimeError):m.check_financial_proof(self.raw,self.preservation,self.p)
+        with self.assertRaises(RuntimeError):m.check_financial_proof(self.raw,self.preservation,self.p,self.compatibility)
+    def test_v3_without_compatibility_cannot_accept_a_historical_canary(self):
+        with self.assertRaises(RuntimeError):m.check_financial_proof(self.raw,self.preservation,self.p)
+    def test_unqualified_compatibility_source_environment_or_payload_is_rejected(self):
+        for field,replacement in [('compiledEnvironmentUnchanged',False),('sourceInputsStillMatch',False),
+                ('productionDeltaSha256','0'*64),('financialCasesPassed',0),('unexpected',True)]:
+            changed=copy.deepcopy(self.compatibility);changed[field]=replacement
+            with self.subTest(field=field),self.assertRaises(RuntimeError):
+                m.check_financial_proof(self.raw,self.preservation,self.p,changed)
+    def test_compatibility_cannot_authorize_another_apk_source_or_worker(self):
+        for section,field,replacement in [('apk','apkHash','0'*64),('apk','sourceSha','a'*40),
+                ('worker','imageDigest','0'*64),('worker','sourceSha','a'*40)]:
+            changed=copy.deepcopy(self.p);changed[section][field]=replacement
+            with self.subTest(section=section,field=field),self.assertRaises(RuntimeError):
+                m.check_financial_proof(self.raw,self.preservation,changed,self.compatibility)
+    def test_original_canary_release_scope_and_financial_guards_remain_required(self):
+        for section,field,replacement in [('packet','apkHash','0'*64),('packet','imageDigest','0'*64),
+                ('packet','sourceSha','a'*40),('packet','controlHash','0'*64),('packet','project','another-project'),
+                ('closure','restored',False),('closure','workerStopped',False),('financial','committed',2),
+                ('financial','pendingMinor',1000),('financial','financialPreserved',False)]:
+            changed=copy.deepcopy(self.raw)
+            target={'packet':changed['files']['runtime.json']['packet'],'closure':changed['files']['closure-1.json'],
+                    'financial':changed['files']['financial-verification-1.json']}[section]
+            target[field]=replacement
+            with self.subTest(section=section,field=field),self.assertRaises(RuntimeError):
+                m.check_financial_proof(changed,self.preservation,self.p,self.compatibility)
+
 @unittest.skipIf(m is None,'implementation pending')
 class HostTests(unittest.TestCase):
     def setUp(self):
