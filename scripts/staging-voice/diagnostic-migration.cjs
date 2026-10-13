@@ -109,7 +109,7 @@ function runCLI() {
     const deadline = setTimeout(() => process.exit(2), 45000);
     try {
       const input = JSON.parse(raw);
-      assert(['read', 'apply'].includes(input.action));
+      assert(['read', 'verify', 'apply'].includes(input.action));
       assert.equal(process.env.SUPABASE_URL, 'https://qcffvfbpzvpwcwxwjyro.supabase.co');
       const url = new URL(input.url);
       assert(url.hostname.endsWith('.supabase.com') && decodeURIComponent(url.username).endsWith('.qcffvfbpzvpwcwxwjyro'));
@@ -127,7 +127,8 @@ function runCLI() {
       if (input.action === 'apply') result = await applyDiagnostic(client, input.packet);
       else {
         await client.query('begin isolation level repeatable read read only');
-        try { result = await snapshot(client); } finally { await client.query('rollback'); }
+        try { result = input.action === 'verify' ? await checkAfter(client, input.packet.expected, input.packet) : await snapshot(client); }
+        finally { await client.query('rollback'); }
       }
       console.log(JSON.stringify(result));
     } catch { process.stderr.write('DIAGNOSTIC_DATABASE_CHECK_FAILED\n'); process.exitCode=1; }

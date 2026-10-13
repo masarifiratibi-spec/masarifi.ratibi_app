@@ -26,8 +26,12 @@ async function main() {
     // Only the named diagnostic DDL/history is undone on this disposable localhost fixture.
     // Financial/user/session rows are neither deleted nor reseeded here.
     await client.query('begin');
+    await client.query('grant masarifi_migration to current_user with set true, inherit false');
+    await client.query('set local role masarifi_migration');
     await client.query(oldAcceptance);
     await client.query('drop function private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)');
+    await client.query('reset role');
+    await client.query('revoke masarifi_migration from current_user granted by current_user');
     await client.query('delete from supabase_migrations.schema_migrations where version=$1', [g.VERSION]);
     await client.query('commit');
     const before = await g.snapshot(client);
