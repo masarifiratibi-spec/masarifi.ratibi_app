@@ -148,4 +148,3 @@ jobs:
             runtime-*.log
             backend-image-digest.txt
           if-no-files-found: error
-
