@@ -3,6 +3,22 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/voice-promoted-operating-2026-10-13]
+    # Deployment-only edits have their own focused Linux/systemd qualification.
+    # Keep the exact controller/database qualification reusable when its sources
+    # have not changed.
+    paths:
+      - scripts/staging-voice/operating-db.cjs
+      - scripts/staging-voice/operating-db.test.cjs
+      - scripts/staging-voice/qualify-operating-db.cjs
+      - scripts/staging-voice/operating-ingress.py
+      - scripts/staging-voice/operating-ingress.test.py
+      - scripts/staging-voice/operating-lifecycle.py
+      - scripts/staging-voice/operating-lifecycle.test.py
+      - scripts/staging-voice/promoted-operating.py
+      - scripts/staging-voice/promoted-operating.test.py
+      - scripts/staging-voice/customer-operating-cohort.py
+      - scripts/staging-voice/diagnostic-canary/canary-host.py
+      - scripts/staging-voice/diagnostic-canary/canary-control.py
 permissions:
   contents: read
 jobs:
