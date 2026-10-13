@@ -39,8 +39,9 @@ async function main() {
     const packet = { version: g.VERSION, name: g.NAME, sql, sqlHash:g.sha(sql),
       acceptanceBodyHash:g.sha(body), helperBodyHash:g.sha(sql.split('as $$')[1].split('end $$;')[0]+'end '), expected:before };
     // Force a post-DDL preservation failure and prove the entire migration rolls back.
-    const contaminated = sql + '\nupdate private.voice_automatic_policy set enabled=true;';
-    await assert.rejects(g.applyDiagnostic(client, { ...packet, sql:contaminated, sqlHash:g.sha(contaminated) }));
+    const contaminated = sql.replace('reset role;', 'update private.voice_automatic_policy set enabled=true;\nreset role;');
+    await assert.rejects(g.applyDiagnostic(client, { ...packet, sql:contaminated, sqlHash:g.sha(contaminated) }),
+      { code:'ERR_ASSERTION', message:'FINANCIAL_VOICE_AND_SESSION_DATA_PRESERVED' });
     assert.deepEqual(await g.snapshot(client), before);
     stage = 'concurrent-qualification';
     // The shared platform lock admits exactly one install, even under concurrency.
