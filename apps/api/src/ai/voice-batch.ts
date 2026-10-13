@@ -263,10 +263,16 @@ function decideEvent(input: unknown, context: BatchContext): VoiceEventDecision 
   if (account.data.available === false) return skip('currency_mismatch');
   const currency = value.currencySource === 'omitted' ? account.data.currency : value.currency;
   if (currency !== account.data.currency) return skip('currency_mismatch');
-  const category = context.references.find(
+  if (typeof value.categoryId !== 'string') return skip('invalid_category');
+  const categories = context.references.filter(
     (ref) =>
-      ref.kind === 'category' && ref.alias === value.categoryId && ref.data.kind === value.kind,
+      ref.kind === 'category' && ref.data.kind === value.kind && ref.data.available !== false,
   );
+  const category =
+    categories.find((ref) => ref.alias === value.categoryId) ??
+    (value.kind === 'expense'
+      ? categories.find((ref) => ref.id === '04000000-0000-4000-8000-000000000006')
+      : undefined);
   if ((value.kind === 'expense' && !category) || (value.categoryId !== '' && !category))
     return skip('invalid_category');
   const capturedAt = Date.parse(context.recordedAt);

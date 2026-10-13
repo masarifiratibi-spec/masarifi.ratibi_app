@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { AiRepository } from '../../../src/ai/ai.repository';
 import { HttpException } from '@nestjs/common';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
+import {
+  decideVoiceBatch,
+  parseVoiceBatchProviderOutput,
+  type BatchContext,
+} from '../../../src/ai/voice-batch';
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('missing fixture row');
@@ -173,6 +178,103 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       events: events.rows,
     };
   }
+  it('posts unknown-category expenses to existing Shopping once and updates the exact balance', async () => {
+    const repository = new AiRepository(pool);
+    let context!: BatchContext;
+    const before = required(
+      (
+        await pool.query(
+          'select coalesce((select confirmed_minor from public.account_balances where account_id=$1),0)::text confirmed_minor',
+          [account],
+        )
+      ).rows[0],
+    );
+    const { batch, claim, events } = await fixture(
+      () =>
+        decideVoiceBatch(
+          parseVoiceBatchProviderOutput({
+            complete: true,
+            language: 'ar',
+            events: [
+              {
+                s: 1,
+                k: 'e',
+                a: '1000',
+                c: 'e:SAR',
+                b: 'o:',
+                g: '',
+                d: 'o:',
+                m: '',
+                i: true,
+                q: 1,
+              },
+              {
+                s: 1,
+                k: 'e',
+                a: '1000',
+                c: 'e:SAR',
+                b: 'o:',
+                g: 'CATEGORY-UNKNOWN',
+                d: 'o:',
+                m: '',
+                i: true,
+                q: 1,
+              },
+            ],
+          }),
+          context,
+        ),
+      {},
+      async (session, token) => {
+        const input = await repository.workInput('voice.transcribe_extract', session, token);
+        context = {
+          recordedAt: String(input.recordedAt),
+          timezoneOffsetMinutes: Number(input.timezoneOffsetMinutes),
+          defaultAccountId: account,
+          references: input.aliases as BatchContext['references'],
+        };
+      },
+    );
+    expect(events.map((event) => event.status)).toEqual(['eligible', 'skipped']);
+    const first = required(events[0]);
+    await Promise.all(
+      Array.from({ length: 3 }, () =>
+        pool.query('select private.execute_voice_event($1,$2,$3)', [batch, claim.token, first.id]),
+      ),
+    );
+    const rows = (
+      await pool.query(
+        'select t.category_id,t.amount_minor,p.amount_minor posting_effect from public.transactions t join public.transaction_postings p on p.transaction_id=t.id where t.user_id=$1 and t.external_ref=$2',
+        [user, 'voice-event:' + first.id],
+      )
+    ).rows;
+    expect(rows).toEqual([
+      {
+        category_id: '04000000-0000-4000-8000-000000000006',
+        amount_minor: '1000',
+        posting_effect: '-1000',
+      },
+    ]);
+    const after = required(
+      (
+        await pool.query(
+          'select confirmed_minor,pending_minor from public.account_balances where account_id=$1',
+          [account],
+        )
+      ).rows[0],
+    );
+    expect(Number(after.confirmed_minor) - Number(before.confirmed_minor)).toBe(-1000);
+    expect(Number(after.pending_minor)).toBe(0);
+    expect(
+      required(
+        (
+          await pool.query('select transaction_id from private.voice_events where id=$1', [
+            required(events[1]).id,
+          ])
+        ).rows[0],
+      ).transaction_id,
+    ).toBeNull();
+  });
   it('continues healthy siblings when one occurrence repeatedly fails infrastructure execution', async () => {
     const { batch, events } = await fixture();
     const first = required(events[0]).id;

@@ -347,7 +347,8 @@ export function useVoiceBatches(owner: string | null) {
           .map((row) => row.sessionId)
       ])
     ],
-    uncertain: uncertainIds.length > 0 || financeRefreshPending,
+    // Refreshing already committed balances is not an unresolved recording.
+    uncertain: uncertainIds.length > 0,
     localFailure,
     localFailureCode,
     processing:

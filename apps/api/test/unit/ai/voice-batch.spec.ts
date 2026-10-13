@@ -51,6 +51,115 @@ const compactEvent = (patch = {}) => ({
   ...patch,
 });
 
+describe('Voice expense Shopping fallback', () => {
+  const shopping = {
+    alias: 'CATEGORY-6',
+    id: '04000000-0000-4000-8000-000000000006',
+    kind: 'category',
+    data: { kind: 'expense', labelAr: 'التسوق', labelEn: 'Shopping' },
+  };
+  const withShopping = { ...context, references: [...context.references, shopping] };
+
+  it.each(['ar', 'en'])(
+    'defaults unknown and omitted %s expense categories to the supplied Shopping ID',
+    (language) => {
+      const decisions = decideVoiceBatch(
+        {
+          ...batch([
+            event({ categoryId: '' }),
+            event({ occurrence: 2, categoryId: 'CATEGORY-UNKNOWN' }),
+          ]),
+          language,
+        },
+        withShopping,
+      );
+      expect(decisions).toEqual([
+        expect.objectContaining({
+          status: 'eligible',
+          command: expect.objectContaining({
+            categoryId: '04000000-0000-4000-8000-000000000006',
+            amountMinor: 2500,
+          }) as unknown,
+        }),
+        expect.objectContaining({
+          status: 'eligible',
+          command: expect.objectContaining({
+            categoryId: '04000000-0000-4000-8000-000000000006',
+            amountMinor: 2500,
+          }) as unknown,
+        }),
+      ]);
+    },
+  );
+
+  it('keeps a valid explicitly resolved category', () => {
+    expect(decideVoiceBatch(batch([event()]), withShopping)[0]).toMatchObject({
+      status: 'eligible',
+      command: { categoryId: '22222222-2222-4222-8222-222222222222' },
+    });
+  });
+
+  it.each([
+    { references: [] },
+    { references: [{ ...shopping, data: { ...shopping.data, available: false } }] },
+    { references: [{ ...shopping, data: { ...shopping.data, kind: 'income' } }] },
+  ])(
+    'refuses expense posting when the supplied Shopping fallback is unavailable %#',
+    ({ references }) => {
+      expect(
+        decideVoiceBatch(batch([event({ categoryId: '' })]), {
+          ...context,
+          references: [...context.references, ...references],
+        }),
+      ).toEqual([{ status: 'skipped', reason: 'invalid_category' }]);
+    },
+  );
+
+  it('does not assign an expense category to income or relax account and amount validation', () => {
+    expect(
+      decideVoiceBatch(
+        batch([
+          event({ kind: 'income', amountMinor: '-50000', categoryId: '' }),
+          event({
+            occurrence: 2,
+            kind: 'income',
+            amountMinor: '-50000',
+            categoryId: 'CATEGORY-UNKNOWN',
+          }),
+          event({ occurrence: 3, categoryId: '', accountSource: 'ambiguous' }),
+          event({ occurrence: 4, categoryId: '', amountMinor: '' }),
+          event({ occurrence: 5, categoryId: null }),
+        ]),
+        withShopping,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        status: 'eligible',
+        command: expect.objectContaining({ kind: 'income', categoryId: null }) as unknown,
+      }),
+      { status: 'skipped', reason: 'invalid_category' },
+      { status: 'skipped', reason: 'ambiguous_account' },
+      { status: 'skipped', reason: 'missing_amount' },
+      { status: 'skipped', reason: 'invalid_category' },
+    ]);
+  });
+
+  it('deduplicates one occurrence even when its unknown category aliases differ', () => {
+    expect(
+      decideVoiceBatch(
+        batch([event({ categoryId: '' }), event({ categoryId: 'CATEGORY-UNKNOWN' })]),
+        withShopping,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        status: 'eligible',
+        command: expect.objectContaining({ categoryId: '04000000-0000-4000-8000-000000000006' }) as unknown,
+      }),
+      { status: 'skipped', reason: 'invalid_event' },
+    ]);
+  });
+});
+
 describe('Voice batch automatic or silent skip', () => {
   it.each(['ar', 'en'])(
     'preserves the immutable recording time for omitted and current-day %s dates on replay',

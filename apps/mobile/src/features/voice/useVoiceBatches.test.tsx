@@ -78,6 +78,56 @@ function mount() {
   };
 }
 
+it.each(['ar', 'en'] as const)(
+  'does not show recording analysis while refreshing completed historical finance in %s',
+  async (locale) => {
+    const previousLocale = currentLocale();
+    changeLocale(locale);
+    const completed = {
+      ...receipt('completed'),
+      addedCount: 1,
+      transactionIds: [capture],
+      ledgerVersion: 9
+    };
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: jest
+        .fn()
+        .mockResolvedValueOnce(empty)
+        .mockResolvedValue({ ...empty, results: [completed] }),
+      pauseBatches: () => undefined
+    });
+    const view = mount();
+    let finishRefresh!: () => void;
+    const financeRead = new Promise<void>((resolve) => {
+      finishRefresh = resolve;
+    });
+    try {
+      await act(async () => {});
+      jest
+        .spyOn(view.client, 'invalidateQueries')
+        .mockImplementation(() => financeRead);
+      await act(async () => {
+        await view.batches.recover();
+      });
+      expect(view.batches.latest).toEqual(completed);
+      expect(view.batches.processing).toBe(false);
+      expect(view.batches.uncertain).toBe(false);
+      expect(
+        screen.queryByText(translate('voice.state.processing'))
+      ).toBeNull();
+      await act(async () => {
+        finishRefresh();
+        await financeRead;
+      });
+      expect(view.batches.latest?.transactionIds).toEqual([capture]);
+    } finally {
+      finishRefresh();
+      view.unmount();
+      changeLocale(previousLocale);
+    }
+  }
+);
+
 it('keeps the authoritative receipt without announcing a saved count', async () => {
   Object.assign(voiceAnalyzerService, {
     recoverBatches: async () => empty,
