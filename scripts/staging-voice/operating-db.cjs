@@ -9,6 +9,7 @@ const diagnostic={bodyHash:'ce00e1b5da381a8baa4ac95f3e6882bb73dbccf107ff8007577e
 const closure={bodyHash:'2f95bb0c1bb3e809bc74e15b2216ae127a1933237885e0e033ed32b354b1392d',owner:'masarifi_migration',definer:true,config:['search_path=""'],acl:'{masarifi_migration=X/masarifi_migration,masarifi_worker=X/masarifi_migration}'};
 const hash=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
+const settlementKey="hashtextextended('masarifi.operating.prepare:'||$1::text||':'||($2::jsonb)::text,0)";
 function authority(c,enteredAt) {
  const now=Date.now()/1000;
  assert(now>=c.approvalReceivedAt&&now<=c.approvalReceivedAt+3600);
@@ -131,9 +132,19 @@ async function run() {
   try{
    if(action==='prepare'||action==='activate')authority(c,enteredAt);
    stage='connection';pool=new Pool({connectionString:process.env.DATABASE_URL,max:1,connectionTimeoutMillis:5000,query_timeout:10000});db=await pool.connect();
+   if(action==='reconcile'){
+    // Wait for any preparation with this exact JSONB manifest to COMMIT/ROLLBACK
+    // before assigning the fresh read-only snapshot. A session lock is required:
+    // a transaction lock inside repeatable-read would freeze an older snapshot.
+    stage='settlement';await db.query("set statement_timeout='10s'");await db.query("set lock_timeout='5s'");
+    await db.query('select pg_advisory_lock('+settlementKey+')',[c.project,JSON.stringify(c.manifest)]);
+   }
    stage='transaction';await db.query(writes?'begin isolation level serializable':'begin isolation level repeatable read read only');
    await db.query("set local statement_timeout='10s'");
    await db.query("set local lock_timeout='5s'");
+   if(action==='prepare'){
+    stage='settlement';await db.query('select pg_advisory_xact_lock('+settlementKey+')',[c.project,JSON.stringify(c.manifest)]);
+   }
    if(writes){
     stage='ownership';
     const existing=(await db.query("select exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member) present")).rows[0];
@@ -150,7 +161,7 @@ async function run() {
    }else if(action==='status'){
     stage='status';const current=(await db.query('select current_epoch,enforced from private.staging_voice_runtime_control')).rows[0];assert(current);
     const e=c.epochId===null?null:await epoch(db,c);
-    result={...s,currentEpoch:current.current_epoch,epoch:e?{epochId:e.id,state:e.state,mode:e.mode,manifestHash:e.manifest_hash,matches:e.matches&&e.manifest_hash===c.manifestHash,expiresAt:e.expiresAt,heartbeatAt:e.heartbeatAt}:null,...await counts(db,c.epochId)};
+    result={...s,currentEpoch:current.current_epoch,enforced:current.enforced,epoch:e?{epochId:e.id,state:e.state,mode:e.mode,manifestHash:e.manifest_hash,matches:e.matches&&e.manifest_hash===c.manifestHash,expiresAt:e.expiresAt,heartbeatAt:e.heartbeatAt}:null,...await counts(db,c.epochId)};
    }else{
     stage='ownership';await db.query('grant masarifi_migration to current_user with set true,inherit false');await db.query('set local role masarifi_migration');
     if(action==='prepare'||action==='activate'){
@@ -161,7 +172,7 @@ async function run() {
     if(action==='prepare'){
      if(current.current_epoch!==null){const prior=(await db.query('select state from private.staging_voice_epochs where id=$1::uuid for update',[current.current_epoch])).rows[0];assert(prior&&prior.state==='closed');}
     }else{
-     assert.equal(current.current_epoch,c.epochId);assert.equal(current.enforced,true);
+     assert.equal(current.current_epoch,c.epochId);if(action==='activate')assert.equal(current.enforced,true);
      e=await epoch(db,c,true);owned(e,c);
     }
     assert.equal((await db.query('select singleton from private.voice_automatic_policy for update')).rows.length,1);
@@ -207,6 +218,8 @@ async function run() {
    }
    throw error;
   }finally{
+   // Every invocation owns a fresh pool. Physical teardown also releases any
+   // reconciliation session advisory lock on success, rollback or transport loss.
    if(db)db.release();if(pool)await pool.end();
   }
  }

@@ -21,6 +21,9 @@ async function helper(action,c,observer={}) {
    const conn=await super.connect(),query=conn.query.bind(conn);let writes=false;
    conn.query=async(sql,args)=>{
     if(sql==='begin isolation level serializable'){writes=true;observer.pid=conn.processID;observer.attempts=(observer.attempts||0)+1;}
+    if(sql==='begin isolation level repeatable read read only')observer.readSnapshotStarted=true;
+    if(sql.startsWith('select pg_advisory_lock'))observer.settlementPid=conn.processID;
+    if(/^(grant|revoke|set local role)/.test(sql))observer.roleMutations=(observer.roleMutations||0)+1;
     if(writes&&sql.startsWith('select private.activate_staging_voice_epoch'))observer.activations=(observer.activations||0)+1;
     if(observer.race&&sql.includes('from private.staging_voice_epochs where id=')&&sql.endsWith('for update')&&(observer.races||0)<observer.race){
      observer.races=(observer.races||0)+1;
@@ -28,6 +31,9 @@ async function helper(action,c,observer={}) {
      try{await heartbeat.query('set role masarifi_worker');await heartbeat.query('select private.staging_voice_heartbeat($1,$2,$3)',[c.epochId,'local-qualification-heartbeat',c.manifest.sourceSha]);}finally{await heartbeat.end();}
     }
     try{
+     if(writes&&sql==='commit'&&observer.commitBarrier){observer.commitReached=true;await observer.commitBarrier;}
+     if(writes&&sql==='commit'&&observer.failBeforeCommit)throw Object.assign(Error('disposable precommit transport loss'),{code:'ECONNRESET'});
+     if(writes&&sql==='rollback'&&observer.rollbackBarrier){observer.rollbackReached=true;await observer.rollbackBarrier;}
      const result=await query(sql,args);
      if(writes&&sql.startsWith('lock table '))observer.financialHeld=true;
      if(!writes&&observer.financialBarrier&&observer.financialHeld&&sql.startsWith('select to_jsonb(t) row from public.account_balances')){observer.financialReached=true;await observer.financialBarrier;}
@@ -174,6 +180,43 @@ async function driftClosure(){
  try{assert.equal((await helper('close',c)).ok,false);assert.equal((await db.query('select enabled from private.voice_automatic_policy')).rows[0].enabled,true);}finally{await db.query('alter function private.close_staging_voice_epoch(uuid,text) security definer');}
  await success('close',c);passed('closure capability provenance drift refuses before executing altered capability; exact restored closure goes OFF');
 }
+async function settledPreparation(){
+ for(const outcome of ['commit','rollback']){
+  const c=await freshControl();let release;
+  const observer=outcome==='commit'?{commitBarrier:new Promise(resolve=>{release=resolve;}),lostCommit:true}:{rollbackBarrier:new Promise(resolve=>{release=resolve;}),failBeforeCommit:true};
+  const pendingPrepare=helper('prepare',c,observer);let pendingReader,reader={};
+  try{
+   await waitUntil(()=>outcome==='commit'?observer.commitReached:observer.rollbackReached);
+   // Reordered object keys are the same exact JSONB manifest and therefore the same lock.
+   pendingReader=helper('reconcile',{...c,manifest:Object.fromEntries(Object.entries(c.manifest).reverse())},reader);
+   let delivered=false;pendingReader.then(()=>{delivered=true;});
+   await waitUntil(async()=>reader.settlementPid&&(await db.query('select pg_blocking_pids($1) pids',[reader.settlementPid])).rows[0].pids.includes(observer.pid));
+   assert.equal(delivered,false);assert.equal(reader.readSnapshotStarted,undefined);
+   // Distinct manifests do not inherit this wait or access its uncommitted prepared row.
+   assert.equal(await success('reconcile',{...c,manifest:{...c.manifest,controlHash:digest(randomUUID())}}),null);
+  }finally{release();}
+  const preparedResult=await pendingPrepare,readResult=await pendingReader;
+  assert.equal(preparedResult.ok,false);assert.equal(observer.attempts,1);assert.equal(readResult.ok,true);assert.equal(reader.roleMutations||0,0);assert.equal(reader.readSnapshotStarted,true);
+  assert.equal((await db.query("select count(*)::int n from pg_locks where pid=$1 and locktype='advisory'",[reader.settlementPid])).rows[0].n,0);
+  if(outcome==='commit'){
+   assert(readResult.result&&readResult.result.matches&&readResult.result.state==='prepared');
+   assert.equal((await db.query('select count(*)::int n from private.staging_voice_epochs where manifest=$1::jsonb',[JSON.stringify(c.manifest)])).rows[0].n,1);
+   await success('close',{...c,epochId:readResult.result.epochId,manifestHash:readResult.result.manifestHash});
+  }else{
+   assert.equal(readResult.result,null);assert.equal((await db.query('select count(*)::int n from private.staging_voice_epochs where manifest=$1::jsonb',[JSON.stringify(c.manifest)])).rows[0].n,0);
+  }
+  passed('exact-key reconciliation waits for actual preparation '+outcome+' before its fresh read-only snapshot; no repeated prepare or retained session lock');
+ }
+}
+async function enforcementDrift(){
+ let c=await prepared();await db.query('update private.staging_voice_runtime_control set enforced=false where current_epoch=$1',[c.epochId]);
+ assert.equal((await success('status',c)).enforced,false);assert.equal((await helper('activate',c)).ok,false);await success('close',c);
+ passed('prepared enforcement drift is visible and refuses activation while owned OFF remains available');
+ c=await prepared();await success('activate',c);await db.query('update private.staging_voice_runtime_control set enforced=false where current_epoch=$1',[c.epochId]);
+ const status=await success('status',c);assert.equal(status.enforced,false);assert.equal(status.posting,true);assert.equal(status.epoch.state,'active');
+ assert.equal((await success('close',c)).posting,false);assert.equal((await db.query('select enabled from private.voice_automatic_policy')).rows[0].enabled,false);
+ passed('active enforcement drift remains observable and exact owned closure disables posting without requiring enforced=true');
+}
 async function lockExpiry(relation){
  const c=await prepared(),observer={};await db.query('begin');await db.query('select 1 from '+relation+' for update');
  const expires=Date.now()/1000+2,pending=helper('activate',{...c,activationExpiresAt:expires},observer);
@@ -221,7 +264,7 @@ async function main(){
   try{assert.equal((await helper('activate',c)).ok,false);}finally{await db.query('revoke execute on function private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz) from masarifi_worker');}
   passed('actual diagnostic ACL drift refuses');
   const original=(await db.query("select pg_get_functiondef('private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz)'::regprocedure) body")).rows[0].body;
-  await db.query("create or replace function private.voice_canary_scope_mismatch_reason(jsonb,integer,jsonb,timestamptz) returns text language sql set search_path='' as $$select 'inert_local_drift'::text$$");
+  await db.query("create or replace function private.voice_canary_scope_mismatch_reason(p_decisions jsonb,p_minor integer,p_manifest jsonb,p_capture timestamptz) returns text language sql set search_path='' as $$select 'inert_local_drift'::text$$");
   try{assert.equal((await helper('activate',c)).ok,false);}finally{await db.query(original);}await success('close',c);passed('actual diagnostic body drift refuses');
   c=await prepared();const grantClient=new Client({connectionString:local});await grantClient.connect();
   try{
@@ -229,7 +272,7 @@ async function main(){
    for(const action of ['prepare','activate','close'])assert.equal((await helper(action,action==='prepare'?{...c,epochId:null,manifestHash:null}:c)).ok,false);
    assert.equal((await grantClient.query("select count(*)::int n from pg_auth_members m join pg_roles r on r.oid=m.roleid where r.rolname='masarifi_migration' and m.member=(select oid from pg_roles where rolname=current_user) and m.grantor=m.member")).rows[0].n,1);
   }finally{await grantClient.query('revoke masarifi_migration from current_user granted by current_user');await grantClient.end();}await success('close',c);passed('pre-existing self-grant remains present after all write refusals');
-  await driftClosure();await financialRaces();
+  await settledPreparation();await enforcementDrift();await driftClosure();await financialRaces();
   for(const relation of ['private.staging_voice_runtime_control','private.staging_voice_epochs','private.voice_automatic_policy'])await lockExpiry(relation);
   for(const action of ['prepare','activate'])await cleanupExpiry(action);
   c=await prepared();let observer={race:1};const recovered=await helper('activate',c,observer);assert(recovered.ok,JSON.stringify(recovered.errors));assert.equal(observer.attempts,2);assert.deepEqual(observer.databaseErrors,['40001']);await success('close',c);passed('one real heartbeat serialization race recovers with full transaction retry');

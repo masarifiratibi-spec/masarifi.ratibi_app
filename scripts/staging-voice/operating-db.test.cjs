@@ -31,7 +31,7 @@ async function exercise(action='status',change={}) {
    if(sql.includes('outboxUnpublished'))return {rows:[{posting:false,activeEpochs:0,analysisJobs:0,migrations:change.history||versions,historical:{voicePending:0,assistantPending:0,outboxUnpublished:8},...(change.snapshot||{})}]};
    if(sql.startsWith('select id,manifest_hash,state from'))return {rows:change.reconciled===undefined?[]:change.reconciled};
    if(sql.includes('currentEpochMatches'))return {rows:[{epochId,state:'closed',posting:false,currentEpochMatches:true}]};
-   if(sql.includes('from private.staging_voice_runtime_control'))return {rows:[{current_epoch:change.foreignCurrent?'22222222-2222-4222-8222-222222222222':action==='prepare'?null:epochId,enforced:true}]};
+   if(sql.includes('from private.staging_voice_runtime_control'))return {rows:[{current_epoch:change.foreignCurrent?'22222222-2222-4222-8222-222222222222':action==='prepare'?null:epochId,enforced:change.enforced!==false}]};
    if(sql.includes('from private.staging_voice_epochs where id='))return {rows:[epoch]};
    if(sql.startsWith('select private.prepare_staging_voice_epoch'))return {rows:[{result:{epochId,manifestHash:hash,state:'prepared'}}]};
    if(sql.startsWith('select private.activate_staging_voice_epoch')) {
@@ -148,4 +148,25 @@ test('fresh financial drift while the serializable snapshot is stale refuses pre
   assert(!r.queries.some(q=>q.sql.startsWith('select private.'+action+'_staging_voice_epoch')));
   assert(r.queries.some(q=>q.pool===0&&q.sql==='rollback'));
  }
+});
+test('prepare holds a manifest-scoped transaction lock through commit and reconcile waits before its read-only snapshot',async()=>{
+ const prepared=await exercise('prepare');success(prepared);
+ const prepareLock=prepared.queries.find(q=>q.sql.startsWith('select pg_advisory_xact_lock'));
+ assert(prepareLock&&prepareLock.sql.includes("'masarifi.operating.prepare:'")&&prepareLock.sql.includes('($2::jsonb)::text'));
+ assert.deepEqual(prepareLock.args,['qcffvfbpzvpwcwxwjyro',JSON.stringify(manifest)]);
+ assert(prepared.queries.indexOf(prepareLock)<prepared.queries.findIndex(q=>q.sql.startsWith('grant')));
+ const reconciled=await exercise('reconcile');assert.equal(success(reconciled),null);
+ const lock=reconciled.queries.findIndex(q=>q.sql.startsWith('select pg_advisory_lock'));
+ const begin=reconciled.queries.findIndex(q=>q.sql==='begin isolation level repeatable read read only');
+ assert(lock>=0&&lock<begin);
+ assert.deepEqual(reconciled.queries[lock].args,prepareLock.args);
+ assert(reconciled.queries.slice(0,lock).some(q=>q.sql==="set statement_timeout='10s'"));
+ assert(reconciled.queries.slice(0,lock).some(q=>q.sql==="set lock_timeout='5s'"));
+ assert(!reconciled.queries.some(q=>/^(grant|revoke|set local role|insert|update|delete)/.test(q.sql)));
+});
+test('status exposes enforcement drift, activation refuses it and owned OFF remains available',async()=>{
+ assert.equal(success(await exercise('status',{enforced:false})).enforced,false);
+ refused(await exercise('activate',{enforced:false}));
+ assert.equal(success(await exercise('close',{enforced:false})).posting,false);
+ const foreign=await exercise('close',{enforced:false,foreignCurrent:true});refused(foreign);assert(!foreign.queries.some(q=>q.sql.startsWith('select private.close_staging_voice_epoch')));
 });

@@ -11,6 +11,8 @@ import os
 import threading
 import time
 import types
+import subprocess
+import sys
 from unittest.mock import patch
 
 PATH = pathlib.Path(__file__).with_name('promoted-operating.py')
@@ -125,6 +127,7 @@ class HostTests(unittest.TestCase):
             self.epoch['state']='closed';return {'state':'closed','posting':False,'currentEpochMatches':True}
         return {**copy.deepcopy(self.p['baseline']),'epoch':copy.deepcopy(self.epoch),
                 'currentEpoch':self.epoch and self.epoch['epochId'],
+                'enforced':True,
                 'posting':self.epoch is not None and self.epoch['state']=='active',
                 'members':0,'committed':0,'rejected':0}
     def prepare(self):
@@ -449,6 +452,17 @@ class HostTests(unittest.TestCase):
         for url in ['https://api.staging.masarifiratibi.com/health/ready',
                     'http://127.0.0.1:3003/health/ready?x=1','http://example.com/health/live']:
             with self.subTest(url=url),self.assertRaisesRegex(RuntimeError,'FIXED_HEALTH_URL_REQUIRED'):m.LocalHost.http(self.host,url)
+    def test_brief_control_helper_contention_waits_without_publishing_cancellation(self):
+        contention={'remaining':2}
+        def flock(fd,operation):
+            if contention['remaining']:
+                contention['remaining']-=1;raise BlockingIOError()
+        fcntl=types.SimpleNamespace(LOCK_EX=2,LOCK_NB=4,flock=flock)
+        self.host.pause=lambda seconds:None
+        with patch.dict(sys.modules,{'fcntl':fcntl}),patch.object(m.os,'O_NOFOLLOW',0,create=True),\
+             patch.object(m.os,'fstat',lambda descriptor:types.SimpleNamespace(st_uid=0,st_mode=0o100600,st_nlink=1)):
+            with self.host.runner_lock('control'):self.assertIsNone(self.host.read_json('close-request.json'))
+        self.assertIsNone(self.host.read_json('close-request.json'))
     def test_snapshot_execution_failure_closes_but_user_rejection_is_diagnostic(self):
         with self.chain():
             state=m.lifecycle.begin(self.host);original=self.host.database
@@ -456,6 +470,17 @@ class HostTests(unittest.TestCase):
             self.host.database=rejected;self.assertTrue(self.host.snapshot(state)['scopeValid'])
             def failed(action,state=None):return {**original(action,state),'executionFailed':1,'rejected':0}
             self.host.database=failed;self.assertFalse(self.host.snapshot(state)['scopeValid'])
+    def test_lost_runtime_enforcement_refuses_ready_and_closes_owned_epoch(self):
+        with self.chain():
+            state=m.lifecycle.begin(self.host);original=self.host.database
+            def unscoped(action,state=None):
+                result=original(action,state)
+                if action=='status':result['enforced']=False
+                return result
+            self.host.database=unscoped
+            with self.assertRaises(RuntimeError):self.host.save_ready(state)
+            self.assertEqual(m.lifecycle.monitor(state,self.host),'scope_failure')
+            self.assertEqual(self.epoch['state'],'closed');self.assertFalse(self.containers['7'*64]['State']['Running'])
 
 @unittest.skipUnless(m is not None and os.name=='posix','requires actual Linux private file/locking primitives')
 class PrivateLinuxTests(unittest.TestCase):
@@ -519,8 +544,48 @@ class PrivateLinuxTests(unittest.TestCase):
             self.assertEqual(target.read_text(),'{"sentinel":true}')
             target.chmod(0o644)
             with self.assertRaises(RuntimeError):h.read_json('target.json')
+    def test_monitor_survives_another_process_holding_begin_control_lock(self):
+        case=HostTests('test_mixed_release_approval_accepts_and_indefinite_manifest_is_operating');case.setUp()
+        child=None
+        try:
+            h=case.host;state=case.prepare();case.epoch['state']='active'
+            case.containers['4'*64]['State']['Running']=False
+            h.monitor_proof=lambda:None;h.public_ready=lambda financial:None
+            h.runtime=lambda state:{'enabled':True};h.pause=time.sleep
+            database=case.database
+            def db(action,state=None):
+                with h.runner_lock('control'):return database(action,state)
+            h.database=db
+            lock=case.root/'.database-control.lock'
+            code="import fcntl,os,sys;fd=os.open(sys.argv[1],os.O_CREAT|os.O_RDWR,0o600);fcntl.flock(fd,fcntl.LOCK_EX);print('READY',flush=True);sys.stdin.read(1);os.close(fd)"
+            child=subprocess.Popen([sys.executable,'-c',code,str(lock)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            self.assertEqual(child.stdout.readline().strip(),'READY')
+            release=threading.Timer(.15,lambda:(child.stdin.write('x'),child.stdin.flush()));release.start()
+            actual_fstat=os.fstat
+            def metadata(fd):
+                value=actual_fstat(fd);return types.SimpleNamespace(st_uid=0,st_mode=value.st_mode,st_nlink=value.st_nlink)
+            with patch.object(m.os,'fstat',metadata):snapshot=h.snapshot(state)
+            release.join(timeout=2);child.wait(timeout=3)
+            self.assertTrue(snapshot['scopeValid']);self.assertTrue(snapshot['apiReady']);self.assertTrue(snapshot['workerHealthy'])
+            self.assertIsNone(h.read_json('close-request.json'));self.assertEqual(case.epoch['state'],'active')
+        finally:
+            if child is not None:
+                if child.poll() is None:child.kill();child.wait(timeout=3)
+                for stream in [child.stdin,child.stdout,child.stderr]:stream.close()
+            case.tearDown()
 
 class ImplementationTests(unittest.TestCase):
     def test_operating_controller_is_present(self):self.assertTrue(PATH.exists(),'persistent current-topology Host is missing')
+    def test_default_interpreter_import_creates_no_bytecode_in_protected_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=pathlib.Path(folder)
+            for name in ['promoted-operating.py','operating-ingress.py','operating-lifecycle.py','customer-operating-cohort.py']:
+                (root/name).write_bytes(PATH.with_name(name).read_bytes())
+            for name in ['canary-host.py','canary-control.py']:
+                (root/name).write_bytes((PATH.parent/'diagnostic-canary'/name).read_bytes())
+            code="import runpy,sys;runpy.run_path(sys.argv[1],run_name='offline_operating')"
+            result=subprocess.run([sys.executable,'-c',code,str(root/'promoted-operating.py')],capture_output=True,text=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(list(root.rglob('*.pyc')),[]);self.assertFalse((root/'__pycache__').exists())
 
 if __name__=='__main__':unittest.main()

@@ -22,6 +22,9 @@ import time
 import urllib.error
 import urllib.request
 
+# Direct script execution must not create unpinned imported bytecode inside the
+# protected controller root. systemd also supplies -B for the entry point.
+sys.dont_write_bytecode = True
 HERE = pathlib.Path(__file__).resolve().parent
 def module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -307,6 +310,26 @@ class LocalHost(legacy.LocalHost):
         try:yield
         finally:self.closure_deadline=previous
 
+    @contextlib.contextmanager
+    def runner_lock(self,role):
+        import fcntl
+        require(role in ['control','close'],'DATABASE_RUNNER_ROLE_INVALID')
+        descriptor=os.open(self.root/('.database-'+role+'.lock'),os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+        try:
+            metadata=os.fstat(descriptor)
+            require(metadata.st_uid==0 and stat.S_ISREG(metadata.st_mode) and metadata.st_nlink==1 and
+                    stat.S_IMODE(metadata.st_mode)==0o600,'DATABASE_RUNNER_LOCK_INVALID')
+            deadline=self.monotonic()+35
+            if self.closure_deadline is not None:deadline=min(deadline,self.closure_deadline)
+            while True:
+                try:fcntl.flock(descriptor,fcntl.LOCK_EX|fcntl.LOCK_NB);break
+                except BlockingIOError:
+                    remaining=deadline-self.monotonic()
+                    require(remaining>0,'DATABASE_RUNNER_LOCK_TIMEOUT')
+                    self.pause(min(.05,remaining))
+            yield
+        finally:os.close(descriptor)
+
     def validate(self,activation=True):
         validate_packet(self.packet,self.approval,self.now(),activation)
         self.target(self.packet['generation'])
@@ -507,6 +530,7 @@ class LocalHost(legacy.LocalHost):
         require(isinstance(epoch,dict) and epoch.get('epochId')==state['epochId'] and
                 epoch.get('manifestHash')==state['manifestHash'] and epoch.get('matches') is True and
                 value.get('currentEpoch')==state['epochId'] and epoch.get('mode')=='operating' and
+                value.get('enforced') is True and
                 epoch.get('expiresAt') is None and epoch.get('state')==('active' if active else 'prepared') and
                 value.get('posting') is active,'EXACT_OWNED_EPOCH_FENCE_REQUIRED')
         return value
@@ -590,7 +614,7 @@ class LocalHost(legacy.LocalHost):
 
     def unit(self):return scope_name(self.state())+'-monitor.service'
     def unit_content(self):
-        return '[Unit]\nDescription=Approved persistent Staging Voice operating scope\nAfter=docker.service\n[Service]\nType=exec\nUser=root\nWorkingDirectory='+str(self.root)+'\nExecStart=/usr/bin/python3 '+str(self.root)+'/promoted-operating.py monitor\nExecStopPost=/usr/bin/python3 '+str(self.root)+'/promoted-operating.py close\nRestart=no\nTimeoutStopSec=180\n'
+        return '[Unit]\nDescription=Approved persistent Staging Voice operating scope\nAfter=docker.service\n[Service]\nType=exec\nUser=root\nWorkingDirectory='+str(self.root)+'\nExecStart=/usr/bin/python3 -B '+str(self.root)+'/promoted-operating.py monitor\nExecStopPost=/usr/bin/python3 -B '+str(self.root)+'/promoted-operating.py close\nRestart=no\nTimeoutStopSec=180\n'
 
     def arm(self,state):
         self.forward(state)
@@ -736,6 +760,10 @@ class LocalHost(legacy.LocalHost):
         control_journal=self.read_runner('control')
         if action=='reconcile' and control_journal and control_journal['phase']!='idle':role='close'
         with self.runner_lock(role):
+            if action!='close':
+                self.validate(activation=action in ['prepare','activate'])
+                if action!='reconcile':self.not_cancelled()
+                if state is not None:self.guard(state)
             try:runner=legacy.retained_database_runner(self,identity,role)
             except (RuntimeError,OSError,ValueError,KeyError,TypeError):
                 journal=self.read_runner(role)
@@ -839,7 +867,8 @@ class LocalHost(legacy.LocalHost):
         result={**value,'state':epoch.get('state'),'mode':epoch.get('mode'),
                 'currentEpochMatches':value.get('currentEpoch')==state['epochId'] and epoch.get('matches') is True and
                     epoch.get('manifestHash')==state['manifestHash'] and epoch.get('epochId')==state['epochId'],
-                'scopeValid':epoch.get('expiresAt') is None and value.get('executionFailed',0)==0,
+                'scopeValid':epoch.get('expiresAt') is None and value.get('executionFailed',0)==0 and
+                    value.get('enforced') is True,
                 'apiReady':False,'workerHealthy':False}
         self.qualified();self.cohort(False if epoch.get('state')=='active' else None);self.route_guard();self.monitor_proof()
         if epoch.get('state')=='active':
