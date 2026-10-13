@@ -482,7 +482,9 @@ it('shows only real unexpired analysis among mixed receipts without changing the
     await act(async () =>
       view.client.setQueryData(voiceAnalysisKey('diagnostic-owner'), rows)
     );
-    expect(screen.getAllByText('Actual unsaved analysis')).toHaveLength(2);
+    await waitFor(() =>
+      expect(screen.getAllByText('Actual unsaved analysis')).toHaveLength(2)
+    );
     expect(screen.getAllByText('Analyzed — not saved')).toHaveLength(2);
     expect(screen.queryByText('Expired private analysis')).toBeNull();
     expect(
