@@ -8,6 +8,9 @@ const acceptance = {bodyHash:'683de0fd60086962c86b256983b5feadd00f4c300166a82bfc
 const helper = {bodyHash:'ce00e1b5da381a8baa4ac95f3e6882bb73dbccf107ff8007577e9c5410c1696b',owner:'masarifi_migration',definer:false,config:['search_path=""'],acl:'{masarifi_migration=X/masarifi_migration}'};
 async function exercise(action='readiness', change={}) {
   const queries=[], output=[], errors=[], callbacks={};
+  let failures=change.serializationFailures || 0, now=Date.now();
+  const started=now;
+  class Clock extends Date {static now(){return now;}}
   const baseline={confirmedMinor:-31000,pendingMinor:0};
   const admission={posting:false,activeEpochs:0,analysisJobs:0,assistantJobs:0,eligible:true,currentState:'closed',migrationSelfGrant:false,migrations:['20261010221534','20261011002702','20261011004500','20261011004600','20261011005920','20261013053237']};
   const metadata={acceptance:{...acceptance},helper:{...helper},...change};
@@ -15,6 +18,13 @@ async function exercise(action='readiness', change={}) {
     async connect(){} async end(){}
     async query(sql, args=[]) {
       queries.push(sql);
+      if(sql==='rollback' && change.rollbackUncertain) throw Object.assign(Error('inert transport'),{code:'ETIMEDOUT'});
+      if(sql.startsWith('select id from private.staging_voice_epochs') && failures-->0){
+        if(change.advanceAfterFailure)now+=change.advanceAfterFailure;
+        throw Object.assign(Error('inert heartbeat race'),{code:change.failureCode || '40001'});
+      }
+      if(sql.startsWith('select *,manifest='))return {rows:[{id:'11111111-1111-4111-8111-111111111111',manifest_hash:'a'.repeat(64),matches:true,state:'prepared'}]};
+      if(sql.startsWith('select private.activate_staging_voice_epoch'))return {rows:[{result:{state:'active'}}]};
       if(sql.includes('pg_proc')) return {rows:metadata[args[0].includes('accept_voice_batch')?'acceptance':'helper']?[metadata[args[0].includes('accept_voice_batch')?'acceptance':'helper']]:[]};
       if(sql.includes("'posting'")) return {rows:[{result:admission}]};
       if(sql.includes("'accounts'")) return {rows:[{result:change.finance || baseline}]};
@@ -23,8 +33,8 @@ async function exercise(action='readiness', change={}) {
     }
   }
   const processStub={env:{SUPABASE_URL:'https://qcffvfbpzvpwcwxwjyro.supabase.co'},stdin:{on:(event,fn)=>{callbacks[event]=fn;}}};
-  new Function('require','process','console',source)(name=>name==='pg'?{Client}:require(name),processStub,{log:value=>output.push(JSON.parse(value)),error:value=>errors.push(JSON.parse(value))});
-  callbacks.data(JSON.stringify({action,scope:{project:'qcffvfbpzvpwcwxwjyro',ownerId:'user_3K2ItVcURds22ueEf31Py6e305q',accountId:'3161601e-1584-40b0-86ec-d170c018b551',categoryId:'04000000-0000-4000-8000-000000000006',baseline},url:'postgresql://reader.qcffvfbpzvpwcwxwjyro:inert@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'}));
+  new Function('require','process','console','Date',source)(name=>name==='pg'?{Client}:require(name),processStub,{log:value=>output.push(JSON.parse(value)),error:value=>errors.push(JSON.parse(value))},Clock);
+  callbacks.data(JSON.stringify({action,approvalReceivedAt:started/1000,scope:{expiresAt:started/1000+3600,project:'qcffvfbpzvpwcwxwjyro',ownerId:'user_3K2ItVcURds22ueEf31Py6e305q',accountId:'3161601e-1584-40b0-86ec-d170c018b551',categoryId:'04000000-0000-4000-8000-000000000006',baseline},state:{epochId:'11111111-1111-4111-8111-111111111111',manifestHash:'a'.repeat(64),packet:{},startsAt:started/1000,deadline:started/1000+300},url:'postgresql://reader.qcffvfbpzvpwcwxwjyro:inert@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'}));
   await callbacks.end();
   return {queries,output,errors,exitCode:processStub.exitCode};
 }
@@ -53,4 +63,27 @@ test('prepare rejects unexpected acceptance before role elevation or epoch creat
   const r=await exercise('prepare',{acceptance:{...acceptance,bodyHash:'foreign'}});
   assert.equal(r.exitCode,1);assert(r.queries.includes('rollback'));
   assert(!r.queries.some(sql=>sql.startsWith('grant ') || sql.includes('prepare_staging_voice_epoch')));
+});
+test('one known rolled-back activation serialization race repeats the full guarded transaction',async()=>{
+  const r=await exercise('activate',{serializationFailures:1});assert.equal(r.exitCode,undefined);
+  assert.equal(r.queries.filter(q=>q==='begin isolation level serializable').length,2);
+  assert.equal(r.queries.filter(q=>q.startsWith('select private.activate_staging_voice_epoch')).length,1);
+  assert.equal(r.output.length,1);assert.equal(r.output[0].state,'active');assert(r.queries.includes('rollback'));
+});
+test('persistent serialization races stop after three transactions without activation',async()=>{
+  const r=await exercise('activate',{serializationFailures:9});assert.equal(r.exitCode,1);
+  assert.equal(r.queries.filter(q=>q==='begin isolation level serializable').length,3);
+  assert.equal(r.queries.filter(q=>q.startsWith('select private.activate_staging_voice_epoch')).length,0);
+});
+test('nonserialization errors and uncertain rollback never retry activation',async()=>{
+  for(const change of [{serializationFailures:1,failureCode:'42501'},{serializationFailures:1,rollbackUncertain:true}]) {
+    const r=await exercise('activate',change);assert.equal(r.exitCode,1);
+    assert.equal(r.queries.filter(q=>q==='begin isolation level serializable').length,1);
+  }
+});
+test('elapsed recovery budget and expired arming or approval block serialization retries',async()=>{
+  for(const advanceAfterFailure of [10000,90001,3600001]) {
+    const r=await exercise('activate',{serializationFailures:1,advanceAfterFailure});assert.equal(r.exitCode,1);
+    assert.equal(r.queries.filter(q=>q==='begin isolation level serializable').length,1);
+  }
 });

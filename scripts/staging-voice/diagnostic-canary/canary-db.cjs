@@ -5,9 +5,12 @@ const {Client} = require('pg');
 let input = '';
 process.stdin.on('data', chunk => { input += chunk; if (input.length > 262144) throw Error('CONTROL_TOO_LARGE'); });
 process.stdin.on('end', async () => {
+  const enteredAt=Date.now();
+  for(let attempt=1;attempt<=3;attempt++){
   let db;
+  let c;
   try {
-    const c = JSON.parse(input), s = c.scope;
+    c = JSON.parse(input);const s = c.scope;
     const actions = ['baseline','readiness','prepare','reconcile','activate','status','close','verify'];
     assert(actions.includes(c.action));
     assert.equal(process.env.SUPABASE_URL,'https://qcffvfbpzvpwcwxwjyro.supabase.co');
@@ -143,10 +146,18 @@ process.stdin.on('end', async () => {
       }
     }
     if(elevated)await reset();
-    await db.query('commit');console.log(JSON.stringify(result));
+    await db.query('commit');console.log(JSON.stringify(result));return;
   } catch(error){
-    if(db)await db.query('rollback').catch(()=>{});
+    const rolledBack=db ? await db.query('rollback').then(()=>true,()=>false) : false;
+    const now=Date.now(),s=c?.scope,state=c?.state;
+    // A PostgreSQL serialization failure aborts the whole transaction. Repeat only
+    // after an acknowledged rollback, with every original admission check intact.
+    // Never retry transport errors, ambiguous commits, another begin or a capture.
+    if(c?.action==='activate' && error.code==='40001' && rolledBack && attempt<3 &&
+      now-enteredAt<10000 && now<state?.deadline*1000 && now<state?.startsAt*1000+90000 &&
+      now<s?.expiresAt*1000 && now>=c.approvalReceivedAt*1000 && now-c.approvalReceivedAt*1000<=3600000)continue;
     console.error(JSON.stringify({status:'CANARY_DATABASE_FAILED',code:/^[A-Z0-9_]{1,20}$/.test(error.code||'')?error.code:null}));
-    process.exitCode=1;
+    process.exitCode=1;return;
   } finally {if(db)await db.end();}
+  }
 });
