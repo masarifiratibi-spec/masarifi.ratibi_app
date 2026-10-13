@@ -233,6 +233,41 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).rows[0],
     );
   }
+  it.each([false, true])(
+    'repeated acknowledged heartbeat preserves financial receipts and closed=%s admission',
+    async (closed) => {
+      await prepare('operating');
+      const session = await create();
+      await commit(session);
+      if (closed) await repository.closeVoiceEpoch(epoch, 'test_finished');
+      const beforeLedger = await ledgerState();
+      const sessionState = async () =>
+        row(
+          (
+            await query('select to_jsonb(s) snapshot from public.voice_sessions s where id=$1', [
+              session,
+            ])
+          ).rows[0],
+        );
+      const beforeSession = await sessionState();
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const state = await repository.voiceEpochHeartbeat(
+          epoch,
+          'heartbeat-repeat',
+          'a'.repeat(40),
+        );
+        expect(state.enabled).toBe(!closed);
+        expect(await ledgerState()).toEqual(beforeLedger);
+        expect(await sessionState()).toEqual(beforeSession);
+      }
+      expect(
+        row(
+          (await query('select state from private.staging_voice_epochs where id=$1', [epoch]))
+            .rows[0],
+        ).state,
+      ).toBe(closed ? 'closed' : 'active');
+    },
+  );
   it('projects only fresh committed operating Voice confirmations without changing the ledger or publishing history', async () => {
     await prepare('operating');
     const session = await create();

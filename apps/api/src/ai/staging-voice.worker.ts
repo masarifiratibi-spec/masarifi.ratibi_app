@@ -46,7 +46,7 @@ export class StagingVoiceWorker {
     let stage = 'heartbeat';
     try {
       const state = await this.pulse();
-      if (!state.enabled) return;
+      if (this.isStopping() || !state.enabled) return;
       if (state.mode !== 'canary' && state.mode !== 'operating')
         throw new Error('VOICE_SCOPE_INVALID');
       stage = 'claim';
@@ -59,6 +59,12 @@ export class StagingVoiceWorker {
           await this.repository.closeVoiceEpoch(this.epoch, 'extraction_failed');
           return;
         }
+      }
+      // A background heartbeat may be revalidating while extraction finishes.
+      // Do not claim finalization until that same pulse has been acknowledged.
+      if (this.heartbeatPromise) {
+        stage = 'heartbeat';
+        if (!(await this.heartbeatPromise).enabled) return;
       }
       if (this.isStopping()) return;
       stage = 'finalize';
@@ -102,7 +108,16 @@ export class StagingVoiceWorker {
     if (!this.heartbeatPromise) {
       this.heartbeatPromise = this.repository
         .voiceEpochHeartbeat(this.epoch, this.workerId, this.sourceSha)
+        .catch((error: unknown) => {
+          if (this.stopping || workerErrorFields(error).exception.reason !== 'Query read timeout')
+            throw error;
+          // Only heartbeat metadata is safe to repeat after an uncertain timeout.
+          // The repository discards the failed connection, and the SQL rechecks
+          // the same epoch/source without activating or reopening an epoch.
+          return this.repository.voiceEpochHeartbeat(this.epoch, this.workerId, this.sourceSha);
+        })
         .then((state) => {
+          if (this.stopping) return state;
           if (this.wasEnabled && !state.enabled) this.abort.abort();
           this.wasEnabled = state.enabled === true;
           this.observe({

@@ -8,7 +8,11 @@ import {
   within
 } from '@testing-library/react-native';
 import { QueryClient } from '@tanstack/react-query';
-import type { HomeSummary, Transaction, TransactionFilterSet as MockTransactionFilterSet } from '@/domain/core-finance';
+import type {
+  HomeSummary,
+  Transaction,
+  TransactionFilterSet as MockTransactionFilterSet
+} from '@/domain/core-finance';
 import { FoundationProviders } from '@/state/FoundationProviders';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { usePreferenceStore } from '@/state/preferences';
@@ -29,6 +33,7 @@ import {
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { useVoiceBatches } from './useVoiceBatches';
+import { voiceAnalysisKey } from './voice-analysis-query';
 import { useAppShellStore } from '@/state/app-shell';
 
 // Only external receipts/reads and unused recording controls are replaced.
@@ -40,8 +45,12 @@ jest.mock('@/services/mocks/core-finance-service', () => ({
   coreFinanceService: {
     getHomeSummary: jest.fn(),
     getHomeTodayActivity: (...args: unknown[]) => {
-      const { readHomeTodayActivity } = jest.requireActual<typeof import('@/services/home-today-activity')>('@/services/home-today-activity');
-      const { coreFinanceService } = jest.requireMock('@/services/mocks/core-finance-service');
+      const { readHomeTodayActivity } = jest.requireActual<
+        typeof import('@/services/home-today-activity')
+      >('@/services/home-today-activity');
+      const { coreFinanceService } = jest.requireMock(
+        '@/services/mocks/core-finance-service'
+      );
       return readHomeTodayActivity({
         filters: args[0] as MockTransactionFilterSet,
         signal: args[1] as AbortSignal | undefined,
@@ -339,6 +348,154 @@ it.each(['en', 'ar'] as const)(
     }
   }
 );
+
+it.each(['en', 'ar'] as const)(
+  'does not present an empty analysis receipt as an unsaved transaction in %s',
+  async (locale) => {
+    changeLocale(locale);
+    usePreferenceStore.setState({
+      locale,
+      direction: locale === 'ar' ? 'rtl' : 'ltr'
+    });
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'diagnostic-owner',
+        method: 'phone',
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + 600000,
+        restoration: 'restored'
+      }
+    });
+    jest
+      .mocked(coreFinanceService.getHomeSummary)
+      .mockResolvedValue(summary([transaction()]));
+    jest
+      .mocked(coreFinanceService.listTransactions)
+      .mockResolvedValue({ items: [transaction()], nextCursor: null });
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => ({
+        results: [
+          {
+            ...completed,
+            transactionIds: [],
+            addedCount: 0,
+            ledgerVersion: 0,
+            analysis: {
+              mode: 'analysis_only',
+              persisted: false,
+              expiresAt: new Date(Date.now() + 900000).toISOString(),
+              events: []
+            }
+          }
+        ],
+        pendingIds: [],
+        uncertain: false,
+        localFailure: false
+      })
+    });
+    const view = mount();
+    try {
+      await waitFor(() =>
+        expect(view.batches.latest?.analysis?.events).toEqual([])
+      );
+      expect(screen.queryAllByTestId('voice-analysis-results')).toHaveLength(0);
+      expect(
+        screen.queryByText(
+          locale === 'ar' ? 'تم التحليل — لم يتم الحفظ' : 'Analyzed — not saved'
+        )
+      ).toBeNull();
+      expect(
+        screen.getByTestId(`home-transaction-row-${transactionId}`)
+      ).toBeTruthy();
+      expect(view.batches.latest?.addedCount).toBe(0);
+    } finally {
+      view.close();
+      useAppShellStore.setState({ session: null });
+    }
+  }
+);
+
+it('shows only real unexpired analysis among mixed receipts without changing their cache or saved rows', async () => {
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'diagnostic-owner',
+      method: 'phone',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 600000,
+      restoration: 'restored'
+    }
+  });
+  jest
+    .mocked(coreFinanceService.getHomeSummary)
+    .mockResolvedValue(summary([transaction()]));
+  jest
+    .mocked(coreFinanceService.listTransactions)
+    .mockResolvedValue({ items: [transaction()], nextCursor: null });
+  const real: VoiceBatchResult = {
+    ...completed,
+    transactionIds: [],
+    addedCount: 0,
+    ledgerVersion: 0,
+    analysis: {
+      mode: 'analysis_only',
+      persisted: false,
+      expiresAt: new Date(Date.now() + 900000).toISOString(),
+      events: [
+        {
+          ordinal: 0,
+          kind: 'expense',
+          amountMinor: 2500,
+          currency: 'SAR',
+          accountId: fixtureAccounts[0]!.id,
+          categoryId: null,
+          title: 'Actual unsaved analysis',
+          merchant: null,
+          occurredAt: new Date().toISOString()
+        }
+      ]
+    }
+  };
+  const rows = [
+    real,
+    {
+      ...real,
+      sessionId: capture,
+      analysis: { ...real.analysis!, events: [] }
+    },
+    {
+      ...real,
+      sessionId: transactionId,
+      analysis: {
+        ...real.analysis!,
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+        events: [
+          { ...real.analysis!.events[0]!, title: 'Expired private analysis' }
+        ]
+      }
+    }
+  ];
+  const view = mount();
+  try {
+    await act(async () => view.batches.recover());
+    await act(async () =>
+      view.client.setQueryData(voiceAnalysisKey('diagnostic-owner'), rows)
+    );
+    expect(screen.getAllByText('Actual unsaved analysis')).toHaveLength(2);
+    expect(screen.getAllByText('Analyzed — not saved')).toHaveLength(2);
+    expect(screen.queryByText('Expired private analysis')).toBeNull();
+    expect(
+      screen.getByTestId(`home-transaction-row-${transactionId}`)
+    ).toBeTruthy();
+    expect(
+      view.client.getQueryData(voiceAnalysisKey('diagnostic-owner'))
+    ).toEqual(rows);
+  } finally {
+    view.close();
+    useAppShellStore.setState({ session: null });
+  }
+});
 
 it('renders a financial receipt only through normal saved components without refresh or duplicate representation', async () => {
   let items: Transaction[] = [];

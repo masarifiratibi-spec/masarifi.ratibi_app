@@ -87,6 +87,7 @@ const claim = {
 };
 function fixture(mode = 'canary') {
   const effects: string[] = [];
+  const observations: Record<string, unknown>[] = [];
   let enabled = true;
   const repository = {
     voiceEpochHeartbeat: (id: string) => {
@@ -141,10 +142,12 @@ function fixture(mode = 'canary') {
     epoch,
     'scoped-worker',
     'a'.repeat(40),
+    (state) => observations.push(state),
   );
   return {
     worker,
     effects,
+    observations,
     repository,
     engine,
     disable: () => {
@@ -152,6 +155,172 @@ function fixture(mode = 'canary') {
     },
   };
 }
+it('revalidates only the heartbeat once after a driver read timeout before claiming financial work', async () => {
+  const f = fixture('operating');
+  const heartbeat = jest
+    .fn(f.repository.voiceEpochHeartbeat)
+    .mockRejectedValueOnce(new Error('Query read timeout'));
+  f.repository.voiceEpochHeartbeat = heartbeat;
+  await f.worker.tick();
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  expect(heartbeat.mock.calls[0]).toEqual(heartbeat.mock.calls[1]);
+  expect(f.effects).toEqual([
+    'scoped-claim',
+    'existing-extraction',
+    'scoped-finalize',
+    'scoped-purge',
+  ]);
+});
+
+it('does not admit work until the single heartbeat revalidation is acknowledged', async () => {
+  const f = fixture('operating');
+  let finish!: (value: Awaited<ReturnType<typeof f.repository.voiceEpochHeartbeat>>) => void;
+  const heartbeat = jest
+    .fn(f.repository.voiceEpochHeartbeat)
+    .mockRejectedValueOnce(new Error('Query read timeout'))
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+  f.repository.voiceEpochHeartbeat = heartbeat;
+  const tick = f.worker.tick();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  expect(f.effects).toEqual([]);
+  finish({ enabled: false, mode: 'operating' });
+  await tick;
+  expect(f.effects).toEqual([]);
+});
+
+it('remains fail-closed after two heartbeat timeouts and never retries financial work', async () => {
+  const f = fixture('operating');
+  const heartbeat = jest
+    .fn(f.repository.voiceEpochHeartbeat)
+    .mockRejectedValue(new Error('Query read timeout'));
+  f.repository.voiceEpochHeartbeat = heartbeat;
+  await f.worker.tick();
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  expect(f.effects).toEqual(['closed:runtime_failed']);
+  await f.worker.tick();
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  expect(f.effects).toEqual(['closed:runtime_failed']);
+});
+
+it('waits for heartbeat revalidation before finalizing extraction already in flight', async () => {
+  jest.useFakeTimers();
+  const f = fixture('operating');
+  let finishHeartbeat!: (
+    value: Awaited<ReturnType<typeof f.repository.voiceEpochHeartbeat>>,
+  ) => void;
+  let finishExtraction!: (value: boolean) => void;
+  // The startup heartbeat succeeds; only the background pulse times out.
+  const heartbeat = jest
+    .fn(f.repository.voiceEpochHeartbeat)
+    .mockImplementationOnce(() => Promise.resolve({ enabled: true, mode: 'operating' }))
+    .mockRejectedValueOnce(new Error('Query read timeout'))
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishHeartbeat = resolve;
+        }),
+    );
+  f.repository.voiceEpochHeartbeat = heartbeat;
+  f.engine.processVoiceClaim = () =>
+    new Promise((resolve) => {
+      finishExtraction = resolve;
+    });
+  try {
+    f.worker.start();
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(heartbeat).toHaveBeenCalledTimes(3);
+    finishExtraction(true);
+    await jest.advanceTimersByTimeAsync(0);
+    expect(f.effects).toEqual(['scoped-claim']);
+    finishHeartbeat({ enabled: true, mode: 'operating' });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(f.effects).toEqual(['scoped-claim', 'scoped-finalize', 'scoped-purge']);
+  } finally {
+    finishExtraction(true);
+    finishHeartbeat({ enabled: false, mode: 'operating' });
+    await jest.advanceTimersByTimeAsync(0);
+    await f.worker.stop();
+    jest.useRealTimers();
+  }
+});
+
+it('does not begin a claim when stopped while the heartbeat is in flight', async () => {
+  const f = fixture('operating');
+  let finish!: (value: Awaited<ReturnType<typeof f.repository.voiceEpochHeartbeat>>) => void;
+  f.repository.voiceEpochHeartbeat = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  const tick = f.worker.tick();
+  const stopped = f.worker.stop();
+  finish({ enabled: true, mode: 'operating' });
+  await tick;
+  await stopped;
+  expect(f.effects).toEqual([]);
+  expect(f.observations).toEqual([]);
+});
+
+it('shares one revalidation between tick and timer without starting a second retry', async () => {
+  jest.useFakeTimers();
+  const f = fixture('operating');
+  let finish!: (value: Awaited<ReturnType<typeof f.repository.voiceEpochHeartbeat>>) => void;
+  const heartbeat = jest
+    .fn(f.repository.voiceEpochHeartbeat)
+    .mockRejectedValueOnce(new Error('Query read timeout'))
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+  f.repository.voiceEpochHeartbeat = heartbeat;
+  try {
+    f.worker.start();
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(heartbeat).toHaveBeenCalledTimes(2);
+    expect(f.effects).toEqual([]);
+    finish({ enabled: false, mode: 'operating' });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(f.effects).toEqual([]);
+  } finally {
+    finish({ enabled: false, mode: 'operating' });
+    await jest.advanceTimersByTimeAsync(0);
+    await f.worker.stop();
+    jest.useRealTimers();
+  }
+});
+
+it.each(['VOICE_SCOPE_INVALID', 'Connection terminated unexpectedly'])(
+  'never retries a heartbeat rejection: %s',
+  async (reason) => {
+    const f = fixture('operating');
+    const heartbeat = jest
+      .fn(f.repository.voiceEpochHeartbeat)
+      .mockRejectedValue(new Error(reason));
+    f.repository.voiceEpochHeartbeat = heartbeat;
+    await f.worker.tick();
+    expect(heartbeat).toHaveBeenCalledTimes(1);
+    expect(f.effects).toEqual(['closed:runtime_failed']);
+  },
+);
+
+it('does not retry financial finalization after a query read timeout', async () => {
+  const f = fixture('operating');
+  const finalize = jest
+    .fn(f.repository.finalizeVoiceEpoch)
+    .mockRejectedValue(new Error('Query read timeout'));
+  f.repository.finalizeVoiceEpoch = finalize;
+  await f.worker.tick();
+  expect(finalize).toHaveBeenCalledTimes(1);
+  expect(f.effects).toEqual(['scoped-claim', 'existing-extraction', 'closed:runtime_failed']);
+});
+
 it('runs automatic extraction and finalization through only epoch-scoped capabilities', async () => {
   const f = fixture();
   await f.worker.tick();

@@ -29,7 +29,9 @@ export function VoiceAnalysisResults() {
       ...data
         .filter(
           (row) =>
-            row.analysis && Date.parse(row.analysis.expiresAt) > Date.now()
+            row.analysis &&
+            row.analysis.events.length > 0 &&
+            Date.parse(row.analysis.expiresAt) > Date.now()
         )
         .map((row) => Date.parse(row.analysis!.expiresAt))
     );
@@ -45,6 +47,7 @@ export function VoiceAnalysisResults() {
         (row) =>
           row.status === 'completed' &&
           row.analysis &&
+          row.analysis.events.length > 0 &&
           Date.parse(row.analysis.expiresAt) > Date.now()
       )
     : [];
