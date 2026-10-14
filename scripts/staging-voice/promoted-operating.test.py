@@ -624,6 +624,34 @@ class HostTests(unittest.TestCase):
             snapshot=self.host.snapshot(state)
             self.assertTrue(snapshot['scopeValid']);self.assertTrue(snapshot['apiReady']);self.assertTrue(snapshot['workerHealthy'])
             self.assertEqual(self.epoch['state'],'active');self.assertIsNone(self.host.read_json('close-request.json'))
+    def test_prepared_and_active_forward_fences_do_not_repeat_historical_baseline_reads(self):
+        state=self.prepare();original=self.host.database;actions=[]
+        def admission_scan_unavailable(action,state=None):
+            actions.append(action)
+            if action=='status':raise RuntimeError('HISTORICAL_BASELINE_READ_TIMEOUT')
+            return original(action,state)
+        self.host.database=admission_scan_unavailable
+        self.assertEqual(self.host.epoch_status(state,False)['epoch']['state'],'prepared')
+        self.epoch['state']='active'
+        self.assertTrue(self.host.epoch_status(state,True)['posting'])
+        self.assertEqual(actions,['monitor','monitor'])
+    def test_lightweight_forward_fences_preserve_exact_epoch_and_policy_checks(self):
+        state=self.prepare();original=self.host.database
+        for active in [False,True]:
+            self.epoch['state']='active' if active else 'prepared'
+            for change in ['current_epoch','manifest','mode','expiry','enforcement','posting']:
+                def changed(action,state=None):
+                    value=original(action,state)
+                    if change=='current_epoch':value['currentEpoch']='90000000-0000-4000-8000-000000000001'
+                    elif change=='manifest':value['epoch']['manifestHash']='0'*64
+                    elif change=='mode':value['epoch']['mode']='canary'
+                    elif change=='expiry':value['epoch']['expiresAt']=NOW+60
+                    elif change=='enforcement':value['enforced']=False
+                    else:value['posting']=not active
+                    return value
+                self.host.database=changed
+                with self.subTest(active=active,change=change),self.assertRaisesRegex(RuntimeError,'EXACT_OWNED_EPOCH_FENCE_REQUIRED'):
+                    self.host.epoch_status(state,active)
     def test_monitor_database_failure_reports_only_finite_stage_and_preserves_closure(self):
         with self.chain():
             state=m.lifecycle.begin(self.host);original=self.host.database

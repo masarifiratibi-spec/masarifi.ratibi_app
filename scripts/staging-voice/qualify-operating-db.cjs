@@ -266,6 +266,17 @@ async function main(){
   c=await prepared();await db.query('insert into private.staging_voice_epochs(manifest,manifest_hash,mode) values($1::jsonb,$2,\'operating\')',[JSON.stringify(c.manifest),c.manifestHash]);
   assert.equal((await helper('reconcile',{...c,epochId:null,manifestHash:null})).ok,false);await success('close',c);passed('ambiguous duplicate manifest reconciliation refuses');
   c=await prepared();
+  await db.query('begin read write');
+  try{
+   await db.query('lock table private.outbox_events,public.accounts,public.transactions,public.transaction_postings,public.account_balances in access exclusive mode');
+   const observation={},result=await helper('monitor',c,observation);assert.equal(result.ok,true,JSON.stringify(result.errors));
+   const fence=result.result;assert.equal(fence.posting,false);assert.equal(fence.enforced,true);
+   assert.equal(fence.currentEpoch,c.epochId);assert.equal(fence.epoch.epochId,c.epochId);assert.equal(fence.epoch.manifestHash,c.manifestHash);
+   assert.equal(fence.epoch.state,'prepared');assert.equal(fence.epoch.mode,'operating');assert.equal(fence.epoch.matches,true);assert.equal(fence.epoch.expiresAt,null);
+   assert.deepEqual(fence.migrations,c.requiredMigrations);assert.equal(fence.fingerprints,undefined);assert.equal(fence.historical,undefined);
+   assert.equal(observation.readSnapshotStarted,true);assert.equal(observation.roleMutations||0,0);
+  }finally{await db.query('rollback');}
+  passed('prepared OFF forward fence remains read-only and responsive while unrelated backlog and baseline tables are exclusively locked');
   assert.equal((await helper('activate',{...c,baseline:{...c.baseline,fingerprints:{...c.baseline.fingerprints,balances:'0'.repeat(64)}}})).ok,false);await success('close',c);passed('exact financial baseline drift refuses activation');
   // Each metadata component and full history drift is checked by production SQL/controller.
   c=await prepared();const last=c.requiredMigrations.at(-1),registry=fixtureClient();await registry.connect();

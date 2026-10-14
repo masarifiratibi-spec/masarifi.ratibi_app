@@ -591,7 +591,9 @@ class LocalHost(legacy.LocalHost):
                     'FOREIGN_CANCELLATION_PRESERVED')
 
     def epoch_status(self,state,active):
-        value=self.database('status',state);epoch=value.get('epoch')
+        # Forward fences need the current owned epoch, not historical backlog.
+        # Admission retains its separate full financial snapshot and locks.
+        value=self.database('monitor',state);epoch=value.get('epoch')
         require(isinstance(epoch,dict) and epoch.get('epochId')==state['epochId'] and
                 epoch.get('manifestHash')==state['manifestHash'] and epoch.get('matches') is True and
                 value.get('currentEpoch')==state['epochId'] and epoch.get('mode')=='operating' and
