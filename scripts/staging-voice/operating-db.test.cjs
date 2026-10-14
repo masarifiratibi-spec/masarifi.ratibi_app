@@ -130,7 +130,9 @@ test('activation refuses authority expiring on each blocking row lock',async()=>
 });
 test('activation repeats all checks after acknowledged serialization rollback, at most three attempts',async()=>{
  const recovered=await exercise('activate',{failures:1});assert.equal(success(recovered).expiresAt,null);assert.equal(recovered.attempts,2);
- assert.equal(recovered.queries.filter(q=>q.sql.includes('outboxUnpublished')).length,3);
+ // The aborted early lock attempt cannot start the expensive baseline. The
+ // successful attempt still checks both the full and independent fresh baseline.
+ assert.equal(recovered.queries.filter(q=>q.sql.includes('outboxUnpublished')).length,2);
  const exhausted=await exercise('activate',{failures:3});refused(exhausted);assert.equal(exhausted.attempts,3);
 });
 test('activation never retries uncertain rollback, transport failure or unknown commit',async()=>{

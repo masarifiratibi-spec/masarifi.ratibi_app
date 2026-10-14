@@ -165,7 +165,7 @@ async function run() {
    }
    // Reads fix the serializable snapshot before row locks. A heartbeat change then raises 40001.
    let s;
-   if(action!=='close'){stage='status';s=action==='monitor'?await monitorSnapshot(db):await snapshot(db);await schema(db,c,s);}
+   if(action!=='close'&&action!=='activate'){stage='status';s=action==='monitor'?await monitorSnapshot(db):await snapshot(db);await schema(db,c,s);}
    let result;
    if(action==='reconcile'){
     stage='reconcile';const rows=await manifestRows(db,c);assert(rows.length<=1);
@@ -189,6 +189,15 @@ async function run() {
      e=await epoch(db,c,true);owned(e,c);
     }
     assert.equal((await db.query('select singleton from private.voice_automatic_policy for update')).rows.length,1);
+    // OFF workers heartbeat the epoch while admission runs. Lock its row before
+    // the expensive full baseline, keeping early serialization races bounded by
+    // the existing acknowledged-rollback retry and original authority deadlines.
+    if(action==='activate'){
+     // Preserve the original login's baseline visibility, including the migration
+     // registry, without granting that registry to the capability role.
+     await db.query('reset role');stage='status';s=await snapshot(db);await schema(db,c,s);
+     await db.query('set local role masarifi_migration');
+    }
     if(action==='prepare'||action==='activate'){
      stage='admission';assert.deepEqual(s,c.baseline);authority(c,enteredAt);
      await freshBaseline(Pool,c);stage='admission';authority(c,enteredAt);

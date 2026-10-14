@@ -38,6 +38,14 @@ async function helper(action,c,observer={}) {
     if(sql.startsWith('select pg_advisory_lock'))observer.settlementPid=conn.processID;
     if(/^(grant|revoke|set local role)/.test(sql))observer.roleMutations=(observer.roleMutations||0)+1;
     if(writes&&sql.startsWith('select private.activate_staging_voice_epoch'))observer.activations=(observer.activations||0)+1;
+    if(writes&&observer.snapshotHeartbeat&&sql.includes('outboxUnpublished')){
+     const heartbeat=fixtureClient();await heartbeat.connect();
+     await heartbeat.query('set role masarifi_worker');
+     (observer.heartbeats||=[]).push(heartbeat.query('select private.staging_voice_heartbeat($1,$2,$3)',[c.epochId,'local-snapshot-heartbeat',c.manifest.sourceSha]).finally(()=>heartbeat.end()));
+     // A live OFF worker can heartbeat while the expensive baseline is read.
+     // Once its epoch row is locked this write must wait until activation ends.
+     await new Promise(resolve=>setTimeout(resolve,100));
+    }
     if(observer.race&&sql.includes('from private.staging_voice_epochs where id=')&&sql.endsWith('for update')&&(observer.races||0)<observer.race){
      observer.races=(observer.races||0)+1;
      const heartbeat=fixtureClient();await heartbeat.connect();
@@ -301,6 +309,8 @@ async function main(){
   await settledPreparation();await enforcementDrift();await driftClosure();await financialRaces();
   for(const relation of ['private.staging_voice_runtime_control','private.staging_voice_epochs','private.voice_automatic_policy'])await lockExpiry(relation);
   for(const action of ['prepare','activate'])await cleanupExpiry(action);
+  c=await prepared();let snapshotObserver={snapshotHeartbeat:true};const snapshotActivation=await helper('activate',c,snapshotObserver);await Promise.all(snapshotObserver.heartbeats||[]);
+  assert(snapshotActivation.ok,JSON.stringify(snapshotActivation.errors));assert.equal(snapshotObserver.attempts,1);await success('close',c);passed('OFF worker heartbeat during the admission baseline waits for activation locks without serialization failure');
   c=await prepared();let observer={race:1};const recovered=await helper('activate',c,observer);assert(recovered.ok,JSON.stringify(recovered.errors));assert.equal(observer.attempts,2);assert.deepEqual(observer.databaseErrors,['40001']);await success('close',c);passed('one real heartbeat serialization race recovers with full transaction retry');
   c=await prepared();observer={race:3};assert.equal((await helper('activate',c,observer)).ok,false);assert.equal(observer.attempts,3);assert.deepEqual(observer.databaseErrors,['40001','40001','40001']);assert.equal((await success('status',c)).posting,false);await success('close',c);passed('persistent heartbeat serialization race stops after three attempts');
   c=await prepared();observer={race:1,uncertainRollback:true};assert.equal((await helper('activate',c,observer)).ok,false);assert.equal(observer.attempts,1);assert.equal((await success('status',c)).posting,false);await success('close',c);passed('uncertain rollback acknowledgement never retries activation');
