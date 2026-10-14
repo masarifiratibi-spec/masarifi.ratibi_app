@@ -421,9 +421,21 @@ class LocalHost(legacy.LocalHost):
         reuse=self.proof(proofs['apkRuntime']['reusedNative'])
         check_apk_proofs(apk,reuse,self.packet)
 
-    def checked_preserved(self,pins,analysis_running=None):
+    def inspected_cohort(self,identities):
+        require(identities and len(set(identities))==len(identities) and
+                all(valid_hash(identity) for identity in identities),'EXACT_COHORT_INSPECTION_REQUIRED')
+        rows=json.loads(self.run(['docker','inspect',*identities]))
+        require(isinstance(rows,list) and len(rows)==len(identities) and
+                all(isinstance(row,dict) and isinstance(row.get('Id'),str) for row in rows),
+                'EXACT_COHORT_INSPECTION_REQUIRED')
+        containers={row['Id']:row for row in rows}
+        require(len(containers)==len(identities) and set(containers)==set(identities),
+                'EXACT_COHORT_INSPECTION_REQUIRED')
+        return containers
+
+    def checked_preserved(self,pins,analysis_running=None,containers=None):
         for role,pin in pins.items():
-            c=self.inspect(pin['id'])
+            c=self.inspect(pin['id']) if containers is None else containers[pin['id']]
             require(c['Id']==pin['id'] and c['Name']=='/'+pin['name'] and
                     ingress.configuration_hash(c)==pin['configurationHash'] and
                     c['Config']['Image']==legacy.IMAGE_PREFIX+pin['imageDigest'] and
@@ -432,10 +444,18 @@ class LocalHost(legacy.LocalHost):
             if expected is not None:require(c['State']['Running'] is expected,'PRESERVED_WORKER_STATE_CHANGED')
 
     def cohort(self,analysis_running=None):
-        for role in ['originalAPI','publicAPI']:ingress.checked_api(self,self.packet['apis'][role],role,True)
-        self.checked_preserved(self.packet['preservedWorkers'],analysis_running)
+        identities=[self.packet['apis'][role]['id'] for role in ['originalAPI','publicAPI']]
+        identities.extend(pin['id'] for pin in self.packet['preservedWorkers'].values())
+        identities.extend(pin['id'] for pin in self.packet['otherContainers'])
+        # Each fence obtains a fresh complete inspection. Nothing is reused by
+        # a later fence or by the separate mutable financial-API/worker checks.
+        containers=self.inspected_cohort(identities)
+        view=type('CohortInspection',(),{})()
+        view.inspect=lambda identity:containers[identity]
+        for role in ['originalAPI','publicAPI']:ingress.checked_api(view,self.packet['apis'][role],role,True)
+        self.checked_preserved(self.packet['preservedWorkers'],analysis_running,containers)
         for pin in self.packet['otherContainers']:
-            c=self.inspect(pin['id']);require(c['Id']==pin['id'] and ingress.configuration_hash(c)==pin['configurationHash'] and
+            c=containers[pin['id']];require(c['Id']==pin['id'] and ingress.configuration_hash(c)==pin['configurationHash'] and
                     c['State']['Running'] is pin['running'],'UNRELATED_CONTAINER_CHANGED')
 
     def route_guard(self):

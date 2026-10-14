@@ -193,8 +193,56 @@ class HostTests(unittest.TestCase):
         self.host.save('packet.json',self.p);self.host.save('approval.json',self.a)
         self.host.claim()
     def tearDown(self):self.tmp.cleanup()
+    def test_cohort_reads_one_fresh_complete_inspection_per_check(self):
+        expected=[self.p['apis'][role]['id'] for role in ('originalAPI','publicAPI')]
+        expected.extend(pin['id'] for pin in self.p['preservedWorkers'].values())
+        requests=[]
+        def inspect_all(args,**kwargs):
+            requests.append(args)
+            return json.dumps([copy.deepcopy(self.containers[identity]) for identity in args[2:]])
+        self.host.run=inspect_all
+        self.host.cohort(True)
+        self.assertEqual(requests,[['docker','inspect',*expected]])
+        self.containers[self.p['preservedWorkers']['analysis']['id']]['State']['Running']=False
+        with self.assertRaisesRegex(RuntimeError,'PRESERVED_WORKER_STATE_CHANGED'):
+            self.host.cohort(True)
+        self.assertEqual(requests,[['docker','inspect',*expected]]*2)
+
+    def test_cohort_batch_refuses_missing_duplicate_and_foreign_results(self):
+        expected=[self.p['apis'][role]['id'] for role in ('originalAPI','publicAPI')]
+        expected.extend(pin['id'] for pin in self.p['preservedWorkers'].values())
+        rows=[copy.deepcopy(self.containers[identity]) for identity in expected]
+        foreign=copy.deepcopy(rows[-1]);foreign['Id']='f'*64
+        for result in (rows[:-1],rows[:-1]+[rows[0]],rows[:-1]+[foreign]):
+            with self.subTest(ids=[row['Id'] for row in result]):
+                self.host.run=lambda args,**kwargs:json.dumps(result)
+                with self.assertRaisesRegex(RuntimeError,'EXACT_COHORT_INSPECTION_REQUIRED'):
+                    self.host.cohort(True)
+
+    def test_cohort_batch_preserves_unrelated_configuration_and_running_guards(self):
+        other=copy.deepcopy(self.containers[self.p['preservedWorkers']['analysis']['id']])
+        other['Id']='e'*64;other['Name']='/masarifi-staging-retained-fixture'
+        self.containers[other['Id']]=other
+        self.p['otherContainers']=[{'id':other['Id'],'configurationHash':m.ingress.configuration_hash(other),'running':True}]
+        self.host.packet['otherContainers']=copy.deepcopy(self.p['otherContainers'])
+        requests=[]
+        def inspect_all(args,**kwargs):
+            requests.append(args)
+            return json.dumps([copy.deepcopy(self.containers[identity]) for identity in args[2:]])
+        self.host.run=inspect_all
+        self.host.cohort(True)
+        self.assertIn(other['Id'],requests[0])
+        for field in ('configuration','running'):
+            changed=copy.deepcopy(other)
+            if field=='configuration':changed['Config']['Hostname']='unapproved-change'
+            else:changed['State']['Running']=False
+            self.containers[other['Id']]=changed
+            with self.subTest(field=field),self.assertRaisesRegex(RuntimeError,'UNRELATED_CONTAINER_CHANGED'):
+                self.host.cohort(True)
     def command(self,args,timeout=30,environment=None):
         self.calls.append(args)
+        if args[:2]==['docker','inspect']:
+            return json.dumps([copy.deepcopy(self.containers[identity]) for identity in args[2:]])
         if args[:2]==['docker','start']:self.containers[args[2]]['State']['Running']=True
         if args[:2]==['docker','stop']:self.containers[args[-1]]['State']['Running']=False
         return ''
