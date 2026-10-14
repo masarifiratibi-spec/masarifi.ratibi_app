@@ -290,6 +290,7 @@ jobs:
         run: |
           node ../../scripts/integration/main-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-main-upgrade.json"
           npx supabase migration list --local --workdir ../.. > "$RUNNER_TEMP/masarifi-main-migrations.txt"
+      - run: npm run build
       - name: Apply every candidate migration and verify unchanged financial history
         run: |
           npm run start:migration
