@@ -4,6 +4,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun chatPackagesNeverReachRetentionEvenWhenTrusted() {
+    assertEquals(NotificationAdmission.DISCARD,notificationAdmission("com.whatsapp","com.masarifi.mobile.dev",true,setOf("com.whatsapp"),emptySet(),policy(),"Purchase SAR50"))
+  }
   private fun policy(): FinancialDiscoveryPolicy = FinancialDiscoveryPolicy.parse(
     javaClass.getResource("/financial-discovery-policy.json")!!.readText()
   )!!

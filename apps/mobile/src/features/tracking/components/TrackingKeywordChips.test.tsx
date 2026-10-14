@@ -21,10 +21,12 @@ function Harness() {
     />
   );
 }
-it('can toggle a default off and on without hiding it or offering misleading edit/delete', () => {
+it('can toggle a default off and on independently from deletion', () => {
   render(<Harness />);
   expect(screen.queryByTestId('tracking-keyword-edit-builtin')).toBeNull();
-  expect(screen.queryByTestId('tracking-keyword-remove-builtin')).toBeNull();
+  expect(
+    screen.queryByTestId('tracking-keyword-remove-builtin')
+  ).not.toBeNull();
   const toggle = screen.getByTestId('tracking-keyword-toggle-builtin');
   fireEvent.press(toggle);
   expect(screen.getByText('purchase')).toBeOnTheScreen();
@@ -35,6 +37,11 @@ it('can toggle a default off and on without hiding it or offering misleading edi
   expect(
     screen.getByTestId('tracking-keyword-toggle-builtin')
   ).toHaveAccessibilityState({ checked: true });
+});
+it('deletes a default from the visible effective list', () => {
+  render(<Harness />);
+  fireEvent.press(screen.getByTestId('tracking-keyword-remove-builtin'));
+  expect(screen.queryByText('purchase')).toBeNull();
 });
 it('new wording is a neutral financial signal', () => {
   const changed = jest.fn();

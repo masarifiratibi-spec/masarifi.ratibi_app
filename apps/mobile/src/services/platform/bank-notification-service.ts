@@ -9,9 +9,12 @@ export interface RawBankNotification {
   nativeKey?: string;
   observedAt?: number;
   discovered?: boolean;
+  captureActivatedAt?: number;
+  capturePolicy?: string;
 }
 
 export interface BankNotificationService {
+  getCaptureIssue?(): Promise<string | null>;
   getAccessState(): Promise<BankNotificationAccessState>;
   openSettings(): Promise<void>;
   setCaptureEnabled(enabled: boolean): Promise<void>;

@@ -43,11 +43,18 @@ describeLiveDatabase('persisted published keyword safety', () => {
     ).rejects.toMatchObject({ message: 'TRACKING_DEFAULT_IMMUTABLE' });
     expect((await defaultRow()).id).toBe(row.id);
   });
-  it('rejects default deletion instead of silently reactivating the release phrase', async () => {
+  it('retains a user deletion tombstone instead of silently reactivating the release phrase', async () => {
     const row = await defaultRow();
-    await expect(
-      pool.query('select private.delete_keyword_rule($1,$2,$3)', [owner, row.id, row.version]),
-    ).rejects.toMatchObject({ message: 'TRACKING_DEFAULT_IMMUTABLE' });
+    await pool.query('select private.delete_keyword_rule($1,$2,$3)', [owner, row.id, row.version]);
+    await pool.query('select private.seed_default_keyword_rules($1)', [owner]);
+    expect(
+      (
+        await pool.query(
+          'select enabled,deleted_at is not null deleted from public.user_keyword_rules where id=$1',
+          [row.id],
+        )
+      ).rows[0],
+    ).toEqual({ enabled: false, deleted: true });
     expect((await defaultRow()).id).toBe(row.id);
   });
   it('allows default action toggles while preserving published priority and identity', async () => {

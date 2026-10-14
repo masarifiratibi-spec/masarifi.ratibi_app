@@ -6,8 +6,57 @@ import type {
 import { permissionState } from './mocks/tracking-permission-service';
 import { SmsImportQueue } from '@/storage/sms-import-queue';
 import { createAutomaticTrackingCoordinator } from './automatic-tracking-coordinator';
+import { prepareFinancialMessageImport } from '@/features/tracking/sms-import';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
-import { defaultSnapshot } from '@masarifi/transaction-parser';
+import {
+  defaultSnapshot,
+  discoverFinancialMessage
+} from '@masarifi/transaction-parser';
+jest.mock('expo-crypto', () => ({
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  digestStringAsync: async (_algorithm: string, value: string) =>
+    jest
+      .requireActual<typeof import('node:crypto')>('node:crypto')
+      .createHash('sha256')
+      .update(value)
+      .digest('hex')
+}));
+
+it('retains a fee-bearing backlog in submissions within the durable import limit', async () => {
+  const context = setup({ prepare: prepareFinancialMessageImport });
+  context.setOnline(false);
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [
+      { normalizedSender: 'examplebank', enabled: true, trusted: true }
+    ],
+    accountingPolicy: 'default_account_nominal_v1',
+    rolloutMode: 'automatic'
+  });
+  const messages = Array.from({ length: 61 }, (_, i) => ({
+    id: String(i + 1),
+    sender: 'ExampleBank',
+    body: 'Paid SAR50; additional fee SAR2',
+    receivedAt: 100 + i
+  }));
+  context.inbox.readRecent.mockImplementation(
+    async ({ since, limit }: { since: number; limit: number }) =>
+      messages.filter((m) => m.receivedAt > since).slice(0, limit)
+  );
+  expect((await context.coordinator.sync()).status).toBe('queued');
+  const queued = await context.queue.load('owner-1');
+  expect(
+    queued.pending.reduce(
+      (total, item) => total + item.submission.events.length,
+      0
+    )
+  ).toBe(122);
+  expect(
+    queued.pending.every((item) => item.submission.events.length <= 100)
+  ).toBe(true);
+  expect(queued.cursor).toBe(160);
+});
 
 it('applies a persisted keyword change to cached and native policy even if refresh loses network', async () => {
   const configured = jest.fn(async () => undefined);
@@ -40,8 +89,177 @@ it('applies a persisted keyword change to cached and native policy even if refre
     expect.any(Number)
   );
 });
+it('keeps a removed default tombstone effective if the authoritative refresh fails and after restart', async () => {
+  const configured = jest.fn(async () => undefined),
+    context = setup({ configureBackground: configured });
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [
+      {
+        id: 'default-payment',
+        origin: 'default',
+        group: 'expense',
+        language: 'ar',
+        value: 'دفع',
+        enabled: true
+      }
+    ],
+    senders: []
+  });
+  context.tracking.getStatus.mockRejectedValue(new Error('offline'));
+  await expect(
+    context.coordinator.updateKeywordConfiguration([])
+  ).rejects.toThrow('tracking_configuration_refresh_failed');
+  const persisted = (await context.queue.load('owner-1')).rules;
+  expect(persisted.keywords).toContainEqual(
+    expect.objectContaining({ value: 'دفع', enabled: false })
+  );
+  expect(
+    discoverFinancialMessage(
+      { text: 'تم دفع 50 ريال' },
+      persisted.snapshot,
+      persisted.keywords
+    ).strong
+  ).toBe(false);
+  expect(configured).toHaveBeenCalledWith(
+    'owner-1',
+    expect.objectContaining({
+      keywords: expect.arrayContaining([
+        expect.objectContaining({ value: 'دفع', enabled: false })
+      ])
+    }),
+    expect.any(String),
+    expect.any(Number)
+  );
+});
 
 let mockDatabase: StatefulSqlite;
+it('starts a fresh SMS queue at activation rather than scanning historical messages', async () => {
+  const context = setup();
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: true,
+    notificationEnabled: false,
+    smsActivatedAt: 500,
+    notificationActivatedAt: 0
+  });
+  await context.coordinator.sync();
+  expect(context.inbox.readRecent).toHaveBeenCalledWith(
+    expect.objectContaining({ since: 500 })
+  );
+  expect((await context.queue.load('owner-1')).activation?.smsActivatedAt).toBe(
+    500
+  );
+});
+it('continues after the activation native ID while retaining later timestamp ties', async () => {
+  const context = setup();
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: true,
+    notificationEnabled: false,
+    smsActivatedAt: 500,
+    smsActivationId: '42',
+    notificationActivatedAt: 0
+  });
+  await context.coordinator.sync();
+  expect(context.inbox.readRecent).toHaveBeenCalledWith(
+    expect.objectContaining({ since: 500, afterId: '42' })
+  );
+});
+it('captures locally from cached rules when the API fails on a connected network', async () => {
+  const context = setup();
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [],
+    rolloutMode: 'automatic'
+  });
+  context.tracking.getStatus.mockRejectedValue(new Error('API outage'));
+  const result = await context.coordinator.sync();
+  expect(result.status).toBe('queued');
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+  expect(context.tracking.submitImport).not.toHaveBeenCalled();
+});
+it('reports native retention exhaustion while preserving admitted pending captures', async () => {
+  const context = setup();
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: false,
+    notificationEnabled: true,
+    smsActivatedAt: 0,
+    notificationActivatedAt: 0
+  });
+  Object.assign(context.dependencies.bankNotifications, {
+    getCaptureIssue: async () => 'tracking_notification_queue_full'
+  });
+  await context.queue.enqueue('owner-1', {
+    idempotencyKey: 'retained',
+    submission: {
+      schemaVersion: 1,
+      sourceType: 'provider',
+      sourceChannel: 'android_notification',
+      events: [
+        {
+          sourceItemKey: 'retained',
+          receivedAt: '2026-10-14T00:00:00Z',
+          amountMinor: -100,
+          currency: 'SAR'
+        }
+      ]
+    },
+    cursor: 42,
+    fingerprints: ['retained']
+  });
+  context.tracking.getStatus.mockRejectedValue(new Error('offline'));
+  expect((await context.coordinator.sync()).status).toBe('error');
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+});
+it('never drains legacy retained imports while adopting nominal capture', async () => {
+  const context = setup();
+  await context.queue.enqueue('owner-1', {
+    idempotencyKey: 'legacy',
+    submission: {
+      schemaVersion: 1,
+      sourceType: 'sms',
+      events: [
+        {
+          sourceItemKey: 'legacy',
+          receivedAt: '2026-10-14T00:00:00Z',
+          amountMinor: -100,
+          currency: 'SAR'
+        }
+      ]
+    },
+    cursor: 42,
+    fingerprints: ['legacy']
+  });
+  const configuration = {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [],
+    accountingPolicy: 'default_account_nominal_v1',
+    rolloutMode: 'automatic'
+  };
+  await context.queue.saveRules('owner-1', configuration as never);
+  Object.assign(context.tracking, {
+    getRuleConfiguration: jest.fn().mockResolvedValue(configuration)
+  });
+  context.inbox.readRecent.mockResolvedValue([]);
+  await context.coordinator.sync();
+  expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  expect((await context.queue.load('owner-1')).pending[0]?.idempotencyKey).toBe(
+    'legacy'
+  );
+});
+it('refreshes accepted effects while another item in the batch is still processing', async () => {
+  const onSaved = jest.fn(async () => true),
+    context = setup({ onSaved });
+  context.tracking.submitImport.mockResolvedValue({
+    ...session('processing'),
+    acceptedCount: 1,
+    itemCount: 2
+  });
+  await context.coordinator.sync();
+  expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+});
 jest.mock('@/storage/database', () => ({
   openDatabase: jest.fn(async () => mockDatabase),
   runExclusiveDatabaseTransaction: jest.fn(
@@ -177,7 +395,9 @@ function setup(overrides: Record<string, unknown> = {}) {
     sources: {
       load: jest.fn().mockResolvedValue({
         smsEnabled: true,
-        notificationEnabled: true
+        notificationEnabled: true,
+        smsActivatedAt: 0,
+        notificationActivatedAt: 0
       })
     },
     listAccounts: jest.fn().mockResolvedValue([ownerAccount]),
@@ -204,26 +424,82 @@ function setup(overrides: Record<string, unknown> = {}) {
 describe('automatic tracking coordinator', () => {
   it('replaces obsolete cached safety rules online and resumes with the original intake checkpoint', async () => {
     const context = setup();
-    await mockDatabase.runAsync('INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)', 'singleton', JSON.stringify({version:1,ownerId:'owner-1',pending:[],cursor:42,cursorId:'old-sms',fingerprints:['seen'],mode:'review_all',rules:{keywords:[],senders:[],snapshot:{...defaultSnapshot,rules:[]}}}));
-    Object.assign(context.tracking, {getRuleConfiguration:jest.fn().mockResolvedValue({keywords:[],senders:[],snapshot:defaultSnapshot})});
+    await mockDatabase.runAsync(
+      'INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)',
+      'singleton',
+      JSON.stringify({
+        version: 1,
+        ownerId: 'owner-1',
+        pending: [],
+        cursor: 42,
+        cursorId: 'old-sms',
+        fingerprints: ['seen'],
+        mode: 'review_all',
+        rules: {
+          keywords: [],
+          senders: [],
+          snapshot: { ...defaultSnapshot, rules: [] }
+        }
+      })
+    );
+    Object.assign(context.tracking, {
+      getRuleConfiguration: jest.fn().mockResolvedValue({
+        keywords: [],
+        senders: [],
+        snapshot: defaultSnapshot
+      })
+    });
     context.inbox.readRecent.mockResolvedValue([]);
-    expect(await context.coordinator.sync()).toMatchObject({status:'idle',errorCode:null});
+    expect(await context.coordinator.sync()).toMatchObject({
+      status: 'idle',
+      errorCode: null
+    });
     const refreshed = await context.queue.load('owner-1');
-    expect(refreshed).toMatchObject({pending:[],cursor:42,cursorId:'old-sms',fingerprints:['seen'],rules:{snapshot:defaultSnapshot}});
+    expect(refreshed).toMatchObject({
+      pending: [],
+      cursor: 42,
+      cursorId: 'old-sms',
+      fingerprints: ['seen'],
+      rules: { snapshot: defaultSnapshot }
+    });
     expect(refreshed.rules.requiresRefresh).toBeUndefined();
     expect(context.tracking.submitImport).not.toHaveBeenCalled();
   });
 
   it('holds stale safety configuration offline without reading either capture channel', async () => {
     const configureBackground = jest.fn(async () => undefined);
-    const context = setup({configureBackground});
-    await mockDatabase.runAsync('INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)', 'singleton', JSON.stringify({version:1,ownerId:'owner-1',pending:[],cursor:42,fingerprints:['seen'],mode:'review_all',rules:{keywords:[],senders:[],snapshot:{...defaultSnapshot,rules:[]}}}));
+    const context = setup({ configureBackground });
+    await mockDatabase.runAsync(
+      'INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)',
+      'singleton',
+      JSON.stringify({
+        version: 1,
+        ownerId: 'owner-1',
+        pending: [],
+        cursor: 42,
+        fingerprints: ['seen'],
+        mode: 'review_all',
+        rules: {
+          keywords: [],
+          senders: [],
+          snapshot: { ...defaultSnapshot, rules: [] }
+        }
+      })
+    );
     context.setOnline(false);
-    expect(await context.coordinator.sync()).toMatchObject({status:'error',errorCode:'sync_failed'});
+    expect(await context.coordinator.sync()).toMatchObject({
+      status: 'error',
+      errorCode: 'sync_failed'
+    });
     expect(context.inbox.readRecent).not.toHaveBeenCalled();
     expect(context.bankNotifications.readRecent).not.toHaveBeenCalled();
     expect(context.tracking.submitImport).not.toHaveBeenCalled();
-    expect(await context.queue.load('owner-1')).toMatchObject({cursor:42,fingerprints:['seen'],pending:[],rules:{requiresRefresh:true}});
+    expect(await context.queue.load('owner-1')).toMatchObject({
+      cursor: 42,
+      fingerprints: ['seen'],
+      pending: [],
+      rules: { requiresRefresh: true }
+    });
   });
 
   it('does not read SMS when only notification tracking is enabled', async () => {
@@ -539,7 +815,7 @@ describe('automatic tracking coordinator', () => {
     );
 
     await expect(context.coordinator.sync()).resolves.toMatchObject({
-      status: 'error',
+      status: 'queued',
       errorCode: 'sync_failed'
     });
   });

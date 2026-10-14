@@ -41,6 +41,7 @@ import {
 import {
   trackingSourcePreferences,
   trackingConsentEpoch,
+  invalidateTrackingConsent,
   type TrackingSourcePreferences
 } from './tracking-source-preferences';
 
@@ -137,14 +138,21 @@ export function createAutomaticTrackingCoordinator(
       const ownerId = session.userId;
       const epoch = trackingConsentEpoch();
       const queue = await dependencies.queue.load(ownerId);
-      const online = await dependencies.inbox.isNetworkAvailable();
+      let online = await dependencies.inbox.isNetworkAvailable();
+      let serviceFailed = false;
       if (requireFreshConfiguration && !online)
         throw new Error('tracking_configuration_refresh_failed');
       let mode = queue.mode ?? dependencies.offlineMode();
       let status: TrackingStatusSnapshot | null = null;
       if (online) {
-        status = await dependencies.tracking.getStatus();
-        mode = status.mode;
+        try {
+          status = await dependencies.tracking.getStatus();
+          mode = status.mode;
+        } catch (error) {
+          if (requireFreshConfiguration) throw error;
+          online = false;
+          serviceFailed = true;
+        }
       }
       if (mode === 'paused' || status?.serviceState === 'unavailable') {
         await dependencies.configureBackground?.(
@@ -166,18 +174,9 @@ export function createAutomaticTrackingCoordinator(
       };
       let last: AutomaticTrackingSyncState | null = null;
       const sources = await dependencies.sources.load();
-      if (online && queue.pending.length)
-        last = await flush(
-          ownerId,
-          queue.pending.filter((entry) =>
-            entry.submission.sourceChannel === 'android_notification'
-              ? sources.notificationEnabled
-              : sources.smsEnabled
-          ),
-          dependencies,
-          update,
-          stillOwner
-        );
+      const captureIssue = sources.notificationEnabled
+        ? await dependencies.bankNotifications.getCaptureIssue?.()
+        : null;
       stillOwner();
       if (!sources.smsEnabled && !sources.notificationEnabled)
         return last ?? update('idle');
@@ -188,20 +187,56 @@ export function createAutomaticTrackingCoordinator(
       let config = queue.rules;
       if (online) {
         try {
-          config = dependencies.tracking.getRuleConfiguration
+          const candidate = dependencies.tracking.getRuleConfiguration
             ? await dependencies.tracking.getRuleConfiguration()
             : await onlineRuleSnapshot(dependencies);
           stillOwner();
-          await dependencies.queue.saveRules(ownerId, config);
+          await dependencies.queue.saveRules(ownerId, candidate);
+          config = candidate;
         } catch (error) {
           if (requireFreshConfiguration) throw error;
           /* Keep the complete last-known-good release. Unconfigured capture is held for review. */
         }
       }
       if (config.requiresRefresh) {
-        await dependencies.configureBackground?.(ownerId, config, 'paused', epoch);
+        await dependencies.configureBackground?.(
+          ownerId,
+          config,
+          'paused',
+          epoch
+        );
         throw new Error('tracking_configuration_refresh_failed');
       }
+      const eligiblePending = (entries: readonly SmsImportQueueEntry[]) =>
+        entries.filter(
+          (entry) =>
+            (!config.accountingPolicy ||
+              entry.submission.schemaVersion === 3) &&
+            (entry.submission.sourceChannel === 'android_notification'
+              ? sources.notificationEnabled
+              : sources.smsEnabled)
+        );
+      if (online && queue.pending.length)
+        last = await flush(
+          ownerId,
+          eligiblePending(queue.pending),
+          dependencies,
+          update,
+          stillOwner
+        );
+      const activation = {
+        smsActivatedAt:
+          sources.smsActivatedAt ??
+          queue.activation?.smsActivatedAt ??
+          dependencies.now(),
+        smsActivationId:
+          sources.smsActivationId ?? queue.activation?.smsActivationId ?? '0',
+        notificationActivatedAt:
+          sources.notificationActivatedAt ??
+          queue.activation?.notificationActivatedAt ??
+          dependencies.now()
+      };
+      await dependencies.queue.setActivation(ownerId, activation);
       const rules = cachedRules(config);
       const deviceId = dependencies.deviceId
         ? await dependencies.deviceId()
@@ -212,16 +247,21 @@ export function createAutomaticTrackingCoordinator(
       stillOwner();
       await dependencies.configureBackground?.(
         ownerId,
-        config,
+        { ...config, activation },
         mode ?? undefined,
         epoch
       );
-      let cursor =
-        queue.cursor ?? Math.max(0, dependencies.now() - 7 * 86_400_000);
-      let cursorId = queue.cursorId;
+      let cursor = Math.max(queue.cursor ?? 0, activation.smsActivatedAt);
+      let cursorId =
+        queue.cursor !== null && queue.cursor >= activation.smsActivatedAt
+          ? queue.cursorId
+          : activation.smsActivationId;
       let fingerprints = new Set(queue.fingerprints);
       let captured = false;
       let accountRequired = false;
+      // One nominal observation can contain principal and an additional fee;
+      // each durable/API submission permits at most 100 movement events.
+      const capturePageSize = config.accountingPolicy ? 50 : 100;
       update('scanning');
       // Each pass gives both channels a bounded quantum. Unresolved items are durably queued before progress.
       const capture = async (
@@ -235,14 +275,24 @@ export function createAutomaticTrackingCoordinator(
           deviceId,
           snapshot: config.snapshot,
           configurationRevision: config.configurationRevision,
-          bindings: config.bindings
+          bindings: config.bindings,
+          accountingPolicy: config.accountingPolicy,
+          activatedAt:
+            source === 'sms'
+              ? activation.smsActivatedAt
+              : activation.notificationActivatedAt
         });
         prepared.events = prepared.events.filter(
           (event) => !fingerprints.has(event.sourceItemKey)
         );
         accountRequired ||= prepared.accountRequiredCount > 0;
         stillOwner();
-        if (config.rolloutMode !== 'automatic')
+        if (prepared.diagnostics?.length)
+          await dependencies.queue.retainDiagnostics(
+            ownerId,
+            prepared.diagnostics
+          );
+        if (!config.accountingPolicy && config.rolloutMode !== 'automatic')
           for (const event of prepared.events)
             if (event.classification) {
               event.classification.disposition = 'review';
@@ -264,11 +314,11 @@ export function createAutomaticTrackingCoordinator(
           await dependencies.queue.enqueue(ownerId, {
             idempotencyKey: await importKey(prepared, source),
             submission: {
-              schemaVersion: prepared.events.every(
-                (e) => e.classification && e.transport
-              )
-                ? 2
-                : 1,
+              schemaVersion: config.accountingPolicy
+                ? 3
+                : prepared.events.every((e) => e.classification && e.transport)
+                  ? 2
+                  : 1,
               sourceType: source,
               sourceChannel:
                 source === 'sms' ? 'android_sms' : 'android_notification',
@@ -295,11 +345,45 @@ export function createAutomaticTrackingCoordinator(
           );
         fingerprints = new Set([...fingerprints, ...seen]);
       };
-      if (sources.notificationEnabled && notificationAccess === 'granted')
+      if (sources.notificationEnabled && notificationAccess === 'granted') {
+        const records =
+          await dependencies.bankNotifications.readRecent(capturePageSize);
+        if (config.accountingPolicy) {
+          const historical = records.filter(
+            (item) => item.capturePolicy !== config.accountingPolicy
+          );
+          if (historical.length) {
+            await dependencies.queue.retainDiagnostics(
+              ownerId,
+              historical.map((item) => ({
+                sourceItemKey: item.key,
+                sourceChannel: 'android_notification' as const,
+                receivedAt: item.postedAt,
+                sourceText: [item.title, item.text]
+                  .filter(Boolean)
+                  .join('\n')
+                  .slice(0, 8000),
+                reasonCodes: ['legacy_capture_preserved']
+              }))
+            );
+            stillOwner();
+            await dependencies.bankNotifications.acknowledge(
+              historical.map((item) => item.key)
+            );
+          }
+        }
         await capture(
-          await dependencies.bankNotifications.readRecent(100),
+          records.filter((item) =>
+            config.accountingPolicy
+              ? item.capturePolicy === config.accountingPolicy &&
+                item.postedAt >=
+                  (item.captureActivatedAt ??
+                    activation.notificationActivatedAt)
+              : item.postedAt >= activation.notificationActivatedAt
+          ),
           'provider'
         );
+      }
       if (
         sources.smsEnabled &&
         permission.status === 'granted' &&
@@ -309,14 +393,14 @@ export function createAutomaticTrackingCoordinator(
           const messages = await dependencies.inbox.readRecent({
             since: cursor,
             afterId: cursorId,
-            limit: 100
+            limit: capturePageSize
           });
           if (!messages.length) break;
           const priorId = cursorId,
             priorCursor = cursor;
           await capture(messages, 'sms');
           if (
-            messages.length < 100 ||
+            messages.length < capturePageSize ||
             (priorId === cursorId && priorCursor === cursor)
           )
             break;
@@ -324,20 +408,17 @@ export function createAutomaticTrackingCoordinator(
       }
       stillOwner();
       const pending = (await dependencies.queue.load(ownerId)).pending;
+      if (captureIssue) return update('error', { errorCode: 'sync_failed' });
       if (online && pending.length)
         return await flush(
           ownerId,
-          pending.filter((entry) =>
-            entry.submission.sourceChannel === 'android_notification'
-              ? sources.notificationEnabled
-              : sources.smsEnabled
-          ),
+          eligiblePending(pending),
           dependencies,
           update,
           stillOwner
         );
       return captured
-        ? update('queued')
+        ? update('queued', serviceFailed ? { errorCode: 'sync_failed' } : {})
         : (last ?? update(accountRequired ? 'account_required' : 'idle'));
     } catch {
       return update('error', { errorCode: 'sync_failed' });
@@ -360,6 +441,26 @@ export function createAutomaticTrackingCoordinator(
       if (running) await running;
       return this.sync(requireFreshConfiguration);
     },
+    async suspendKeywordConfiguration(
+      expectedOwner: string | null | undefined
+    ): Promise<void> {
+      if (!dependencies.isLive()) return;
+      invalidateTrackingConsent();
+      if (running) await running;
+      if (!expectedOwner || dependencies.session()?.userId !== expectedOwner)
+        throw new Error('tracking_owner_changed');
+      const queue = await dependencies.queue.load(expectedOwner);
+      const config = { ...queue.rules, requiresRefresh: true };
+      await dependencies.queue.saveRules(expectedOwner, config);
+      if (dependencies.session()?.userId !== expectedOwner)
+        throw new Error('tracking_owner_changed');
+      await dependencies.configureBackground?.(
+        expectedOwner,
+        config,
+        'paused',
+        trackingConsentEpoch()
+      );
+    },
     async updateKeywordConfiguration(
       rules: readonly KeywordRule[],
       expectedOwner: string | null | undefined = dependencies.session()?.userId
@@ -376,7 +477,24 @@ export function createAutomaticTrackingCoordinator(
       if (!current()) throw new Error('tracking_owner_changed');
       const queue = await dependencies.queue.load(expectedOwner);
       if (!current()) throw new Error('tracking_owner_changed');
-      const config = { ...queue.rules, keywords: [...rules] };
+      // Editors hide deleted defaults. Their disabled overrides must remain in
+      // effective policy until the authoritative snapshot can be refreshed.
+      const removedDefaults = queue.rules.keywords
+        .filter(
+          (previous) =>
+            previous.origin === 'default' &&
+            !rules.some(
+              (rule) =>
+                rule.id === previous.id ||
+                (rule.value === previous.value && rule.group === previous.group)
+            )
+        )
+        .map((rule) => ({ ...rule, enabled: false }));
+      const config = {
+        ...queue.rules,
+        keywords: [...rules, ...removedDefaults],
+        requiresRefresh: !queue.rules.snapshot
+      };
       await dependencies.queue.saveRules(expectedOwner, config);
       if (!current()) throw new Error('tracking_owner_changed');
       await dependencies.configureBackground?.(
@@ -486,14 +604,14 @@ async function flush(
         current.id
       );
     }
-    if (current.status === 'received' || current.status === 'processing') {
-      last = update('processing', { sessionId: current.id });
-      continue;
-    }
     if (
       current.acceptedCount > 0 &&
       (await dependencies.onSaved?.(ownerId, current.id)) === false
     ) {
+      last = update('processing', { sessionId: current.id });
+      continue;
+    }
+    if (current.status === 'received' || current.status === 'processing') {
       last = update('processing', { sessionId: current.id });
       continue;
     }
@@ -595,3 +713,7 @@ export const updateAutomaticTrackingKeywords = (
 export const getAutomaticTrackingSyncState = () => coordinator.getState();
 export const subscribeAutomaticTrackingSyncState = (listener: () => void) =>
   coordinator.subscribe(listener);
+
+export const suspendAutomaticTrackingConfiguration = (
+  ownerId: string | null | undefined
+) => coordinator.suspendKeywordConfiguration(ownerId);

@@ -1075,11 +1075,31 @@ components:
     TrackingMessageClassification:
       type: object
       additionalProperties: false
-      required: [direction, subtype, status, disposition, amountMinor, currency, merchant, instruments, occurredAt, timeProvenance, reasonCodes, appliedRuleKeys, releaseId, engineVersion]
+      required:
+        [
+          direction,
+          subtype,
+          status,
+          disposition,
+          amountMinor,
+          currency,
+          merchant,
+          instruments,
+          occurredAt,
+          timeProvenance,
+          reasonCodes,
+          appliedRuleKeys,
+          releaseId,
+          engineVersion,
+        ]
       properties:
         direction: { type: string, enum: [outgoing, incoming, internal, unknown] }
         subtype: { type: string, maxLength: 64 }
-        status: { type: string, enum: [completed, pending, failed, declined, cancelled, administrative, unknown] }
+        status:
+          {
+            type: string,
+            enum: [completed, pending, failed, declined, cancelled, administrative, unknown],
+          }
         disposition: { type: string, enum: [capture_candidate, review, ignore] }
         amountMinor: { type: [integer, 'null'], minimum: 1, maximum: 9007199254740991 }
         currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
@@ -1106,7 +1126,7 @@ components:
       additionalProperties: false
       required: [schemaVersion, sourceType, events]
       properties:
-        schemaVersion: { type: integer, enum: [1, 2] }
+        schemaVersion: { type: integer, enum: [1, 2, 3] }
         sourceType: { type: string, enum: [sms, provider, manual] }
         sourceChannel:
           {
@@ -1130,6 +1150,10 @@ components:
             additionalProperties: false
             required: [sourceItemKey, receivedAt]
             properties:
+              accountingPolicy: { type: string, enum: [default_account_nominal_v1] }
+              sourceAmountDecimal:
+                { type: string, pattern: '^(0|[1-9][0-9]{0,15})(\.[0-9]{1,3})?$', maxLength: 20 }
+              activatedAt: { type: string, format: date-time }
               sourceItemKey: { type: string, minLength: 1, maxLength: 200 }
               sender: { type: string, maxLength: 200 }
               body: { type: string, minLength: 1, maxLength: 2000 }
@@ -1191,7 +1215,18 @@ components:
     TrackingPreferenceResource:
       type: object
       additionalProperties: false
-      required: [id, enabled, reviewRequired, duplicateWindowSeconds, sourceRetentionDays, historyRetentionDays, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          enabled,
+          reviewRequired,
+          duplicateWindowSeconds,
+          sourceRetentionDays,
+          historyRetentionDays,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         enabled: { type: boolean }
@@ -1205,7 +1240,18 @@ components:
     TrackingStatusResource:
       type: object
       additionalProperties: false
-      required: [available, mode, lastDetectedAt, lastSuccessfulTransactionId, detectedThisMonth, reviewCount, activeKeywordCount, activeSenderCount, lastUpdatedAt]
+      required:
+        [
+          available,
+          mode,
+          lastDetectedAt,
+          lastSuccessfulTransactionId,
+          detectedThisMonth,
+          reviewCount,
+          activeKeywordCount,
+          activeSenderCount,
+          lastUpdatedAt,
+        ]
       properties:
         available: { type: boolean }
         mode: { type: string, enum: [automatic_clear, review_all, paused] }
@@ -1219,11 +1265,42 @@ components:
     TrackingKeywordRuleResource:
       type: object
       additionalProperties: false
-      required: [id, keyword, groupKey, languageCode, origin, matchType, categoryId, priority, enabled, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          keyword,
+          groupKey,
+          languageCode,
+          origin,
+          matchType,
+          categoryId,
+          priority,
+          enabled,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         keyword: { type: string, minLength: 1, maxLength: 120 }
-        groupKey: { type: string, enum: [expense, income, transfer, withdrawal, deposit, refund, subscription, installment, fee, failed_transaction, reversal] }
+        groupKey:
+          {
+            type: string,
+            enum:
+              [
+                expense,
+                income,
+                transfer,
+                withdrawal,
+                deposit,
+                refund,
+                subscription,
+                installment,
+                fee,
+                failed_transaction,
+                reversal,
+              ],
+          }
         languageCode: { type: string, enum: [ar, en] }
         origin: { type: string, enum: [default, custom] }
         matchType: { type: string, enum: [exact, contains, safe_pattern] }
@@ -1236,7 +1313,18 @@ components:
     TrackingSenderRuleResource:
       type: object
       additionalProperties: false
-      required: [id, senderPattern, displayLabel, institutionId, trusted, enabled, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          senderPattern,
+          displayLabel,
+          institutionId,
+          trusted,
+          enabled,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         senderPattern: { type: string, minLength: 1, maxLength: 256 }
@@ -1250,7 +1338,22 @@ components:
     TrackingReviewResource:
       type: object
       additionalProperties: false
-      required: [id, importItemId, reason, proposedValues, originalValues, acceptedValues, status, decisionAction, reviewedAt, reviewedBy, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          importItemId,
+          reason,
+          proposedValues,
+          originalValues,
+          acceptedValues,
+          status,
+          decisionAction,
+          reviewedAt,
+          reviewedBy,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         importItemId: { $ref: '#/components/schemas/TrackingUuid' }
@@ -1268,17 +1371,40 @@ components:
     TrackingImportSessionResource:
       type: object
       additionalProperties: false
-      required: [id, sourceType, sourceName, schemaVersion, status, itemCount, acceptedCount, rejectedCount, attemptCount, nextAttemptAt, startedAt, completedAt, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          sourceType,
+          sourceName,
+          schemaVersion,
+          status,
+          itemCount,
+          acceptedCount,
+          rejectedCount,
+          attemptCount,
+          nextAttemptAt,
+          startedAt,
+          completedAt,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         sourceType: { type: string, enum: [sms, file, manual, provider] }
         sourceName: { type: [string, 'null'], maxLength: 120 }
-        schemaVersion: { type: integer, enum: [1, 2] }
+        schemaVersion: { type: integer, enum: [1, 2, 3] }
         status: { type: string, enum: [received, processing, review, complete, failed, cancelled] }
         itemCount: { type: integer, minimum: 0, maximum: 10000 }
         acceptedCount: { type: integer, minimum: 0 }
         rejectedCount: { type: integer, minimum: 0 }
-        attemptCount: { type: integer, minimum: 0, maximum: 20 }
+        attemptCount:
+          {
+            type: integer,
+            minimum: 0,
+            maximum: 2147483647,
+            description: 'Legacy imports stop at 20 attempts; nominal Tracking remains retryable.',
+          }
         nextAttemptAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time }
         completedAt: { type: [string, 'null'], format: date-time }
@@ -1288,7 +1414,15 @@ components:
     TrackingAdminImportOverviewResource:
       type: object
       additionalProperties: false
-      required: [totalSessions, uniqueCustomers, totalItems, failedSessions, reviewSessions, highestFailureSource]
+      required:
+        [
+          totalSessions,
+          uniqueCustomers,
+          totalItems,
+          failedSessions,
+          reviewSessions,
+          highestFailureSource,
+        ]
       properties:
         totalSessions: { type: integer, minimum: 0 }
         uniqueCustomers: { type: integer, minimum: 0 }
@@ -1312,7 +1446,18 @@ components:
     TrackingParserRuleResource:
       type: object
       additionalProperties: false
-      required: [id, institutionId, name, sourceType, activeVersionId, status, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          institutionId,
+          name,
+          sourceType,
+          activeVersionId,
+          status,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         institutionId: { type: [string, 'null'], format: uuid }
@@ -1326,7 +1471,21 @@ components:
     TrackingParserVersionResource:
       type: object
       additionalProperties: false
-      required: [id, parserRuleId, versionNo, definitionHash, createdBy, publishedAt, corpusStatus, corpusRequestedAt, corpusAttemptCount, corpusNextAttemptAt, corpusLastErrorCode, createdAt]
+      required:
+        [
+          id,
+          parserRuleId,
+          versionNo,
+          definitionHash,
+          createdBy,
+          publishedAt,
+          corpusStatus,
+          corpusRequestedAt,
+          corpusAttemptCount,
+          corpusNextAttemptAt,
+          corpusLastErrorCode,
+          createdAt,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         parserRuleId: { $ref: '#/components/schemas/TrackingUuid' }

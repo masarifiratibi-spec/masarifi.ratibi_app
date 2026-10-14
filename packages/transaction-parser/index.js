@@ -80,7 +80,7 @@ function moneyCandidates(text, snapshot) {
     const before = text.slice(Math.max(0,m.index-60),m.index).toLowerCase();
     const after = text.slice(m.index+m[0].length,m.index+m[0].length+32).toLowerCase();
     // Roles are structural boundaries, not a preference for one currency over another.
-    const role = /(?:avl\.?\s*bal|available\s+balance|balance|الرصيد|رصيد)[^.;:]*[: ]*$/.test(before) ? 'balance' :
+    const role = /(?:avl\.?\s*bal|available\s+balance|balance|الرصيد|رصيد)[^.;:،,]*[: ]*$/.test(before) ? 'balance' :
       /(?:fee|fees|charge|commission|رسوم|عمولة)\s*[: ]*$/.test(before) ? 'fee' :
       /(?:equivalent|exchange rate|converted|ما يعادل)\s*[: ]*$/.test(before) || /^\s*(?:equivalent|ما يعادل)/.test(after) ? 'fx' : 'transaction';
     candidates.push({ role, amountMinor: minorUnits(m[2] || m[3],currency.scale), currency:currency.code, supported:currency.supported });
@@ -218,3 +218,5 @@ function discoverFinancialMessage(input, snapshot = defaultSnapshot, overrides =
 }
 module.exports = {canonicalJson, classifyFinancialMessage,normalizeFinancialText,validateRuleSnapshot,validateClassification,defaultSnapshot,evidenceCorpus,
   effectiveFinancialSnapshot,compileFinancialDiscoveryPolicy,discoverFinancialMessage};
+
+Object.assign(module.exports, require('./nominal-tracking')(module.exports));

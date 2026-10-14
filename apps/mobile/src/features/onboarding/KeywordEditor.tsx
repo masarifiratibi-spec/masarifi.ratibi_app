@@ -118,7 +118,7 @@ export function KeywordEditor({
             status={translate('tracking.action.disable')}
             onPress={() => commitDisable(rule.id)}
           />
-          {rule.origin === 'custom' ? (
+          {
             <ActionButton
               label={translate('appShell.tracking.keywords.delete').replace(
                 '{{value}}',
@@ -127,7 +127,7 @@ export function KeywordEditor({
               onPress={() => onChange(deleteKeywordRule(rules, rule.id))}
               variant="quiet"
             />
-          ) : null}
+          }
         </GroupedList>
       ))}
       <ActionButton

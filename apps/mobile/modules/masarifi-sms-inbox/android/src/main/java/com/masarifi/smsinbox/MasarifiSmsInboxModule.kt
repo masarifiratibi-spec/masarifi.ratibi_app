@@ -15,6 +15,20 @@ import expo.modules.kotlin.modules.ModuleDefinition
 class MasarifiSmsInboxModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("MasarifiSmsInbox")
+    AsyncFunction("notificationCaptureIssue") {
+      appContext.reactContext?.getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE)?.getString("captureIssue",null)
+    }
+
+    AsyncFunction("smsActivationBoundary") {
+      val context=appContext.reactContext ?: throw IllegalStateException("sms_context_unavailable")
+      if(context.checkSelfPermission(Manifest.permission.READ_SMS)!=PackageManager.PERMISSION_GRANTED) throw SecurityException("sms_permission_required")
+      val timestamp=System.currentTimeMillis()
+      var afterId="0"
+      context.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI,arrayOf("_id"),"date = ?",arrayOf(timestamp.toString()),"_id DESC")?.use { cursor ->
+        if(cursor.moveToFirst()) afterId=cursor.getString(0)
+      }
+      mapOf("activatedAt" to timestamp,"afterId" to afterId)
+    }
 
     AsyncFunction("readSmsPage") { since: Double, afterId: String, requestedLimit: Int ->
       val context=appContext.reactContext ?: throw IllegalStateException("sms_context_unavailable")
@@ -34,6 +48,13 @@ class MasarifiSmsInboxModule : Module() {
         blocked.filter {it.matches(Regex("[a-zA-Z][\\w]*(\\.[\\w]+)+"))},policy)
     }
     AsyncFunction("suspendTrackingOwner") {appContext.reactContext?.let {TrackingOwner.suspend(it)}}
+    AsyncFunction("configureTrackingOwnerV3") { owner:String,generation:String,sms:Boolean,notifications:Boolean,packages:List<String>,blocked:List<String>,policy:String?,boundaries:String ->
+      val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
+      val bounds=org.json.JSONObject(boundaries)
+      val smsBoundary=bounds.getLong("smsActivatedAt"); val notificationBoundary=bounds.getLong("notificationActivatedAt")
+      require(smsBoundary>=0 && notificationBoundary>=0)
+      TrackingOwner.configure(context,owner,generation,sms,notifications,packages,blocked,policy,smsBoundary,notificationBoundary)
+    }
     AsyncFunction("restoreTrackingOwner") { owner:String,generation:String? ->
       val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
       TrackingOwner.restore(context,owner,generation)
@@ -121,7 +142,6 @@ class MasarifiSmsInboxModule : Module() {
       val context = appContext.reactContext
         ?: throw IllegalStateException("notification_context_unavailable")
       NotificationCaptureState.setEnabled(context, enabled)
-      if (!enabled) NotificationQueue(context).clear()
     }
 
     AsyncFunction("readRecentNotifications") { requestedLimit: Int ->
@@ -136,6 +156,8 @@ class MasarifiSmsInboxModule : Module() {
           "postedAt" to record.postedAt,
           "observedAt" to record.observedAt,
           "discovered" to record.discovered,
+          "captureActivatedAt" to record.captureActivatedAt,
+          "capturePolicy" to record.capturePolicy,
           "nativeKey" to record.nativeKey
         )
       }

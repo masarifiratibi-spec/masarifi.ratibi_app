@@ -324,7 +324,12 @@ export class TrackingWorker implements OnModuleDestroy {
           );
         }
       }
-      await this.repository.completeImport(claim.id, claim.claim_token, 'succeeded', null);
+      await this.repository.completeImport(
+        claim.id,
+        claim.claim_token,
+        Number(finalized.deferredCount) > 0 ? 'failed' : 'succeeded',
+        Number(finalized.deferredCount) > 0 ? 'TRACKING_CAPTURE_DEFERRED' : null,
+      );
     } catch (error) {
       const code =
         (error instanceof Error ? error.message : 'IMPORT_PROCESSING_FAILED').match(

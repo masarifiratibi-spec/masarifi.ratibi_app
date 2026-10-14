@@ -81,7 +81,14 @@ export async function configureTrackingBackground(
       contextKey,
       JSON.stringify({ ownerId, generation })
     );
-    await trackingNativeRuntime.configureTrackingOwner(
+    if (
+      rules.accountingPolicy &&
+      !trackingNativeRuntime.configureTrackingOwnerV3
+    ) {
+      await trackingNativeRuntime.suspendTrackingOwner();
+      throw new Error('tracking_native_upgrade_required');
+    }
+    const args = [
       ownerDigest,
       generation,
       !rules.requiresRefresh && mode !== 'paused' && sources.smsEnabled,
@@ -96,11 +103,27 @@ export async function configureTrackingBackground(
         )
         .map((s) => s.normalizedSender),
       rules.snapshot
-        ? JSON.stringify(
-            compileFinancialDiscoveryPolicy(rules.snapshot, rules.keywords)
-          )
+        ? JSON.stringify({
+            ...compileFinancialDiscoveryPolicy(rules.snapshot, rules.keywords),
+            ...(rules.accountingPolicy ? { nominal: true } : {})
+          })
         : null
-    );
+    ] as const;
+    if (rules.accountingPolicy)
+      await trackingNativeRuntime.configureTrackingOwnerV3!(
+        ...args,
+        JSON.stringify({
+          smsActivatedAt:
+            rules.activation?.smsActivatedAt ??
+            sources.smsActivatedAt ??
+            Date.now(),
+          notificationActivatedAt:
+            rules.activation?.notificationActivatedAt ??
+            sources.notificationActivatedAt ??
+            Date.now()
+        })
+      );
+    else await trackingNativeRuntime.configureTrackingOwner(...args);
     if (!current()) {
       await trackingNativeRuntime.suspendTrackingOwner();
       return;
@@ -160,8 +183,7 @@ async function restoreTrackingBackground(ownerId: string): Promise<void> {
           ownerDigest,
           stored?.ownerId === ownerId ? stored.generation : null
         );
-        if (!['PRESERVED', 'EMPTY'].includes(outcome))
-          throw new Error();
+        if (!['PRESERVED', 'EMPTY'].includes(outcome)) throw new Error();
       }
       if (generation !== nativeGeneration) throw new Error();
       restorationBlocked = false;

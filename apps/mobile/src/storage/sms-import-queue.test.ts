@@ -61,15 +61,103 @@ const submission: TrackingImportSubmission = {
 };
 
 describe('SMS import queue', () => {
+  it('persists activation boundaries without removing older pending captures', async () => {
+    const queue = new SmsImportQueue(memoryStorage());
+    await queue.enqueue('owner-1', {
+      idempotencyKey: 'legacy',
+      submission,
+      cursor: 42,
+      fingerprints: ['seen']
+    });
+    const state = await queue.setActivation('owner-1', {
+      smsActivatedAt: 1000,
+      notificationActivatedAt: 2000
+    });
+    expect(state.pending[0]?.idempotencyKey).toBe('legacy');
+    expect((await queue.load('owner-1')).activation).toEqual({
+      smsActivatedAt: 1000,
+      notificationActivatedAt: 2000
+    });
+  });
+  it('retains undecodable evidence privately without adding it to financial submissions', async () => {
+    const queue = new SmsImportQueue(memoryStorage());
+    await queue.retainDiagnostics('owner-1', [
+      {
+        sourceItemKey: 'unparsed',
+        sourceChannel: 'android_sms',
+        receivedAt: 1000,
+        sourceText: 'تم دفع مبلغ غير واضح',
+        reasonCodes: ['amount_missing']
+      }
+    ]);
+    const restored = await queue.load('owner-1');
+    expect(restored.diagnostics?.[0]?.sourceText).toBe('تم دفع مبلغ غير واضح');
+    expect(restored.pending).toEqual([]);
+  });
+  it.each(['cash_card', 'cash_account'] as const)(
+    'retains %s bindings and pending work through configuration refresh',
+    async (role) => {
+      const queue = new SmsImportQueue(memoryStorage());
+      await queue.enqueue('owner-1', {
+        idempotencyKey: 'pending',
+        submission,
+        cursor: 42,
+        fingerprints: ['seen']
+      });
+      await queue.saveRules('owner-1', {
+        keywords: [],
+        senders: [],
+        bindings: [
+          {
+            provider: 'bank',
+            role,
+            suffix: '4242',
+            accountId: '10000000-0000-4000-8000-000000000001'
+          }
+        ]
+      });
+      const restored = await queue.load('owner-1');
+      expect(restored.rules.bindings?.[0]?.role).toBe(role);
+      expect(restored.pending[0]?.idempotencyKey).toBe('pending');
+      expect(restored.cursor).toBe(42);
+    }
+  );
   it('refreshes obsolete cached safety rules without losing pending events or duplicate checkpoints', async () => {
-    const stored = { ...legacy(), rules: { ...legacy().rules, snapshot: { ...defaultSnapshot, rules: defaultSnapshot.rules.filter(rule => rule.ruleKey !== 'lifecycle.pending') } } };
-    await mockDatabase.runAsync('INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)', 'singleton', JSON.stringify(stored));
+    const stored = {
+      ...legacy(),
+      rules: {
+        ...legacy().rules,
+        snapshot: {
+          ...defaultSnapshot,
+          rules: defaultSnapshot.rules.filter(
+            (rule) => rule.ruleKey !== 'lifecycle.pending'
+          )
+        }
+      }
+    };
+    await mockDatabase.runAsync(
+      'INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)',
+      'singleton',
+      JSON.stringify(stored)
+    );
     const queue = new SmsImportQueue(memoryStorage());
     const recovered = await queue.load('owner-1');
-    expect(recovered).toMatchObject({pending:stored.pending,cursor:stored.cursor,fingerprints:stored.fingerprints,mode:'review_all',rules:{requiresRefresh:true}});
+    expect(recovered).toMatchObject({
+      pending: stored.pending,
+      cursor: stored.cursor,
+      fingerprints: stored.fingerprints,
+      mode: 'review_all',
+      rules: { requiresRefresh: true }
+    });
     expect(recovered.rules.snapshot).toBeUndefined();
-    expect(JSON.parse(String(mockDatabase.read('sms_import_queue')[0]?.payload))).toEqual(stored);
-    await queue.saveRules('owner-1', { keywords: [], senders: [], snapshot: defaultSnapshot });
+    expect(
+      JSON.parse(String(mockDatabase.read('sms_import_queue')[0]?.payload))
+    ).toEqual(stored);
+    await queue.saveRules('owner-1', {
+      keywords: [],
+      senders: [],
+      snapshot: defaultSnapshot
+    });
     const refreshed = await new SmsImportQueue(memoryStorage()).load('owner-1');
     expect(refreshed.pending).toHaveLength(1);
     expect(refreshed.cursor).toBe(42);

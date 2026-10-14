@@ -37,3 +37,10 @@ export interface FinancialDiscoveryPolicy {
 export function effectiveFinancialSnapshot(snapshot:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[]):RuleSnapshot;
 export function compileFinancialDiscoveryPolicy(snapshot:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[]):FinancialDiscoveryPolicy;
 export function discoverFinancialMessage(input:Parameters<typeof classifyFinancialMessage>[0],snapshot?:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[]):{strong:boolean;classification:Classification;customRuleKeys:string[]};
+
+export interface NominalTrackingMovement {
+  component: 'principal' | 'fee'; sourceAmountDecimal: string; classification: Classification;
+}
+export function discoverNominalTrackingMessage(input:Parameters<typeof classifyFinancialMessage>[0],snapshot?:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[],sources?:readonly {normalizedSender:string;enabled:boolean;trusted:boolean}[]):{strong:boolean;eligibleSource:boolean;classification:Classification;customRuleKeys:string[];sourceAmountDecimal:string|null;movements?:NominalTrackingMovement[]};
+export function decimalToMinor(value:string,scale:number):number|null;
+export function normalizeNumberWords(text:string):string;

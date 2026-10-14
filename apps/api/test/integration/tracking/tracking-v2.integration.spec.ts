@@ -431,36 +431,11 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       const source = (await engagement.claimTrackingSourceEvents(100)).find(
         (event) => event.source_id === linked.transactionId,
       );
-      expect(source?.event_type).toBe(
-        'transaction.' + (subtype === 'refund' ? 'refunded' : 'reversed'),
-      );
-      if (!source) throw new Error('COMPENSATION_CONFIRMATION_EXPECTED');
-      const notice = await engagement.createNotificationFromSource(source, [
-        {
-          channel: 'in_app',
-          provider: 'database',
-          title: 'Saved',
-          body: 'Saved',
-          status: 'queued',
-          nextAttemptAt: null,
-        },
-        {
-          channel: 'push',
-          provider: 'push',
-          title: 'Saved',
-          body: 'Saved',
-          status: 'queued',
-          nextAttemptAt: null,
-        },
-      ]);
+      expect(source).toBeUndefined();
       const outcome = (
         await repository.listOwner(principal, 'items', String(linked.id), 1)
       )[0] as Record<string, unknown>;
-      expect(outcome.notificationId).toBeTruthy();
-      expect(notice).toBeTruthy();
-      expect(
-        await repository.confirmation(principal, String(outcome.notificationId)),
-      ).toMatchObject({ ready: true, transaction: { amountMinor: amount, direction: 'incoming' } });
+      expect(outcome.notificationId).toBeNull();
     },
   );
   it.each(['partial-refund', 'full-refund', 'reversal'])(

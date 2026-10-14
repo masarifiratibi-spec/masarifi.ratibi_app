@@ -122,7 +122,7 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
     ).toHaveLength(0);
   });
 
-  it('prepares one confirmation for a committed cohort capture and leaves unrelated events alone', async () => {
+  it('keeps committed cohort captures quiet and leaves unrelated events alone', async () => {
     const { principal, account, session } = await journey('cohort-approved-device');
     const transaction = (
       await pool.query<{ result: { transactionId: string } }>(
@@ -159,33 +159,7 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
     const sources = (await engagement.claimTrackingSourceEvents(100)).filter(
       (source) => source.user_id === principal.userId,
     );
-    expect(sources).toHaveLength(1);
-    const source = sources[0];
-    if (!source) throw new Error('CONFIRMATION_SOURCE_EXPECTED');
-    expect(source).toMatchObject({ source_id: transaction, event_type: 'transaction.created' });
-    await engagement.createNotificationFromSource(source, [
-      {
-        channel: 'in_app',
-        provider: 'database',
-        title: 'Saved',
-        body: 'Saved',
-        status: 'queued',
-        nextAttemptAt: null,
-      },
-      {
-        channel: 'push',
-        provider: 'push',
-        title: 'Saved',
-        body: 'Saved',
-        status: 'queued',
-        nextAttemptAt: null,
-      },
-    ]);
-    expect(
-      (await engagement.claimTrackingSourceEvents(100)).filter(
-        (source) => source.user_id === principal.userId,
-      ),
-    ).toHaveLength(0);
+    expect(sources).toHaveLength(0);
     expect(
       (
         await pool.query('select published_at from private.outbox_events where aggregate_id=$1', [
@@ -194,20 +168,12 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
       ).rows,
     ).toEqual([{ published_at: null }]);
     expect(
-      await repository.confirmation(
-        principal,
-        String(
-          (
-            await pool.query('select id from public.notification_events where source_event_id=$1', [
-              source.source_event_id,
-            ])
-          ).rows[0]?.id,
-        ),
-      ),
-    ).toMatchObject({
-      ready: true,
-      allowed: true,
-      transaction: { amountMinor: 500, currency: 'EGP', direction: 'outgoing' },
-    });
+      (
+        await pool.query(
+          'select count(*)::int n from public.notification_events where user_id=$1',
+          [principal.userId],
+        )
+      ).rows[0]?.n,
+    ).toBe(0);
   });
 });

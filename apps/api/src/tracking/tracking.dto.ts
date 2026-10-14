@@ -10,6 +10,9 @@ export interface TrackingCursor {
 }
 
 export interface NormalizedTrackingEvent {
+  accountingPolicy?: 'default_account_nominal_v1';
+  sourceAmountDecimal?: string;
+  activatedAt?: string;
   sourceItemKey: string;
   sender?: string;
   body?: string;
@@ -35,7 +38,7 @@ export interface NormalizedTrackingEvent {
 }
 
 export interface NormalizedImport {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   sourceType: 'sms' | 'provider' | 'manual';
   sourceChannel?:
     | 'android_sms'
@@ -231,11 +234,30 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     'transport',
     'providerReferenceDigest',
     'originalProviderReferenceDigest',
+    'accountingPolicy',
+    'sourceAmountDecimal',
+    'activatedAt',
   ]);
   const result: NormalizedTrackingEvent = {
     sourceItemKey: text(input.sourceItemKey, 1, 160),
     receivedAt: instant(input.receivedAt),
   };
+  if (input.accountingPolicy !== undefined) {
+    if (input.accountingPolicy !== 'default_account_nominal_v1') invalid();
+    result.accountingPolicy = input.accountingPolicy;
+    const amount = text(input.sourceAmountDecimal, 1, 20);
+    if (!/^(?:0|[1-9]\d{0,15})(?:\.\d{1,3})?$/.test(amount) || Number(amount) <= 0) invalid();
+    result.sourceAmountDecimal = amount;
+    result.activatedAt = instant(input.activatedAt);
+    if (Date.parse(result.activatedAt) > Date.parse(result.receivedAt)) invalid();
+    if (
+      input.accountId !== undefined ||
+      input.destinationAccountId !== undefined ||
+      input.categoryId !== undefined ||
+      input.kind !== undefined
+    )
+      invalid();
+  } else if (input.sourceAmountDecimal !== undefined || input.activatedAt !== undefined) invalid();
   if (input.sender != null) result.sender = text(input.sender, 1, 200);
   if (input.body != null) result.body = text(input.body, 1, 2000);
   if (input.amountMinor != null) {
@@ -301,7 +323,8 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   const input = object(value);
   keys(input, ['schemaVersion', 'sourceType', 'sourceChannel', 'events']);
   if (
-    (input.schemaVersion !== 1 && input.schemaVersion !== 2) ||
+    ![1, 2, 3].includes(Number(input.schemaVersion)) ||
+    typeof input.schemaVersion !== 'number' ||
     typeof input.sourceType !== 'string' ||
     !['sms', 'provider', 'manual'].includes(input.sourceType)
   )
@@ -331,13 +354,24 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 512 * 1024) invalid();
   const events = input.events.map(normalizeEvent);
   if (
-    input.schemaVersion === 2 &&
+    input.schemaVersion !== 1 &&
     events.some(
       (event) =>
         !event.transport ||
         !event.classification ||
         event.transport.channel !== input.sourceChannel,
     )
+  )
+    invalid();
+  if (
+    events.some((event) =>
+      input.schemaVersion === 3 ? !event.accountingPolicy : event.accountingPolicy !== undefined,
+    )
+  )
+    invalid();
+  if (
+    input.schemaVersion === 3 &&
+    !['android_sms', 'android_notification'].includes(String(input.sourceChannel))
   )
     invalid();
   if (
@@ -352,7 +386,7 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   )
     invalid();
   return {
-    schemaVersion: input.schemaVersion,
+    schemaVersion: input.schemaVersion as NormalizedImport['schemaVersion'],
     sourceType: input.sourceType as 'sms' | 'provider' | 'manual',
     ...(input.sourceChannel == null
       ? {}

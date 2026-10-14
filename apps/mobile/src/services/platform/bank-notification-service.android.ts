@@ -5,6 +5,7 @@ import type {
 } from './bank-notification-service';
 
 interface NativeBankNotifications {
+  notificationCaptureIssue?(): Promise<string | null>;
   isNotificationAccessEnabled(): Promise<unknown>;
   openNotificationAccessSettings(): Promise<void>;
   setNotificationCaptureEnabled(enabled: boolean): Promise<void>;
@@ -16,6 +17,9 @@ export function createAndroidBankNotificationService(
   native: NativeBankNotifications | null = MasarifiSmsInbox
 ): BankNotificationService {
   return {
+    async getCaptureIssue() {
+      return (await native?.notificationCaptureIssue?.()) ?? null;
+    },
     async getAccessState() {
       if (!native) return 'unavailable';
       try {
@@ -76,6 +80,13 @@ function parseNotification(value: unknown): RawBankNotification | null {
     title: row.title,
     text: row.text,
     postedAt: Number(row.postedAt),
+    ...(Number.isSafeInteger(row.captureActivatedAt) &&
+    Number(row.captureActivatedAt) >= 0
+      ? { captureActivatedAt: Number(row.captureActivatedAt) }
+      : {}),
+    ...(typeof row.capturePolicy === 'string'
+      ? { capturePolicy: row.capturePolicy }
+      : {}),
     ...(Number.isSafeInteger(row.observedAt) && Number(row.observedAt) >= 0
       ? { observedAt: Number(row.observedAt) }
       : {}),

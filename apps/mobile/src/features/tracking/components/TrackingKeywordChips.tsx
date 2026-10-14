@@ -382,7 +382,7 @@ export function TrackingKeywordChips({
               ) : null}
 
               {/* END: Remove button × */}
-              {rule.origin === 'custom' ? (
+              {
                 <Pressable
                   testID={
                     editingId === rule.id
@@ -416,7 +416,7 @@ export function TrackingKeywordChips({
                     decorative
                   />
                 </Pressable>
-              ) : null}
+              }
               <Pressable
                 testID={`tracking-keyword-toggle-${rule.id}`}
                 onPress={() =>

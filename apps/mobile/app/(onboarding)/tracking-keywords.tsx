@@ -7,11 +7,14 @@ import { KeywordEditor } from '@/features/onboarding/KeywordEditor';
 import { OnboardingScaffold } from '@/features/onboarding/OnboardingScaffold';
 import { translate } from '@/localization/i18n';
 import { defaultKeywordRules } from '@/services/mocks/default-keywords';
-import { createAppShellStorage } from '@/storage/app-shell-storage';
+import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { routeForOnboardingProgress } from '@/features/onboarding/onboarding-progress';
 import { useAppShellStore } from '@/state/app-shell';
 
-const storage = createAppShellStorage();
+const storage = {
+  loadKeywords: trackingKeywordConfiguration.load,
+  saveKeywords: trackingKeywordConfiguration.save
+};
 
 export default function TrackingKeywordsRoute() {
   const advanceOnboarding = useAppShellStore(
@@ -30,7 +33,7 @@ export default function TrackingKeywordsRoute() {
   async function next() {
     setError(false);
     try {
-      await storage.saveKeywords(rules);
+      await storage.saveKeywords(rules, setRules);
       const progress = await advanceOnboarding(['keywords'], 'completed');
       if (progress) router.replace(routeForOnboardingProgress(progress));
     } catch {

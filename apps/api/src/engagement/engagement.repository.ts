@@ -321,6 +321,11 @@ export class EngagementRepository {
   ): Promise<boolean> {
     if (!deliveries.some((item) => item.channel === 'in_app')) return false;
     return this.worker(async (client) => {
+      const quiet = await client.query<{ quiet: boolean }>(
+        "select ($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed','balance.changed') and private.is_tracking_notification_capture($1,$2)) quiet",
+        [source.user_id, source.source_id, source.event_type],
+      );
+      if (quiet.rows[0]?.quiet) return false;
       const inApp = deliveries.find((item) => item.channel === 'in_app');
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)

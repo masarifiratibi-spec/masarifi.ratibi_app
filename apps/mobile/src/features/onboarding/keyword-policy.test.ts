@@ -15,10 +15,8 @@ const builtin: KeywordRule = {
   enabled: true
 };
 describe('published keyword overrides', () => {
-  it('keeps a disabled default row instead of deleting its override', () => {
-    expect(deleteKeywordRule([builtin], builtin.id)).toEqual([
-      { ...builtin, enabled: false }
-    ]);
+  it('removes a deleted default from the editor list', () => {
+    expect(deleteKeywordRule([builtin], builtin.id)).toEqual([]);
   });
   it('does not rewrite the published default wording', () => {
     expect(editKeywordRule([builtin], builtin.id, 'mystery').rules).toEqual([

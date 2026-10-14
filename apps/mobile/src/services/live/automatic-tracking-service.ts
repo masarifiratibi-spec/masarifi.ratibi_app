@@ -408,6 +408,13 @@ export function createLiveAutomaticTrackingService({
         : [];
       return {
         snapshot,
+        ...(configuration.accountingPolicy === undefined
+          ? {}
+          : {
+              accountingPolicy: member(configuration.accountingPolicy, [
+                'default_account_nominal_v1'
+              ] as const)
+            }),
         ...(typeof configurationRevision === 'string'
           ? { configurationRevision }
           : {}),

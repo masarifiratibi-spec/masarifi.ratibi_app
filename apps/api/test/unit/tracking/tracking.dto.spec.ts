@@ -13,11 +13,65 @@ import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 const id = '80000000-0000-4000-8000-000000000001';
 
 describe('tracking DTO boundaries', () => {
+  it('accepts nominal source provenance without requiring a client-selected account or source currency', () => {
+    const { providerReference, ...classification } = classifyFinancialMessage({
+      text: 'تم خصم 50، الرصيد 950',
+      receivedAt: Date.parse('2026-10-14T00:01:00Z'),
+    });
+    void providerReference;
+    const event = {
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAmountDecimal: '50',
+      activatedAt: '2026-10-14T00:00:00Z',
+      sourceItemKey: 'nominal-one',
+      sender: 'BANK',
+      classification,
+      receivedAt: '2026-10-14T00:01:00Z',
+      transport: {
+        deviceId: 'test-device-00000001',
+        channel: 'android_sms',
+        nativeIdDigest: 'b'.repeat(64),
+        revisionDigest: 'c'.repeat(64),
+      },
+    };
+    expect(
+      normalizeNormalizedImport({
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [event],
+      }).events[0],
+    ).toMatchObject({ sourceAmountDecimal: '50', accountingPolicy: 'default_account_nominal_v1' });
+    expect(() =>
+      normalizeNormalizedImport({
+        schemaVersion: 2,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [event],
+      }),
+    ).toThrow();
+    expect(() =>
+      normalizeNormalizedImport({
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [{ ...event, sourceAmountDecimal: '-50' }],
+      }),
+    ).toThrow();
+    expect(() =>
+      normalizeNormalizedImport({
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [{ ...event, activatedAt: '2026-10-15T00:00:00Z' }],
+      }),
+    ).toThrow();
+  });
   it('preserves PostgreSQL microseconds through both cursor boundaries so seeded rules are not skipped', () => {
     const at = '2026-10-09T13:43:31.263088+00:00';
-    const cursor = encodeTrackingCursor({at,id});
-    expect(decodeTrackingCursor(cursor)).toEqual({at:'2026-10-09T13:43:31.263088Z',id});
-    expect(normalizeTrackingList({cursor,limit:'100'})).toEqual({cursor,limit:100});
+    const cursor = encodeTrackingCursor({ at, id });
+    expect(decodeTrackingCursor(cursor)).toEqual({ at: '2026-10-09T13:43:31.263088Z', id });
+    expect(normalizeTrackingList({ cursor, limit: '100' })).toEqual({ cursor, limit: 100 });
   });
 
   it('accepts only a bounded digest for original transaction evidence', () => {

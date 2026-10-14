@@ -16,7 +16,9 @@ data class CapturedNotification(
   val postedAt: Long,
   val nativeKey: String = key,
   val discovered: Boolean = false,
-  val observedAt: Long = postedAt
+  val observedAt: Long = postedAt,
+  val captureActivatedAt: Long = 0,
+  val capturePolicy: String = "legacy"
 )
 
 object NotificationCaptureState {
@@ -40,16 +42,16 @@ object NotificationQueuePolicy {
   const val DISCOVERY_MAX_AGE_MS = 24L * 60 * 60 * 1000
   private const val MAX_RECORDS = 200
 
+  fun append(records:List<CapturedNotification>,record:CapturedNotification,capacity:Int=10000):List<CapturedNotification> {
+    val next=prune(records+record,System.currentTimeMillis())
+    check(next.size<=capacity) {"tracking_notification_queue_full"}
+    return next
+  }
+
   fun prune(records: List<CapturedNotification>, now: Long): List<CapturedNotification> {
-    val eligible=records
-      .filter { it.postedAt in (now - if(it.discovered) DISCOVERY_MAX_AGE_MS else MAX_AGE_MS)..now }
-      .asReversed()
+    return records.asReversed()
       .distinctBy { it.key }
       .sortedByDescending { it.postedAt }
-    val trusted=eligible.filterNot {it.discovered}.take(MAX_RECORDS)
-    val discovered=eligible.filter {it.discovered}.groupBy {it.packageName}.values
-      .flatMap {it.take(10)}.sortedByDescending {it.postedAt}.take(50)
-    return (trusted+discovered).sortedByDescending {it.postedAt}
   }
 
   fun acknowledge(
@@ -67,10 +69,9 @@ internal class NotificationQueue(private val context: Context) {
 
   fun add(record: CapturedNotification) = synchronized(TrackingOwner) {
     check(!TrackingOwner.isSuspended(context)) {"tracking_suspended"}
-    val stored=readStored()+record
-    val pruned=NotificationQueuePolicy.prune(stored,System.currentTimeMillis())
-    if(stored.count {it.postedAt>=System.currentTimeMillis()-NotificationQueuePolicy.MAX_AGE_MS}>200) {
+    val pruned=try {NotificationQueuePolicy.append(readStored(),record)} catch(error:IllegalStateException) {
       preferences.edit().putLong("overflowCount",preferences.getLong("overflowCount",0)+1).commit()
+      throw error
     }
     write(pruned)
   }
@@ -85,6 +86,7 @@ internal class NotificationQueue(private val context: Context) {
   fun acknowledge(keys: Set<String>) = synchronized(TrackingOwner) {
     check(!TrackingOwner.isSuspended(context)) {"tracking_suspended"}
     write(NotificationQueuePolicy.acknowledge(readStored(), keys))
+    preferences.edit().remove("captureIssue").commit()
   }
 
   fun clear() = synchronized(TrackingOwner) {
@@ -110,7 +112,9 @@ internal class NotificationQueue(private val context: Context) {
             postedAt,
             item.optString("nativeKey",key),
             item.optBoolean("discovered",false),
-            item.optLong("observedAt",postedAt)
+            item.optLong("observedAt",postedAt),
+            item.optLong("captureActivatedAt",0),
+            item.optString("capturePolicy","legacy")
           )
         )
       }
@@ -130,6 +134,8 @@ internal class NotificationQueue(private val context: Context) {
           .put("nativeKey",record.nativeKey)
           .put("discovered",record.discovered)
           .put("observedAt",record.observedAt)
+          .put("captureActivatedAt",record.captureActivatedAt)
+          .put("capturePolicy",record.capturePolicy)
       )
     }
     encrypted.write(array.toString())
@@ -156,6 +162,8 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
     if (!NotificationCaptureState.isEnabled(this)) return@synchronized
     val state=TrackingOwner.read(this)
     if (!state.optBoolean("notification") || state.optString("owner").isBlank() || notification.packageName == packageName) return@synchronized
+    val boundary=state.optLong("notificationActivatedAt",0)
+    if(notification.postTime<boundary || notification.postTime>System.currentTimeMillis()) return@synchronized
     fun packages(field:String): Set<String> = state.optJSONArray(field)?.let { values ->
       (0 until values.length()).map { values.optString(it) }.toSet()
     } ?: emptySet()
@@ -167,7 +175,8 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
       extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
         ?: extras.getCharSequence(Notification.EXTRA_TEXT)
       )?.toString().orEmpty()
-    if ((title.isBlank() && text.isBlank()) || title.length+text.length>8000) return@synchronized
+    if (title.isBlank() && text.isBlank()) return@synchronized
+    val oversized=title.length+text.length>8000
     val admission=notificationAdmission(notification.packageName,packageName,true,packages("packages"),blocked,
       FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy")),title+"\n"+text)
     val counters=getSharedPreferences("masarifi_tracking_admission_counters",Context.MODE_PRIVATE)
@@ -175,18 +184,25 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
       counters.edit().putLong("discarded",counters.getLong("discarded",0)+1).apply()
       return@synchronized
     }
-    retainAdmittedNotification(
+    try {retainAdmittedNotification(
       CapturedNotification(
         notification.key+":"+notification.postTime+":"+trackingDigest(title+"\n"+text),
         notification.packageName,
-        title,
-        text,
+        if(oversized) title.take(1000) else title,
+        if(oversized) text.take(6900)+"\n[tracking_input_too_large]" else text,
         notification.postTime,
         notification.key,
         admission==NotificationAdmission.DISCOVERED,
-        System.currentTimeMillis()
+        System.currentTimeMillis(),boundary,
+        if(FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy"))?.nominal==true) "default_account_nominal_v1" else "legacy"
       ), admission, {NotificationQueue(this).add(it)}, {TrackingScheduler.incoming(this)}
-    )
+    )} catch(error:Exception) {
+      getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE).edit()
+        .putString("captureIssue",if(error.message=="tracking_notification_queue_full") error.message else "tracking_notification_storage_failed").commit()
+      android.util.Log.w("MasarifiTracking","Notification retention unavailable")
+      TrackingScheduler.incoming(this)
+      return@synchronized
+    }
     counters.edit().putLong("admitted",counters.getLong("admitted",0)+1).apply()
   }
 }

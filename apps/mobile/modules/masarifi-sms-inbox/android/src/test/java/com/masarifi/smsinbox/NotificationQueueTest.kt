@@ -5,17 +5,31 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class NotificationQueueTest {
+  @Test fun capacityFailureDoesNotEvictPendingEvidence() {
+    val retained=listOf(CapturedNotification("one","com.bank","Bank","Paid SAR50",1))
+    try {
+      NotificationQueuePolicy.append(retained,CapturedNotification("two","com.bank","Bank","Paid SAR20",2),1)
+      org.junit.Assert.fail("Capacity must be reported")
+    } catch(error:IllegalStateException) {
+      assertEquals("tracking_notification_queue_full",error.message)
+    }
+    assertEquals("one",retained.single().key)
+  }
   private val now = 1_800_000_000_000L
-  @Test fun UnknownFloodCannotEvictTrustedRecordsAndHasSeparateRetention() {
+  @Test fun pendingCapturesNeverExpireDuringConnectivityLoss() {
+    val old=CapturedNotification("old","com.bank","Bank","Paid SAR50",now-30L*24*60*60*1000,discovered=true)
+    assertEquals(listOf(old),NotificationQueuePolicy.prune(listOf(old),now))
+  }
+  @Test fun allPendingEvidenceSurvivesWithoutEvictingTrustedRecords() {
     val trusted=CapturedNotification("trusted","com.bank","Bank","Purchase SAR5",now-1000)
     val unknown=(1..100).map { CapturedNotification("u-$it","com.unknown.bank","Bank","Purchase SAR5",now-it,
       discovered=true) }
     val expired=CapturedNotification("old-unknown","com.other.bank","Bank","Purchase SAR5",now-25*60*60*1000,
       discovered=true)
     val records=NotificationQueuePolicy.prune(listOf(trusted,expired)+unknown,now)
-    assertEquals(11,records.size)
+    assertEquals(102,records.size)
     assertEquals(1,records.count { !it.discovered })
-    assertFalse(records.any {it.key=="old-unknown"})
+    assertEquals(1,records.count {it.key=="old-unknown"})
   }
   @Test
   fun keepsRevisionsOfOneNativeNotificationAndAcknowledgesOnlyCommittedRevision() {
@@ -40,8 +54,8 @@ class NotificationQueueTest {
     )
 
     val pruned = NotificationQueuePolicy.prune(fresh + expired, now)
-    assertEquals(200, pruned.size)
-    assertFalse(pruned.any { it.key == "expired" })
+    assertEquals(202, pruned.size)
+    assertEquals(1,pruned.count {it.key=="expired"})
     assertFalse(
       NotificationQueuePolicy.acknowledge(pruned, setOf("n-1"))
         .any { it.key == "n-1" }

@@ -12,9 +12,12 @@ internal fun notificationAdmission(
   source: String, self: String, enabled: Boolean, trusted: Set<String>, blocked: Set<String>,
   policy: FinancialDiscoveryPolicy?, text: String
 ): NotificationAdmission {
+  if (source in setOf("com.whatsapp","com.whatsapp.w4b","org.telegram.messenger","org.telegram.messenger.web","com.facebook.orca","com.facebook.mlite","com.discord","com.snapchat.android","com.instagram.android","com.google.android.apps.messaging","com.samsung.android.messaging")) return NotificationAdmission.DISCARD
   if (!enabled || source == self || source in blocked || text.isBlank() || text.length > 8000)
     return NotificationAdmission.DISCARD
   if (policy == null) return NotificationAdmission.DISCARD
+  if (policy.nominal && source !in trusted && !policy.knownPackage(source)) return NotificationAdmission.DISCARD
+  if (policy.nominal) return if(policy.isFinancial(text,source)) NotificationAdmission.TRUSTED else NotificationAdmission.DISCARD
   if (source in trusted) return if(policy.isFinancial(text,source)) NotificationAdmission.TRUSTED else NotificationAdmission.DISCARD
   return if (policy.isStrong(text, source)) NotificationAdmission.DISCOVERED
     else NotificationAdmission.DISCARD
@@ -23,8 +26,10 @@ internal fun notificationAdmission(
 internal class FinancialDiscoveryPolicy private constructor(
   private val rules: List<JSONObject>, private val currencies: List<JSONObject>,
   private val contexts: List<String>, private val custom: List<String>,
-  private val providers: List<JSONObject>, private val marketing: Regex
+  private val providers: List<JSONObject>, private val marketing: Regex,
+  val nominal: Boolean = false
 ) {
+  fun knownPackage(source:String):Boolean = providers.any {source in strings(it.optJSONArray("packages"))}
   fun isStrong(raw:String,sender:String): Boolean = inspect(raw,sender,true)
   fun isFinancial(raw:String,sender:String): Boolean = inspect(raw,sender,false)
 
@@ -64,7 +69,7 @@ internal class FinancialDiscoveryPolicy private constructor(
       val amount = match.groups[2]?.value ?: match.groups[3]!!.value
       val before = text.substring(maxOf(0, match.range.first - 60), match.range.first)
       val after = text.substring(match.range.last + 1, minOf(text.length, match.range.last + 33))
-      val balance = Regex("(?:avl\\.?\\s*bal|available\\s+balance|balance|الرصيد|رصيد)[^.;:]*[: ]*$").containsMatchIn(before)
+      val balance = Regex("(?:avl\\.?\\s*bal|available\\s+balance|balance|الرصيد|رصيد)[^.;:،,]*[: ]*$").containsMatchIn(before)
       val feeRole = Regex("(?:fee|fees|charge|commission|رسوم|عمولة)\\s*[: ]*$").containsMatchIn(before)
       val fx = Regex("(?:equivalent|exchange rate|converted|ما يعادل)\\s*[: ]*$").containsMatchIn(before) ||
         Regex("^\\s*(?:equivalent|ما يعادل)").containsMatchIn(after)
@@ -133,7 +138,7 @@ internal class FinancialDiscoveryPolicy private constructor(
       val providers = (0 until providerArray.length()).map { providerArray.getJSONObject(it) }
       // Structural syntax is fixed; never execute a user-provided regex in the listener.
       FinancialDiscoveryPolicy(rules, currencies, contexts, custom, providers,
-        Regex("\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"))
+        Regex("\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"),value.optBoolean("nominal",false))
     }.getOrNull()
   }
 }

@@ -8,7 +8,11 @@ import { prepareFinancialMessageImport, prepareSmsImport } from './sms-import';
 jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   digestStringAsync: async (_algorithm: string, value: string) =>
-    require('crypto').createHash('sha256').update(value).digest('hex')
+    jest
+      .requireActual<typeof import('node:crypto')>('node:crypto')
+      .createHash('sha256')
+      .update(value)
+      .digest('hex')
 }));
 
 const account = (patch: Partial<Account> = {}): Account => ({
@@ -76,6 +80,99 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('preserves separate principal and additional fee identities on replay', async () => {
+    const config = options({ accountingPolicy: 'default_account_nominal_v1' });
+    const first = await prepareSmsImport(
+      [message({ body: 'Paid SAR50; additional fee SAR2' })],
+      config
+    );
+    expect(first.events.map((e) => e.sourceAmountDecimal)).toEqual(['50', '2']);
+    expect(new Set(first.events.map((e) => e.sourceItemKey)).size).toBe(2);
+    const replay = await prepareSmsImport(
+      [message({ body: 'Paid SAR50; additional fee SAR2' })],
+      {
+        ...config,
+        knownFingerprints: new Set(first.events.map((e) => e.sourceItemKey))
+      }
+    );
+    expect(replay.events).toEqual([]);
+  });
+  it('keeps later notification movements separate when an app reuses the same native slot', async () => {
+    const input = {
+      key: 'posted-one',
+      nativeKey: 'slot',
+      packageName: 'com.finance.app',
+      title: 'Bank',
+      text: 'Paid SAR50',
+      postedAt: 1000,
+      captureActivatedAt: 0,
+      capturePolicy: 'default_account_nominal_v1'
+    };
+    const config = options({
+      accountingPolicy: 'default_account_nominal_v1',
+      senderRules: [{ ...sender(), normalizedSender: 'com.finance.app' }]
+    });
+    const first = await prepareFinancialMessageImport([input], config);
+    const second = await prepareFinancialMessageImport(
+      [{ ...input, key: 'posted-two', postedAt: 10000000 }],
+      {
+        ...config,
+        knownFingerprints: new Set(first.events.map((e) => e.sourceItemKey))
+      }
+    );
+    expect(second.events).toHaveLength(1);
+    expect(second.events[0]?.sourceItemKey).not.toBe(
+      first.events[0]?.sourceItemKey
+    );
+    expect(second.events[0]?.transport?.nativeIdDigest).toBe(
+      first.events[0]?.transport?.nativeIdDigest
+    );
+  });
+  it('prepares nominal captures without inventing an account or converting source currency', async () => {
+    const prepared = await prepareSmsImport(
+      [message({ body: 'تم دفع خمسين جنيه' })],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        accounts: [account({ type: 'cash', isDefault: true })]
+      })
+    );
+    expect(prepared.events[0]).toMatchObject({
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAmountDecimal: '50',
+      currency: 'EGP',
+      amountMinor: -5000
+    });
+    expect(prepared.events[0]?.accountId).toBeUndefined();
+    expect(prepared.events[0]?.destinationAccountId).toBeUndefined();
+  });
+  it('retains eligible undecodable evidence as private diagnostics', async () => {
+    const prepared = await prepareSmsImport(
+      [message({ body: 'تم دفع مبلغ غير واضح' })],
+      options({ accountingPolicy: 'default_account_nominal_v1' })
+    );
+    expect(prepared.events).toEqual([]);
+    expect(prepared.diagnostics?.[0]?.sourceText).toBe('تم دفع مبلغ غير واضح');
+  });
+  it('never admits a chat package through an explicitly trusted source rule', async () => {
+    const prepared = await prepareFinancialMessageImport(
+      [
+        {
+          key: 'chat',
+          nativeKey: 'chat',
+          packageName: 'com.whatsapp',
+          title: 'Bank',
+          text: 'Paid SAR50',
+          postedAt: 100
+        }
+      ],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        senderRules: [{ ...sender(), normalizedSender: 'com.whatsapp' }]
+      })
+    );
+    expect(prepared.events).toEqual([]);
+    expect(prepared.diagnostics ?? []).toEqual([]);
+  });
   it('keeps a transfer to another owned but tracking-disabled account in review', async () => {
     const event = (
       await prepareSmsImport(

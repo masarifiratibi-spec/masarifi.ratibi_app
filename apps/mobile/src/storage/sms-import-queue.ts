@@ -28,6 +28,12 @@ export interface SmsImportQueueEntry {
 }
 
 export interface SmsRuleSnapshot {
+  activation?: {
+    smsActivatedAt: number;
+    smsActivationId?: string;
+    notificationActivatedAt: number;
+  };
+  accountingPolicy?: 'default_account_nominal_v1';
   keywords: ({ value: string; enabled: boolean } & Partial<KeywordRule>)[];
   senders: {
     normalizedSender: string;
@@ -55,6 +61,20 @@ export interface SmsImportQueueState {
   fingerprints: string[];
   mode: TrackingMode | null;
   rules: SmsRuleSnapshot;
+  activation?: {
+    smsActivatedAt: number;
+    smsActivationId?: string;
+    notificationActivatedAt: number;
+  };
+  diagnostics?: TrackingDiagnostic[];
+}
+
+export interface TrackingDiagnostic {
+  sourceItemKey: string;
+  sourceChannel: 'android_sms' | 'android_notification';
+  receivedAt: number;
+  sourceText: string;
+  reasonCodes: string[];
 }
 
 export class SmsImportQueue {
@@ -149,6 +169,29 @@ export class SmsImportQueue {
     });
   }
 
+  setActivation(
+    ownerId: string,
+    activation: NonNullable<SmsImportQueueState['activation']>
+  ): Promise<SmsImportQueueState> {
+    return this.update(ownerId, (state) => {
+      state.activation = activation;
+    });
+  }
+
+  retainDiagnostics(
+    ownerId: string,
+    records: readonly TrackingDiagnostic[]
+  ): Promise<SmsImportQueueState> {
+    return this.update(ownerId, (state) => {
+      const saved = new Map(
+        (state.diagnostics ?? []).map((item) => [item.sourceItemKey, item])
+      );
+      for (const item of records) saved.set(item.sourceItemKey, item);
+      if (saved.size > 1000) throw new Error('tracking_diagnostics_full');
+      state.diagnostics = [...saved.values()];
+    });
+  }
+
   async clear(ownerId?: string): Promise<void> {
     try {
       const database = await openDatabase(ownerId);
@@ -207,6 +250,12 @@ const boundedText = z.string().min(1).max(200);
 const timestamp = z.string().max(40).datetime({ offset: true });
 const eventSchema = z
   .object({
+    accountingPolicy: z.literal('default_account_nominal_v1').optional(),
+    sourceAmountDecimal: z
+      .string()
+      .regex(/^(?:0|[1-9]\d{0,15})(?:\.\d{1,3})?$/)
+      .optional(),
+    activatedAt: timestamp.optional(),
     sourceItemKey: z.string().min(1).max(160),
     sender: boundedText.optional(),
     body: z.string().min(1).max(2000).optional(),
@@ -277,7 +326,11 @@ const queueSchema = z
             sessionId: boundedText.nullable(),
             submission: z
               .object({
-                schemaVersion: z.union([z.literal(1), z.literal(2)]),
+                schemaVersion: z.union([
+                  z.literal(1),
+                  z.literal(2),
+                  z.literal(3)
+                ]),
                 sourceType: z.enum(['sms', 'provider', 'manual']),
                 sourceChannel: z
                   .enum([
@@ -307,6 +360,15 @@ const queueSchema = z
     mode: z.enum(['automatic_clear', 'review_all', 'paused']).nullable(),
     rules: z
       .object({
+        accountingPolicy: z.literal('default_account_nominal_v1').optional(),
+        activation: z
+          .object({
+            smsActivatedAt: z.number().int().safe().nonnegative(),
+            smsActivationId: z.string().regex(/^\d+$/).optional(),
+            notificationActivatedAt: z.number().int().safe().nonnegative()
+          })
+          .strict()
+          .optional(),
         keywords: z
           .array(
             z
@@ -356,7 +418,7 @@ const queueSchema = z
           .array(
             z.object({
               provider: boundedText,
-              role: z.enum(['card', 'account']),
+              role: z.enum(['card', 'account', 'cash_card', 'cash_account']),
               suffix: boundedText,
               accountId: z.string().uuid()
             })
@@ -370,7 +432,29 @@ const queueSchema = z
           .optional(),
         requiresRefresh: z.boolean().optional()
       })
+      .strict(),
+    activation: z
+      .object({
+        smsActivatedAt: z.number().int().safe().nonnegative(),
+        smsActivationId: z.string().regex(/^\d+$/).optional(),
+        notificationActivatedAt: z.number().int().safe().nonnegative()
+      })
       .strict()
+      .optional(),
+    diagnostics: z
+      .array(
+        z
+          .object({
+            sourceItemKey: boundedText,
+            sourceChannel: z.enum(['android_sms', 'android_notification']),
+            receivedAt: z.number().int().safe().nonnegative(),
+            sourceText: z.string().max(8000),
+            reasonCodes: z.array(z.string().max(100)).max(32)
+          })
+          .strict()
+      )
+      .max(1000)
+      .optional()
   })
   .strict();
 
@@ -381,7 +465,10 @@ function parseState(
   if (!raw || raw.length > 64 * 1024 * 1024) return null;
   try {
     const decoded = JSON.parse(raw) as SmsImportQueueState;
-    if (decoded?.rules && Object.prototype.hasOwnProperty.call(decoded.rules, 'snapshot')) {
+    if (
+      decoded?.rules &&
+      Object.prototype.hasOwnProperty.call(decoded.rules, 'snapshot')
+    ) {
       try {
         validateRuleSnapshot(decoded.rules.snapshot);
       } catch {
@@ -435,6 +522,13 @@ function minimize(input: TrackingImportSubmission): TrackingImportSubmission {
 
 function minimizeEvent(event: TrackingImportEvent): TrackingImportEvent {
   return {
+    ...(event.accountingPolicy
+      ? { accountingPolicy: event.accountingPolicy }
+      : {}),
+    ...(event.sourceAmountDecimal
+      ? { sourceAmountDecimal: event.sourceAmountDecimal }
+      : {}),
+    ...(event.activatedAt ? { activatedAt: event.activatedAt } : {}),
     sourceItemKey: event.sourceItemKey,
     ...(event.sender ? { sender: event.sender } : {}),
     ...(event.amountMinor === undefined

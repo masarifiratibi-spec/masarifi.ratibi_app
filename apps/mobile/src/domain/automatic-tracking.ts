@@ -80,6 +80,9 @@ export type TrackingReasonCode = (typeof trackingReasonCodes)[number];
 export type TrackingMode = TrackingPreference['mode'];
 
 export interface TrackingImportEvent {
+  accountingPolicy?: 'default_account_nominal_v1';
+  sourceAmountDecimal?: string;
+  activatedAt?: string;
   sourceItemKey: string;
   sender?: string;
   body?: string;
@@ -105,7 +108,7 @@ export interface TrackingImportEvent {
 }
 
 export interface TrackingImportSubmission {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   sourceType: 'sms' | 'provider' | 'manual';
   sourceChannel?:
     | 'android_sms'

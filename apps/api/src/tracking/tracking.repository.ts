@@ -238,7 +238,7 @@ export class TrackingRepository {
       name === 'import_sessions'
         ? "-'request_hash'-'claim_token'-'claimed_by'-'lease_until'-'last_error_code'"
         : name === 'user_keyword_rules'
-          ? "||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)))"
+          ? "-'deleted_at'||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)))"
           : name === 'user_sender_rules'
             ? "||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)))"
             : name === 'import_items'
@@ -249,6 +249,7 @@ export class TrackingRepository {
                   ? "-'decision_token'-'decision_lease_until'"
                   : '';
     const predicates: Record<string, string> = {
+      keywords: 'and deleted_at is null',
       sessions: 'and ($6::text is null or status=$6) and ($7::text is null or source_type=$7)',
       reviews: 'and ($6::text is null or status=$6)',
       duplicates:

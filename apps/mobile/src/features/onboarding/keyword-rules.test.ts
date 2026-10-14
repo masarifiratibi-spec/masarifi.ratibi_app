@@ -20,6 +20,9 @@ const baseRule: KeywordRule = {
 };
 
 describe('keyword rules', () => {
+  it('removes a selected default from the visible effective list', () => {
+    expect(deleteKeywordRule([baseRule], baseRule.id)).toEqual([]);
+  });
   it('normalizes, rejects empty values, and rejects duplicates by group and language', () => {
     expect(normalizeKeyword('  Grocery  ', 'en')).toBe('grocery');
 
@@ -40,7 +43,7 @@ describe('keyword rules', () => {
     ).toMatchObject({ error: 'duplicate' });
   });
 
-  it('adds custom rules and preserves a disabled override for defaults', () => {
+  it('adds custom rules and deletes selected defaults from the visible list', () => {
     const added = addKeywordRule([baseRule], {
       group: 'expense',
       language: 'en',
@@ -56,7 +59,6 @@ describe('keyword rules', () => {
       })
     );
     expect(deleteKeywordRule(added.rules, 'expense-en-default')).toEqual([
-      expect.objectContaining({ origin: 'default', enabled: false }),
       expect.objectContaining({ origin: 'custom' })
     ]);
     expect(deleteKeywordRule(added.rules, added.rules[1].id)).toHaveLength(1);

@@ -46,10 +46,7 @@ export function deleteKeywordRule(
   rules: KeywordRule[],
   id: string
 ): KeywordRule[] {
-  const target = rules.find((rule) => rule.id === id);
-  return target?.origin === 'default'
-    ? setKeywordRuleEnabled(rules, id, false)
-    : rules.filter((rule) => rule.id !== id);
+  return rules.filter((rule) => rule.id !== id);
 }
 
 export function editKeywordRule(

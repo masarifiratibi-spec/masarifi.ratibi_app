@@ -60,11 +60,12 @@ internal object TrackingOwner {
     return if(priorGeneration==generation) "PRESERVED" else "BLOCKED"
   }
   @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean,
-    packages: List<String>, blockedPackages: List<String>, discoveryPolicy: String?) {
+    packages: List<String>, blockedPackages: List<String>, discoveryPolicy: String?, smsActivatedAt:Long=0, notificationActivatedAt:Long=0) {
     require(owner.matches(Regex("[a-f0-9]{64}")) && generation.length in 16..80)
     val old = read(context)
     if (old.optString("owner") != owner) NotificationQueue(context).clear()
     val value = JSONObject().put("owner",owner).put("generation",generation).put("sms",sms).put("notification",notification)
+      .put("smsActivatedAt",smsActivatedAt).put("notificationActivatedAt",notificationActivatedAt)
       .put("packages",org.json.JSONArray(packages.distinct()))
       .put("blockedPackages",org.json.JSONArray(blockedPackages.distinct()))
       .put("discoveryPolicy",if(FinancialDiscoveryPolicy.parse(discoveryPolicy) != null) discoveryPolicy else JSONObject.NULL)

@@ -6,9 +6,12 @@ import type { KeywordRule } from '@/domain/app-shell';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { KeywordEditor } from '@/features/onboarding/KeywordEditor';
 import { translate } from '@/localization/i18n';
-import { createAppShellStorage } from '@/storage/app-shell-storage';
+import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 
-const storage = createAppShellStorage();
+const storage = {
+  loadKeywords: trackingKeywordConfiguration.load,
+  saveKeywords: trackingKeywordConfiguration.save
+};
 
 export default function TrackingKeywordsRoute() {
   const [rules, setRules] = useState<KeywordRule[]>([]);
@@ -23,7 +26,7 @@ export default function TrackingKeywordsRoute() {
   async function save() {
     setError(false);
     try {
-      await storage.saveKeywords(rules);
+      await storage.saveKeywords(rules, setRules);
     } catch {
       setError(true);
     }

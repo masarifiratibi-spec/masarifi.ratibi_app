@@ -53,19 +53,33 @@ function renderStatus(
 }
 
 describe('TrackingStatusScreen', () => {
+  it('leaves a saved capture visible through financial screens without a success banner', () => {
+    renderWithQueryData(
+      <TrackingSyncPanel
+        state={{
+          status: 'imported',
+          sessionId: 'saved',
+          reviewId: null,
+          duplicateId: null,
+          errorCode: null
+        }}
+        onRetry={() => undefined}
+      />,
+      []
+    );
+    expect(screen.queryByText(translate('tracking.status.enabled'))).toBeNull();
+  });
   it('refreshes effective native configuration after saving a keyword override', async () => {
     const refreshed = jest
       .spyOn(coordinator, 'updateAutomaticTrackingKeywords')
       .mockResolvedValue(undefined);
-    jest
-      .spyOn(automaticTrackingService, 'listKeywordRules')
-      .mockResolvedValue(
-        defaultKeywordRules.map((rule) => ({
-          ...rule,
-          recentUseCount: 0,
-          lastUsedAt: null
-        }))
-      );
+    jest.spyOn(automaticTrackingService, 'listKeywordRules').mockResolvedValue(
+      defaultKeywordRules.map((rule) => ({
+        ...rule,
+        recentUseCount: 0,
+        lastUsedAt: null
+      }))
+    );
     jest
       .spyOn(automaticTrackingService, 'saveKeywordRules')
       .mockImplementation(async (rules) => ({
@@ -547,7 +561,6 @@ describe('TrackingStatusScreen', () => {
     ['scanning', 'tracking.state.loading'],
     ['processing', 'tracking.state.loading'],
     ['queued', 'tracking.service.offline'],
-    ['imported', 'tracking.status.enabled'],
     ['account_required', 'coreFinance.accounts.noEligible'],
     ['error', 'tracking.state.error']
   ] as const)('renders coordinator state %s', (status, titleKey) => {

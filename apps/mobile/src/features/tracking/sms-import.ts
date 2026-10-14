@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import {
   discoverFinancialMessage,
+  discoverNominalTrackingMessage,
   defaultSnapshot,
   normalizeFinancialText,
   type RuleSnapshot
@@ -17,6 +18,7 @@ import {
 } from '@/domain/core-finance';
 import type { RawSmsMessage } from '@/services/platform/sms-inbox-service';
 import type { RawBankNotification } from '@/services/platform/bank-notification-service';
+import type { TrackingDiagnostic } from '@/storage/sms-import-queue';
 
 export interface PreparedSmsImport {
   events: TrackingImportEvent[];
@@ -24,8 +26,11 @@ export interface PreparedSmsImport {
   newestReceivedAt: number | null;
   accountRequiredCount: number;
   consumedSourceKeys: string[];
+  diagnostics?: TrackingDiagnostic[];
 }
 interface Options {
+  accountingPolicy?: 'default_account_nominal_v1';
+  activatedAt?: number;
   keywordRules: readonly KeywordRule[];
   senderRules: readonly SenderRule[];
   accounts: readonly Account[];
@@ -78,7 +83,7 @@ export async function prepareFinancialMessageImport(
       `${sender}\n${sms ? nativeId : (input.nativeKey ?? nativeId)}`
     );
     const revisionDigest = await digest(normalizedBody);
-    const key = `sha256:${await digest(`${options.deviceId ?? 'legacy-device'}\n${channel}\n${nativeIdDigest}${sms ? '' : '\n' + revisionDigest}`)}`;
+    const key = `sha256:${await digest(`${options.deviceId ?? 'legacy-device'}\n${channel}\n${nativeIdDigest}${sms ? '' : '\n' + revisionDigest}${!sms && options.accountingPolicy ? '\n' + receivedAt : ''}`)}`;
     const consume = () => {
       if (!sms) result.consumedSourceKeys.push(nativeId);
     };
@@ -104,12 +109,143 @@ export async function prepareFinancialMessageImport(
       continue;
     }
     const trusted = sourceRules.some((rule) => rule.enabled && rule.trusted);
-    const discovery = discoverFinancialMessage(
-      { text: normalizedBody, sender, country, channel, receivedAt },
-      configured,
-      options.keywordRules
-    );
+    const discovery = options.accountingPolicy
+      ? discoverNominalTrackingMessage(
+          { text: normalizedBody, sender, country, channel, receivedAt },
+          configured,
+          options.keywordRules,
+          options.senderRules
+        )
+      : discoverFinancialMessage(
+          { text: normalizedBody, sender, country, channel, receivedAt },
+          configured,
+          options.keywordRules
+        );
     const classification = discovery.classification;
+    if (options.accountingPolicy) {
+      const nominal = discovery as ReturnType<
+        typeof discoverNominalTrackingMessage
+      >;
+      if (!nominal.strong || !nominal.eligibleSource) {
+        result.skippedFingerprints.push(key);
+        consume();
+        continue;
+      }
+      if (
+        !nominal.movements &&
+        (nominal.sourceAmountDecimal === null ||
+          classification.status !== 'completed' ||
+          classification.disposition !== 'capture_candidate')
+      ) {
+        (result.diagnostics ??= []).push({
+          sourceItemKey: key,
+          sourceChannel: channel,
+          receivedAt,
+          sourceText: body.slice(0, 8000),
+          reasonCodes: classification.reasonCodes.length
+            ? classification.reasonCodes
+            : [`lifecycle_${classification.status}`]
+        });
+      }
+      if (!nominal.movements && nominal.sourceAmountDecimal === null) {
+        result.skippedFingerprints.push(key);
+        consume();
+        continue;
+      }
+      const movements = nominal.movements ?? [
+        {
+          component: null,
+          sourceAmountDecimal: nominal.sourceAmountDecimal!,
+          classification
+        }
+      ];
+      for (const movement of movements) {
+        const classification = movement.classification;
+        const movementKey = movement.component
+          ? `sha256:${await digest(`${key}\n${movement.component}`)}`
+          : key;
+        if (options.knownFingerprints.has(movementKey)) {
+          result.skippedFingerprints.push(movementKey);
+          continue;
+        }
+        const { providerReference, originalProviderReference, ...safe } =
+          classification;
+        result.events.push({
+          sourceItemKey: movementKey,
+          accountingPolicy: options.accountingPolicy,
+          sourceAmountDecimal: movement.sourceAmountDecimal,
+          ...((!sms ? input.captureActivatedAt : options.activatedAt) ===
+          undefined
+            ? {}
+            : {
+                activatedAt: new Date(
+                  !sms
+                    ? (input.captureActivatedAt ?? options.activatedAt!)
+                    : options.activatedAt!
+                ).toISOString()
+              }),
+          transport: {
+            deviceId: options.deviceId ?? 'legacy-device',
+            channel,
+            nativeIdDigest,
+            revisionDigest
+          },
+          classification: safe,
+          ...(classification.amountMinor === null
+            ? {}
+            : {
+                amountMinor:
+                  classification.direction === 'incoming'
+                    ? classification.amountMinor
+                    : -classification.amountMinor
+              }),
+          ...(classification.currency
+            ? { currency: classification.currency }
+            : {}),
+          ...(providerReference
+            ? {
+                providerReferenceDigest: await digest(
+                  `v2\n${providerReference}`
+                )
+              }
+            : {}),
+          ...(originalProviderReference
+            ? {
+                originalProviderReferenceDigest: await digest(
+                  `v2\n${originalProviderReference}`
+                )
+              }
+            : {}),
+          ...(/https?:|\+?\d{4,}/i.test(sender)
+            ? {}
+            : { sender: sender.slice(0, 80) }),
+          ...(classification.merchant
+            ? { merchant: classification.merchant }
+            : {}),
+          metadata: {
+            ...(movement.component
+              ? { movementComponent: movement.component }
+              : {}),
+            ...(providerReference || originalProviderReference
+              ? { referenceScheme: 'plain-v2' }
+              : {}),
+            ...(sms
+              ? { sourceIdentityDigest: await digest(normalizeSender(sender)) }
+              : { sourcePackage: sender }),
+            ...(options.configurationRevision
+              ? { ruleConfigurationRevision: options.configurationRevision }
+              : {}),
+            ...(provider ? { sourceProvider: provider.providerKey } : {})
+          },
+          receivedAt: new Date(receivedAt).toISOString(),
+          ...(classification.occurredAt
+            ? { occurredAt: classification.occurredAt }
+            : {})
+        });
+      }
+      consume();
+      continue;
+    }
     const publishedFinancialMatch = classification.appliedRuleKeys.some(
       (ruleKey) =>
         configured.rules.some(

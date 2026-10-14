@@ -6,6 +6,7 @@ export function captureEffectsAgree(
   const classification = (values.classification ?? {}) as Record<string, unknown>;
   const incoming = classification.direction === 'incoming';
   const expectedKind =
+    values.accountingPolicy !== 'default_account_nominal_v1' &&
     classification.subtype === 'reversal'
       ? 'reversal'
       : values.kind === 'fee'

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MasarifiSmsInbox } from '../../modules/masarifi-sms-inbox';
 
 import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { disableTrackingBackground } from './tracking-background-runtime';
@@ -13,6 +14,9 @@ export const invalidateTrackingConsent = () => {
 export interface TrackingSourceState {
   smsEnabled: boolean;
   notificationEnabled: boolean;
+  smsActivatedAt?: number;
+  notificationActivatedAt?: number;
+  smsActivationId?: string;
 }
 
 interface StorageLike {
@@ -27,7 +31,19 @@ const disabled: TrackingSourceState = {
 };
 
 export class TrackingSourcePreferences {
-  constructor(private readonly storage: StorageLike = AsyncStorage) {}
+  constructor(
+    private readonly storage: StorageLike = AsyncStorage,
+    private readonly smsBoundary = async () => {
+      if (MasarifiSmsInbox && !MasarifiSmsInbox.smsActivationBoundary)
+        throw new Error('tracking_native_upgrade_required');
+      return (
+        MasarifiSmsInbox?.smsActivationBoundary?.() ?? {
+          activatedAt: Date.now(),
+          afterId: '0'
+        }
+      );
+    }
+  ) {}
 
   async load(): Promise<TrackingSourceState> {
     try {
@@ -36,7 +52,19 @@ export class TrackingSourcePreferences {
       );
       return {
         smsEnabled: value?.smsEnabled === true,
-        notificationEnabled: value?.notificationEnabled === true
+        notificationEnabled: value?.notificationEnabled === true,
+        ...(typeof value?.smsActivationId === 'string' &&
+        /^\d+$/.test(value.smsActivationId)
+          ? { smsActivationId: value.smsActivationId }
+          : {}),
+        ...(Number.isSafeInteger(value?.smsActivatedAt) &&
+        value.smsActivatedAt >= 0
+          ? { smsActivatedAt: value.smsActivatedAt }
+          : {}),
+        ...(Number.isSafeInteger(value?.notificationActivatedAt) &&
+        value.notificationActivatedAt >= 0
+          ? { notificationActivatedAt: value.notificationActivatedAt }
+          : {})
       };
     } catch {
       return { ...disabled };
@@ -49,13 +77,25 @@ export class TrackingSourcePreferences {
   ): Promise<TrackingSourceState> {
     consentEpoch++;
     const current = await this.load();
+    const boundary =
+      enabled && source === 'sms' && !current.smsEnabled
+        ? await this.smsBoundary()
+        : null;
     const next = {
       ...current,
-      [source === 'sms' ? 'smsEnabled' : 'notificationEnabled']: enabled
+      [source === 'sms' ? 'smsEnabled' : 'notificationEnabled']: enabled,
+      ...(enabled &&
+      !current[source === 'sms' ? 'smsEnabled' : 'notificationEnabled']
+        ? {
+            [source === 'sms' ? 'smsActivatedAt' : 'notificationActivatedAt']:
+              boundary?.activatedAt ?? Date.now(),
+            ...(boundary ? { smsActivationId: boundary.afterId } : {})
+          }
+        : {})
     };
     await this.storage.setItem(storageKey, JSON.stringify(next));
     // Consent changes invalidate all queued native work; the next authenticated pass installs a new generation.
-    await disableTrackingBackground(next.notificationEnabled);
+    await disableTrackingBackground(true);
     return next;
   }
 
