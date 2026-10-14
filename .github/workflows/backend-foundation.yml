@@ -269,6 +269,15 @@ jobs:
       - run: npm run supabase:start
       - name: Verify both exact historical main migration prefixes
         run: node ../../scripts/integration/verify-migration-baselines.cjs "$RUNNER_TEMP/masarifi-main-baselines.json"
+      - run: npm run build
+      - name: Verify retained Tracking captures across the nominal migration
+        run: |
+          npx supabase db reset --local --version 20261013053237 --no-seed --workdir ../.. --yes
+          node ../../scripts/integration/tracking-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-tracking-upgrade.json"
+          npx supabase migration up --local --workdir ../..
+          node ../../scripts/integration/tracking-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-tracking-upgrade.json"
+        env:
+          TRACKING_UPGRADE_DATABASE_URL: ${{ env.DATABASE_URL }}
       - name: Verify the older local-main ledger and Savings upgrade
         run: |
           npx supabase db reset --local --version 20260915150000 --no-seed --workdir ../.. --yes
@@ -281,7 +290,6 @@ jobs:
         run: |
           node ../../scripts/integration/main-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-main-upgrade.json"
           npx supabase migration list --local --workdir ../.. > "$RUNNER_TEMP/masarifi-main-migrations.txt"
-      - run: npm run build
       - name: Apply every candidate migration and verify unchanged financial history
         run: |
           npm run start:migration
@@ -306,6 +314,7 @@ jobs:
           name: backend-${{ github.sha }}-main-upgrade
           path: |
             ${{ runner.temp }}/masarifi-main-baselines.json
+            ${{ runner.temp }}/masarifi-tracking-upgrade.json
             ${{ runner.temp }}/masarifi-local-main-upgrade.json
             ${{ runner.temp }}/masarifi-main-upgrade.json
             ${{ runner.temp }}/masarifi-main-migrations.txt

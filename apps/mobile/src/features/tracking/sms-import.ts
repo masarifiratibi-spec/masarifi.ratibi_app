@@ -10,6 +10,7 @@ import type { KeywordRule } from '@/domain/app-shell';
 import {
   normalizeSender,
   type SenderRule,
+  type TrackingDiagnostic,
   type TrackingImportEvent
 } from '@/domain/automatic-tracking';
 import {
@@ -18,7 +19,6 @@ import {
 } from '@/domain/core-finance';
 import type { RawSmsMessage } from '@/services/platform/sms-inbox-service';
 import type { RawBankNotification } from '@/services/platform/bank-notification-service';
-import type { TrackingDiagnostic } from '@/storage/sms-import-queue';
 
 export interface PreparedSmsImport {
   events: TrackingImportEvent[];

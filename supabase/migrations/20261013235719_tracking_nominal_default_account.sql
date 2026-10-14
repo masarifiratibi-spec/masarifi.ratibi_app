@@ -52,20 +52,22 @@ begin
   execute replace(definition,'p_schema_version not in (1,2)','p_schema_version not in (1,2,3)');
 end $migration$;
 
-alter function private.tracking_configuration_revision(text) rename to tracking_configuration_revision_before_nominal;
-revoke all on function private.tracking_configuration_revision_before_nominal(text) from public;
-create function private.tracking_configuration_revision(p_user_id text) returns text
-language sql stable security definer set search_path='' as $$
-  select encode(extensions.digest(convert_to(private.tracking_configuration_revision_before_nominal(p_user_id)||'default_account_nominal_v1'||
-    coalesce((select jsonb_agg(jsonb_build_object('id',id,'default',is_default,'deleted',deleted_at) order by id)::text from public.accounts where user_id=p_user_id),'[]'),'UTF8'),'sha256'),'hex');
-$$;
+-- A new nullable column must not change legacy snapshot hashes and strand
+-- queued/offline v2 captures. Disabled tombstones stay in the override list.
+do $migration$
+declare definition text;
+begin
+  definition:=pg_get_functiondef('private.get_tracking_rule_snapshot_base(text)'::regprocedure);
+  if position('to_jsonb(k)-''user_id''' in definition)=0 then raise exception 'TRACKING_LEGACY_SNAPSHOT_PRECONDITION'; end if;
+  execute replace(definition,'to_jsonb(k)-''user_id''','to_jsonb(k)-''user_id''-''deleted_at''');
+end $migration$;
 alter function private.get_tracking_rule_snapshot(text) rename to get_tracking_rule_snapshot_before_nominal;
 revoke all on function private.get_tracking_rule_snapshot_before_nominal(text) from public,masarifi_api;
 create function private.get_tracking_rule_snapshot(p_user_id text) returns jsonb
 language sql stable security definer set search_path='' as $$
-  select private.get_tracking_rule_snapshot_before_nominal(p_user_id)||jsonb_build_object('accountingPolicy','default_account_nominal_v1','configurationRevision',private.tracking_configuration_revision(p_user_id));
+  select private.get_tracking_rule_snapshot_before_nominal(p_user_id)||jsonb_build_object('accountingPolicy','default_account_nominal_v1');
 $$;
-revoke all on function private.get_tracking_rule_snapshot(text),private.tracking_configuration_revision(text) from public;
+revoke all on function private.get_tracking_rule_snapshot(text) from public;
 grant execute on function private.get_tracking_rule_snapshot(text) to masarifi_api;
 
 create function private.tracking_nominal_source(p_item_id uuid) returns jsonb

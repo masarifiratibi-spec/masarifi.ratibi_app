@@ -9,6 +9,7 @@ import type { KeywordRule } from '@/domain/app-shell';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 
 import type {
+  TrackingDiagnostic,
   TrackingImportEvent,
   TrackingImportSubmission,
   TrackingMode
@@ -69,13 +70,7 @@ export interface SmsImportQueueState {
   diagnostics?: TrackingDiagnostic[];
 }
 
-export interface TrackingDiagnostic {
-  sourceItemKey: string;
-  sourceChannel: 'android_sms' | 'android_notification';
-  receivedAt: number;
-  sourceText: string;
-  reasonCodes: string[];
-}
+export type { TrackingDiagnostic } from '@/domain/automatic-tracking';
 
 export class SmsImportQueue {
   constructor(private readonly storage: StorageLike = AsyncStorage) {}

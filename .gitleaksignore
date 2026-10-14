@@ -3,6 +3,13 @@
 # Historical Staging api.env SHA-256 checksum; verified file hash, not a credential value.
 1ee3ef3bf50fd97d8c1a573f606d0b8ad8458e6c:scripts/voice-manual-canary/canary-host.cjs:generic-api-key:15
 
+# Nonsecret container IDs, image digests and Git revisions in deployment evidence.
+9c0aa80e7854d2061e253dcd1ecf29c0663248f4:docs/recovery/CURRENT-RECOVERY-STATUS-AND-HANDOFF.md:generic-api-key:96
+20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:4
+20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:5
+20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-canary/canary-control.py:generic-api-key:8
+15488cd7bace161d5093bd44ad8b47491dafb053:docs/evidence/2026-10-11-local-delivery-readiness/staging-client-acceptance-review-packet.json:generic-api-key:126
+
 # Public, verified backend commit SHA and OCI image digest, not authentication keys.
 # Renamed API_SOURCE/API_IMAGE to VERIFIED_SOURCE_SHA/VERIFIED_IMAGE_DIGEST subsequently.
 0dbed67e14aab9d69b7cbbd09fc5a0176a0af27f:scripts/staging-voice/redmi-controls.cjs:generic-api-key:8

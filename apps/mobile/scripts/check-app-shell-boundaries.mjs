@@ -16,6 +16,7 @@ for (const file of files) {
     normalized === 'app/(onboarding)/android-sms-permission.tsx' ||
     normalized === 'src/features/tracking/sms-import.ts' ||
     normalized === 'src/services/automatic-tracking-coordinator.ts' ||
+    normalized === 'src/services/tracking-source-preferences.ts' ||
     /^src\/services\/platform\/.*\.android\.ts$/.test(normalized);
 
   if (!isTest) {

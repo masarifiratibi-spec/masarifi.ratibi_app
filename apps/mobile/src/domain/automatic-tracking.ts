@@ -4,6 +4,14 @@ import type { KeywordRule, TrackingPreference } from './app-shell';
 import type { TransactionInput } from './core-finance';
 import type { Classification } from '@masarifi/transaction-parser';
 
+export interface TrackingDiagnostic {
+  sourceItemKey: string;
+  sourceChannel: 'android_sms' | 'android_notification';
+  receivedAt: number;
+  sourceText: string;
+  reasonCodes: string[];
+}
+
 export const trackingPlatforms = ['android', 'ios', 'conservative'] as const;
 export const trackingServiceStates = [
   'healthy',
