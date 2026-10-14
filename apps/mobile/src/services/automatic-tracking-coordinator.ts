@@ -108,6 +108,12 @@ const idleState: AutomaticTrackingSyncState = {
   errorCode: null
 };
 
+function laterSmsId(left: string, right: string): string {
+  const a = /^\d{1,19}$/.test(left) ? left.replace(/^0+(?=\d)/, '') : '0',
+    b = /^\d{1,19}$/.test(right) ? right.replace(/^0+(?=\d)/, '') : '0';
+  return a.length > b.length || (a.length === b.length && a > b) ? a : b;
+}
+
 export function createAutomaticTrackingCoordinator(
   dependencies: CoordinatorDependencies
 ) {
@@ -229,6 +235,13 @@ export function createAutomaticTrackingCoordinator(
           update,
           stillOwner
         );
+      const sourceSmsAt =
+        sources.smsActivatedAt ??
+        queue.activation?.smsActivatedAt ??
+        dependencies.now();
+      const sourceSmsId =
+        sources.smsActivationId ?? queue.activation?.smsActivationId ?? '0';
+      const policySmsId = config.policySmsActivationId ?? '0';
       const activation = {
         smsActivatedAt: Math.max(
           config.policyActivatedAt ?? 0,
@@ -237,12 +250,11 @@ export function createAutomaticTrackingCoordinator(
             dependencies.now()
         ),
         smsActivationId:
-          (config.policyActivatedAt ?? 0) >
-          (sources.smsActivatedAt ?? queue.activation?.smsActivatedAt ?? 0)
-            ? '0'
-            : (sources.smsActivationId ??
-              queue.activation?.smsActivationId ??
-              '0'),
+          (config.policyActivatedAt ?? 0) > sourceSmsAt
+            ? policySmsId
+            : config.policyActivatedAt === sourceSmsAt
+              ? laterSmsId(policySmsId, sourceSmsId)
+              : sourceSmsId,
         notificationActivatedAt: Math.max(
           config.policyActivatedAt ?? 0,
           sources.notificationActivatedAt ??
@@ -268,7 +280,9 @@ export function createAutomaticTrackingCoordinator(
       let cursor = Math.max(queue.cursor ?? 0, activation.smsActivatedAt);
       let cursorId =
         queue.cursor !== null && queue.cursor >= activation.smsActivatedAt
-          ? queue.cursorId
+          ? queue.cursor === activation.smsActivatedAt
+            ? laterSmsId(queue.cursorId ?? '0', activation.smsActivationId)
+            : queue.cursorId
           : activation.smsActivationId;
       let fingerprints = new Set(queue.fingerprints);
       let captured = false;

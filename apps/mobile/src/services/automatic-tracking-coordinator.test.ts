@@ -464,6 +464,41 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it.each([
+    [undefined, '42'],
+    ['20', '42'],
+    ['50', '50']
+  ])(
+    'keeps the native SMS ID boundary at a timestamp tie (cursor %s)',
+    async (cursorId, expectedId) => {
+      const context = setup();
+      if (cursorId)
+        await context.queue.checkpoint(
+          'owner-1',
+          5000,
+          [],
+          undefined,
+          cursorId
+        );
+      Object.assign(context.tracking, {
+        getRuleConfiguration: jest
+          .fn()
+          .mockResolvedValue({
+            snapshot: defaultSnapshot,
+            keywords: [],
+            senders: [],
+            accountingPolicy: 'default_account_nominal_v1',
+            sourceAdmissionPolicy: 'financial_content_v1',
+            policyActivatedAt: 5000,
+            policySmsActivationId: '42'
+          })
+      });
+      await context.coordinator.sync();
+      expect(context.inbox.readRecent).toHaveBeenCalledWith(
+        expect.objectContaining({ since: 5000, afterId: expectedId })
+      );
+    }
+  );
   it('does not replay retained work or scan earlier than a new device policy boundary', async () => {
     const context = setup();
     await context.queue.enqueue('owner-1', {

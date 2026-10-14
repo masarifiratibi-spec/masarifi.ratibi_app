@@ -5,7 +5,9 @@ set local role masarifi_migration;
 alter table private.tracking_automatic_cohorts
   add column source_admission_policy text not null default 'financial_sources'
     check(source_admission_policy in ('financial_sources','financial_content_v1')),
-  add column capture_started_at timestamptz;
+  add column capture_started_at timestamptz,
+  add column sms_activation_id text not null default '0'
+    check(sms_activation_id ~ '^[0-9]{1,19}$' and sms_activation_id::numeric<=9223372036854775807);
 alter table private.tracking_automatic_cohorts add constraint tracking_content_boundary_required
   check(source_admission_policy<>'financial_content_v1' or capture_started_at is not null);
 
@@ -34,7 +36,8 @@ begin
   select * into cohort from private.tracking_content_cohort(p_user_id,p_device_id);
   if cohort.user_id is null then return configuration; end if;
   return configuration||jsonb_build_object('sourceAdmissionPolicy','financial_content_v1',
-    'policyActivatedAt',floor(extract(epoch from cohort.capture_started_at)*1000)::bigint);
+    'policyActivatedAt',floor(extract(epoch from cohort.capture_started_at)*1000)::bigint,
+    'policySmsActivationId',cohort.sms_activation_id);
 end $$;
 revoke all on function private.get_tracking_device_rule_snapshot(text,text) from public;
 grant execute on function private.get_tracking_device_rule_snapshot(text,text) to masarifi_api;

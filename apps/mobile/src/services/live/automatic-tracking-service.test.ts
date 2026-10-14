@@ -45,7 +45,8 @@ describe('live automatic tracking adapter', () => {
         keywords: [],
         senders: [],
         sourceAdmissionPolicy: 'financial_content_v1',
-        policyActivatedAt: 1791980000000
+        policyActivatedAt: 1791980000000,
+        policySmsActivationId: '42'
       })
     );
     const service = createLiveAutomaticTrackingService({
@@ -54,7 +55,8 @@ describe('live automatic tracking adapter', () => {
     });
     await expect(service.getRuleConfiguration!()).resolves.toMatchObject({
       sourceAdmissionPolicy: 'financial_content_v1',
-      policyActivatedAt: 1791980000000
+      policyActivatedAt: 1791980000000,
+      policySmsActivationId: '42'
     });
     expect(request.mock.calls[0][0]).toContain(
       '/api/v1/tracking/rule-snapshot?deviceId=aaaaaaaa-1111-4111-8111-111111111111'

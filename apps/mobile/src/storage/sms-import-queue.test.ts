@@ -30,12 +30,14 @@ it('round trips a device content policy and its boundary without converting reta
     keywords: [],
     senders: [],
     sourceAdmissionPolicy: 'financial_content_v1',
-    policyActivatedAt: 1000
+    policyActivatedAt: 1000,
+    policySmsActivationId: '42'
   } as Parameters<SmsImportQueue['saveRules']>[1]);
   const saved = await queue.load('owner-1');
   expect(saved.rules).toMatchObject({
     sourceAdmissionPolicy: 'financial_content_v1',
-    policyActivatedAt: 1000
+    policyActivatedAt: 1000,
+    policySmsActivationId: '42'
   });
   expect(saved.pending).toEqual(retained);
   expect(saved.cursor).toBe(42);

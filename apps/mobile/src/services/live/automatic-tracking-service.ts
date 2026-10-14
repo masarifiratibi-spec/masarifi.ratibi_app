@@ -399,6 +399,13 @@ export function createLiveAutomaticTrackingService({
         throw new TrackingError('unknown');
       const snapshot = validateRuleSnapshot(configuration.snapshot);
       if (
+        configuration.policySmsActivationId !== undefined &&
+        (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
+          typeof configuration.policySmsActivationId !== 'string' ||
+          !/^\d{1,19}$/.test(configuration.policySmsActivationId))
+      )
+        throw new TrackingError('unknown');
+      if (
         configuration.sourceAdmissionPolicy !== undefined &&
         (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
           !Number.isSafeInteger(configuration.policyActivatedAt) ||
@@ -430,7 +437,10 @@ export function createLiveAutomaticTrackingService({
         ...(configuration.sourceAdmissionPolicy === 'financial_content_v1'
           ? {
               sourceAdmissionPolicy: 'financial_content_v1' as const,
-              policyActivatedAt: Number(configuration.policyActivatedAt)
+              policyActivatedAt: Number(configuration.policyActivatedAt),
+              ...(typeof configuration.policySmsActivationId === 'string'
+                ? { policySmsActivationId: configuration.policySmsActivationId }
+                : {})
             }
           : {}),
         ...(configuration.accountingPolicy === undefined
