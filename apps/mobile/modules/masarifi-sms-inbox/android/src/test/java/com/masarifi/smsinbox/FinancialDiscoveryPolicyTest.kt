@@ -4,6 +4,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun additionalChatPackagesCannotEnterContentAdmission() {
+    val content=FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText()).put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!
+    listOf("org.thoughtcrime.securesms","com.viber.voip","com.Slack","com.microsoft.teams").forEach { source ->
+      assertEquals(source,NotificationAdmission.DISCARD,notificationAdmission(source,"com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Paid SAR2"))
+    }
+    assertEquals(NotificationAdmission.DISCARD,notificationAdmission("example.unlisted.chat","com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Paid SAR2",true))
+  }
+  @Test fun scopedContentPolicyAdmitsUnknownFinancialAppsButStillExcludesChatsAndFailures() {
+    val raw=org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
+      .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString()
+    val content=FinancialDiscoveryPolicy.parse(raw)!!
+    assertEquals(NotificationAdmission.TRUSTED,notificationAdmission("example.new.wallet","com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Purchase SAR2"))
+    assertEquals(NotificationAdmission.DISCARD,notificationAdmission("com.whatsapp","com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Purchase SAR2"))
+    assertEquals(NotificationAdmission.DISCARD,notificationAdmission("example.new.wallet","com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Purchase SAR2 failed"))
+    assertEquals(NotificationAdmission.DISCARD,notificationAdmission("example.new.wallet","com.masarifi.mobile.dev",true,emptySet(),setOf("example.new.wallet"),content,"Purchase SAR2"))
+  }
   @Test fun chatPackagesNeverReachRetentionEvenWhenTrusted() {
     assertEquals(NotificationAdmission.DISCARD,notificationAdmission("com.whatsapp","com.masarifi.mobile.dev",true,setOf("com.whatsapp"),emptySet(),policy(),"Purchase SAR50"))
   }

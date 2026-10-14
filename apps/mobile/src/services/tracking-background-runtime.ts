@@ -57,6 +57,15 @@ export async function configureTrackingBackground(
       !trackingNativeRuntime?.configureTrackingOwner
     )
       return;
+    if (
+      rules.sourceAdmissionPolicy &&
+      (!trackingNativeRuntime.financialContentAdmissionSupported ||
+        !(await trackingNativeRuntime.financialContentAdmissionSupported()))
+    ) {
+      if (current()) await trackingNativeRuntime.suspendTrackingOwner();
+      throw new Error('tracking_native_upgrade_required');
+    }
+    if (!current()) return;
     const sources = await trackingSourcePreferences.load();
     const raw = await SecureStore.getItemAsync(contextKey);
     const stored = raw
@@ -105,7 +114,10 @@ export async function configureTrackingBackground(
       rules.snapshot
         ? JSON.stringify({
             ...compileFinancialDiscoveryPolicy(rules.snapshot, rules.keywords),
-            ...(rules.accountingPolicy ? { nominal: true } : {})
+            ...(rules.accountingPolicy ? { nominal: true } : {}),
+            ...(rules.sourceAdmissionPolicy
+              ? { sourceAdmissionPolicy: rules.sourceAdmissionPolicy }
+              : {})
           })
         : null
     ] as const;

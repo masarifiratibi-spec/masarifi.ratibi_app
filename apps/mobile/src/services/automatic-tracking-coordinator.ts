@@ -210,6 +210,11 @@ export function createAutomaticTrackingCoordinator(
       const eligiblePending = (entries: readonly SmsImportQueueEntry[]) =>
         entries.filter(
           (entry) =>
+            (!config.policyActivatedAt ||
+              entry.submission.events.every(
+                (event) =>
+                  Date.parse(event.receivedAt) >= config.policyActivatedAt!
+              )) &&
             (!config.accountingPolicy ||
               entry.submission.schemaVersion === 3) &&
             (entry.submission.sourceChannel === 'android_notification'
@@ -225,16 +230,25 @@ export function createAutomaticTrackingCoordinator(
           stillOwner
         );
       const activation = {
-        smsActivatedAt:
+        smsActivatedAt: Math.max(
+          config.policyActivatedAt ?? 0,
           sources.smsActivatedAt ??
-          queue.activation?.smsActivatedAt ??
-          dependencies.now(),
+            queue.activation?.smsActivatedAt ??
+            dependencies.now()
+        ),
         smsActivationId:
-          sources.smsActivationId ?? queue.activation?.smsActivationId ?? '0',
-        notificationActivatedAt:
+          (config.policyActivatedAt ?? 0) >
+          (sources.smsActivatedAt ?? queue.activation?.smsActivatedAt ?? 0)
+            ? '0'
+            : (sources.smsActivationId ??
+              queue.activation?.smsActivationId ??
+              '0'),
+        notificationActivatedAt: Math.max(
+          config.policyActivatedAt ?? 0,
           sources.notificationActivatedAt ??
-          queue.activation?.notificationActivatedAt ??
-          dependencies.now()
+            queue.activation?.notificationActivatedAt ??
+            dependencies.now()
+        )
       };
       await dependencies.queue.setActivation(ownerId, activation);
       const rules = cachedRules(config);
@@ -277,6 +291,7 @@ export function createAutomaticTrackingCoordinator(
           configurationRevision: config.configurationRevision,
           bindings: config.bindings,
           accountingPolicy: config.accountingPolicy,
+          sourceAdmissionPolicy: config.sourceAdmissionPolicy,
           activatedAt:
             source === 'sms'
               ? activation.smsActivatedAt
@@ -350,7 +365,13 @@ export function createAutomaticTrackingCoordinator(
           await dependencies.bankNotifications.readRecent(capturePageSize);
         if (config.accountingPolicy) {
           const historical = records.filter(
-            (item) => item.capturePolicy !== config.accountingPolicy
+            (item) =>
+              item.capturePolicy !== config.accountingPolicy ||
+              item.postedAt <
+                Math.max(
+                  item.captureActivatedAt ?? 0,
+                  activation.notificationActivatedAt
+                )
           );
           if (historical.length) {
             await dependencies.queue.retainDiagnostics(
@@ -377,8 +398,10 @@ export function createAutomaticTrackingCoordinator(
             config.accountingPolicy
               ? item.capturePolicy === config.accountingPolicy &&
                 item.postedAt >=
-                  (item.captureActivatedAt ??
-                    activation.notificationActivatedAt)
+                  Math.max(
+                    item.captureActivatedAt ?? 0,
+                    activation.notificationActivatedAt
+                  )
               : item.postedAt >= activation.notificationActivatedAt
           ),
           'provider'

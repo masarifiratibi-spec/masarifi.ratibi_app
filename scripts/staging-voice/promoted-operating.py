@@ -109,10 +109,11 @@ def validate_packet(packet, approval, now, activation=True):
                 'PRESERVED_INVENTORY_REQUIRED')
         identities.append(pin['id'])
     versions=packet['requiredMigrations']
-    nominal='20261013235719'
+    nominal='20261013235719';content='20261014135709'
     require(isinstance(versions,list) and
             ((len(versions)==110 and nominal not in versions) or
-             (len(versions)==111 and versions[-1]==nominal)) and len(set(versions))==len(versions) and
+             (len(versions)==111 and versions[-1]==nominal) or
+             (len(versions)==112 and versions[-2:]==[nominal,content])) and len(set(versions))==len(versions) and
             all(isinstance(v,str) and re.fullmatch(r'[0-9]{14}',v) for v in versions) and
             versions==sorted(versions) and '20261013053237' in versions,'FULL_QUALIFIED_SCHEMA_REQUIRED')
     require(packet['apiContracts']==legacy.CONTRACTS,'COMPATIBILITY_CONTRACTS_REQUIRED')

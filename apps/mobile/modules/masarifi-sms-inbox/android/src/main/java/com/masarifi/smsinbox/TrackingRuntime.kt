@@ -62,6 +62,7 @@ internal object TrackingOwner {
   @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean,
     packages: List<String>, blockedPackages: List<String>, discoveryPolicy: String?, smsActivatedAt:Long=0, notificationActivatedAt:Long=0) {
     require(owner.matches(Regex("[a-f0-9]{64}")) && generation.length in 16..80)
+    require(FinancialDiscoveryPolicy.parse(discoveryPolicy)?.contentAdmission != true || context.packageName == "com.masarifi.mobile.dev")
     val old = read(context)
     if (old.optString("owner") != owner) NotificationQueue(context).clear()
     val value = JSONObject().put("owner",owner).put("generation",generation).put("sms",sms).put("notification",notification)

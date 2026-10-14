@@ -10,13 +10,13 @@ enum class NotificationAdmission { DISCARD, TRUSTED, DISCOVERED }
 // Admission only: no account choice, successful status, source trust or posting authority.
 internal fun notificationAdmission(
   source: String, self: String, enabled: Boolean, trusted: Set<String>, blocked: Set<String>,
-  policy: FinancialDiscoveryPolicy?, text: String
+  policy: FinancialDiscoveryPolicy?, text: String, messagingStyle: Boolean = false
 ): NotificationAdmission {
-  if (source in setOf("com.whatsapp","com.whatsapp.w4b","org.telegram.messenger","org.telegram.messenger.web","com.facebook.orca","com.facebook.mlite","com.discord","com.snapchat.android","com.instagram.android","com.google.android.apps.messaging","com.samsung.android.messaging")) return NotificationAdmission.DISCARD
+  if (messagingStyle || source.lowercase(Locale.ROOT) in setOf("com.whatsapp","com.whatsapp.w4b","org.telegram.messenger","org.telegram.messenger.web","com.facebook.orca","com.facebook.mlite","com.discord","com.snapchat.android","com.instagram.android","com.google.android.apps.messaging","com.samsung.android.messaging","org.thoughtcrime.securesms","com.viber.voip","com.slack","com.microsoft.teams","com.skype.raider","jp.naver.line.android","com.tencent.mm","com.kakao.talk","im.vector.app","io.element.android.x","com.google.android.apps.dynamite")) return NotificationAdmission.DISCARD
   if (!enabled || source == self || source in blocked || text.isBlank() || text.length > 8000)
     return NotificationAdmission.DISCARD
   if (policy == null) return NotificationAdmission.DISCARD
-  if (policy.nominal && source !in trusted && !policy.knownPackage(source)) return NotificationAdmission.DISCARD
+  if (policy.nominal && !policy.contentAdmission && source !in trusted && !policy.knownPackage(source)) return NotificationAdmission.DISCARD
   if (policy.nominal) return if(policy.isFinancial(text,source)) NotificationAdmission.TRUSTED else NotificationAdmission.DISCARD
   if (source in trusted) return if(policy.isFinancial(text,source)) NotificationAdmission.TRUSTED else NotificationAdmission.DISCARD
   return if (policy.isStrong(text, source)) NotificationAdmission.DISCOVERED
@@ -27,7 +27,7 @@ internal class FinancialDiscoveryPolicy private constructor(
   private val rules: List<JSONObject>, private val currencies: List<JSONObject>,
   private val contexts: List<String>, private val custom: List<String>,
   private val providers: List<JSONObject>, private val marketing: Regex,
-  val nominal: Boolean = false
+  val nominal: Boolean = false, val contentAdmission: Boolean = false
 ) {
   fun knownPackage(source:String):Boolean = providers.any {source in strings(it.optJSONArray("packages"))}
   fun isStrong(raw:String,sender:String): Boolean = inspect(raw,sender,true)
@@ -138,7 +138,8 @@ internal class FinancialDiscoveryPolicy private constructor(
       val providers = (0 until providerArray.length()).map { providerArray.getJSONObject(it) }
       // Structural syntax is fixed; never execute a user-provided regex in the listener.
       FinancialDiscoveryPolicy(rules, currencies, contexts, custom, providers,
-        Regex("\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"),value.optBoolean("nominal",false))
+        Regex("\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"),value.optBoolean("nominal",false),
+        value.optString("sourceAdmissionPolicy") == "financial_content_v1")
     }.getOrNull()
   }
 }

@@ -32,6 +32,7 @@ import {
 } from '@/services/contracts/automatic-tracking-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { captureLiveClerkIdentity } from './auth-service';
+import { getTrackingDeviceId } from '../tracking-device';
 import {
   canonicalJson,
   validateRuleSnapshot
@@ -380,7 +381,13 @@ export function createLiveAutomaticTrackingService({
     async getRuleConfiguration(): Promise<
       import('@/storage/sms-import-queue').SmsRuleSnapshot
     > {
-      const configuration = record(await get('/api/v1/tracking/rule-snapshot'));
+      const configuration = record(
+        await get(
+          listPath('/api/v1/tracking/rule-snapshot', {
+            deviceId: await getTrackingDeviceId()
+          })
+        )
+      );
       const { configurationHash, ...content } = configuration;
       if (
         typeof configurationHash !== 'string' ||
@@ -391,6 +398,18 @@ export function createLiveAutomaticTrackingService({
       )
         throw new TrackingError('unknown');
       const snapshot = validateRuleSnapshot(configuration.snapshot);
+      if (
+        configuration.sourceAdmissionPolicy !== undefined &&
+        (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
+          !Number.isSafeInteger(configuration.policyActivatedAt) ||
+          Number(configuration.policyActivatedAt) <= 0)
+      )
+        throw new TrackingError('unknown');
+      if (
+        configuration.sourceAdmissionPolicy === undefined &&
+        configuration.policyActivatedAt !== undefined
+      )
+        throw new TrackingError('unknown');
       const configurationRevision = configuration.configurationRevision;
       if (
         configurationRevision !== undefined &&
@@ -408,6 +427,12 @@ export function createLiveAutomaticTrackingService({
         : [];
       return {
         snapshot,
+        ...(configuration.sourceAdmissionPolicy === 'financial_content_v1'
+          ? {
+              sourceAdmissionPolicy: 'financial_content_v1' as const,
+              policyActivatedAt: Number(configuration.policyActivatedAt)
+            }
+          : {}),
         ...(configuration.accountingPolicy === undefined
           ? {}
           : {

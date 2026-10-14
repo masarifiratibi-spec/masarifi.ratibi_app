@@ -80,6 +80,51 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('prepares financial content from a personal sender with private source provenance', async () => {
+    const result = await prepareSmsImport(
+      [message({ sender: '+966500000001', body: 'تم خصم 2 ريال' })],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1'
+      })
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      amountMinor: -200,
+      sourceAmountDecimal: '2',
+      metadata: { sourceAdmissionPolicy: 'financial_content_v1' }
+    });
+    expect(result.events[0]?.sender).toBeUndefined();
+    expect(result.events[0]?.metadata?.sourceIdentityDigest).toMatch(
+      /^[a-f0-9]{64}$/
+    );
+  });
+  it('prepares an unknown non-chat financial notification without an app whitelist', async () => {
+    const result = await prepareFinancialMessageImport(
+      [
+        {
+          key: 'content-notification',
+          packageName: 'example.new.wallet',
+          title: '',
+          text: 'تم إيداع 3 ريال',
+          postedAt: 1000,
+          capturePolicy: 'default_account_nominal_v1'
+        }
+      ],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1'
+      })
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      amountMinor: 300,
+      metadata: {
+        sourcePackage: 'example.new.wallet',
+        sourceAdmissionPolicy: 'financial_content_v1'
+      }
+    });
+  });
   it('preserves separate principal and additional fee identities on replay', async () => {
     const config = options({ accountingPolicy: 'default_account_nominal_v1' });
     const first = await prepareSmsImport(

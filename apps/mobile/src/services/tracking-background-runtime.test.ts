@@ -73,6 +73,26 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 afterEach(() => jest.restoreAllMocks());
+it('refuses broader admission on a native binary without an explicit DEV capability', async () => {
+  const native = MasarifiSmsInbox!;
+  const prior = native.configureTrackingOwnerV3;
+  native.configureTrackingOwnerV3 = jest.fn(async () => undefined);
+  try {
+    await expect(
+      configureTrackingBackground(
+        'owner-a',
+        {
+          ...rules,
+          accountingPolicy: 'default_account_nominal_v1',
+          sourceAdmissionPolicy: 'financial_content_v1'
+        } as Parameters<typeof configureTrackingBackground>[1],
+        'automatic_clear'
+      )
+    ).rejects.toThrow('tracking_native_upgrade_required');
+  } finally {
+    native.configureTrackingOwnerV3 = prior;
+  }
+});
 
 it.each([
   ['signed-out', false],
@@ -344,7 +364,9 @@ it('blocks cold restoration of a different saved owner without native cleanup or
 
 it('rejects a destructive result from an older native restoration implementation', async () => {
   mockNativeNotifications = ['retained-notification'];
-  jest.mocked(MasarifiSmsInbox!.restoreTrackingOwner).mockResolvedValueOnce('CLEARED');
+  jest
+    .mocked(MasarifiSmsInbox!.restoreTrackingOwner)
+    .mockResolvedValueOnce('CLEARED');
   await expect(
     resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' })
   ).rejects.toThrow('tracking_restore_unavailable');

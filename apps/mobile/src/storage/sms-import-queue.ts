@@ -29,6 +29,8 @@ export interface SmsImportQueueEntry {
 }
 
 export interface SmsRuleSnapshot {
+  sourceAdmissionPolicy?: 'financial_content_v1';
+  policyActivatedAt?: number;
   activation?: {
     smsActivatedAt: number;
     smsActivationId?: string;
@@ -356,6 +358,8 @@ const queueSchema = z
     rules: z
       .object({
         accountingPolicy: z.literal('default_account_nominal_v1').optional(),
+        sourceAdmissionPolicy: z.literal('financial_content_v1').optional(),
+        policyActivatedAt: z.number().int().safe().nonnegative().optional(),
         activation: z
           .object({
             smsActivatedAt: z.number().int().safe().nonnegative(),

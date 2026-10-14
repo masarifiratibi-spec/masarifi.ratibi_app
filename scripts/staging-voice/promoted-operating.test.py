@@ -148,6 +148,16 @@ class ClientCompatibilityTests(unittest.TestCase):
 
 @unittest.skipIf(m is None,'implementation pending')
 class HostTests(unittest.TestCase):
+    def test_content_tracking_schema_requires_explicit_scope(self):
+        packet, approval, _ = fixture()
+        packet['requiredMigrations'].extend(['20261013235719','20261014135709'])
+        packet['baseline']['migrations']=list(packet['requiredMigrations'])
+        approval['scopeHash']=digest(packet)
+        m.validate_packet(packet,approval,NOW)
+        packet['requiredMigrations'][-1]='20261014135710'
+        packet['baseline']['migrations']=list(packet['requiredMigrations'])
+        approval['scopeHash']=digest(packet)
+        with self.assertRaises(RuntimeError):m.validate_packet(packet,approval,NOW)
     def test_nominal_tracking_schema_preserves_explicit_legacy_scope(self):
         packet, approval, _ = fixture()
         m.validate_packet(packet, approval, NOW)

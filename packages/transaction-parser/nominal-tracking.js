@@ -13,6 +13,17 @@ const excludedPackages = [
   "com.instagram.android",
   "com.google.android.apps.messaging",
   "com.samsung.android.messaging",
+  "org.thoughtcrime.securesms",
+  "com.viber.voip",
+  "com.slack",
+  "com.microsoft.teams",
+  "com.skype.raider",
+  "jp.naver.line.android",
+  "com.tencent.mm",
+  "com.kakao.talk",
+  "im.vector.app",
+  "io.element.android.x",
+  "com.google.android.apps.dynamite",
 ];
 const numberWords = {
   صفر: 0,
@@ -188,6 +199,7 @@ module.exports = (parser) => {
     snapshot = parser.defaultSnapshot,
     overrides = [],
     sourceRules = [],
+    policy = {},
   ) {
     const sender = (input.sender || "").replace(/\s+/g, "").toLowerCase();
     const notification = input.channel === "android_notification";
@@ -203,7 +215,12 @@ module.exports = (parser) => {
     const eligibleSource =
       !excludedPackages.includes(sender) &&
       !rows.some((r) => !r.enabled) &&
-      Boolean(known || rows.some((r) => r.enabled && r.trusted));
+      Boolean(
+        known ||
+        rows.some((r) => r.enabled && r.trusted) ||
+        (policy.sourceAdmissionPolicy === "financial_content_v1" &&
+          ["android_sms", "android_notification"].includes(input.channel)),
+      );
     const text = normalizeNumberWords(
       parser.normalizeFinancialText(input.text),
     );
@@ -362,12 +379,14 @@ module.exports = (parser) => {
         snapshot,
         overrides,
         sourceRules,
+        policy,
       );
       const fee = discoverNominalTrackingMessage(
         { ...input, text: clauses[1] },
         snapshot,
         overrides,
         sourceRules,
+        policy,
       );
       if (
         principal.classification.direction === "outgoing" &&

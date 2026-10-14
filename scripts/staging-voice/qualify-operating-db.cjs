@@ -69,7 +69,7 @@ async function success(action,c){const r=await helper(action,c);assert(r.ok,acti
 async function freshControl(){
  const original=fixtureClient();await original.connect();let requiredMigrations;
  try{await original.query('begin isolation level repeatable read read only');requiredMigrations=(await original.query('select version from supabase_migrations.schema_migrations order by version')).rows.map(r=>r.version);await original.query('commit');}finally{await original.end();}
- assert.equal(requiredMigrations.length,111);assert.equal(requiredMigrations.at(-1),'20261013235719');assert(requiredMigrations.includes('20261013053237'));
+ assert((requiredMigrations.length===111&&requiredMigrations.at(-1)==='20261013235719')||(requiredMigrations.length===112&&requiredMigrations.at(-2)==='20261013235719'&&requiredMigrations.at(-1)==='20261014135709'));assert(requiredMigrations.includes('20261013053237'));
  const now=Date.now()/1000;
  const c={project,manifest:{version:1,mode:'operating',newCapturesOnly:true,normalEligibility:true,retentionPolicy:'existing-operating',sourceSha:'b'.repeat(40),imageDigest:'c'.repeat(64),apkHash:'d'.repeat(64),controlHash:digest(randomUUID()),scopeDigest:digest(randomUUID())},requiredMigrations,
   baseline:{posting:false,activeEpochs:0,analysisJobs:0,migrations:requiredMigrations,fingerprints:{accounts:'0'.repeat(64),transactions:'0'.repeat(64),postings:'0'.repeat(64),balances:'0'.repeat(64)},historical:{voicePending:0,assistantPending:0,outboxUnpublished:0}},epochId:null,manifestHash:null,approvalReceivedAt:now,activationExpiresAt:now+3600,startsAt:now};
@@ -256,7 +256,7 @@ async function main(){
   await db.query("insert into public.accounts(id,user_id,name,type,currency_code,is_default) values($1,$2,'Disposable','cash','SAR',true)",[accountId,ownerId]);await db.query('insert into public.account_balances(account_id) values($1)',[accountId]);
   const setup=fixtureClient();await setup.connect();try{await setup.query('revoke masarifi_migration from current_user granted by current_user');}finally{await setup.end();}
   const legacy=await seedLegacy(),legacyBefore=await legacyHash(legacy);
-  let c=await freshControl();assert.deepEqual((await success('status',c)).migrations,c.requiredMigrations);passed('full actual 111-version history and exact diagnostic metadata');
+  let c=await freshControl();assert.deepEqual((await success('status',c)).migrations,c.requiredMigrations);passed('full actual '+c.requiredMigrations.length+'-version history and exact diagnostic metadata');
   // Lost prepare response is reconciled read-only. Another prepare must never create another epoch.
   const lost={lostCommit:true},lostResult=await helper('prepare',c,lost);assert.equal(lostResult.ok,false);assert.equal(lost.attempts,1);
   const reconciled=await success('reconcile',c);assert(reconciled&&reconciled.matches);c={...c,epochId:reconciled.epochId,manifestHash:reconciled.manifestHash};

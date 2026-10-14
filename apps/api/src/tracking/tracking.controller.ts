@@ -14,7 +14,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 import {
   ClerkAuthGuard,
@@ -45,8 +45,9 @@ export class TrackingController {
 
   @Get('api/v1/tracking/rule-snapshot')
   @ApiOperation({ operationId: 'getTrackingRuleSnapshot' })
-  ruleSnapshot(@Req() request: Request) {
-    return this.tracking.ruleSnapshot(this.principal(request));
+  @ApiQuery({ name: 'deviceId', required: false, type: String, format: 'uuid' })
+  ruleSnapshot(@Req() request: Request, @Query('deviceId') deviceId?: string) {
+    return this.tracking.ruleSnapshot(this.principal(request), deviceId);
   }
 
   @Get('api/v1/tracking/preferences')

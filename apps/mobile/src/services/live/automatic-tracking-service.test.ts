@@ -3,6 +3,10 @@ import {
   createLiveAutomaticTrackingService
 } from './automatic-tracking-service';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
+import { defaultSnapshot } from '@masarifi/transaction-parser';
+jest.mock('../tracking-device', () => ({
+  getTrackingDeviceId: async () => 'aaaaaaaa-1111-4111-8111-111111111111'
+}));
 
 function registerIdentity(
   identity: Pick<LiveClerkBridge, 'getSession' | 'getToken'>
@@ -32,6 +36,52 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe('live automatic tracking adapter', () => {
+  it('requests and preserves the authenticated device content policy boundary', async () => {
+    const request = jest.fn().mockResolvedValue(
+      response({
+        snapshot: defaultSnapshot,
+        configurationHash: 'event-source-digest',
+        rolloutMode: 'automatic',
+        keywords: [],
+        senders: [],
+        sourceAdmissionPolicy: 'financial_content_v1',
+        policyActivatedAt: 1791980000000
+      })
+    );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    await expect(service.getRuleConfiguration!()).resolves.toMatchObject({
+      sourceAdmissionPolicy: 'financial_content_v1',
+      policyActivatedAt: 1791980000000
+    });
+    expect(request.mock.calls[0][0]).toContain(
+      '/api/v1/tracking/rule-snapshot?deviceId=aaaaaaaa-1111-4111-8111-111111111111'
+    );
+  });
+  it.each([undefined, -1, 1.5])(
+    'rejects a content policy without a valid activation boundary (%s)',
+    async (policyActivatedAt) => {
+      const service = createLiveAutomaticTrackingService({
+        token: async () => 'token',
+        request: jest.fn().mockResolvedValue(
+          response({
+            snapshot: defaultSnapshot,
+            configurationHash: 'event-source-digest',
+            rolloutMode: 'automatic',
+            keywords: [],
+            senders: [],
+            sourceAdmissionPolicy: 'financial_content_v1',
+            policyActivatedAt
+          })
+        )
+      });
+      await expect(service.getRuleConfiguration!()).rejects.toMatchObject({
+        code: 'unknown'
+      });
+    }
+  );
   it.each([
     'source_proof_required',
     'account_proof_required',

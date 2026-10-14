@@ -110,8 +110,14 @@ export class TrackingService {
   confirmation(principal: ClerkPrincipal, id: string) {
     return this.repository.confirmation(principal, normalizeTrackingId(id));
   }
-  async ruleSnapshot(principal: ClerkPrincipal) {
-    const value = await this.repository.ruleSnapshot(principal);
+  async ruleSnapshot(principal: ClerkPrincipal, deviceId?: string) {
+    let device: string | undefined;
+    try {
+      device = deviceId === undefined ? undefined : normalizeTrackingId(deviceId);
+    } catch {
+      throw this.validation();
+    }
+    const value = await this.repository.ruleSnapshot(principal, device);
     return {
       ...value,
       configurationHash: createHash('sha256').update(canonicalJson(value)).digest('hex'),

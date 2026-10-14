@@ -29,6 +29,7 @@ export interface PreparedSmsImport {
   diagnostics?: TrackingDiagnostic[];
 }
 interface Options {
+  sourceAdmissionPolicy?: 'financial_content_v1';
   accountingPolicy?: 'default_account_nominal_v1';
   activatedAt?: number;
   keywordRules: readonly KeywordRule[];
@@ -114,7 +115,8 @@ export async function prepareFinancialMessageImport(
           { text: normalizedBody, sender, country, channel, receivedAt },
           configured,
           options.keywordRules,
-          options.senderRules
+          options.senderRules,
+          { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
         )
       : discoverFinancialMessage(
           { text: normalizedBody, sender, country, channel, receivedAt },
@@ -223,6 +225,9 @@ export async function prepareFinancialMessageImport(
             ? { merchant: classification.merchant }
             : {}),
           metadata: {
+            ...(options.sourceAdmissionPolicy
+              ? { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
+              : {}),
             ...(movement.component
               ? { movementComponent: movement.component }
               : {}),

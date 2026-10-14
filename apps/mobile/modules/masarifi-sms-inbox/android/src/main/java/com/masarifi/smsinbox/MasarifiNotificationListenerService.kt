@@ -178,7 +178,8 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
     if (title.isBlank() && text.isBlank()) return@synchronized
     val oversized=title.length+text.length>8000
     val admission=notificationAdmission(notification.packageName,packageName,true,packages("packages"),blocked,
-      FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy")),title+"\n"+text)
+      FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy")),title+"\n"+text,
+      extras.containsKey(Notification.EXTRA_MESSAGES) || extras.getString(Notification.EXTRA_TEMPLATE)=="android.app.Notification\u0024MessagingStyle")
     val counters=getSharedPreferences("masarifi_tracking_admission_counters",Context.MODE_PRIVATE)
     if(admission==NotificationAdmission.DISCARD) {
       counters.edit().putLong("discarded",counters.getLong("discarded",0)+1).apply()

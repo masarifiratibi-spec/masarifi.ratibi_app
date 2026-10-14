@@ -13,6 +13,11 @@ paths:
       operationId: getTrackingRuleSnapshot
       tags: [Tracking Rules]
       security: [{ bearerAuth: [] }]
+      parameters:
+        - name: deviceId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
   /api/v1/tracking/confirmations/{notificationId}:
     get:

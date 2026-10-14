@@ -73,10 +73,16 @@ function mappedError(error: unknown): HttpException | Error {
 export class TrackingRepository {
   constructor(private readonly pool: PoolService) {}
 
-  ruleSnapshot(principal: ClerkPrincipal): Promise<Record<string, unknown>> {
-    return this.ownerJson(principal, 'select private.get_tracking_rule_snapshot($1) result', [
-      principal.userId,
-    ]);
+  ruleSnapshot(principal: ClerkPrincipal, deviceId?: string): Promise<Record<string, unknown>> {
+    return deviceId === undefined
+      ? this.ownerJson(principal, 'select private.get_tracking_rule_snapshot($1) result', [
+          principal.userId,
+        ])
+      : this.ownerJson(
+          principal,
+          'select private.get_tracking_device_rule_snapshot($1,$2) result',
+          [principal.userId, deviceId],
+        );
   }
   confirmation(principal: ClerkPrincipal, id: string) {
     return this.ownerJson(

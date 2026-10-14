@@ -134,6 +134,48 @@ it('keeps a removed default tombstone effective if the authoritative refresh fai
 });
 
 let mockDatabase: StatefulSqlite;
+it('durably archives old nominal notifications so a later page can reach new captures', async () => {
+  const context = setup({ prepare: prepareFinancialMessageImport });
+  context.setOnline(false);
+  context.bankNotifications.getAccessState.mockResolvedValue('granted');
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [],
+    accountingPolicy: 'default_account_nominal_v1',
+    sourceAdmissionPolicy: 'financial_content_v1',
+    policyActivatedAt: 5000
+  });
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: false,
+    notificationEnabled: true,
+    notificationActivatedAt: 0
+  });
+  let records = Array.from({ length: 51 }, (_, i) => ({
+    key: 'record-' + i,
+    packageName: 'com.synthetic.payment',
+    title: '',
+    text: 'Paid SAR2',
+    postedAt: i === 50 ? 5001 : 1000 + i,
+    captureActivatedAt: 0,
+    capturePolicy: 'default_account_nominal_v1' as const
+  }));
+  context.dependencies.bankNotifications.readRecent.mockImplementation(
+    async (limit: number) => records.slice(0, limit)
+  );
+  context.dependencies.bankNotifications.acknowledge.mockImplementation(
+    async (keys: string[]) => {
+      records = records.filter((record) => !keys.includes(record.key));
+    }
+  );
+  await context.coordinator.sync();
+  expect((await context.queue.load('owner-1')).diagnostics ?? []).toHaveLength(
+    50
+  );
+  await context.coordinator.sync();
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+  expect(records).toHaveLength(0);
+});
 it('starts a fresh SMS queue at activation rather than scanning historical messages', async () => {
   const context = setup();
   context.dependencies.sources.load.mockResolvedValue({
@@ -422,6 +464,46 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it('does not replay retained work or scan earlier than a new device policy boundary', async () => {
+    const context = setup();
+    await context.queue.enqueue('owner-1', {
+      idempotencyKey: 'retained-old',
+      submission: {
+        schemaVersion: 1,
+        sourceType: 'sms',
+        events: [
+          {
+            sourceItemKey: 'old-source',
+            receivedAt: '1970-01-01T00:00:00.100Z',
+            amountMinor: -200,
+            currency: 'SAR'
+          }
+        ]
+      },
+      cursor: 100,
+      fingerprints: ['old-source']
+    });
+    Object.assign(context.tracking, {
+      getRuleConfiguration: jest.fn().mockResolvedValue({
+        keywords: [],
+        senders: [],
+        sourceAdmissionPolicy: 'financial_content_v1',
+        policyActivatedAt: 5000,
+        accountingPolicy: 'default_account_nominal_v1',
+        snapshot: defaultSnapshot
+      })
+    });
+    context.inbox.readRecent.mockResolvedValue([]);
+    context.bankNotifications.readRecent.mockResolvedValue([]);
+    await context.coordinator.sync();
+    expect(context.inbox.readRecent).toHaveBeenCalledWith(
+      expect.objectContaining({ since: 5000 })
+    );
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect(
+      (await context.queue.load('owner-1')).pending[0]?.idempotencyKey
+    ).toBe('retained-old');
+  });
   it('replaces obsolete cached safety rules online and resumes with the original intake checkpoint', async () => {
     const context = setup();
     await mockDatabase.runAsync(
