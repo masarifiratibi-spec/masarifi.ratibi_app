@@ -83,6 +83,46 @@ describeLiveDatabase('governed independent AI usage limits', () => {
     ).rows[0]?.result as Record<string, unknown>;
   };
 
+  it.each(['chat', 'voice'])(
+    'persists configured %s limits into dashboard reads and request admission',
+    async (feature) => {
+      await scenario(async (c) => {
+        const key = `ai.${feature}.rolling_limit`,
+          workload = feature === 'chat' ? 'financial_assistant' : 'voice_transcription';
+        for (const value of [15, 30, 50, 1000, 1]) {
+          const updated = await update(c, key, value);
+          expect(updated).toMatchObject({ resourceId: key, status: 'updated' });
+          await actor(c, admin);
+          const snapshot = (
+            await c.query<{
+              result: {
+                settings: { key: string; value: unknown; version: number }[];
+                features: { feature: string; limit: number }[];
+              };
+            }>('select private.read_ai_usage_limits($1) result', [owner])
+          ).rows[0]?.result;
+          expect(snapshot?.settings.find((item) => item.key === key)).toMatchObject({
+            value,
+            version: updated.version,
+          });
+          expect(snapshot?.features.find((item) => item.feature === feature)?.limit).toBe(value);
+          // The same stored setting governs the real per-user quota check.
+          const admitted = await reserve(c, workload);
+          expect(admitted.limit).toBe(value);
+          expect(admitted.allowed).toBe(value > 1);
+        }
+        await actor(c, admin);
+        const count = (
+          await c.query<{ n: number }>(
+            'select count(*)::int n from audit.audit_events where actor_id=$1 and resource_id=$2',
+            [admin, key],
+          )
+        ).rows[0]?.n;
+        expect(count).toBe(5);
+      });
+    },
+  );
+
   it.each([
     ['ai.chat.user_override', { userId: owner, rollingLimit: 1, monthlyLimit: null }],
     ['ai.voice.enabled', false],

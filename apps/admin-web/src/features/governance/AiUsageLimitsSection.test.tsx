@@ -29,6 +29,73 @@ async function render(permissions = ["operations.settings.read", "operations.set
   return host;
 }
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
+
+test.each(["chat", "voice"] as const)("saves consecutive %s limits, refreshes the effective value and keeps it on reload",async feature=>{
+  const data=response(),key=`ai.${feature}.rolling_limit` as const;
+  const writes:{value:number;expectedVersion:number;reason:string}[]=[];
+  mockServer.use(http.patch(`/api/v1/admin/settings/${key}`,async({request})=>{
+    const body=await request.json() as {value:number;expectedVersion:number;reason:string};
+    const setting=data.settings.find(item=>item.key===key)!;
+    if(body.expectedVersion!==setting.version) return HttpResponse.json({code:"VERSION_CONFLICT"},{status:409});
+    writes.push(body);setting.value=body.value;setting.version++;
+    const policy=data.features.find(item=>item.feature===feature)!;
+    policy.limit=body.value;policy.remaining=Math.max(0,body.value-policy.used);
+    return HttpResponse.json({resourceId:key,status:"updated",version:setting.version});
+  }));
+  const host=await render(undefined,"en",data);
+  for(const limit of [30,50,1000,1]) {
+    const form=host.querySelector(`form[data-setting="${key}"]`)!;
+    const input=form.querySelector('input[type="number"]') as HTMLInputElement;
+    const reason=form.querySelector("textarea")!;
+    await act(async()=>{
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,String(limit));input.dispatchEvent(new Event("input",{bubbles:true}));
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(reason,"Verify editable independent quotas");reason.dispatchEvent(new Event("input",{bubbles:true}));
+    });
+    await act(async()=>{form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,150));});
+    const panel=host.querySelector(`section[aria-label="${feature==="chat"?"Assistant Chat AI":"Voice AI"}"]`)!;
+    expect(panel.querySelector('[data-quota="limit"]')?.textContent).toBe(String(limit));
+    expect((host.querySelector(`form[data-setting="${key}"] input`) as HTMLInputElement).value).toBe(String(limit));
+  }
+  expect(writes.map(item=>item.value)).toEqual([30,50,1000,1]);
+  expect(writes.map(item=>item.expectedVersion)).toEqual([2,3,4,5]);
+  const other=feature==="chat"?"voice":"chat";
+  expect(data.features.find(item=>item.feature===other)?.limit).toBe(15);
+  await act(async()=>root.unmount());
+  const reloaded=await render(undefined,"en",data);
+  expect((reloaded.querySelector(`form[data-setting="${key}"] input`) as HTMLInputElement).value).toBe("1");
+});
+
+test("edits a user's Voice override and restores inheritance without changing the global limit",async()=>{
+  const data=response(),key="ai.voice.user_override";
+  const voice=data.features.find(item=>item.feature==="voice")!;
+  voice.override.rollingLimit=30;voice.limit=30;voice.remaining=28;
+  const writes:unknown[]=[];
+  mockServer.use(http.patch(`/api/v1/admin/settings/${key}`,async({request})=>{
+    const body=await request.json() as {value:{userId:string;rollingLimit:number|null;monthlyLimit:number|null};expectedVersion:number;reason:string};
+    const setting=data.settings.find(item=>item.key===key)!;
+    if(body.expectedVersion!==setting.version) return HttpResponse.json({code:"VERSION_CONFLICT"},{status:409});
+    writes.push(body.value);setting.version++;
+    voice.override={rollingLimit:body.value.rollingLimit,monthlyLimit:body.value.monthlyLimit};
+    voice.limit=body.value.rollingLimit??Number(data.settings.find(item=>item.key==="ai.voice.rolling_limit")!.value);
+    voice.remaining=Math.max(0,voice.limit-voice.used);
+    return HttpResponse.json({resourceId:key,status:"updated",version:setting.version});
+  }));
+  const host=await render(undefined,"en",data);
+  for(const [inputValue,effective] of [["50",50],["",15]] as const) {
+    const form=host.querySelector(`form[data-setting="${key}"]`)!;
+    const input=form.querySelector('input[type="number"]') as HTMLInputElement;
+    const reason=form.querySelector("textarea")!;
+    await act(async()=>{
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,inputValue);input.dispatchEvent(new Event("input",{bubbles:true}));
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(reason,"Verify selected user quota inheritance");reason.dispatchEvent(new Event("input",{bubbles:true}));
+    });
+    await act(async()=>{form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,150));});
+    expect(host.querySelector('section[aria-label="Voice AI"] [data-quota="limit"]')?.textContent).toBe(String(effective));
+  }
+  expect(writes).toEqual([{userId:"sample-user",rollingLimit:50,monthlyLimit:null},{userId:"sample-user",rollingLimit:null,monthlyLimit:null}]);
+  expect(data.settings.find(item=>item.key==="ai.voice.rolling_limit")?.value).toBe(15);
+  expect(data.features.find(item=>item.feature==="chat")?.limit).toBe(15);
+});
 test("shows separate effective quotas and submits a changed Chat limit only once", async () => {
   let writes = 0; let body: unknown;
   mockServer.use(http.patch("/api/v1/admin/settings/ai.chat.rolling_limit", async ({ request }) => {

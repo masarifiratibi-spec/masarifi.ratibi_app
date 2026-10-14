@@ -1002,8 +1002,8 @@ components:
         code: { enum: [AI_QUOTA_EXCEEDED, AI_BUDGET_EXHAUSTED] }
         message: { type: string, maxLength: 256 }
         requestId: { type: string, maxLength: 128 }
-        limit: { const: 5 }
-        used: { type: integer, minimum: 5 }
+        limit: { type: integer, minimum: 1, maximum: 1000 }
+        used: { type: integer, minimum: 1, maximum: 9007199254740991 }
         resetsAt: { type: string, format: date-time }
     VoiceBatchResult:
       type: object

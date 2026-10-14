@@ -227,6 +227,48 @@ describe('safeError', () => {
     ).not.toHaveProperty('limit');
   });
 
+  it.each([15, 30, 50, 1000])('preserves reset metadata for a configured quota of %i', (limit) => {
+    expect(
+      safeError(429, 'voice-quota', [], 'AI_QUOTA_EXCEEDED', {
+        limit,
+        used: limit,
+        resetsAt: '2026-10-14T00:13:10.454Z',
+        provider: 'private-provider',
+        userId: 'private-user',
+      }),
+    ).toEqual({
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'AI request quota is exhausted',
+      requestId: 'voice-quota',
+      limit,
+      used: limit,
+      resetsAt: '2026-10-14T00:13:10.454Z',
+    });
+  });
+
+  it.each([0, -1, 1001, 1.5, '50', NaN, Infinity])('omits invalid quota limit %s', (limit) => {
+    const result = safeError(429, 'voice-quota', [], 'AI_QUOTA_EXCEEDED', {
+      limit,
+      used: 1001,
+      resetsAt: '2026-10-14T00:13:10.454Z',
+    });
+    expect(result).toEqual({
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'AI request quota is exhausted',
+      requestId: 'voice-quota',
+    });
+  });
+
+  it.each([
+    { limit: 50, used: 49, resetsAt: '2026-10-14T00:13:10.454Z' },
+    { limit: 50, used: 50.5, resetsAt: '2026-10-14T00:13:10.454Z' },
+    { limit: 50, used: 50, resetsAt: 'invalid' },
+  ])('omits incomplete or inconsistent quota metadata %#', (metadata) => {
+    expect(safeError(429, 'voice-quota', [], 'AI_QUOTA_EXCEEDED', metadata)).not.toHaveProperty(
+      'resetsAt',
+    );
+  });
+
   it.each([
     ['IMPORT_QUOTA_EXCEEDED', 'Import quota is exhausted'],
     ['REPORT_QUOTA_EXCEEDED', 'Report generation quota is exhausted'],

@@ -212,13 +212,16 @@ export function safeError(
   const currentVersion = typeof metadata === 'number' ? metadata : details.currentVersion;
   const quotaMetadata =
     (domainCode === 'AI_QUOTA_EXCEEDED' || domainCode === 'AI_BUDGET_EXHAUSTED') &&
-    details.limit === 5 &&
+    typeof details.limit === 'number' &&
+    Number.isSafeInteger(details.limit) &&
+    details.limit >= 1 &&
+    details.limit <= 1000 &&
     typeof details.used === 'number' &&
     Number.isSafeInteger(details.used) &&
-    details.used >= 5 &&
+    details.used >= details.limit &&
     typeof details.resetsAt === 'string' &&
     Number.isFinite(Date.parse(details.resetsAt))
-      ? { limit: 5, used: details.used, resetsAt: details.resetsAt }
+      ? { limit: details.limit, used: details.used, resetsAt: details.resetsAt }
       : {};
   return {
     ...mapped,

@@ -23,6 +23,41 @@ function validator(name: string): ValidateFunction {
 const id = (suffix: number) => `90000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
 const at = '2026-09-09T08:00:00.000Z';
 
+it.each([1, 5, 15, 30, 50, 1000])(
+  'accepts real exhausted-quota responses for configured limit %i',
+  (limit) => {
+    const validate = validator('QuotaError');
+    for (const code of ['AI_QUOTA_EXCEEDED', 'AI_BUDGET_EXHAUSTED']) {
+      const response = safeError(429, 'configured-quota', [], code, {
+        limit,
+        used: limit,
+        resetsAt: at,
+        provider: 'private-provider',
+        userId: 'private-owner',
+      });
+      expect({ valid: validate(response), errors: validate.errors }).toEqual({
+        valid: true,
+        errors: null,
+      });
+      expect(response).toMatchObject({ limit, used: limit, resetsAt: at });
+      expect(response).not.toHaveProperty('provider');
+      expect(response).not.toHaveProperty('userId');
+    }
+  },
+);
+it.each([0, -1, 1001, 1.5, '50'])('rejects out-of-contract quota limit %s', (limit) => {
+  expect(
+    validator('QuotaError')({
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'Quota exhausted',
+      requestId: 'configured-quota',
+      limit,
+      used: 1001,
+      resetsAt: at,
+    }),
+  ).toBe(false);
+});
+
 it('documents the additive negotiated outcomes while keeping the legacy receipt strict', () => {
   expect(document.components.schemas).toHaveProperty('VoiceBatchEventResult');
   const receipt = {
