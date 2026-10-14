@@ -187,6 +187,21 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
     const hash = createHash('sha256').update('paid 120 SAR').digest('hex');
     const rawId = randomUUID();
     const storageRef = `tracking/${randomUUID()}/${rawId}`;
+    await repository.createImport(
+      { ...principal, userId: other },
+      {
+        schemaVersion: 1,
+        sourceType: 'manual',
+        events: [
+          {
+            sourceItemKey: 'unrelated-earlier-import',
+            body: 'unrelated fixture',
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      { sourceName: null, key: 'unrelated-earlier-import', requestId: randomUUID() },
+    );
     const created = await repository.createImport(principal, input, {
       sourceName: null,
       key: 'tracking-integration-key',
@@ -217,7 +232,9 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
     await expect(
       repository.listOwner(principal, 'sessions', null, 10, null, { sourceType: 'manual' }),
     ).resolves.toEqual([]);
-    const claim = (await repository.claimImports('tracking-integration-worker'))[0];
+    const claim = (await repository.claimImports('tracking-integration-worker')).find(
+      (candidate) => candidate.id === sessionId,
+    );
     expect(claim?.id).toBe(sessionId);
     if (!claim) throw new Error('IMPORT_CLAIM_EXPECTED');
     const prepared = await repository.prepareImport(claim.id, claim.claim_token);
