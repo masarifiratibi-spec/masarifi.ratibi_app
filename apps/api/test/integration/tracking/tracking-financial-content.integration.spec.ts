@@ -8,6 +8,7 @@ import { SecurityRepository } from '../../../src/security/security.repository';
 import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
 import { TrackingWorker } from '../../../src/tracking/tracking.worker';
+import { PoolService } from '../../../src/platform/database/pool.service';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('DEV financial content authority and correspondence', () => {
@@ -68,6 +69,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       receivedAt?: number;
       marker?: boolean;
     } = {},
+    execution = worker,
   ) {
     const text = options.text ?? 'Paid SAR2 reference CONTENT12345',
       channel = options.channel ?? 'android_sms';
@@ -132,7 +134,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       requestId: randomUUID(),
     });
     const id = String((response.resource as Record<string, unknown>).id);
-    await worker.runJob('import.parse');
+    await execution.runJob('import.parse');
     return id;
   }
   async function effects() {
@@ -156,6 +158,104 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       }),
     ]);
   });
+  it.each([undefined, 100])(
+    'preserves posting and recent-auth threshold %s with the real worker role',
+    async (threshold) => {
+      const login = 'tracking_worker_' + randomUUID().replaceAll('-', '');
+      const password = randomUUID();
+      const roleSql = (
+        await pool.query(
+          "select format('create role %I login noinherit password %L', $1::text,$2::text) sql",
+          [login, password],
+        )
+      ).rows[0]?.sql as string;
+      await pool.query(roleSql);
+      await pool.query(`grant masarifi_worker to ${login} with set true,inherit false`);
+      const runtimePool = new PoolService({
+        get: (key: string) => {
+          if (key === 'DATABASE_URL') {
+            const url = new URL(String(process.env.DATABASE_URL));
+            url.username = login;
+            url.password = password;
+            return url.toString();
+          }
+          if (key === 'MASARIFI_DATABASE_POOL_MAX') return 2;
+          if (key === 'MASARIFI_PROCESS_KIND') return 'worker';
+          throw new Error('UNEXPECTED_CONFIG_KEY');
+        },
+      } as never);
+      const runtimeRepository = new TrackingRepository(runtimePool);
+      const runtimeWorker = new TrackingWorker(
+        runtimeRepository,
+        new LedgerService(
+          new LedgerRepository(runtimePool),
+          new SecurityRepository(runtimePool),
+          new PlatformConfigService(
+            new ConfigService({
+              MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS:
+                threshold === undefined ? {} : { SAR: threshold },
+            }) as never,
+          ),
+        ),
+        {} as never,
+      );
+      try {
+        await pool.query(
+          'select private.post_opening_transaction($1,$2::uuid,70000,$3,$4::timestamptz,$5)',
+          [owner, account, 'Synthetic opening', new Date().toISOString(), 'account-opening'],
+        );
+        const permissions = await runtimePool.query(
+          "select pg_has_role(session_user,'masarifi_api','SET') can_api",
+        );
+        expect(permissions.rows[0]?.can_api).toBe(false);
+        const id = await capture({ text: 'Paid SAR1 reference WORKER12345' }, runtimeWorker);
+        await runtimeWorker.runJob('import.parse');
+        if (threshold !== undefined) {
+          expect((await effects()).filter((row) => row.kind === 'expense')).toEqual([]);
+          expect(
+            (
+              await pool.query(
+                'select confirmed_minor::text value from public.account_balances where account_id=$1',
+                [account],
+              )
+            ).rows[0]?.value,
+          ).toBe('70000');
+          expect(
+            (
+              await pool.query(
+                "select normalized_payload->>'diagnosticReason' reason from public.import_items where session_id=$1",
+                [id],
+              )
+            ).rows[0]?.reason,
+          ).toBe('recent_auth_required');
+          return;
+        }
+        expect((await effects()).filter((row) => row.kind === 'expense')).toEqual([
+          expect.objectContaining({ amount: '100', effect: '-100', account }),
+        ]);
+        expect(
+          (
+            await pool.query(
+              'select confirmed_minor::text value from public.account_balances where account_id=$1',
+              [account],
+            )
+          ).rows[0]?.value,
+        ).toBe('69900');
+        expect(
+          (
+            await pool.query(
+              'select status,accepted_count from public.import_sessions where id=$1',
+              [id],
+            )
+          ).rows[0],
+        ).toMatchObject({ status: 'complete', accepted_count: 1 });
+      } finally {
+        await runtimeWorker.stop();
+        await runtimePool.onModuleDestroy();
+        await pool.query(`drop role ${login}`);
+      }
+    },
+  );
   it('returns broader policy only for the exact active owner device', async () => {
     expect(await repository.ruleSnapshot(principal(), device)).toMatchObject({
       sourceAdmissionPolicy: 'financial_content_v1',
@@ -306,11 +406,13 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     expect(await effects()).toHaveLength(1);
   });
   it('reuses immutable postings after a lost response', async () => {
-    const original = ledger.createTransaction.bind(ledger);
-    const lost = jest.spyOn(ledger, 'createTransaction').mockImplementationOnce(async (command) => {
-      await original(command);
-      throw new Error('FIXTURE_RESPONSE_LOST');
-    });
+    const original = repository.commitNominalCapture.bind(repository);
+    const lost = jest
+      .spyOn(repository, 'commitNominalCapture')
+      .mockImplementationOnce(async (itemId, fence) => {
+        await original(itemId, fence);
+        throw new Error('FIXTURE_RESPONSE_LOST');
+      });
     let id: string;
     try {
       id = await capture({ reference: 'response-loss' });
@@ -319,11 +421,22 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     }
     const before = await effects();
     expect(before).toHaveLength(1);
+    expect(
+      (await pool.query('select status from public.import_sessions where id=$1', [id])).rows[0]
+        ?.status,
+    ).toBe('received');
     await pool.query(
       'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
       [id],
     );
     await worker.runJob('import.parse');
     expect(await effects()).toEqual(before);
+    expect(
+      (
+        await pool.query('select status,accepted_count from public.import_sessions where id=$1', [
+          id,
+        ])
+      ).rows[0],
+    ).toMatchObject({ status: 'complete', accepted_count: 1 });
   });
 });

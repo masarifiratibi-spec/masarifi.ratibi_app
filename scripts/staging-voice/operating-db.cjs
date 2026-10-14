@@ -28,10 +28,11 @@ function validate(c) {
  for(const key of ['imageDigest','apkHash','controlHash'])assert(hash(c.manifest[key]));
  assert(Buffer.byteLength(JSON.stringify(c.manifest))<=8192);
  assert(Array.isArray(c.requiredMigrations));
- const nominal='20261013235719',content='20261014135709';
+ const nominal='20261013235719',content='20261014135709',nominalWorker='20261014181609';
  assert((c.requiredMigrations.length===110&&!c.requiredMigrations.includes(nominal))||
         (c.requiredMigrations.length===111&&c.requiredMigrations.at(-1)===nominal)||
-        (c.requiredMigrations.length===112&&c.requiredMigrations.at(-2)===nominal&&c.requiredMigrations.at(-1)===content));
+        (c.requiredMigrations.length===112&&c.requiredMigrations.at(-2)===nominal&&c.requiredMigrations.at(-1)===content)||
+        (c.requiredMigrations.length===113&&c.requiredMigrations.slice(-3).join(',')===[nominal,content,nominalWorker].join(',')));
  assert(c.requiredMigrations.every(v=>typeof v==='string'&&/^\d{14}$/.test(v)));
  assert.deepEqual(c.requiredMigrations,[...new Set(c.requiredMigrations)].sort());
  assert(c.requiredMigrations.includes('20261013053237'));

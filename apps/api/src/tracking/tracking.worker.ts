@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { HttpException, Injectable, type OnModuleDestroy } from '@nestjs/common';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { LedgerService } from '../ledger/ledger.service';
@@ -182,6 +182,31 @@ export class TrackingWorker implements OnModuleDestroy {
           factorAgeSeconds: null,
           mfaAgeSeconds: null,
         };
+        if (command.accountingPolicy === 'default_account_nominal_v1') {
+          try {
+            this.ledger.assertTrackingRecentAuth(
+              principal,
+              String(command.currency),
+              Math.abs(Number(command.amountMinor)),
+            );
+          } catch (error) {
+            const response = error instanceof HttpException ? error.getResponse() : null;
+            if (
+              !response ||
+              typeof response !== 'object' ||
+              Reflect.get(response, 'code') !== 'RECENT_AUTH_REQUIRED'
+            )
+              throw error;
+            await this.repository.deferImportItem(
+              String(item.id),
+              claim.claim_token,
+              'recent_auth_required',
+            );
+            continue;
+          }
+          await this.repository.commitNominalCapture(String(item.id), claim.claim_token);
+          continue;
+        }
         const reservation = command.transport
           ? await this.repository.reserveCapture(String(item.id), claim.claim_token)
           : null;

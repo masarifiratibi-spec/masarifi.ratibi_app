@@ -161,6 +161,15 @@ export class TrackingRepository {
       ]),
     );
   }
+  commitNominalCapture(itemId: string, fence: string): Promise<Record<string, unknown>> {
+    return this.worker((client) =>
+      this.queryJson(
+        client,
+        'select private.commit_tracking_nominal_capture($1::uuid,$2::uuid) result',
+        [itemId, fence],
+      ),
+    );
+  }
 
   getPreferences(principal: ClerkPrincipal): Promise<Record<string, unknown>> {
     return this.ownerJson(principal, 'select private.get_tracking_preferences($1) result', [

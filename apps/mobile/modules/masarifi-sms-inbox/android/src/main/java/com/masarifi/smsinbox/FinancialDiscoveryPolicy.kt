@@ -86,7 +86,8 @@ internal class FinancialDiscoveryPolicy private constructor(
         '٬' -> ','
         else -> it
       } }.joinToString("").replace(Regex("[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]"), "")
-      .replace(Regex("(?U)\\s+"), " ").trim().lowercase(Locale.ROOT)
+      // Android's ICU rejects the JVM-only (?U) flag.
+      .replace(Regex("[\\s\\p{Z}\\u0085]+"), " ").trim().lowercase(Locale.ROOT)
 
     private fun phrase(text: String, raw: String): Boolean =
       Regex("(?<![\\p{L}])${Regex.escape(normalize(raw))}(?![\\p{L}])").containsMatchIn(text)

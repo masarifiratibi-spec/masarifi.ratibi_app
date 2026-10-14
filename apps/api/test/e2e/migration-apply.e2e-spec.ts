@@ -169,6 +169,7 @@ describeLiveDatabase('migration application', () => {
       'clear_credit_card_terms_on_type_change',
       'clear_tracking_history',
       'close_staging_voice_epoch',
+      'commit_tracking_nominal_capture',
       'compact_tracking_history',
       'complete_ai_action',
       'complete_ai_work',

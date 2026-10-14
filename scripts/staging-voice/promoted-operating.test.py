@@ -148,6 +148,16 @@ class ClientCompatibilityTests(unittest.TestCase):
 
 @unittest.skipIf(m is None,'implementation pending')
 class HostTests(unittest.TestCase):
+    def test_nominal_worker_schema_requires_the_new_explicit_scope(self):
+        packet, approval, _ = fixture()
+        packet['requiredMigrations'].extend(['20261013235719','20261014135709','20261014181609'])
+        packet['baseline']['migrations']=list(packet['requiredMigrations'])
+        approval['scopeHash']=digest(packet)
+        m.validate_packet(packet,approval,NOW)
+        packet['requiredMigrations'][-1]='20261014181610'
+        packet['baseline']['migrations']=list(packet['requiredMigrations'])
+        approval['scopeHash']=digest(packet)
+        with self.assertRaises(RuntimeError):m.validate_packet(packet,approval,NOW)
     def test_content_tracking_schema_requires_explicit_scope(self):
         packet, approval, _ = fixture()
         packet['requiredMigrations'].extend(['20261013235719','20261014135709'])

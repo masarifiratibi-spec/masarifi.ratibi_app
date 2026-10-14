@@ -300,6 +300,10 @@ export class LedgerService {
     return this.repository.createAccount(input, reference);
   }
 
+  assertTrackingRecentAuth(principal: ClerkPrincipal, currency: string, effect: number): void {
+    this.assertRecentAuth(principal, currency, effect);
+  }
+
   private assertRecentAuth(principal: ClerkPrincipal, currency: string, effect: number): void {
     const threshold = this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS')?.[currency];
     if (

@@ -69,3 +69,14 @@ Interface: observation identities remain native event identities; supported fina
 - Baseline: clean tree on starting HEAD; user-approved notification source rule for installed Alinma exists on Staging, global rollout remains review and zero active Tracking cohorts. Temporary preparation helpers/evidence remain outside Git.
 
 - Verification update: parser 34/34; final affected mobile 192/192; prior whole mobile suite 3076/3076; API Tracking/contract 105/105; real disposable Tracking 110/110 then content 22/22; schema 111→112 preserves the complete legacy configuration and revision. Independent review's four important findings reproduced and repaired. Native build and same DEV signature verified; ordinary native 44 input hashes restored. Compatible Voice monitor tests 27/27 plus real SQL 37/37, local Python 47 executed and 8 Linux-only skips. DEV installation succeeded; no Staging deployment or posting activation yet.
+# Physical qualification repair: Android and restricted worker (14 October 2026)
+
+The first post-activation DEV SMS reached the parser but did not post. Android's ICU rejected the JVM-only Unicode regex flag in notification normalization. Separately, the deployed worker login cannot assume the API role used by the general LedgerService repositories. Do not widen that login or store API credentials in the worker.
+
+Replace the unsupported flag with an explicit Unicode whitespace class. Preserve native queues and install the updated, identically signed DEV package in place. Ordinary generated Android inputs must be restored after the DEV build.
+
+Add a nominal-only worker capability accepting a capture ID and live lease. It derives the owned command from current eligible evidence, reserves the original identity, validates any saved effect, and atomically uses the existing ledger posting helpers with rate limiting, ledger idempotency, audit/outbox and item acceptance. Keep the configured recent-auth decision before invocation. Legacy imports and manual/Voice paths retain their existing behavior. Migration `20261014181609` adds the function without rewriting captures or financial records.
+
+Qualification: reproduce the restricted-login failure in a disposable database; test no API role authority, threshold refusal, response loss, concurrent channels, equal independent events and actual balances. Reapply the complete 113-migration chain and independently review the combined fix. Voice controllers must explicitly qualify the new full history; old scopes remain immutable and cannot be reused for deployment.
+
+The retained physical SMS must resume with the same source identity, original activation boundary, item and session. Verify one expense/posting and exactly a one-riyal balance reduction before claiming acceptance. Staging deployment and any required temporary Voice maintenance use a fresh concrete scope; preserve the ordinary installation and all old Voice work. No Production operation.

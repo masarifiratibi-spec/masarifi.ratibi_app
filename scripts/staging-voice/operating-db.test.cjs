@@ -86,7 +86,7 @@ test('recurring monitor preserves migration/provenance and enforcement checks',a
  assert.notEqual(success(await exercise('monitor',{foreignCurrent:true})).currentEpoch,epochId);
 });
 test('legacy monitoring remains valid and an unqualified extra schema is refused',async()=>{
- const legacy=versions.filter(version=>!['20261013235719','20261014135709'].includes(version));
+ const legacy=versions.filter(version=>!['20261013235719','20261014135709','20261014181609'].includes(version));
  const old=await exercise('monitor',{control:{requiredMigrations:legacy},history:legacy});
  assert.deepEqual(success(old).migrations,legacy);
  for(const requiredMigrations of [[...legacy,'20261013235720'],[...versions,'20261013235720']]){
@@ -95,10 +95,17 @@ test('legacy monitoring remains valid and an unqualified extra schema is refused
  }
 });
 test('content Tracking migration requires an explicit exact compatible monitor scope',async()=>{
- const current=versions,prior=versions.filter(version=>version!=='20261014135709');
+ const current=versions.filter(version=>version!=='20261014181609'),prior=current.filter(version=>version!=='20261014135709');
  assert.deepEqual(success(await exercise('monitor',{control:{requiredMigrations:current},history:current})).migrations,current);
  refused(await exercise('monitor',{control:{requiredMigrations:prior},history:current}));
  refused(await exercise('monitor',{control:{requiredMigrations:[...current,'20261014135710']},history:[...current,'20261014135710']}));
+});
+test('nominal worker capability requires a new exact full-history scope',async()=>{
+ const current=versions,prior=current.filter(version=>version!=='20261014181609');
+ assert.deepEqual(success(await exercise('monitor',{control:{requiredMigrations:current},history:current})).migrations,current);
+ refused(await exercise('monitor',{control:{requiredMigrations:prior},history:current}));
+ const unknown=[...prior,'20261014181610'];
+ refused(await exercise('monitor',{control:{requiredMigrations:unknown},history:unknown}));
 });
 test('reconcile reports a unique exact manifest without preparing or granting',async()=>{
  const r=await exercise('reconcile',{reconciled:[{id:epochId,manifest_hash:hash,state:'prepared'}]});assert.deepEqual(success(r),{epochId,manifestHash:hash,state:'prepared',matches:true});

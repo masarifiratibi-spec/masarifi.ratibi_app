@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun financialTextAcceptsUnicodeWhitespaceUsedByAndroidNotifications() {
+    val content=FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
+      .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!
+    listOf(" ","\t\n","\u0085","\u00a0","\u2009","\u2028").forEach { space ->
+      assertEquals(NotificationAdmission.TRUSTED,notificationAdmission("example.synthetic.wallet","com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Paid${space}SAR1"))
+      assertEquals(NotificationAdmission.DISCARD,notificationAdmission("example.synthetic.wallet","com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"Paid${space}SAR1 failed"))
+    }
+  }
   @Test fun additionalChatPackagesCannotEnterContentAdmission() {
     val content=FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText()).put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!
     listOf("org.thoughtcrime.securesms","com.viber.voip","com.Slack","com.microsoft.teams").forEach { source ->
