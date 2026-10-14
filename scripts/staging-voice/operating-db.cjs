@@ -27,7 +27,10 @@ function validate(c) {
  assert(/^[a-f0-9]{40}$/.test(c.manifest.sourceSha));
  for(const key of ['imageDigest','apkHash','controlHash'])assert(hash(c.manifest[key]));
  assert(Buffer.byteLength(JSON.stringify(c.manifest))<=8192);
- assert(Array.isArray(c.requiredMigrations)&&c.requiredMigrations.length===110);
+ assert(Array.isArray(c.requiredMigrations));
+ const nominal='20261013235719';
+ assert((c.requiredMigrations.length===110&&!c.requiredMigrations.includes(nominal))||
+        (c.requiredMigrations.length===111&&c.requiredMigrations.at(-1)===nominal));
  assert(c.requiredMigrations.every(v=>typeof v==='string'&&/^\d{14}$/.test(v)));
  assert.deepEqual(c.requiredMigrations,[...new Set(c.requiredMigrations)].sort());
  assert(c.requiredMigrations.includes('20261013053237'));

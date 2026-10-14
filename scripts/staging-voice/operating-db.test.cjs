@@ -11,6 +11,7 @@ const closure={bodyHash:'2f95bb0c1bb3e809bc74e15b2216ae127a1933237885e0e033ed32b
 async function exercise(action='status',change={}) {
  const queries=[],output=[],errors=[];let now=1800000000000,failures=change.failures||0,attempts=0,poolCount=0;
  const baseline={posting:false,activeEpochs:0,analysisJobs:0,migrations:versions,fingerprints:Object.fromEntries(['accounts','transactions','postings','balances'].map(k=>[k,'4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945'])),historical:{voicePending:0,assistantPending:0,outboxUnpublished:8}};
+ if(change.control?.requiredMigrations)baseline.migrations=change.control.requiredMigrations;
  const control={project:'qcffvfbpzvpwcwxwjyro',manifest,requiredMigrations:versions,baseline,epochId:action==='prepare'||action==='reconcile'?null:epochId,manifestHash:action==='prepare'||action==='reconcile'?null:hash,approvalReceivedAt:now/1000,activationExpiresAt:now/1000+100,startsAt:now/1000,...change.control};
  const epoch={id:epochId,manifest_hash:hash,state:'prepared',mode:'operating',matches:true,source:manifest.sourceSha,image:manifest.imageDigest,expiresAt:null,heartbeatAt:now/1000,...change.epoch};
  class Clock extends Date {static now(){return now;}}
@@ -83,6 +84,15 @@ test('recurring monitor preserves migration/provenance and enforcement checks',a
  for(const change of [{history:versions.slice(1)},{metadata:{bodyHash:'drift'}},{metadata:{owner:'drift'}},{metadata:{acl:'drift'}}])refused(await exercise('monitor',change));
  assert.equal(success(await exercise('monitor',{enforced:false})).enforced,false);
  assert.notEqual(success(await exercise('monitor',{foreignCurrent:true})).currentEpoch,epochId);
+});
+test('legacy monitoring remains valid and an unqualified extra schema is refused',async()=>{
+ const legacy=versions.filter(version=>version!=='20261013235719');
+ const old=await exercise('monitor',{control:{requiredMigrations:legacy},history:legacy});
+ assert.deepEqual(success(old).migrations,legacy);
+ for(const requiredMigrations of [[...legacy,'20261013235720'],[...versions,'20261013235720']]){
+  const refusedScope=await exercise('monitor',{control:{requiredMigrations},history:requiredMigrations});
+  refused(refusedScope);assert.equal(refusedScope.queries.length,0);
+ }
 });
 test('reconcile reports a unique exact manifest without preparing or granting',async()=>{
  const r=await exercise('reconcile',{reconciled:[{id:epochId,manifest_hash:hash,state:'prepared'}]});assert.deepEqual(success(r),{epochId,manifestHash:hash,state:'prepared',matches:true});

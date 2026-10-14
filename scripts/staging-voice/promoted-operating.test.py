@@ -148,6 +148,22 @@ class ClientCompatibilityTests(unittest.TestCase):
 
 @unittest.skipIf(m is None,'implementation pending')
 class HostTests(unittest.TestCase):
+    def test_nominal_tracking_schema_preserves_explicit_legacy_scope(self):
+        packet, approval, _ = fixture()
+        m.validate_packet(packet, approval, NOW)
+        packet['requiredMigrations'].append('20261013235719')
+        packet['baseline']['migrations'] = list(packet['requiredMigrations'])
+        approval['scopeHash'] = digest(packet)
+        m.validate_packet(packet, approval, NOW)
+        for versions in [packet['requiredMigrations'][:-1] + ['20261013235720'],
+                         packet['requiredMigrations'] + ['20261013235720']]:
+            changed = copy.deepcopy(packet)
+            changed['requiredMigrations'] = versions
+            changed['baseline']['migrations'] = list(versions)
+            approval['scopeHash'] = digest(changed)
+            with self.subTest(versions=versions), self.assertRaises(RuntimeError):
+                m.validate_packet(changed, approval, NOW)
+
     def setUp(self):
         self.p,self.a,self.containers=fixture();self.tmp=tempfile.TemporaryDirectory()
         self.root=pathlib.Path(self.tmp.name)

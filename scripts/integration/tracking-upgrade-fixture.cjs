@@ -87,4 +87,10 @@ async function verify() {
   assert.equal((await pool.query('select private.tracking_capture_exception($1) reason', [item.id])).rows[0].reason, 'configuration_stale');
   console.log('PASS: legacy snapshot/revision and queued/offline v2 captures survive 110 -> 111; real preference changes remain fenced.');
 }
-(process.argv[2] === 'seed' ? seed() : verify()).catch(error => { console.error(error.message); process.exitCode = 1; }).finally(() => pool.onModuleDestroy());
+async function run() {
+  // Supabase's fixture login owns roles but does not inherit application grants.
+  // This bootstrap is bounded by the disposable-loopback guards above.
+  await pool.query('grant masarifi_api, masarifi_worker, masarifi_migration to current_user with inherit true, set true');
+  await (process.argv[2] === 'seed' ? seed() : verify());
+}
+run().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(() => pool.onModuleDestroy());

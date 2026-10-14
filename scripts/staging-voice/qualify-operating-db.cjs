@@ -1,11 +1,17 @@
 "use strict";
-// Real SQL qualification only in the isolated CI Supabase database. No production/staging transport.
+// Real SQL qualification only in explicitly isolated loopback databases.
 const assert=require('node:assert/strict'),fs=require('node:fs'),{createHash,randomUUID}=require('node:crypto');
 const local=process.env.DATABASE_URL,u=new URL(local);
-assert(['127.0.0.1','localhost'].includes(u.hostname)&&u.port==='54322'&&u.pathname==='/postgres');
-assert.equal(process.env.GITHUB_ACTIONS,'true');
-assert.equal(process.env.GITHUB_REPOSITORY,'masarifiratibi-spec/masarifi.ratibi_app');
-assert.equal(process.env.GITHUB_REF,'refs/heads/codex/voice-promoted-operating-2026-10-13');
+assert(['127.0.0.1','localhost'].includes(u.hostname));
+if(process.env.GITHUB_ACTIONS==='true'){
+ assert(u.port==='54322'&&u.pathname==='/postgres');
+ assert.equal(process.env.GITHUB_REPOSITORY,'masarifiratibi-spec/masarifi.ratibi_app');
+ assert.equal(process.env.GITHUB_REF,'refs/heads/codex/voice-promoted-operating-2026-10-13');
+}else{
+ const fixtureName=process.env.VOICE_OPERATING_DISPOSABLE_DATABASE_NAME;
+ assert.match(fixtureName??'',/^voice_operating_fixture_[a-z0-9_]+$/);
+ assert.equal(u.pathname,'/'+fixtureName);
+}
 const {Client,Pool}=require('../../apps/api/node_modules/pg');
 const fixtureOptions={connectionString:local,connectionTimeoutMillis:5000,query_timeout:10000,statement_timeout:10000,lock_timeout:5000,idle_in_transaction_session_timeout:15000};
 const fixtureClients=new Set(),fixturePools=new Set(),barrierReleases=new Set();
@@ -63,7 +69,7 @@ async function success(action,c){const r=await helper(action,c);assert(r.ok,acti
 async function freshControl(){
  const original=fixtureClient();await original.connect();let requiredMigrations;
  try{await original.query('begin isolation level repeatable read read only');requiredMigrations=(await original.query('select version from supabase_migrations.schema_migrations order by version')).rows.map(r=>r.version);await original.query('commit');}finally{await original.end();}
- assert.equal(requiredMigrations.length,110);assert(requiredMigrations.includes('20261013053237'));
+ assert.equal(requiredMigrations.length,111);assert.equal(requiredMigrations.at(-1),'20261013235719');assert(requiredMigrations.includes('20261013053237'));
  const now=Date.now()/1000;
  const c={project,manifest:{version:1,mode:'operating',newCapturesOnly:true,normalEligibility:true,retentionPolicy:'existing-operating',sourceSha:'b'.repeat(40),imageDigest:'c'.repeat(64),apkHash:'d'.repeat(64),controlHash:digest(randomUUID()),scopeDigest:digest(randomUUID())},requiredMigrations,
   baseline:{posting:false,activeEpochs:0,analysisJobs:0,migrations:requiredMigrations,fingerprints:{accounts:'0'.repeat(64),transactions:'0'.repeat(64),postings:'0'.repeat(64),balances:'0'.repeat(64)},historical:{voicePending:0,assistantPending:0,outboxUnpublished:0}},epochId:null,manifestHash:null,approvalReceivedAt:now,activationExpiresAt:now+3600,startsAt:now};
@@ -250,7 +256,7 @@ async function main(){
   await db.query("insert into public.accounts(id,user_id,name,type,currency_code,is_default) values($1,$2,'Disposable','cash','SAR',true)",[accountId,ownerId]);await db.query('insert into public.account_balances(account_id) values($1)',[accountId]);
   const setup=fixtureClient();await setup.connect();try{await setup.query('revoke masarifi_migration from current_user granted by current_user');}finally{await setup.end();}
   const legacy=await seedLegacy(),legacyBefore=await legacyHash(legacy);
-  let c=await freshControl();assert.equal((await success('status',c)).migrations.length,110);passed('full actual 110-version history and exact diagnostic metadata');
+  let c=await freshControl();assert.deepEqual((await success('status',c)).migrations,c.requiredMigrations);passed('full actual 111-version history and exact diagnostic metadata');
   // Lost prepare response is reconciled read-only. Another prepare must never create another epoch.
   const lost={lostCommit:true},lostResult=await helper('prepare',c,lost);assert.equal(lostResult.ok,false);assert.equal(lost.attempts,1);
   const reconciled=await success('reconcile',c);assert(reconciled&&reconciled.matches);c={...c,epochId:reconciled.epochId,manifestHash:reconciled.manifestHash};
