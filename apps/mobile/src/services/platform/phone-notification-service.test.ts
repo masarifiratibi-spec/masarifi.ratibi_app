@@ -1,6 +1,7 @@
 import {
   createPhoneNotificationService,
-  getPushDeviceRegistration
+  getPushDeviceRegistration,
+  getDeviceRegistration
 } from './phone-notification-service';
 import { changeLocale } from '@/localization/i18n';
 import { Platform } from 'react-native';
@@ -219,6 +220,20 @@ describe('phone notification platform service', () => {
     expect(mockNotifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
       projectId: 'project-1'
     });
+  });
+  it('provides the same installation identity for sync without push or permission APIs', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValueOnce(
+      'existing-installation-fingerprint'
+    );
+    await expect(getDeviceRegistration()).resolves.toEqual({
+      deviceFingerprint: 'existing-installation-fingerprint',
+      platform: Platform.OS,
+      appVersion: '0.0.1'
+    });
+    expect(mockSecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(mockNotifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(mockNotifications.getPermissionsAsync).not.toHaveBeenCalled();
+    expect(mockNotifications.requestPermissionsAsync).not.toHaveBeenCalled();
   });
 });
 

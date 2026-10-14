@@ -7,6 +7,10 @@ import { synchronizeLiveCoreFinance } from './live/core-finance-service';
 import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
 import { subscribeTrackingSaves } from './tracking-save-events';
 import { useAppShellStore } from '@/state/app-shell';
+import { ensureTrackingSyncDevice } from './tracking-sync-device';
+jest.mock('./tracking-sync-device', () => ({
+  ensureTrackingSyncDevice: jest.fn()
+}));
 jest.mock('./automatic-tracking-service', () => ({
   automaticTrackingService: { listImportOutcomes: jest.fn() }
 }));
@@ -40,6 +44,7 @@ it('does not acknowledge a save without a verified accepted ledger outcome', asy
     .mocked(automaticTrackingService.listImportOutcomes!)
     .mockResolvedValue([]);
   expect(await reconcileTrackingSaves('owner', 'session')).toBe(false);
+  expect(ensureTrackingSyncDevice).not.toHaveBeenCalled();
 });
 it('refreshes accepted ledger effects without waiting for a notification ID', async () => {
   jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
@@ -55,6 +60,7 @@ it('refreshes accepted ledger effects without waiting for a notification ID', as
   try {
     expect(await reconcileTrackingSaves('owner', 'session')).toBe(true);
     expect(synchronizeLiveCoreFinance).toHaveBeenCalledTimes(1);
+    expect(ensureTrackingSyncDevice).toHaveBeenCalledWith('owner');
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(
       trackingNativeRuntime?.presentCaptureConfirmation
@@ -93,4 +99,40 @@ it('retains failure when authoritative finance synchronization fails', async () 
   await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow(
     'offline'
   );
+});
+it('retains the capture when sync-device registration fails', async () => {
+  jest
+    .mocked(automaticTrackingService.listImportOutcomes!)
+    .mockResolvedValue([
+      {
+        itemId: 'item',
+        status: 'accepted',
+        transactionId: 'transaction',
+        notificationId: null
+      }
+    ]);
+  jest
+    .mocked(ensureTrackingSyncDevice)
+    .mockRejectedValueOnce(new Error('offline'));
+  await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow(
+    'offline'
+  );
+  expect(synchronizeLiveCoreFinance).not.toHaveBeenCalled();
+});
+it('does not sync a new owner when the session changes during device registration', async () => {
+  jest
+    .mocked(automaticTrackingService.listImportOutcomes!)
+    .mockResolvedValue([
+      {
+        itemId: 'item',
+        status: 'accepted',
+        transactionId: 'transaction',
+        notificationId: null
+      }
+    ]);
+  jest.mocked(ensureTrackingSyncDevice).mockImplementationOnce(async () => {
+    useAppShellStore.setState({ session: null });
+  });
+  expect(await reconcileTrackingSaves('owner', 'session')).toBe(false);
+  expect(synchronizeLiveCoreFinance).not.toHaveBeenCalled();
 });

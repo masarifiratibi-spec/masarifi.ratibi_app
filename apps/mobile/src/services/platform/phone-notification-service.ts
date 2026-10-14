@@ -19,13 +19,32 @@ const ExpoLinking =
   (Linking as unknown as { default?: typeof Linking }).default ?? Linking;
 const deviceFingerprintKey = 'masarifi.notification-device-fingerprint.v1';
 
-export type PushDeviceRegistration = {
+export type DeviceRegistration = {
   deviceFingerprint: string;
   platform: 'android' | 'ios';
   appVersion: string;
+};
+
+export type PushDeviceRegistration = DeviceRegistration & {
   pushToken: string;
   pushProvider: 'expo';
 };
+
+// Sync identity does not require notification permission or a push provider.
+export async function getDeviceRegistration(): Promise<DeviceRegistration | null> {
+  const appVersion = Constants.expoConfig?.version;
+  if (
+    (Platform.OS !== 'android' && Platform.OS !== 'ios') ||
+    typeof appVersion !== 'string'
+  )
+    return null;
+  let deviceFingerprint = await SecureStore.getItemAsync(deviceFingerprintKey);
+  if (!deviceFingerprint || deviceFingerprint.length < 16) {
+    deviceFingerprint = randomUUID();
+    await SecureStore.setItemAsync(deviceFingerprintKey, deviceFingerprint);
+  }
+  return { deviceFingerprint, platform: Platform.OS, appVersion };
+}
 
 export async function getPushDeviceRegistration(): Promise<PushDeviceRegistration | null> {
   if (
@@ -38,20 +57,14 @@ export async function getPushDeviceRegistration(): Promise<PushDeviceRegistratio
   if (typeof projectId !== 'string' || typeof appVersion !== 'string')
     return null;
   try {
-    let deviceFingerprint =
-      await SecureStore.getItemAsync(deviceFingerprintKey);
-    if (!deviceFingerprint || deviceFingerprint.length < 16) {
-      deviceFingerprint = randomUUID();
-      await SecureStore.setItemAsync(deviceFingerprintKey, deviceFingerprint);
-    }
+    const registration = await getDeviceRegistration();
+    if (!registration) return null;
     const pushToken = (
       await ExpoNotifications.getExpoPushTokenAsync({ projectId })
     ).data;
     if (typeof pushToken !== 'string' || pushToken.length < 16) return null;
     return {
-      deviceFingerprint,
-      platform: Platform.OS,
-      appVersion,
+      ...registration,
       pushToken,
       pushProvider: 'expo'
     };

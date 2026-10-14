@@ -2,6 +2,7 @@ import { automaticTrackingService } from './automatic-tracking-service';
 import { synchronizeLiveCoreFinance } from './live/core-finance-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { publishTrackingSave } from './tracking-save-events';
+import { ensureTrackingSyncDevice } from './tracking-sync-device';
 
 export async function reconcileTrackingSaves(
   ownerId: string,
@@ -14,6 +15,8 @@ export async function reconcileTrackingSaves(
     (item) => item.status === 'accepted' && item.transactionId
   );
   if (!accepted.length) return false;
+  await ensureTrackingSyncDevice(ownerId);
+  if (useAppShellStore.getState().session?.userId !== ownerId) return false;
   await synchronizeLiveCoreFinance();
   if (useAppShellStore.getState().session?.userId !== ownerId) return false;
   publishTrackingSave();
