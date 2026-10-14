@@ -54,6 +54,43 @@ describe('tracking unsupported import handling', () => {
     requestId: 'request-2',
   };
 
+  it.each([false, true])(
+    'returns a notification import receipt after intake metrics (replayed=%s)',
+    async (replayed) => {
+      const receipt = { replayed, resource: { id: '86000000-0000-4000-8000-000000000002' } };
+      const repository = {
+        getPreferences: jest.fn(() => Promise.resolve({ sourceRetentionDays: 7 })),
+        createImport: jest.fn(() => Promise.resolve(receipt)),
+        rawPayloadRegistered: jest.fn(() => Promise.resolve(true)),
+      };
+      const storage = {
+        upload: jest.fn(() => Promise.resolve(!replayed)),
+        delete: jest.fn(),
+      };
+      const service = new TrackingService(repository as never, {} as never, storage as never);
+      const notification = {
+        ...validImport,
+        body: {
+          ...validImport.body,
+          sourceType: 'provider',
+          sourceChannel: 'android_notification',
+        },
+      };
+
+      await expect(service.createImport(notification, 'application/json')).resolves.toEqual(receipt);
+      expect(repository.createImport).toHaveBeenCalledTimes(1);
+      expect(repository.createImport).toHaveBeenCalledWith(
+        validImport.principal,
+        expect.objectContaining({
+          sourceType: 'provider',
+          sourceChannel: 'android_notification',
+        }),
+        expect.objectContaining({ key: validImport.idempotencyKey }),
+      );
+      expect(storage.delete).not.toHaveBeenCalled();
+    },
+  );
+
   it('uploads the raw object before atomically registering it with the import', async () => {
     const repository = {
       getPreferences: jest.fn(() => Promise.resolve({ sourceRetentionDays: 7 })),
