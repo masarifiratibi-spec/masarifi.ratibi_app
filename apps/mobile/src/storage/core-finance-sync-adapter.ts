@@ -663,7 +663,10 @@ export class CoreFinanceSyncAdapter {
     const transactionSource =
       kind === 'opening'
         ? ('adjustment' as const)
-        : this.member(rawSource, transactionSources);
+        : this.member(
+            rawSource === 'tracking-import' ? 'automatic' : rawSource,
+            transactionSources
+          );
     const openingPostingAmount =
       kind === 'opening'
         ? this.safeInteger(

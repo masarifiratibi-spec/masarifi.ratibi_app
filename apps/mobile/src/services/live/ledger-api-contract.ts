@@ -43,7 +43,10 @@ export const ledgerSummarySchema = z
     paymentMethod: z.string().max(80).nullable().optional().default(null),
     note: z.string().max(500).nullable().optional().default(null),
     occurredAt: instant,
-    source: z.enum(transactionSources),
+    source: z.preprocess(
+      (value) => (value === 'tracking-import' ? 'automatic' : value),
+      z.enum(transactionSources)
+    ),
     originalTransactionId: uuid.nullable().optional().default(null),
     version: z.number().int().safe().positive(),
     deletedAt: nullableInstant.optional().default(null),

@@ -381,6 +381,35 @@ function detail(
   };
 }
 
+it.each(['tracking-import', 'manual', 'voice'] as const)(
+  'reads the existing %s ledger source without changing its amount or kind',
+  async (source) => {
+    const payload = detail(summary(transactionId, { source }));
+    const service = createLiveLedgerService({
+      baseUrl: 'https://api.test',
+      request: jest.fn(async () => response(payload))
+    });
+    await expect(service.getTransaction(transactionId)).resolves.toMatchObject({
+      id: transactionId,
+      type: 'expense',
+      amountMinor: 1000,
+      source: source === 'tracking-import' ? 'automatic' : source
+    });
+    expect(payload.transaction.source).toBe(source);
+  }
+);
+it('rejects an unknown ledger source while accepting the explicit Tracking read alias', async () => {
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request: jest.fn(async () =>
+      response(detail(summary(transactionId, { source: 'future_source' })))
+    )
+  });
+  await expect(service.getTransaction(transactionId)).rejects.toMatchObject({
+    code: 'contract_mismatch'
+  });
+});
+
 function mutation(
   transaction = summary(),
   postings?: Record<string, unknown>[]
