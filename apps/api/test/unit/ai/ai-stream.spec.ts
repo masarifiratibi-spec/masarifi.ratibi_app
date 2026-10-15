@@ -100,7 +100,7 @@ describe('assistant SSE orchestration', () => {
 
     await expect(
       controller.createMessage(
-        { clerkPrincipal: owner } as never,
+        { clerkPrincipal: owner, headers: {} } as never,
         response as never,
         id,
         { content: 'status', contextScope: ['budgets'], responseMode: 'stream' },

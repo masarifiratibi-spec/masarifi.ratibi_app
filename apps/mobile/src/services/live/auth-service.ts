@@ -55,7 +55,7 @@ type ClerkSession = {
 
 export interface LiveClerkBridge {
   getSession(): Promise<ClerkSession | null>;
-  getToken(options: { skipCache: true }): Promise<string | null>;
+  getToken(options: { skipCache: boolean }): Promise<string | null>;
   startPhone(input: PhoneInput): Promise<PhoneVerificationAttempt>;
   verifyPhone(input: VerificationInput): Promise<AuthResult>;
   resendPhone(sessionId: string): Promise<PhoneVerificationAttempt>;
@@ -201,6 +201,54 @@ export async function captureLiveClerkIdentity() {
   if (!token) throw new HttpError('session_expired', 401);
   await assertCurrent();
   return { userId: session.userId, token, assertCurrent };
+}
+
+// Only assistant calls share a pending SDK lookup; Clerk owns valid-token caching.
+let assistantTokenFlight: {
+  bridge: LiveClerkBridge;
+  sessionId: string;
+  userId: string;
+  startedAt: number;
+  promise: Promise<string | null>;
+} | undefined;
+
+export async function captureLiveAssistantClerkIdentity() {
+  const bridge = registeredBridge;
+  const session = await bridge?.getSession();
+  if (!bridge || !session || registeredBridge !== bridge)
+    throw new HttpError('session_expired', 401);
+  const assertCurrent = async () => {
+    const current = await bridge.getSession();
+    if (
+      registeredBridge !== bridge ||
+      current?.id !== session.id ||
+      current.userId !== session.userId
+    )
+      throw new HttpError('session_expired', 401);
+  };
+  if (
+    assistantTokenFlight?.bridge !== bridge ||
+    assistantTokenFlight.sessionId !== session.id ||
+    assistantTokenFlight.userId !== session.userId ||
+    Date.now() - assistantTokenFlight.startedAt >= 15000
+  ) {
+    assistantTokenFlight = {
+      bridge,
+      sessionId: session.id,
+      userId: session.userId,
+      startedAt: Date.now(),
+      promise: bridge.getToken({ skipCache: false })
+    };
+  }
+  const flight = assistantTokenFlight;
+  try {
+    const token = await flight.promise;
+    if (!token) throw new HttpError('session_expired', 401);
+    await assertCurrent();
+    return { userId: session.userId, token, assertCurrent };
+  } finally {
+    if (assistantTokenFlight === flight) assistantTokenFlight = undefined;
+  }
 }
 
 export function registeredLiveAuthService(): CapabilityProviderHandle<AuthService> | null {

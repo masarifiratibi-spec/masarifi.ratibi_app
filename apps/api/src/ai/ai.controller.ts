@@ -281,7 +281,10 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    const accepted = await this.ai.createMessage(principal(request), id, body, key);
+    const accepted =
+      request.headers['x-masarifi-client-variant'] === 'staging-development'
+        ? await this.ai.createDevelopmentMessage(principal(request), id, body, key)
+        : await this.ai.createMessage(principal(request), id, body, key);
     const { replayed, ...publicAccepted } = accepted;
     if (
       replayed ||

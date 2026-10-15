@@ -1,9 +1,12 @@
+import Constants from 'expo-constants';
 import {
   assistantPollDelay,
   createLiveAssistantApiService
 } from './assistant-api-service';
 import { createMemoryAssistantJournal } from '@/storage/assistant-operation-journal';
 import { samples } from '@/test-utils/assistant-action-preview-fixtures';
+
+jest.mock('expo-constants', () => ({ expoConfig: { android: { package: 'com.masarifi.mobile.dev' } } }));
 
 const id = (suffix: number) =>
   `99100000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -96,7 +99,8 @@ it.each(['9007199254740993', '0', '-1', '1.5', 'invalid', null])(
   async (version) => {
     const request = jest
       .fn()
-      .mockResolvedValueOnce(json({ ...conversation, version }));
+      .mockResolvedValueOnce(json({ ...conversation, version }))
+      .mockResolvedValueOnce(json({ items: [], nextCursor: null }));
     const service = createLiveAssistantApiService({
       baseUrl: 'https://api.test',
       token: async () => 'owner',
@@ -105,7 +109,7 @@ it.each(['9007199254740993', '0', '-1', '1.5', 'invalid', null])(
     await expect(service.getConversation(id(1))).rejects.toMatchObject({
       code: 'representative_failure'
     });
-    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledTimes(2);
   }
 );
 
@@ -332,7 +336,6 @@ it('requires re-review if authoritative effect context changes before confirmati
     .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(action)))
     .mockResolvedValueOnce(json(target))
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(action)))
     .mockResolvedValueOnce(json({ ...target, totalMinor: '26000' }));
   const service = createLiveAssistantApiService({
@@ -346,7 +349,6 @@ it('requires re-review if authoritative effect context changes before confirmati
     service.confirmAction(id(5), 3, 'confirm-reviewed-operation')
   ).rejects.toMatchObject({ code: 'conflict' });
   expect(request.mock.calls.map((call) => call[1]?.method)).toEqual([
-    'GET',
     'GET',
     'GET',
     'GET',
@@ -588,7 +590,6 @@ it('does not return a cached preview after the authoritative owner lookup stops 
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
     .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages()));
   const service = createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -602,7 +603,7 @@ it('does not return a cached preview after the authoritative owner lookup stops 
   await expect(service.getActionPreview(id(5))).rejects.toMatchObject({
     code: 'not_found'
   });
-  expect(request).toHaveBeenCalledTimes(4);
+  expect(request).toHaveBeenCalledTimes(3);
 });
 
 it('sends the expected consent version and returns the authoritative next version', async () => {
@@ -640,7 +641,6 @@ it('re-reads the authoritative preview after confirmation instead of incrementin
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
     .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
     .mockResolvedValueOnce(
       json({
@@ -651,7 +651,6 @@ it('re-reads the authoritative preview after confirmation instead of incrementin
         replayed: false
       })
     )
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview('executed', 6))));
   const service = createLiveAssistantApiService({
     now: () => Date.parse('2026-09-03T00:00:02Z'),
@@ -672,10 +671,10 @@ it('re-reads the authoritative preview after confirmation instead of incrementin
       version: 6
     }
   });
-  expect(JSON.parse(String(request.mock.calls[4]?.[1]?.body))).toEqual({
+  expect(JSON.parse(String(request.mock.calls[3]?.[1]?.body))).toEqual({
     expectedVersion: 3
   });
-  expect(request.mock.calls[4]?.[1]?.headers).toEqual(
+  expect(request.mock.calls[3]?.[1]?.headers).toEqual(
     expect.objectContaining({ 'Idempotency-Key': 'confirm-operation' })
   );
 });
@@ -1188,7 +1187,6 @@ it('reconciles a lost confirmation response with its original version and identi
     .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
     .mockRejectedValueOnce(new Error('lost commit response'))
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview('confirmed', 4))))
     .mockResolvedValueOnce(
       json({
@@ -1199,7 +1197,6 @@ it('reconciles a lost confirmation response with its original version and identi
         replayed: true
       })
     )
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview('executed', 6))));
   const service = createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -1213,10 +1210,211 @@ it('reconciles a lost confirmation response with its original version and identi
   await expect(
     service.confirmAction(id(5), 4, 'replacement-confirm-key-0002')
   ).resolves.toMatchObject({ value: { status: 'succeeded', version: 6 } });
-  expect(request.mock.calls[5]?.[1]?.headers).toEqual(
+  expect(request.mock.calls[4]?.[1]?.headers).toEqual(
     expect.objectContaining({ 'Idempotency-Key': 'original-confirm-key-0001' })
   );
-  expect(JSON.parse(String(request.mock.calls[5]?.[1]?.body))).toEqual({
+  expect(JSON.parse(String(request.mock.calls[4]?.[1]?.body))).toEqual({
     expectedVersion: 3
   });
 });
+
+it.each([
+  [
+    'https://api.staging.masarifiratibi.com',
+    'com.masarifi.mobile.dev',
+    true,
+    'staging-development'
+  ],
+  [
+    'https://api.staging.masarifiratibi.com/',
+    'com.masarifi.mobile.dev',
+    true,
+    'staging-development'
+  ],
+  [
+    'https://api.staging.masarifiratibi.com',
+    'com.masarifi.mobile',
+    true,
+    undefined
+  ],
+  [
+    'https://api.staging.masarifiratibi.com',
+    'com.masarifi.mobile.dev',
+    false,
+    undefined
+  ],
+  [
+    'https://api.masarifiratibi.com',
+    'com.masarifi.mobile.dev',
+    true,
+    undefined
+  ],
+  [
+    'https://api.staging.masarifiratibi.com.evil.test',
+    'com.masarifi.mobile.dev',
+    true,
+    undefined
+  ]
+])(
+  'routes assistant requests only for the exact DEV staging runtime (%s, %s, %s)',
+  async (baseUrl, packageName, development, expectedVariant) => {
+    const previousDev = __DEV__;
+    const previousPackage = Constants.expoConfig!.android!.package;
+    try {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = development;
+      Constants.expoConfig!.android!.package = packageName;
+      const request = jest.fn<
+        ReturnType<typeof fetch>,
+        Parameters<typeof fetch>
+      >(async () =>
+        json({
+          policyVersion: 'v1',
+          granted: false,
+          grantedAt: null,
+          revokedAt: null,
+          version: 1
+        })
+      );
+      await createLiveAssistantApiService({
+        baseUrl,
+        token: async () => 'owner',
+        request
+      }).getConsent();
+      const headers = request.mock.calls[0]?.[1]?.headers as Record<
+        string,
+        string
+      >;
+      expect(headers).toMatchObject({ Authorization: 'Bearer owner' });
+      expect(headers['X-Masarifi-Client-Variant']).toBe(expectedVariant);
+    } finally {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = previousDev;
+      Constants.expoConfig!.android!.package = previousPackage;
+    }
+  }
+);
+
+it('starts conversation detail and message reads together while preserving the owner boundary', async () => {
+  let release!: (response: Response) => void;
+  const detail = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const request = jest.fn(async (input: RequestInfo | URL) =>
+    String(input).includes('/messages?') ? json(messages()) : detail
+  );
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request
+  });
+  const pending = service.getConversation(id(1));
+  for (let step = 0; step < 20; step++) await Promise.resolve();
+  const urls = request.mock.calls.map(([input]) => String(input));
+  release(json(conversation));
+  await expect(pending).resolves.toMatchObject({
+    responses: { items: [{ id: id(3) }] }
+  });
+  expect(urls).toHaveLength(2);
+  expect(urls[1]).toContain('/messages?limit=99');
+});
+
+it('refreshes a known response through its conversation without scanning other conversations', async () => {
+  const urls: string[] = [];
+  const request = jest.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    urls.push(path);
+    return json(path.includes('/messages?') ? messages() : conversation);
+  });
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request
+  });
+  await service.getConversation(id(1));
+  urls.length = 0;
+  await expect(service.getResponse(id(3))).resolves.toMatchObject({
+    id: id(3),
+    conversationId: id(1)
+  });
+  expect(urls).toEqual([
+    `https://api.test/api/v1/assistant/conversations/${id(1)}/messages?limit=99`
+  ]);
+});
+
+it('does not reuse a known response reference across owners', async () => {
+  let owner = 'owner-a';
+  const urls: string[] = [];
+  const request = jest.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    urls.push(path);
+    return json(
+      owner === 'owner-b'
+        ? { items: [], nextCursor: null }
+        : path.includes('/messages?')
+          ? messages()
+          : conversation
+    );
+  });
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    request,
+    identity: async () => {
+      const captured = owner;
+      return {
+        userId: captured,
+        token: captured,
+        assertCurrent: async () => {
+          if (owner !== captured) throw new Error('session_expired');
+        }
+      };
+    }
+  });
+  await service.getConversation(id(1));
+  owner = 'owner-b';
+  urls.length = 0;
+  await expect(service.getResponse(id(3))).rejects.toMatchObject({
+    code: 'not_found'
+  });
+  expect(urls).toEqual([
+    'https://api.test/api/v1/assistant/conversations?limit=99'
+  ]);
+});
+
+it.each([
+  [undefined, '2026-09-01/2026-09-30'],
+  ['selected_period', '2026-09-01/2026-09-30'],
+  ['all_history', null],
+  ['multiple_periods', null],
+  ['current_state', null]
+])(
+  'labels the answer period from metadata scope %s',
+  async (scope, expectedPeriod) => {
+    const rows = messages();
+    Object.assign(rows.items[1]!, {
+      metadata: {
+        schemaVersion: 1,
+        locale: 'en',
+        timezone: 'Asia/Riyadh',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        currencies: ['SAR'],
+        responseType: 'fact',
+        generatedAt: at,
+        ...(scope === undefined ? {} : { scope })
+      }
+    });
+    const request = jest
+      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(json(conversations))
+      .mockResolvedValueOnce(json(rows));
+    await expect(
+      createLiveAssistantApiService({
+        baseUrl: 'https://api.test',
+        token: async () => 'owner',
+        request
+      }).getResponse(id(3))
+    ).resolves.toMatchObject({
+      period: expectedPeriod,
+      blocks: [{ key: 'Safe answer' }]
+    });
+  }
+);

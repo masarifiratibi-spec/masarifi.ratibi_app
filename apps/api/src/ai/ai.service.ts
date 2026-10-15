@@ -558,6 +558,59 @@ export class AiService {
     return paged(rows, limit, 'lastMessageAt');
   }
 
+  async createDevelopmentMessage(
+    principal: ClerkPrincipal,
+    conversationId: string,
+    body: unknown,
+    key: unknown,
+  ) {
+    const input = assistantMessage(body);
+    const conversationIdValue = uuid(conversationId);
+    const requestedIntent = routeAssistantMessage({
+      content: input.content,
+      intentHint: input.intent,
+    }).intent;
+    const existingAction =
+      requestedIntent.startsWith('create_') ||
+      requestedIntent.startsWith('update_') ||
+      requestedIntent === 'record_obligation_payment' ||
+      requestedIntent === 'resolve_tracking_review';
+    if (
+      this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') &&
+      !existingAction &&
+      this.config.get('MASARIFI_ASSISTANT_AGENT_OWNER_ID') === principal.userId &&
+      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
+    ) {
+      await this.available('financial_assistant');
+      return this.accepted(
+        await this.repository.enqueueMessage(
+          principal,
+          conversationIdValue,
+          {
+            content: redactAiText(input.content),
+            intent: 'financial_advice',
+            context: { assistantAgent: 1, intentHint: input.intent ?? null },
+            contextScope: input.contextScopeProvided
+              ? input.contextScope
+              : [
+                  'accounts_summary',
+                  'recent_transactions',
+                  'budgets',
+                  'obligations',
+                  'tracking_reviews',
+                ],
+            evidence: [],
+            history: [],
+            responseMode: input.responseMode,
+            requestIdentity: input,
+          },
+          idempotencyKey(key),
+        ),
+      );
+    }
+    return this.createMessage(principal, conversationId, body, key);
+  }
+
   async createMessage(
     principal: ClerkPrincipal,
     conversationId: string,

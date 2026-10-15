@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { z } from 'zod';
 import { hasCompleteAssistantEffect } from '@/domain/assistant-action-effect';
 import {
@@ -139,6 +140,9 @@ const messageSchema = z
         endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
         currencies: z.array(z.string().regex(/^[A-Z]{3}$/u)),
         responseType: z.enum(['fact', 'estimate', 'suggestion', 'missing']),
+        scope: z
+          .enum(['all_history', 'selected_period', 'multiple_periods', 'current_state'])
+          .optional(),
         generatedAt: dateTime,
         values: z
           .array(
@@ -379,10 +383,17 @@ export function createLiveAssistantApiService(
   const baseUrl = options.baseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '';
   const token = options.token ?? (() => tokenProvider());
   const request = options.request ?? fetch;
+  const stagingDevelopment =
+    __DEV__ &&
+    Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+    baseUrl.replace(/\/$/u, '') === 'https://api.staging.masarifiratibi.com';
   const sleep =
     options.sleep ??
     ((milliseconds: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+  const conversationReferences = new Map<string, string>();
+  const referenceKey = (owner: string, kind: string, id: string) =>
+    JSON.stringify([owner, kind, id]);
   const responseCache = new Map<string, AssistantResponse>();
   const previewCache = new Map<string, AssistantActionPreview>();
   const reviewedDisclosures = new Map<string, string>();
@@ -449,6 +460,9 @@ export function createLiveAssistantApiService(
           signal: controller.signal,
           headers: {
             Authorization: `Bearer ${actor.token}`,
+            ...(stagingDevelopment
+              ? { 'X-Masarifi-Client-Variant': 'staging-development' }
+              : {}),
             ...(body === undefined
               ? {}
               : { 'Content-Type': 'application/json' }),
@@ -523,15 +537,18 @@ export function createLiveAssistantApiService(
     return value;
   };
 
-  const listMessages = async (id: string, cursor?: string) =>
+  const listMessages = async (id: string, cursor?: string, owner?: string) =>
     parse(
       page(messageSchema),
       await send(
         'GET',
-        `/api/v1/assistant/conversations/${encodeURIComponent(id)}/messages?limit=99${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+        `/api/v1/assistant/conversations/${encodeURIComponent(id)}/messages?limit=99${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+        undefined,
+        undefined,
+        owner
       )
     );
-  const listAllConversations = async () => {
+  const listAllConversations = async (owner: string) => {
     const items: AssistantConversation[] = [];
     let cursor: string | undefined;
     const seen = new Set<string>();
@@ -540,7 +557,10 @@ export function createLiveAssistantApiService(
         page(conversationSchema),
         await send(
           'GET',
-          `/api/v1/assistant/conversations?limit=99${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+          `/api/v1/assistant/conversations?limit=99${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+          undefined,
+          undefined,
+          owner
         )
       );
       items.push(...result.items.map(mapConversation));
@@ -552,12 +572,12 @@ export function createLiveAssistantApiService(
     } while (true);
     return items;
   };
-  const listAllMessages = async (conversationId: string) => {
+  const listAllMessages = async (conversationId: string, owner: string) => {
     const items: z.infer<typeof messageSchema>[] = [];
     let cursor: string | undefined;
     const seen = new Set<string>();
     do {
-      const result = await listMessages(conversationId, cursor);
+      const result = await listMessages(conversationId, cursor, owner);
       items.push(...result.items);
       if (result.nextCursor === null) break;
       if (seen.has(result.nextCursor))
@@ -569,7 +589,8 @@ export function createLiveAssistantApiService(
   };
   const mapResponse = (
     row: z.infer<typeof messageSchema>,
-    rows: readonly z.infer<typeof messageSchema>[]
+    rows: readonly z.infer<typeof messageSchema>[],
+    owner: string
   ): AssistantResponse => {
     if (
       row.role !== 'assistant' ||
@@ -612,9 +633,11 @@ export function createLiveAssistantApiService(
           values: {}
         }
       ],
-      period: question.metadata
-        ? `${question.metadata.startDate}/${question.metadata.endDate}`
-        : null,
+      period:
+        question.metadata &&
+        (!question.metadata.scope || question.metadata.scope === 'selected_period')
+          ? `${question.metadata.startDate}/${question.metadata.endDate}`
+          : null,
       dataAsOf: Math.min(
         ...row.snapshot.evidenceRefs.map((ref) =>
           epoch(ref.asOf ?? row.snapshot!.createdAt)
@@ -659,6 +682,15 @@ export function createLiveAssistantApiService(
       feedback: null,
       createdAt: epoch(row.createdAt)
     };
+    conversationReferences.set(
+      referenceKey(owner, 'response', mapped.id),
+      mapped.conversationId
+    );
+    if (row.preview)
+      conversationReferences.set(
+        referenceKey(owner, 'preview', row.preview.id),
+        mapped.conversationId
+      );
     responseCache.set(mapped.id, mapped);
     if (row.preview)
       previewCache.set(row.preview.id, {
@@ -670,7 +702,8 @@ export function createLiveAssistantApiService(
     return mapped;
   };
   const mappedResponses = async (
-    rows: readonly z.infer<typeof messageSchema>[]
+    rows: readonly z.infer<typeof messageSchema>[],
+    owner: string
   ) => {
     const complete = [...rows];
     for (const row of rows) {
@@ -683,7 +716,10 @@ export function createLiveAssistantApiService(
           messageSchema,
           await send(
             'GET',
-            `/api/v1/assistant/conversations/${encodeURIComponent(row.conversationId)}/messages/${encodeURIComponent(row.replyToMessageId)}`
+            `/api/v1/assistant/conversations/${encodeURIComponent(row.conversationId)}/messages/${encodeURIComponent(row.replyToMessageId)}`,
+            undefined,
+            undefined,
+            owner
           )
         );
         if (
@@ -697,15 +733,24 @@ export function createLiveAssistantApiService(
     }
     return rows
       .filter((row) => row.role === 'assistant' && row.status === 'completed')
-      .map((row) => mapResponse(row, complete))
+      .map((row) => mapResponse(row, complete, owner))
       .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
   };
   const findCold = async (kind: 'response' | 'preview', id: string) => {
     const actor = await identity();
     responseCache.clear();
     previewCache.clear();
-    for (const item of await listAllConversations()) {
-      await mappedResponses(await listAllMessages(item.id));
+    const knownConversation = conversationReferences.get(
+      referenceKey(actor.userId, kind, id)
+    );
+    const conversations = knownConversation
+      ? [{ id: knownConversation }]
+      : await listAllConversations(actor.userId);
+    for (const item of conversations) {
+      await mappedResponses(
+        await listAllMessages(item.id, actor.userId),
+        actor.userId
+      );
       const found =
         kind === 'response' ? responseCache.get(id) : previewCache.get(id);
       if (found) {
@@ -849,7 +894,7 @@ export function createLiveAssistantApiService(
   const wait = async (
     conversationId: string,
     messageId: string,
-    owner?: string
+    owner: string
   ): Promise<AssistantResponse> => {
     const startedAt = now();
     for (
@@ -914,7 +959,7 @@ export function createLiveAssistantApiService(
           result.response.replyToMessageId !== messageId
         )
           throw new AssistantApiError('representative_failure');
-        return mapResponse(result.response, [result.request]);
+        return mapResponse(result.response, [result.request], owner);
       }
       if (result.status === 'completed')
         throw new AssistantApiError('representative_failure');
@@ -1223,14 +1268,18 @@ export function createLiveAssistantApiService(
     },
     async getConversation(id, cursor) {
       const actor = await identity();
-      const item = mapConversation(
-        await send(
+      const [detail, result] = await Promise.all([
+        send(
           'GET',
-          `/api/v1/assistant/conversations/${encodeURIComponent(id)}`
-        )
-      );
-      const result = await listMessages(id, cursor);
-      const responses = await mappedResponses(result.items);
+          `/api/v1/assistant/conversations/${encodeURIComponent(id)}`,
+          undefined,
+          undefined,
+          actor.userId
+        ),
+        listMessages(id, cursor, actor.userId)
+      ]);
+      const item = mapConversation(detail);
+      const responses = await mappedResponses(result.items, actor.userId);
       const saved = await journal.read(actor.userId, 'question');
       let savedRequest: z.infer<typeof messageSchema> | undefined;
       if (

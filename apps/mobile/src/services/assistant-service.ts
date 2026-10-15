@@ -5,7 +5,7 @@ import {
 } from './contracts/assistant-notifications-service';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { createLiveAssistantApiService } from './live/assistant-api-service';
-import { getLiveClerkToken, captureLiveClerkIdentity } from './live/auth-service';
+import { captureLiveAssistantClerkIdentity } from './live/auth-service';
 import { assistantSecureJournal } from '@/storage/assistant-secure-journal';
 import { assistantService as fixtureAssistantService } from './mocks/assistant-service';
 
@@ -51,5 +51,8 @@ export function selectAssistantService(
 
 export const assistantService = selectAssistantService(
   isFixtureModeEnabled(),
-  createLiveAssistantApiService({ token: getLiveClerkToken, identity: captureLiveClerkIdentity, journal: assistantSecureJournal })
+  createLiveAssistantApiService({
+    identity: captureLiveAssistantClerkIdentity,
+    journal: assistantSecureJournal
+  })
 );

@@ -52,6 +52,8 @@ jest.mock('expo-crypto', () => ({
   randomUUID: () => require('node:crypto').randomUUID()
 }));
 import {
+  captureLiveAssistantClerkIdentity,
+  captureLiveClerkIdentity,
   createLiveAuthService,
   createLiveIdentityService,
   registerLiveClerkBridge
@@ -1075,4 +1077,144 @@ describe('live profile setup', () => {
       })
     );
   });
+});
+
+describe('assistant Clerk token capture', () => {
+  test('coalesces concurrent same-session token requests and uses the SDK valid-token cache', async () => {
+    let release!: (token: string) => void;
+    const pending = new Promise<string>((resolve) => {
+      release = resolve;
+    });
+    const bridge = clerkBridge({ getToken: jest.fn(() => pending) });
+    registerLiveClerkBridge(bridge);
+    const first = captureLiveAssistantClerkIdentity();
+    const second = captureLiveAssistantClerkIdentity();
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    release('assistant-token');
+    const identities = await Promise.all([first, second]);
+    expect(identities.map(({ userId, token }) => ({ userId, token }))).toEqual([
+      { userId: liveSession.userId, token: 'assistant-token' },
+      { userId: liveSession.userId, token: 'assistant-token' }
+    ]);
+    expect(bridge.getToken).toHaveBeenCalledTimes(1);
+    expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+    await captureLiveAssistantClerkIdentity();
+    expect(bridge.getToken).toHaveBeenCalledTimes(2);
+    await captureLiveClerkIdentity();
+    expect(bridge.getToken).toHaveBeenLastCalledWith({ skipCache: true });
+  });
+
+  test('rejects a token that resolves after an account switch and gives the new owner a separate flight', async () => {
+    let current = liveSession;
+    let release!: (token: string) => void;
+    const bridge = clerkBridge({
+      getSession: jest.fn(async () => current),
+      getToken: jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((resolve) => {
+              release = resolve;
+            })
+        )
+        .mockResolvedValue('owner-b-token')
+    });
+    registerLiveClerkBridge(bridge);
+    const first = captureLiveAssistantClerkIdentity().then(
+      () => 'unexpected-success',
+      (error: { code: string }) => error.code
+    );
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    current = { ...liveSession, id: 'session-b', userId: 'owner-b' };
+    await expect(captureLiveAssistantClerkIdentity()).resolves.toMatchObject({
+      userId: 'owner-b',
+      token: 'owner-b-token'
+    });
+    release('late-owner-a-token');
+    expect(await first).toBe('session_expired');
+  });
+
+  test('rejects a late token when the bridge is replaced even with identical session IDs', async () => {
+    let release!: (token: string) => void;
+    registerLiveClerkBridge(
+      clerkBridge({
+        getToken: jest.fn(
+          () =>
+            new Promise<string>((resolve) => {
+              release = resolve;
+            })
+        )
+      })
+    );
+    const first = captureLiveAssistantClerkIdentity().then(
+      () => 'unexpected-success',
+      (error: { code: string }) => error.code
+    );
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    registerLiveClerkBridge(clerkBridge());
+    release('late-token');
+    expect(await first).toBe('session_expired');
+  });
+
+  test('clears rejected flights so the same owner can recover', async () => {
+    const bridge = clerkBridge({
+      getToken: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue('recovered')
+    });
+    registerLiveClerkBridge(bridge);
+    await expect(captureLiveAssistantClerkIdentity()).rejects.toThrow(
+      'offline'
+    );
+    await expect(captureLiveAssistantClerkIdentity()).resolves.toMatchObject({
+      token: 'recovered'
+    });
+  });
+
+  test('rejects a captured identity after sign-out', async () => {
+    let signedIn = true;
+    registerLiveClerkBridge(
+      clerkBridge({
+        getSession: jest.fn(async () => (signedIn ? liveSession : null))
+      })
+    );
+    const captured = await captureLiveAssistantClerkIdentity();
+    signedIn = false;
+    await expect(captured.assertCurrent()).rejects.toMatchObject({
+      code: 'session_expired'
+    });
+    await expect(captureLiveAssistantClerkIdentity()).rejects.toMatchObject({
+      code: 'session_expired'
+    });
+  });
+});
+
+test('a stalled assistant token flight does not pin later recovery attempts', async () => {
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(1000);
+  let release!: (token: string) => void;
+  try {
+    const bridge = clerkBridge({
+      getToken: jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((resolve) => {
+              release = resolve;
+            })
+        )
+        .mockResolvedValue('recovered-token')
+    });
+    registerLiveClerkBridge(bridge);
+    const original = captureLiveAssistantClerkIdentity();
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    clock.mockReturnValue(16000);
+    const recovery = captureLiveAssistantClerkIdentity();
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    release('old-flight-token');
+    await original;
+    await expect(recovery).resolves.toMatchObject({ token: 'recovered-token' });
+  } finally {
+    clock.mockRestore();
+  }
 });
