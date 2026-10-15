@@ -22,7 +22,7 @@
 - [x] Model-driven query/answer loop, fact rendering, period resolution by model with explicit owner clock, bounded conversation context, safe output/action validation and per-call accounting.
 - [x] Assistant-only token caching/single flight, parallel reads, direct response lookup, DEV header and regression tests.
 - [x] Regression/evaluation corpus from the review, local API/mobile checks, independent review and source/runtime provenance.
-- [ ] New DEV-only assistant runtime and exact route; real model qualification on fresh existing data, preserve all containers/Voice/ledger, provide joint DEV test steps.
+- [x] New DEV-only assistant runtime and exact route; real model qualification on fresh existing data, preserve all containers/Voice/ledger, provide joint DEV test steps.
 
 ## Review focus
 
@@ -34,14 +34,33 @@ User approved execution of the in-chat plan and requested this same branch/workt
 
 ## Local verification before isolated deployment
 
-- API AI/config: 49 suites, 584 tests passed. Contract: 40 passed. Security: 20 passed, four existing database-dependent checks skipped.
-- Real isolated PostgreSQL: 31 assistant tool/queue tests passed. Temporary test rows rolled back; this is not live-model quality evidence.
-- Mobile: full baseline 484 suites / 3156 tests passed; final metadata changes covered by 63 assistant API tests, plus typecheck and boundary checks.
+- API AI/config: 49 suites, 603 tests passed. Contract: 40 passed. Security: 20 passed, four existing database-dependent checks skipped.
+- Real isolated PostgreSQL: 32 assistant tool/queue tests passed. The two original migrations were also applied to an isolated fixture, with all seven read domains, receipt/finish/fail flows and route/period/price denial checks verified. Fixture restoration was verified afterward.
+- Mobile: full baseline 484 suites / 3156 tests passed; final adapter/metadata changes covered by 69 assistant API tests, plus typecheck and boundary checks.
 - Independent review findings addressed: durable dispatch budget across retries, conservative crash cost, fresh consent/route/period authorization, bounded model payload and pagination offsets.
 - Prepared bilingual evaluation corpus: 100 cases, explicitly not executed against live models.
 - Full combined API test invocation exceeded local memory; focused projects run separately. No claim of a full repository test run.
 - Existing chat policy is reused (including per-feature and monthly limits); no quota/settings changes.
 
-## Deployment qualification still required
+## Deployment qualification
 
-Only the new owner-scoped DEV Assistant API/worker and exact DEV-header assistant route may change on Staging. Run original migration qualification, pin source artifacts, verify all 126 existing containers and continuous Voice before/after, then use fresh read-only questions for real-model acceptance and timing. No Production or ordinary-app release is included.
+Deployed the owner-scoped DEV Assistant API/worker from source `d7a4d8942fa7d8502d82ea5f2390063ebd802976`. Only the exact DEV-header assistant upstream changed; ordinary assistant traffic remains on its existing upstream. The two original migrations were applied once on Staging, with exact source checksums. Later runtime upgrades verified those same migrations without applying SQL changes.
+
+All 126 original container pins were verified unchanged through deployment and final observation, including the original assistant worker and both continuous Voice processes. Financial fingerprints across all 15 financial tables and Voice policy/control fingerprints matched the baseline. Voice remains active in operating mode without expiry, with its original manifest and fresh heartbeat. Original ordinary/Production applications were not operated or released.
+
+The actual DEV service completed fresh real-model read cases for latest transaction, largest individual expense versus category ranking, compound income/expense totals, the contextual Egyptian follow-up for yesterday, and equal-length month comparison. Responses were independently checked against current owner data. The first compound test exposed an ungrounded response failure; explicit zero-period facts and exact display validation fixed it, and a fresh five-case group passed. The final provider-schema change also passed two new real-model cases; receipts identify the configured `openai/gpt-6-luna` route through `azure`.
+
+Timing remains variable. The corrected latest-transaction case took about 4 seconds; complex questions before the final numeric-reference constraint took about 15–28 seconds. The two final compound/comparison cases took 14.3 and 16.4 seconds, each requiring data selection and answer generation. These are small-sample observations, not an SLA or proof of general model quality. Warm authentication measured 1–6 ms and availability HTTP reads about 0.3 seconds; provider calls dominate the remaining latency.
+
+The prepared 100-case corpus has not been run against a live model. Existing quota and monthly budget settings were preserved. Full CI at `d6242b77` passed application, mobile, database, security scanning and three browser sizes; remaining jobs were superseded by a new exact-runtime-source run. Exact-source CI: https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/38819161713 (check the live result; do not infer a green full workflow from focused tests).
+
+Private source/runtime receipts, question operations, actual responses, timing and preservation proofs are retained under `D:/Masarifi-preservation-2026-10-16/assistant-agent`, outside Git.
+
+## Joint DEV checks
+
+1. Open the existing DEV app (`com.masarifi.mobile.dev`) and its intelligent assistant. Use only DEV/Staging for these checks; keep the current phone connected to its development computer.
+2. Ask naturally for the latest transaction, then ask a follow-up about its category or date. Verify the actual transaction details rather than a count of recent transactions.
+3. Compare the largest single expense with the highest-spend category; check each against transactions/reports for the same period.
+4. Ask for today's income and expenses together, then say “ونفس الكلام لأمبارح؟”. Check local dates and zero totals where the recorded period is empty.
+5. Try a personally relevant account, budget, obligation or savings question. Check that missing or ambiguous data produces a useful clarification or limitation.
+6. Record the exact question, response, period and response time for any weak answer. Continue with fresh read questions within the existing quota; do not replay historical audio/SMS or confirm financial actions during read qualification.
