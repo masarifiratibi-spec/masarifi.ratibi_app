@@ -418,6 +418,9 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       receivedAt,
       text: 'تم دفع 2 ريال لدى متجر الاختبار، الرقم المرجعي CONTENT12345',
     });
+    await capture({ reference: 'unrelated-pending', marker: false }, {
+      runJob: () => Promise.resolve(0),
+    } as never);
     const second = await capture(
       {
         reference: 'retained-pair',
@@ -428,7 +431,21 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
         runJob: () => Promise.resolve(0),
       } as never,
     );
-    const claim = (await repository.claimImports('retained-fixture'))[0];
+    const claim = await pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        // Claim only this fixture; unrelated pending imports must keep their
+        // leases and ordering when the whole integration suite shares a DB.
+        await client.query('select id from public.import_sessions where id<>$1 for update', [
+          second,
+        ]);
+        return (await repository.claimImports('retained-fixture')).find(
+          (entry) => entry.id === second,
+        );
+      } finally {
+        await client.query('rollback');
+      }
+    });
     if (!claim) throw new Error('Retained fixture was not claimed');
     await repository.prepareImport(claim.id, claim.claim_token);
     const oldName = (
