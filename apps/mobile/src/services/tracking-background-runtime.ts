@@ -38,6 +38,51 @@ function serializeNative(change: () => Promise<void>): Promise<void> {
   nativeMutation = operation.catch(() => undefined);
   return operation;
 }
+export async function scheduleTrackingFollowUp(ownerId: string): Promise<void> {
+  const runtime = resolveClientRuntime();
+  const native = trackingNativeRuntime;
+  if (
+    Platform.OS !== 'android' ||
+    runtime.mode !== 'live' ||
+    runtime.apiUrl !== 'https://api.staging.masarifiratibi.com' ||
+    !native?.scheduleTrackingFollowUp
+  )
+    return;
+  const expectedEpoch = trackingConsentEpoch();
+  const expectedGeneration = nativeGeneration;
+  return serializeNative(async () => {
+    const current = () =>
+      !restorationBlocked &&
+      expectedGeneration === nativeGeneration &&
+      expectedEpoch === trackingConsentEpoch() &&
+      useAppShellStore.getState().session?.status === 'authenticated' &&
+      useAppShellStore.getState().session?.userId === ownerId;
+    if (!current()) return;
+    const raw = await SecureStore.getItemAsync(contextKey);
+    if (!raw || !current()) return;
+    const context = JSON.parse(raw) as {
+      ownerId?: unknown;
+      generation?: unknown;
+    } | null;
+    if (
+      context?.ownerId !== ownerId ||
+      typeof context.generation !== 'string' ||
+      context.generation.length < 16 ||
+      context.generation.length > 80
+    )
+      return;
+    const ownerDigest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      ownerId
+    );
+    if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
+      return;
+    await native.scheduleTrackingFollowUp!(
+      ownerDigest,
+      context.generation
+    );
+  });
+}
 export async function configureTrackingBackground(
   ownerId: string,
   rules: SmsRuleSnapshot,

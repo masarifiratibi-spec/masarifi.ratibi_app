@@ -64,6 +64,10 @@ class MasarifiSmsInboxModule : Module() {
     }
     AsyncFunction("clearTrackingOwner") {appContext.reactContext?.let {TrackingOwner.clear(it)}}
     AsyncFunction("finishTrackingWork") {workId:String,succeeded:Boolean -> TrackingWorker.finish(workId,succeeded)}
+    AsyncFunction("scheduleTrackingFollowUp") {ownerDigest:String,generation:String ->
+      val context=appContext.reactContext ?: throw IllegalStateException("Tracking context unavailable")
+      TrackingScheduler.followUp(context,ownerDigest,generation)
+    }
     AsyncFunction("presentCaptureConfirmation") {ownerId:String,notificationId:String,title:String,body:String ->
       val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
       CaptureConfirmation.present(context,ownerId,notificationId,title,body)

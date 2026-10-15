@@ -1171,6 +1171,8 @@ const ar: MessageCatalog = {
   'tracking.senders.disabled': 'متوقف',
   'tracking.saved.expense': 'تم تسجيل مصروف',
   'tracking.saved.income': 'تم تسجيل إيراد',
+  'tracking.notice.payment': 'دفع',
+  'tracking.notice.deposit': 'إيداع',
   'tracking.ios.title': 'الإدخال على iOS',
   'tracking.ios.limitation': 'تتبع الرسائل المباشر غير متاح على iOS.',
   'tracking.ios.alternatives':

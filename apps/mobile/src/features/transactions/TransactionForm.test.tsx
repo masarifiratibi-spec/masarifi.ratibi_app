@@ -1831,7 +1831,7 @@ it('mirrors the three edit types naturally in Arabic', async () => {
   expect(screen.getByTestId('transaction-edit-type-transfer')).toBeTruthy();
 });
 
-it('opens existing relationships and exposes eligible secondary actions', async () => {
+it('opens existing relationships and keeps delete without report actions', async () => {
   const transaction = {
     ...fixtureTransactions[1],
     source: 'automatic' as const,
@@ -1848,11 +1848,11 @@ it('opens existing relationships and exposes eligible secondary actions', async 
   fireEvent.press(screen.getByText('obligation-1'));
   expect(router.push).toHaveBeenCalledWith('/obligations/obligation-1');
   expect(
-    screen.getByText(translate('support.report.transaction'))
-  ).toBeTruthy();
+    screen.queryByText(translate('support.report.transaction'))
+  ).toBeNull();
   expect(
-    screen.getByText(translate('tracking.action.reportWrong'))
-  ).toBeTruthy();
+    screen.queryByText(translate('tracking.action.reportWrong'))
+  ).toBeNull();
   expect(
     screen.getByText(translate('coreFinance.transaction.delete'))
   ).toBeTruthy();

@@ -1,6 +1,10 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
 export interface MasarifiSmsInboxModule {
+  scheduleTrackingFollowUp?(
+    ownerDigest: string,
+    generation: string
+  ): Promise<boolean>;
   financialContentAdmissionSupported?(): Promise<boolean>;
   notificationCaptureIssue?(): Promise<string | null>;
   smsActivationBoundary?(): Promise<{ activatedAt: number; afterId: string }>;

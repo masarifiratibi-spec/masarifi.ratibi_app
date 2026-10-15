@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { TransactionDetailScreen } from '@/features/transactions/TransactionDetailScreen';
+import { TransactionActions } from '@/features/transactions/TransactionActions';
 import { AssistantConversationScreen } from '@/features/assistant/AssistantConversationScreen';
 import type { AssistantResponse } from '@/domain/assistant';
 import type { Transaction } from '@/domain/core-finance';
@@ -65,7 +65,9 @@ test('transaction report entry passes only the approved structural context', () 
     /2500|account-secret|raw sms|private note|credential|secret/i
   );
 
-  renderWithProviders(<TransactionDetailScreen id="transaction-1" />);
+  renderWithProviders(
+    <TransactionActions transaction={mockTransaction() as unknown as Transaction} />
+  );
   fireEvent.press(
     screen.getByText(translateDynamic('support.report.transaction'))
   );

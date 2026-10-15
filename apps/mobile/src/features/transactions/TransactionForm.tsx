@@ -1305,6 +1305,7 @@ function TransactionFormContent({
             <TransactionActions
               transaction={transaction}
               onDeletedChange={setDeleted}
+              variant="delete-only"
             />
           </>
         ) : null}

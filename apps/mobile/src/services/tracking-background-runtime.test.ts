@@ -1,10 +1,12 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
 import { MasarifiSmsInbox } from '../../modules/masarifi-sms-inbox';
 import { useAppShellStore } from '@/state/app-shell';
 import {
   configureTrackingBackground,
-  disableTrackingBackground
+  disableTrackingBackground,
+  scheduleTrackingFollowUp
 } from './tracking-background-runtime';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { invalidateTrackingConsent } from './tracking-source-preferences';
@@ -26,7 +28,8 @@ jest.mock('../../modules/masarifi-sms-inbox', () => ({
       mockNativeNotifications = [];
     }),
     suspendTrackingOwner: jest.fn(async () => undefined),
-    restoreTrackingOwner: jest.fn(async () => 'PRESERVED')
+    restoreTrackingOwner: jest.fn(async () => 'PRESERVED'),
+    scheduleTrackingFollowUp: jest.fn(async () => true)
   }
 }));
 jest.mock('expo-secure-store', () => ({
@@ -73,6 +76,157 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 afterEach(() => jest.restoreAllMocks());
+
+describe('durable DEV follow-up scheduling', () => {
+  const generation = '11111111-1111-4111-8111-111111111111';
+  const retainedContext = JSON.stringify({ ownerId: 'owner-a', generation });
+  let priorEnvironment: Record<string, string | undefined>;
+  beforeEach(() => {
+    priorEnvironment = {
+      EXPO_PUBLIC_CLIENT_MODE: process.env.EXPO_PUBLIC_CLIENT_MODE,
+      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
+        process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+    };
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_followup123456';
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(retainedContext);
+  });
+  afterEach(() => {
+    jest.mocked(SecureStore.getItemAsync).mockReset().mockResolvedValue(null);
+    jest
+      .mocked(Crypto.digestStringAsync)
+      .mockReset()
+      .mockImplementation(
+        async (_algorithm: unknown, ownerId: string) => 'digest:' + ownerId
+      );
+    jest
+      .mocked(MasarifiSmsInbox!.scheduleTrackingFollowUp!)
+      .mockReset()
+      .mockResolvedValue(true);
+    for (const [key, value] of Object.entries(priorEnvironment)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  it('requests follow-up using only the authenticated retained owner digest and generation', async () => {
+    await scheduleTrackingFollowUp('owner-a');
+
+    expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).toHaveBeenCalledWith(
+      'digest:owner-a',
+      generation
+    );
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+    expect(MasarifiSmsInbox!.configureTrackingOwner).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['demo', 'https://api.staging.masarifiratibi.com', 'android'],
+    ['live', 'https://api.masarifiratibi.com', 'android'],
+    ['live', 'https://api.staging.masarifiratibi.com.evil.test', 'android'],
+    ['live', 'https://api.staging.masarifiratibi.com', 'ios']
+  ])(
+    'does not schedule outside the live Staging Android scope (%s, %s, %s)',
+    async (mode, api, platform) => {
+      process.env.EXPO_PUBLIC_CLIENT_MODE = mode;
+      process.env.EXPO_PUBLIC_API_URL = api;
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: platform
+      });
+
+      await scheduleTrackingFollowUp('owner-a');
+
+      expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    null,
+    JSON.stringify({ ownerId: 'owner-b', generation }),
+    JSON.stringify({ ownerId: 'owner-a', generation: 'short' })
+  ])(
+    'does not schedule absent or mismatched retained ownership (%s)',
+    async (raw) => {
+      jest.mocked(SecureStore.getItemAsync).mockResolvedValue(raw);
+
+      await scheduleTrackingFollowUp('owner-a');
+
+      expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['owner', 'consent', 'native-generation'] as const)(
+    'denies a follow-up when %s changes during the secure context read',
+    async (changed) => {
+      jest.mocked(SecureStore.getItemAsync).mockImplementationOnce(async () => {
+        if (changed === 'owner') useAppShellStore.setState({ session: null });
+        else if (changed === 'consent') invalidateTrackingConsent();
+        else void disableTrackingBackground();
+        return retainedContext;
+      });
+
+      await scheduleTrackingFollowUp('owner-a');
+
+      expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).not.toHaveBeenCalled();
+    }
+  );
+
+  it('denies a follow-up after consent changes during hashing', async () => {
+    jest.mocked(Crypto.digestStringAsync).mockImplementationOnce(async () => {
+      invalidateTrackingConsent();
+      return 'digest:owner-a';
+    });
+
+    await scheduleTrackingFollowUp('owner-a');
+
+    expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).not.toHaveBeenCalled();
+  });
+
+  it('denies a follow-up after the retained native generation changes during hashing', async () => {
+    jest
+      .mocked(SecureStore.getItemAsync)
+      .mockResolvedValueOnce(retainedContext)
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ownerId: 'owner-a',
+          generation: '22222222-2222-4222-8222-222222222222'
+        })
+      );
+
+    await scheduleTrackingFollowUp('owner-a');
+
+    expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).not.toHaveBeenCalled();
+  });
+
+  it('preserves older native binary compatibility when follow-up scheduling is absent', async () => {
+    const method = MasarifiSmsInbox!.scheduleTrackingFollowUp;
+    delete MasarifiSmsInbox!.scheduleTrackingFollowUp;
+    try {
+      await expect(
+        scheduleTrackingFollowUp('owner-a')
+      ).resolves.toBeUndefined();
+      expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    } finally {
+      MasarifiSmsInbox!.scheduleTrackingFollowUp = method;
+    }
+  });
+
+  it('propagates native scheduling errors for the coordinator to report', async () => {
+    jest
+      .mocked(MasarifiSmsInbox!.scheduleTrackingFollowUp!)
+      .mockRejectedValueOnce(new Error('native unavailable'));
+
+    await expect(scheduleTrackingFollowUp('owner-a')).rejects.toThrow(
+      'native unavailable'
+    );
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+  });
+});
+
 it('refuses broader admission on a native binary without an explicit DEV capability', async () => {
   const native = MasarifiSmsInbox!;
   const prior = native.configureTrackingOwnerV3;

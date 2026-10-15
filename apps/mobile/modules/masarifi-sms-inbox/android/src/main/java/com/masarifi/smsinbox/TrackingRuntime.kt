@@ -120,6 +120,9 @@ internal class TrackingEncryptedStore(private val context: Context, private val 
 }
 
 internal object TrackingScheduler {
+  private fun isDev(context: Context) = context.packageName == "com.masarifi.mobile.dev"
+  private fun retryPolicy(context: Context): BackoffPolicy = if (isDev(context)) BackoffPolicy.LINEAR else BackoffPolicy.EXPONENTIAL
+  private fun retryDelay(context: Context): Long = if (isDev(context)) 10 else 30
   private fun request(context: Context): Data {
     val owner=TrackingOwner.read(context)
     return workDataOf("ownerDigest" to owner.optString("owner"),"generation" to owner.optString("generation"))
@@ -129,20 +132,44 @@ internal object TrackingScheduler {
     val manager=WorkManager.getInstance(context)
     if (!owner.optBoolean("sms") && !owner.optBoolean("notification")) { manager.cancelAllWorkByTag("masarifi-tracking");return }
     manager.enqueueUniquePeriodicWork("masarifi-tracking-periodic",ExistingPeriodicWorkPolicy.UPDATE,
-      PeriodicWorkRequestBuilder<TrackingWorker>(15,TimeUnit.MINUTES).setInputData(request(context)).addTag("masarifi-tracking").build())
+      PeriodicWorkRequestBuilder<TrackingWorker>(15,TimeUnit.MINUTES).setInputData(request(context))
+        .setBackoffCriteria(retryPolicy(context),retryDelay(context),TimeUnit.SECONDS).addTag("masarifi-tracking").build())
     watchSms(context)
   }
   fun watchSms(context: Context) = synchronized(TrackingOwner) {
     if (!TrackingOwner.read(context).optBoolean("sms")) return@synchronized
-    val constraints=Constraints.Builder().addContentUriTrigger(Telephony.Sms.Inbox.CONTENT_URI,true)
-      .setTriggerContentUpdateDelay(3,TimeUnit.SECONDS).setTriggerContentMaxDelay(15,TimeUnit.SECONDS).build()
-    WorkManager.getInstance(context).enqueueUniqueWork("masarifi-tracking-sms",ExistingWorkPolicy.KEEP,
-      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).setConstraints(constraints).addTag("masarifi-tracking").build())
+    val manager=WorkManager.getInstance(context)
+    val constraints=Constraints.Builder()
+    val name=if(isDev(context)) {
+      // Providers can signal a row URI outside /inbox or the combined SMS/MMS root.
+      constraints.addContentUriTrigger(Telephony.Sms.CONTENT_URI,true)
+        .addContentUriTrigger(Telephony.MmsSms.CONTENT_URI,true)
+      manager.cancelUniqueWork("masarifi-tracking-sms")
+      "masarifi-tracking-sms-v2-"+TrackingOwner.read(context).optString("generation")
+    } else {
+      constraints.addContentUriTrigger(Telephony.Sms.Inbox.CONTENT_URI,true)
+      "masarifi-tracking-sms"
+    }
+    constraints.setTriggerContentUpdateDelay(3,TimeUnit.SECONDS).setTriggerContentMaxDelay(15,TimeUnit.SECONDS)
+    manager.enqueueUniqueWork(name,ExistingWorkPolicy.KEEP,
+      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).setConstraints(constraints.build())
+        .setBackoffCriteria(retryPolicy(context),retryDelay(context),TimeUnit.SECONDS).addTag("masarifi-tracking").build())
   }
   fun incoming(context: Context) = synchronized(TrackingOwner) {
     if(!TrackingOwner.active(context)) return@synchronized
     WorkManager.getInstance(context).enqueueUniqueWork("masarifi-tracking-incoming",ExistingWorkPolicy.KEEP,
-      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).addTag("masarifi-tracking").build())
+      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context))
+        .setBackoffCriteria(retryPolicy(context),retryDelay(context),TimeUnit.SECONDS).addTag("masarifi-tracking").build())
+  }
+  fun followUp(context: Context, ownerDigest: String, generation: String): Boolean = synchronized(TrackingOwner) {
+    val owner=TrackingOwner.read(context)
+    if(!isDev(context) || !TrackingOwner.active(context) || owner.optString("owner")!=ownerDigest ||
+        owner.optString("generation")!=generation) return@synchronized false
+    // Persist the pending session's next reconciliation independently of the JS lifetime.
+    WorkManager.getInstance(context).enqueueUniqueWork("masarifi-tracking-follow-up",ExistingWorkPolicy.KEEP,
+      OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).setInitialDelay(3,TimeUnit.SECONDS)
+        .setBackoffCriteria(BackoffPolicy.LINEAR,10,TimeUnit.SECONDS).addTag("masarifi-tracking").build()).result.get()
+    true
   }
 }
 

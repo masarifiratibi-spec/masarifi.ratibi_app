@@ -1,9 +1,16 @@
 import * as Crypto from 'expo-crypto';
+import Constants from 'expo-constants';
 import { getTrackingDeviceId } from './tracking-device';
 import { reconcileTrackingSaves } from './tracking-save-confirmation';
-import { configureTrackingBackground } from './tracking-background-runtime';
+import {
+  configureTrackingBackground,
+  scheduleTrackingFollowUp
+} from './tracking-background-runtime';
 
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  resolveClientMode,
+  resolveClientRuntime
+} from '@/config/client-runtime';
 import type {
   KeywordRuleSummary,
   SenderRule,
@@ -92,6 +99,8 @@ interface CoordinatorDependencies {
   now(): number;
   deviceId?(): Promise<string>;
   onSaved?(ownerId: string, sessionId: string): Promise<boolean | void>;
+  recheckProcessingImport?: boolean;
+  scheduleFollowUp?(ownerId: string): Promise<void>;
   configureBackground?(
     ownerId: string,
     rules: SmsRuleSnapshot,
@@ -467,9 +476,26 @@ export function createAutomaticTrackingCoordinator(
       requireFreshConfiguration = false
     ): Promise<AutomaticTrackingSyncState> {
       if (running) return running;
-      running = execute(requireFreshConfiguration).finally(() => {
-        running = null;
-      });
+      const ownerId = dependencies.session()?.userId;
+      const epoch = trackingConsentEpoch();
+      running = execute(requireFreshConfiguration)
+        .then(async (outcome) => {
+          if (
+            outcome.status === 'processing' &&
+            outcome.sessionId &&
+            ownerId &&
+            dependencies.isLive() &&
+            dependencies.session()?.status === 'authenticated' &&
+            dependencies.session()?.userId === ownerId &&
+            epoch === trackingConsentEpoch()
+          )
+            await dependencies.scheduleFollowUp?.(ownerId);
+          return outcome;
+        })
+        .catch(() => update('error', { errorCode: 'sync_failed' }))
+        .finally(() => {
+          running = null;
+        });
       return running;
     },
     async resync(
@@ -642,6 +668,24 @@ async function flush(
       );
     }
     if (
+      dependencies.recheckProcessingImport &&
+      current.acceptedCount === 0 &&
+      (current.status === 'received' || current.status === 'processing')
+    ) {
+      // One owned read can observe a committed effect without another native wake.
+      fence();
+      try {
+        const observed = await dependencies.tracking.getImportSession(
+          current.id,
+          ownerId
+        );
+        if (observed.id === current.id) current = observed;
+      } catch {
+        // The optional read cannot replace the receipt's durable processing follow-up.
+      }
+      fence();
+    }
+    if (
       current.acceptedCount > 0 &&
       (await dependencies.onSaved?.(ownerId, current.id)) === false
     ) {
@@ -738,7 +782,13 @@ const coordinator = createAutomaticTrackingCoordinator({
   now: Date.now,
   deviceId: getTrackingDeviceId,
   onSaved: reconcileTrackingSaves,
-  configureBackground: configureTrackingBackground
+  recheckProcessingImport:
+    __DEV__ &&
+    Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+    resolveClientRuntime().mode === 'live' &&
+    resolveClientRuntime().apiUrl === 'https://api.staging.masarifiratibi.com',
+  configureBackground: configureTrackingBackground,
+  scheduleFollowUp: scheduleTrackingFollowUp
 });
 
 export const syncAutomaticTracking = () => coordinator.sync();
