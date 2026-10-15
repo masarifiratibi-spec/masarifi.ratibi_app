@@ -306,7 +306,7 @@ export class TrackingRepository {
   ): Promise<unknown[]> {
     return this.owner(principal, async (client) => {
       const rows = await client.query<{ value: unknown } & QueryResultRow>(
-        `select to_jsonb(i)-'user_id'-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',i.normalized_payload-'body'-'sender'-'metadata'-'sourceText') value from public.import_items i
+        `select to_jsonb(i)-'user_id'-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',i.normalized_payload-'body'-'sender'-'metadata'-'sourceText','notification_id',(select n.id from public.notification_events n where n.user_id=i.user_id and n.data->>'targetId'=i.transaction_id::text and n.type in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') order by n.created_at,n.id limit 1)) value from public.import_items i
          where user_id=$1 and session_id=$2::uuid and ($3::uuid is null or id=$3)
            and ($5::timestamptz is null or (coalesce(occurred_at,created_at),id)<($5::timestamptz,$6::uuid))
            and ($7::text is null or status=$7)

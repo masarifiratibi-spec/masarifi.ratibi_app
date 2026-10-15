@@ -351,7 +351,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     'links the saved %s and its opposite-channel receipt without another posting',
     async (firstChannel) => {
       const reference = 'one-content-movement';
-      await capture({ channel: firstChannel, reference });
+      const first = await capture({ channel: firstChannel, reference });
       const before = await effects();
       const second = await capture({
         channel: firstChannel === 'android_sms' ? 'android_notification' : 'android_sms',
@@ -395,6 +395,24 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
         targetKind: 'transaction',
         targetId: before[0]?.id,
       });
+      for (const session of [first, second]) {
+        const outcomes = await repository.listSessionItems(principal(), session, null, 100);
+        expect(outcomes).toEqual([
+          expect.objectContaining({
+            status: 'accepted',
+            transactionId: before[0]?.id,
+            notificationId: notices[0]?.id,
+          }),
+        ]);
+        expect(
+          await repository.listSessionItems(
+            { ...principal(), userId: 'other-owner' },
+            session,
+            null,
+            100,
+          ),
+        ).toEqual([]);
+      }
       expect(
         (
           await pool.query(
