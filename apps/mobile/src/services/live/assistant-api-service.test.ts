@@ -1418,3 +1418,106 @@ it.each([
     });
   }
 );
+
+const backendAgentMetadataFixture = {
+  schemaVersion: 1,
+  promptSha256:
+    'aa1e2b96ce075d8c740011a3e560b47a588d2cfbece338f3a2827c75633abc23',
+  locale: 'en',
+  timezone: 'Asia/Riyadh',
+  scope: 'all_history',
+  startDate: '2026-10-16',
+  endDate: '2026-10-16',
+  currencies: [],
+  responseType: 'fact',
+  generatedAt: '2026-10-16T09:00:00.000Z',
+  values: [],
+  reasons: []
+};
+
+it('accepts backend agent metadata with a validated prompt hash without losing the answer', async () => {
+  const rows = messages();
+  Object.assign(rows.items[1]!, { metadata: backendAgentMetadataFixture });
+  const request = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(conversations))
+    .mockResolvedValueOnce(json(rows));
+  await expect(
+    createLiveAssistantApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request
+    }).getResponse(id(3))
+  ).resolves.toMatchObject({
+    period: null,
+    blocks: [{ key: 'Safe answer' }],
+    conversationId: id(1)
+  });
+});
+
+it.each(['a'.repeat(63), 'g'.repeat(64), null])(
+  'rejects malformed backend agent prompt hash %s',
+  async (promptSha256) => {
+    const rows = messages();
+    Object.assign(rows.items[1]!, {
+      metadata: { ...backendAgentMetadataFixture, promptSha256 }
+    });
+    const request = jest
+      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(json(conversations))
+      .mockResolvedValueOnce(json(rows));
+    await expect(
+      createLiveAssistantApiService({
+        baseUrl: 'https://api.test',
+        token: async () => 'owner',
+        request
+      }).getResponse(id(3))
+    ).rejects.toMatchObject({ code: 'representative_failure' });
+  }
+);
+
+it('exposes an identity-only assistant adapter as available before global token registration', () => {
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.staging.masarifiratibi.com',
+    identity: async () => ({
+      userId: 'inert-owner',
+      token: 'inert-token',
+      assertCurrent: async () => undefined
+    })
+  });
+  expect(service.metadata).toMatchObject({
+    id: 'phase09-assistant-http',
+    availability: 'available'
+  });
+});
+
+it('selects the live assistant module before a Clerk bridge registers its global token provider', () => {
+  const previous = {
+    NODE_ENV: process.env.NODE_ENV,
+    EXPO_PUBLIC_CLIENT_MODE: process.env.EXPO_PUBLIC_CLIENT_MODE,
+    EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
+      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+  };
+  try {
+    process.env.NODE_ENV = 'development';
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+      'pk_live_nonfunctionalfixture';
+    jest.isolateModules(() => {
+      const selected = jest.requireActual<
+        typeof import('../assistant-service')
+      >('../assistant-service');
+      expect(selected.assistantService.metadata).toMatchObject({
+        id: 'phase09-assistant-http',
+        availability: 'available'
+      });
+    });
+  } finally {
+    for (const key of Object.keys(previous) as (keyof typeof previous)[]) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+});

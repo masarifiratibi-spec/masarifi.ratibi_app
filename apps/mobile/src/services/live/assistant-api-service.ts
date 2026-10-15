@@ -134,6 +134,7 @@ const messageSchema = z
     metadata: z
       .object({
         schemaVersion: z.literal(1),
+        promptSha256: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
         locale: z.enum(['ar', 'en']),
         timezone: z.string().min(1),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
@@ -975,7 +976,8 @@ export function createLiveAssistantApiService(
       majorVersion: assistantServiceCapability.majorVersion,
       kind: 'live',
       availability:
-        baseUrl && (Boolean(options.token) || tokenProviderConfigured)
+        baseUrl &&
+        (Boolean(options.identity) || Boolean(options.token) || tokenProviderConfigured)
           ? 'available'
           : 'unavailable'
     },
