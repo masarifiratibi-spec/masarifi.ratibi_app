@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { AiRepository } from '../../../src/ai/ai.repository';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 import { EngagementRepository } from '../../../src/engagement/engagement.repository';
+import { StagingVoiceWorker } from '../../../src/ai/staging-voice.worker';
 
 // This suite runs only against the disposable CI/local database, never hosted Staging.
 describeLiveDatabase('Staging Voice epoch financial boundary', () => {
@@ -233,6 +234,99 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).rows[0],
     );
   }
+  it('continuous worker recovers a lost finalization response without a second ledger effect', async () => {
+    await prepare('operating');
+    const session = await create();
+    const before = await ledgerState();
+    await accept(session, { amountMinor: 100 });
+    const interrupted = Object.create(repository) as AiRepository;
+    let loseResponse = true;
+    interrupted.finalizeVoiceEpoch = async (id, limit, bounded) => {
+      const result = await repository.finalizeVoiceEpoch(id, limit, bounded);
+      if (loseResponse) {
+        loseResponse = false;
+        throw new Error('Query read timeout');
+      }
+      return result;
+    };
+    const worker = new StagingVoiceWorker(
+      interrupted,
+      {} as never,
+      {} as never,
+      epoch,
+      'continuous-test',
+      'a'.repeat(40),
+      undefined,
+      undefined,
+      true,
+    );
+    try {
+      await worker.tick();
+      const saved = await ledgerState();
+      expect(saved).toEqual({
+        transactions: Number(before.transactions) + 1,
+        postings: Number(before.postings) + 1,
+        balance: String(Number(before.balance) - 100),
+      });
+      const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 31000);
+      try {
+        await worker.tick();
+        await worker.tick();
+      } finally {
+        clock.mockRestore();
+      }
+      expect(await ledgerState()).toEqual(saved);
+      expect(
+        row(
+          (await query('select state from private.staging_voice_epochs where id=$1', [epoch]))
+            .rows[0],
+        ).state,
+      ).toBe('active');
+    } finally {
+      await worker.stop();
+    }
+  });
+  it('continuous execution outages do not exhaust the financial failure budget', async () => {
+    await prepare('operating');
+    const session = await create();
+    await accept(session, { amountMinor: 100 });
+    const before = await ledgerState();
+    const interrupted = new AiRepository({
+      withClient: async (action: (client: unknown) => Promise<unknown>) =>
+        pool.withClient((client) => {
+          const transport = Object.create(client) as typeof client;
+          transport.query = ((sql: string, values?: unknown[]) => {
+            if (sql.includes('private.execute_voice_event('))
+              return Promise.reject(new Error('Query read timeout'));
+            return client.query(sql, values);
+          }) as typeof client.query;
+          return action(transport);
+        }),
+    } as never);
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await expect(
+        interrupted.finalizeVoiceEpoch(epoch, 1, false, true),
+      ).rejects.toThrow('Query read timeout');
+      await query(
+        'update private.voice_batches set next_attempt_at=clock_timestamp() where session_id=$1',
+        [session],
+      );
+    }
+    expect(await ledgerState()).toEqual(before);
+    const event = row(
+      (
+        await query(
+          'select e.status,e.attempt_count from private.voice_events e join private.voice_batches b on b.id=e.batch_id where b.session_id=$1',
+          [session],
+        )
+      ).rows[0],
+    );
+    expect(event).toEqual({ status: 'eligible', attempt_count: 0 });
+    await repository.finalizeVoiceEpoch(epoch, 1);
+    const saved = await ledgerState();
+    expect(Number(saved.transactions)).toBe(Number(before.transactions) + 1);
+    expect(Number(saved.balance)).toBe(Number(before.balance) - 100);
+  });
   it.each([false, true])(
     'repeated acknowledged heartbeat preserves financial receipts and closed=%s admission',
     async (closed) => {

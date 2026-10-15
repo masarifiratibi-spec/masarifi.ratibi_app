@@ -491,3 +491,29 @@ it('preserves a quota-blocked recording across restart and automatically resumes
     clock.mockRestore();
   }
 });
+
+it.each([true, false])(
+  'identifies DEV posting requests only when explicitly enabled (%s)',
+  async (devPosting) => {
+    jest.mocked(loadVoiceBatches).mockResolvedValue([]);
+    const headers: Record<string, string>[] = [];
+    const api = createVoiceBatchApi({
+      baseUrl: 'https://api.staging.masarifiratibi.com',
+      owner: async () => 'owner',
+      token: async () => 'token',
+      devPosting,
+      request: (async (_url, init) => {
+        headers.push(init?.headers as Record<string, string>);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ items: [] })
+        } as Response;
+      }) as typeof fetch
+    });
+    await api.recoverBatches();
+    expect(headers[0]?.['X-Masarifi-Client-Variant']).toBe(
+      devPosting ? 'staging-development' : undefined
+    );
+  }
+);

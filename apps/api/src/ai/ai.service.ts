@@ -139,12 +139,23 @@ export class AiService {
     private readonly config: PlatformConfigService,
   ) {}
 
-  async createVoiceSession(principal: ClerkPrincipal, body: unknown, key: unknown, contract = '2') {
+  async createVoiceSession(
+    principal: ClerkPrincipal,
+    body: unknown,
+    key: unknown,
+    contract = '2',
+    variant = '',
+  ) {
     const started = performance.now();
     await this.available('voice_transcription');
     if (!['2', '3'].includes(contract))
       throw new HttpException({ code: 'VOICE_CLIENT_UPGRADE_REQUIRED' }, 410);
     const input = createVoiceV2(body);
+    const devPosting =
+      contract === '3' &&
+      variant === 'staging-development' &&
+      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      this.config.get('MASARIFI_STAGING_VOICE_DEV_OWNER_ID') === principal.userId;
     const result = resource(
       contract === '2' && this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
         ? await this.repository.createVoiceReviewSession(
@@ -162,7 +173,7 @@ export class AiService {
               ? {
                   maxAuthAge: this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
                   thresholds: this.config.get('MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS') ?? {},
-                  ...(this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+                  ...(this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') && !devPosting
                     ? { analysisOnly: true }
                     : {}),
                 }

@@ -163,6 +163,7 @@ const quotaRetryMs = 60000;
 
 export function createVoiceBatchApi(options: {
   baseUrl: string;
+  devPosting?: boolean;
   owner: () => Promise<string>;
   token: () => Promise<string>;
   request: typeof fetch;
@@ -258,6 +259,10 @@ export function createVoiceBatchApi(options: {
               ? { accept: 'application/json; voice-event-results=1' }
               : {}),
             'X-Voice-Contract': '3',
+            ...(options.devPosting &&
+            options.baseUrl === 'https://api.staging.masarifiratibi.com'
+              ? { 'X-Masarifi-Client-Variant': 'staging-development' }
+              : {}),
             'X-Request-Id': requestId,
             'content-type': audio ? 'audio/m4a' : 'application/json',
             ...(audio ? { 'content-length': String(audio.byteLength) } : {}),
@@ -345,7 +350,8 @@ export function createVoiceBatchApi(options: {
             value &&
             typeof value === 'object' &&
             'code' in value &&
-            value.code === 'VOICE_AUTOMATIC_UNAVAILABLE'
+            value.code === 'VOICE_AUTOMATIC_UNAVAILABLE' &&
+            !options.devPosting
           )
             throw new VoiceBatchRequestRejected('analysis_failed');
         }

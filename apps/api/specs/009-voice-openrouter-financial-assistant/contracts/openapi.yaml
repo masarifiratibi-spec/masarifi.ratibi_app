@@ -55,6 +55,7 @@ paths:
       operationId: createVoiceSession
       parameters:
         - $ref: '#/components/parameters/VoiceContract'
+        - $ref: '#/components/parameters/VoiceClientVariant'
         - $ref: '#/components/parameters/AiIdempotencyKey'
       requestBody:
         required: true
@@ -911,6 +912,12 @@ components:
         required: false,
         schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
       }
+    VoiceClientVariant:
+      name: X-Masarifi-Client-Variant
+      in: header
+      required: false
+      description: DEV transport hint only, not authentication. Automatic admission requires contract 3, the configured authenticated owner, the pinned Staging project and an active server epoch. Other clients retain their configured analysis policy.
+      schema: { type: string, enum: ['staging-development'] }
     VoiceContract:
       name: X-Voice-Contract
       in: header
@@ -1029,7 +1036,10 @@ components:
         sessionId: { type: string, format: uuid }
         batchId: { type: [string, 'null'], format: uuid }
         status:
-          { type: string, enum: [uploading, queued, analyzing, finalizing, completed, cancelled, failed] }
+          {
+            type: string,
+            enum: [uploading, queued, analyzing, finalizing, completed, cancelled, failed],
+          }
         transactionIds:
           { type: array, maxItems: 10, uniqueItems: true, items: { type: string, format: uuid } }
         addedCount: { type: integer, minimum: 0, maximum: 10 }
@@ -1047,7 +1057,18 @@ components:
         kind: { enum: [expense, income, null] }
         status: { enum: [eligible, committed, skipped, cancelled, execution_failed] }
         reason:
-          enum: [missing_amount, ambiguous_account, invalid_category, invalid_date, currency_mismatch, unsupported_event, authorization_required, invalid_event, null]
+          enum:
+            [
+              missing_amount,
+              ambiguous_account,
+              invalid_category,
+              invalid_date,
+              currency_mismatch,
+              unsupported_event,
+              authorization_required,
+              invalid_event,
+              null,
+            ]
         transactionId: { type: [string, 'null'], format: uuid }
     VoiceBatchRecoveryItem:
       type: object
@@ -1386,13 +1407,15 @@ components:
         failureCode: { type: [string, 'null'], maxLength: 64 }
         snapshot: { anyOf: [{ $ref: '#/components/schemas/ResponseSnapshot' }, { type: 'null' }] }
         preview: { anyOf: [{ $ref: '#/components/schemas/ActionPreview' }, { type: 'null' }] }
-        metadata: { anyOf: [{ $ref: '#/components/schemas/AssistantAnswerMetadata' }, { type: 'null' }] }
+        metadata:
+          { anyOf: [{ $ref: '#/components/schemas/AssistantAnswerMetadata' }, { type: 'null' }] }
         actionTimezone: { type: [string, 'null'], minLength: 1 }
         createdAt: { type: string, format: date-time }
     AssistantAnswerMetadata:
       type: object
       additionalProperties: false
-      required: [schemaVersion, locale, timezone, startDate, endDate, currencies, responseType, generatedAt]
+      required:
+        [schemaVersion, locale, timezone, startDate, endDate, currencies, responseType, generatedAt]
       properties:
         schemaVersion: { const: 1 }
         locale: { enum: [ar, en] }

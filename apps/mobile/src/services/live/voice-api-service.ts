@@ -3,6 +3,7 @@ import { createVoiceBatchApi } from './voice-batch-api-service';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { randomUUID } from 'expo-crypto';
+import Constants from 'expo-constants';
 import { z } from 'zod';
 import {
   sessionSchema,
@@ -686,6 +687,7 @@ export function createLiveVoiceApiService(
 
   const batchApi = createVoiceBatchApi({
       baseUrl,
+      devPosting: automaticCapture && __DEV__ && Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev',
       owner,
       token,
       request,

@@ -18,6 +18,9 @@ const json = (value: unknown, status = 200) =>
 
 const mockDatabases = new Map<string, ReturnType<typeof mockMakeDatabase>>();
 const originalAutomaticPosting = process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
+jest.mock('expo-constants', () => ({ __esModule: true, default: {
+  expoConfig: { android: { package: 'com.masarifi.mobile.dev' } }
+} }));
 function mockMakeDatabase() {
   const { DatabaseSync } = require('node:sqlite');
   const native = new DatabaseSync(':memory:');
@@ -254,6 +257,28 @@ it('enables the deployment switch only for the Staging API, leaving other enviro
     if (previous === undefined) delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
     else process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = previous;
   }
+});
+
+it('retains the same DEV recording and create identity while automatic admission is unavailable', async () => {
+  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+  const keys: unknown[] = [];
+  const request = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    if (String(url).startsWith('file:')) return new Response(wav);
+    expect(String(url)).toBe('https://api.staging.masarifiratibi.com/api/v1/voice/sessions');
+    expect(init?.headers).toMatchObject({ 'X-Masarifi-Client-Variant': 'staging-development' });
+    keys.push((init?.headers as Record<string, string>)['idempotency-key']);
+    return json({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' }, 503);
+  });
+  const service = createLiveVoiceApiService({ baseUrl: 'https://api.staging.masarifiratibi.com',
+    token: async () => 'owner', request, sleep: async () => {} });
+  const id = await service.queueBatch!({ uri: 'file:///new-continuous.wav', contentType: 'audio/m4a',
+    durationMs: 2000, recordedAt: Date.now() }, 'ar', -180);
+  await expect(service.runBatch!(id)).rejects.toMatchObject({ code: 'offline' });
+  await expect(service.runBatch!(id)).rejects.toMatchObject({ code: 'offline' });
+  const db = mockDatabases.get('owner-a')!.native;
+  const row = db.prepare('SELECT payload FROM voice_batch_operations WHERE id=?').get(id);
+  expect(JSON.parse(row.payload)).toMatchObject({ phase: 'captured', audioReference: 'file:///new-continuous.wav' });
+  expect(keys).toEqual(['voice-create:' + id, 'voice-create:' + id]);
 });
 
 it.each(['ar', 'en'] as const)(

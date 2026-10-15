@@ -49,8 +49,9 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
     @Headers('x-voice-contract') contract?: string,
+    @Headers('x-masarifi-client-variant') variant?: string,
   ) {
-    return this.ai.createVoiceSession(principal(request), body, key, contract ?? '');
+    return this.ai.createVoiceSession(principal(request), body, key, contract ?? '', variant ?? '');
   }
 
   @Put('voice/sessions/:sessionId/audio')

@@ -50,6 +50,7 @@ import { EngagementWorker } from './engagement/engagement.worker';
             renameSync('/tmp/staging-voice-health.next', '/tmp/staging-voice-health.json');
           },
           (epoch) => confirmations.processVoiceConfirmations(epoch),
+          config.get('MASARIFI_STAGING_VOICE_CONTINUOUS'),
         );
       },
     },

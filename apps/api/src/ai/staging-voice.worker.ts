@@ -3,6 +3,7 @@ import { AiStorage } from './ai.storage';
 import { AiWorker } from './ai.worker';
 import { PlatformLogger } from '../platform/observability/platform-logger';
 import { workerErrorFields } from '../platform/observability/worker-error';
+import { isTransientVoiceError } from './voice-transient-error';
 
 // A separate lifecycle: never boot the general scheduler or AiWorker's broad loop.
 export class StagingVoiceWorker {
@@ -13,6 +14,8 @@ export class StagingVoiceWorker {
   private busy = false;
   private stopping = false;
   private readonly abort = new AbortController();
+  private retryAt = 0;
+  private retryDelay = 1000;
   constructor(
     private readonly repository: AiRepository,
     private readonly engine: AiWorker,
@@ -22,13 +25,15 @@ export class StagingVoiceWorker {
     private readonly sourceSha: string,
     private readonly observe: (state: Record<string, unknown>) => void = () => undefined,
     private readonly confirm: (epoch: string) => Promise<void> = () => Promise.resolve(),
+    private readonly continuous = false,
   ) {}
 
   start(): void {
     if (this.timer || this.stopping) return;
     this.timer = setInterval(() => void this.tick(), 500);
     this.heartbeatTimer = setInterval(() => {
-      void this.pulse().catch((error: unknown) => this.fail(error, 'heartbeat'));
+      if (Date.now() >= this.retryAt)
+        void this.pulse().catch((error: unknown) => this.fail(error, 'heartbeat'));
     }, 5000);
     void this.tick();
   }
@@ -41,7 +46,7 @@ export class StagingVoiceWorker {
     while (this.busy) await new Promise((resolve) => setTimeout(resolve, 10));
   }
   async tick(): Promise<void> {
-    if (this.busy || this.stopping) return;
+    if (this.busy || this.stopping || Date.now() < this.retryAt) return;
     this.busy = true;
     let stage = 'heartbeat';
     try {
@@ -49,12 +54,17 @@ export class StagingVoiceWorker {
       if (this.isStopping() || !state.enabled) return;
       if (state.mode !== 'canary' && state.mode !== 'operating')
         throw new Error('VOICE_SCOPE_INVALID');
+      if (this.continuous && state.mode !== 'operating') throw new Error('VOICE_SCOPE_INVALID');
       stage = 'claim';
       const claims = await this.repository.claimVoiceEpochWork(this.epoch, this.workerId, 1, 120);
       for (const claim of claims) {
         if (this.isStopping()) return;
         stage = 'extract';
-        const succeeded = await this.engine.processVoiceClaim(claim, this.abort.signal);
+        const succeeded = await this.engine.processVoiceClaim(
+          claim,
+          this.abort.signal,
+          this.continuous,
+        );
         if (!succeeded && state.mode === 'canary') {
           await this.repository.closeVoiceEpoch(this.epoch, 'extraction_failed');
           return;
@@ -62,14 +72,17 @@ export class StagingVoiceWorker {
       }
       // A background heartbeat may be revalidating while extraction finishes.
       // Do not claim finalization until that same pulse has been acknowledged.
-      if (this.heartbeatPromise) {
+      if (Date.now() < this.retryAt) return;
+      if (this.heartbeatPromise || this.continuous) {
         stage = 'heartbeat';
-        if (!(await this.heartbeatPromise).enabled) return;
+        if (!(await (this.heartbeatPromise ?? this.pulse())).enabled) return;
       }
       if (this.isStopping()) return;
       stage = 'finalize';
-      if (!(await this.repository.finalizeVoiceEpoch(this.epoch, 1, state.mode === 'canary')))
-        return;
+      const finalized = this.continuous
+        ? await this.repository.finalizeVoiceEpoch(this.epoch, 1, false, true)
+        : await this.repository.finalizeVoiceEpoch(this.epoch, 1, state.mode === 'canary');
+      if (!finalized) return;
       // Bounded captures are retained as acceptance evidence; ordinary retention is scoped.
       if (state.mode === 'canary') return;
       // Delivery failures must not invalidate a committed financial receipt.
@@ -98,7 +111,9 @@ export class StagingVoiceWorker {
           await this.repository.completePurge(claim.id, claim.purge_token, false);
         }
       }
+      this.retryDelay = 1000;
     } catch (error) {
+      if (this.isStopping()) return;
       await this.fail(error, stage);
     } finally {
       this.busy = false;
@@ -138,6 +153,33 @@ export class StagingVoiceWorker {
     return this.stopping;
   }
   private async fail(error: unknown, stage: string): Promise<void> {
+    if (this.stopping) return;
+    if (this.continuous && isTransientVoiceError(error)) {
+      // A later poll revalidates this epoch and reconciles durable claims;
+      // never immediately repeat a write whose result is uncertain.
+      if (Date.now() >= this.retryAt) {
+        this.retryAt = Date.now() + this.retryDelay;
+        this.retryDelay = Math.min(30000, this.retryDelay * 2);
+        try {
+          this.observe({
+            sourceSha: this.sourceSha,
+            epochId: this.epoch,
+            observedAt: Date.now(),
+            enabled: false,
+            desiredPosting: true,
+            availability: 'retrying',
+          });
+          new PlatformLogger().warn('VOICE_SCOPED_RUNTIME_RETRYING', {
+            context: 'StagingVoiceWorker',
+            failureStage: stage,
+            ...workerErrorFields(error),
+          });
+        } catch {
+          /* Diagnostics cannot cancel recovery. */
+        }
+      }
+      return;
+    }
     this.stopping = true;
     if (this.timer) clearInterval(this.timer);
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);

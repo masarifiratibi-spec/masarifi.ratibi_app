@@ -8,6 +8,7 @@ import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency
 import { PoolService } from '../platform/database/pool.service';
 import type { EffectiveAiRoute } from './ai.gateway';
 import type { AssistantTurn } from './ai-routing';
+import { isTransientVoiceError } from './voice-transient-error';
 
 interface JsonRow extends QueryResultRow {
   result: Record<string, unknown>;
@@ -258,7 +259,12 @@ export class AiRepository {
     return claims.length;
   }
 
-  async finalizeVoiceEpoch(epoch: string, limit: number, bounded = false): Promise<boolean> {
+  async finalizeVoiceEpoch(
+    epoch: string,
+    limit: number,
+    bounded = false,
+    continuous = false,
+  ): Promise<boolean> {
     if (!bounded)
       await this.worker(async (client) => {
         await client.query('select private.expire_staging_voice_commands($1::uuid,$2)', [
@@ -280,12 +286,14 @@ export class AiRepository {
       bounded
         ? () => this.closeVoiceEpoch(epoch, 'execution_failed').then(() => undefined)
         : undefined,
+      continuous,
     );
   }
 
   private async finalizeVoiceClaims(
     claims: { batch_id: string; token: string }[],
     stopOnFailure?: () => Promise<void>,
+    continuous = false,
   ): Promise<boolean> {
     let failed = false;
     for (const claim of claims) {
@@ -310,7 +318,8 @@ export class AiRepository {
               await stopOnFailure();
               break;
             }
-          } catch {
+          } catch (error) {
+            if (continuous && isTransientVoiceError(error)) throw error;
             if (stopOnFailure) {
               failed = true;
               await stopOnFailure();

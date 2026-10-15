@@ -85,7 +85,7 @@ const claim = {
   claim_token: '33333333-3333-4333-8333-333333333333',
   attempt_count: 1,
 };
-function fixture(mode = 'canary') {
+function fixture(mode = 'canary', continuous = false) {
   const effects: string[] = [];
   const observations: Record<string, unknown>[] = [];
   let enabled = true;
@@ -142,7 +142,9 @@ function fixture(mode = 'canary') {
     epoch,
     'scoped-worker',
     'a'.repeat(40),
-    (state) => observations.push(state),
+    (state: Record<string, unknown>) => observations.push(state),
+    undefined,
+    continuous,
   );
   return {
     worker,
@@ -155,6 +157,83 @@ function fixture(mode = 'canary') {
     },
   };
 }
+it('keeps continuous posting open through repeated heartbeat outages and resumes after revalidation', async () => {
+  jest.useFakeTimers();
+  const f = fixture('operating', true);
+  let offline = true;
+  f.repository.voiceEpochHeartbeat = () =>
+    offline
+      ? Promise.reject(new Error('Query read timeout'))
+      : Promise.resolve({ enabled: true, mode: 'operating' });
+  try {
+    f.worker.start();
+    await jest.advanceTimersByTimeAsync(65000);
+    expect(f.effects).toEqual([]);
+    expect(f.observations.at(-1)).toMatchObject({ availability: 'retrying', desiredPosting: true });
+    offline = false;
+    await jest.advanceTimersByTimeAsync(30000);
+    expect(f.effects).toContain('scoped-finalize');
+    expect(f.effects).not.toContain('closed:runtime_failed');
+  } finally {
+    await f.worker.stop();
+    jest.useRealTimers();
+  }
+});
+
+it('reconciles an uncertain continuous finalization on a later poll without closing its epoch', async () => {
+  jest.useFakeTimers();
+  const f = fixture('operating', true);
+  const finalize = f.repository.finalizeVoiceEpoch;
+  f.repository.finalizeVoiceEpoch = () => Promise.reject(new Error('DATABASE_QUERY_TIMEOUT'));
+  try {
+    await f.worker.tick();
+    expect(f.effects).toEqual(['scoped-claim', 'existing-extraction']);
+    f.repository.finalizeVoiceEpoch = finalize;
+    await jest.advanceTimersByTimeAsync(30000);
+    await f.worker.tick();
+    expect(f.effects.filter((v) => v === 'scoped-finalize')).toHaveLength(1);
+    expect(f.effects).not.toContain('closed:runtime_failed');
+  } finally {
+    await f.worker.stop();
+    jest.useRealTimers();
+  }
+});
+
+it('does not resume continuous processing after an authoritative scope rejection', async () => {
+  const f = fixture('operating', true);
+  f.repository.voiceEpochHeartbeat = () => Promise.reject(new Error('VOICE_SCOPE_INVALID'));
+  await f.worker.tick();
+  await f.worker.tick();
+  expect(f.effects).toEqual(['closed:runtime_failed']);
+});
+it('does not close continuous posting when a pending background heartbeat fails during shutdown', async () => {
+  jest.useFakeTimers();
+  const f = fixture('operating', true);
+  let rejectHeartbeat!: (error: Error) => void;
+  let calls = 0;
+  f.repository.voiceEpochHeartbeat = () =>
+    ++calls === 1
+      ? Promise.resolve({ enabled: true, mode: 'operating' })
+      : new Promise((_resolve, reject) => {
+          rejectHeartbeat = reject;
+        });
+  f.engine.processVoiceClaim = (_claim: unknown, signal?: AbortSignal) =>
+    new Promise((resolve) => {
+      if (!signal) throw new Error('ABORT_SIGNAL_REQUIRED');
+      signal.addEventListener('abort', () => { resolve(false); }, { once: true });
+    });
+  try {
+    f.worker.start();
+    await jest.advanceTimersByTimeAsync(5000);
+    const stopping = f.worker.stop();
+    rejectHeartbeat(new Error('Query read timeout'));
+    await jest.advanceTimersByTimeAsync(20);
+    await stopping;
+    expect(f.effects).toEqual(['scoped-claim']);
+  } finally {
+    jest.useRealTimers();
+  }
+});
 it('revalidates only the heartbeat once after a driver read timeout before claiming financial work', async () => {
   const f = fixture('operating');
   const heartbeat = jest

@@ -46,6 +46,20 @@ const compact = (patch = {}) => ({
 
 it.each(
   [
+    {
+      language: 'ar',
+      empty: false,
+      allSkipped: false,
+      rejectAcceptance: false,
+      dispatchFailure: 'Query read timeout',
+    },
+    {
+      language: 'ar',
+      empty: false,
+      allSkipped: false,
+      rejectAcceptance: false,
+      dispatchFailure: 'AI_DISPATCH_REJECTED',
+    },
     { language: 'ar', empty: false, allSkipped: false, rejectAcceptance: false },
     { language: 'en', empty: false, allSkipped: false, rejectAcceptance: false },
     { language: 'ar', empty: true, allSkipped: false, rejectAcceptance: false },
@@ -83,11 +97,20 @@ it.each(
   ].map((test) => ({
     scopeMismatch: false as unknown,
     scopeMismatchReason: undefined as unknown,
+    dispatchFailure: undefined as string | undefined,
     ...test,
   })),
 )(
   'preserves event decisions and private diagnostic counts for %j',
-  async ({ language, empty, allSkipped, rejectAcceptance, scopeMismatch, scopeMismatchReason }) => {
+  async ({
+    language,
+    empty,
+    allSkipped,
+    rejectAcceptance,
+    scopeMismatch,
+    scopeMismatchReason,
+    dispatchFailure,
+  }) => {
     const lines: string[] = [];
     const diagnostic = jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
       lines.push(String(line));
@@ -147,7 +170,9 @@ it.each(
             ],
           }),
         authorizeVoiceDispatch: () =>
-          Promise.resolve({ operationId: 'local-operation', attemptNo: 1 }),
+          dispatchFailure
+            ? Promise.reject(new Error(dispatchFailure))
+            : Promise.resolve({ operationId: 'local-operation', attemptNo: 1 }),
         recordVoiceAttempt: () => Promise.resolve(),
         acceptVoiceBatch: (_id: string, _token: string, decisions: VoiceEventDecision[]) => {
           accepted.push(decisions);
@@ -210,6 +235,19 @@ it.each(
         gateway,
         config as never,
       );
+      if (dispatchFailure) {
+        const work = worker.processVoiceClaim(claim, undefined, true);
+        if (dispatchFailure === 'Query read timeout') {
+          await expect(work).rejects.toThrow(dispatchFailure);
+          expect(failures).toEqual([]);
+        } else {
+          await expect(work).resolves.toBe(false);
+          expect(failures).toEqual(['AI_DISPATCH_REJECTED']);
+        }
+        expect(accepted).toEqual([]);
+        expect(request).toBe('');
+        return;
+      }
       const processed = await worker.processVoiceClaim(claim);
       expect(failures).toEqual(rejectAcceptance ? ['VOICE_SCOPE_INVALID'] : []);
       expect(processed).toBe(!rejectAcceptance);

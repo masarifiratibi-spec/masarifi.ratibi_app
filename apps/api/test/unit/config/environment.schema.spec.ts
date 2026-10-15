@@ -29,6 +29,33 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('limits continuous Voice and DEV admission configuration to their Staging processes', () => {
+    const staging = { ...valid, SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co' };
+    expect(
+      validateEnvironment({
+        ...staging,
+        MASARIFI_VOICE_ANALYSIS_ONLY: true,
+        MASARIFI_STAGING_VOICE_DEV_OWNER_ID: 'owner',
+      }).MASARIFI_STAGING_VOICE_DEV_OWNER_ID,
+    ).toBe('owner');
+    for (const patch of [
+      { SUPABASE_URL: 'https://other.supabase.co' },
+      { MASARIFI_PROCESS_KIND: 'worker' },
+      { MASARIFI_VOICE_ANALYSIS_ONLY: false },
+    ]) {
+      expect(() =>
+        validateEnvironment({
+          ...staging,
+          MASARIFI_VOICE_ANALYSIS_ONLY: true,
+          MASARIFI_STAGING_VOICE_DEV_OWNER_ID: 'owner',
+          ...patch,
+        }),
+      ).toThrow('MASARIFI_STAGING_VOICE_DEV_OWNER_ID');
+    }
+    expect(() =>
+      validateEnvironment({ ...staging, MASARIFI_STAGING_VOICE_CONTINUOUS: true }),
+    ).toThrow('MASARIFI_STAGING_VOICE_CONTINUOUS');
+  });
   it('accepts the actual CI migration environment without collector-only settings', () => {
     const workflow = load(
       readFileSync(

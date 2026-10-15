@@ -61,6 +61,8 @@ const applicationKeys = new Set([
   'MASARIFI_VOICE_ANALYSIS_ONLY',
   'MASARIFI_FINANCE_DIAGNOSTICS_ENABLED',
   'MASARIFI_STAGING_VOICE_EPOCH_ID',
+  'MASARIFI_STAGING_VOICE_CONTINUOUS',
+  'MASARIFI_STAGING_VOICE_DEV_OWNER_ID',
   'MASARIFI_AI_WORKER_POLL_MS',
   'MASARIFI_AI_JOB_BATCH_SIZE',
   'MASARIFI_AI_LEASE_SECONDS',
@@ -308,6 +310,10 @@ const schema = Joi.object<PlatformEnvironment>({
     .guid({ version: ['uuidv4'] })
     .optional(),
   MASARIFI_AI_WORKER_POLL_MS: Joi.number().integer().min(100).max(10_000).default(500),
+  MASARIFI_STAGING_VOICE_CONTINUOUS: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_STAGING_VOICE_DEV_OWNER_ID: Joi.string()
+    .pattern(/^[A-Za-z0-9_]{1,128}$/)
+    .optional(),
   MASARIFI_AI_JOB_BATCH_SIZE: Joi.number().integer().min(1).max(25).default(25),
   MASARIFI_AI_LEASE_SECONDS: Joi.number().integer().min(10).max(300).default(120),
   MASARIFI_AI_MAX_CONCURRENCY: Joi.number().integer().min(1).max(16).default(4),
@@ -566,6 +572,15 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
+  if (environment.MASARIFI_STAGING_VOICE_CONTINUOUS && !environment.MASARIFI_STAGING_VOICE_EPOCH_ID)
+    invalidEnvironment(['MASARIFI_STAGING_VOICE_CONTINUOUS']);
+  if (
+    environment.MASARIFI_STAGING_VOICE_DEV_OWNER_ID &&
+    (environment.MASARIFI_PROCESS_KIND !== 'api' ||
+      !environment.MASARIFI_VOICE_ANALYSIS_ONLY ||
+      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+  )
+    invalidEnvironment(['MASARIFI_STAGING_VOICE_DEV_OWNER_ID']);
   if (
     environment.MASARIFI_AI_ASSISTANT_ONLY &&
     (environment.MASARIFI_VOICE_ANALYSIS_ONLY || environment.MASARIFI_STAGING_VOICE_EPOCH_ID)

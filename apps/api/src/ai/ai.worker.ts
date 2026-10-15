@@ -13,6 +13,7 @@ import { withAiAbort } from './ai.abort';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { PlatformLogger } from '../platform/observability/platform-logger';
 import { workerErrorFields } from '../platform/observability/worker-error';
+import { isTransientVoiceError } from './voice-transient-error';
 import { recordAiJob, recordAiResult } from './ai.observability';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
@@ -519,12 +520,20 @@ export class AiWorker implements OnModuleDestroy {
     return claims.length;
   }
 
-  async processVoiceClaim(claim: AiWorkClaim, signal?: AbortSignal): Promise<boolean> {
+  async processVoiceClaim(
+    claim: AiWorkClaim,
+    signal?: AbortSignal,
+    continuous = false,
+  ): Promise<boolean> {
     if (claim.kind !== 'voice.transcribe_extract') throw new Error('VOICE_SCOPE_INVALID');
-    return this.process(claim, signal);
+    return this.process(claim, signal, continuous);
   }
 
-  private async process(claim: AiWorkClaim, externalSignal?: AbortSignal): Promise<boolean> {
+  private async process(
+    claim: AiWorkClaim,
+    externalSignal?: AbortSignal,
+    continuous = false,
+  ): Promise<boolean> {
     const startedAt = performance.now();
     const controller = new AbortController();
     const signal = AbortSignal.any([
@@ -535,6 +544,7 @@ export class AiWorker implements OnModuleDestroy {
     let renewal: NodeJS.Timeout | undefined;
     let deadline: NodeJS.Timeout | undefined;
     let renewing = false;
+    let renewalFailure: unknown;
     let outcome = 'failure';
     try {
       if (claim.kind === 'voice.transcribe_extract') {
@@ -550,7 +560,8 @@ export class AiWorker implements OnModuleDestroy {
               .then((valid) => {
                 if (!valid) controller.abort();
               })
-              .catch(() => {
+              .catch((error: unknown) => {
+                renewalFailure = error;
                 controller.abort();
               })
               .finally(() => {
@@ -563,7 +574,7 @@ export class AiWorker implements OnModuleDestroy {
         deadline = setTimeout(() => {
           controller.abort();
         }, 180_000);
-        await withAiAbort(signal, () => this.voice(claim, signal));
+        await withAiAbort(signal, () => this.voice(claim, signal, continuous));
       } else if (claim.kind === 'assistant.respond') {
         // No lease extension exists for assistant work. Bound all I/O inside the current fence.
         const leaseMs = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS') * 1000;
@@ -579,6 +590,10 @@ export class AiWorker implements OnModuleDestroy {
       outcome = 'success';
       return true;
     } catch (error) {
+      // Keep a transiently interrupted recording available for fenced lease recovery.
+      if (continuous && (externalSignal?.aborted || isTransientVoiceError(renewalFailure)))
+        throw renewalFailure ?? error;
+      if (continuous && isTransientVoiceError(error)) throw error;
       if (error instanceof AiGatewayError && error.diagnostic)
         new PlatformLogger().warn('AI_PROVIDER_REQUEST_REJECTED', {
           ...error.diagnostic,
@@ -644,7 +659,7 @@ export class AiWorker implements OnModuleDestroy {
     }
   }
 
-  private async voice(claim: AiWorkClaim, signal: AbortSignal): Promise<void> {
+  private async voice(claim: AiWorkClaim, signal: AbortSignal, continuous = false): Promise<void> {
     const input = object(await this.repository.workInput(claim.kind, claim.id, claim.claim_token));
     const route = await this.repository.getRoute('voice_transcription');
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
@@ -676,66 +691,81 @@ export class AiWorker implements OnModuleDestroy {
       return { alias, kind, version, data };
     });
     let attemptNo = 0;
-    const completion = await this.gateway.complete<unknown>({
-      route: batch
-        ? {
-            ...route,
-            limits: { ...route.limits, outputTokens: Math.min(1200, route.limits.outputTokens) },
-            prompt: { template: VOICE_BATCH_PROMPT, schemaVersion: 3 },
-          }
-        : route,
-      voiceBatch: batch,
-      userContent: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            locale: String(input.locale),
-            capture: {
-              recordedAt: new Date(String(input.recordedAt)).toISOString(),
-              timezoneOffsetMinutes: input.timezoneOffsetMinutes,
-              referenceLocalDate: new Date(
-                Date.parse(String(input.recordedAt)) - Number(input.timezoneOffsetMinutes) * 60_000,
-              )
-                .toISOString()
-                .slice(0, 10),
-              legacyContext: input.captureContextLegacy,
-            },
-            references: descriptors,
-            instruction: batch
-              ? VOICE_BATCH_PROMPT
-              : 'Use only supplied aliases. Expenses use positive amountMinor; income uses negative amountMinor. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
-          }),
+    let dispatchFailure: unknown;
+    const completion = await this.gateway
+      .complete<unknown>({
+        route: batch
+          ? {
+              ...route,
+              limits: { ...route.limits, outputTokens: Math.min(1200, route.limits.outputTokens) },
+              prompt: { template: VOICE_BATCH_PROMPT, schemaVersion: 3 },
+            }
+          : route,
+        voiceBatch: batch,
+        userContent: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              locale: String(input.locale),
+              capture: {
+                recordedAt: new Date(String(input.recordedAt)).toISOString(),
+                timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+                referenceLocalDate: new Date(
+                  Date.parse(String(input.recordedAt)) -
+                    Number(input.timezoneOffsetMinutes) * 60_000,
+                )
+                  .toISOString()
+                  .slice(0, 10),
+                legacyContext: input.captureContextLegacy,
+              },
+              references: descriptors,
+              instruction: batch
+                ? VOICE_BATCH_PROMPT
+                : 'Use only supplied aliases. Expenses use positive amountMinor; income uses negative amountMinor. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
+            }),
+          },
+          {
+            type: 'input_audio',
+            input_audio: { data: audio.toString('base64'), format: audioFormat(contentType) },
+          },
+        ],
+        schema: batch ? VOICE_BATCH_OUTPUT_SCHEMA : VOICE_OUTPUT_SCHEMA,
+        parse: batch ? parseVoiceBatchProviderOutput : parseVoiceWorkerOutput,
+        requestId: String(input.operationId),
+        signal,
+        beforeDispatch: async (candidate) => {
+          const authorized = await this.repository
+            .authorizeVoiceDispatch(
+              claim.id,
+              claim.claim_token,
+              candidate.modelId,
+              candidate.provider,
+              route,
+            )
+            .catch((error: unknown) => {
+              dispatchFailure = error;
+              throw error;
+            });
+          if (
+            authorized.operationId !== input.operationId ||
+            !Number.isInteger(authorized.attemptNo)
+          )
+            throw new Error('AI_DISPATCH_REJECTED');
+          attemptNo = Number(authorized.attemptNo);
         },
-        {
-          type: 'input_audio',
-          input_audio: { data: audio.toString('base64'), format: audioFormat(contentType) },
-        },
-      ],
-      schema: batch ? VOICE_BATCH_OUTPUT_SCHEMA : VOICE_OUTPUT_SCHEMA,
-      parse: batch ? parseVoiceBatchProviderOutput : parseVoiceWorkerOutput,
-      requestId: String(input.operationId),
-      signal,
-      beforeDispatch: async (candidate) => {
-        const authorized = await this.repository.authorizeVoiceDispatch(
-          claim.id,
-          claim.claim_token,
-          candidate.modelId,
-          candidate.provider,
-          route,
-        );
-        if (authorized.operationId !== input.operationId || !Number.isInteger(authorized.attemptNo))
-          throw new Error('AI_DISPATCH_REJECTED');
-        attemptNo = Number(authorized.attemptNo);
-      },
-      onReceipt: (receipt) =>
-        this.repository
-          .recordVoiceAttempt(String(input.operationId), attemptNo, receipt, true)
-          .then(() => undefined),
-      onDispatchFailure: (received) =>
-        this.repository
-          .recordVoiceAttempt(String(input.operationId), attemptNo, null, received)
-          .then(() => undefined),
-    });
+        onReceipt: (receipt) =>
+          this.repository
+            .recordVoiceAttempt(String(input.operationId), attemptNo, receipt, true)
+            .then(() => undefined),
+        onDispatchFailure: (received) =>
+          this.repository
+            .recordVoiceAttempt(String(input.operationId), attemptNo, null, received)
+            .then(() => undefined),
+      })
+      .catch((error: unknown) => {
+        if (continuous && isTransientVoiceError(dispatchFailure)) throw dispatchFailure;
+        throw error;
+      });
     if (batch) {
       const decisions = decideVoiceBatch(completion.value, {
         recordedAt: String(input.recordedAt),
