@@ -389,6 +389,13 @@ suite('fenced assistant finance tools on isolated PostgreSQL', () => {
       }),
     );
   });
+  it('reads aggregate tracking outcomes without raw message bodies', async () => {
+    const result = await reader.read(message, token, { tool: 'tracking' });
+    expect(result.data.tracking).toEqual(
+      expect.objectContaining({ stateAsOf: 'current', outcomes: [] }),
+    );
+    expect(JSON.stringify(result.data)).not.toMatch(/smsBody|rawBody|messageBody/u);
+  });
   it('denies a different claim token before reading financial data', async () => {
     await expect(reader.read(message, randomUUID(), { tool: 'overview' })).rejects.toThrow(
       'ASSISTANT_DATA_FENCE_DENIED',
