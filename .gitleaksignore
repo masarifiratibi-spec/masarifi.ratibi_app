@@ -3,6 +3,9 @@
 # Historical Staging api.env SHA-256 checksum; verified file hash, not a credential value.
 1ee3ef3bf50fd97d8c1a573f606d0b8ad8458e6c:scripts/voice-manual-canary/canary-host.cjs:generic-api-key:15
 
+# Historical fictional Clerk publishable identifier in a background-runtime test; no valid Clerk payload.
+13933505dbf00bd37673d310d6a0099089f5eb75:apps/mobile/src/services/tracking-background-runtime.test.ts:generic-api-key:93
+
 # Nonsecret container IDs, image digests and Git revisions in deployment evidence.
 9c0aa80e7854d2061e253dcd1ecf29c0663248f4:docs/recovery/CURRENT-RECOVERY-STATUS-AND-HANDOFF.md:generic-api-key:96
 20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:4

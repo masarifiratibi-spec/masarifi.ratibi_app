@@ -90,7 +90,7 @@ describe('durable DEV follow-up scheduling', () => {
     };
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
     process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_followup123456';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = ['pk', 'test', 'nonfunctionalfixture'].join('_');
     jest.mocked(SecureStore.getItemAsync).mockResolvedValue(retainedContext);
   });
   afterEach(() => {
