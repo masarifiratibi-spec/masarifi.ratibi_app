@@ -82,6 +82,26 @@ it.each(['صرفت 999 ريال', 'صرفت {{F999}}', 'صرفت ٩٩٩ ريال
   },
 );
 
+it('grounds exact literal amounts and ISO dates without requiring another provider call', () => {
+  expect(
+    renderAssistantAnswer('مصروفاتك 0 ريال بتاريخ 2026-10-16.', [
+      { key: 'F1', value: '0 ريال', path: 'totals.confirmedMinor' },
+      { key: 'F2', value: '2026-10-16', path: 'period.startDate' },
+    ]),
+  ).toBe('مصروفاتك 0 ريال بتاريخ 2026-10-16.');
+});
+
+it.each(['صرفت 13 ريال', 'صرفت 3 دولار', 'عندك 3 معاملات'])(
+  'keeps unmatched numbers rejected even when other facts share digits: %s',
+  (answer) => {
+    expect(() =>
+      renderAssistantAnswer(answer, [
+        { key: 'F1', value: '3 ريال', path: 'totals.confirmedMinor' },
+      ]),
+    ).toThrow('AI_UNGROUNDED_ANSWER');
+  },
+);
+
 it('runs a model-selected historical read before answering a follow-up', async () => {
   const reads: unknown[] = [];
   const providerReplies = [
@@ -443,4 +463,129 @@ it('redacts personal identifiers from both model display cells and the rendered 
   await expect(agent.run(claim, route, new AbortController().signal)).resolves.toMatchObject({
     content: 'المعاملة بقيمة 3 ريال.',
   });
+});
+
+it('corrects an unsupported numeric reply using exact totals for the requested empty day and reports only the currency used', async () => {
+  const todayQuery: AssistantDataQuery = {
+    tool: 'summary',
+    startDate: '2026-10-16',
+    endDate: '2026-10-16',
+    currency: 'SAR',
+  };
+  const overview = {
+    ...sample,
+    data: {
+      status: 'ok',
+      accounts: { items: [{ currency: 'SAR' }, { currency: 'USD' }] },
+      period: { startDate: '2026-10-01', endDate: '2026-10-16' },
+      summaries: [
+        { currency: 'USD', kind: 'expense', status: 'confirmed', amountMinor: '1000', count: 1 },
+      ],
+    },
+  };
+  const emptyDay = {
+    ...sample,
+    data: {
+      status: 'ok',
+      period: { startDate: '2026-10-16', endDate: '2026-10-16' },
+      summaries: [],
+    },
+  };
+  let round = 0;
+  const agent = new AssistantAgent(
+    {
+      read: (_id: string, _token: string, query: AssistantDataQuery) =>
+        Promise.resolve(query.tool === 'overview' ? overview : emptyDay),
+    } as never,
+    {
+      complete: (input: { parse: (value: unknown) => unknown; userContent: string }) => {
+        if (round++ === 0)
+          return reply(input, {
+            status: 'query',
+            responseType: 'fact',
+            scope: 'selected_period',
+            answer: '',
+            queries: [todayQuery],
+          });
+        if (round === 2)
+          return reply(input, {
+            status: 'answer',
+            responseType: 'fact',
+            scope: 'selected_period',
+            answer: 'دخل النهارده 999 ريال والمصاريف 999 ريال.',
+            queries: [],
+          });
+        type Total = {
+          readIndex: ModelCell;
+          currency: string;
+          kind: string;
+          confirmedMinor: ModelCell;
+        };
+        const payload = JSON.parse(input.userContent) as {
+          validationFeedback: string;
+          exactPeriodTotals: Total[] | { items: Total[] };
+        };
+        expect(payload.validationFeedback).toContain('Available zero references');
+        const totals = Array.isArray(payload.exactPeriodTotals)
+          ? payload.exactPeriodTotals
+          : payload.exactPeriodTotals.items;
+        const income = totals.find(
+          (total) =>
+            total.readIndex.value === '1' && total.currency === 'SAR' && total.kind === 'income',
+        );
+        const expense = totals.find(
+          (total) =>
+            total.readIndex.value === '1' && total.currency === 'SAR' && total.kind === 'expense',
+        );
+        if (!income || !expense)
+          throw Error('Expected complete confirmed totals for the requested day');
+        expect(income.confirmedMinor.value).toBe('0 ريال');
+        expect(expense.confirmedMinor.value).toBe('0 ريال');
+        return reply(input, {
+          status: 'answer',
+          responseType: 'fact',
+          scope: 'selected_period',
+          answer: `دخل النهارده المؤكد ${income.confirmedMinor.ref} والمصروفات المؤكدة ${expense.confirmedMinor.ref}.`,
+          queries: [],
+        });
+      },
+    } as never,
+    () => Promise.resolve(),
+  );
+  const answer = await agent.run(
+    { ...claim, content: 'صرفت كام النهارده ودخلي كام؟' },
+    route,
+    new AbortController().signal,
+  );
+  expect(round).toBe(3);
+  expect(answer.content).toBe('دخل النهارده المؤكد 0 ريال والمصروفات المؤكدة 0 ريال.');
+  expect(answer.metadata.currencies).toEqual(['SAR']);
+});
+
+it('reports the currency of an accepted exact monetary literal as well as explicit fact references', async () => {
+  const agent = new AssistantAgent(
+    { read: () => Promise.resolve(sample) } as never,
+    {
+      complete: (input: { parse: (value: unknown) => unknown }) =>
+        reply(input, {
+          status: 'answer',
+          responseType: 'fact',
+          scope: 'all_history',
+          answer: 'آخر معاملة بقيمة 3 ريال.',
+          queries: [],
+        }),
+    } as never,
+    () => Promise.resolve(),
+  );
+  const answer = await agent.run(claim, route, new AbortController().signal);
+  expect(answer.content).toBe('آخر معاملة بقيمة 3 ريال.');
+  expect(answer.metadata.currencies).toEqual(['SAR']);
+});
+
+it.each(['-3 SAR', '−3 SAR'])('rejects a changed monetary sign in a literal: %s', (literal) => {
+  expect(() =>
+    renderAssistantAnswer(`Balance: ${literal}.`, [
+      { key: 'F1', value: '3 SAR', path: 'account.confirmedMinor', currency: 'SAR' },
+    ]),
+  ).toThrow('AI_UNGROUNDED_ANSWER');
 });

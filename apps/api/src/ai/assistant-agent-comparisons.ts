@@ -52,6 +52,60 @@ function sameScope(left: SummaryRead, right: SummaryRead): boolean {
       ((right.query as unknown as Record<string, unknown>)[key] ?? null),
   );
 }
+
+// Empty grouped sums are an exact zero only after a successful complete aggregate.
+// Choose currencies from authenticated financial records, never the global currency catalog.
+export function assistantPeriodTotals(reads: SummaryRead[]) {
+  const knownCurrencies = new Set<string>();
+  for (const { snapshot } of reads) {
+    const data = snapshot.data;
+    const records: unknown[] = [object(data.latestTransactionAllHistory).transaction];
+    for (const collection of [
+      object(data.accounts).items,
+      object(data.transactions).items,
+      data.summaries,
+    ]) {
+      if (Array.isArray(collection)) {
+        const entries: unknown[] = collection;
+        records.push(...entries);
+      }
+    }
+    for (const entry of records) {
+      const currency = object(entry).currency;
+      if (typeof currency === 'string' && /^[A-Z]{3}$/u.test(currency))
+        knownCurrencies.add(currency);
+    }
+  }
+  return reads.flatMap((read, readIndex) => {
+    const data = read.snapshot.data;
+    if (data.status !== 'ok' || !Array.isArray(data.summaries)) return [];
+    const kinds = read.query.kind
+      ? ['expense', 'income'].filter((kind) => kind === read.query.kind)
+      : ['expense', 'income'];
+    const currencies = read.query.currency ? [read.query.currency] : Array.from(knownCurrencies);
+    return currencies.flatMap((currency) =>
+      kinds.map((kind) => {
+        const rows = (data.summaries as unknown[])
+          .map(object)
+          .filter(
+            (row) => row.currency === currency && row.kind === kind && row.status === 'confirmed',
+          );
+        return {
+          readIndex,
+          period: data.period,
+          filters: read.query,
+          currency,
+          kind,
+          confirmedMinor: rows
+            .reduce((sum, row) => sum + BigInt(String(row.amountMinor)), 0n)
+            .toString(),
+          confirmedCount: rows.reduce((sum, row) => sum + Number(row.count ?? 0), 0),
+          completeConfirmedAggregate: true,
+        };
+      }),
+    );
+  });
+}
 export function assistantComparisons(reads: SummaryRead[]): ExactComparison[] {
   const available = reads.filter(
     (read) =>

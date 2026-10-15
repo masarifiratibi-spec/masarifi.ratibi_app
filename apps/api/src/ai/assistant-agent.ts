@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { AiGateway, AiGatewayError } from './ai.gateway';
 import { redactAiContext, redactAiText } from './ai.schemas';
 import { localDateAt } from '../reports/reports.period';
-import { assistantComparisons } from './assistant-agent-comparisons';
+import { assistantComparisons, assistantPeriodTotals } from './assistant-agent-comparisons';
 import {
   AssistantAgentData,
   ASSISTANT_DATA_QUERY_SCHEMA,
@@ -28,6 +28,7 @@ export interface AssistantFact {
   key: string;
   value: string;
   path: string;
+  currency?: string;
 }
 interface AgentDecision {
   status: 'query' | 'answer';
@@ -107,7 +108,25 @@ function parseDecision(input: unknown): AgentDecision {
 
 export function renderAssistantAnswer(answer: string, facts: AssistantFact[]): string {
   const known = new Map(facts.map((fact) => [fact.key, fact.value]));
-  const prose = answer.replace(/\{\{F[1-9]\d*\}\}/gu, '');
+  // Bind exact server-known displays too. A correct literal should not cost a
+  // second model call; partial numbers, changed currencies and bare counts fail.
+  let grounded = answer;
+  for (const fact of [...facts].sort((left, right) => right.value.length - left.value.length)) {
+    const monetary = /Minor$/u.test(fact.path) && /\p{L}/u.test(fact.value);
+    const date = /(?:Date|At)$/u.test(fact.path);
+    const percentage = /percentageBasisPoints$/u.test(fact.path);
+    if ((!monetary && !date && !percentage) || !/[0-9٠-٩۰-۹]/u.test(fact.value)) continue;
+    const literal = fact.value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+    grounded = grounded.replace(
+      new RegExp(`(?<![\\p{L}\\p{N}.,\\u066b\\u066c])${literal}(?![\\p{L}\\p{N}])`, 'gu'),
+      (match: string, offset: number, source: string) => {
+        if ((monetary || percentage) && /[+\-−﹣－＋]\s*$/u.test(source.slice(0, offset)))
+          return match;
+        return `{{${fact.key}}}`;
+      },
+    );
+  }
+  const prose = grounded.replace(/\{\{F[1-9]\d*\}\}/gu, '');
   if (/[0-9٠-٩۰-۹]|\{\{|\}\}/u.test(prose)) throw new Error('AI_UNGROUNDED_ANSWER');
   if (
     Array.from(prose).some((character) => {
@@ -121,7 +140,7 @@ export function renderAssistantAnswer(answer: string, facts: AssistantFact[]): s
     })
   )
     throw new Error('AI_SCHEMA_INVALID');
-  const rendered = answer
+  const rendered = grounded
     .replace(/\{\{(F[1-9]\d*)\}\}/gu, (_match, key: string) => {
       const fact = known.get(key);
       if (fact === undefined) throw new Error('AI_UNGROUNDED_ANSWER');
@@ -203,6 +222,9 @@ function modelData(
         key: `F${(facts.length + 1).toString()}`,
         path,
         value: redactAiText(formatFact(node, key, parent, timezone, locale)),
+        ...(/Minor$/u.test(key) && typeof parent.currency === 'string'
+          ? { currency: parent.currency }
+          : {}),
       };
       facts.push(fact);
       return { value: fact.value, ref: `{{${fact.key}}}` };
@@ -264,6 +286,7 @@ export class AssistantAgent {
     let validationFeedback: string | null = null;
     for (let round = 0; round < 3; round += 1) {
       const comparisons = assistantComparisons(reads);
+      const periodTotals = assistantPeriodTotals(reads);
       signal.throwIfAborted();
       const conversation = [...claim.history];
       while (Buffer.byteLength(JSON.stringify(conversation)) > 8000) conversation.shift();
@@ -312,6 +335,16 @@ export class AssistantAgent {
               locale,
               reads.length,
             ),
+            exactPeriodTotals: modelData(
+              boundedCollections(
+                { items: periodTotals, count: periodTotals.length, offset: 0, hasMore: false },
+                take,
+              ),
+              candidateFacts,
+              claim.timezone,
+              locale,
+              reads.length + 1,
+            ),
           });
           if (Buffer.byteLength(candidate) <= 48000) {
             payload = candidate;
@@ -351,7 +384,12 @@ export class AssistantAgent {
         if (!(error instanceof Error) || error.message !== 'AI_UNGROUNDED_ANSWER' || round === 2)
           throw error;
         validationFeedback =
-          'Your previous answer used raw numeric digits or an unknown fact. Compose the answer using only the provided {{F...}} references for ALL numbers/dates/counts/amounts, without inventing facts.';
+          'Your previous answer used raw numeric digits or an unknown fact. Use the supplied ref cells for ALL numbers/dates/counts/amounts. For empty complete periods use exactPeriodTotals, which provides verified zero amounts; otherwise say no matching records without inventing a numeric amount. Available zero references: ' +
+          JSON.stringify(
+            facts
+              .filter((fact) => /confirmedMinor$/u.test(fact.path) && /^0 /u.test(fact.value))
+              .map((fact) => ({ ref: `{{${fact.key}}}`, value: fact.value, path: fact.path })),
+          );
         continue;
       }
       const evidence = reads.map(({ snapshot }, index) => ({
@@ -375,7 +413,13 @@ export class AssistantAgent {
           scope: completion.value.scope,
           startDate: period?.startDate ?? reads.at(-1)?.query.startDate ?? today,
           endDate: period?.endDate ?? reads.at(-1)?.query.endDate ?? today,
-          currencies: [],
+          currencies: [
+            ...new Set(
+              facts.flatMap((fact) =>
+                fact.currency && content.includes(fact.value) ? [fact.currency] : [],
+              ),
+            ),
+          ],
           responseType: completion.value.responseType,
           generatedAt: new Date().toISOString(),
           values: [],
