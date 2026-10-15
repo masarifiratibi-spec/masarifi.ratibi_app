@@ -64,3 +64,19 @@ Private source/runtime receipts, question operations, actual responses, timing a
 4. Ask for today's income and expenses together, then say “ونفس الكلام لأمبارح؟”. Check local dates and zero totals where the recorded period is empty.
 5. Try a personally relevant account, budget, obligation or savings question. Check that missing or ambiguous data produces a useful clarification or limitation.
 6. Record the exact question, response, period and response time for any weak answer. Continue with fresh read questions within the existing quota; do not replay historical audio/SMS or confirm financial actions during read qualification.
+
+## Follow-up: financial specialty and keyboard
+
+The user reported that this DEV conversation offered programming help and the Android keyboard covered the composer. Implemented the bounded fixes on the same branch/worktree:
+
+- Direct unrelated tasks and brief introductions return short server-owned scope notices before action routing, availability checks, financial reads or quota reservation. Model decisions also support a closed out-of-scope result, and explicit programming output is refused. Financial software names, financial program/plan requests and contextual financial follow-ups remain supported. The numerical quota policy is unchanged.
+- Moved keyboard avoidance around the full conversation flex area with the existing top safe inset. Native show/hide lifecycle prevents residual padding after dismissal. The Android device verified visible multiline typing and send, scrolling, and Back dismissal without route loss; the original draft was restored. No native identity/configuration/permission changes were required.
+- Scope notices map to `safe_redirect` with a localized specialty heading. They carry no financial period, facts, proposed action or missing-data warning.
+
+Backend runtime source: `c35ab714ef8b09c78d07196321a4c52949d3936b`, new DEV-only API/worker on port 3008. The mobile-only notice-warning correction is `50bdac980b074a160b54c09d732e8dafbd9c2a03`. Existing schema checksums were verified without applying migrations. The original 126 containers and all unrelated current container pins were preserved; only the previous owned DEV assistant worker was retired after the private queue drained. Voice remained operating with its original manifest and no expiry.
+
+Verification: API AI/config 51 suites / 638 tests passed; AI contracts 18 tests passed. Mobile 485 suites / 3170 tests passed, with 70 adapter tests and typecheck passing after the final notice correction. Physical Android keyboard behavior was verified; iOS geometry has regression coverage but no physical-device qualification. Independent review found and fixed overly broad programming detection and the canonical mobile block-label schema mismatch.
+
+Two fresh native UI questions in the existing conversation—programming ability and Python code for expenses—returned the brief scope refusal in about 3.6 and 2.0 seconds. Owner usage and private agent-job counts stayed unchanged, as did all 15 financial table fingerprints and Voice policy/control fingerprints. A missed initial automation tap created no request and is excluded from these timings. Unknown semantic refusal variants were not live-model qualified because the existing rolling financial quota was already exhausted; no quota override or bypass was introduced.
+
+The preceding full CI for source `d7a4d894` finished successfully. Follow-up source CI is https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/38824813965; application/mobile checks have passed and the remaining jobs were still running at the last observation. Private receipts and hardware evidence are under `D:/Masarifi-preservation-2026-10-16/assistant-specialization`.
