@@ -1205,6 +1205,8 @@ const en = {
   'tracking.senders.empty': 'No senders found',
   'tracking.senders.enabled': 'Enabled',
   'tracking.senders.disabled': 'Disabled',
+  'tracking.saved.expense': 'Expense recorded',
+  'tracking.saved.income': 'Income recorded',
   'tracking.ios.title': 'Capture on iOS',
   'tracking.ios.limitation': 'Direct message tracking is not available on iOS.',
   'tracking.ios.alternatives':

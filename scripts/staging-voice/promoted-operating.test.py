@@ -148,6 +148,17 @@ class ClientCompatibilityTests(unittest.TestCase):
 
 @unittest.skipIf(m is None,'implementation pending')
 class HostTests(unittest.TestCase):
+    def test_content_correlation_and_local_notice_require_the_exact_new_history(self):
+        for tail in [['20261015065751'], ['20261015065751','20261015070759']]:
+            packet, approval, _ = fixture()
+            packet['requiredMigrations'].extend(['20261013235719','20261014135709','20261014181609']+tail)
+            packet['baseline']['migrations']=list(packet['requiredMigrations'])
+            approval['scopeHash']=digest(packet)
+            m.validate_packet(packet,approval,NOW)
+            packet['requiredMigrations'][-1]='20261015070760'
+            packet['baseline']['migrations']=list(packet['requiredMigrations'])
+            approval['scopeHash']=digest(packet)
+            with self.assertRaises(RuntimeError):m.validate_packet(packet,approval,NOW)
     def test_nominal_worker_schema_requires_the_new_explicit_scope(self):
         packet, approval, _ = fixture()
         packet['requiredMigrations'].extend(['20261013235719','20261014135709','20261014181609'])

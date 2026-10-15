@@ -3,6 +3,13 @@ import { synchronizeLiveCoreFinance } from './live/core-finance-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { publishTrackingSave } from './tracking-save-events';
 import { ensureTrackingSyncDevice } from './tracking-sync-device';
+import Constants from 'expo-constants';
+import { resolveClientRuntime } from '@/config/client-runtime';
+import { coreFinanceService } from './mocks/core-finance-service';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
+import { usePreferenceStore } from '@/state/preferences';
+import { translate } from '@/localization/i18n';
+import { formatMinorAmount } from '@/utils/format-financial-value';
 
 export async function reconcileTrackingSaves(
   ownerId: string,
@@ -20,11 +27,54 @@ export async function reconcileTrackingSaves(
   await synchronizeLiveCoreFinance();
   if (useAppShellStore.getState().session?.userId !== ownerId) return false;
   publishTrackingSave();
+  if (
+    Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+    resolveClientRuntime().apiUrl ===
+      'https://api.staging.masarifiratibi.com' &&
+    trackingNativeRuntime
+  ) {
+    const presented = new Set<string>();
+    for (const item of accepted) {
+      if (!item.notificationId || presented.has(item.transactionId!)) continue;
+      const transaction = await coreFinanceService.getTransaction(
+        item.transactionId!
+      );
+      if (useAppShellStore.getState().session?.userId !== ownerId) return false;
+      if (
+        transaction.id !== item.transactionId ||
+        transaction.source !== 'automatic' ||
+        transaction.status !== 'posted' ||
+        transaction.syncStatus !== 'synced' ||
+        transaction.deletedAt !== null
+      )
+        continue;
+      const locale = usePreferenceStore.getState().locale;
+      const title = translate(
+        transaction.type === 'income'
+          ? 'tracking.saved.income'
+          : 'tracking.saved.expense',
+        locale
+      );
+      const body =
+        `${formatMinorAmount(Math.abs(transaction.amountMinor), transaction.currencyCode, locale)} · ${transaction.title}`.slice(
+          0,
+          240
+        );
+      // The native encrypted receipt deduplicates this same durable notice
+      // across sessions, retries and application restarts.
+      await trackingNativeRuntime.presentCaptureConfirmation(
+        ownerId,
+        item.notificationId,
+        title,
+        body
+      );
+      presented.add(transaction.id);
+    }
+  }
   return true;
 }
 
-// Retain the entry point for already scheduled background pushes. Successful
-// Tracking saves are reconciled through the ledger and remain visually quiet.
+// Already scheduled push callbacks must not present a second notification.
 export async function presentTrackingConfirmation(
   ownerId: string,
   _notificationId: string

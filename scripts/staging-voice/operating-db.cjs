@@ -29,10 +29,13 @@ function validate(c) {
  assert(Buffer.byteLength(JSON.stringify(c.manifest))<=8192);
  assert(Array.isArray(c.requiredMigrations));
  const nominal='20261013235719',content='20261014135709',nominalWorker='20261014181609';
+ const correspondence='20261015065751',localNotice='20261015070759';
  assert((c.requiredMigrations.length===110&&!c.requiredMigrations.includes(nominal))||
         (c.requiredMigrations.length===111&&c.requiredMigrations.at(-1)===nominal)||
         (c.requiredMigrations.length===112&&c.requiredMigrations.at(-2)===nominal&&c.requiredMigrations.at(-1)===content)||
-        (c.requiredMigrations.length===113&&c.requiredMigrations.slice(-3).join(',')===[nominal,content,nominalWorker].join(',')));
+        (c.requiredMigrations.length===113&&c.requiredMigrations.slice(-3).join(',')===[nominal,content,nominalWorker].join(','))||
+        (c.requiredMigrations.length===114&&c.requiredMigrations.slice(-4).join(',')===[nominal,content,nominalWorker,correspondence].join(','))||
+        (c.requiredMigrations.length===115&&c.requiredMigrations.slice(-5).join(',')===[nominal,content,nominalWorker,correspondence,localNotice].join(',')));
  assert(c.requiredMigrations.every(v=>typeof v==='string'&&/^\d{14}$/.test(v)));
  assert.deepEqual(c.requiredMigrations,[...new Set(c.requiredMigrations)].sort());
  assert(c.requiredMigrations.includes('20261013053237'));

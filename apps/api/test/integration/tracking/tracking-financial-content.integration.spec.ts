@@ -139,7 +139,15 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
   }
   async function effects() {
     return (
-      await pool.query(
+      await pool.query<{
+        id: string;
+        kind: string;
+        amount: string;
+        currency: string;
+        category: string | null;
+        effect: string;
+        account: string;
+      }>(
         'select t.id,t.kind,t.amount_minor::text amount,btrim(t.currency_code) currency,t.category_id::text category,p.amount_minor::text effect,p.account_id::text account from public.transactions t join public.transaction_postings p on p.transaction_id=t.id where t.user_id=$1 order by t.id',
         [owner],
       )
@@ -338,6 +346,197 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     await capture({ sender: '+966500000001', reference: 'local123' });
     await capture({ sender: '+966500000002', reference: 'local123' });
     expect(await effects()).toHaveLength(2);
+  });
+  it.each(['android_sms', 'android_notification'] as const)(
+    'links the saved %s and its opposite-channel receipt without another posting',
+    async (firstChannel) => {
+      const reference = 'one-content-movement';
+      await capture({ channel: firstChannel, reference });
+      const before = await effects();
+      const second = await capture({
+        channel: firstChannel === 'android_sms' ? 'android_notification' : 'android_sms',
+        reference,
+      });
+      expect(await effects()).toEqual(before);
+      expect(
+        (
+          await pool.query('select status,accepted_count from public.import_sessions where id=$1', [
+            second,
+          ])
+        ).rows[0],
+      ).toMatchObject({ status: 'complete', accepted_count: 1 });
+      const items = (
+        await pool.query<{
+          status: string;
+          transaction_id: string;
+          canonical_identity_hash: string;
+          correlation: Record<string, unknown> | null;
+        }>(
+          "select status,transaction_id,canonical_identity_hash,normalized_payload->'correlation' correlation from public.import_items where user_id=$1 order by created_at,id",
+          [owner],
+        )
+      ).rows;
+      expect(items.map((item) => item.status)).toEqual(['accepted', 'accepted']);
+      expect(new Set(items.map((item) => item.transaction_id)).size).toBe(1);
+      expect(items[1]?.canonical_identity_hash).not.toBe(items[0]?.canonical_identity_hash);
+      expect(items[1]?.correlation).toMatchObject({
+        scheme: 'content-reference-v1',
+        transactionId: before[0]?.id,
+      });
+      const notices = (
+        await pool.query<{ id: string; data: Record<string, unknown> }>(
+          "select n.id,n.data from public.notification_events n where n.user_id=$1 and n.data->>'targetId'=$2",
+          [owner, before[0]?.id],
+        )
+      ).rows;
+      expect(notices).toHaveLength(1);
+      expect(notices[0]?.data).toMatchObject({
+        automaticCapture: true,
+        targetKind: 'transaction',
+        targetId: before[0]?.id,
+      });
+      expect(
+        (
+          await pool.query(
+            'select count(*)::int n from private.notification_deliveries where user_id=$1',
+            [owner],
+          )
+        ).rows[0]?.n,
+      ).toBe(0);
+    },
+  );
+  it('recovers an already deferred SMS while preserving its original reservation identity', async () => {
+    boundary = Date.now() - 120000;
+    await pool.query(
+      'update private.tracking_automatic_cohorts set capture_started_at=to_timestamp($2::double precision/1000) where user_id=$1',
+      [owner, boundary],
+    );
+    const receivedAt = Date.now();
+    await capture({
+      channel: 'android_notification',
+      reference: 'retained-pair',
+      receivedAt,
+      text: 'تم دفع 2 ريال لدى متجر الاختبار، الرقم المرجعي CONTENT12345',
+    });
+    const second = await capture(
+      {
+        reference: 'retained-pair',
+        receivedAt: receivedAt - 40000,
+        text: 'تم دفع 2 ريال، الرقم المرجعي CONTENT12345',
+      },
+      {
+        runJob: () => Promise.resolve(0),
+      } as never,
+    );
+    const claim = (await repository.claimImports('retained-fixture'))[0];
+    if (!claim) throw new Error('Retained fixture was not claimed');
+    await repository.prepareImport(claim.id, claim.claim_token);
+    const oldName = (
+      await pool.query(
+        "select case when to_regprocedure('private.finalize_import_session_before_content_reference(uuid,uuid)') is null then 'private.finalize_import_session' else 'private.finalize_import_session_before_content_reference' end name",
+      )
+    ).rows[0]?.name as string;
+    await pool.query(`select ${oldName}($1::uuid,$2::uuid)`, [claim.id, claim.claim_token]);
+    await repository.completeImport(
+      claim.id,
+      claim.claim_token,
+      'failed',
+      'TRACKING_CAPTURE_DEFERRED',
+    );
+    const original = (
+      await pool.query(
+        'select canonical_identity_hash,source_item_key from public.import_items where session_id=$1',
+        [second],
+      )
+    ).rows[0];
+    const before = await effects();
+    await pool.query(
+      'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
+      [second],
+    );
+    await worker.runJob('import.parse');
+    expect(await effects()).toEqual(before);
+    expect(
+      (
+        await pool.query('select status,accepted_count from public.import_sessions where id=$1', [
+          second,
+        ])
+      ).rows[0],
+    ).toMatchObject({ status: 'complete', accepted_count: 1 });
+    expect(
+      (
+        await pool.query(
+          'select canonical_identity_hash,source_item_key from public.import_items where session_id=$1',
+          [second],
+        )
+      ).rows[0],
+    ).toEqual(original);
+  });
+  it('serializes concurrent unlinked channels to one effect and two accepted observations', async () => {
+    const paused = { runJob: () => Promise.resolve(0) } as never;
+    await capture({ reference: 'concurrent-content' }, paused);
+    await capture({ reference: 'concurrent-content', channel: 'android_notification' }, paused);
+    const other = new TrackingWorker(repository, ledger, {} as never);
+    try {
+      await Promise.all([worker.runJob('import.parse'), other.runJob('import.parse')]);
+      await pool.query(
+        "update public.import_sessions set next_attempt_at=clock_timestamp() where user_id=$1 and status='received'",
+        [owner],
+      );
+      await worker.runJob('import.parse');
+      expect(await effects()).toHaveLength(1);
+      expect(
+        (
+          await pool.query(
+            "select count(*)::int n from public.import_items where user_id=$1 and status='accepted'",
+            [owner],
+          )
+        ).rows[0]?.n,
+      ).toBe(2);
+    } finally {
+      await other.stop();
+    }
+  });
+  it.each([
+    ['Paid EGP2', 'Paid SAR2'],
+    ['تم دفع 2 ريال لدى متجر ألف', 'تم دفع 2 ريال لدى متجر باء'],
+  ])('holds contradictory source evidence: %s versus %s', async (first, second) => {
+    await capture({
+      channel: 'android_notification',
+      text: first,
+      reference: 'conflicting-evidence',
+    });
+    const before = await effects();
+    expect(before).toHaveLength(1);
+    const id = await capture({ text: second, reference: 'conflicting-evidence' });
+    expect(await effects()).toEqual(before);
+    expect(
+      (
+        await pool.query('select accepted_count,status from public.import_sessions where id=$1', [
+          id,
+        ])
+      ).rows[0],
+    ).toMatchObject({ accepted_count: 0, status: 'received' });
+  });
+  it('does not choose between two independent opposite-channel effects sharing a reference', async () => {
+    await capture({
+      channel: 'android_notification',
+      sender: 'com.synthetic.first',
+      reference: 'collision',
+    });
+    await capture({
+      channel: 'android_notification',
+      sender: 'com.synthetic.second',
+      reference: 'collision',
+    });
+    const before = await effects();
+    expect(before).toHaveLength(2);
+    const id = await capture({ reference: 'collision' });
+    expect(await effects()).toEqual(before);
+    expect(
+      (await pool.query('select accepted_count from public.import_sessions where id=$1', [id]))
+        .rows[0]?.accepted_count,
+    ).toBe(0);
   });
   it.each([
     'Payment SAR3 reference CONTENT12345',

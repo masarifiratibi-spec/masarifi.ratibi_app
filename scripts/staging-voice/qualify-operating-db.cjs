@@ -77,7 +77,9 @@ async function success(action,c){const r=await helper(action,c);assert(r.ok,acti
 async function freshControl(){
  const original=fixtureClient();await original.connect();let requiredMigrations;
  try{await original.query('begin isolation level repeatable read read only');requiredMigrations=(await original.query('select version from supabase_migrations.schema_migrations order by version')).rows.map(r=>r.version);await original.query('commit');}finally{await original.end();}
- assert((requiredMigrations.length===111&&requiredMigrations.at(-1)==='20261013235719')||(requiredMigrations.length===112&&requiredMigrations.at(-2)==='20261013235719'&&requiredMigrations.at(-1)==='20261014135709')||(requiredMigrations.length===113&&requiredMigrations.slice(-3).join(',')==='20261013235719,20261014135709,20261014181609'));assert(requiredMigrations.includes('20261013053237'));
+ const knownTail=['20261013235719','20261014135709','20261014181609','20261015065751','20261015070759'];
+ const tailLength=requiredMigrations.length-110;
+ assert(tailLength>=1&&tailLength<=knownTail.length&&requiredMigrations.slice(-tailLength).join(',')===knownTail.slice(0,tailLength).join(','));assert(requiredMigrations.includes('20261013053237'));
  const now=Date.now()/1000;
  const c={project,manifest:{version:1,mode:'operating',newCapturesOnly:true,normalEligibility:true,retentionPolicy:'existing-operating',sourceSha:'b'.repeat(40),imageDigest:'c'.repeat(64),apkHash:'d'.repeat(64),controlHash:digest(randomUUID()),scopeDigest:digest(randomUUID())},requiredMigrations,
   baseline:{posting:false,activeEpochs:0,analysisJobs:0,migrations:requiredMigrations,fingerprints:{accounts:'0'.repeat(64),transactions:'0'.repeat(64),postings:'0'.repeat(64),balances:'0'.repeat(64)},historical:{voicePending:0,assistantPending:0,outboxUnpublished:0}},epochId:null,manifestHash:null,approvalReceivedAt:now,activationExpiresAt:now+3600,startsAt:now};
