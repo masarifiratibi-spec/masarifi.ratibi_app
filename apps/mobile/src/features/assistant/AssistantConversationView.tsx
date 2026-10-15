@@ -5,8 +5,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   BackHandler
 } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { AssistantHeaderBanner } from './components/AssistantHeaderBanner';
 import { UserMessageBubble } from './components/UserMessageBubble';
 import { AssistantMessageBubble } from './components/AssistantMessageBubble';
@@ -54,6 +57,19 @@ export function AssistantConversationView({
   onEndReached,
   testID = 'assistant-conversation-view'
 }: AssistantConversationViewProps) {
+  const insets = React.useContext(SafeAreaInsetsContext);
+  const [keyboardVisible, setKeyboardVisible] = React.useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const flatListRef = useRef<FlatList>(null);
   const lastResponseId = responses[responses.length - 1]?.id;
   const turns = new Map<string, AssistantUserTurn & {response?: AssistantResponse}>();
@@ -111,7 +127,14 @@ export function AssistantConversationView({
   );
 
   return (
-    <View testID={testID} style={styles.root}>
+    <KeyboardAvoidingView
+      testID={testID}
+      style={styles.root}
+      behavior="padding"
+      enabled={keyboardVisible}
+      // FoundationProviders already places this screen below the top safe area.
+      keyboardVerticalOffset={insets?.top ?? 0}
+    >
       {/* 1. Top Sub-Header Identity Banner */}
       <AssistantHeaderBanner availability={availability} />
 
@@ -155,7 +178,7 @@ export function AssistantConversationView({
         onSendMessage={onSendMessage}
         loading={isSending}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

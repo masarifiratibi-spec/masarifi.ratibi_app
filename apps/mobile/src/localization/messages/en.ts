@@ -2031,6 +2031,7 @@ const en = {
   'assistant.answer.safe_redirect.estimate':
     'The available context is estimated; review the linked area.',
   'assistant.label.fact': 'Confirmed fact',
+  'assistant.label.scope': 'Assistant scope',
   'assistant.label.estimate': 'Estimate',
   'assistant.label.suggestion': 'Suggestion',
   'assistant.actionPreview.destination.budget': 'Budget',

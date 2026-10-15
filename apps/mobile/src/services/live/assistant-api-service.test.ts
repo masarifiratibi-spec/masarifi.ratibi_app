@@ -5,8 +5,11 @@ import {
 } from './assistant-api-service';
 import { createMemoryAssistantJournal } from '@/storage/assistant-operation-journal';
 import { samples } from '@/test-utils/assistant-action-preview-fixtures';
+import { assistantResponseSchema } from '@/domain/assistant';
 
-jest.mock('expo-constants', () => ({ expoConfig: { android: { package: 'com.masarifi.mobile.dev' } } }));
+jest.mock('expo-constants', () => ({
+  expoConfig: { android: { package: 'com.masarifi.mobile.dev' } }
+}));
 
 const id = (suffix: number) =>
   `99100000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -30,17 +33,28 @@ it('bounds stalled authentication and ignores its late resolution without sendin
   jest.useFakeTimers();
   try {
     let release!: (token: string) => void;
-    const token = new Promise<string>((resolve) => { release = resolve; });
+    const token = new Promise<string>((resolve) => {
+      release = resolve;
+    });
     const request = jest.fn();
     const journal = createMemoryAssistantJournal();
     const service = createLiveAssistantApiService({
-      baseUrl: 'https://api.test', token: () => token, request, journal,
+      baseUrl: 'https://api.test',
+      token: () => token,
+      request,
+      journal,
       requestTimeoutMs: 10
     });
-    const outcome = service.ask(id(1), 'Income?', 'sample-auth-timeout-key')
-      .then(() => 'completed', (error: {code: string}) => error.code);
+    const outcome = service
+      .ask(id(1), 'Income?', 'sample-auth-timeout-key')
+      .then(
+        () => 'completed',
+        (error: { code: string }) => error.code
+      );
     await jest.advanceTimersByTimeAsync(20);
-    expect(await Promise.race([outcome, Promise.resolve('still_pending')])).toBe('offline');
+    expect(
+      await Promise.race([outcome, Promise.resolve('still_pending')])
+    ).toBe('offline');
     release('late-auth-token');
     await jest.advanceTimersByTimeAsync(20);
     expect(request).not.toHaveBeenCalled();
@@ -1434,6 +1448,35 @@ const backendAgentMetadataFixture = {
   values: [],
   reasons: []
 };
+
+it('maps a scope refusal as a notice without a financial period or confirmed-fact label', async () => {
+  const rows = messages();
+  Object.assign(rows.items[1]!, {
+    metadata: {
+      ...backendAgentMetadataFixture,
+      responseType: 'redirect',
+      scope: 'current_state',
+      reasons: ['outside_financial_scope']
+    }
+  });
+  const request = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(conversations))
+    .mockResolvedValueOnce(json(rows));
+  await expect(
+    createLiveAssistantApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request
+    })
+      .getResponse(id(3))
+      .then((response) => assistantResponseSchema.parse(response))
+  ).resolves.toMatchObject({
+    responseType: 'safe_redirect',
+    period: null,
+    blocks: [{ label: 'scope', key: 'Safe answer' }]
+  });
+});
 
 it('accepts backend agent metadata with a validated prompt hash without losing the answer', async () => {
   const rows = messages();

@@ -1947,6 +1947,7 @@ const ar: MessageCatalog = {
   'assistant.answer.safe_redirect.estimate':
     'السياق المتاح تقديري؛ راجع القسم المرتبط.',
   'assistant.label.fact': 'حقيقة مؤكدة',
+  'assistant.label.scope': 'تخصص المساعد',
   'assistant.label.estimate': 'تقدير',
   'assistant.label.suggestion': 'اقتراح',
   'assistant.evidence.report': 'فحص التقرير الداعم',

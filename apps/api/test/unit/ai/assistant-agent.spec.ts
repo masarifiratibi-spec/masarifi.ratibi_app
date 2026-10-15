@@ -42,6 +42,134 @@ const route = {
   safetyRules: [],
 };
 
+it('returns a server-owned scope notice when the model classifies an unrelated request', async () => {
+  const agent = new AssistantAgent(
+    { read: () => Promise.resolve(sample) } as never,
+    {
+      complete: (input: { parse: (value: unknown) => unknown }) =>
+        Promise.resolve({
+          value: input.parse({
+            status: 'out_of_scope',
+            answer: '',
+            queries: [],
+            responseType: 'missing',
+            scope: 'current_state',
+          }),
+          model: 'model',
+          provider: 'provider',
+        }),
+    } as never,
+    () => Promise.resolve(),
+  );
+  const result = await agent.run(
+    { ...claim, content: 'احكي لي حكاية' },
+    route,
+    new AbortController().signal,
+  );
+  expect(result.content).toMatch(/متخصص.*(?:مصروف|دخل)/u);
+  expect(result.content.length).toBeLessThanOrEqual(180);
+  expect(result.evidence).toEqual([]);
+  expect(result.metadata).toMatchObject({
+    responseType: 'redirect',
+    reasons: ['outside_financial_scope'],
+    currencies: [],
+    scope: 'current_state',
+  });
+});
+
+it.each([
+  '```python\nprint("hello")\n```',
+  'def greet(): return "hello"',
+  'أقدر أساعدك تكتب كود، قولّي محتاج إيه',
+])(
+  'replaces a programming answer even if the provider incorrectly calls it financial: %s',
+  async (answer) => {
+    const agent = new AssistantAgent(
+      { read: () => Promise.resolve(sample) } as never,
+      {
+        complete: (input: { parse: (value: unknown) => unknown }) =>
+          Promise.resolve({
+            value: input.parse({
+              status: 'answer',
+              answer,
+              queries: [],
+              responseType: 'fact',
+              scope: 'current_state',
+            }),
+            model: 'model',
+            provider: 'provider',
+          }),
+      } as never,
+      () => Promise.resolve(),
+    );
+    const result = await agent.run(
+      { ...claim, content: 'ممكن تساعدني؟' },
+      route,
+      new AbortController().signal,
+    );
+    expect(result.content).not.toBe(answer);
+    expect(result.metadata.responseType).toBe('redirect');
+    expect(result.evidence).toEqual([]);
+  },
+);
+
+it.each([
+  'I can help you build a savings plan based on your expenses.',
+  'I can write a budget summary from your financial records.',
+  'أقدر أكتب لك ملخص مصروفات اشتراك البرنامج.',
+])(
+  'preserves personal-finance explanations mentioning planning or software: %s',
+  async (answer) => {
+    const agent = new AssistantAgent(
+      { read: () => Promise.resolve(sample) } as never,
+      {
+        complete: (input: { parse: (value: unknown) => unknown }) =>
+          Promise.resolve({
+            value: input.parse({
+              status: 'answer',
+              answer,
+              queries: [],
+              responseType: 'suggestion',
+              scope: 'current_state',
+            }),
+            model: 'model',
+            provider: 'provider',
+          }),
+      } as never,
+      () => Promise.resolve(),
+    );
+    const result = await agent.run(claim, route, new AbortController().signal);
+    expect(result.content).toBe(answer);
+    expect(result.metadata.responseType).toBe('suggestion');
+  },
+);
+
+it.each([
+  { answer: 'Here is a Python program', queries: [] },
+  { answer: '', queries: [{ tool: 'overview' }] },
+])('rejects free text or tool requests disguised as an out-of-scope decision', async (invalid) => {
+  const agent = new AssistantAgent(
+    { read: () => Promise.resolve(sample) } as never,
+    {
+      complete: (input: { parse: (value: unknown) => unknown }) =>
+        Promise.resolve({
+          value: input.parse({
+            status: 'out_of_scope',
+            responseType: 'missing',
+            scope: 'current_state',
+            ...invalid,
+          }),
+          model: 'model',
+          provider: 'provider',
+        }),
+    } as never,
+    () => Promise.resolve(),
+  );
+  await expect(
+    agent.run({ ...claim, content: 'احكي لي حكاية' }, route, new AbortController().signal),
+  ).rejects.toThrow('AI_SCHEMA_INVALID');
+});
+
 it.each(['المصروفات 0 ريال', 'اليوم 2026-10-16', 'المصروفات ٠ ريال'])(
   'constrains unsupported literal numeric output during model decoding: %s',
   (answer) => {

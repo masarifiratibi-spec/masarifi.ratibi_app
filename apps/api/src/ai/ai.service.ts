@@ -33,6 +33,7 @@ import { redactAiText } from './ai.schemas';
 import { AiStorage } from './ai.storage';
 import { AssistantFinancialTools } from './ai-financial-tools';
 import { routeAssistantMessage, selectConversationHistory } from './ai-routing';
+import { directAssistantScopeNotice } from './assistant-domain-policy';
 import { zonedDateTimeToInstant } from '../reports/reports.period';
 
 const CONSENT_POLICY = 'assistant-privacy-v1';
@@ -566,6 +567,30 @@ export class AiService {
   ) {
     const input = assistantMessage(body);
     const conversationIdValue = uuid(conversationId);
+    const developmentAgent =
+      this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') &&
+      this.config.get('MASARIFI_ASSISTANT_AGENT_OWNER_ID') === principal.userId &&
+      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
+    const scopeNotice = developmentAgent ? directAssistantScopeNotice(input.content) : null;
+    if (scopeNotice) {
+      return this.accepted(
+        await this.repository.saveDeterministicMessage(
+          principal,
+          conversationIdValue,
+          {
+            content: redactAiText(input.content),
+            intent: 'unrelated',
+            answer: scopeNotice.content,
+            context: { assistantMetadata: scopeNotice.metadata },
+            contextScope: [],
+            evidence: [],
+            responseMode: input.responseMode,
+            requestIdentity: input,
+          },
+          idempotencyKey(key),
+        ),
+      );
+    }
     const requestedIntent = routeAssistantMessage({
       content: input.content,
       intentHint: input.intent,
@@ -575,12 +600,7 @@ export class AiService {
       requestedIntent.startsWith('update_') ||
       requestedIntent === 'record_obligation_payment' ||
       requestedIntent === 'resolve_tracking_review';
-    if (
-      this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') &&
-      !existingAction &&
-      this.config.get('MASARIFI_ASSISTANT_AGENT_OWNER_ID') === principal.userId &&
-      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
-    ) {
+    if (developmentAgent && !existingAction) {
       await this.available('financial_assistant');
       return this.accepted(
         await this.repository.enqueueMessage(

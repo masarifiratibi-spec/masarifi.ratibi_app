@@ -134,15 +134,29 @@ const messageSchema = z
     metadata: z
       .object({
         schemaVersion: z.literal(1),
-        promptSha256: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
+        promptSha256: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/u)
+          .optional(),
         locale: z.enum(['ar', 'en']),
         timezone: z.string().min(1),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
         endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
         currencies: z.array(z.string().regex(/^[A-Z]{3}$/u)),
-        responseType: z.enum(['fact', 'estimate', 'suggestion', 'missing']),
+        responseType: z.enum([
+          'fact',
+          'estimate',
+          'suggestion',
+          'missing',
+          'redirect'
+        ]),
         scope: z
-          .enum(['all_history', 'selected_period', 'multiple_periods', 'current_state'])
+          .enum([
+            'all_history',
+            'selected_period',
+            'multiple_periods',
+            'current_state'
+          ])
           .optional(),
         generatedAt: dateTime,
         values: z
@@ -619,24 +633,29 @@ export function createLiveAssistantApiService(
       conversationId: row.conversationId,
       question: question.content,
       responseType:
-        question.metadata?.responseType === 'missing'
-          ? 'insufficient_data'
-          : 'direct',
+        question.metadata?.responseType === 'redirect'
+          ? 'safe_redirect'
+          : question.metadata?.responseType === 'missing'
+            ? 'insufficient_data'
+            : 'direct',
       blocks: [
         {
           label:
-            question.metadata?.responseType === 'estimate'
-              ? 'estimate'
-              : question.metadata?.responseType === 'suggestion'
-                ? 'suggestion'
-                : 'fact',
+            question.metadata?.responseType === 'redirect'
+              ? 'scope'
+              : question.metadata?.responseType === 'estimate'
+                ? 'estimate'
+                : question.metadata?.responseType === 'suggestion'
+                  ? 'suggestion'
+                  : 'fact',
           key: row.content,
           values: {}
         }
       ],
       period:
         question.metadata &&
-        (!question.metadata.scope || question.metadata.scope === 'selected_period')
+        (!question.metadata.scope ||
+          question.metadata.scope === 'selected_period')
           ? `${question.metadata.startDate}/${question.metadata.endDate}`
           : null,
       dataAsOf: Math.min(
@@ -977,7 +996,9 @@ export function createLiveAssistantApiService(
       kind: 'live',
       availability:
         baseUrl &&
-        (Boolean(options.identity) || Boolean(options.token) || tokenProviderConfigured)
+        (Boolean(options.identity) ||
+          Boolean(options.token) ||
+          tokenProviderConfigured)
           ? 'available'
           : 'unavailable'
     },

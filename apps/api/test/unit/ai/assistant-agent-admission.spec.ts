@@ -17,15 +17,22 @@ const send = (
 
 function service(enabled = true) {
   const writes: Record<string, unknown>[] = [];
+  const notices: Record<string, unknown>[] = [];
+  const checks: string[] = [];
   const repository = {
-    workloadAvailable: () => Promise.resolve(true),
+    workloadAvailable: () => {
+      checks.push('availability');
+      return Promise.resolve(true);
+    },
     recentConversationTurns: () => Promise.resolve([]),
     enqueueMessage: (_principal: unknown, _id: string, input: Record<string, unknown>) => {
       writes.push(input);
       return Promise.resolve({ resource: { id: conversation, workStatus: 'queued' } });
     },
-    saveDeterministicMessage: () =>
-      Promise.resolve({ resource: { id: conversation, workStatus: 'completed' } }),
+    saveDeterministicMessage: (_actor: unknown, _id: string, input: Record<string, unknown>) => {
+      notices.push(input);
+      return Promise.resolve({ resource: { id: conversation, workStatus: 'completed' } });
+    },
   };
   const config = {
     get: (key: string) =>
@@ -47,10 +54,59 @@ function service(enabled = true) {
     { resolve: () => Promise.resolve({ answer: 'fixed', context: {}, evidence: [] }) } as never,
     config as never,
   );
-  return { instance, writes };
+  return { instance, writes, notices, checks };
 }
 
-it.each(['إيه آخر معاملة؟', 'عايز أعرف رصيدي', 'صرفت كام النهارده ودخلي كام؟'])(
+it.each([
+  'تعرف تبرمج',
+  'تعرف تبرمجاكتب برنامج ب باحثون',
+  'اكتب برنامج بايثون يحلل مصاريفي',
+  'write a budget app in Python',
+  'create transaction script in Python',
+  'ازيك',
+  'السلام عليكم',
+])(
+  'declines the direct nonfinancial request %s before model admission or quota',
+  async (content) => {
+    const { instance, writes, notices, checks } = service();
+    const result = await send(
+      instance,
+      owner,
+      conversation,
+      { content, intent: 'financial_advice', responseMode: 'async' },
+      'assistant-scope-test-key-001',
+      true,
+    );
+    expect(result.status).toBe('completed');
+    expect(writes).toEqual([]);
+    expect(checks).toEqual([]);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({
+      intent: 'unrelated',
+      contextScope: [],
+      evidence: [],
+      context: {
+        assistantMetadata: { responseType: 'redirect', scope: 'current_state', currencies: [] },
+      },
+    });
+    expect(String(notices[0]?.answer).length).toBeLessThanOrEqual(180);
+  },
+);
+
+it.each([
+  'إيه آخر معاملة؟',
+  'عايز أعرف رصيدي',
+  'صرفت كام النهارده ودخلي كام؟',
+  'صرفت كام عند Python؟',
+  'مصروفات فئة البرمجة',
+  'ابحث عن معاملة كود',
+  'السلام عليكم، صرفت كام؟',
+  'طيب ونفس الكلام لأمبارح؟',
+  'اعمل لي برنامج ادخار شهري',
+  'اكتب برنامج لسداد ديوني',
+  'تقدر تكتب برنامج ادخار شهري',
+  'ابحث عن معاملة اسمها اكتب برنامج',
+])(
   'sends DEV question %s to the model with authorized data access instead of a fixed answer',
   async (content) => {
     const { instance, writes } = service();
