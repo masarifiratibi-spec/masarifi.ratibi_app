@@ -622,21 +622,35 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     expect(await effects()).toHaveLength(1);
   });
   it('reuses immutable postings after a lost response', async () => {
+    const paused = { runJob: () => Promise.resolve(0) } as never;
+    await capture({ reference: 'independent-response' }, paused);
+    const id = await capture({ reference: 'response-loss' }, paused);
+    const item = (
+      await pool.query<{ id: string }>('select id from public.import_items where session_id=$1', [
+        id,
+      ])
+    ).rows[0];
+    if (!item) throw new Error('Response-loss fixture was not created');
     const original = repository.commitNominalCapture.bind(repository);
+    let responseLost = false;
     const lost = jest
       .spyOn(repository, 'commitNominalCapture')
-      .mockImplementationOnce(async (itemId, fence) => {
-        await original(itemId, fence);
-        throw new Error('FIXTURE_RESPONSE_LOST');
+      .mockImplementation(async (itemId, fence) => {
+        const saved = await original(itemId, fence);
+        if (itemId === item.id && !responseLost) {
+          responseLost = true;
+          throw new Error('FIXTURE_RESPONSE_LOST');
+        }
+        return saved;
       });
-    let id: string;
     try {
-      id = await capture({ reference: 'response-loss' });
+      await worker.runJob('import.parse');
     } finally {
       lost.mockRestore();
     }
+    expect(responseLost).toBe(true);
     const before = await effects();
-    expect(before).toHaveLength(1);
+    expect(before).toHaveLength(2);
     expect(
       (await pool.query('select status from public.import_sessions where id=$1', [id])).rows[0]
         ?.status,
