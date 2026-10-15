@@ -690,14 +690,17 @@ export function createLiveAssistantApiService(
         },
         reportReference: null
       }),
-      limitations: [
-        ...(question.metadata ? [] : ['answer_metadata_unavailable']),
-        ...(row.snapshot.evidenceRefs.length &&
-        row.snapshot.evidenceRefs.every((ref) => ref.asOf)
+      limitations:
+        question.metadata?.responseType === 'redirect'
           ? []
-          : ['source_time_unavailable']),
-        ...(question.metadata?.reasons ?? [])
-      ],
+          : [
+              ...(question.metadata ? [] : ['answer_metadata_unavailable']),
+              ...(row.snapshot.evidenceRefs.length &&
+              row.snapshot.evidenceRefs.every((ref) => ref.asOf)
+                ? []
+                : ['source_time_unavailable']),
+              ...(question.metadata?.reasons ?? [])
+            ],
       proposedActionIds: row.preview ? [row.preview.id] : [],
       feedback: null,
       createdAt: epoch(row.createdAt)

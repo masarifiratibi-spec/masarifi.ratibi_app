@@ -1474,6 +1474,7 @@ it('maps a scope refusal as a notice without a financial period or confirmed-fac
   ).resolves.toMatchObject({
     responseType: 'safe_redirect',
     period: null,
+    limitations: [],
     blocks: [{ label: 'scope', key: 'Safe answer' }]
   });
 });
