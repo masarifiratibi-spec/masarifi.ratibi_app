@@ -1,4 +1,8 @@
-import { AssistantAgent, renderAssistantAnswer } from '../../../src/ai/assistant-agent';
+import {
+  AssistantAgent,
+  ASSISTANT_AGENT_SCHEMA,
+  renderAssistantAnswer,
+} from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery } from '../../../src/ai/assistant-agent-data';
 
 const claim = {
@@ -37,6 +41,21 @@ const route = {
   prompt: { template: 'Never use tools.', schemaVersion: 1 },
   safetyRules: [],
 };
+
+it.each(['المصروفات 0 ريال', 'اليوم 2026-10-16', 'المصروفات ٠ ريال'])(
+  'constrains unsupported literal numeric output during model decoding: %s',
+  (answer) => {
+    const schema = ASSISTANT_AGENT_SCHEMA.properties.answer as { pattern?: string };
+    expect(answer).not.toMatch(new RegExp(schema.pattern ?? ''));
+  },
+);
+it.each(['', 'المصروفات {{F12}} والدخل {{F13}}.', 'On {{F1}}, you spent {{F2}}.'])(
+  'allows query decisions and natural answers with exact references in the provider schema: %s',
+  (answer) => {
+    const schema = ASSISTANT_AGENT_SCHEMA.properties.answer as { pattern?: string };
+    expect(answer).toMatch(new RegExp(schema.pattern ?? ''));
+  },
+);
 
 it('composes a real model answer with exact owner facts rather than the recent-transactions count', async () => {
   const model = {

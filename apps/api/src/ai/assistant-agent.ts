@@ -55,7 +55,7 @@ export const ASSISTANT_AGENT_SCHEMA = {
   required: ['status', 'answer', 'queries', 'responseType', 'scope'],
   properties: {
     status: { type: 'string', enum: ['query', 'answer'] },
-    answer: { type: 'string' },
+    answer: { type: 'string', pattern: '^(?:[^0-9٠-٩۰-۹{}]|\\{\\{F[1-9][0-9]*\\}\\})*$' },
     responseType: { type: 'string', enum: ['fact', 'estimate', 'suggestion', 'missing'] },
     scope: {
       type: 'string',
