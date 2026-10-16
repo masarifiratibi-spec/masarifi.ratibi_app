@@ -58,6 +58,227 @@ const route: EffectiveAiRoute = {
   ],
 };
 
+it('diagnoses parallel reads and grounding repair without exposing financial or conversation content', async () => {
+  let clock = 1000;
+  jest.spyOn(Date, 'now').mockImplementation(() => clock);
+  const diagnostics: unknown[] = [];
+  const pendingReads: Array<() => void> = [];
+  let readsReady!: () => void;
+  const bothReadsStarted = new Promise<void>((resolve) => {
+    readsReady = resolve;
+  });
+  const query = {
+    tool: 'transactions',
+    kind: null,
+    startDate: null,
+    endDate: null,
+    currency: null,
+    minAmountMinor: null,
+    maxAmountMinor: null,
+    account: null,
+    category: null,
+    search: null,
+    sort: 'latest',
+    limit: 1,
+    offset: 0,
+    collection: null,
+  };
+  const decisions = [
+    {
+      status: 'query',
+      answer: '',
+      queries: [query, { ...query, sort: 'largest' }],
+      responseType: 'fact',
+      scope: 'all_history',
+    },
+    { status: 'answer', answer: '〔F?〕', queries: [], responseType: 'fact', scope: 'all_history' },
+    {
+      status: 'answer',
+      answer: 'Latest {{F1}}.',
+      queries: [],
+      responseType: 'fact',
+      scope: 'all_history',
+    },
+  ];
+  const gateway = new AiGateway({
+    apiKey: 'synthetic-test-key',
+    fetcher: () => {
+      clock += 20;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: 'private-provider-generation',
+            model: 'model',
+            choices: [
+              { finish_reason: 'stop', message: { content: JSON.stringify(decisions.shift()) } },
+            ],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    },
+  });
+  const data = {
+    read: (_id: string, _token: string, requested: AssistantDataQuery) => {
+      if (requested.tool === 'overview') {
+        clock += 10;
+        return Promise.resolve(sample);
+      }
+      return new Promise<typeof sample>((resolve) => {
+        pendingReads.push(() => {
+          resolve(sample);
+        });
+        if (pendingReads.length === 2) readsReady();
+      });
+    },
+  };
+  const agent = new AssistantAgent(
+    data as never,
+    gateway,
+    () => Promise.resolve(),
+    undefined,
+    undefined,
+    (diagnostic) => diagnostics.push(diagnostic),
+  );
+  const running = agent.run(
+    {
+      ...claim,
+      content: 'PRIVATE QUESTION',
+      history: [{ role: 'user', content: 'PRIVATE HISTORY' }],
+    },
+    route,
+    new AbortController().signal,
+  );
+  await bothReadsStarted;
+  clock += 30;
+  pendingReads[0]?.();
+  await Promise.resolve();
+  clock += 10;
+  pendingReads[1]?.();
+  const answer = await running;
+
+  expect(answer.content).toBe('Latest 3 SAR.');
+  expect(diagnostics).toEqual([
+    { stage: 'overview_read', state: 'completed', round: 0, durationMs: 10, readCount: 1 },
+    {
+      stage: 'model',
+      state: 'completed',
+      round: 1,
+      durationMs: 20,
+      readCount: 1,
+      decision: 'query',
+    },
+    { stage: 'data_reads', state: 'completed', round: 1, durationMs: 40, readCount: 2 },
+    {
+      stage: 'model',
+      state: 'completed',
+      round: 2,
+      durationMs: 20,
+      readCount: 3,
+      decision: 'answer',
+    },
+    { stage: 'grounding', state: 'repair', round: 2, durationMs: 0, readCount: 3 },
+    {
+      stage: 'model',
+      state: 'completed',
+      round: 3,
+      durationMs: 20,
+      readCount: 3,
+      decision: 'answer',
+    },
+    { stage: 'grounding', state: 'completed', round: 3, durationMs: 0, readCount: 3 },
+  ]);
+  expect(JSON.stringify(diagnostics)).not.toMatch(
+    /PRIVATE|300|ريال|private-provider|owner|job|token|operation/u,
+  );
+});
+
+it.each(['provider', 'cancelled', 'overview'] as const)(
+  'reports the failed stage for %s without changing the failure or logging its contents',
+  async (failure) => {
+    const diagnostics: unknown[] = [];
+    const controller = new AbortController();
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-test-key',
+      fetcher: () => {
+        if (failure === 'cancelled') controller.abort();
+        return Promise.reject(new Error('PRIVATE_PROVIDER_OUTPUT'));
+      },
+    });
+    const agent = new AssistantAgent(
+      {
+        read: () =>
+          failure === 'overview'
+            ? Promise.reject(new Error('PRIVATE_DATA_ERROR'))
+            : Promise.resolve(sample),
+      } as never,
+      gateway,
+      () => Promise.resolve(),
+      undefined,
+      undefined,
+      (diagnostic) => diagnostics.push(diagnostic),
+    );
+    await expect(agent.run(claim, route, controller.signal)).rejects.toThrow(
+      failure === 'overview'
+        ? 'PRIVATE_DATA_ERROR'
+        : failure === 'cancelled'
+          ? 'AI_WORK_CANCELLED'
+          : 'AI_TEMPORARILY_UNAVAILABLE',
+    );
+    expect(diagnostics.at(-1)).toMatchObject({
+      stage: failure === 'overview' ? 'overview_read' : 'model',
+      state: failure === 'cancelled' ? 'cancelled' : 'failed',
+      round: failure === 'overview' ? 0 : 1,
+      readCount: 1,
+      durationMs: expect.any(Number) as number,
+    });
+    expect(JSON.stringify(diagnostics)).not.toMatch(/PRIVATE|owner|job|token|operation/u);
+  },
+);
+
+it('keeps a grounded answer when the diagnostic sink fails', async () => {
+  const agent = new AssistantAgent(
+    { read: () => Promise.resolve(sample) } as never,
+    new AiGateway({
+      apiKey: 'synthetic-test-key',
+      fetcher: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-sink-failure',
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      answer: 'Latest {{F1}}.',
+                      queries: [],
+                      responseType: 'fact',
+                      scope: 'all_history',
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    }),
+    () => Promise.resolve(),
+    undefined,
+    undefined,
+    () => {
+      throw new Error('PRIVATE_DIAGNOSTIC_FAILURE');
+    },
+  );
+  const answer = await agent.run(claim, route, new AbortController().signal);
+  expect(answer.content).toBe('Latest 3 ريال.');
+});
+
 it.each([
   { current: 'إيه آخر معاملة؟', previous: 'اكتب برنامج بايثون', outside: false },
   { current: 'ما عاصمة فرنسا؟', previous: 'إيه آخر معاملة؟', outside: true },

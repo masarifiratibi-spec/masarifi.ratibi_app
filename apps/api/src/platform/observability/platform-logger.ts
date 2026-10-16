@@ -17,6 +17,9 @@ export interface SafeLogFields {
   jobName?: string;
   severity?: string;
   durationMs?: number;
+  attempt?: number;
+  round?: number;
+  readCount?: number;
   httpStatus?: number;
   failureStage?: string;
   exception?: SafeWorkerException;

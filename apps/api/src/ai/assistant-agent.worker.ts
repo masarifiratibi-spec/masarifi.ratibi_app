@@ -64,6 +64,17 @@ export class AssistantAgentWorker implements OnModuleDestroy {
           async () => {
             await this.jobs.authorizeDispatch(claim, route);
           },
+          (diagnostic) => {
+            this.logger.info('ASSISTANT_AGENT_STAGE', {
+              eventName: `assistant.agent.${diagnostic.stage}`,
+              state: diagnostic.state,
+              attempt: claim.attempt,
+              round: diagnostic.round,
+              readCount: diagnostic.readCount,
+              durationMs: diagnostic.durationMs,
+              ...(diagnostic.decision ? { code: diagnostic.decision } : {}),
+            });
+          },
         );
         const answer = await agent.run(claim, route, this.controller.signal);
         this.controller.signal.throwIfAborted();

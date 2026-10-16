@@ -125,6 +125,120 @@ it('does not read owner data or dispatch a model when the queue is empty', async
   expect(f.jobs.finish).not.toHaveBeenCalled();
 });
 
+it('writes safe round and attempt diagnostics through the real gateway and logger', async () => {
+  const f = fixture();
+  f.jobs.claim.mockResolvedValue({
+    ...claim,
+    attempt: 2,
+    content: 'PRIVATE QUESTION',
+    history: [{ role: 'user', content: 'PRIVATE HISTORY' }],
+  });
+  f.data.read.mockResolvedValue({
+    ...snapshot,
+    data: { ...snapshot.data, title: 'PRIVATE LEDGER' },
+  });
+  f.routes.getRoute.mockResolvedValue({
+    ...route,
+    safetyRules: [
+      {
+        key: 'input',
+        type: 'input_block',
+        configuration: { denyControl: true, denyBidiControls: true, maxUtf8Bytes: 8192 },
+      },
+      {
+        key: 'output',
+        type: 'output_block',
+        configuration: {
+          forbiddenKeys: ['tool', 'tools', 'sql', 'url', 'callback', 'authorization', 'secret'],
+        },
+      },
+      { key: 'actions', type: 'action_allowlist', configuration: {} },
+      { key: 'evidence', type: 'evidence_limit', configuration: {} },
+    ],
+  });
+  jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        id: 'PRIVATE GENERATION',
+        model: 'model-a',
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              content: JSON.stringify({
+                status: 'answer',
+                answer: 'Verified movement.',
+                queries: [],
+                responseType: 'fact',
+                scope: 'all_history',
+              }),
+            },
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+      }),
+      { headers: { 'content-type': 'application/json' } },
+    ),
+  );
+  const lines: string[] = [];
+  jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
+    lines.push(String(line));
+    return true;
+  });
+  await f.worker.runOnce();
+  const records = lines
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .filter((record) => record.message === 'ASSISTANT_AGENT_STAGE');
+  expect(records).toEqual([
+    expect.objectContaining({
+      eventName: 'assistant.agent.overview_read',
+      state: 'completed',
+      round: 0,
+      attempt: 2,
+      readCount: 1,
+      durationMs: expect.any(Number) as number,
+    }),
+    expect.objectContaining({
+      eventName: 'assistant.agent.model',
+      state: 'completed',
+      round: 1,
+      attempt: 2,
+      readCount: 1,
+      code: 'answer',
+      durationMs: expect.any(Number) as number,
+    }),
+    expect.objectContaining({
+      eventName: 'assistant.agent.grounding',
+      state: 'completed',
+      round: 1,
+      attempt: 2,
+      readCount: 1,
+      durationMs: expect.any(Number) as number,
+    }),
+  ]);
+  expect(JSON.stringify(records)).not.toMatch(
+    /PRIVATE|owner-a|job-a|claim-fence|operation-a|provider-a|model-a/u,
+  );
+  for (const record of records) {
+    expect(Object.keys(record).sort()).toEqual([
+      'attempt',
+      ...(record.eventName === 'assistant.agent.model' ? ['code'] : []),
+      'durationMs',
+      'eventName',
+      'level',
+      'message',
+      'readCount',
+      'round',
+      'state',
+      'timestamp',
+    ]);
+  }
+  expect(f.jobs.finish).toHaveBeenCalledWith(
+    expect.objectContaining({ id: claim.id }),
+    expect.objectContaining({ content: 'Verified movement.' }),
+  );
+});
+
 it('finishes only the configured owner claim using fenced reads and a grounded model answer', async () => {
   const f = fixture();
   let round = 0;

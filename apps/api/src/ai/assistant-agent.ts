@@ -38,6 +38,14 @@ interface AgentDecision {
   responseType: 'fact' | 'estimate' | 'suggestion' | 'missing';
   scope: 'all_history' | 'selected_period' | 'multiple_periods' | 'current_state';
 }
+export interface AssistantAgentDiagnostic {
+  stage: 'overview_read' | 'model' | 'data_reads' | 'grounding';
+  state: 'completed' | 'failed' | 'cancelled' | 'repair';
+  round: number;
+  durationMs: number;
+  readCount: number;
+  decision?: AgentDecision['status'];
+}
 export interface GroundedAssistantAnswer {
   content: string;
   provider: string;
@@ -337,6 +345,7 @@ export class AssistantAgent {
     private readonly account: (receipt: AiCompletion<unknown>) => Promise<void>,
     private readonly uncertainDispatch?: () => Promise<void>,
     private readonly beforeDispatch?: () => Promise<void>,
+    private readonly diagnose?: (diagnostic: AssistantAgentDiagnostic) => void,
   ) {}
 
   async run(
@@ -344,6 +353,37 @@ export class AssistantAgent {
     route: EffectiveAiRoute,
     signal: AbortSignal,
   ): Promise<GroundedAssistantAnswer> {
+    const emit = (diagnostic: AssistantAgentDiagnostic) => {
+      try {
+        this.diagnose?.(diagnostic);
+      } catch {
+        // Diagnostic sink failures must not alter authorized financial work.
+      }
+    };
+    const measure = async <T>(
+      stage: Pick<AssistantAgentDiagnostic, 'stage' | 'round' | 'readCount'>,
+      work: () => Promise<T>,
+      decision?: (result: T) => AgentDecision['status'],
+    ): Promise<T> => {
+      const started = Date.now();
+      try {
+        const result = await work();
+        emit({
+          ...stage,
+          state: 'completed',
+          durationMs: Math.max(0, Date.now() - started),
+          ...(decision ? { decision: decision(result) } : {}),
+        });
+        return result;
+      } catch (error) {
+        emit({
+          ...stage,
+          state: signal.aborted ? 'cancelled' : 'failed',
+          durationMs: Math.max(0, Date.now() - started),
+        });
+        throw error;
+      }
+    };
     const locale = /[\u0600-\u06ff]/u.test(claim.content) ? 'ar' : 'en';
     const reads: Array<{ query: AssistantDataQuery; snapshot: AssistantDataResult }> = [];
     const read = async (query: AssistantDataQuery) => {
@@ -351,7 +391,11 @@ export class AssistantAgent {
       const snapshot = await this.data.read(claim.id, claim.claimToken, query);
       return { query, snapshot };
     };
-    reads.push(await read({ tool: 'overview' }));
+    reads.push(
+      await measure({ stage: 'overview_read', round: 0, readCount: 1 }, () =>
+        read({ tool: 'overview' }),
+      ),
+    );
     const today = localDateAt(new Date(), claim.timezone);
     let validationFeedback: string | null = null;
     for (let round = 0; round < 3; round += 1) {
@@ -425,25 +469,30 @@ export class AssistantAgent {
         if (payload) break;
       }
       if (!payload) throw new AiGatewayError('AI_CONTEXT_LIMIT');
-      const completion = await this.gateway.complete({
-        route: {
-          ...route,
-          limits: { ...route.limits, outputTokens: Math.min(2048, route.limits.outputTokens) },
-          prompt: { template: ASSISTANT_AGENT_PROMPT, schemaVersion: 1 },
-        },
-        userContent: payload,
-        currentQuestion: redactAiText(claim.content),
-        assistantReasoningEffort: 'low',
-        schema: ASSISTANT_AGENT_SCHEMA,
-        parse: parseDecision,
-        requestId: claim.operationId,
-        signal,
-        onReceipt: async (receipt) => {
-          await this.account({ ...receipt, value: null });
-        },
-        onDispatchFailure: this.uncertainDispatch,
-        beforeDispatch: this.beforeDispatch,
-      });
+      const completion = await measure(
+        { stage: 'model', round: round + 1, readCount: reads.length },
+        () =>
+          this.gateway.complete({
+            route: {
+              ...route,
+              limits: { ...route.limits, outputTokens: Math.min(2048, route.limits.outputTokens) },
+              prompt: { template: ASSISTANT_AGENT_PROMPT, schemaVersion: 1 },
+            },
+            userContent: payload,
+            currentQuestion: redactAiText(claim.content),
+            assistantReasoningEffort: 'low',
+            schema: ASSISTANT_AGENT_SCHEMA,
+            parse: parseDecision,
+            requestId: claim.operationId,
+            signal,
+            onReceipt: async (receipt) => {
+              await this.account({ ...receipt, value: null });
+            },
+            onDispatchFailure: this.uncertainDispatch,
+            beforeDispatch: this.beforeDispatch,
+          }),
+        (result) => result.value.status,
+      );
       if (
         completion.value.status === 'out_of_scope' ||
         isProgrammingAnswer(completion.value.answer)
@@ -453,17 +502,38 @@ export class AssistantAgent {
       }
       if (completion.value.status === 'query') {
         if (round === 2) throw new AiGatewayError('AI_CONTEXT_LIMIT');
-        reads.push(...(await Promise.all(completion.value.queries.map(read))));
+        reads.push(
+          ...(await measure(
+            { stage: 'data_reads', round: round + 1, readCount: completion.value.queries.length },
+            () => Promise.all(completion.value.queries.map(read)),
+          )),
+        );
         continue;
       }
       let content: string, boundAnswer: string;
+      const groundingStarted = Date.now();
       try {
         const grounded = groundAssistantAnswer(completion.value.answer, facts);
         content = grounded.content;
         boundAnswer = grounded.boundAnswer;
+        emit({
+          stage: 'grounding',
+          state: 'completed',
+          round: round + 1,
+          durationMs: Math.max(0, Date.now() - groundingStarted),
+          readCount: reads.length,
+        });
       } catch (error) {
-        if (!(error instanceof Error) || error.message !== 'AI_UNGROUNDED_ANSWER' || round === 2)
-          throw error;
+        const repair =
+          error instanceof Error && error.message === 'AI_UNGROUNDED_ANSWER' && round < 2;
+        emit({
+          stage: 'grounding',
+          state: repair ? 'repair' : 'failed',
+          round: round + 1,
+          durationMs: Math.max(0, Date.now() - groundingStarted),
+          readCount: reads.length,
+        });
+        if (!repair) throw error;
         validationFeedback =
           'Your previous answer used raw numeric digits, an unknown fact or an unresolved fact placeholder. Copy the supplied ref cells exactly, with double braces and ordinary digits, for ALL numbers/dates/counts/amounts. Never emit question-mark placeholders, decorative citations or subscript/superscript fact identifiers. For empty complete periods use exactPeriodTotals, which provides verified zero amounts; otherwise say no matching records without inventing a numeric amount. Available zero references: ' +
           JSON.stringify(
