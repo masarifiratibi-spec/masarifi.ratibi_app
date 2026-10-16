@@ -1232,6 +1232,72 @@ describe('AiGateway', () => {
     expect(fallbackBody).not.toHaveProperty('reasoning');
   });
 
+  it('records each charged attempt duration without double-counting fallback time', async () => {
+    let clock = 1000;
+    const receipts: Array<{
+      latencyMs: number;
+      fallbackUsed: boolean;
+      usage: { inputTokens: number; outputTokens: number; cost: number };
+    }> = [];
+    const fallback = route.fallbacks[0];
+    if (!fallback) throw new Error('AI_FALLBACK_FIXTURE_MISSING');
+    const fetcher = jest
+      .fn<Promise<Response>, [RequestInfo | URL, RequestInit?]>()
+      .mockImplementationOnce(() => {
+        clock += 20;
+        return Promise.resolve(
+          response({
+            id: 'charged-malformed-primary',
+            model: route.primary.modelId,
+            choices: [{ message: { content: '{' } }],
+            usage: { prompt_tokens: 4, completion_tokens: 1, cost: 0.000001 },
+          }),
+        );
+      })
+      .mockImplementationOnce(() => {
+        clock += 30;
+        return Promise.resolve(
+          response({
+            id: 'valid-fallback',
+            model: fallback.modelId,
+            choices: [{ message: { content: JSON.stringify(output) } }],
+            usage: { prompt_tokens: 3, completion_tokens: 2, cost: 0.000002 },
+          }),
+        );
+      });
+    const result = await new AiGateway({ apiKey: 'secret', fetcher, now: () => clock }).complete({
+      route,
+      userContent: '{}',
+      schema: { type: 'object', additionalProperties: false },
+      parse: (value) => value as typeof output,
+      requestId: 'attempt-local-latency',
+      onReceipt: (receipt) => {
+        receipts.push(receipt);
+        return Promise.resolve();
+      },
+    });
+
+    expect(receipts).toMatchObject([
+      {
+        latencyMs: 20,
+        fallbackUsed: false,
+        usage: { inputTokens: 4, outputTokens: 1, cost: 0.000001 },
+      },
+      {
+        latencyMs: 30,
+        fallbackUsed: true,
+        usage: { inputTokens: 3, outputTokens: 2, cost: 0.000002 },
+      },
+    ]);
+    expect(receipts.reduce((sum, receipt) => sum + receipt.latencyMs, 0)).toBe(50);
+    expect(result).toMatchObject({
+      value: output,
+      latencyMs: 50,
+      fallbackUsed: true,
+      usage: { inputTokens: 3, outputTokens: 2, cost: 0.000002 },
+    });
+  });
+
   it('does not dispatch without a key or when policy is weaker than required', async () => {
     const fetcher = jest.fn();
     await expect(

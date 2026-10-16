@@ -108,7 +108,8 @@ export class AiGateway {
     fallbackUsed: boolean,
     startedAt: number,
   ): Promise<AiCompletion<T>> {
-    const remaining = deadline - this.now();
+    const attemptStartedAt = this.now();
+    const remaining = deadline - attemptStartedAt;
     if (remaining <= 0) throw new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
     const apiKey = this.options.apiKey;
     if (!apiKey) throw new AiGatewayError('AI_UNAVAILABLE');
@@ -253,7 +254,7 @@ export class AiGateway {
           fallbackUsed,
           generationId: typeof envelope.id === 'string' ? envelope.id : input.requestId,
           usage,
-          latencyMs: Math.max(0, this.now() - startedAt),
+          latencyMs: Math.max(0, this.now() - attemptStartedAt),
         };
         await input.onReceipt?.(receipt);
         dispatchState.accounted = true;
