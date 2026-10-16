@@ -295,8 +295,9 @@ function ClerkBridgeInstaller({
         const result = await latest.current.startSSOFlow({
           strategy: 'oauth_google',
           redirectUrl:
-            Constants.expoConfig?.scheme === 'masarifi-dev'
-              ? 'masarifi-dev://sso-callback'
+            Constants.expoConfig?.scheme === 'masarifi-dev' ||
+            Constants.expoConfig?.scheme === 'masarifi-dev-privacy'
+              ? `${Constants.expoConfig.scheme}://sso-callback`
               : 'masarifi://sso-callback'
         });
         recordDevelopmentAuthDiagnostic('sso_result', { code: `auth_session_${result.authSessionResult?.type ?? 'missing'}` });
