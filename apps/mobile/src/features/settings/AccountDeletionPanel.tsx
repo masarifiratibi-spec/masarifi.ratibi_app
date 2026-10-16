@@ -1,6 +1,5 @@
 import React from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomUUID } from 'expo-crypto';
 
 import { StyledText } from '@/components/StyledText';
@@ -13,6 +12,12 @@ import { translateDynamic as t } from '@/localization/i18n';
 import { HttpError } from '@/services/live/http-client';
 import { settingsService } from '@/services/mocks/subscription-settings-service';
 import { useAppShellStore } from '@/state/app-shell';
+import {
+  loadAccountDeletionJournal,
+  removeAccountDeletionOperationId,
+  saveAccountDeletionOperationId,
+  saveAccountDeletionRequestId
+} from '@/storage/account-deletion-journal';
 import { startAccountDeletionVerification } from './account-deletion-auth';
 
 export function AccountDeletionPanel() {
@@ -34,7 +39,6 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
   const [code, setCode] = React.useState('');
   const operation = React.useRef<string | null>(null);
   const active = React.useRef(true);
-  const storageKey = `masarifi.deletion.${ownerId}`;
   const current = () =>
     active.current &&
     useAppShellStore.getState().session?.status === 'authenticated' &&
@@ -66,10 +70,10 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
   async function accept(next: PrivacyRequest) {
     if (!current()) return;
     // Persist the server identifier before exposing a request that must survive reopening.
-    await AsyncStorage.setItem(storageKey, next.id);
+    await saveAccountDeletionRequestId(ownerId, next.id);
     if (!current()) return;
     if (next.serverStatus === 'failed' || next.serverStatus === 'cancelled') {
-      await AsyncStorage.removeItem(`${storageKey}.operation`);
+      await removeAccountDeletionOperationId(ownerId);
       operation.current = null;
     }
     if (!current()) return;
@@ -84,10 +88,8 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
     active.current = true;
     void (async () => {
       try {
-        const [savedId, savedOperation] = await Promise.all([
-          AsyncStorage.getItem(storageKey),
-          AsyncStorage.getItem(`${storageKey}.operation`)
-        ]);
+        const { requestId: savedId, operationId: savedOperation } =
+          await loadAccountDeletionJournal(ownerId);
         if (!current()) return;
         operation.current = savedOperation;
         if (savedId)
@@ -103,7 +105,7 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
     };
     // The owner key remounts this component when the authenticated owner changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [ownerId]);
 
   async function run(action: () => Promise<void>) {
     if (pending || !current()) return;
@@ -120,7 +122,7 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
 
   async function submit() {
     operation.current ??= randomUUID();
-    await AsyncStorage.setItem(`${storageKey}.operation`, operation.current);
+    await saveAccountDeletionOperationId(ownerId, operation.current);
     if (!current()) return;
     const result = await settingsService.requestPrivacyAction(
       'account_deletion',
@@ -286,7 +288,7 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
                 randomUUID()
               );
               if (!current()) return;
-              await AsyncStorage.removeItem(`${storageKey}.operation`);
+              await removeAccountDeletionOperationId(ownerId);
               operation.current = null;
               setRequest({
                 ...request,
