@@ -3,6 +3,7 @@ import { PassThrough } from 'node:stream';
 
 import { Injectable } from '@nestjs/common';
 
+import { ClerkProviderUnavailableError } from '../identity/clerk-client.service';
 import { IdentityPrivacyHandler } from '../identity/identity-privacy.handler';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { recordPlatformMetric, SECURITY_METRICS } from '../platform/observability/platform-metrics';
@@ -89,6 +90,11 @@ export class SecurityWorkerService {
     const handler = handlers[job];
     if (!handler) throw new Error('SECURITY_JOB_UNKNOWN');
     await this.measured(job, handler);
+  }
+
+  async runDeletionForOwner(userId: string): Promise<void> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(userId)) throw new Error('PRIVACY_OWNER_INVALID');
+    await this.measured('privacy.account-delete', () => this.executeDeletion(userId));
   }
 
   private async measured(job: string, action: () => Promise<void>): Promise<void> {
@@ -282,14 +288,16 @@ export class SecurityWorkerService {
       });
   }
 
-  private async executeDeletion(): Promise<void> {
+  private async executeDeletion(userId: string | null = null): Promise<void> {
     const claim = await this.repository.withWorkerTransaction(async (client) => {
-      const result =
-        await client.query<DeletionClaim>(`with selected as (select d.id from private.account_deletion_requests d
-        where (d.status='verified' or (d.status='processing' and d.updated_at<=clock_timestamp()-interval '15 minutes')) and d.cooling_off_ends_at<=clock_timestamp() and not exists(
+      const result = await client.query<DeletionClaim>(
+        `with selected as (select d.id from private.account_deletion_requests d
+        where ($1::text is null or d.user_id=$1) and (d.status='verified' or (d.status='processing' and d.updated_at<=clock_timestamp()-interval '15 minutes')) and d.cooling_off_ends_at<=clock_timestamp() and not exists(
           select 1 from private.retention_holds h where h.resource_id=d.user_id and h.starts_at<=clock_timestamp() and (h.ends_at is null or h.ends_at>clock_timestamp()))
         order by d.cooling_off_ends_at,d.id for update skip locked limit 1)
-        update private.account_deletion_requests d set status='processing',error_code=null from selected where d.id=selected.id returning d.id,d.user_id`);
+        update private.account_deletion_requests d set status='processing',error_code=null from selected where d.id=selected.id returning d.id,d.user_id`,
+        [userId],
+      );
       return result.rows[0];
     });
     if (!claim) return;
@@ -301,7 +309,12 @@ export class SecurityWorkerService {
     };
     try {
       const outcomes: Array<Record<string, unknown>> = [];
-      for (const handler of this.registry.entries()) {
+      // Keep the identity usable until every data-domain cleanup has succeeded.
+      const handlers = [...this.registry.entries()].sort(
+        (left, right) =>
+          Number(left.resourceType === 'identity') - Number(right.resourceType === 'identity'),
+      );
+      for (const handler of handlers) {
         const held = await this.repository.withWorkerTransaction(
           async (client) =>
             (
@@ -344,11 +357,17 @@ export class SecurityWorkerService {
           ],
         );
       });
-    } catch {
+    } catch (error) {
       await this.repository.withWorkerTransaction(async (client) => {
         await client.query(
-          "update private.account_deletion_requests set status='failed',error_code='DELETION_HANDLER_FAILED' where id=$1 and status='processing'",
-          [claim.id],
+          "update private.account_deletion_requests set status=$2,error_code=$3 where id=$1 and status='processing'",
+          [
+            claim.id,
+            error instanceof ClerkProviderUnavailableError ? 'processing' : 'failed',
+            error instanceof ClerkProviderUnavailableError
+              ? 'DELETION_PROVIDER_UNAVAILABLE'
+              : 'DELETION_HANDLER_FAILED',
+          ],
         );
       });
     }

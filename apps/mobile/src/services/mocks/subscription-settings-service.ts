@@ -606,6 +606,20 @@ export function createMockSettingsService({
       privacyOps.set(operationId, saved);
       return saved;
     },
+    async getAccountDeletion(requestId: string) {
+      const existing = [...privacyOps.values()].find(({ value }) => value.id === requestId);
+      if (!existing) throw new SettingsServiceError('not_found');
+      return existing.value;
+    },
+    async cancelAccountDeletion(requestId: string) {
+      const existing = [...privacyOps.values()].find(({ value }) => value.id === requestId);
+      if (!existing) throw new SettingsServiceError('not_found');
+      if (existing.value.kind !== 'account_deletion' || !['requested','verified','cancelled'].includes(existing.value.serverStatus ?? '') ||
+          (existing.value.serverStatus !== 'cancelled' && (existing.value.coolingOffEndsAt ?? 0) <= now()))
+        throw new SettingsServiceError('conflict');
+      if (existing.value.serverStatus !== 'cancelled') existing.value = { ...existing.value, status: 'cancelled', serverStatus: 'cancelled', updatedAt: now(), version: (existing.value.version ?? 1) + 1 };
+      return result(null, ['settings.privacy-request.account_deletion']);
+    },
     async deleteLocalData(operationId: string) {
       const replay = deletionOps.get(operationId);
       if (replay) return replay;
@@ -694,10 +708,12 @@ function fixturePrivacyRequest(
     id: `privacy-${operationId}`,
     operationId,
     kind,
-    status: 'accepted',
+    status: kind === 'account_deletion' ? 'review' : 'accepted',
     requestedAt,
     updatedAt: requestedAt,
-    safeFailure: null
+    safeFailure: null,
+    ...(kind === 'account_deletion' ? { serverStatus: 'verified', coolingOffEndsAt: requestedAt + 72 * 60 * 60 * 1000,
+      completedAt: null, retainedCategories: [], version: 1 } : {})
   });
 }
 

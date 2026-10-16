@@ -65,6 +65,7 @@ const applicationKeys = new Set([
   'MASARIFI_STAGING_VOICE_EPOCH_ID',
   'MASARIFI_STAGING_VOICE_CONTINUOUS',
   'MASARIFI_STAGING_VOICE_DEV_OWNER_ID',
+  'MASARIFI_STAGING_PRIVACY_OWNER_ID',
   'MASARIFI_AI_WORKER_POLL_MS',
   'MASARIFI_AI_JOB_BATCH_SIZE',
   'MASARIFI_AI_LEASE_SECONDS',
@@ -312,6 +313,7 @@ const schema = Joi.object<PlatformEnvironment>({
     .optional(),
   MASARIFI_VOICE_ANALYSIS_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_FINANCE_DIAGNOSTICS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_STAGING_PRIVACY_OWNER_ID: Joi.string().pattern(/^user_[A-Za-z0-9]+$/).optional(),
   MASARIFI_STAGING_VOICE_EPOCH_ID: Joi.string()
     .guid({ version: ['uuidv4'] })
     .optional(),
@@ -578,6 +580,9 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
+  if (environment.MASARIFI_STAGING_PRIVACY_OWNER_ID &&
+    (environment.MASARIFI_PROCESS_KIND !== 'worker' || environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'))
+    invalidEnvironment(['MASARIFI_STAGING_PRIVACY_OWNER_ID']);
   if (environment.MASARIFI_STAGING_VOICE_CONTINUOUS && !environment.MASARIFI_STAGING_VOICE_EPOCH_ID)
     invalidEnvironment(['MASARIFI_STAGING_VOICE_CONTINUOUS']);
   if (

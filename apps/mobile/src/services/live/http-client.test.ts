@@ -15,6 +15,16 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it.each(['network', 'timeout', 'server', 'auth'] as const)('preserves %s provenance for honest startup recovery', async (kind) => {
+    const request = jest.fn(async () => {
+      if (kind === 'timeout') return new Promise<Response>(() => {});
+      if (kind === 'network') throw new TypeError('Failed to fetch');
+      return response(kind === 'auth' ? 401 : 503, { code: kind === 'auth' ? 'UNAUTHORIZED' : 'SERVICE_UNAVAILABLE' });
+    });
+    const failure = await requestJson('/api/v1/me', schema, { baseUrl: 'https://inert.invalid', token: 'token', request, timeoutMs: 5 }).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ code: kind === 'auth' ? 'session_expired' : 'provider_unavailable' });
+    expect((failure as HttpError & { failureSource?: string }).failureSource).toBe(kind === 'network' || kind === 'timeout' ? kind : undefined);
+  });
   it.each<HeadersInit>([
     { Accept: 'application/json; currency-onboarding=1' },
     { accept: 'application/json; currency-onboarding=1' },

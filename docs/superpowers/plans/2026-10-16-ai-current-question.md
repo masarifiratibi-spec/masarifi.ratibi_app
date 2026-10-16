@@ -32,10 +32,10 @@
 
 **Interfaces:** Add optional internal `currentQuestion?: string` to `CompletionInput<T>`. The agent supplies redacted current content; the gateway appends a final user message only when supplied. Existing callers remain unchanged.
 
-- [ ] Add a transport regression using the real agent/gateway and a fake external HTTP response. Capture outbound messages and assert the final message is the current question even when context contains a different historical request; verify exact grounded result/redirect through the real parser.
-- [ ] Run `npm test -- --selectProjects unit --runInBand assistant-agent.spec.ts ai-gateway.spec.ts`; observe the wrong final message before implementation.
-- [ ] Implement the optional final message and explicit context-vs-current-request prompt guidance. Preserve context bounds and redaction.
-- [ ] Run the same tests, AI unit/contract suites, API typecheck/lint. Review the diff for shared Voice changes.
+- [x] Add a transport regression using the real agent/gateway and a fake external HTTP response. Capture outbound messages and assert the final message is the current question even when context contains a different historical request; verify exact grounded result/redirect through the real parser.
+- [x] Run `npm test -- --selectProjects unit --runInBand assistant-agent.spec.ts ai-gateway.spec.ts`; observe the wrong final message before implementation.
+- [x] Implement the optional final message and explicit context-vs-current-request prompt guidance. Preserve context bounds and redaction.
+- [x] Run the same tests, AI unit/contract suites, API typecheck/lint. Review the diff for shared Voice changes.
 - [ ] Commit only this task's files and record the evidence.
 
 ### Task 2: Financial coverage/parity repairs
@@ -44,8 +44,8 @@
 
 **Interfaces:** Preserve owner-fenced fixed `AssistantDataQuery` and exact-minor facts; use established reporting semantics instead of inventing independent totals.
 
-- [ ] Finish the domain audit and record concrete missing data or parity defects, then specify the exact fixtures/fix in a focused sub-plan before editing.
-- [ ] Reproduce each accepted defect with actual data/query tests, implement the smallest fix and run the domain suites.
+- [x] Finish the domain audit and record concrete missing data or parity defects, then specify the exact fixtures/fix in a focused sub-plan before editing.
+- [x] Reproduce each accepted defect with actual data/query tests, implement the smallest fix and run the domain suites.
 - [ ] Verify safe owner isolation, pagination, confirmed/pending distinctions and numeric/date grounding with fresh read-only data.
 - [ ] Commit reviewed changes and keep installed migration checksum history intact.
 
@@ -60,3 +60,7 @@
 - [ ] Measure end-to-end/provider times and check usage/accounting, failures, pending jobs, financial hashes and Voice heartbeat.
 - [ ] Fix any observed failures with a new regression, repeat affected cases and report actual acceptance coverage.
 - [ ] Record final source/runtime/evidence pins and remaining limits. Continue account deletion, offline UX and performance repairs under the reliability spec without awaiting approval.
+
+## Source qualification (2026-10-16)
+
+API unit/contract: 249 suites / 1830 tests passed. Mobile complete bounded suite: 487 suites / 3217 tests passed, no skips. Both typechecks passed. Dedicated PostgreSQL data parity: 53 tests passed; account-deletion local database: 5 tests passed. Independent scoped AI and cross-slice code reviews found no remaining product-code findings after the period-reference and planning-scope repairs. Hosted model semantics, privacy provider deletion and native UI/performance qualification remain separate runtime acceptance gates; local tests do not establish those outcomes.

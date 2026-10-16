@@ -88,6 +88,58 @@ const mergedCategory = {
   updatedAt: '2026-09-08T00:00:00.000Z'
 };
 
+it('shares concurrent category preparation and retries a failed attempt', async () => {
+  const request = jest.fn(async () => response({ items: [], nextCursor: null }));
+  request.mockRejectedValueOnce(new TypeError('connection unavailable'));
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  const failed = await Promise.allSettled([service.prepareCategoryIds(), service.prepareCategoryIds()]);
+  expect(failed.map(({ status }) => status)).toEqual(['rejected', 'rejected']);
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(mockBridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  await Promise.all([service.prepareCategoryIds(), service.prepareCategoryIds()]);
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+it('prepares fresh category IDs after an owner switch without reusing old mappings', async () => {
+  const request = jest.fn(async () => response({ items: [{ ...mergedCategory, scope: 'system', systemKey: 'food' }], nextCursor: null }));
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  await service.prepareCategoryIds();
+  expect(service.serverCategoryId('food')).toBe(mergedCategory.id);
+  mockSession = { ...mockSession, id: 'session-b', userId: 'user_owner-b' };
+  mockActiveDatabase = mockOtherOwnerDatabase;
+  request.mockImplementation(async () => response({ items: [], nextCursor: null }));
+  await service.prepareCategoryIds();
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(() => service.serverCategoryId('food')).toThrow();
+});
+
+it('starts the new owner preparation while an old owner request is still pending', async () => {
+  let finishOldRequest!: (response: Response) => void;
+  let oldRequestStarted!: () => void;
+  const started = new Promise<void>((resolve) => { oldRequestStarted = resolve; });
+  const request = jest.fn(async () => response({ items: [], nextCursor: null }));
+  request.mockImplementationOnce(() => {
+    oldRequestStarted();
+    return new Promise<Response>((resolve) => { finishOldRequest = resolve; });
+  });
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  const oldPreparation = service.prepareCategoryIds().catch((error: unknown) => error);
+  await started;
+  mockSession = { ...mockSession, id: 'session-b', userId: 'user_owner-b' };
+  mockActiveDatabase = mockOtherOwnerDatabase;
+  const newPreparation = service.prepareCategoryIds();
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(request).toHaveBeenCalledTimes(2);
+    await newPreparation;
+  } finally {
+    finishOldRequest(response({ items: [{ ...mergedCategory, scope: 'system', systemKey: 'food' }], nextCursor: null }));
+    await Promise.allSettled([newPreparation, oldPreparation]);
+  }
+  expect(await oldPreparation).toMatchObject({ code: 'session_expired' });
+  expect(() => service.serverCategoryId('food')).toThrow();
+});
+
 it('maps the existing Shopping database category for manual expense submission without creating a category', async () => {
   const id = '04000000-0000-4000-8000-000000000006';
   const request = jest.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>

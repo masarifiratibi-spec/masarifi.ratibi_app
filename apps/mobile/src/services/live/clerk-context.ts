@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 
 export type IdentityStatus =
-  'loading' | 'ready' | 'sso' | 'error' | 'cancelled' | 'incomplete';
+  'loading' | 'ready' | 'sso' | 'error' | 'unavailable' | 'cancelled' | 'incomplete';
 export const LiveIdentityStatusContext = createContext<{
   status: IdentityStatus;
   retry: () => void;

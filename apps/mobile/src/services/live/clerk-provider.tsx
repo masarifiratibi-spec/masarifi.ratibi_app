@@ -97,7 +97,7 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
     if (status !== 'loading') return;
     const timer = setTimeout(() => {
       recordDevelopmentAuthDiagnostic('identity_timeout');
-      setStatus('error');
+      setStatus('unavailable');
     }, 30_000);
     return () => clearTimeout(timer);
   }, [status]);
@@ -117,7 +117,9 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
             .then(() => setStatus(clerk.status === 'ready' ? 'ready' : 'error'))
             .catch((error: unknown) => {
               recordDevelopmentAuthDiagnostic('identity_retry_failure', error);
-              setStatus('error');
+              const networkUnavailable = typeof error === 'object' && error !== null &&
+                'code' in error && error.code === 'network_error';
+              setStatus(networkUnavailable ? 'unavailable' : 'error');
             });
         }
       }}

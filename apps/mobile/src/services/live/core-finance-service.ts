@@ -25,7 +25,7 @@ import { CoreFinanceSyncAdapter } from '@/storage/core-finance-sync-adapter';
 import { openDatabase } from '@/storage/database';
 import { SyncRepository } from '@/storage/sync-repository';
 import { SyncHttpService } from '@/services/contracts/sync-service';
-import { captureLiveClerkIdentity } from './auth-service';
+import { captureLiveClerkIdentity, captureLiveClerkOwner, captureLiveReadClerkIdentity } from './auth-service';
 import { HttpError, requestJson } from './http-client';
 import { ledgerDetailSchema as detailSchema, ledgerSummarySchema as summarySchema, serverKind, serverStatus } from './ledger-api-contract';
 import { readHomeTodayActivity } from '@/services/home-today-activity';
@@ -233,7 +233,7 @@ export function createLiveLedgerService({
     { repository: CoreFinanceRepository; ready: Promise<void> | null }
   >();
   const ensureLocalReady = async () => {
-    const owner = await captureLiveClerkIdentity();
+    const owner = await captureLiveClerkOwner();
     let local = ownerRepositories.get(owner.userId);
     if (!local) {
       const repository =
@@ -263,12 +263,13 @@ export function createLiveLedgerService({
     schema: z.ZodType<T>,
     body?: Record<string, unknown>,
     operationId?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    capturedIdentity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>
   ): Promise<T> => {
     if (method !== 'GET' && !operationId?.trim())
       throw new HttpError('validation_error', 400);
-    const identity = await captureLiveClerkIdentity();
-    await categoryIds?.prepare();
+    const identity = capturedIdentity ?? await (method === 'GET' ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity());
+    if (!capturedIdentity) await categoryIds?.prepare();
     await identity.assertCurrent();
     const serverBody =
       body && typeof body.categoryId === 'string'
@@ -378,7 +379,7 @@ export function createLiveLedgerService({
     ): Promise<TransactionPage> => {
       if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
         throw new CoreFinanceError('validation');
-      const owner = await captureLiveClerkIdentity();
+      const owner = await captureLiveReadClerkIdentity();
       await categoryIds?.prepare();
       await owner.assertCurrent();
       const query = ledgerQuery(
@@ -397,7 +398,8 @@ export function createLiveLedgerService({
         pageSchema,
         undefined,
         undefined,
-        signal
+        signal,
+        owner
       );
       const items = page.items
         .map((item) => localTransaction(transactionFromSummary(item)))
@@ -407,7 +409,7 @@ export function createLiveLedgerService({
   return {
     listTransactions,
     async getHomeTodayActivity(filters, signal) {
-      const owner = await captureLiveClerkIdentity();
+      const owner = await captureLiveReadClerkIdentity();
       const activity = await readHomeTodayActivity({
         filters, signal, listTransactions,
         readSignedEffect: async (transaction) => {

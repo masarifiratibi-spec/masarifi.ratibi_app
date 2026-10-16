@@ -166,11 +166,70 @@ it('keeps live Home expenses from older pages without changing full-history fina
     periodIncomeMinor: 500,
     periodExpenseMinor: 200
   });
+  expect(request.mock.calls.filter(([url]) => String(url).includes('/accounts?'))).toHaveLength(1);
   expect(
     request.mock.calls.every(
       ([, init]) => !init?.method || init.method === 'GET'
     )
   ).toBe(true);
+});
+
+it('starts Home transaction reads before account metadata finishes', async () => {
+  let finishAccounts!: (value: Response) => void;
+  const accountsPending = new Promise<Response>((resolve) => { finishAccounts = resolve; });
+  const request = jest.fn(async (url: RequestInfo | URL) => {
+    if (String(url).includes('/accounts?')) return accountsPending;
+    if (String(url).includes('/categories?')) return response({ items: [], nextCursor: null });
+    if (String(url).includes('/transactions?')) return response({ items: [], nextCursor: null, ledgerVersion: 0, requestId: 'empty' });
+    throw new Error('Unexpected Home read');
+  });
+  const pending = createLiveCoreFinanceService({ baseUrl: 'https://inert.invalid', request }).getHomeSummary('SAR');
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(request.mock.calls.some(([url]) => String(url).includes('/transactions?'))).toBe(true);
+  } finally {
+    finishAccounts(response({ items: [], nextCursor: null }));
+    await pending;
+  }
+});
+
+it('rejects a Home summary when the session changes between ledger pages', async () => {
+  let userId = 'user_owner';
+  let switchAfterRead = false;
+  registerLiveClerkBridge({
+    getSession: async () => {
+      const session = { id: `session-${userId}`, userId, method: 'google' as const, issuedAt: 1, expiresAt: 9999999999999 };
+      if (switchAfterRead) {
+        userId = 'user_other';
+        switchAfterRead = false;
+      }
+      return session;
+    },
+    getToken: async () => 'owner-token',
+    startPhone: jest.fn(), verifyPhone: jest.fn(), resendPhone: jest.fn(),
+    signInWithGoogle: jest.fn(), reverifyConflict: jest.fn(), signOut: jest.fn()
+  });
+  let ledgerPages = 0;
+  const request = jest.fn(async (url: RequestInfo | URL) => {
+    if (String(url).includes('/accounts?') || String(url).includes('/categories?'))
+      return response({ items: [], nextCursor: null });
+    if (String(url).includes('/transactions?')) {
+      const firstPage = ++ledgerPages === 1;
+      const page = response({ items: [], nextCursor: firstPage ? 'next' : null, ledgerVersion: 0, requestId: 'page' });
+      if (firstPage) {
+        const readJson = page.json.bind(page);
+        page.json = async () => {
+          const payload: unknown = await readJson();
+          switchAfterRead = true;
+          return payload;
+        };
+      }
+      return page;
+    }
+    throw new Error('Unexpected Home read');
+  });
+  await expect(createLiveCoreFinanceService({ baseUrl: 'https://inert.invalid', request }).getHomeSummary('SAR'))
+    .rejects.toMatchObject({ code: 'offline' });
 });
 
 it.each([

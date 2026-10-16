@@ -4,6 +4,7 @@ import {
   renderAssistantAnswer,
 } from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery } from '../../../src/ai/assistant-agent-data';
+import { AiGateway } from '../../../src/ai/ai.gateway';
 
 const claim = {
   id: 'job',
@@ -41,6 +42,101 @@ const route = {
   prompt: { template: 'Never use tools.', schemaVersion: 1 },
   safetyRules: [],
 };
+
+it.each([
+  { current: 'إيه آخر معاملة؟', previous: 'اكتب برنامج بايثون', outside: false },
+  { current: 'ما عاصمة فرنسا؟', previous: 'إيه آخر معاملة؟', outside: true },
+])(
+  'sends the current question after historical context: $current',
+  async ({ current, previous, outside }) => {
+    let messages: Array<{ role: string; content: string }> = [];
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-test-key',
+      fetcher: (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');
+        const body = JSON.parse(init.body) as { messages: typeof messages };
+        messages = body.messages;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-current-question',
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify(
+                      outside
+                        ? {
+                            status: 'out_of_scope',
+                            answer: '',
+                            queries: [],
+                            responseType: 'missing',
+                            scope: 'current_state',
+                          }
+                        : {
+                            status: 'answer',
+                            answer: 'آخر معاملة بقيمة {{F1}}.',
+                            queries: [],
+                            responseType: 'fact',
+                            scope: 'all_history',
+                          },
+                    ),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const agent = new AssistantAgent(
+      { read: () => Promise.resolve(sample) } as never,
+      gateway,
+      () => Promise.resolve(),
+    );
+    const result = await agent.run(
+      {
+        ...claim,
+        content: current,
+        history: [
+          { role: 'user', content: previous },
+          { role: 'assistant', content: 'رد سابق' },
+        ],
+      },
+      {
+        ...route,
+        safetyRules: [
+          {
+            key: 'input',
+            type: 'input_block',
+            configuration: { denyControl: true, denyBidiControls: true, maxUtf8Bytes: 8192 },
+          },
+          {
+            key: 'output',
+            type: 'output_block',
+            configuration: {
+              forbiddenKeys: ['tool', 'tools', 'sql', 'url', 'callback', 'authorization', 'secret'],
+            },
+          },
+          { key: 'actions', type: 'action_allowlist', configuration: {} },
+          { key: 'evidence', type: 'evidence_limit', configuration: {} },
+        ],
+      },
+      new AbortController().signal,
+    );
+    expect(messages.at(-1)).toEqual({ role: 'user', content: current });
+    const context = JSON.parse(messages[1]?.content ?? '{}') as { conversation: unknown[] };
+    expect(context.conversation).toEqual([
+      { role: 'user', content: previous },
+      { role: 'assistant', content: 'رد سابق' },
+    ]);
+    expect(result.metadata.responseType).toBe(outside ? 'redirect' : 'fact');
+    if (!outside) expect(result.content).toBe('آخر معاملة بقيمة 3 ريال.');
+  },
+);
 
 it('returns a server-owned scope notice when the model classifies an unrelated request', async () => {
   const agent = new AssistantAgent(
@@ -735,4 +831,108 @@ it.each(['-3 SAR', '−3 SAR'])('rejects a changed monetary sign in a literal: %
       { key: 'F1', value: '3 SAR', path: 'account.confirmedMinor', currency: 'SAR' },
     ]),
   ).toThrow('AI_UNGROUNDED_ANSWER');
+});
+
+it.each([false, true])(
+  'labels the period supporting the answer instead of a later unrelated read (literal=%s)',
+  async (literal) => {
+    let round = 0;
+    const period = { startDate: '2026-10-01', endDate: '2026-10-16' };
+    const agent = new AssistantAgent(
+      {
+        read: (_id: string, _token: string, query: AssistantDataQuery) =>
+          Promise.resolve({
+            ...sample,
+            data:
+              query.tool === 'summary'
+                ? { period, amountMinor: '8200', currency: 'SAR' }
+                : query.tool === 'transactions'
+                  ? { period: { startDate: '2026-09-01', endDate: '2026-09-30' }, count: 2 }
+                  : sample.data,
+          }),
+      } as never,
+      {
+        complete: (input: { parse: (value: unknown) => unknown; userContent: string }) => {
+          if (round++ === 0)
+            return reply(input, {
+              status: 'query',
+              answer: '',
+              responseType: 'fact',
+              scope: 'selected_period',
+              queries: [
+                { tool: 'summary', ...period },
+                { tool: 'transactions', startDate: '2026-09-01', endDate: '2026-09-30' },
+              ],
+            });
+          const payload = JSON.parse(input.userContent) as {
+            dataAlreadyRead: Array<{ data: { amountMinor: ModelCell } }>;
+          };
+          return reply(input, {
+            status: 'answer',
+            answer: `مصروفات الفترة ${literal ? '82 ريال' : (payload.dataAlreadyRead[1]?.data.amountMinor.ref ?? 'MISSING_TEST_REFERENCE')}.`,
+            queries: [],
+            responseType: 'fact',
+            scope: 'selected_period',
+          });
+        },
+      } as never,
+      () => Promise.resolve(),
+    );
+    const answer = await agent.run(claim, route, new AbortController().signal);
+    expect(answer.content).toBe('مصروفات الفترة 82 ريال.');
+    expect(answer.metadata).toMatchObject({ scope: 'selected_period', ...period });
+  },
+);
+
+it('labels a current-period comparison fact with its originating period', async () => {
+  let round = 0;
+  const current = { startDate: '2026-10-01', endDate: '2026-10-16' };
+  const previous = { startDate: '2026-09-01', endDate: '2026-09-16' };
+  const agent = new AssistantAgent(
+    {
+      read: (_id: string, _token: string, query: AssistantDataQuery) =>
+        Promise.resolve({
+          ...sample,
+          data: {
+            status: 'ok',
+            period: query.tool === 'overview' ? current : previous,
+            summaries: [
+              {
+                currency: 'SAR',
+                kind: 'expense',
+                status: 'confirmed',
+                amountMinor: query.tool === 'overview' ? '8200' : '6400',
+                count: 1,
+              },
+            ],
+          },
+        }),
+    } as never,
+    {
+      complete: (input: { parse: (value: unknown) => unknown; userContent: string }) => {
+        if (round++ === 0)
+          return reply(input, {
+            status: 'query',
+            answer: '',
+            responseType: 'fact',
+            scope: 'selected_period',
+            queries: [{ tool: 'summary', ...previous }],
+          });
+        const payload = JSON.parse(input.userContent) as {
+          exactComparisons: { items: Array<{ currentMinor: ModelCell }> };
+        };
+        return reply(input, {
+          status: 'answer',
+          answer: `مصروفات الشهر الحالي ${payload.exactComparisons.items[0]?.currentMinor.ref ?? 'MISSING_TEST_REFERENCE'}.`,
+          queries: [],
+          responseType: 'fact',
+          scope: 'selected_period',
+        });
+      },
+    } as never,
+    () => Promise.resolve(),
+  );
+  const answer = await agent.run(claim, route, new AbortController().signal);
+  expect(answer.content).toBe('مصروفات الشهر الحالي 82 ريال.');
+  expect(answer.metadata).toMatchObject({ scope: 'selected_period', ...current });
 });

@@ -216,6 +216,8 @@ export interface SettingsService {
   revokeAllSessions(operationId: string): Promise<MutationResult<RepresentativeSession[]>>;
   listSecurityEvents(cursor?: string): Promise<Page<SecurityEvent>>;
   requestPrivacyAction(kind: PrivacyRequest['kind'], operationId: string): Promise<MutationResult<PrivacyRequest>>;
+  getAccountDeletion(requestId: string): Promise<PrivacyRequest>;
+  cancelAccountDeletion(requestId: string, operationId: string): Promise<MutationResult<null>>;
   deleteLocalData(operationId: string): Promise<MutationResult<LocalDataDeletionResult>>;
 }
 

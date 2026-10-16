@@ -9,6 +9,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { resolveClientMode } from '@/config/client-runtime';
 import { authService } from '@/features/auth/auth-flow';
 import { restoreAppShellSession } from '@/features/auth/session-controller';
+import { HttpError } from '@/services/live/http-client';
 import { useLiveClerkSessionKey } from '@/services/live/clerk-provider';
 import { synchronizeLiveCoreFinance } from '@/services/live/core-finance-service';
 import { refreshPlatformOperations } from '@/services/platform-operations-service';
@@ -86,11 +87,11 @@ export function AppShellProvider({
           void syncAutomaticTracking().catch(() => undefined);
         }
       })
-      .catch(() =>
+      .catch((error: unknown) =>
         current
           ? useAppShellStore.setState({
               hydrated: true,
-              profileSetupStatus: 'error'
+              profileSetupStatus: error instanceof HttpError && error.failureSource ? 'unavailable' : 'error'
             })
           : undefined
       );

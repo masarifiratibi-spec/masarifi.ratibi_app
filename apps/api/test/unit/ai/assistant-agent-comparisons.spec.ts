@@ -3,6 +3,37 @@ import {
   assistantPeriodTotals,
 } from '../../../src/ai/assistant-agent-comparisons';
 
+it('compares net spending effects including fees and refunds rather than gross expense rows', () => {
+  const previous = snapshot('2026-09-01', '20000');
+  const current = snapshot('2026-10-01', '25000');
+  const reads = [previous, current].map((read, index) => ({
+    ...read,
+    snapshot: {
+      data: {
+        ...read.snapshot.data,
+        financialEffects: [
+          {
+            currency: 'SAR',
+            incomeMinor: '0',
+            expenseMinor: index === 0 ? '18000' : '24000',
+            netCashFlowMinor: index === 0 ? '-18000' : '-24000',
+            transactionCount: 3,
+          },
+        ],
+      },
+    },
+  }));
+  expect(assistantPeriodTotals(reads).filter((row) => row.kind === 'expense')).toMatchObject([
+    { confirmedMinor: '18000' },
+    { confirmedMinor: '24000' },
+  ]);
+  expect(assistantComparisons(reads).find((row) => row.kind === 'expense')).toMatchObject({
+    previousMinor: '18000',
+    currentMinor: '24000',
+    differenceMinor: '6000',
+  });
+});
+
 it('supplies exact zero income and expense facts for a complete empty period in an owned currency', () => {
   const reads = [
     {
@@ -216,3 +247,23 @@ it('does not compare different account scopes as though they were the same finan
   };
   expect(assistantComparisons([previous, current])).toEqual([]);
 });
+
+it.each(['expense', 'income', 'refund'] as const)(
+  'does not compare unrelated financial effects from a %s-only read',
+  (kind) => {
+    const reads = ['2026-09-01', '2026-10-01'].map((startDate) => ({
+      query: { tool: 'summary' as const, kind },
+      snapshot: {
+        data: {
+          status: 'ok',
+          period: { startDate },
+          summaries: [],
+          financialEffects: [{ currency: 'SAR', expenseMinor: '50', incomeMinor: '100' }],
+        },
+      },
+    }));
+    expect(assistantComparisons(reads).map((row) => row.kind)).toEqual(
+      kind === 'refund' ? [] : [kind],
+    );
+  },
+);

@@ -47,14 +47,15 @@ jest.mock('@/storage/local-data-reset', () => ({
     operationId
   }))
 }));
-jest.mock('@/features/settings/settings-queries', () => ({
-  usePrivacyRequest: jest.fn()
+const mockRequestAccountDeletion = jest.fn();
+jest.mock('@/services/mocks/subscription-settings-service', () => ({
+  ...jest.requireActual('@/services/mocks/subscription-settings-service'),
+  settingsService: jest
+    .requireActual('@/services/live/auth-service')
+    .createLiveIdentityService({
+      request: (...args: unknown[]) => mockRequestAccountDeletion(...args)
+    })
 }));
-
-const requestAccountDeletion = jest.fn();
-const { usePrivacyRequest } = jest.requireMock(
-  '@/features/settings/settings-queries'
-) as { usePrivacyRequest: jest.Mock };
 const { authService } = jest.requireMock('@/features/auth/auth-flow') as {
   authService: { signInWithGoogle: jest.Mock };
 };
@@ -67,19 +68,14 @@ const supportedTypes = jest.mocked(
 
 beforeEach(() => {
   jest.clearAllMocks();
-  usePrivacyRequest.mockReturnValue({
-    isPending: false,
-    mutate: requestAccountDeletion
-  });
+  mockRequestAccountDeletion.mockReset();
   useAppShellStore.getState().reset();
 });
 
 describe('security journey', () => {
   it('coalesces Face authentication across an unlock-route remount and preserves the Clerk session', async () => {
     let finish!: (
-      result: Awaited<
-        ReturnType<typeof LocalAuthentication.authenticateAsync>
-      >
+      result: Awaited<ReturnType<typeof LocalAuthentication.authenticateAsync>>
     ) => void;
     jest.mocked(LocalAuthentication.authenticateAsync).mockReturnValueOnce(
       new Promise((resolve) => {
@@ -156,9 +152,21 @@ describe('security journey', () => {
 
   it('confirms account deletion without navigating to privacy settings', async () => {
     hasHardware.mockResolvedValue(false);
+    useAppShellStore.setState({ session: authenticatedSession });
+    mockRequestAccountDeletion.mockResolvedValue({
+      id: 'deletion-security',
+      status: 'verified',
+      requestedAt: '2026-10-16T00:00:00.000Z',
+      coolingOffEndsAt: '2099-10-16T00:00:00.000Z',
+      completedAt: null,
+      retainedCategories: [],
+      version: 1
+    });
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     renderWithProviders(<SecuritySettingsRoute />);
-    await act(async () => {});
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'حذف الحساب' })).toBeEnabled()
+    );
 
     expect(
       screen.getByText(translate('appShell.security.biometric.fingerprint'))
@@ -178,11 +186,14 @@ describe('security journey', () => {
     );
 
     const actions = alert.mock.calls[0]?.[2] ?? [];
-    actions[1]?.onPress?.();
-    expect(requestAccountDeletion).toHaveBeenCalledWith({
-      kind: 'account_deletion',
-      operationId: expect.stringMatching(/^security-account-deletion-/)
+    await act(async () => {
+      actions[1]?.onPress?.();
     });
+    await screen.findByText(translate('settings.deletion.status.verified'));
+    expect(mockRequestAccountDeletion).toHaveBeenCalledWith(
+      '/api/v1/me/deletion-requests',
+      expect.objectContaining({ method: 'POST' })
+    );
     expect(router.push).not.toHaveBeenCalledWith('/profile/privacy');
     alert.mockRestore();
   });
@@ -354,7 +365,9 @@ describe('security journey', () => {
     });
     renderWithProviders(<ForgotPinRoute />);
     fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
-    await waitFor(() => expect(useAppShellStore.getState().privacyLock).toBeNull());
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock).toBeNull()
+    );
     expect(router.replace).toHaveBeenCalledWith('/security/pin/create');
   });
 
@@ -386,7 +399,9 @@ describe('security journey', () => {
 
     fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
 
-    await waitFor(() => expect(authService.signInWithGoogle).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(authService.signInWithGoogle).toHaveBeenCalled()
+    );
     expect(useAppShellStore.getState().privacyLock).not.toBeNull();
     expect(router.replace).not.toHaveBeenCalledWith('/security/pin/create');
   });

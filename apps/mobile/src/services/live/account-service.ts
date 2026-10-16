@@ -11,7 +11,7 @@ import {
   requestJson
 } from './http-client';
 import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
-import { captureLiveClerkIdentity } from './auth-service';
+import { captureLiveClerkIdentity, captureLiveReadClerkIdentity } from './auth-service';
 
 const nullableDate = z
   .string()
@@ -198,7 +198,7 @@ export function createLiveAccountService({
   ) => {
     if (method !== 'GET' && !options.operationId?.trim())
       throw new HttpError('validation_error', 400);
-    const identity = options.identity ?? (await captureLiveClerkIdentity());
+    const identity = options.identity ?? (await (method === 'GET' ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity()));
     await identity.assertCurrent();
     const result = await requestJson(path, schema, {
       baseUrl,
@@ -219,7 +219,7 @@ export function createLiveAccountService({
 
   return {
     async listAccounts(includeArchived = false): Promise<VersionedAccount[]> {
-      const identity = await captureLiveClerkIdentity();
+      const identity = await captureLiveReadClerkIdentity();
       const accounts: VersionedAccount[] = [];
       const cursors = new Set<string>();
       let cursor: string | null = null;

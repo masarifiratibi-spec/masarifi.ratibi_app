@@ -36,7 +36,7 @@ export async function restoreAppShellSession(
   const deadline = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
       active = false;
-      reject(new Error('bootstrap unavailable'));
+      reject(new HttpError('provider_unavailable', 503, undefined, undefined, 'timeout'));
     }, 30_000);
   });
   try {
@@ -85,7 +85,9 @@ async function restoreCurrentSession(
       if (error instanceof HttpError && error.code === 'session_expired') {
         await useAppShellStore.getState().expireSession();
         if (isCurrent()) useAppShellStore.getState().setProfileSetup('unknown');
-      } else useAppShellStore.getState().setProfileSetup('error');
+      } else useAppShellStore.getState().setProfileSetup(
+        error instanceof HttpError && error.failureSource ? 'unavailable' : 'error'
+      );
       return;
     }
     if (!isCurrent()) return;

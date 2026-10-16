@@ -308,7 +308,7 @@ it('keeps SSO progress in the identity provider across callback screen remounts 
   expect(screen.getByText('cancelled')).toBeOnTheScreen();
 });
 
-it('terminates stalled Clerk initialization with a recoverable error', async () => {
+it('terminates stalled Clerk initialization with a recoverable connection state', async () => {
   jest.useFakeTimers();
   authState = { ...authState, isLoaded: false };
   jest.mocked(getClerkInstance).mockReturnValue({ status: 'loading' } as never);
@@ -320,7 +320,7 @@ it('terminates stalled Clerk initialization with a recoverable error', async () 
   await act(async () => {
     await jest.advanceTimersByTimeAsync(30_000);
   });
-  expect(screen.getByText('error')).toBeOnTheScreen();
+  expect(screen.getByText('unavailable')).toBeOnTheScreen();
   jest.useRealTimers();
 });
 
@@ -339,12 +339,12 @@ it('terminates a stalled Clerk startup Retry as well as the first attempt', asyn
   await act(async () => {
     await jest.advanceTimersByTimeAsync(30_000);
   });
-  fireEvent.press(screen.getByText('error'));
+  fireEvent.press(screen.getByText('unavailable'));
   await act(async () => {
     await jest.advanceTimersByTimeAsync(30_000);
   });
   try {
-    expect(screen.getByText('error')).toBeOnTheScreen();
+    expect(screen.getByText('unavailable')).toBeOnTheScreen();
   } finally {
     jest.useRealTimers();
   }
@@ -381,6 +381,21 @@ it.each(['ready', 'degraded'] as const)(
     expect(
       screen.getByText(status === 'ready' ? 'ready' : 'error')
     ).toBeOnTheScreen();
+  }
+);
+
+it.each(['network_error', 'invalid_publishable_key'] as const)(
+  'keeps %s retry failures in the appropriate recovery state',
+  async (code) => {
+    authState = { ...authState, isLoaded: false };
+    jest.mocked(getClerkInstance).mockReturnValue({
+      status: 'error',
+      load: jest.fn(async () => { throw Object.assign(new Error('Clerk load failed'), { code }); })
+    } as never);
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    fireEvent.press(screen.getByText('error'));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText(code === 'network_error' ? 'unavailable' : 'error')).toBeOnTheScreen();
   }
 );
 

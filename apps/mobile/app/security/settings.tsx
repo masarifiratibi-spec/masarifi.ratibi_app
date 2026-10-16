@@ -3,7 +3,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
-import { ActionButton } from '@/design-system/components/ActionButton';
+import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import {
@@ -20,7 +20,6 @@ import { createBiometricService } from '@/services/platform/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
-import { usePrivacyRequest } from '@/features/settings/settings-queries';
 
 type AutoLockDuration = PrivacyLockPreference['autoLockDuration'];
 
@@ -47,7 +46,6 @@ export default function SecuritySettingsRoute() {
   const toggleHideBalances = usePreferenceStore(
     (state) => state.toggleHideBalances
   );
-  const deletionRequest = usePrivacyRequest();
 
   useEffect(() => {
     if (!appLockEnabled) return;
@@ -94,25 +92,6 @@ export default function SecuritySettingsRoute() {
       })),
       { text: translate('coreFinance.cancel'), style: 'cancel' as const }
     ]);
-  }
-
-  function confirmAccountDeletion() {
-    Alert.alert(
-      translate('appShell.security.deleteAccount'),
-      translate('appShell.security.deleteAccount.confirmation'),
-      [
-        { text: translate('coreFinance.cancel'), style: 'cancel' },
-        {
-          text: translate('settings.privacy.confirmRequest'),
-          style: 'destructive',
-          onPress: () =>
-            deletionRequest.mutate({
-              kind: 'account_deletion',
-              operationId: `security-account-deletion-${Date.now()}`
-            })
-        }
-      ]
-    );
   }
 
   const biometricKinds =
@@ -223,15 +202,7 @@ export default function SecuritySettingsRoute() {
       </GroupedList>
 
       <View style={styles.dangerZone}>
-        <StyledText style={{ color: theme.colors.content.secondary }}>
-          {translate('appShell.security.deleteAccount.description')}
-        </StyledText>
-        <ActionButton
-          label={translate('appShell.security.deleteAccount')}
-          loading={deletionRequest.isPending}
-          onPress={confirmAccountDeletion}
-          variant="destructive"
-        />
+        <AccountDeletionPanel />
       </View>
     </ScrollView>
   );

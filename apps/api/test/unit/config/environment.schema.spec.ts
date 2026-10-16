@@ -29,6 +29,35 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('requires a valid explicit Clerk owner on the Staging worker for scoped privacy', () => {
+    const scoped = {
+      ...valid,
+      EMAIL_SMTP_HOST: 'smtp.example.test',
+      EMAIL_SMTP_PORT: 587,
+      EMAIL_SMTP_USERNAME: 'fixture',
+      EMAIL_SMTP_PASSWORD: 'fixture',
+      EMAIL_FROM: 'test@example.test',
+      MASARIFI_EXPORT_MAX_BYTES: 16777216,
+      MASARIFI_EXPORT_MAX_ENTRIES: 100,
+      MASARIFI_PRIVACY_HANDLER_MANIFEST: 'ai@1,engagement@1,identity@1,tracking@1',
+      MASARIFI_SECURITY_JOB_BATCH_SIZE: 1,
+      MASARIFI_SECURITY_WORKER_POLL_MS: 500,
+      MASARIFI_PROCESS_KIND: 'worker',
+      SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+      MASARIFI_STAGING_PRIVACY_OWNER_ID: 'user_Disposable123',
+    };
+    expect(
+      (validateEnvironment(scoped) as unknown as Record<string, unknown>)[
+        'MASARIFI_STAGING_PRIVACY_OWNER_ID'
+      ],
+    ).toBe('user_Disposable123');
+    for (const patch of [
+      { MASARIFI_PROCESS_KIND: 'api' },
+      { SUPABASE_URL: 'https://other.supabase.co' },
+      { MASARIFI_STAGING_PRIVACY_OWNER_ID: 'bad owner' },
+    ])
+      expect(() => validateEnvironment({ ...scoped, ...patch })).toThrow();
+  });
   it('limits continuous Voice and DEV admission configuration to their Staging processes', () => {
     const staging = { ...valid, SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co' };
     expect(

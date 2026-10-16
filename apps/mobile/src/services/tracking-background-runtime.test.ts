@@ -291,11 +291,9 @@ it.each([
       const restoring = restoreAppShellSession(auth);
       if (outcome === 'signed-out') await restoring;
       else {
-        const rejected = expect(restoring).rejects.toThrow(
-          outcome === 'timeout'
-            ? 'bootstrap unavailable'
-            : 'identity unavailable'
-        );
+        const rejected = outcome === 'timeout'
+          ? expect(restoring).rejects.toMatchObject({ code: 'provider_unavailable', failureSource: 'timeout' })
+          : expect(restoring).rejects.toThrow('identity unavailable');
         if (outcome === 'timeout') await jest.advanceTimersByTimeAsync(30_000);
         await rejected;
       }
@@ -339,9 +337,9 @@ it.each(['rejected', 'timeout'] as const)(
     } as AuthService;
     try {
       const restoring = restoreAppShellSession(auth, () => current);
-      const rejected = expect(restoring).rejects.toThrow(
-        outcome === 'timeout' ? 'bootstrap unavailable' : 'stale identity'
-      );
+      const rejected = outcome === 'timeout'
+        ? expect(restoring).rejects.toMatchObject({ code: 'provider_unavailable', failureSource: 'timeout' })
+        : expect(restoring).rejects.toThrow('stale identity');
       current = false;
       useAppShellStore.setState({ session: newerSession });
       if (outcome === 'timeout') await jest.advanceTimersByTimeAsync(30_000);

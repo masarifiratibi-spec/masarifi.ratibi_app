@@ -133,6 +133,18 @@ export class ClerkClientService {
     }
   }
 
+  async deleteIdentityUser(userId: string): Promise<'deleted' | 'not_found'> {
+    if (!/^user_[A-Za-z0-9_]+$/.test(userId) || userId.length > 128)
+      throw new ClerkProviderUnavailableError();
+    try {
+      await this.withTimeout(this.client.users.deleteUser(userId));
+      return 'deleted';
+    } catch (error) {
+      if (statusCode(error) === 404) return 'not_found';
+      throw new ClerkProviderUnavailableError();
+    }
+  }
+
   async revokeSession(sessionId: string): Promise<'revoked' | 'not_found'> {
     if (sessionId.trim() !== sessionId || sessionId.length < 1 || sessionId.length > 255) {
       throw new ClerkProviderUnavailableError();

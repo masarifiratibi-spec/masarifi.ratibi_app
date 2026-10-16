@@ -10,8 +10,28 @@ const tools = [
   'profile',
   'tracking',
 ] as const;
+const planningCollections = [
+  'salary',
+  'budget',
+  'budget_category',
+  'obligation',
+  'goal',
+  'obligation_schedule',
+  'salary_receipt',
+  'report_schedule',
+  'savings_movement',
+  'obligation_payment',
+  'report_delivery',
+] as const;
+const trackingCollections = [
+  'tracking_review',
+  'tracking_history',
+  'voice_session',
+  'voice_preference',
+] as const;
 export interface AssistantDataQuery {
   tool: (typeof tools)[number];
+  collection?: (typeof planningCollections)[number] | (typeof trackingCollections)[number];
   kind?:
     'expense' | 'income' | 'transfer' | 'refund' | 'opening' | 'reversal' | 'adjustment' | null;
   startDate?: string | null;
@@ -44,6 +64,10 @@ export const ASSISTANT_DATA_QUERY_SCHEMA = {
   required: ['tool'],
   properties: {
     tool: { type: 'string', enum: tools },
+    collection: {
+      type: ['string', 'null'],
+      enum: [...planningCollections, ...trackingCollections, null],
+    },
     kind: {
       type: ['string', 'null'],
       enum: ['expense', 'income', 'transfer', 'refund', 'opening', 'reversal', 'adjustment', null],
@@ -71,6 +95,14 @@ export function parseAssistantDataQuery(value: unknown): AssistantDataQuery {
   if (Object.keys(query).some((key) => !Object.hasOwn(ASSISTANT_DATA_QUERY_SCHEMA.properties, key)))
     return invalid();
   if (!tools.includes(query.tool as AssistantDataQuery['tool'])) return invalid();
+  if (
+    query.collection != null &&
+    !(
+      (query.tool === 'planning' && planningCollections.includes(query.collection as never)) ||
+      (query.tool === 'tracking' && trackingCollections.includes(query.collection as never))
+    )
+  )
+    return invalid();
   for (const key of ['startDate', 'endDate']) {
     const date = query[key];
     if (date == null) continue;
@@ -143,7 +175,9 @@ export function parseAssistantDataQuery(value: unknown): AssistantDataQuery {
     )
       return invalid();
   }
-  return { ...query } as unknown as AssistantDataQuery;
+  const normalized = { ...query };
+  if (normalized.collection === null) delete normalized.collection;
+  return normalized as unknown as AssistantDataQuery;
 }
 
 @Injectable()

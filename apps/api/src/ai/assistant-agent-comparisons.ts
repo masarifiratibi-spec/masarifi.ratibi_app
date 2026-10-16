@@ -19,6 +19,21 @@ const object = (input: unknown): Record<string, unknown> =>
     ? (input as Record<string, unknown>)
     : {};
 function totals(read: SummaryRead): Map<string, bigint> {
+  const effects = read.snapshot.data.financialEffects;
+  if (Array.isArray(effects))
+    return new Map(
+      effects.flatMap((entry) => {
+        const row = object(entry);
+        if (!/^[A-Z]{3}$/u.test(String(row.currency))) return [];
+        return (['expense', 'income'] as const)
+          .filter((kind) => !read.query.kind || read.query.kind === kind)
+          .flatMap((kind) =>
+            /^-?\d+$/u.test(String(row[`${kind}Minor`]))
+              ? [[`${String(row.currency)}:${kind}`, BigInt(String(row[`${kind}Minor`]))] as const]
+              : [],
+          );
+      }),
+    );
   const summaries = read.snapshot.data.summaries;
   if (!Array.isArray(summaries)) return new Map();
   return new Map(
@@ -64,6 +79,7 @@ export function assistantPeriodTotals(reads: SummaryRead[]) {
       object(data.accounts).items,
       object(data.transactions).items,
       data.summaries,
+      data.financialEffects,
     ]) {
       if (Array.isArray(collection)) {
         const entries: unknown[] = collection;
@@ -96,9 +112,7 @@ export function assistantPeriodTotals(reads: SummaryRead[]) {
           filters: read.query,
           currency,
           kind,
-          confirmedMinor: rows
-            .reduce((sum, row) => sum + BigInt(String(row.amountMinor)), 0n)
-            .toString(),
+          confirmedMinor: (totals(read).get(`${currency}:${kind}`) ?? 0n).toString(),
           confirmedCount: rows.reduce((sum, row) => sum + Number(row.count ?? 0), 0),
           completeConfirmedAggregate: true,
         };

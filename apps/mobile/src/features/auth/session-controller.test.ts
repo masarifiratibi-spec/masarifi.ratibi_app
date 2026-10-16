@@ -91,6 +91,17 @@ afterAll(() => {
 });
 
 describe('session-controller', () => {
+  it.each(['network', 'timeout', 'server'] as const)('keeps a recoverable %s profile failure separate from expired authentication', async (kind) => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    const failure = new HttpError('provider_unavailable', 503);
+    if (kind !== 'server') Object.assign(failure, { failureSource: kind });
+    await restoreAppShellSession(auth, () => true, { getProfileSetup: async () => { throw failure; } });
+    expect(useAppShellStore.getState().profileSetupStatus).toBe(kind === 'server' ? 'error' : 'unavailable');
+    expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+    await restoreAppShellSession(auth, () => true, { getProfileSetup: async () => aedProfileSetup });
+    expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+  });
   it('requires Google authentication again when profile bootstrap rejects the account token', async () => {
     const auth = createMockAuthService();
     await auth.signInWithGoogle();

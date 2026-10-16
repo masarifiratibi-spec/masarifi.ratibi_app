@@ -37,6 +37,7 @@ export function resolveEntryRoute(input: EntryRouteInput): string {
   if (
     input.profileSetupStatus === 'unknown' ||
     input.profileSetupStatus === 'loading' ||
+    input.profileSetupStatus === 'unavailable' ||
     input.profileSetupStatus === 'error'
   )
     return '/index';

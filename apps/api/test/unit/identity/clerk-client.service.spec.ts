@@ -6,13 +6,14 @@ import {
 
 const revokeSession = jest.fn();
 const getUser = jest.fn();
+const deleteUser = jest.fn();
 const getUserList = jest.fn();
 const getSessionList = jest.fn();
 
 jest.mock('@clerk/backend', () => ({
   createClerkClient: () => ({
     sessions: { revokeSession, getSessionList },
-    users: { getUser, getUserList },
+    users: { getUser, getUserList, deleteUser },
   }),
 }));
 
@@ -28,6 +29,20 @@ const config = {
 } as unknown as PlatformConfigService;
 
 describe('Clerk Admin client adapter', () => {
+  it('deletes external identity with repeatable confirmed-absence semantics and no false success on provider failure', async () => {
+    const adapter = new ClerkClientService(config) as ClerkClientService & {
+      deleteIdentityUser(owner: string): Promise<'deleted' | 'not_found'>;
+    };
+    deleteUser
+      .mockResolvedValueOnce({ id: 'user_fixture_a' })
+      .mockRejectedValueOnce({ status: 404 })
+      .mockRejectedValueOnce({ status: 503 });
+    await expect(adapter.deleteIdentityUser('user_fixture_a')).resolves.toBe('deleted');
+    await expect(adapter.deleteIdentityUser('user_fixture_a')).resolves.toBe('not_found');
+    await expect(adapter.deleteIdentityUser('user_fixture_a')).rejects.toBeInstanceOf(
+      ClerkProviderUnavailableError,
+    );
+  });
   let service: ClerkClientService;
 
   beforeEach(() => {
@@ -45,7 +60,13 @@ describe('Clerk Admin client adapter', () => {
       id: 'user_fixture_a',
       primaryEmailAddressId: 'email_a',
       primaryPhoneNumberId: 'phone_a',
-      emailAddresses: [{ id: 'email_a', emailAddress: ' OWNER@EXAMPLE.TEST ', verification: { status: 'verified' } }],
+      emailAddresses: [
+        {
+          id: 'email_a',
+          emailAddress: ' OWNER@EXAMPLE.TEST ',
+          verification: { status: 'verified' },
+        },
+      ],
       phoneNumbers: [{ id: 'phone_a', phoneNumber: '+966500000012' }],
       firstName: ' First ',
       lastName: ' Last ',
@@ -91,7 +112,17 @@ describe('Clerk Admin client adapter', () => {
       totalCount: 3,
     });
     await expect(service.listIdentityUsers(0, 1)).resolves.toEqual({
-      users: [{ id: 'user_fixture_a', primaryEmail: null, primaryEmailVerified: false, primaryPhone: null, displayName: null, banned: false, locked: false }],
+      users: [
+        {
+          id: 'user_fixture_a',
+          primaryEmail: null,
+          primaryEmailVerified: false,
+          primaryPhone: null,
+          displayName: null,
+          banned: false,
+          locked: false,
+        },
+      ],
       nextOffset: 1,
     });
     expect(getUserList).toHaveBeenCalledWith({ offset: 0, limit: 1, orderBy: '+created_at' });

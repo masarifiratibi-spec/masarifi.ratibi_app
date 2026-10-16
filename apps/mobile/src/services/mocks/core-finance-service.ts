@@ -47,6 +47,7 @@ import { createMockExchangeRateService } from './exchange-rate-service';
 import type { ExchangeRateService } from '@/services/contracts/core-finance-service';
 import { createLiveAccountService } from '@/services/live/account-service';
 import { createLiveCategoryLifecycleService } from '@/services/live/category-lifecycle-service';
+import { captureLiveClerkOwner } from '@/services/live/auth-service';
 import { HttpError } from '@/services/live/http-client';
 import { calculateCreditCardPayoff } from '@/domain/credit-card-payoff';
 import { createLiveLedgerService } from '@/services/live/core-finance-service';
@@ -712,10 +713,31 @@ export function createLiveCoreFinanceService(
       profileCurrency: string,
       filters: TransactionFilterSet = emptyTransactionFilters
     ): Promise<HomeSummary> {
-      const [liveAccounts, balances] = await Promise.all([
-        target.listAccounts(),
-        target.listAccountBalances()
+      const owner = await captureLiveClerkOwner();
+      const readTransactions = async () => {
+        const transactions: Transaction[] = [];
+        let cursor: string | null = null;
+        const cursors = new Set<string>();
+        do {
+          await owner.assertCurrent();
+          const page = await ledger.listTransactions(filters, cursor, 100);
+          await owner.assertCurrent();
+          transactions.push(...page.items);
+          cursor = page.nextCursor;
+          if (cursor && cursors.has(cursor)) throw new CoreFinanceError('unknown');
+          if (cursor) cursors.add(cursor);
+        } while (cursor);
+        return transactions;
+      };
+      const [accountData, transactions] = await Promise.all([
+        target.listAccounts().then(async (liveAccounts) => ({
+          liveAccounts,
+          balances: await Promise.all(liveAccounts.map((account) => accounts.getAccountBalance(account.id, account.currencyCode)))
+        })),
+        readTransactions()
       ]);
+      await owner.assertCurrent();
+      const { liveAccounts, balances } = accountData;
       const selectedAccounts = liveAccounts.filter(
         (account) =>
           !filters.accountIds.length || filters.accountIds.includes(account.id)
@@ -746,17 +768,6 @@ export function createLiveCoreFinanceService(
       const excludedAccountIds = selectedAccounts
         .filter((account) => account.currencyCode !== profileCurrency)
         .map((account) => account.id);
-      const transactions: Transaction[] = [];
-      let cursor: string | null = null;
-      const cursors = new Set<string>();
-      do {
-        const page = await ledger.listTransactions(filters, cursor, 100);
-        transactions.push(...page.items);
-        cursor = page.nextCursor;
-        if (cursor && cursors.has(cursor))
-          throw new CoreFinanceError('unknown');
-        if (cursor) cursors.add(cursor);
-      } while (cursor);
       const comparableTransactions = transactions.filter(
         (transaction) => transaction.currencyCode === profileCurrency
       );

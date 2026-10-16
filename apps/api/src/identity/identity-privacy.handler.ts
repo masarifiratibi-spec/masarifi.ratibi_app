@@ -77,16 +77,14 @@ export class IdentityPrivacyHandler implements PrivacyDomainHandler {
   }
 
   async deleteAccount(evidence: PrivacyEvidence): Promise<DeletionOutcome> {
-    const sessions = await this.workerTransaction(async (client) => {
-      const rows = await client.query<{ clerk_session_id: string | null }>(
-        'select clerk_session_id from public.user_devices where user_id=$1 and revoked_at is null',
+    const alreadyDeleted = await this.workerTransaction(async (client) => {
+      const profile = await client.query<{ status: string }>(
+        'select status from public.profiles where id=$1',
         [evidence.userId],
       );
-      return rows.rows.flatMap(({ clerk_session_id }) =>
-        clerk_session_id ? [clerk_session_id] : [],
-      );
+      return profile.rows[0]?.status === 'deleted';
     });
-    for (const sessionId of sessions) await this.clerk.revokeSession(sessionId);
+    if (!alreadyDeleted) await this.clerk.revokeUserSessions(evidence.userId);
     const anonymizedCount = await this.workerTransaction(async (client) => {
       await client.query(
         'update public.push_tokens set revoked_at=clock_timestamp() where user_id=$1 and revoked_at is null',
@@ -98,13 +96,20 @@ export class IdentityPrivacyHandler implements PrivacyDomainHandler {
         [evidence.userId],
       );
       const profile = await client.query(
-        `update public.profiles set primary_email=null,phone_e164=null,display_name=null,status='deleted'
+        `update public.profiles set primary_email=null,phone_e164=null,display_name=null,status='deleted',deleted_at=clock_timestamp()
         where id=$1 and status<>'deleted' returning id`,
         [evidence.userId],
       );
       return profile.rowCount ?? 0;
     });
-    return { deletedCount: 0, anonymizedCount, retainedCount: 0, policyIds: [] };
+    // Keep the tombstone even if the provider is unavailable; a retry completes external deletion.
+    const providerDeletion = await this.clerk.deleteIdentityUser(evidence.userId);
+    return {
+      deletedCount: providerDeletion === 'deleted' ? 1 : 0,
+      anonymizedCount,
+      retainedCount: 0,
+      policyIds: [],
+    };
   }
 
   async listRetentionCandidates(

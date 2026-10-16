@@ -54,6 +54,9 @@ jest.mock('expo-crypto', () => ({
 import {
   captureLiveAssistantClerkIdentity,
   captureLiveClerkIdentity,
+  captureLiveClerkOwner,
+  captureLiveReadClerkIdentity,
+  getLiveClerkToken,
   createLiveAuthService,
   createLiveIdentityService,
   registerLiveClerkBridge
@@ -80,6 +83,153 @@ function clerkBridge(overrides: Record<string, unknown> = {}) {
     ...overrides
   };
 }
+
+test('hydrates owner-bound local work without contacting the token service', async () => {
+  const bridge = clerkBridge({
+    getToken: jest.fn(async () => {
+      throw new Error('network unavailable');
+    })
+  });
+  registerLiveClerkBridge(bridge);
+  const owner = await captureLiveClerkOwner();
+  expect(owner.userId).toBe('user_live_123456');
+  await expect(owner.assertCurrent()).resolves.toBeUndefined();
+  expect(bridge.getToken).not.toHaveBeenCalled();
+  registerLiveClerkBridge(
+    clerkBridge({
+      getSession: jest.fn(async () => ({
+        ...liveSession,
+        userId: 'another_owner'
+      }))
+    })
+  );
+  await expect(owner.assertCurrent()).rejects.toMatchObject({
+    code: 'session_expired'
+  });
+});
+
+test('preserves cached reads across a bridge refresh for the same active session', async () => {
+  let release!: (token: string) => void;
+  const bridge = clerkBridge({
+    getToken: jest.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          release = resolve;
+        })
+    )
+  });
+  registerLiveClerkBridge(bridge);
+  const pending = captureLiveReadClerkIdentity();
+  await Promise.resolve();
+  registerLiveClerkBridge(clerkBridge());
+  release('original-token');
+  await expect(pending).resolves.toMatchObject({
+    userId: 'user_live_123456',
+    token: 'original-token'
+  });
+});
+
+test('shares pending cached read authentication while keeping mutations freshly authenticated', async () => {
+  let release!: (token: string) => void;
+  const getToken = jest
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          release = resolve;
+        })
+    )
+    .mockResolvedValue('fresh-mutation-token');
+  registerLiveClerkBridge(clerkBridge({ getToken }));
+  const first = captureLiveReadClerkIdentity();
+  const second = captureLiveReadClerkIdentity();
+  await Promise.resolve();
+  release('cached-read-token');
+  await expect(first).resolves.toMatchObject({
+    token: 'cached-read-token',
+    userId: 'user_live_123456'
+  });
+  await expect(second).resolves.toMatchObject({ token: 'cached-read-token' });
+  expect(getToken).toHaveBeenCalledTimes(1);
+  expect(getToken).toHaveBeenNthCalledWith(1, { skipCache: false });
+  await expect(captureLiveClerkIdentity()).resolves.toMatchObject({
+    token: 'fresh-mutation-token'
+  });
+  expect(getToken).toHaveBeenNthCalledWith(2, { skipCache: true });
+});
+
+test.each([
+  getLiveClerkToken,
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+])(
+  'classifies a documented Clerk transport failure before HTTP dispatch',
+  async (capture) => {
+    registerLiveClerkBridge(
+      clerkBridge({
+        getToken: jest.fn(async () => {
+          throw Object.assign(new Error('SDK transport failed'), {
+            code: 'network_error'
+          });
+        })
+      })
+    );
+    await expect(capture()).rejects.toMatchObject({
+      code: 'provider_unavailable',
+      status: 503,
+      failureSource: 'network'
+    });
+  }
+);
+
+test('does not turn an invalid Clerk configuration into an offline notice', async () => {
+  const failure = Object.assign(new Error('Invalid SDK configuration'), {
+    code: 'invalid_publishable_key'
+  });
+  registerLiveClerkBridge(
+    clerkBridge({
+      getToken: jest.fn(async () => {
+        throw failure;
+      })
+    })
+  );
+  await expect(getLiveClerkToken()).rejects.toBe(failure);
+});
+
+test('reads the startup profile with valid cached tokens instead of forcing network refreshes', async () => {
+  const bridge = clerkBridge();
+  registerLiveClerkBridge(bridge);
+  jest
+    .spyOn(require('./http-client'), 'requestJson')
+    .mockResolvedValueOnce({
+      id: liveSession.userId,
+      displayName: 'Network name',
+      primaryEmailMasked: null,
+      phoneMasked: null,
+      locale: 'ar',
+      timezone: 'Asia/Riyadh',
+      status: 'active',
+      version: 1
+    })
+    .mockResolvedValueOnce({
+      defaultCurrency: 'SAR',
+      language: 'ar',
+      theme: 'system',
+      calendar: 'gregorian',
+      weekStart: 6,
+      privacySettings: {},
+      version: 1
+    });
+  const service = createLiveIdentityService({
+    getOwnerId: () => liveSession.userId
+  });
+  await expect(service.getProfile()).resolves.toMatchObject({
+    name: 'Network name',
+    currency: 'SAR'
+  });
+  expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  expect(bridge.getToken).not.toHaveBeenCalledWith({ skipCache: true });
+});
 
 describe('live Clerk authentication', () => {
   test('ships the Expo runtime packages required by Clerk Google SSO', () => {
@@ -472,7 +622,12 @@ describe('live owner identity mappings', () => {
         status: 'pending',
         requestedAt: Date.parse('2026-09-12T11:00:00.000Z'),
         updatedAt: Date.parse('2026-09-12T11:00:00.000Z'),
-        safeFailure: null
+        safeFailure: null,
+        serverStatus: 'processing',
+        coolingOffEndsAt: Date.parse('2026-09-13T11:00:00.000Z'),
+        completedAt: null,
+        retainedCategories: [],
+        version: 1
       },
       affectedScopes: ['settings.privacy-request.account_deletion']
     });
@@ -486,6 +641,71 @@ describe('live owner identity mappings', () => {
       headers: { 'Idempotency-Key': 'delete-op' },
       body: { confirmation: 'DELETE_MY_ACCOUNT' }
     });
+  });
+
+  test.each([
+    ['verified', 'review', null],
+    ['completed', 'accepted', '2026-09-13T12:00:00.000Z']
+  ])(
+    'keeps deletion %s distinct from completion',
+    async (serverStatus, status, completedAt) => {
+      const service = createLiveIdentityService({
+        request: async () => ({
+          id: 'deletion-123',
+          status: serverStatus,
+          requestedAt: '2026-09-12T11:00:00.000Z',
+          coolingOffEndsAt: '2026-09-13T11:00:00.000Z',
+          completedAt,
+          retainedCategories: ['ledger'],
+          version: 2
+        })
+      });
+      await expect(
+        service.requestPrivacyAction('account_deletion', 'delete-op')
+      ).resolves.toMatchObject({
+        value: {
+          status,
+          serverStatus,
+          coolingOffEndsAt: Date.parse('2026-09-13T11:00:00.000Z'),
+          completedAt: completedAt ? Date.parse(completedAt) : null,
+          retainedCategories: ['ledger'],
+          version: 2
+        }
+      });
+    }
+  );
+
+  test('refreshes and cancels the owned deletion request through existing endpoints', async () => {
+    const request = jest
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'deletion-123',
+        status: 'verified',
+        requestedAt: '2026-09-12T11:00:00.000Z',
+        coolingOffEndsAt: '2026-09-13T11:00:00.000Z',
+        completedAt: null,
+        retainedCategories: [],
+        version: 2
+      })
+      .mockResolvedValueOnce(null);
+    const service = createLiveIdentityService({ request });
+    await expect(
+      service.getAccountDeletion('deletion-123')
+    ).resolves.toMatchObject({ serverStatus: 'verified', version: 2 });
+    await expect(
+      service.cancelAccountDeletion('deletion-123', 'cancel-op')
+    ).resolves.toEqual({
+      value: null,
+      affectedScopes: ['settings.privacy-request.account_deletion']
+    });
+    expect(request).toHaveBeenLastCalledWith(
+      '/api/v1/me/deletion-requests/deletion-123',
+      {
+        method: 'DELETE',
+        headers: { 'Idempotency-Key': 'cancel-op' },
+        emptyValue: null
+      }
+    );
   });
 
   test('rejects an unrecognized privacy status', async () => {
@@ -513,7 +733,7 @@ describe('live owner identity mappings', () => {
     ['data_export', 'expired', 'failed', 'expired'],
     ['data_export', 'failed', 'failed', 'representative_failure'],
     ['account_deletion', 'requested', 'review', null],
-    ['account_deletion', 'verified', 'accepted', null],
+    ['account_deletion', 'verified', 'review', null],
     ['account_deletion', 'processing', 'pending', null],
     ['account_deletion', 'completed', 'accepted', null],
     ['account_deletion', 'cancelled', 'cancelled', null],
@@ -558,7 +778,16 @@ describe('live owner identity mappings', () => {
           status,
           requestedAt: Date.parse(requestedAt),
           updatedAt: Date.parse(requestedAt),
-          safeFailure
+          safeFailure,
+          ...(kind === 'account_deletion'
+            ? {
+                serverStatus,
+                coolingOffEndsAt: Date.parse('2026-09-13T12:00:00.000Z'),
+                completedAt: null,
+                retainedCategories: [],
+                version: 1
+              }
+            : {})
         },
         affectedScopes: [`settings.privacy-request.${kind}`]
       });
@@ -1218,3 +1447,60 @@ test('a stalled assistant token flight does not pin later recovery attempts', as
     clock.mockRestore();
   }
 });
+
+test.each([false, true])(
+  'deletion never dispatches for an owner switched before or during token resolution (%s)',
+  async (duringToken) => {
+    const originalFetch = global.fetch;
+    const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+    process.env.EXPO_PUBLIC_API_URL = 'https://inert.invalid';
+    const request = jest
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        status: 202,
+        json: async () => ({
+          id: 'deletion-fenced',
+          status: 'verified',
+          requestedAt: '2026-10-16T00:00:00.000Z',
+          coolingOffEndsAt: '2026-10-19T00:00:00.000Z',
+          completedAt: null,
+          retainedCategories: [],
+          version: 1
+        })
+      });
+    global.fetch = request;
+    let current = duringToken
+      ? liveSession
+      : { ...liveSession, userId: 'user_other_owner', id: 'sess_other' };
+    registerLiveClerkBridge(
+      clerkBridge({
+        getSession: async () => current,
+        getToken: async () => {
+          current = {
+            ...liveSession,
+            userId: 'user_other_owner',
+            id: 'sess_other'
+          };
+          return 'other-owner-token';
+        }
+      })
+    );
+    try {
+      const service = createLiveIdentityService({
+        getOwnerId: () => liveSession.userId
+      });
+      await expect(
+        service.requestPrivacyAction(
+          'account_deletion',
+          'owner-fenced-operation'
+        )
+      ).rejects.toMatchObject({ code: 'session_expired' });
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = originalFetch;
+      if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+      else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+    }
+  }
+);

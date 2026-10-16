@@ -44,6 +44,7 @@ type Candidate = EffectiveAiRoute['primary'];
 interface CompletionInput<T> {
   route: EffectiveAiRoute;
   userContent: unknown;
+  currentQuestion?: string;
   schema: Record<string, unknown>;
   parse: (value: unknown) => T;
   requestId: string;
@@ -138,6 +139,9 @@ export class AiGateway {
           messages: [
             { role: 'system', content: input.route.prompt.template },
             { role: 'user', content: input.userContent },
+            ...(input.currentQuestion === undefined
+              ? []
+              : [{ role: 'user', content: input.currentQuestion }]),
           ],
           response_format: {
             type: 'json_schema',

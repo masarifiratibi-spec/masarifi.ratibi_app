@@ -17,7 +17,8 @@ export class HttpError extends Error {
     readonly code: HttpErrorCode,
     readonly status: number,
     readonly domainCode?: string,
-    readonly requestId?: string
+    readonly requestId?: string,
+    readonly failureSource?: 'network' | 'timeout'
   ) {
     super(SAFE_MESSAGES[code]);
     this.name = 'HttpError';
@@ -186,6 +187,8 @@ export async function requestJson<T>(
     return await Promise.race([operation, aborted]);
   } catch (error) {
     const failure = normalizeFailure(error, controller.signal.aborted);
+    const recoverableConnectionFailure = httpStatus === null &&
+      (abortSource === 'timeout' || (abortSource === null && diagnostic.stage === 'transport' && failure.code === 'provider_unavailable'));
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       try {
         console.info(
@@ -206,7 +209,9 @@ export async function requestJson<T>(
         // Preserve the actual HTTP outcome when the Dev log sink is unavailable.
       }
     }
-    throw failure;
+    throw recoverableConnectionFailure
+      ? new HttpError(failure.code, failure.status, failure.domainCode, failure.requestId, abortSource === 'timeout' ? 'timeout' : 'network')
+      : failure;
   } finally {
     clearTimeout(timer);
     controller.signal.removeEventListener('abort', rejectAborted);

@@ -2,6 +2,7 @@ import React from 'react';
 import { Redirect } from 'expo-router';
 
 import { StateView } from '@/design-system/components/feedback/StateView';
+import { StartupConnectionState } from '@/features/shell/StartupConnectionState';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
@@ -43,6 +44,14 @@ export default function AppEntry() {
     pendingDestination,
     privacyLock
   });
+
+  if (identity.status === 'unavailable' || (identity.status === 'ready' && profileSetupStatus === 'unavailable')) {
+    return (
+      <StartupConnectionState
+        onAction={identity.status === 'unavailable' ? identity.retry : () => useAppShellStore.getState().retryBootstrap()}
+      />
+    );
+  }
 
   if (identity.status === 'error') {
     return (

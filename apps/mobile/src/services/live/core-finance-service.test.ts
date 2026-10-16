@@ -139,6 +139,26 @@ const bridge = {
   signOut: jest.fn()
 } satisfies LiveClerkBridge;
 
+it('lists transactions with one token capture while preserving category preparation', async () => {
+  bridge.getToken.mockClear();
+  const prepare = jest.fn(async () => undefined);
+  const request = jest.fn(async () => response({ items: [], nextCursor: null, ledgerVersion: 0, requestId: 'one-capture' }));
+  const service = createLiveLedgerService({ baseUrl: 'https://api.test', request, categoryIds: { prepare, toServer: (id) => id, toLocal: (id) => id } });
+  await expect(service.listTransactions(emptyTransactionFilters)).resolves.toEqual({ items: [], nextCursor: null });
+  expect(bridge.getToken).toHaveBeenCalledTimes(1);
+  expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  expect(prepare).toHaveBeenCalledTimes(1);
+});
+
+it('reads owner-local drafts without fetching an authentication token', async () => {
+  bridge.getToken.mockClear();
+  const repository = new CoreFinanceRepository();
+  jest.spyOn(repository, 'hydrate').mockResolvedValue(undefined);
+  const service = createLiveLedgerService({ drafts: repository });
+  await expect(service.loadDraft('missing-draft')).resolves.toBeNull();
+  expect(bridge.getToken).not.toHaveBeenCalled();
+});
+
 it('reads the complete owner-bound day across pages with no source filter and keeps only the newest version of a replayed row', async () => {
   const rows = Array.from({ length: 100 }, (_, index) => summary(`30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`, {
     source: ['manual', 'voice', 'automatic', 'platform_assisted'][index % 4],

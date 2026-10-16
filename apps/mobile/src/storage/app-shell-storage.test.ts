@@ -139,9 +139,10 @@ describe('createAppShellStorage', () => {
           restoreSession: () => new Promise(() => undefined)
         } as AuthService;
         const restoring = restoreAppShellSession(auth);
-        const rejected = expect(restoring).rejects.toThrow(
-          'bootstrap unavailable'
-        );
+        const rejected = expect(restoring).rejects.toMatchObject({
+          code: 'provider_unavailable',
+          failureSource: 'timeout'
+        });
         await jest.advanceTimersByTimeAsync(30_000);
         await rejected;
       } finally {

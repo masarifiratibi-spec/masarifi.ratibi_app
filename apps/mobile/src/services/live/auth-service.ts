@@ -177,10 +177,53 @@ export function registerLiveClerkBridge(bridge: LiveClerkBridge): void {
   });
 }
 
+async function requestClerkToken(
+  bridge: LiveClerkBridge,
+  options: { skipCache: boolean }
+) {
+  try {
+    return await bridge.getToken(options);
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'network_error'
+    )
+      throw new HttpError(
+        'provider_unavailable',
+        503,
+        undefined,
+        undefined,
+        'network'
+      );
+    throw error;
+  }
+}
+
 export async function getLiveClerkToken(): Promise<string> {
-  const token = await registeredBridge?.getToken({ skipCache: true });
+  if (!registeredBridge) throw new HttpError('session_expired', 401);
+  const token = await requestClerkToken(registeredBridge, { skipCache: true });
   if (!token) throw new HttpError('session_expired', 401);
   return token;
+}
+
+export async function captureLiveClerkOwner() {
+  const bridge = registeredBridge;
+  const session = await bridge?.getSession();
+  if (!bridge || !session) throw new HttpError('session_expired', 401);
+  const assertCurrent = async () => {
+    const currentBridge = registeredBridge;
+    const current = await currentBridge?.getSession();
+    if (
+      registeredBridge !== currentBridge ||
+      current?.id !== session.id ||
+      current.userId !== session.userId
+    )
+      throw new HttpError('session_expired', 401);
+  };
+  await assertCurrent();
+  return { userId: session.userId, assertCurrent };
 }
 
 export async function captureLiveClerkIdentity() {
@@ -197,30 +240,41 @@ export async function captureLiveClerkIdentity() {
     )
       throw new HttpError('session_expired', 401);
   };
-  const token = await bridge.getToken({ skipCache: true });
+  const token = await requestClerkToken(bridge, { skipCache: true });
   if (!token) throw new HttpError('session_expired', 401);
   await assertCurrent();
   return { userId: session.userId, token, assertCurrent };
 }
 
-// Only assistant calls share a pending SDK lookup; Clerk owns valid-token caching.
-let assistantTokenFlight: {
-  bridge: LiveClerkBridge;
-  sessionId: string;
-  userId: string;
-  startedAt: number;
-  promise: Promise<string | null>;
-} | undefined;
+// Read-only calls share a pending SDK lookup; Clerk owns valid-token caching.
+let assistantTokenFlight:
+  | {
+      bridge: LiveClerkBridge;
+      sessionId: string;
+      userId: string;
+      startedAt: number;
+      promise: Promise<string | null>;
+    }
+  | undefined;
 
-export async function captureLiveAssistantClerkIdentity() {
+async function captureCachedClerkIdentity(
+  allowSameSessionBridgeRefresh: boolean
+) {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
-  if (!bridge || !session || registeredBridge !== bridge)
+  if (
+    !bridge ||
+    !session ||
+    (!allowSameSessionBridgeRefresh && registeredBridge !== bridge)
+  )
     throw new HttpError('session_expired', 401);
   const assertCurrent = async () => {
-    const current = await bridge.getSession();
+    const currentBridge = allowSameSessionBridgeRefresh
+      ? registeredBridge
+      : bridge;
+    const current = await currentBridge?.getSession();
     if (
-      registeredBridge !== bridge ||
+      registeredBridge !== currentBridge ||
       current?.id !== session.id ||
       current.userId !== session.userId
     )
@@ -237,7 +291,7 @@ export async function captureLiveAssistantClerkIdentity() {
       sessionId: session.id,
       userId: session.userId,
       startedAt: Date.now(),
-      promise: bridge.getToken({ skipCache: false })
+      promise: requestClerkToken(bridge, { skipCache: false })
     };
   }
   const flight = assistantTokenFlight;
@@ -249,6 +303,14 @@ export async function captureLiveAssistantClerkIdentity() {
   } finally {
     if (assistantTokenFlight === flight) assistantTokenFlight = undefined;
   }
+}
+
+export async function captureLiveAssistantClerkIdentity() {
+  return captureCachedClerkIdentity(false);
+}
+
+export async function captureLiveReadClerkIdentity() {
+  return captureCachedClerkIdentity(true);
 }
 
 export function registeredLiveAuthService(): CapabilityProviderHandle<AuthService> | null {
@@ -296,7 +358,8 @@ export function createLiveAuthService(
 
 export function createLiveIdentityService({
   getOwnerId = () => null,
-  request = defaultIdentityRequest,
+  request = (path, options) =>
+    defaultIdentityRequest(path, options, getOwnerId()),
   loadLocalProfile = async () => emptyProfile(),
   saveLocalProfile = async () => undefined,
   loadLocalOnboarding = async () => null,
@@ -574,6 +637,27 @@ export function createLiveIdentityService({
         `settings.privacy-request.${kind}`
       ]);
     },
+    async getAccountDeletion(requestId) {
+      const deletion = await parsedRequest(
+        request,
+        `/api/v1/me/deletion-requests/${encodeURIComponent(requestId)}`,
+        deletionRequestSchema
+      );
+      return privacyRequest('account_deletion', requestId, deletion);
+    },
+    async cancelAccountDeletion(requestId, operationId) {
+      await parsedRequest(
+        request,
+        `/api/v1/me/deletion-requests/${encodeURIComponent(requestId)}`,
+        emptySchema,
+        {
+          method: 'DELETE',
+          headers: { 'Idempotency-Key': operationId },
+          emptyValue: null
+        }
+      );
+      return mutation(null, ['settings.privacy-request.account_deletion']);
+    },
     async deleteLocalData(operationId: string) {
       const deleted = await resetLocalUserData(operationId);
       return mutation({ deletedRows: deleted.deletedRows }, [
@@ -614,9 +698,21 @@ async function defaultIdentityRequest(
   options: Omit<RequestInit, 'body'> & {
     body?: unknown;
     emptyValue?: unknown;
-  } = {}
+  } = {},
+  expectedOwnerId?: string | null
 ): Promise<unknown> {
-  return requestJson(path, z.unknown(), options);
+  const read = (options.method ?? 'GET').toUpperCase() === 'GET';
+  const actor = await (read
+    ? captureLiveReadClerkIdentity()
+    : captureLiveClerkIdentity());
+  if (expectedOwnerId && actor.userId !== expectedOwnerId)
+    throw new HttpError('session_expired', 401);
+  const result = await requestJson(path, z.unknown(), {
+    ...options,
+    token: actor.token
+  });
+  await actor.assertCurrent();
+  return result;
 }
 
 async function parsedRequest<T>(
@@ -687,10 +783,8 @@ function deviceSession(
 function privacyRequest(
   kind: PrivacyRequest['kind'],
   operationId: string,
-  serverRequest: Pick<
-    z.infer<typeof privacyExportSchema> | z.infer<typeof deletionRequestSchema>,
-    'id' | 'requestedAt' | 'status'
-  >
+  serverRequest:
+    z.infer<typeof privacyExportSchema> | z.infer<typeof deletionRequestSchema>
 ): PrivacyRequest {
   const requestedAt = Date.parse(serverRequest.requestedAt);
   if (!Number.isSafeInteger(requestedAt) || requestedAt < 0)
@@ -699,7 +793,10 @@ function privacyRequest(
     id: serverRequest.id,
     operationId,
     kind,
-    status: privacyStatus(serverRequest.status),
+    status:
+      kind === 'account_deletion' && serverRequest.status === 'verified'
+        ? 'review'
+        : privacyStatus(serverRequest.status),
     requestedAt,
     updatedAt: requestedAt,
     safeFailure:
@@ -707,7 +804,19 @@ function privacyRequest(
         ? 'expired'
         : serverRequest.status === 'failed'
           ? 'representative_failure'
-          : null
+          : null,
+    ...('coolingOffEndsAt' in serverRequest
+      ? {
+          serverStatus: serverRequest.status,
+          coolingOffEndsAt: Date.parse(serverRequest.coolingOffEndsAt),
+          completedAt:
+            serverRequest.completedAt === null
+              ? null
+              : Date.parse(serverRequest.completedAt),
+          retainedCategories: serverRequest.retainedCategories,
+          version: serverRequest.version
+        }
+      : {})
   };
 }
 

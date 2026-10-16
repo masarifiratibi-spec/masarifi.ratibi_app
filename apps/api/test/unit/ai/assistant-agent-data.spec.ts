@@ -1,6 +1,28 @@
-import { parseAssistantDataQuery } from '../../../src/ai/assistant-agent-data';
+import {
+  ASSISTANT_DATA_QUERY_SCHEMA,
+  parseAssistantDataQuery,
+} from '../../../src/ai/assistant-agent-data';
 
 describe('assistant financial read query', () => {
+  it.each(['overview', 'accounts', 'transactions', 'summary', 'planning', 'profile', 'tracking'])(
+    'accepts the strict provider null collection for %s without selecting a collection',
+    (tool) => {
+      expect(ASSISTANT_DATA_QUERY_SCHEMA.properties.collection.type).toContain('null');
+      expect(ASSISTANT_DATA_QUERY_SCHEMA.properties.collection.enum).toContain(null);
+      expect(parseAssistantDataQuery({ tool, collection: null })).toEqual({ tool });
+    },
+  );
+  it('allows only a known collection in its matching read domain', () => {
+    expect(
+      parseAssistantDataQuery({ tool: 'tracking', collection: 'voice_session', limit: 2 }),
+    ).toEqual({ tool: 'tracking', collection: 'voice_session', limit: 2 });
+    expect(() =>
+      parseAssistantDataQuery({ tool: 'transactions', collection: 'voice_session' }),
+    ).toThrow('ASSISTANT_DATA_QUERY_INVALID');
+    expect(() => parseAssistantDataQuery({ tool: 'planning', collection: 'secret' })).toThrow(
+      'ASSISTANT_DATA_QUERY_INVALID',
+    );
+  });
   it('accepts a bounded historical merchant query without losing selectors', () => {
     expect(
       parseAssistantDataQuery({
