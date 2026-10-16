@@ -15,17 +15,21 @@ export async function startAccountDeletionVerification(
     !ownerId ||
     (expectedOwnerId && ownerId !== expectedOwnerId) ||
     !session ||
+    !session.id ||
     session.status !== 'active'
   )
     throw new HttpError('session_expired', 401);
+  const sessionId = session.id;
   const assertCurrent = () => {
     const current = getClerkInstance();
     if (
-      current.session !== session ||
+      !current.session ||
+      current.session.id !== sessionId ||
       current.user?.id !== ownerId ||
-      session.status !== 'active'
+      current.session.status !== 'active'
     )
       throw new HttpError('session_expired', 401);
+    return current.session;
   };
   const started = await session.startVerification({ level: 'first_factor' });
   assertCurrent();
@@ -42,7 +46,7 @@ export async function startAccountDeletionVerification(
       503,
       'DELETION_VERIFICATION_UNAVAILABLE'
     );
-  await session.prepareFirstFactorVerification(
+  await assertCurrent().prepareFirstFactorVerification(
     factor.strategy === 'email_code'
       ? { strategy: 'email_code', emailAddressId: factor.emailAddressId }
       : { strategy: 'phone_code', phoneNumberId: factor.phoneNumberId }
@@ -51,14 +55,13 @@ export async function startAccountDeletionVerification(
   return {
     safeIdentifier: factor.safeIdentifier,
     async verify(code) {
-      assertCurrent();
-      const verified = await session.attemptFirstFactorVerification({
+      const verified = await assertCurrent().attemptFirstFactorVerification({
         strategy: factor.strategy,
         code
       });
       assertCurrent();
       if (verified.status !== 'complete') throw new HttpError('forbidden', 403);
-      const token = await session.getToken({ skipCache: true });
+      const token = await assertCurrent().getToken({ skipCache: true });
       assertCurrent();
       if (!token) throw new HttpError('session_expired', 401);
     }

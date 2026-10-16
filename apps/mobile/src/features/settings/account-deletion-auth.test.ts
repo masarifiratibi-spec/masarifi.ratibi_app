@@ -53,6 +53,71 @@ test('rejects late verification after an account switch before refreshing anothe
   expect(clerk.session.getToken).not.toHaveBeenCalled();
 });
 
+test('continues when Clerk refreshes the same active session resource after each verification step', async () => {
+  const clerk = signedIn();
+  const first = clerk.session;
+  const started = {
+    supportedFirstFactors: [
+      {
+        strategy: 'email_code',
+        emailAddressId: 'email-a',
+        safeIdentifier: 'd***@example.test'
+      }
+    ]
+  };
+  first.startVerification.mockImplementation(async () => {
+    clerk.session = { ...clerk.session };
+    return started;
+  });
+  first.prepareFirstFactorVerification.mockImplementation(async function (
+    this: typeof first
+  ) {
+    expect(this).toBe(clerk.session);
+    clerk.session = { ...clerk.session };
+    return { status: 'needs_first_factor' };
+  });
+  first.attemptFirstFactorVerification.mockImplementation(async function (
+    this: typeof first
+  ) {
+    expect(this).toBe(clerk.session);
+    clerk.session = { ...clerk.session };
+    return { status: 'complete' };
+  });
+  first.getToken.mockImplementation(async function (this: typeof first) {
+    expect(this).toBe(clerk.session);
+    clerk.session = { ...clerk.session };
+    return 'fresh-token';
+  });
+  const verification = await startAccountDeletionVerification('owner-a');
+  await verification.verify('123456');
+  expect(clerk.session).not.toBe(first);
+  expect(clerk.session.id).toBe(first.id);
+  expect(clerk.session.getToken).toHaveBeenCalledWith({ skipCache: true });
+});
+
+test.each(['different-session', 'inactive-session'])(
+  'rejects a refreshed %s before sending a verification code',
+  async (replacement) => {
+    const clerk = signedIn();
+    const first = clerk.session;
+    first.startVerification.mockImplementation(async () => {
+      clerk.session = {
+        ...clerk.session,
+        id: replacement === 'different-session' ? 'session-b' : first.id,
+        status: replacement === 'inactive-session' ? 'ended' : 'active'
+      };
+      return { supportedFirstFactors: [] };
+    });
+    await expect(
+      startAccountDeletionVerification('owner-a')
+    ).rejects.toMatchObject({
+      code: 'session_expired'
+    });
+    expect(first.prepareFirstFactorVerification).not.toHaveBeenCalled();
+    expect(first.getToken).not.toHaveBeenCalled();
+  }
+);
+
 test('keeps incomplete or unavailable factors from authorizing deletion', async () => {
   const clerk = signedIn();
   clerk.session.attemptFirstFactorVerification.mockResolvedValue({
