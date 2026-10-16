@@ -45,6 +45,7 @@ interface CompletionInput<T> {
   route: EffectiveAiRoute;
   userContent: unknown;
   currentQuestion?: string;
+  assistantReasoningEffort?: 'low';
   schema: Record<string, unknown>;
   parse: (value: unknown) => T;
   requestId: string;
@@ -153,6 +154,12 @@ export class AiGateway {
             },
           },
           ...completionParameters,
+          ...(input.assistantReasoningEffort === 'low' &&
+          input.route.workload === 'financial_assistant' &&
+          input.currentQuestion?.trim() &&
+          candidate.modelId === 'openai/gpt-6-luna'
+            ? { reasoning: { effort: 'low' } }
+            : {}),
           stream: false,
           provider: {
             only: [vertexVoiceLite ? 'google-vertex/global' : candidate.provider],

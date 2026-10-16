@@ -5,6 +5,8 @@ import {
   useQueryClient,
   type QueryClient
 } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { assistantService } from '@/services/assistant-service';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
@@ -45,16 +47,51 @@ export function useAssistantAvailability() {
   });
 }
 
+function useAssistantForeground() {
+  const [foreground, setForeground] = useState(
+    () => !['background', 'inactive'].includes(AppState.currentState)
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) =>
+      setForeground(state === 'active')
+    );
+    return () => subscription.remove();
+  }, []);
+  return foreground;
+}
+
 export function useAssistantQuestionOperation() {
+  const client = useQueryClient();
+  const foreground = useAssistantForeground();
   return useQuery({
     queryKey: assistantKeys.questionOperation(),
-    queryFn: () =>
-      assistantService.readQuestionOperation?.() ?? Promise.resolve(null),
+    enabled: foreground,
+    staleTime: 0,
+    retry: false,
+    queryFn: async () => {
+      const operation =
+        (await assistantService.readQuestionOperation?.()) ?? null;
+      if (operation?.phase !== 'accepted' || !operation.conversationId)
+        return operation;
+      const conversationId = operation.conversationId;
+      // Reconcile accepted work through reads; unknown acceptance still requires explicit recovery.
+      await client.fetchQuery({
+        queryKey: assistantKeys.conversation(conversationId),
+        queryFn: () => assistantService.getConversation(conversationId),
+        staleTime: 0,
+        retry: false
+      });
+      return (await assistantService.readQuestionOperation?.()) ?? null;
+    },
     refetchInterval: (query) =>
-      query.state.data &&
-      !['completed', 'failed'].includes(query.state.data.phase)
-        ? 2000
-        : false
+      query.state.error ||
+      query.state.data?.phase !== 'accepted' ||
+      Date.now() - (query.state.data.createdAt ?? 0) >= 5 * 60000
+        ? false
+        : Math.min(
+            8000,
+            2000 * 2 ** Math.min(query.state.dataUpdateCount - 1, 2)
+          )
   });
 }
 
@@ -88,12 +125,24 @@ export function useAssistantConversations(
 }
 
 export function useAssistantConversation(id: string, cursor?: string) {
+  const foreground = useAssistantForeground();
+  const polling = useRef({ id, startedAt: Date.now() });
+  if (polling.current.id !== id)
+    polling.current = { id, startedAt: Date.now() };
   return useQuery({
     queryKey: assistantKeys.conversation(id, cursor),
     queryFn: () => assistantService.getConversation(id, cursor),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && foreground,
+    retry: false,
     refetchInterval: (query) =>
-      query.state.data?.pendingMessageIds?.length ? 2000 : false
+      query.state.error ||
+      !query.state.data?.pendingMessageIds?.length ||
+      Date.now() - polling.current.startedAt >= 5 * 60000
+        ? false
+        : Math.min(
+            8000,
+            2000 * 2 ** Math.min(query.state.dataUpdateCount - 1, 2)
+          )
   });
 }
 

@@ -5,7 +5,8 @@ import { FinancialInsightCard } from './FinancialInsightCard';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
-import { translate, translateDynamic } from '@/localization/i18n';
+import { currentLocale, translate, translateDynamic } from '@/localization/i18n';
+import { fontFamilyForLocale } from '@/design-system/typography';
 import { usePreferenceStore } from '@/state/preferences';
 import { spacing } from '@/design-system/tokens';
 import type { AssistantResponse } from '@/domain/assistant';
@@ -87,7 +88,13 @@ export function AssistantMessageBubble({
                 }
               ]}
             >
-              {hidden ? '••••' : translateDynamic(block.key, block.values)}
+              {hidden ? '••••' : translateDynamic(block.key, block.values)
+                .split(/(\*\*[^*\r\n]+\*\*)/g)
+                .map((part, partIndex) => partIndex % 2 === 1 ? (
+                  <Text key={partIndex} style={{fontWeight: '700', fontFamily: fontFamilyForLocale(currentLocale(), 700)}}>
+                    {part.slice(2, -2)}
+                  </Text>
+                ) : part)}
             </StyledText>
           </View>
         ))}

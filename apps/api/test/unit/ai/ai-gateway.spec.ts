@@ -62,6 +62,96 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  it.each([
+    {
+      name: 'agent opt-in',
+      workload: 'financial_assistant',
+      modelId: 'openai/gpt-6-luna',
+      optIn: true,
+      question: 'Latest expense?',
+      expected: { effort: 'low' },
+    },
+    {
+      name: 'ordinary assistant',
+      workload: 'financial_assistant',
+      modelId: 'openai/gpt-6-luna',
+      optIn: false,
+      question: 'Latest expense?',
+      expected: undefined,
+    },
+    {
+      name: 'missing current question',
+      workload: 'financial_assistant',
+      modelId: 'openai/gpt-6-luna',
+      optIn: true,
+      question: undefined,
+      expected: undefined,
+    },
+    {
+      name: 'empty current question',
+      workload: 'financial_assistant',
+      modelId: 'openai/gpt-6-luna',
+      optIn: true,
+      question: ' ',
+      expected: undefined,
+    },
+    {
+      name: 'Voice',
+      workload: 'voice_transcription',
+      modelId: 'openai/gpt-6-luna',
+      optIn: true,
+      question: 'Latest expense?',
+      expected: undefined,
+    },
+    {
+      name: 'other workload',
+      workload: 'transaction_extraction',
+      modelId: 'openai/gpt-6-luna',
+      optIn: true,
+      question: 'Latest expense?',
+      expected: undefined,
+    },
+    {
+      name: 'unsupported model',
+      workload: 'financial_assistant',
+      modelId: 'google/gemini-3.1-flash-lite',
+      optIn: true,
+      question: 'Latest expense?',
+      expected: undefined,
+    },
+  ])(
+    'restricts low reasoning to the supported assistant agent: $name',
+    async ({ workload, modelId, optIn, question, expected }) => {
+      let sent: Record<string, unknown> = {};
+      const gateway = new AiGateway({
+        apiKey: 'synthetic-key',
+        fetcher: (_url, init) => {
+          sent = requestBody(init);
+          return Promise.resolve(
+            response({
+              id: 'synthetic-reasoning',
+              model: modelId,
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+          );
+        },
+      });
+      const input = {
+        route: { ...route, workload, primary: { modelId, provider: 'azure' }, fallbacks: [] },
+        userContent: '{}',
+        currentQuestion: question,
+        ...(optIn ? { assistantReasoningEffort: 'low' as const } : {}),
+        schema: { type: 'object', additionalProperties: false },
+        parse: (value: unknown) => value,
+        requestId: 'synthetic-reasoning',
+      };
+      await gateway.complete(input);
+      expect(sent.reasoning).toEqual(expected);
+      if (expected === undefined) expect(sent).not.toHaveProperty('reasoning');
+    },
+  );
+
   // Samsung 2026-10-08: Azure rejected the action schema on an advice-only request.
   it.each([
     { name: 'advice', answer: output, expected: null },
@@ -1105,6 +1195,7 @@ describe('AiGateway', () => {
     expect(body.temperature).toBeUndefined();
     expect(body.max_tokens).toBeUndefined();
     expect(body.max_completion_tokens).toBe(route.limits.outputTokens);
+    expect(body).not.toHaveProperty('reasoning');
     expect(result.usage).toMatchObject({ inputTokens: 4, outputTokens: 5 });
   });
 
@@ -1123,6 +1214,8 @@ describe('AiGateway', () => {
     const result = await new AiGateway({ apiKey: 'secret', fetcher }).complete({
       route,
       userContent: '{}',
+      currentQuestion: 'Latest expense?',
+      ...{ assistantReasoningEffort: 'low' as const },
       schema: { type: 'object', additionalProperties: false },
       parse: (value) => value as typeof output,
       requestId: 'request-00000002',
@@ -1136,6 +1229,7 @@ describe('AiGateway', () => {
     expect(fallbackBody.temperature).toBe(0);
     expect(fallbackBody.max_tokens).toBe(route.limits.outputTokens);
     expect(fallbackBody.max_completion_tokens).toBeUndefined();
+    expect(fallbackBody).not.toHaveProperty('reasoning');
   });
 
   it('does not dispatch without a key or when policy is weaker than required', async () => {

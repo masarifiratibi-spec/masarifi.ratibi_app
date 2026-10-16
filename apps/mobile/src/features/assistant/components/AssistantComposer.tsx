@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   TextInput,
@@ -14,7 +14,8 @@ import { radius, spacing } from '@/design-system/tokens';
 import { colorTokens } from '@/design-system/tokens';
 
 export interface AssistantComposerProps {
-  onSendMessage: (message: string) => void;
+  /** True acknowledges a successful send; false preserves the question for recovery. */
+  onSendMessage: (message: string) => Promise<boolean>;
   loading?: boolean;
 }
 
@@ -23,13 +24,26 @@ export function AssistantComposer({
   loading = false
 }: AssistantComposerProps) {
   const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const sending = useRef(false);
+  const draftRevision = useRef(0);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const disabled = !text.trim() || loading || submitting;
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    onSendMessage(trimmed);
+    if (!trimmed || loading || sending.current) return;
+    const sentRevision = draftRevision.current;
+    sending.current = true;
+    setSubmitting(true);
+    try {
+      const accepted = await onSendMessage(trimmed);
+      if (accepted && draftRevision.current === sentRevision) setText('');
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -54,7 +68,7 @@ export function AssistantComposer({
         <TextInput
           testID="assistant-composer-input"
           value={text}
-          onChangeText={setText}
+          onChangeText={(value) => { draftRevision.current += 1; setText(value); }}
           placeholder={translate('assistant.chat.placeholder')}
           placeholderTextColor={colorTokens.raw["7C8B85"]}
           multiline
@@ -73,10 +87,10 @@ export function AssistantComposer({
       <Pressable
         testID="assistant-composer-send-button"
         onPress={handleSend}
-        disabled={!text.trim() || loading}
+        disabled={disabled}
         style={({ pressed }) => [
           styles.sendButton,
-          !text.trim() && styles.sendButtonDisabled,
+          disabled && styles.sendButtonDisabled,
           pressed && styles.sendButtonPressed
         ]}
         accessibilityLabel={translate('assistant.action.ask')}

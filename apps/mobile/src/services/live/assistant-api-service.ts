@@ -42,7 +42,8 @@ class AssistantApiError extends Error {
   constructor(
     readonly code: string,
     readonly affectedScopes: readonly string[] = [],
-    readonly definitiveRejection = false
+    readonly definitiveRejection = false,
+    readonly questionOperationId?: string
   ) {
     super(code);
   }
@@ -789,7 +790,11 @@ export function createLiveAssistantApiService(
     operationId: string,
     intent?: import('../contracts/assistant-notifications-service').AssistantQuestionIntent
   ): Promise<AssistantResponse> => {
-    const actor = await identity();
+    const actor = await identity().catch((error: unknown) => {
+      if (error instanceof AssistantApiError)
+        throw new AssistantApiError(error.code, error.affectedScopes, true);
+      throw error;
+    });
     const previous = await journal.read(actor.userId, 'question');
     const operation = await journal.reserve(
       actor.userId,
@@ -797,29 +802,33 @@ export function createLiveAssistantApiService(
       { conversationId, question, ...(intent ? { intent } : {}) },
       operationId
     );
-    await actor.assertCurrent();
-    const recovered =
-      operation.messageId ??
-      (previous?.operationId === operation.operationId
-        ? await acceptance(conversationId, operation.operationId, actor.userId)
-        : null);
-    const messageId =
-      recovered ??
-      (
-        await accept(
-          conversationId,
-          question,
-          operation.operationId,
-          intent,
-          actor.userId
-        )
-      ).id;
-    await actor.assertCurrent();
-    await journal.update(actor.userId, 'question', operation.operationId, {
-      phase: 'accepted',
-      messageId
-    });
     try {
+      await actor.assertCurrent();
+      const recovered =
+        operation.messageId ??
+        (previous?.operationId === operation.operationId
+          ? await acceptance(
+              conversationId,
+              operation.operationId,
+              actor.userId
+            )
+          : null);
+      const messageId =
+        recovered ??
+        (
+          await accept(
+            conversationId,
+            question,
+            operation.operationId,
+            intent,
+            actor.userId
+          )
+        ).id;
+      await actor.assertCurrent();
+      await journal.update(actor.userId, 'question', operation.operationId, {
+        phase: 'accepted',
+        messageId
+      });
       const answer = await wait(conversationId, messageId, actor.userId);
       await actor.assertCurrent();
       await journal.update(actor.userId, 'question', operation.operationId, {
@@ -827,15 +836,13 @@ export function createLiveAssistantApiService(
       });
       return answer;
     } catch (error) {
-      if (
-        error instanceof AssistantApiError &&
-        ['limit_reached', 'assistant_disabled'].includes(error.code)
-      ) {
-        await actor.assertCurrent();
-        await journal.update(actor.userId, 'question', operation.operationId, {
-          phase: 'failed'
-        });
-      }
+      if (error instanceof AssistantApiError)
+        throw new AssistantApiError(
+          error.code,
+          error.affectedScopes,
+          error.definitiveRejection,
+          operation.operationId
+        );
       throw error;
     }
   };

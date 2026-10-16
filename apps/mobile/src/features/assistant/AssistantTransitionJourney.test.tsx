@@ -163,6 +163,53 @@ describe('Assistant Transition & Chat Journey', () => {
     expect(screen.getAllByText(/•••• SAR/).length).toBeGreaterThanOrEqual(1);
   });
 
+  it.each(['success', 'error'] as const)('clears the composer only after a confirmed send %s', async outcome => {
+    let callbacks: {onSuccess?: () => void; onError?: () => void} | undefined;
+    mockAssistantQueries.useAskAssistant.mockReturnValue({
+      mutate: (_input: unknown, options: typeof callbacks) => { callbacks = options; }, isPending: false
+    });
+    renderWithProviders(<AssistantConversationScreen conversationId="conv-101" />);
+    fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'إيه آخر معاملة؟');
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp('value', 'إيه آخر معاملة؟');
+    await act(async () => {
+      if (outcome === 'success') callbacks?.onSuccess?.();
+      else callbacks?.onError?.();
+    });
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp('value', outcome === 'success' ? '' : 'إيه آخر معاملة؟');
+  });
+
+  it.each([false, true])('acknowledges a timed-out original only after its journal completes, preserving an edited draft=%s', async edited => {
+    let input: {operationId: string; question: string} | undefined;
+    const submitted: string[] = [];
+    let callbacks: {onError?: (error: {code: string; questionOperationId?: string}) => void} | undefined;
+    let operation: unknown = null;
+    let refresh!: () => void;
+    const reset = jest.fn();
+    mockAssistantQueries.useAskAssistant.mockReturnValue({
+      mutate: (value: typeof input, options: typeof callbacks) => {input = value; submitted.push(value!.question); callbacks = options;}, isPending: false, isError: true, error: {code: 'still_processing'}, reset
+    });
+    mockAssistantQueries.useAssistantQuestionOperation.mockImplementation(() => ({data: operation}));
+    function RefreshableChat() {
+      const [, setVersion] = React.useState(0);
+      refresh = () => setVersion(value => value + 1);
+      return <AssistantConversationScreen conversationId="conv-101" />;
+    }
+    renderWithProviders(<RefreshableChat />);
+    fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'إيه آخر معاملة؟');
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    await act(async () => {callbacks?.onError?.({code: 'still_processing', questionOperationId: input?.operationId});});
+    fireEvent.press(screen.getByTestId('follow-up-highest'));
+    expect(submitted).toEqual(['إيه آخر معاملة؟']);
+    if (edited) fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'سؤال جديد');
+    await act(async () => {
+      operation = {operationId: input?.operationId, phase: 'completed', conversationId: 'conv-101'};
+      refresh();
+    });
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp('value', edited ? 'سؤال جديد' : '');
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
   it('allows consent while direct financial questions are disabled', () => {
     const enable = jest.fn();
     mockAssistantQueries.useAssistantConsent.mockReturnValue({data: {status: 'disabled', version: 2}});

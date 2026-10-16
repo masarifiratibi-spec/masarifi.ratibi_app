@@ -52,31 +52,33 @@ export function AssistantHomeScreen({
   const conversationTotal =
     conversations.data?.pages?.[0]?.total ?? legacyConversations?.total ?? 0;
 
-  const handleAskFirstQuestion = (question: string, intent?: AssistantQuestionIntent) => {
+  const handleAskFirstQuestion = async (question: string, intent?: AssistantQuestionIntent): Promise<boolean> => {
     if (unresolved) {
       if (operation?.data?.conversationId) router.navigate(`/assistant/${operation.data.conversationId}`);
       else if (operation?.data?.question) setFirstTurn({id: operation.data.operationId, content: operation.data.question, status: 'unknown', createdAt: operation.data.createdAt ?? Date.now()});
-      return;
+      return false;
     }
-    if (firstDispatching.current || createConversation.isPending || availability?.data?.capabilities?.directRead === 'disabled') return;
+    if (firstDispatching.current || createConversation.isPending || availability?.data?.capabilities?.directRead === 'disabled') return false;
     const operationId = `assistant-create-${Date.now()}`;
     firstDispatching.current = true;
     setFirstTurn({id: operationId, content: question, status: 'queued', createdAt: Date.now()});
-    createConversation.mutate(
-      {
-        question,
-        intent,
-        operationId
-      },
-      {
-        onSuccess: (result: { value: { id: string } }) => {
-          setFirstTurn(null);
-          router.push(`/assistant/${result.value.id}`);
+    return new Promise<boolean>(resolve => {
+      createConversation.mutate(
+        { question, intent, operationId },
+        {
+          onSuccess: (result: { value: { id: string } }) => {
+            setFirstTurn(null);
+            router.push(`/assistant/${result.value.id}`);
+            resolve(true);
+          },
+          onError: () => {
+            setFirstTurn(current => current ? {...current, status: 'unknown'} : null);
+            resolve(false);
+          },
+          onSettled: () => {firstDispatching.current = false;}
         },
-        onError: () => setFirstTurn(current => current ? {...current, status: 'unknown'} : null),
-        onSettled: () => {firstDispatching.current = false;}
-      }
-    );
+      );
+    });
   };
 
   const handleEnableConsent = () => {
@@ -181,7 +183,9 @@ export function AssistantConversationScreen({
   const [responses, setResponses] = React.useState<AssistantResponse[]>([]);
   const [userTurns, setUserTurns] = React.useState<AssistantUserTurn[]>([]);
   const [optimisticTurn, setOptimisticTurn] = React.useState<AssistantUserTurn | null>(null);
+  const pendingAcknowledgement = React.useRef<{operationId: string; resolve: (accepted: boolean) => void} | null>(null);
   const ask = queries.useAskAssistant();
+  const resetAsk = ask.reset;
   const rename = queries.useRenameAssistantConversation();
   const remove = queries.useDeleteAssistantConversation();
   const feedback = queries.useAssistantFeedback();
@@ -230,17 +234,53 @@ export function AssistantConversationScreen({
     status: operation.data.phase === 'accepted' ? 'queued' : operation.data.phase === 'completed' ? 'completed' : operation.data.phase === 'failed' ? 'failed' : 'unknown'
   } : null;
 
-  const handleSendMessage = (questionText: string) => {
-    if (!questionText.trim() || ask.isPending || availability?.data?.capabilities?.directRead === 'disabled' || (operation?.data && !['completed', 'failed'].includes(operation.data.phase))) return;
+  React.useEffect(() => {
+    const pending = pendingAcknowledgement.current;
+    if (pending && operation?.data?.conversationId === conversationId && operation.data.operationId === pending.operationId && ['completed', 'failed'].includes(operation.data.phase)) {
+      pendingAcknowledgement.current = null;
+      pending.resolve(operation.data.phase === 'completed');
+      if (operation.data.phase === 'completed') {setOptimisticTurn(null); resetAsk?.();}
+    }
+  }, [operation?.data?.operationId, operation?.data?.phase, operation?.data?.conversationId, optimisticTurn?.id, conversationId, resetAsk]);
+
+  React.useEffect(() => () => {
+    pendingAcknowledgement.current?.resolve(false);
+    pendingAcknowledgement.current = null;
+  }, [conversationId]);
+
+  const handleSendMessage = async (questionText: string): Promise<boolean> => {
+    if (!questionText.trim() || pendingAcknowledgement.current || ask.isPending || availability?.data?.capabilities?.directRead === 'disabled' || (operation?.data && !['completed', 'failed'].includes(operation.data.phase))) return false;
     resume?.reset?.();
     retry?.reset?.();
     const operationId = `ask-${Date.now()}`;
     setOptimisticTurn({id: operationId, content: questionText, status: 'queued', createdAt: Date.now()});
-    ask.mutate({
-      conversationId: conversation?.id ?? conversationId,
-      question: questionText,
-      operationId
-    }, {onSuccess: () => {setOptimisticTurn(null);}, onError: () => {setOptimisticTurn(current => current ? {...current, status: 'unknown'} : null);}});
+    return new Promise<boolean>(resolve => {
+      pendingAcknowledgement.current = {operationId, resolve};
+      ask.mutate({
+        conversationId: conversation?.id ?? conversationId,
+        question: questionText,
+        operationId
+      }, {
+        onSuccess: () => {
+          if (pendingAcknowledgement.current?.operationId !== operationId) return;
+          pendingAcknowledgement.current = null;
+          setOptimisticTurn(null);
+          resolve(true);
+        },
+        onError: error => {
+          if (pendingAcknowledgement.current?.operationId !== operationId) return;
+          const failure = error as {code?: string; definitiveRejection?: boolean; questionOperationId?: string};
+          const durableId = failure?.questionOperationId;
+          setOptimisticTurn(current => current ? {...current, id: durableId ?? current.id, status: 'unknown'} : null);
+          if (durableId && !failure.definitiveRejection) {
+            pendingAcknowledgement.current.operationId = durableId;
+          } else {
+            pendingAcknowledgement.current = null;
+            resolve(false);
+          }
+        }
+      });
+    });
   };
 
   const handleReviewAction = (previewId: string) => {

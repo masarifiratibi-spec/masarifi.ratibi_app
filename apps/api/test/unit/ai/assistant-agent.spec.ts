@@ -4,7 +4,7 @@ import {
   renderAssistantAnswer,
 } from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery } from '../../../src/ai/assistant-agent-data';
-import { AiGateway } from '../../../src/ai/ai.gateway';
+import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 
 const claim = {
   id: 'job',
@@ -31,7 +31,7 @@ const sample = {
   },
   aliases: [],
 };
-const route = {
+const route: EffectiveAiRoute = {
   workload: 'financial_assistant',
   primary: { modelId: 'model', provider: 'provider' },
   fallbacks: [],
@@ -40,7 +40,22 @@ const route = {
   maxPrice: { prompt: '1', completion: '1' },
   limits: { inputTokens: 32000, outputTokens: 4096, timeoutMs: 60000 },
   prompt: { template: 'Never use tools.', schemaVersion: 1 },
-  safetyRules: [],
+  safetyRules: [
+    {
+      key: 'input',
+      type: 'input_block',
+      configuration: { denyControl: true, denyBidiControls: true, maxUtf8Bytes: 8192 },
+    },
+    {
+      key: 'output',
+      type: 'output_block',
+      configuration: {
+        forbiddenKeys: ['tool', 'tools', 'sql', 'url', 'callback', 'authorization', 'secret'],
+      },
+    },
+    { key: 'actions', type: 'action_allowlist', configuration: {} },
+    { key: 'evidence', type: 'evidence_limit', configuration: {} },
+  ],
 };
 
 it.each([
@@ -50,17 +65,19 @@ it.each([
   'sends the current question after historical context: $current',
   async ({ current, previous, outside }) => {
     let messages: Array<{ role: string; content: string }> = [];
+    let reasoning: unknown;
     const gateway = new AiGateway({
       apiKey: 'synthetic-test-key',
       fetcher: (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');
-        const body = JSON.parse(init.body) as { messages: typeof messages };
+        const body = JSON.parse(init.body) as { messages: typeof messages; reasoning?: unknown };
         messages = body.messages;
+        reasoning = body.reasoning;
         return Promise.resolve(
           new Response(
             JSON.stringify({
               id: 'synthetic-current-question',
-              model: 'model',
+              model: 'openai/gpt-6-luna',
               choices: [
                 {
                   finish_reason: 'stop',
@@ -108,26 +125,12 @@ it.each([
       },
       {
         ...route,
-        safetyRules: [
-          {
-            key: 'input',
-            type: 'input_block',
-            configuration: { denyControl: true, denyBidiControls: true, maxUtf8Bytes: 8192 },
-          },
-          {
-            key: 'output',
-            type: 'output_block',
-            configuration: {
-              forbiddenKeys: ['tool', 'tools', 'sql', 'url', 'callback', 'authorization', 'secret'],
-            },
-          },
-          { key: 'actions', type: 'action_allowlist', configuration: {} },
-          { key: 'evidence', type: 'evidence_limit', configuration: {} },
-        ],
+        primary: { modelId: 'openai/gpt-6-luna', provider: 'provider' },
       },
       new AbortController().signal,
     );
     expect(messages.at(-1)).toEqual({ role: 'user', content: current });
+    expect(reasoning).toEqual({ effort: 'low' });
     const context = JSON.parse(messages[1]?.content ?? '{}') as { conversation: unknown[] };
     expect(context.conversation).toEqual([
       { role: 'user', content: previous },
@@ -137,6 +140,14 @@ it.each([
     if (!outside) expect(result.content).toBe('آخر معاملة بقيمة 3 ريال.');
   },
 );
+
+it('preserves server-known Unicode numeric text through an exact canonical reference', () => {
+  expect(
+    renderAssistantAnswer('المتجر {{F1}}.', [
+      { key: 'F1', value: 'فرع Ⅲ', path: 'latest.merchant' },
+    ]),
+  ).toBe('المتجر فرع Ⅲ.');
+});
 
 it('returns a server-owned scope notice when the model classifies an unrelated request', async () => {
   const agent = new AssistantAgent(
@@ -316,12 +327,71 @@ it('composes a real model answer with exact owner facts rather than the recent-t
   expect(answer.evidence).toEqual([expect.objectContaining({ kind: 'ledger', version: 22 })]);
 });
 
-it.each(['صرفت 999 ريال', 'صرفت {{F999}}', 'صرفت ٩٩٩ ريال'])(
-  'rejects unsupported numeric or nonexistent fact claims: %s',
-  (answer) => {
-    expect(() =>
-      renderAssistantAnswer(answer, [{ key: 'F1', value: '3 ريال', path: 'latest.amountMinor' }]),
-    ).toThrow('AI_UNGROUNDED_ANSWER');
+it.each([
+  'صرفت 999 ريال',
+  'صرفت {{F999}}',
+  'صرفت ٩٩٩ ريال',
+  'مفيش ميزانيات (〖F₁₃₅〗).',
+  'صرفت ３ ريال',
+  'صرفت 𝟛 ريال',
+  'صرفت Ⅲ ريال',
+])('rejects unsupported numeric or nonexistent fact claims: %s', (answer) => {
+  expect(() =>
+    renderAssistantAnswer(answer, [{ key: 'F1', value: '3 ريال', path: 'latest.amountMinor' }]),
+  ).toThrow('AI_UNGROUNDED_ANSWER');
+});
+
+it.each([true, false])(
+  'does not publish Unicode fact identifiers and attempts bounded repair: corrected=%s',
+  async (corrected) => {
+    const feedback: unknown[] = [];
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-key',
+      fetcher: (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');
+        const body = JSON.parse(init.body) as { messages: Array<{ content: string }> };
+        const payload = JSON.parse(body.messages[1]?.content ?? '{}') as {
+          validationFeedback: unknown;
+        };
+        feedback.push(payload.validationFeedback);
+        const decision = {
+          status: 'answer',
+          responseType: 'fact',
+          scope: 'all_history',
+          answer:
+            corrected && feedback.length > 1
+              ? 'آخر معاملة بقيمة {{F1}}.'
+              : 'آخر معاملة بقيمة 〖F₁〗.',
+          queries: [],
+        };
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-unicode-repair',
+              model: route.primary.modelId,
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(decision) } }],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const agent = new AssistantAgent(
+      { read: () => Promise.resolve(sample) } as never,
+      gateway,
+      () => Promise.resolve(),
+    );
+    const result = agent.run(claim, route, new AbortController().signal);
+    if (corrected) {
+      await expect(result).resolves.toMatchObject({ content: 'آخر معاملة بقيمة 3 ريال.' });
+      expect(feedback).toHaveLength(2);
+    } else {
+      await expect(result).rejects.toThrow('AI_UNGROUNDED_ANSWER');
+      expect(feedback).toHaveLength(3);
+    }
+    expect(feedback[0]).toBeNull();
+    expect(typeof feedback[1]).toBe('string');
   },
 );
 

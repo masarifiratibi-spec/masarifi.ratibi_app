@@ -14,7 +14,7 @@ import { AssistantHeaderBanner } from './components/AssistantHeaderBanner';
 import { UserMessageBubble } from './components/UserMessageBubble';
 import { AssistantMessageBubble } from './components/AssistantMessageBubble';
 import { AssistantFollowUpSuggestions } from './components/AssistantFollowUpSuggestions';
-import { AssistantComposer } from './components/AssistantComposer';
+import { AssistantComposer, type AssistantComposerProps } from './components/AssistantComposer';
 import { StyledText } from '@/components/StyledText';
 import { spacing } from '@/design-system/tokens';
 import type { AssistantConversation, AssistantResponse, AssistantUserTurn } from '@/domain/assistant';
@@ -26,7 +26,7 @@ export interface AssistantConversationViewProps {
   conversation?: AssistantConversation | null;
   conversationId: string;
   responses: readonly AssistantResponse[];
-  onSendMessage: (message: string) => void;
+  onSendMessage: AssistantComposerProps['onSendMessage'];
   onReviewAction?: (previewId: string) => void;
   onViewReport?: () => void;
   onFeedback?: (responseId: string, feedback: 'helpful' | 'not_helpful' | 'reported') => void;
