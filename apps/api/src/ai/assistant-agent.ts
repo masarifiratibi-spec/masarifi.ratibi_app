@@ -171,6 +171,9 @@ function groundAssistantAnswer(answer: string, facts: AssistantFact[]) {
   // second model call; partial numbers, changed currencies and bare counts fail.
   let grounded = answer;
   for (const fact of [...facts].sort((left, right) => right.value.length - left.value.length)) {
+    grounded = grounded
+      .replaceAll(`〔{{${fact.key}}}〕`, `{{${fact.key}}}`)
+      .replaceAll(`〖{{${fact.key}}}〗`, `{{${fact.key}}}`);
     const monetary = /Minor$/u.test(fact.path) && /\p{L}/u.test(fact.value);
     const date = /(?:Date|At)$/u.test(fact.path);
     const percentage = /percentageBasisPoints$/u.test(fact.path);
@@ -186,7 +189,11 @@ function groundAssistantAnswer(answer: string, facts: AssistantFact[]) {
     );
   }
   const prose = grounded.replace(/\{\{F[1-9]\d*\}\}/gu, '');
-  if (/\p{N}|\{\{|\}\}/u.test(prose)) throw new Error('AI_UNGROUNDED_ANSWER');
+  // Inspect compatibility forms without changing merchant/category text or known displays.
+  const unresolvedFact = /[\p{Ps}\p{Pi}<]\s*F\s*[?؟]+\s*[\p{Pe}\p{Pf}>]/iu.test(
+    prose.normalize('NFKC'),
+  );
+  if (/\p{N}|\{\{|\}\}/u.test(prose) || unresolvedFact) throw new Error('AI_UNGROUNDED_ANSWER');
   if (
     Array.from(prose).some((character) => {
       const point = character.codePointAt(0) ?? 0;
@@ -458,7 +465,7 @@ export class AssistantAgent {
         if (!(error instanceof Error) || error.message !== 'AI_UNGROUNDED_ANSWER' || round === 2)
           throw error;
         validationFeedback =
-          'Your previous answer used raw numeric digits or an unknown fact. Copy the supplied ref cells exactly, with double braces and ordinary digits, for ALL numbers/dates/counts/amounts. Never emit decorative citations or subscript/superscript fact identifiers. For empty complete periods use exactPeriodTotals, which provides verified zero amounts; otherwise say no matching records without inventing a numeric amount. Available zero references: ' +
+          'Your previous answer used raw numeric digits, an unknown fact or an unresolved fact placeholder. Copy the supplied ref cells exactly, with double braces and ordinary digits, for ALL numbers/dates/counts/amounts. Never emit question-mark placeholders, decorative citations or subscript/superscript fact identifiers. For empty complete periods use exactPeriodTotals, which provides verified zero amounts; otherwise say no matching records without inventing a numeric amount. Available zero references: ' +
           JSON.stringify(
             facts
               .filter((fact) => /confirmedMinor$/u.test(fact.path) && /^0 /u.test(fact.value))

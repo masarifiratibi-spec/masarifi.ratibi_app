@@ -335,15 +335,25 @@ it.each([
   'صرفت ３ ريال',
   'صرفت 𝟛 ريال',
   'صرفت Ⅲ ريال',
+  'لأ، مفيش مصروفات مسجّلة النهارده (〔F?〕). إجمالي مصروفاتك النهارده 〔F?〕، حسب السجل المتاح.',
+  'المصروفات [F?].',
+  'المصروفات (F?).',
+  'المصروفات 〖F؟〗.',
+  'المصروفات 【Ｆ？】.',
+  'المصروفات ｛｛Ｆ？｝｝.',
 ])('rejects unsupported numeric or nonexistent fact claims: %s', (answer) => {
   expect(() =>
     renderAssistantAnswer(answer, [{ key: 'F1', value: '3 ريال', path: 'latest.amountMinor' }]),
   ).toThrow('AI_UNGROUNDED_ANSWER');
 });
 
-it.each([true, false])(
-  'does not publish Unicode fact identifiers and attempts bounded repair: corrected=%s',
-  async (corrected) => {
+it.each(
+  ['〖F₁〗', '〔F?〕', '[F?]', '(F?)', '〖F؟〗', '【Ｆ？】', '｛｛Ｆ？｝｝'].flatMap((marker) =>
+    [true, false].map((corrected) => ({ marker, corrected })),
+  ),
+)(
+  'does not publish malformed fact marker $marker and attempts bounded repair: corrected=$corrected',
+  async ({ marker, corrected }) => {
     const feedback: unknown[] = [];
     const gateway = new AiGateway({
       apiKey: 'synthetic-key',
@@ -361,7 +371,7 @@ it.each([true, false])(
           answer:
             corrected && feedback.length > 1
               ? 'آخر معاملة بقيمة {{F1}}.'
-              : 'آخر معاملة بقيمة 〖F₁〗.',
+              : `آخر معاملة بقيمة ${marker}.`,
           queries: [],
         };
         return Promise.resolve(
@@ -394,6 +404,37 @@ it.each([true, false])(
     expect(typeof feedback[1]).toBe('string');
   },
 );
+
+it('preserves merchant and category prose containing F and question marks', () => {
+  expect(renderAssistantAnswer('المتجر F? Store من فئة F&B (مطاعم)؛ هل تقصد المتجر؟', [])).toBe(
+    'المتجر F? Store من فئة F&B (مطاعم)؛ هل تقصد المتجر؟',
+  );
+  expect(
+    renderAssistantAnswer('المتجر {{F1}}.', [
+      { key: 'F1', value: 'متجر [F?]', path: 'latest.merchant' },
+    ]),
+  ).toBe('المتجر متجر [F?].');
+});
+
+it.each(['〔{{F1}}〕', '〖{{F1}}〗'])(
+  'removes decorative brackets immediately around a supplied canonical reference: %s',
+  (reference) => {
+    expect(
+      renderAssistantAnswer(`مصروفات 〔المطاعم〕 ${reference} (مؤكدة).`, [
+        { key: 'F1', value: '3 ريال', path: 'latest.amountMinor' },
+      ]),
+    ).toBe('مصروفات 〔المطاعم〕 3 ريال (مؤكدة).');
+  },
+);
+
+it('preserves brackets around exact literal financial text and supplied merchant names', () => {
+  expect(
+    renderAssistantAnswer('مصروفات 〔3 ريال〕 في {{F2}}.', [
+      { key: 'F1', value: '3 ريال', path: 'latest.amountMinor' },
+      { key: 'F2', value: 'متجر 〔الأمانة〕', path: 'latest.merchant' },
+    ]),
+  ).toBe('مصروفات 〔3 ريال〕 في متجر 〔الأمانة〕.');
+});
 
 it('grounds exact literal amounts and ISO dates without requiring another provider call', () => {
   expect(
@@ -778,42 +819,66 @@ it('redacts personal identifiers from both model display cells and the rendered 
   });
 });
 
-it('corrects an unsupported numeric reply using exact totals for the requested empty day and reports only the currency used', async () => {
-  const todayQuery: AssistantDataQuery = {
-    tool: 'summary',
-    startDate: '2026-10-16',
-    endDate: '2026-10-16',
-    currency: 'SAR',
-  };
-  const overview = {
-    ...sample,
-    data: {
-      status: 'ok',
-      accounts: { items: [{ currency: 'SAR' }, { currency: 'USD' }] },
-      period: { startDate: '2026-10-01', endDate: '2026-10-16' },
-      summaries: [
-        { currency: 'USD', kind: 'expense', status: 'confirmed', amountMinor: '1000', count: 1 },
-      ],
-    },
-  };
-  const emptyDay = {
-    ...sample,
-    data: {
-      status: 'ok',
-      period: { startDate: '2026-10-16', endDate: '2026-10-16' },
-      summaries: [],
-    },
-  };
-  let round = 0;
-  const agent = new AssistantAgent(
-    {
-      read: (_id: string, _token: string, query: AssistantDataQuery) =>
-        Promise.resolve(query.tool === 'overview' ? overview : emptyDay),
-    } as never,
-    {
-      complete: (input: { parse: (value: unknown) => unknown; userContent: string }) => {
+it.each([
+  {
+    question: 'صرفت كام النهارده ودخلي كام؟',
+    invalid: 'دخل النهارده 999 ريال والمصاريف 999 ريال.',
+  },
+  {
+    question: 'أكيد أنا صرفت ألف ريال النهارده، صح؟',
+    invalid:
+      'لأ، مفيش مصروفات مسجّلة النهارده (〔F?〕). إجمالي مصروفاتك النهارده 〔F?〕، حسب السجل المتاح.',
+  },
+])(
+  'corrects an unsupported empty-day reply from the gateway using exact totals: $question',
+  async ({ question, invalid }) => {
+    const todayQuery: AssistantDataQuery = {
+      tool: 'summary',
+      startDate: '2026-10-16',
+      endDate: '2026-10-16',
+      currency: 'SAR',
+    };
+    const overview = {
+      ...sample,
+      data: {
+        status: 'ok',
+        accounts: { items: [{ currency: 'SAR' }, { currency: 'USD' }] },
+        period: { startDate: '2026-10-01', endDate: '2026-10-16' },
+        summaries: [
+          { currency: 'USD', kind: 'expense', status: 'confirmed', amountMinor: '1000', count: 1 },
+        ],
+      },
+    };
+    const emptyDay = {
+      ...sample,
+      data: {
+        status: 'ok',
+        period: { startDate: '2026-10-16', endDate: '2026-10-16' },
+        summaries: [],
+      },
+    };
+    let round = 0;
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-empty-day-key',
+      fetcher: (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');
+        const body = JSON.parse(init.body) as { messages: Array<{ content: string }> };
+        const respond = (decision: unknown) =>
+          Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: 'synthetic-empty-day-repair',
+                model: route.primary.modelId,
+                choices: [
+                  { finish_reason: 'stop', message: { content: JSON.stringify(decision) } },
+                ],
+                usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+              }),
+              { headers: { 'content-type': 'application/json' } },
+            ),
+          );
         if (round++ === 0)
-          return reply(input, {
+          return respond({
             status: 'query',
             responseType: 'fact',
             scope: 'selected_period',
@@ -821,11 +886,11 @@ it('corrects an unsupported numeric reply using exact totals for the requested e
             queries: [todayQuery],
           });
         if (round === 2)
-          return reply(input, {
+          return respond({
             status: 'answer',
             responseType: 'fact',
             scope: 'selected_period',
-            answer: 'دخل النهارده 999 ريال والمصاريف 999 ريال.',
+            answer: invalid,
             queries: [],
           });
         type Total = {
@@ -834,7 +899,7 @@ it('corrects an unsupported numeric reply using exact totals for the requested e
           kind: string;
           confirmedMinor: ModelCell;
         };
-        const payload = JSON.parse(input.userContent) as {
+        const payload = JSON.parse(body.messages[1]?.content ?? '{}') as {
           validationFeedback: string;
           exactPeriodTotals: Total[] | { items: Total[] };
         };
@@ -854,7 +919,7 @@ it('corrects an unsupported numeric reply using exact totals for the requested e
           throw Error('Expected complete confirmed totals for the requested day');
         expect(income.confirmedMinor.value).toBe('0 ريال');
         expect(expense.confirmedMinor.value).toBe('0 ريال');
-        return reply(input, {
+        return respond({
           status: 'answer',
           responseType: 'fact',
           scope: 'selected_period',
@@ -862,18 +927,25 @@ it('corrects an unsupported numeric reply using exact totals for the requested e
           queries: [],
         });
       },
-    } as never,
-    () => Promise.resolve(),
-  );
-  const answer = await agent.run(
-    { ...claim, content: 'صرفت كام النهارده ودخلي كام؟' },
-    route,
-    new AbortController().signal,
-  );
-  expect(round).toBe(3);
-  expect(answer.content).toBe('دخل النهارده المؤكد 0 ريال والمصروفات المؤكدة 0 ريال.');
-  expect(answer.metadata.currencies).toEqual(['SAR']);
-});
+    });
+    const agent = new AssistantAgent(
+      {
+        read: (_id: string, _token: string, query: AssistantDataQuery) =>
+          Promise.resolve(query.tool === 'overview' ? overview : emptyDay),
+      } as never,
+      gateway,
+      () => Promise.resolve(),
+    );
+    const answer = await agent.run(
+      { ...claim, content: question },
+      route,
+      new AbortController().signal,
+    );
+    expect(round).toBe(3);
+    expect(answer.content).toBe('دخل النهارده المؤكد 0 ريال والمصروفات المؤكدة 0 ريال.');
+    expect(answer.metadata.currencies).toEqual(['SAR']);
+  },
+);
 
 it('reports the currency of an accepted exact monetary literal as well as explicit fact references', async () => {
   const agent = new AssistantAgent(
