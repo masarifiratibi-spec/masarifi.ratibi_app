@@ -164,7 +164,11 @@ export function registerLiveClerkBridge(bridge: LiveClerkBridge): void {
   registeredBridge = bridge;
   configureMobileApiTokenProvider(getLiveClerkToken);
   configureAssistantApiTokenProvider(getLiveClerkToken);
-  configureVoiceApiTokenProvider(getLiveClerkToken);
+  configureVoiceApiTokenProvider(async (readOnly) =>
+    readOnly
+      ? (await captureLiveReadClerkIdentity()).token
+      : getLiveClerkToken()
+  );
   configureVoiceApiOwnerProvider(async () => {
     const session = await bridge.getSession();
     if (!session) throw new HttpError('session_expired', 401);

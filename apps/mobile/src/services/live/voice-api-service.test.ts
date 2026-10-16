@@ -219,6 +219,29 @@ it('routes ordinary live capture to transcript and proposal review without autom
   expect(request.mock.calls.some(([url]) => String(url).endsWith('/confirm'))).toBe(false);
 });
 
+it('selects read-only tokens only for legacy polling and recovery, keeping every mutation fresh', async () => {
+  const token = jest.fn(async (readOnly?: boolean) =>
+    readOnly ? 'cached-read-token' : 'fresh-write-token'
+  );
+  const request = successfulRequest();
+  const service = createLiveVoiceApiService({
+    baseUrl: 'https://api.test', token, request,
+    sleep: async () => {}, now: () => Date.parse(at)
+  });
+  const transcript = await service.transcribe('file:///voice.wav', 'clear_en', 1234, 'en');
+  const group = await service.analyze({ transcript, scenario: 'clear_en', sessionId: id(1),
+    recordedAt: Date.parse(at), timezoneOffsetMinutes: 0 });
+  await service.confirm({ group, proposals: group.proposals, operationId: id(11) });
+  const calls = request.mock.calls.filter(([, init]) => Boolean(init?.method));
+  expect(calls.some(([, init]) => init?.method === 'GET')).toBe(true);
+  expect(calls.some(([url]) => String(url).endsWith('/confirm'))).toBe(true);
+  for (const [, init] of calls) {
+    expect((init?.headers as Record<string, string>).Authorization).toBe(
+      init?.method === 'GET' ? 'Bearer cached-read-token' : 'Bearer fresh-write-token'
+    );
+  }
+});
+
 it.each(['ar', 'en'] as const)(
   'hands %s automatic capture to the durable batch without a confirmation request',
   async (locale) => {

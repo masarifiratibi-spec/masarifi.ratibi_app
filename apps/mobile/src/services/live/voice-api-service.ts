@@ -38,7 +38,7 @@ import {
   type VoiceOperation
 } from '@/storage/voice-pending-session';
 
-type TokenProvider = () => Promise<string>;
+type TokenProvider = (readOnly?: boolean) => Promise<string>;
 type OwnerProvider = () => Promise<string>;
 let tokenProvider: TokenProvider = () =>
   Promise.reject(new VoiceCaptureError('session_expired'));
@@ -211,7 +211,7 @@ export function createLiveVoiceApiService(
     baseUrl === 'https://api.staging.masarifiratibi.com' &&
     process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true'
   );
-  const token = options.token ?? (() => tokenProvider());
+  const token = options.token ?? ((readOnly?: boolean) => tokenProvider(readOnly));
   const readOwner = options.owner ?? (() => ownerProvider());
   const owner = async () => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -284,7 +284,7 @@ export function createLiveVoiceApiService(
           await check(binding);
           let authToken: string;
           try {
-            authToken = await token();
+            authToken = await token(method === 'GET');
           } catch (error) {
             await check(binding);
             if (

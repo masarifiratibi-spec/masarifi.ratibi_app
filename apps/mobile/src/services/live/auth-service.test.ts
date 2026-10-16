@@ -5,10 +5,15 @@ function mockMakeDatabase() {
   native.exec(
     'CREATE TABLE voice_operation_journal(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
   );
+  native.exec(
+    'CREATE TABLE voice_batch_operations(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
+  );
   return {
     native,
     getFirstAsync: async (sql: string, ...args: string[]) =>
       native.prepare(sql).get(...args) ?? null,
+    getAllAsync: async (sql: string, ...args: (string | number)[]) =>
+      native.prepare(sql).all(...args),
     runAsync: async (sql: string, ...args: (string | number)[]) =>
       native.prepare(sql).run(...args)
   };
@@ -83,6 +88,125 @@ function clerkBridge(overrides: Record<string, unknown> = {}) {
     ...overrides
   };
 }
+
+describe('Voice read authentication', () => {
+  const sessionId = '55555555-5555-4555-8555-555555555555';
+  const cancelled = {
+    sessionId,
+    batchId: null,
+    status: 'cancelled',
+    transactionIds: [],
+    addedCount: 0,
+    ledgerVersion: 0
+  };
+  const response = (value: unknown) =>
+    ({ ok: true, status: 200, json: async () => value }) as Response;
+
+  test('uses SDK cached authentication for recovery GETs and fresh authentication for cancellation POSTs', async () => {
+    const bridge = clerkBridge({
+      getToken: jest.fn(async ({ skipCache }: { skipCache: boolean }) =>
+        skipCache ? 'fresh-write-token' : 'cached-read-token'
+      )
+    });
+    registerLiveClerkBridge(bridge);
+    const request = jest.fn(async (_url, init?: RequestInit) =>
+      response(init?.method === 'GET' ? { items: [] } : cancelled)
+    );
+    const service = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    });
+    await service.recoverBatches!();
+    await service.cancelBatch!(sessionId);
+    expect(
+      request.mock.calls.map(([, init]) => ({
+        method: init?.method,
+        authorization: (init?.headers as Record<string, string>).authorization
+      }))
+    ).toEqual([
+      { method: 'GET', authorization: 'Bearer cached-read-token' },
+      { method: 'POST', authorization: 'Bearer fresh-write-token' }
+    ]);
+    expect(bridge.getToken.mock.calls).toEqual([
+      [{ skipCache: false }],
+      [{ skipCache: true }]
+    ]);
+  });
+
+  test('coalesces concurrent Voice recovery token lookups through the existing read helper', async () => {
+    let release!: (token: string) => void;
+    const pending = new Promise<string>((resolve) => {
+      release = resolve;
+    });
+    const bridge = clerkBridge({
+      getToken: jest.fn(() => pending)
+    });
+    registerLiveClerkBridge(bridge);
+    const request = jest.fn(async () => response({ items: [] }));
+    const first = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    }).recoverBatches!();
+    const second = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    }).recoverBatches!();
+    for (let step = 0; step < 30; step++) await Promise.resolve();
+    release('read-token');
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(bridge.getToken).toHaveBeenCalledTimes(1);
+    expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  });
+
+  test.each(['owner', 'session'])(
+    'does not dispatch a recovery token resolved after a %s switch',
+    async (switchKind) => {
+      let current = liveSession;
+      registerLiveClerkBridge(
+        clerkBridge({
+          getSession: async () => current,
+          getToken: async () => {
+            current = {
+              ...liveSession,
+              id: 'different-session',
+              ...(switchKind === 'owner' ? { userId: 'different-owner' } : {})
+            };
+            return 'late-token';
+          }
+        })
+      );
+      const request = jest.fn(async () => response({ items: [] }));
+      const service = createLiveVoiceApiService({
+        baseUrl: 'https://inert.invalid',
+        request
+      });
+      await expect(service.recoverBatches!()).rejects.toBeDefined();
+      expect(request).not.toHaveBeenCalled();
+    }
+  );
+
+  test('rejects a late recovery response after the active owner changes', async () => {
+    let current = liveSession;
+    registerLiveClerkBridge(clerkBridge({ getSession: async () => current }));
+    const request = jest.fn(async () => {
+      current = {
+        ...liveSession,
+        id: 'different-session',
+        userId: 'different-owner'
+      };
+      return response({ items: [] });
+    });
+    const service = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    });
+    await expect(service.recoverBatches!()).rejects.toMatchObject({
+      code: 'operation_cancelled'
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+});
 
 test('hydrates owner-bound local work without contacting the token service', async () => {
   const bridge = clerkBridge({

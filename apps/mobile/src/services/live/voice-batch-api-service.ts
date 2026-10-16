@@ -165,7 +165,7 @@ export function createVoiceBatchApi(options: {
   baseUrl: string;
   devPosting?: boolean;
   owner: () => Promise<string>;
-  token: () => Promise<string>;
+  token: (readOnly?: boolean) => Promise<string>;
   request: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   removeAudio?: (uri: string) => Promise<void>;
@@ -239,7 +239,7 @@ export function createVoiceBatchApi(options: {
     return bounded(
       async (signal) => {
         await check(b);
-        const token = await options.token();
+        const token = await options.token(method === 'GET');
         await check(b);
         recordVoiceDiagnostic('request', {
           operation,
