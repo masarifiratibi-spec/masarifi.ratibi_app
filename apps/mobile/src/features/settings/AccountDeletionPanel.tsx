@@ -17,7 +17,7 @@ import {
   removeAccountDeletionOperationId,
   saveAccountDeletionOperationId,
   saveAccountDeletionRequestId
-} from '@/storage/account-deletion-journal';
+} from '@/services/account-deletion-journal';
 import { startAccountDeletionVerification } from './account-deletion-auth';
 
 export function AccountDeletionPanel() {
