@@ -22,6 +22,7 @@ describe('admin access boundary DTOs', () => {
       { get: jest.fn(() => 600), getRequired: jest.fn(() => 72) } as never,
       clerk as never,
       {} as never,
+      {} as never,
     );
 
     const result = await service.execute({
@@ -52,6 +53,7 @@ describe('admin access boundary DTOs', () => {
     const service = new SecurityService(
       repository as never,
       { get: jest.fn(() => 600) } as never,
+      {} as never,
       {} as never,
       {} as never,
     );

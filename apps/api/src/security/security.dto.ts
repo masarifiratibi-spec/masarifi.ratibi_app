@@ -32,7 +32,7 @@ export const allowedBodyFields: Readonly<Record<string, readonly string[]>> = {
   createSecurityIncident: ['title', 'severity', 'detectedAt', 'ownerId', 'summaryRedacted'],
   updateSecurityIncident: ['action', 'note', 'reason', 'expectedVersion'],
   createMyPrivacyExport: ['scope'],
-  createMyDeletionRequest: ['confirmation', 'reason'],
+  createMyDeletionRequest: ['confirmation', 'reason', 'completionToken'],
   cancelMyDeletionRequest: [],
   actOnPrivacyExport: ['action', 'reason', 'expectedVersion'],
   actOnDeletionRequest: ['action', 'reason', 'expectedVersion'],

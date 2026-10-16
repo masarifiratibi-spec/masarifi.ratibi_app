@@ -67,6 +67,44 @@ describe('Phase 03 security environment', () => {
     });
   });
 
+  it.each([api, worker])('accepts an explicit zero-hour deletion policy', (environment) => {
+    expect(
+      validateEnvironment({
+        ...environment,
+        ...(environment.MASARIFI_PROCESS_KIND === 'api'
+          ? {
+              MASARIFI_PRIVACY_DATABASE_URL: shared.DATABASE_URL,
+              MASARIFI_PRIVACY_HANDLER_MANIFEST: 'ai@1,engagement@1,identity@1,tracking@1',
+            }
+          : {}),
+        MASARIFI_DELETION_COOLING_OFF_HOURS: 0,
+      }),
+    ).toMatchObject({ MASARIFI_DELETION_COOLING_OFF_HOURS: 0 });
+  });
+
+  it.each(['MASARIFI_PRIVACY_DATABASE_URL', 'MASARIFI_PRIVACY_HANDLER_MANIFEST'])(
+    'requires %s for the immediate API executor',
+    (missingKey) => {
+      const candidate: Record<string, unknown> = {
+        ...api,
+        MASARIFI_DELETION_COOLING_OFF_HOURS: 0,
+        MASARIFI_PRIVACY_DATABASE_URL: shared.DATABASE_URL,
+        MASARIFI_PRIVACY_HANDLER_MANIFEST: 'ai@1,engagement@1,identity@1,tracking@1',
+      };
+      Reflect.deleteProperty(candidate, missingKey);
+      expect(() => validateEnvironment(candidate)).toThrow(missingKey);
+    },
+  );
+
+  it.each([api, worker, { ...shared, MASARIFI_PROCESS_KIND: 'migration' }])(
+    'rejects a deletion worker credential outside the immediate API process',
+    (environment) => {
+      expect(() =>
+        validateEnvironment({ ...environment, MASARIFI_PRIVACY_DATABASE_URL: shared.DATABASE_URL }),
+      ).toThrow('MASARIFI_PRIVACY_DATABASE_URL');
+    },
+  );
+
   it('keeps migration independent from every Phase 03 provider secret', () => {
     expect(validateEnvironment({ ...shared, MASARIFI_PROCESS_KIND: 'migration' })).toMatchObject({
       MASARIFI_PROCESS_KIND: 'migration',

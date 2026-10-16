@@ -222,6 +222,46 @@ export class SecurityRepository {
     });
   }
 
+  async getDeletionRequestForWorker(userId: string, deletionId: string): Promise<unknown> {
+    return this.withWorkerTransaction((client) =>
+      this.one(
+        client,
+        `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",
+        completed_at as "completedAt",error_code as "errorCode",retention_result as "retainedCategories",version::int
+        from private.account_deletion_requests where id=$1 and user_id=$2`,
+        [deletionId, userId],
+      ),
+    );
+  }
+
+  async getDeletionCompletion(
+    operationId: string,
+    tokenHash: string,
+    networkHash: string,
+  ): Promise<{ rateLimited: boolean; value: unknown }> {
+    return this.withWorkerTransaction(async (client) => {
+      await client.query(
+        "delete from private.deletion_completion_rate_buckets where bucket_at<clock_timestamp()-interval '5 minutes'",
+      );
+      const rate = await client.query<{ attempts: number }>(
+        `insert into private.deletion_completion_rate_buckets(network_hash,bucket_at,attempts)
+         values($1,date_trunc('minute',clock_timestamp()),1)
+         on conflict(network_hash,bucket_at) do update set attempts=least(deletion_completion_rate_buckets.attempts+1,61)
+         returning attempts`,
+        [networkHash],
+      );
+      if ((rate.rows[0]?.attempts ?? 61) > 60) return { rateLimited: true, value: null };
+      const result = await client.query<Record<string, unknown>>(
+        `select d.id,d.status,d.completed_at as "completedAt",d.error_code as "errorCode",d.version::int
+         from private.account_deletion_receipts r join private.account_deletion_requests d
+           on d.id=r.request_id and d.user_id=r.user_id
+         where r.operation_id=$1 and r.token_hash=$2 and r.expires_at>clock_timestamp()`,
+        [operationId, tokenHash],
+      );
+      return { rateLimited: false, value: result.rows[0] ?? null };
+    });
+  }
+
   async consumeRateLimit(
     principal: ClerkPrincipal,
     category: string,
@@ -932,8 +972,39 @@ export class SecurityRepository {
       }
       case 'createMyDeletionRequest': {
         if (body.confirmation !== 'DELETE_MY_ACCOUNT') invalid();
-        const hours = requiredInteger(body.coolingOffHours ?? 24, 1, 720);
-        const inserted = await client.query(
+        const hours = requiredInteger(body.coolingOffHours ?? 24, 0, 2_160);
+        const tokenHash = body.completionTokenHash;
+        const operationId = input.idempotencyKey;
+        if (hours === 0 || tokenHash !== undefined) {
+          if (
+            typeof tokenHash !== 'string' ||
+            !/^[0-9a-f]{64}$/.test(tokenHash) ||
+            typeof operationId !== 'string' ||
+            !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(operationId)
+          )
+            invalid();
+          await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
+            `${principal.userId}:deletion:${operationId}`,
+          ]);
+          const replay = await client.query<{ request_id: string; token_hash: string }>(
+            'select request_id,token_hash from private.account_deletion_receipts where user_id=$1 and operation_id=$2',
+            [principal.userId, operationId],
+          );
+          if (replay.rows[0]) {
+            if (replay.rows[0].token_hash !== tokenHash)
+              throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), {
+                code: 'IDEMPOTENCY_KEY_REUSED',
+              });
+            return this.one(
+              client,
+              `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",
+               completed_at as "completedAt",error_code as "errorCode",retention_result as "retainedCategories",version::int
+               from private.account_deletion_requests where id=$1 and user_id=$2`,
+              [replay.rows[0].request_id, principal.userId],
+            );
+          }
+        }
+        const inserted = await client.query<Record<string, unknown> & { id: string }>(
           `insert into private.account_deletion_requests(user_id,status,verified_at,cooling_off_ends_at) values($1,'verified',clock_timestamp(),clock_timestamp()+make_interval(hours=>$2))
           on conflict(user_id) where status in ('requested','verified','processing') do nothing returning id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",completed_at as "completedAt",version::int`,
           [principal.userId, hours],
@@ -946,13 +1017,23 @@ export class SecurityRepository {
             userId: principal.userId,
             occurredAt: new Date().toISOString(),
           });
-          return inserted.rows[0];
         }
-        return this.one(
-          client,
-          `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",completed_at as "completedAt",version::int from private.account_deletion_requests where user_id=$1 and status in ('requested','verified','processing')`,
-          [principal.userId],
-        );
+        const result =
+          inserted.rows[0] ??
+          (await this.one(
+            client,
+            `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",completed_at as "completedAt",version::int from private.account_deletion_requests where user_id=$1 and status in ('requested','verified','processing')`,
+            [principal.userId],
+          ));
+        if (tokenHash !== undefined) {
+          const deletionId = (result as { id: string }).id;
+          await client.query(
+            `insert into private.account_deletion_receipts(user_id,operation_id,request_id,token_hash,expires_at)
+             values($1,$2,$3,$4,clock_timestamp()+interval '24 hours')`,
+            [principal.userId, operationId, deletionId, tokenHash],
+          );
+        }
+        return result;
       }
       case 'cancelMyDeletionRequest':
         await this.one(

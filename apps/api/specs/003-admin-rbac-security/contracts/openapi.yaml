@@ -702,6 +702,27 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/privacy/deletion-completions/{operationId}:
+    get:
+      operationId: getDeletionCompletion
+      tags: [Privacy]
+      security: [{ DeletionCompletionReceipt: [] }]
+      description: Read-only receipt recovery after account/session deletion; expires after 24 hours.
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Actual durable deletion status. No account data is returned.
+          headers:
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/DeletionCompletion' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/v1/me/deletion-requests/{deletionId}:
     get:
       operationId: getMyDeletionRequest
@@ -881,6 +902,7 @@ paths:
 components:
   securitySchemes:
     ClerkBearer: { type: http, scheme: bearer, bearerFormat: JWT }
+    DeletionCompletionReceipt: { type: http, scheme: bearer, bearerFormat: 256-bit random hexadecimal receipt }
   parameters:
     Cursor:
       {
@@ -1426,6 +1448,21 @@ components:
       properties:
         confirmation: { type: string, const: DELETE_MY_ACCOUNT }
         reason: { type: string, maxLength: 500 }
+        completionToken:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          writeOnly: true
+          description: Required with a UUID Idempotency-Key when the server deletion policy has zero cooling hours. Generated and saved before submission.
+    DeletionCompletion:
+      type: object
+      additionalProperties: false
+      required: [id, status, completedAt, errorCode, version]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        status: { $ref: '#/components/schemas/DeletionStatus' }
+        completedAt: { type: [string, 'null'], format: date-time }
+        errorCode: { type: [string, 'null'], maxLength: 64 }
+        version: { $ref: '#/components/schemas/Version' }
     DeletionRequest:
       type: object
       additionalProperties: false
@@ -1438,6 +1475,7 @@ components:
         coolingOffEndsAt: { $ref: '#/components/schemas/Timestamp' }
         completedAt: { type: [string, 'null'], format: date-time }
         retainedCategories: { type: array, maxItems: 100, items: { type: string, maxLength: 80 } }
+        errorCode: { type: [string, 'null'], maxLength: 64 }
         safeError: { type: string, maxLength: 160 }
         version: { $ref: '#/components/schemas/Version' }
     PrivacyAction:

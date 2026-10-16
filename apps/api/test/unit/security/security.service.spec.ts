@@ -37,6 +37,7 @@ describe('SecurityService boundaries', () => {
     config as never,
     clerk as never,
     storage as never,
+    {} as never,
   );
 
   beforeEach(() => jest.clearAllMocks());

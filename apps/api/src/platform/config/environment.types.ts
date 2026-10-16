@@ -6,6 +6,7 @@ export interface PlatformEnvironment {
   MASARIFI_PROCESS_KIND: ProcessKind;
   MASARIFI_RELEASE_VERSION: string;
   DATABASE_URL: string;
+  MASARIFI_PRIVACY_DATABASE_URL?: string;
   MASARIFI_HTTP_PORT: number;
   MASARIFI_CORS_ORIGINS: string;
   MASARIFI_HTTP_BODY_LIMIT_BYTES: number;

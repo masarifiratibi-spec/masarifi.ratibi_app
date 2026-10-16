@@ -55,6 +55,7 @@ const applicationKeys = new Set([
   'MASARIFI_SECURITY_WORKER_POLL_MS',
   'MASARIFI_SECURITY_JOB_BATCH_SIZE',
   'MASARIFI_PRIVACY_HANDLER_MANIFEST',
+  'MASARIFI_PRIVACY_DATABASE_URL',
   'OPENROUTER_API_KEY',
   'MASARIFI_AI_PROVIDER_ENABLED',
   'MASARIFI_AI_ASSISTANT_ONLY',
@@ -207,6 +208,9 @@ const schema = Joi.object<PlatformEnvironment>({
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
+  MASARIFI_PRIVACY_DATABASE_URL: Joi.string()
+    .uri({ scheme: ['postgres', 'postgresql'] })
+    .optional(),
   MASARIFI_HTTP_PORT: Joi.number().integer().min(1024).max(65535).default(3000),
   MASARIFI_CORS_ORIGINS: Joi.string().allow('').default(''),
   MASARIFI_HTTP_BODY_LIMIT_BYTES: Joi.number().integer().min(1024).max(1_048_576).default(262_144),
@@ -298,7 +302,7 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_EXPORT_MAX_ENTRIES: Joi.number().integer().min(1).max(10_000).optional(),
   MASARIFI_EXPORT_RETENTION_HOURS: Joi.number().integer().min(1).max(168).optional(),
   MASARIFI_EXPORT_SIGNED_URL_SECONDS: Joi.number().integer().min(60).max(900).optional(),
-  MASARIFI_DELETION_COOLING_OFF_HOURS: Joi.number().integer().min(1).max(2_160).optional(),
+  MASARIFI_DELETION_COOLING_OFF_HOURS: Joi.number().integer().min(0).max(2_160).optional(),
   MASARIFI_SECURITY_WORKER_POLL_MS: Joi.number().integer().min(100).max(10_000).optional(),
   MASARIFI_SECURITY_JOB_BATCH_SIZE: Joi.number().integer().min(1).max(100).optional(),
   MASARIFI_PRIVACY_HANDLER_MANIFEST: Joi.string()
@@ -313,7 +317,9 @@ const schema = Joi.object<PlatformEnvironment>({
     .optional(),
   MASARIFI_VOICE_ANALYSIS_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_FINANCE_DIAGNOSTICS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
-  MASARIFI_STAGING_PRIVACY_OWNER_ID: Joi.string().pattern(/^user_[A-Za-z0-9]+$/).optional(),
+  MASARIFI_STAGING_PRIVACY_OWNER_ID: Joi.string()
+    .pattern(/^user_[A-Za-z0-9]+$/)
+    .optional(),
   MASARIFI_STAGING_VOICE_EPOCH_ID: Joi.string()
     .guid({ version: ['uuidv4'] })
     .optional(),
@@ -447,7 +453,28 @@ function validateIdentityEnvironment(environment: PlatformEnvironment): void {
   });
   if (missing.length > 0) invalidEnvironment(missing);
 
+  if (
+    environment.MASARIFI_PRIVACY_DATABASE_URL &&
+    (environment.MASARIFI_PROCESS_KIND !== 'api' ||
+      environment.MASARIFI_DELETION_COOLING_OFF_HOURS !== 0)
+  ) {
+    invalidEnvironment(['MASARIFI_PRIVACY_DATABASE_URL']);
+  }
+
   if (environment.MASARIFI_PROCESS_KIND === 'migration') return;
+
+  if (
+    environment.MASARIFI_PROCESS_KIND === 'api' &&
+    environment.MASARIFI_DELETION_COOLING_OFF_HOURS === 0
+  ) {
+    const missingImmediate = [
+      ...(!environment.MASARIFI_PRIVACY_DATABASE_URL ? ['MASARIFI_PRIVACY_DATABASE_URL'] : []),
+      ...(!environment.MASARIFI_PRIVACY_HANDLER_MANIFEST
+        ? ['MASARIFI_PRIVACY_HANDLER_MANIFEST']
+        : []),
+    ];
+    if (missingImmediate.length) invalidEnvironment(missingImmediate);
+  }
 
   const expectedKeyEnvironment = environment.NODE_ENV === 'production' ? 'live' : 'test';
   const mismatched: string[] = [];
@@ -580,8 +607,11 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
-  if (environment.MASARIFI_STAGING_PRIVACY_OWNER_ID &&
-    (environment.MASARIFI_PROCESS_KIND !== 'worker' || environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'))
+  if (
+    environment.MASARIFI_STAGING_PRIVACY_OWNER_ID &&
+    (environment.MASARIFI_PROCESS_KIND !== 'worker' ||
+      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+  )
     invalidEnvironment(['MASARIFI_STAGING_PRIVACY_OWNER_ID']);
   if (environment.MASARIFI_STAGING_VOICE_CONTINUOUS && !environment.MASARIFI_STAGING_VOICE_EPOCH_ID)
     invalidEnvironment(['MASARIFI_STAGING_VOICE_CONTINUOUS']);

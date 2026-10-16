@@ -74,6 +74,7 @@ describeLocal('identity deletion with the real local worker role', () => {
         new AiPrivacyHandler(pool, storage as never),
         new EngagementPrivacyHandler(pool, storage as never),
         { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
+        {} as never,
       );
       await (
         worker as SecurityWorkerService & { runDeletionForOwner(owner: string): Promise<void> }
@@ -141,6 +142,7 @@ describeLocal('identity deletion with the real local worker role', () => {
       new AiPrivacyHandler(pool, storage as never),
       new EngagementPrivacyHandler(pool, storage as never),
       { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
+      {} as never,
     );
     await worker.runDeletionForOwner(subject);
     expect(
@@ -173,6 +175,7 @@ describeLocal('identity deletion with the real local worker role', () => {
       new AiPrivacyHandler(pool, storage as never),
       new EngagementPrivacyHandler(pool, storage as never),
       { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
+      {} as never,
     );
     clerk.deleteIdentityUser.mockRejectedValueOnce(new ClerkProviderUnavailableError());
     await worker.runDeletionForOwner(subject);

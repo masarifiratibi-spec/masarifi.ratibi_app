@@ -16,6 +16,7 @@ import {
   inputObject,
 } from './security.dto';
 import { SecurityRepository } from './security.repository';
+import { ImmediateDeletionService } from './immediate-deletion.service';
 
 export interface SecurityOperation {
   operation: string;
@@ -223,6 +224,7 @@ export class SecurityService {
     private readonly config: PlatformConfigService,
     private readonly clerk: ClerkClientService,
     private readonly storage: ExportStorage,
+    private readonly worker: ImmediateDeletionService,
   ) {}
 
   async execute(input: SecurityOperation): Promise<unknown> {
@@ -350,6 +352,16 @@ export class SecurityService {
     }
     if (input.operation === 'createMyDeletionRequest') {
       body.coolingOffHours = this.config.getRequired('MASARIFI_DELETION_COOLING_OFF_HOURS');
+      if (body.coolingOffHours === 0 || body.completionToken !== undefined) {
+        if (
+          typeof body.completionToken !== 'string' ||
+          !/^[0-9a-f]{64}$/.test(body.completionToken) ||
+          !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(input.idempotencyKey ?? '')
+        )
+          throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
+        body.completionTokenHash = createHash('sha256').update(body.completionToken).digest('hex');
+        delete body.completionToken;
+      }
     }
     if (input.operation === 'createAdminInvitation') {
       const token = randomBytes(32).toString('base64url');
@@ -381,6 +393,15 @@ export class SecurityService {
         input.operation,
         await this.repository.execute({ ...input, body }),
       );
+      if (input.operation === 'createMyDeletionRequest' && body.coolingOffHours === 0) {
+        const deletionId = record(result).id;
+        if (typeof deletionId !== 'string') throw new Error('DELETION_REQUEST_INVALID');
+        // The creation transaction has committed; completion can revoke this request's session.
+        return projectResult(
+          input.operation,
+          await this.worker.runDeletionRequestForOwner(input.principal.userId, deletionId),
+        );
+      }
       if (input.operation === 'getAdminSelf') {
         return {
           ...record(result),
@@ -482,6 +503,8 @@ export class SecurityService {
       if (code === 'ACTIVE_ASSIGNMENTS_EXIST')
         throw new HttpException({ code: 'ACTIVE_ASSIGNMENTS_EXIST' }, 409);
       if (code === '23505') throw new HttpException({ code: 'CONFLICT' }, 409);
+      if (code === 'IDEMPOTENCY_KEY_REUSED')
+        throw new HttpException({ code: 'IDEMPOTENCY_KEY_REUSED' }, 409);
       if (code === '22023' || code === '22P02' || code === '23514')
         throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
       if (code === '42501') throw new HttpException({ code: 'FORBIDDEN' }, 403);

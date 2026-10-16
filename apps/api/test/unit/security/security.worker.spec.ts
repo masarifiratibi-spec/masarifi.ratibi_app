@@ -34,6 +34,7 @@ describe('SecurityWorkerService', () => {
       ai as never,
       engagement as never,
       config as never,
+      {} as never,
     );
 
     await expect(worker.runOnce()).resolves.toBeUndefined();
@@ -61,6 +62,7 @@ describe('SecurityWorkerService', () => {
       { ...handler, resourceType: 'ai' } as never,
       { ...handler, resourceType: 'engagement' } as never,
       { get: jest.fn(() => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1']) } as never,
+      {} as never,
     );
 
     await expect(worker.runJob('security.support-expire')).rejects.toThrow('database unavailable');

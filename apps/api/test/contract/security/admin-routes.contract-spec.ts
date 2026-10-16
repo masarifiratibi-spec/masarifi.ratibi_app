@@ -24,7 +24,11 @@ describe('Phase 03 route authorization contract', () => {
     };
     const expected = Object.entries(contract.paths).flatMap(([path, methods]) =>
       Object.entries(methods)
-        .filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method))
+        .filter(
+          ([method, operation]) =>
+            ['get', 'post', 'patch', 'delete'].includes(method) &&
+            operation.operationId !== 'getDeletionCompletion',
+        )
         .map(([method, operation]) => ({
           method: method.toUpperCase(),
           path: path.slice(1).replaceAll(/{([^}]+)}/g, ':$1'),
