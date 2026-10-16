@@ -1,6 +1,7 @@
 package com.masarifi.smsinbox
 
 import android.content.Context
+import android.app.NotificationManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
@@ -84,6 +85,29 @@ internal object TrackingOwner {
     check(preferences(context).edit().clear().putBoolean(SUSPENDED,true).commit())
     WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
   }
+  @Synchronized fun purgeOwner(context: Context, owner: String) {
+    require(owner.matches(Regex("[a-f0-9]{64}")))
+    val presentations = TrackingEncryptedStore(context,"masarifi_tracking_presentations_v2",owner).read()
+    if(presentations != null) {
+      val identifiers = JSONObject(presentations).keys().asSequence().toList()
+      require(identifiers.all {it.matches(Regex("[a-fA-F0-9-]{36}"))})
+      val notifications = context.getSystemService(NotificationManager::class.java)
+      identifiers.forEach {notifications.cancel(it,0)}
+    }
+    if(read(context).optString("owner") == owner) {
+      check(preferences(context).edit().clear().putBoolean(SUSPENDED,true).commit())
+      WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
+    }
+    for(namespace in listOf("masarifi_notification_queue_v2_", "masarifi_tracking_presentations_v2_")) {
+      val payload = context.getSharedPreferences(namespace + owner,Context.MODE_PRIVATE)
+      check(payload.edit().clear().commit())
+      check(payload.all.isEmpty())
+    }
+    val store = KeyStore.getInstance("AndroidKeyStore").apply {load(null)}
+    val alias = "masarifi.tracking." + owner
+    store.deleteEntry(alias)
+    check(!store.containsAlias(alias))
+  }
   fun allows(context: Context, packageName: String): Boolean {
     val state=read(context)
     if (!state.optBoolean("notification") || state.optString("owner").isBlank()) return false
@@ -94,18 +118,20 @@ internal object TrackingOwner {
   }
 }
 
-internal class TrackingEncryptedStore(private val context: Context, private val name: String) {
-  private fun alias(): String = "masarifi.tracking."+TrackingOwner.read(context).optString("owner")
+internal class TrackingEncryptedStore(private val context: Context, private val name: String, private val owner: String? = null) {
+  private fun ownerDigest(): String = owner ?: TrackingOwner.read(context).optString("owner")
+  private fun alias(): String = "masarifi.tracking."+ownerDigest()
   private fun key(): SecretKey = synchronized(TrackingOwner) {
     val store=KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     (store.getKey(alias(),null) as? SecretKey)?.let { return@synchronized it }
+    check(owner == null) {"tracking_owner_key_missing"}
     KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").apply {
       init(KeyGenParameterSpec.Builder(alias(),KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
         .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
     }.generateKey()
   }
   fun read(): String? {
-    val encoded=context.getSharedPreferences(name+"_"+TrackingOwner.read(context).optString("owner"),Context.MODE_PRIVATE).getString("ciphertext",null) ?: return null
+    val encoded=context.getSharedPreferences(name+"_"+ownerDigest(),Context.MODE_PRIVATE).getString("ciphertext",null) ?: return null
     val bytes=Base64.decode(encoded,Base64.NO_WRAP)
     val cipher=Cipher.getInstance("AES/GCM/NoPadding")
     cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
@@ -114,9 +140,9 @@ internal class TrackingEncryptedStore(private val context: Context, private val 
   fun write(value: String) {
     val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE,key()) }
     val encoded=Base64.encodeToString(cipher.iv+cipher.doFinal(value.toByteArray(Charsets.UTF_8)),Base64.NO_WRAP)
-    check(context.getSharedPreferences(name+"_"+TrackingOwner.read(context).optString("owner"),Context.MODE_PRIVATE).edit().putString("ciphertext",encoded).commit())
+    check(context.getSharedPreferences(name+"_"+ownerDigest(),Context.MODE_PRIVATE).edit().putString("ciphertext",encoded).commit())
   }
-  fun clear() {check(context.getSharedPreferences(name+"_"+TrackingOwner.read(context).optString("owner"),Context.MODE_PRIVATE).edit().clear().commit())}
+  fun clear() {check(context.getSharedPreferences(name+"_"+ownerDigest(),Context.MODE_PRIVATE).edit().clear().commit())}
 }
 
 internal object TrackingScheduler {

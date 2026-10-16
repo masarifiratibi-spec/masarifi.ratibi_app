@@ -6,7 +6,11 @@ import { parseDeepLinkDestination } from '@/features/shell/deep-link-controller'
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { prepareDevDeletionBootstrap } from '@/services/dev-account-deletion';
 import { authService } from '@/features/auth/auth-flow';
 import { restoreAppShellSession } from '@/features/auth/session-controller';
 import { HttpError } from '@/services/live/http-client';
@@ -72,11 +76,22 @@ export function AppShellProvider({
       };
     restoreQueue.current = restoreQueue.current
       .catch(() => undefined)
-      .then(() =>
-        current ? restoreAppShellSession(authService, () => current) : undefined
-      )
       .then(async () => {
-        if (current && liveClerkSessionKey) {
+        if (
+          current &&
+          isDevPrivacyDeletionEnabled() &&
+          !(await prepareDevDeletionBootstrap())
+        )
+          return;
+        if (current) await restoreAppShellSession(authService, () => current);
+      })
+      .then(async () => {
+        if (
+          current &&
+          liveClerkSessionKey &&
+          (!isDevPrivacyDeletionEnabled() ||
+            useAppShellStore.getState().session?.status === 'authenticated')
+        ) {
           void authService.touchActivity().catch(() => undefined);
           if (registeredPushSession.current !== liveClerkSessionKey) {
             registeredPushSession.current = liveClerkSessionKey;
@@ -91,7 +106,10 @@ export function AppShellProvider({
         current
           ? useAppShellStore.setState({
               hydrated: true,
-              profileSetupStatus: error instanceof HttpError && error.failureSource ? 'unavailable' : 'error'
+              profileSetupStatus:
+                error instanceof HttpError && error.failureSource
+                  ? 'unavailable'
+                  : 'error'
             })
           : undefined
       );
@@ -178,7 +196,9 @@ export function AppShellProvider({
       if (
         state === 'active' &&
         resolveClientMode() === 'live' &&
-        liveClerkSessionKey
+        liveClerkSessionKey &&
+        (!isDevPrivacyDeletionEnabled() ||
+          useAppShellStore.getState().session?.status === 'authenticated')
       ) {
         void authService.touchActivity().catch(() => undefined);
         void synchronizeLiveCoreFinance().catch(() => undefined);

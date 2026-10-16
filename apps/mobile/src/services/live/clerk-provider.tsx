@@ -117,8 +117,11 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
             .then(() => setStatus(clerk.status === 'ready' ? 'ready' : 'error'))
             .catch((error: unknown) => {
               recordDevelopmentAuthDiagnostic('identity_retry_failure', error);
-              const networkUnavailable = typeof error === 'object' && error !== null &&
-                'code' in error && error.code === 'network_error';
+              const networkUnavailable =
+                typeof error === 'object' &&
+                error !== null &&
+                'code' in error &&
+                error.code === 'network_error';
               setStatus(networkUnavailable ? 'unavailable' : 'error');
             });
         }
@@ -285,7 +288,10 @@ function ClerkBridgeInstaller({
     },
     async signInWithGoogle() {
       if (!latest.current.auth.isLoaded || ssoPending.current) {
-        recordDevelopmentAuthDiagnostic('sso_failure', new Error('appShell.auth.unavailable'));
+        recordDevelopmentAuthDiagnostic(
+          'sso_failure',
+          new Error('appShell.auth.unavailable')
+        );
         throw new Error('appShell.auth.unavailable');
       }
       ssoPending.current = true;
@@ -300,7 +306,9 @@ function ClerkBridgeInstaller({
               ? `${Constants.expoConfig.scheme}://sso-callback`
               : 'masarifi://sso-callback'
         });
-        recordDevelopmentAuthDiagnostic('sso_result', { code: `auth_session_${result.authSessionResult?.type ?? 'missing'}` });
+        recordDevelopmentAuthDiagnostic('sso_result', {
+          code: `auth_session_${result.authSessionResult?.type ?? 'missing'}`
+        });
         if (
           result.authSessionResult?.type === 'cancel' ||
           result.authSessionResult?.type === 'dismiss'
@@ -338,10 +346,12 @@ function ClerkBridgeInstaller({
       }
     },
     reverifyConflict: async () => null,
-    signOut: ({ scope }) =>
+    signOut: ({ scope, sessionId }) =>
       latest.current.auth.signOut(
         scope === 'current'
-          ? { sessionId: latest.current.auth.sessionId ?? undefined }
+          ? {
+              sessionId: sessionId ?? latest.current.auth.sessionId ?? undefined
+            }
           : undefined
       )
   };
@@ -360,8 +370,7 @@ function ClerkBridgeInstaller({
       if (status === 'error' || status === 'degraded') {
         recordDevelopmentAuthDiagnostic('identity_error');
         onStatus('error');
-      }
-      else if (status === 'ready' || auth.isLoaded) onStatus('ready');
+      } else if (status === 'ready' || auth.isLoaded) onStatus('ready');
     };
     update(clerk?.status ?? (auth.isLoaded ? 'ready' : 'loading'));
     const listener = (status: string) => update(status);

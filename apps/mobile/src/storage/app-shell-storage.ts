@@ -75,6 +75,30 @@ export async function clearAppShellUserData(): Promise<void> {
   ]);
 }
 
+export async function purgeAppShellOwnerData(ownerId: string): Promise<void> {
+  const ownerHash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    ownerId
+  );
+  const suffix = ownerHash.slice(0, 24);
+  const asyncKeys = asyncUserDataKeys.map((key) => `${key}.${suffix}`);
+  const secureKeys = sensitiveUserDataKeys.map((key) => `${key}.${suffix}`);
+  await Promise.all([
+    ...asyncKeys.map((key) => AsyncStorage.removeItem(key)),
+    ...secureKeys.map((key) => removeSensitive(key))
+  ]);
+  const remaining = await Promise.all([
+    ...asyncKeys.map((key) => AsyncStorage.getItem(key)),
+    ...secureKeys.map((key) =>
+      Platform.OS === 'web'
+        ? AsyncStorage.getItem(previewKey(key))
+        : SecureStore.getItemAsync(key)
+    )
+  ]);
+  if (remaining.some((payload) => payload !== null))
+    throw new Error('owner shell data remains');
+}
+
 export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorage> {
   return {
     metadata: {

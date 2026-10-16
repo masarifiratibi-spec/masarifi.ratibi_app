@@ -10,6 +10,11 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'settings.deletion.dev.description': 'احذف حسابك نهائيًا مع بياناته المالية والتخطيط والتتبع والمساعد المحفوظة. لا يمكن التراجع عن هذا الإجراء.',
+  'settings.deletion.dev.confirmation': 'هل تريد حذف حسابك وكل بياناته المحفوظة الآن نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+  'settings.deletion.dev.deleting': 'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
+  'settings.deletion.dev.completed': 'تم حذف حسابك وبياناته المحفوظة.',
+  'settings.deletion.dev.localRetry': 'أكد الخادم الحذف، لكن تنظيف بيانات الجهاز لم يكتمل. أعد المحاولة أو أعد تشغيل التطبيق إذا استمر تعذّر التنظيف.',
   'settings.deletion.retentionNotice': "يخفي هذا الإجراء هوية ملفك في التطبيق ويزيل بيانات المساعد والتتبع والدعم ويحذف حسابك لدى مزود تسجيل الدخول. تبقى سجلاتك المالية وبيانات التخطيط محفوظة.",
   'settings.deletion.verificationUnavailable': "التحقق بالرمز غير متاح لهذا الحساب. سجّل الخروج ثم ادخل مجددًا وأعد طلب الحذف.",
   'settings.deletion.verificationError': "تعذر إكمال التحقق. تحقق من الرمز أو أرسل رمزًا جديدًا وحاول مجددًا.",

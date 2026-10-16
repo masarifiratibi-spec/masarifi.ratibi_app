@@ -28,3 +28,12 @@ export function saveAccountDeletionOperationId(
 export function removeAccountDeletionOperationId(ownerId: string) {
   return AsyncStorage.removeItem(`${requestKey(ownerId)}.operation`);
 }
+
+export async function removeAccountDeletionJournal(
+  ownerId: string
+): Promise<void> {
+  await AsyncStorage.multiRemove([
+    requestKey(ownerId),
+    `${requestKey(ownerId)}.operation`
+  ]);
+}

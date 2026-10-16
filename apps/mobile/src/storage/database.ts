@@ -10,7 +10,11 @@ import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { File } from 'expo-file-system';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { isDeletionOwnerFenced } from './deletion-completion-journal';
 
 const DATABASE_NAME = 'masarifi.db';
 const CURRENT_SCHEMA_VERSION = 15;
@@ -19,15 +23,17 @@ const DATABASE_KEY_PREFIX = 'masarifi.database.key.';
 const LEGACY_MIGRATION_TABLE = '_masarifi_migration_state';
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let databaseClosePromise: Promise<void> | null = null;
 let databaseLifecycleQueue: Promise<void> = Promise.resolve();
 let activeDatabase: SQLite.SQLiteDatabase | null = null;
 let databaseName = DATABASE_NAME;
 let databaseOwnerHash: string | null = null;
 
 export async function configureDatabaseOwner(userId: string): Promise<void> {
-  if (!userId || /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(userId))
-    throw new Error('invalid database owner');
+  assertDatabaseOwner(userId);
   await enqueueDatabaseLifecycle(async () => {
+    if (isDevPrivacyDeletionEnabled() && (await isDeletionOwnerFenced(userId)))
+      throw new Error('deleted database owner');
     const ownerHash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       userId
@@ -35,8 +41,41 @@ export async function configureDatabaseOwner(userId: string): Promise<void> {
     if (ownerHash === databaseOwnerHash) return;
     await closeActiveDatabase();
     databaseOwnerHash = ownerHash;
-    databaseName = `masarifi-${ownerHash.slice(0, 24)}.db`;
+    databaseName = ownerDatabaseName(ownerHash);
   });
+}
+
+/** Only call after the server confirms completed account erasure. */
+export async function purgeAccountDatabase(ownerId: string): Promise<void> {
+  assertDatabaseOwner(ownerId);
+  await enqueueDatabaseLifecycle(async () => {
+    const ownerHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      ownerId
+    );
+    if (databaseOwnerHash === ownerHash) {
+      await closeActiveDatabase();
+      databaseOwnerHash = null;
+      databaseName = DATABASE_NAME;
+    }
+    const ownerFilename = ownerDatabaseName(ownerHash);
+    removeDatabaseFiles(ownerFilename);
+    if (databaseFilesExist(ownerFilename))
+      throw new Error('database files remain');
+    const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
+    await SecureStore.deleteItemAsync(storageKey);
+    if ((await SecureStore.getItemAsync(storageKey)) !== null)
+      throw new Error('database key remains');
+  });
+}
+
+function assertDatabaseOwner(ownerId: string): void {
+  if (!ownerId || /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(ownerId))
+    throw new Error('invalid database owner');
+}
+
+function ownerDatabaseName(ownerHash: string): string {
+  return `masarifi-${ownerHash.slice(0, 24)}.db`;
 }
 
 /** Explicit sign-out discards ephemeral imports before releasing the owner. */
@@ -44,6 +83,7 @@ export async function clearDatabaseOwner(
   discardSmsQueueFor?: string
 ): Promise<void> {
   await enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (
       discardSmsQueueFor !== undefined &&
       (await Crypto.digestStringAsync(
@@ -76,6 +116,7 @@ export async function openDatabase(
   expectedUserId?: string
 ): Promise<SQLite.SQLiteDatabase> {
   return enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (
       expectedUserId !== undefined &&
       (await Crypto.digestStringAsync(
@@ -103,6 +144,7 @@ export async function openDatabase(
  */
 export function resetDatabaseForTests(): void {
   databasePromise = null;
+  databaseClosePromise = null;
   databaseLifecycleQueue = Promise.resolve();
   activeDatabase = null;
 }
@@ -112,6 +154,7 @@ export function runExclusiveDatabaseTransaction(
   operation: (transaction: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   return enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (resolveClientMode() === 'live' && database !== activeDatabase)
       throw new Error('stale database owner');
     await withKeyedTransaction(database, databaseOwnerHash, operation);
@@ -192,9 +235,25 @@ async function verifyLegacyMigration(
 
 async function closeActiveDatabase(): Promise<void> {
   const active = databasePromise;
+  if (active) {
+    // Expo evicts native handles before closing; a failed close needs a restart,
+    // because repeating closeAsync can resolve without closing the old handle.
+    let database: SQLite.SQLiteDatabase;
+    try {
+      database = await active;
+    } catch (failure) {
+      if (databasePromise === active) {
+        databasePromise = null;
+        activeDatabase = null;
+      }
+      throw failure;
+    }
+    databaseClosePromise ??= database.closeAsync();
+    await databaseClosePromise;
+  }
   databasePromise = null;
+  databaseClosePromise = null;
   activeDatabase = null;
-  if (active) await (await active).closeAsync();
 }
 
 function enqueueDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {

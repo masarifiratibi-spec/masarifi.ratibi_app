@@ -22,6 +22,16 @@ const bundledEnvironment = (): RuntimeEnvironment => ({
     process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 });
 
+export function isDevPrivacyDeletionEnabled(): boolean {
+  if (process.env.EXPO_PUBLIC_APP_VARIANT !== 'staging-development-privacy')
+    return false;
+  const runtime = resolveClientRuntime();
+  return (
+    runtime.mode === 'live' &&
+    runtime.apiUrl === 'https://api.staging.masarifiratibi.com/dev-privacy'
+  );
+}
+
 export function isAppLockEnabled(
   environment: RuntimeEnvironment = bundledEnvironment()
 ): boolean {

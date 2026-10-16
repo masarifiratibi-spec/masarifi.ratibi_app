@@ -19,10 +19,14 @@ import {
   saveAccountDeletionRequestId
 } from '@/services/account-deletion-journal';
 import { startAccountDeletionVerification } from './account-deletion-auth';
+import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
+import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
 
 export function AccountDeletionPanel() {
   const session = useAppShellStore((state) => state.session);
   const ownerId = session?.status === 'authenticated' ? session.userId : null;
+  if (ownerId && isDevPrivacyDeletionEnabled())
+    return <DevAccountDeletionPanel key={ownerId} ownerId={ownerId} />;
   return ownerId ? (
     <OwnedAccountDeletionPanel key={ownerId} ownerId={ownerId} />
   ) : null;

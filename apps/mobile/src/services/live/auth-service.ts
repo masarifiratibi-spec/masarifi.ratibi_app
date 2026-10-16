@@ -33,6 +33,8 @@ import {
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { TrackingError } from '@/services/contracts/automatic-tracking-service';
 import { resetLocalUserData } from '@/storage/local-data-reset';
+import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
+import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
 import {
   configureMobileApiTokenProvider,
   HttpError,
@@ -61,7 +63,10 @@ export interface LiveClerkBridge {
   resendPhone(sessionId: string): Promise<PhoneVerificationAttempt>;
   signInWithGoogle(): Promise<ClerkSession | null>;
   reverifyConflict(input: ReverificationInput): Promise<ClerkSession | null>;
-  signOut(options: { scope: 'current' | 'all' }): Promise<void>;
+  signOut(options: {
+    scope: 'current' | 'all';
+    sessionId?: string;
+  }): Promise<void>;
 }
 
 type IdentityRequest = (
@@ -138,7 +143,7 @@ const privacyExportSchema = z
     version: z.number().int().positive()
   })
   .strict();
-const deletionRequestSchema = z
+export const deletionRequestSchema = z
   .object({
     id: z.string().min(1),
     status: z.enum([
@@ -210,6 +215,17 @@ export async function getLiveClerkToken(): Promise<string> {
   const token = await requestClerkToken(registeredBridge, { skipCache: true });
   if (!token) throw new HttpError('session_expired', 401);
   return token;
+}
+
+export async function signOutDeletedClerkOwner(ownerId: string): Promise<void> {
+  const bridge = registeredBridge;
+  const session = await bridge?.getSession();
+  if (session?.userId === ownerId && bridge)
+    await bridge.signOut({ scope: 'current', sessionId: session.id });
+}
+
+export async function getLiveClerkOwnerId(): Promise<string | null> {
+  return (await registeredBridge?.getSession())?.userId ?? null;
 }
 
 export async function captureLiveClerkOwner() {
@@ -350,6 +366,12 @@ export function createLiveAuthService(
     },
     async restoreSession() {
       const session = await bridge.getSession();
+      if (
+        session &&
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(session.userId))
+      )
+        return signedOut();
       return session ? authenticated(session) : signedOut();
     },
     async touchActivity() {

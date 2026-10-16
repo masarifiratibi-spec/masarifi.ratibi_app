@@ -120,14 +120,13 @@ const SQLite = jest.requireMock('expo-sqlite') as {
 const SecureStore = jest.requireMock('expo-secure-store') as {
   setItemAsync: jest.Mock;
 };
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 const {
   clearDatabaseOwner,
   configureDatabaseOwner,
   openDatabase,
   resetDatabaseForTests,
   runExclusiveDatabaseTransaction
-} = require('./database') as typeof import('./database');
+} = jest.requireActual<typeof import('./database')>('./database');
 
 beforeEach(async () => {
   mockSeparateTransactionConnections = false;
@@ -431,4 +430,16 @@ test('serializes an owner switch before a concurrent database open', async () =>
   expect(SQLite.openDatabaseAsync).toHaveBeenLastCalledWith(
     `masarifi-${'b'.repeat(24)}.db`
   );
+});
+
+test('can switch owners after sign-out encounters a failed database open without latching a native close failure', async () => {
+  await configureDatabaseOwner('user_owner-a');
+  failSchemaMigration = true;
+  await expect(clearDatabaseOwner('user_owner-a')).rejects.toThrow(
+    'schema migration failed'
+  );
+  failSchemaMigration = false;
+
+  await expect(configureDatabaseOwner('user_owner-b')).resolves.toBeUndefined();
+  await expect(openDatabase('user_owner-b')).resolves.toBe(mockDatabase);
 });

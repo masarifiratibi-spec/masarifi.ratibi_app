@@ -17,7 +17,11 @@ import {
   type StepResult
 } from '@/features/onboarding/onboarding-progress';
 import { isDemoModeEnabled } from '@/config/demo-mode';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
 import {
   createClientDemoSession,
   createCompletedDemoOnboarding
@@ -57,6 +61,7 @@ interface AppShellState {
   ) => Promise<void>;
   expireSession: () => Promise<void>;
   signOut: () => Promise<void>;
+  releaseDeletedOwner: (ownerId: string) => void;
   suspendUnavailableRestoration: () => Promise<void>;
   setOnboarding: (progress: OnboardingProgress) => Promise<void>;
   advanceOnboarding: (
@@ -212,9 +217,25 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     )
       throw new Error('invalid live session');
     if (session.status === 'authenticated' && liveMode) {
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(session.userId!))
+      ) {
+        if (
+          isCurrent() &&
+          (!get().session?.userId || get().session?.userId === session.userId)
+        )
+          set({ ...initialState, hydrated: true, session: signedOutSession });
+        return;
+      }
       set(initialState);
       await resetRuntimeIdentityData({ restoringOwnerId: session.userId! });
       if (!isCurrent()) return;
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(session.userId!))
+      )
+        return;
       await configureDatabaseOwner(session.userId!);
       if (!isCurrent()) return;
       await configureAppShellStorageOwner(session.userId!);
@@ -266,6 +287,12 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       clearDatabaseOwner(),
       resetRuntimeIdentityData({ kind: 'restore-unavailable' })
     ]);
+  },
+
+  releaseDeletedOwner: (ownerId) => {
+    if (get().session?.userId !== ownerId) return;
+    clearAppShellStorageOwner();
+    set({ ...initialState, hydrated: true, session: signedOutSession });
   },
 
   signOut: async () => {

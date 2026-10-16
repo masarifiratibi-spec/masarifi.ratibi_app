@@ -18,6 +18,7 @@ import { useTheme } from '@/state/theme-context';
 import { MobileIdentityProvider } from '@/services/live/clerk-provider';
 import { isAppLockEnabled } from '@/config/client-runtime';
 import { VoiceCaptureProvider } from '@/features/voice/VoiceCaptureRuntime';
+import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
 
 export default function RootLayout() {
   const appLockEnabled = isAppLockEnabled();
@@ -46,6 +47,7 @@ export default function RootLayout() {
       <FontGate>
         <FoundationProviders>
           <AppShellProvider>
+            <DevAccountDeletionRecovery />
             <VoiceCaptureProvider>
               <AppPrivacyGate
                 immediate={

@@ -77,10 +77,7 @@ export async function scheduleTrackingFollowUp(ownerId: string): Promise<void> {
     );
     if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
       return;
-    await native.scheduleTrackingFollowUp!(
-      ownerDigest,
-      context.generation
-    );
+    await native.scheduleTrackingFollowUp!(ownerDigest, context.generation);
   });
 }
 export async function configureTrackingBackground(
@@ -198,6 +195,32 @@ export async function disableTrackingBackground(
     else {
       await trackingNativeRuntime?.clearTrackingOwner?.();
       await SecureStore.deleteItemAsync(contextKey);
+    }
+  });
+}
+
+export async function purgeDeletedOwnerTracking(
+  ownerId: string
+): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  const native = trackingNativeRuntime;
+  if (!native?.purgeTrackingOwnerData)
+    throw new Error('tracking_native_upgrade_required');
+  return serializeNative(async () => {
+    const raw = await SecureStore.getItemAsync(contextKey);
+    const context = raw ? (JSON.parse(raw) as { ownerId?: string }) : null;
+    const ownerDigest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      ownerId
+    );
+    await native.purgeTrackingOwnerData!(ownerDigest);
+    if (
+      context?.ownerId === ownerId &&
+      (await SecureStore.getItemAsync(contextKey)) === raw
+    ) {
+      await SecureStore.deleteItemAsync(contextKey);
+      if ((await SecureStore.getItemAsync(contextKey)) !== null)
+        throw new Error('tracking owner context remains');
     }
   });
 }

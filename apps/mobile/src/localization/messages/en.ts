@@ -8,6 +8,11 @@
  */
 
 const en = {
+  'settings.deletion.dev.description': 'Permanently delete this account and its stored financial, planning, tracking and assistant data. This action cannot be undone.',
+  'settings.deletion.dev.confirmation': 'Permanently delete your account and all its stored data now? You cannot undo this action.',
+  'settings.deletion.dev.deleting': 'Deleting your account… Keep the app open. Completion has not been confirmed yet.',
+  'settings.deletion.dev.completed': 'Your account and its stored data have been deleted.',
+  'settings.deletion.dev.localRetry': 'The server confirmed deletion. Device cleanup still needs to finish. Retry, or restart the app if cleanup remains blocked.',
   'settings.deletion.retentionNotice': "This workflow anonymizes your app profile, removes assistant, tracking and support data, and deletes your sign-in provider account. Financial ledger and planning records remain retained.",
   'settings.deletion.verificationUnavailable': "Code verification is unavailable for this account. Sign out and sign in again, then retry the deletion request.",
   'settings.deletion.verificationError': "Verification could not be completed. Check the code or send a new code and retry.",

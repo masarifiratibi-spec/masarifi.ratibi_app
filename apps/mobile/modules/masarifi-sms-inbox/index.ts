@@ -35,6 +35,7 @@ export interface MasarifiSmsInboxModule {
     generation: string | null
   ): Promise<string>;
   clearTrackingOwner(): Promise<void>;
+  purgeTrackingOwnerData?(ownerDigest: string): Promise<void>;
   finishTrackingWork(workId: string, succeeded: boolean): Promise<void>;
   presentCaptureConfirmation(
     ownerId: string,
