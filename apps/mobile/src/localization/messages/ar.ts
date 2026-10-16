@@ -15,6 +15,7 @@ const ar: MessageCatalog = {
   'settings.deletion.verificationError': "تعذر إكمال التحقق. تحقق من الرمز أو أرسل رمزًا جديدًا وحاول مجددًا.",
   'settings.deletion.pending': "جارٍ التواصل مع خدمة الحساب…",
   'settings.deletion.error': "تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.",
+  'settings.deletion.rateLimited': 'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
   'settings.deletion.sessionExpired': "جلستك غير متاحة. سجّل الدخول مجددًا للتحقق من حالة الحذف.",
   'settings.deletion.recentAuth': "تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.",
   'settings.deletion.reverify': "إرسال رمز التحقق",

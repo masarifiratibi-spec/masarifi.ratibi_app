@@ -31,6 +31,7 @@ export function AccountDeletionPanel() {
 function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
   const [request, setRequest] = React.useState<PrivacyRequest | null>(null);
   const [pending, setPending] = React.useState(true);
+  const [restored, setRestored] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [recentAuth, setRecentAuth] = React.useState(false);
   const [verification, setVerification] = React.useState<Awaited<
@@ -46,6 +47,10 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
 
   function showError(failure: unknown) {
     if (!current()) return;
+    if (failure instanceof HttpError && failure.code === 'rate_limited') {
+      setError('settings.deletion.rateLimited');
+      return;
+    }
     const requiresRecent =
       failure instanceof HttpError &&
       failure.domainCode === 'RECENT_AUTH_REQUIRED';
@@ -84,16 +89,21 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
     if (next.serverStatus === 'completed') await completeSignOut();
   }
 
+  async function restoreRequest() {
+    const { requestId: savedId, operationId: savedOperation } =
+      await loadAccountDeletionJournal(ownerId);
+    if (!current()) return;
+    operation.current = savedOperation;
+    if (savedId)
+      await accept(await settingsService.getAccountDeletion(savedId));
+    if (current()) setRestored(true);
+  }
+
   React.useEffect(() => {
     active.current = true;
     void (async () => {
       try {
-        const { requestId: savedId, operationId: savedOperation } =
-          await loadAccountDeletionJournal(ownerId);
-        if (!current()) return;
-        operation.current = savedOperation;
-        if (savedId)
-          await accept(await settingsService.getAccountDeletion(savedId));
+        await restoreRequest();
       } catch (failure) {
         showError(failure);
       } finally {
@@ -155,7 +165,8 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
   }
 
   const status = request?.serverStatus;
-  const canRequest = !request || status === 'cancelled' || status === 'failed';
+  const canRequest =
+    restored && (!request || status === 'cancelled' || status === 'failed');
   const canCancel =
     (status === 'requested' || status === 'verified') &&
     request?.coolingOffEndsAt !== undefined &&
@@ -264,15 +275,19 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
           onPress={() => confirm(submit)}
         />
       ) : null}
-      {request && status !== 'completed' ? (
+      {!restored || (request && status !== 'completed') ? (
         <ActionButton
           label="settings.deletion.refresh"
           variant="secondary"
           loading={pending}
           onPress={() =>
-            void run(async () =>
-              accept(await settingsService.getAccountDeletion(request.id))
-            )
+            void run(async () => {
+              if (!restored) await restoreRequest();
+              else if (request)
+                await accept(
+                  await settingsService.getAccountDeletion(request.id)
+                );
+            })
           }
         />
       ) : null}

@@ -13,6 +13,7 @@ const en = {
   'settings.deletion.verificationError': "Verification could not be completed. Check the code or send a new code and retry.",
   'settings.deletion.pending': "Contacting the account service…",
   'settings.deletion.error': "The request could not be confirmed. Check your connection and retry. No deletion completion has been confirmed.",
+  'settings.deletion.rateLimited': 'Too many attempts. Wait and try again. This does not confirm deletion or cancellation.',
   'settings.deletion.sessionExpired': "Your session is unavailable. Sign in again to check the deletion status.",
   'settings.deletion.recentAuth': "Verify your identity again to continue this confirmed deletion request.",
   'settings.deletion.reverify': "Send verification code",

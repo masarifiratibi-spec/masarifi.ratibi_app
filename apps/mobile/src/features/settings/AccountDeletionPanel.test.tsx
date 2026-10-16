@@ -162,6 +162,48 @@ test('restores the owned request after reopening and reports refresh errors visi
   ).toBeEnabled();
 });
 
+test.each([
+  ['rate_limited', 429, 'settings.deletion.rateLimited'],
+  ['provider_unavailable', 503, 'settings.deletion.error']
+] as const)(
+  'retries restoration after %s without offering a new deletion',
+  async (code, status, message) => {
+    await saveAccountDeletionRequestId('disposable-owner', 'deletion-123');
+    await saveAccountDeletionOperationId(
+      'disposable-owner',
+      'existing-operation'
+    );
+    mockRequest
+      .mockRejectedValueOnce(new HttpError(code, status))
+      .mockResolvedValueOnce(deletion);
+    renderWithProviders(<AccountDeletionPanel />);
+    await screen.findByText(t(message));
+    expect(
+      screen.queryByRole('button', {
+        name: t('appShell.security.deleteAccount')
+      })
+    ).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: t('settings.deletion.refresh') })
+    );
+    await screen.findByText(t('settings.deletion.status.verified'));
+    expect(screen.getByText(/2099/)).toBeTruthy();
+    expect(await loadAccountDeletionJournal('disposable-owner')).toEqual({
+      requestId: 'deletion-123',
+      operationId: 'existing-operation'
+    });
+    expect(
+      mockRequest.mock.calls.map(([path, options]) => [
+        path,
+        options?.method ?? 'GET'
+      ])
+    ).toEqual([
+      ['/api/v1/me/deletion-requests/deletion-123', 'GET'],
+      ['/api/v1/me/deletion-requests/deletion-123', 'GET']
+    ]);
+  }
+);
+
 test('recovers each switched owner independently and persists only request and operation identifiers', async () => {
   await saveAccountDeletionRequestId('disposable-owner', 'deletion-123');
   await saveAccountDeletionOperationId('disposable-owner', 'operation-first');
