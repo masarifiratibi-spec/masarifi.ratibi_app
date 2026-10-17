@@ -214,6 +214,28 @@ beforeEach(() => {
   registerLiveClerkBridge(bridge);
 });
 
+it.each([5000, -5000])('reads the account reversal sign from its %i minor-unit posting, without the original in the page', async (signedAmount) => {
+  const reversal = summary(linkedId, { kind: 'reversal', amountMinor: 5000, originalTransactionId: transactionId });
+  const request = jest.fn(async (url: string, init: RequestInit) => {
+    expect(init.method).toBe('GET');
+    if (url.includes('?')) return response({ items: [reversal], nextCursor: null, ledgerVersion: 2, requestId: 'account-page' });
+    if (!url.endsWith(linkedId)) throw new Error('Unexpected original transaction lookup');
+    return response(detail(reversal, [{ id: '40000000-0000-4000-8000-000000000002', accountId, amountMinor: signedAmount, clearingState: 'confirmed', postingRole: 'reversal', occurredAt }]));
+  });
+  const service = createLiveLedgerService({ baseUrl: 'https://api.test', request: request as typeof fetch });
+  const page = await service.listTransactions({ ...emptyTransactionFilters, accountIds: [accountId] });
+  expect(page.items).toEqual([expect.objectContaining({ id: linkedId, type: 'reversal', amountMinor: 5000, adjustmentSign: signedAmount > 0 ? 1 : -1 })]);
+});
+
+it('rejects a changed reversal detail instead of displaying a guessed account sign', async () => {
+  const reversal = summary(linkedId, { kind: 'reversal', originalTransactionId: transactionId });
+  const request = jest.fn(async (url: string) => url.includes('?')
+    ? response({ items: [reversal], nextCursor: null, ledgerVersion: 2, requestId: 'account-page' })
+    : response(detail({ ...reversal, version: 3 }, [{ id: '40000000-0000-4000-8000-000000000002', accountId, amountMinor: -1000, clearingState: 'confirmed', postingRole: 'reversal', occurredAt }])));
+  const service = createLiveLedgerService({ baseUrl: 'https://api.test', request: request as typeof fetch });
+  await expect(service.listTransactions({ ...emptyTransactionFilters, accountIds: [accountId] })).rejects.toMatchObject({ code: 'conflict' });
+});
+
 it('coalesces simultaneous explicit operations while allowing identical independent submissions', async () => {
   let release!: (value: Response) => void;
   let started!: () => void;

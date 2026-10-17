@@ -202,7 +202,9 @@ export function TransactionCard({
           currency={transaction.currencyCode}
           masked={hidden}
           meaning={financialGroup && transaction.type !== 'refund' ? financialGroup : presentation.meaning}
-          sign={sign}
+          sign={sign ?? (transaction.type === 'reversal'
+            ? transaction.adjustmentSign === 1 ? 'positive' : 'negative'
+            : undefined)}
           minorUnits={transaction.amountMinor}
           size={groupedPosition ? 'compact' : 'home'}
         />

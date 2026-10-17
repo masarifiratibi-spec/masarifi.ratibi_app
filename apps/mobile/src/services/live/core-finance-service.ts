@@ -401,9 +401,26 @@ export function createLiveLedgerService({
         signal,
         owner
       );
-      const items = page.items
-        .map((item) => localTransaction(transactionFromSummary(item)))
-        .filter((item) => matchesFilters(item, filters));
+      const accountId = filters.accountIds.length === 1 ? filters.accountIds[0] : undefined;
+      const projected = await Promise.all(page.items.map(async (item) => {
+        if (item.kind !== 'reversal' || !accountId)
+          return localTransaction(transactionFromSummary(item));
+        const detail = await send('GET', `/api/v1/transactions/${item.id}`, detailSchema, undefined, undefined, signal, owner);
+        if (detail.transaction.id !== item.id || detail.transaction.version !== item.version ||
+            detail.transaction.kind !== item.kind || detail.transaction.status !== item.status ||
+            detail.transaction.currency !== item.currency || detail.transaction.amountMinor !== item.amountMinor)
+          throw new CoreFinanceError('conflict');
+        const postings = detail.postings.filter((posting) => posting.accountId === accountId && posting.clearingState === 'confirmed');
+        if (!postings.length) throw new CoreFinanceError('conflict');
+        const signedAmount = postings.reduce((total, posting) => {
+          const sum = safeMinorSum(total, posting.amountMinor);
+          if (sum === null) throw new CoreFinanceError('unknown');
+          return sum;
+        }, 0);
+        return localTransaction(transactionFromSummary(item, accountId, undefined, signedAmount));
+      }));
+      await owner.assertCurrent();
+      const items = projected.filter((item) => matchesFilters(item, filters));
       return { items, nextCursor: page.nextCursor };
     };
   return {
