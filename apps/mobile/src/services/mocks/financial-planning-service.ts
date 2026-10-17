@@ -1031,6 +1031,8 @@ function normalizeObligation(
     direction: input.direction,
     type: input.type,
     scheduleKind: input.scheduleKind,
+    frequency: input.frequency ?? (input.scheduleKind === 'irregular' ? 'irregular' : 'monthly'),
+    customIntervalDays: input.customIntervalDays ?? null,
     title: input.title,
     provider: input.provider ?? null,
     currencyCode: input.currencyCode,
@@ -1084,10 +1086,12 @@ function buildSchedule(obligation: Obligation): ObligationScheduleItem[] {
     sequence: index + 1,
     dueDate: expectedDateForMonth(
       Number(start.slice(0, 4)),
-      Number(start.slice(5, 7)) + index,
+      Number(start.slice(5, 7)) + index * (obligation.frequency === 'yearly' ? 12 : obligation.frequency === 'quarterly' ? 3 : 1),
       obligation.dueDay ?? Number(start.slice(8, 10))
     ),
-    scheduledMinor: amount,
+    scheduledMinor: index === obligation.installmentCount! - 1
+      ? (obligation.contractedTotalMinor ?? amount * obligation.installmentCount!) - obligation.openingPaidMinor - amount * index
+      : amount,
     kind: 'installment' as const,
     status: 'upcoming' as const
   }));

@@ -35,6 +35,37 @@ const bridge = {
 
 beforeAll(() => registerLiveClerkBridge(bridge));
 
+it('sends and reads the selected obligation recurrence instead of forcing monthly', async () => {
+  let submitted: Record<string, unknown> = {};
+  const service = createLiveFinancialPlanningService({
+    baseUrl: 'https://api.test',
+    request: async (_url, init) => {
+      submitted = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({
+        operationId: '70000000-0000-4000-8000-000000000099', replayed: false,
+        resource: {
+          id: '70000000-0000-4000-8000-000000000071', name: 'Yearly membership',
+          direction: 'payable', type: 'custom', scheduleKind: 'open_ended',
+          currencyCode: 'SAR', principalMinor: '0', openingPaidMinor: '0',
+          installmentAmountMinor: '12000', installmentCount: null, frequency: submitted.frequency,
+          expectedDay: 20, customIntervalDays: null, startDate: '2026-11-20', endDate: null,
+          status: 'active', defaultAccountId: null, automaticMatchingEnabled: false,
+          provider: null, providerKeywords: [], reminderTiming: null, notes: null,
+          createdAt: '2026-10-17T00:00:00.000Z', updatedAt: '2026-10-17T00:00:00.000Z', version: 1
+        }
+      }));
+    }
+  });
+  const input = {
+    direction: 'payable', type: 'custom', scheduleKind: 'open_ended', frequency: 'yearly',
+    title: 'Yearly membership', currencyCode: 'SAR', contractedTotalMinor: 0,
+    installmentAmountMinor: 12000, startDate: '2026-11-20', dueDay: 20
+  } as const;
+  const result = await service.createObligation(input, 'yearly-create');
+  expect(submitted).toMatchObject({ frequency: 'yearly', principalMinor: '0', installmentAmountMinor: '12000', installmentCount: null });
+  expect(result.value).toMatchObject({ frequency: 'yearly', contractedTotalMinor: 0, installmentAmountMinor: 12000 });
+});
+
 const response = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status });
 const mutation = (

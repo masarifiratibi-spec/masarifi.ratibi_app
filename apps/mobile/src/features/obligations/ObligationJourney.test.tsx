@@ -100,15 +100,14 @@ it('shows the approved obligation overview hierarchy and filters completed recor
 it('renders obligation overview, form, and detail states', async () => {
   changeLocale('en');
   const form = renderWithProviders(<ObligationForm />);
-  const title = await form.findByLabelText('Title');
+  const title = await form.findByLabelText('Obligation name');
   fireEvent.changeText(title, 'Home appliance');
+  fireEvent.press(form.getByRole('button', { name: 'Installments' }));
   fireEvent.changeText(form.getByLabelText('Contracted total'), '1200');
-  fireEvent.press(form.getByText('Next'));
-  fireEvent.changeText(form.getByLabelText('Installment amount'), '100');
-  fireEvent.changeText(form.getByLabelText('Number of installments'), '12');
-  fireEvent.press(form.getByRole('button', { name: 'Review' }));
-  expect(await form.findByLabelText(/Funding account Daily account/)).toBeTruthy();
-  fireEvent.press(form.getByText('Save'));
+  fireEvent.changeText(form.getByLabelText('Monthly installment'), '100');
+  fireEvent.press(form.getByRole('button', { name: 'Optional details' }));
+  expect(form.getByLabelText(/Funding account/)).toBeTruthy();
+  fireEvent.press(form.getByRole('button', { name: 'Save obligation' }));
   expect(await form.findByText('Saved')).toBeTruthy();
   form.unmount();
 
@@ -146,22 +145,12 @@ it.each([
     const title = `Precision ${currencyCode} obligation`;
     const createForm = renderWithProviders(<ObligationForm />);
 
-    fireEvent.changeText(await createForm.findByLabelText('Title'), title);
+    fireEvent.changeText(await createForm.findByLabelText('Obligation name'), title);
     fireEvent.changeText(
-      createForm.getByLabelText('Contracted total'),
+      createForm.getByLabelText('Amount'),
       majorAmount
     );
-    fireEvent.press(createForm.getByText('Next'));
-    fireEvent.changeText(
-      createForm.getByLabelText('Installment amount'),
-      majorAmount
-    );
-    fireEvent.changeText(
-      createForm.getByLabelText('Number of installments'),
-      '1'
-    );
-    fireEvent.press(createForm.getByRole('button', { name: 'Review' }));
-    fireEvent.press(createForm.getByText('Save'));
+    fireEvent.press(createForm.getByRole('button', { name: 'Save obligation' }));
     expect(await createForm.findByText('Saved')).toBeTruthy();
     createForm.unmount();
 
@@ -178,10 +167,7 @@ it.each([
       <ObligationForm obligationId={created?.id} />
     );
     await waitFor(() => expect(editForm.getByDisplayValue(majorAmount)).toBeTruthy());
-    fireEvent.press(editForm.getByText('Next'));
-    await waitFor(() => expect(editForm.getByDisplayValue(majorAmount)).toBeTruthy());
-    fireEvent.press(editForm.getByRole('button', { name: 'Review' }));
-    fireEvent.press(editForm.getByText('Save'));
+    fireEvent.press(editForm.getByRole('button', { name: 'Save obligation' }));
     expect(await editForm.findByText('Saved')).toBeTruthy();
 
     const updated = await financialPlanningService.getObligation(created!.id);
@@ -333,28 +319,6 @@ it('masks all obligation detail amounts in privacy mode', async () => {
   usePreferenceStore.setState({ hideBalances: false });
 });
 
-it('rejects fractional installment counts before creating an obligation', async () => {
-  changeLocale('en');
-  await financialPlanningService.discardDraft('planning-form-obligation:new');
-  const form = renderWithProviders(<ObligationForm />);
-  const title = 'Fractional installment regression';
-
-  fireEvent.changeText(await form.findByLabelText('Title'), title);
-  fireEvent.changeText(form.getByLabelText('Contracted total'), '1200');
-  fireEvent.press(form.getByText('Next'));
-  fireEvent.changeText(form.getByLabelText('Installment amount'), '100');
-  fireEvent.changeText(form.getByLabelText('Number of installments'), '1.5');
-  fireEvent.press(form.getByRole('button', { name: 'Review' }));
-
-  expect(
-    await form.findByText('Complete the required fields with valid values.')
-  ).toBeTruthy();
-  expect(
-    (await financialPlanningService.listObligations({})).items.some(
-      (obligation) => obligation.title === title
-    )
-  ).toBe(false);
-});
 
 it.each([
   ['en', 'ltr'],

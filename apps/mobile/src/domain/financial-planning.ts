@@ -139,6 +139,8 @@ export interface Obligation extends RecordMetadata {
     | 'debt'
     | 'custom';
   scheduleKind: 'fixed_term' | 'open_ended' | 'irregular';
+  frequency?: 'monthly' | 'weekly' | 'biweekly' | 'quarterly' | 'yearly' | 'custom' | 'irregular';
+  customIntervalDays?: number | null;
   title: string;
   provider: string | null;
   currencyCode: string;

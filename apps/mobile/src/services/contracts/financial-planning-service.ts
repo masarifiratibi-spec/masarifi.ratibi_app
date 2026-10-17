@@ -97,6 +97,8 @@ export interface ObligationInput {
   direction: Obligation['direction'];
   type: Obligation['type'];
   scheduleKind: Obligation['scheduleKind'];
+  frequency?: Obligation['frequency'];
+  customIntervalDays?: number | null;
   title: string;
   provider?: string | null;
   currencyCode: string;
