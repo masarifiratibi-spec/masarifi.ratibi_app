@@ -7,6 +7,7 @@ import { financialPlanningKeys } from '@/features/financial-planning/financial-p
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
+import { fixturePayment } from '@/test-utils/financial-planning-fixtures';
 import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationForm } from './ObligationForm';
 import { ObligationOverviewScreen } from './ObligationOverviewScreen';
@@ -382,6 +383,31 @@ it('shows an honest schedule state and keeps details and payment history indepen
   fireEvent.press(detail.getByRole('button', { name: 'Payment history' }));
   expect(detail.getByTestId('obligation-detail-payment-history')).toBeTruthy();
 });
+
+it.each(['empty', 'reversed', 'unavailable'] as const)(
+  'shows the actual payment history state: %s', async (state) => {
+    changeLocale('en');
+    const existing = await financialPlanningService.getObligation('obligation-car');
+    const detail = renderWithQueryData(
+      <ObligationDetailScreen obligationId="obligation-car" />,
+      [[financialPlanningKeys.obligation('obligation-car'), {
+        ...existing,
+        paymentHistoryState: state === 'unavailable' ? 'unavailable' : 'available',
+        payments: state === 'reversed' ? [{ ...fixturePayment, status: 'reversed' }] : []
+      }]]
+    );
+    fireEvent.press(detail.getByRole('button', { name: 'Payment history' }));
+    if (state === 'empty') expect(detail.getByText('No payments yet')).toBeTruthy();
+    if (state === 'reversed') {
+      expect(detail.getByText('Reversed')).toBeTruthy();
+      expect(detail.queryByRole('button', { name: 'Undo' })).toBeNull();
+    }
+    if (state === 'unavailable') {
+      expect(detail.getByRole('button', { name: 'Retry' })).toBeTruthy();
+      expect(detail.queryByText('No payments yet')).toBeNull();
+    }
+  }
+);
 
 it('masks all obligation detail amounts in privacy mode', async () => {
   changeLocale('en');

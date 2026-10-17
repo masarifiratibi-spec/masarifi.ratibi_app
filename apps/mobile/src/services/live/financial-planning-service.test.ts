@@ -36,6 +36,155 @@ const bridge = {
 
 beforeAll(() => registerLiveClerkBridge(bridge));
 
+it.each([
+  'populated',
+  'empty',
+  'unavailable',
+  'forbidden',
+  'wrong-obligation',
+  'unsafe-money'
+])('reads payment history safely: %s', async (scenario) => {
+  const empty = scenario === 'empty';
+  const previousZone = usePreferenceStore.getState().timeZone;
+  usePreferenceStore.setState({ timeZone: 'Asia/Riyadh' });
+  const id = '70000000-0000-4000-8000-000000000071';
+  const wire = {
+    id,
+    name: 'Car',
+    direction: 'payable',
+    type: 'installment',
+    scheduleKind: 'fixed_term',
+    currencyCode: 'SAR',
+    principalMinor: '10000',
+    openingPaidMinor: '0',
+    installmentAmountMinor: '5000',
+    installmentCount: 2,
+    frequency: 'monthly',
+    expectedDay: 8,
+    customIntervalDays: null,
+    startDate: '2026-10-08',
+    endDate: '2026-11-08',
+    status: 'active',
+    defaultAccountId: null,
+    automaticMatchingEnabled: false,
+    provider: null,
+    providerKeywords: [],
+    reminderTiming: null,
+    notes: null,
+    deletedAt: null,
+    version: 1,
+    createdAt: '2026-10-17T00:00:00.000Z',
+    updatedAt: '2026-10-17T00:00:00.000Z',
+    summary: null
+  };
+  const payment = {
+    id: '70000000-0000-4000-8000-000000000081',
+    obligationId: id,
+    transactionId: '70000000-0000-4000-8000-000000000082',
+    amountMinor: '5000',
+    paidAt: '2026-10-07T21:30:00.000Z',
+    paymentMethod: null,
+    paymentCase: 'full',
+    allocationIntent: 'current',
+    source: 'manual',
+    operationId: null,
+    status: 'confirmed',
+    currencyCode: 'SAR',
+    principalReductionMinor: '0',
+    settlementAdjustmentMinor: '0',
+    transactionOwnership: 'linked_existing',
+    replacesPaymentId: null,
+    allocations: [
+      {
+        scheduleItemId: '70000000-0000-4000-8000-000000000083',
+        amountMinor: '5000'
+      }
+    ],
+    version: 1,
+    createdAt: wire.createdAt,
+    updatedAt: wire.updatedAt
+  };
+  const service = createLiveFinancialPlanningService({
+    baseUrl: 'https://api.test',
+    request: async (url, init) => {
+      if (init?.method && init.method !== 'GET')
+        throw new Error('READ_ONLY_HISTORY_REQUIRED');
+      if (String(url).includes('/payments')) {
+        if (scenario === 'unavailable')
+          return response({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+        if (scenario === 'forbidden')
+          return response({ code: 'FORBIDDEN' }, 403);
+        const entry =
+          scenario === 'wrong-obligation'
+            ? {
+                ...payment,
+                obligationId: '70000000-0000-4000-8000-000000000099'
+              }
+            : scenario === 'unsafe-money'
+              ? { ...payment, amountMinor: '9007199254740992' }
+              : payment;
+        return response({
+          items: empty
+            ? []
+            : [
+                String(url).includes('cursor=')
+                  ? {
+                      ...entry,
+                      id: '70000000-0000-4000-8000-000000000084',
+                      status: 'reversed'
+                    }
+                  : entry
+              ],
+          nextCursor:
+            empty || String(url).includes('cursor=') ? null : 'next-page'
+        });
+      }
+      if (String(url).includes('/schedule'))
+        return response({ items: [], nextCursor: null });
+      return response(wire);
+    }
+  });
+  try {
+    if (scenario === 'forbidden') {
+      await expect(service.getObligation(id)).rejects.toMatchObject({
+        code: 'forbidden'
+      });
+      return;
+    }
+    if (scenario === 'wrong-obligation' || scenario === 'unsafe-money') {
+      await expect(service.getObligation(id)).rejects.toThrow();
+      return;
+    }
+    const detail = await service.getObligation(id);
+    if (scenario === 'unavailable') {
+      expect(detail.paymentHistoryState).toBe('unavailable');
+      expect(detail.payments).toEqual([]);
+      expect(detail.status.paidMinor).toBeNull();
+      return;
+    }
+    expect(detail.paymentHistoryState).toBe('available');
+    expect(detail.payments).toHaveLength(empty ? 0 : 2);
+    if (!empty) {
+      expect(detail.payments[0]).toMatchObject({
+        amountMinor: 5000,
+        paidDate: '2026-10-08',
+        status: 'posted',
+        operationId: null,
+        allocations: [
+          {
+            scheduleItemId: '70000000-0000-4000-8000-000000000083',
+            amountMinor: 5000
+          }
+        ]
+      });
+      expect(detail.payments[1].status).toBe('reversed');
+      expect(detail.status.paidMinor).toBe(5000);
+    }
+  } finally {
+    usePreferenceStore.setState({ timeZone: previousZone });
+  }
+});
+
 it('keeps the owner-local installment day and excludes immutable currency when editing a scheduled obligation', async () => {
   const previousZone = usePreferenceStore.getState().timeZone;
   usePreferenceStore.setState({ timeZone: 'Asia/Riyadh' });

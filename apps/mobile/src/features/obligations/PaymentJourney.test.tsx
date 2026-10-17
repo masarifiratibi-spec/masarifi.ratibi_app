@@ -30,7 +30,9 @@ it('previews and confirms a payment, then resolves a detected match', async () =
     <ObligationDetailScreen obligationId="obligation-car" />
   );
   expect(await detail.findByLabelText(/Installment 1.*Paid/)).toBeTruthy();
-  expect(detail.queryByText('Payment history')).toBeNull();
+  expect(detail.queryByTestId('obligation-detail-payment-history')).toBeNull();
+  fireEvent.press(detail.getByRole('button', { name: 'Payment history' }));
+  expect(detail.getByTestId('obligation-detail-payment-history')).toBeTruthy();
   detail.unmount();
 
   const match = renderWithProviders(

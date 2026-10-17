@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Headers,
   HttpCode,
   HttpException,
@@ -482,6 +483,24 @@ export class PlanningController {
     @Query() query: Record<string, unknown>,
   ): Promise<unknown> {
     return this.planning.listObligationSchedule(
+      this.principal(request),
+      obligationId,
+      query,
+      request.requestId ?? 'missing-request-id',
+    );
+  }
+
+  @Get('api/v1/obligations/:obligationId/payments')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ operationId: 'listObligationPayments' })
+  @ApiBearerAuth('ClerkBearer')
+  @UseGuards(ClerkAuthGuard)
+  listObligationPayments(
+    @Req() request: ClerkPrincipalRequest & { requestId?: string },
+    @Param('obligationId') obligationId: string,
+    @Query() query: Record<string, unknown>,
+  ): Promise<unknown> {
+    return this.planning.listObligationPayments(
       this.principal(request),
       obligationId,
       query,

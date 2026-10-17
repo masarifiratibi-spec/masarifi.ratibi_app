@@ -248,6 +248,15 @@ paths:
         '200': { $ref: '#/components/responses/ResourcePage' }
   /api/v1/obligations/{obligationId}/payments:
     parameters: [{ $ref: '#/components/parameters/ObligationId' }]
+    get:
+      tags: [Obligations]
+      operationId: listObligationPayments
+      parameters:
+        - $ref: '#/components/parameters/PlanningCursor'
+        - $ref: '#/components/parameters/PlanningLimit'
+      responses:
+        '200': { $ref: '#/components/responses/ResourcePage' }
+        '404': { $ref: '#/components/responses/Error' }
     post:
       tags: [Obligations]
       operationId: allocateObligationPayment

@@ -770,6 +770,54 @@ export class PlanningRepository {
     };
   }
 
+  async listObligationPayments(
+    principal: ClerkPrincipal,
+    obligationId: string,
+    query: { cursor: string | null; limit: number },
+    requestId: string,
+  ): Promise<Record<string, unknown>> {
+    return this.withApiTransaction(principal, async (client) => {
+      const exists = await client.query(
+        'select id from public.obligations where id=$1 and user_id=$2',
+        [obligationId, principal.userId],
+      );
+      if (!exists.rows.length) throw domainError('NOT_FOUND', 404);
+      const cursor = query.cursor ? decodePlanningCursor(query.cursor) : null;
+      const rows = (
+        await client.query<{ result: Record<string, unknown>; paid_at: Date; id: string }>(
+          `select p.id,p.paid_at,jsonb_build_object(
+          'id',p.id,'obligationId',p.obligation_id,'transactionId',p.transaction_id,
+          'amountMinor',p.amount_minor::text,'currencyCode',btrim(o.currency_code),
+          'paidAt',p.paid_at,'paymentMethod',p.payment_method,'paymentCase',p.payment_case,
+          'allocationIntent',p.allocation_intent,'source',p.source,'status',p.status,
+          'operationId',p.operation_id,'replacesPaymentId',p.replaces_payment_id,
+          'transactionOwnership',p.transaction_ownership,
+          'principalReductionMinor',p.principal_reduction_minor::text,
+          'settlementAdjustmentMinor',p.settlement_adjustment_minor::text,
+          'version',p.version,'createdAt',p.created_at,'updatedAt',p.updated_at,
+          'allocations',coalesce((select jsonb_agg(jsonb_build_object(
+            'scheduleItemId',a.schedule_item_id,'amountMinor',a.amount_minor::text)
+            order by a.schedule_item_id) from public.obligation_payment_allocations a
+            where a.payment_id=p.id and a.user_id=p.user_id),'[]'::jsonb)
+        ) result from public.obligation_payments p
+        join public.obligations o on o.id=p.obligation_id and o.user_id=p.user_id
+        where p.obligation_id=$1 and p.user_id=$2
+          and ($3::timestamptz is null or (p.paid_at,p.id)<($3,$4::uuid))
+        order by p.paid_at desc,p.id desc limit $5`,
+          [obligationId, principal.userId, cursor?.at ?? null, cursor?.id ?? null, query.limit + 1],
+        )
+      ).rows;
+      const last = rows.length > query.limit ? rows[query.limit - 1] : undefined;
+      return {
+        items: rows.slice(0, query.limit).map((row) => row.result),
+        nextCursor: last
+          ? encodePlanningCursor({ at: last.paid_at.toISOString(), id: last.id })
+          : null,
+        requestId,
+      };
+    });
+  }
+
   async listPaymentMatches(
     principal: ClerkPrincipal,
     query: { cursor: string | null; limit: number; status: string | null },

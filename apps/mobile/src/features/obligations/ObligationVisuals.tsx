@@ -217,12 +217,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg + spacing.xs,
     paddingTop: spacing.md
   },
-  headerTop: { justifyContent: 'center', minHeight: minTouchTarget },
+  headerTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget },
   headerTopOverview: { minHeight: 46 },
-  headerTitle: { fontSize: 24, lineHeight: 32, maxWidth: '78%', position: 'absolute', start: 0, top: 4 },
-  headerTitleOverview: { fontSize: 24, lineHeight: 30, top: 6 },
-  headerButtonStart: { position: 'absolute', start: 0, top: 0 },
-  headerButtonEnd: { end: 0, position: 'absolute', top: 0 },
+  headerTitle: { flex: 1, flexShrink: 1, fontSize: 24, lineHeight: 32 },
+  headerTitleOverview: { fontSize: 24, lineHeight: 30 },
+  headerButtonStart: { flexShrink: 0 },
+  headerButtonEnd: { flexShrink: 0 },
   headerButton: {
     alignItems: 'center',
     borderRadius: radius.pill,

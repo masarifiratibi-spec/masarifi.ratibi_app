@@ -1712,6 +1712,10 @@ const en = {
   'planning.obligation.allocations': 'Installments affected',
   'planning.obligation.lastPayment': 'Last payment',
   'planning.obligation.paymentHistory': 'Payment history',
+  'planning.obligation.paymentStatus.pending': 'Pending',
+  'planning.obligation.paymentStatus.reversed': 'Reversed',
+  'planning.obligation.paymentStatus.undone': 'Undone',
+  'planning.obligation.paymentStatus.conflict': 'Needs review',
   'planning.obligation.noPayments': 'No payments yet',
   'planning.validation.currencyMismatch':
     'The account and payment currencies must match.',

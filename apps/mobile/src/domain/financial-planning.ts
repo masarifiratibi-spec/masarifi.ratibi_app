@@ -193,7 +193,7 @@ export interface ObligationPayment extends RecordMetadata {
   source: 'manual' | 'automatic' | 'voice' | 'platform_assisted';
   transactionOwnership: 'created' | 'linked_existing';
   status: 'pending' | 'posted' | 'reversed' | 'undone' | 'conflict';
-  operationId: string;
+  operationId: string | null;
   replacesPaymentId: string | null;
 }
 

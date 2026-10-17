@@ -1663,6 +1663,10 @@ const ar: MessageCatalog = {
   'planning.obligation.allocations': 'الأقساط المتأثرة',
   'planning.obligation.lastPayment': 'آخر دفعة',
   'planning.obligation.paymentHistory': 'سجل الدفعات',
+  'planning.obligation.paymentStatus.pending': 'قيد الانتظار',
+  'planning.obligation.paymentStatus.reversed': 'تم عكس الدفعة',
+  'planning.obligation.paymentStatus.undone': 'تم التراجع عنها',
+  'planning.obligation.paymentStatus.conflict': 'تحتاج مراجعة',
   'planning.obligation.noPayments': 'لا توجد دفعات بعد',
   'planning.validation.currencyMismatch':
     'يجب أن تتطابق عملة الحساب مع عملة الدفعة.',

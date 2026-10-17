@@ -281,6 +281,24 @@ export class PlanningService {
     }
   }
 
+  listObligationPayments(
+    principal: ClerkPrincipal,
+    obligationId: string,
+    query: unknown,
+    requestId: string,
+  ): Promise<unknown> {
+    try {
+      return this.repository.listObligationPayments(
+        principal,
+        normalizePlanningId(obligationId),
+        normalizePlanningList(query),
+        requestId,
+      );
+    } catch {
+      throw this.validation();
+    }
+  }
+
   allocateObligationPayment(obligationId: string, input: MutationInput): Promise<unknown> {
     return this.mutation(
       'allocateObligationPayment',

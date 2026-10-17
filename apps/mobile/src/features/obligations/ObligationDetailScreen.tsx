@@ -354,9 +354,20 @@ export function ObligationDetailScreen({
                 style={styles.history}
               >
                 {query.data?.paymentHistoryState === 'unavailable' ? (
-                  <StyledText style={{ color: theme.colors.content.secondary }}>
-                    {translate('reports.state.unavailable')}
-                  </StyledText>
+                  <View>
+                    <StyledText
+                      style={{ color: theme.colors.content.secondary }}
+                    >
+                      {translate('reports.state.unavailable')}
+                    </StyledText>
+                    <QuietButton
+                      label={translate('planning.action.retry')}
+                      loading={query.isRefetching}
+                      onPress={() => {
+                        void query.refetch();
+                      }}
+                    />
+                  </View>
                 ) : !query.data?.payments.length ? (
                   <StyledText style={{ color: theme.colors.content.secondary }}>
                     {translate('planning.obligation.noPayments')}
@@ -373,6 +384,13 @@ export function ObligationDetailScreen({
                         <StyledText variant="caption">
                           {formatLocalDate(payment.paidDate)}
                         </StyledText>
+                        {payment.status !== 'posted' ? (
+                          <StyledText variant="caption">
+                            {translate(
+                              `planning.obligation.paymentStatus.${payment.status}` as MessageKey
+                            )}
+                          </StyledText>
+                        ) : null}
                       </View>
                       <View>
                         <StyledText>{money(payment.amountMinor)}</StyledText>

@@ -11,12 +11,14 @@ import {
   deriveObligationStatus,
   FinancialPlanningError,
   money,
+  unavailable,
   type Budget,
   type BudgetProgress,
   type CategoryBudget,
   type GoalMovement,
   type LocalDate,
   type Obligation,
+  type ObligationPayment,
   type ObligationScheduleItem,
   type PaymentMatch,
   type SalaryCycle,
@@ -287,6 +289,20 @@ const paymentSchema = z
     obligationVersion: z.number().int().safe().positive()
   })
   .strict();
+const paymentHistorySchema = paymentSchema
+  .omit({ obligationVersion: true })
+  .extend({
+    operationId: uuid.nullable(),
+    currencyCode: z.string().regex(/^[A-Z]{3}$/u),
+    principalReductionMinor: minor,
+    settlementAdjustmentMinor: minor,
+    transactionOwnership: z.enum(['created', 'linked_existing']),
+    replacesPaymentId: uuid.nullable(),
+    allocations: z.array(
+      z.object({ scheduleItemId: uuid, amountMinor: minor }).strict()
+    )
+  });
+
 const paymentMatchSchema = z
   .object({
     ...metadata,
@@ -1605,26 +1621,87 @@ export function createLiveFinancialPlanningService({
     },
 
     async getObligation(id): Promise<ObligationDetail> {
-      const [wire, schedule] = await Promise.all([
+      const [wire, schedule, history] = await Promise.all([
         send(
           'GET',
           `/api/v1/obligations/${encodeURIComponent(id)}`,
           obligationDetailSchema
         ),
-        readSchedule(id)
+        readSchedule(id),
+        allPages(
+          `/api/v1/obligations/${encodeURIComponent(id)}/payments`,
+          paymentHistorySchema
+        ).catch((error: unknown) => {
+          if (
+            !(error instanceof HttpError) ||
+            ['session_expired', 'forbidden'].includes(error.code)
+          )
+            throw error;
+          return null;
+        })
       ]);
       const obligation = fromObligation(wire);
+      const historyPayments: ObligationPayment[] = (history ?? []).map(
+        (entry) => {
+          if (
+            entry.obligationId !== id ||
+            entry.currencyCode !== obligation.currencyCode
+          )
+            throw new HttpError('contract_mismatch', 502);
+          const payment: ObligationPayment = {
+            id: entry.id,
+            obligationId: entry.obligationId,
+            transactionId: entry.transactionId,
+            amountMinor: parsePlanningMinor(entry.amountMinor),
+            currencyCode: entry.currencyCode,
+            paidDate: localDateInTimeZone(
+              Date.parse(entry.paidAt),
+              usePreferenceStore.getState().timeZone
+            ),
+            case: entry.paymentCase,
+            allocationIntent:
+              entry.allocationIntent === 'prepayment'
+                ? 'principal'
+                : entry.allocationIntent,
+            allocations: entry.allocations.map((a) => ({
+              scheduleItemId: a.scheduleItemId,
+              amountMinor: parsePlanningMinor(a.amountMinor)
+            })),
+            principalReductionMinor: parsePlanningMinor(
+              entry.principalReductionMinor
+            ),
+            settlementAdjustmentMinor: parsePlanningMinor(
+              entry.settlementAdjustmentMinor
+            ),
+            source: entry.source,
+            transactionOwnership: entry.transactionOwnership,
+            status: entry.status === 'confirmed' ? 'posted' : entry.status,
+            operationId: entry.operationId,
+            replacesPaymentId: entry.replacesPaymentId,
+            version: entry.version,
+            createdAt: Date.parse(entry.createdAt),
+            updatedAt: Date.parse(entry.updatedAt),
+            syncStatus: 'synced'
+          };
+          payments.set(payment.id, {
+            obligationId: id,
+            version: payment.version,
+            allocations: payment.allocations
+          });
+          return payment;
+        }
+      );
       const fallback = deriveObligationStatus({
         obligation,
         schedule,
-        payments: [],
+        payments: historyPayments,
         today: new Date(now()).toISOString().slice(0, 10) as LocalDate
       });
       return {
         obligation,
         schedule,
-        payments: [],
-        paymentHistoryState: 'unavailable',
+        payments: historyPayments,
+        paymentHistoryState: history === null ? 'unavailable' : 'available',
         status: wire.summary
           ? {
               paidMinor: parsePlanningMinor(wire.summary.paidMinor),
@@ -1639,7 +1716,13 @@ export function createLiveFinancialPlanningService({
                 : null,
               overdue: parsePlanningMinor(wire.summary.overdueMinor) > 0
             }
-          : fallback
+          : history === null
+            ? {
+                ...fallback,
+                paidMinor: null,
+                remainingMinor: unavailable('missing_data')
+              }
+            : fallback
       };
     },
 
