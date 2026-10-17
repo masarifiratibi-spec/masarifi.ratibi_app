@@ -1,16 +1,12 @@
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 
 // Manual entry accepts localized digits, but never guesses decimal/grouping intent.
 export function parseManualAmount(
   text: string,
   currencyCode: string
 ): number | null {
-  const normalized = text
-    .trim()
-    .replace(/[٠-٩]/gu, (digit) => String(digit.charCodeAt(0) - 0x660))
-    .replace(/[۰-۹]/gu, (digit) => String(digit.charCodeAt(0) - 0x6f0))
-    .replace(/٫/gu, '.')
-    .replace(/٬/gu, ',');
+  const normalized = normalizeLocalizedNumber(text);
   if (
     !/^(?:[0-9]+|[1-9][0-9]{0,2}(?:,[0-9]{3})+)(?:\.[0-9]+)?$/u.test(normalized)
   )

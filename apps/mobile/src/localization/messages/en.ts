@@ -1526,7 +1526,7 @@ const en = {
   'planning.salary.account': 'Receiving account',
   'planning.salary.automaticDetection': 'Detect salary receipts automatically',
   'planning.salary.automaticDetectionSubtitle':
-    'We will detect salary deposits automatically in the selected account.',
+    'Currently unavailable. Salary receipts require manual confirmation.',
   'planning.salary.expectedDate': 'Expected date',
   'planning.salary.receivedDate': 'Received date',
   'planning.salary.transaction': 'Linked transaction',

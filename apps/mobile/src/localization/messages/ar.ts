@@ -1480,7 +1480,7 @@ const ar: MessageCatalog = {
   'planning.salary.account': 'حساب الاستلام',
   'planning.salary.automaticDetection': 'اكتشاف استلام الراتب تلقائيًا',
   'planning.salary.automaticDetectionSubtitle':
-    'سنكتشف إيداع راتبك تلقائيًا في الحساب المحدد.',
+    'غير متاح حاليًا. يتطلب استلام الراتب تأكيدًا يدويًا.',
   'planning.salary.expectedDate': 'التاريخ المتوقع',
   'planning.salary.receivedDate': 'تاريخ الاستلام',
   'planning.salary.transaction': 'المعاملة المرتبطة',
