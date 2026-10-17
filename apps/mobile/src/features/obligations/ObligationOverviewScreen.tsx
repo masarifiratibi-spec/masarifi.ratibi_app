@@ -100,20 +100,16 @@ export function ObligationOverviewScreen() {
             <StyledText variant="subtitle" style={styles.sectionTitle}>{translate('planning.obligation.allObligations')}</StyledText>
             <StyledText variant="caption" style={styles.sectionCount}>{translateDynamic('planning.obligation.countLabel', { count: visibleItems.length })}</StyledText>
           </View>
-          {!visibleItems.length ? (
-            <PlanningState state="empty" />
-          ) : (
-            visibleItems.map((item) => (
-              <ObligationRow
-                key={item.id}
-                item={item}
-                remaining={query.data!.remainingByObligationId[item.id] ?? null}
-                hidden={hidden}
-                rtl={rtl}
-                onPress={() => router.push(`/obligations/${item.id}`)}
-              />
-            ))
-          )}
+          {visibleItems.map((item) => (
+            <ObligationRow
+              key={item.id}
+              item={item}
+              remaining={query.data!.remainingByObligationId[item.id] ?? null}
+              hidden={hidden}
+              rtl={rtl}
+              onPress={() => router.push(`/obligations/${item.id}`)}
+            />
+          ))}
         </>
       )}
     </PlanningScreen>

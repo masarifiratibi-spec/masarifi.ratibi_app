@@ -52,7 +52,7 @@ it.each(['ar', 'en'] as const)(
         ]
       ]);
       expect(overview.getByTestId('obligations-hero')).toBeTruthy();
-      expect(overview.getByText(translate('planning.state.empty'))).toBeTruthy();
+      expect(overview.queryByText(translate('planning.state.empty'))).toBeNull();
       fireEvent.press(overview.getByLabelText(translate('planning.obligations.new')));
       expect(push).toHaveBeenCalledWith('/obligations/new');
     } finally {
