@@ -1480,7 +1480,7 @@ const ar: MessageCatalog = {
   'planning.salary.account': 'حساب الاستلام',
   'planning.salary.automaticDetection': 'اكتشاف استلام الراتب تلقائيًا',
   'planning.salary.automaticDetectionSubtitle':
-    'غير متاح حاليًا. يتطلب استلام الراتب تأكيدًا يدويًا.',
+    'يربط دخلًا مؤكدًا بنفس المبلغ والعملة في حساب الاستلام خلال 3 أيام من الموعد، عند وضوح أنه راتب. لا يضيف معاملة جديدة.',
   'planning.salary.expectedDate': 'التاريخ المتوقع',
   'planning.salary.receivedDate': 'تاريخ الاستلام',
   'planning.salary.transaction': 'المعاملة المرتبطة',

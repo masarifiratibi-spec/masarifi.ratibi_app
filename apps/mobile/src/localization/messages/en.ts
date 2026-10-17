@@ -1526,7 +1526,7 @@ const en = {
   'planning.salary.account': 'Receiving account',
   'planning.salary.automaticDetection': 'Detect salary receipts automatically',
   'planning.salary.automaticDetectionSubtitle':
-    'Currently unavailable. Salary receipts require manual confirmation.',
+    'Links clear salary income in the receiving account with the same amount and currency, within 3 days of payday. No new transaction is added.',
   'planning.salary.expectedDate': 'Expected date',
   'planning.salary.receivedDate': 'Received date',
   'planning.salary.transaction': 'Linked transaction',

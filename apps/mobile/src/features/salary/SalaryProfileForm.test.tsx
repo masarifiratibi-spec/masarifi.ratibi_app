@@ -189,26 +189,36 @@ it('does not claim edits made during a save were saved', async () => {
   }
 });
 
-it('shows automatic detection as unavailable without altering an existing preference', async () => {
-  const profile = {
-    ...fixtureSalaryProfile,
-    receivingAccountId: 'audit-account'
-  };
-  await financialPlanningService.saveSalaryProfile(profile, 'existing-profile');
-  open('SAR', profile);
-  await ready();
-  expect(
-    screen.queryByRole('switch', {
+it.each([true, false])(
+  'allows changing the existing automatic detection preference from %s',
+  async (enabled) => {
+    const profile = {
+      ...fixtureSalaryProfile,
+      automaticDetectionEnabled: enabled,
+      receivingAccountId: 'audit-account'
+    };
+    await financialPlanningService.saveSalaryProfile(
+      profile,
+      'existing-profile'
+    );
+    open('SAR', profile);
+    await ready();
+    const toggle = screen.getByRole('switch', {
       name: translate('planning.salary.automaticDetection')
-    })
-  ).toBeNull();
-  expect(
-    screen.getByText(translate('planning.salary.automaticDetectionSubtitle'))
-  ).toBeTruthy();
-  submit();
-  await screen.findByText(translate('planning.state.saved'));
-  expect(
-    (await financialPlanningService.getSalaryProfile())
-      ?.automaticDetectionEnabled
-  ).toBe(true);
-});
+    });
+    expect(toggle).toHaveAccessibilityState({
+      checked: enabled,
+      disabled: false
+    });
+    fireEvent.press(toggle);
+    expect(
+      screen.getByText(translate('planning.salary.automaticDetectionSubtitle'))
+    ).toBeTruthy();
+    submit();
+    await screen.findByText(translate('planning.state.saved'));
+    expect(
+      (await financialPlanningService.getSalaryProfile())
+        ?.automaticDetectionEnabled
+    ).toBe(!enabled);
+  }
+);

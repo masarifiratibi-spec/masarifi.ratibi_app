@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
+import { Toggle } from '@/design-system/components/forms/SelectionControls';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon, type AppIconName } from '@/design-system/icons';
 import {
@@ -366,6 +367,11 @@ export function SalaryProfileForm() {
                   {translate('planning.salary.automaticDetectionSubtitle')}
                 </StyledText>
               </View>
+              <Toggle
+                accessibilityLabel={translate('planning.salary.automaticDetection')}
+                onValueChange={setAutomaticDetectionEnabled}
+                value={automaticDetectionEnabled}
+              />
             </View>
           </SurfaceCard>
 

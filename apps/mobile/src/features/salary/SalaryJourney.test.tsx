@@ -180,7 +180,7 @@ it('keeps multiline Arabic salary copy aligned to the right', async () => {
     await profile.findByText('جهة العمل أو مصدر الراتب')
   ).toHaveStyle({ textAlign: 'left', writingDirection: 'rtl' });
   expect(
-    profile.getByText('غير متاح حاليًا. يتطلب استلام الراتب تأكيدًا يدويًا.')
+    profile.getByText(translate('planning.salary.automaticDetectionSubtitle'))
   ).toHaveStyle({ textAlign: 'left', writingDirection: 'rtl' });
   profile.unmount();
 });
