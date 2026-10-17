@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { safeMinorSum } from '@/domain/core-finance';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { usePreferenceStore } from '@/state/preferences';
 import {
   available,
   daysBetween,
@@ -336,8 +338,14 @@ const paymentMatchDetailSchema = paymentMatchSchema
       .nullable()
   })
   .superRefine((value, context) => {
-    if (value.candidate && value.transaction.currencyCode !== value.candidate.currencyCode) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: 'currency mismatch' });
+    if (
+      value.candidate &&
+      value.transaction.currencyCode !== value.candidate.currencyCode
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'currency mismatch'
+      });
     }
   });
 const paymentMatchMutationSchema = z
@@ -591,7 +599,10 @@ function fromSchedule(
     id: value.id,
     obligationId: value.obligationId,
     sequence: value.sequenceNo,
-    dueDate: value.dueAt.slice(0, 10) as LocalDate,
+    dueDate: localDateInTimeZone(
+      Date.parse(value.dueAt),
+      usePreferenceStore.getState().timeZone
+    ),
     scheduledMinor: parsePlanningMinor(value.amountMinor),
     kind: value.kind,
     status:
@@ -897,7 +908,10 @@ function obligationInput(input: ObligationInput) {
         ? null
         : String(input.installmentAmountMinor),
     installmentCount: input.installmentCount ?? null,
-    frequency: input.scheduleKind === 'irregular' ? 'irregular' : input.frequency ?? 'monthly',
+    frequency:
+      input.scheduleKind === 'irregular'
+        ? 'irregular'
+        : (input.frequency ?? 'monthly'),
     expectedDay: input.dueDay ?? null,
     customIntervalDays: input.customIntervalDays ?? null,
     startDate: input.startDate,
@@ -1617,10 +1631,12 @@ export function createLiveFinancialPlanningService({
               remainingMinor: available(
                 parsePlanningMinor(wire.summary.remainingMinor)
               ),
-              nextDueDate: wire.summary.nextDueAt?.slice(
-                0,
-                10
-              ) as LocalDate | null,
+              nextDueDate: wire.summary.nextDueAt
+                ? localDateInTimeZone(
+                    Date.parse(wire.summary.nextDueAt),
+                    usePreferenceStore.getState().timeZone
+                  )
+                : null,
               overdue: parsePlanningMinor(wire.summary.overdueMinor) > 0
             }
           : fallback
@@ -1644,13 +1660,18 @@ export function createLiveFinancialPlanningService({
     },
 
     async updateObligation(id, expectedVersion, input, operationId) {
+      const patch = Object.fromEntries(
+        Object.entries(obligationInput(input)).filter(
+          ([key]) => key !== 'currencyCode'
+        )
+      );
       const response = await send(
         'PATCH',
         `/api/v1/obligations/${id}`,
         mutation(obligationSchema),
         {
           operationId,
-          body: { expectedVersion, patch: obligationInput(input) }
+          body: { expectedVersion, patch }
         }
       );
       return scopes(fromObligation(response.resource), [

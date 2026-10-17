@@ -105,6 +105,10 @@ export const colorTokens = {
     positive: '#0D684A',
     negative: '#B3261E'
   },
+  obligationDetail: {
+    hero: '#007C5B',
+    heroDark: '#184D3B'
+  },
   obligationForm: {
     payableSurface: '#FDF3F2',
     payableBadge: '#FCE4E2',

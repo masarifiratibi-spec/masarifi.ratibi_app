@@ -11,8 +11,9 @@ import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationForm } from './ObligationForm';
 import { ObligationOverviewScreen } from './ObligationOverviewScreen';
 
-jest.mock('react-native-safe-area-context', () =>
-  jest.requireActual('react-native-safe-area-context/jest/mock').default
+jest.mock(
+  'react-native-safe-area-context',
+  () => jest.requireActual('react-native-safe-area-context/jest/mock').default
 );
 
 jest.mock('@/services/mocks/core-finance-service', () => {
@@ -56,8 +57,12 @@ it.each(['ar', 'en'] as const)(
         ]
       ]);
       expect(overview.getByTestId('obligations-hero')).toBeTruthy();
-      expect(overview.queryByText(translate('planning.state.empty'))).toBeNull();
-      fireEvent.press(overview.getByLabelText(translate('planning.obligations.new')));
+      expect(
+        overview.queryByText(translate('planning.state.empty'))
+      ).toBeNull();
+      fireEvent.press(
+        overview.getByLabelText(translate('planning.obligations.new'))
+      );
       expect(push).toHaveBeenCalledWith('/obligations/new');
     } finally {
       push.mockRestore();
@@ -97,7 +102,9 @@ it('shows the approved obligation overview hierarchy and filters completed recor
   expect(screen.getByRole('button', { name: 'All' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Upcoming' })).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: 'Completed' }));
-  expect(await screen.findByRole('button', { name: /Completed loan/ })).toBeTruthy();
+  expect(
+    await screen.findByRole('button', { name: /Completed loan/ })
+  ).toBeTruthy();
   expect(screen.queryByRole('button', { name: /Car installment/ })).toBeNull();
 });
 
@@ -117,7 +124,9 @@ it('renders obligation overview, form, and detail states', async () => {
 
   const overview = renderWithProviders(<ObligationOverviewScreen />);
   expect(await overview.findByText('Home appliance')).toBeTruthy();
-  expect((await overview.findAllByLabelText(/Total payable/)).length).toBeGreaterThan(0);
+  expect(
+    (await overview.findAllByLabelText(/Total payable/)).length
+  ).toBeGreaterThan(0);
   expect(
     overview.getByLabelText(/Amounts owed to me.*0\.00.*SAR/)
   ).toBeTruthy();
@@ -130,8 +139,10 @@ it('renders obligation overview, form, and detail states', async () => {
     <ObligationDetailScreen obligationId={created!.id} />
   );
   expect(await detail.findByText('Home appliance')).toBeTruthy();
-  expect((await detail.findAllByLabelText(/Contracted total/)).length).toBeGreaterThan(0);
-  fireEvent.press(detail.getByText('More actions'));
+  expect(
+    (await detail.findAllByLabelText(/Contracted total/)).length
+  ).toBeGreaterThan(0);
+  fireEvent.press(detail.getByRole('button', { name: 'More actions' }));
   fireEvent.press(detail.getByText('Pause obligation'));
   expect(await detail.findByText('Resume obligation')).toBeTruthy();
   detail.unmount();
@@ -149,12 +160,14 @@ it.each([
     const title = `Precision ${currencyCode} obligation`;
     const createForm = renderWithProviders(<ObligationForm />);
 
-    fireEvent.changeText(await createForm.findByLabelText('Obligation name'), title);
     fireEvent.changeText(
-      createForm.getByLabelText('Amount'),
-      majorAmount
+      await createForm.findByLabelText('Obligation name'),
+      title
     );
-    fireEvent.press(createForm.getByRole('button', { name: 'Save obligation' }));
+    fireEvent.changeText(createForm.getByLabelText('Amount'), majorAmount);
+    fireEvent.press(
+      createForm.getByRole('button', { name: 'Save obligation' })
+    );
     expect(await createForm.findByText('Saved')).toBeTruthy();
     createForm.unmount();
 
@@ -170,7 +183,9 @@ it.each([
     const editForm = renderWithProviders(
       <ObligationForm obligationId={created?.id} />
     );
-    await waitFor(() => expect(editForm.getByDisplayValue(majorAmount)).toBeTruthy());
+    await waitFor(() =>
+      expect(editForm.getByDisplayValue(majorAmount)).toBeTruthy()
+    );
     fireEvent.press(editForm.getByRole('button', { name: 'Save obligation' }));
     expect(await editForm.findByText('Saved')).toBeTruthy();
 
@@ -248,10 +263,13 @@ it.each([
       textAlign: direction === 'rtl' ? 'right' : 'left',
       width: '100%'
     });
-    expect(detail.getByTestId('obligation-detail-provider')).toHaveStyle({
-      textAlign: direction === 'rtl' ? 'right' : 'left',
-      width: '100%'
-    });
+    expect(detail.queryByTestId('obligation-detail-provider')).toBeNull();
+    fireEvent.press(
+      detail.getByRole('button', {
+        name: translate('planning.obligation.detail.details')
+      })
+    );
+    expect(detail.getByTestId('obligation-detail-provider')).toBeTruthy();
     expect(detail.getByTestId('obligation-detail-progress-fill')).toHaveStyle({
       width: '20%',
       [progressSide]: 0
@@ -259,15 +277,33 @@ it.each([
     expect(detail.getByTestId('obligation-detail-schedule-row-1')).toHaveStyle({
       flexDirection: 'row'
     });
-    expect(detail.getByText(translate('planning.obligation.recordPayment'))).toBeTruthy();
+    expect(
+      detail.getByText(translate('planning.obligation.recordPayment'))
+    ).toBeTruthy();
     expect(detail.getByText(translate('planning.action.edit'))).toBeTruthy();
-    expect(detail.getByText(translate('planning.obligation.moreActions'))).toBeTruthy();
-    expect(detail.queryByText(translate('planning.obligation.pause'))).toBeNull();
-    expect(detail.queryByText(translate('planning.obligation.paymentHistory'))).toBeNull();
+    expect(
+      detail.getByRole('button', {
+        name: translate('planning.obligation.moreActions')
+      })
+    ).toBeTruthy();
+    expect(
+      detail.queryByText(translate('planning.obligation.pause'))
+    ).toBeNull();
+    expect(
+      detail.queryByTestId('obligation-detail-payment-history')
+    ).toBeNull();
 
-    fireEvent.press(detail.getByText(translate('planning.obligation.moreActions')));
-    expect(await detail.findByText(translate('planning.obligation.pause'))).toBeTruthy();
-    expect(await detail.findByText(translate('planning.obligation.paymentHistory'))).toBeTruthy();
+    fireEvent.press(
+      detail.getByRole('button', {
+        name: translate('planning.obligation.moreActions')
+      })
+    );
+    expect(
+      await detail.findByText(translate('planning.obligation.pause'))
+    ).toBeTruthy();
+    expect(
+      await detail.findByText(translate('planning.obligation.paymentHistory'))
+    ).toBeTruthy();
   }
 );
 
@@ -296,6 +332,57 @@ it('keeps record payment available for live planning providers', async () => {
   }
 });
 
+it.each(['partial', 'paid', 'cancelled'] as const)(
+  'preserves the server installment state %s when payment history is unavailable',
+  async (status) => {
+    changeLocale('en');
+    const existing =
+      await financialPlanningService.getObligation('obligation-car');
+    const detail = renderWithQueryData(
+      <ObligationDetailScreen obligationId="obligation-car" />,
+      [
+        [
+          financialPlanningKeys.obligation('obligation-car'),
+          {
+            ...existing,
+            payments: [],
+            paymentHistoryState: 'unavailable',
+            schedule: [{ ...existing.schedule[0], status }]
+          }
+        ]
+      ]
+    );
+    expect(
+      detail.getByText(
+        translate(`planning.obligation.scheduleStatus.${status}`)
+      )
+    ).toBeTruthy();
+  }
+);
+
+it('shows an honest schedule state and keeps details and payment history independently expandable', async () => {
+  changeLocale('en');
+  const existing =
+    await financialPlanningService.getObligation('obligation-car');
+  const detail = renderWithQueryData(
+    <ObligationDetailScreen obligationId="obligation-car" />,
+    [
+      [
+        financialPlanningKeys.obligation('obligation-car'),
+        { ...existing, schedule: [] }
+      ]
+    ]
+  );
+  expect(detail.getByText('Installment schedule is not ready')).toBeTruthy();
+  expect(detail.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  expect(detail.queryByTestId('obligation-detail-provider')).toBeNull();
+  fireEvent.press(detail.getByRole('button', { name: 'Obligation details' }));
+  expect(detail.getByTestId('obligation-detail-provider')).toBeTruthy();
+  expect(detail.queryByText('No payments recorded yet')).toBeNull();
+  fireEvent.press(detail.getByRole('button', { name: 'Payment history' }));
+  expect(detail.getByTestId('obligation-detail-payment-history')).toBeTruthy();
+});
+
 it('masks all obligation detail amounts in privacy mode', async () => {
   changeLocale('en');
   usePreferenceStore.setState({
@@ -315,14 +402,13 @@ it('masks all obligation detail amounts in privacy mode', async () => {
   expect(detail.queryByText(/12,000\.00/)).toBeNull();
   expect(detail.queryByText(/2,000\.00/)).toBeNull();
 
-  fireEvent.press(detail.getByText('More actions'));
+  fireEvent.press(detail.getByRole('button', { name: 'More actions' }));
   expect(await detail.findByText('Payment history')).toBeTruthy();
   expect(detail.queryByText(/2,000\.00/)).toBeNull();
 
   detail.unmount();
   usePreferenceStore.setState({ hideBalances: false });
 });
-
 
 it.each([
   ['en', 'ltr'],

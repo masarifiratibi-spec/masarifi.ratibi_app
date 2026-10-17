@@ -14,6 +14,7 @@ import {
 
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { createLiveFinancialPlanningService } from './financial-planning-service';
+import { usePreferenceStore } from '@/state/preferences';
 
 const session = {
   id: 'planning-session',
@@ -35,35 +36,159 @@ const bridge = {
 
 beforeAll(() => registerLiveClerkBridge(bridge));
 
+it('keeps the owner-local installment day and excludes immutable currency when editing a scheduled obligation', async () => {
+  const previousZone = usePreferenceStore.getState().timeZone;
+  usePreferenceStore.setState({ timeZone: 'Asia/Riyadh' });
+  const id = '70000000-0000-4000-8000-000000000071';
+  const wire = {
+    id,
+    name: 'Car',
+    direction: 'payable',
+    type: 'installment',
+    scheduleKind: 'fixed_term',
+    currencyCode: 'SAR',
+    principalMinor: '10000',
+    openingPaidMinor: '0',
+    installmentAmountMinor: '5000',
+    installmentCount: 2,
+    frequency: 'monthly',
+    expectedDay: 8,
+    customIntervalDays: null,
+    startDate: '2026-10-08',
+    endDate: '2026-11-08',
+    status: 'active',
+    defaultAccountId: null,
+    automaticMatchingEnabled: false,
+    provider: null,
+    providerKeywords: [],
+    reminderTiming: null,
+    notes: null,
+    deletedAt: null,
+    createdAt: '2026-10-17T00:00:00.000Z',
+    updatedAt: '2026-10-17T00:00:00.000Z',
+    version: 1
+  };
+  let patch: unknown;
+  const service = createLiveFinancialPlanningService({
+    baseUrl: 'https://api.test',
+    request: async (url, init) => {
+      if (init?.method === 'PATCH') {
+        patch = JSON.parse(String(init.body));
+        return response(mutation({ ...wire, name: 'My car', version: 2 }));
+      }
+      if (String(url).includes('/schedule'))
+        return response({
+          items: [
+            {
+              id: '70000000-0000-4000-8000-000000000072',
+              obligationId: id,
+              dueAt: '2026-10-07T21:00:00.000Z',
+              amountMinor: '5000',
+              paidMinor: '0',
+              sequenceNo: 1,
+              kind: 'installment',
+              status: 'due',
+              version: 1,
+              createdAt: wire.createdAt,
+              updatedAt: wire.updatedAt
+            }
+          ],
+          nextCursor: null
+        });
+      return response({ ...wire, summary: null });
+    }
+  });
+  try {
+    const detail = await service.getObligation(id);
+    expect(detail.schedule[0]?.dueDate).toBe('2026-10-08');
+    await service.updateObligation(
+      id,
+      1,
+      { ...detail.obligation, title: 'My car' },
+      'edit-car'
+    );
+    expect(patch).toMatchObject({
+      expectedVersion: 1,
+      patch: {
+        name: 'My car',
+        principalMinor: '10000',
+        installmentAmountMinor: '5000',
+        installmentCount: 2
+      }
+    });
+    expect((patch as { patch: object }).patch).not.toHaveProperty(
+      'currencyCode'
+    );
+  } finally {
+    usePreferenceStore.setState({ timeZone: previousZone });
+  }
+});
+
 it('sends and reads the selected obligation recurrence instead of forcing monthly', async () => {
   let submitted: Record<string, unknown> = {};
   const service = createLiveFinancialPlanningService({
     baseUrl: 'https://api.test',
     request: async (_url, init) => {
       submitted = JSON.parse(String(init?.body));
-      return new Response(JSON.stringify({
-        operationId: '70000000-0000-4000-8000-000000000099', replayed: false,
-        resource: {
-          id: '70000000-0000-4000-8000-000000000071', name: 'Yearly membership',
-          direction: 'payable', type: 'custom', scheduleKind: 'open_ended',
-          currencyCode: 'SAR', principalMinor: '0', openingPaidMinor: '0',
-          installmentAmountMinor: '12000', installmentCount: null, frequency: submitted.frequency,
-          expectedDay: 20, customIntervalDays: null, startDate: '2026-11-20', endDate: null,
-          status: 'active', defaultAccountId: null, automaticMatchingEnabled: false,
-          provider: null, providerKeywords: [], reminderTiming: null, notes: null,
-          createdAt: '2026-10-17T00:00:00.000Z', updatedAt: '2026-10-17T00:00:00.000Z', version: 1
-        }
-      }));
+      return new Response(
+        JSON.stringify({
+          operationId: '70000000-0000-4000-8000-000000000099',
+          replayed: false,
+          resource: {
+            id: '70000000-0000-4000-8000-000000000071',
+            name: 'Yearly membership',
+            direction: 'payable',
+            type: 'custom',
+            scheduleKind: 'open_ended',
+            currencyCode: 'SAR',
+            principalMinor: '0',
+            openingPaidMinor: '0',
+            installmentAmountMinor: '12000',
+            installmentCount: null,
+            frequency: submitted.frequency,
+            expectedDay: 20,
+            customIntervalDays: null,
+            startDate: '2026-11-20',
+            endDate: null,
+            status: 'active',
+            defaultAccountId: null,
+            automaticMatchingEnabled: false,
+            provider: null,
+            providerKeywords: [],
+            reminderTiming: null,
+            notes: null,
+            createdAt: '2026-10-17T00:00:00.000Z',
+            updatedAt: '2026-10-17T00:00:00.000Z',
+            version: 1
+          }
+        })
+      );
     }
   });
   const input = {
-    direction: 'payable', type: 'custom', scheduleKind: 'open_ended', frequency: 'yearly',
-    title: 'Yearly membership', currencyCode: 'SAR', contractedTotalMinor: 0,
-    installmentAmountMinor: 12000, startDate: '2026-11-20', dueDay: 20
+    direction: 'payable',
+    type: 'custom',
+    scheduleKind: 'open_ended',
+    frequency: 'yearly',
+    title: 'Yearly membership',
+    currencyCode: 'SAR',
+    contractedTotalMinor: 0,
+    installmentAmountMinor: 12000,
+    startDate: '2026-11-20',
+    dueDay: 20
   } as const;
   const result = await service.createObligation(input, 'yearly-create');
-  expect(submitted).toMatchObject({ frequency: 'yearly', principalMinor: '0', installmentAmountMinor: '12000', installmentCount: null });
-  expect(result.value).toMatchObject({ frequency: 'yearly', contractedTotalMinor: 0, installmentAmountMinor: 12000 });
+  expect(submitted).toMatchObject({
+    frequency: 'yearly',
+    principalMinor: '0',
+    installmentAmountMinor: '12000',
+    installmentCount: null
+  });
+  expect(result.value).toMatchObject({
+    frequency: 'yearly',
+    contractedTotalMinor: 0,
+    installmentAmountMinor: 12000
+  });
 });
 
 const response = (value: unknown, status = 200) =>
@@ -211,9 +336,15 @@ describe('live financial-planning service contract', () => {
   });
 
   it.each([
-    ['unsafe minor units', { transaction: { amountMinor: '9007199254740992' } }],
+    [
+      'unsafe minor units',
+      { transaction: { amountMinor: '9007199254740992' } }
+    ],
     ['unknown reason code', { reasonCodes: ['merchant_keyword'] }],
-    ['missing obligation version', { candidate: { obligationVersion: undefined } }],
+    [
+      'missing obligation version',
+      { candidate: { obligationVersion: undefined } }
+    ],
     ['cross-currency candidate', { candidate: { currencyCode: 'USD' } }]
   ])('rejects malformed payment-match detail: %s', async (_name, override) => {
     const base = {
@@ -1330,14 +1461,12 @@ describe('live financial-planning service contract', () => {
   ])('rejects ambiguous or invalid planning date %s', async (targetDate) => {
     const service = createLiveFinancialPlanningService({
       baseUrl: 'https://api.test',
-      request: jest
-        .fn()
-        .mockResolvedValue(
-          response({
-            items: [{ ...savingsGoalWireFixture, targetDate }],
-            nextCursor: null
-          })
-        )
+      request: jest.fn().mockResolvedValue(
+        response({
+          items: [{ ...savingsGoalWireFixture, targetDate }],
+          nextCursor: null
+        })
+      )
     });
     await expect(service.listGoals({})).rejects.toMatchObject({
       code: 'contract_mismatch'
