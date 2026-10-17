@@ -636,9 +636,9 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
       await waitFor(() =>
         expect(screen.getByTestId('home-horizon')).toBeTruthy()
       );
-      await waitFor(() =>
-        expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(2)
-      );
+      await waitFor(() => expect(view.client.isFetching()).toBe(0));
+      const transactionReads = jest.mocked(coreFinanceService.listTransactions)
+        .mock.calls.length;
       const homeReads = jest.mocked(coreFinanceService.getHomeSummary).mock
         .calls.length;
       await act(async () => view.batches.submit(capture));
@@ -650,7 +650,9 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
           'Diagnostic voice breakfast'
         )
       ).toBeNull();
-      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(2);
+      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(
+        transactionReads
+      );
       expect(coreFinanceService.getHomeSummary).toHaveBeenCalledTimes(
         homeReads
       );
@@ -722,9 +724,7 @@ it('shows authoritative read failures instead of inventing cards or hiding them 
     await waitFor(() =>
       expect(screen.getByTestId('home-horizon')).toBeTruthy()
     );
-    await waitFor(() =>
-      expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(2)
-    );
+    await waitFor(() => expect(view.client.isFetching()).toBe(0));
     await act(async () => view.batches.submit(capture));
     await waitFor(() =>
       expect(
