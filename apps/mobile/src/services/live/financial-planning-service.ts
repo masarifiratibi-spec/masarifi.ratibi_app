@@ -2005,7 +2005,11 @@ export function createLiveFinancialPlanningService({
         'planning.obligations',
         `planning.obligation.${obligation.id}`,
         `planning.payment.${payment.id}`,
-        'transactions.list'
+        'transactions.list',
+        `transactions.detail.${payment.transactionId}`,
+        'home.summary',
+        'accounts.list',
+        'accounts.balances'
       ]);
     },
 

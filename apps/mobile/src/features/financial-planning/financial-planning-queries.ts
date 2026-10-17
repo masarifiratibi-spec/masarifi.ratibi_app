@@ -7,6 +7,7 @@ import {
 
 import type { LocalDate, SavingsLifecycle } from '@/domain/financial-planning';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { scopeToKey as coreFinanceScopeToKey } from '@/features/core-finance/core-finance-queries';
 
 export const financialPlanningKeys = {
   overview: (currencyCode: string, today: LocalDate, timeZone: string) =>
@@ -189,9 +190,12 @@ export function scopeToKey(scope: string): readonly unknown[] {
   }
   if (scope === 'reports.live') return ['reports', 'live'];
   if (scope === 'assistant.context') return ['assistant', 'context', 'current'];
-  if (scope.startsWith('accounts')) return ['core-finance', 'accounts'];
-  if (scope.startsWith('home')) return ['core-finance', 'home'];
-  if (scope.startsWith('transactions')) return ['core-finance', 'transactions'];
+  if (
+    scope.startsWith('accounts') ||
+    scope.startsWith('home') ||
+    scope.startsWith('transactions')
+  )
+    return coreFinanceScopeToKey(scope);
   return ['planning'];
 }
 

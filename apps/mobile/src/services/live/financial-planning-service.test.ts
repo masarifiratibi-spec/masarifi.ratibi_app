@@ -1130,7 +1130,14 @@ describe('live financial-planning service contract', () => {
       use('reverseObligationPayment', () =>
         service.reverseObligationPayment(paymentId, 'payment-reverse')
       )
-    ).resolves.toMatchObject({ value: { payment: { status: 'reversed' } } });
+    ).resolves.toMatchObject({
+      value: { payment: { status: 'reversed' } },
+      affectedScopes: expect.arrayContaining([
+        'home.summary',
+        'accounts.balances',
+        `transactions.detail.${transactionId}`
+      ])
+    });
     await expect(
       use('previewEarlySettlement', () =>
         service.previewEarlySettlement(obligationId)
