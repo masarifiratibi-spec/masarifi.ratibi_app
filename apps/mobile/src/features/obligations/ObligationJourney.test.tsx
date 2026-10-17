@@ -11,6 +11,10 @@ import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationForm } from './ObligationForm';
 import { ObligationOverviewScreen } from './ObligationOverviewScreen';
 
+jest.mock('react-native-safe-area-context', () =>
+  jest.requireActual('react-native-safe-area-context/jest/mock').default
+);
+
 jest.mock('@/services/mocks/core-finance-service', () => {
   const actual = jest.requireActual<
     typeof import('@/services/mocks/core-finance-service')
