@@ -100,7 +100,9 @@ export function DevAccountDeletionRecovery() {
   }, [enabled]);
 
   if (!enabled || ownerId) return null;
-  const recoverable = snapshots.filter((entry) => entry.phase !== 'deleting');
+  const recoverable = snapshots.filter(
+    (entry) => !['deleting', 'completed'].includes(entry.phase)
+  );
   if (!recoverable.length && !storageError) return null;
   return (
     <View style={styles.recovery}>

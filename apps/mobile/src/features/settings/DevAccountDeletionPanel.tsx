@@ -76,20 +76,19 @@ export function DevAccountDeletionPanel({
 
   const deleting = busy || snapshot?.phase === 'deleting';
   const phase = snapshot?.phase;
+  if (phase === 'completed') return null;
   const message =
-    phase === 'completed'
-      ? 'settings.deletion.dev.completed'
-      : phase === 'local_retry'
-        ? 'settings.deletion.dev.localRetry'
-        : phase === 'verification_required'
-          ? 'settings.deletion.recentAuth'
-          : phase === 'failed'
-            ? 'settings.deletion.status.failed'
-            : phase === 'unavailable'
-              ? (snapshot?.error ?? 'settings.deletion.error')
-              : phase
-                ? 'settings.deletion.dev.deleting'
-                : null;
+    phase === 'local_retry'
+      ? 'settings.deletion.dev.localRetry'
+      : phase === 'verification_required'
+        ? 'settings.deletion.recentAuth'
+        : phase === 'failed'
+          ? 'settings.deletion.status.failed'
+          : phase === 'unavailable'
+            ? (snapshot?.error ?? 'settings.deletion.error')
+            : phase
+              ? 'settings.deletion.dev.deleting'
+              : null;
   return (
     <View style={styles.stack}>
       {!recovery ? (

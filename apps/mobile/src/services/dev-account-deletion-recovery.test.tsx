@@ -145,7 +145,7 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 });
 
-test('shows irreversible confirmation and immediate progress, then app-level completion after the owned panel unmounts', async () => {
+test('shows irreversible confirmation and progress, then removes deletion UI after sign-out', async () => {
   const owner = 'user_native_revoked';
   clerkOwner = owner;
   session(owner);
@@ -186,7 +186,10 @@ test('shows irreversible confirmation and immediate progress, then app-level com
     session(null);
     finishPost(successful(request, 202));
   });
-  await screen.findByText(t('settings.deletion.dev.completed'));
+  await waitFor(async () =>
+    expect(await loadDeletionCompletion(owner)).toBeNull()
+  );
+  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
   expect(deletionNative.files.has(ownerFile)).toBe(false);
   expect(await loadDeletionCompletion(owner)).toBeNull();
   confirmation.mockRestore();
@@ -218,18 +221,16 @@ test('relaunches signed out and recovers a persisted capability without obtainin
     })
   );
   render(<Runtime />);
-  await screen.findByText(t('settings.deletion.dev.completed'));
+  await waitFor(async () =>
+    expect(await loadDeletionCompletion(owner)).toBeNull()
+  );
+  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
   expect(fetchBoundary).toHaveBeenCalledTimes(1);
   expect(fetchBoundary.mock.calls[0][1].method).toBe('GET');
   expect(fetchBoundary.mock.calls[0][1].headers.Authorization).toBe(
     `Bearer ${'d'.repeat(64)}`
   );
   expect(sdkToken).not.toHaveBeenCalled();
-  await waitFor(() =>
-    expect(
-      screen.getAllByText(t('settings.deletion.dev.completed'))
-    ).toHaveLength(1)
-  );
   expect(deletionNative.files.has(ownerFile)).toBe(false);
 });
 
@@ -323,7 +324,10 @@ test('foreground activation recovers a lost response after Clerk revocation with
   await act(async () => {
     appStateListeners.forEach((listener) => listener('active'));
   });
-  await screen.findByText(t('settings.deletion.dev.completed'));
+  await waitFor(async () =>
+    expect(await loadDeletionCompletion(owner)).toBeNull()
+  );
+  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
   expect(fetchBoundary.mock.calls.map(([, init]) => init.method)).toEqual([
     'POST',
     'GET'
