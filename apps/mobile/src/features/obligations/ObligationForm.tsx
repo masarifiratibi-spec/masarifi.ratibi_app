@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -99,6 +100,7 @@ export function ObligationForm({
   onBack?: () => void;
 }) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const direction = usePreferenceStore((state) => state.direction);
   const existing = useObligation(obligationId);
@@ -471,7 +473,8 @@ export function ObligationForm({
   return (
     <KeyboardAvoidingView
       style={styles.page}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top + spacing.sm}
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
