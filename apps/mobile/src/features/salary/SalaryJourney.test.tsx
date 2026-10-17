@@ -1,14 +1,17 @@
 import React from 'react';
+import { router } from 'expo-router';
 import { fireEvent } from '@testing-library/react-native';
 
-import { changeLocale } from '@/localization/i18n';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { financialPlanningKeys } from '@/features/financial-planning/financial-planning-queries';
+import { changeLocale, translate } from '@/localization/i18n';
 import {
   createMockFinancialPlanningService,
   financialPlanningService
 } from '@/services/mocks/financial-planning-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { renderWithProviders } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { SalaryOverviewScreen } from './SalaryOverviewScreen';
 import { SalaryProfileForm } from './SalaryProfileForm';
@@ -41,6 +44,7 @@ it('renders salary overview, setup, and receipt review states', async () => {
     <SalaryOverviewScreen />
   );
   expect(await findByText('Your salary cycle')).toBeTruthy();
+  expect(await findByText('Edit salary settings')).toBeTruthy();
   expect(await findByLabelText(/Remaining from your salary/)).toBeTruthy();
   // The daily insight shows the reason when suggested daily is unavailable
   // When cycle has elapsed (fixture cycle is Jan 2026, real Date.now() is later), reason is cycle_elapsed
@@ -242,22 +246,34 @@ it('shows the detected transaction before salary confirmation', async () => {
   receiptLookup.mockRestore();
 });
 
-it('guides an unconfigured user to set up a salary cycle', async () => {
-  changeLocale('en');
-  const emptyService = createMockFinancialPlanningService();
-  const emptyCycle = await emptyService.getSalaryOverview({
-    today: '2026-08-26',
-    timeZone: 'Asia/Riyadh'
-  });
-  const loadSalary = jest
-    .spyOn(financialPlanningService, 'getSalaryOverview')
-    .mockResolvedValue(emptyCycle);
+it.each(['ar', 'en'] as const)(
+  'keeps the salary cycle design before setup without invented values in %s',
+  async (locale) => {
+    changeLocale(locale);
+    const timeZone = 'Asia/Riyadh';
+    usePreferenceStore.setState({ timeZone, hideBalances: false });
+    const today = localDateInTimeZone(Date.now(), timeZone);
+    const emptyCycle = await createMockFinancialPlanningService()
+      .getSalaryOverview({ today, timeZone });
+    const push = jest.spyOn(router, 'push').mockImplementation(() => {});
+    try {
+      const overview = renderWithQueryData(<SalaryOverviewScreen />, [
+        [financialPlanningKeys.salary(today, timeZone), emptyCycle]
+      ]);
 
-  const overview = renderWithProviders(<SalaryOverviewScreen />);
-
-  expect(
-    await overview.findByRole('header', { name: 'Plan from payday to payday' })
-  ).toBeTruthy();
-  expect(overview.getByRole('button', { name: 'Salary setup' })).toBeTruthy();
-  loadSalary.mockRestore();
-});
+      expect(overview.getByRole('header', {
+        name: translate('planning.salary.yourCycle')
+      })).toBeTruthy();
+      expect(overview.getByLabelText(translate('planning.salary.cycleDetails'))).toBeTruthy();
+      expect(overview.getAllByText('—')).toHaveLength(7);
+      expect(overview.queryByText(translate('planning.salary.emptyTitle'))).toBeNull();
+      expect(overview.getByText(translate('planning.salary.emptySubtitle'))).toBeTruthy();
+      fireEvent.press(overview.getByRole('button', {
+        name: translate('planning.salary.setup')
+      }));
+      expect(push).toHaveBeenCalledWith('/salary/profile');
+    } finally {
+      push.mockRestore();
+    }
+  }
+);

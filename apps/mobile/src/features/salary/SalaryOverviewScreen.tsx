@@ -15,9 +15,7 @@ import { DesignIcon } from '@/design-system/icons';
 import {
   colorTokens,
   elevation,
-  radius,
-  spacing,
-  typography
+  spacing
 } from '@/design-system/tokens';
 import type { Calculation } from '@/domain/financial-planning';
 import type { MoneyValue } from '@/domain/core-finance';
@@ -85,11 +83,14 @@ export function SalaryOverviewScreen() {
   const largeText = PixelRatio.getFontScale() >= 1.25;
 
   const data = query.data;
+  const needsSetup = !data?.profileId;
   const money = (calc: Calculation<MoneyValue>) =>
-    formatMoney(calc, hideBalances, revealed);
-  const nextSalaryDate = data?.projectedNextSalaryDate
-    ? formatLocalDate(data.projectedNextSalaryDate, locale)
-    : translate('planning.conflict.valueUnavailable');
+    needsSetup ? '—' : formatMoney(calc, hideBalances, revealed);
+  const nextSalaryDate = needsSetup
+    ? '—'
+    : data?.projectedNextSalaryDate
+      ? formatLocalDate(data.projectedNextSalaryDate, locale)
+      : translate('planning.conflict.valueUnavailable');
 
   return (
     <PlanningScreen
@@ -101,8 +102,6 @@ export function SalaryOverviewScreen() {
         <PlanningState state="loading" />
       ) : query.isError || !data ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
-      ) : data.dataState === 'empty' && !data.profileId ? (
-        <SalaryEmptyState direction={direction} theme={theme} />
       ) : (
         <View style={styles.screenStack}>
           <SalaryCycleHeader
@@ -110,11 +109,26 @@ export function SalaryOverviewScreen() {
             income={money(data.income)}
             remaining={money(data.remaining)}
             daily={money(data.suggestedDaily)}
-            daysRemaining={translateDynamic('planning.salary.daysRemaining', {
-              count: data.daysRemaining
-            })}
+            daysRemaining={
+              needsSetup
+                ? '—'
+                : translateDynamic('planning.salary.daysRemaining', {
+                    count: data.daysRemaining
+                  })
+            }
             largeText={largeText}
           />
+
+          {needsSetup ? (
+            <Text
+              style={[
+                styles.setupHint,
+                { color: theme.colors.content.secondary, writingDirection: direction }
+              ]}
+            >
+              {translate('planning.salary.emptySubtitle')}
+            </Text>
+          ) : null}
 
           <Text
             style={[
@@ -136,7 +150,9 @@ export function SalaryOverviewScreen() {
           />
 
           <ActionButton
-            label={translate('planning.salary.editSettings')}
+            label={translate(
+              needsSetup ? 'planning.salary.setup' : 'planning.salary.editSettings'
+            )}
             onPress={() => router.push('/salary/profile')}
             style={styles.primaryAction}
             labelStyle={styles.primaryActionLabel}
@@ -144,63 +160,6 @@ export function SalaryOverviewScreen() {
         </View>
       )}
     </PlanningScreen>
-  );
-}
-
-function SalaryEmptyState({
-  direction,
-  theme
-}: {
-  direction: 'rtl' | 'ltr';
-  theme: ReturnType<typeof useTheme>;
-}) {
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
-
-  return (
-    <SurfaceCard
-      style={[
-        styles.emptyCard,
-        {
-          backgroundColor: theme.colors.surfaces.brandSubtle,
-          borderColor: theme.colors.borders.subtle
-        }
-      ]}
-    >
-      <View
-        style={[styles.emptyIcon, { backgroundColor: theme.colors.surface }]}
-      >
-        <DesignIcon
-          name="salary"
-          label={translate('planning.salary.emptyTitle')}
-          color={theme.colors.interactions.primary}
-          size="hero"
-          decorative
-        />
-      </View>
-      <View style={styles.emptyCopy}>
-        <Text
-          accessibilityRole="header"
-          style={[
-            styles.emptyTitle,
-            { color: theme.colors.content.primary, textAlign }
-          ]}
-        >
-          {translate('planning.salary.emptyTitle')}
-        </Text>
-        <Text
-          style={[
-            styles.emptySubtitle,
-            { color: theme.colors.content.secondary, textAlign }
-          ]}
-        >
-          {translate('planning.salary.emptySubtitle')}
-        </Text>
-      </View>
-      <ActionButton
-        label={translate('planning.salary.setup')}
-        onPress={() => router.push('/salary/profile')}
-      />
-    </SurfaceCard>
   );
 }
 
@@ -443,26 +402,7 @@ function DetailRow({
 /* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  emptyCard: {
-    borderRadius: radius.card,
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  emptyIcon: {
-    alignItems: 'center',
-    borderRadius: radius.card,
-    height: 56,
-    justifyContent: 'center',
-    width: 56
-  },
-  emptyCopy: {
-    gap: spacing.xs
-  },
-  emptyTitle: {
-    ...typography.subtitle,
-    fontSize: 20
-  },
-  emptySubtitle: {
+  setupHint: {
     fontSize: 14,
     lineHeight: 22
   },
