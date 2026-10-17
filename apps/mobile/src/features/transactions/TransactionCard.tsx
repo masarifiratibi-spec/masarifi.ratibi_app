@@ -49,6 +49,9 @@ export function TransactionCard({
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const presentation = projectTransaction(transaction, locale, undefined, category, timeZone);
+  const amountSign = sign ?? (transaction.type === 'reversal'
+    ? transaction.adjustmentSign === 1 ? 'positive' : 'negative'
+    : undefined);
   const localizedAccountName = localizedDemoTransactionTitle(
     transaction.id,
     locale
@@ -199,12 +202,13 @@ export function TransactionCard({
         ]}
       >
         <AmountText
+          color={transaction.type === 'reversal'
+            ? theme.colors.financial[amountSign === 'positive' ? 'income' : 'expense']
+            : undefined}
           currency={transaction.currencyCode}
           masked={hidden}
           meaning={financialGroup && transaction.type !== 'refund' ? financialGroup : presentation.meaning}
-          sign={sign ?? (transaction.type === 'reversal'
-            ? transaction.adjustmentSign === 1 ? 'positive' : 'negative'
-            : undefined)}
+          sign={amountSign}
           minorUnits={transaction.amountMinor}
           size={groupedPosition ? 'compact' : 'home'}
         />
