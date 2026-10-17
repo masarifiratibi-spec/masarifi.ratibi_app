@@ -765,7 +765,7 @@ describe('live financial-planning service contract', () => {
             return response(
               mutation(
                 method === 'DELETE'
-                  ? { ...receipt, status: 'undone' }
+                  ? { ...receipt, status: 'undone', receivedAt: null }
                   : receipt,
                 operationId
               )
@@ -1121,11 +1121,7 @@ describe('live financial-planning service contract', () => {
     ).resolves.toMatchObject({
       value: { payment: { transactionOwnership: 'created' } }
     });
-    expect(createTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ amountMinor: 100 }),
-      'payment-create-confirm.transaction',
-      'manual'
-    );
+    expect(createTransaction).not.toHaveBeenCalled();
     await expect(
       use('reverseObligationPayment', () =>
         service.reverseObligationPayment(paymentId, 'payment-reverse')
@@ -1277,6 +1273,8 @@ describe('live financial-planning service contract', () => {
           currencyCode: 'SAR',
           expectedMinor: '1200000',
           actualIncomeMinor: '1000000',
+          startReceiptId: salaryProfileWireFixture.id,
+          startAt: '2026-09-01T00:00:00.000Z',
           actualExpenseMinor: '250001',
           reservedObligationMinor: '149999',
           nextExpectedAt: '2026-09-20T00:00:00.000Z'
@@ -2163,9 +2161,14 @@ describe('live financial-planning service contract', () => {
           init?.method === 'POST' && String(input).endsWith('/payments')
       );
       expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
-        transactionId,
+        ...(scenario === 'linked' ? { transactionId } : {
+          transaction: { kind: scenario === 'receivable' ? 'income' : 'expense', amountMinor: 100 }
+        }),
         expectedVersion: 4
       });
+      expect(request.mock.calls.filter(([url, init]) =>
+        init?.method === 'POST' && String(url).endsWith('/api/v1/transactions')
+      )).toHaveLength(0);
       await expect(service.getObligation(obligationId)).resolves.toMatchObject({
         payments: [],
         paymentHistoryState: 'unavailable'

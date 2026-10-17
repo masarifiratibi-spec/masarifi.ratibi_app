@@ -49,7 +49,7 @@ it('saves a single payment directly from the short form without a car default', 
   expect(screen.queryByText('Next')).toBeNull();
   expect(screen.queryByText('Review')).toBeNull();
   expect(screen.queryByLabelText('Provider or person')).toBeNull();
-  fireEvent.changeText(screen.getByLabelText('Amount'), '123.45');
+  fireEvent.changeText(screen.getByLabelText('Amount'), '١٢٣٫٤٥');
   fireEvent.press(screen.getByRole('button', { name: 'Save obligation' }));
   expect(await screen.findByText('Saved')).toBeTruthy();
   const item = (await financialPlanningService.listObligations({})).items.find(
@@ -74,8 +74,8 @@ it('calculates installments and a smaller final payment in minor units', async (
     'Calculated installments'
   );
   fireEvent.press(screen.getByRole('button', { name: 'Installments' }));
-  fireEvent.changeText(screen.getByLabelText('Contracted total'), '1200');
-  fireEvent.changeText(screen.getByLabelText('Monthly installment'), '500');
+  fireEvent.changeText(screen.getByLabelText('Contracted total'), '١٢٠٠');
+  fireEvent.changeText(screen.getByLabelText('Monthly installment'), '٥٠٠');
   expect(screen.getByText(/3 payments.*200.00/)).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: 'Save obligation' }));
   await screen.findByText('Saved');

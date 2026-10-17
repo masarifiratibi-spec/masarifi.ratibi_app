@@ -254,6 +254,7 @@ export interface FinancialPlanningService {
     timeZone?: string;
   }): Promise<SalaryCycle>;
   getSalaryProfile(): Promise<SalaryProfile | null>;
+  listSalaryExpectedDates(): Promise<LocalDate[]>;
   getSalaryReceiptReview(
     transactionId: string
   ): Promise<SalaryReceiptLink | null>;

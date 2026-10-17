@@ -15,7 +15,7 @@ export const financialPlanningKeys = {
   salary: (today: LocalDate, timeZone: string) =>
     ['planning', 'salary', today, timeZone] as const,
   salaryProfile: () => ['planning', 'salary', 'profile'] as const,
-  salaryReview: (id: string) => ['planning', 'salary-review', id] as const,
+  salaryReview: (id: string) => ['planning', 'salary', 'review', id] as const,
   budget: (periodKey: string) => ['planning', 'budget', periodKey] as const,
   budgetList: (periodKey: string) =>
     ['planning', 'budgets', periodKey] as const,
@@ -68,6 +68,11 @@ export function useSalaryReceiptReview(id: string) {
     queryFn: () => financialPlanningService.getSalaryReceiptReview(id),
     enabled: Boolean(id)
   });
+}
+
+export function useSalaryExpectedDates() {
+  return useQuery({queryKey:['planning','salary','expected-dates'],
+    queryFn:()=>financialPlanningService.listSalaryExpectedDates()});
 }
 
 export function usePaymentMatch(id: string) {

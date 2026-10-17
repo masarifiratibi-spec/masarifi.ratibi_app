@@ -407,6 +407,7 @@ paths:
       tags: [Planning]
       operationId: getPlanningSummary
       parameters:
+        - { name: asOf, in: query, required: false, schema: { type: string, format: date }, description: Owner-local date used to select the actual salary receipt cycle; monthly budgets retain the selected period. }
         - name: period
           in: query
           required: true
@@ -631,9 +632,30 @@ components:
     PaymentCreate:
       type: object
       additionalProperties: false
-      required: [transactionId, expectedVersion, paymentCase, allocationIntent, source, allocations]
+      required: [expectedVersion, paymentCase, allocationIntent, source, allocations]
+      oneOf:
+        - required: [transactionId]
+        - required: [transaction]
       properties:
         transactionId: { $ref: '#/components/schemas/Uuid' }
+        transaction:
+          type: object
+          additionalProperties: false
+          description: Creates the owned expense/income and allocates the payment in one database transaction; all effects roll back on failure.
+          required: [kind, amountMinor, currency, accountId, title, occurredAt]
+          properties:
+            kind: { type: string, enum: [expense, income] }
+            amountMinor: { type: integer, minimum: 1, maximum: 9007199254740991 }
+            currency: { $ref: '#/components/schemas/CurrencyCode' }
+            accountId: { $ref: '#/components/schemas/Uuid' }
+            categoryId: { oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }] }
+            title: { type: string, minLength: 1, maxLength: 160 }
+            merchant: { type: [string, 'null'], maxLength: 160 }
+            paymentMethod: { type: [string, 'null'], maxLength: 80 }
+            note: { type: [string, 'null'], maxLength: 1000 }
+            occurredAt: { type: string, format: date-time }
+            source: { type: string, enum: [manual] }
+            externalRef: { type: [string, 'null'], maxLength: 200 }
         expectedVersion: { type: integer, minimum: 1 }
         paymentMethod: { oneOf: [{ type: string, maxLength: 80 }, { type: 'null' }] }
         paymentCase: { type: string, enum: [partial, full, over, early, settlement, correction] }

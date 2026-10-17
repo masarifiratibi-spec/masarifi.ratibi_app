@@ -66,7 +66,7 @@ export interface SalaryReceiptLink extends RecordMetadata {
   salaryProfileId: string;
   transactionId: string;
   expectedOccurrenceDate: LocalDate;
-  receivedDate: LocalDate;
+  receivedDate: LocalDate | null;
   status: 'linked' | 'corrected' | 'undone';
   operationId: string;
   replacesReceiptId: string | null;
@@ -438,10 +438,10 @@ export function deriveSalaryCycle(input: {
   const linked = input.receipts
     .filter(
       (receipt) =>
-        receipt.status === 'linked' &&
+        (receipt.status === 'linked' || receipt.status === 'corrected') && receipt.receivedDate !== null && receipt.receivedDate <= input.today &&
         receipt.salaryProfileId === input.profile!.id
     )
-    .sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
+    .sort((a, b) => b.receivedDate!.localeCompare(a.receivedDate!));
   if (!linked.length) {
     return {
       ...emptySalaryCycle('late'),
@@ -453,15 +453,16 @@ export function deriveSalaryCycle(input: {
   const current = linked[0];
   const timeZone = input.timeZone ?? 'UTC';
   const nextDate = nextExpectedAfter(
-    current.receivedDate,
+    current.expectedOccurrenceDate,
     input.profile.salaryDay
   );
   const projections = projectTransactionEffects(input.transactions, null);
   const cycleTransactions = input.transactions.filter(
     (transaction) =>
+      transaction.currencyCode === input.profile!.currencyCode &&
       localDateInTimeZone(transaction.occurredAt, timeZone) >=
-        current.receivedDate &&
-      localDateInTimeZone(transaction.occurredAt, timeZone) < nextDate
+        current.receivedDate! &&
+      localDateInTimeZone(transaction.occurredAt, timeZone) <= input.today
   );
   const cycleTotals = cycleTransactions.reduce(
     (totals, transaction) => {
@@ -477,9 +478,9 @@ export function deriveSalaryCycle(input: {
   const reservedMinor = input.obligationsReservedMinor ?? 0;
   const remainingMinor = incomeMinor - expenseMinor - reservedMinor;
   const daysRemaining = Math.max(0, daysBetween(input.today, nextDate));
-  const salaryState = deriveSalaryState(
+  const salaryState = input.today > nextDate ? 'overdue' : deriveSalaryState(
     current.expectedOccurrenceDate,
-    current.receivedDate,
+    current.receivedDate!,
     input.today
   );
   const dailyReason: CalculationReason | null =

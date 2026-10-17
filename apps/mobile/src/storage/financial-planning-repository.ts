@@ -487,6 +487,7 @@ export class FinancialPlanningRepository {
     const next = {
       ...this.salaryReceipts[index],
       status: 'undone' as const,
+      receivedDate: null,
       version: this.salaryReceipts[index].version + 1,
       updatedAt: Date.now()
     };

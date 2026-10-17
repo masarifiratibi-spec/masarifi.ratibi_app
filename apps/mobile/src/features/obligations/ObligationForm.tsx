@@ -43,6 +43,7 @@ import {
 } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useTheme } from '@/state/theme-context';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
 import { useObligation, usePlanningMutation } from './obligation-queries';
@@ -279,15 +280,15 @@ export function ObligationForm({
     onError: () => setError(translate('planning.state.error'))
   });
 
-  const amountMinor = parseAmountToMinor(amount, owningCurrencyCode);
-  const installmentMinor = parseAmountToMinor(installment, owningCurrencyCode);
+  const amountMinor = parseAmountToMinor(normalizeLocalizedNumber(amount), owningCurrencyCode);
+  const installmentMinor = parseAmountToMinor(normalizeLocalizedNumber(installment), owningCurrencyCode);
   const openingPaidMinor = item?.openingPaidMinor ?? 0;
   const remaining = (amountMinor ?? 0) - openingPaidMinor;
   const keepCount =
     retainedPlan !== null &&
-    parseAmountToMinor(retainedPlan.amount, owningCurrencyCode) ===
+    parseAmountToMinor(normalizeLocalizedNumber(retainedPlan.amount), owningCurrencyCode) ===
       amountMinor &&
-    parseAmountToMinor(retainedPlan.installment, owningCurrencyCode) ===
+    parseAmountToMinor(normalizeLocalizedNumber(retainedPlan.installment), owningCurrencyCode) ===
       installmentMinor &&
     retainedPlan.count > 0 &&
     retainedPlan.count <= 1200 &&

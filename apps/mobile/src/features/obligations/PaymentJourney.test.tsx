@@ -26,7 +26,7 @@ it.each(['2026-10-16T22:30:00Z', '2026-10-17T02:30:00Z'])(
     try {
       fireEvent.changeText(
         await payment.findByLabelText('Payment amount'),
-        '50'
+        '٥٠'
       );
       fireEvent.press(payment.getByText('Review payment'));
       await payment.findByText('Confirm payment');

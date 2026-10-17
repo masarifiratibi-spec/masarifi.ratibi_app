@@ -32,6 +32,7 @@ export class PlanningController {
 
   @Get('api/v1/planning/summary')
   @ApiOperation({ operationId: 'getPlanningSummary' })
+  @ApiQuery({ name: 'asOf', required: false, schema: { type: 'string', format: 'date' } })
   @ApiQuery({
     name: 'period',
     required: true,

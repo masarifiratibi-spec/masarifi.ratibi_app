@@ -1,5 +1,14 @@
 import { QueryClient } from '@tanstack/react-query';
-import { invalidatePlanningScopes } from './financial-planning-queries';
+import { financialPlanningKeys, invalidatePlanningScopes } from './financial-planning-queries';
+
+it('invalidates receipt review after linking or undoing a salary receipt', async () => {
+  const client = new QueryClient();
+  const key = financialPlanningKeys.salaryReview('income-id');
+  client.setQueryData(key, { status: 'linked' });
+  await invalidatePlanningScopes(client, ['planning.salary.overview']);
+  expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+  client.clear();
+});
 
 it('refreshes the cached account balance and original transaction after payment Undo', async () => {
   const client = new QueryClient();

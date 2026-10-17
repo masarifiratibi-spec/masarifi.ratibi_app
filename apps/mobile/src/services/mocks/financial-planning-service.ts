@@ -212,11 +212,11 @@ export function createMockFinancialPlanningService(
           );
           const linked = receipts
             .filter(
-              (r) => r.status === 'linked' && r.salaryProfileId === profile.id
+              (r) => r.status === 'linked' && r.receivedDate !== null && r.salaryProfileId === profile.id
             )
-            .sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
+            .sort((a, b) => b.receivedDate!.localeCompare(a.receivedDate!));
           if (linked.length) {
-            const cycleStart = linked[0].receivedDate;
+            const cycleStart = linked[0].receivedDate!;
             const cycleEnd = profile.nextExpectedDate;
             for (const item of schedule) {
               if (item.status === 'cancelled' || item.status === 'paid')
@@ -242,6 +242,16 @@ export function createMockFinancialPlanningService(
       await ensureReady();
       const profile = repository.activeSalaryProfile();
       return profile ? { ...profile } : null;
+    },
+    async listSalaryExpectedDates() {
+      await ensureReady();
+      const profile = repository.activeSalaryProfile();
+      if (!profile) return [];
+      const date = new Date(now());
+      return [-1,0,1].map(offset => {
+        const month = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth()+offset, 1));
+        return expectedDateForMonth(month.getUTCFullYear(), month.getUTCMonth()+1, profile.salaryDay);
+      });
     },
     async getSalaryReceiptReview(transactionId) {
       await ensureReady();

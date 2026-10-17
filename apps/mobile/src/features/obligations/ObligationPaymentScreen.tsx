@@ -26,6 +26,7 @@ import type { ObligationPaymentPreview } from '@/services/contracts/financial-pl
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useTheme } from '@/state/theme-context';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
 import { useObligation } from './obligation-queries';
@@ -85,7 +86,7 @@ export function ObligationPaymentScreen({
   const buildPreview = async () => {
     const selectedAccount = accountId || accounts.data?.[0]?.id;
     const item = obligation.data?.obligation;
-    const amountMinor = parseAmountToMinor(amount, item?.currencyCode ?? 'SAR');
+    const amountMinor = parseAmountToMinor(normalizeLocalizedNumber(amount), item?.currencyCode ?? 'SAR');
     if (!amountMinor || !selectedAccount || !item) {
       setError(translate('planning.validation.required'));
       return;

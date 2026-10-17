@@ -1130,7 +1130,7 @@ function buildPlanningBreakdowns(
   const salaryItems = planning.salaryReceipts
     .filter(
       (receipt) =>
-        receipt.status !== 'undone' &&
+        receipt.status !== 'undone' && receipt.receivedDate !== null &&
         containsDate(period, receipt.receivedDate)
     )
     .map((receipt) => {
@@ -1139,7 +1139,7 @@ function buildPlanningBreakdowns(
       );
       return breakdownItem(
         receipt.id,
-        receipt.receivedDate,
+        receipt.receivedDate!,
         entry?.incomeMinor ?? 0,
         [receipt.transactionId],
         period,

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { safeMinorSum } from '@/domain/core-finance';
-import { localDateInTimeZone } from '@/domain/financial-period';
+import { localDateInTimeZone, localDateTimeInstant } from '@/domain/financial-period';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   available,
@@ -46,7 +46,6 @@ import {
   registerRuntimeUserDataReset
 } from '@/storage/runtime-user-data-reset';
 import { captureLiveClerkIdentity } from './auth-service';
-import { createLiveLedgerService } from './core-finance-service';
 import {
   mapBudgetFromApi,
   mapSalaryProfileFromApi,
@@ -431,7 +430,9 @@ const summarySalarySchema = z
     actualIncomeMinor: minor,
     actualExpenseMinor: minor,
     reservedObligationMinor: minor,
-    nextExpectedAt: instant.nullable()
+    nextExpectedAt: instant.nullable(),
+    startReceiptId: uuid.nullable().optional(),
+    startAt: instant.nullable().optional()
   })
   .strict();
 const summaryObligationSchema = obligationSummarySchema.extend({
@@ -512,12 +513,13 @@ function apiPeriod(periodKey: string) {
 }
 
 function fromReceipt(
-  value: z.infer<typeof receiptSchema>
+  value: z.infer<typeof receiptSchema>,
+  timeZone = usePreferenceStore.getState().timeZone
 ): SalaryReceiptLink | null {
   if (
     !value.transactionId ||
     !value.operationId ||
-    !value.receivedAt ||
+    (!value.receivedAt && value.status !== 'undone') ||
     !['received', 'corrected', 'undone'].includes(value.status)
   )
     return null;
@@ -525,8 +527,8 @@ function fromReceipt(
     id: value.id,
     salaryProfileId: value.salaryProfileId,
     transactionId: value.transactionId,
-    expectedOccurrenceDate: value.expectedAt.slice(0, 10) as LocalDate,
-    receivedDate: value.receivedAt.slice(0, 10) as LocalDate,
+    expectedOccurrenceDate: localDateInTimeZone(Date.parse(value.expectedAt), timeZone),
+    receivedDate: value.receivedAt ? localDateInTimeZone(Date.parse(value.receivedAt), timeZone) : null,
     status:
       value.status === 'received'
         ? 'linked'
@@ -543,9 +545,10 @@ function fromReceipt(
 }
 
 function requireReceipt(
-  value: z.infer<typeof receiptSchema>
+  value: z.infer<typeof receiptSchema>,
+  timeZone = usePreferenceStore.getState().timeZone
 ): SalaryReceiptLink {
-  const receipt = fromReceipt(value);
+  const receipt = fromReceipt(value, timeZone);
   if (!receipt) throw new HttpError('contract_mismatch', 502);
   return receipt;
 }
@@ -850,7 +853,8 @@ function roundedPercentage(numerator: number, denominator: number): number {
 
 function salaryCycle(
   summary: z.infer<typeof summarySchema>,
-  today: LocalDate
+  today: LocalDate,
+  timeZone: string = usePreferenceStore.getState().timeZone
 ): SalaryCycle {
   const salary = summary.salary;
   if (!salary) {
@@ -881,24 +885,25 @@ function salaryCycle(
   const expenses = parsePlanningMinor(salary.actualExpenseMinor);
   const reserved = parsePlanningMinor(salary.reservedObligationMinor);
   const remaining = requireSafeMinorSum([income, -expenses, -reserved]);
-  const next = salary.nextExpectedAt?.slice(0, 10) as LocalDate | undefined;
+  const next = salary.nextExpectedAt ? localDateInTimeZone(Date.parse(salary.nextExpectedAt), timeZone) : undefined;
   const daysRemaining = next ? Math.max(0, daysBetween(today, next)) : 0;
   const value = (minorUnits: number) =>
     available(money(minorUnits, salary.currencyCode));
   return {
     profileId: salary.id,
-    startReceiptId: null,
-    startDate: null,
+    startReceiptId: salary.startReceiptId ?? null,
+    startDate: salary.startAt ? localDateInTimeZone(Date.parse(salary.startAt), timeZone) : null,
     projectedNextSalaryDate: next ?? null,
     daysRemaining,
-    income: value(income),
-    expenses: value(expenses),
-    reservedObligations: value(reserved),
-    remaining: value(remaining),
+    income: salary.startReceiptId ? value(income) : unavailable('missing_data'),
+    expenses: salary.startReceiptId ? value(expenses) : unavailable('missing_data'),
+    reservedObligations: salary.startReceiptId ? value(reserved) : unavailable('missing_data'),
+    remaining: salary.startReceiptId ? value(remaining) : unavailable('missing_data'),
     suggestedDaily:
-      daysRemaining > 0
-        ? value(Math.trunc(remaining / daysRemaining))
-        : { status: 'unavailable', reason: 'cycle_elapsed' },
+      !salary.startReceiptId ? unavailable('missing_data') : !next || next < today ? unavailable('salary_overdue') :
+      remaining < 0 ? unavailable('balance_negative') : daysRemaining > 0
+        ? value(Math.floor(remaining / daysRemaining))
+        : unavailable('cycle_elapsed'),
     previousCycleComparison: {
       status: 'unavailable',
       reason: 'insufficient_history'
@@ -960,8 +965,7 @@ export function createLiveFinancialPlanningService({
   request = fetch,
   repository = new FinancialPlanningRepository(),
   persistent = Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
-  now = Date.now,
-  ledger = createLiveLedgerService({ baseUrl, request })
+  now = Date.now
 }: {
   baseUrl?: string;
   token?: () => Promise<string | null>;
@@ -1054,10 +1058,10 @@ export function createLiveFinancialPlanningService({
     return values;
   };
 
-  const readSummary = (period: string) =>
+  const readSummary = (period: string, asOf?: LocalDate) =>
     send(
       'GET',
-      `/api/v1/planning/summary?period=${encodeURIComponent(period)}`,
+      `/api/v1/planning/summary?period=${encodeURIComponent(period)}${asOf ? `&asOf=${asOf}` : ''}`,
       summarySchema
     );
 
@@ -1146,8 +1150,8 @@ export function createLiveFinancialPlanningService({
     },
 
     async getPlanningOverview(input) {
-      const summary = await readSummary(input.today.slice(0, 7));
-      const salary = salaryCycle(summary, input.today);
+      const summary = await readSummary(input.today.slice(0, 7), input.today);
+      const salary = salaryCycle(summary, input.today, input.timeZone);
       const budget = summary.budgets.find(
         (item) => item.currencyCode === input.currencyCode
       );
@@ -1208,8 +1212,9 @@ export function createLiveFinancialPlanningService({
 
     async getSalaryOverview(input) {
       return salaryCycle(
-        await readSummary(input.today.slice(0, 7)),
-        input.today
+        await readSummary(input.today.slice(0, 7), input.today),
+        input.today,
+        input.timeZone
       );
     },
 
@@ -1223,9 +1228,18 @@ export function createLiveFinancialPlanningService({
       const profiles = await allPages('/api/v1/salary-profiles', salarySchema);
       const profile = profiles.find((item) => item.status === 'active');
       if (!profile) return null;
-      const query = `/api/v1/salary-profiles/${profile.id}/receipts?transactionId=${encodeURIComponent(transactionId)}`;
+      const query = `/api/v1/salary-profiles/${profile.id}/receipts`;
       const found = await allPages(query, receiptSchema);
-      return found[0] ? fromReceipt(found[0]) : null;
+      const match = found.find((item) => item.id === transactionId || item.transactionId === transactionId);
+      return match ? fromReceipt(match) : null;
+    },
+
+    async listSalaryExpectedDates() {
+      const profile = (await allPages('/api/v1/salary-profiles', salarySchema)).find(item => item.status === 'active');
+      if (!profile) return [];
+      return (await allPages(`/api/v1/salary-profiles/${profile.id}/receipts`, receiptSchema))
+        .filter(item => ['expected', 'missed'].includes(item.status))
+        .map(item => localDateInTimeZone(Date.parse(item.expectedAt), usePreferenceStore.getState().timeZone));
     },
 
     async saveSalaryProfile(input, operationId) {
@@ -1266,6 +1280,10 @@ export function createLiveFinancialPlanningService({
     },
 
     async confirmSalaryReceipt(input, operationId) {
+      const timeZone = input.timeZone ?? usePreferenceStore.getState().timeZone;
+      const occurrences = await allPages(`/api/v1/salary-profiles/${input.salaryProfileId}/receipts`, receiptSchema);
+      const occurrence = occurrences.find((item) => ['expected', 'missed'].includes(item.status)
+        && localDateInTimeZone(Date.parse(item.expectedAt), timeZone) === input.expectedOccurrenceDate);
       const response = await send(
         'POST',
         `/api/v1/salary-profiles/${input.salaryProfileId}/receipts`,
@@ -1274,7 +1292,7 @@ export function createLiveFinancialPlanningService({
           operationId,
           body: {
             transactionId: input.transactionId,
-            expectedAt: `${input.expectedOccurrenceDate}T00:00:00.000Z`,
+            expectedAt: occurrence?.expectedAt ?? new Date(localDateTimeInstant(input.expectedOccurrenceDate, timeZone)).toISOString(),
             replacesReceiptId: input.replacesReceiptId ?? null
           }
         }
@@ -1286,7 +1304,7 @@ export function createLiveFinancialPlanningService({
           salarySchema
         )
       );
-      const receipt = requireReceipt(response.resource);
+      const receipt = requireReceipt(response.resource, timeZone);
       const cycle = await service.getSalaryOverview({
         today: input.receivedDate,
         timeZone: input.timeZone
@@ -1316,9 +1334,9 @@ export function createLiveFinancialPlanningService({
         { operationId, body: { expectedVersion: current.version } }
       );
       const profile = mapSalaryProfileFromApi(wire);
-      const receipt = requireReceipt(response.resource);
+      const receipt = requireReceipt(response.resource, timeZone);
       const cycle = await service.getSalaryOverview({
-        today: new Date(now()).toISOString().slice(0, 10) as LocalDate,
+        today: localDateInTimeZone(now(), timeZone ?? usePreferenceStore.getState().timeZone),
         timeZone
       });
       return scopes({ profile, receipt, cycle }, [
@@ -1598,9 +1616,9 @@ export function createLiveFinancialPlanningService({
         if (
           detail?.nextDueAt &&
           (!result.nextDueDate ||
-            detail.nextDueAt.slice(0, 10) < result.nextDueDate)
+            localDateInTimeZone(Date.parse(detail.nextDueAt), usePreferenceStore.getState().timeZone) < result.nextDueDate)
         ) {
-          result.nextDueDate = detail.nextDueAt.slice(0, 10) as LocalDate;
+          result.nextDueDate = localDateInTimeZone(Date.parse(detail.nextDueAt), usePreferenceStore.getState().timeZone);
           result.nextDueAmountMinor = detail.nextDueAmountMinor
             ? parsePlanningMinor(detail.nextDueAmountMinor)
             : null;
@@ -1857,28 +1875,23 @@ export function createLiveFinancialPlanningService({
         throw new FinancialPlanningError('stale_preview');
       const transaction = stored.input.transaction;
       const created = transaction.kind === 'create';
-      const transactionId = created
-        ? (
-            await ledger.createTransaction(
-              transaction.input.type === 'obligation_payment'
-                ? {
-                    ...transaction.input,
-                    type:
-                      current.obligation.direction === 'payable'
-                        ? 'expense'
-                        : 'income',
-                    categoryId:
-                      transaction.input.categoryId ??
-                      (current.obligation.direction === 'payable'
-                        ? '04000000-0000-4000-8000-000000000019'
-                        : '04000000-0000-4000-8000-000000000017')
-                  }
-                : transaction.input,
-              `${operationId}.transaction`,
-              'manual'
-            )
-          ).value.id
-        : transaction.transactionId;
+      const kind = current.obligation.direction === 'payable' ? 'expense' : 'income';
+      const transactionBody = transaction.kind === 'create' ? {
+        transaction: {
+          kind,
+          amountMinor: transaction.input.amountMinor,
+          currency: transaction.input.currencyCode,
+          accountId: transaction.input.accountId,
+          categoryId: transaction.input.categoryId ?? (kind === 'expense'
+            ? '04000000-0000-4000-8000-000000000019'
+            : '04000000-0000-4000-8000-000000000017'),
+          title: transaction.input.title,
+          merchant: transaction.input.merchant ?? null,
+          note: transaction.input.notes ?? null,
+          occurredAt: new Date(transaction.input.occurredAt).toISOString(),
+          source: 'manual'
+        }
+      } : { transactionId: transaction.transactionId };
       const response = await send(
         'POST',
         `/api/v1/obligations/${stored.input.obligationId}/payments`,
@@ -1886,7 +1899,7 @@ export function createLiveFinancialPlanningService({
         {
           operationId,
           body: {
-            transactionId,
+            ...transactionBody,
             expectedVersion: stored.expectedVersion,
             paymentMethod: null,
             paymentCase: stored.value.case,
@@ -1909,7 +1922,7 @@ export function createLiveFinancialPlanningService({
         transactionId: wire.transactionId,
         amountMinor: parsePlanningMinor(wire.amountMinor),
         currencyCode: current.obligation.currencyCode,
-        paidDate: wire.paidAt.slice(0, 10) as LocalDate,
+        paidDate: localDateInTimeZone(Date.parse(wire.paidAt), usePreferenceStore.getState().timeZone),
         case: wire.paymentCase,
         allocationIntent:
           wire.allocationIntent === 'prepayment'
@@ -1958,7 +1971,9 @@ export function createLiveFinancialPlanningService({
           'planning.obligations',
           `planning.obligation.${payment.obligationId}`,
           `planning.payment.${payment.id}`,
-          'transactions.list'
+          'transactions.list',
+          'accounts.balances',
+          'home.summary'
         ]
       );
     },

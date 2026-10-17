@@ -22,6 +22,13 @@ function createMockTransaction(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('Salary Cycle domain calculations', () => {
+  it('projects after the confirmed expected occurrence for early salary and keeps other currencies separate', () => {
+    const receipt: SalaryReceiptLink = {...fixtureSalaryReceipt, receivedDate:'2026-01-25',expectedOccurrenceDate:'2026-01-31'};
+    const expense = createMockTransaction({type:'expense',currencyCode:'USD',amountMinor:10000,occurredAt:Date.parse('2026-01-27T10:00:00Z')});
+    const cycle = deriveSalaryCycle({profile:{...fixtureSalaryProfile,salaryDay:31}, receipts:[receipt],transactions:[expense],today:'2026-01-28'});
+    expect(cycle.projectedNextSalaryDate).toBe('2026-02-28');
+    expect(cycle.expenses).toMatchObject({status:'available',value:{minorUnits:0,currencyCode:'SAR'}});
+  });
   beforeAll(() => {
     jest.useFakeTimers({ now: Date.UTC(2026, 0, 15, 12, 0, 0) });
   });
@@ -121,7 +128,8 @@ describe('Salary Cycle domain calculations', () => {
     it('projects next date in the same month if salary day has not passed', () => {
       const receipt: SalaryReceiptLink = {
         ...fixtureSalaryReceipt,
-        receivedDate: '2026-01-10'
+        receivedDate: '2026-01-10',
+        expectedOccurrenceDate: '2025-12-25'
       };
       const profile: SalaryProfile = {
         ...fixtureSalaryProfile,
@@ -267,7 +275,7 @@ describe('Salary Cycle domain calculations', () => {
     it('calculates suggested daily amount when remaining is positive and days remain', () => {
       const cycle = deriveSalaryCycle({
         profile: fixtureSalaryProfile,
-        receipts: [fixtureSalaryReceipt],
+        receipts: [{...fixtureSalaryReceipt, expectedOccurrenceDate:'2025-12-31'}],
         transactions: [fixtureSalaryTransaction],
         today: '2026-01-15'
       });
@@ -306,7 +314,7 @@ describe('Salary Cycle domain calculations', () => {
     it('returns cycle_elapsed reason when today is at or past projected next salary date', () => {
       const cycle = deriveSalaryCycle({
         profile: fixtureSalaryProfile,
-        receipts: [fixtureSalaryReceipt],
+        receipts: [{...fixtureSalaryReceipt, expectedOccurrenceDate:'2025-12-31'}],
         transactions: [fixtureSalaryTransaction],
         today: '2026-01-31'
       });

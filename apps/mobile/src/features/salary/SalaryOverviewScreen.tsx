@@ -149,6 +149,13 @@ export function SalaryOverviewScreen() {
             nextSalaryDate={nextSalaryDate}
           />
 
+          {!needsSetup ? <>
+            <ActionButton label={translate('planning.salary.confirmReceipt')}
+              onPress={() => router.push('/salary/receipt/select')} variant="secondary" />
+            {data.startReceiptId ? <ActionButton label={translate('planning.salary.review')}
+              onPress={() => router.push(`/salary/receipt/${data.startReceiptId}`)} variant="secondary" /> : null}
+          </> : null}
+
           <ActionButton
             label={translate(
               needsSetup ? 'planning.salary.setup' : 'planning.salary.editSettings'
@@ -362,6 +369,7 @@ function DetailRow({
   valueDirection?: 'ltr' | 'rtl';
   last?: boolean;
 }) {
+  const theme = useTheme();
   return (
     <View
       style={[
@@ -377,7 +385,7 @@ function DetailRow({
         ]}
       >
         <View style={[styles.detailDot, { backgroundColor: dotColor }]} />
-        <Text numberOfLines={2} style={styles.detailLabel}>
+        <Text numberOfLines={2} style={[styles.detailLabel, { color: theme.colors.content.secondary }]}>
           {label}
         </Text>
       </View>
@@ -388,6 +396,7 @@ function DetailRow({
         style={[
           styles.detailValue,
           {
+            color: theme.colors.content.primary,
             textAlign: direction === 'rtl' ? 'left' : 'right',
             writingDirection: valueDirection
           }
@@ -530,13 +539,11 @@ const styles = StyleSheet.create({
     width: 10
   },
   detailLabel: {
-    color: colorTokens.ink[900],
     flexShrink: 1,
     fontSize: 18,
     lineHeight: 26
   },
   detailValue: {
-    color: colorTokens.ink[900],
     flexShrink: 0,
     fontSize: 19,
     fontVariant: ['tabular-nums'],
