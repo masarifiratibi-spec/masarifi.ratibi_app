@@ -186,8 +186,8 @@ describe('navigation journey', () => {
       's***@example.test'
     ],
     ['en', ' ', 'Provider Person', 'Provider Person', null],
-    ['en', '', null, 'Masarifi User', null],
-    ['ar', '', null, 'مستخدم مصاريفي', null]
+    ['en', '', null, 'Masarifi & Ratibi User', null],
+    ['ar', '', null, 'مستخدم مصاريفي وراتبي', null]
   ] as const)(
     'shows public account copy in %s with saved name %s',
     (locale, name, provider, expected, googleAccount) => {
@@ -207,7 +207,7 @@ describe('navigation journey', () => {
       expect(
         screen.getByText(
           googleAccount ??
-            (locale === 'ar' ? 'حساب مصاريفي' : 'Masarifi account')
+            (locale === 'ar' ? 'حساب مصاريفي وراتبي' : 'Masarifi & Ratibi account')
         )
       ).toBeOnTheScreen();
       expect(JSON.stringify(screen.toJSON())).not.toContain(
@@ -234,10 +234,10 @@ describe('navigation journey', () => {
       })
     );
     renderWithProviders(<MoreRoute />);
-    expect(screen.getByText('Masarifi User')).toBeOnTheScreen();
+    expect(screen.getByText('Masarifi & Ratibi User')).toBeOnTheScreen();
     await act(async () => fail(new Error('offline')));
-    expect(screen.getByText('Masarifi User')).toBeOnTheScreen();
-    expect(screen.getByText('Masarifi account')).toBeOnTheScreen();
+    expect(screen.getByText('Masarifi & Ratibi User')).toBeOnTheScreen();
+    expect(screen.getByText('Masarifi & Ratibi account')).toBeOnTheScreen();
     expect(JSON.stringify(screen.toJSON())).not.toContain(
       'user_fabricated_subject'
     );

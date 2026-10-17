@@ -125,17 +125,17 @@ const ar: MessageCatalog = {
     'حدد عملة واحدة؛ لا يتم جمع العملات المختلفة.',
   'assistant.limitation.price_required': 'حدد سعر الشراء الدقيق وعملته.',
   'assistant.limitation.scope_required': 'حدد نطاقًا ماليًا مدعومًا.',
-  'googleAuth.brand': 'مصاريفي',
+  'googleAuth.brand': 'مصاريفي وراتبي',
   'googleAuth.incomplete':
     'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
-  'googleAuth.welcome': 'مرحبًا بك في مصاريفي',
+  'googleAuth.welcome': 'مرحبًا بك في مصاريفي وراتبي',
   'googleAuth.supporting':
     'أموالك في مكان واحد. تابع باستخدام حساب Google للبدء.',
   'googleAuth.continue': 'المتابعة باستخدام Google',
   'googleAuth.footer': 'استخدم حساب Google نفسه للعودة إلى بياناتك المالية.',
   'appShell.security.stagingDisabled':
     'قفل التطبيق غير متاح مؤقتًا في هذا الإصدار التجريبي.',
-  'app.title': 'مسارف',
+  'app.title': 'مصاريفي وراتبي',
   'app.foundationTitle': 'شاشة التحقق من الأساس',
   'app.foundationIntro':
     'شاشة تحقق مؤقتة. الشاشات الإنتاجية تُبنى في مواصفات لاحقة.',
@@ -340,7 +340,7 @@ const ar: MessageCatalog = {
     'هذه الصفحة مؤقتة وفي انتظار ربط تسجيل الدخول عبر Clerk.',
   'appShell.auth.pending.preview': 'متابعة للتجربة',
   'profileSetup.title': 'وش ناديلك؟',
-  'profileSetup.supporting': 'نستخدمه لتخصيص تجربتك في مصاريفي.',
+  'profileSetup.supporting': 'نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.',
   'profileSetup.nameLabel': 'الاسم',
   'profileSetup.nameHelper': 'من حسابك، ويمكنك تعديله في أي وقت.',
   'profileSetup.nameRequired': 'اكتب اسمك للمتابعة.',
@@ -350,7 +350,7 @@ const ar: MessageCatalog = {
   'profileSetup.continue': 'متابعة',
   'profileSetup.retry': 'إعادة المحاولة',
   'profileSetup.saveError': 'تعذر حفظ البيانات. حاول مرة ثانية.',
-  'appShell.public.welcome.title': 'مسارفي',
+  'appShell.public.welcome.title': 'مصاريفي وراتبي',
   'appShell.public.welcome.body':
     'تابع أموالك بوضوح من خلال الإدخال اليدوي والتلقائي.',
   'appShell.public.welcome.signIn': 'تسجيل الدخول',
@@ -366,7 +366,7 @@ const ar: MessageCatalog = {
   'appShell.auth.method.google': 'جوجل',
   'appShell.auth.signIn.title': 'تسجيل دخول آمن',
   'appShell.auth.required.message':
-    'سجل الدخول للمتابعة إلى هذا الجزء المحمي من مصاريفي.',
+    'سجل الدخول للمتابعة إلى هذا الجزء المحمي من مصاريفي وراتبي.',
   'appShell.auth.required.saveFailed':
     'تعذر تجهيز تسجيل الدخول. حاول مرة أخرى.',
   'appShell.auth.signUp.title': 'إنشاء حسابك',
@@ -451,8 +451,8 @@ const ar: MessageCatalog = {
   'appShell.more.services': 'الخدمات',
   'appShell.more.accountSettings': 'الحساب والإعدادات',
   'appShell.more.profileSummary': 'ملخص الحساب والملف الشخصي',
-  'appShell.more.defaultUserName': 'مستخدم مصاريفي',
-  'appShell.more.defaultUserEmail': 'حساب مصاريفي',
+  'appShell.more.defaultUserName': 'مستخدم مصاريفي وراتبي',
+  'appShell.more.defaultUserEmail': 'حساب مصاريفي وراتبي',
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
@@ -558,7 +558,7 @@ const ar: MessageCatalog = {
   'appShell.progressive.obligation': 'إضافة التزام',
   'appShell.progressive.savings': 'إنشاء هدف ادخار',
   'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
-  'appShell.connectionUnavailable.message': 'تعذّر الاتصال بمصاريفي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
+  'appShell.connectionUnavailable.message': 'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
   'appShell.state.loading': 'جار التحميل',
   'appShell.state.empty': 'لا يوجد شيء بعد',
   'appShell.state.error': 'حدث خطأ ما',
@@ -884,7 +884,7 @@ const ar: MessageCatalog = {
   'coreFinance.accounts.setup.lastFour': 'آخر 4 أرقام من البطاقة (اختياري)',
   'coreFinance.accounts.setup.educationTitle': `لماذا نحتاج ${glossary.lastFourDigits}؟`,
   'coreFinance.accounts.setup.educationBody':
-    'قد تحتوي رسائل البنك على آخر أربعة أرقام، ما يساعد مصاريفي على مطابقة المعاملة بهذا الحساب تلقائيًا عند تفعيل التتبع.',
+    'قد تحتوي رسائل البنك على آخر أربعة أرقام، ما يساعد مصاريفي وراتبي على مطابقة المعاملة بهذا الحساب تلقائيًا عند تفعيل التتبع.',
   'coreFinance.accounts.setup.nameExample.bank': `مثال: مصرف الراجحي، حساب ${glossary.salary}`,
   'coreFinance.accounts.setup.nameExample.credit_card':
     'مثال: بطاقة الأهلي الائتمانية، بطاقة المشتريات',
@@ -909,7 +909,7 @@ const ar: MessageCatalog = {
   'coreFinance.accounts.restore': 'استعادة الحساب',
   'coreFinance.accounts.typeSelect.title': `ما نوع ${glossary.account} الذي تريد إضافته؟`,
   'coreFinance.accounts.typeSelect.subtitle':
-    'يحدّد هذا الخيار كيفية متابعة مصاريفي للحساب.',
+    'يحدّد هذا الخيار كيفية متابعة مصاريفي وراتبي للحساب.',
   'coreFinance.accounts.typeSelect.bank': `${glossary.debitCard} / ${glossary.bankAccount}`,
   'coreFinance.accounts.typeSelect.bank.desc':
     'بطاقة بنكية أو حساب تُجري منه التحويلات.',
@@ -1031,12 +1031,12 @@ const ar: MessageCatalog = {
   'tracking.home.onboardingHeading': 'لنبدأ.',
   'tracking.home.enableTitle': 'تتبّع مصاريفك تلقائيًا',
   'tracking.home.enableBody':
-    'خلّ مصاريفي يلتقط عملياتك تلقائيًا من الرسائل المدعومة.',
+    'خلّ مصاريفي وراتبي يلتقط عملياتك تلقائيًا من الرسائل المدعومة.',
   'tracking.home.enableAction': 'تفعيل التتبع التلقائي',
   'tracking.home.dismissAction': 'إخفاء اقتراح التتبع التلقائي',
   'notifications.home.enableTitle': 'فعّل الإشعارات',
   'notifications.home.enableBody':
-    'استلم إشعارات العمليات والتذكيرات من مصاريفي.',
+    'استلم إشعارات العمليات والتذكيرات من مصاريفي وراتبي.',
   'notifications.home.enableAction': 'تفعيل الإشعارات',
   'notifications.home.dismissAction': 'إخفاء اقتراح الإشعارات',
   'notifications.home.enableFailed': 'تعذر تفعيل الإشعارات. حاول مرة أخرى.',
@@ -1193,7 +1193,7 @@ const ar: MessageCatalog = {
   'tracking.duplicate.merge': 'دمج التفاصيل',
   'tracking.keywords.title': 'كلمات التتبع',
   'tracking.keywords.permissionScope':
-    'الكلمات تساعد المطابقة داخل مصاريفي بعد الإذن، ولا تضيق إذن النظام نفسه.',
+    'الكلمات تساعد المطابقة داخل مصاريفي وراتبي بعد الإذن، ولا تضيق إذن النظام نفسه.',
   'tracking.senders.title': 'قواعد المرسلين',
   'tracking.senders.search': 'بحث في المرسلين',
   'tracking.senders.empty': 'لا يوجد مرسلون',
@@ -1215,7 +1215,7 @@ const ar: MessageCatalog = {
   'voice.demoNotice': 'التحليل الصوتي تجريبي في هذه النسخة الأمامية.',
   'voice.permission.title': 'السماح باستخدام الميكروفون',
   'voice.permission.body':
-    'يستخدم مصاريفي الميكروفون فقط أثناء تسجيل هذه المعاملة.',
+    'يستخدم مصاريفي وراتبي الميكروفون فقط أثناء تسجيل هذه المعاملة.',
   'voice.permission.request': 'السماح بالميكروفون',
   'voice.permission.settings': 'فتح الإعدادات',
   'voice.record.start': 'بدء التسجيل',
@@ -1820,7 +1820,7 @@ const ar: MessageCatalog = {
     'راجع \u2068SAR 25.00\u2069 قبل المتابعة.',
   'notifications.center.unreadLabel': 'الإشعارات غير المقروءة',
   'notifications.fallback.title': 'تحديث مالي',
-  'notifications.fallback.body': 'افتح مصاريفي لمراجعة آخر تحديث.',
+  'notifications.fallback.body': 'افتح مصاريفي وراتبي لمراجعة آخر تحديث.',
   'notifications.center.markAllRead': 'تحديد الكل كمقروء',
   'notifications.center.countSuffix': 'إشعارات',
   'notifications.center.loading': 'جار تحميل الإشعارات',
@@ -2175,9 +2175,9 @@ const ar: MessageCatalog = {
   'settings.profile.details': 'التفاصيل',
   'settings.profile.planFree': 'الباقة الأساسية',
   'settings.profile.planDesc':
-    'تمتع بكافة ميزات مصاريفي: التتبع التلقائي والتحليل المالي الذكي',
+    'تمتع بكافة ميزات مصاريفي وراتبي: التتبع التلقائي والتحليل المالي الذكي',
   'settings.profile.goPro': 'ترقية للباقة المميزة 💎',
-  'settings.profile.activity': 'تتبع مصاريفك بذكاء مع مصاريفي ✨',
+  'settings.profile.activity': 'تتبع مصاريفك بذكاء مع مصاريفي وراتبي ✨',
   'settings.application.language': 'اللغة',
   'settings.application.title': 'إعدادات التطبيق',
   'settings.application.theme': 'المظهر',
@@ -2261,7 +2261,7 @@ const ar: MessageCatalog = {
   'settings.securityEvents.recover.security': 'مراجعة إعدادات الأمان',
   'settings.securityEvents.recover.settings': 'مراجعة إعدادات الخصوصية',
   'support.home.title': 'المساعدة والدعم',
-  'support.home.version': 'إصدار تطبيق مصاريفي',
+  'support.home.version': 'إصدار تطبيق مصاريفي وراتبي',
   'support.home.articles': 'مقالات المساعدة',
   'support.search.input': 'البحث في المساعدة',
   'support.search.noResultsCreateTicket': 'إنشاء تذكرة دعم',

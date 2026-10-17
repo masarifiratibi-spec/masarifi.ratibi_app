@@ -26,7 +26,7 @@ test.each([
     ).toBeNull();
     expect(
       screen.getByRole('image', {
-        name: locale === 'ar' ? 'مصاريفي' : 'Masarifi'
+        name: locale === 'ar' ? 'مصاريفي وراتبي' : 'Masarifi & Ratibi'
       })
     ).toBeOnTheScreen();
   }

@@ -244,7 +244,7 @@ test('matches the Arabic reference and keeps the saved name ahead of Clerk prefi
     writingDirection: 'rtl',
     width: '100%'
   });
-  expect(screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي.')).toHaveStyle({
+  expect(screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'rtl',
     width: '100%'
@@ -376,7 +376,7 @@ test('keeps edits while switching to English and uses concise LTR copy', async (
     writingDirection: 'ltr',
     width: '100%'
   });
-  expect(screen.getByText('We use it to personalize Masarifi.')).toHaveStyle({
+  expect(screen.getByText('We use it to personalize Masarifi & Ratibi.')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'ltr',
     width: '100%'

@@ -37,7 +37,7 @@ const en = {
   'settings.deletion.status.cancelled': "Deletion request cancelled. Your account is kept.",
   'settings.deletion.status.failed': "Deletion failed. Refresh the status or try again.",
   'appShell.connectionUnavailable.title': 'Connection unavailable',
-  'appShell.connectionUnavailable.message': 'We could not connect to Masarifi. Check your internet connection and try again. Your current balances have not been loaded.',
+  'appShell.connectionUnavailable.message': 'We could not connect to Masarifi & Ratibi. Check your internet connection and try again. Your current balances have not been loaded.',
   'assistant.messageStatus.pending': 'Pending',
   'assistant.messageStatus.failed': 'Failed',
   'assistant.messageStatus.unknown': 'Unconfirmed',
@@ -133,10 +133,10 @@ const en = {
   'assistant.limitation.price_required':
     'Specify an exact purchase price and currency.',
   'assistant.limitation.scope_required': 'Specify a supported financial scope.',
-  'googleAuth.brand': 'Masarifi',
+  'googleAuth.brand': 'Masarifi & Ratibi',
   'googleAuth.incomplete':
     'Google registration needs additional account information. Please try another Google account or contact support.',
-  'googleAuth.welcome': 'Welcome to Masarifi',
+  'googleAuth.welcome': 'Welcome to Masarifi & Ratibi',
   'googleAuth.supporting':
     'Your finances, together in one place. Continue with your Google account to get started.',
   'googleAuth.continue': 'Continue with Google',
@@ -145,7 +145,7 @@ const en = {
   'appShell.security.stagingDisabled':
     'App Lock is temporarily unavailable in this Staging version.',
   // App shell
-  'app.title': 'Masarifi',
+  'app.title': 'Masarifi & Ratibi',
   'app.foundationTitle': 'Foundation Validation Harness',
   'app.foundationIntro':
     'Temporary validation screen. Production screens are built in later specs.',
@@ -175,7 +175,7 @@ const en = {
   'position.spending': 'Recent spending',
   'position.nextObligation': 'Next obligation',
   'position.reviewItems': 'Needs your attention',
-  'position.empty.title': 'Welcome to Masarifi',
+  'position.empty.title': 'Welcome to Masarifi & Ratibi',
   'position.empty.action': 'Add your first transaction',
   'position.partial.title': 'Some information is incomplete',
   'position.partial.action': 'Review missing data',
@@ -360,7 +360,7 @@ const en = {
     'This temporary screen is waiting for the Clerk sign-in connection.',
   'appShell.auth.pending.preview': 'Continue preview',
   'profileSetup.title': 'What should we call you?',
-  'profileSetup.supporting': 'We use it to personalize Masarifi.',
+  'profileSetup.supporting': 'We use it to personalize Masarifi & Ratibi.',
   'profileSetup.nameLabel': 'Name',
   'profileSetup.nameHelper': 'From your account. You can edit it anytime.',
   'profileSetup.nameRequired': 'Enter your name to continue.',
@@ -370,7 +370,7 @@ const en = {
   'profileSetup.continue': 'Continue',
   'profileSetup.retry': 'Try again',
   'profileSetup.saveError': "We couldn't save your details. Try again.",
-  'appShell.public.welcome.title': 'Masarifi',
+  'appShell.public.welcome.title': 'Masarifi & Ratibi',
   'appShell.public.welcome.body':
     'Track money clearly with manual and automatic capture.',
   'appShell.public.welcome.signIn': 'Sign in',
@@ -386,7 +386,7 @@ const en = {
   'appShell.auth.method.google': 'Google',
   'appShell.auth.signIn.title': 'Sign in securely',
   'appShell.auth.required.message':
-    'Sign in to continue to this protected Masarifi area.',
+    'Sign in to continue to this protected Masarifi & Ratibi area.',
   'appShell.auth.required.saveFailed': 'Could not prepare sign in. Try again.',
   'appShell.auth.signUp.title': 'Create your account',
   'appShell.auth.phone.countryCode': 'Country code',
@@ -423,7 +423,7 @@ const en = {
     'Android can help detect clear financial messages after you approve access.',
   'appShell.onboarding.permission.title': 'Allow message tracking',
   'appShell.onboarding.permission.purpose':
-    'Masarifi checks financial messages on this device only.',
+    'Masarifi & Ratibi checks financial messages on this device only.',
   'appShell.onboarding.permission.dataUse':
     'Codes, marketing, and unclear messages are not added silently.',
   'appShell.onboarding.permission.benefit':
@@ -472,8 +472,8 @@ const en = {
   'appShell.more.services': 'Services',
   'appShell.more.accountSettings': 'Account and Settings',
   'appShell.more.profileSummary': 'Profile and account summary',
-  'appShell.more.defaultUserName': 'Masarifi User',
-  'appShell.more.defaultUserEmail': 'Masarifi account',
+  'appShell.more.defaultUserName': 'Masarifi & Ratibi User',
+  'appShell.more.defaultUserEmail': 'Masarifi & Ratibi account',
   'appShell.more.planBasic': 'Basic',
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
@@ -914,7 +914,7 @@ const en = {
   'coreFinance.accounts.setup.educationTitle':
     'Why do we need the last 4 digits?',
   'coreFinance.accounts.setup.educationBody':
-    'Banks include the last 4 digits in SMS alerts. This helps Masarifi match transactions to this account automatically.',
+    'Banks include the last 4 digits in SMS alerts. This helps Masarifi & Ratibi match transactions to this account automatically.',
   'coreFinance.accounts.setup.nameExample.bank':
     'e.g. Salary Account, Main Checking',
   'coreFinance.accounts.setup.nameExample.credit_card':
@@ -939,7 +939,7 @@ const en = {
   'coreFinance.accounts.restore': 'Restore account',
   'coreFinance.accounts.typeSelect.title': 'What are you adding?',
   'coreFinance.accounts.typeSelect.subtitle':
-    'This determines how Masarifi will track the account.',
+    'This determines how Masarifi & Ratibi will track the account.',
   'coreFinance.accounts.typeSelect.bank': 'Debit Card / Bank Account',
   'coreFinance.accounts.typeSelect.bank.desc':
     'Regular bank account or debit card for transfers.',
@@ -1060,12 +1060,12 @@ const en = {
   'tracking.home.onboardingHeading': "Let's get started.",
   'tracking.home.enableTitle': 'Track your spending automatically',
   'tracking.home.enableBody':
-    'Let Masarifi detect supported transactions automatically.',
+    'Let Masarifi & Ratibi detect supported transactions automatically.',
   'tracking.home.enableAction': 'Enable automatic tracking',
   'tracking.home.dismissAction': 'Dismiss automatic tracking suggestion',
   'notifications.home.enableTitle': 'Turn on notifications',
   'notifications.home.enableBody':
-    'Get transaction alerts and reminders from Masarifi.',
+    'Get transaction alerts and reminders from Masarifi & Ratibi.',
   'notifications.home.enableAction': 'Enable notifications',
   'notifications.home.dismissAction': 'Dismiss notification suggestion',
   'notifications.home.enableFailed':
@@ -1094,7 +1094,7 @@ const en = {
   'tracking.howItWorks.privacy':
     'Your messages are never stored. Only expense transaction data is preserved.',
   'tracking.howItWorks.background':
-    'Ensure the app is allowed to run in the background via phone settings > Apps > Masarifi > Battery.',
+    'Ensure the app is allowed to run in the background via phone settings > Apps > Masarifi & Ratibi > Battery.',
   'tracking.howItWorks.deviceWarning':
     'Some devices (Xiaomi, Samsung, Huawei, etc.) restrict background apps. Tap here to learn how to adjust this for your device.',
   'tracking.keywords.sectionTitle': 'Keywords',
@@ -1229,7 +1229,7 @@ const en = {
   'tracking.duplicate.merge': 'Merge details',
   'tracking.keywords.title': 'Tracking keywords',
   'tracking.keywords.permissionScope':
-    'Keywords guide matching inside Masarifi after permission. They do not narrow system permission.',
+    'Keywords guide matching inside Masarifi & Ratibi after permission. They do not narrow system permission.',
   'tracking.senders.title': 'Sender rules',
   'tracking.senders.search': 'Search senders',
   'tracking.senders.empty': 'No senders found',
@@ -1253,7 +1253,7 @@ const en = {
   'voice.demoNotice': 'Voice analysis is simulated in this frontend build.',
   'voice.permission.title': 'Allow microphone access',
   'voice.permission.body':
-    'Masarifi uses the microphone only while you record this transaction.',
+    'Masarifi & Ratibi uses the microphone only while you record this transaction.',
   'voice.permission.request': 'Allow microphone',
   'voice.permission.settings': 'Open settings',
   'voice.record.start': 'Start recording',
@@ -1884,7 +1884,7 @@ const en = {
     'Review \u2068SAR 25.00\u2069 before continuing.',
   'notifications.center.unreadLabel': 'Unread notifications',
   'notifications.fallback.title': 'Financial update',
-  'notifications.fallback.body': 'Open Masarifi to review the latest update.',
+  'notifications.fallback.body': 'Open Masarifi & Ratibi to review the latest update.',
   'notifications.center.markAllRead': 'Mark all read',
   'notifications.center.countSuffix': 'notifications',
   'notifications.center.loading': 'Loading notifications',
@@ -1956,7 +1956,7 @@ const en = {
   'notifications.preferences.save': 'Save notification preferences',
   'notifications.preferences.requestTitle': 'Request notification permission',
   'notifications.preferences.requestMessage':
-    'Masarifi will ask the device for notification permission next.',
+    'Masarifi & Ratibi will ask the device for notification permission next.',
   'notifications.preferences.requestConfirm': 'Request permission',
   'notifications.actions.view': 'View',
   'notifications.actions.edit': 'Edit',
@@ -2308,9 +2308,9 @@ const en = {
   'settings.profile.details': 'Details',
   'settings.profile.planFree': 'Free Plan',
   'settings.profile.planDesc':
-    'Unlock everything Masarifi can do: automatic tracking & smart insights',
+    'Unlock everything Masarifi & Ratibi can do: automatic tracking & smart insights',
   'settings.profile.goPro': 'Upgrade to Pro 💎',
-  'settings.profile.activity': 'Smart expense tracking with Masarifi ✨',
+  'settings.profile.activity': 'Smart expense tracking with Masarifi & Ratibi ✨',
   'settings.profile.avatar.default': 'Default profile image',
   'settings.profile.phone.notSet': 'Phone number not set',
   'settings.profile.google.notLinked': 'Google account not linked',
@@ -2404,7 +2404,7 @@ const en = {
   'settings.securityEvents.recover.security': 'Review security settings',
   'settings.securityEvents.recover.settings': 'Review privacy settings',
   'support.home.title': 'Help and support',
-  'support.home.version': 'Masarifi app version',
+  'support.home.version': 'Masarifi & Ratibi app version',
   'support.home.articles': 'Help articles',
   'support.search.input': 'Search help',
   'support.search.noResultsCreateTicket': 'Create a support ticket',
