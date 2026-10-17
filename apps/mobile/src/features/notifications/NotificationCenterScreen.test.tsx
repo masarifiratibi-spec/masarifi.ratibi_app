@@ -210,7 +210,7 @@ it('uses localized safe copy when an emitted notification key is missing', () =>
   renderWithProviders(<NotificationCenterScreen />);
 
   expect(screen.getByText('Financial update')).toBeTruthy();
-  expect(screen.getByText('Open Masarifi to review the latest update.')).toBeTruthy();
+  expect(screen.getByText('Open Masarifi & Ratibi to review the latest update.')).toBeTruthy();
   expect(screen.queryByText('notifications.tracking.expense.review-required.title')).toBeNull();
 });
 

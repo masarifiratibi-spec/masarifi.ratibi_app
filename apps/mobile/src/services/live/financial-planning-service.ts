@@ -57,7 +57,15 @@ import {
 
 const uuid = z.string().uuid();
 const instant = z.string().datetime({ offset: true });
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
+// PostgreSQL date columns may arrive serialized as UTC-midnight timestamps.
+const date = z.union([
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
+  z
+    .string()
+    .datetime()
+    .regex(/T00:00:00\.000Z$/u)
+    .transform((value) => value.slice(0, 10))
+]);
 const minor = z.string().regex(/^-?(?:0|[1-9]\d*)$/u);
 const metadata = {
   id: uuid,
@@ -837,7 +845,7 @@ function salaryCycle(
         reason: 'insufficient_history'
       },
       salaryState: 'unconfigured',
-      dataState: summary.dataState
+      dataState: 'empty'
     };
   }
   const income = parsePlanningMinor(salary.actualIncomeMinor);

@@ -67,10 +67,8 @@ export function ObligationOverviewScreen() {
     <PlanningScreen titleKey="planning.obligations.title" backgroundColor={theme.colors.surfaces.page} hideHeader>
       {query.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError ? (
+      ) : query.isError || !query.data ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
-      ) : !items.length ? (
-        <PlanningState state="empty" />
       ) : (
         <>
           <ObligationHeroHeader

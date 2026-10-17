@@ -1250,6 +1250,69 @@ describe('live financial-planning service contract', () => {
     ).resolves.toBeNull();
   });
 
+  it.each(['2026-12-31', '2026-12-31T00:00:00.000Z'])(
+    'keeps goals, salary and obligations available with API date %s',
+    async (targetDate) => {
+      const goal = { ...savingsGoalWireFixture, targetDate };
+      const request = jest.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path.includes('/planning/summary'))
+          return response({
+            period: '2026-09',
+            dataState: 'ready',
+            ledgerVersion: 1,
+            salary: null,
+            budgets: [],
+            obligations: { payables: [], receivables: [] },
+            savings: [goal]
+          });
+        if (path.includes('/savings-goals'))
+          return response({ items: [goal], nextCursor: null });
+        if (path.includes('/obligations'))
+          return response({ items: [], nextCursor: null });
+        throw new Error('Unexpected planning request');
+      });
+      const service = createLiveFinancialPlanningService({
+        baseUrl: 'https://api.test',
+        request
+      });
+
+      await expect(service.listGoals({})).resolves.toEqual([
+        expect.objectContaining({ targetDate: '2026-12-31' })
+      ]);
+      await expect(
+        service.getSalaryOverview({
+          today: '2026-09-09',
+          timeZone: 'Asia/Riyadh'
+        })
+      ).resolves.toMatchObject({ dataState: 'empty' });
+      await expect(service.getObligationsOverview({})).resolves.toMatchObject({
+        items: []
+      });
+    }
+  );
+
+  it.each([
+    '2026-12-31T12:30:00.000Z',
+    '2026-12-31T00:00:00.000+03:00',
+    '2026-02-30T00:00:00.000Z'
+  ])('rejects ambiguous or invalid planning date %s', async (targetDate) => {
+    const service = createLiveFinancialPlanningService({
+      baseUrl: 'https://api.test',
+      request: jest
+        .fn()
+        .mockResolvedValue(
+          response({
+            items: [{ ...savingsGoalWireFixture, targetDate }],
+            nextCursor: null
+          })
+        )
+    });
+    await expect(service.listGoals({})).rejects.toMatchObject({
+      code: 'contract_mismatch'
+    });
+  });
+
   it('traverses complete goal pages and preserves rich optional fields and versions', async () => {
     const request = jest
       .fn()

@@ -1,10 +1,12 @@
 import React from 'react';
+import { router } from 'expo-router';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 
 import { changeLocale, translate } from '@/localization/i18n';
+import { financialPlanningKeys } from '@/features/financial-planning/financial-planning-queries';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { renderWithProviders } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationForm } from './ObligationForm';
 import { ObligationOverviewScreen } from './ObligationOverviewScreen';
@@ -28,6 +30,36 @@ jest.mock('@/services/mocks/financial-planning-service', () => {
     financialPlanningService: actual.createSeededFinancialPlanningService()
   };
 });
+
+it.each(['ar', 'en'] as const)(
+  'keeps the obligation header and first-add action visible in %s',
+  (locale) => {
+    changeLocale(locale);
+    const push = jest.spyOn(router, 'push').mockImplementation(() => {});
+    try {
+      const overview = renderWithQueryData(<ObligationOverviewScreen />, [
+        [
+          [...financialPlanningKeys.obligations(), 'overview'],
+          {
+            items: [],
+            payablesByCurrency: {},
+            receivablesByCurrency: {},
+            remainingByObligationId: {},
+            nextDueDate: null,
+            nextDueAmountMinor: null,
+            nextDueObligationId: null
+          }
+        ]
+      ]);
+      expect(overview.getByTestId('obligations-hero')).toBeTruthy();
+      expect(overview.getByText(translate('planning.state.empty'))).toBeTruthy();
+      fireEvent.press(overview.getByLabelText(translate('planning.obligations.new')));
+      expect(push).toHaveBeenCalledWith('/obligations/new');
+    } finally {
+      push.mockRestore();
+    }
+  }
+);
 
 it('shows the approved obligation overview hierarchy and filters completed records', async () => {
   changeLocale('en');
