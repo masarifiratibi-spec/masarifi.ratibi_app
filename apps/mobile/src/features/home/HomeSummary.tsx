@@ -42,6 +42,7 @@ import type { HomeTodayActivity } from '@/services/contracts/core-finance-servic
 import { AccountScopeSheet } from '@/features/accounts/AccountScopeSheet';
 import { useHomeActivityOffset } from './HomeActivityViewport';
 import { HomeActivityRows } from './HomeActivityRows';
+import { FirstVoicePrompt } from './FirstVoicePrompt';
 
 export function HomeSummary({
   accounts,
@@ -466,9 +467,11 @@ export function HomeSummary({
           { backgroundColor: theme.colors.surfaces.page }
         ]}
       >
+        <FirstVoicePrompt hasRecordedTransactions={summary.recentTransactions.length > 0 || todayActivity.length > 0} />
         {voice.automatic ? (
           <VoiceBatchStatus
             batches={voice.batches}
+            showEmpty={false}
             showProgress={!batchProcessing}
           />
         ) : null}

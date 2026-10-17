@@ -638,6 +638,7 @@ const ar: MessageCatalog = {
   'coreFinance.home.recentExpenses': 'مصروفات اليوم',
   'coreFinance.home.recentIncome': 'دخل اليوم',
   'coreFinance.home.todayEmpty': 'لا توجد معاملات اليوم',
+  'coreFinance.home.firstVoicePrompt': 'سجّل أول معاملة بصوتك.',
   'coreFinance.home.manageAccounts': 'إدارة الحسابات',
   'coreFinance.home.howBalancesWork': 'كيف تعمل الأرصدة',
   'coreFinance.home.balanceExplanation':

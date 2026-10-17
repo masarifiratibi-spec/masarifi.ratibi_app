@@ -6,10 +6,12 @@ import type { useVoiceBatches } from './useVoiceBatches';
 
 export function VoiceBatchStatus({
   batches,
-  showProgress = true
+  showProgress = true,
+  showEmpty = true
 }: {
   batches: ReturnType<typeof useVoiceBatches>;
   showProgress?: boolean;
+  showEmpty?: boolean;
 }) {
   const result = batches.latest;
   return (
@@ -34,7 +36,7 @@ export function VoiceBatchStatus({
       {showProgress && batches.processing ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
-      {result?.status === 'completed' &&
+      {showEmpty && result?.status === 'completed' &&
       result.addedCount === 0 &&
       !result.analysis ? (
         <StyledText>{translate('voice.batch.empty')}</StyledText>

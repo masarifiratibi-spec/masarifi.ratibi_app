@@ -87,6 +87,40 @@ const summary: HomeSummary = {
 };
 
 it.each([
+  ['ar', 'سجّل أول معاملة بصوتك.'],
+  ['en', 'Record your first transaction by voice.']
+] as const)('shows the first-transaction voice invitation in %s and removes it after any recorded transaction', async (locale, invitation) => {
+  changeLocale(locale);
+  const history = jest.spyOn(coreFinanceService, 'listTransactions').mockResolvedValue({ items: [], nextCursor: null });
+  const emptySummary = { ...summary, recentTransactions: [], dataState: 'empty' as const };
+  function FirstTransactionJourney() {
+    const [saved, setSaved] = React.useState(false);
+    return <>
+      <HomeScreen summary={saved ? { ...summary, recentTransactions: [makeTransaction(71, { source: 'manual' })] } : emptySummary} />
+      <StyledText onPress={() => setSaved(true)}>Record any transaction</StyledText>
+    </>;
+  }
+  const view = renderWithProviders(<FirstTransactionJourney />);
+  try {
+    await waitFor(() => expect(screen.getByText(invitation)).toBeTruthy());
+    fireEvent.press(screen.getByText('Record any transaction'));
+    expect(screen.queryByText(invitation)).toBeNull();
+  } finally { view.unmount(); history.mockRestore(); }
+});
+
+it('does not show the first-transaction invitation for an empty period when older history exists', async () => {
+  changeLocale('en');
+  const history = jest.spyOn(coreFinanceService, 'listTransactions').mockResolvedValue({
+    items: [makeTransaction(72, { occurredAt: Date.UTC(2025, 0, 1), source: 'automatic' })], nextCursor: null
+  });
+  const view = renderWithProviders(<HomeScreen summary={{ ...summary, recentTransactions: [] }} />);
+  try {
+    await waitFor(() => expect(history).toHaveBeenCalled());
+    expect(screen.queryByText('Record your first transaction by voice.')).toBeNull();
+  } finally { view.unmount(); history.mockRestore(); }
+});
+
+it.each([
   ['ar', 'expense', 'العناية بالحيوانات'],
   ['en', 'expense', 'Pet care'],
   ['ar', 'income', 'عمل مستقل'],

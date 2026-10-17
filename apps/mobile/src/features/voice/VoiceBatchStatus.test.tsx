@@ -4,6 +4,17 @@ import { changeLocale } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 import { VoiceBatchStatus } from './VoiceBatchStatus';
 
+it('can hide historical zero-added copy on Home while retaining the result', () => {
+  renderWithProviders(<VoiceBatchStatus showEmpty={false} batches={{
+    submit: () => undefined, recover: async () => undefined, cancel: async () => undefined,
+    results: [], pendingIds: [], cancelIds: [], uncertain: false, localFailure: false,
+    localFailureCode: undefined, processing: false,
+    latest: { sessionId: '11111111-1111-4111-8111-111111111111', batchId: null, status: 'completed', addedCount: 0, transactionIds: [], ledgerVersion: 0 }
+  }} />);
+  expect(screen.queryByText('لم تتم إضافة أي معاملات.')).toBeNull();
+  expect(screen.queryByText('No transactions were added.')).toBeNull();
+});
+
 it.each([
   ['en', false, 'Analyzing recording...', 'Checking the result…'],
   ['en', true, 'Analyzing recording...', 'Checking the result…'],

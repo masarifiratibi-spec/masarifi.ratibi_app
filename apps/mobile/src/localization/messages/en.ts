@@ -663,6 +663,7 @@ const en = {
   'coreFinance.home.recentExpenses': "Today's expenses",
   'coreFinance.home.recentIncome': "Today's income",
   'coreFinance.home.todayEmpty': 'No transactions today',
+  'coreFinance.home.firstVoicePrompt': 'Record your first transaction by voice.',
   'coreFinance.home.manageAccounts': 'Manage accounts',
   'coreFinance.home.howBalancesWork': 'How balances work',
   'coreFinance.home.balanceExplanation':
