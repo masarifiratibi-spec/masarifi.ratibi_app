@@ -11,6 +11,7 @@ import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
 import { parseAmountToMinor, safeMinorSum, type Account } from '@/domain/core-finance';
+import { localDateInTimeZone, localDateTimeInstant } from '@/domain/financial-period';
 import {
   localDateFromTimestamp,
   type LocalDate
@@ -40,11 +41,12 @@ export function ObligationPaymentScreen({
   const accounts = useAccounts();
   const balances = useAccountBalances();
   const theme = useTheme();
+  const timeZone = usePreferenceStore((state) => state.timeZone);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const [amount, setAmount] = useState('');
   const [paidDate, setPaidDate] = useState(
-    () => new Date().toISOString().slice(0, 10) as LocalDate
+    () => localDateInTimeZone(Date.now(), timeZone)
   );
   const [accountId, setAccountId] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
@@ -116,7 +118,7 @@ export function ObligationPaymentScreen({
               categoryId: null,
               title: item.title,
               merchant: item.provider,
-              occurredAt: Date.parse(`${paidDate}T12:00:00Z`),
+              occurredAt: localDateTimeInstant(paidDate, timeZone),
               notes: null,
               originalTransactionId: null,
               obligationId

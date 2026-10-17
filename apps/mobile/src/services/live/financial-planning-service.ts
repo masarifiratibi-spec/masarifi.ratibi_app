@@ -1860,7 +1860,20 @@ export function createLiveFinancialPlanningService({
       const transactionId = created
         ? (
             await ledger.createTransaction(
-              transaction.input,
+              transaction.input.type === 'obligation_payment'
+                ? {
+                    ...transaction.input,
+                    type:
+                      current.obligation.direction === 'payable'
+                        ? 'expense'
+                        : 'income',
+                    categoryId:
+                      transaction.input.categoryId ??
+                      (current.obligation.direction === 'payable'
+                        ? '04000000-0000-4000-8000-000000000019'
+                        : '04000000-0000-4000-8000-000000000017')
+                  }
+                : transaction.input,
               `${operationId}.transaction`,
               'manual'
             )

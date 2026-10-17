@@ -7,6 +7,47 @@ import { renderWithProviders } from '@/test-utils/render';
 import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationPaymentScreen } from './ObligationPaymentScreen';
 import { PaymentMatchReviewScreen } from './PaymentMatchReviewScreen';
+import { usePreferenceStore } from '@/state/preferences';
+
+it.each(['2026-10-16T22:30:00Z', '2026-10-17T02:30:00Z'])(
+  'records an early-morning payment at %s on the owner local day without a future ledger timestamp',
+  async (now) => {
+    jest.useFakeTimers({ now: Date.parse(now) });
+    const previousZone = usePreferenceStore.getState().timeZone;
+    usePreferenceStore.setState({ timeZone: 'Asia/Riyadh' });
+    changeLocale('en');
+    const preview = jest.spyOn(
+      financialPlanningService,
+      'previewObligationPayment'
+    );
+    const payment = renderWithProviders(
+      <ObligationPaymentScreen obligationId="obligation-car" />
+    );
+    try {
+      fireEvent.changeText(
+        await payment.findByLabelText('Payment amount'),
+        '50'
+      );
+      fireEvent.press(payment.getByText('Review payment'));
+      await payment.findByText('Confirm payment');
+      expect(preview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paidDate: '2026-10-17',
+          transaction: expect.objectContaining({
+            input: expect.objectContaining({
+              occurredAt: Date.parse('2026-10-16T21:00:00Z')
+            })
+          })
+        })
+      );
+    } finally {
+      payment.unmount();
+      preview.mockRestore();
+      usePreferenceStore.setState({ timeZone: previousZone });
+      jest.useRealTimers();
+    }
+  }
+);
 
 it('previews and confirms a payment, then resolves a detected match', async () => {
   changeLocale('en');

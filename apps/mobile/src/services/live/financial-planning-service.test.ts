@@ -1941,70 +1941,136 @@ describe('live financial-planning service contract', () => {
     ]);
   });
 
-  it('uses only an authoritative linked transaction and preserves the server operation id', async () => {
-    const obligationId = '70000000-0000-4000-8000-000000000071';
-    const scheduleId = '70000000-0000-4000-8000-000000000072';
-    const transactionId = '70000000-0000-4000-8000-000000000073';
-    const paymentId = '70000000-0000-4000-8000-000000000074';
-    const serverOperationId = '70000000-0000-4000-8000-000000000075';
-    const obligation = {
-      id: obligationId,
-      name: 'Loan',
-      direction: 'payable',
-      type: 'debt',
-      scheduleKind: 'fixed_term',
-      currencyCode: 'SAR',
-      principalMinor: '100',
-      openingPaidMinor: '0',
-      installmentAmountMinor: '100',
-      installmentCount: 1,
-      frequency: 'monthly',
-      expectedDay: 20,
-      customIntervalDays: null,
-      startDate: '2026-09-01',
-      endDate: null,
-      status: 'active',
-      defaultAccountId: null,
-      automaticMatchingEnabled: true,
-      provider: null,
-      providerKeywords: [],
-      reminderTiming: null,
-      notes: null,
-      deletedAt: null,
-      createdAt: '2026-09-01T00:00:00.000Z',
-      updatedAt: '2026-09-01T00:00:00.000Z',
-      version: 4,
-      summary: {
-        direction: 'payable',
+  it.each(['linked', 'payable', 'receivable'] as const)(
+    'confirms a %s payment through the live ledger and preserves the server operation id',
+    async (scenario) => {
+      const obligationId = '70000000-0000-4000-8000-000000000071';
+      const scheduleId = '70000000-0000-4000-8000-000000000072';
+      const transactionId = '70000000-0000-4000-8000-000000000073';
+      const paymentId = '70000000-0000-4000-8000-000000000074';
+      const serverOperationId = '70000000-0000-4000-8000-000000000075';
+      const obligation = {
+        id: obligationId,
+        name: 'Loan',
+        direction: scenario === 'receivable' ? 'receivable' : 'payable',
+        type: 'debt',
+        scheduleKind: 'fixed_term',
         currencyCode: 'SAR',
-        scheduledMinor: '100',
-        allocatedMinor: '0',
-        paidMinor: '0',
-        remainingMinor: '100',
-        overdueMinor: '0',
-        nextDueAt: '2026-09-20T00:00:00.000Z',
-        completedInstallmentCount: 0,
+        principalMinor: '100',
+        openingPaidMinor: '0',
+        installmentAmountMinor: '100',
+        installmentCount: 1,
+        frequency: 'monthly',
+        expectedDay: 20,
+        customIntervalDays: null,
+        startDate: '2026-09-01',
+        endDate: null,
         status: 'active',
-        ledgerVersion: 3
-      },
-      requestId: 'obligation-detail'
-    };
-    const schedule = {
-      id: scheduleId,
-      obligationId,
-      dueAt: '2026-09-20T00:00:00.000Z',
-      amountMinor: '100',
-      paidMinor: '0',
-      status: 'due',
-      sequenceNo: 1,
-      kind: 'installment',
-      createdAt: '2026-09-01T00:00:00.000Z',
-      updatedAt: '2026-09-01T00:00:00.000Z',
-      version: 1
-    };
-    const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
-      async (input, init) => {
+        defaultAccountId: null,
+        automaticMatchingEnabled: true,
+        provider: null,
+        providerKeywords: [],
+        reminderTiming: null,
+        notes: null,
+        deletedAt: null,
+        createdAt: '2026-09-01T00:00:00.000Z',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+        version: 4,
+        summary: {
+          direction: 'payable',
+          currencyCode: 'SAR',
+          scheduledMinor: '100',
+          allocatedMinor: '0',
+          paidMinor: '0',
+          remainingMinor: '100',
+          overdueMinor: '0',
+          nextDueAt: '2026-09-20T00:00:00.000Z',
+          completedInstallmentCount: 0,
+          status: 'active',
+          ledgerVersion: 3
+        },
+        requestId: 'obligation-detail'
+      };
+      const schedule = {
+        id: scheduleId,
+        obligationId,
+        dueAt: '2026-09-20T00:00:00.000Z',
+        amountMinor: '100',
+        paidMinor: '0',
+        status: 'due',
+        sequenceNo: 1,
+        kind: 'installment',
+        createdAt: '2026-09-01T00:00:00.000Z',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+        version: 1
+      };
+      const request = jest.fn<
+        ReturnType<typeof fetch>,
+        Parameters<typeof fetch>
+      >(async (input, init) => {
         const url = String(input);
+        if (url.endsWith('/api/v1/transactions') && init?.method === 'POST') {
+          const body = JSON.parse(String(init.body));
+          const accountId = '70000000-0000-4000-8000-000000000076';
+          expect(body).toMatchObject({
+            kind: scenario === 'receivable' ? 'income' : 'expense',
+            amountMinor: 100,
+            accountId
+          });
+          expect(body.categoryId).toBe(
+            scenario === 'receivable'
+              ? '04000000-0000-4000-8000-000000000017'
+              : '04000000-0000-4000-8000-000000000019'
+          );
+          const occurredAt = '2026-09-09T12:00:00.000Z';
+          return response(
+            {
+              transaction: {
+                transaction: {
+                  id: transactionId,
+                  kind: body.kind,
+                  status: 'confirmed',
+                  amountMinor: 100,
+                  currency: 'SAR',
+                  accountIds: [accountId],
+                  sourceAccountId: accountId,
+                  destinationAccountId: null,
+                  feeMinor: 0,
+                  title: 'Loan',
+                  occurredAt,
+                  source: 'manual',
+                  version: 1
+                },
+                postings: [
+                  {
+                    id: '70000000-0000-4000-8000-000000000077',
+                    accountId,
+                    amountMinor: body.kind === 'expense' ? -100 : 100,
+                    clearingState: 'confirmed',
+                    postingRole:
+                      body.kind === 'expense' ? 'source' : 'destination',
+                    occurredAt
+                  }
+                ],
+                revisions: [],
+                ledgerVersion: 4,
+                requestId: 'ledger-detail'
+              },
+              balances: [
+                {
+                  accountId,
+                  currency: 'SAR',
+                  confirmedMinor: 900,
+                  pendingMinor: 0,
+                  ledgerVersion: 4
+                }
+              ],
+              ledgerVersion: 4,
+              requestId: 'ledger-create'
+            },
+            201
+          );
+        }
         if (init?.method === 'POST')
           return response(
             mutation(
@@ -2036,52 +2102,69 @@ describe('live financial-planning service contract', () => {
             requestId: 'schedule'
           });
         return response(obligation);
-      }
-    );
-    const service = createLiveFinancialPlanningService({
-      baseUrl: 'https://api.test',
-      request
-    });
-    await expect(
-      service.previewObligationPayment({
+      });
+      const service = createLiveFinancialPlanningService({
+        baseUrl: 'https://api.test',
+        request
+      });
+      await expect(
+        service.previewObligationPayment({
+          obligationId,
+          amountMinor: 101,
+          currencyCode: 'SAR',
+          paidDate: '2026-09-09',
+          source: 'manual',
+          transaction: { kind: 'link', transactionId }
+        })
+      ).rejects.toMatchObject({ code: 'offline_unavailable' });
+      const preview = await service.previewObligationPayment({
         obligationId,
-        amountMinor: 101,
+        amountMinor: 100,
         currencyCode: 'SAR',
         paidDate: '2026-09-09',
         source: 'manual',
-        transaction: { kind: 'link', transactionId }
-      })
-    ).rejects.toMatchObject({ code: 'offline_unavailable' });
-    const preview = await service.previewObligationPayment({
-      obligationId,
-      amountMinor: 100,
-      currencyCode: 'SAR',
-      paidDate: '2026-09-09',
-      source: 'manual',
-      transaction: { kind: 'link', transactionId }
-    });
-    const outcome = await service.confirmObligationPayment(
-      preview.previewId,
-      { allocations: preview.allocations, intent: 'current' },
-      'payment-client-key'
-    );
-    expect(outcome.value.payment).toMatchObject({
-      transactionId,
-      operationId: serverOperationId,
-      transactionOwnership: 'linked_existing',
-      amountMinor: 100,
-      version: 1
-    });
-    const post = request.mock.calls.find(([, init]) => init?.method === 'POST');
-    expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
-      transactionId,
-      expectedVersion: 4
-    });
-    await expect(service.getObligation(obligationId)).resolves.toMatchObject({
-      payments: [],
-      paymentHistoryState: 'unavailable'
-    });
-  });
+        transaction:
+          scenario === 'linked'
+            ? { kind: 'link', transactionId }
+            : {
+                kind: 'create',
+                input: {
+                  type: 'obligation_payment',
+                  amountMinor: 100,
+                  currencyCode: 'SAR',
+                  accountId: '70000000-0000-4000-8000-000000000076',
+                  title: 'Loan',
+                  occurredAt: Date.parse('2026-09-09T12:00:00.000Z')
+                }
+              }
+      });
+      const outcome = await service.confirmObligationPayment(
+        preview.previewId,
+        { allocations: preview.allocations, intent: 'current' },
+        'payment-client-key'
+      );
+      expect(outcome.value.payment).toMatchObject({
+        transactionId,
+        operationId: serverOperationId,
+        transactionOwnership:
+          scenario === 'linked' ? 'linked_existing' : 'created',
+        amountMinor: 100,
+        version: 1
+      });
+      const post = request.mock.calls.find(
+        ([input, init]) =>
+          init?.method === 'POST' && String(input).endsWith('/payments')
+      );
+      expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
+        transactionId,
+        expectedVersion: 4
+      });
+      await expect(service.getObligation(obligationId)).resolves.toMatchObject({
+        payments: [],
+        paymentHistoryState: 'unavailable'
+      });
+    }
+  );
 
   test.each([
     [
