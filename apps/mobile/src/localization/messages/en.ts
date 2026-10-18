@@ -845,6 +845,7 @@ const en = {
   'coreFinance.form.save': 'Save transaction',
   'coreFinance.validation.required': 'Enter the required transaction details',
   'coreFinance.validation.invalid': 'Review the transaction details',
+  'coreFinance.validation.refundFloor': 'The expense cannot be less than the total already refunded',
   'coreFinance.validation.refund':
     'Enter an amount within the eligible remaining refund',
   'coreFinance.undo': 'Undo',

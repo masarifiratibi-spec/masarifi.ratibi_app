@@ -127,6 +127,7 @@ describe('Mobile strict HTTP client', () => {
   });
   it.each([
     ['AMOUNT_OUT_OF_RANGE', 400, 'validation_error'],
+    ['AMOUNT_BELOW_REFUNDED', 409, 'conflict'],
     ['TRACKING_ACCOUNT_BLOCKED', 409, 'conflict']
   ])(
     'preserves the definite %s rejection and its request correlation',

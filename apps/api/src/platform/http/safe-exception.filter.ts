@@ -95,6 +95,10 @@ const domainErrors: Record<string, { status: number; message: string }> = {
     status: 409,
     message: 'Refund exceeds the available amount',
   },
+  AMOUNT_BELOW_REFUNDED: {
+    status: 409,
+    message: 'Expense amount cannot be less than its confirmed refunds',
+  },
   UNDO_EXPIRED: { status: 409, message: 'Undo window has expired' },
   LEDGER_BUSY: { status: 409, message: 'Ledger is busy' },
   LEDGER_UNAVAILABLE: { status: 503, message: 'Ledger is unavailable' },

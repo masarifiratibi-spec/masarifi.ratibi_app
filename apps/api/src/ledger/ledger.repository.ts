@@ -159,6 +159,7 @@ function mapDatabaseError(
   if (message.includes('REVERSAL_EXISTS')) return domainError('REVERSAL_EXISTS', 409);
   if (message.includes('REFUND_EXCEEDS_AVAILABLE'))
     return domainError('REFUND_EXCEEDS_AVAILABLE', 409);
+  if (message.includes('AMOUNT_BELOW_REFUNDED')) return domainError('AMOUNT_BELOW_REFUNDED', 409);
   if (message.includes('UNDO_EXPIRED')) return domainError('UNDO_EXPIRED', 409);
   if (message.includes('VERSION_CONFLICT')) {
     const currentVersion = Number(pg.detail);

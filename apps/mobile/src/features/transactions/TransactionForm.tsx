@@ -803,17 +803,19 @@ function TransactionFormContent({
               ? 'coreFinance.manual.uncertain'
               : preparationPending
                 ? 'coreFinance.manual.localSave'
-                : domain === 'CATEGORY_INVALID'
-                  ? 'coreFinance.manual.category'
-                  : domain?.startsWith('ACCOUNT_')
-                    ? 'coreFinance.manual.account'
-                    : caught instanceof CoreFinanceError &&
-                        caught.metadata?.status === 401
-                      ? 'coreFinance.manual.auth'
+                : domain === 'AMOUNT_BELOW_REFUNDED'
+                  ? 'coreFinance.validation.refundFloor'
+                  : domain === 'CATEGORY_INVALID'
+                    ? 'coreFinance.manual.category'
+                    : domain?.startsWith('ACCOUNT_')
+                      ? 'coreFinance.manual.account'
                       : caught instanceof CoreFinanceError &&
-                          caught.metadata?.status === 429
-                        ? 'coreFinance.manual.rateLimit'
-                        : 'coreFinance.validation.invalid'
+                          caught.metadata?.status === 401
+                        ? 'coreFinance.manual.auth'
+                        : caught instanceof CoreFinanceError &&
+                            caught.metadata?.status === 429
+                          ? 'coreFinance.manual.rateLimit'
+                          : 'coreFinance.validation.invalid'
           )
         );
       }

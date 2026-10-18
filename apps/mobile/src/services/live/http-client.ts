@@ -72,6 +72,7 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   TRANSACTION_HAS_DEPENDENTS: 'conflict',
   REVERSAL_EXISTS: 'conflict',
   REFUND_EXCEEDS_AVAILABLE: 'conflict',
+  AMOUNT_BELOW_REFUNDED: 'conflict',
   UNDO_EXPIRED: 'conflict',
   FINANCIAL_ACCESS_DENIED: 'forbidden',
   RECENT_AUTH_REQUIRED: 'session_expired',

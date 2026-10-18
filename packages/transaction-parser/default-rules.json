@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "engineVersion": "2.0.0",
-  "releaseId": "bundled-sa-ae-eg-requests-2026-10-09",
-  "releaseNo": 3,
+  "releaseId": "bundled-currency-identity-2026-10-18",
+  "releaseNo": 4,
   "aiEnabled": false,
   "discoveryContexts": [
     "transaction",
@@ -101,7 +101,11 @@
       "scale": 3,
       "supported": true,
       "aliases": [
-        "OMR"
+        "OMR",
+        "ريال عماني",
+        "ريال عُماني",
+        "ريال عمانى",
+        "ر.ع"
       ]
     },
     {
@@ -109,7 +113,10 @@
       "scale": 3,
       "supported": true,
       "aliases": [
-        "BHD"
+        "BHD",
+        "دينار بحريني",
+        "دينار بحرينى",
+        "د.ب"
       ]
     },
     {

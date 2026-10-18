@@ -817,6 +817,7 @@ const ar: MessageCatalog = {
   'coreFinance.form.save': 'حفظ المعاملة',
   'coreFinance.validation.required': 'أدخل بيانات المعاملة المطلوبة',
   'coreFinance.validation.invalid': 'راجع بيانات المعاملة',
+  'coreFinance.validation.refundFloor': 'لا يمكن تقليل المصروف عن إجمالي المبالغ المستردة منه',
   'coreFinance.validation.refund':
     'أدخل مبلغًا ضمن الرصيد المتبقي المؤهل للاسترداد',
   'coreFinance.undo': 'تراجع',

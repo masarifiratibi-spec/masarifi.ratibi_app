@@ -97,6 +97,7 @@ it('keeps restored native fields mounted but blocks edits and actions while refo
     [coreFinanceKeys.categories(false), fixtureCategories]
   ]);
   const amount = await screen.findByLabelText('Amount');
+  await waitFor(() => expect(amount).toHaveProp('editable', true));
   let restore!: (value: ReturnType<typeof requiredDraft>) => void;
   jest.mocked(coreFinanceService.loadDraft).mockReturnValueOnce(new Promise(resolve => { restore = resolve; }));
   act(() => { mockFocusEffectCallback?.(); });
@@ -2323,6 +2324,7 @@ it.each([
   ['notfound404', 'not_found', { status: 404, domainCode: 'NOT_FOUND' }, 'coreFinance.validation.invalid'],
   ['conflict409', 'conflict', { status: 409, domainCode: 'IDEMPOTENCY_KEY_REUSED' }, 'coreFinance.validation.invalid'],
   ['currency409', 'conflict', { status: 409, domainCode: 'CURRENCY_MISMATCH' }, 'coreFinance.validation.invalid'],
+  ['refundFloor409', 'conflict', { status: 409, domainCode: 'AMOUNT_BELOW_REFUNDED' }, 'coreFinance.validation.refundFloor'],
   ['localSchema', 'validation', undefined, 'coreFinance.validation.invalid'],
   ['auth401', 'offline', { status: 401, domainCode: 'AUTH_TOKEN_INVALID' }, 'coreFinance.manual.auth'],
   ['rate429', 'offline', { status: 429, domainCode: 'RATE_LIMITED' }, 'coreFinance.manual.rateLimit'],
