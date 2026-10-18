@@ -125,6 +125,9 @@ describeLiveDatabase('budget planning live invariants', () => {
 
   it('counts eligible spend once across refunds and reclassification, excluding transfers and reversals', async () => {
     const expense = randomUUID();
+    const salaryProfile = randomUUID();
+    const salaryReceipt = randomUUID();
+    const salaryAccount = randomUUID();
     await pool.withClient(async (client) => {
       await client.query('begin');
       await client.query('set local role masarifi_migration');
@@ -144,9 +147,19 @@ describeLiveDatabase('budget planning live invariants', () => {
         expense,
       ]);
       await client.query(
-        `insert into public.salary_profiles(user_id,name,amount_minor,currency_code,frequency,expected_day)
-         values($1,'Salary',1000,'SAR','monthly',1)`,
-        [owner],
+        `insert into public.accounts(id,user_id,name,type,currency_code)
+         values($1,$2,'Salary fixture','bank','SAR')`,
+        [salaryAccount, owner],
+      );
+      await client.query(
+        `insert into public.salary_profiles(id,user_id,name,amount_minor,currency_code,frequency,expected_day,account_id)
+         values($1,$2,'Salary',1000,'SAR','monthly',1,$3)`,
+        [salaryProfile, owner, salaryAccount],
+      );
+      await client.query(
+        `insert into public.salary_receipts(id,user_id,salary_profile_id,expected_at,amount_minor)
+         values($1,$2,$3,'2026-09-01T00:00:00Z',1000)`,
+        [salaryReceipt, owner, salaryProfile],
       );
       await client.query('commit');
     });
@@ -158,13 +171,47 @@ describeLiveDatabase('budget planning live invariants', () => {
     const byCategory = new Map(rows.rows.map((row) => [row.category_id, row]));
     expect(byCategory.get(categoryA)?.spent_minor).toBe('0');
     expect(byCategory.get(categoryB)?.spent_minor).toBe('250');
+    const principal = { userId: owner, sessionId: 'session', factorAgeSeconds: 0 };
+    const period = { key: '2026-09', start: '2026-09-01', end: '2026-09-30' };
     await expect(
-      repository.getPlanningSummary(
-        { userId: owner, sessionId: 'session', factorAgeSeconds: 0 },
-        { key: '2026-09', start: '2026-09-01', end: '2026-09-30' },
-        'budget-refund-summary',
-      ),
-    ).resolves.toMatchObject({ salary: { actualExpenseMinor: '250' } });
+      repository.getPlanningSummary(principal, period, 'budget-without-salary-receipt'),
+    ).resolves.toMatchObject({ salary: { startReceiptId: null, actualExpenseMinor: '0' } });
+    const posted = await api<{ result: { transactionId: string } }>(
+      owner,
+      'select private.post_transaction($1,$2::jsonb) result',
+      [
+        owner,
+        JSON.stringify({
+          kind: 'income',
+          amountMinor: '1000',
+          currency: 'SAR',
+          accountId: salaryAccount,
+          title: 'Salary fixture',
+          occurredAt: '2026-09-01T00:00:00Z',
+          source: 'manual',
+        }),
+      ],
+    );
+    await api(owner, 'select private.link_salary_receipt($1,$2::jsonb)', [
+      owner,
+      JSON.stringify({
+        operation: 'link',
+        profileId: salaryProfile,
+        transactionId: posted.rows[0]?.result.transactionId,
+        expectedAt: '2026-09-01T00:00:00Z',
+        operationId: randomUUID(),
+        requestId: 'budget-salary-anchor',
+      }),
+    ]);
+    await expect(
+      repository.getPlanningSummary(principal, period, 'budget-refund-summary'),
+    ).resolves.toMatchObject({
+      salary: {
+        startReceiptId: salaryReceipt,
+        actualIncomeMinor: '1000',
+        actualExpenseMinor: '250',
+      },
+    });
   });
 
   it('marks utilization partial when categorized spend needs a missing FX rate', async () => {
