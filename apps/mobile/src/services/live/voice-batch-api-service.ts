@@ -171,7 +171,13 @@ export function createVoiceBatchApi(options: {
   removeAudio?: (uri: string) => Promise<void>;
 }): VoiceBatchApi {
   const inflight = new Map<string, Promise<VoiceBatchResult>>();
+  const captureSessions = new Map<
+    string,
+    { owner: string; epoch: number; session: string }
+  >();
+  const statusRequests = new Map<string, Promise<VoiceBatchResult>>();
   const localCleanups = new Map<string, Promise<void>>();
+  const mediaExpiryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const recoveryFailures = new Set<string>();
   const controllers = new Set<AbortController>();
   let epoch = 0;
@@ -387,10 +393,26 @@ export function createVoiceBatchApi(options: {
     await check(b);
     return next;
   };
-  const result = async (b: { owner: string; epoch: number }, session: string) =>
-    voiceBatchResultSchema.parse(
-      await send(b, 'GET', '/api/v1/voice/sessions/' + session + '/batch')
-    );
+  const result = async (
+    b: { owner: string; epoch: number; captureId?: string },
+    session: string
+  ) => {
+    if (b.captureId) captureSessions.set(b.captureId, { ...b, session });
+    const key = JSON.stringify([b.owner, b.epoch, session]);
+    const existing = statusRequests.get(key);
+    if (existing) return existing;
+    const pending = send(
+      b,
+      'GET',
+      '/api/v1/voice/sessions/' + session + '/batch'
+    )
+      .then((value) => voiceBatchResultSchema.parse(value))
+      .finally(() => {
+        if (statusRequests.get(key) === pending) statusRequests.delete(key);
+      });
+    statusRequests.set(key, pending);
+    return pending;
+  };
   const poll = async (b: { owner: string; epoch: number }, session: string) => {
     let current = await result(b, session);
     for (let n = 0; n < 125 && !terminal(current.status); n++) {
@@ -472,6 +494,34 @@ export function createVoiceBatchApi(options: {
   ) => {
     if (!retired.audioReference || !options.removeAudio) return;
     const key = b.owner + ':' + retired.id;
+    // Failure is not consent to erase the capture; retain its original 24h window.
+    if (
+      retired.phase === 'failed' &&
+      Date.now() < retired.recordedAt + 86400000
+    ) {
+      if (!mediaExpiryTimers.has(key)) {
+        const timer = setTimeout(
+          () => {
+            mediaExpiryTimers.delete(key);
+            void (async () => {
+              await check(b);
+              const current = (await loadVoiceBatches(b.owner)).find(
+                (row) => row.id === retired.id
+              );
+              await check(b);
+              if (current?.phase === 'failed') cleanupAudio(b, current);
+            })().catch(() => undefined);
+          },
+          retired.recordedAt + 86400000 - Date.now()
+        );
+        timer.unref?.();
+        mediaExpiryTimers.set(key, timer);
+      }
+      return;
+    }
+    const expiryTimer = mediaExpiryTimers.get(key);
+    if (expiryTimer) clearTimeout(expiryTimer);
+    mediaExpiryTimers.delete(key);
     if (localCleanups.has(key)) return;
     // Native cleanup cannot delay the already durable terminal outcome.
     const cleanup = (async () => {
@@ -690,6 +740,7 @@ export function createVoiceBatchApi(options: {
     if (existing) return existing;
     const pending = submit(id).finally(() => {
       if (inflight.get(id) === pending) inflight.delete(id);
+      captureSessions.delete(id);
     });
     inflight.set(id, pending);
     return pending;
@@ -729,6 +780,8 @@ export function createVoiceBatchApi(options: {
     async recoverBatches(onLocalPending) {
       const b = await binding();
       if (recoveryOwner !== b.owner) {
+        for (const timer of mediaExpiryTimers.values()) clearTimeout(timer);
+        mediaExpiryTimers.clear();
         recoveryOwner = b.owner;
         discoveryCursor = null;
         unresolved = new Set<string>();
@@ -803,6 +856,16 @@ export function createVoiceBatchApi(options: {
       } while (more);
       for (const session of unresolved) {
         if (discovered.has(session)) continue;
+        if (
+          [...captureSessions].some(
+            ([id, active]) =>
+              inflight.has(id) &&
+              active.owner === b.owner &&
+              active.epoch === b.epoch &&
+              active.session === session
+          )
+        )
+          continue;
         const value = await result(b, session);
         values.push(value);
         if (terminal(value.status)) remainingSessions.delete(session);
@@ -865,7 +928,11 @@ export function createVoiceBatchApi(options: {
               'voice-cancel:' + id
             )
           );
-        if (terminal(operation.phase))
+        if (operation.phase === 'failed' && !operation.sessionId) {
+          await retireLocal(b, operation, 'cancelled');
+          return null;
+        }
+        if (terminal(operation.phase) && operation.phase !== 'failed')
           return operation.sessionId ? result(b, operation.sessionId) : null;
         try {
           next =
@@ -899,6 +966,8 @@ export function createVoiceBatchApi(options: {
     },
     pauseBatches() {
       epoch++;
+      for (const timer of mediaExpiryTimers.values()) clearTimeout(timer);
+      mediaExpiryTimers.clear();
       // A new UI runtime must rediscover still-visible terminal receipts.
       discoveryCursor = null;
       for (const controller of controllers) controller.abort();

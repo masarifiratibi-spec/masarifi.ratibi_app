@@ -83,6 +83,37 @@ describeLiveDatabase('governed independent AI usage limits', () => {
     ).rows[0]?.result as Record<string, unknown>;
   };
 
+  it('admits 500 independent Voice and 500 Chat requests with replay and rollover', async () => {
+    await scenario(async (c) => {
+      await update(c, 'ai.chat.rolling_limit', 500);
+      await update(c, 'ai.voice.rolling_limit', 500);
+      for (const workload of ['voice_transcription', 'financial_assistant']) {
+        const operation = randomUUID();
+        expect(await reserve(c, workload, operation)).toMatchObject({ allowed: true, limit: 500 });
+        expect(await reserve(c, workload, operation)).toMatchObject({
+          allowed: true,
+          replayed: true,
+          used: 1,
+        });
+        await c.query('reset role');
+        await c.query(
+          `insert into private.ai_usage_events(user_id,request_id,workload,model,provider,estimated_cost,reservation_status)
+          select $1,extensions.gen_random_uuid()::text,$2,'fixture','fixture',0,'reserved' from generate_series(1,498)`,
+          [owner, workload],
+        );
+        expect(await reserve(c, workload)).toMatchObject({ allowed: true, limit: 500 });
+        expect(await reserve(c, workload)).toMatchObject({ allowed: false, limit: 500, used: 500 });
+      }
+      await c.query('reset role');
+      await c.query(
+        "update private.ai_usage_events set created_at=clock_timestamp()-interval '25 hours' where user_id=$1",
+        [owner],
+      );
+      for (const workload of ['voice_transcription', 'financial_assistant'])
+        expect(await reserve(c, workload)).toMatchObject({ allowed: true, limit: 500, used: 1 });
+    });
+  });
+
   it.each(['chat', 'voice'])(
     'persists configured %s limits into dashboard reads and request admission',
     async (feature) => {

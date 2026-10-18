@@ -35,6 +35,10 @@ const codes = new Set([
   'ABORT_ERR',
 ]);
 const reasons = new Set([
+  'AUTH_TOKEN_INVALID',
+  'PROFILE_INACTIVE',
+  'FINANCIAL_ACCESS_DENIED',
+  'VOICE_COMMAND_INTEGRITY_INVALID',
   'Query read timeout',
   'Connection terminated unexpectedly',
   'Connection terminated',

@@ -179,7 +179,7 @@ it.each(['cancelled', 'failed'] as const)(
 );
 
 it.each(['missing audio', 'invalid audio', 'rejected creation'])(
-  'retires a definitive pre-submission failure: %s',
+  'retires a definitive pre-submission failure but retains its audio: %s',
   async (failure) => {
     let operation = {
       id: '11111111-1111-4111-8111-111111111111',
@@ -216,11 +216,11 @@ it.each(['missing audio', 'invalid audio', 'rejected creation'])(
       VoiceBatchLocalTerminalError
     );
     expect(request).toHaveBeenCalledTimes(1);
-    expect(removeAudio).toHaveBeenCalledWith('file://private.m4a');
+    expect(removeAudio).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(operation).toMatchObject({
         phase: 'failed',
-        audioReference: null,
+        audioReference: 'file://private.m4a',
         createBody: null,
         processBody: null,
         sessionId: null

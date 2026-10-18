@@ -10,36 +10,53 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
-  'assistant.report.scope': 'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
-  'reports.state.accountScopeUnavailable': 'التقرير يدعم حاليًا كل الحسابات معًا. اختر «كل الحسابات»، أو اطلب من المساعد بالأسفل تحليل الحساب المحدد.',
-  'settings.deletion.dev.description': 'احذف حسابك نهائيًا مع بياناته المالية والتخطيط والتتبع والمساعد المحفوظة. لا يمكن التراجع عن هذا الإجراء.',
-  'settings.deletion.dev.confirmation': 'هل تريد حذف حسابك وكل بياناته المحفوظة الآن نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
-  'settings.deletion.dev.deleting': 'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
+  'assistant.report.scope':
+    'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
+  'reports.state.accountScopeUnavailable':
+    'التقرير يدعم حاليًا كل الحسابات معًا. اختر «كل الحسابات»، أو اطلب من المساعد بالأسفل تحليل الحساب المحدد.',
+  'settings.deletion.dev.description':
+    'احذف حسابك نهائيًا مع بياناته المالية والتخطيط والتتبع والمساعد المحفوظة. لا يمكن التراجع عن هذا الإجراء.',
+  'settings.deletion.dev.confirmation':
+    'هل تريد حذف حسابك وكل بياناته المحفوظة الآن نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+  'settings.deletion.dev.deleting':
+    'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
   'settings.deletion.dev.completed': 'تم حذف حسابك وبياناته المحفوظة.',
-  'settings.deletion.dev.localRetry': 'أكد الخادم الحذف، لكن تنظيف بيانات الجهاز لم يكتمل. أعد المحاولة أو أعد تشغيل التطبيق إذا استمر تعذّر التنظيف.',
-  'settings.deletion.retentionNotice': "يخفي هذا الإجراء هوية ملفك في التطبيق ويزيل بيانات المساعد والتتبع والدعم ويحذف حسابك لدى مزود تسجيل الدخول. تبقى سجلاتك المالية وبيانات التخطيط محفوظة.",
-  'settings.deletion.verificationUnavailable': "التحقق بالرمز غير متاح لهذا الحساب. سجّل الخروج ثم ادخل مجددًا وأعد طلب الحذف.",
-  'settings.deletion.verificationError': "تعذر إكمال التحقق. تحقق من الرمز أو أرسل رمزًا جديدًا وحاول مجددًا.",
-  'settings.deletion.pending': "جارٍ التواصل مع خدمة الحساب…",
-  'settings.deletion.error': "تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.",
-  'settings.deletion.rateLimited': 'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
-  'settings.deletion.sessionExpired': "جلستك غير متاحة. سجّل الدخول مجددًا للتحقق من حالة الحذف.",
-  'settings.deletion.recentAuth': "تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.",
-  'settings.deletion.reverify': "إرسال رمز التحقق",
-  'settings.deletion.code': "رمز التحقق",
-  'settings.deletion.verify': "تحقق ومتابعة",
-  'settings.deletion.codeSent': "أدخل الرمز المرسل إلى {{destination}}.",
-  'settings.deletion.refresh': "تحديث حالة الحذف",
-  'settings.deletion.cancel': "إلغاء طلب الحذف",
-  'settings.deletion.cancelConfirmation': "هل تريد الاحتفاظ بحسابك وإلغاء الحذف المجدول؟",
-  'settings.deletion.deadline': "تنتهي مهلة التراجع: {{date}}. يمكنك الإلغاء قبل هذا الموعد.",
-  'settings.deletion.retained': "البيانات المحتفظ بها وفق السياسة المعمول بها: {{categories}}",
-  'settings.deletion.status.requested': "تم طلب الحذف؛ بانتظار التحقق.",
-  'settings.deletion.status.verified': "تمت جدولة الحذف. لم يُحذف حسابك بعد.",
-  'settings.deletion.status.processing': "جارٍ تنفيذ الحذف. لم يتم تأكيد الاكتمال بعد.",
-  'settings.deletion.status.completed': "اكتمل حذف الحساب. جارٍ تسجيل الخروج…",
-  'settings.deletion.status.cancelled': "أُلغي طلب الحذف. تم الاحتفاظ بحسابك.",
-  'settings.deletion.status.failed': "تعذر الحذف. حدّث الحالة أو حاول مجددًا.",
+  'settings.deletion.dev.localRetry':
+    'أكد الخادم الحذف، لكن تنظيف بيانات الجهاز لم يكتمل. أعد المحاولة أو أعد تشغيل التطبيق إذا استمر تعذّر التنظيف.',
+  'settings.deletion.retentionNotice':
+    'يخفي هذا الإجراء هوية ملفك في التطبيق ويزيل بيانات المساعد والتتبع والدعم ويحذف حسابك لدى مزود تسجيل الدخول. تبقى سجلاتك المالية وبيانات التخطيط محفوظة.',
+  'settings.deletion.verificationUnavailable':
+    'التحقق بالرمز غير متاح لهذا الحساب. سجّل الخروج ثم ادخل مجددًا وأعد طلب الحذف.',
+  'settings.deletion.verificationError':
+    'تعذر إكمال التحقق. تحقق من الرمز أو أرسل رمزًا جديدًا وحاول مجددًا.',
+  'settings.deletion.pending': 'جارٍ التواصل مع خدمة الحساب…',
+  'settings.deletion.error':
+    'تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.',
+  'settings.deletion.rateLimited':
+    'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
+  'settings.deletion.sessionExpired':
+    'جلستك غير متاحة. سجّل الدخول مجددًا للتحقق من حالة الحذف.',
+  'settings.deletion.recentAuth':
+    'تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.',
+  'settings.deletion.reverify': 'إرسال رمز التحقق',
+  'settings.deletion.code': 'رمز التحقق',
+  'settings.deletion.verify': 'تحقق ومتابعة',
+  'settings.deletion.codeSent': 'أدخل الرمز المرسل إلى {{destination}}.',
+  'settings.deletion.refresh': 'تحديث حالة الحذف',
+  'settings.deletion.cancel': 'إلغاء طلب الحذف',
+  'settings.deletion.cancelConfirmation':
+    'هل تريد الاحتفاظ بحسابك وإلغاء الحذف المجدول؟',
+  'settings.deletion.deadline':
+    'تنتهي مهلة التراجع: {{date}}. يمكنك الإلغاء قبل هذا الموعد.',
+  'settings.deletion.retained':
+    'البيانات المحتفظ بها وفق السياسة المعمول بها: {{categories}}',
+  'settings.deletion.status.requested': 'تم طلب الحذف؛ بانتظار التحقق.',
+  'settings.deletion.status.verified': 'تمت جدولة الحذف. لم يُحذف حسابك بعد.',
+  'settings.deletion.status.processing':
+    'جارٍ تنفيذ الحذف. لم يتم تأكيد الاكتمال بعد.',
+  'settings.deletion.status.completed': 'اكتمل حذف الحساب. جارٍ تسجيل الخروج…',
+  'settings.deletion.status.cancelled': 'أُلغي طلب الحذف. تم الاحتفاظ بحسابك.',
+  'settings.deletion.status.failed': 'تعذر الحذف. حدّث الحالة أو حاول مجددًا.',
   'assistant.messageStatus.pending': 'قيد المعالجة',
   'assistant.messageStatus.failed': 'تعذر الإكمال',
   'assistant.messageStatus.unknown': 'غير مؤكد',
@@ -560,7 +577,8 @@ const ar: MessageCatalog = {
   'appShell.progressive.obligation': 'إضافة التزام',
   'appShell.progressive.savings': 'إنشاء هدف ادخار',
   'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
-  'appShell.connectionUnavailable.message': 'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
+  'appShell.connectionUnavailable.message':
+    'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
   'appShell.state.loading': 'جار التحميل',
   'appShell.state.empty': 'لا يوجد شيء بعد',
   'appShell.state.error': 'حدث خطأ ما',
@@ -664,8 +682,10 @@ const ar: MessageCatalog = {
   'coreFinance.category.otherIncome': 'دخل آخر',
   'coreFinance.category.transfers': 'التحويلات',
   'coreFinance.category.obligations': 'الالتزامات',
-  'coreFinance.state.refreshingSnapshot': 'نعرض آخر بيانات مستلمة. جارٍ التحديث…',
-  'coreFinance.state.refreshFailedSnapshot': 'تعذّر التحديث. نعرض آخر بيانات مستلمة.',
+  'coreFinance.state.refreshingSnapshot':
+    'نعرض آخر بيانات مستلمة. جارٍ التحديث…',
+  'coreFinance.state.refreshFailedSnapshot':
+    'تعذّر التحديث. نعرض آخر بيانات مستلمة.',
   'coreFinance.state.loading': 'جار تحميل البيانات المالية',
   'coreFinance.state.error': 'تعذر تحميل البيانات المالية',
   'coreFinance.action.retry': 'حاول مرة أخرى',
@@ -817,7 +837,8 @@ const ar: MessageCatalog = {
   'coreFinance.form.save': 'حفظ المعاملة',
   'coreFinance.validation.required': 'أدخل بيانات المعاملة المطلوبة',
   'coreFinance.validation.invalid': 'راجع بيانات المعاملة',
-  'coreFinance.validation.refundFloor': 'لا يمكن تقليل المصروف عن إجمالي المبالغ المستردة منه',
+  'coreFinance.validation.refundFloor':
+    'لا يمكن تقليل المصروف عن إجمالي المبالغ المستردة منه',
   'coreFinance.validation.refund':
     'أدخل مبلغًا ضمن الرصيد المتبقي المؤهل للاسترداد',
   'coreFinance.undo': 'تراجع',
@@ -1294,6 +1315,10 @@ const ar: MessageCatalog = {
   'voice.analysis.expense': 'مصروف',
   'voice.analysis.income': 'دخل',
   'voice.batch.empty': 'لم تتم إضافة أي معاملات.',
+  'voice.batch.saved': 'تم حفظ {{count}} معاملة.',
+  'voice.batch.partialUnknown':
+    'تم حفظ {{count}} معاملة، وتعذّر حفظ بقية التسجيل.',
+  'voice.batch.partial': 'تم حفظ {{saved}} معاملة، ولم تُحفظ {{failed}}.',
   'voice.batch.restricted':
     'اكتمل التسجيل، لكن هذا الحساب غير مُفعّل لخدمة الصوت في نسخة الاختبار. لم تُضَف معاملات.',
   'voice.batch.failed': 'تعذر إكمال بعض المعالجة.',
@@ -1375,9 +1400,11 @@ const ar: MessageCatalog = {
   'planning.salary.editSettings': 'تعديل إعدادات الراتب',
   'planning.salary.setup': 'إعداد الراتب',
   'planning.salary.review': 'مراجعة استلام الراتب',
-  'planning.salary.selectRecordedIncome': 'اختَر دخلًا مسجّلًا لتأكيد استلام الراتب.',
+  'planning.salary.selectRecordedIncome':
+    'اختَر دخلًا مسجّلًا لتأكيد استلام الراتب.',
   'planning.salary.loadMoreIncome': 'عرض دخل أقدم',
-  'planning.salary.noExpectedReceipt': 'لا يوجد موعد راتب متوقع للمراجعة. راجع إعداد الراتب أولًا.',
+  'planning.salary.noExpectedReceipt':
+    'لا يوجد موعد راتب متوقع للمراجعة. راجع إعداد الراتب أولًا.',
   'planning.salary.remaining': 'المتبقي من الراتب',
   'planning.salary.untilNext': '{{count}} يومًا حتى الراتب القادم',
   'planning.salary.details': 'تفاصيل الراتب',
@@ -1585,8 +1612,10 @@ const ar: MessageCatalog = {
   'planning.obligation.form.amountPlaceholder': 'أدخل المبلغ',
   'planning.obligation.form.paymentAmount': 'قيمة الدفعة',
   'planning.obligation.form.monthlyInstallment': 'قيمة القسط الشهري',
-  'planning.obligation.form.installmentHint': 'عدد الأقساط يُحسب تلقائيًا، مع توضيح قيمة آخر دفعة.',
-  'planning.obligation.form.calculatedPlan': '{{count}} دفعات · آخر دفعة {{amount}}',
+  'planning.obligation.form.installmentHint':
+    'عدد الأقساط يُحسب تلقائيًا، مع توضيح قيمة آخر دفعة.',
+  'planning.obligation.form.calculatedPlan':
+    '{{count}} دفعات · آخر دفعة {{amount}}',
   'planning.obligation.form.dueDate': 'موعد الدفع',
   'planning.obligation.form.repeat': 'يتكرر كل',
   'planning.obligation.form.frequency.monthly': 'شهر',
@@ -1601,9 +1630,12 @@ const ar: MessageCatalog = {
   'planning.obligation.form.save': 'حفظ الالتزام',
   'planning.obligation.form.nameRequired': 'اكتب اسم الالتزام.',
   'planning.obligation.form.amountRequired': 'أدخل مبلغًا صحيحًا أكبر من صفر.',
-  'planning.obligation.form.amountAlreadyPaid': 'الإجمالي لازم يكون أكبر من المبلغ المسدّد بالفعل.',
-  'planning.obligation.form.planTooLong': 'خطة السداد لا يمكن أن تتجاوز 1,200 قسط.',
-  'planning.obligation.form.installmentInvalid': 'أدخل قسطًا صحيحًا لا يتجاوز المبلغ المتبقي.',
+  'planning.obligation.form.amountAlreadyPaid':
+    'الإجمالي لازم يكون أكبر من المبلغ المسدّد بالفعل.',
+  'planning.obligation.form.planTooLong':
+    'خطة السداد لا يمكن أن تتجاوز 1,200 قسط.',
+  'planning.obligation.form.installmentInvalid':
+    'أدخل قسطًا صحيحًا لا يتجاوز المبلغ المتبقي.',
   'planning.obligation.form.dateRequired': 'حدّد موعد دفع صحيحًا.',
   'planning.obligation.provider': 'الجهة أو الشخص',
   'planning.obligation.total': 'الإجمالي المتعاقد عليه',

@@ -8,38 +8,62 @@
  */
 
 const en = {
-  'assistant.report.scope': 'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
-  'reports.state.accountScopeUnavailable': 'The report currently supports all accounts together. Choose All Accounts, or ask the assistant below to analyze the selected account.',
-  'settings.deletion.dev.description': 'Permanently delete this account and its stored financial, planning, tracking and assistant data. This action cannot be undone.',
-  'settings.deletion.dev.confirmation': 'Permanently delete your account and all its stored data now? You cannot undo this action.',
-  'settings.deletion.dev.deleting': 'Deleting your account… Keep the app open. Completion has not been confirmed yet.',
-  'settings.deletion.dev.completed': 'Your account and its stored data have been deleted.',
-  'settings.deletion.dev.localRetry': 'The server confirmed deletion. Device cleanup still needs to finish. Retry, or restart the app if cleanup remains blocked.',
-  'settings.deletion.retentionNotice': "This workflow anonymizes your app profile, removes assistant, tracking and support data, and deletes your sign-in provider account. Financial ledger and planning records remain retained.",
-  'settings.deletion.verificationUnavailable': "Code verification is unavailable for this account. Sign out and sign in again, then retry the deletion request.",
-  'settings.deletion.verificationError': "Verification could not be completed. Check the code or send a new code and retry.",
-  'settings.deletion.pending': "Contacting the account service…",
-  'settings.deletion.error': "The request could not be confirmed. Check your connection and retry. No deletion completion has been confirmed.",
-  'settings.deletion.rateLimited': 'Too many attempts. Wait and try again. This does not confirm deletion or cancellation.',
-  'settings.deletion.sessionExpired': "Your session is unavailable. Sign in again to check the deletion status.",
-  'settings.deletion.recentAuth': "Verify your identity again to continue this confirmed deletion request.",
-  'settings.deletion.reverify': "Send verification code",
-  'settings.deletion.code': "Verification code",
-  'settings.deletion.verify': "Verify and continue",
-  'settings.deletion.codeSent': "Enter the code sent to {{destination}}.",
-  'settings.deletion.refresh': "Refresh deletion status",
-  'settings.deletion.cancel': "Cancel deletion request",
-  'settings.deletion.cancelConfirmation': "Keep your account and cancel this scheduled deletion?",
-  'settings.deletion.deadline': "Cooling-off ends: {{date}}. You can cancel before this time.",
-  'settings.deletion.retained': "Retained under the applicable policy: {{categories}}",
-  'settings.deletion.status.requested': "Deletion requested; awaiting verification.",
-  'settings.deletion.status.verified': "Deletion scheduled. Your account has not been deleted yet.",
-  'settings.deletion.status.processing': "Deletion is processing. Completion has not been confirmed.",
-  'settings.deletion.status.completed': "Account deletion completed. Signing out…",
-  'settings.deletion.status.cancelled': "Deletion request cancelled. Your account is kept.",
-  'settings.deletion.status.failed': "Deletion failed. Refresh the status or try again.",
+  'assistant.report.scope':
+    'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
+  'reports.state.accountScopeUnavailable':
+    'The report currently supports all accounts together. Choose All Accounts, or ask the assistant below to analyze the selected account.',
+  'settings.deletion.dev.description':
+    'Permanently delete this account and its stored financial, planning, tracking and assistant data. This action cannot be undone.',
+  'settings.deletion.dev.confirmation':
+    'Permanently delete your account and all its stored data now? You cannot undo this action.',
+  'settings.deletion.dev.deleting':
+    'Deleting your account… Keep the app open. Completion has not been confirmed yet.',
+  'settings.deletion.dev.completed':
+    'Your account and its stored data have been deleted.',
+  'settings.deletion.dev.localRetry':
+    'The server confirmed deletion. Device cleanup still needs to finish. Retry, or restart the app if cleanup remains blocked.',
+  'settings.deletion.retentionNotice':
+    'This workflow anonymizes your app profile, removes assistant, tracking and support data, and deletes your sign-in provider account. Financial ledger and planning records remain retained.',
+  'settings.deletion.verificationUnavailable':
+    'Code verification is unavailable for this account. Sign out and sign in again, then retry the deletion request.',
+  'settings.deletion.verificationError':
+    'Verification could not be completed. Check the code or send a new code and retry.',
+  'settings.deletion.pending': 'Contacting the account service…',
+  'settings.deletion.error':
+    'The request could not be confirmed. Check your connection and retry. No deletion completion has been confirmed.',
+  'settings.deletion.rateLimited':
+    'Too many attempts. Wait and try again. This does not confirm deletion or cancellation.',
+  'settings.deletion.sessionExpired':
+    'Your session is unavailable. Sign in again to check the deletion status.',
+  'settings.deletion.recentAuth':
+    'Verify your identity again to continue this confirmed deletion request.',
+  'settings.deletion.reverify': 'Send verification code',
+  'settings.deletion.code': 'Verification code',
+  'settings.deletion.verify': 'Verify and continue',
+  'settings.deletion.codeSent': 'Enter the code sent to {{destination}}.',
+  'settings.deletion.refresh': 'Refresh deletion status',
+  'settings.deletion.cancel': 'Cancel deletion request',
+  'settings.deletion.cancelConfirmation':
+    'Keep your account and cancel this scheduled deletion?',
+  'settings.deletion.deadline':
+    'Cooling-off ends: {{date}}. You can cancel before this time.',
+  'settings.deletion.retained':
+    'Retained under the applicable policy: {{categories}}',
+  'settings.deletion.status.requested':
+    'Deletion requested; awaiting verification.',
+  'settings.deletion.status.verified':
+    'Deletion scheduled. Your account has not been deleted yet.',
+  'settings.deletion.status.processing':
+    'Deletion is processing. Completion has not been confirmed.',
+  'settings.deletion.status.completed':
+    'Account deletion completed. Signing out…',
+  'settings.deletion.status.cancelled':
+    'Deletion request cancelled. Your account is kept.',
+  'settings.deletion.status.failed':
+    'Deletion failed. Refresh the status or try again.',
   'appShell.connectionUnavailable.title': 'Connection unavailable',
-  'appShell.connectionUnavailable.message': 'We could not connect to Masarifi & Ratibi. Check your internet connection and try again. Your current balances have not been loaded.',
+  'appShell.connectionUnavailable.message':
+    'We could not connect to Masarifi & Ratibi. Check your internet connection and try again. Your current balances have not been loaded.',
   'assistant.messageStatus.pending': 'Pending',
   'assistant.messageStatus.failed': 'Failed',
   'assistant.messageStatus.unknown': 'Unconfirmed',
@@ -665,7 +689,8 @@ const en = {
   'coreFinance.home.recentExpenses': "Today's expenses",
   'coreFinance.home.recentIncome': "Today's income",
   'coreFinance.home.todayEmpty': 'No transactions today',
-  'coreFinance.home.firstVoicePrompt': 'Record your first transaction by voice.',
+  'coreFinance.home.firstVoicePrompt':
+    'Record your first transaction by voice.',
   'coreFinance.home.manageAccounts': 'Manage accounts',
   'coreFinance.home.howBalancesWork': 'How balances work',
   'coreFinance.home.balanceExplanation':
@@ -689,8 +714,10 @@ const en = {
   'coreFinance.category.otherIncome': 'Other income',
   'coreFinance.category.transfers': 'Transfers',
   'coreFinance.category.obligations': 'Obligations',
-  'coreFinance.state.refreshingSnapshot': 'Showing last received data. Updating…',
-  'coreFinance.state.refreshFailedSnapshot': 'Could not refresh. Showing last received data.',
+  'coreFinance.state.refreshingSnapshot':
+    'Showing last received data. Updating…',
+  'coreFinance.state.refreshFailedSnapshot':
+    'Could not refresh. Showing last received data.',
   'coreFinance.state.loading': 'Loading financial data',
   'coreFinance.state.error': 'Could not load financial data',
   'coreFinance.action.retry': 'Try again',
@@ -845,7 +872,8 @@ const en = {
   'coreFinance.form.save': 'Save transaction',
   'coreFinance.validation.required': 'Enter the required transaction details',
   'coreFinance.validation.invalid': 'Review the transaction details',
-  'coreFinance.validation.refundFloor': 'The expense cannot be less than the total already refunded',
+  'coreFinance.validation.refundFloor':
+    'The expense cannot be less than the total already refunded',
   'coreFinance.validation.refund':
     'Enter an amount within the eligible remaining refund',
   'coreFinance.undo': 'Undo',
@@ -1335,6 +1363,11 @@ const en = {
   'voice.analysis.expense': 'Expense',
   'voice.analysis.income': 'Income',
   'voice.batch.empty': 'No transactions were added.',
+  'voice.batch.saved': 'Saved {{count}} transaction(s).',
+  'voice.batch.partialUnknown':
+    'Saved {{count}} transaction(s); the rest of the recording could not be saved.',
+  'voice.batch.partial':
+    'Saved {{saved}} transaction(s); {{failed}} were not saved.',
   'voice.batch.restricted':
     'Recording completed, but voice is not enabled for this account in the test app. No transactions were added.',
   'voice.batch.failed': 'Some processing could not finish.',
@@ -1419,9 +1452,11 @@ const en = {
   'planning.salary.editSettings': 'Edit salary settings',
   'planning.salary.setup': 'Salary setup',
   'planning.salary.review': 'Salary receipt review',
-  'planning.salary.selectRecordedIncome': 'Choose a recorded income to confirm salary receipt.',
+  'planning.salary.selectRecordedIncome':
+    'Choose a recorded income to confirm salary receipt.',
   'planning.salary.loadMoreIncome': 'Show older income',
-  'planning.salary.noExpectedReceipt': 'There is no expected salary receipt to review. Check your salary setup first.',
+  'planning.salary.noExpectedReceipt':
+    'There is no expected salary receipt to review. Check your salary setup first.',
   'planning.salary.remaining': 'Remaining salary',
   'planning.salary.untilNext': '{{count}} days until the next salary',
   'planning.salary.details': 'Salary details',
@@ -1445,7 +1480,8 @@ const en = {
   'planning.savings.filterActive': 'Active',
   'planning.savings.filterCompleted': 'Completed',
   'planning.savings.emptyFilter': 'No goals in this view.',
-  'planning.savings.setupSubtitle': 'Set your goal and start tracking your progress.',
+  'planning.savings.setupSubtitle':
+    'Set your goal and start tracking your progress.',
   'planning.savings.optionalDetails': 'Optional details',
   'planning.savings.saveGoal': 'Save goal',
   'planning.savings.savedSoFar': 'Saved so far',
@@ -1624,7 +1660,8 @@ const en = {
   'planning.obligation.form.name': 'Obligation name',
   'planning.obligation.form.title': 'Add obligation',
   'planning.obligation.form.namePlaceholder': 'For example: home rent',
-  'planning.obligation.form.subtitle': 'Add your obligation and choose when to pay',
+  'planning.obligation.form.subtitle':
+    'Add your obligation and choose when to pay',
   'planning.obligation.form.paymentMethod': 'Payment method',
   'planning.obligation.form.kind.once': 'One payment',
   'planning.obligation.form.kind.installments': 'Installments',
@@ -1634,8 +1671,10 @@ const en = {
   'planning.obligation.form.amountPlaceholder': 'Enter the amount',
   'planning.obligation.form.paymentAmount': 'Payment amount',
   'planning.obligation.form.monthlyInstallment': 'Monthly installment',
-  'planning.obligation.form.installmentHint': 'The number of payments and the final payment are calculated automatically.',
-  'planning.obligation.form.calculatedPlan': '{{count}} payments · final payment {{amount}}',
+  'planning.obligation.form.installmentHint':
+    'The number of payments and the final payment are calculated automatically.',
+  'planning.obligation.form.calculatedPlan':
+    '{{count}} payments · final payment {{amount}}',
   'planning.obligation.form.dueDate': 'Payment date',
   'planning.obligation.form.repeat': 'Repeat',
   'planning.obligation.form.frequency.monthly': 'Monthly',
@@ -1649,10 +1688,14 @@ const en = {
   'planning.obligation.form.noAccount': 'No default payment account',
   'planning.obligation.form.save': 'Save obligation',
   'planning.obligation.form.nameRequired': 'Enter the obligation name.',
-  'planning.obligation.form.amountRequired': 'Enter a valid amount greater than zero.',
-  'planning.obligation.form.amountAlreadyPaid': 'The total must exceed the amount already paid.',
-  'planning.obligation.form.planTooLong': 'The payment plan must not exceed 1,200 installments.',
-  'planning.obligation.form.installmentInvalid': 'Enter an installment no greater than the remaining balance.',
+  'planning.obligation.form.amountRequired':
+    'Enter a valid amount greater than zero.',
+  'planning.obligation.form.amountAlreadyPaid':
+    'The total must exceed the amount already paid.',
+  'planning.obligation.form.planTooLong':
+    'The payment plan must not exceed 1,200 installments.',
+  'planning.obligation.form.installmentInvalid':
+    'Enter an installment no greater than the remaining balance.',
   'planning.obligation.form.dateRequired': 'Choose a valid payment date.',
   'planning.obligation.provider': 'Provider or person',
   'planning.obligation.total': 'Contracted total',
@@ -1702,8 +1745,10 @@ const en = {
   'planning.obligation.detail.installments': 'Installments · {{period}}',
   'planning.obligation.detail.paid': 'Paid {{amount}}',
   'planning.obligation.detail.plan': '{{count}} installments × {{amount}}',
-  'planning.obligation.detail.schedulePending': 'Installment schedule is not ready',
-  'planning.obligation.detail.irregular': 'Payments are recorded without a fixed schedule',
+  'planning.obligation.detail.schedulePending':
+    'Installment schedule is not ready',
+  'planning.obligation.detail.irregular':
+    'Payments are recorded without a fixed schedule',
   'planning.obligation.scheduleStatus.upcoming': 'Upcoming',
   'planning.obligation.scheduleStatus.partial': 'Partially paid',
   'planning.obligation.scheduleStatus.paid': 'Paid',
@@ -1949,7 +1994,8 @@ const en = {
     'Review \u2068SAR 25.00\u2069 before continuing.',
   'notifications.center.unreadLabel': 'Unread notifications',
   'notifications.fallback.title': 'Financial update',
-  'notifications.fallback.body': 'Open Masarifi & Ratibi to review the latest update.',
+  'notifications.fallback.body':
+    'Open Masarifi & Ratibi to review the latest update.',
   'notifications.center.markAllRead': 'Mark all read',
   'notifications.center.countSuffix': 'notifications',
   'notifications.center.loading': 'Loading notifications',
@@ -2375,7 +2421,8 @@ const en = {
   'settings.profile.planDesc':
     'Unlock everything Masarifi & Ratibi can do: automatic tracking & smart insights',
   'settings.profile.goPro': 'Upgrade to Pro 💎',
-  'settings.profile.activity': 'Smart expense tracking with Masarifi & Ratibi ✨',
+  'settings.profile.activity':
+    'Smart expense tracking with Masarifi & Ratibi ✨',
   'settings.profile.avatar.default': 'Default profile image',
   'settings.profile.phone.notSet': 'Phone number not set',
   'settings.profile.google.notLinked': 'Google account not linked',

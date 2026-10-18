@@ -54,85 +54,97 @@ const fixture = (
   cancel: async () => undefined
 });
 it.each([
-  [
-    'en',
-    'Event 1: Saved',
-    'Event 2: Not added — the account could not be identified.',
-    'Event 3: Not added — this event type is not supported.'
-  ],
-  [
-    'ar',
-    'الحدث 1: تم الحفظ',
-    'الحدث 2: لم يُضف — تعذّر تحديد الحساب.',
-    'الحدث 3: لم يُضف — نوع الحدث غير مدعوم.'
-  ]
+  ['ar', 'تم حفظ 1 معاملة، ولم تُحفظ 2.'],
+  ['en', 'Saved 1 transaction(s); 2 were not saved.']
 ] as const)(
-  'keeps skipped explanations in %s without saved messages or a confirmation action',
-  (locale, saved, ambiguous, unsupported) => {
+  'summarizes partial persistence in %s without internal events',
+  (locale, message) => {
     changeLocale(locale);
     renderWithProviders(<VoiceBatchStatus batches={fixture()} />);
-    expect(screen.queryByText(saved)).toBeNull();
-    expect(screen.getByText(ambiguous)).toBeTruthy();
-    expect(screen.getByText(unsupported)).toBeTruthy();
+    expect(screen.getByText(message)).toBeTruthy();
+    expect(
+      screen.queryByText(/Event|الحدث|بانتظار الإكمال|Waiting to finish/)
+    ).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
   }
 );
-
-it('keeps waiting, cancelled and failed occurrences distinct', () => {
+it('shows only processing until the batch has a terminal receipt', () => {
   changeLocale('en');
   renderWithProviders(
     <VoiceBatchStatus
-      batches={fixture({
-        ...latest,
-        status: 'finalizing',
-        addedCount: 0,
-        transactionIds: [],
-        ledgerVersion: 0,
-        outcomes: [
-          {
-            ordinal: 0,
-            kind: 'expense',
-            status: 'eligible',
-            reason: null,
-            transactionId: null
-          },
-          {
-            ordinal: 1,
-            kind: null,
-            status: 'cancelled',
-            reason: null,
-            transactionId: null
-          },
-          {
-            ordinal: 2,
-            kind: null,
-            status: 'execution_failed',
-            reason: null,
-            transactionId: null
-          }
-        ]
-      })}
+      batches={{
+        ...fixture({
+          ...latest,
+          status: 'finalizing',
+          addedCount: 0,
+          transactionIds: [],
+          ledgerVersion: 0,
+          outcomes: [
+            {
+              ordinal: 0,
+              kind: 'expense',
+              status: 'eligible',
+              reason: null,
+              transactionId: null
+            }
+          ]
+        }),
+        processing: true
+      }}
     />
   );
-  expect(screen.getByText('Event 1: Waiting to finish')).toBeTruthy();
-  expect(screen.getByText('Event 2: Cancelled — not added')).toBeTruthy();
-  expect(
-    screen.getByText('Event 3: Could not finish — not added')
-  ).toBeTruthy();
-  expect(screen.queryByText('Event 1: Saved')).toBeNull();
+  expect(screen.getByText('Analyzing recording...')).toBeTruthy();
+  expect(screen.queryByText(/Event|Saved|Waiting/)).toBeNull();
 });
-
 it.each([
   { ledgerVersion: 0 },
   { addedCount: 2, transactionIds: [tx, tx] },
   { transactionIds: ['44444444-4444-4444-8444-444444444444'] }
-])(
-  'does not label an occurrence saved without a matching authoritative receipt %#',
-  (invalid) => {
+])('never announces persistence for an inconsistent receipt %#', (invalid) => {
+  changeLocale('en');
+  renderWithProviders(
+    <VoiceBatchStatus batches={fixture({ ...latest, ...invalid })} />
+  );
+  expect(screen.queryByText(/Saved/)).toBeNull();
+});
+it.each(['failed', 'cancelled'] as const)(
+  'reports saved movements even if the remainder is %s',
+  (status) => {
     changeLocale('en');
     renderWithProviders(
-      <VoiceBatchStatus batches={fixture({ ...latest, ...invalid })} />
+      <VoiceBatchStatus batches={fixture({ ...latest, status })} />
     );
-    expect(screen.queryByText('Event 1: Saved')).toBeNull();
+    expect(
+      screen.getByText('Saved 1 transaction(s); 2 were not saved.')
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('Some processing could not be completed.')
+    ).toBeNull();
   }
 );
+it.each(['failed', 'cancelled'] as const)(
+  'keeps a legacy partial %s honest when occurrence counts are unavailable',
+  (status) => {
+    changeLocale('en');
+    renderWithProviders(
+      <VoiceBatchStatus
+        batches={fixture({ ...latest, status, outcomes: undefined })}
+      />
+    );
+    expect(
+      screen.getByText(
+        'Saved 1 transaction(s); the rest of the recording could not be saved.'
+      )
+    ).toBeTruthy();
+  }
+);
+
+it('announces a fully saved recording only from its ledger receipt', () => {
+  changeLocale('en');
+  renderWithProviders(
+    <VoiceBatchStatus
+      batches={fixture({ ...latest, outcomes: latest.outcomes.slice(0, 1) })}
+    />
+  );
+  expect(screen.getByText('Saved 1 transaction(s).')).toBeTruthy();
+});

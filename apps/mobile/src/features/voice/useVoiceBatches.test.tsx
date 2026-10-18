@@ -388,7 +388,7 @@ it.each([
   }
 );
 
-it('keeps a partial failure visible without announcing its saved count', () => {
+it('keeps a partial failure visible with its authoritative saved count', () => {
   const latest = {
     ...receipt('failed'),
     addedCount: 1,
@@ -399,7 +399,11 @@ it('keeps a partial failure visible without announcing its saved count', () => {
   expect(
     screen.queryByText(translateDynamic('voice.batch.added', { count: 1 }))
   ).toBeNull();
-  expect(screen.getByText(translate('voice.batch.failed'))).toBeTruthy();
+  expect(
+    screen.getByText(
+      translateDynamic('voice.batch.partialUnknown', { count: 1 })
+    )
+  ).toBeTruthy();
 });
 
 it.each(['ar', 'en'] as const)(
@@ -451,7 +455,7 @@ it.each(['ar', 'en'] as const)(
   }
 );
 
-it('keeps skipped-event explanations visible while hiding committed-event messages', () => {
+it('summarizes skipped and committed movements without internal event widgets', () => {
   const latest: VoiceBatchResult = {
     ...receipt('completed'),
     addedCount: 1,
@@ -485,10 +489,7 @@ it('keeps skipped-event explanations visible while hiding committed-event messag
   ).toBeNull();
   expect(
     screen.getByText(
-      translateDynamic('voice.batch.event.result', {
-        number: 2,
-        result: translateDynamic('voice.batch.event.reason.invalid_category')
-      })
+      translateDynamic('voice.batch.partial', { saved: 1, failed: 1 })
     )
   ).toBeTruthy();
 });

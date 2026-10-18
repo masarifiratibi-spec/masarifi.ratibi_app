@@ -50,6 +50,27 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
   function query(text: string, values: readonly unknown[] = []) {
     return pool.query<Record<string, unknown>>(text, values);
   }
+  // Legacy canary tests exercise SQL fences with an authenticated owner. The
+  // operating-worker regression below deliberately uses the real claim-free path.
+  async function executeLegacyEvent(values: readonly unknown[]) {
+    return pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ sub: user }),
+        ]);
+        const value = await client.query<Record<string, unknown>>(
+          'select private.execute_voice_event($1,$2,$3) result',
+          values as unknown[],
+        );
+        await client.query('commit');
+        return value;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
+  }
   function row<T>(value: T | undefined): T {
     if (value === undefined) throw new Error('EXPECTED_DATABASE_ROW');
     return value;
@@ -210,11 +231,13 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       (await query('select id from private.voice_events where batch_id=$1', [claim.batch_id]))
         .rows[0],
     );
-    await query('select private.execute_voice_event($1,$2,$3)', [
-      claim.batch_id,
-      claim.token,
-      event.id,
-    ]);
+    await (epochMode === 'operating'
+      ? query('select private.execute_operating_voice_event($1,$2,$3)', [
+          claim.batch_id,
+          claim.token,
+          event.id,
+        ])
+      : executeLegacyEvent([claim.batch_id, claim.token, event.id]));
     return {
       batch_id: String(claim.batch_id),
       token: String(claim.token),
@@ -234,6 +257,450 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).rows[0],
     );
   }
+  it('operating worker saves two movements without caller JWT claims and restores its connection identity', async () => {
+    await prepare('operating');
+    const session = await create();
+    const before = await ledgerState();
+    const command = {
+      kind: 'expense',
+      amountMinor: 100,
+      currency: 'SAR',
+      accountId: account,
+      categoryId: category,
+      title: 'Fixture',
+      merchant: null,
+      paymentMethod: null,
+      note: null,
+      occurredAt: new Date().toISOString(),
+      source: 'voice',
+      externalRef: null,
+    };
+    await accept(session, {}, [
+      { status: 'eligible', command },
+      { status: 'eligible', command: { ...command, amountMinor: 200 } },
+    ]);
+    await repository.finalizeVoiceEpoch(epoch, 1, false, true);
+    expect(await ledgerState()).toEqual({
+      transactions: Number(before.transactions) + 2,
+      postings: Number(before.postings) + 2,
+      balance: String(Number(before.balance) - 300),
+    });
+    expect(
+      row((await query('select status from public.voice_sessions where id=$1', [session])).rows[0])
+        .status,
+    ).toBe('confirmed');
+    await repository.finalizeVoiceEpoch(epoch, 1, false, true);
+    expect((await ledgerState()).transactions).toBe(Number(before.transactions) + 2);
+    await pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims','{}',true)");
+        await client.query('set local role masarifi_worker');
+        const event = row(
+          (
+            await query(
+              'select e.id,e.batch_id from private.voice_events e join private.voice_batches b on b.id=e.batch_id where b.session_id=$1 order by ordinal limit 1',
+              [session],
+            )
+          ).rows[0],
+        );
+        await client.query('select private.execute_operating_voice_event($1,$2,$3)', [
+          event.batch_id,
+          randomUUID(),
+          event.id,
+        ]);
+        expect(
+          (
+            await client.query<{ claims: string }>(
+              "select current_setting('request.jwt.claims',true) claims",
+            )
+          ).rows[0].claims,
+        ).toBe('{}');
+      } finally {
+        await client.query('rollback');
+      }
+    });
+  });
+
+  it.each(['{}', JSON.stringify({ sub: 'unrelated-prior-principal', marker: 'preserve' })])(
+    'restores prior claims after fresh execution and a caught financial failure: %s',
+    async (claims) => {
+      await prepare('operating');
+      const session = await create();
+      await accept(session, { amountMinor: 100 });
+      const claim = row(
+        (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch]))
+          .rows[0],
+      );
+      const event = row(
+        (await query('select id from private.voice_events where batch_id=$1', [claim.batch_id]))
+          .rows[0],
+      );
+      const before = await ledgerState();
+      await pool.withClient(async (client) => {
+        await client.query('begin');
+        try {
+          await client.query(`create function pg_temp.reject_voice_fixture() returns trigger language plpgsql as $$
+            begin raise exception 'SYNTHETIC_FINANCIAL_FAILURE'; end $$`);
+          await client.query(
+            'create trigger reject_voice_fixture before insert on public.transactions for each row execute function pg_temp.reject_voice_fixture()',
+          );
+          await client.query("select set_config('request.jwt.claims',$1,true)", [claims]);
+          await client.query('set local role masarifi_worker');
+          await client.query('savepoint attempted');
+          await expect(
+            client.query('select private.execute_operating_voice_event($1,$2,$3)', [
+              claim.batch_id,
+              claim.token,
+              event.id,
+            ]),
+          ).rejects.toMatchObject({ message: 'SYNTHETIC_FINANCIAL_FAILURE' });
+          await client.query('rollback to savepoint attempted');
+          expect(
+            (
+              await client.query<{ claims: string }>(
+                "select current_setting('request.jwt.claims',true) claims",
+              )
+            ).rows[0]?.claims,
+          ).toBe(claims);
+          await client.query('reset role');
+          await client.query('drop trigger reject_voice_fixture on public.transactions');
+          await client.query('set local role masarifi_worker');
+          await client.query('select private.execute_operating_voice_event($1,$2,$3)', [
+            claim.batch_id,
+            claim.token,
+            event.id,
+          ]);
+          expect(
+            (
+              await client.query<{ claims: string }>(
+                "select current_setting('request.jwt.claims',true) claims",
+              )
+            ).rows[0]?.claims,
+          ).toBe(claims);
+          await client.query('reset role');
+          expect(
+            (
+              await client.query<{ status: string }>(
+                'select status from private.voice_events where id=$1',
+                [event.id],
+              )
+            ).rows[0]?.status,
+          ).toBe('committed');
+        } finally {
+          await client.query('rollback');
+        }
+      });
+      expect(await ledgerState()).toEqual(before);
+    },
+  );
+
+  it.each(['lease', 'command', 'wrong-event', 'frozen-owner'])(
+    'operating identity capability rejects a changed %s without financial effects',
+    async (boundary) => {
+      await prepare('operating');
+      const session = await create();
+      await accept(session, { amountMinor: 100 });
+      const claim = row(
+        (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch]))
+          .rows[0],
+      );
+      const event = row(
+        (await query('select id from private.voice_events where batch_id=$1', [claim.batch_id]))
+          .rows[0],
+      );
+      const before = await ledgerState();
+      if (boundary === 'command')
+        await query(
+          "update private.voice_event_commands set command=jsonb_set(command,'{amountMinor}','999') where event_id=$1",
+          [event.id],
+        );
+      if (boundary === 'frozen-owner')
+        await query("update public.profiles set status='deletion_pending' where id=$1", [user]);
+      try {
+        await expect(
+          pool.withClient(async (client) => {
+            await client.query('begin');
+            try {
+              await client.query("select set_config('request.jwt.claims','{}',true)");
+              await client.query('set local role masarifi_worker');
+              return await client.query('select private.execute_operating_voice_event($1,$2,$3)', [
+                claim.batch_id,
+                boundary === 'lease' ? randomUUID() : claim.token,
+                boundary === 'wrong-event' ? randomUUID() : event.id,
+              ]);
+            } finally {
+              await client.query('rollback');
+            }
+          }),
+        ).rejects.toBeDefined();
+        expect(await ledgerState()).toEqual(before);
+      } finally {
+        if (boundary === 'frozen-owner')
+          await query("update public.profiles set status='active' where id=$1", [user]);
+      }
+    },
+  );
+
+  it('operating failure settles once and retains server media until original expiry', async () => {
+    await prepare('operating');
+    const session = await create();
+    await accept(session, { amountMinor: 100 });
+    const claim = row(
+      (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch]))
+        .rows[0],
+    );
+    const event = row(
+      (await query('select id from private.voice_events where batch_id=$1', [claim.batch_id]))
+        .rows[0],
+    );
+    const before = await ledgerState();
+    await query('select private.fail_operating_voice_event($1,$2,$3)', [
+      claim.batch_id,
+      claim.token,
+      event.id,
+    ]);
+    expect(
+      row(
+        (
+          await query('select status,attempt_count from private.voice_events where id=$1', [
+            event.id,
+          ])
+        ).rows[0],
+      ),
+    ).toEqual({ status: 'execution_failed', attempt_count: 1 });
+    await query(
+      "update public.voice_sessions set storage_ref=$2,next_attempt_at=clock_timestamp(),media_capability_expires_at=clock_timestamp()-interval '1 second',lease_until=null,claim_token=null,claimed_by=null where id=$1",
+      [session, 'voice/' + randomUUID() + '/' + randomUUID()],
+    );
+    await pool.withClient(async (holder) => {
+      await holder.query('begin');
+      try {
+        await holder.query('select id from public.voice_sessions where id<>$1 for update', [
+          session,
+        ]);
+        expect(
+          (
+            await query("select * from private.claim_voice_media_purge('general-fixture',100,120)")
+          ).rows.map((r) => r.id),
+        ).not.toContain(session);
+      } finally {
+        await holder.query('rollback');
+      }
+    });
+    expect(
+      (await query("select * from private.claim_staging_voice_purge($1,'fixture',25,120)", [epoch]))
+        .rows,
+    ).toHaveLength(0);
+    await query(
+      "update public.voice_sessions set created_at=clock_timestamp()-interval '25 hours',expires_at=clock_timestamp()-interval '2 hours' where id=$1",
+      [session],
+    );
+    expect(
+      (
+        await query("select * from private.claim_staging_voice_purge($1,'fixture',25,120)", [epoch])
+      ).rows.map((r) => r.id),
+    ).toContain(session);
+    expect(await ledgerState()).toEqual(before);
+  });
+
+  it('a profile frozen after claim cannot stop operating Posting or write owner metadata', async () => {
+    await prepare('operating');
+    const session = await create();
+    await accept(session, { amountMinor: 100 });
+    const before = await ledgerState();
+    let frozen = false;
+    const racing = new AiRepository({
+      withClient: (action: (c: unknown) => Promise<unknown>) =>
+        pool.withClient((client) => {
+          const transport = Object.create(client) as typeof client;
+          transport.query = (async (sql: string, values?: unknown[]) => {
+            if (sql.includes('execute_operating_voice_event') && !frozen) {
+              frozen = true;
+              await query("update public.profiles set status='deletion_pending' where id=$1", [
+                user,
+              ]);
+            }
+            return client.query(sql, values);
+          }) as typeof client.query;
+          return action(transport);
+        }),
+    } as never);
+    const worker = new StagingVoiceWorker(
+      racing,
+      {} as never,
+      {} as never,
+      epoch,
+      'frozen-race',
+      'a'.repeat(40),
+      undefined,
+      undefined,
+      true,
+    );
+    try {
+      await worker.tick();
+      expect(await ledgerState()).toEqual(before);
+      expect(
+        row(
+          (await query('select state from private.staging_voice_epochs where id=$1', [epoch]))
+            .rows[0],
+        ).state,
+      ).toBe('active');
+      expect(
+        row((await query('select enabled from private.voice_automatic_policy')).rows[0]).enabled,
+      ).toBe(true);
+      expect(
+        row(
+          (
+            await query(
+              'select e.status,e.attempt_count from private.voice_events e join private.voice_batches b on b.id=e.batch_id where b.session_id=$1',
+              [session],
+            )
+          ).rows[0],
+        ),
+      ).toEqual({ status: 'eligible', attempt_count: 0 });
+      expect(
+        (await query('select * from private.claim_staging_voice_finalization($1,1)', [epoch])).rows,
+      ).toHaveLength(0);
+    } finally {
+      await worker.stop();
+      await query("update public.profiles set status='active' where id=$1", [user]);
+    }
+  });
+
+  it.each(['expired-finalizing', 'expired-media', 'uploaded'])(
+    'a frozen owner with %s cannot close Posting or prevent an active owner saving',
+    async (phase) => {
+      await prepare('operating');
+      const frozenSession = await create('en', other);
+      if (phase !== 'uploaded') await accept(frozenSession, { accountId: otherAccount });
+      if (phase === 'expired-media') {
+        await query(
+          "update private.voice_events set status='execution_failed' where batch_id in(select id from private.voice_batches where session_id=$1)",
+          [frozenSession],
+        );
+        await query("update private.voice_batches set status='failed' where session_id=$1", [
+          frozenSession,
+        ]);
+      }
+      await query(
+        `update public.voice_sessions set
+        created_at=case when $2='uploaded' then created_at else clock_timestamp()-interval '25 hours' end,
+        expires_at=case when $2='uploaded' then clock_timestamp()+interval '1 hour' else clock_timestamp()-interval '1 hour' end,
+        status=case when $2='expired-media' then 'failed' else status end,
+        storage_ref='voice/'||id::text||'/'||id::text, next_attempt_at=clock_timestamp(),
+        media_capability_expires_at=clock_timestamp()-interval '1 second',lease_until=null,claim_token=null,claimed_by=null
+        where id=$1`,
+        [frozenSession, phase],
+      );
+      const activeSession = await create();
+      if (phase === 'uploaded')
+        await query(
+          "update public.voice_sessions set next_attempt_at=clock_timestamp()+interval '1 hour' where id=$1",
+          [frozenSession],
+        );
+      await accept(activeSession, { amountMinor: 100 });
+      if (phase === 'uploaded')
+        await query(
+          'update public.voice_sessions set next_attempt_at=clock_timestamp() where id=$1',
+          [frozenSession],
+        );
+      const snapshot = async () =>
+        (
+          await query(
+            `select to_jsonb(s) payload,
+        (select jsonb_agg(to_jsonb(b)) from private.voice_batches b where b.session_id=s.id) batches,
+        (select jsonb_agg(to_jsonb(e)) from private.voice_events e join private.voice_batches b on b.id=e.batch_id where b.session_id=s.id) events
+        from public.voice_sessions s where s.id=$1`,
+            [frozenSession],
+          )
+        ).rows[0];
+      const before = await snapshot();
+      const finances = await ledgerState();
+      await query("update public.profiles set status='deletion_pending' where id=$1", [other]);
+      const remove = jest.fn().mockResolvedValue(undefined);
+      const worker = new StagingVoiceWorker(
+        repository,
+        {
+          processVoiceClaim: jest.fn().mockRejectedValue(new Error('FROZEN_OWNER_CLAIMED')),
+        } as never,
+        { delete: remove } as never,
+        epoch,
+        'frozen-lifecycle',
+        'a'.repeat(40),
+        undefined,
+        undefined,
+        true,
+      );
+      try {
+        await worker.tick();
+        expect(
+          (await query('select state from private.staging_voice_epochs where id=$1', [epoch]))
+            .rows[0]?.state,
+        ).toBe('active');
+        expect(await ledgerState()).toEqual({
+          transactions: Number(finances.transactions) + 1,
+          postings: Number(finances.postings) + 1,
+          balance: String(Number(finances.balance) - 100),
+        });
+        expect(await snapshot()).toEqual(before);
+        expect(remove).not.toHaveBeenCalledWith('voice/' + frozenSession + '/' + frozenSession);
+      } finally {
+        await worker.stop();
+        await query("update public.profiles set status='active' where id=$1", [other]);
+      }
+    },
+  );
+
+  it('a profile frozen during asynchronous media purge cannot close Posting or mutate frozen payload', async () => {
+    await prepare('operating');
+    const session = await create();
+    await accept(session, { amountMinor: 100 });
+    await query(
+      "update public.voice_sessions set storage_ref='voice/'||id::text||'/'||id::text,media_capability_expires_at=clock_timestamp()-interval '1 second',lease_until=null where id=$1",
+      [session],
+    );
+    let frozenPayload: unknown;
+    const worker = new StagingVoiceWorker(
+      repository,
+      {} as never,
+      {
+        delete: async () => {
+          frozenPayload = (
+            await query('select to_jsonb(s) payload from public.voice_sessions s where id=$1', [
+              session,
+            ])
+          ).rows[0]?.payload;
+          await query("update public.profiles set status='deletion_pending' where id=$1", [user]);
+        },
+      } as never,
+      epoch,
+      'frozen-purge-race',
+      'a'.repeat(40),
+      undefined,
+      undefined,
+      true,
+    );
+    try {
+      await worker.tick();
+      expect(frozenPayload).toBeDefined();
+      expect(
+        (
+          await query('select to_jsonb(s) payload from public.voice_sessions s where id=$1', [
+            session,
+          ])
+        ).rows[0]?.payload,
+      ).toEqual(frozenPayload);
+      expect(
+        (await query('select state from private.staging_voice_epochs where id=$1', [epoch])).rows[0]
+          ?.state,
+      ).toBe('active');
+    } finally {
+      await worker.stop();
+      await query("update public.profiles set status='active' where id=$1", [user]);
+    }
+  });
+
   it('continuous worker recovers a lost finalization response without a second ledger effect', async () => {
     await prepare('operating');
     const session = await create();
@@ -242,7 +709,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     const interrupted = Object.create(repository) as AiRepository;
     let loseResponse = true;
     interrupted.finalizeVoiceEpoch = async (id, limit, bounded) => {
-      const result = await repository.finalizeVoiceEpoch(id, limit, bounded);
+      const result = await repository.finalizeVoiceEpoch(id, limit, bounded, true);
       if (loseResponse) {
         loseResponse = false;
         throw new Error('Query read timeout');
@@ -296,7 +763,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         pool.withClient((client) => {
           const transport = Object.create(client) as typeof client;
           transport.query = ((sql: string, values?: unknown[]) => {
-            if (sql.includes('private.execute_voice_event('))
+            if (sql.includes('private.execute_operating_voice_event('))
               return Promise.reject(new Error('Query read timeout'));
             return client.query(sql, values);
           }) as typeof client.query;
@@ -304,9 +771,9 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         }),
     } as never);
     for (let attempt = 0; attempt < 6; attempt++) {
-      await expect(
-        interrupted.finalizeVoiceEpoch(epoch, 1, false, true),
-      ).rejects.toThrow('Query read timeout');
+      await expect(interrupted.finalizeVoiceEpoch(epoch, 1, false, true)).rejects.toThrow(
+        'Query read timeout',
+      );
       await query(
         'update private.voice_batches set next_attempt_at=clock_timestamp() where session_id=$1',
         [session],
@@ -322,7 +789,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).rows[0],
     );
     expect(event).toEqual({ status: 'eligible', attempt_count: 0 });
-    await repository.finalizeVoiceEpoch(epoch, 1);
+    await repository.finalizeVoiceEpoch(epoch, 1, false, true);
     const saved = await ledgerState();
     expect(Number(saved.transactions)).toBe(Number(before.transactions) + 1);
     expect(Number(saved.balance)).toBe(Number(before.balance) - 100);
@@ -562,11 +1029,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       categoryId: category,
     });
     const execute = () =>
-      query('select private.execute_voice_event($1,$2,$3) result', [
-        committed.batch_id,
-        committed.token,
-        committed.event,
-      ]);
+      executeLegacyEvent([committed.batch_id, committed.token, committed.event]);
     const replays = await Promise.all([execute(), execute()]);
     expect(replays.map((result) => row(result.rows[0]).result)).toEqual([
       { status: 'committed', transactionId: transaction },
@@ -976,13 +1439,9 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         .rows[0],
     );
     await query("select private.close_staging_voice_epoch($1,'revoked')", [epoch]);
-    await expect(
-      query('select private.execute_voice_event($1,$2,$3)', [
-        claim.batch_id,
-        claim.token,
-        event.id,
-      ]),
-    ).rejects.toMatchObject({ message: 'VOICE_AUTOMATIC_PAUSED' });
+    await expect(executeLegacyEvent([claim.batch_id, claim.token, event.id])).rejects.toMatchObject(
+      { message: 'VOICE_AUTOMATIC_PAUSED' },
+    );
     expect(await ledgerState()).toEqual(before);
   });
   it('replays a committed event after the transaction commits without another posting', async () => {
@@ -1007,13 +1466,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     ).toMatchObject({ amountMinor: 2500, accountId: account });
     await query("select private.close_staging_voice_epoch($1,'finished')", [epoch]);
     const replay = row(
-      (
-        await query('select private.execute_voice_event($1,$2,$3) result', [
-          committed.batch_id,
-          committed.token,
-          committed.event,
-        ])
-      ).rows[0],
+      (await executeLegacyEvent([committed.batch_id, committed.token, committed.event])).rows[0],
     ).result as Record<string, unknown>;
     expect(replay).toEqual({ status: 'committed', transactionId: before });
     expect(
@@ -1068,15 +1521,16 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         try {
           if (boundary === 'account-lock') {
             await client.query('select id from public.accounts where id=$1 for update', [account]);
-            const attempt = query('select private.execute_voice_event($1,$2,$3)', [
-              claim.batch_id,
-              claim.token,
-              event.id,
-            ]).catch((e: unknown) => e);
+            const attempt = executeLegacyEvent([claim.batch_id, claim.token, event.id]).catch(
+              (e: unknown) => e,
+            );
             await new Promise((resolve) => setTimeout(resolve, 800));
             await client.query('rollback');
             return await attempt;
           }
+          await client.query("select set_config('request.jwt.claims',$1,true)", [
+            JSON.stringify({ sub: user }),
+          ]);
           await client.query('select private.execute_voice_event($1,$2,$3)', [
             claim.batch_id,
             claim.token,
@@ -1238,7 +1692,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
     await prepare('operating');
     const admitted = await create();
     await query(
-      "update public.voice_sessions set status='failed',storage_ref='voice/'||id::text||'/'||id::text,media_capability_expires_at=clock_timestamp()-interval '1 second',lease_until=null where id=any($1::uuid[])",
+      "update public.voice_sessions set status='failed',cancelled_at=clock_timestamp(),storage_ref='voice/'||id::text||'/'||id::text,media_capability_expires_at=clock_timestamp()-interval '1 second',lease_until=null where id=any($1::uuid[])",
       [[historical, admitted]],
     );
     const claimed = (
@@ -1291,11 +1745,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       const session = await create(locale);
       const committed = await commit(session);
       const execute = () =>
-        query('select private.execute_voice_event($1,$2,$3) result', [
-          committed.batch_id,
-          committed.token,
-          committed.event,
-        ]);
+        executeLegacyEvent([committed.batch_id, committed.token, committed.event]);
       const replay = await Promise.all([execute(), execute()]);
       expect(replay.map((r) => (r.rows[0]?.result as Record<string, unknown>).status)).toEqual([
         'committed',

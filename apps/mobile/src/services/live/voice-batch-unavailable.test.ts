@@ -78,7 +78,10 @@ beforeEach(() => {
     getAllAsync: async (sql: string) => db.prepare(sql).all()
   } as never);
 });
-afterEach(() => db.close());
+afterEach(() => {
+  db.close();
+  jest.restoreAllMocks();
+});
 
 function fixture(
   createResponse: () => Promise<Response>,
@@ -125,6 +128,10 @@ function fixture(
   });
   return { api, calls };
 }
+const expiredUnavailable = () => {
+  jest.spyOn(Date, 'now').mockReturnValue(audio.recordedAt + 86400001);
+  return unavailable();
+};
 const unavailable = () =>
   Promise.resolve({
     ok: false,
@@ -360,7 +367,7 @@ it('keeps a rejected server-terminal cleanup owned without resurrecting executab
   });
 });
 
-it('reports the initial create rejection through the real hook before native cleanup settles', async () => {
+it('reports the initial create rejection through the real hook while retaining its audio', async () => {
   let releaseCleanup!: () => void;
   const cleanup = new Promise<void>((resolve) => {
     releaseCleanup = resolve;
@@ -409,14 +416,14 @@ it('reports the initial create rejection through the real hook before native cle
     });
     expect(batches.pendingIds).toEqual([]);
     expect(batches.processing).toBe(false);
-    expect(cleanupCalls).toBe(1);
+    expect(cleanupCalls).toBe(0);
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
   } finally {
     await act(async () => {
       releaseCleanup();
     });
     await waitFor(async () =>
-      expect((await loadVoiceBatches(owner))[0]?.audioReference).toBeNull()
+      expect((await loadVoiceBatches(owner))[0]?.audioReference).toBe(audio.uri)
     );
     view.unmount();
     client.clear();
@@ -432,7 +439,7 @@ it('retires an exact pre-create unavailability response durably and reports loca
       id,
       phase: 'failed',
       sessionId: null,
-      audioReference: null,
+      audioReference: audio.uri,
       createBody: null,
       processBody: null
     })
@@ -451,7 +458,7 @@ it('bounds background deletion, ignores a late completion after pause and retrie
   try {
     let releaseFirst!: () => void;
     let cleanups = 0;
-    const { api, calls } = fixture(unavailable, () => {
+    const { api, calls } = fixture(expiredUnavailable, () => {
       cleanups++;
       return cleanups === 1
         ? new Promise<void>((resolve) => {
@@ -493,7 +500,7 @@ it('fences deletion when pause occurs during the asynchronous owner check', asyn
   const remove = jest.fn(async () => {
     holdOwner = true;
   });
-  const { api } = fixture(unavailable, remove, undefined, () =>
+  const { api } = fixture(expiredUnavailable, remove, undefined, () =>
     holdOwner
       ? new Promise((resolve) => {
           resolveOwner = resolve;
@@ -520,7 +527,7 @@ it('fences native cleanup completion when the owner epoch changes before its tim
   try {
     let release!: () => void;
     let cleanups = 0;
-    const { api } = fixture(unavailable, () => {
+    const { api } = fixture(expiredUnavailable, () => {
       cleanups++;
       return cleanups === 1
         ? new Promise<void>((resolve) => {
@@ -617,7 +624,7 @@ it('persists failure before deleting audio and never resurrects it after cleanup
   const { api, calls } = fixture(
     () => {
       if (serviceAvailable) throw new Error('Failed capture was resubmitted');
-      return unavailable();
+      return expiredUnavailable();
     },
     async () => {
       expect((await loadVoiceBatches(owner))[0]).toMatchObject({

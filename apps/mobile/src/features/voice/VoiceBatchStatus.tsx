@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
 import { translate, translateDynamic } from '@/localization/i18n';
 import type { useVoiceBatches } from './useVoiceBatches';
+import { voiceBatchResultSchema } from '@/services/live/voice-batch-api-service';
 
 export function VoiceBatchStatus({
   batches,
@@ -13,35 +14,44 @@ export function VoiceBatchStatus({
   showProgress?: boolean;
   showEmpty?: boolean;
 }) {
-  const result = batches.latest;
+  const checked = voiceBatchResultSchema.safeParse(batches.latest);
+  const result = checked.success ? checked.data : null;
+  const finished =
+    result && ['completed', 'failed', 'cancelled'].includes(result.status);
+  const notSaved =
+    result?.outcomes?.filter((event) =>
+      ['skipped', 'execution_failed', 'cancelled'].includes(event.status)
+    ).length ?? 0;
+  const saved = finished && !result.analysis && result.addedCount > 0;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
-      {!result?.analysis
-        ? result?.outcomes?.map((event) => {
-            if (event.status === 'committed') return null;
-            const key =
-              event.status === 'skipped'
-                ? `voice.batch.event.reason.${event.reason}`
-                : `voice.batch.event.${event.status}`;
-            return (
-              <StyledText key={event.ordinal}>
-                {translateDynamic('voice.batch.event.result', {
-                  number: event.ordinal + 1,
-                  result: translateDynamic(key)
-                })}
-              </StyledText>
-            );
-          })
-        : null}
+      {saved ? (
+        <StyledText>
+          {notSaved > 0
+            ? translateDynamic('voice.batch.partial', {
+                saved: result.addedCount,
+                failed: notSaved
+              })
+            : translateDynamic(
+                result.status === 'failed' || result.status === 'cancelled'
+                  ? 'voice.batch.partialUnknown'
+                  : 'voice.batch.saved',
+                {
+                  count: result.addedCount
+                }
+              )}
+        </StyledText>
+      ) : null}
       {showProgress && batches.processing ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
-      {showEmpty && result?.status === 'completed' &&
+      {showEmpty &&
+      result?.status === 'completed' &&
       result.addedCount === 0 &&
       !result.analysis ? (
         <StyledText>{translate('voice.batch.empty')}</StyledText>
       ) : null}
-      {result?.status === 'failed' || batches.localFailure ? (
+      {(!saved && result?.status === 'failed') || batches.localFailure ? (
         <StyledText>
           {translate(
             batches.localFailureCode === 'voice_canary_restricted'

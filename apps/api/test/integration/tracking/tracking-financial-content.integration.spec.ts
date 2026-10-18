@@ -208,10 +208,23 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
         {} as never,
       );
       try {
-        await pool.query(
-          'select private.post_opening_transaction($1,$2::uuid,70000,$3,$4::timestamptz,$5)',
-          [owner, account, 'Synthetic opening', new Date().toISOString(), 'account-opening'],
-        );
+        // Authenticated opening fixture is separate from the claim-free worker under test.
+        await pool.withClient(async (client) => {
+          await client.query('begin');
+          try {
+            await client.query("select set_config('request.jwt.claims',$1,true)", [
+              JSON.stringify({ sub: owner }),
+            ]);
+            await client.query(
+              'select private.post_opening_transaction($1,$2::uuid,70000,$3,$4::timestamptz,$5)',
+              [owner, account, 'Synthetic opening', new Date().toISOString(), 'account-opening'],
+            );
+            await client.query('commit');
+          } catch (error) {
+            await client.query('rollback');
+            throw error;
+          }
+        });
         const permissions = await runtimePool.query(
           "select pg_has_role(session_user,'masarifi_api','SET') can_api",
         );
@@ -639,6 +652,74 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     await capture({ channel: 'android_notification', text: 'Payment SAR2' });
     expect(await effects()).toHaveLength(1);
   });
+  it('restores the prior connection identity after fresh DEV tracking success and financial failure', async () => {
+    const id = await capture({ reference: 'identity-restoration' }, {
+      runJob: () => Promise.resolve(0),
+    } as never);
+    const claim = (await repository.claimImports('identity-fixture')).find(
+      (value) => value.id === id,
+    );
+    if (!claim) throw new Error('Identity fixture was not claimed');
+    await repository.prepareImport(id, claim.claim_token);
+    const item = (await pool.query('select id from public.import_items where session_id=$1', [id]))
+      .rows[0];
+    if (!item) throw new Error('Identity fixture item was not prepared');
+    const claims = JSON.stringify({ sub: 'unrelated-prior-principal', marker: 'preserve' });
+    await pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query(`create function pg_temp.reject_tracking_fixture() returns trigger language plpgsql as $$
+          begin raise exception 'SYNTHETIC_FINANCIAL_FAILURE'; end $$`);
+        await client.query(
+          'create trigger reject_tracking_fixture before insert on public.transactions for each row execute function pg_temp.reject_tracking_fixture()',
+        );
+        await client.query("select set_config('request.jwt.claims',$1,true)", [claims]);
+        await client.query('set local role masarifi_worker');
+        await client.query('savepoint attempted');
+        await expect(
+          client.query('select private.commit_tracking_nominal_capture($1,$2)', [
+            item.id,
+            claim.claim_token,
+          ]),
+        ).rejects.toMatchObject({ message: 'SYNTHETIC_FINANCIAL_FAILURE' });
+        await client.query('rollback to savepoint attempted');
+        expect(
+          (
+            await client.query<{ claims: string }>(
+              "select current_setting('request.jwt.claims',true) claims",
+            )
+          ).rows[0]?.claims,
+        ).toBe(claims);
+        await client.query('reset role');
+        await client.query('drop trigger reject_tracking_fixture on public.transactions');
+        await client.query('set local role masarifi_worker');
+        await client.query('select private.commit_tracking_nominal_capture($1,$2)', [
+          item.id,
+          claim.claim_token,
+        ]);
+        expect(
+          (
+            await client.query<{ claims: string }>(
+              "select current_setting('request.jwt.claims',true) claims",
+            )
+          ).rows[0]?.claims,
+        ).toBe(claims);
+        await client.query('reset role');
+        expect(
+          (
+            await client.query<{ n: number }>(
+              'select count(*)::int n from public.transactions where user_id=$1',
+              [owner],
+            )
+          ).rows[0]?.n,
+        ).toBe(1);
+      } finally {
+        await client.query('rollback');
+      }
+    });
+    expect(await effects()).toHaveLength(0);
+  });
+
   it('reuses immutable postings after a lost response', async () => {
     const paused = { runJob: () => Promise.resolve(0) } as never;
     await capture({ reference: 'independent-response' }, paused);

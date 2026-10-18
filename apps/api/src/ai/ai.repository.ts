@@ -8,7 +8,8 @@ import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency
 import { PoolService } from '../platform/database/pool.service';
 import type { EffectiveAiRoute } from './ai.gateway';
 import type { AssistantTurn } from './ai-routing';
-import { isTransientVoiceError } from './voice-transient-error';
+import { isTransientVoiceError, permanentVoiceFailure } from './voice-transient-error';
+import { PlatformLogger } from '../platform/observability/platform-logger';
 
 interface JsonRow extends QueryResultRow {
   result: Record<string, unknown>;
@@ -310,7 +311,9 @@ export class AiRepository {
         for (const next of events ?? []) {
           try {
             const receipt = await this.workerJson(
-              'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
+              continuous
+                ? 'select private.execute_operating_voice_event($1::uuid,$2::uuid,$3::uuid) result'
+                : 'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
               [claim.batch_id, claim.token, next.eventId],
             );
             if (stopOnFailure && receipt.status !== 'committed') {
@@ -320,6 +323,23 @@ export class AiRepository {
             }
           } catch (error) {
             if (continuous && isTransientVoiceError(error)) throw error;
+            const permanent = continuous ? permanentVoiceFailure(error) : null;
+            if (permanent) {
+              await this.workerJson(
+                'select private.fail_operating_voice_event($1::uuid,$2::uuid,$3::uuid) result',
+                [claim.batch_id, claim.token, next.eventId],
+              );
+              try {
+                new PlatformLogger().error('VOICE_FINALIZATION_REJECTED', {
+                  failureStage: 'finalize',
+                  code: permanent,
+                  resourceId: next.eventId,
+                });
+              } catch {
+                /* A diagnostic sink cannot invalidate a durable outcome. */
+              }
+              continue;
+            }
             if (stopOnFailure) {
               failed = true;
               await stopOnFailure();
@@ -337,10 +357,12 @@ export class AiRepository {
       } finally {
         if (!failed)
           await this.worker(async (client) => {
-            await client.query('select private.retry_voice_finalization($1::uuid,$2::uuid)', [
-              claim.batch_id,
-              claim.token,
-            ]);
+            await client.query(
+              continuous
+                ? 'select private.release_operating_voice_finalization($1::uuid,$2::uuid)'
+                : 'select private.retry_voice_finalization($1::uuid,$2::uuid)',
+              [claim.batch_id, claim.token],
+            );
           });
       }
       if (failed) break;
