@@ -71,7 +71,7 @@ export function localizedDemoTransactionTitle(
   locale: Locale
 ): string | null {
   const match = /^demo-transaction-(\d+)$/.exec(transactionId);
-  return match ? demoCopy[locale].titles[Number(match[1]) - 1] ?? null : null;
+  return match ? (demoCopy[locale].titles[Number(match[1]) - 1] ?? null) : null;
 }
 
 export function localizedDemoAccountName(
@@ -472,20 +472,24 @@ export const legacyFixtureTransactions = Array.from(
 const legacyAccountFingerprints = new Set(
   legacyFixtureAccounts.map(fingerprint)
 );
-const legacyTransactionFingerprints = new Set(
-  legacyFixtureTransactions.map(fingerprint)
-);
 
 export function isLegacyFixtureAccount(account: Account): boolean {
   return legacyAccountFingerprints.has(fingerprint(account));
 }
 
 export function isLegacyFixtureTransaction(transaction: Transaction): boolean {
-  return legacyTransactionFingerprints.has(fingerprint(transaction));
+  const match = /^transaction-(0|[1-9]\d{0,2})$/.exec(transaction.id);
+  if (!match || Number(match[1]) >= 500) return false;
+  return (
+    fingerprint(transaction) ===
+    fingerprint(makeLegacyFixtureTransaction(Number(match[1])))
+  );
 }
 
 function fingerprint(value: object): string {
   return JSON.stringify(
-    Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+    Object.entries(value).sort(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0
+    )
   );
 }

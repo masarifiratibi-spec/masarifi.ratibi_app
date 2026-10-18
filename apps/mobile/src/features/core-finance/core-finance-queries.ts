@@ -8,8 +8,15 @@ import {
 
 import {
   emptyTransactionFilters,
+  type Account,
+  type HomeSummary,
+  type Transaction,
   type TransactionFilterSet
 } from '@/domain/core-finance';
+import type {
+  HomeTodayActivity,
+  TransactionPage
+} from '@/services/contracts/core-finance-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 
 export const coreFinanceKeys = {
@@ -46,14 +53,31 @@ export function useHomeSummary(
 ) {
   return useQuery({
     queryKey: coreFinanceKeys.home(currency, filters),
-    queryFn: () => coreFinanceService.getHomeSummary(currency, filters)
+    queryFn: ({ signal }) =>
+      coreFinanceService.getHomeSummary(currency, filters, { signal })
   });
 }
 
 export function useAccounts(includeArchived = false, enabled = true) {
+  const client = useQueryClient();
+  const allAccounts = () => {
+    if (includeArchived) return;
+    const state = client.getQueryState<Account[]>(
+      coreFinanceKeys.accounts(true)
+    );
+    return state?.status === 'success' &&
+      !state.isInvalidated &&
+      state.fetchStatus === 'idle'
+      ? state
+      : undefined;
+  };
   return useQuery({
     queryKey: coreFinanceKeys.accounts(includeArchived),
-    queryFn: () => coreFinanceService.listAccounts(includeArchived),
+    queryFn: ({ signal }) =>
+      coreFinanceService.listAccounts(includeArchived, { signal }),
+    initialData: () =>
+      allAccounts()?.data?.filter((account) => account.status === 'active'),
+    initialDataUpdatedAt: () => allAccounts()?.dataUpdatedAt,
     enabled
   });
 }
@@ -61,7 +85,8 @@ export function useAccounts(includeArchived = false, enabled = true) {
 export function useAccountBalances(includeArchived = false) {
   return useQuery({
     queryKey: coreFinanceKeys.accountBalances(includeArchived),
-    queryFn: () => coreFinanceService.listAccountBalances(includeArchived)
+    queryFn: ({ signal }) =>
+      coreFinanceService.listAccountBalances(includeArchived, { signal })
   });
 }
 
@@ -78,7 +103,8 @@ export function useTransactions(
 ) {
   return useQuery({
     queryKey: coreFinanceKeys.transactions(filters),
-    queryFn: () => coreFinanceService.listTransactions(filters)
+    queryFn: ({ signal }) =>
+      coreFinanceService.listTransactions(filters, null, undefined, signal)
   });
 }
 
@@ -87,19 +113,93 @@ export function useInfiniteTransactions(
 ) {
   return useInfiniteQuery({
     queryKey: coreFinanceKeys.transactionPages(filters),
-    queryFn: ({ pageParam }) =>
-      coreFinanceService.listTransactions(filters, pageParam),
+    queryFn: ({ pageParam, signal }) =>
+      coreFinanceService.listTransactions(
+        filters,
+        pageParam,
+        undefined,
+        signal
+      ),
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined
   });
 }
 
 export function useTransaction(id: string) {
+  const client = useQueryClient();
   return useQuery({
     queryKey: coreFinanceKeys.transaction(id),
     queryFn: () => coreFinanceService.getTransaction(id),
+    initialData: () => cachedTransaction(client, id)?.data,
+    initialDataUpdatedAt: () => cachedTransaction(client, id)?.updatedAt,
     enabled: Boolean(id)
   });
+}
+
+function* cachedTransactionRows(
+  key: readonly unknown[],
+  snapshot: unknown
+): Iterable<Transaction> {
+  const [, resource, variant] = key;
+  if (resource === 'home') yield* (snapshot as HomeSummary).recentTransactions;
+  else if (resource === 'transactions' && variant === 'home-today') {
+    for (const row of snapshot as HomeTodayActivity[]) yield row.transaction;
+  } else if (resource === 'transactions' && variant === 'pages') {
+    for (const page of (snapshot as { pages: TransactionPage[] }).pages)
+      yield* page.items;
+  } else if (resource === 'transactions' && typeof variant === 'object')
+    yield* (snapshot as TransactionPage).items;
+}
+
+function cachedTransaction(client: QueryClient, id: string) {
+  if (!id) return;
+  let cached: { data: Transaction; updatedAt: number } | undefined;
+  for (const query of client
+    .getQueryCache()
+    .findAll({ queryKey: ['core-finance'] })) {
+    if (query.state.data === undefined) continue;
+    for (const item of cachedTransactionRows(
+      query.queryKey,
+      query.state.data
+    )) {
+      if (item.id !== id) continue;
+      // A refresh may replace this version; another list must not pin it either.
+      if (
+        query.state.status !== 'success' ||
+        query.state.isInvalidated ||
+        query.state.fetchStatus !== 'idle'
+      )
+        return;
+      if (
+        !cached ||
+        item.version > cached.data.version ||
+        (item.version === cached.data.version &&
+          query.state.dataUpdatedAt > cached.updatedAt)
+      )
+        cached = {
+          data: item,
+          updatedAt: query.state.dataUpdatedAt
+        };
+    }
+  }
+  // Special postings require detail projection; never promote a pending snapshot.
+  if (!cached) return;
+  const item = cached.data;
+  if (
+    !['expense', 'income', 'transfer'].includes(item.type) ||
+    item.status !== 'posted' ||
+    item.syncStatus !== 'synced' ||
+    item.reviewStatus !== 'none' ||
+    item.originalTransactionId
+  )
+    return;
+  return {
+    data: {
+      ...item,
+      adjustmentSign: (item.type === 'income' ? 1 : -1) as -1 | 1
+    },
+    updatedAt: cached.updatedAt
+  };
 }
 
 export function useRemainingRefundableMinor(
@@ -159,24 +259,46 @@ export async function invalidateCoreFinanceScopes(
   scopes: readonly string[],
   requireSuccess = false
 ): Promise<void> {
-  await Promise.all(
-    scopes
-      .flatMap((scope) =>
-        scope === 'reports.live'
-          ? [
-              ['reports', 'live'],
-              ['reports', 'net-worth']
-            ]
-          : [scopeToKey(scope)]
-      )
-      .map(async (queryKey) => {
-        // An initial fetch has no cached data, so invalidation alone can join a
-        // pre-mutation read and let its stale response clear the invalidation.
-        await client.cancelQueries({ queryKey });
-        await client.invalidateQueries(
-          { queryKey },
-          { throwOnError: requireSuccess }
-        );
-      })
+  const keys = [
+    ...new Map(
+      scopes
+        .flatMap((scope) =>
+          scope === 'reports.live'
+            ? [
+                ['reports', 'live'],
+                ['reports', 'net-worth'],
+                ['reports', 'history']
+              ]
+            : [scopeToKey(scope)]
+        )
+        .map((key) => [JSON.stringify(key), key])
+    ).values()
+  ];
+  const refreshPlanning = scopes.some((scope) =>
+    /^(?:home|accounts|transactions)(?:[.]|$)/.test(scope)
   );
+  const planning = (query: { queryKey: readonly unknown[] }) =>
+    refreshPlanning &&
+    query.queryKey[0] === 'planning' &&
+    !['draft', 'conflict'].includes(String(query.queryKey[1])) &&
+    !(query.queryKey[1] === 'salary' && query.queryKey[2] === 'profile');
+  await Promise.all([
+    ...keys.map((queryKey) => client.cancelQueries({ queryKey })),
+    client.cancelQueries({ predicate: planning })
+  ]);
+  // Mark shared sources stale before any dependent query can run.
+  await client.invalidateQueries({
+    queryKey: ['reports', 'history'],
+    refetchType: 'none'
+  });
+  await client.invalidateQueries({ predicate: planning, refetchType: 'none' });
+  await Promise.all([
+    ...keys.map((queryKey) =>
+      client.invalidateQueries({ queryKey }, { throwOnError: requireSuccess })
+    ),
+    client.refetchQueries(
+      { predicate: planning, type: 'active' },
+      { throwOnError: requireSuccess }
+    )
+  ]);
 }

@@ -1,5 +1,6 @@
 export {
   useObligation,
+  useObligationDetail,
   useObligations,
   useObligationsOverview,
   usePlanningMutation

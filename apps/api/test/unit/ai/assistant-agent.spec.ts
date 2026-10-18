@@ -803,6 +803,66 @@ const queryPage: AssistantDataQuery = {
   offset: 0,
   sort: 'latest',
 };
+it('keeps completed financial reads and grounds the answer after two transport stalls', async () => {
+  jest.useFakeTimers();
+  try {
+    const read = jest.fn(() => Promise.resolve(sample));
+    const bodies: string[] = [];
+    const gateway = new AiGateway({
+      apiKey: 'synthetic',
+      assistantRecovery: true,
+      fetcher: (_url, init) => {
+        if (typeof init?.body !== 'string') throw Error('Expected JSON request body');
+        bodies.push(init.body);
+        if (bodies.length === 2 || bodies.length === 3)
+          return new Promise<Response>(() => undefined);
+        const decision =
+          bodies.length === 1
+            ? {
+                status: 'query',
+                answer: '',
+                queries: [queryPage],
+                responseType: 'fact',
+                scope: 'all_history',
+              }
+            : {
+                status: 'answer',
+                answer: 'Latest {{F1}}.',
+                queries: [],
+                responseType: 'fact',
+                scope: 'all_history',
+              };
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: `synthetic-${bodies.length.toString()}`,
+              model: 'model',
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(decision) } }],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const agent = new AssistantAgent({ read } as never, gateway, () => Promise.resolve());
+    const pending = agent.run(
+      { ...claim, content: 'Latest expense?' },
+      route,
+      new AbortController().signal,
+    );
+    const result = expect(pending).resolves.toMatchObject({ content: 'Latest 3 SAR.' });
+    await jest.advanceTimersByTimeAsync(40_001);
+    await result;
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(bodies).toHaveLength(4);
+    expect(bodies[2]).toBe(bodies[1]);
+    expect(bodies[3]).toBe(bodies[1]);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
 const reply = (input: { parse: (value: unknown) => unknown }, decision: unknown) =>
   Promise.resolve({
     value: input.parse(decision),

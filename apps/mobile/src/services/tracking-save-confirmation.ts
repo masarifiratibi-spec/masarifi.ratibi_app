@@ -34,7 +34,10 @@ export async function reconcileTrackingSaves(
     if (!currentOwner()) return false;
     await synchronizeLiveCoreFinance();
     if (!currentOwner()) return false;
-    publishTrackingSave();
+    publishTrackingSave({
+      ownerId,
+      transactionIds: accepted.map((item) => item.transactionId!)
+    });
     return true;
   };
   const native = trackingNativeRuntime;

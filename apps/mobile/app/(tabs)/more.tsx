@@ -205,16 +205,6 @@ export default function MoreRoute() {
           />
           <Divider />
           <MenuLink
-            label={translate('planning.savings.title')}
-            icon="savings"
-            iconBackground={colorTokens.raw['FFF5EB']}
-            iconColor={colorTokens.raw['93663D']}
-            showChevron
-            hideBorder
-            onPress={() => router.push('/savings')}
-          />
-          <Divider />
-          <MenuLink
             label={translate('planning.salary.title')}
             icon="profile"
             iconBackground={colorTokens.raw['E3F7F2']}

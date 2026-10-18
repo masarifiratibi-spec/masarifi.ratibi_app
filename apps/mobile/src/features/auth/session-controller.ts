@@ -15,6 +15,7 @@ import type { SettingsService } from '@/services/contracts/assistant-notificatio
 import { settingsService } from '@/services/mocks/subscription-settings-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { measurePerformance } from '@/services/platform/performance-timing';
 
 interface CompleteSessionOptions {
   platform?: PlatformPathInput;
@@ -36,7 +37,15 @@ export async function restoreAppShellSession(
   const deadline = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
       active = false;
-      reject(new HttpError('provider_unavailable', 503, undefined, undefined, 'timeout'));
+      reject(
+        new HttpError(
+          'provider_unavailable',
+          503,
+          undefined,
+          undefined,
+          'timeout'
+        )
+      );
     }, 30_000);
   });
   try {
@@ -79,15 +88,22 @@ async function restoreCurrentSession(
     useAppShellStore.getState().setProfileSetup('loading');
     let snapshot: ProfileSetupSnapshot;
     try {
-      snapshot = await identityService.getProfileSetup();
+      snapshot = await measurePerformance('startup.profile', () =>
+        identityService.getProfileSetup()
+      );
     } catch (error) {
       if (!isCurrent()) return;
       if (error instanceof HttpError && error.code === 'session_expired') {
         await useAppShellStore.getState().expireSession();
         if (isCurrent()) useAppShellStore.getState().setProfileSetup('unknown');
-      } else useAppShellStore.getState().setProfileSetup(
-        error instanceof HttpError && error.failureSource ? 'unavailable' : 'error'
-      );
+      } else
+        useAppShellStore
+          .getState()
+          .setProfileSetup(
+            error instanceof HttpError && error.failureSource
+              ? 'unavailable'
+              : 'error'
+          );
       return;
     }
     if (!isCurrent()) return;

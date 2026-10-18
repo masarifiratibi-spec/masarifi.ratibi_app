@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { measurePerformance } from '@/services/platform/performance-timing';
 
 import {
   onboardingSteps,
@@ -179,8 +180,10 @@ export function registerLiveClerkBridge(bridge: LiveClerkBridge): void {
     if (!session) throw new HttpError('session_expired', 401);
     return session.userId;
   });
-  configureAutomaticTrackingTokenProvider(async () => {
-    const token = await bridge.getToken({ skipCache: true });
+  configureAutomaticTrackingTokenProvider(async (readOnly) => {
+    const token = readOnly
+      ? (await captureLiveReadClerkIdentity()).token
+      : await requestClerkToken(bridge, { skipCache: true });
     if (!token) throw new TrackingError('permission_required');
     return token;
   });
@@ -191,7 +194,7 @@ async function requestClerkToken(
   options: { skipCache: boolean }
 ) {
   try {
-    return await bridge.getToken(options);
+    return await measurePerformance(options.skipCache ? 'identity.token.fresh' : 'identity.token.read', () => bridge.getToken(options));
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -418,12 +421,12 @@ export function createLiveIdentityService({
 
   async function getProfileSetup(): Promise<ProfileSetupSnapshot> {
     const ownerId = getOwnerId();
-    const remote = await parsedRequest(request, '/api/v1/me', profileSchema);
+    const remote = await measurePerformance('identity.profile.remote', () => parsedRequest(request, '/api/v1/me', profileSchema));
     if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
     const [preferences, onboarding, local] = await Promise.all([
-      parsedRequest(request, '/api/v1/me/preferences', preferencesSchema),
-      parsedRequest(request, '/api/v1/me/onboarding', onboardingSchema),
-      loadLocalProfile(ownerId ?? undefined)
+      measurePerformance('identity.preferences', () => parsedRequest(request, '/api/v1/me/preferences', preferencesSchema)),
+      measurePerformance('identity.onboarding', () => parsedRequest(request, '/api/v1/me/onboarding', onboardingSchema)),
+      measurePerformance('identity.local.read', () => loadLocalProfile(ownerId ?? undefined))
     ]);
     if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
     onboardingVersion = onboarding.version;
@@ -436,7 +439,7 @@ export function createLiveIdentityService({
       local,
       supportedCurrency(preferences.defaultCurrency)
     );
-    await saveLocalProfile(profile, ownerId ?? undefined);
+    await measurePerformance('identity.local.write', () => saveLocalProfile(profile, ownerId ?? undefined));
     return {
       profile,
       preferences: preferences as OwnerPreferences,

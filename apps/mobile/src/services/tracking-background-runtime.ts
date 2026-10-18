@@ -380,7 +380,9 @@ export async function runTrackingBackground(input: {
   if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
     return;
   const { syncAutomaticTracking } =
-    await import('./automatic-tracking-coordinator');
+    // The coordinator is bundled locally; import() can refetch it in Expo DEV.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('./automatic-tracking-coordinator') as typeof import('./automatic-tracking-coordinator');
   if (!current()) return;
   const result = await syncAutomaticTracking();
   if (['processing', 'queued', 'error'].includes(result.status))

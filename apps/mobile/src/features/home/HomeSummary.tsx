@@ -10,6 +10,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { router } from 'expo-router';
@@ -44,7 +45,7 @@ import { useHomeActivityOffset } from './HomeActivityViewport';
 import { HomeActivityRows } from './HomeActivityRows';
 import { FirstVoicePrompt } from './FirstVoicePrompt';
 
-export function HomeSummary({
+export const HomeSummary = React.memo(function HomeSummary({
   accounts,
   categories,
   notice,
@@ -61,6 +62,7 @@ export function HomeSummary({
   todayActivity?: HomeTodayActivity[];
   activityStatus?: React.ReactNode;
 }) {
+  useWindowDimensions();
   const { revealed, reveal } = useSensitiveVisibility();
   const [accountsSheetVisible, setAccountsSheetVisible] = useState(false);
   const hidden = !revealed;
@@ -155,7 +157,11 @@ export function HomeSummary({
   };
 
   return (
-    <View testID="home-horizon" style={styles.root} onLayout={homeLayout.onLayout}>
+    <View
+      testID="home-horizon"
+      style={styles.root}
+      onLayout={homeLayout.onLayout}
+    >
       <View style={styles.hero}>
         <View
           accessible={false}
@@ -467,7 +473,11 @@ export function HomeSummary({
           { backgroundColor: theme.colors.surfaces.page }
         ]}
       >
-        <FirstVoicePrompt hasRecordedTransactions={summary.recentTransactions.length > 0 || todayActivity.length > 0} />
+        <FirstVoicePrompt
+          hasRecordedTransactions={
+            summary.recentTransactions.length > 0 || todayActivity.length > 0
+          }
+        />
         {voice.automatic ? (
           <VoiceBatchStatus
             batches={voice.batches}
@@ -687,7 +697,7 @@ export function HomeSummary({
       </Modal>
     </View>
   );
-}
+});
 
 function QuickAction({
   label,
@@ -874,7 +884,11 @@ function ActivitySection({
   const sectionLayout = useHomeActivityOffset(offset);
   const listLayout = useHomeActivityOffset(sectionLayout.offset);
   return (
-    <View testID={testID} style={styles.section} onLayout={sectionLayout.onLayout}>
+    <View
+      testID={testID}
+      style={styles.section}
+      onLayout={sectionLayout.onLayout}
+    >
       <SectionHeading testID={`${testID}-heading`} title={title} />
       <View
         testID={`home-transaction-list-${testID === 'home-expense-section' ? 'expense' : 'income'}`}
@@ -905,7 +919,9 @@ function ActivitySection({
                 accountName={
                   accounts?.find(({ id }) => id === transaction.accountId)?.name
                 }
-                category={categories?.find(({ id }) => id === transaction.categoryId)}
+                category={categories?.find(
+                  ({ id }) => id === transaction.categoryId
+                )}
                 contained
                 hidden={hidden}
                 largeText={largeText}

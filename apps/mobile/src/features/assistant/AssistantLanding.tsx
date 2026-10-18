@@ -24,6 +24,7 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { useAssistantFinancialVisibility } from './useAssistantFinancialVisibility';
 
 export interface AssistantLandingProps {
+  initialQuestion?: string;
   onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void;
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
@@ -37,6 +38,7 @@ export interface AssistantLandingProps {
 }
 
 export function AssistantLanding({
+  initialQuestion,
   onAskQuestion,
   consent,
   onEnableConsent,
@@ -79,7 +81,7 @@ export function AssistantLanding({
           <AssistantHero />
 
           {/* 3. Main Question Input Card */}
-          <AssistantAskCard onAskQuestion={onAskQuestion} loading={loading} />
+          <AssistantAskCard key={initialQuestion ?? 'general'} initialQuestion={initialQuestion} onAskQuestion={onAskQuestion} loading={loading} />
 
           {/* 4. Personalization Card */}
           <AssistantConsentCard

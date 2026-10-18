@@ -62,6 +62,129 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  it.each(['voice_transcription', 'transaction_extraction'])(
+    'leaves %s timeout and approved fallback policy unchanged with assistant recovery enabled',
+    async (workload) => {
+      jest.useFakeTimers();
+      try {
+        const fetcher = jest.fn(() => new Promise<Response>(() => undefined));
+        const pending = new AiGateway({
+          apiKey: 'test',
+          fetcher,
+          assistantRecovery: true,
+        }).complete({
+          route: { ...route, workload },
+          userContent: '{}',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'unchanged',
+        });
+        const result = expect(pending).rejects.toMatchObject({ retryable: true });
+        await jest.advanceTimersByTimeAsync(20_001);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        await jest.advanceTimersByTimeAsync(40_000);
+        await result;
+        expect(fetcher).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    },
+  );
+
+  it('cancels assistant recovery without another dispatch', async () => {
+    jest.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      const fetcher = jest.fn(() => new Promise<Response>(() => undefined));
+      const pending = new AiGateway({ apiKey: 'test', fetcher, assistantRecovery: true }).complete({
+        route,
+        userContent: '{}',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'cancel-recovery',
+        signal: controller.signal,
+      });
+      const result = expect(pending).rejects.toMatchObject({ code: 'AI_WORK_CANCELLED' });
+      await jest.advanceTimersByTimeAsync(20_001);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      controller.abort();
+      await result;
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('recovers two stalled assistant dispatches in place using the same model and evidence', async () => {
+    jest.useFakeTimers();
+    try {
+      const bodies: unknown[] = [];
+      const uncertain = jest.fn(() => Promise.resolve());
+      const authorize = jest.fn(() => Promise.resolve());
+      const receipt = jest.fn(() => Promise.resolve());
+      const fetcher = jest.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(requestBody(init));
+        if (bodies.length < 3) return new Promise<Response>(() => undefined);
+        return Promise.resolve(
+          response({
+            id: 'recovered',
+            model: route.primary.modelId,
+            choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+          }),
+        );
+      });
+      const options = { apiKey: 'test', fetcher, assistantRecovery: true };
+      const pending = new AiGateway(options).complete({
+        route,
+        userContent: '{"exactEvidence":"preserved"}',
+        currentQuestion: 'Analyze my report',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'recover',
+        beforeDispatch: authorize,
+        onDispatchFailure: uncertain,
+        onReceipt: receipt,
+      });
+      const result = expect(pending).resolves.toMatchObject({ value: output, fallbackUsed: false });
+      await jest.advanceTimersByTimeAsync(40_001);
+      await result;
+      expect(fetcher).toHaveBeenCalledTimes(3);
+      expect(bodies[1]).toEqual(bodies[0]);
+      expect(bodies[2]).toEqual(bodies[0]);
+      expect(authorize).toHaveBeenCalledTimes(3);
+      expect(uncertain.mock.calls).toEqual([[false], [false]]);
+      expect(receipt).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('exhausts assistant transport recovery within one governed minute without restarting the job', async () => {
+    jest.useFakeTimers();
+    try {
+      const fetcher = jest.fn(() => new Promise<Response>(() => undefined));
+      const options = { apiKey: 'test', fetcher, assistantRecovery: true };
+      const pending = new AiGateway(options).complete({
+        route,
+        userContent: '{}',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'bounded',
+      });
+      const result = expect(pending).rejects.toMatchObject({
+        code: 'AI_TEMPORARILY_UNAVAILABLE',
+        retryable: false,
+        diagnostic: { failureStage: 'provider_headers', state: 'timeout' },
+      });
+      await jest.advanceTimersByTimeAsync(60_001);
+      await result;
+      expect(fetcher).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it.each([
     {
       name: 'agent opt-in',

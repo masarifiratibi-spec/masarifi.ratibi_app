@@ -2,7 +2,6 @@ import React from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { useTransaction } from '@/features/core-finance/core-finance-queries';
-import { TransactionForm } from '@/features/transactions/TransactionForm';
 import { translate } from '@/localization/i18n';
 export default function TransactionEditRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,5 +31,8 @@ export default function TransactionEditRoute() {
         onAction={() => router.back()}
       />
     );
+  const { TransactionForm } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/transactions/TransactionForm') as typeof import('@/features/transactions/TransactionForm');
   return <TransactionForm transaction={query.data} />;
 }

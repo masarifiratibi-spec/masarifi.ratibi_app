@@ -17,7 +17,6 @@ import {
   type AppShellStorage
 } from '@/services/contracts/app-shell-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
-import { defaultKeywordRules } from '@/services/mocks/default-keywords';
 
 const keys = {
   session: 'masarifi.appShell.session',
@@ -117,7 +116,11 @@ export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorag
       writeJson(ownerKey(keys.onboarding), progress),
     loadKeywords: async () =>
       (await readJson(ownerKey(keys.keywords), z.array(keywordRuleSchema))) ??
-      defaultKeywordRules,
+      // Generate fallback rules only when no stored rules are available.
+      (
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+        require('@/services/mocks/default-keywords') as typeof import('@/services/mocks/default-keywords')
+      ).defaultKeywordRules,
     saveKeywords: (rules) => writeJson(ownerKey(keys.keywords), rules),
     loadTrackingPreference: () =>
       readJson(ownerKey(keys.trackingPreference), trackingPreferenceSchema),

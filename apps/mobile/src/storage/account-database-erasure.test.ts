@@ -6,6 +6,7 @@ import {
   resetDatabaseForTests,
   runExclusiveDatabaseTransaction
 } from './database';
+import { readTransactionDraftSnapshot } from './transaction-draft-snapshots';
 
 const OWNER_A = 'user_owner-a';
 const OWNER_B = 'user_owner-b';
@@ -26,6 +27,23 @@ let mockCloseFailure = false;
 let mockSecretFailure = false;
 let mockSilentDelete = false;
 let mockSilentSecretDelete = false;
+
+it.each([
+  ['configure', () => configureDatabaseOwner(OWNER_A)],
+  ['clear', () => clearDatabaseOwner()],
+  ['purge', () => purgeAccountDatabase(OWNER_A)]
+] as const)('invalidates draft snapshots on database owner %s', async (_name, lifecycle) => {
+  await configureDatabaseOwner(OWNER_A);
+  const owner = { userId: OWNER_A, assertCurrent: async () => undefined };
+  const read = jest.fn(async () => null);
+  await readTransactionDraftSnapshot(owner, 'manual', read);
+  const pending = lifecycle();
+  // Lifecycle work has not finished its queued async operation yet.
+  await readTransactionDraftSnapshot(owner, 'manual', read);
+  await pending;
+  await readTransactionDraftSnapshot(owner, 'manual', read);
+  expect(read).toHaveBeenCalledTimes(3);
+});
 const mockDirectory = '/data/user/0/com.masarifi.mobile/files/SQLite';
 
 jest.mock('expo-crypto', () => ({

@@ -6,6 +6,60 @@ import {
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { emptyTransactionFilters } from '@/domain/core-finance';
 
+it('invalidates shared history before a mounted trend reads it again', async () => {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity, gcTime: Infinity }
+    }
+  });
+  const history = ['reports', 'history', 'owner'];
+  const trend = ['reports', 'net-worth', 'month'];
+  client.setQueryData(history, 1);
+  const observer = new QueryObserver(client, {
+    queryKey: trend,
+    queryFn: () =>
+      client.fetchQuery({
+        queryKey: history,
+        queryFn: async () => 2,
+        staleTime: Infinity
+      })
+  });
+  const unsubscribe = observer.subscribe(() => undefined);
+  try {
+    await observer.refetch();
+    expect(client.getQueryData(trend)).toBe(1);
+    await invalidateCoreFinanceScopes(client, ['reports.live']);
+    expect(client.getQueryData(trend)).toBe(2);
+  } finally {
+    unsubscribe();
+    client.clear();
+  }
+});
+
+it('marks planning snapshots stale after ledger activity without touching drafts', async () => {
+  const client = new QueryClient();
+  const snapshot = [
+    'planning',
+    'snapshot',
+    'owner',
+    '2026-10-17',
+    'Asia/Riyadh'
+  ];
+  const draft = ['planning', 'draft', 'salary'];
+  client.setQueryData(snapshot, { balance: 1 });
+  client.setQueryData(draft, { amount: '123' });
+  try {
+    await invalidateCoreFinanceScopes(client, [
+      'transactions.list',
+      'home.summary'
+    ]);
+    expect(client.getQueryState(snapshot)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(draft)?.isInvalidated).toBe(false);
+  } finally {
+    client.clear();
+  }
+});
+
 it('creates stable isolated query keys', () => {
   expect(coreFinanceKeys.home('SAR')).toEqual(['core-finance', 'home', 'SAR']);
   const periodFilters = {

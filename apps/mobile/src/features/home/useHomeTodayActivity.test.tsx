@@ -4,9 +4,12 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePreferenceStore } from '@/state/preferences';
 import { useHomeTodayActivity } from './useHomeTodayActivity';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
 
+let mockFocus: (() => void) | undefined;
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => {
+    mockFocus = callback;
     const React = jest.requireActual<typeof import('react')>('react');
     React.useEffect(callback, [callback]);
   }
@@ -64,6 +67,78 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
+
+it.each(['focus', 'foreground'] as const)(
+  'refreshes on same-day %s without a redundant date-state render',
+  async (trigger) => {
+    let foreground!: (state: AppStateStatus) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_event, listener) => {
+        foreground = listener;
+        return { remove: jest.fn() };
+      });
+    const read = jest.spyOn(coreFinanceService, 'getHomeTodayActivity');
+    let renders = 0;
+    const view = renderHook(
+      () => {
+        renders++;
+        return useHomeTodayActivity(null).data;
+      },
+      { wrapper: Wrapper }
+    );
+    try {
+      await waitFor(() => expect(view.result.current).toHaveLength(1));
+      const beforeRenders = renders;
+      const beforeReads = read.mock.calls.length;
+      jest.setSystemTime(Date.now() + 1000);
+      await act(async () => {
+        if (trigger === 'focus') mockFocus?.();
+        else foreground('active');
+      });
+      expect(read).toHaveBeenCalledTimes(beforeReads + 1);
+      expect(renders).toBe(beforeRenders);
+      expect(view.result.current?.[0].transaction.id).toBe('transaction-1');
+    } finally {
+      view.unmount();
+    }
+  }
+);
+
+it('joins repeated foreground refreshes instead of cancelling and restarting cached reads', async () => {
+  let foreground!: (state: AppStateStatus) => void;
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((_event, listener) => {
+      foreground = listener;
+      return { remove: jest.fn() };
+    });
+  const original = coreFinanceService.getHomeTodayActivity;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const spy = jest.spyOn(coreFinanceService, 'getHomeTodayActivity');
+  const view = renderHook(() => useHomeTodayActivity(null), {
+    wrapper: Wrapper
+  });
+  try {
+    await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+    spy.mockImplementation(async (...args) => {
+      await pending;
+      return original(...args);
+    });
+    const initial = spy.mock.calls.length;
+    act(() => {
+      foreground('active');
+      foreground('active');
+    });
+    expect(spy.mock.calls.length - initial).toBe(1);
+  } finally {
+    await act(async () => release());
+    view.unmount();
+  }
+});
 
 beforeEach(() => {
   jest.useFakeTimers();

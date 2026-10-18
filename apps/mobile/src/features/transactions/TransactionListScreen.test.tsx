@@ -25,6 +25,10 @@ import {
 import { renderWithQueryData } from '@/test-utils/render';
 import { lightThemeColors } from '@/design-system/tokens';
 import { TransactionListScreen } from './TransactionListScreen';
+import * as presentation from './transaction-presentation';
+import * as periods from '@/features/filters/date-period';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { StyledText } from '@/components/StyledText';
 import {
   applyAccountScope,
   useCoreFinanceViewState
@@ -76,6 +80,97 @@ beforeEach(() => {
 });
 
 afterEach(() => jest.restoreAllMocks());
+
+it('reuses the screen for unrelated parent renders while receiving new query data and privacy state', async () => {
+  const label = jest.spyOn(periods, 'formatPeriodLabel');
+  let client!: QueryClient;
+  function Parent() {
+    const [count, setCount] = React.useState(0);
+    client = useQueryClient();
+    return (
+      <>
+        <StyledText onPress={() => setCount(count + 1)}>
+          Parent {count}
+        </StyledText>
+        <TransactionListScreen />
+      </>
+    );
+  }
+  renderWithQueryData(<Parent />, [
+    [
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      {
+        pages: [
+          { items: fixtureTransactions.slice(0, 2), nextCursor: null, total: 2 }
+        ],
+        pageParams: [null]
+      }
+    ],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    summarySeed
+  ]);
+  label.mockClear();
+  fireEvent.press(screen.getByText('Parent 0'));
+  expect(label).not.toHaveBeenCalled();
+  act(() =>
+    client.setQueryData(
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      {
+        pages: [
+          {
+            items: [{ ...fixtureTransactions[0], title: 'Fresh query row' }],
+            nextCursor: null,
+            total: 1
+          }
+        ],
+        pageParams: [null]
+      }
+    )
+  );
+  await waitFor(() => expect(screen.getByText('Fresh query row')).toBeTruthy());
+  act(() => usePreferenceStore.setState({ hideBalances: true }));
+  expect(
+    within(screen.getByTestId('transaction-row')).getByText('•••• SAR')
+  ).toBeTruthy();
+});
+
+it('reuses unchanged rows when opening filters but updates localized row content', () => {
+  const timestamp = jest.spyOn(presentation, 'formatTransactionTimestamp');
+  renderWithQueryData(<TransactionListScreen />, [
+    [
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      {
+        pages: [
+          { items: fixtureTransactions.slice(0, 2), nextCursor: null, total: 2 }
+        ],
+        pageParams: [null]
+      }
+    ],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    summarySeed
+  ]);
+  timestamp.mockClear();
+  fireEvent.press(screen.getByTestId('transaction-filter-action'));
+  expect(timestamp).not.toHaveBeenCalled();
+
+  act(() => {
+    changeLocale('ar');
+    usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
+  });
+  expect(timestamp).toHaveBeenCalledWith(
+    expect.any(Number),
+    expect.any(Number),
+    'ar',
+    'UTC'
+  );
+  expect(screen.getAllByTestId('transaction-row')).toHaveLength(2);
+  const category = fixtureCategories.find(
+    (item) => item.id === fixtureTransactions[1].categoryId
+  )!;
+  expect(screen.getAllByText(category.labelAr).length).toBeGreaterThan(0);
+});
 
 it('renders populated ledger rows from the service query', () => {
   renderWithQueryData(<TransactionListScreen />, [

@@ -54,7 +54,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
         const agent = new AssistantAgent(
           this.data,
-          new AiGateway({ apiKey: this.config.get('OPENROUTER_API_KEY') }),
+          new AiGateway({ apiKey: this.config.get('OPENROUTER_API_KEY'), assistantRecovery: true }),
           async (receipt) => {
             await this.jobs.receipt(claim, receipt);
           },
@@ -96,6 +96,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         this.logger.error('ASSISTANT_AGENT_FAILED', {
           code,
           durationMs: Date.now() - started,
+          ...(error instanceof AiGatewayError ? error.diagnostic : {}),
           ...workerErrorFields(error),
         });
       }

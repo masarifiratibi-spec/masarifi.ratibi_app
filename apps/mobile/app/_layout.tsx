@@ -21,6 +21,26 @@ import { VoiceCaptureProvider } from '@/features/voice/VoiceCaptureRuntime';
 import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
 
 export default function RootLayout() {
+  return (
+    <MobileIdentityProvider>
+      <FontGate>
+        <FoundationProviders>
+          <AppShellProvider>
+            <DevAccountDeletionRecovery />
+            <VoiceCaptureProvider>
+              <RoutePrivacyGate>
+                <NotificationResponseRuntime />
+                <RootStack />
+              </RoutePrivacyGate>
+            </VoiceCaptureProvider>
+          </AppShellProvider>
+        </FoundationProviders>
+      </FontGate>
+    </MobileIdentityProvider>
+  );
+}
+
+function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
   const appLockEnabled = isAppLockEnabled();
   const pathname = usePathname();
   const autoLockDuration = useAppShellStore(
@@ -43,35 +63,23 @@ export default function RootLayout() {
   }, [lockNow]);
 
   return (
-    <MobileIdentityProvider>
-      <FontGate>
-        <FoundationProviders>
-          <AppShellProvider>
-            <DevAccountDeletionRecovery />
-            <VoiceCaptureProvider>
-              <AppPrivacyGate
-                immediate={
-                  appLockEnabled &&
-                  autoLockDuration === 'immediate' &&
-                  pathname !== '/security/unlock'
-                }
-                lockAfterMs={appLockEnabled ? lockAfterMs : null}
-                locked={
-                  appLockEnabled &&
-                  appLockStatus !== undefined &&
-                  appLockStatus !== 'unlocked' &&
-                  pathname !== '/security/unlock'
-                }
-                onLock={appLockEnabled ? handleLock : undefined}
-              >
-                <NotificationResponseRuntime />
-                <RootStack />
-              </AppPrivacyGate>
-            </VoiceCaptureProvider>
-          </AppShellProvider>
-        </FoundationProviders>
-      </FontGate>
-    </MobileIdentityProvider>
+    <AppPrivacyGate
+      immediate={
+        appLockEnabled &&
+        autoLockDuration === 'immediate' &&
+        pathname !== '/security/unlock'
+      }
+      lockAfterMs={appLockEnabled ? lockAfterMs : null}
+      locked={
+        appLockEnabled &&
+        appLockStatus !== undefined &&
+        appLockStatus !== 'unlocked' &&
+        pathname !== '/security/unlock'
+      }
+      onLock={appLockEnabled ? handleLock : undefined}
+    >
+      {children}
+    </AppPrivacyGate>
   );
 }
 

@@ -4,9 +4,11 @@ import { FlatList } from 'react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
+import AssistantRoute from '@app/assistant/index';
 
 const { AssistantHomeScreen, AssistantConversationScreen } = require('./AssistantHomeScreen') as Record<string, React.ComponentType<any>>;
 const { createMockAssistantService } = require('@/services/mocks/assistant-service') as { createMockAssistantService(input?: Record<string, unknown>): any };
+const mockAssistantRouteParams: Record<string, string> = {};
 const mockAssistantQueries = {
   useAssistantConsent: jest.fn(),
   useAssistantInsights: jest.fn(),
@@ -20,11 +22,12 @@ const mockAssistantQueries = {
   useAssistantFeedback: jest.fn()
 };
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useLocalSearchParams: () => ({ conversationId: 'conversation-1' }) }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useLocalSearchParams: () => mockAssistantRouteParams }));
 jest.mock('./assistant-queries', () => mockAssistantQueries);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  Object.keys(mockAssistantRouteParams).forEach(key => delete mockAssistantRouteParams[key]);
   changeLocale('en');
   mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'enabled', version: 1 }, isLoading: false, isError: false });
   mockAssistantQueries.useAssistantInsights.mockReturnValue({ data: [] });
@@ -47,6 +50,38 @@ beforeEach(() => {
   mockAssistantQueries.useRenameAssistantConversation.mockReturnValue({ mutate: jest.fn() });
   mockAssistantQueries.useDeleteAssistantConversation.mockReturnValue({ mutate: jest.fn() });
   mockAssistantQueries.useAssistantFeedback.mockReturnValue({ mutate: jest.fn() });
+});
+
+test('report entry prepares the scoped question without automatically sending or enabling consent', () => {
+  Object.assign(mockAssistantRouteParams, {
+    action: 'explain',
+    reportContext: JSON.stringify({startDate: '2026-08-01', endDate: '2026-08-31', currencyCode: 'SAR', accountName: 'Test'}),
+    returnTo: '/(tabs)/reports'
+  });
+  const create = jest.fn();
+  const consent = jest.fn();
+  mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({mutate: create});
+  mockAssistantQueries.useSetAssistantConsent.mockReturnValue({mutate: consent});
+  renderWithProviders(<AssistantRoute />);
+  const question = screen.getByTestId('assistant-ask-input').props.value;
+  expect(question).toContain('Explain this report');
+  expect(question).toContain('2026-08-01');
+  expect(question).toContain('2026-08-31');
+  expect(question).toContain('SAR');
+  expect(question).toContain('Test');
+  expect(create).not.toHaveBeenCalled();
+  expect(consent).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({question}), expect.any(Object));
+});
+
+test('invalid report dates do not prefill a misleading report question', () => {
+  Object.assign(mockAssistantRouteParams, {
+    action: 'explain',
+    reportContext: JSON.stringify({startDate: '2026-02-30', endDate: '2026-02-31', currencyCode: 'SAR', accountName: null})
+  });
+  renderWithProviders(<AssistantRoute />);
+  expect(screen.getByTestId('assistant-ask-input').props.value).toBe('');
 });
 
 test('original home shows consent disclosure, suggestions and required data states without a history redesign', () => {

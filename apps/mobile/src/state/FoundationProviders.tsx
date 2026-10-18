@@ -34,6 +34,8 @@ import {
 } from '@/storage/runtime-user-data-reset';
 import { SensitiveVisibilityProvider } from './SensitiveVisibilityProvider';
 import { subscribeTrackingSaves } from '@/services/tracking-save-events';
+import { useAppShellStore } from './app-shell';
+import type { UserProfile } from '@/domain/settings';
 
 initI18n();
 
@@ -72,12 +74,58 @@ export function FoundationProviders({
     const clear = () => client.clear();
     const unregisterUserReset = registerRuntimeUserDataReset(clear);
     const unregisterIdentityReset = registerRuntimeIdentityReset(clear);
-    const unsubscribeSaves = subscribeTrackingSaves(() => {
-      void client.invalidateQueries();
+    // Bootstrap has already fetched and validated this owner's server profile.
+    // Publish it before protected screens mount rather than repeat their reads.
+    const unsubscribeProfile = useAppShellStore.subscribe((state, previous) => {
+      const snapshot = state.profileSetupSnapshot;
+      if (
+        snapshot &&
+        snapshot !== previous.profileSetupSnapshot &&
+        state.session?.status === 'authenticated' &&
+        ['complete', 'incomplete'].includes(state.profileSetupStatus)
+      )
+        client.setQueryData<UserProfile>(['settings', 'profile'], (cached) =>
+          cached && cached.version > snapshot.profile.version
+            ? cached
+            : snapshot.profile
+        );
+    });
+    const unsubscribeSaves = subscribeTrackingSaves((event) => {
+      if (useAppShellStore.getState().session?.userId !== event.ownerId) return;
+      const predicate = (query: { queryKey: readonly unknown[] }) => {
+        const [root, resource] = query.queryKey;
+        if (root === 'core-finance')
+          return [
+            'home',
+            'accounts',
+            'account',
+            'account-balances',
+            'transactions',
+            'transaction'
+          ].includes(String(resource));
+        if (root === 'planning')
+          return (
+            !['draft', 'conflict'].includes(String(resource)) &&
+            !(resource === 'salary' && query.queryKey[2] === 'profile')
+          );
+        if (root === 'reports')
+          return ['live', 'net-worth', 'history', 'breakdown'].includes(
+            String(resource)
+          );
+        return root === 'assistant' && resource === 'context';
+      };
+      void client
+        .cancelQueries({ predicate })
+        .then(() => {
+          if (useAppShellStore.getState().session?.userId === event.ownerId)
+            return client.invalidateQueries({ predicate });
+        })
+        .catch(() => undefined);
     });
     return () => {
       unregisterUserReset();
       unregisterIdentityReset();
+      unsubscribeProfile();
       unsubscribeSaves();
     };
   }, [client]);

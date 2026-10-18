@@ -1,3 +1,4 @@
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -12,11 +13,7 @@ import Svg, {
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon } from '@/design-system/icons';
-import {
-  colorTokens,
-  elevation,
-  spacing
-} from '@/design-system/tokens';
+import { colorTokens, elevation, spacing } from '@/design-system/tokens';
 import type { Calculation } from '@/domain/financial-planning';
 import type { MoneyValue } from '@/domain/core-finance';
 import { localDateInTimeZone } from '@/domain/financial-period';
@@ -104,6 +101,7 @@ export function SalaryOverviewScreen() {
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <View style={styles.screenStack}>
+          <FinancialRefreshStatus query={query} />
           <SalaryCycleHeader
             direction={direction}
             income={money(data.income)}
@@ -123,7 +121,10 @@ export function SalaryOverviewScreen() {
             <Text
               style={[
                 styles.setupHint,
-                { color: theme.colors.content.secondary, writingDirection: direction }
+                {
+                  color: theme.colors.content.secondary,
+                  writingDirection: direction
+                }
               ]}
             >
               {translate('planning.salary.emptySubtitle')}
@@ -149,16 +150,30 @@ export function SalaryOverviewScreen() {
             nextSalaryDate={nextSalaryDate}
           />
 
-          {!needsSetup ? <>
-            <ActionButton label={translate('planning.salary.confirmReceipt')}
-              onPress={() => router.push('/salary/receipt/select')} variant="secondary" />
-            {data.startReceiptId ? <ActionButton label={translate('planning.salary.review')}
-              onPress={() => router.push(`/salary/receipt/${data.startReceiptId}`)} variant="secondary" /> : null}
-          </> : null}
+          {!needsSetup ? (
+            <>
+              <ActionButton
+                label={translate('planning.salary.confirmReceipt')}
+                onPress={() => router.push('/salary/receipt/select')}
+                variant="secondary"
+              />
+              {data.startReceiptId ? (
+                <ActionButton
+                  label={translate('planning.salary.review')}
+                  onPress={() =>
+                    router.push(`/salary/receipt/${data.startReceiptId}`)
+                  }
+                  variant="secondary"
+                />
+              ) : null}
+            </>
+          ) : null}
 
           <ActionButton
             label={translate(
-              needsSetup ? 'planning.salary.setup' : 'planning.salary.editSettings'
+              needsSetup
+                ? 'planning.salary.setup'
+                : 'planning.salary.editSettings'
             )}
             onPress={() => router.push('/salary/profile')}
             style={styles.primaryAction}
@@ -217,20 +232,12 @@ function SalaryCycleHeader({
       <View style={styles.heroContent}>
         <Text
           accessibilityRole="header"
-          style={[
-            styles.heroTitle,
-            { textAlign: 'left' }
-          ]}
+          style={[styles.heroTitle, { textAlign: 'left' }]}
         >
           {translate('planning.salary.yourCycle')}
         </Text>
         <View style={styles.heroAmountBlock}>
-          <Text
-            style={[
-              styles.heroLabel,
-              { textAlign: 'left' }
-            ]}
-          >
+          <Text style={[styles.heroLabel, { textAlign: 'left' }]}>
             {translate('planning.salary.cycleSalary')}
           </Text>
           <Text
@@ -246,12 +253,7 @@ function SalaryCycleHeader({
             {income}
           </Text>
         </View>
-        <View
-          style={[
-            styles.summaryStrip,
-            { flexDirection: 'row' }
-          ]}
-        >
+        <View style={[styles.summaryStrip, { flexDirection: 'row' }]}>
           <SummaryCell
             icon="wallet"
             label={translate('planning.salary.remainingMine')}
@@ -378,14 +380,15 @@ function DetailRow({
         last ? undefined : styles.detailRowBorder
       ]}
     >
-      <View
-        style={[
-          styles.detailLabelGroup,
-          { flexDirection: 'row' }
-        ]}
-      >
+      <View style={[styles.detailLabelGroup, { flexDirection: 'row' }]}>
         <View style={[styles.detailDot, { backgroundColor: dotColor }]} />
-        <Text numberOfLines={2} style={[styles.detailLabel, { color: theme.colors.content.secondary }]}>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.detailLabel,
+            { color: theme.colors.content.secondary }
+          ]}
+        >
           {label}
         </Text>
       </View>

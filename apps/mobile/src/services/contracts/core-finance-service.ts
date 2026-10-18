@@ -101,11 +101,16 @@ export interface CoreFinanceService {
   ): Promise<HomeTodayActivity[]>;
   getHomeSummary(
     profileCurrency: string,
-    filters?: TransactionFilterSet
+    filters?: TransactionFilterSet,
+    context?: import('./read-context').ReadContext
   ): Promise<HomeSummary>;
-  listAccounts(includeArchived?: boolean): Promise<Account[]>;
+  listAccounts(
+    includeArchived?: boolean,
+    context?: import('./read-context').ReadContext
+  ): Promise<Account[]>;
   listAccountBalances(
-    includeArchived?: boolean
+    includeArchived?: boolean,
+    context?: import('./read-context').ReadContext
   ): Promise<AccountBalanceProjection[]>;
   getAccount(id: string): Promise<Account>;
   createAccount(input: AccountInput): Promise<MutationResult<Account>>;

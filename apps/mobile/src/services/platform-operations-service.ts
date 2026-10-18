@@ -2,7 +2,7 @@ import { isFixtureModeEnabled } from '@/config/demo-mode';
 import type {
   PlatformOperationsService
 } from '@/services/contracts/platform-operations-service';
-import { getLiveClerkToken } from '@/services/live/auth-service';
+import { captureLiveReadClerkIdentity } from '@/services/live/auth-service';
 import { createLivePlatformOperationsService } from '@/services/live/platform-operations-service';
 
 const fixtureService: PlatformOperationsService = {
@@ -37,7 +37,7 @@ export function selectPlatformOperationsService(
 
 export const platformOperationsService = selectPlatformOperationsService(
   isFixtureModeEnabled(),
-  createLivePlatformOperationsService({ token: getLiveClerkToken }),
+  createLivePlatformOperationsService({ captureIdentity: captureLiveReadClerkIdentity }),
   fixtureService
 );
 

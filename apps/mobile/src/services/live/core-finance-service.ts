@@ -4,7 +4,6 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 
 import {
-  draftInputSchema,
   matchesFilters,
   safeMinorSum,
   transactionInputSchema,
@@ -21,6 +20,7 @@ import type {
 } from '@/services/contracts/core-finance-service';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
+import { readTransactionDraft, writeTransactionDraft, deleteTransactionDraft } from '@/storage/core-finance-draft-storage';
 import { CoreFinanceSyncAdapter } from '@/storage/core-finance-sync-adapter';
 import { openDatabase } from '@/storage/database';
 import { SyncRepository } from '@/storage/sync-repository';
@@ -29,6 +29,7 @@ import { captureLiveClerkIdentity, captureLiveClerkOwner, captureLiveReadClerkId
 import { HttpError, requestJson } from './http-client';
 import { ledgerDetailSchema as detailSchema, ledgerSummarySchema as summarySchema, serverKind, serverStatus } from './ledger-api-contract';
 import { readHomeTodayActivity } from '@/services/home-today-activity';
+import { measurePerformance } from '@/services/platform/performance-timing';
 
 const uuid = z.string().uuid();
 const instant = z.string().datetime({ offset: true });
@@ -242,7 +243,7 @@ export function createLiveLedgerService({
       local = { repository, ready: null };
       ownerRepositories.set(owner.userId, local);
     }
-    const ready = (local.ready ??= local.repository.hydrate());
+    const ready = (local.ready ??= local.repository.hydrate({ preserveDrafts: true }));
     try {
       await ready;
     } catch (error) {
@@ -302,7 +303,7 @@ export function createLiveLedgerService({
     command: (state: {
       operationId: string;
       expectedVersion?: number;
-    }) => Promise<T>,
+    }, identity: Awaited<ReturnType<typeof captureLiveClerkIdentity>>) => Promise<T>,
     operationId?: string
   ): Promise<T> => {
     const identity = await captureLiveClerkIdentity();
@@ -321,7 +322,7 @@ export function createLiveLedgerService({
           state.prepared = true;
         }
         await identity.assertCurrent();
-        const value = await command(state);
+        const value = await command(state, identity);
         try {
           await identity.assertCurrent();
         } catch {
@@ -380,9 +381,10 @@ export function createLiveLedgerService({
       if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
         throw new CoreFinanceError('validation');
       const owner = await captureLiveReadClerkIdentity();
-      await categoryIds?.prepare();
-      await owner.assertCurrent();
-      const query = ledgerQuery(
+      const prepareCategories = () => measurePerformance('ledger.categories', async () => { await categoryIds?.prepare(); });
+      const readPage = async () => {
+        await owner.assertCurrent();
+        const query = ledgerQuery(
         {
           ...filters,
           categoryIds: filters.categoryIds.map(
@@ -392,7 +394,7 @@ export function createLiveLedgerService({
         cursor,
         pageSize
       );
-      const page = await send(
+        return measurePerformance('ledger.read', () => send(
         'GET',
         `/api/v1/transactions?${query.toString()}`,
         pageSchema,
@@ -400,7 +402,17 @@ export function createLiveLedgerService({
         undefined,
         signal,
         owner
-      );
+        ));
+      };
+      // Only category-filtered transport needs the mapping before it can start.
+      let page: Awaited<ReturnType<typeof readPage>>;
+      if (filters.categoryIds.length) {
+        await prepareCategories();
+        page = await readPage();
+      } else {
+        [, page] = await Promise.all([prepareCategories(), readPage()]);
+      }
+      await owner.assertCurrent();
       const accountId = filters.accountIds.length === 1 ? filters.accountIds[0] : undefined;
       const projected = await Promise.all(page.items.map(async (item) => {
         if (item.kind !== 'reversal' || !accountId)
@@ -539,8 +551,10 @@ export function createLiveLedgerService({
       const result = await mutate(
         `transaction:create:${JSON.stringify(body)}`,
         async () => undefined,
-        ({ operationId: key }) =>
-          send('POST', '/api/v1/transactions', mutationSchema, body, key),
+        async ({ operationId: key }, identity) => {
+          await categoryIds?.prepare();
+          return send('POST', '/api/v1/transactions', mutationSchema, body, key, undefined, identity);
+        },
         operationId
       );
       return mutationResult(detailTransaction(result.transaction));
@@ -688,19 +702,13 @@ export function createLiveLedgerService({
       return mutationResult(detailTransaction(result.transaction));
     },
     async saveDraft(draft: TransactionDraft) {
-      const { repository: drafts } = await ensureLocalReady();
-      const value = drafts.saveDraft(draftInputSchema.parse(draft));
-      await drafts.persistDraft(value);
-      return value;
+      return writeTransactionDraft(await captureLiveClerkOwner(), draft);
     },
     async loadDraft(id: string) {
-      const { repository: drafts } = await ensureLocalReady();
-      return drafts.loadDraft(id);
+      return readTransactionDraft(await captureLiveClerkOwner(), id);
     },
     async discardDraft(id: string) {
-      const { repository: drafts } = await ensureLocalReady();
-      await drafts.removePersistedDraft(id);
-      drafts.discardDraft(id);
+      return deleteTransactionDraft(await captureLiveClerkOwner(), id);
     },
     async deleteTransaction(id): Promise<DeleteResult> {
       const prior = await current(id);
@@ -812,7 +820,7 @@ export function createLiveCoreFinanceSync({
   repository,
   adapter,
   sync,
-  identity = captureLiveClerkIdentity
+  identity
 }: {
   baseUrl?: string;
   request?: typeof fetch;
@@ -824,8 +832,17 @@ export function createLiveCoreFinanceSync({
 } = {}) {
   return {
     async synchronize() {
-      const owner = await identity();
+      const owner = await (identity ?? captureLiveReadClerkIdentity)();
       await owner.assertCurrent();
+      let writeOwner: Promise<Awaited<ReturnType<typeof captureLiveClerkIdentity>>> | undefined;
+      const requestToken = async (readOnly?: boolean) => {
+        await owner.assertCurrent();
+        if (!readOnly && !identity) writeOwner ??= captureLiveClerkIdentity();
+        const actor = !readOnly && writeOwner ? await writeOwner : owner;
+        await owner.assertCurrent();
+        await actor.assertCurrent();
+        return actor.token;
+      };
       let ownerDatabase = database;
       if (!ownerDatabase && (!repository || !adapter))
         ownerDatabase = await openDatabase(owner.userId);
@@ -836,8 +853,14 @@ export function createLiveCoreFinanceSync({
         sync ??
         new SyncHttpService(
           baseUrl,
-          async () => owner.token,
-          async () => currentDeviceId(baseUrl, request, owner.token),
+          requestToken,
+          async () => {
+            const actor = writeOwner ? await writeOwner : owner;
+            await owner.assertCurrent();
+            const deviceId = await currentDeviceId(baseUrl, request, actor.token);
+            await owner.assertCurrent();
+            return deviceId;
+          },
           request
         );
       let uploaded = 0;
@@ -1290,8 +1313,7 @@ function derivedOperationId(operationId: string, index: number): string {
 let liveCoreFinanceSync: Promise<unknown> | null = null;
 
 export function synchronizeLiveCoreFinance(): Promise<unknown> {
-  return (liveCoreFinanceSync ??= createLiveCoreFinanceSync()
-    .synchronize()
+  return (liveCoreFinanceSync ??= measurePerformance('sync.core', () => createLiveCoreFinanceSync().synchronize())
     .finally(() => {
       liveCoreFinanceSync = null;
     }));

@@ -13,9 +13,10 @@ describe('SyncHttpService', () => {
         };
       }
     );
+    const token = jest.fn(async (readOnly?: boolean) => readOnly ? 'read-token' : 'write-token');
     const service = new SyncHttpService(
       'https://api.example.test/',
-      async () => 'token',
+      token,
       async () => 'device',
       request as never
     );
@@ -39,6 +40,9 @@ describe('SyncHttpService', () => {
     await service.conflicts();
     await service.conflict('conflict-one');
     await service.resolveConflict('conflict-one', 'server', 'resolve-key');
+    expect(token.mock.calls).toEqual([[true], [true], [false], [false], [true], [true], [false]]);
+    expect(calls.every(({ init }) => (init.headers as Record<string, string>).Authorization ===
+      (init.method === 'GET' ? 'Bearer read-token' : 'Bearer write-token'))).toBe(true);
     expect(calls.map(({ url }) => url)).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/api/v1/sync/bootstrap'),

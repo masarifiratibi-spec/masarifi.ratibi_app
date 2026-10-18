@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
@@ -93,6 +93,9 @@ export function DateRangeSheet({
     () => lastMonthPeriod(now, periodContext),
     [now, periodContext]
   );
+
+  // Android removes hidden modals immediately; iOS retains dismissal animation.
+  if (Platform.OS === 'android' && !visible) return null;
 
   const isTodaySelected =
     period.periodStart === today.periodStart &&

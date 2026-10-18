@@ -1,4 +1,5 @@
 import React from 'react';
+import { renderHook } from '@testing-library/react-native';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderWithProviders } from '@/test-utils/render';
@@ -113,7 +114,10 @@ test('keeps the assistant unavailable in production without a live provider', ()
 });
 
 test('owns assistant routes with thin render-only modules and rejected raw destinations', () => {
-  expect(AssistantRoute()).toEqual(<AssistantHomeScreen />);
+  const home = renderHook(() => AssistantRoute());
+  expect(home.result.current.type).toBe(AssistantHomeScreen);
+  expect(home.result.current.props).toEqual({initialQuestion: undefined});
+  home.unmount();
   expect(AssistantConversationRoute()).toEqual(
     <AssistantConversationScreen conversationId="conversation-1" />
   );

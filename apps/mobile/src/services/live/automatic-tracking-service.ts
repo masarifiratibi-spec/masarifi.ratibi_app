@@ -31,7 +31,7 @@ import {
   type TrackingMutationResult
 } from '@/services/contracts/automatic-tracking-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
-import { captureLiveClerkIdentity } from './auth-service';
+import { captureLiveClerkIdentity, captureLiveReadClerkIdentity } from './auth-service';
 import { getTrackingDeviceId } from '../tracking-device';
 import {
   canonicalJson,
@@ -39,7 +39,7 @@ import {
 } from '@masarifi/transaction-parser';
 
 type Json = Record<string, unknown>;
-type TokenProvider = () => Promise<string>;
+type TokenProvider = (readOnly?: boolean) => Promise<string>;
 let tokenProvider: TokenProvider = () =>
   Promise.reject(new TrackingError('permission_required'));
 
@@ -177,7 +177,7 @@ function resource(value: unknown): Json {
 
 export function createLiveAutomaticTrackingService({
   baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '',
-  token = () => tokenProvider(),
+  token = (readOnly) => tokenProvider(readOnly),
   request = fetch
 }: {
   baseUrl?: string;
@@ -196,10 +196,10 @@ export function createLiveAutomaticTrackingService({
     }: { idempotencyKey?: string; expectedOwnerId?: string } = {}
   ): Promise<unknown> => {
     const identity =
-      expectedOwnerId === undefined ? null : await captureLiveClerkIdentity();
+      expectedOwnerId === undefined ? null : await (method === 'GET' ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity());
     if (identity && identity.userId !== expectedOwnerId)
       throw new TrackingError('permission_required');
-    const accessToken = identity ? identity.token : await token();
+    const accessToken = identity ? identity.token : await token(method === 'GET');
     await identity?.assertCurrent();
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
       method,
@@ -214,6 +214,7 @@ export function createLiveAutomaticTrackingService({
     });
     const value: unknown =
       response.status === 204 ? null : await response.json();
+    await identity?.assertCurrent();
     if (!response.ok) {
       const error = record(value);
       const code = text(error.code || record(error.error ?? {}).code);

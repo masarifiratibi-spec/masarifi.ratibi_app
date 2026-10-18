@@ -1,11 +1,12 @@
-import React, { type ReactNode } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useRef, type ReactNode } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import mediumSymbols from 'expo-symbols/androidWeights/medium';
 import regularSymbols from 'expo-symbols/androidWeights/regular';
 
 import type { Locale } from '@/domain/foundation';
 import { typography } from './tokens';
+import { recordPerformanceTiming } from '@/services/platform/performance-timing';
 
 export const FONT_ASSETS = {
   'MasarifiArabic-400': require('../../assets/fonts/NotoSansArabicUI-Regular.ttf'),
@@ -63,12 +64,30 @@ export function editorialFontFamilyForLocale(
 
 export function FontGate({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts(FONT_ASSETS);
+  const started = useRef(performance.now());
+  const recorded = useRef(false);
+  useEffect(() => {
+    if ((loaded || error) && !recorded.current) {
+      recorded.current = true;
+      recordPerformanceTiming(
+        'startup.fonts',
+        performance.now() - started.current
+      );
+    }
+  }, [loaded, error]);
 
   if (!loaded && !error) {
-    return React.createElement(View, {
-      testID: 'font-loading',
-      style: { flex: 1 }
-    });
+    return React.createElement(
+      View,
+      {
+        testID: 'font-loading',
+        style: { flex: 1, alignItems: 'center', justifyContent: 'center' }
+      },
+      React.createElement(ActivityIndicator, {
+        accessible: true,
+        accessibilityRole: 'progressbar'
+      })
+    );
   }
 
   return React.createElement(React.Fragment, null, children);

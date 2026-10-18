@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import {
   Pressable,
   ScrollView,
@@ -104,6 +105,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     () => monthDatePeriod(anchorDate, timeZone),
     [anchorDate, timeZone]
   );
+  const accountScopeUnavailable = (reportQuery.error as {code?: string} | null)?.code === 'report_account_scope_unavailable';
 
   return (
     <ScrollView
@@ -119,6 +121,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     >
       <View style={styles.ltrCanvas}>
         <AnalyticsHeader direction={direction} onBack={onBack} />
+        <FinancialRefreshStatus query={reportQuery} />
         <View
           style={[
             styles.selectorRow,
@@ -143,17 +146,21 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
           />
         </View>
 
-        {reportQuery.isLoading || home.isLoading ? (
+        {!reportQuery.data && reportQuery.isPending ? (
           <StateView
             state="loading"
             title={translate('reports.state.loading')}
           />
-        ) : reportQuery.isError || home.isError || !reportQuery.data ? (
+        ) : !reportQuery.data ? (
           <StateView
             state="error"
-            title={translate('reports.state.error')}
-            actionLabel={translate('reports.action.retry')}
+            title={translate(accountScopeUnavailable ? 'reports.state.accountScopeUnavailable' : 'reports.state.error')}
+            actionLabel={translate(accountScopeUnavailable ? 'coreFinance.home.allAccounts' : 'reports.action.retry')}
             onAction={() => {
+              if (accountScopeUnavailable) {
+                useCoreFinanceViewState.getState().selectAccount(null);
+                return;
+              }
               void reportQuery.refetch();
               void home.refetch();
               void trendQuery.refetch();
@@ -167,14 +174,31 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             netWorthMinor={
               trendQuery.data?.at(-1)?.minorUnits ??
               home.data?.totalBalanceMinor ??
-              0
+              null
             }
             stackMetrics={stackMetrics}
             timeframe={timeframe}
             trend={trendQuery.data ?? []}
+            trendFeedback={trendQuery.isError ? (
+              <StateView state="error" title={translate('reports.state.error')}
+                actionLabel={translate('reports.action.retry')}
+                onAction={() => void trendQuery.refetch()} />
+            ) : trendQuery.isPending ? (
+              <StateView state="loading" title={translate('reports.state.loading')} />
+            ) : undefined}
             onTimeframeChange={setTimeframe}
           />
         )}
+        <AssistantActions
+          accountName={selectedAccountId ? selectedAccount?.name : null}
+          direction={direction}
+          report={reportQuery.data ?? {
+            key: `monthly:${anchorDate}:${currencyCode}:${timeZone}`,
+            period: {startDate: localDateInTimeZone(period.periodStart, timeZone), endDate: localDateInTimeZone(period.periodEnd, timeZone)},
+            currencyCode
+          }}
+          stacked={stackMetrics}
+        />
       </View>
 
       <AccountScopeSheet
@@ -304,23 +328,23 @@ function AnalyticsContent({
   report,
   stackMetrics,
   timeframe,
-  trend
+  trend,
+  trendFeedback
 }: {
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  netWorthMinor: number;
+  netWorthMinor: number | null;
   onTimeframeChange: (value: ReportTimeframe) => void;
   report: FinancialReport;
   stackMetrics: boolean;
   timeframe: ReportTimeframe;
   trend: readonly { at: number; minorUnits: number }[];
+  trendFeedback?: React.ReactNode;
 }) {
-  const income = report.summary.income.value?.minorUnits ?? 0;
-  const expense = report.summary.expense.value?.minorUnits ?? 0;
-  const netCashFlow = report.summary.netCashFlow.value?.minorUnits ?? 0;
-  const savingsRate =
-    report.summary.savingsRateBasisPoints.value ??
-    (income > 0 ? Math.round((netCashFlow * 10_000) / income) : null);
+  const income = report.summary.income.value?.minorUnits ?? null;
+  const expense = report.summary.expense.value?.minorUnits ?? null;
+  const netCashFlow = report.summary.netCashFlow.value?.minorUnits ?? null;
+  const savingsRate = report.summary.savingsRateBasisPoints.value ?? null;
   const budgetBreakdown = report.breakdowns.find(
     (breakdown) => breakdown.dimension === 'budget'
   );
@@ -339,6 +363,7 @@ function AnalyticsContent({
         netWorthMinor={netWorthMinor}
         timeframe={timeframe}
         trend={trend}
+        trendFeedback={trendFeedback}
         onTimeframeChange={onTimeframeChange}
       />
 
@@ -378,7 +403,7 @@ function AnalyticsContent({
           direction={direction}
           hidden={hidden}
           label={translate('reports.metric.netCashFlow')}
-          tone={netCashFlow < 0 ? 'expense' : 'income'}
+          tone={netCashFlow !== null && netCashFlow < 0 ? 'expense' : 'income'}
           value={netCashFlow}
         />
       </View>
@@ -404,11 +429,6 @@ function AnalyticsContent({
         }
       />
 
-      <AssistantActions
-        direction={direction}
-        reportKey={report.key}
-        stacked={stackMetrics}
-      />
     </View>
   );
 }
@@ -420,19 +440,21 @@ function NetWorthCard({
   netWorthMinor,
   onTimeframeChange,
   timeframe,
-  trend
+  trend,
+  trendFeedback
 }: {
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  netWorthMinor: number;
+  netWorthMinor: number | null;
   onTimeframeChange: (value: ReportTimeframe) => void;
   timeframe: ReportTimeframe;
   trend: readonly { at: number; minorUnits: number }[];
+  trendFeedback?: React.ReactNode;
 }) {
   const theme = useTheme();
   const first = trend[0]?.minorUnits ?? netWorthMinor;
-  const change = netWorthMinor - first;
+  const change = netWorthMinor !== null && first !== null ? netWorthMinor - first : 0;
   const changePercent = first
     ? Math.round((change * 10_000) / Math.abs(first)) / 100
     : null;
@@ -448,7 +470,7 @@ function NetWorthCard({
         size="hero"
         value={netWorthMinor}
       />
-      <View
+      {trend.length > 0 && netWorthMinor !== null ? <View
         style={[
           styles.changeBadge,
           {
@@ -475,9 +497,12 @@ function NetWorthCard({
             ? translate('designSystem.privacy.hidden')
             : `${change < 0 ? '▼' : '▲'} ${moneyInline(change, currency)} · ${changePercent === null ? '—' : `${changePercent}%`}`}
         </Text>
-      </View>
-      <NetWorthLine trend={trend} />
-      <ChartDateLabels direction={direction} trend={trend} />
+      </View> : null}
+      {trendFeedback}
+      {trend.length > 0 ? <>
+        <NetWorthLine trend={trend} />
+        <ChartDateLabels direction={direction} trend={trend} />
+      </> : null}
       <View
         style={[
           styles.timeframeRow,
@@ -618,7 +643,7 @@ function ExpenseCard({
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  value: number;
+  value: number | null;
 }) {
   return (
     <View style={[styles.card, styles.expenseCard]}>
@@ -685,7 +710,7 @@ function SmallMetricCard({
   hidden: boolean;
   label: string;
   tone: 'income' | 'expense';
-  value: number;
+  value: number | null;
 }) {
   const theme = useTheme();
   const color = theme.colors.financial[tone];
@@ -702,7 +727,7 @@ function SmallMetricCard({
         size="large"
         value={value}
       />
-      {tone === 'expense' && value < 0 ? (
+      {tone === 'expense' && value !== null && value < 0 ? (
         <DirectionalText
           direction={direction}
           style={[styles.negativeLabel, { color }]}
@@ -727,9 +752,9 @@ function SavingsRateCard({
 }: {
   currency: string;
   direction: 'ltr' | 'rtl';
-  expense: number;
+  expense: number | null;
   hidden: boolean;
-  income: number;
+  income: number | null;
   savingsRateBasisPoints: number | null;
 }) {
   const theme = useTheme();
@@ -739,12 +764,7 @@ function SavingsRateCard({
       : Math.round(savingsRateBasisPoints / 100);
   const progress = Math.min(100, Math.abs(percentage ?? 0));
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={translate('reports.analytics.savingsRate')}
-      onPress={() => router.push('/savings')}
-      style={[styles.card, styles.savingsCard]}
-    >
+    <View style={[styles.card, styles.savingsCard]}>
       <View
         style={[
           styles.savingsTop,
@@ -809,12 +829,12 @@ function SavingsRateCard({
       <DirectionalText direction={direction} style={styles.savingsFooter} muted>
         {hidden
           ? translate('designSystem.privacy.hidden')
-          : translateDynamic('reports.analytics.spentOfIncome', {
+          : expense === null || income === null ? translate('reports.state.unavailable') : translateDynamic('reports.analytics.spentOfIncome', {
               expense: moneyInline(expense, currency),
               income: moneyInline(income, currency)
             })}
       </DirectionalText>
-    </Pressable>
+    </View>
   );
 }
 
@@ -890,12 +910,14 @@ function BudgetCard({
 }
 
 function AssistantActions({
+  accountName,
   direction,
-  reportKey,
+  report,
   stacked
 }: {
+  accountName: string | null | undefined;
   direction: 'ltr' | 'rtl';
-  reportKey: string;
+  report: Pick<FinancialReport, 'key' | 'currencyCode'> & {period: Pick<FinancialReport['period'], 'startDate' | 'endDate'>};
   stacked: boolean;
 }) {
   const actions = [
@@ -909,7 +931,12 @@ function AssistantActions({
   const openAssistant = (action: (typeof actions)[number][0]) =>
     router.push({
       pathname: '/assistant',
-      params: { action, reportKey, returnTo: '/(tabs)/reports' }
+      params: {
+        action,
+        reportKey: report.key,
+        reportContext: JSON.stringify({startDate: report.period.startDate, endDate: report.period.endDate, currencyCode: report.currencyCode, accountName}),
+        returnTo: '/(tabs)/reports'
+      }
     });
 
   return (
@@ -917,7 +944,11 @@ function AssistantActions({
       testID="reports-assistant-card"
       style={[styles.card, styles.assistantCard]}
     >
-      <View
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={translate('assistant.hero.title')}
+        disabled={accountName === undefined}
+        onPress={() => openAssistant('explain')}
         style={[
           styles.assistantHeader,
           {
@@ -948,9 +979,10 @@ function AssistantActions({
             {translate('assistant.hero.subtitle')}
           </DirectionalText>
         </View>
-      </View>
+      </Pressable>
       <ActionButton
         label={translate(primaryAction[1])}
+        disabled={accountName === undefined}
         onPress={() => openAssistant(primaryAction[0])}
       />
       <View
@@ -968,6 +1000,7 @@ function AssistantActions({
         {suggestions.map(([action, labelKey]) => (
           <ActionButton
             key={action}
+            disabled={accountName === undefined}
             label={translate(labelKey)}
             variant="secondary"
             labelStyle={styles.assistantActionLabel}
@@ -1043,19 +1076,19 @@ function ReportAmount({
   currency: string;
   hidden: boolean;
   size: 'hero' | 'large';
-  value: number;
+  value: number | null;
 }) {
   const locale = usePreferenceStore((state) => state.locale);
   const formatted = hidden
     ? '••••'
-    : formatMinorAmount(value, currency, locale).split('\u00a0')[0];
+    : value === null ? '—' : formatMinorAmount(value, currency, locale).split('\u00a0')[0];
   return (
     <View
       accessible
       accessibilityLabel={
         hidden
           ? translate('designSystem.privacy.hidden')
-          : formatMinorAmount(value, currency, locale)
+          : value === null ? translate('reports.state.unavailable') : formatMinorAmount(value, currency, locale)
       }
       style={[
         styles.amountRow,

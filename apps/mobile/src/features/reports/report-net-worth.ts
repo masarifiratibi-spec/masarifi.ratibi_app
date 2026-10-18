@@ -23,22 +23,26 @@ export function buildNetWorthTrend(input: {
       (!input.accountIds.length || input.accountIds.includes(account.id))
   );
 
-  return input.pointInstants.map((at) => ({
-    at,
-    minorUnits: Math.round(
-      selectedAccounts.reduce((total, account) => {
-        const rate =
-          account.currencyCode === input.currencyCode
-            ? 1
-            : input.ratesByAccount.get(account.id);
-        if (rate === undefined) return total;
-        const transactionsThroughPoint = input.transactions.filter(
-          (transaction) => transaction.occurredAt <= at
-        );
-        return (
-          total + deriveAccountBalance(account, transactionsThroughPoint) * rate
-        );
-      }, 0)
-    )
-  }));
+  return input.pointInstants.map((at) => {
+    // Select the historical snapshot once per point, shared by every account.
+    const transactionsThroughPoint = input.transactions.filter(
+      (transaction) => transaction.occurredAt <= at
+    );
+    return {
+      at,
+      minorUnits: Math.round(
+        selectedAccounts.reduce((total, account) => {
+          const rate =
+            account.currencyCode === input.currencyCode
+              ? 1
+              : input.ratesByAccount.get(account.id);
+          if (rate === undefined) return total;
+          return (
+            total +
+            deriveAccountBalance(account, transactionsThroughPoint) * rate
+          );
+        }, 0)
+      )
+    };
+  });
 }

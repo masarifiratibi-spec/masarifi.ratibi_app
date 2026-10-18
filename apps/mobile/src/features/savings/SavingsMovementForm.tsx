@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
-import { ChipSelector } from '@/design-system/components/forms/ChipControls';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { FormField } from '@/design-system/components/forms/FormField';
 import { parseAmountToMinor } from '@/domain/core-finance';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
+import { localDateInTimeZone } from '@/domain/financial-period';
 import {
   localDateFromTimestamp,
+  parseLocalDate,
   type GoalMovement,
   type LocalDate
 } from '@/domain/financial-planning';
 import {
-  PlanningMetric,
   PlanningScreen,
   PlanningState
 } from '@/features/financial-planning/PlanningScaffold';
@@ -24,6 +27,14 @@ import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { usePlanningMutation, useSavingsGoal } from './savings-queries';
+import { useTheme } from '@/state/theme-context';
+import {
+  SavingsHeader,
+  SavingsInfo,
+  SavingsSegments,
+  savingsDate,
+  savingsStyles as styles
+} from './SavingsVisuals';
 
 type MovementKind = Extract<
   GoalMovement['kind'],
@@ -32,25 +43,25 @@ type MovementKind = Extract<
 
 export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
   const goal = useSavingsGoal(goalId);
+  const theme = useTheme();
+  const timeZone = usePreferenceStore((s) => s.timeZone);
+  const confirmLock = useRef(false);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const [kind, setKind] = useState<MovementKind>('contribution');
   const [amount, setAmount] = useState('');
-  const [movementDate, setMovementDate] = useState(
-    () => new Date().toISOString().slice(0, 10) as LocalDate
+  const [movementDate, setMovementDate] = useState(() =>
+    localDateInTimeZone(Date.now(), timeZone)
   );
   const [preview, setPreview] = useState<GoalMovementPreview>();
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const movementKinds: MovementKind[] = ['contribution', 'withdrawal'];
-  const movementLabels = movementKinds.map((value) =>
-    translate(`planning.savings.movement.${value}` as MessageKey)
-  );
   const confirm = usePlanningMutation((value: GoalMovementPreview) =>
     financialPlanningService.confirmGoalMovement(
       value.previewId,
-      `goal-movement:${goalId}:${Date.now()}`
+      `goal-movement:${goalId}:${value.previewId}`
     )
   );
   const draftEnabled = Boolean(goal.data);
@@ -59,7 +70,7 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
     kind: 'goal_movement',
     entityId: goalId || null,
     payload: { kind, amount, movementDate },
-    meaningful: Boolean(amount),
+    meaningful: !saved && !confirm.isPending && Boolean(amount),
     enabled: draftEnabled,
     restore: (payload) => {
       const draft = payload as Partial<{
@@ -77,8 +88,9 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
   });
 
   const buildPreview = async () => {
+    if (previewing) return;
     const amountMinor = parseAmountToMinor(
-      amount,
+      normalizeLocalizedNumber(amount),
       goal.data?.goal.currencyCode ?? 'SAR'
     );
     if (
@@ -86,6 +98,12 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
       !amountMinor ||
       !/^\d{4}-\d{2}-\d{2}$/.test(movementDate)
     ) {
+      setError(translate('planning.validation.required'));
+      return;
+    }
+    try {
+      parseLocalDate(movementDate);
+    } catch {
       setError(translate('planning.validation.required'));
       return;
     }
@@ -108,7 +126,27 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
   };
 
   return (
-    <PlanningScreen titleKey="planning.savings.movement">
+    <PlanningScreen
+      titleKey="planning.savings.movement"
+      hideHeader
+      backgroundColor={theme.colors.surfaces.page}
+    >
+      <SavingsHeader
+        title={translate('planning.savings.movement')}
+        description={goal.data?.goal.title}
+        label={translate('planning.savings.savedSoFar')}
+        amount={
+          hideBalances && !revealed
+            ? translate('planning.state.hidden')
+            : goal.data?.progress.currentMinor.status === 'available'
+              ? formatMinorAmount(
+                  goal.data.progress.currentMinor.value,
+                  goal.data.goal.currencyCode,
+                  currentLocale()
+                )
+              : translate('reports.state.unavailable')
+        }
+      />
       {!goalId ? (
         <PlanningState state="empty" />
       ) : goal.isLoading || (draftEnabled && !draftReady) ? (
@@ -117,44 +155,63 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
         <PlanningState state="error" onRetry={() => void goal.refetch()} />
       ) : preview ? (
         <>
-          <PlanningMetric
-            labelKey="planning.savings.movementType"
-            value={translate(
-              `planning.savings.movement.${preview.kind}` as MessageKey
-            )}
-          />
-          <PlanningMetric
-            labelKey="planning.savings.movementAmount"
-            value={
-              hideBalances && !revealed
+          <SurfaceCard style={styles.card}>
+            <View style={styles.detailsRow}>
+              <StyledText>
+                {translate('planning.savings.movementType')}
+              </StyledText>
+              <StyledText variant="subtitle">
+                {translate(
+                  `planning.savings.movement.${preview.kind}` as MessageKey
+                )}
+              </StyledText>
+            </View>
+            <StyledText>
+              {translate('planning.savings.movementAmount')}
+            </StyledText>
+            <StyledText variant="amount" style={styles.money}>
+              {hideBalances && !revealed
                 ? translate('planning.state.hidden')
                 : formatMinorAmount(
                     preview.amountMinor,
                     goal.data.goal.currencyCode,
                     currentLocale()
-                  )
-            }
-          />
+                  )}
+            </StyledText>
+            <StyledText>{savingsDate(movementDate)}</StyledText>
+          </SurfaceCard>
+          <SavingsInfo />
           <ActionButton
             label={translate('planning.savings.confirmMovement')}
             loading={confirm.isPending}
-            onPress={() =>
+            disabled={saved}
+            style={styles.button}
+            onPress={() => {
+              if (saved || confirm.isPending || confirmLock.current) return;
+              confirmLock.current = true;
               confirm.mutate(preview, {
                 onSuccess: () => {
                   setSaved(true);
-                  void discardDraft();
+                  void discardDraft().catch(() =>
+                    setError(translate('planning.state.error'))
+                  );
                 },
-                onError: () => setError(translate('planning.state.error'))
-              })
-            }
+                onError: () => {
+                  confirmLock.current = false;
+                  setError(translate('planning.state.error'));
+                }
+              });
+            }}
           />
           <ActionButton
             label={translate('planning.action.edit')}
             onPress={() => {
+              confirmLock.current = false;
               setPreview(undefined);
               setSaved(false);
             }}
-            variant="secondary"
+            variant="quiet"
+            disabled={confirm.isPending}
           />
           {saved ? (
             <StyledText accessibilityRole="alert">
@@ -167,36 +224,44 @@ export function SavingsMovementForm({ goalId = '' }: { goalId?: string }) {
         </>
       ) : (
         <>
-          <ChipSelector
-            options={movementLabels}
-            selected={[
-              translate(`planning.savings.movement.${kind}` as MessageKey)
-            ]}
-            onToggle={(label) =>
-              setKind(movementKinds[movementLabels.indexOf(label)] ?? kind)
-            }
+          <SavingsSegments
+            value={kind}
+            disabled={previewing}
+            onChange={setKind}
+            options={movementKinds.map((value) => ({
+              value,
+              label: translate(
+                `planning.savings.movement.${value}` as MessageKey
+              )
+            }))}
           />
-          <FormField
-            label={translate('planning.savings.movementAmount')}
-            onChangeText={setAmount}
-            value={amount}
-            variant="amount"
-          />
-          <TransactionDateField
-            label={translate('planning.savings.movementDate')}
-            value={Date.parse(`${movementDate}T12:00:00`)}
-            onChange={(timestamp) =>
-              setMovementDate(localDateFromTimestamp(timestamp))
-            }
-          />
+          <SurfaceCard style={styles.card}>
+            <FormField
+              label={translate('planning.savings.movementAmount')}
+              onChangeText={setAmount}
+              value={amount}
+              variant="amount"
+              helperText={goal.data.goal.currencyCode}
+              editable={!previewing}
+            />
+            <TransactionDateField
+              label={translate('planning.savings.movementDate')}
+              value={Date.parse(`${movementDate}T12:00:00`)}
+              disabled={previewing}
+              onChange={(timestamp) =>
+                setMovementDate(localDateFromTimestamp(timestamp))
+              }
+            />
+          </SurfaceCard>
           {error ? (
             <StyledText accessibilityRole="alert">{error}</StyledText>
           ) : null}
-          <StyledText>{translate('planning.savings.trackingOnly')}</StyledText>
+          <SavingsInfo />
           <ActionButton
             label={translate('planning.savings.previewMovement')}
             loading={previewing}
             onPress={() => void buildPreview()}
+            style={styles.button}
           />
         </>
       )}

@@ -1,8 +1,17 @@
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import React, { useEffect, useMemo, useState } from 'react';
-import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  PixelRatio,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from 'react-native';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
+import { ActionButton } from '@/design-system/components/ActionButton';
 import { FinancialHorizonSurface } from '@/design-system/components/financial/FinancialHorizonSurface';
 import { DesignIcon } from '@/design-system/icons';
 import { minTouchTarget, radius, spacing } from '@/design-system/tokens';
@@ -36,7 +45,7 @@ import type { HomeTodayActivity } from '@/services/contracts/core-finance-servic
 import { useHomeTodayActivity } from './useHomeTodayActivity';
 import { HomeActivityScrollView } from './HomeActivityViewport';
 
-export function HomeScreen({
+export const HomeScreen = React.memo(function HomeScreen({
   accounts,
   categories,
   summary,
@@ -49,6 +58,8 @@ export function HomeScreen({
   todayActivity?: HomeTodayActivity[];
   notice?: React.ReactNode;
 }) {
+  // Memoized navigation renders must not suppress native text/layout changes.
+  useWindowDimensions();
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
   const [period, setPeriod] = useState<DatePeriod>(() =>
@@ -81,7 +92,7 @@ export function HomeScreen({
       onPeriodChange={setPeriod}
     />
   );
-}
+});
 
 function QueriedHomeScreen({
   notice,
@@ -129,12 +140,21 @@ function QueriedHomeScreen({
 
   return (
     <HomeLayout period={period} onPeriodChange={onPeriodChange}>
+      <FinancialRefreshStatus query={query} />
+      {query.isError && homeSummary ? (
+        <ActionButton
+          label={translate('coreFinance.action.retry')}
+          onPress={() => void query.refetch()}
+          variant="quiet"
+          disabled={query.isFetching}
+        />
+      ) : null}
       {query.isLoading ? (
         <StateView
           state="loading"
           title={translate('coreFinance.state.loading')}
         />
-      ) : query.isError ? (
+      ) : query.isError && !homeSummary ? (
         <StateView
           state="error"
           title={translate('coreFinance.state.error')}
@@ -148,15 +168,27 @@ function QueriedHomeScreen({
           notice={homeSummary.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={homeSummary}
-          todayActivity={activity.isError ? [] : activity.data ?? []}
-          activityStatus={activity.isPending || activity.isError ? (
-            <StateView
-              state={activity.isError ? 'error' : 'loading'}
-              title={translate(activity.isError ? 'coreFinance.state.error' : 'coreFinance.state.loading')}
-              actionLabel={activity.isError ? translate('coreFinance.action.retry') : undefined}
-              onAction={activity.isError ? () => void activity.refetch() : undefined}
-            />
-          ) : undefined}
+          todayActivity={activity.isError ? [] : (activity.data ?? [])}
+          activityStatus={
+            activity.isPending || activity.isError ? (
+              <StateView
+                state={activity.isError ? 'error' : 'loading'}
+                title={translate(
+                  activity.isError
+                    ? 'coreFinance.state.error'
+                    : 'coreFinance.state.loading'
+                )}
+                actionLabel={
+                  activity.isError
+                    ? translate('coreFinance.action.retry')
+                    : undefined
+                }
+                onAction={
+                  activity.isError ? () => void activity.refetch() : undefined
+                }
+              />
+            ) : undefined
+          }
         />
       ) : null}
     </HomeLayout>
@@ -186,13 +218,14 @@ function HomeLayout({
   );
 }
 
-function HomeHeader({
+const HomeHeader = React.memo(function HomeHeader({
   period,
   onPeriodChange
 }: {
   period: DatePeriod;
   onPeriodChange: (period: DatePeriod) => void;
 }) {
+  useWindowDimensions();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
@@ -246,7 +279,7 @@ function HomeHeader({
       </PrimaryShellHeader>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   stack: { flexGrow: 1 },

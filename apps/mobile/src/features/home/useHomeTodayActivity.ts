@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -31,14 +31,32 @@ export function useHomeTodayActivity(accountId: string | null) {
     refetchOnMount: 'always'
   });
   const { refetch } = query;
+  const mountedFocus = useRef(false);
+  const currentPeriod = useRef(period);
+  currentPeriod.current = period;
+  const reconcileDay = useCallback(() => {
+    const nextNow = Date.now();
+    const nextPeriod = todayPeriod(nextNow, { timeZone, monthStartDay: 1 });
+    if (nextPeriod.periodStart === currentPeriod.current.periodStart)
+      return false;
+    setNow(nextNow);
+    return true;
+  }, [timeZone]);
   const refresh = useCallback(() => {
-    setNow(Date.now());
-    void refetch();
-  }, [refetch]);
+    // A new day changes the key and fetches itself; never restart yesterday.
+    // Within the same day, refreshing needs no extra date-state render.
+    if (!reconcileDay()) void refetch({ cancelRefetch: false });
+  }, [refetch, reconcileDay]);
   useFocusEffect(
     useCallback(() => {
+      // refetchOnMount already owns the initial visit.
+      if (!mountedFocus.current) {
+        mountedFocus.current = true;
+        reconcileDay();
+        return;
+      }
       refresh();
-    }, [refresh])
+    }, [refresh, reconcileDay])
   );
   useEffect(() => {
     const listener = AppState.addEventListener('change', (state) => {

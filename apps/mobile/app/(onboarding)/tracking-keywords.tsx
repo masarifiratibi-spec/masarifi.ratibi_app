@@ -6,7 +6,6 @@ import { StyledText } from '@/components/StyledText';
 import { KeywordEditor } from '@/features/onboarding/KeywordEditor';
 import { OnboardingScaffold } from '@/features/onboarding/OnboardingScaffold';
 import { translate } from '@/localization/i18n';
-import { defaultKeywordRules } from '@/services/mocks/default-keywords';
 import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { routeForOnboardingProgress } from '@/features/onboarding/onboarding-progress';
 import { useAppShellStore } from '@/state/app-shell';
@@ -20,7 +19,13 @@ export default function TrackingKeywordsRoute() {
   const advanceOnboarding = useAppShellStore(
     (state) => state.advanceOnboarding
   );
-  const [rules, setRules] = useState<KeywordRule[]>(defaultKeywordRules);
+  const [rules, setRules] = useState<KeywordRule[]>(() => {
+    // Initialize fallback form values only when this onboarding screen opens.
+    return (
+      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+      require('@/services/mocks/default-keywords') as typeof import('@/services/mocks/default-keywords')
+    ).defaultKeywordRules;
+  });
   const [error, setError] = useState(false);
 
   useEffect(() => {

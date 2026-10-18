@@ -29,12 +29,13 @@ import { TransactionForm } from './TransactionForm';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import { transactionInputSchema } from '@/domain/core-finance';
+import { useAppShellStore } from '@/state/app-shell';
 import {
   clearManualDiagnostics,
   readManualDiagnostics
 } from '@/services/platform/manual-diagnostics';
 
-let mockFocusEffectCallback: (() => void) | undefined;
+let mockFocusEffectCallback: (() => void | (() => void)) | undefined;
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '90000000-0000-4000-8000-000000000099'
 }));
@@ -46,7 +47,7 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     replace: jest.fn()
   },
-  useFocusEffect: (callback: () => void) => {
+  useFocusEffect: (callback: () => void | (() => void)) => {
     mockFocusEffectCallback = callback;
     return require('react').useEffect(callback, [callback]);
   }
@@ -87,6 +88,131 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+it('keeps restored native fields mounted but blocks edits and actions while refocus verifies the draft', async () => {
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(requiredDraft());
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  const amount = await screen.findByLabelText('Amount');
+  let restore!: (value: ReturnType<typeof requiredDraft>) => void;
+  jest.mocked(coreFinanceService.loadDraft).mockReturnValueOnce(new Promise(resolve => { restore = resolve; }));
+  act(() => { mockFocusEffectCallback?.(); });
+  expect(screen.getByLabelText('Amount')).toBe(amount);
+  expect(amount.props.editable).toBe(false);
+  expect(screen.getByLabelText('Description').props.editable).toBe(false);
+  expect(screen.getByLabelText('Note').props.editable).toBe(false);
+  expect(screen.getByLabelText('Save transaction')).toBeDisabled();
+  expect(screen.getByLabelText(translate('appShell.navigation.close'))).toBeDisabled();
+  expect(screen.getByLabelText('Category, Food')).toBeDisabled();
+  expect(screen.getByLabelText(/Account,/)).toBeDisabled();
+  expect(screen.getByLabelText(translate('coreFinance.transaction.date'))).toBeDisabled();
+  expect(jest.mocked(usePreventRemove).mock.calls.at(-1)?.[0]).toBe(true);
+  fireEvent.press(screen.getByLabelText('Save transaction'));
+  expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+  await act(async () => restore(requiredDraft('٢٥٫٥٠')));
+  expect(screen.getByLabelText('Amount')).toBe(amount);
+  expect(amount.props.editable).toBe(true);
+  expect(amount.props.value).toBe('٢٥٫٥٠');
+});
+
+it('shows a retryable restoration failure instead of leaving stale retained fields interactive', async () => {
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(requiredDraft());
+  renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await screen.findByLabelText('Amount');
+  jest.mocked(coreFinanceService.loadDraft).mockRejectedValueOnce(new Error('draft unavailable'));
+  act(() => { mockFocusEffectCallback?.(); });
+  await screen.findByText(translate('coreFinance.state.error'));
+  expect(screen.queryByLabelText('Amount')).toBeNull();
+  fireEvent.press(screen.getByText(translate('coreFinance.action.retry')));
+  await screen.findByDisplayValue('50');
+  expect(screen.getByLabelText('Save transaction')).not.toBeDisabled();
+  expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+});
+
+it('hides a restored draft immediately when its owner changes', async () => {
+  const previous = useAppShellStore.getState().session;
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(requiredDraft());
+  const view = renderWithQueryData(<TransactionForm />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  await screen.findByDisplayValue('50');
+  let restore!: (value: null) => void;
+  jest.mocked(coreFinanceService.loadDraft).mockReturnValueOnce(new Promise(resolve => { restore = resolve; }));
+  try {
+    act(() => useAppShellStore.setState({ session: {
+      status: 'authenticated', userId: 'user_refocus_other', method: 'google',
+      issuedAt: 1, expiresAt: 9999999999999, restoration: 'restored'
+    } }));
+    expect(screen.queryByDisplayValue('50')).toBeNull();
+    expect(screen.queryByLabelText('Save transaction')).toBeNull();
+    expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
+    await act(async () => restore(null));
+  } finally {
+    view.unmount();
+    act(() => useAppShellStore.setState({ session: previous }));
+  }
+});
+
+it('blocks the linked original navigation while a refund draft is rechecked', async () => {
+  const original = { ...fixtureTransactions[0], type: 'expense' as const,
+    status: 'posted' as const, reviewStatus: 'none' as const,
+    syncStatus: 'synced' as const };
+  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(null);
+  renderWithQueryData(<TransactionForm initialType="refund" originalTransactionId={original.id} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories],
+    [coreFinanceKeys.transaction(original.id), original]
+  ]);
+  await screen.findByLabelText('Amount');
+  let restore!: (draft: null) => void;
+  jest.mocked(coreFinanceService.loadDraft).mockReturnValueOnce(new Promise(resolve => { restore = resolve; }));
+  act(() => { mockFocusEffectCallback?.(); });
+  const row = screen.getByLabelText(`${translate('coreFinance.transaction.original')}, ${original.title}`);
+  expect(row).toBeDisabled();
+  fireEvent.press(row);
+  expect(router.push).not.toHaveBeenCalled();
+  await act(async () => restore(null));
+  expect(row).not.toBeDisabled();
+});
+
+it.each(['success', 'failure'] as const)('ignores obsolete refund draft %s after changing the original transaction', async outcome => {
+  const originalA = { ...fixtureTransactions[0], id: 'original-a', type: 'expense' as const,
+    status: 'posted' as const, reviewStatus: 'none' as const, syncStatus: 'synced' as const };
+  const originalB = { ...originalA, id: 'original-b' };
+  let settleA!: (value: NonNullable<Awaited<ReturnType<typeof coreFinanceService.loadDraft>>>) => void;
+  let rejectA!: (error: Error) => void;
+  jest.mocked(coreFinanceService.loadDraft).mockImplementation(id => id.endsWith('original-a')
+    ? new Promise((resolve, reject) => { settleA = resolve; rejectA = reject; })
+    : Promise.resolve({ ...requiredDraft('72'), id, transactionType: 'refund' as const }));
+  let selectOriginal!: (id: string) => void;
+  function Harness() {
+    const [id, setId] = React.useState(originalA.id);
+    selectOriginal = setId;
+    return <TransactionForm initialType="refund" originalTransactionId={id} />;
+  }
+  renderWithQueryData(<Harness />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories],
+    [coreFinanceKeys.transaction(originalA.id), originalA],
+    [coreFinanceKeys.transaction(originalB.id), originalB]
+  ]);
+  act(() => selectOriginal(originalB.id));
+  await screen.findByDisplayValue('72');
+  await act(async () => {
+    if (outcome === 'success') settleA({ ...requiredDraft('11'), id: `${MANUAL_TRANSACTION_DRAFT_ID}:refund:original-a`, transactionType: 'refund' });
+    else rejectA(new Error('obsolete draft failure'));
+  });
+  expect(screen.getByLabelText('Amount').props.value).toBe('72');
+  expect(screen.getByLabelText('Save transaction')).not.toBeDisabled();
+  expect(screen.queryByText(translate('coreFinance.state.error'))).toBeNull();
+  expect(coreFinanceService.createTransaction).not.toHaveBeenCalled();
 });
 
 it('retains the actual Manual failure stage and HTTP correlation after showing the generic banner', async () => {
@@ -1206,7 +1332,7 @@ it('keeps the selected category when the add form regains focus', async () => {
     params: { requestId: string };
   };
   act(() => completeCategorySelection(route.params.requestId, 'shopping'));
-  act(() => mockFocusEffectCallback?.());
+  act(() => { mockFocusEffectCallback?.(); });
 
   expect(screen.getByText('Shopping')).toBeTruthy();
   expect(screen.getByDisplayValue('Keep this title')).toBeTruthy();

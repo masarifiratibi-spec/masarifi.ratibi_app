@@ -1,6 +1,17 @@
 import React from 'react';
-import { AppState, PixelRatio, StyleSheet, type AppStateStatus } from 'react-native';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
+import {
+  AppState,
+  PixelRatio,
+  StyleSheet,
+  type AppStateStatus
+} from 'react-native';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
@@ -21,26 +32,55 @@ import {
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
 import { HomeScreen as ActualHomeScreen } from './HomeScreen';
+import * as financialFormatting from '@/utils/format-financial-value';
 
 function HomeScreen(props: React.ComponentProps<typeof ActualHomeScreen>) {
-  const todayActivity = props.todayActivity ?? (props.summary?.recentTransactions ?? [])
-    .filter(({ type }) => type === 'expense' || type === 'income')
-    .map((transaction) => ({ transaction, group: transaction.type as 'expense' | 'income', sign: transaction.type === 'income' ? 'positive' as const : 'negative' as const }));
+  const todayActivity =
+    props.todayActivity ??
+    (props.summary?.recentTransactions ?? [])
+      .filter(({ type }) => type === 'expense' || type === 'income')
+      .map((transaction) => ({
+        transaction,
+        group: transaction.type as 'expense' | 'income',
+        sign:
+          transaction.type === 'income'
+            ? ('positive' as const)
+            : ('negative' as const)
+      }));
   return <ActualHomeScreen {...props} todayActivity={todayActivity} />;
 }
 
-it.each(['ar', 'en'] as const)('shows every supplied committed daily row in %s instead of using the truncated monthly summary', (locale) => {
-  changeLocale(locale);
-  const todayActivity = ['manual', 'voice', 'automatic', 'platform_assisted'].flatMap((source, index) =>
-    (['expense', 'income'] as const).map((group, kind) => ({
-      transaction: makeTransaction(100 + index * 2 + kind, { title: `Today ${index} ${group}`, source: source as 'manual' | 'voice' | 'automatic' | 'platform_assisted', type: group }),
-      group, sign: group === 'income' ? 'positive' as const : 'negative' as const
-    })));
-  renderWithProviders(<HomeScreen summary={summary} todayActivity={todayActivity} />);
-  for (const { transaction } of todayActivity)
-    expect(screen.getByTestId(`home-transaction-row-${transaction.id}`)).toBeTruthy();
-  expect(screen.queryByText('Al Nakheel Restaurant')).toBeNull();
-});
+it.each(['ar', 'en'] as const)(
+  'shows every supplied committed daily row in %s instead of using the truncated monthly summary',
+  (locale) => {
+    changeLocale(locale);
+    const todayActivity = [
+      'manual',
+      'voice',
+      'automatic',
+      'platform_assisted'
+    ].flatMap((source, index) =>
+      (['expense', 'income'] as const).map((group, kind) => ({
+        transaction: makeTransaction(100 + index * 2 + kind, {
+          title: `Today ${index} ${group}`,
+          source: source as
+            'manual' | 'voice' | 'automatic' | 'platform_assisted',
+          type: group
+        }),
+        group,
+        sign: group === 'income' ? ('positive' as const) : ('negative' as const)
+      }))
+    );
+    renderWithProviders(
+      <HomeScreen summary={summary} todayActivity={todayActivity} />
+    );
+    for (const { transaction } of todayActivity)
+      expect(
+        screen.getByTestId(`home-transaction-row-${transaction.id}`)
+      ).toBeTruthy();
+    expect(screen.queryByText('Al Nakheel Restaurant')).toBeNull();
+  }
+);
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/features/transactions/AccountPicker', () => ({
@@ -86,38 +126,111 @@ const summary: HomeSummary = {
   dataState: 'ready'
 };
 
+it('reuses unchanged screen inputs while updating a new summary and privacy state', () => {
+  changeLocale('en');
+  const format = jest.spyOn(financialFormatting, 'formatFinancialDisplayValue');
+  function Parent() {
+    const [count, setCount] = React.useState(0);
+    const [snapshot, setSnapshot] = React.useState(summary);
+    return (
+      <>
+        <StyledText onPress={() => setCount(count + 1)}>
+          Parent {count}
+        </StyledText>
+        <StyledText
+          onPress={() => setSnapshot({ ...summary, totalBalanceMinor: 9900 })}
+        >
+          New snapshot
+        </StyledText>
+        <ActualHomeScreen summary={snapshot} />
+      </>
+    );
+  }
+  renderWithProviders(<Parent />);
+  format.mockClear();
+  fireEvent.press(screen.getByText('Parent 0'));
+  expect(format).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByText('New snapshot'));
+  expect(screen.getAllByText('99.00 SAR').length).toBeGreaterThan(0);
+  act(() => usePreferenceStore.setState({ hideBalances: true }));
+  expect(screen.queryByText('99.00 SAR')).toBeNull();
+  expect(screen.getAllByText('•••• SAR').length).toBeGreaterThan(0);
+});
+
 it.each([
   ['ar', 'سجّل أول معاملة بصوتك.'],
   ['en', 'Record your first transaction by voice.']
-] as const)('shows the first-transaction voice invitation in %s and removes it after any recorded transaction', async (locale, invitation) => {
-  changeLocale(locale);
-  const history = jest.spyOn(coreFinanceService, 'listTransactions').mockResolvedValue({ items: [], nextCursor: null });
-  const emptySummary = { ...summary, recentTransactions: [], dataState: 'empty' as const };
-  function FirstTransactionJourney() {
-    const [saved, setSaved] = React.useState(false);
-    return <>
-      <HomeScreen summary={saved ? { ...summary, recentTransactions: [makeTransaction(71, { source: 'manual' })] } : emptySummary} />
-      <StyledText onPress={() => setSaved(true)}>Record any transaction</StyledText>
-    </>;
+] as const)(
+  'shows the first-transaction voice invitation in %s and removes it after any recorded transaction',
+  async (locale, invitation) => {
+    changeLocale(locale);
+    const history = jest
+      .spyOn(coreFinanceService, 'listTransactions')
+      .mockResolvedValue({ items: [], nextCursor: null });
+    const emptySummary = {
+      ...summary,
+      recentTransactions: [],
+      dataState: 'empty' as const
+    };
+    function FirstTransactionJourney() {
+      const [saved, setSaved] = React.useState(false);
+      return (
+        <>
+          <HomeScreen
+            summary={
+              saved
+                ? {
+                    ...summary,
+                    recentTransactions: [
+                      makeTransaction(71, { source: 'manual' })
+                    ]
+                  }
+                : emptySummary
+            }
+          />
+          <StyledText onPress={() => setSaved(true)}>
+            Record any transaction
+          </StyledText>
+        </>
+      );
+    }
+    const view = renderWithProviders(<FirstTransactionJourney />);
+    try {
+      await waitFor(() => expect(screen.getByText(invitation)).toBeTruthy());
+      fireEvent.press(screen.getByText('Record any transaction'));
+      expect(screen.queryByText(invitation)).toBeNull();
+    } finally {
+      view.unmount();
+      history.mockRestore();
+    }
   }
-  const view = renderWithProviders(<FirstTransactionJourney />);
-  try {
-    await waitFor(() => expect(screen.getByText(invitation)).toBeTruthy());
-    fireEvent.press(screen.getByText('Record any transaction'));
-    expect(screen.queryByText(invitation)).toBeNull();
-  } finally { view.unmount(); history.mockRestore(); }
-});
+);
 
 it('does not show the first-transaction invitation for an empty period when older history exists', async () => {
   changeLocale('en');
-  const history = jest.spyOn(coreFinanceService, 'listTransactions').mockResolvedValue({
-    items: [makeTransaction(72, { occurredAt: Date.UTC(2025, 0, 1), source: 'automatic' })], nextCursor: null
-  });
-  const view = renderWithProviders(<HomeScreen summary={{ ...summary, recentTransactions: [] }} />);
+  const history = jest
+    .spyOn(coreFinanceService, 'listTransactions')
+    .mockResolvedValue({
+      items: [
+        makeTransaction(72, {
+          occurredAt: Date.UTC(2025, 0, 1),
+          source: 'automatic'
+        })
+      ],
+      nextCursor: null
+    });
+  const view = renderWithProviders(
+    <HomeScreen summary={{ ...summary, recentTransactions: [] }} />
+  );
   try {
     await waitFor(() => expect(history).toHaveBeenCalled());
-    expect(screen.queryByText('Record your first transaction by voice.')).toBeNull();
-  } finally { view.unmount(); history.mockRestore(); }
+    expect(
+      screen.queryByText('Record your first transaction by voice.')
+    ).toBeNull();
+  } finally {
+    view.unmount();
+    history.mockRestore();
+  }
 });
 
 it.each([
@@ -146,18 +259,22 @@ it.each([
       <HomeScreen
         categories={[fixtureCategories[0], category]}
         summary={summary}
-        todayActivity={[{
-          transaction,
-          group: type,
-          sign: type === 'income' ? 'positive' : 'negative'
-        }]}
+        todayActivity={[
+          {
+            transaction,
+            group: type,
+            sign: type === 'income' ? 'positive' : 'negative'
+          }
+        ]}
       />
     );
 
     expect(screen.getByText(expectedLabel)).toBeTruthy();
-    expect(screen.getByRole('button', {
-      name: new RegExp(`Custom category transaction, ${expectedLabel},`)
-    })).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(`Custom category transaction, ${expectedLabel},`)
+      })
+    ).toBeTruthy();
   }
 );
 
@@ -272,7 +389,9 @@ it('keeps the financial hierarchy visible when there are no accounts', () => {
   expect(screen.getByTestId('home-horizon')).toBeTruthy();
   expect(screen.getByTestId('home-account-card')).toBeTruthy();
   expect(screen.getByTestId('home-action-tray')).toBeTruthy();
-  expect(screen.getByText(translate('coreFinance.home.todayEmpty'))).toBeTruthy();
+  expect(
+    screen.getByText(translate('coreFinance.home.todayEmpty'))
+  ).toBeTruthy();
 });
 
 it('masks all Home amounts when Hide Balances is enabled', () => {
@@ -367,51 +486,74 @@ it('shares one surface between recent rows without removing their individual act
   }
 });
 
-it.each([['en', 1], ['en', 2], ['ar', 1], ['ar', 2]] as const)('keeps large Today groups reachable in %s without mounting every row at %s font scale', (locale, fontScale) => {
-  jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(fontScale);
-  changeLocale(locale);
-  const todayActivity = Array.from({ length: 120 }, (_, index) => ({
-    transaction: makeTransaction(index + 1000, {
-      title: `Daily expense ${index + 1}`,
-      type: 'expense'
-    }),
-    group: 'expense' as const,
-    sign: 'negative' as const
-  }));
-  renderWithProviders(<HomeScreen summary={summary} todayActivity={todayActivity} />);
+it.each([
+  ['en', 1],
+  ['en', 2],
+  ['ar', 1],
+  ['ar', 2]
+] as const)(
+  'keeps large Today groups reachable in %s without mounting every row at %s font scale',
+  (locale, fontScale) => {
+    jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(fontScale);
+    changeLocale(locale);
+    const todayActivity = Array.from({ length: 120 }, (_, index) => ({
+      transaction: makeTransaction(index + 1000, {
+        title: `Daily expense ${index + 1}`,
+        type: 'expense'
+      }),
+      group: 'expense' as const,
+      sign: 'negative' as const
+    }));
+    renderWithProviders(
+      <HomeScreen summary={summary} todayActivity={todayActivity} />
+    );
 
-  expect(screen.getAllByTestId(/^home-transaction-row-/).length).toBeLessThan(40);
-  expect(screen.getByText('Daily expense 1')).toBeTruthy();
-  expect(screen.queryByText('Daily expense 120')).toBeNull();
-  const scroll = screen.getByTestId('home-scroll');
-  fireEvent(scroll, 'layout', { nativeEvent: { layout: { height: 600 } } });
-  // Notices and the hero can move the activity group far down the Home content.
-  for (const [testID, y] of [
-    ['home-horizon', 100], ['home-activity-sheet', 2000],
-    ['home-expense-section', 1500], ['home-transaction-list-expense', 400]
-  ] as const) fireEvent(screen.getByTestId(testID), 'layout', {
-    nativeEvent: { layout: { y } }
-  });
-  fireEvent.scroll(scroll, {
-    nativeEvent: { contentOffset: { y: 4000 + (fontScale === 1 ? 5000 : 10000) } }
-  });
-  expect(screen.getByText('Daily expense 60')).toBeTruthy();
-  // A long group retains its natural height; scrolling its parent reaches the tail.
-  fireEvent.scroll(scroll, {
-    nativeEvent: { contentOffset: { y: 4000 + (fontScale === 1 ? 10000 : 20000) } }
-  });
-  expect(screen.getByText('Daily expense 120')).toBeTruthy();
-  expect(screen.getAllByTestId(/^home-transaction-row-/).length).toBeLessThan(40);
-  fireEvent.press(screen.getByText('Daily expense 120'));
-  expect(router.push).toHaveBeenLastCalledWith('/transactions/transaction-1119/edit');
-  expect(screen.getByTestId('home-transaction-list-expense')).toHaveStyle({
-    borderRadius: radius.group,
-    borderWidth: 1,
-    overflow: 'hidden'
-  });
-  fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { y: 4000 } } });
-  expect(screen.getByText('Daily expense 1')).toBeTruthy();
-});
+    expect(screen.getAllByTestId(/^home-transaction-row-/).length).toBeLessThan(
+      40
+    );
+    expect(screen.getByText('Daily expense 1')).toBeTruthy();
+    expect(screen.queryByText('Daily expense 120')).toBeNull();
+    const scroll = screen.getByTestId('home-scroll');
+    fireEvent(scroll, 'layout', { nativeEvent: { layout: { height: 600 } } });
+    // Notices and the hero can move the activity group far down the Home content.
+    for (const [testID, y] of [
+      ['home-horizon', 100],
+      ['home-activity-sheet', 2000],
+      ['home-expense-section', 1500],
+      ['home-transaction-list-expense', 400]
+    ] as const)
+      fireEvent(screen.getByTestId(testID), 'layout', {
+        nativeEvent: { layout: { y } }
+      });
+    fireEvent.scroll(scroll, {
+      nativeEvent: {
+        contentOffset: { y: 4000 + (fontScale === 1 ? 5000 : 10000) }
+      }
+    });
+    expect(screen.getByText('Daily expense 60')).toBeTruthy();
+    // A long group retains its natural height; scrolling its parent reaches the tail.
+    fireEvent.scroll(scroll, {
+      nativeEvent: {
+        contentOffset: { y: 4000 + (fontScale === 1 ? 10000 : 20000) }
+      }
+    });
+    expect(screen.getByText('Daily expense 120')).toBeTruthy();
+    expect(screen.getAllByTestId(/^home-transaction-row-/).length).toBeLessThan(
+      40
+    );
+    fireEvent.press(screen.getByText('Daily expense 120'));
+    expect(router.push).toHaveBeenLastCalledWith(
+      '/transactions/transaction-1119/edit'
+    );
+    expect(screen.getByTestId('home-transaction-list-expense')).toHaveStyle({
+      borderRadius: radius.group,
+      borderWidth: 1,
+      overflow: 'hidden'
+    });
+    fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { y: 4000 } } });
+    expect(screen.getByText('Daily expense 1')).toBeTruthy();
+  }
+);
 
 it.each([
   ['ar', 'rtl', 'الخدمات'],
@@ -971,28 +1113,43 @@ it.each([
     jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
     changeLocale(locale);
     usePreferenceStore.setState({ locale, direction });
-    const title = locale === 'ar'
-      ? 'مشتريات منزلية طويلة التفاصيل تستحق أن تظهر كاملة دون اختصار'
-      : 'Long household purchase description that must remain completely readable';
-    const accountName = locale === 'ar'
-      ? 'حساب المصروفات اليومية الطويل الاسم بالكامل'
-      : 'Daily household spending account with a long complete name';
-    renderWithProviders(<HomeScreen
-      accounts={fixtureAccounts.map(account => ({ ...account, name: accountName }))}
-      summary={{ ...summary, recentTransactions: [
-        { ...summary.recentTransactions[0], title },
-        summary.recentTransactions[1]
-      ] }}
-    />);
+    const title =
+      locale === 'ar'
+        ? 'مشتريات منزلية طويلة التفاصيل تستحق أن تظهر كاملة دون اختصار'
+        : 'Long household purchase description that must remain completely readable';
+    const accountName =
+      locale === 'ar'
+        ? 'حساب المصروفات اليومية الطويل الاسم بالكامل'
+        : 'Daily household spending account with a long complete name';
+    renderWithProviders(
+      <HomeScreen
+        accounts={fixtureAccounts.map((account) => ({
+          ...account,
+          name: accountName
+        }))}
+        summary={{
+          ...summary,
+          recentTransactions: [
+            { ...summary.recentTransactions[0], title },
+            summary.recentTransactions[1]
+          ]
+        }}
+      />
+    );
     const row = screen.getByTestId('home-transaction-row-transaction-2');
     expect(row).toHaveStyle({ alignItems: 'stretch', flexDirection: 'column' });
     expect(StyleSheet.flatten(row.props.style).height).toBeUndefined();
     expect(within(row).getByText(title).props.numberOfLines).toBeUndefined();
-    expect(within(row).getByText(translate('coreFinance.category.shopping')).props.numberOfLines).toBeUndefined();
+    expect(
+      within(row).getByText(translate('coreFinance.category.shopping')).props
+        .numberOfLines
+    ).toBeUndefined();
     const accountLabel = within(row).getByText(accountName);
     expect(accountLabel.props.numberOfLines).toBeUndefined();
     expect(accountLabel).toHaveStyle({ flexShrink: 1 });
-    expect(screen.getByTestId('home-period-label').props.numberOfLines).toBeUndefined();
+    expect(
+      screen.getByTestId('home-period-label').props.numberOfLines
+    ).toBeUndefined();
   }
 );
 

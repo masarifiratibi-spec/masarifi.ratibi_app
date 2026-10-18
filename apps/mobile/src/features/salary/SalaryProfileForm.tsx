@@ -175,9 +175,7 @@ export function SalaryProfileForm() {
       hideHeader
       titleKey="planning.salary.setup"
     >
-      {accounts.isLoading || profile.isLoading || !draftReady ? (
-        <PlanningState state="loading" />
-      ) : accounts.isError || profile.isError ? (
+      {accounts.isError || profile.isError ? (
         <PlanningState
           state="error"
           onRetry={() => {
@@ -185,6 +183,8 @@ export function SalaryProfileForm() {
             void profile.refetch();
           }}
         />
+      ) : accounts.isLoading || profile.isLoading || !draftReady ? (
+        <PlanningState state="loading" />
       ) : (
         <>
           <View style={[styles.header, { direction }]}>

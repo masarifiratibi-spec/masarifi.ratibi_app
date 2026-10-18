@@ -11,15 +11,17 @@ import { usePreferenceStore } from '@/state/preferences';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 
 export interface AssistantAskCardProps {
+  initialQuestion?: string;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
 }
 
 export function AssistantAskCard({
+  initialQuestion,
   onAskQuestion,
   loading = false
 }: AssistantAskCardProps) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialQuestion ?? '');
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 

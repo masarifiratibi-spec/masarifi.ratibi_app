@@ -4,6 +4,7 @@ import { localizedDemoTransactionTitle } from '@/domain/core-finance-seeds';
 import type { Locale } from '@/domain/foundation';
 import { translate } from '@/localization/i18n';
 import { formatDate } from '@/utils/format-financial-value';
+import { getDateFormatter } from '@/utils/intl-formatters';
 
 const localeTags: Record<Locale, string> = {
   ar: 'ar-u-nu-latn',
@@ -53,7 +54,7 @@ export function formatTransactionMonth(
   locale: Locale,
   timeZone: string
 ): string {
-  return new Intl.DateTimeFormat(localeTags[locale], {
+  return getDateFormatter(localeTags[locale], {
     month: 'long',
     year: 'numeric',
     timeZone
@@ -71,7 +72,7 @@ export function formatTransactionTimestamp(
   const yesterday = previousCalendarKey(today);
 
   if (key !== today && key !== yesterday) {
-    return new Intl.DateTimeFormat(localeTags[locale], {
+    return getDateFormatter(localeTags[locale], {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -85,7 +86,7 @@ export function formatTransactionTimestamp(
       : 'coreFinance.ledger.period.yesterday',
     locale
   );
-  const time = new Intl.DateTimeFormat(localeTags[locale], {
+  const time = getDateFormatter(localeTags[locale], {
     hour: '2-digit',
     minute: '2-digit',
     timeZone
@@ -94,7 +95,7 @@ export function formatTransactionTimestamp(
 }
 
 function calendarKey(timestamp: number, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US-u-nu-latn', {
+  const parts = getDateFormatter('en-US-u-nu-latn', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

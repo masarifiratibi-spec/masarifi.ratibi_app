@@ -4,7 +4,6 @@ import {
   type Transaction
 } from '@/domain/core-finance';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
-import { createDefaultCategories } from '@/domain/core-finance-seeds';
 import * as database from '@/storage/database';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import {
@@ -12,7 +11,7 @@ import {
   createLiveLedgerService
 } from './core-finance-service';
 
-it('retries failed hydration with one concurrent attempt and keeps each owner draft isolated', async () => {
+it('retries a failed row read and keeps each owner draft isolated', async () => {
   const first = draftInputSchema.parse({
     id: 'manual-entry',
     transactionType: 'expense',
@@ -67,20 +66,9 @@ it('retries failed hydration with one concurrent attempt and keeps each owner dr
     .mockImplementation(
       async (owner) =>
         ({
-          getAllAsync: async (sql: string) =>
-            sql.includes('finance_drafts')
-              ? [
-                  {
-                    payload: JSON.stringify(
-                      owner === 'user_owner-a' ? first : second
-                    )
-                  }
-                ]
-              : sql.includes('finance_categories')
-                ? createDefaultCategories().map((category) => ({
-                    payload: JSON.stringify(category)
-                  }))
-                : []
+          getFirstAsync: async () => ({
+            payload: JSON.stringify(owner === 'user_owner-a' ? first : second)
+          })
         }) as never
     );
   const request = jest.fn();
@@ -98,12 +86,13 @@ it('retries failed hydration with one concurrent attempt and keeps each owner dr
       service.loadDraft('manual-entry')
     ]);
     expect(recovered).toEqual([first, first]);
-    expect(open).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledTimes(3);
     userId = 'user_owner-b';
     await expect(service.loadDraft('manual-entry')).resolves.toEqual(second);
     userId = 'user_owner-a';
     await expect(service.loadDraft('manual-entry')).resolves.toEqual(first);
-    expect(open).toHaveBeenCalledTimes(3);
+    // Returning to the same still-valid session can reuse its checked snapshot.
+    expect(open).toHaveBeenCalledTimes(4);
     expect(request).not.toHaveBeenCalled();
   } finally {
     open.mockRestore();
@@ -152,11 +141,13 @@ it('lists transactions with one token capture while preserving category preparat
 
 it('reads owner-local drafts without fetching an authentication token', async () => {
   bridge.getToken.mockClear();
-  const repository = new CoreFinanceRepository();
-  jest.spyOn(repository, 'hydrate').mockResolvedValue(undefined);
-  const service = createLiveLedgerService({ drafts: repository });
-  await expect(service.loadDraft('missing-draft')).resolves.toBeNull();
-  expect(bridge.getToken).not.toHaveBeenCalled();
+  const open = jest.spyOn(database, 'openDatabase').mockResolvedValue({
+    getFirstAsync: async () => null
+  } as never);
+  try {
+    await expect(createLiveLedgerService().loadDraft('missing-draft')).resolves.toBeNull();
+    expect(bridge.getToken).not.toHaveBeenCalled();
+  } finally { open.mockRestore(); }
 });
 
 it('reads the complete owner-bound day across pages with no source filter and keeps only the newest version of a replayed row', async () => {
@@ -212,6 +203,67 @@ it('uses committed reversal postings when the original income is from an earlier
 beforeEach(() => {
   jest.clearAllMocks();
   registerLiveClerkBridge(bridge);
+});
+
+it.each(['expense', 'income'] as const)(
+  'uses one fresh write identity for a Manual %s while retaining category preparation',
+  async (kind) => {
+    let prepared = false;
+    const prepare = async () => { prepared = true; };
+    const request = jest.fn(async (_url: string, init: RequestInit) => {
+      expect(init.method).toBe('POST');
+      expect(init.headers).toMatchObject({
+        Authorization: 'Bearer owner-token',
+        'Idempotency-Key': '90000000-0000-4000-8000-000000000009'
+      });
+      expect(JSON.parse(String(init.body))).toMatchObject({ categoryId });
+      return response(mutation(summary(transactionId, { kind }), [{
+        id: '40000000-0000-4000-8000-000000000001', accountId,
+        amountMinor: kind === 'income' ? 1000 : -1000,
+        clearingState: 'confirmed', postingRole: kind === 'income' ? 'destination' : 'source', occurredAt
+      }]), 201);
+    });
+    const service = createLiveLedgerService({
+      baseUrl: 'https://inert.invalid', request: request as typeof fetch,
+      categoryIds: { prepare, toServer: () => { if (!prepared) throw new Error('category mapping unavailable'); return categoryId; }, toLocal: () => 'local-category' }
+    });
+    await expect(service.createTransaction({
+      type: kind, amountMinor: 1000, currencyCode: 'SAR', accountId,
+      categoryId: 'local-category', title: 'Isolated Manual fixture', occurredAt: Date.parse(occurredAt)
+    }, '90000000-0000-4000-8000-000000000009')).resolves.toMatchObject({ value: { type: kind, categoryId: 'local-category' } });
+    expect(bridge.getToken).toHaveBeenCalledTimes(1);
+    expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: true });
+    expect(request).toHaveBeenCalledTimes(1);
+  }
+);
+
+it('does not dispatch a Manual write when the owner changes during category preparation', async () => {
+  const request = jest.fn();
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request,
+    categoryIds: { prepare: async () => { registerLiveClerkBridge({ ...bridge, getSession: async () => ({ ...(await bridge.getSession()), id: 'other-session', userId: 'other-owner' }) }); }, toServer: id => id, toLocal: id => id }
+  });
+  await expect(service.createTransaction({ type: 'expense', amountMinor: 1000,
+    currencyCode: 'SAR', accountId, categoryId, title: 'Isolated fixture', occurredAt: Date.parse(occurredAt)
+  }, '90000000-0000-4000-8000-000000000009')).rejects.toMatchObject({ code: 'session_expired' });
+  expect(request).not.toHaveBeenCalled();
+});
+
+it('uses a newly fresh actor on an ordinary-write retry with the same operation ID', async () => {
+  const headers: Record<string, string>[] = [];
+  const request = jest.fn(async (_url: string, init: RequestInit) => {
+    headers.push(init.headers as Record<string, string>);
+    if (headers.length === 1) throw new TypeError('isolated network failure');
+    return response(mutation(), 201);
+  });
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request: request as typeof fetch });
+  const input = { type: 'expense' as const, amountMinor: 1000, currencyCode: 'SAR', accountId,
+    categoryId, title: 'Isolated fixture', occurredAt: Date.parse(occurredAt) };
+  bridge.getToken.mockResolvedValueOnce('attempt-a').mockResolvedValueOnce('attempt-b');
+  await expect(service.createTransaction(input, '90000000-0000-4000-8000-000000000009')).rejects.toMatchObject({ code: 'provider_unavailable' });
+  await expect(service.createTransaction(input, '90000000-0000-4000-8000-000000000009')).resolves.toMatchObject({ value: { id: transactionId } });
+  expect(headers.map(header => header['Idempotency-Key'])).toEqual(['90000000-0000-4000-8000-000000000009', '90000000-0000-4000-8000-000000000009']);
+  expect(headers.map(header => header.Authorization)).toEqual(['Bearer attempt-a', 'Bearer attempt-b']);
+  expect(bridge.getToken.mock.calls).toEqual([[{ skipCache: true }], [{ skipCache: true }]]);
 });
 
 it.each([5000, -5000])('reads the account reversal sign from its %i minor-unit posting, without the original in the page', async (signedAmount) => {
@@ -618,6 +670,31 @@ it('maps filtered transaction pages and preserves the server cursor', async () =
   });
 });
 
+it('overlaps an unfiltered ledger read with category preparation but waits for mapped results', async () => {
+  let finishPreparation!: () => void;
+  let prepared = false;
+  const preparation = new Promise<void>((resolve) => { finishPreparation = () => { prepared = true; resolve(); }; });
+  let requested!: () => void;
+  const transportStarted = new Promise<void>((resolve) => { requested = resolve; });
+  const request = jest.fn(async () => {
+    requested();
+    return response({ items: [summary()], nextCursor: null, ledgerVersion: 2, requestId: 'overlap' });
+  });
+  const service = createLiveLedgerService({
+    baseUrl: 'https://inert.invalid', request,
+    categoryIds: { prepare: () => preparation, toServer: id => id, toLocal: id => { expect(prepared).toBe(true); return id === categoryId ? 'mapped-category' : id; } }
+  });
+  let completed = false;
+  const page = service.listTransactions(emptyTransactionFilters).then(value => { completed = true; return value; });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([transportStarted, new Promise(resolve => { timer = setTimeout(resolve, 1000); })]);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(completed).toBe(false);
+  } finally { clearTimeout(timer); finishPreparation(); }
+  await expect(page).resolves.toMatchObject({ items: [{ categoryId: 'mapped-category' }] });
+});
+
 it('uses explicit transfer roles when membership account IDs are UUID-sorted', async () => {
   const request = jest.fn().mockResolvedValue(
     response({
@@ -645,6 +722,21 @@ it('uses explicit transfer roles when membership account IDs are UUID-sorted', a
     accountId: destinationId,
     destinationAccountId: accountId
   });
+});
+
+it('prepares category filters before transport and maps the response back to local IDs', async () => {
+  let prepared = false;
+  const request = jest.fn(async (url: string) => {
+    expect(prepared).toBe(true);
+    expect(new URL(url).searchParams.get('categoryId')).toBe(categoryId);
+    return response({ items: [summary()], nextCursor: null, ledgerVersion: 2, requestId: 'category-filter' });
+  });
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request: request as typeof fetch, categoryIds: {
+    prepare: async () => { prepared = true; },
+    toServer: id => { expect(prepared).toBe(true); return id === 'local-category' ? categoryId : id; },
+    toLocal: id => id === categoryId ? 'local-category' : id
+  } });
+  await expect(service.listTransactions({ ...emptyTransactionFilters, categoryIds: ['local-category'] })).resolves.toMatchObject({ items: [{ categoryId: 'local-category' }] });
 });
 
 it('keeps client-only filter values out of the BE005 query', async () => {
@@ -1085,6 +1177,35 @@ it('uploads ready mutations before bootstrapping and applying owner-scoped delta
   expect(sync.acknowledge).toHaveBeenCalledTimes(2);
 });
 
+it.each([false, true])('uses cached sync reads and fresh authentication only when a queued upload exists: %s', async (queued) => {
+  const getToken = jest.fn(async ({ skipCache }: { skipCache: boolean }) => skipCache ? 'write-token' : 'read-token');
+  registerLiveClerkBridge({ ...bridge, getToken });
+  const operation = { operationId: '90000000-0000-4000-8000-000000000010', domain: 'transactions', resourceType: 'transaction', dependsOn: [], operation: 'create', resourceId: null, baseVersion: null, payload: { kind: 'expense' } };
+  const repository = { recoverSending: async () => undefined, ready: async () => queued ? [operation] : [], cursor: async () => null, markSending: async () => undefined };
+  const calls: { method?: string; authorization?: string; url: string }[] = [];
+  const request = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(url), method: init?.method, authorization: (init?.headers as Record<string, string>).Authorization ?? (init?.headers as Record<string, string>).authorization });
+    if (String(url).includes('/me/devices')) return response({ items: [{ id: '80000000-0000-4000-8000-000000000001', current: true }], nextCursor: null });
+    return response({ error: { code: 'SERVICE_UNAVAILABLE' } }, 503);
+  });
+  await expect(createLiveCoreFinanceSync({ baseUrl: 'https://inert.invalid', request, repository: repository as never, adapter: {} as never }).synchronize()).rejects.toThrow();
+  const syncCall = calls.find(call => call.url.includes('/sync/'));
+  expect(syncCall).toMatchObject({ method: queued ? 'POST' : 'GET', authorization: queued ? 'Bearer write-token' : 'Bearer read-token' });
+  expect(getToken.mock.calls).toEqual(queued ? [[{ skipCache: false }], [{ skipCache: true }]] : [[{ skipCache: false }]]);
+});
+
+it('does not send a queued upload if identity changes during fresh write authentication', async () => {
+  let switched = false;
+  registerLiveClerkBridge({ ...bridge,
+    getSession: async () => ({ id: switched ? 'session-next' : 'session-initial', userId: switched ? 'user_next' : 'user_initial', method: 'google', issuedAt: 1, expiresAt: 9999999999999 }),
+    getToken: async ({ skipCache }) => { if (skipCache) switched = true; return 'token'; }
+  });
+  const repository = { recoverSending: async () => undefined, ready: async () => [{ operationId: '90000000-0000-4000-8000-000000000010', domain: 'transactions', resourceType: 'transaction', dependsOn: [], operation: 'create', resourceId: null, baseVersion: null, payload: {} }], markSending: async () => undefined };
+  const request = jest.fn();
+  await expect(createLiveCoreFinanceSync({ baseUrl: 'https://inert.invalid', request, repository: repository as never, adapter: {} as never }).synchronize()).rejects.toMatchObject({ code: 'session_expired' });
+  expect(request).not.toHaveBeenCalled();
+});
+
 it('replays a live voice batch from its durable operation receipt', async () => {
   let receipt: Transaction[] | null = null;
   const drafts = {
@@ -1253,12 +1374,15 @@ it('maps and resolves BE006 conflicts without exposing keep-both', async () => {
 });
 
 it('isolates durable drafts after an owner changes without restarting', async () => {
-  const hydrate = jest
-    .spyOn(CoreFinanceRepository.prototype, 'hydrate')
-    .mockResolvedValue(undefined);
-  const opening = jest.spyOn(database, 'openDatabase').mockResolvedValue({
-    runAsync: jest.fn().mockResolvedValue({ changes: 1 })
-  } as never);
+  const rows = new Map<string, Map<string, string>>();
+  const opening = jest.spyOn(database, 'openDatabase').mockImplementation(async owner => {
+    if (!rows.has(owner!)) rows.set(owner!, new Map());
+    const store = rows.get(owner!)!;
+    return { getFirstAsync: async (_sql: string, id: string) => store.has(id) ? { payload: store.get(id) } : null,
+      runAsync: async (_sql: string, id: string, payload: string) => { store.set(id, payload); return { changes: 1 }; }
+    } as never;
+  });
+  const transaction = jest.spyOn(database, 'runExclusiveDatabaseTransaction').mockImplementation(async (db, action) => action(db));
   const service = createLiveLedgerService();
   const draft = {
     id: 'manual',
@@ -1292,7 +1416,7 @@ it('isolates durable drafts after an owner changes without restarting', async ()
       merchant: 'A private draft'
     });
   } finally {
-    hydrate.mockRestore();
+    transaction.mockRestore();
     opening.mockRestore();
   }
 });

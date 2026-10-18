@@ -1,5 +1,6 @@
 import { createLiveReportsService, ReportsApiError } from './reports-service';
 import { ReportsRepository } from '@/storage/reports-repository';
+import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 
 const generatedAt = '2026-09-04T00:00:00.000Z';
 const json = (value: unknown, status = 200) =>
@@ -13,6 +14,43 @@ const input = {
   currencyCode: 'SAR',
   timeZone: 'Asia/Riyadh'
 };
+
+it('uses owner-checked cached read authentication for live reports', async () => {
+  const getToken = jest.fn(async ({ skipCache }: { skipCache: boolean }) =>
+    skipCache ? 'write' : 'read'
+  );
+  registerLiveClerkBridge({
+    getSession: async () => ({
+      id: 's',
+      userId: 'u',
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 9999999999999
+    }),
+    getToken,
+    startPhone: jest.fn(),
+    verifyPhone: jest.fn(),
+    resendPhone: jest.fn(),
+    signInWithGoogle: jest.fn(),
+    reverifyConflict: jest.fn(),
+    signOut: jest.fn()
+  } satisfies LiveClerkBridge);
+  const request = jest.fn(
+    async (_url: RequestInfo | URL, _init?: RequestInit) => json(summary())
+  );
+  const live = createLiveReportsService({
+    baseUrl: 'https://inert.invalid',
+    request
+  });
+  expect(live.metadata.availability).toBe('available');
+  expect((await live.getReport(input)).summary.income.value?.minorUnits).toBe(
+    10000
+  );
+  expect(
+    new Headers(request.mock.calls[0][1]?.headers).get('authorization')
+  ).toBe('Bearer read');
+  expect(getToken.mock.calls).toEqual([[{ skipCache: false }]]);
+});
 
 function summary(dataState: 'complete' | 'empty' | 'partial' = 'complete') {
   return {
@@ -61,19 +99,58 @@ function service(request: jest.Mock) {
 }
 
 describe('live reports strict mapping', () => {
+  it('cancels a report during authentication without sending a late request', async () => {
+    let release!: (token: string) => void;
+    const token = new Promise<string>((resolve) => {
+      release = resolve;
+    });
+    const request = jest.fn();
+    const reports = createLiveReportsService({
+      baseUrl: 'https://inert.invalid',
+      token: () => token,
+      request
+    });
+    const controller = new AbortController();
+    const outcome = reports
+      .getReport(input, { signal: controller.signal })
+      .catch((error: ReportsApiError) => error.code);
+    controller.abort();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      expect(await Promise.race([outcome, Promise.resolve('pending')])).toBe(
+        'offline'
+      );
+      release('late-token');
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      release('late-token');
+      await outcome;
+    }
+  });
   it('stops waiting for authentication and never sends a request when a late token arrives', async () => {
     jest.useFakeTimers();
     try {
       let release!: (token: string) => void;
-      const token = new Promise<string>((resolve) => { release = resolve; });
+      const token = new Promise<string>((resolve) => {
+        release = resolve;
+      });
       const request = jest.fn();
       const reports = createLiveReportsService({
-        baseUrl: 'https://api.example.test', token: () => token, request,
+        baseUrl: 'https://api.example.test',
+        token: () => token,
+        request,
         requestTimeoutMs: 10
       });
-      const outcome = reports.getReport(input).then(() => 'completed', (error: ReportsApiError) => error.code);
+      const outcome = reports.getReport(input).then(
+        () => 'completed',
+        (error: ReportsApiError) => error.code
+      );
       await jest.advanceTimersByTimeAsync(20);
-      expect(await Promise.race([outcome, Promise.resolve('still_pending')])).toBe('offline');
+      expect(
+        await Promise.race([outcome, Promise.resolve('still_pending')])
+      ).toBe('offline');
       release('late-token');
       await jest.advanceTimersByTimeAsync(20);
       expect(request).not.toHaveBeenCalled();

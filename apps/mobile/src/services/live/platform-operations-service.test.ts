@@ -23,6 +23,18 @@ const safe = {
 };
 
 describe('live platform operations adapter', () => {
+  it('uses a captured read identity and rejects an owner change before caching metadata', async () => {
+    let current = true;
+    const captureIdentity = async () => ({ token: 'read-token', assertCurrent: async () => { if (!current) throw new Error('owner changed'); } });
+    const request = jest.fn(async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => safe }));
+    const service = createLivePlatformOperationsService({ baseUrl: 'https://inert.invalid', captureIdentity, request: request as unknown as typeof fetch });
+    await expect(service.get()).resolves.toEqual(safe);
+    current = false;
+    await expect(service.get()).rejects.toMatchObject({ name: 'PlatformOperationsUnavailableError' });
+    current = true;
+    const late = createLivePlatformOperationsService({ baseUrl: 'https://inert.invalid', captureIdentity, request: (async () => { current = false; return { ok: true, status: 200, json: async () => safe }; }) as unknown as typeof fetch });
+    await expect(late.get()).rejects.toMatchObject({ name: 'PlatformOperationsUnavailableError' });
+  });
   it('keeps explicit fixture selection separate from the production live service', () => {
     const live = { get: jest.fn() };
     const fixture = { get: jest.fn() };

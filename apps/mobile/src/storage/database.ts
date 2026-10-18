@@ -15,6 +15,7 @@ import {
   resolveClientMode
 } from '@/config/client-runtime';
 import { isDeletionOwnerFenced } from './deletion-completion-journal';
+import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
 const DATABASE_NAME = 'masarifi.db';
 const CURRENT_SCHEMA_VERSION = 15;
@@ -30,42 +31,49 @@ let databaseName = DATABASE_NAME;
 let databaseOwnerHash: string | null = null;
 
 export async function configureDatabaseOwner(userId: string): Promise<void> {
-  assertDatabaseOwner(userId);
-  await enqueueDatabaseLifecycle(async () => {
-    if (isDevPrivacyDeletionEnabled() && (await isDeletionOwnerFenced(userId)))
-      throw new Error('deleted database owner');
-    const ownerHash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      userId
-    );
-    if (ownerHash === databaseOwnerHash) return;
-    await closeActiveDatabase();
-    databaseOwnerHash = ownerHash;
-    databaseName = ownerDatabaseName(ownerHash);
+  return withTransactionDraftWrite(async () => {
+    assertDatabaseOwner(userId);
+    await enqueueDatabaseLifecycle(async () => {
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(userId))
+      )
+        throw new Error('deleted database owner');
+      const ownerHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        userId
+      );
+      if (ownerHash === databaseOwnerHash) return;
+      await closeActiveDatabase();
+      databaseOwnerHash = ownerHash;
+      databaseName = ownerDatabaseName(ownerHash);
+    });
   });
 }
 
 /** Only call after the server confirms completed account erasure. */
 export async function purgeAccountDatabase(ownerId: string): Promise<void> {
-  assertDatabaseOwner(ownerId);
-  await enqueueDatabaseLifecycle(async () => {
-    const ownerHash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      ownerId
-    );
-    if (databaseOwnerHash === ownerHash) {
-      await closeActiveDatabase();
-      databaseOwnerHash = null;
-      databaseName = DATABASE_NAME;
-    }
-    const ownerFilename = ownerDatabaseName(ownerHash);
-    removeDatabaseFiles(ownerFilename);
-    if (databaseFilesExist(ownerFilename))
-      throw new Error('database files remain');
-    const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
-    await SecureStore.deleteItemAsync(storageKey);
-    if ((await SecureStore.getItemAsync(storageKey)) !== null)
-      throw new Error('database key remains');
+  return withTransactionDraftWrite(async () => {
+    assertDatabaseOwner(ownerId);
+    await enqueueDatabaseLifecycle(async () => {
+      const ownerHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        ownerId
+      );
+      if (databaseOwnerHash === ownerHash) {
+        await closeActiveDatabase();
+        databaseOwnerHash = null;
+        databaseName = DATABASE_NAME;
+      }
+      const ownerFilename = ownerDatabaseName(ownerHash);
+      removeDatabaseFiles(ownerFilename);
+      if (databaseFilesExist(ownerFilename))
+        throw new Error('database files remain');
+      const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
+      await SecureStore.deleteItemAsync(storageKey);
+      if ((await SecureStore.getItemAsync(storageKey)) !== null)
+        throw new Error('database key remains');
+    });
   });
 }
 
@@ -82,33 +90,35 @@ function ownerDatabaseName(ownerHash: string): string {
 export async function clearDatabaseOwner(
   discardSmsQueueFor?: string
 ): Promise<void> {
-  await enqueueDatabaseLifecycle(async () => {
-    if (databaseClosePromise) await databaseClosePromise;
-    if (
-      discardSmsQueueFor !== undefined &&
-      (await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        discardSmsQueueFor
-      )) !== databaseOwnerHash
-    )
-      throw new Error('stale database owner');
-    try {
-      if (discardSmsQueueFor !== undefined) {
-        databasePromise ??= createAndMigrate();
-        activeDatabase = await databasePromise;
-        await withKeyedTransaction(
-          activeDatabase,
-          databaseOwnerHash,
-          async (transaction) => {
-            await transaction.runAsync('DELETE FROM sms_import_queue');
-          }
-        );
+  return withTransactionDraftWrite(async () => {
+    await enqueueDatabaseLifecycle(async () => {
+      if (databaseClosePromise) await databaseClosePromise;
+      if (
+        discardSmsQueueFor !== undefined &&
+        (await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          discardSmsQueueFor
+        )) !== databaseOwnerHash
+      )
+        throw new Error('stale database owner');
+      try {
+        if (discardSmsQueueFor !== undefined) {
+          databasePromise ??= createAndMigrate();
+          activeDatabase = await databasePromise;
+          await withKeyedTransaction(
+            activeDatabase,
+            databaseOwnerHash,
+            async (transaction) => {
+              await transaction.runAsync('DELETE FROM sms_import_queue');
+            }
+          );
+        }
+      } finally {
+        await closeActiveDatabase();
+        databaseOwnerHash = null;
+        databaseName = DATABASE_NAME;
       }
-    } finally {
-      await closeActiveDatabase();
-      databaseOwnerHash = null;
-      databaseName = DATABASE_NAME;
-    }
+    });
   });
 }
 

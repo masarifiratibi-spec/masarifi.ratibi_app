@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { router } from 'expo-router';
@@ -35,6 +36,7 @@ import type {
   Transaction,
   TransactionFilterSet
 } from '@/domain/core-finance';
+import type { Locale } from '@/domain/foundation';
 import {
   useAccounts,
   useCategories,
@@ -85,7 +87,13 @@ const quickSortValues = [
 ] as const;
 const quickTypeValues = ['expense', 'income', 'transfer'] as const;
 
-export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
+export const TransactionListScreen = React.memo(function TransactionListScreen({
+  onBack
+}: {
+  onBack?: () => void;
+}) {
+  // Native layout changes must still reach PixelRatio-based child layouts.
+  useWindowDimensions();
   const theme = useTheme();
   const filters = useCoreFinanceViewState((state) => state.filters);
   const draft = useCoreFinanceViewState((state) => state.draftFilters);
@@ -668,6 +676,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
         ) : (
           <TransactionItem
             item={item.item}
+            locale={locale}
             now={now}
             timeZone={timeZone}
             groupedPosition={item.groupedPosition}
@@ -682,7 +691,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       }
     />
   );
-}
+});
 
 function MonthlySummary({
   period,
@@ -891,8 +900,9 @@ function ProtectedFooter() {
   );
 }
 
-function TransactionItem({
+const TransactionItem = React.memo(function TransactionItem({
   item,
+  locale,
   account,
   category,
   now,
@@ -900,14 +910,20 @@ function TransactionItem({
   groupedPosition
 }: {
   item: Transaction;
+  locale: Locale;
   account?: Account;
   category?: Category;
   now: number;
   timeZone: string;
   groupedPosition: TransactionGroupedPosition;
 }) {
-  const locale = currentLocale();
-  const presentation = projectTransaction(item, locale, account, category);
+  const presentation = projectTransaction(
+    item,
+    locale,
+    account,
+    category,
+    timeZone
+  );
   const categoryVisualKey =
     category?.iconKey ??
     (presentation.meaning === 'transfer'
@@ -940,7 +956,7 @@ function TransactionItem({
       onPress={() => router.push(`/transactions/${item.id}/edit`)}
     />
   );
-}
+});
 
 function ToolbarButton({
   testID,

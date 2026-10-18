@@ -1,17 +1,31 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 
 import RootLayout from '@app/_layout';
 import AccountsLayout from '@app/accounts/_layout';
 import AssistantLayout from '@app/assistant/_layout';
 import ProfileLayout from '@app/profile/_layout';
 import SecurityLayout from '@app/security/_layout';
+import { useAppShellStore } from '@/state/app-shell';
 
 const mockStack = jest.fn((_props: unknown) => null);
+const mockShellRender = jest.fn();
+const mockPrivacyProps = jest.fn();
+let mockPathname = '/(public)/legal';
+const mockPathListeners = new Set<() => void>();
 
 jest.mock('expo-router', () => ({
   Stack: (props: unknown) => mockStack(props),
-  usePathname: () => '/(public)/legal'
+  usePathname: () => {
+    const React = jest.requireActual('react');
+    return React.useSyncExternalStore(
+      (listener: () => void) => {
+        mockPathListeners.add(listener);
+        return () => mockPathListeners.delete(listener);
+      },
+      () => mockPathname
+    );
+  }
 }));
 
 jest.mock('@/design-system/typography', () => ({
@@ -33,15 +47,17 @@ jest.mock('@/state/FoundationProviders', () => {
 });
 
 jest.mock('@/state/AppShellProvider', () => ({
-  AppShellProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  )
+  AppShellProvider: ({ children }: { children: React.ReactNode }) => {
+    mockShellRender();
+    return <>{children}</>;
+  }
 }));
 
 jest.mock('@/features/security/AppPrivacyGate', () => ({
-  AppPrivacyGate: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  )
+  AppPrivacyGate: ({ children, ...props }: { children: React.ReactNode }) => {
+    mockPrivacyProps(props);
+    return <>{children}</>;
+  }
 }));
 
 jest.mock('@/features/shell/ProtectedRouteGate', () => ({
@@ -54,6 +70,32 @@ jest.mock('@/features/shell/ProtectedRouteGate', () => ({
 describe('RootLayout navigation chrome', () => {
   beforeEach(() => {
     mockStack.mockClear();
+    mockShellRender.mockClear();
+    mockPrivacyProps.mockClear();
+    mockPathname = '/(public)/legal';
+  });
+
+  it('updates route privacy without rerendering the global shell', () => {
+    useAppShellStore.setState({
+      privacyLock: {
+        autoLockDuration: 'immediate',
+        appLockStatus: 'locked'
+      } as never
+    });
+    render(<RootLayout />);
+    expect(mockPrivacyProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ immediate: true, locked: true })
+    );
+    const initialRenders = mockShellRender.mock.calls.length;
+    act(() => {
+      mockPathname = '/security/unlock';
+      mockPathListeners.forEach((listener) => listener());
+    });
+    expect(mockShellRender).toHaveBeenCalledTimes(initialRenders);
+    expect(mockPrivacyProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ immediate: false, locked: false })
+    );
+    act(() => useAppShellStore.setState({ privacyLock: null }));
   });
 
   it('does not expose Expo route group names as screen headers', () => {

@@ -36,6 +36,19 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe('live automatic tracking adapter', () => {
+  it('keeps tracking preference reads cached and commands freshly authenticated', async () => {
+    const getToken = jest.fn(async ({ skipCache }: { skipCache: boolean }) => skipCache ? 'fresh-token' : 'cached-token');
+    registerIdentity({ getSession: async () => ({ id: 'sess_live_tracking', userId: 'user_live_tracking', method: 'google', issuedAt: 1, expiresAt: 9999999999999 }), getToken });
+    const request = jest.fn(async (_url: string | URL | Request, init?: RequestInit) => init?.method === 'GET'
+      ? response({ sourceRetentionDays: 30, historyRetentionDays: 90, version: 1 })
+      : response({ code: 'SERVICE_UNAVAILABLE' }, 503));
+    await expect(createLiveAutomaticTrackingService({ baseUrl: 'https://inert.invalid', request }).setMode('paused')).rejects.toThrow();
+    expect(request.mock.calls.map(([, init]) => ({ method: init?.method, authorization: (init?.headers as Record<string, string>).Authorization }))).toEqual([
+      { method: 'GET', authorization: 'Bearer cached-token' },
+      { method: 'PUT', authorization: 'Bearer fresh-token' }
+    ]);
+    expect(getToken.mock.calls).toEqual([[{ skipCache: false }], [{ skipCache: true }]]);
+  });
   it('requests and preserves the authenticated device content policy boundary', async () => {
     const request = jest.fn().mockResolvedValue(
       response({

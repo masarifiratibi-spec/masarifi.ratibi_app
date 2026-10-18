@@ -17,6 +17,20 @@ import {
   type ReportsService
 } from '@/services/contracts/reports-service';
 import { ReportsRepository } from '@/storage/reports-repository';
+import {
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+} from './auth-service';
+import {
+  registerRuntimeIdentityReset,
+  registerRuntimeUserDataReset
+} from '@/storage/runtime-user-data-reset';
+import {
+  assertReadActive,
+  withReadContext,
+  type ReadContext
+} from './read-context';
+import { measurePerformance } from '../platform/performance-timing';
 
 type Json = Record<string, unknown>;
 type TokenProvider = () => Promise<string>;
@@ -60,13 +74,18 @@ export function createLiveReportsService(
   } = {}
 ): CapabilityProviderHandle<ReportsService> {
   const baseUrl = options.baseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '';
-  const token =
-    options.token ??
-    (() => Promise.reject(new ReportsApiError('reports_unavailable')));
+  const token = options.token;
   const request = options.request ?? fetch;
   const local = options.repository ?? new ReportsRepository(false);
   const previews = new Map<string, ReportPreview>();
   const attempts = new Map<string, ReportOutputAttempt>();
+  const reset = () => {
+    previews.clear();
+    attempts.clear();
+    local.reset();
+  };
+  registerRuntimeIdentityReset(reset);
+  registerRuntimeUserDataReset(reset);
 
   const sendRequest = async (
     method: string,
@@ -76,19 +95,37 @@ export function createLiveReportsService(
     const { body, key, signal } = requestContext;
     if (!baseUrl) throw new ReportsApiError('reports_unavailable');
     let response: Response;
+    let identity: Awaited<
+      ReturnType<typeof captureLiveReadClerkIdentity>
+    > | null = null;
     try {
-      const sessionToken = await token();
+      identity = token
+        ? null
+        : await measurePerformance(
+            'reports.auth',
+            method === 'GET'
+              ? captureLiveReadClerkIdentity
+              : captureLiveClerkIdentity
+          );
+      const sessionToken = token ? await token() : identity!.token;
+      await identity?.assertCurrent();
       if (signal?.aborted) throw new ReportsApiError('offline');
-      response = await request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
-        method,
-        signal,
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-          ...(key ? { 'Idempotency-Key': key } : {})
-        },
-        body: body === undefined ? undefined : JSON.stringify(body)
-      });
+      response = await measurePerformance('reports.read', () =>
+        request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
+          method,
+          signal,
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+            ...(body === undefined
+              ? {}
+              : { 'Content-Type': 'application/json' }),
+            ...(key ? { 'Idempotency-Key': key } : {})
+          },
+          body: body === undefined ? undefined : JSON.stringify(body)
+        })
+      );
+      await identity?.assertCurrent();
+      assertReadActive(signal);
     } catch {
       throw new ReportsApiError('offline');
     }
@@ -98,6 +135,8 @@ export function createLiveReportsService(
     } catch {
       throw new ReportsApiError('contract_mismatch');
     }
+    await identity?.assertCurrent();
+    assertReadActive(signal);
     if (!response.ok)
       throw new ReportsApiError(
         response.status === 403
@@ -113,17 +152,25 @@ export function createLiveReportsService(
     return value;
   };
 
-  const send = async (method: string, path: string, body?: unknown, key?: string) => {
+  const send = async (
+    method: string,
+    path: string,
+    body?: unknown,
+    key?: string
+  ) => {
     const controller = new AbortController();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
         sendRequest(method, path, { body, key, signal: controller.signal }),
         new Promise<never>((_resolve, reject) => {
-          deadline = setTimeout(() => {
-            controller.abort();
-            reject(new ReportsApiError('offline'));
-          }, Math.min(options.requestTimeoutMs ?? 15000, 15000));
+          deadline = setTimeout(
+            () => {
+              controller.abort();
+              reject(new ReportsApiError('offline'));
+            },
+            Math.min(options.requestTimeoutMs ?? 15000, 15000)
+          );
         })
       ]);
     } finally {
@@ -131,20 +178,39 @@ export function createLiveReportsService(
     }
   };
 
+  const read = async (path: string, context?: ReadContext) => {
+    try {
+      return await withReadContext(
+        {
+          ...context,
+          timeoutMs: Math.min(
+            context?.timeoutMs ?? options.requestTimeoutMs ?? 15000,
+            15000
+          )
+        },
+        (signal) => sendRequest('GET', path, { signal })
+      );
+    } catch (error) {
+      if (error instanceof ReportsApiError) throw error;
+      throw new ReportsApiError('offline');
+    }
+  };
+
   const report = async (
-    input: Parameters<ReportsService['getReport']>[0]
+    input: Parameters<ReportsService['getReport']>[0],
+    context?: ReadContext
   ): Promise<FinancialReport> => {
     if (input.accountIds?.length)
       throw new ReportsApiError('report_account_scope_unavailable');
     const response = exact(
-      await send(
-        'GET',
+      await read(
         `/api/v1/reports/summary?${new URLSearchParams({
           type: 'financial_summary',
           period: input.kind,
           anchorDate: input.anchorDate,
           currency: input.currencyCode
-        }).toString()}`
+        }).toString()}`,
+        context
       ),
       ['metadata', 'summaries', 'breakdowns']
     );
@@ -380,21 +446,21 @@ export function createLiveReportsService(
       capability: reportsServiceCapability.capability,
       majorVersion: reportsServiceCapability.majorVersion,
       kind: 'live',
-      availability: baseUrl && options.token ? 'available' : 'unavailable'
+      availability: baseUrl ? 'available' : 'unavailable'
     },
     getReport: report,
-    async getBreakdown(input) {
+    async getBreakdown(input, context) {
       if (input.dimension !== 'category')
         throw new ReportsApiError('report_dimension_unavailable');
-      const value = await report(input);
+      const value = await report(input, context);
       return (
         value.breakdowns.find((item) => item.dimension === 'category') ??
         breakdown('category', value.dataState)
       );
     },
-    async getSchedule() {
+    async getSchedule(context) {
       const page = exact(
-        await send('GET', '/api/v1/report-schedules?limit=1'),
+        await read('/api/v1/report-schedules?limit=1', context),
         ['items', 'nextCursor', 'requestId']
       );
       const item = Array.isArray(page.items) ? page.items[0] : undefined;
@@ -436,8 +502,8 @@ export function createLiveReportsService(
     saveScheduleDraft: (value) => local.saveDraft(value),
     loadScheduleDraft: () => local.loadDraft(),
     discardScheduleDraft: () => local.discardDraft(),
-    async previewOutput(input) {
-      const value = await report(input);
+    async previewOutput(input, context) {
+      const value = await report(input, context);
       const result = {
         previewId: `preview:${value.key}:${input.detailLevel}`,
         snapshot: snapshot(value, input.language, input.detailLevel),
@@ -483,7 +549,7 @@ export function createLiveReportsService(
       await local.saveAttempt(value);
       return { value, affectedScopes: ['reports.attempts'] };
     },
-    async listAttempts(input) {
+    async listAttempts(input, context) {
       const query = new URLSearchParams({
         limit: '100',
         ...(input?.scheduleId ? { scheduleId: input.scheduleId } : {}),
@@ -492,7 +558,7 @@ export function createLiveReportsService(
           : {})
       });
       const page = exact(
-        await send('GET', `/api/v1/reports?${query.toString()}`),
+        await read(`/api/v1/reports?${query.toString()}`, context),
         ['items', 'nextCursor', 'requestId']
       );
       if (page.nextCursor !== null)
@@ -516,12 +582,12 @@ export function createLiveReportsService(
         total: items.length
       };
     },
-    async getAttempt(id) {
+    async getAttempt(id, context) {
       const saved = (await local.listAttempts()).find(
         (attempt) => attempt.id === id
       );
       const value = attempt(
-        await send('GET', `/api/v1/reports/${encodeURIComponent(id)}`),
+        await read(`/api/v1/reports/${encodeURIComponent(id)}`, context),
         saved?.snapshot,
         saved?.operationId
       );

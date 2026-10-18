@@ -208,6 +208,12 @@ function TransactionFormContent({
   }, []);
   const [deleted, setDeleted] = useState(transaction?.status === 'deleted');
   const [draftReady, setDraftReady] = useState(Boolean(transaction));
+  const [restoredDraft, setRestoredDraft] = useState<{
+    owner: string | null;
+    id: string;
+  } | null>(null);
+  const showRestoredDraft =
+    restoredDraft?.owner === owner && restoredDraft?.id === draftId;
   const [draftLoadFailed, setDraftLoadFailed] = useState(false);
   const [draftLoadAttempt, setDraftLoadAttempt] = useState(0);
   const skipNextDraftReload = useRef(false);
@@ -282,7 +288,7 @@ function TransactionFormContent({
   }, [draftId]);
   const { requestClose, leaveAfterSave } = useTransactionDraftGuard({
     meaningful:
-      draftReady &&
+      (draftReady || showRestoredDraft) &&
       !transaction &&
       meaningful &&
       !operationPending &&
@@ -296,7 +302,7 @@ function TransactionFormContent({
       ? ''
       : lockedCategoryId ||
         categoryId ||
-        (draftReady ? defaultCategory?.id : '') ||
+        (draftReady || showRestoredDraft ? defaultCategory?.id : '') ||
         '';
   const selectedAccount = accounts.data?.find(
     (item: Account) => item.id === sourceAccountId
@@ -385,6 +391,7 @@ function TransactionFormContent({
         skipNextDraftReload.current = false;
         return;
       }
+      let current = true;
       setDraftReady(false);
       setDraftLoadFailed(false);
       setError(undefined);
@@ -392,6 +399,7 @@ function TransactionFormContent({
         .loadDraft(draftId)
         .then((draft) => {
           if (
+            !current ||
             expectedOwner !== ownerRef.current ||
             savingRef.current ||
             submission.current ||
@@ -442,14 +450,18 @@ function TransactionFormContent({
               }
             }
           }
+          setRestoredDraft({ owner: expectedOwner, id: draftId });
           setDraftReady(true);
         })
         .catch(() => {
-          if (expectedOwner === ownerRef.current && mounted.current) {
+          if (current && expectedOwner === ownerRef.current && mounted.current) {
             setDraftLoadFailed(true);
             setError(translate('coreFinance.state.error'));
           }
         });
+      return () => {
+        current = false;
+      };
     }, [initialType, draftId, transaction, owner, draftLoadAttempt])
   );
 
@@ -824,7 +836,7 @@ function TransactionFormContent({
   if (
     accounts.isLoading ||
     categories.isLoading ||
-    !draftReady ||
+    (!transaction && !showRestoredDraft) ||
     (refundLocked && refundOriginalLoading) ||
     (refundLocked && refundable.isLoading)
   )
@@ -910,7 +922,8 @@ function TransactionFormContent({
       : selectedCategory.labelEn
     : translate('coreFinance.transaction.chooseCategory');
   const openPicker = async (target: 'account' | 'destination' | 'category') => {
-    if (savingRef.current || operationPending || recoveryBlocked) return;
+    if (!draftReady || savingRef.current || operationPending || recoveryBlocked)
+      return;
     if (target === 'category') {
       if (!transaction) await saveManualDraft();
       openCategorySelection({
@@ -958,6 +971,7 @@ function TransactionFormContent({
         <Pressable
           accessibilityLabel={translate('appShell.navigation.close')}
           accessibilityRole="button"
+          disabled={!draftReady}
           onPress={transaction ? closeEdit : requestClose}
           style={styles.headerAction}
         >
@@ -984,10 +998,10 @@ function TransactionFormContent({
           accessibilityLabel={translate('coreFinance.form.save')}
           accessibilityRole="button"
           accessibilityState={{
-            busy: saving,
-            disabled: saving || Boolean(transaction && deleted)
+            busy: saving || !draftReady,
+            disabled: !draftReady || saving || Boolean(transaction && deleted)
           }}
-          disabled={saving || Boolean(transaction && deleted)}
+          disabled={!draftReady || saving || Boolean(transaction && deleted)}
           onPress={() => void save()}
           style={styles.headerAction}
         >
@@ -1043,8 +1057,12 @@ function TransactionFormContent({
                           : 'designSystem.state.available'
                     )}`}
                     accessibilityRole="button"
-                    accessibilityState={{ selected, disabled: deleted }}
+                    accessibilityState={{
+                      selected,
+                      disabled: !draftReady || deleted
+                    }}
                     disabled={
+                      !draftReady ||
                       saving ||
                       operationPending ||
                       recoveryBlocked ||
@@ -1095,6 +1113,7 @@ function TransactionFormContent({
                 accessibilityLabel={translate('coreFinance.form.amount')}
                 keyboardType="decimal-pad"
                 editable={
+                  draftReady &&
                   !saving &&
                   !operationPending &&
                   !recoveryBlocked &&
@@ -1137,7 +1156,9 @@ function TransactionFormContent({
             categoryVisualKey={selectedCategory?.iconKey ?? null}
             label={translate('coreFinance.transaction.category')}
             title={categoryLabel}
-            disabled={refundLocked || Boolean(transaction && deleted)}
+            disabled={
+              !draftReady || refundLocked || Boolean(transaction && deleted)
+            }
             onPress={() => void openPicker('category')}
           />
         )}
@@ -1150,7 +1171,9 @@ function TransactionFormContent({
             translate('coreFinance.transaction.account')
           }
           subtitle={selectedAccount?.currencyCode}
-          disabled={refundLocked || Boolean(transaction && deleted)}
+          disabled={
+            !draftReady || refundLocked || Boolean(transaction && deleted)
+          }
           onPress={() => void openPicker('account')}
         />
         {type === 'transfer' ? (
@@ -1163,7 +1186,7 @@ function TransactionFormContent({
               translate('coreFinance.form.destination')
             }
             subtitle={selectedDestination?.currencyCode}
-            disabled={Boolean(transaction && deleted)}
+            disabled={!draftReady || Boolean(transaction && deleted)}
             onPress={() => void openPicker('destination')}
           />
         ) : null}
@@ -1171,6 +1194,7 @@ function TransactionFormContent({
           inputRef={titleInput}
           label={translate('coreFinance.form.title')}
           editable={
+            draftReady &&
             !saving &&
             !operationPending &&
             !recoveryBlocked &&
@@ -1186,6 +1210,7 @@ function TransactionFormContent({
           inputRef={noteInput}
           label={translate('coreFinance.form.note')}
           editable={
+            draftReady &&
             !saving &&
             !operationPending &&
             !recoveryBlocked &&
@@ -1206,6 +1231,7 @@ function TransactionFormContent({
           value={occurredAt}
           maximumDate={new Date()}
           disabled={
+            !draftReady ||
             saving ||
             operationPending ||
             recoveryBlocked ||
@@ -1229,6 +1255,7 @@ function TransactionFormContent({
               <NavigationRow
                 label={translate('coreFinance.transaction.original')}
                 value={lockedOriginal.title}
+                disabled={!draftReady}
                 onPress={() =>
                   router.push(`/transactions/${lockedOriginal.id}`)
                 }

@@ -93,6 +93,7 @@ describe('SPEC-002 typography', () => {
 
     expect(screen.queryByText('Visible product text')).toBeNull();
     expect(screen.getByTestId('font-loading')).toBeTruthy();
+    expect(screen.getByRole('progressbar')).toBeTruthy();
   });
 
   it('renders children after local fonts load', () => {

@@ -51,6 +51,46 @@ async function ready() {
   });
 }
 
+it('shows profile failure and restores the existing draft after retry', async () => {
+  await financialPlanningService.saveDraft({
+    id: 'planning-form-salary',
+    kind: 'salary',
+    entityId: null,
+    payload: { amount: '١٢٣٫٤٥', salaryDay: '27', accountId: 'audit-account' },
+    status: 'editing',
+    updatedAt: 1
+  });
+  const read = financialPlanningService.getSalaryProfile;
+  const spy = jest
+    .spyOn(financialPlanningService, 'getSalaryProfile')
+    .mockRejectedValueOnce(new Error('Unavailable'))
+    .mockImplementation(read);
+  try {
+    renderWithQueryData(<SalaryProfileForm />, [
+      [
+        coreFinanceKeys.accounts(),
+        [{ ...fixtureAccounts[0], id: 'audit-account' }]
+      ]
+    ]);
+    const retry = await screen.findByRole('button', {
+      name: translate('planning.action.retry')
+    });
+    expect(screen.queryByText(translate('planning.state.loading'))).toBeNull();
+    fireEvent.press(retry);
+    await ready();
+    fireEvent.press(
+      screen.getByRole('button', { name: /Expected salary amount/ })
+    );
+    expect(screen.getByDisplayValue('١٢٣٫٤٥')).toBeTruthy();
+    expect(
+      (await financialPlanningService.loadDraft('planning-form-salary'))
+        ?.payload
+    ).toMatchObject({ amount: '١٢٣٫٤٥', salaryDay: '27' });
+  } finally {
+    spy.mockRestore();
+  }
+});
+
 function edit(key: MessageKey, value: string) {
   fireEvent.press(
     screen.getByRole('button', { name: new RegExp(translate(key)) })

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppState, Linking, Text } from 'react-native';
+import { AppState, Linking, Text, type AppStateStatus } from 'react-native';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -226,6 +226,36 @@ describe('AppShellProvider', () => {
 
     expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(2);
     expect(useAppShellStore.getState().pendingDestination).toBe('/current');
+  });
+
+  it('does not repeat the activity read after validated profile bootstrap, but refreshes on resume', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-profile-validated';
+    let receiveState!: (state: AppStateStatus) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receiveState = listener;
+        return { remove: jest.fn() };
+      });
+    mockRestoreAppShellSession.mockImplementation(async () => {
+      useAppShellStore.setState({
+        session: authenticatedSession,
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: { complete: true } as never
+      });
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(mockSynchronizeLiveCoreFinance).toHaveBeenCalledTimes(1)
+    );
+    expect(mockTouchActivity).not.toHaveBeenCalled();
+    act(() => receiveState('active'));
+    expect(mockTouchActivity).toHaveBeenCalledTimes(1);
   });
 
   it('finishes profile bootstrap after its own owner hydration changes (September 30 Loading regression)', async () => {
@@ -506,12 +536,10 @@ describe('AppShellProvider', () => {
       await act(async () => receive({ url: 'masarifi://reports' }));
       await act(async () => releaseInitial('masarifi://tracking'));
       await act(async () => {
-        await useAppShellStore
-          .getState()
-          .authenticate({
-            ...authenticatedSession,
-            userId: 'user_runtime_reports'
-          });
+        await useAppShellStore.getState().authenticate({
+          ...authenticatedSession,
+          userId: 'user_runtime_reports'
+        });
         useAppShellStore.getState().setProfileSetup('complete');
       });
       expect(useAppShellStore.getState().pendingDestination).toBe(

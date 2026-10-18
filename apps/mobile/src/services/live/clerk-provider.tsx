@@ -21,6 +21,7 @@ import React, {
 } from 'react';
 
 import { resolveClientRuntime } from '@/config/client-runtime';
+import { measurePerformance, recordPerformanceTiming } from '@/services/platform/performance-timing';
 import { recordDevelopmentAuthDiagnostic } from '@/services/platform/development-auth-diagnostics';
 import type {
   AuthResult,
@@ -48,7 +49,7 @@ type PendingPhoneAttempt = {
 };
 
 const clerkCache: TokenCache = {
-  getToken: (key) => SecureStore.getItemAsync(`masarifi.clerk.${key}`),
+  getToken: (key) => measurePerformance('identity.cache.read', () => SecureStore.getItemAsync(`masarifi.clerk.${key}`)),
   saveToken: (key, token) =>
     SecureStore.setItemAsync(`masarifi.clerk.${key}`, token),
   clearToken: (key) => SecureStore.deleteItemAsync(`masarifi.clerk.${key}`)
@@ -146,6 +147,8 @@ function ClerkBridgeInstaller({
   onStatus: (status: IdentityStatus) => void;
 }) {
   const auth = useAuth();
+  const identityStartedAt = useRef(performance.now());
+  const identityRecorded = useRef(false);
   const signInState = useSignIn();
   const signUpState = useSignUp();
   const { startSSOFlow } = useSSO();
@@ -357,6 +360,10 @@ function ClerkBridgeInstaller({
   };
   useEffect(() => {
     if (!auth.isLoaded) return;
+    if (!identityRecorded.current) {
+      identityRecorded.current = true;
+      recordPerformanceTiming('startup.identity', performance.now() - identityStartedAt.current);
+    }
     registerLiveClerkBridge(bridge);
     if (!ssoPending.current)
       onSessionKey(auth.isSignedIn ? auth.sessionId : null);

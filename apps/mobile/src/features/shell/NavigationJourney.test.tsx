@@ -410,7 +410,6 @@ describe('navigation journey', () => {
     for (const [label, route] of [
       [translate('appShell.shell.accounts'), '/accounts'],
       [translate('coreFinance.action.categories'), '/categories'],
-      [translate('planning.savings.title'), '/savings'],
       [translate('planning.salary.title'), '/salary'],
       [translate('planning.obligations.title'), '/obligations'],
       [translate('appShell.shell.assistant'), '/assistant'],
@@ -423,6 +422,9 @@ describe('navigation journey', () => {
 
     expect(
       screen.queryByLabelText(translate('planning.budgets.title'))
+    ).toBeNull();
+    expect(
+      screen.queryByLabelText(translate('planning.savings.title'))
     ).toBeNull();
   });
 

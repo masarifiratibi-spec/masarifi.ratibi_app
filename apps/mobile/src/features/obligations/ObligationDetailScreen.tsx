@@ -1,4 +1,5 @@
 import React from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
@@ -28,14 +29,14 @@ import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
-import { useObligation, usePlanningMutation } from './obligation-queries';
+import { useObligationDetail, usePlanningMutation } from './obligation-queries';
 
 export function ObligationDetailScreen({
   obligationId = ''
 }: {
   obligationId?: string;
 }) {
-  const query = useObligation(obligationId);
+  const query = useObligationDetail(obligationId);
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
@@ -92,6 +93,7 @@ export function ObligationDetailScreen({
       hideHeader
       backgroundColor={theme.colors.surfaces.page}
     >
+      <FinancialRefreshStatus query={{ ...query, isFetching: query.isFetching || query.isRefetching }} />
       {!obligationId ? (
         <PlanningState state="empty" />
       ) : query.isLoading ? (
@@ -304,14 +306,16 @@ export function ObligationDetailScreen({
               {translate('planning.state.error')}
             </StyledText>
           ) : null}
-          <ScheduleCard
+          {query.scheduleLoading ? <PlanningState state="loading" /> : query.scheduleError ? (
+            <PlanningState state="error" onRetry={() => void query.refetch()} />
+          ) : <ScheduleCard
             schedule={schedule}
             money={money}
             rtl={rtl}
             item={item}
             onRetry={() => void query.refetch()}
             retrying={query.isFetching}
-          />
+          />}
           <View>
             <Disclosure
               label={translate('planning.obligation.detail.details')}
@@ -353,7 +357,7 @@ export function ObligationDetailScreen({
                 testID="obligation-detail-payment-history"
                 style={styles.history}
               >
-                {query.data?.paymentHistoryState === 'unavailable' ? (
+                {query.historyLoading ? <PlanningState state="loading" /> : query.data?.paymentHistoryState === 'unavailable' ? (
                   <View>
                     <StyledText
                       style={{ color: theme.colors.content.secondary }}

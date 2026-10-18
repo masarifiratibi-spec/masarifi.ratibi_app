@@ -19,6 +19,7 @@ import { synchronizeLiveCoreFinance } from '@/services/live/core-finance-service
 import { refreshPlatformOperations } from '@/services/platform-operations-service';
 import { syncAutomaticTracking } from '@/services/automatic-tracking-coordinator';
 import { ensureLivePushDeviceRegistration } from '@/services/live/engagement-service';
+import { measurePerformance } from '@/services/platform/performance-timing';
 
 interface AppShellProviderProps {
   children: ReactNode;
@@ -83,7 +84,10 @@ export function AppShellProvider({
           !(await prepareDevDeletionBootstrap())
         )
           return;
-        if (current) await restoreAppShellSession(authService, () => current);
+        if (current)
+          await measurePerformance('startup.restore', () =>
+            restoreAppShellSession(authService, () => current)
+          );
       })
       .then(async () => {
         if (
@@ -92,7 +96,13 @@ export function AppShellProvider({
           (!isDevPrivacyDeletionEnabled() ||
             useAppShellStore.getState().session?.status === 'authenticated')
         ) {
-          void authService.touchActivity().catch(() => undefined);
+          const restored = useAppShellStore.getState();
+          // A successful live profile bootstrap has just read /me as well.
+          if (
+            !restored.profileSetupSnapshot ||
+            !['complete', 'incomplete'].includes(restored.profileSetupStatus)
+          )
+            void authService.touchActivity().catch(() => undefined);
           if (registeredPushSession.current !== liveClerkSessionKey) {
             registeredPushSession.current = liveClerkSessionKey;
             void ensureLivePushDeviceRegistration().catch(() => undefined);

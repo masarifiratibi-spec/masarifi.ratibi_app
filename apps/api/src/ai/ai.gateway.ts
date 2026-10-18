@@ -65,7 +65,12 @@ export class AiGateway {
   private probing = false;
 
   constructor(
-    private readonly options: { apiKey?: string; fetcher?: Fetcher; now?: () => number },
+    private readonly options: {
+      apiKey?: string;
+      fetcher?: Fetcher;
+      now?: () => number;
+      assistantRecovery?: boolean;
+    },
   ) {
     this.fetcher = options.fetcher ?? fetch;
     this.now = options.now ?? Date.now;
@@ -78,7 +83,12 @@ export class AiGateway {
     this.enterCircuit();
     const startedAt = this.now();
     const deadline = startedAt + input.route.limits.timeoutMs;
-    const candidates = [input.route.primary, ...input.route.fallbacks].slice(0, 2);
+    const recover =
+      this.options.assistantRecovery && input.route.workload === 'financial_assistant';
+    // Recover the current evidence-bearing round, without switching to a weaker model.
+    const candidates = recover
+      ? [input.route.primary, input.route.primary, input.route.primary]
+      : [input.route.primary, ...input.route.fallbacks].slice(0, 2);
     let last: AiGatewayError | undefined;
 
     for (let index = 0; index < candidates.length; index += 1) {
@@ -86,7 +96,16 @@ export class AiGateway {
       if (!candidate) break;
       try {
         if (input.signal?.aborted) throw new AiGatewayError('AI_WORK_CANCELLED');
-        const result = await this.attempt(input, candidate, deadline, index > 0, startedAt);
+        const attemptDeadline = recover
+          ? Math.min(deadline, this.now() + Math.min(20_000, input.route.limits.timeoutMs / 3))
+          : deadline;
+        const result = await this.attempt(
+          input,
+          candidate,
+          attemptDeadline,
+          !recover && index > 0,
+          startedAt,
+        );
         this.onSuccess();
         return result;
       } catch (error) {
@@ -95,9 +114,13 @@ export class AiGateway {
             ? error
             : new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
         this.onFailure(last.retryable);
+        if (recover && last.code !== 'AI_TEMPORARILY_UNAVAILABLE') break;
         if (!last.retryable || index === candidates.length - 1) break;
       }
     }
+    // A second queue-level retry would discard reads and repeat the entire timeout budget.
+    if (recover && last?.code === 'AI_TEMPORARILY_UNAVAILABLE')
+      throw new AiGatewayError(last.code, false, last.diagnostic);
     throw last ?? new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
   }
 
@@ -341,7 +364,10 @@ export class AiGateway {
         await input.onDispatchFailure?.(dispatchState.responseReceived);
       if (input.signal?.aborted) throw new AiGatewayError('AI_WORK_CANCELLED');
       if (error instanceof AiGatewayError) throw error;
-      throw new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
+      throw new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true, {
+        failureStage: dispatchState.responseReceived ? 'provider_body' : 'provider_headers',
+        state: controller.signal.aborted ? 'timeout' : 'transport_failure',
+      });
     } finally {
       clearTimeout(fullTimer);
       input.signal?.removeEventListener('abort', onAbort);

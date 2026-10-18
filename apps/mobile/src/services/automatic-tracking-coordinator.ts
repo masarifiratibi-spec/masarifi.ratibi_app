@@ -774,7 +774,7 @@ const coordinator = createAutomaticTrackingCoordinator({
   listAccounts: (...args) => coreFinanceService.listAccounts(...args),
   async listCachedAccounts() {
     const cachedAccounts = new CoreFinanceRepository();
-    await cachedAccounts.hydrate();
+    await cachedAccounts.hydrate({ preserveDrafts: true });
     return cachedAccounts.listAccounts();
   },
   queue: new SmsImportQueue(),

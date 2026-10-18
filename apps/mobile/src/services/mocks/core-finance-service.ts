@@ -42,7 +42,9 @@ import {
 } from '@/domain/core-finance-seeds';
 import type { Locale } from '@/domain/foundation';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
-import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
+import { registerRuntimeUserDataReset, registerRuntimeIdentityReset } from '@/storage/runtime-user-data-reset';
+import { SharedReadPool } from '@/services/live/shared-read';
+import { assertReadActive, withReadContext, type ReadContext } from '@/services/live/read-context';
 import { createMockExchangeRateService } from './exchange-rate-service';
 import type { ExchangeRateService } from '@/services/contracts/core-finance-service';
 import { createLiveAccountService } from '@/services/live/account-service';
@@ -465,6 +467,22 @@ export function createLiveCoreFinanceService(
   const available = Boolean(options.baseUrl ?? process.env.EXPO_PUBLIC_API_URL);
   const accounts = createLiveAccountService(options);
   const categories = createLiveCategoryLifecycleService(options);
+  const sharedReads = new SharedReadPool();
+  registerRuntimeIdentityReset(() => sharedReads.clear());
+  registerRuntimeUserDataReset(() => sharedReads.clear());
+  const share = <T>(key: string, context: ReadContext | undefined, action: (signal: AbortSignal) => Promise<T>) =>
+    withReadContext(context, async (signal) => {
+      const owner = await captureLiveClerkOwner();
+      assertReadActive(signal);
+      const value = await sharedReads.read(owner.userId + ':' + key, signal, action);
+      await owner.assertCurrent();
+      assertReadActive(signal);
+      return value;
+    });
+  const readBalance = (account: { id: string; currencyCode: string }, context?: ReadContext) =>
+    share('balance:' + account.id + ':' + account.currencyCode, context,
+      signal => accounts.getAccountBalance(account.id, account.currencyCode, { signal }));
+
   const pending = new Map<
     string,
     {
@@ -517,19 +535,13 @@ export function createLiveCoreFinanceService(
         ? ('available' as const)
         : ('unavailable' as const)
     },
-    async listAccounts(includeArchived?: boolean) {
-      return (await accounts.listAccounts(includeArchived)).map((account) => ({
-        ...account,
-        openingBalanceMinor: 0
-      }));
+    async listAccounts(includeArchived = false, context?: ReadContext) {
+      const values = await share('accounts:' + includeArchived, context, signal => accounts.listAccounts(includeArchived, { signal }));
+      return values.map(account => ({ ...account, openingBalanceMinor: 0 }));
     },
-    async listAccountBalances(includeArchived?: boolean) {
-      const values = await accounts.listAccounts(includeArchived);
-      return Promise.all(
-        values.map((account) =>
-          accounts.getAccountBalance(account.id, account.currencyCode)
-        )
-      );
+    async listAccountBalances(includeArchived = false, context?: ReadContext) {
+      const values = await target.listAccounts(includeArchived, context);
+      return Promise.all(values.map(account => readBalance(account, context)));
     },
     async getAccount(id: string) {
       return { ...(await accounts.getAccount(id)), openingBalanceMinor: 0 };
@@ -711,8 +723,10 @@ export function createLiveCoreFinanceService(
   Object.assign(target, ledger, {
     async getHomeSummary(
       profileCurrency: string,
-      filters: TransactionFilterSet = emptyTransactionFilters
+      filters: TransactionFilterSet = emptyTransactionFilters,
+      context?: ReadContext
     ): Promise<HomeSummary> {
+      return withReadContext(context, async (signal) => {
       const owner = await captureLiveClerkOwner();
       const readTransactions = async () => {
         const transactions: Transaction[] = [];
@@ -720,7 +734,7 @@ export function createLiveCoreFinanceService(
         const cursors = new Set<string>();
         do {
           await owner.assertCurrent();
-          const page = await ledger.listTransactions(filters, cursor, 100);
+          const page = await ledger.listTransactions(filters, cursor, 100, signal);
           await owner.assertCurrent();
           transactions.push(...page.items);
           cursor = page.nextCursor;
@@ -730,9 +744,9 @@ export function createLiveCoreFinanceService(
         return transactions;
       };
       const [accountData, transactions] = await Promise.all([
-        target.listAccounts().then(async (liveAccounts) => ({
+        target.listAccounts(false, { signal }).then(async (liveAccounts) => ({
           liveAccounts,
-          balances: await Promise.all(liveAccounts.map((account) => accounts.getAccountBalance(account.id, account.currencyCode)))
+          balances: await Promise.all(liveAccounts.filter(account => !filters.accountIds.length || filters.accountIds.includes(account.id)).map(account => readBalance(account, { signal })))
         })),
         readTransactions()
       ]);
@@ -822,6 +836,7 @@ export function createLiveCoreFinanceService(
               ? 'partial'
               : 'ready'
       };
+      });
     }
   });
   return new Proxy(

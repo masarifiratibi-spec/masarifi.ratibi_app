@@ -20,6 +20,9 @@ import { reportsService } from '@/services/reports-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { buildNetWorthTrend } from './report-net-worth';
+import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
+import { useAppShellStore } from '@/state/app-shell';
+import { assertReadActive } from '@/services/live/read-context';
 
 export type ReportTimeframe = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
@@ -55,7 +58,7 @@ export const reportKeys = {
 export function useReport(input: ReportQuery) {
   return useQuery({
     queryKey: reportKeys.live(input),
-    queryFn: () => reportsService.getReport(input)
+    queryFn: ({ signal }) => reportsService.getReport(input, { signal })
   });
 }
 
@@ -86,6 +89,7 @@ export function useNetWorthTrend({
   timeframe: ReportTimeframe;
 }) {
   const timeZone = usePreferenceStore((state) => state.timeZone);
+  const client = useQueryClient();
   return useQuery({
     queryKey: reportKeys.netWorth(
       anchorDate,
@@ -94,15 +98,33 @@ export function useNetWorthTrend({
       timeframe,
       timeZone
     ),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
+      const filters = { ...emptyTransactionFilters, accountIds };
+      const owner = useAppShellStore.getState().session?.userId;
       const [accounts, home, transactions] = await Promise.all([
-        coreFinanceService.listAccounts(false),
-        coreFinanceService.getHomeSummary(currencyCode, {
-          ...emptyTransactionFilters,
-          accountIds
+        client.fetchQuery({
+          queryKey: coreFinanceKeys.accounts(false),
+          staleTime: Infinity,
+          queryFn: ({ signal: active }) =>
+            coreFinanceService.listAccounts(false, { signal: active })
         }),
-        allTransactions()
+        client.fetchQuery({
+          queryKey: coreFinanceKeys.home(currencyCode, filters),
+          staleTime: Infinity,
+          queryFn: ({ signal: active }) =>
+            coreFinanceService.getHomeSummary(currencyCode, filters, {
+              signal: active
+            })
+        }),
+        client.fetchQuery({
+          queryKey: ['reports', 'history', owner ?? null],
+          staleTime: Infinity,
+          queryFn: ({ signal: active }) => allTransactions(active)
+        })
       ]);
+      assertReadActive(signal);
+      if (owner !== useAppShellStore.getState().session?.userId)
+        throw new Error('Identity changed');
       const pointInstants = trendPointInstants(
         timeframe,
         anchorDate,
@@ -130,21 +152,21 @@ export function useNetWorthTrend({
 export function useReportSchedule() {
   return useQuery({
     queryKey: reportKeys.schedule,
-    queryFn: () => reportsService.getSchedule()
+    queryFn: ({ signal }) => reportsService.getSchedule({ signal })
   });
 }
 
 export function useReportPreview(input: ReportOutputPreviewInput) {
   return useQuery({
     queryKey: reportKeys.preview(input),
-    queryFn: () => reportsService.previewOutput(input)
+    queryFn: ({ signal }) => reportsService.previewOutput(input, { signal })
   });
 }
 
 export function useReportAttempts() {
   return useQuery({
     queryKey: reportKeys.attempts(),
-    queryFn: () => reportsService.listAttempts()
+    queryFn: ({ signal }) => reportsService.listAttempts(undefined, { signal })
   });
 }
 
@@ -186,17 +208,26 @@ export async function invalidateReportScopes(
   );
 }
 
-async function allTransactions() {
+async function allTransactions(signal?: AbortSignal) {
+  const owner = useAppShellStore.getState().session?.userId;
   const transactions: Transaction[] = [];
   let cursor: string | null = null;
+  const seen = new Set<string>();
   do {
     const page = await coreFinanceService.listTransactions(
       emptyTransactionFilters,
       cursor,
-      500
+      100,
+      signal
     );
+    assertReadActive(signal);
+    if (owner !== useAppShellStore.getState().session?.userId)
+      throw new Error('Identity changed');
     transactions.push(...page.items);
     cursor = page.nextCursor;
+    if (cursor && seen.has(cursor))
+      throw new Error('Invalid transaction cursor');
+    if (cursor) seen.add(cursor);
   } while (cursor);
   return transactions;
 }

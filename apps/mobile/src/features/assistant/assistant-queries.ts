@@ -213,7 +213,8 @@ export function useCreateAssistantConversation() {
       question: string;
       operationId: string;
       intent?: AssistantQuestionIntent;
-    }) => assistantService.createConversation({ question, intent }, operationId)
+    }) => assistantService.createConversation({ question, intent }, operationId),
+    'background'
   );
 }
 
@@ -321,20 +322,28 @@ export function useCancelAssistantAction() {
 function useAssistantMutation<TVariables, TValue>(
   mutationFn: (
     variables: TVariables
-  ) => Promise<{ value: TValue; affectedScopes: readonly string[] }>
+  ) => Promise<{ value: TValue; affectedScopes: readonly string[] }>,
+  refreshMode: 'complete' | 'background' = 'complete'
 ) {
   const client = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: (result) =>
-      invalidateAssistantScopes(client, result.affectedScopes),
+    onSuccess: (result) => {
+      const refresh = invalidateAssistantScopes(client, result.affectedScopes);
+      // Creation is already accepted; optional landing reads must not delay opening the conversation.
+      if (refreshMode === 'complete' || result.affectedScopes.includes('financial.live')) return refresh;
+      void refresh;
+    },
     onError: (error) => {
       const scopes = (error as { affectedScopes?: readonly string[] })
         .affectedScopes;
       if (scopes?.length) return invalidateAssistantScopes(client, scopes);
     },
-    onSettled: () =>
-      client.invalidateQueries({ queryKey: assistantKeys.questionOperation() })
+    onSettled: () => {
+      const refresh = client.invalidateQueries({ queryKey: assistantKeys.questionOperation() });
+      if (refreshMode === 'complete') return refresh;
+      void refresh;
+    }
   });
 }
 
@@ -367,16 +376,29 @@ export async function invalidateAssistantScopes(
   scopes: readonly string[]
 ) {
   if (scopes.includes('financial.live')) {
+    const keys = [
+      ['core-finance'],
+      ['planning'],
+      ['reports', 'live'],
+      ['reports', 'preview'],
+      ['reports', 'breakdown'],
+      ['reports', 'net-worth'],
+      ['reports', 'history'],
+      ['tracking']
+    ];
     await Promise.all(
-      [
-        ['core-finance'],
-        ['planning'],
-        ['reports', 'live'],
-        ['reports', 'preview'],
-        ['reports', 'breakdown'],
-        ['reports', 'net-worth'],
-        ['tracking']
-      ].map((queryKey) => client.invalidateQueries({ queryKey }))
+      keys.map((queryKey) => client.cancelQueries({ queryKey }))
+    );
+    // Shared snapshots must become stale before dependent views refetch.
+    await Promise.all(
+      keys.map((queryKey) =>
+        client.invalidateQueries({ queryKey, refetchType: 'none' })
+      )
+    );
+    await Promise.all(
+      keys.map((queryKey) =>
+        client.refetchQueries({ queryKey, type: 'active' })
+      )
     );
   }
   await Promise.all(

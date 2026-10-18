@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { createMockFinancialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePlanningFormDraft } from './usePlanningDraft';
+import { useAppShellStore } from '@/state/app-shell';
 
 jest.mock('@/services/financial-planning-service', () => {
   const { createMockFinancialPlanningService: create } = jest.requireActual<
@@ -13,7 +14,7 @@ jest.mock('@/services/financial-planning-service', () => {
   return { financialPlanningService: create() };
 });
 
-function DraftForm() {
+function DraftForm({ enabled = true }: { enabled?: boolean }) {
   const [amount, setAmount] = useState('1000');
   const [discarded, setDiscarded] = useState(false);
   const { draftReady, discardDraft } = usePlanningFormDraft({
@@ -22,7 +23,8 @@ function DraftForm() {
     entityId: null,
     payload: { amount },
     meaningful: true,
-    restore: () => {},
+    enabled,
+    restore: (payload) => setAmount((payload as { amount: string }).amount),
     onError: () => {}
   });
   return (
@@ -52,6 +54,70 @@ beforeEach(() => {
   jest.useFakeTimers();
 });
 afterEach(() => jest.useRealTimers());
+
+it('keeps unsaved edits when a background profile error disables and re-enables restoration', async () => {
+  await financialPlanningService.saveDraft({
+    id: 'audit-draft',
+    kind: 'salary',
+    entityId: null,
+    payload: { amount: '1000' },
+    status: 'editing',
+    updatedAt: 1
+  });
+  const view = render(<DraftForm />);
+  try {
+    await screen.findByText('Ready');
+    fireEvent.changeText(screen.getByLabelText('Amount'), '2000');
+    view.rerender(<DraftForm enabled={false} />);
+    view.rerender(<DraftForm enabled />);
+    await screen.findByText('Ready');
+    expect(screen.getByDisplayValue('2000')).toBeTruthy();
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    expect(
+      (await financialPlanningService.loadDraft('audit-draft'))?.payload
+    ).toEqual({ amount: '2000' });
+  } finally {
+    view.unmount();
+  }
+});
+
+it('does not send a queued old-owner autosave after the session changes', async () => {
+  const previous = useAppShellStore.getState().session;
+  useAppShellStore.setState({ session: { ...previous, userId: 'a' } as never });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const save = financialPlanningService.saveDraft;
+  const writes: unknown[] = [];
+  const spy = jest
+    .spyOn(financialPlanningService, 'saveDraft')
+    .mockImplementation(async (draft) => {
+      writes.push(draft.payload);
+      await pending;
+      return save(draft);
+    });
+  const view = render(<DraftForm />);
+  try {
+    await screen.findByText('Ready');
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    fireEvent.changeText(screen.getByLabelText('Amount'), '2000');
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    view.unmount();
+    useAppShellStore.setState({
+      session: { ...previous, userId: 'b' } as never
+    });
+    await act(async () => {
+      release();
+      await pending;
+    });
+    expect(writes).toEqual([{ amount: '1000' }]);
+  } finally {
+    release();
+    spy.mockRestore();
+    useAppShellStore.setState({ session: previous });
+  }
+});
 
 it('cancels queued autosave on discard, without losing later edits', async () => {
   const view = render(<DraftForm />);

@@ -98,8 +98,6 @@ function useOwnedVoiceCapture() {
   const batches = useVoiceBatches(authenticatedOwner);
   const mounted = useRef(true);
   const revision = useRef(0);
-  const pathname = usePathname();
-  const previousPath = useRef(pathname);
   const ownerId = useCallback(() => {
     const session = useAppShellStore.getState().session;
     return session?.status === 'authenticated' ? session.userId : null;
@@ -726,15 +724,6 @@ function useOwnedVoiceCapture() {
   }, [cancelRecording, syncPermission]);
 
   useEffect(() => {
-    if (
-      previousPath.current !== pathname &&
-      ['recording', 'preparing'].includes(useVoiceCaptureStore.getState().state)
-    )
-      void cancelRecording('recording_interrupted');
-    previousPath.current = pathname;
-  }, [pathname, cancelRecording]);
-
-  useEffect(() => {
     mounted.current = true;
     const clearOwnedWork = async () => {
       revision.current += 1;
@@ -1042,10 +1031,27 @@ function useOwnedVoiceCapture() {
 type VoiceRuntime = ReturnType<typeof useOwnedVoiceCapture>;
 const VoiceRuntimeContext = createContext<VoiceRuntime | null>(null);
 
+function VoiceRouteInterruption({
+  cancelRecording
+}: Pick<VoiceRuntime, 'cancelRecording'>) {
+  const pathname = usePathname();
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    if (
+      previousPath.current !== pathname &&
+      ['recording', 'preparing'].includes(useVoiceCaptureStore.getState().state)
+    )
+      void cancelRecording('recording_interrupted');
+    previousPath.current = pathname;
+  }, [pathname, cancelRecording]);
+  return null;
+}
+
 export function VoiceCaptureProvider({ children }: { children: ReactNode }) {
   const runtime = useOwnedVoiceCapture();
   return (
     <VoiceRuntimeContext.Provider value={runtime}>
+      <VoiceRouteInterruption cancelRecording={runtime.cancelRecording} />
       {children}
     </VoiceRuntimeContext.Provider>
   );

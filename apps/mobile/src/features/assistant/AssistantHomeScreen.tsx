@@ -19,9 +19,11 @@ import { AssistantQuestionRecovery } from './AssistantFunctionalStatus';
 type AssistantQueries = typeof import('./assistant-queries');
 
 export function AssistantHomeScreen({
-  initialConversationId
+  initialConversationId,
+  initialQuestion
 }: {
   initialConversationId?: string;
+  initialQuestion?: string;
 }) {
   const queries = require('./assistant-queries') as AssistantQueries;
   const consent = queries.useAssistantConsent();
@@ -139,6 +141,7 @@ export function AssistantHomeScreen({
 
       {/* Main Landing Experience matching Reference 1 */}
       <AssistantLanding
+        initialQuestion={initialQuestion}
         onAskQuestion={handleAskFirstQuestion}
         consent={consent.data}
         onEnableConsent={handleEnableConsent}
