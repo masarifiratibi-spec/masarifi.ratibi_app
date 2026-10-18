@@ -140,7 +140,7 @@ describeLiveDatabase('salary and payment review corrections on rollback-only fix
     },
   );
 
-  it.each(['success', 'version-conflict', 'bad-allocation'] as const)(
+  it.each(['success', 'success-undo', 'version-conflict', 'bad-allocation'] as const)(
     'keeps the ledger and payment atomic on %s',
     async (scenario) => {
       await fixture(async (client, repository, owner, account) => {
@@ -196,13 +196,64 @@ describeLiveDatabase('salary and payment review corrections on rollback-only fix
             ],
           },
         };
-        if (scenario === 'success') {
+        if (scenario === 'success' || scenario === 'success-undo') {
           const payment = await repository.mutate(input);
+          const resource = payment.resource as { id: string; version: number };
           expect(payment.resource).toMatchObject({
             amountMinor: '5000',
             transactionOwnership: 'created',
           });
           expect(await repository.mutate(input)).toEqual(payment);
+          await client.query('set local role masarifi_migration');
+          const stored = (
+            await client.query<{ version: string; transaction_ownership: string }>(
+              'select version,transaction_ownership from public.obligation_payments where id=$1',
+              [resource.id],
+            )
+          ).rows[0];
+          expect(stored).toEqual({
+            version: String(resource.version),
+            transaction_ownership: 'created',
+          });
+          const events = (
+            await client.query<{
+              payload: {
+                aggregateVersion: number;
+                sync: {
+                  version: number;
+                  snapshot: { version: number; transaction_ownership: string };
+                };
+              };
+            }>(
+              `select payload from private.outbox_events where aggregate_id=$1
+               and event_type='planning.obligation_payment_recorded'`,
+              [resource.id],
+            )
+          ).rows;
+          expect(events).toHaveLength(1);
+          expect(events[0]?.payload.aggregateVersion).toBe(resource.version);
+          expect(events[0]?.payload.sync.version).toBe(resource.version);
+          expect(events[0]?.payload.sync.snapshot).toMatchObject({
+            version: resource.version,
+            transaction_ownership: 'created',
+          });
+          if (scenario === 'success-undo') {
+            const reverseInput = {
+              ...input,
+              operation: 'reverseObligationPayment',
+              scope: 'planning.obligation-payment.reverse',
+              status: 200,
+              idempotencyKey: 'review-undo-' + randomUUID(),
+              command: {
+                obligationId: obligation,
+                paymentId: resource.id,
+                expectedVersion: resource.version,
+              },
+            };
+            const reversed = await repository.mutate(reverseInput);
+            expect(reversed.resource).toMatchObject({ status: 'reversed' });
+            expect(await repository.mutate(reverseInput)).toEqual(reversed);
+          }
         } else await expect(repository.mutate(input)).rejects.toThrow();
         await client.query('set local role masarifi_migration');
         const proof = (
@@ -215,10 +266,113 @@ describeLiveDatabase('salary and payment review corrections on rollback-only fix
           )
         ).rows[0];
         expect(proof).toEqual(
-          scenario === 'success'
-            ? { transactions: '1', payments: '1', balance: '-5000' }
-            : { transactions: '0', payments: '0', balance: '0' },
+          scenario === 'success-undo'
+            ? { transactions: '2', payments: '1', balance: '0' }
+            : scenario === 'success'
+              ? { transactions: '1', payments: '1', balance: '-5000' }
+              : { transactions: '0', payments: '0', balance: '0' },
         );
+      });
+    },
+  );
+
+  it('keeps linked payments unprivileged and rejects client ownership overrides', async () => {
+    await fixture(async (client, _repository, owner, account) => {
+      await client.query("select set_config('request.jwt.claims',$1,true)", [
+        JSON.stringify({ role: 'authenticated', sub: owner, sid: 'isolated' }),
+      ]);
+      const obligation = randomUUID();
+      await client.query(
+        `insert into public.obligations(id,user_id,name,direction,type,schedule_kind,currency_code,principal_minor,installment_amount_minor,installment_count,frequency,expected_day,start_date)
+        values($1,$2,'Linked test','payable','installment','fixed_term','SAR',10000,5000,2,'monthly',8,'2026-10-08')`,
+        [obligation, owner],
+      );
+      await client.query(
+        `insert into public.obligation_schedule_items(user_id,obligation_id,due_at,amount_minor,sequence_no)
+        values($1,$2,'2026-10-07T21:00:00Z',5000,1)`,
+        [owner, obligation],
+      );
+      const item = (
+        await client.query<{ id: string }>(
+          'select id from public.obligation_schedule_items where obligation_id=$1 order by sequence_no limit 1',
+          [obligation],
+        )
+      ).rows[0]?.id;
+      expect(item).toBeDefined();
+      const transaction = (
+        await client.query<{ result: { transactionId: string } }>(
+          'select private.post_transaction($1,$2::jsonb) result',
+          [
+            owner,
+            JSON.stringify({
+              kind: 'expense',
+              amountMinor: 5000,
+              currency: 'SAR',
+              accountId: account,
+              title: 'Linked expense',
+              source: 'manual',
+              categoryId: '04000000-0000-4000-8000-000000000019',
+              occurredAt: '2026-10-08T00:00:00.000Z',
+            }),
+          ],
+        )
+      ).rows[0]?.result.transactionId;
+      const command = {
+        operation: 'record',
+        obligationId: obligation,
+        paymentId: randomUUID(),
+        transactionId: transaction,
+        expectedVersion: 1,
+        paymentMethod: null,
+        paymentCase: 'partial',
+        allocationIntent: 'current',
+        source: 'manual',
+        allocations: [{ scheduleItemId: item, amountMinor: '5000' }],
+        operationId: randomUUID(),
+        requestId: 'linked-ownership',
+      };
+      await client.query('savepoint ownership_override');
+      await client.query('set local role masarifi_api');
+      await expect(
+        client.query('select private.allocate_obligation_payment($1,$2::jsonb)', [
+          owner,
+          JSON.stringify({ ...command, transactionOwnership: 'created' }),
+        ]),
+      ).rejects.toThrow(/OBLIGATION_INELIGIBLE/);
+      await client.query('rollback to savepoint ownership_override');
+      await client.query('set local role masarifi_api');
+      const result = (
+        await client.query<{
+          result: { id: string; version: number; transactionOwnership: string };
+        }>('select private.allocate_obligation_payment($1,$2::jsonb) result', [
+          owner,
+          JSON.stringify(command),
+        ])
+      ).rows[0]?.result;
+      expect(result).toMatchObject({ transactionOwnership: 'linked_existing', version: 1 });
+      await client.query('set local role masarifi_migration');
+      expect(
+        (
+          await client.query(
+            'select transaction_ownership from public.obligation_payments where id=$1',
+            [result?.id],
+          )
+        ).rows,
+      ).toEqual([{ transaction_ownership: 'linked_existing' }]);
+    });
+  });
+
+  it.each(['anon', 'authenticated', 'service_role', 'masarifi_api', 'masarifi_worker'])(
+    'denies direct trusted-ownership allocator access to %s',
+    async (role) => {
+      await fixture(async (client, _repository, owner) => {
+        await client.query(`set local role ${role}`);
+        await expect(
+          client.query(
+            "select private.allocate_obligation_payment_core($1,'{}'::jsonb,'created')",
+            [owner],
+          ),
+        ).rejects.toThrow(/permission denied/);
       });
     },
   );

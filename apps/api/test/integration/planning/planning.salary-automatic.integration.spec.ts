@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 
+import { PlanningRepository } from '../../../src/planning/planning.repository';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('automatic salary detection with isolated ledger fixtures', () => {
@@ -104,8 +105,9 @@ describeLiveDatabase('automatic salary detection with isolated ledger fixtures',
         amount_minor: string;
         automatically_detected: boolean;
         version: string;
+        expected_at: Date;
       }>(
-        "select transaction_id,amount_minor,coalesce((to_jsonb(r)->>'automatically_detected')::boolean,false) automatically_detected,version from public.salary_receipts r where salary_profile_id=$1 and status='received'",
+        "select transaction_id,amount_minor,coalesce((to_jsonb(r)->>'automatically_detected')::boolean,false) automatically_detected,version,expected_at from public.salary_receipts r where salary_profile_id=$1 and status='received'",
         [profile],
       )
     ).rows;
@@ -266,6 +268,215 @@ describeLiveDatabase('automatic salary detection with isolated ledger fixtures',
       ).toBe('undone');
     });
   });
+
+  it.each([
+    { offsetMinutes: -1, disabled: false, timezone: 'Asia/Riyadh', midnight: false },
+    { offsetMinutes: -1440, disabled: true, timezone: 'Asia/Riyadh', midnight: false },
+    { offsetMinutes: 1, disabled: false, timezone: 'Asia/Riyadh', midnight: false },
+    { offsetMinutes: -2, disabled: false, timezone: 'Asia/Riyadh', midnight: true },
+    { offsetMinutes: -2, disabled: false, timezone: 'America/New_York', midnight: true },
+    { offsetMinutes: -4320, disabled: false, timezone: 'Asia/Riyadh', midnight: true },
+  ])(
+    'updates the salary anchor after a date edit: %j',
+    async ({ offsetMinutes, disabled, timezone, midnight }) => {
+      await fixture(async (client, owner, account, profile) => {
+        await client.query('update public.profiles set timezone=$2 where id=$1', [owner, timezone]);
+        await client.query(
+          'update public.salary_profiles set expected_day=extract(day from now() at time zone $2)::smallint where id=$1',
+          [profile, timezone],
+        );
+        const originalAt = midnight
+          ? (
+              await client.query<{ at: Date }>(
+                "select ((now() at time zone $1)::date::timestamp at time zone $1)+interval '1 minute' as at",
+                [timezone],
+              )
+            ).rows[0]?.at
+          : new Date(Date.now() - 2 * 60000);
+        if (!originalAt) throw new Error('ISOLATED_MIDNIGHT_REQUIRED');
+        const editedAt = new Date(originalAt.getTime() + offsetMinutes * 60000);
+        const transaction = await income(client, owner, account, {
+          occurredAt: originalAt.toISOString(),
+        });
+        await work(client, profile);
+        const receipt = (await received(client, profile))[0];
+        expect(receipt).toBeDefined();
+        if (disabled)
+          await client.query(
+            'update public.salary_profiles set automatic_detection_enabled=false where id=$1',
+            [profile],
+          );
+        await client.query('select private.revise_transaction($1,$2,1,$3::jsonb,$4)', [
+          owner,
+          transaction,
+          JSON.stringify({ occurredAt: editedAt.toISOString() }),
+          'Isolated salary date correction',
+        ]);
+        const before = (
+          await client.query(
+            'select confirmed_minor,ledger_version from public.account_balances where account_id=$1',
+            [account],
+          )
+        ).rows;
+        await work(client, profile);
+        const corrected = (
+          await client.query<{ received_at: Date; version: string; expected_at: Date }>(
+            "select received_at,version,expected_at from public.salary_receipts where salary_profile_id=$1 and status in ('received','corrected')",
+            [profile],
+          )
+        ).rows;
+        expect(corrected).toHaveLength(1);
+        expect(corrected[0]?.received_at.toISOString()).toBe(editedAt.toISOString());
+        expect(Number(corrected[0]?.version)).toBe(Number(receipt?.version) + 1);
+        expect(corrected[0]?.expected_at).toEqual(receipt?.expected_at);
+        await client.query('select private.detect_salary_receipts($1,$2,50)', [owner, profile]);
+        expect(
+          (
+            await client.query(
+              "select received_at,version,expected_at from public.salary_receipts where salary_profile_id=$1 and status in ('received','corrected')",
+              [profile],
+            )
+          ).rows,
+        ).toEqual(corrected);
+        const events = (
+          await client.query<{
+            payload: { version: number; sync: { snapshot: { received_at: string } } };
+          }>(
+            "select payload from private.outbox_events where aggregate_id in (select id from public.salary_receipts where salary_profile_id=$1) and event_type='planning.salary_receipt_corrected'",
+            [profile],
+          )
+        ).rows;
+        expect(events).toHaveLength(1);
+        const correctedEvent = events[0]?.payload;
+        if (!correctedEvent) throw new Error('CORRECTED_SALARY_EVENT_REQUIRED');
+        expect(correctedEvent.version).toBe(Number(corrected[0]?.version));
+        expect(new Date(correctedEvent.sync.snapshot.received_at).toISOString()).toBe(
+          editedAt.toISOString(),
+        );
+        const proxy = {
+          query: (sql: string, values?: unknown[]) =>
+            client.query(
+              sql === 'begin'
+                ? 'savepoint salary_summary'
+                : sql === 'commit'
+                  ? 'release savepoint salary_summary'
+                  : sql === 'rollback'
+                    ? 'rollback to savepoint salary_summary'
+                    : sql,
+              values,
+            ),
+        };
+        const repository = new PlanningRepository({
+          withClient: async (action: (c: typeof proxy) => Promise<unknown>) => action(proxy),
+        } as never);
+        const day = (
+          await client.query<{ day: string }>(
+            "select to_char(now() at time zone $1,'YYYY-MM-DD') as day",
+            [timezone],
+          )
+        ).rows[0]?.day;
+        if (!day) throw new Error('ISOLATED_DATE_REQUIRED');
+        const summary = await repository.getPlanningSummary(
+          { userId: owner, sessionId: 'salary-auto-isolated', factorAgeSeconds: 0 },
+          { key: day.slice(0, 7), start: day, end: day, asOf: day },
+          'salary-date-review',
+        );
+        expect(summary.salary).toMatchObject({
+          startAt: editedAt.toISOString(),
+          actualIncomeMinor: '125000',
+          actualExpenseMinor: '0',
+        });
+        await client.query('set local role masarifi_migration');
+        expect(
+          (
+            await client.query(
+              'select confirmed_minor,ledger_version from public.account_balances where account_id=$1',
+              [account],
+            )
+          ).rows,
+        ).toEqual(before);
+        expect(
+          (
+            await client.query<{ n: number }>(
+              'select count(*)::int n from public.transactions where user_id=$1',
+              [owner],
+            )
+          ).rows[0]?.n,
+        ).toBe(1);
+      });
+    },
+  );
+
+  it.each(['outside-window', 'manual-link', 'owner-undo', 'amount-edit'] as const)(
+    'preserves salary receipt boundaries on a date edit: %s',
+    async (scenario) => {
+      await fixture(async (client, owner, account, profile) => {
+        const transaction = await income(client, owner, account);
+        await work(client, profile);
+        if (scenario === 'manual-link')
+          await client.query(
+            'update public.salary_receipts set automatically_detected=false where salary_profile_id=$1 and transaction_id=$2',
+            [profile, transaction],
+          );
+        if (scenario === 'owner-undo') {
+          const receipt = (
+            await client.query<{ id: string; version: string }>(
+              'select id,version from public.salary_receipts where salary_profile_id=$1 and transaction_id=$2',
+              [profile, transaction],
+            )
+          ).rows[0];
+          await client.query('select private.link_salary_receipt($1,$2::jsonb)', [
+            owner,
+            JSON.stringify({
+              operation: 'unlink',
+              profileId: profile,
+              receiptId: receipt?.id,
+              expectedVersion: Number(receipt?.version),
+              operationId: randomUUID(),
+              requestId: 'salary-edit-undo',
+            }),
+          ]);
+        }
+        const before = (
+          await client.query<{ expected_at: Date }>(
+            'select id,status,received_at,expected_at,version from public.salary_receipts where salary_profile_id=$1 and transaction_id=$2',
+            [profile, transaction],
+          )
+        ).rows;
+        const editedAt = new Date(
+          Date.now() - (scenario === 'outside-window' ? 4 * 86400000 : 60000),
+        );
+        await client.query('select private.revise_transaction($1,$2,1,$3::jsonb,$4)', [
+          owner,
+          transaction,
+          JSON.stringify(
+            scenario === 'amount-edit'
+              ? { amountMinor: 125001 }
+              : { occurredAt: editedAt.toISOString() },
+          ),
+          'Isolated boundary edit',
+        ]);
+        await work(client, profile);
+        const after = (
+          await client.query(
+            'select id,status,received_at,expected_at,version from public.salary_receipts where salary_profile_id=$1 and transaction_id=$2',
+            [profile, transaction],
+          )
+        ).rows;
+        if (scenario === 'outside-window' || scenario === 'amount-edit') {
+          expect(after).toEqual([
+            expect.objectContaining({
+              status: 'undone',
+              received_at: null,
+              expected_at: before[0]?.expected_at,
+            }),
+          ]);
+          await client.query('select private.detect_salary_receipts($1,$2,50)', [owner, profile]);
+          expect(await received(client, profile)).toEqual([]);
+        } else expect(after).toEqual(before);
+      });
+    },
+  );
 
   it('invalidates an automatic receipt when its income is reversed, including after detection is turned off', async () => {
     await fixture(async (client, owner, account, profile) => {
