@@ -314,7 +314,7 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
             await client.query<{ claims: string }>(
               "select current_setting('request.jwt.claims',true) claims",
             )
-          ).rows[0].claims,
+          ).rows[0]?.claims,
         ).toBe('{}');
       } finally {
         await client.query('rollback');

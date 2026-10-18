@@ -134,11 +134,13 @@ export class SyncRepository {
   private transaction<T>(
     principal: ClerkPrincipal,
     action: (client: PoolClient) => Promise<T>,
-    readOnlyRepeatable = false,
+    repeatableSnapshot = false,
   ): Promise<T> {
     return this.pool.withClient(async (client) => {
       await client.query(
-        readOnlyRepeatable ? 'begin isolation level repeatable read read only' : 'begin',
+        // Active-profile checks take FOR SHARE locks to fence account freezing.
+        // Keep the stable snapshot while permitting those protection locks.
+        repeatableSnapshot ? 'begin isolation level repeatable read' : 'begin',
       );
       try {
         await client.query("select set_config('request.jwt.claims',$1,true)", [
