@@ -8,6 +8,21 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
   const userId = `ai_assistant_${randomUUID()}`,
     adminId = `ai_admin_${randomUUID()}`;
   const principal = { userId, sessionId: 'assistant-session', factorAgeSeconds: 0 };
+  async function claimOwnerWork(owner: string, worker: string) {
+    return pool.withClient(async (holder) => {
+      await holder.query('begin');
+      try {
+        // Other suites can leave queued fixtures; never consume their jobs.
+        await holder.query(
+          'select id from public.assistant_messages where user_id<>$1 for update',
+          [owner],
+        );
+        return await repository.claimWork('assistant.respond', worker, 1, 120);
+      } finally {
+        await holder.query('rollback');
+      }
+    });
+  }
   beforeAll(async () => {
     await pool.query("insert into public.profiles(id,status) values($1,'active'),($2,'active')", [
       userId,
@@ -73,12 +88,7 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
       },
       'assistant-scope-message-key',
     );
-    const [claim] = await repository.claimWork(
-      'assistant.respond',
-      'assistant-scope-worker',
-      1,
-      120,
-    );
+    const [claim] = await claimOwnerWork(scopedUserId, 'assistant-scope-worker');
     if (!claim) throw new Error('AI_ASSISTANT_SCOPE_CLAIM_MISSING');
 
     await expect(
@@ -126,12 +136,7 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
       'assistant-message-key-0001',
     );
     const request = Reflect.get(queued, 'resource') as Record<string, unknown>;
-    const [claim] = await repository.claimWork(
-      'assistant.respond',
-      'assistant-test-worker',
-      1,
-      120,
-    );
+    const [claim] = await claimOwnerWork(userId, 'assistant-test-worker');
     if (!claim) throw new Error('AI_ASSISTANT_CLAIM_MISSING');
     expect(await repository.workInput(claim.kind, claim.id, claim.claim_token)).toMatchObject({
       content: 'How is my budget?',
