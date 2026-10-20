@@ -27,6 +27,8 @@ import {
 } from '@/services/live/voice-batch-api-service';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 import { emptyTransactionFilters } from '@/domain/core-finance';
+import type { HomeBalanceSummary } from '@/domain/home-balance';
+import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
 import {
   fixtureAccounts,
   fixtureCategories,
@@ -44,6 +46,7 @@ jest.mock('@/services/voice-analyzer-service', () => ({
 jest.mock('@/services/mocks/core-finance-service', () => ({
   coreFinanceService: {
     getHomeSummary: jest.fn(),
+    listAccountBalances: jest.fn(),
     getHomeTodayActivity: (...args: unknown[]) => {
       const { readHomeTodayActivity } = jest.requireActual<
         typeof import('@/services/home-today-activity')
@@ -105,20 +108,13 @@ const transaction = (): Transaction =>
     accountId: fixtureAccounts[0]!.id,
     status: 'posted'
   });
-const summary = (items: Transaction[]): HomeSummary => ({
-  totalBalanceMinor: items.length ? -2500 : 0,
-  currencyCode: 'SAR',
-  isEstimated: false,
-  components: [],
-  excludedAccountIds: [],
-  periodIncomeMinor: 0,
-  periodExpenseMinor: items.length ? 2500 : 0,
-  activeAccountCount: 1,
-  recentTransactions: items,
-  reviewCount: 0,
-  pendingSyncCount: 0,
-  dataState: 'ready'
-});
+const balances = (items: Transaction[]): AccountBalanceProjection[] =>
+  fixtureAccounts.filter((account) => account.status === 'active').map((account) => ({
+    accountId: account.id,
+    currencyCode: account.currencyCode,
+    balanceMinor: account.id === fixtureAccounts[0]!.id && items.length ? -2500 : 0,
+    asOf: Date.now()
+  }));
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -189,6 +185,19 @@ beforeEach(() => {
   jest
     .mocked(coreFinanceService.listCategories)
     .mockResolvedValue(fixtureCategories);
+  // Transactions still reads its period totals through the full summary API.
+  // Both boundary responses describe the same synthetic ledger in this suite.
+  jest.mocked(coreFinanceService.getHomeSummary).mockImplementation(async () => {
+    const rows = await coreFinanceService.listAccountBalances();
+    const totalBalanceMinor = rows.find((row) => row.accountId === fixtureAccounts[0]!.id)!.balanceMinor;
+    return {
+      totalBalanceMinor, currencyCode: 'SAR', isEstimated: false,
+      components: [], excludedAccountIds: [], periodIncomeMinor: 0,
+      periodExpenseMinor: -totalBalanceMinor, activeAccountCount: 1,
+      recentTransactions: totalBalanceMinor ? [transaction()] : [],
+      reviewCount: 0, pendingSyncCount: 0, dataState: 'ready'
+    } satisfies HomeSummary;
+  });
   Object.assign(voiceAnalyzerService, {
     recoverBatches: async () => ({
       results: [],
@@ -215,10 +224,10 @@ it('retries failed finance reads when recovering the same committed receipt', as
   let saved = false;
   let unavailable = false;
   jest
-    .mocked(coreFinanceService.getHomeSummary)
+    .mocked(coreFinanceService.listAccountBalances)
     .mockImplementation(async () => {
       if (unavailable) throw new Error('offline read');
-      return summary(saved ? [transaction()] : []);
+      return balances(saved ? [transaction()] : []);
     });
   jest
     .mocked(coreFinanceService.listTransactions)
@@ -289,8 +298,8 @@ it.each(['en', 'ar'] as const)(
       }
     });
     jest
-      .mocked(coreFinanceService.getHomeSummary)
-      .mockResolvedValue(summary([]));
+      .mocked(coreFinanceService.listAccountBalances)
+      .mockResolvedValue(balances([]));
     jest
       .mocked(coreFinanceService.listTransactions)
       .mockResolvedValue({ items: [], nextCursor: null });
@@ -368,8 +377,8 @@ it.each(['en', 'ar'] as const)(
       }
     });
     jest
-      .mocked(coreFinanceService.getHomeSummary)
-      .mockResolvedValue(summary([transaction()]));
+      .mocked(coreFinanceService.listAccountBalances)
+      .mockResolvedValue(balances([transaction()]));
     jest
       .mocked(coreFinanceService.listTransactions)
       .mockResolvedValue({ items: [transaction()], nextCursor: null });
@@ -428,8 +437,8 @@ it('shows only real unexpired analysis among mixed receipts without changing the
     }
   });
   jest
-    .mocked(coreFinanceService.getHomeSummary)
-    .mockResolvedValue(summary([transaction()]));
+    .mocked(coreFinanceService.listAccountBalances)
+    .mockResolvedValue(balances([transaction()]));
   jest
     .mocked(coreFinanceService.listTransactions)
     .mockResolvedValue({ items: [transaction()], nextCursor: null });
@@ -502,8 +511,8 @@ it('shows only real unexpired analysis among mixed receipts without changing the
 it('renders a financial receipt only through normal saved components without refresh or duplicate representation', async () => {
   let items: Transaction[] = [];
   jest
-    .mocked(coreFinanceService.getHomeSummary)
-    .mockImplementation(async () => summary(items));
+    .mocked(coreFinanceService.listAccountBalances)
+    .mockImplementation(async () => balances(items));
   jest
     .mocked(coreFinanceService.listTransactions)
     .mockImplementation(async () => ({ items, nextCursor: null }));
@@ -533,6 +542,7 @@ it('renders a financial receipt only through normal saved components without ref
         )
       ).toBeTruthy()
     );
+    await waitFor(() => expect(view.client.isFetching()).toBe(0));
     const reads = jest.mocked(coreFinanceService.listTransactions).mock.calls
       .length;
     await act(async () => view.batches.recover());
@@ -557,13 +567,13 @@ it('renders a financial receipt only through normal saved components without ref
     expect(screen.queryByText('Analyzed — not saved')).toBeNull();
     expect(screen.queryByText('Review')).toBeNull();
     expect(screen.queryByText('Confirm')).toBeNull();
-    const refreshed = view.client.getQueriesData<HomeSummary>({
+    const refreshed = view.client.getQueriesData<HomeBalanceSummary>({
       queryKey: ['core-finance', 'home']
     });
     expect(
       refreshed.some(
         ([, data]) =>
-          data?.totalBalanceMinor === -2500 && data?.periodExpenseMinor === 2500
+          data?.totalBalanceMinor === -2500
       )
     ).toBe(true);
   } finally {
@@ -572,11 +582,11 @@ it('renders a financial receipt only through normal saved components without ref
 });
 
 it('refetches after an accepted receipt races initial pre-commit Home and Transactions reads', async () => {
-  const oldHome = deferred<HomeSummary>();
+  const oldHome = deferred<AccountBalanceProjection[]>();
   const oldPage = deferred<{ items: Transaction[]; nextCursor: null }>();
   jest
-    .mocked(coreFinanceService.getHomeSummary)
-    .mockImplementation(async () => summary([transaction()]))
+    .mocked(coreFinanceService.listAccountBalances)
+    .mockImplementation(async () => balances([transaction()]))
     .mockImplementationOnce(() => oldHome.promise);
   jest
     .mocked(coreFinanceService.listTransactions)
@@ -590,9 +600,12 @@ it('refetches after an accepted receipt races initial pre-commit Home and Transa
     await act(async () => view.batches.submit(capture));
     expect(view.batches.latest?.transactionIds).toEqual([transactionId]);
     await act(async () => {
-      oldHome.resolve(summary([]));
+      oldHome.resolve(balances([]));
       oldPage.resolve({ items: [], nextCursor: null });
     });
+    await waitFor(() =>
+      expect(view.client.getQueryData<HomeBalanceSummary>(coreFinanceKeys.homeBalances('SAR', null))?.totalBalanceMinor).toBe(-2500)
+    );
     await waitFor(() =>
       expect(
         screen.queryByTestId(`home-transaction-row-${transactionId}`)
@@ -614,8 +627,8 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
   'does not invent a transaction for %s',
   async (outcome) => {
     jest
-      .mocked(coreFinanceService.getHomeSummary)
-      .mockResolvedValue(summary([]));
+      .mocked(coreFinanceService.listAccountBalances)
+      .mockResolvedValue(balances([]));
     jest
       .mocked(coreFinanceService.listTransactions)
       .mockResolvedValue({ items: [], nextCursor: null });
@@ -639,7 +652,7 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
       await waitFor(() => expect(view.client.isFetching()).toBe(0));
       const transactionReads = jest.mocked(coreFinanceService.listTransactions)
         .mock.calls.length;
-      const homeReads = jest.mocked(coreFinanceService.getHomeSummary).mock
+      const homeReads = jest.mocked(coreFinanceService.listAccountBalances).mock
         .calls.length;
       await act(async () => view.batches.submit(capture));
       expect(
@@ -653,7 +666,7 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
       expect(coreFinanceService.listTransactions).toHaveBeenCalledTimes(
         transactionReads
       );
-      expect(coreFinanceService.getHomeSummary).toHaveBeenCalledTimes(
+      expect(coreFinanceService.listAccountBalances).toHaveBeenCalledTimes(
         homeReads
       );
       expect(screen.queryByText('Analyzed — not saved')).toBeNull();
@@ -676,8 +689,8 @@ it.each(['admission-rejected', 'completed-with-no-postings'] as const)(
 it('marks an inactive Transactions cache stale so navigation shows the receipt without refresh', async () => {
   let items: Transaction[] = [];
   jest
-    .mocked(coreFinanceService.getHomeSummary)
-    .mockImplementation(async () => summary(items));
+    .mocked(coreFinanceService.listAccountBalances)
+    .mockImplementation(async () => balances(items));
   jest
     .mocked(coreFinanceService.listTransactions)
     .mockImplementation(async () => ({ items, nextCursor: null }));
@@ -710,11 +723,11 @@ it('marks an inactive Transactions cache stale so navigation shows the receipt w
   }
 });
 
-it('shows authoritative read failures instead of inventing cards or hiding them with retries', async () => {
+it('keeps the prior snapshot with a failed-refresh notice and never invents receipt cards when authoritative reads fail', async () => {
   jest
-    .mocked(coreFinanceService.getHomeSummary)
+    .mocked(coreFinanceService.listAccountBalances)
     .mockRejectedValue(new Error('diagnostic read unavailable'))
-    .mockResolvedValueOnce(summary([]));
+    .mockResolvedValueOnce(balances([]));
   jest
     .mocked(coreFinanceService.listTransactions)
     .mockRejectedValue(new Error('diagnostic read unavailable'))
@@ -726,11 +739,12 @@ it('shows authoritative read failures instead of inventing cards or hiding them 
     );
     await waitFor(() => expect(view.client.isFetching()).toBe(0));
     await act(async () => view.batches.submit(capture));
-    await waitFor(() =>
+    await waitFor(() => {
+      expect(screen.getByText(translate('coreFinance.state.error'))).toBeTruthy();
       expect(
-        screen.queryAllByText(translate('coreFinance.state.error')).length
-      ).toBeGreaterThanOrEqual(2)
-    );
+        screen.getAllByText(translate('coreFinance.state.refreshFailedSnapshot')).length
+      ).toBeGreaterThanOrEqual(1);
+    });
     expect(view.batches.latest?.transactionIds).toEqual([transactionId]);
     expect(
       screen.queryByTestId(`home-transaction-row-${transactionId}`)

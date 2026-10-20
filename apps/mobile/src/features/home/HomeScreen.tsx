@@ -23,26 +23,25 @@ import type {
 import {
   useAccounts,
   useCategories,
-  useHomeSummary
+  useHomeBalanceSummary
 } from '@/features/core-finance/core-finance-queries';
 import { DateRangeSheet } from '@/features/filters/DateRangeSheet';
 import {
   formatPeriodLabel,
   currentFinancialCyclePeriod,
-  periodFilters,
   type DatePeriod
 } from '@/features/filters/date-period';
 import { PrimaryShellHeader } from '@/features/shell/PrimaryShellHeader';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import {
-  applyAccountScope,
   useCoreFinanceViewState
 } from '@/state/core-finance-view-state';
 import { useTheme } from '@/state/theme-context';
 import { HomeSummary } from './HomeSummary';
 import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
 import { useHomeTodayActivity } from './useHomeTodayActivity';
+import { useHomeReadRecovery } from './useHomeReadRecovery';
 import { HomeActivityScrollView } from './HomeActivityViewport';
 
 export const HomeScreen = React.memo(function HomeScreen({
@@ -109,15 +108,12 @@ function QueriedHomeScreen({
   const reconcileSelectedAccount = useCoreFinanceViewState(
     (state) => state.reconcileSelectedAccount
   );
-  const scopedFilters = useMemo(
-    () => applyAccountScope(periodFilters(period), selectedAccountId),
-    [period, selectedAccountId]
-  );
   const baseCurrencyCode = usePreferenceStore(
     (state) => state.baseCurrencyCode
   );
-  const query = useHomeSummary(baseCurrencyCode, scopedFilters);
+  const query = useHomeBalanceSummary(baseCurrencyCode, selectedAccountId);
   const activity = useHomeTodayActivity(selectedAccountId);
+  useHomeReadRecovery(query, activity);
   const accounts = useAccounts(true);
   const categories = useCategories();
   const homeSummary = query.data;
@@ -168,9 +164,21 @@ function QueriedHomeScreen({
           notice={homeSummary.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={homeSummary}
-          todayActivity={activity.isError ? [] : (activity.data ?? [])}
+          todayActivity={activity.data ?? []}
           activityStatus={
-            activity.isPending || activity.isError ? (
+            activity.data !== undefined && (activity.isError || activity.isFetching) ? (
+              <View>
+                <FinancialRefreshStatus query={activity} />
+                {activity.isError ? (
+                  <ActionButton
+                    label={translate('coreFinance.action.retry')}
+                    onPress={() => void activity.refetch()}
+                    disabled={activity.isFetching}
+                    variant="quiet"
+                  />
+                ) : null}
+              </View>
+            ) : activity.data === undefined && (activity.isPending || activity.isError) ? (
               <StateView
                 state={activity.isError ? 'error' : 'loading'}
                 title={translate(

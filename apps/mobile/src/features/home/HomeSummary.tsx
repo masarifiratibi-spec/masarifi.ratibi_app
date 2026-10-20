@@ -44,6 +44,7 @@ import { AccountScopeSheet } from '@/features/accounts/AccountScopeSheet';
 import { useHomeActivityOffset } from './HomeActivityViewport';
 import { HomeActivityRows } from './HomeActivityRows';
 import { FirstVoicePrompt } from './FirstVoicePrompt';
+import type { HomeBalanceSummary } from '@/domain/home-balance';
 
 export const HomeSummary = React.memo(function HomeSummary({
   accounts,
@@ -58,7 +59,7 @@ export const HomeSummary = React.memo(function HomeSummary({
   categories?: Category[];
   notice?: React.ReactNode;
   selectedAccount?: Account | null;
-  summary: HomeSummaryValue;
+  summary: HomeBalanceSummary | HomeSummaryValue;
   todayActivity?: HomeTodayActivity[];
   activityStatus?: React.ReactNode;
 }) {
@@ -475,7 +476,7 @@ export const HomeSummary = React.memo(function HomeSummary({
       >
         <FirstVoicePrompt
           hasRecordedTransactions={
-            summary.recentTransactions.length > 0 || todayActivity.length > 0
+            Boolean(summary.recentTransactions?.length) || todayActivity.length > 0
           }
         />
         {voice.automatic ? (

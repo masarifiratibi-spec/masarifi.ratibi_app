@@ -1,3 +1,4 @@
+import { useReportAnchorDate } from './useReportAnchorDate';
 import React from 'react';
 import {
   PixelRatio,
@@ -36,11 +37,12 @@ import {
 } from './report-labels';
 
 export function ReportDrillDownScreen() {
+  const anchorDate = useReportAnchorDate();
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
-  const { selectedKind, anchorDate, returnContext, setReturnContext } =
+  const { selectedKind, returnContext, setReturnContext } =
     useReportsViewState();
   const editFilters = useCoreFinanceViewState((state) => state.editFilters);
   const applyFilters = useCoreFinanceViewState((state) => state.applyFilters);

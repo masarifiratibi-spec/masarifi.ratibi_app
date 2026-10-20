@@ -136,7 +136,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     maxHeight: 90,
     minHeight: 48,
-    paddingVertical: 8
+    paddingVertical: 0,
+    textAlignVertical: 'top'
   },
   inputRtl: {
     textAlign: 'right',

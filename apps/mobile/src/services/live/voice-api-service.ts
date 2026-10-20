@@ -1,3 +1,4 @@
+import { recordVoiceDiagnostic } from '@/services/platform/voice-diagnostics';
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import { createVoiceBatchApi } from './voice-batch-api-service';
 import { sha256 } from '@noble/hashes/sha256';
@@ -205,12 +206,14 @@ export function createLiveVoiceApiService(
     process.env.EXPO_PUBLIC_API_URL ??
     ''
   ).replace(/\/$/u, '');
-  // Activate with the verified Staging financial cohort. This selects transport;
-  // server authorization, Posting and transaction validation remain authoritative.
+  // DEV always uses automatic capture on Staging, including standalone DEV builds.
+  // Server cohort authorization, Posting and financial validation remain authoritative.
+  const devClient = Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev';
   const automaticCapture = (
     baseUrl === 'https://api.staging.masarifiratibi.com' &&
-    process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true'
+    (devClient || process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true')
   );
+  recordVoiceDiagnostic('transport', { phase: automaticCapture ? 'automatic' : 'legacy' });
   const token = options.token ?? ((readOnly?: boolean) => tokenProvider(readOnly));
   const readOwner = options.owner ?? (() => ownerProvider());
   const owner = async () => {

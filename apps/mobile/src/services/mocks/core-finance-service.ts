@@ -246,9 +246,11 @@ export function createMockCoreFinanceService(
     async listAccounts(includeArchived) {
       return read(() => repository.listAccounts(includeArchived));
     },
-    async listAccountBalances(includeArchived) {
+    async listAccountBalances(includeArchived, _context, accountIds) {
       return read(() =>
-        repository.listAccounts(includeArchived).map((account) => ({
+        repository.listAccounts(includeArchived).filter((account) =>
+          !accountIds || accountIds.includes(account.id)
+        ).map((account) => ({
           accountId: account.id,
           balanceMinor: repository.accountBalance(account.id),
           currencyCode: account.currencyCode
@@ -539,9 +541,9 @@ export function createLiveCoreFinanceService(
       const values = await share('accounts:' + includeArchived, context, signal => accounts.listAccounts(includeArchived, { signal }));
       return values.map(account => ({ ...account, openingBalanceMinor: 0 }));
     },
-    async listAccountBalances(includeArchived = false, context?: ReadContext) {
+    async listAccountBalances(includeArchived = false, context?: ReadContext, accountIds?: readonly string[]) {
       const values = await target.listAccounts(includeArchived, context);
-      return Promise.all(values.map(account => readBalance(account, context)));
+      return Promise.all(values.filter(account => !accountIds || accountIds.includes(account.id)).map(account => readBalance(account, context)));
     },
     async getAccount(id: string) {
       return { ...(await accounts.getAccount(id)), openingBalanceMinor: 0 };

@@ -1,3 +1,4 @@
+import { useReportAnchorDate } from './useReportAnchorDate';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -22,9 +23,10 @@ type OutputRequest = Parameters<typeof reportsService.requestOutput>[0];
 let outputOperationSequence = 0;
 
 export function ReportPreviewScreen() {
+  const anchorDate = useReportAnchorDate();
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const locale = usePreferenceStore((state) => state.locale);
-  const { selectedKind, anchorDate } = useReportsViewState();
+  const { selectedKind } = useReportsViewState();
   const schedule = useReportSchedule();
   const attempts = useReportAttempts();
   const [detailLevel, setDetailLevel] = useState<'summary' | 'detailed'>(

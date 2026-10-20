@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { MenuLink } from '@/components/MenuLink';
 import { StyledText } from '@/components/StyledText';
@@ -23,11 +24,15 @@ import { signOutAppShellSession } from '@/features/auth/session-controller';
 import { useSettingsProfile } from '@/features/settings/settings-queries';
 import { resolvePublicDisplayName } from '@/services/live/clerk-name';
 import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { prefetchPlanningDestinations } from '@/features/financial-planning/financial-planning-queries';
 
 export default function MoreRoute() {
+  const client = useQueryClient();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
+  const timeZone = usePreferenceStore((state) => state.timeZone);
   const isRtl = direction === 'rtl';
 
   const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
@@ -48,6 +53,16 @@ export default function MoreRoute() {
 
   const session = useAppShellStore((state) => state.session);
   const ownerId = session?.status === 'authenticated' ? session.userId : null;
+  useFocusEffect(
+    useCallback(() => {
+      if (ownerId)
+        void prefetchPlanningDestinations(
+          client,
+          localDateInTimeZone(Date.now(), timeZone),
+          timeZone
+        );
+    }, [client, ownerId, timeZone])
+  );
   const profile = useSettingsProfile(Boolean(ownerId));
   const userName = resolvePublicDisplayName(
     ownerId ? profile.data?.name : null,

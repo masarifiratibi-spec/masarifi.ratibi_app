@@ -2,6 +2,7 @@ import React from 'react';
 import { Redirect } from 'expo-router';
 
 import { StateView } from '@/design-system/components/feedback/StateView';
+import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
 import { StartupConnectionState } from '@/features/shell/StartupConnectionState';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
@@ -22,6 +23,9 @@ export default function AppEntry() {
   const identity = useLiveIdentityStatus();
   const shellHydrated = useAppShellStore((state) => state.hydrated);
   const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
+  const locale = usePreferenceStore((state) => state.locale);
+  const themePreference = usePreferenceStore((state) => state.theme);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const firstLaunchOnboardingCompleted = usePreferenceStore(
     (state) => state.firstLaunchOnboardingCompleted
   );
@@ -45,10 +49,17 @@ export default function AppEntry() {
     privacyLock
   });
 
-  if (identity.status === 'unavailable' || (identity.status === 'ready' && profileSetupStatus === 'unavailable')) {
+  if (
+    identity.status === 'unavailable' ||
+    (identity.status === 'ready' && profileSetupStatus === 'unavailable')
+  ) {
     return (
       <StartupConnectionState
-        onAction={identity.status === 'unavailable' ? identity.retry : () => useAppShellStore.getState().retryBootstrap()}
+        onAction={
+          identity.status === 'unavailable'
+            ? identity.retry
+            : () => useAppShellStore.getState().retryBootstrap()
+        }
       />
     );
   }
@@ -65,7 +76,11 @@ export default function AppEntry() {
   }
   if (identity.status === 'loading' || identity.status === 'sso') {
     return (
-      <StateView state="loading" title={translate('appShell.state.loading')} />
+      <StartupLoading
+        locale={locale}
+        themePreference={themePreference}
+        reducedMotion={reducedMotion}
+      />
     );
   }
   if (profileSetupStatus === 'error') {
@@ -84,6 +99,10 @@ export default function AppEntry() {
   }
 
   return (
-    <StateView state="loading" title={translate('appShell.state.loading')} />
+    <StartupLoading
+      locale={locale}
+      themePreference={themePreference}
+      reducedMotion={reducedMotion}
+    />
   );
 }

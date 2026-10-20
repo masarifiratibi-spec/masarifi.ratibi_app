@@ -193,8 +193,19 @@ async function requestClerkToken(
   bridge: LiveClerkBridge,
   options: { skipCache: boolean }
 ) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await measurePerformance(options.skipCache ? 'identity.token.fresh' : 'identity.token.read', () => bridge.getToken(options));
+    return await measurePerformance(
+      options.skipCache ? 'identity.token.fresh' : 'identity.token.read',
+      () => Promise.race([
+        bridge.getToken(options),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new HttpError(
+            'provider_unavailable', 503, undefined, undefined, 'timeout'
+          )), 10_000);
+        })
+      ])
+    );
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -210,6 +221,8 @@ async function requestClerkToken(
         'network'
       );
     throw error;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 
@@ -421,12 +434,29 @@ export function createLiveIdentityService({
 
   async function getProfileSetup(): Promise<ProfileSetupSnapshot> {
     const ownerId = getOwnerId();
-    const remote = await measurePerformance('identity.profile.remote', () => parsedRequest(request, '/api/v1/me', profileSchema));
+    const local = await measurePerformance('identity.local.read', () =>
+      loadLocalProfile(ownerId ?? undefined)
+    );
     if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
-    const [preferences, onboarding, local] = await Promise.all([
-      measurePerformance('identity.preferences', () => parsedRequest(request, '/api/v1/me/preferences', preferencesSchema)),
-      measurePerformance('identity.onboarding', () => parsedRequest(request, '/api/v1/me/onboarding', onboardingSchema)),
-      measurePerformance('identity.local.read', () => loadLocalProfile(ownerId ?? undefined))
+    const remoteRequest = measurePerformance('identity.profile.remote', () =>
+      parsedRequest(request, '/api/v1/me', profileSchema)
+    );
+    // A new owner still needs /me provisioning before dependent records exist.
+    const provisioned = ownerId && local ? Promise.resolve() : remoteRequest;
+    const details = provisioned.then(() => {
+      if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
+      return Promise.all([
+        measurePerformance('identity.preferences', () =>
+          parsedRequest(request, '/api/v1/me/preferences', preferencesSchema)
+        ),
+        measurePerformance('identity.onboarding', () =>
+          parsedRequest(request, '/api/v1/me/onboarding', onboardingSchema)
+        )
+      ]);
+    });
+    const [remote, [preferences, onboarding]] = await Promise.all([
+      remoteRequest,
+      details
     ]);
     if (getOwnerId() !== ownerId) throw new HttpError('session_expired', 401);
     onboardingVersion = onboarding.version;
@@ -439,7 +469,9 @@ export function createLiveIdentityService({
       local,
       supportedCurrency(preferences.defaultCurrency)
     );
-    await measurePerformance('identity.local.write', () => saveLocalProfile(profile, ownerId ?? undefined));
+    await measurePerformance('identity.local.write', () =>
+      saveLocalProfile(profile, ownerId ?? undefined)
+    );
     return {
       profile,
       preferences: preferences as OwnerPreferences,

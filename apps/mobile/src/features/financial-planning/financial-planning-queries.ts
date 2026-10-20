@@ -96,11 +96,14 @@ export function usePlanningOverview(
   });
 }
 
-export function useSalaryOverview(today: LocalDate, timeZone: string) {
-  const client = useQueryClient();
-  return useQuery({
+function salaryOverviewOptions(
+  client: QueryClient,
+  today: LocalDate,
+  timeZone: string
+) {
+  return {
     queryKey: financialPlanningKeys.salary(today, timeZone),
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
       if (!financialPlanningService.getPlanningSnapshot)
         return financialPlanningService.getSalaryOverview(
           { today, timeZone },
@@ -110,7 +113,11 @@ export function useSalaryOverview(today: LocalDate, timeZone: string) {
       assertReadActive(signal);
       return snapshot.salary;
     }
-  });
+  };
+}
+
+export function useSalaryOverview(today: LocalDate, timeZone: string) {
+  return useQuery(salaryOverviewOptions(useQueryClient(), today, timeZone));
 }
 
 export function useSalaryProfile() {
@@ -174,12 +181,27 @@ export function useObligations() {
   });
 }
 
-export function useObligationsOverview() {
-  return useQuery({
+function obligationsOverviewOptions() {
+  return {
     queryKey: [...financialPlanningKeys.obligations(), 'overview'],
-    queryFn: ({ signal }) =>
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
       financialPlanningService.getObligationsOverview({}, { signal })
-  });
+  };
+}
+
+export function useObligationsOverview() {
+  return useQuery(obligationsOverviewOptions());
+}
+
+export async function prefetchPlanningDestinations(
+  client: QueryClient,
+  today: LocalDate,
+  timeZone: string
+): Promise<void> {
+  await Promise.all([
+    client.prefetchQuery(salaryOverviewOptions(client, today, timeZone)),
+    client.prefetchQuery(obligationsOverviewOptions())
+  ]);
 }
 
 export function useObligation(id: string) {
@@ -314,8 +336,21 @@ export function usePlanningMutation<TVariables, TResult>(
   const client = useQueryClient();
   return useMutation({
     mutationFn,
+    onMutate: () => useAppShellStore.getState().session?.userId,
     onSuccess: async (result) => {
       await invalidatePlanningScopes(client, result.affectedScopes);
+    },
+    onError: async (_error, _variables, owner) => {
+      if (owner !== useAppShellStore.getState().session?.userId) return;
+      // A failed response can follow a committed write; refresh with reads only.
+      await invalidatePlanningScopes(client, [
+        'planning',
+        'accounts.balances',
+        'transactions.list',
+        'home.summary',
+        'reports.live',
+        'assistant.context'
+      ]);
     }
   });
 }

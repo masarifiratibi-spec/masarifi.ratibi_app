@@ -689,6 +689,30 @@ export const darkThemeColors: ThemeColors = {
 
 // ─── Spacing / radii / typography ────────────────────────────────────────────
 
+// Startup also renders before the theme provider and local fonts are ready.
+export const startupLoading = {
+  light: {
+    background: colorTokens.neutral.warmSurface,
+    text: colorTokens.ink['900'],
+    message: colorTokens.ink['700'],
+    indicator: colorTokens.teal['700'],
+    track: colorTokens.teal['100']
+  },
+  dark: {
+    background: colorTokens.ink['900'],
+    text: colorTokens.dark.text,
+    message: colorTokens.dark.textMuted,
+    indicator: colorTokens.teal['300'],
+    track: colorTokens.teal['800']
+  },
+  fontFamily: { ar: 'MasarifiArabic-400', en: 'MasarifiLatin-400' },
+  logoSize: 104,
+  logoRadius: 24,
+  indicatorSize: 28,
+  indicatorWidth: 2,
+  rotationDuration: 1150
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,

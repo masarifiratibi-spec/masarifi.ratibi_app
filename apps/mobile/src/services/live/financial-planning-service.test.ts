@@ -36,6 +36,53 @@ const bridge = {
 
 beforeAll(() => registerLiveClerkBridge(bridge));
 
+it.each(['archived', 'paused', 'completed', 'closed'] as const)(
+  'keeps active obligation totals authoritative when the list also contains %s history',
+  async (inactiveStatus) => {
+    const activeId = '70000000-0000-4000-8000-000000000071';
+    const inactiveId = '70000000-0000-4000-8000-000000000072';
+    const obligation = {
+      id: activeId, name: 'Car', direction: 'payable', type: 'installment',
+      scheduleKind: 'fixed_term', currencyCode: 'SAR', principalMinor: '10000',
+      openingPaidMinor: '0', installmentAmountMinor: '5000', installmentCount: 2,
+      frequency: 'monthly', expectedDay: 8, customIntervalDays: null,
+      startDate: '2026-10-08', endDate: '2026-11-08', status: 'active',
+      defaultAccountId: null, automaticMatchingEnabled: false, provider: null,
+      providerKeywords: [], reminderTiming: null, notes: null, deletedAt: null,
+      version: 1, createdAt: '2026-10-17T00:00:00.000Z', updatedAt: '2026-10-17T00:00:00.000Z'
+    };
+    const summary = {
+      id: activeId, name: 'Car', direction: 'payable', currencyCode: 'SAR',
+      scheduledMinor: '10000', allocatedMinor: '0', paidMinor: '0',
+      remainingMinor: '10000', overdueMinor: '5000', nextDueAt: '2026-10-08T00:00:00.000Z',
+      nextDueAmountMinor: '5000', completedInstallmentCount: 0, status: 'active', ledgerVersion: 33
+    };
+    const inactive = { ...obligation, id: inactiveId, name: 'Historical obligation', status: inactiveStatus };
+    let omitActiveSummary = false;
+    const request: typeof fetch = async (url) => ({
+      ok: true, status: 200, json: async () => String(url).includes('/planning/summary')
+        ? {
+            period: '2026-10', dataState: 'ready', ledgerVersion: 33,
+            salary: null, budgets: [], savings: [],
+            obligations: { payables: omitActiveSummary ? [] : [summary], receivables: [] }
+          }
+        : { items: [inactive, obligation], nextCursor: null }
+    }) as Response;
+    const service = createLiveFinancialPlanningService({ baseUrl: 'https://inert.invalid', request });
+    const overview = await service.getObligationsOverview({});
+    expect(overview.items).toHaveLength(2);
+    expect(overview.payablesByCurrency).toEqual({ SAR: 10000 });
+    expect(overview.nextDueObligationId).toBe(activeId);
+    expect(overview.nextDueAmountMinor).toBe(5000);
+    expect(overview.remainingByObligationId[activeId]).toBe(10000);
+    expect(overview.remainingByObligationId[inactiveId]).toBeNull();
+    omitActiveSummary = true;
+    const incomplete = await service.getObligationsOverview({});
+    expect(incomplete.payablesByCurrency).toEqual({ SAR: null });
+    expect(incomplete.remainingByObligationId[activeId]).toBeNull();
+  }
+);
+
 it.each([
   'populated',
   'empty',
@@ -1865,6 +1912,56 @@ describe('live financial-planning service contract', () => {
     ).toHaveLength(0);
   });
 
+  it.each(['new', 'draft', 'paused'] as const)(
+    'saves a %s budget using the strict API patch and leaves it usable without resuming paused budgets',
+    async (initial) => {
+      let wire = { ...budgetWireFixture, status: initial === 'paused' ? 'paused' : 'draft', totalMinor: '1000', version: 1 };
+      const writes: string[] = [];
+      const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(async (input, init) => {
+        const url = String(input);
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        if (init?.method === 'POST') {
+          writes.push('create');
+          wire = { ...wire, ...body };
+          return response(mutation(wire), 201);
+        }
+        if (init?.method === 'PATCH') {
+          const allowed = ['name', 'periodStart', 'periodEnd', 'totalMinor', 'incomeTargetMinor', 'savingsTargetMinor', 'rolloverEnabled', 'rolloverMinor', 'status'];
+          if (Object.keys(body.patch).some(key => !allowed.includes(key)))
+            return response({ code: 'VALIDATION_FAILED' }, 400);
+          if (body.expectedVersion !== wire.version) return response({ code: 'VERSION_CONFLICT' }, 409);
+          writes.push(body.patch.status ? 'activate' : 'edit');
+          wire = { ...wire, ...body.patch, version: wire.version + 1 };
+          return response(mutation(wire));
+        }
+        if (init?.method === 'PUT') {
+          if (body.expectedVersion !== wire.version) return response({ code: 'VERSION_CONFLICT' }, 409);
+          writes.push('categories');
+          wire = { ...wire, version: wire.version + 1 };
+          return response(mutation({ id: wire.id, version: wire.version, allocationCount: 0 }));
+        }
+        if (url.endsWith('/summary')) return response(budgetSummary);
+        if (init?.method === 'GET') return response({ ...wire, categories: [], requestId: 'budget-detail' });
+        throw new Error(`Unexpected route ${url}`);
+      });
+      const service = createLiveFinancialPlanningService({ baseUrl: 'https://api.test', request });
+      const result = await service.saveBudget({
+        ...(initial === 'new' ? {} : { id: wire.id, expectedVersion: 1 }),
+        name: 'Acceptance', periodKey: '2026-09', currencyCode: 'SAR',
+        configuredExpenseLimitMinor: 1200, incomeTargetMinor: 0, savingsTargetMinor: 0,
+        categories: []
+      }, 'budget-acceptance');
+      expect(result.value.status).toBe(initial === 'paused' ? 'paused' : 'active');
+      expect(result.value.configuredExpenseLimitMinor).toBe(1200);
+      expect(writes).toEqual(initial === 'new' ? ['create', 'categories', 'activate'] :
+        initial === 'draft' ? ['edit', 'categories', 'activate'] : ['edit', 'categories']);
+      expect(request.mock.calls.filter(([, init]) => init?.method === 'PATCH')
+        .map(([, init]) => new Headers(init?.headers).get('Idempotency-Key')))
+        .toEqual(initial === 'new' ? ['budget-acceptance:activate'] :
+          initial === 'draft' ? ['budget-acceptance', 'budget-acceptance:activate'] : ['budget-acceptance']);
+    }
+  );
+
   it('replays a budget root and resumes its category write with stable keys', async () => {
     const rootKey = 'budget-save-key';
     let categoryWrites = 0;
@@ -1872,7 +1969,11 @@ describe('live financial-planning service contract', () => {
       async (input, init) => {
         const url = String(input);
         if (init?.method === 'POST')
-          return response(mutation(budgetWireFixture), 201);
+          return response(mutation({ ...budgetWireFixture, status: 'draft' }), 201);
+        if (init?.method === 'PATCH') {
+          expect(JSON.parse(String(init.body))).toEqual({ expectedVersion: 2, patch: { status: 'active' } });
+          return response(mutation({ ...budgetWireFixture, version: 3 }));
+        }
         if (init?.method === 'PUT') {
           categoryWrites += 1;
           if (categoryWrites === 1)
@@ -1896,6 +1997,7 @@ describe('live financial-planning service contract', () => {
         if (init?.method === 'GET')
           return response({
             ...budgetWireFixture,
+            status: 'draft',
             version: 2,
             categories: [category],
             requestId: 'budget-detail'
@@ -1933,16 +2035,17 @@ describe('live financial-planning service contract', () => {
       code: 'provider_unavailable'
     });
     await expect(service.saveBudget(input, rootKey)).resolves.toMatchObject({
-      value: { id: budgetWireFixture.id, version: 2 }
+      value: { id: budgetWireFixture.id, version: 3, status: 'active' }
     });
     const keys = request.mock.calls
-      .filter(([, init]) => init?.method === 'POST' || init?.method === 'PUT')
+      .filter(([, init]) => init?.method === 'POST' || init?.method === 'PUT' || init?.method === 'PATCH')
       .map(([, init]) => new Headers(init?.headers).get('Idempotency-Key'));
     expect(keys).toEqual([
       rootKey,
       `${rootKey}:categories`,
       rootKey,
-      `${rootKey}:categories`
+      `${rootKey}:categories`,
+      `${rootKey}:activate`
     ]);
   });
 
@@ -2094,6 +2197,7 @@ describe('live financial-planning service contract', () => {
                 createdAt: '2026-09-09T00:00:00.000Z',
                 updatedAt: '2026-09-09T00:00:00.000Z',
                 version: 1,
+                transactionOwnership: scenario === 'linked' ? 'linked_existing' : 'created',
                 obligationVersion: 5
               },
               serverOperationId

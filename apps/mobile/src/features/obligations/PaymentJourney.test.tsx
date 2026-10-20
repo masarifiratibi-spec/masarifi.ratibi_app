@@ -1,5 +1,8 @@
 import React from 'react';
-import { fireEvent } from '@testing-library/react-native';
+import { act, fireEvent } from '@testing-library/react-native';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { AccountBalanceProjection } from '@/domain/core-finance';
+import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 
 import { changeLocale } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
@@ -65,6 +68,8 @@ it('previews and confirms a payment, then resolves a detected match', async () =
   expect(payment.getByText('Payment date')).toBeTruthy();
   fireEvent.press(payment.getByText('Confirm payment'));
   expect(await payment.findByText('Saved')).toBeTruthy();
+  expect(payment.getByText('Confirm payment')).toBeDisabled();
+  expect(payment.getByText('Edit')).toBeDisabled();
   payment.unmount();
 
   const detail = renderWithProviders(
@@ -87,6 +92,34 @@ it('previews and confirms a payment, then resolves a detected match', async () =
   fireEvent.press(match.getByText('Match payment'));
   expect(await match.findByText('Resolved')).toBeTruthy();
   match.unmount();
+});
+
+it('keeps the reviewed before and after balances stable when the receipt refreshes the account', async () => {
+  changeLocale('en');
+  let client!: QueryClient;
+  function QueryAccess() {
+    client = useQueryClient();
+    return null;
+  }
+  const payment = renderWithProviders(<><QueryAccess /><ObligationPaymentScreen obligationId="obligation-car" /></>);
+  const amountInput = await payment.findByLabelText('Payment amount');
+  const balanceKey = coreFinanceKeys.accountBalances();
+  const balances = client.getQueryData<AccountBalanceProjection[]>(balanceKey)!;
+  expect(balances.length).toBeGreaterThan(0);
+  act(() => client.setQueryData(balanceKey, balances.map(balance => ({ ...balance, balanceMinor: 100000 }))));
+  fireEvent.changeText(amountInput, '100');
+  fireEvent.press(payment.getByText('Review payment'));
+  await payment.findByText('Confirm payment');
+  expect(payment.getByText(/1,000\.00\sSAR/u)).toBeTruthy();
+  expect(payment.getByText(/900\.00\sSAR/u)).toBeTruthy();
+  await act(async () => {
+    client.setQueryData(balanceKey, balances.map(balance => ({ ...balance, balanceMinor: 90000 })));
+    // TanStack Query notifies its mounted observers on the next timer turn.
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+  expect(payment.getByText(/1,000\.00\sSAR/u)).toBeTruthy();
+  expect(payment.getByText(/900\.00\sSAR/u)).toBeTruthy();
+  expect(payment.queryByText(/800\.00\sSAR/u)).toBeNull();
 });
 
 it('keeps payment available and resolved matches terminal with the live provider', async () => {

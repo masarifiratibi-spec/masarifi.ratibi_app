@@ -41,7 +41,7 @@ it('routes completed local welcome state to the Clerk integration placeholder', 
   });
 });
 
-it('shows terminal profile failure with Retry and does not render protected content', () => {
+it('shows terminal profile failure with Retry and does not render protected content', async () => {
   useAppShellStore.setState({
     profileSetupStatus: 'error',
     session: authenticatedSession
@@ -53,6 +53,7 @@ it('shows terminal profile failure with Retry and does not render protected cont
   expect(useAppShellStore.getState().bootstrapRevision).toBe(revision + 1);
   expect(useAppShellStore.getState().profileSetupStatus).toBe('loading');
   expect(mockRedirect).not.toHaveBeenCalled();
+  await act(async () => {});
 });
 it.each(['ar', 'en'] as const)('explains an unavailable startup connection in %s and retries identity loading', (locale) => {
   usePreferenceStore.setState({ locale });

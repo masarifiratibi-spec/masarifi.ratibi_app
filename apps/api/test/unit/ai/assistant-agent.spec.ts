@@ -5,6 +5,7 @@ import {
 } from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery } from '../../../src/ai/assistant-agent-data';
 import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import Ajv from 'ajv';
 
 const claim = {
   id: 'job',
@@ -57,6 +58,320 @@ const route: EffectiveAiRoute = {
     { key: 'evidence', type: 'evidence_limit', configuration: {} },
   ],
 };
+
+it.each([
+  ['PRIVATE ACCOUNT-', 'internal_selector'],
+  ['PRIVATE 49287 SAR', 'unbound_number'],
+  ['PRIVATE {{F999}}', 'unknown_reference'],
+  ['PRIVATE 〔F?〕', 'invalid_reference'],
+] as const)('classifies rejected answers safely (%s)', (answer, reason) => {
+  let failure: unknown;
+  try {
+    renderAssistantAnswer(answer, []);
+  } catch (error) {
+    failure = error;
+  }
+  expect(failure).toMatchObject({
+    code: 'AI_UNGROUNDED_ANSWER',
+    retryable: false,
+    diagnostic: { failureStage: 'grounding', rejectedKeywords: [reason] },
+  });
+});
+
+it('renders model object markers around known facts as plain text', () => {
+  expect(
+    renderAssistantAnswer('Expenses were \uFFFC{{F1}}.', [
+      { key: 'F1', path: 'reads[0].data.amountMinor', value: '867.24 SAR' },
+    ]),
+  ).toBe('Expenses were 867.24 SAR.');
+});
+
+it('selects typed facts in the 19 October constrained-decoding and omitted-amount regression', async () => {
+  const gateway = new AiGateway({
+    apiKey: 'synthetic-answer-parts-key',
+    fetcher: (_url, init) => {
+      if (typeof init?.body !== 'string') throw Error('FIXTURE_REQUEST_BODY_MISSING');
+      const request = JSON.parse(init.body) as {
+        messages: Array<{ content: string }>;
+        response_format: { json_schema: { schema: Record<string, unknown> } };
+      };
+      const decision = {
+        status: 'answer',
+        responseType: 'fact',
+        scope: 'selected_period',
+        queries: [],
+        answerParts: [
+          { text: 'Confirmed expenses: ', fact: null },
+          { text: '', fact: 'F1' },
+          { text: '.', fact: null },
+        ],
+      };
+      // Model fixtures must obey the same constrained schema as the provider.
+      const validate = new Ajv({ strict: false }).compile(
+        request.response_format.json_schema.schema,
+      );
+      expect(validate(decision)).toBe(true);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: 'synthetic-answer-parts',
+            model: 'model',
+            choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(decision) } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    },
+  });
+  const agent = new AssistantAgent(
+    {
+      read: () => Promise.resolve({ ...sample, data: { currency: 'SAR', amountMinor: '12345' } }),
+    } as never,
+    gateway,
+    () => Promise.resolve(),
+  );
+  await expect(
+    agent.run(
+      { ...claim, content: 'Show the synthetic confirmed amount.' },
+      route,
+      new AbortController().signal,
+    ),
+  ).resolves.toMatchObject({ content: 'Confirmed expenses: 123.45 SAR.' });
+});
+
+it.each([
+  { name: 'unknown fact', parts: [{ text: '', fact: 'F999' }], code: 'AI_UNGROUNDED_ANSWER' },
+  {
+    name: 'mixed text and fact',
+    parts: [{ text: 'Different ', fact: 'F1' }],
+    code: 'AI_SCHEMA_INVALID',
+  },
+  { name: 'selector as fact', parts: [{ text: '', fact: 'ACCOUNT-1' }], code: 'AI_SCHEMA_INVALID' },
+  {
+    name: 'additional field',
+    parts: [{ text: 'Private', fact: null, note: 'ignored' }],
+    code: 'AI_SCHEMA_INVALID',
+  },
+  {
+    name: 'unbounded parts',
+    parts: Array.from({ length: 513 }, () => ({ text: 'x', fact: null })),
+    code: 'AI_SCHEMA_INVALID',
+  },
+  {
+    name: 'foreign numeric prose',
+    parts: [{ text: '९९९ SAR', fact: null }],
+    code: 'AI_UNGROUNDED_ANSWER',
+  },
+])('rejects malformed structured model output: $name', async ({ parts, code }) => {
+  const gateway = new AiGateway({
+    apiKey: 'synthetic-malformed-parts-key',
+    fetcher: () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: 'synthetic-malformed-parts',
+            model: 'model',
+            choices: [
+              {
+                finish_reason: 'stop',
+                message: {
+                  content: JSON.stringify({
+                    status: 'answer',
+                    answerParts: parts,
+                    queries: [],
+                    responseType: 'fact',
+                    scope: 'current_state',
+                  }),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+  });
+  const agent = new AssistantAgent({ read: () => Promise.resolve(sample) } as never, gateway, () =>
+    Promise.resolve(),
+  );
+  await expect(agent.run(claim, route, new AbortController().signal)).rejects.toThrow(code);
+});
+
+it.each([true, false])(
+  'does not accept the 19 October incomplete spending reply as a verified fact (repair=%s)',
+  async (repair) => {
+    let requests = 0;
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-incomplete-fact-key',
+      fetcher: (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('EXPECTED_REQUEST_BODY');
+        const body = JSON.parse(init.body) as { messages: Array<{ content: string }> };
+        const view = JSON.parse(body.messages[1]?.content ?? '{}') as {
+          dataAlreadyRead: Array<{ data: { amountMinor: { ref: string } } }>;
+        };
+        requests += 1;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: `synthetic-incomplete-${requests.toString()}`,
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      responseType: 'fact',
+                      scope: 'selected_period',
+                      queries: [],
+                      answer:
+                        repair && requests > 1
+                          ? `Your total spending is ${view.dataAlreadyRead[0]?.data.amountMinor.ref ?? 'MISSING_TEST_REFERENCE'}.`
+                          : 'Your total confirmed spending in SAR this month, from   ᐧ',
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const agent = new AssistantAgent(
+      {
+        read: () =>
+          Promise.resolve({
+            ...sample,
+            data: {
+              currency: 'SAR',
+              amountMinor: '86724',
+              period: { startDate: '2026-10-01', endDate: '2026-10-19' },
+            },
+          }),
+      } as never,
+      gateway,
+      () => Promise.resolve(),
+    );
+    const result = agent.run(
+      { ...claim, content: 'What is my total spending this month in SAR?' },
+      route,
+      new AbortController().signal,
+    );
+    if (repair) {
+      await expect(result).resolves.toMatchObject({
+        content: 'Your total spending is 867.24 SAR.',
+      });
+      expect(requests).toBe(2);
+    } else {
+      await expect(result).rejects.toMatchObject({
+        code: 'AI_UNGROUNDED_ANSWER',
+        retryable: false,
+        diagnostic: { failureStage: 'grounding', rejectedKeywords: ['missing_support'] },
+      });
+      expect(requests).toBe(3);
+    }
+  },
+);
+
+it.each([
+  {
+    name: 'supplied account name',
+    answer: 'It was on Test.',
+    type: 'fact',
+    data: { name: 'Test' },
+    accepted: true,
+  },
+  {
+    name: 'supplied Arabic name',
+    answer: 'على حساب التجربة.',
+    type: 'fact',
+    data: { name: 'التجربة' },
+    accepted: true,
+  },
+  {
+    name: 'name mentioned only in a note or question',
+    answer: 'It was on Test.',
+    type: 'fact',
+    data: { note: 'Test' },
+    accepted: false,
+  },
+  {
+    name: 'partial customer name',
+    answer: 'It was on Tester.',
+    type: 'fact',
+    data: { name: 'Test' },
+    accepted: false,
+  },
+  {
+    name: 'social acknowledgment',
+    answer: 'You are welcome.',
+    type: 'suggestion',
+    data: {},
+    accepted: true,
+  },
+  {
+    name: 'explicitly unavailable data',
+    answer: 'I cannot verify that amount from the available data.',
+    type: 'missing',
+    data: {},
+    accepted: true,
+  },
+])(
+  'checks non-numeric $name without inventing a verified fact',
+  async ({ answer, type, data, accepted }) => {
+    let requests = 0;
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-named-fact-key',
+      fetcher: () => {
+        requests += 1;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: `synthetic-named-${requests.toString()}`,
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      responseType: type,
+                      scope: 'current_state',
+                      queries: [],
+                      answer,
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const agent = new AssistantAgent(
+      { read: () => Promise.resolve({ ...sample, data }) } as never,
+      gateway,
+      () => Promise.resolve(),
+    );
+    const result = agent.run(
+      { ...claim, content: 'Was it on Test?', history: [{ role: 'user', content: 'Test' }] },
+      route,
+      new AbortController().signal,
+    );
+    if (accepted) {
+      await expect(result).resolves.toMatchObject({ content: answer });
+      expect(requests).toBe(1);
+    } else {
+      await expect(result).rejects.toThrow('AI_UNGROUNDED_ANSWER');
+      expect(requests).toBe(3);
+    }
+  },
+);
 
 it('diagnoses parallel reads and grounding repair without exposing financial or conversation content', async () => {
   let clock = 1000;
@@ -370,6 +685,163 @@ it('preserves server-known Unicode numeric text through an exact canonical refer
   ).toBe('المتجر فرع Ⅲ.');
 });
 
+it.each(['ACCOUNT-', 'CATEGORY-', 'TRANSACTION-', 'OBLIGATION-', 'SALARY_RECEIPT-'])(
+  'rejects a truncated internal selector in customer prose: %s',
+  (alias) => {
+    expect(() => renderAssistantAnswer(`It was on your Test account (${alias}).`, [])).toThrow(
+      'AI_UNGROUNDED_ANSWER',
+    );
+  },
+);
+
+it.each(['alias', 'accounts[0]', 'category'])(
+  'does not turn an internal selector into a customer fact through %s',
+  (path) => {
+    expect(() =>
+      renderAssistantAnswer('Your account is {{F1}}.', [
+        { key: 'F1', value: 'ACCOUNT-1', path: `reads[0].data.${path}` },
+      ]),
+    ).toThrow('AI_UNGROUNDED_ANSWER');
+  },
+);
+
+it.each(['name', 'title', 'merchant', 'labelAr', 'labelEn'])(
+  'preserves an actual customer-supplied %s that resembles an alias',
+  (field) => {
+    expect(
+      renderAssistantAnswer('The name is {{F1}}.', [
+        { key: 'F1', value: 'ACCOUNT-1', path: `reads[0].data.${field}` },
+      ]),
+    ).toBe('The name is ACCOUNT-1.');
+  },
+);
+
+it.each(['Account- Main', 'Goal- Savings'])(
+  'preserves verified customer names without digits in ordinary prose: %s',
+  (name) => {
+    expect(
+      renderAssistantAnswer(`It was on ${name}.`, [
+        { key: 'F1', value: name, path: 'reads[0].data.name' },
+      ]),
+    ).toBe(`It was on ${name}.`);
+  },
+);
+
+it('keeps a name that resembles a selector available to grounding without extra model calls', async () => {
+  let dispatches = 0;
+  const agent = new AssistantAgent(
+    {
+      read: () =>
+        Promise.resolve({
+          ...sample,
+          data: { accounts: { items: [{ alias: 'ACCOUNT-1', name: 'Account- Main' }] } },
+        }),
+    } as never,
+    new AiGateway({
+      apiKey: 'synthetic-test-key',
+      fetcher: () => {
+        dispatches += 1;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-verified-account-name',
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      answer: 'It was on Account- Main.',
+                      queries: [],
+                      responseType: 'fact',
+                      scope: 'current_state',
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    }),
+    () => Promise.resolve(),
+  );
+  await expect(agent.run(claim, route, new AbortController().signal)).resolves.toMatchObject({
+    content: 'It was on Account- Main.',
+  });
+  expect(dispatches).toBe(1);
+});
+
+it.each([true, false])(
+  'repairs internal selector leakage without repeating data reads (corrected=%s)',
+  async (corrected) => {
+    const feedback: Array<string | null> = [];
+    const read = jest.fn(() =>
+      Promise.resolve({
+        ...sample,
+        data: { ...sample.data, accounts: { items: [{ name: 'Test' }] } },
+      }),
+    );
+    const agent = new AssistantAgent(
+      { read } as never,
+      new AiGateway({
+        apiKey: 'synthetic-test-key',
+        fetcher: (_url, init) => {
+          if (typeof init?.body !== 'string') throw new Error('EXPECTED_REQUEST_BODY');
+          const request = JSON.parse(init.body) as {
+            messages: Array<{ content: string }>;
+          };
+          const context = JSON.parse(request.messages[1]?.content ?? '{}') as {
+            validationFeedback?: string;
+          };
+          feedback.push(context.validationFeedback ?? null);
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: 'synthetic-selector-repair',
+                model: 'model',
+                choices: [
+                  {
+                    finish_reason: 'stop',
+                    message: {
+                      content: JSON.stringify({
+                        status: 'answer',
+                        answer:
+                          corrected && feedback.length > 1
+                            ? 'It was on your Test account.'
+                            : 'It was on your Test account (ACCOUNT-).',
+                        queries: [],
+                        responseType: 'fact',
+                        scope: 'all_history',
+                      }),
+                    },
+                  },
+                ],
+                usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+              }),
+              { headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        },
+      }),
+      () => Promise.resolve(),
+    );
+    const result = agent.run(claim, route, new AbortController().signal);
+    if (corrected) {
+      await expect(result).resolves.toMatchObject({ content: 'It was on your Test account.' });
+      expect(feedback).toHaveLength(2);
+    } else {
+      await expect(result).rejects.toThrow('AI_UNGROUNDED_ANSWER');
+      expect(feedback).toHaveLength(3);
+    }
+    expect(feedback[1]).toContain('Internal aliases');
+    expect(read).toHaveBeenCalledTimes(1);
+  },
+);
+
 it('returns a server-owned scope notice when the model classifies an unrelated request', async () => {
   const agent = new AssistantAgent(
     { read: () => Promise.resolve(sample) } as never,
@@ -499,17 +971,16 @@ it.each([
 });
 
 it.each(['المصروفات 0 ريال', 'اليوم 2026-10-16', 'المصروفات ٠ ريال'])(
-  'constrains unsupported literal numeric output during model decoding: %s',
+  'rejects unsupported literal numeric output during grounding: %s',
   (answer) => {
-    const schema = ASSISTANT_AGENT_SCHEMA.properties.answer as { pattern?: string };
-    expect(answer).not.toMatch(new RegExp(schema.pattern ?? ''));
+    expect(() => renderAssistantAnswer(answer, [])).toThrow('AI_UNGROUNDED_ANSWER');
   },
 );
 it.each(['', 'المصروفات {{F12}} والدخل {{F13}}.', 'On {{F1}}, you spent {{F2}}.'])(
   'allows query decisions and natural answers with exact references in the provider schema: %s',
   (answer) => {
-    const schema = ASSISTANT_AGENT_SCHEMA.properties.answer as { pattern?: string };
-    expect(answer).toMatch(new RegExp(schema.pattern ?? ''));
+    const validate = new Ajv({ strict: false }).compile(ASSISTANT_AGENT_SCHEMA.properties.answer);
+    expect(validate(answer)).toBe(true);
   },
 );
 

@@ -613,6 +613,7 @@ const en = {
   'appShell.progressive.obligation': 'Add obligation',
   'appShell.progressive.savings': 'Create savings goal',
   'appShell.state.loading': 'Loading',
+  'appShell.startup.preparing': 'Preparing your data…',
   'appShell.state.empty': 'Nothing to show yet',
   'appShell.state.error': 'Something went wrong',
   'appShell.state.offline': 'You are offline',
@@ -2024,6 +2025,7 @@ const en = {
   'notifications.center.openPrefix': 'Open',
   'notifications.center.deletePrefix': 'Delete',
   'notifications.preferences.loading': 'Loading notification preferences',
+  'notifications.preferences.loadError': 'Could not load notification preferences. Try again.',
   'notifications.preferences.offline':
     'Notification preferences are unavailable offline',
   'notifications.preferences.retry': 'Retry',

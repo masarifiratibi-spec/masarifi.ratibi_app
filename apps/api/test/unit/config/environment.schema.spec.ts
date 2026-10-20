@@ -29,6 +29,24 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('allows the planning compatibility owner only on the explicit Staging API', () => {
+    const key = 'MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID';
+    const staging = {
+      ...valid,
+      SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+      [key]: 'user_DevPlanning123',
+    };
+    expect((validateEnvironment(staging) as unknown as Record<string, unknown>)[key]).toBe(
+      'user_DevPlanning123',
+    );
+    for (const patch of [
+      { SUPABASE_URL: 'https://other.supabase.co' },
+      { MASARIFI_PROCESS_KIND: 'worker' },
+      { [key]: 'bad owner' },
+    ])
+      expect(() => validateEnvironment({ ...staging, ...patch })).toThrow(key);
+    expect((validateEnvironment(valid) as unknown as Record<string, unknown>)[key]).toBeUndefined();
+  });
   it('requires a valid explicit Clerk owner on the Staging worker for scoped privacy', () => {
     const scoped = {
       ...valid,

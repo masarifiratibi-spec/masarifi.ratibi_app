@@ -183,6 +183,13 @@ export interface EstimatedComponent {
   asOf: number;
 }
 
+export interface AccountBalanceProjection {
+  accountId: string;
+  balanceMinor: number;
+  currencyCode: string;
+  asOf?: number | null;
+}
+
 export interface HomeSummary {
   totalBalanceMinor: number;
   currencyCode: string;

@@ -126,7 +126,8 @@ export interface AutomaticTrackingService {
   ): Promise<TrackingMutationResult<DuplicateCandidate>>;
   listKeywordRules(query?: RuleQuery): Promise<KeywordRuleSummary[]>;
   saveKeywordRules(
-    rules: readonly KeywordRule[]
+    rules: readonly KeywordRule[],
+    previousRules: readonly KeywordRule[]
   ): Promise<TrackingMutationResult<KeywordRuleSummary[]>>;
   restoreDefaultKeywords(): Promise<
     TrackingMutationResult<KeywordRuleSummary[]>

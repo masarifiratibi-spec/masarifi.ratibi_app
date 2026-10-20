@@ -63,6 +63,7 @@ function useAssistantForeground() {
 export function useAssistantQuestionOperation() {
   const client = useQueryClient();
   const foreground = useAssistantForeground();
+  const polling = useRef({ operationId: '', updateCount: 0 });
   return useQuery({
     queryKey: assistantKeys.questionOperation(),
     enabled: foreground,
@@ -83,15 +84,32 @@ export function useAssistantQuestionOperation() {
       });
       return (await assistantService.readQuestionOperation?.()) ?? null;
     },
-    refetchInterval: (query) =>
-      query.state.error ||
-      query.state.data?.phase !== 'accepted' ||
-      Date.now() - (query.state.data.createdAt ?? 0) >= 5 * 60000
-        ? false
-        : Math.min(
-            8000,
-            2000 * 2 ** Math.min(query.state.dataUpdateCount - 1, 2)
-          )
+    refetchInterval: (query) => {
+      const operation = query.state.data;
+      if (
+        query.state.error ||
+        operation?.phase !== 'accepted' ||
+        Date.now() - (operation.createdAt ?? 0) >= 5 * 60000
+      )
+        return false;
+      if (polling.current.operationId !== operation.operationId)
+        polling.current = {
+          operationId: operation.operationId,
+          updateCount: query.state.dataUpdateCount
+        };
+      return Math.min(
+        8000,
+        2000 *
+          2 **
+            Math.min(
+              Math.max(
+                0,
+                query.state.dataUpdateCount - polling.current.updateCount
+              ),
+              2
+            )
+      );
+    }
   });
 }
 
@@ -126,23 +144,40 @@ export function useAssistantConversations(
 
 export function useAssistantConversation(id: string, cursor?: string) {
   const foreground = useAssistantForeground();
-  const polling = useRef({ id, startedAt: Date.now() });
-  if (polling.current.id !== id)
-    polling.current = { id, startedAt: Date.now() };
+  const polling = useRef({ key: '', startedAt: 0, updateCount: 0 });
   return useQuery({
     queryKey: assistantKeys.conversation(id, cursor),
     queryFn: () => assistantService.getConversation(id, cursor),
     enabled: Boolean(id) && foreground,
     retry: false,
-    refetchInterval: (query) =>
-      query.state.error ||
-      !query.state.data?.pendingMessageIds?.length ||
-      Date.now() - polling.current.startedAt >= 5 * 60000
-        ? false
-        : Math.min(
-            8000,
-            2000 * 2 ** Math.min(query.state.dataUpdateCount - 1, 2)
-          )
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      const pending = query.state.data?.pendingMessageIds ?? [];
+      if (!pending.length) {
+        polling.current.key = '';
+        return false;
+      }
+      const key = JSON.stringify([id, cursor, ...pending.slice().sort()]);
+      if (polling.current.key !== key)
+        polling.current = {
+          key,
+          startedAt: Date.now(),
+          updateCount: query.state.dataUpdateCount
+        };
+      if (Date.now() - polling.current.startedAt >= 5 * 60000) return false;
+      return Math.min(
+        8000,
+        2000 *
+          2 **
+            Math.min(
+              Math.max(
+                0,
+                query.state.dataUpdateCount - polling.current.updateCount
+              ),
+              2
+            )
+      );
+    }
   });
 }
 
@@ -213,7 +248,8 @@ export function useCreateAssistantConversation() {
       question: string;
       operationId: string;
       intent?: AssistantQuestionIntent;
-    }) => assistantService.createConversation({ question, intent }, operationId),
+    }) =>
+      assistantService.createConversation({ question, intent }, operationId),
     'background'
   );
 }
@@ -331,7 +367,11 @@ function useAssistantMutation<TVariables, TValue>(
     onSuccess: (result) => {
       const refresh = invalidateAssistantScopes(client, result.affectedScopes);
       // Creation is already accepted; optional landing reads must not delay opening the conversation.
-      if (refreshMode === 'complete' || result.affectedScopes.includes('financial.live')) return refresh;
+      if (
+        refreshMode === 'complete' ||
+        result.affectedScopes.includes('financial.live')
+      )
+        return refresh;
       void refresh;
     },
     onError: (error) => {
@@ -340,7 +380,9 @@ function useAssistantMutation<TVariables, TValue>(
       if (scopes?.length) return invalidateAssistantScopes(client, scopes);
     },
     onSettled: () => {
-      const refresh = client.invalidateQueries({ queryKey: assistantKeys.questionOperation() });
+      const refresh = client.invalidateQueries({
+        queryKey: assistantKeys.questionOperation()
+      });
       if (refreshMode === 'complete') return refresh;
       void refresh;
     }

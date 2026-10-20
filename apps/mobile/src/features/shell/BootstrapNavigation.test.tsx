@@ -116,7 +116,8 @@ test.each([false, true])(
       '(onboarding)/profile-setup': () => (
         <Text>Profile Setup destination</Text>
       ),
-      '(tabs)/home': () => <Text>Home destination</Text>
+      '(tabs)/home': () => <Text>Home destination</Text>,
+      '(tabs)/reports': () => <Text>Reports destination</Text>
     });
     const label = complete ? 'Home destination' : 'Profile Setup destination';
     const path = complete ? '/home' : '/profile-setup';
@@ -128,6 +129,15 @@ test.each([false, true])(
     expect(screen.getByText(label)).toBeOnTheScreen();
     expect(result.getPathname()).toBe(path);
     expect(mockGetProfileSetup).toHaveBeenCalledTimes(1);
+    if (complete) {
+      await act(async () => router.navigate('/(tabs)/reports'));
+      expect(screen.getByText('Reports destination')).toBeOnTheScreen();
+      expect(screen.queryByTestId('startup-loading')).toBeNull();
+      await act(async () => router.navigate('/(tabs)/home'));
+      expect(screen.getByText('Home destination')).toBeOnTheScreen();
+      expect(screen.queryByTestId('startup-loading')).toBeNull();
+      expect(mockGetProfileSetup).toHaveBeenCalledTimes(1);
+    }
   }
 );
 

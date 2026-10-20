@@ -580,6 +580,7 @@ const ar: MessageCatalog = {
   'appShell.connectionUnavailable.message':
     'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
   'appShell.state.loading': 'جار التحميل',
+  'appShell.startup.preparing': 'جارٍ تجهيز بياناتك…',
   'appShell.state.empty': 'لا يوجد شيء بعد',
   'appShell.state.error': 'حدث خطأ ما',
   'appShell.state.offline': 'أنت غير متصل',
@@ -1934,6 +1935,7 @@ const ar: MessageCatalog = {
   'notifications.center.deletePrefix': 'حذف',
   'notifications.preferences.loading': 'جار تحميل تفضيلات الإشعارات',
   'notifications.preferences.offline': 'تفضيلات الإشعارات غير متاحة دون اتصال',
+  'notifications.preferences.loadError': 'تعذّر تحميل تفضيلات الإشعارات. حاول مرة أخرى.',
   'notifications.preferences.retry': 'إعادة المحاولة',
   'notifications.preferences.saveError': 'تعذر حفظ التفضيلات',
   'notifications.preferences.title': 'تفضيلات الإشعارات',

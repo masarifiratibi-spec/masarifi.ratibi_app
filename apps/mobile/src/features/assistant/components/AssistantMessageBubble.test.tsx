@@ -38,6 +38,15 @@ beforeEach(() => {
   usePreferenceStore.setState({ hideBalances: false });
 });
 
+it('renders the 19 October model object markers as plain financial text', () => {
+  renderWithProviders(
+    <AssistantMessageBubble
+      response={answer('From \uFFFC2026-10-01, expenses were \uFFFC867.24 SAR.')}
+    />
+  );
+  expect(screen.getByText('From 2026-10-01, expenses were 867.24 SAR.')).toBeTruthy();
+});
+
 it('renders model bold emphasis while preserving signed amounts, currencies and punctuation', () => {
   renderWithProviders(
     <AssistantMessageBubble

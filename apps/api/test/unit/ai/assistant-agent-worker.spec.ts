@@ -156,30 +156,39 @@ it('writes safe round and attempt diagnostics through the real gateway and logge
       { key: 'evidence', type: 'evidence_limit', configuration: {} },
     ],
   });
-  jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        id: 'PRIVATE GENERATION',
-        model: 'model-a',
-        choices: [
-          {
-            finish_reason: 'stop',
-            message: {
-              content: JSON.stringify({
-                status: 'answer',
-                answer: 'Verified movement.',
-                queries: [],
-                responseType: 'fact',
-                scope: 'all_history',
-              }),
+  jest.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+    if (typeof init?.body !== 'string') throw new Error('EXPECTED_REQUEST_BODY');
+    const request = JSON.parse(init.body) as { messages: Array<{ content: string }> };
+    const view = JSON.parse(request.messages[1]?.content ?? '{}') as {
+      dataAlreadyRead: Array<{ data: { latest: { amountMinor: { ref: string } } } }>;
+    };
+    const amount = view.dataAlreadyRead[0]?.data.latest.amountMinor.ref;
+    if (!amount) throw new Error('EXPECTED_SUPPLIED_AMOUNT');
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          id: 'PRIVATE GENERATION',
+          model: 'model-a',
+          choices: [
+            {
+              finish_reason: 'stop',
+              message: {
+                content: JSON.stringify({
+                  status: 'answer',
+                  answer: `Verified movement ${amount}.`,
+                  queries: [],
+                  responseType: 'fact',
+                  scope: 'all_history',
+                }),
+              },
             },
-          },
-        ],
-        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
-      }),
-      { headers: { 'content-type': 'application/json' } },
-    ),
-  );
+          ],
+          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+        }),
+        { headers: { 'content-type': 'application/json' } },
+      ),
+    );
+  });
   const lines: string[] = [];
   jest.spyOn(process.stdout, 'write').mockImplementation((line) => {
     lines.push(String(line));
@@ -235,7 +244,7 @@ it('writes safe round and attempt diagnostics through the real gateway and logge
   }
   expect(f.jobs.finish).toHaveBeenCalledWith(
     expect.objectContaining({ id: claim.id }),
-    expect.objectContaining({ content: 'Verified movement.' }),
+    expect.objectContaining({ content: 'Verified movement 3 SAR.' }),
   );
 });
 

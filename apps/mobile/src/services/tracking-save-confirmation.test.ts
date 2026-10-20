@@ -323,7 +323,7 @@ it('does not refresh or acknowledge another owners capture', async () => {
   expect(await reconcileTrackingSaves('another', 'session')).toBe(false);
   expect(synchronizeLiveCoreFinance).not.toHaveBeenCalled();
 });
-it('retains failure when authoritative finance synchronization fails', async () => {
+it('refreshes the accepted server balance while retaining a failed cache synchronization for retry', async () => {
   jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
     {
       itemId: 'item',
@@ -332,15 +332,42 @@ it('retains failure when authoritative finance synchronization fails', async () 
       notificationId: '20000000-0000-4000-8000-000000000019'
     }
   ]);
-  jest
-    .mocked(synchronizeLiveCoreFinance)
-    .mockRejectedValueOnce(new Error('offline'));
-  await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow(
-    'offline'
-  );
-  expect(
-    trackingNativeRuntime?.presentCaptureConfirmation
-  ).toHaveBeenCalledTimes(1);
+  jest.mocked(synchronizeLiveCoreFinance).mockRejectedValueOnce(new Error('INTERNAL_ERROR'));
+  const refresh = jest.fn();
+  const unsubscribe = subscribeTrackingSaves(refresh);
+  try {
+    await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow('INTERNAL_ERROR');
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledWith({
+      ownerId: 'owner',
+      transactionIds: ['10000000-0000-4000-8000-000000000011']
+    });
+    expect(trackingNativeRuntime?.presentCaptureConfirmation).toHaveBeenCalledTimes(1);
+  } finally {
+    unsubscribe();
+  }
+});
+it('does not refresh a different owner after cache synchronization fails', async () => {
+  jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
+    {
+      itemId: 'item',
+      status: 'accepted',
+      transactionId: '10000000-0000-4000-8000-000000000011',
+      notificationId: null
+    }
+  ]);
+  jest.mocked(synchronizeLiveCoreFinance).mockImplementationOnce(async () => {
+    useAppShellStore.setState({ session: null });
+    throw new Error('INTERNAL_ERROR');
+  });
+  const refresh = jest.fn();
+  const unsubscribe = subscribeTrackingSaves(refresh);
+  try {
+    await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow('INTERNAL_ERROR');
+    expect(refresh).not.toHaveBeenCalled();
+  } finally {
+    unsubscribe();
+  }
 });
 it('presents a verified DEV save while whole-finance synchronization is still pending', async () => {
   jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([

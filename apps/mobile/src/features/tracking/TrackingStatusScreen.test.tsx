@@ -53,6 +53,45 @@ function renderStatus(
 }
 
 describe('TrackingStatusScreen', () => {
+  it('waits for the keyword list before allowing edits', async () => {
+    let finishLoad!: (
+      rules: Awaited<
+        ReturnType<typeof automaticTrackingService.listKeywordRules>
+      >
+    ) => void;
+    jest.spyOn(automaticTrackingService, 'listKeywordRules').mockReturnValue(
+      new Promise((resolve) => {
+        finishLoad = resolve;
+      })
+    );
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 22,
+      activeSenderCount: 0,
+      lastUpdatedAt: Date.now()
+    });
+    expect(screen.queryByTestId('tracking-add-keyword-toggle')).toBeNull();
+    await act(async () => {
+      finishLoad(
+        defaultKeywordRules.map((rule) => ({
+          ...rule,
+          recentUseCount: 0,
+          lastUsedAt: null
+        }))
+      );
+    });
+    expect(
+      await screen.findByTestId('tracking-add-keyword-toggle')
+    ).toBeEnabled();
+  });
+
   it('leaves a saved capture visible through financial screens without a success banner', () => {
     renderWithQueryData(
       <TrackingSyncPanel

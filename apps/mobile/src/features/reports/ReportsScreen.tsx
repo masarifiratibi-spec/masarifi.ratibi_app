@@ -1,3 +1,4 @@
+import { useReportAnchorDate } from './useReportAnchorDate';
 import React, { useMemo, useState } from 'react';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import {
@@ -67,6 +68,7 @@ const timeframeOptions: readonly [ReportTimeframe, string][] = [
 ];
 
 export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
+  const anchorDate = useReportAnchorDate();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
@@ -76,7 +78,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   const selectedAccountId = useCoreFinanceViewState(
     (state) => state.selectedAccountId
   );
-  const { anchorDate, scrollOffset, setPeriod, setScrollOffset } =
+  const { scrollOffset, setPeriod, setScrollOffset } =
     useReportsViewState();
   const { fontScale, width } = useWindowDimensions();
   const stackMetrics = width < 350 || fontScale >= 1.6;
@@ -501,7 +503,7 @@ function NetWorthCard({
       {trendFeedback}
       {trend.length > 0 ? <>
         <NetWorthLine trend={trend} />
-        <ChartDateLabels direction={direction} trend={trend} />
+        <ChartDateLabels trend={trend} />
       </> : null}
       <View
         style={[
@@ -605,10 +607,8 @@ function NetWorthLine({
 }
 
 function ChartDateLabels({
-  direction,
   trend
 }: {
-  direction: 'ltr' | 'rtl';
   trend: readonly { at: number; minorUnits: number }[];
 }) {
   const locale = usePreferenceStore((state) => state.locale);
@@ -620,9 +620,9 @@ function ChartDateLabels({
   });
   const start = trend[0]?.at;
   const end = trend.at(-1)?.at;
-  const labels = direction === 'rtl' ? [end, start] : [start, end];
+  const labels = [start, end];
   return (
-    <View style={styles.chartDateRow}>
+    <View testID="reports-trend-dates" style={styles.chartDateRow}>
       {labels.map((value, index) => (
         <Text key={`${value}-${index}`} style={styles.chartDateText}>
           {value ? formatter.format(value) : '—'}
@@ -1251,6 +1251,7 @@ const styles = StyleSheet.create({
     writingDirection: 'ltr'
   },
   chartDateRow: {
+    direction: 'ltr',
     flexDirection: 'row',
     justifyContent: 'space-between'
   },

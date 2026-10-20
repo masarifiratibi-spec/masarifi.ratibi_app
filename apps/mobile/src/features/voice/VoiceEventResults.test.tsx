@@ -139,12 +139,13 @@ it.each(['failed', 'cancelled'] as const)(
   }
 );
 
-it('announces a fully saved recording only from its ledger receipt', () => {
+it('keeps a fully saved recording silent after its ledger receipt', () => {
   changeLocale('en');
   renderWithProviders(
     <VoiceBatchStatus
       batches={fixture({ ...latest, outcomes: latest.outcomes.slice(0, 1) })}
     />
   );
-  expect(screen.getByText('Saved 1 transaction(s).')).toBeTruthy();
+  expect(screen.queryByText('Saved 1 transaction(s).')).toBeNull();
+  expect(screen.queryByText('Some processing could not be completed.')).toBeNull();
 });

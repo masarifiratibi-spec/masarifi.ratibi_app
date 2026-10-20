@@ -269,8 +269,9 @@ it('round-trips the full preference matrix while retaining device-only settings'
   expect(preferences.saveNotificationPreferences).toHaveBeenCalled();
 });
 
-it('loads every seeded backend event type without rejecting the preference matrix', async () => {
+it.each(['configured', 'unset'] as const)('loads every seeded backend event type with %s quiet hours', async (quietHoursState) => {
   const eventTypes = [
+    'account.credit_card_payment_due',
     'transaction.created',
     'transfer.created',
     'transaction.refunded',
@@ -301,7 +302,7 @@ it('loads every seeded backend event type without rejecting the preference matri
         channel: 'push',
         eventType,
         enabled: true,
-        quietHours: {
+        quietHours: quietHoursState === 'unset' ? {} : {
           enabled: false,
           start: '22:00',
           end: '07:00',
@@ -327,8 +328,25 @@ it('loads every seeded backend event type without rejecting the preference matri
 
   await expect(service.getPreferences()).resolves.toMatchObject({
     version: 23,
-    phoneEnabled: true
+    phoneEnabled: true,
+    quietHours: { enabled: false }
   });
+});
+
+it.each([{ enabled: true }, { unexpected: true }])('rejects malformed quiet hours instead of silently disabling them: %j', async (quietHours) => {
+  const service = createLiveNotificationService({
+    baseUrl: 'https://api.example.test',
+    token: async () => 'token',
+    request: jest.fn().mockResolvedValue(response({
+      items: [{ channel: 'push', eventType: 'transaction.created', enabled: true, quietHours, version: 1 }],
+      version: 1
+    })) as unknown as typeof fetch,
+    preferences: {
+      getNotificationPreferences: jest.fn().mockResolvedValue(createNotificationPreferences(1)),
+      saveNotificationPreferences: jest.fn()
+    }
+  });
+  await expect(service.getPreferences()).rejects.toBeDefined();
 });
 
 it('does not erase device-only preferences when local storage fails', async () => {

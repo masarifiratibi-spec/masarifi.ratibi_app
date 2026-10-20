@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
 import { PoolService } from '../platform/database/pool.service';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isStagingPlanningOwner } from '../planning/staging-planning-scope';
 import { LEDGER_METRICS, recordPlatformMetric } from '../platform/observability/platform-metrics';
 import { PlatformLogger } from '../platform/observability/platform-logger';
 import { buildLedgerEvent } from './ledger.events';
@@ -203,7 +205,10 @@ function conflictReason(error: unknown, mapped: HttpException): string {
 
 @Injectable()
 export class LedgerRepository {
-  constructor(private readonly pool: PoolService) {}
+  constructor(
+    private readonly pool: PoolService,
+    @Optional() private readonly config?: PlatformConfigService,
+  ) {}
 
   async replayCompleted(input: LedgerMutation): Promise<Record<string, unknown> | undefined> {
     const startedAt = performance.now();
@@ -1049,6 +1054,15 @@ export class LedgerRepository {
         )
       ).rows[0];
       if (!row) throw new Error('LEDGER_RESULT_MISSING');
+      if (isStagingPlanningOwner(this.config, input.principal.userId)) {
+        await client.query("select set_config('masarifi.staging_planning_owner',$1,true)", [
+          input.principal.userId,
+        ]);
+        await client.query('select private.staging_dev_reconcile_salary_receipts($1,$2::uuid)', [
+          input.principal.userId,
+          input.command.transactionId,
+        ]);
+      }
       return row.result;
     }
     const sql =

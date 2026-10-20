@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import { PoolService } from '../platform/database/pool.service';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isStagingPlanningOwner } from './staging-planning-scope';
 import { decodePlanningCursor, encodePlanningCursor } from './planning.dto';
 
 interface PlanningMutation {
@@ -350,7 +352,10 @@ function planningCommandSql(operation: string): string {
 
 @Injectable()
 export class PlanningRepository {
-  constructor(private readonly pool: PoolService) {}
+  constructor(
+    private readonly pool: PoolService,
+    @Optional() private readonly config?: PlatformConfigService,
+  ) {}
 
   async mutate(input: PlanningMutation): Promise<Record<string, unknown>> {
     try {
@@ -454,16 +459,27 @@ export class PlanningRepository {
           }),
         ],
       );
+    const devPayment =
+      ['allocateObligationPayment', 'reverseObligationPayment'].includes(input.operation) &&
+      isStagingPlanningOwner(this.config, input.principal.userId);
+    if (devPayment)
+      await client.query("select set_config('masarifi.staging_planning_owner',$1,true)", [
+        input.principal.userId,
+      ]);
     if (input.operation === 'allocateObligationPayment' && command.transaction)
       return this.queryJson(
         client,
-        'select private.create_obligation_payment($1,$2::jsonb) result',
+        devPayment
+          ? 'select private.staging_dev_create_obligation_payment($1,$2::jsonb) result'
+          : 'select private.create_obligation_payment($1,$2::jsonb) result',
         [input.principal.userId, JSON.stringify(command)],
       );
     if (['allocateObligationPayment', 'reverseObligationPayment'].includes(input.operation))
       return this.queryJson(
         client,
-        'select private.allocate_obligation_payment($1,$2::jsonb) result',
+        devPayment
+          ? 'select private.staging_dev_allocate_obligation_payment($1,$2::jsonb) result'
+          : 'select private.allocate_obligation_payment($1,$2::jsonb) result',
         [input.principal.userId, JSON.stringify(command)],
       );
     if (input.operation === 'decidePaymentMatch')

@@ -36,6 +36,83 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe('live automatic tracking adapter', () => {
+  const editorRule = {
+    id: 'visible-rule',
+    value: 'paid',
+    normalizedValue: 'paid',
+    group: 'expense' as const,
+    language: 'en' as const,
+    origin: 'custom' as const,
+    enabled: true
+  };
+  const keywordRow = (id: string, keyword: string) => ({
+    id,
+    keyword,
+    groupKey: 'expense',
+    languageCode: 'en',
+    origin: 'custom',
+    enabled: true,
+    version: 1,
+    recentUseCount: 0,
+    lastUsedAt: null
+  });
+
+  it('preserves a concurrently added keyword when deleting a visible keyword', async () => {
+    const rows = new Map([
+      ['visible-rule', keywordRow('visible-rule', 'paid')],
+      ['other-rule', keywordRow('other-rule', 'spent')]
+    ]);
+    const request = jest.fn(
+      async (url: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === 'DELETE') {
+          rows.delete(
+            new URL(String(url), 'https://inert.invalid').pathname
+              .split('/')
+              .pop()!
+          );
+          return response({}, 204);
+        }
+        return response({ items: [...rows.values()], nextCursor: null });
+      }
+    );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    const result = await service.saveKeywordRules([], [editorRule]);
+    expect(
+      request.mock.calls
+        .filter(([, init]) => init?.method === 'DELETE')
+        .map(([url]) => String(url))
+    ).toEqual([expect.stringContaining('/visible-rule?expectedVersion=1')]);
+    expect(result.value.map((rule) => rule.id)).toEqual(['other-rule']);
+  });
+
+  it('rejects a stale keyword edit before issuing any mutation', async () => {
+    const request = jest.fn(
+      async (_url: string | URL | Request, init?: RequestInit) =>
+        init?.method === 'GET'
+          ? response({
+              items: [keywordRow('visible-rule', 'credited')],
+              nextCursor: null
+            })
+          : response({}, 204)
+    );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    await expect(
+      service.saveKeywordRules(
+        [{ ...editorRule, enabled: false }],
+        [editorRule]
+      )
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(request.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(
+      true
+    );
+  });
+
   it('keeps tracking preference reads cached and commands freshly authenticated', async () => {
     const getToken = jest.fn(async ({ skipCache }: { skipCache: boolean }) => skipCache ? 'fresh-token' : 'cached-token');
     registerIdentity({ getSession: async () => ({ id: 'sess_live_tracking', userId: 'user_live_tracking', method: 'google', issuedAt: 1, expiresAt: 9999999999999 }), getToken });
@@ -442,7 +519,7 @@ describe('live automatic tracking adapter', () => {
         origin: 'custom',
         enabled: true
       }
-    ]);
+    ], [{ ...editorRule, id: 'rule-1' }]);
 
     const mutation = request.mock.calls[1]?.[1];
     expect(mutation?.headers).toEqual(
@@ -511,7 +588,7 @@ describe('live automatic tracking adapter', () => {
         origin: 'custom',
         enabled: true
       }
-    ]);
+    ], [{ ...editorRule, id: 'rule-1', origin: 'default' }]);
 
     expect(request.mock.calls[1]?.[0]).toContain(
       '/api/v1/tracking/keyword-rules/rule-1?expectedVersion=7'

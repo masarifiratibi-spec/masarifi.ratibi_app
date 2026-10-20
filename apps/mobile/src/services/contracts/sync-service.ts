@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 export type SyncDomain = 'accounts' | 'categories' | 'transactions';
 
 export interface SyncMutation {
@@ -103,6 +105,10 @@ export class SyncHttpService {
         headers: {
           Authorization: `Bearer ${await this.token(method === 'GET')}`,
           'X-Device-Id': await this.deviceId(),
+          ...(Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+          this.baseUrl.replace(/\/$/u, '') === 'https://api.staging.masarifiratibi.com'
+            ? { 'X-Masarifi-Client-Variant': 'staging-development' }
+            : {}),
           ...(encoded ? { 'Content-Type': 'application/json' } : {}),
           ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {})
         },

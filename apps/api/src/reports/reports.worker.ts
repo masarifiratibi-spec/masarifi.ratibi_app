@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 
 import { Inject, Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 
@@ -101,6 +102,7 @@ export class ReportsWorker implements OnModuleDestroy {
 
   private async generate(claim: ReportWorkClaim): Promise<ReportWorkOutcome> {
     let storedKey: string | undefined;
+    let renderedBody: Readable | undefined;
     try {
       if (claim.attemptCount >= this.config.getRequired('MASARIFI_REPORT_MAX_ATTEMPTS'))
         throw new Error('REPORT_MAX_ATTEMPTS');
@@ -112,10 +114,11 @@ export class ReportsWorker implements OnModuleDestroy {
         maximum,
         snapshot.format === 'pdf' ? this.font() : undefined,
       );
-      if (claim.status === 'generating')
-        await this.storage.delete(this.storage.key(claim.id, claim.userId, snapshot.format));
+      if (rendered.body instanceof Readable) renderedBody = rendered.body;
       // Storage consumes this exact stream and propagates its errors; the counter is evidence only here.
       void rendered.byteCounter.catch(() => undefined);
+      if (claim.status === 'generating')
+        await this.storage.delete(this.storage.key(claim.id, claim.userId, snapshot.format));
       const stored = await this.storage.upload(
         claim.id,
         claim.userId,
@@ -164,6 +167,8 @@ export class ReportsWorker implements OnModuleDestroy {
       const errorCode = /^[A-Z][A-Z0-9_]{1,79}$/.test(message) ? message : 'REPORT_RENDER_FAILED';
       recordReportJob('report.generate', 'failure');
       return { status: 'failed', errorCode };
+    } finally {
+      renderedBody?.destroy();
     }
   }
 
@@ -241,8 +246,8 @@ export class ReportsWorker implements OnModuleDestroy {
   private font(): Buffer {
     if (this.suppliedFont) return this.suppliedFont;
     const candidates = [
-      join(process.cwd(), 'assets/fonts/NotoSansArabicUI-Regular.ttf'),
-      join(process.cwd(), '../mobile/assets/fonts/NotoSansArabicUI-Regular.ttf'),
+      join(process.cwd(), 'assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
     ];
     const path = candidates.find(existsSync);
     if (!path) throw new Error('REPORT_FONT_UNAVAILABLE');

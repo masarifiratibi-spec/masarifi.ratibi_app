@@ -52,6 +52,7 @@ export function ObligationPaymentScreen({
   const [accountId, setAccountId] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [preview, setPreview] = useState<ObligationPaymentPreview>();
+  const [previewBalanceBefore, setPreviewBalanceBefore] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
@@ -127,6 +128,7 @@ export function ObligationPaymentScreen({
           }
         })
       );
+      setPreviewBalanceBefore(balance.balanceMinor);
     } catch {
       setError(translate('planning.state.error'));
     } finally {
@@ -135,9 +137,8 @@ export function ObligationPaymentScreen({
   };
   const selectedAccountId = accountId || accounts.data?.[0]?.id;
   const selectedAccount = accounts.data?.find((entry) => entry.id === selectedAccountId);
-  const selectedBalance = balances.data?.find((entry) => entry.accountId === selectedAccountId);
-  const previewAfter = preview && selectedBalance
-    ? safeMinorSum(selectedBalance.balanceMinor, obligation.data?.obligation.direction === 'payable' ? -preview.amountMinor : preview.amountMinor)
+  const previewAfter = preview && previewBalanceBefore !== null
+    ? safeMinorSum(previewBalanceBefore, obligation.data?.obligation.direction === 'payable' ? -preview.amountMinor : preview.amountMinor)
     : null;
   const money = (minor: number | null) =>
     minor === null
@@ -178,7 +179,7 @@ export function ObligationPaymentScreen({
             <PaymentDetail icon="wallet" label={translate('voice.review.account')} value={selectedAccount?.name ?? translate('reports.state.unavailable')} />
             <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
             <View style={styles.balanceTransition}>
-              <PaymentDetail icon="salary" label={translate('planning.obligation.balanceBefore')} value={money(selectedBalance?.balanceMinor ?? null)} />
+              <PaymentDetail icon="salary" label={translate('planning.obligation.balanceBefore')} value={money(previewBalanceBefore)} />
               <DesignIcon name="chevronDown" decorative color={theme.colors.primary} />
               <PaymentDetail icon="salary" label={translate('planning.obligation.balanceAfter')} value={money(previewAfter)} />
             </View>
@@ -186,6 +187,7 @@ export function ObligationPaymentScreen({
           <ActionButton
             label={translate('planning.obligation.confirmPayment')}
             loading={confirm.isPending}
+            disabled={saved}
             onPress={() =>
               confirm.mutate(preview, {
                 onSuccess: () => {
@@ -198,6 +200,7 @@ export function ObligationPaymentScreen({
           />
           <ActionButton
             label={translate('planning.action.edit')}
+            disabled={saved || confirm.isPending}
             onPress={() => {
               setPreview(undefined);
               setSaved(false);

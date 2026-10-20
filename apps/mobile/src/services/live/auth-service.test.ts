@@ -49,7 +49,7 @@ import { resolve } from 'node:path';
 import type { OnboardingProgress } from '@/domain/app-shell';
 import { userProfileSchema, type UserProfile } from '@/domain/settings';
 import { createAuthService } from '@/features/auth/auth-flow';
-import { requestJson } from './http-client';
+import { HttpError, requestJson } from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
 import { createLiveAssistantApiService } from './assistant-api-service';
 import { createLiveVoiceApiService } from './voice-api-service';
@@ -252,6 +252,30 @@ test('preserves cached reads across a bridge refresh for the same active session
     token: 'original-token'
   });
 });
+
+test.each([getLiveClerkToken, captureLiveClerkIdentity, captureLiveReadClerkIdentity])(
+  'bounds a stalled Clerk token lookup and allows recovery without accepting its late result',
+  async (capture) => {
+    jest.useFakeTimers();
+    let release!: (token: string) => void;
+    const getToken = jest.fn().mockImplementationOnce(() => new Promise<string>((resolve) => { release = resolve; }))
+      .mockResolvedValue('recovered-token');
+    registerLiveClerkBridge(clerkBridge({ getToken }));
+    const pending = capture().then(value => ({ value }), error => ({ error }));
+    try {
+      await jest.advanceTimersByTimeAsync(10_000);
+      const observed = await Promise.race([pending, Promise.resolve({ stillPending: true })]);
+      expect(observed).toEqual({ error: expect.objectContaining({ code: 'provider_unavailable', status: 503, failureSource: 'timeout' }) });
+      const recovered = await capture();
+      expect(typeof recovered === 'string' ? recovered : recovered.token).toBe('recovered-token');
+      expect(getToken).toHaveBeenCalledTimes(2);
+    } finally {
+      release('late-original-token');
+      await pending;
+      jest.useRealTimers();
+    }
+  }
+);
 
 test('shares pending cached read authentication while keeping mutations freshly authenticated', async () => {
   let release!: (token: string) => void;
@@ -1053,6 +1077,18 @@ describe('live profile setup', () => {
     completedAt: null,
     version: 4
   };
+  const storedProfile = userProfileSchema.parse({
+    name: 'Saved owner',
+    avatar: 'default',
+    phone: null,
+    googleAccount: 'a***@example.test',
+    email: null,
+    country: 'SA',
+    currency: 'SAR',
+    timeZone: 'Asia/Riyadh',
+    completion: [],
+    version: 2
+  });
 
   test('derives account completion from remote welcome and defaults unsupported currency to SAR', async () => {
     const request = jest.fn(async (path: string) => {
@@ -1085,12 +1121,75 @@ describe('live profile setup', () => {
       throw new Error(`unexpected path ${path}`);
     };
     await expect(
-      createLiveIdentityService({ request }).getProfileSetup()
+      createLiveIdentityService({
+        request,
+        getOwnerId: () => liveSession.userId,
+        loadLocalProfile: async () => null
+      }).getProfileSetup()
     ).resolves.toMatchObject({
       complete: false,
       onboarding: { completedSteps: [] }
     });
   });
+
+  test('overlaps independent setup reads for an owner with a saved profile without publishing unverified data', async () => {
+    let finishProfile!: (value: typeof profile) => void;
+    const delayedProfile = new Promise<typeof profile>((resolve) => {
+      finishProfile = resolve;
+    });
+    const paths: string[] = [];
+    const saveLocalProfile = jest.fn();
+    const service = createLiveIdentityService({
+      getOwnerId: () => liveSession.userId,
+      loadLocalProfile: async () => storedProfile,
+      saveLocalProfile,
+      request: async (path) => {
+        paths.push(path);
+        return path === '/api/v1/me'
+          ? delayedProfile
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding;
+      }
+    });
+    const pending = service.getProfileSetup();
+    try {
+      for (let index = 0; index < 20; index++) await Promise.resolve();
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          '/api/v1/me',
+          '/api/v1/me/preferences',
+          '/api/v1/me/onboarding'
+        ])
+      );
+      expect(saveLocalProfile).not.toHaveBeenCalled();
+    } finally {
+      finishProfile(profile);
+    }
+    await expect(pending).resolves.toMatchObject({
+      profile: { version: 2 },
+      complete: false
+    });
+  });
+
+  test.each(['forbidden', 'provider_unavailable'] as const)(
+    'does not publish a saved profile when concurrent server validation returns %s',
+    async (code) => {
+      const failure = new HttpError(code, code === 'forbidden' ? 403 : 503);
+      const saveLocalProfile = jest.fn();
+      const service = createLiveIdentityService({
+        getOwnerId: () => liveSession.userId,
+        loadLocalProfile: async () => storedProfile,
+        saveLocalProfile,
+        request: async (path) => {
+          if (path === '/api/v1/me') throw failure;
+          return path.endsWith('/preferences') ? preferences : onboarding;
+        }
+      });
+      await expect(service.getProfileSetup()).rejects.toBe(failure);
+      expect(saveLocalProfile).not.toHaveBeenCalled();
+    }
+  );
 
   test('reopens legacy completed welcome when the server requires currency selection', async () => {
     const service = createLiveIdentityService({

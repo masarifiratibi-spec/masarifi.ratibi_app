@@ -3,7 +3,7 @@ import { fireEvent, screen } from '@testing-library/react-native';
 
 import { createNotificationPreferences } from '@/domain/notifications';
 import { renderWithProviders } from '@/test-utils/render';
-import { changeLocale } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
 
 import { NotificationPreferencesScreen } from './NotificationPreferencesScreen';
 
@@ -197,9 +197,17 @@ it('shows loading and offline recovery states', () => {
     data: undefined,
     isLoading: false,
     isError: true,
+    error: { code: 'offline' },
     refetch
   });
   renderWithProviders(<NotificationPreferencesScreen />);
   fireEvent.press(screen.getByLabelText('Retry'));
   expect(refetch).toHaveBeenCalledTimes(1);
+});
+
+it.each(['ar', 'en'] as const)('does not claim a network outage for invalid preference data in %s', (locale) => {
+  changeLocale(locale);
+  mockPreferences.mockReturnValue({ data: undefined, isLoading: false, isError: true, error: new Error('Invalid preference payload'), refetch: jest.fn() });
+  renderWithProviders(<NotificationPreferencesScreen />);
+  expect(screen.queryByText(translate('notifications.preferences.offline'))).toBeNull();
 });

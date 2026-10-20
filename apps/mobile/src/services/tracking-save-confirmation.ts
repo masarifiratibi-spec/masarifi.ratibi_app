@@ -30,15 +30,20 @@ export async function reconcileTrackingSaves(
     useAppShellStore.getState().session?.userId === ownerId;
   const refreshFinance = async (): Promise<boolean> => {
     if (!currentOwner()) return false;
-    await ensureTrackingSyncDevice(ownerId);
-    if (!currentOwner()) return false;
-    await synchronizeLiveCoreFinance();
-    if (!currentOwner()) return false;
-    publishTrackingSave({
-      ownerId,
-      transactionIds: accepted.map((item) => item.transactionId!)
-    });
-    return true;
+    try {
+      await ensureTrackingSyncDevice(ownerId);
+      if (!currentOwner()) return false;
+      await synchronizeLiveCoreFinance();
+      return currentOwner();
+    } finally {
+      // The accepted server receipt remains valid if local cache sync fails.
+      // Refresh live financial reads while preserving the failed sync for retry.
+      if (currentOwner())
+        publishTrackingSave({
+          ownerId,
+          transactionIds: accepted.map((item) => item.transactionId!)
+        });
+    }
   };
   const native = trackingNativeRuntime;
   const { apiUrl } = resolveClientRuntime();

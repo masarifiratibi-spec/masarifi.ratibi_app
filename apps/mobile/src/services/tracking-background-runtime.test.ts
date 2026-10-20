@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -18,6 +20,8 @@ import {
 } from '@/features/auth/session-controller';
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import { createMockAuthService } from '@/services/mocks/auth-service';
+
+jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { android: { package: 'com.masarifi.mobile' } } } }));
 
 let mockNativeNotifications: string[] = [];
 
@@ -226,6 +230,39 @@ describe('durable DEV follow-up scheduling', () => {
     expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
   });
 });
+
+it.each(['com.masarifi.mobile.dev', 'com.masarifi.mobile'])(
+  'keeps local tracking independent of unsupported remote push only in %s', async packageName => {
+    const previousPackage = Constants.expoConfig!.android!.package;
+    const previousUrl = process.env.EXPO_PUBLIC_API_URL;
+    const previousMode = process.env.EXPO_PUBLIC_CLIENT_MODE;
+    const previousKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    Constants.expoConfig!.android!.package = packageName;
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_nonfunctionalfixture';
+    const register = jest.mocked(Notifications.registerTaskAsync);
+    register.mockRejectedValueOnce(new Error('class expo.modules.interfaces.taskManager.TaskManagerInterface module not found'));
+    try {
+      const configured = configureTrackingBackground('owner-a', rules, 'automatic_clear');
+      if (packageName === 'com.masarifi.mobile.dev') {
+        await expect(configured).resolves.toBeUndefined();
+        expect(register).not.toHaveBeenCalled();
+      } else {
+        await expect(configured).rejects.toThrow('TaskManagerInterface module not found');
+        expect(register).toHaveBeenCalledTimes(1);
+      }
+      expect(MasarifiSmsInbox!.configureTrackingOwner).toHaveBeenCalled();
+      expect(MasarifiSmsInbox!.suspendTrackingOwner).not.toHaveBeenCalled();
+    } finally {
+      register.mockReset().mockResolvedValue(null);
+      Constants.expoConfig!.android!.package = previousPackage;
+      if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL; else process.env.EXPO_PUBLIC_API_URL = previousUrl;
+      if (previousMode === undefined) delete process.env.EXPO_PUBLIC_CLIENT_MODE; else process.env.EXPO_PUBLIC_CLIENT_MODE = previousMode;
+      if (previousKey === undefined) delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY; else process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = previousKey;
+    }
+  }
+);
 
 it('refuses broader admission on a native binary without an explicit DEV capability', async () => {
   const native = MasarifiSmsInbox!;

@@ -12,7 +12,7 @@ import { reportKeys } from './report-queries';
 test('preview reviews provenance and recipient before recording output history', async () => {
   usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
   changeLocale('en');
-  useReportsViewState.setState({ selectedKind: 'monthly', anchorDate: '2026-08-09' });
+  useReportsViewState.setState({ followToday: false, selectedKind: 'monthly', anchorDate: '2026-08-09' });
   const verification = verifyRecipient('reports@example.com');
   const schedule = buildSchedule({
     recipientEmail: 'reports@example.com',

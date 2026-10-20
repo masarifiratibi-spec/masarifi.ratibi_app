@@ -72,10 +72,11 @@ export function NotificationPreferencesScreen() {
     );
   }
   if (preferences.isError || !preferences.data) {
+    const offline = (preferences.error as { code?: string } | null)?.code === 'offline';
     return (
       <StateView
-        state="offline"
-        title={t('notifications.preferences.offline')}
+        state={offline ? 'offline' : 'error'}
+        title={t(offline ? 'notifications.preferences.offline' : 'notifications.preferences.loadError')}
         actionLabel={t('notifications.preferences.retry')}
         onAction={() => preferences.refetch()}
       />

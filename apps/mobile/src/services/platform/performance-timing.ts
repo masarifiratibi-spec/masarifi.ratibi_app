@@ -17,6 +17,7 @@ export type PerformanceStage =
   | 'identity.local.write'
   | 'ledger.categories'
   | 'ledger.read'
+  | 'ledger.today'
   | 'storage.draft.read'
   | 'storage.draft.write'
   | 'sync.core';

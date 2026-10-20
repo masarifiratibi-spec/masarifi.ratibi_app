@@ -18,6 +18,7 @@ import type {
   TransactionPage
 } from '@/services/contracts/core-finance-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
+import { summarizeHomeBalances } from '@/domain/home-balance';
 
 export const coreFinanceKeys = {
   home: (currency: string, filters?: TransactionFilterSet) =>
@@ -26,6 +27,8 @@ export const coreFinanceKeys = {
       : (['core-finance', 'home', currency] as const),
   accounts: (archived = false) =>
     ['core-finance', 'accounts', archived] as const,
+  homeBalances: (currency: string, accountId: string | null) =>
+    ['core-finance', 'home', 'balances', currency, accountId] as const,
   accountBalances: (archived = false) =>
     ['core-finance', 'account-balances', archived] as const,
   account: (id: string) => ['core-finance', 'account', id] as const,
@@ -55,6 +58,19 @@ export function useHomeSummary(
     queryKey: coreFinanceKeys.home(currency, filters),
     queryFn: ({ signal }) =>
       coreFinanceService.getHomeSummary(currency, filters, { signal })
+  });
+}
+
+export function useHomeBalanceSummary(currency: string, accountId: string | null) {
+  return useQuery({
+    queryKey: coreFinanceKeys.homeBalances(currency, accountId),
+    queryFn: async ({ signal }) => {
+      const [accounts, balances] = await Promise.all([
+        coreFinanceService.listAccounts(false, { signal }),
+        coreFinanceService.listAccountBalances(false, { signal }, accountId ? [accountId] : undefined)
+      ]);
+      return summarizeHomeBalances(accounts, balances, currency, accountId);
+    }
   });
 }
 
@@ -141,7 +157,7 @@ function* cachedTransactionRows(
   snapshot: unknown
 ): Iterable<Transaction> {
   const [, resource, variant] = key;
-  if (resource === 'home') yield* (snapshot as HomeSummary).recentTransactions;
+  if (resource === 'home') yield* ((snapshot as Partial<HomeSummary>).recentTransactions ?? []);
   else if (resource === 'transactions' && variant === 'home-today') {
     for (const row of snapshot as HomeTodayActivity[]) yield row.transaction;
   } else if (resource === 'transactions' && variant === 'pages') {

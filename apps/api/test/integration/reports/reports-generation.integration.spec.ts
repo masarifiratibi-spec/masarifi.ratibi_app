@@ -103,10 +103,28 @@ describeLiveDatabase('immutable report generation requests', () => {
       'generation-key-activity',
       'request',
     );
-    const snapshot = await pool.query<{ snapshot: { detailedRows: unknown[] } }>(
+    const snapshot = await pool.query<{ snapshot: { detailedRows: unknown[]; summary: { currencyMinorUnits: Record<string, number> } } }>(
       'select snapshot from private.report_output_attempts where id=$1',
       [(accepted as { attemptId: string }).attemptId],
     );
     expect(snapshot.rows[0]?.snapshot.detailedRows).toHaveLength(1);
+    expect(snapshot.rows[0]?.snapshot.summary.currencyMinorUnits).toEqual({ SAR: 2 });
+  });
+
+  it.each([0, 1, 2, 3, 4])('captures the configured currency scale %s rather than assuming ISO defaults', async (scale) => {
+    const currency = `QA${String.fromCharCode(65 + scale)}`;
+    const owner = `report_pdf_scale_${randomUUID()}`;
+    await pool.query('insert into public.currencies(code,name,minor_unit) values($1,$2,$3) on conflict(code) do nothing', [currency, 'Synthetic PDF scale', scale]);
+    await pool.query("insert into public.profiles(id,status,timezone) values($1,'active','Asia/Riyadh')", [owner]);
+    await pool.query('insert into public.user_preferences(user_id,default_currency) values($1,$2) on conflict(user_id) do update set default_currency=excluded.default_currency', [owner, currency]);
+    const result = await repository.captureSnapshot(
+      { ...principal, userId: owner },
+      { type: 'financial_summary', periodStart: '2026-08-01', periodEnd: '2026-08-31', format: 'pdf', delivery: 'download', recipient: null },
+      `pdf-scale-${String(scale)}-capture`, 'request',
+    );
+    const captured = await pool.query<{ snapshot: { summary: { currencyMinorUnits: Record<string, number> } } }>(
+      'select snapshot from private.report_output_attempts where id=$1', [(result as { attemptId: string }).attemptId],
+    );
+    expect(captured.rows[0]?.snapshot.summary.currencyMinorUnits).toEqual({ [currency]: scale });
   });
 });

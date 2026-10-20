@@ -280,6 +280,7 @@ const paymentSchema = z
     ]),
     source: z.enum(['manual', 'automatic', 'voice', 'platform_assisted']),
     operationId: uuid,
+    transactionOwnership: z.enum(['created', 'linked_existing']).optional(),
     status: z.enum([
       'pending',
       'confirmed',
@@ -1028,7 +1029,8 @@ export function createLiveFinancialPlanningService({
   request = fetch,
   repository = new FinancialPlanningRepository(),
   persistent = Platform.OS !== 'web' && process.env.NODE_ENV !== 'test',
-  now = Date.now
+  now = Date.now,
+  categoryIds
 }: {
   baseUrl?: string;
   token?: () => Promise<string | null>;
@@ -1037,6 +1039,11 @@ export function createLiveFinancialPlanningService({
   persistent?: boolean;
   now?: () => number;
   ledger?: Pick<CoreFinanceService, 'createTransaction'>;
+  categoryIds?: {
+    prepare(): Promise<void>;
+    toServer(id: string): string;
+    toLocal(id: string): string;
+  };
 } = {}): CapabilityProviderHandle<FinancialPlanningService> {
   if (token) configureMobileApiTokenProvider(token);
   let hydration: Promise<void> | null = null;
@@ -1145,6 +1152,9 @@ export function createLiveFinancialPlanningService({
     );
 
   const readBudgetDetail = async (id: string): Promise<BudgetDetail> => {
+    const owner = await captureLiveClerkOwner();
+    await categoryIds?.prepare();
+    await owner.assertCurrent();
     const [wire, summary] = await Promise.all([
       send(
         'GET',
@@ -1157,13 +1167,19 @@ export function createLiveFinancialPlanningService({
         budgetSummarySchema
       )
     ]);
+    await owner.assertCurrent();
     const budget = mapBudgetFromApi(wire);
     return {
       budget,
-      categories: wire.categories.map((item) => fromCategory(item, budget.id)),
+      categories: wire.categories.map((item) => mapBudgetCategory(item, budget.id)),
       progress: budgetProgress(budget, summary)
     };
   };
+
+  const mapBudgetCategory = (item: z.infer<typeof categorySchema>, budgetId: string): CategoryBudget => ({
+    ...fromCategory(item, budgetId),
+    categoryId: categoryIds?.toLocal(item.categoryId) ?? item.categoryId
+  });
 
   const readSchedule = async (id: string, context?: ReadContext) =>
     (
@@ -1294,6 +1310,9 @@ export function createLiveFinancialPlanningService({
     },
 
     async getReportingSnapshot(period) {
+      const owner = await captureLiveClerkOwner();
+      await categoryIds?.prepare();
+      await owner.assertCurrent();
       const periodKey = period.startDate.slice(0, 7);
       const [summary, budgets, obligations, goals] = await Promise.all([
         readSummary(periodKey),
@@ -1304,11 +1323,12 @@ export function createLiveFinancialPlanningService({
         allPages('/api/v1/obligations', obligationSchema),
         allPages('/api/v1/savings-goals', goalSchema)
       ]);
+      await owner.assertCurrent();
       return {
         salaryReceipts: [],
         budgets: budgets.map(mapBudgetFromApi),
         categoryBudgets: summary.budgets.flatMap((budget) =>
-          budget.categories.map((category) => fromCategory(category, budget.id))
+          budget.categories.map((category) => mapBudgetCategory(category, budget.id))
         ),
         obligations: obligations.map(fromObligation),
         obligationPayments: [],
@@ -1478,6 +1498,9 @@ export function createLiveFinancialPlanningService({
     },
 
     async listBudgets(periodKey) {
+      const owner = await captureLiveClerkOwner();
+      await categoryIds?.prepare();
+      await owner.assertCurrent();
       const [budgets, summary] = await Promise.all([
         allPages(
           `/api/v1/budgets?period=${encodeURIComponent(periodKey)}`,
@@ -1485,6 +1508,7 @@ export function createLiveFinancialPlanningService({
         ),
         readSummary(periodKey)
       ]);
+      await owner.assertCurrent();
       return budgets
         .filter((item) => item.status !== 'deleted')
         .map((wire) => {
@@ -1494,7 +1518,7 @@ export function createLiveFinancialPlanningService({
           return {
             budget,
             categories: aggregate.categories.map((item) =>
-              fromCategory(item, budget.id)
+              mapBudgetCategory(item, budget.id)
             ),
             progress: budgetProgress(budget, aggregate)
           };
@@ -1529,17 +1553,25 @@ export function createLiveFinancialPlanningService({
     },
 
     async saveBudget(input: BudgetInput, operationId: string) {
+      const identity = await captureLiveClerkIdentity();
+      if (input.categories?.length) await categoryIds?.prepare();
+      await identity.assertCurrent();
+      const allocations = input.categories?.map((item) => ({
+        categoryId: categoryIds?.toServer(item.categoryId) ?? item.categoryId,
+        limitMinor: String(item.limitMinor),
+        rolloverMinor: '0',
+        alertThresholds: item.alertThresholds,
+        status: item.status
+      }));
       const period = apiPeriod(input.periodKey);
-      const root = {
+      const patch = {
         name: input.name,
-        currencyCode: input.currencyCode,
         ...period,
         totalMinor: String(input.configuredExpenseLimitMinor),
         incomeTargetMinor: String(input.incomeTargetMinor),
         savingsTargetMinor: String(input.savingsTargetMinor),
         rolloverEnabled: input.rolloverEnabled ?? false,
-        rolloverMinor: String(input.rolloverCreditMinor ?? 0),
-        copiedFromBudgetId: input.copiedFromBudgetId ?? null
+        rolloverMinor: String(input.rolloverCreditMinor ?? 0)
       };
       const response = input.id
         ? await send(
@@ -1548,12 +1580,18 @@ export function createLiveFinancialPlanningService({
             mutation(budgetSchema),
             {
               operationId,
-              body: { expectedVersion: input.expectedVersion, patch: root }
+              identity,
+              body: { expectedVersion: input.expectedVersion, patch }
             }
           )
         : await send('POST', '/api/v1/budgets', mutation(budgetSchema), {
             operationId,
-            body: root
+            identity,
+            body: {
+              ...patch,
+              currencyCode: input.currencyCode,
+              copiedFromBudgetId: input.copiedFromBudgetId ?? null
+            }
           });
       let budget = mapBudgetFromApi(response.resource);
       if (input.categories) {
@@ -1563,19 +1601,28 @@ export function createLiveFinancialPlanningService({
           mutation(categoryMutationSchema),
           {
             operationId: `${operationId}:categories`,
+            identity,
             body: {
               expectedVersion: budget.version,
-              allocations: input.categories.map((item) => ({
-                categoryId: item.categoryId,
-                limitMinor: String(item.limitMinor),
-                rolloverMinor: '0',
-                alertThresholds: item.alertThresholds,
-                status: item.status
-              }))
+              allocations
             }
           }
         );
         budget = (await readBudgetDetail(budget.id)).budget;
+        await identity.assertCurrent();
+      }
+      if (budget.status === 'draft') {
+        const activated = await send(
+          'PATCH',
+          `/api/v1/budgets/${budget.id}`,
+          mutation(budgetSchema),
+          {
+            operationId: `${operationId}:activate`,
+            identity,
+            body: { expectedVersion: budget.version, patch: { status: 'active' } }
+          }
+        );
+        budget = mapBudgetFromApi(activated.resource);
       }
       return scopes(budget, [
         'planning.overview',
@@ -1633,10 +1680,12 @@ export function createLiveFinancialPlanningService({
     },
 
     async confirmBudgetMove(previewId, operationId) {
+      const identity = await captureLiveClerkIdentity();
       const preview = previews.get(previewId);
       if (!preview || preview.kind !== 'budget')
         throw new FinancialPlanningError('stale_preview');
       const current = await readBudgetDetail(preview.value.budgetId);
+      await identity.assertCurrent();
       if (current.budget.version !== preview.expectedVersion)
         throw new FinancialPlanningError('stale_preview');
       await send(
@@ -1645,10 +1694,11 @@ export function createLiveFinancialPlanningService({
         mutation(categoryMutationSchema),
         {
           operationId,
+          identity,
           body: {
             expectedVersion: current.budget.version,
             allocations: preview.value.categories.map((item) => ({
-              categoryId: item.categoryId,
+              categoryId: categoryIds?.toServer(item.categoryId) ?? item.categoryId,
               limitMinor: String(item.limitMinor),
               rolloverMinor: '0',
               alertThresholds: item.alertThresholds,
@@ -1723,6 +1773,7 @@ export function createLiveFinancialPlanningService({
           ? parsePlanningMinor(detail.remainingMinor)
           : null;
         result.remainingByObligationId[obligation.id] = remaining;
+        if (obligation.status !== 'active') continue;
         const totals =
           obligation.direction === 'payable'
             ? result.payablesByCurrency
@@ -1995,9 +2046,9 @@ export function createLiveFinancialPlanningService({
             : 0,
         settlementAdjustmentMinor: 0,
         source: wire.source,
-        transactionOwnership: created
+        transactionOwnership: wire.transactionOwnership ?? (created
           ? ('created' as const)
-          : ('linked_existing' as const),
+          : ('linked_existing' as const)),
         status: wire.status === 'confirmed' ? ('posted' as const) : wire.status,
         operationId: wire.operationId,
         replacesPaymentId: null,
@@ -2058,7 +2109,7 @@ export function createLiveFinancialPlanningService({
         principalReductionMinor: 0,
         settlementAdjustmentMinor: 0,
         source: wire.source,
-        transactionOwnership: 'linked_existing' as const,
+        transactionOwnership: wire.transactionOwnership ?? ('linked_existing' as const),
         status: wire.status === 'confirmed' ? ('posted' as const) : wire.status,
         operationId: wire.operationId,
         replacesPaymentId: null,

@@ -454,12 +454,15 @@ export function BudgetForm({
         {activeCategoryId ? (
           <FormField
             label={translate('planning.budget.categoryLimit')}
-            onChangeText={(value) =>
+            onChangeText={(value) => {
+              setSelectedCategoryIds((current) =>
+                current.includes(activeCategoryId) ? current : [...current, activeCategoryId]
+              );
               setCategoryLimits((current) => ({
                 ...current,
                 [activeCategoryId]: value
-              }))
-            }
+              }));
+            }}
             value={categoryLimits[activeCategoryId] ?? ''}
             variant="amount"
           />

@@ -1194,6 +1194,68 @@ it.each([false, true])('uses cached sync reads and fresh authentication only whe
   expect(getToken.mock.calls).toEqual(queued ? [[{ skipCache: false }], [{ skipCache: true }]] : [[{ skipCache: false }]]);
 });
 
+it('resolves the device once per sync pass and refreshes it for the next owner', async () => {
+  let ownerId = 'user_first';
+  let deviceId = '80000000-0000-4000-8000-000000000001';
+  let deviceReads = 0;
+  const sent: { device: string; authorization: string }[] = [];
+  const applied: string[] = [];
+  const request = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    if (url.pathname === '/api/v1/me/devices') {
+      deviceReads += 1;
+      return response({ items: [{ id: deviceId, current: true }], nextCursor: null });
+    }
+    const headers = init?.headers as Record<string, string>;
+    sent.push({ device: headers['X-Device-Id'], authorization: headers.Authorization });
+    if (url.pathname === '/api/v1/sync/bootstrap') return response({
+      data: { domains: [{ domain: url.searchParams.get('domains'), cursor: `cursor.${'a'.repeat(43)}`, items: [], hasMore: false, nextPage: null }] },
+      meta: { requestId: 'bootstrap' }
+    });
+    if (url.pathname === '/api/v1/conflicts') return response({ data: { items: [], nextCursor: null }, meta: { requestId: 'conflicts' } });
+    throw new Error(`Unexpected route ${url.pathname}`);
+  });
+  const coordinator = createLiveCoreFinanceSync({
+    baseUrl: 'https://inert.invalid', request,
+    repository: { recoverSending: async () => undefined, ready: async () => [], cursor: async () => null } as never,
+    adapter: { applyBootstrap: async (domain: string) => { applied.push(domain); } } as never,
+    identity: async () => {
+      const captured = ownerId;
+      return { userId: captured, token: captured, assertCurrent: async () => {
+        if (ownerId !== captured) throw new Error('owner changed');
+      } };
+    }
+  });
+  await expect(coordinator.synchronize()).resolves.toEqual({ uploaded: 0, bootstrapped: 3, deltas: 0 });
+  expect(deviceReads).toBe(1);
+  expect(applied).toEqual(['accounts', 'categories', 'transactions']);
+  expect(sent).toEqual(Array(4).fill({ device: '80000000-0000-4000-8000-000000000001', authorization: 'Bearer user_first' }));
+  ownerId = 'user_second';
+  deviceId = '80000000-0000-4000-8000-000000000002';
+  await expect(coordinator.synchronize()).resolves.toEqual({ uploaded: 0, bootstrapped: 3, deltas: 0 });
+  expect(deviceReads).toBe(2);
+  expect(sent.slice(4)).toEqual(Array(4).fill({ device: '80000000-0000-4000-8000-000000000002', authorization: 'Bearer user_second' }));
+});
+
+it('does not send sync data when the owner changes during device resolution', async () => {
+  let switched = false;
+  const request = jest.fn(async (input: RequestInfo | URL) => {
+    if (!String(input).includes('/api/v1/me/devices')) throw new Error('Sync must not be sent');
+    switched = true;
+    return response({ items: [{ id: '80000000-0000-4000-8000-000000000001', current: true }], nextCursor: null });
+  });
+  const coordinator = createLiveCoreFinanceSync({
+    baseUrl: 'https://inert.invalid', request,
+    repository: { recoverSending: async () => undefined, ready: async () => [], cursor: async () => null } as never,
+    adapter: {} as never,
+    identity: async () => ({ userId: 'user_first', token: 'first-token', assertCurrent: async () => {
+      if (switched) throw new Error('owner changed');
+    } })
+  });
+  await expect(coordinator.synchronize()).rejects.toThrow('owner changed');
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
 it('does not send a queued upload if identity changes during fresh write authentication', async () => {
   let switched = false;
   registerLiveClerkBridge({ ...bridge,

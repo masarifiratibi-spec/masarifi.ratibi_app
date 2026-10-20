@@ -89,6 +89,7 @@ export function AssistantMessageBubble({
               ]}
             >
               {hidden ? '••••' : translateDynamic(block.key, block.values)
+                .replace(/\uFFFC/gu, '')
                 .split(/(\*\*[^*\r\n]+\*\*)/g)
                 .map((part, partIndex) => partIndex % 2 === 1 ? (
                   <Text key={partIndex} style={{fontWeight: '700', fontFamily: fontFamilyForLocale(currentLocale(), 700)}}>

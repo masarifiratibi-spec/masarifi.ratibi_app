@@ -438,29 +438,31 @@ export function createLiveLedgerService({
   return {
     listTransactions,
     async getHomeTodayActivity(filters, signal) {
-      const owner = await captureLiveReadClerkIdentity();
-      const activity = await readHomeTodayActivity({
-        filters, signal, listTransactions,
-        readSignedEffect: async (transaction) => {
-          const detail = await send('GET', `/api/v1/transactions/${transaction.id}`, detailSchema, undefined, undefined, signal);
-          if (detail.transaction.version !== transaction.version || detail.transaction.id !== transaction.id ||
-              detail.transaction.currency !== transaction.currencyCode || detail.postings.some((posting) => posting.clearingState !== 'confirmed'))
-            throw new CoreFinanceError('conflict');
-          if (detail.transaction.kind === 'opening') return null;
-          if (detail.transaction.kind === 'reversal' && detail.transaction.originalTransactionId) {
-            const original = await send('GET', `/api/v1/transactions/${detail.transaction.originalTransactionId}`, detailSchema, undefined, undefined, signal);
-            if (original.transaction.kind === 'transfer' || original.transaction.kind === 'opening') return null;
+      return measurePerformance('ledger.today', async () => {
+        const owner = await captureLiveReadClerkIdentity();
+        const activity = await readHomeTodayActivity({
+          filters, signal, listTransactions,
+          readSignedEffect: async (transaction) => {
+            const detail = await send('GET', `/api/v1/transactions/${transaction.id}`, detailSchema, undefined, undefined, signal);
+            if (detail.transaction.version !== transaction.version || detail.transaction.id !== transaction.id ||
+                detail.transaction.currency !== transaction.currencyCode || detail.postings.some((posting) => posting.clearingState !== 'confirmed'))
+              throw new CoreFinanceError('conflict');
+            if (detail.transaction.kind === 'opening') return null;
+            if (detail.transaction.kind === 'reversal' && detail.transaction.originalTransactionId) {
+              const original = await send('GET', `/api/v1/transactions/${detail.transaction.originalTransactionId}`, detailSchema, undefined, undefined, signal);
+              if (original.transaction.kind === 'transfer' || original.transaction.kind === 'opening') return null;
+            }
+            return detail.postings.filter((posting) => posting.clearingState === 'confirmed')
+              .reduce((total, posting) => {
+                const sum = safeMinorSum(total, posting.amountMinor);
+                if (sum === null) throw new CoreFinanceError('unknown');
+                return sum;
+              }, 0);
           }
-          return detail.postings.filter((posting) => posting.clearingState === 'confirmed')
-            .reduce((total, posting) => {
-              const sum = safeMinorSum(total, posting.amountMinor);
-              if (sum === null) throw new CoreFinanceError('unknown');
-              return sum;
-            }, 0);
-        }
+        });
+        await owner.assertCurrent();
+        return activity;
       });
-      await owner.assertCurrent();
-      return activity;
     },
     getTransaction: current,
     async getRemainingRefundableMinor(originalTransactionId, excludedRefundId) {
@@ -835,6 +837,7 @@ export function createLiveCoreFinanceSync({
       const owner = await (identity ?? captureLiveReadClerkIdentity)();
       await owner.assertCurrent();
       let writeOwner: Promise<Awaited<ReturnType<typeof captureLiveClerkIdentity>>> | undefined;
+      let syncDeviceId: Promise<string> | undefined;
       const requestToken = async (readOnly?: boolean) => {
         await owner.assertCurrent();
         if (!readOnly && !identity) writeOwner ??= captureLiveClerkIdentity();
@@ -857,7 +860,8 @@ export function createLiveCoreFinanceSync({
           async () => {
             const actor = writeOwner ? await writeOwner : owner;
             await owner.assertCurrent();
-            const deviceId = await currentDeviceId(baseUrl, request, actor.token);
+            syncDeviceId ??= currentDeviceId(baseUrl, request, actor.token);
+            const deviceId = await syncDeviceId;
             await owner.assertCurrent();
             return deviceId;
           },

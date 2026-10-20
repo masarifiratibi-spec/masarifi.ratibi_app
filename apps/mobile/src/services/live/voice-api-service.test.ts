@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { createLiveVoiceApiService as createService } from './voice-api-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadPendingVoiceSession, loadVoiceOperation, savePendingVoiceSession, saveVoiceOperation } from '@/storage/voice-pending-session';
@@ -64,6 +65,7 @@ const createLiveVoiceApiService = (
   options: Parameters<typeof createService>[0]
 ) => createService({ owner: async () => 'owner-a', ...options });
 beforeEach(async () => {
+  Constants.expoConfig!.android!.package = 'com.masarifi.mobile.dev';
   delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
   for (const db of mockDatabases.values()) db.native.close();
   mockDatabases.clear();
@@ -268,6 +270,27 @@ it.each(['ar', 'en'] as const)(
   }
 );
 
+it.each([undefined, 'false'])('defaults DEV to automatic capture without an opt-in flag (%s)', async (flag) => {
+  if (flag === undefined) delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
+  else process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = flag;
+  const service = createLiveVoiceApiService({ baseUrl: 'https://api.staging.masarifiratibi.com' });
+  expect(service.queueBatch).toEqual(expect.any(Function));
+  const operation = await service.queueBatch!({ uri: 'file:///default.m4a', contentType: 'audio/m4a',
+    durationMs: 2000, recordedAt: Date.now() }, 'ar', -180);
+  const stored = mockDatabases.get('owner-a')!.native.prepare(
+    'SELECT payload FROM voice_batch_operations WHERE id=?').get(operation);
+  expect(JSON.parse(stored.payload)).toMatchObject({ phase: 'captured', audioReference: 'file:///default.m4a' });
+});
+
+it('does not change the ordinary application default', () => {
+  const android = Constants.expoConfig!.android!;
+  const previous = android.package;
+  try {
+    android.package = 'com.masarifi.mobile';
+    expect(createLiveVoiceApiService({ baseUrl: 'https://api.staging.masarifiratibi.com' }).queueBatch).toBeUndefined();
+  } finally { android.package = previous; }
+});
+
 it('enables the deployment switch only for the Staging API, leaving other environments on their existing flow', () => {
   const previous = process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
   process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
@@ -282,8 +305,7 @@ it('enables the deployment switch only for the Staging API, leaving other enviro
   }
 });
 
-it('retains the same DEV recording and create identity while automatic admission is unavailable', async () => {
-  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+it('retains the same default DEV recording and create identity while automatic admission is unavailable', async () => {
   const keys: unknown[] = [];
   const request = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
     if (String(url).startsWith('file:')) return new Response(wav);
@@ -624,6 +646,7 @@ it('recovers only the current owner pending session and clears it after confirm'
 });
 
 it.each([false, true])('migrates Async legacy sessions only for manual recovery (automatic=%s)', async (automatic) => {
+  if (!automatic) Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
   const pending = { sessionId: id(1), sessionVersion: 1, recordedAt: 1234,
     timezoneOffsetMinutes: 0, createdAt: 1 };
   await savePendingVoiceSession('owner-a', pending);
@@ -653,7 +676,6 @@ it('preserves an unconfirmed legacy proposal without reopening review during aut
     request: successfulRequest(), sleep: async () => {}, now: () => 1 });
   await first.transcribe('file:///voice.wav', 'clear_en', 1_234, 'en');
   const previous = await loadVoiceOperation('owner-a');
-  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
   const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
     .mockResolvedValueOnce(json(recovery()));
   const automatic = createLiveVoiceApiService({ baseUrl, token: async () => 'owner', request });

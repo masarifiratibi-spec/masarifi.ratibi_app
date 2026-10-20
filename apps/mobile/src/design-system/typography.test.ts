@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { render } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 
 import {
   FONT_ASSETS,
@@ -12,6 +12,7 @@ import {
 } from './typography';
 
 jest.mock('expo-font', () => ({
+  ...jest.requireActual('expo-font'),
   useFonts: jest.fn()
 }));
 
@@ -80,7 +81,7 @@ describe('SPEC-002 typography', () => {
     expect(typographyStyles.amount.fontVariant).toEqual(['tabular-nums']);
   });
 
-  it('holds product text until local fonts are loaded', () => {
+  it('holds product text until local fonts are loaded', async () => {
     useFonts.mockReturnValue([false, null]);
 
     const screen = render(
@@ -94,6 +95,10 @@ describe('SPEC-002 typography', () => {
     expect(screen.queryByText('Visible product text')).toBeNull();
     expect(screen.getByTestId('font-loading')).toBeTruthy();
     expect(screen.getByRole('progressbar')).toBeTruthy();
+    expect(screen.getByRole('progressbar').props.accessibilityLabel).toContain(
+      'مصاريفي وراتبي'
+    );
+    await act(async () => {});
   });
 
   it('renders children after local fonts load', () => {

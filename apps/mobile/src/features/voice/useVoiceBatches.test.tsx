@@ -346,7 +346,7 @@ it('keeps the authoritative receipt without announcing a saved count', async () 
     await act(async () => {});
     await act(async () => view.batches.submit(capture));
     expect(
-      screen.queryByText(translateDynamic('voice.batch.added', { count: 2 }))
+      screen.queryByText(translateDynamic('voice.batch.saved', { count: 2 }))
     ).toBeNull();
     expect(view.batches.latest?.addedCount).toBe(2);
     expect(view.batches.latest?.transactionIds).toHaveLength(2);
@@ -382,7 +382,7 @@ it.each([
     render(<VoiceBatchStatus batches={statusFixture(latest)} />);
     expect(
       screen.queryByText(
-        translateDynamic('voice.batch.added', { count: latest.addedCount })
+        translateDynamic('voice.batch.saved', { count: latest.addedCount })
       )
     ).toBeNull();
   }
@@ -397,7 +397,7 @@ it('keeps a partial failure visible with its authoritative saved count', () => {
   };
   render(<VoiceBatchStatus batches={statusFixture(latest)} />);
   expect(
-    screen.queryByText(translateDynamic('voice.batch.added', { count: 1 }))
+    screen.queryByText(translateDynamic('voice.batch.saved', { count: 1 }))
   ).toBeNull();
   expect(
     screen.getByText(
@@ -436,7 +436,7 @@ it.each(['ar', 'en'] as const)(
     try {
       await waitFor(() => expect(view.batches.latest).toEqual(completed));
       expect(
-        screen.queryByText(translateDynamic('voice.batch.added', { count: 1 }))
+        screen.queryByText(translateDynamic('voice.batch.saved', { count: 1 }))
       ).toBeNull();
       expect(
         screen.queryByText(

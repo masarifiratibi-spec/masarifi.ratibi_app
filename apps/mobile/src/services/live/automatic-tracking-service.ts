@@ -756,31 +756,43 @@ export function createLiveAutomaticTrackingService({
         }
       );
     },
-    async saveKeywordRules(rules: readonly KeywordRule[]) {
+    async saveKeywordRules(rules, previousRules) {
       const persistedRules = await this.listKeywordRules();
       const persistedById = new Map(
         persistedRules.map((rule) => [rule.id, rule])
       );
       const nextIds = new Set(rules.map((rule) => rule.id));
+      const previousById = new Map(
+        previousRules.map((rule) => [rule.id, rule])
+      );
+      const sameValues = (left: KeywordRule, right: KeywordRule) =>
+        left.value === right.value &&
+        left.group === right.group &&
+        left.language === right.language &&
+        left.enabled === right.enabled;
+      const removedRules = previousRules.filter(
+        (rule) => !nextIds.has(rule.id)
+      );
       const changedRules = rules.filter((rule) => {
-        const persisted = persistedById.get(rule.id);
-        return (
-          !persisted ||
-          persisted.value !== rule.value ||
-          persisted.group !== rule.group ||
-          persisted.language !== rule.language ||
-          persisted.enabled !== rule.enabled
-        );
+        const previous = previousById.get(rule.id);
+        return !previous || !sameValues(previous, rule);
       });
+      // A stale editor can only mutate rows it actually displayed, unchanged remotely.
+      for (const rule of [...removedRules, ...changedRules]) {
+        const previous = previousById.get(rule.id);
+        const persisted = persistedById.get(rule.id);
+        if (
+          previous ? !persisted || !sameValues(previous, persisted) : persisted
+        )
+          throw new TrackingError('conflict');
+      }
       await Promise.all([
-        ...persistedRules
-          .filter((rule) => !nextIds.has(rule.id))
-          .map((rule) =>
-            send(
-              'DELETE',
-              `/api/v1/tracking/keyword-rules/${encodeURIComponent(rule.id)}?expectedVersion=${String(keywordVersions.get(rule.id))}`
-            )
-          ),
+        ...removedRules.map((rule) =>
+          send(
+            'DELETE',
+            `/api/v1/tracking/keyword-rules/${encodeURIComponent(rule.id)}?expectedVersion=${String(keywordVersions.get(rule.id))}`
+          )
+        ),
         ...changedRules.map((rule) => {
           const persisted = persistedById.get(rule.id);
           return send(

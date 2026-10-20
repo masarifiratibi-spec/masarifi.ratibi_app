@@ -18,6 +18,71 @@ const filters = {
   periodEnd: day.periodEnd
 };
 
+it('reads daily reversal effects four at a time and keeps transaction order when replies arrive out of order', async () => {
+  const transactions = Array.from({ length: 8 }, (_, index) => makeTransaction(index + 1, {
+    type: 'reversal', occurredAt: now - index, amountMinor: 100,
+    status: 'posted', syncStatus: 'synced', reviewStatus: 'none'
+  }));
+  const releases: (() => void)[] = [];
+  let releaseImmediately = false;
+  let active = 0;
+  let maximumActive = 0;
+  const pending = readHomeTodayActivity({
+    filters,
+    listTransactions: async () => ({ items: transactions, nextCursor: null }),
+    readSignedEffect: async () => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      if (!releaseImmediately) await new Promise<void>(resolve => releases.push(resolve));
+      active -= 1;
+      return 100;
+    }
+  });
+  try {
+    for (let turn = 0; turn < 20; turn++) await Promise.resolve();
+    expect(releases).toHaveLength(4);
+    releases.slice(0, 4).reverse().forEach(release => release());
+    for (let turn = 0; turn < 20; turn++) await Promise.resolve();
+    expect(releases).toHaveLength(8);
+    releases.slice(4).reverse().forEach(release => release());
+    const activity = await pending;
+    expect(maximumActive).toBe(4);
+    expect(activity.map(item => item.transaction.id)).toEqual(transactions.map(item => item.id));
+    expect(activity.every(item => item.group === 'income' && item.sign === 'positive')).toBe(true);
+  } finally {
+    releaseImmediately = true;
+    releases.forEach(release => release());
+    await pending;
+  }
+});
+
+it.each(['unsafe-effect', 'failed-detail', 'abort'])(
+  'does not publish partial daily activity or start another batch after %s', async scenario => {
+    const controller = new AbortController();
+    let detailReads = 0;
+    const transactions = Array.from({ length: 8 }, (_, index) => makeTransaction(index + 1, {
+      type: 'reversal', occurredAt: now - index, amountMinor: 100,
+      status: 'posted', syncStatus: 'synced', reviewStatus: 'none'
+    }));
+    const pending = readHomeTodayActivity({
+      filters, signal: controller.signal,
+      listTransactions: async () => ({ items: transactions, nextCursor: null }),
+      readSignedEffect: async () => {
+        detailReads += 1;
+        if (detailReads === 1) {
+          if (scenario === 'failed-detail') throw new Error('Detail unavailable');
+          if (scenario === 'abort') controller.abort();
+          if (scenario === 'unsafe-effect') return 99;
+        }
+        return 100;
+      }
+    });
+    if (scenario === 'failed-detail') await expect(pending).rejects.toThrow('Detail unavailable');
+    else await expect(pending).rejects.toMatchObject({ code: scenario === 'abort' ? 'offline' : 'unknown' });
+    expect(detailReads).toBeLessThanOrEqual(4);
+  }
+);
+
 it.each([
   [
     'Asia/Riyadh',

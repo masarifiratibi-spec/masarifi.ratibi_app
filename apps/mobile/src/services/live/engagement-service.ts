@@ -193,7 +193,9 @@ const preferenceApiSchema = z
     channel: z.enum(['in_app', 'push', 'email']),
     eventType: z.string().min(1).max(96),
     enabled: z.boolean(),
-    quietHours: quietHoursApiSchema,
+    quietHours: quietHoursApiSchema.or(
+      z.object({}).strict().transform(() => createNotificationPreferences(0).quietHours)
+    ),
     version: z.number().int().positive(),
   })
   .strict();

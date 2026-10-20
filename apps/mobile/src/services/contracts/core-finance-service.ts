@@ -1,5 +1,6 @@
 import type {
   Account,
+  AccountBalanceProjection,
   AccountInput,
   Category,
   CategoryInput,
@@ -44,12 +45,7 @@ export interface HomeTodayActivity {
   sign: 'negative' | 'positive';
 }
 
-export interface AccountBalanceProjection {
-  accountId: string;
-  balanceMinor: number;
-  currencyCode: string;
-  asOf?: number | null;
-}
+export type { AccountBalanceProjection } from '@/domain/core-finance';
 
 export interface MutationResult<T> {
   value: T;
@@ -110,7 +106,8 @@ export interface CoreFinanceService {
   ): Promise<Account[]>;
   listAccountBalances(
     includeArchived?: boolean,
-    context?: import('./read-context').ReadContext
+    context?: import('./read-context').ReadContext,
+    accountIds?: readonly string[]
   ): Promise<AccountBalanceProjection[]>;
   getAccount(id: string): Promise<Account>;
   createAccount(input: AccountInput): Promise<MutationResult<Account>>;

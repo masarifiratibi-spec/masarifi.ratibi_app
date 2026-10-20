@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { router } from 'expo-router';
 import {
   AppState,
@@ -49,11 +55,24 @@ export function TrackingStatusScreen() {
   const [updating, setUpdating] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
   const [keywordRules, setKeywordRules] = useState<KeywordRule[]>([]);
+  const [keywordLoadState, setKeywordLoadState] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading');
   const awaitingNotificationAccess = useRef(false);
 
-  useEffect(() => {
-    void automaticTrackingService.listKeywordRules().then(setKeywordRules);
+  const loadKeywords = useCallback(async () => {
+    setKeywordLoadState('loading');
+    try {
+      setKeywordRules(await automaticTrackingService.listKeywordRules());
+      setKeywordLoadState('ready');
+    } catch {
+      setKeywordLoadState('error');
+    }
   }, []);
+
+  useEffect(() => {
+    void loadKeywords();
+  }, [loadKeywords]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -74,23 +93,28 @@ export function TrackingStatusScreen() {
           await resyncAutomaticTracking();
           await refetchTrackingStatus();
         })().catch(() => setActionFailed(true));
-        void automaticTrackingService.listKeywordRules().then(setKeywordRules);
+        void loadKeywords();
       }
     });
     return () => subscription.remove();
-  }, [refetchTrackingStatus]);
+  }, [refetchTrackingStatus, loadKeywords]);
 
   async function handleKeywordsChange(newRules: KeywordRule[]) {
+    if (updating || keywordLoadState !== 'ready') return;
     const previousRules = keywordRules;
     let persisted = false;
     setActionFailed(false);
     setUpdating(true);
     setKeywordRules(newRules);
     try {
-      await trackingKeywordConfiguration.save(newRules, (rules) => {
-        setKeywordRules(rules);
-        persisted = true;
-      });
+      await trackingKeywordConfiguration.save(
+        newRules,
+        previousRules,
+        (rules) => {
+          setKeywordRules(rules);
+          persisted = true;
+        }
+      );
     } catch {
       if (!persisted) setKeywordRules(previousRules);
       setActionFailed(true);
@@ -571,12 +595,33 @@ export function TrackingStatusScreen() {
           testID="tracking-keywords-card"
           style={[styles.card, styles.keywordCard]}
         >
-          <TrackingKeywordChips
-            rules={keywordRules}
-            onChange={(rules) => void handleKeywordsChange(rules)}
-            onRestore={() => void restoreKeywords()}
-            disabled={updating || permissionUnavailable}
-          />
+          {keywordLoadState === 'ready' ? (
+            <TrackingKeywordChips
+              rules={keywordRules}
+              onChange={(rules) => void handleKeywordsChange(rules)}
+              onRestore={() => void restoreKeywords()}
+              disabled={updating || permissionUnavailable}
+            />
+          ) : (
+            <StateView
+              state={keywordLoadState === 'loading' ? 'loading' : 'error'}
+              title={translate(
+                keywordLoadState === 'loading'
+                  ? 'tracking.state.loading'
+                  : 'tracking.state.error'
+              )}
+              actionLabel={
+                keywordLoadState === 'error'
+                  ? translate('coreFinance.action.retry')
+                  : undefined
+              }
+              onAction={
+                keywordLoadState === 'error'
+                  ? () => void loadKeywords()
+                  : undefined
+              }
+            />
+          )}
         </SurfaceCard>
 
         {/* Error notification if action fails */}

@@ -2,6 +2,7 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 
 type VoiceDiagnosticStage =
+  | 'transport'
   | 'capture-start'
   | 'permission'
   | 'native-start'
@@ -31,6 +32,8 @@ interface VoiceDiagnosticDetails {
   domainCode?: 'VOICE_CANARY_RESTRICTED' | 'VOICE_AUTOMATIC_UNAVAILABLE';
 }
 const phases = new Set([
+  'automatic',
+  'legacy',
   'active',
   'inactive',
   'background',

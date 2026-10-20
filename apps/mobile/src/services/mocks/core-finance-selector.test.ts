@@ -81,7 +81,7 @@ it('shares concurrent account reads without retaining a stale result', async () 
   expect(request).toHaveBeenCalledTimes(2);
 });
 
-it('does not request unrelated account balances for a scoped Home summary', async () => {
+it.each(['full summary', 'balance header'] as const)('does not request unrelated account balances for a scoped Home %s', async (kind) => {
   const other = { ...account, id: '20000000-0000-4000-8000-000000000002' };
   const balanceReads: string[] = [];
   const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(async (url) => {
@@ -98,7 +98,13 @@ it('does not request unrelated account balances for a scoped Home summary', asyn
     return response({ items: [], nextCursor: null, ledgerVersion: 1, requestId: 'transactions' });
   });
   const live = createLiveCoreFinanceService({ baseUrl: 'https://inert.invalid', request });
-  expect((await live.getHomeSummary('SAR', { ...emptyTransactionFilters, accountIds: [account.id] })).totalBalanceMinor).toBe(500);
+  if (kind === 'full summary')
+    expect((await live.getHomeSummary('SAR', { ...emptyTransactionFilters, accountIds: [account.id] })).totalBalanceMinor).toBe(500);
+  else {
+    const values = await live.listAccountBalances(false, undefined, [account.id]);
+    expect(values).toHaveLength(1);
+    expect(values[0]?.balanceMinor).toBe(500);
+  }
   expect(balanceReads).toHaveLength(1);
   expect(balanceReads[0]).toContain(account.id);
 });

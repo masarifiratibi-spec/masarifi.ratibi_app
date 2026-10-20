@@ -23,23 +23,19 @@ export function VoiceBatchStatus({
       ['skipped', 'execution_failed', 'cancelled'].includes(event.status)
     ).length ?? 0;
   const saved = finished && !result.analysis && result.addedCount > 0;
+  const partial = saved && (notSaved > 0 || result.status !== 'completed');
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
-      {saved ? (
+      {partial ? (
         <StyledText>
           {notSaved > 0
             ? translateDynamic('voice.batch.partial', {
                 saved: result.addedCount,
                 failed: notSaved
               })
-            : translateDynamic(
-                result.status === 'failed' || result.status === 'cancelled'
-                  ? 'voice.batch.partialUnknown'
-                  : 'voice.batch.saved',
-                {
-                  count: result.addedCount
-                }
-              )}
+            : translateDynamic('voice.batch.partialUnknown', {
+                count: result.addedCount
+              })}
         </StyledText>
       ) : null}
       {showProgress && batches.processing ? (

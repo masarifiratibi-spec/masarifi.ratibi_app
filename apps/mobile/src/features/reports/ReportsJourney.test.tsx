@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
-import { act, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { notifyManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
@@ -27,6 +27,30 @@ afterAll(() => {
   notifyManager.setNotifyFunction((callback) => callback());
 });
 
+test.each(['ar', 'en'] as const)(
+  'keeps trend dates aligned with the chronological SVG axis in %s',
+  async (locale) => {
+    changeLocale(locale);
+    useReportsViewState.setState({
+      followToday: false,
+      anchorDate: '2026-08-09',
+      selectedKind: 'monthly',
+      scrollOffset: 0
+    });
+    const view = renderWithProviders(<ReportsScreen />);
+    const axis = await view.findByTestId('reports-trend-dates');
+    const format = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
+      day: 'numeric', month: 'short', timeZone: 'Asia/Riyadh'
+    });
+    expect(within(axis).getAllByText(/.+/).map((node) => node.props.children))
+      .toEqual([
+        format.format(Date.UTC(2026, 7, 1, 12)),
+        format.format(Date.UTC(2026, 7, 9, 12))
+      ]);
+    expect(axis).toHaveStyle({ direction: 'ltr', flexDirection: 'row' });
+  }
+);
+
 test('shows a retryable trend failure while the financial report remains usable', async () => {
   changeLocale('en');
   const spy = jest
@@ -48,7 +72,7 @@ test('shows a retryable trend failure while the financial report remains usable'
 
 test('2026-08-23 approved analytics screen exposes the reference hierarchy in Arabic', async () => {
   changeLocale('ar');
-  useReportsViewState.setState({
+  useReportsViewState.setState({ followToday: false,
     anchorDate: '2026-08-09',
     selectedKind: 'monthly',
     scrollOffset: 0
@@ -93,7 +117,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
 
 test('report AI action opens the assistant with the current report context', async () => {
   changeLocale('ar');
-  useReportsViewState.setState({ anchorDate: '2026-08-09' });
+  useReportsViewState.setState({ followToday: false, anchorDate: '2026-08-09' });
   const screen = renderWithProviders(<ReportsScreen />);
 
   fireEvent.press(
@@ -139,7 +163,7 @@ test('report analysis preserves the selected account and the report period', asy
   const accounts = await coreFinanceService.listAccounts(false);
   const account = accounts.find(candidate => candidate.status === 'active')!;
   useCoreFinanceViewState.setState({selectedAccountId: account.id});
-  useReportsViewState.setState({anchorDate: '2026-08-09'});
+  useReportsViewState.setState({ followToday: false,anchorDate: '2026-08-09'});
   try {
     const view = renderWithProviders(<ReportsScreen />);
     await view.findByText(account.name);
@@ -207,7 +231,7 @@ test('approved analytics screen exposes the equivalent hierarchy in English', as
 
 test('budget card shows the aggregate remaining value when the month has budgets', async () => {
   changeLocale('en');
-  useReportsViewState.setState({
+  useReportsViewState.setState({ followToday: false,
     anchorDate: '2033-08-09',
     selectedKind: 'monthly',
     scrollOffset: 0

@@ -1425,8 +1425,17 @@ export class ReportsRepository {
     const hasPlanning = planning && Object.values(planning).some((rows) => rows.length > 0);
     const hasData =
       input.summary.summaries.length > 0 || breakdowns.length > 0 || detailedRows.length > 0;
+    const minorUnit = (await client.query<{ minor_unit: number }>(
+      'select minor_unit from public.currencies where code=$1', [input.currency],
+    )).rows[0]?.minor_unit;
+    if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
+      throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
     return {
-      summary: { summaries: input.summary.summaries, ...(planning ? { planning } : {}) },
+      summary: {
+        summaries: input.summary.summaries,
+        ...(planning ? { planning } : {}),
+        currencyMinorUnits: { [input.currency]: minorUnit },
+      },
       breakdowns,
       detailedRows,
       dataState: hasData || hasPlanning ? 'complete' : 'empty',

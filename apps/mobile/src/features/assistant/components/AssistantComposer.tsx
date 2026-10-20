@@ -148,7 +148,10 @@ const styles = StyleSheet.create({
   input: {
     color: colorTokens.raw["10231F"],
     fontSize: 14.5,
-    maxHeight: 100
+    maxHeight: 100,
+    minHeight: 48,
+    paddingVertical: 0,
+    textAlignVertical: 'top'
   },
   sendButton: {
     alignItems: 'center',

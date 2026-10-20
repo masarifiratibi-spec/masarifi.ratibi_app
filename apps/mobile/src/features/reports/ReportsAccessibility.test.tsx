@@ -7,7 +7,7 @@ import { renderWithProviders } from '@/test-utils/render';
 import { ReportsScreen } from './ReportsScreen';
 
 beforeEach(() => {
-  useReportsViewState.setState({
+  useReportsViewState.setState({ followToday: false,
     anchorDate: '2026-08-08',
     selectedKind: 'monthly'
   });

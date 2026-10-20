@@ -18,6 +18,9 @@ import {
 } from './assistant-queries';
 
 let mockLiveService: ReturnType<typeof createLiveAssistantApiService>;
+type ConversationData = Awaited<
+  ReturnType<typeof mockLiveService.getConversation>
+>;
 jest.mock('@/services/assistant-service', () => ({
   get assistantService() {
     return mockLiveService;
@@ -192,6 +195,10 @@ async function recoveryHarness(
     calls,
     journal,
     tick,
+    showPending: () => {
+      hasUser = true;
+      status = 'processing';
+    },
     setAuthStalled: (value: boolean) => {
       authStalled = value;
     },
@@ -214,6 +221,62 @@ beforeEach(() => jest.useFakeTimers());
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+});
+
+it('gives a fresh pending question its own polling window in a conversation left open over five minutes', async () => {
+  const h = await recoveryHarness('empty', true);
+  await h.tick(6 * 60000);
+  h.showPending();
+  await act(async () => {
+    await h.client.invalidateQueries({
+      queryKey: assistantKeys.conversation(conversationId)
+    });
+  });
+  expect(
+    h.client.getQueryData<ConversationData>(
+      assistantKeys.conversation(conversationId)
+    )?.pendingMessageIds
+  ).toEqual([messageId]);
+  h.setStatus('completed');
+  await h.tick(2100);
+  expect(
+    h.client.getQueryData<ConversationData>(
+      assistantKeys.conversation(conversationId)
+    )?.responses.items[0]?.blocks[0].key
+  ).toBe('Spend 13 SAR');
+  expect(h.calls.every((call) => call.method === 'GET')).toBe(true);
+  h.hook.unmount();
+  h.client.clear();
+});
+
+it('starts a newly accepted operation at the short polling interval despite previous query updates', async () => {
+  const h = await recoveryHarness('empty');
+  for (let i = 0; i < 6; i += 1)
+    h.client.setQueryData(assistantKeys.questionOperation(), null);
+  const operation = await h.journal.reserve(
+    'owner-a',
+    'question',
+    { conversationId, question: 'Spend?' },
+    'fresh-question-operation'
+  );
+  await h.journal.update('owner-a', 'question', operation.operationId, {
+    phase: 'accepted',
+    messageId
+  });
+  h.showPending();
+  await act(async () => {
+    await h.client.invalidateQueries({
+      queryKey: assistantKeys.questionOperation()
+    });
+  });
+  await h.tick(20);
+  expect(h.hook.result.current.data?.phase).toBe('accepted');
+  h.setStatus('completed');
+  await h.tick(2100);
+  expect(h.hook.result.current.data?.phase).toBe('completed');
+  expect(h.calls.every((call) => call.method === 'GET')).toBe(true);
+  h.hook.unmount();
+  h.client.clear();
 });
 
 it('releases a pre-reserve authentication timeout so reconnecting can send a new question once', async () => {

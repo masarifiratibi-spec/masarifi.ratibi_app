@@ -85,6 +85,20 @@ it('opens the creation form directly when the selected month is empty', async ()
   });
 });
 
+it('saves a limit entered for the displayed default category without requiring the picker', async () => {
+  changeLocale('en');
+  const form = renderWithProviders(<BudgetForm initialPeriodKey="2042-09" />);
+  fireEvent.changeText(await form.findByLabelText('Budget name'), 'Typed category');
+  fireEvent.changeText(form.getByLabelText('Expense limit'), '1000');
+  expect(form.getByLabelText(/Category Housing/)).toBeTruthy();
+  fireEvent.changeText(form.getByLabelText('Category limit'), '125');
+  fireEvent.press(form.getByText('Save'));
+  expect(await form.findByText('Saved')).toBeTruthy();
+  expect((await financialPlanningService.getBudget('2042-09'))?.categories).toEqual([
+    expect.objectContaining({ categoryId: 'housing', limitMinor: 12500 })
+  ]);
+});
+
 it('assigns a category without requiring an optional category limit', async () => {
   changeLocale('en');
   const form = renderWithProviders(<BudgetForm initialPeriodKey="2042-05" />);

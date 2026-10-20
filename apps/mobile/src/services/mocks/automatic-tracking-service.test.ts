@@ -105,7 +105,7 @@ describe('mock automatic tracking service', () => {
       });
       await expect(service.clearHistory()).resolves.toMatchObject({ value: 0 });
       await expect(service.purgeExpiredSourceText()).resolves.toBe(0);
-      await expect(service.saveKeywordRules([])).rejects.toMatchObject({
+      await expect(service.saveKeywordRules([], [])).rejects.toMatchObject({
         code: 'permission_required'
       });
       await expect(service.listHistory()).resolves.toMatchObject({ total: 0 });

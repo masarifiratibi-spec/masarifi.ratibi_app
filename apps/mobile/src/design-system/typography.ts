@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, type ReactNode } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import mediumSymbols from 'expo-symbols/androidWeights/medium';
 import regularSymbols from 'expo-symbols/androidWeights/regular';
 
 import type { Locale } from '@/domain/foundation';
 import { typography } from './tokens';
+import { StartupLoading } from './components/feedback/StartupLoading';
 import { recordPerformanceTiming } from '@/services/platform/performance-timing';
 
 export const FONT_ASSETS = {
@@ -77,17 +77,7 @@ export function FontGate({ children }: { children: ReactNode }) {
   }, [loaded, error]);
 
   if (!loaded && !error) {
-    return React.createElement(
-      View,
-      {
-        testID: 'font-loading',
-        style: { flex: 1, alignItems: 'center', justifyContent: 'center' }
-      },
-      React.createElement(ActivityIndicator, {
-        accessible: true,
-        accessibilityRole: 'progressbar'
-      })
-    );
+    return React.createElement(StartupLoading, { testID: 'font-loading' });
   }
 
   return React.createElement(React.Fragment, null, children);

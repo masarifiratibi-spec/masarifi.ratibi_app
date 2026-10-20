@@ -1,7 +1,11 @@
-import { QueryClient, QueryObserver } from '@tanstack/react-query';
+import React from 'react';
+import { act, renderHook } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
+import { useAppShellStore } from '@/state/app-shell';
 import {
   financialPlanningKeys,
-  invalidatePlanningScopes
+  invalidatePlanningScopes,
+  usePlanningMutation
 } from './financial-planning-queries';
 
 it('invalidates receipt review after linking or undoing a salary receipt', async () => {
@@ -11,6 +15,38 @@ it('invalidates receipt review after linking or undoing a salary receipt', async
   await invalidatePlanningScopes(client, ['planning.salary.overview']);
   expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   client.clear();
+});
+
+it.each([false, true])('checks current financial state after an uncertain mutation without resubmitting; owner changed=%s', async (ownerChanged) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } });
+  const previousSession = useAppShellStore.getState().session;
+  const session = { status: 'authenticated' as const, userId: 'owner-a', method: 'phone' as const, issuedAt: 1, expiresAt: 9999999999999, restoration: 'restored' as const };
+  useAppShellStore.setState({ session });
+  const balanceKey = ['core-finance', 'account-balances', false];
+  let serverBalance = 100000;
+  let writes = 0;
+  const options = { queryKey: balanceKey, queryFn: async () => serverBalance };
+  await client.fetchQuery(options);
+  const observer = new QueryObserver(client, options);
+  const unsubscribe = observer.subscribe(() => undefined);
+  const hook = renderHook(() => usePlanningMutation(async () => {
+    writes++;
+    serverBalance = 90000;
+    if (ownerChanged) useAppShellStore.setState({ session: { ...session, userId: 'owner-b' } });
+    throw new Error('Response lost after commit');
+  }), { wrapper: ({ children }) => React.createElement(QueryClientProvider, { client }, children) });
+  try {
+    await act(async () => {
+      await expect(hook.result.current.mutateAsync(undefined)).rejects.toThrow('Response lost after commit');
+    });
+    expect(writes).toBe(1);
+    expect(client.getQueryData(balanceKey)).toBe(ownerChanged ? 100000 : 90000);
+  } finally {
+    hook.unmount();
+    unsubscribe();
+    client.clear();
+    useAppShellStore.setState({ session: previousSession });
+  }
 });
 
 it('replaces an initial pre-payment read instead of accepting its late result', async () => {

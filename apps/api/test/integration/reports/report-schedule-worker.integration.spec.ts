@@ -56,6 +56,10 @@ describeLiveDatabase('report schedule worker', () => {
     );
     const advanced = await repository.getSchedule(principal, schedule.id, 'request');
     expect(attempts.rows[0]?.count).toBe('1');
+    const captured = await pool.query<{ snapshot: { summary: { currencyMinorUnits: Record<string, number> } } }>(
+      'select snapshot from private.report_output_attempts where schedule_id=$1', [schedule.id],
+    );
+    expect(captured.rows[0]?.snapshot.summary.currencyMinorUnits).toEqual({ SAR: 2 });
     expect(advanced).toMatchObject({
       version: 2,
       lastRunAt: scheduledFor.toISOString(),

@@ -34,7 +34,7 @@ ENV NODE_ENV=production
 COPY --from=build --chown=65532:65532 /workspace/apps/api/dist ./dist/src
 COPY --from=build --chown=65532:65532 /workspace/apps/api/node_modules ./node_modules
 COPY --from=build --chown=65532:65532 /workspace/packages/transaction-parser /packages/transaction-parser
-COPY --chown=65532:65532 apps/mobile/assets/fonts/NotoSansArabicUI-Regular.ttf ./assets/fonts/NotoSansArabicUI-Regular.ttf
+COPY --chown=65532:65532 apps/mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf ./assets/fonts/IBMPlexSansArabic-Regular.ttf
 COPY --chown=65532:65532 supabase/migrations ./supabase/migrations
 COPY --chown=65532:65532 supabase/migration-checksums.sha256 ./supabase/migration-checksums.sha256
 USER 65532:65532

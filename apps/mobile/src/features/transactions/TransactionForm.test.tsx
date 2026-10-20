@@ -91,12 +91,14 @@ afterEach(() => {
 });
 
 it('keeps restored native fields mounted but blocks edits and actions while refocus verifies the draft', async () => {
-  jest.mocked(coreFinanceService.loadDraft).mockResolvedValue(requiredDraft());
+  const restoredDraft = Promise.resolve(requiredDraft());
+  jest.mocked(coreFinanceService.loadDraft).mockReturnValue(restoredDraft);
   renderWithQueryData(<TransactionForm />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
     [coreFinanceKeys.categories(false), fixtureCategories]
   ]);
-  const amount = await screen.findByLabelText('Amount');
+  await act(async () => { await restoredDraft; });
+  const amount = screen.getByLabelText('Amount');
   await waitFor(() => expect(amount).toHaveProp('editable', true));
   let restore!: (value: ReturnType<typeof requiredDraft>) => void;
   jest.mocked(coreFinanceService.loadDraft).mockReturnValueOnce(new Promise(resolve => { restore = resolve; }));

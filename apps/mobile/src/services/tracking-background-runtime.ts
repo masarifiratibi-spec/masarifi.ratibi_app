@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { AppRegistry, Platform } from 'react-native';
 import { registerTrackingNotificationTask } from './platform/tracking-notification-task';
 import type { TokenCache } from '@clerk/expo';
@@ -182,7 +183,14 @@ export async function configureTrackingBackground(
       await trackingNativeRuntime.suspendTrackingOwner();
       return;
     }
-    await registerTrackingNotificationTask('masarifi-tracking-confirmation-v2');
+    // The independent DEV package has local notifications but no FCM client.
+    // Its bank-message intake and follow-ups are scheduled by native WorkManager.
+    const localOnlyDev =
+      Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+      resolveClientRuntime().mode === 'live' &&
+      resolveClientRuntime().apiUrl === 'https://api.staging.masarifiratibi.com';
+    if (!localOnlyDev)
+      await registerTrackingNotificationTask('masarifi-tracking-confirmation-v2');
   });
 }
 export async function disableTrackingBackground(
