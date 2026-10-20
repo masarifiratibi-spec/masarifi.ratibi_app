@@ -61,6 +61,36 @@ beforeEach(async () => {
   });
 });
 
+test.each(['en', 'ar'] as const)(
+  'keeps the compact deletion entry confirmed and non-destructive until accepted (%s)',
+  async (locale) => {
+    changeLocale(locale);
+    const confirmation = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation(() => undefined);
+    renderWithProviders(<AccountDeletionPanel presentation="link" />);
+    const button = await screen.findByRole('button', {
+      name: t('appShell.security.deleteAccount')
+    });
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(button).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(
+      screen.queryByText(t('appShell.security.deleteAccount.description'))
+    ).toBeNull();
+    expect(
+      screen.queryByText(t('settings.deletion.retentionNotice'))
+    ).toBeNull();
+    fireEvent.press(button);
+    expect(confirmation).toHaveBeenCalledWith(
+      t('appShell.security.deleteAccount'),
+      t('appShell.security.deleteAccount.confirmation'),
+      expect.any(Array)
+    );
+    expect(mockRequest).not.toHaveBeenCalled();
+    confirmation.mockRestore();
+  }
+);
+
 test('shows the real cooling-off deadline and offers confirmed cancellation without claiming deletion complete', async () => {
   mockRequest.mockResolvedValueOnce(deletion).mockResolvedValueOnce(null);
   renderWithProviders(<AccountDeletionPanel />);

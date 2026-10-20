@@ -1,42 +1,124 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { fileURLToPath, URL } from 'node:url';
+import { createServer } from 'node:net';
+import { fileURLToPath, pathToFileURL, URL } from 'node:url';
 import { validateClientBuildEnvironment } from './check-client-runtime.mjs';
 
 const require = createRequire(import.meta.url);
 const mobileRoot = fileURLToPath(new URL('..', import.meta.url));
-const command = process.argv[2] ?? 'start';
-if (!['start', 'prebuild', 'config'].includes(command)) throw new Error('Unsupported development command');
-let publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-if (!publishableKey) {
-  const publicConfig = readFileSync(new URL('../.env.staging-development.local', import.meta.url), 'utf8');
-  publishableKey = publicConfig.match(/^EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=(pk_live_[A-Za-z0-9_-]+)\s*$/m)?.[1];
+export function createDevelopmentLaunch(
+  command = 'start',
+  extraArgs = [],
+  environment = process.env
+) {
+  if (!['start', 'prebuild', 'config'].includes(command))
+    throw new Error('Unsupported development command');
+  if (command === 'start') {
+    extraArgs = extraArgs.filter((arg, index, args) => {
+      if (arg === '--no-dev' || arg.startsWith('--no-dev='))
+        throw new Error('This launcher requires DEV enabled');
+      if (index > 0 && ['--port', '-p'].includes(args[index - 1])) return false;
+      if (arg === '--port' || arg === '-p') {
+        if (args[index + 1] !== '8081')
+          throw new Error('DEV Metro must use port 8081');
+        return false;
+      }
+      if (arg.startsWith('--port=') || arg.startsWith('-p')) {
+        if (!['--port=8081', '-p8081'].includes(arg))
+          throw new Error('DEV Metro must use port 8081');
+        return false;
+      }
+      return true;
+    });
+  }
+  let publishableKey = environment.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!publishableKey) {
+    const publicConfig = readFileSync(
+      new URL('../.env.staging-development.local', import.meta.url),
+      'utf8'
+    );
+    publishableKey = publicConfig.match(
+      /^EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=(pk_live_[A-Za-z0-9_-]+)\s*$/m
+    )?.[1];
+  }
+  const env = {
+    ...environment,
+    EAS_BUILD_PROFILE: 'development-staging',
+    MASARIFI_APP_VARIANT: 'staging-development',
+    EXPO_PUBLIC_APP_VARIANT: 'staging-development',
+    EXPO_PUBLIC_CLIENT_MODE: 'live',
+    EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
+    EXPO_PUBLIC_APP_LOCK_ENABLED: 'false',
+    EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING: 'true',
+    EXPO_PUBLIC_VOICE_TIMING_ENABLED: 'true',
+    EXPO_PUBLIC_VOICE_DIAGNOSTICS_ENABLED: 'true',
+    EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED: 'true',
+    RCT_METRO_PORT: '8081'
+  };
+  // USB reverse uses IPv4; Windows otherwise resolves the localhost listener to IPv6.
+  if (process.platform === 'win32') {
+    env.NODE_OPTIONS = [env.NODE_OPTIONS, '--dns-result-order=ipv4first']
+      .filter(Boolean)
+      .join(' ');
+  }
+  validateClientBuildEnvironment({ ...env, NODE_ENV: 'production' });
+  const args =
+    command === 'start'
+      ? ['start', '--dev-client', '--localhost', '--port', '8081']
+      : command === 'prebuild'
+        ? ['prebuild', '--platform', 'android', '--no-install']
+        : ['config', '--type', 'public', '--json'];
+  return { args: [...args, ...extraArgs], env, cwd: mobileRoot };
 }
-const env = {
-  ...process.env,
-  EAS_BUILD_PROFILE: 'development-staging',
-  MASARIFI_APP_VARIANT: 'staging-development',
-  EXPO_PUBLIC_CLIENT_MODE: 'live',
-  EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
-  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
-  EXPO_PUBLIC_APP_LOCK_ENABLED: 'false',
-  EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING: 'true',
-  EXPO_PUBLIC_VOICE_TIMING_ENABLED: 'true',
-  EXPO_PUBLIC_VOICE_DIAGNOSTICS_ENABLED: 'true',
-  EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED: 'true'
-};
-// USB reverse uses IPv4; Windows otherwise resolves the localhost listener to IPv6.
-if (process.platform === 'win32') {
-  env.NODE_OPTIONS = [env.NODE_OPTIONS, '--dns-result-order=ipv4first'].filter(Boolean).join(' ');
+
+export async function assertDevelopmentPortAvailable() {
+  for (const host of ['127.0.0.1', '::1']) {
+    const server = createServer();
+    await new Promise((resolve, reject) => {
+      server.once('error', (error) => {
+        if (host === '::1' && error.code === 'EAFNOSUPPORT') return resolve();
+        reject(
+          new Error(
+            `DEV Metro port 8081 is in use or unavailable (${error.code}); stop the conflicting server explicitly.`
+          )
+        );
+      });
+      server.listen({ port: 8081, host, exclusive: true }, () =>
+        server.close((error) => (error ? reject(error) : resolve()))
+      );
+    });
+  }
 }
-validateClientBuildEnvironment({ ...env, NODE_ENV: 'production' });
-const args = command === 'start'
-  ? ['start', '--dev-client', '--localhost', '--port', '8081']
-  : command === 'prebuild' ? ['prebuild', '--platform', 'android', '--no-install']
-    : ['config', '--type', 'public', '--json'];
-const child = spawn(process.execPath, [require.resolve('expo/bin/cli'), ...args, ...process.argv.slice(3)], {
-  cwd: mobileRoot, env, stdio: 'inherit', windowsHide: true
-});
-child.on('error', error => { console.error(error.message); process.exitCode = 1; });
-child.on('exit', code => { process.exitCode = code ?? 1; });
+
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  const launch = createDevelopmentLaunch(
+    process.argv[2],
+    process.argv.slice(3)
+  );
+  if (launch.args[0] === 'start') await assertDevelopmentPortAvailable();
+  // Piped stdout prevents Expo's alternate-port prompt without CI disabling Metro watch mode.
+  const child = spawn(
+    process.execPath,
+    [require.resolve('expo/bin/cli'), ...launch.args],
+    {
+      cwd: launch.cwd,
+      env: launch.env,
+      stdio:
+        launch.args[0] === 'start' ? ['inherit', 'pipe', 'inherit'] : 'inherit',
+      windowsHide: true
+    }
+  );
+  child.stdout?.pipe(process.stdout);
+  child.on('error', (error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+  child.on('exit', (code) => {
+    process.exitCode = code ?? 1;
+  });
+}

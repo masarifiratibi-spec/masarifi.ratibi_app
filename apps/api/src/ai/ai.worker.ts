@@ -870,17 +870,13 @@ export class AiWorker implements OnModuleDestroy {
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
     const evidence = Array.isArray(input.evidence) ? input.evidence : [];
     const references = aliasReferences(input.aliases);
+    const readOnlyAdvice =
+      input.intent === 'financial_advice' || input.intent === 'general_finance';
     const completion = await this.gateway.complete({
       route,
       userContent: encodeAssistantProviderPayload(input, inputLimit(route)),
-      schema:
-        input.intent === 'financial_advice'
-          ? ASSISTANT_ADVICE_OUTPUT_SCHEMA
-          : ASSISTANT_OUTPUT_SCHEMA,
-      parse:
-        input.intent === 'financial_advice'
-          ? parseAssistantAdviceWorkerOutput
-          : parseAssistantWorkerOutput,
+      schema: readOnlyAdvice ? ASSISTANT_ADVICE_OUTPUT_SCHEMA : ASSISTANT_OUTPUT_SCHEMA,
+      parse: readOnlyAdvice ? parseAssistantAdviceWorkerOutput : parseAssistantWorkerOutput,
       requestId: String(input.operationId),
       signal,
     });

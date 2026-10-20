@@ -88,6 +88,19 @@ const mergedCategory = {
   updatedAt: '2026-09-08T00:00:00.000Z'
 };
 
+it.each(['create', 'update'] as const)('reuses owner-validated parent mappings during a category %s', async operation => {
+  const parent = { ...mergedCategory, status: 'active', active: true, mergedIntoId: null };
+  const child = { ...parent, id: '10000000-0000-4000-8000-000000000003', parentId: parent.id };
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(async (_url, init) => response(init?.method === 'GET' ? { items: [parent], nextCursor: null } : child));
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  await service.listCategories(true);
+  const input = { labelAr: 'فرعي', labelEn: 'Child', financialType: 'expense' as const, parentId: parent.id };
+  const result = operation === 'create' ? await service.createCategory(input) : await service.updateCategory(child.id, input, 8);
+  expect(result.parentId).toBe(parent.id);
+  expect(request.mock.calls.map(([, init]) => init?.method)).toEqual(['GET', operation === 'create' ? 'POST' : 'PATCH']);
+  expect(JSON.parse(String(request.mock.calls[1][1]?.body)).parentId).toBe(parent.id);
+});
+
 it('shares concurrent category preparation and retries a failed attempt', async () => {
   const request = jest.fn(async () => response({ items: [], nextCursor: null }));
   request.mockRejectedValueOnce(new TypeError('connection unavailable'));

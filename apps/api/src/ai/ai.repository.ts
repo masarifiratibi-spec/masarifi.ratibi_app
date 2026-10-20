@@ -1055,39 +1055,22 @@ export class AiRepository {
   }
 
   claimWork(kind: AiWorkClaim['kind'], workerId: string, limit: number, leaseSeconds: number) {
-    return this.worker(
-      async (client) =>
-        (
-          await client.query<AiWorkClaim>('select * from private.claim_ai_work($1,$2,$3,$4)', [
-            kind,
-            workerId,
-            limit,
-            leaseSeconds,
-          ])
-        ).rows,
+    return this.workerClaims<AiWorkClaim>(
+      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_ai_work($1,$2,$3,$4) work",
+      [kind, workerId, limit, leaseSeconds],
     );
   }
 
   claimAnalysisWork(workerId: string, limit: number, leaseSeconds: number) {
-    return this.worker(
-      async (client) =>
-        (
-          await client.query<AiWorkClaim>(
-            'select * from private.claim_voice_analysis_work($1,$2,$3)',
-            [workerId, limit, leaseSeconds],
-          )
-        ).rows,
+    return this.workerClaims<AiWorkClaim>(
+      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_voice_analysis_work($1,$2,$3) work",
+      [workerId, limit, leaseSeconds],
     );
   }
   claimAnalysisPurges(workerId: string, limit: number, leaseSeconds: number) {
-    return this.worker(
-      async (client) =>
-        (
-          await client.query<VoicePurgeClaim>(
-            'select * from private.claim_voice_analysis_purge($1,$2,$3)',
-            [workerId, limit, leaseSeconds],
-          )
-        ).rows,
+    return this.workerClaims<VoicePurgeClaim>(
+      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_voice_analysis_purge($1,$2,$3) work",
+      [workerId, limit, leaseSeconds],
     );
   }
 
@@ -1397,6 +1380,14 @@ export class AiRepository {
         publicValue(await this.json(client, sql, values)) as Record<string, unknown>,
       repeatableRead,
     );
+  }
+  private workerClaims<T extends QueryResultRow>(sql: string, values: readonly unknown[]) {
+    // One JSON column avoids repeating every claim column's metadata on empty polls.
+    return this.worker(async (client) => {
+      const row = (await client.query<{ claims: T[] }>(sql, [...values])).rows[0];
+      if (!row || !Array.isArray(row.claims)) throw new Error('AI_RESULT_MISSING');
+      return row.claims;
+    });
   }
   private workerJson(sql: string, values: readonly unknown[]) {
     return this.worker(

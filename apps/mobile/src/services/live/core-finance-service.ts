@@ -30,6 +30,11 @@ import { HttpError, requestJson } from './http-client';
 import { ledgerDetailSchema as detailSchema, ledgerSummarySchema as summarySchema, serverKind, serverStatus } from './ledger-api-contract';
 import { readHomeTodayActivity } from '@/services/home-today-activity';
 import { measurePerformance } from '@/services/platform/performance-timing';
+import { SharedReadPool } from './shared-read';
+import {
+  registerRuntimeIdentityReset,
+  registerRuntimeUserDataReset
+} from '@/storage/runtime-user-data-reset';
 
 const uuid = z.string().uuid();
 const instant = z.string().datetime({ offset: true });
@@ -258,6 +263,9 @@ export function createLiveLedgerService({
     { operationId: string; expectedVersion?: number; prepared?: boolean }
   >();
   const inFlight = new Map<string, Promise<unknown>>();
+  const sharedReads = new SharedReadPool();
+  registerRuntimeIdentityReset(() => sharedReads.clear());
+  registerRuntimeUserDataReset(() => sharedReads.clear());
   const send = async <T>(
     method: string,
     path: string,
@@ -280,15 +288,24 @@ export function createLiveLedgerService({
               categoryIds?.toServer(body.categoryId) ?? body.categoryId
           }
         : body;
-    const value = await requestJson(path, schema, {
-      baseUrl,
-      request,
-      method,
-      signal,
-      body: serverBody,
-      token: identity.token,
-      headers: operationId ? { 'Idempotency-Key': operationId } : undefined
-    });
+    const perform = (activeSignal?: AbortSignal) =>
+      requestJson(path, schema, {
+        baseUrl,
+        request,
+        method,
+        signal: activeSignal,
+        body: serverBody,
+        token: identity.token,
+        headers: operationId ? { 'Idempotency-Key': operationId } : undefined
+      });
+    const value =
+      method === 'GET'
+        ? await sharedReads.read(
+            `${identity.userId}:${identity.token}:${path}`,
+            signal,
+            perform
+          )
+        : await perform(signal);
     try {
       await identity.assertCurrent();
     } catch (error) {

@@ -68,6 +68,8 @@ const applicationKeys = new Set([
   'MASARIFI_STAGING_VOICE_DEV_OWNER_ID',
   'MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID',
   'MASARIFI_STAGING_PRIVACY_OWNER_ID',
+  'MASARIFI_STAGING_SELF_DELETION_OWNER_ID',
+  'MASARIFI_STAGING_SELF_DELETION_ENABLED',
   'MASARIFI_AI_WORKER_POLL_MS',
   'MASARIFI_AI_JOB_BATCH_SIZE',
   'MASARIFI_AI_LEASE_SECONDS',
@@ -321,6 +323,10 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_STAGING_PRIVACY_OWNER_ID: Joi.string()
     .pattern(/^user_[A-Za-z0-9]+$/)
     .optional(),
+  MASARIFI_STAGING_SELF_DELETION_OWNER_ID: Joi.string()
+    .pattern(/^user_[A-Za-z0-9]+$/)
+    .optional(),
+  MASARIFI_STAGING_SELF_DELETION_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_STAGING_VOICE_EPOCH_ID: Joi.string()
     .guid({ version: ['uuidv4'] })
     .optional(),
@@ -611,6 +617,21 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
+  if (
+    environment.MASARIFI_STAGING_SELF_DELETION_ENABLED &&
+    (environment.MASARIFI_PROCESS_KIND !== 'api' ||
+      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co' ||
+      environment.MASARIFI_DELETION_COOLING_OFF_HOURS !== 0 ||
+      environment.MASARIFI_STAGING_SELF_DELETION_OWNER_ID)
+  )
+    invalidEnvironment(['MASARIFI_STAGING_SELF_DELETION_ENABLED']);
+  if (
+    environment.MASARIFI_STAGING_SELF_DELETION_OWNER_ID &&
+    (environment.MASARIFI_PROCESS_KIND !== 'api' ||
+      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co' ||
+      environment.MASARIFI_DELETION_COOLING_OFF_HOURS !== 0)
+  )
+    invalidEnvironment(['MASARIFI_STAGING_SELF_DELETION_OWNER_ID']);
   if (
     environment.MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID &&
     (environment.MASARIFI_PROCESS_KIND !== 'api' ||

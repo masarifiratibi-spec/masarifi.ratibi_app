@@ -65,7 +65,6 @@ class MasarifiSmsInboxModule : Module() {
     AsyncFunction("clearTrackingOwner") {appContext.reactContext?.let {TrackingOwner.clear(it)}}
     AsyncFunction("purgeTrackingOwnerData") {owner:String ->
       val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
-      check(context.packageName == "com.masarifi.mobile.dev.privacy") {"privacy_development_required"}
       TrackingOwner.purgeOwner(context,owner)
     }
     AsyncFunction("finishTrackingWork") {workId:String,succeeded:Boolean -> TrackingWorker.finish(workId,succeeded)}

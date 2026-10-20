@@ -17,8 +17,10 @@ suite('request-bound owner payload erasure on the owned local fixture', () => {
     const target = new URL(databaseUrl);
     if (
       !['127.0.0.1', 'localhost'].includes(target.hostname) ||
-      target.port !== '15876' ||
-      target.pathname !== '/reliability_deletion_20261016'
+      !(
+        (target.port === '15876' && target.pathname === '/reliability_deletion_20261016') ||
+        (target.port === '15918' && target.pathname === '/dev_egress_20261020')
+      )
     )
       throw new Error('OWNED_LOCAL_FIXTURE_REQUIRED');
     client = new Client({ connectionString: databaseUrl });
@@ -105,6 +107,59 @@ suite('request-bound owner payload erasure on the owned local fixture', () => {
       context: 0,
       status: 'deletion_pending',
     });
+  });
+
+  async function seedCompletedIdempotency(actor: string): Promise<string> {
+    const id = randomUUID();
+    await client.query('set local role masarifi_migration');
+    await client.query(
+      `insert into private.idempotency_keys(id,actor_id,scope,key_hash,request_hash,state,response_status,response_body,locked_until,expires_at)
+       values($1,$2,'ledger.transaction.create',$3,$4,'completed',201,'{"private":"receipt"}'::jsonb,clock_timestamp()+interval '1 minute',clock_timestamp()+interval '1 day')`,
+      [id, actor, `sha256:${'a'.repeat(64)}`, `sha256:${'b'.repeat(64)}`],
+    );
+    return id;
+  }
+
+  it('erases completed idempotency payload only for the frozen request owner', async () => {
+    const owned = await seedCompletedIdempotency(owner);
+    const foreign = await seedCompletedIdempotency(other);
+    await client.query('set local role masarifi_worker');
+    await client.query('select private.freeze_account_deletion_owner($1,$2)', [request, owner]);
+    await client.query('select private.prepare_account_owner_erasure($1,$2)', [request, owner]);
+    await client.query('select * from private.lock_account_erasure_objects($1,$2)', [request, owner]);
+    await client.query('select private.erase_account_owner_payload($1,$2)', [request, owner]);
+    await client.query('reset role');
+    const rows = await client.query('select id from private.idempotency_keys where id=any($1::uuid[])', [[owned, foreign]]);
+    expect(rows.rows).toEqual([{ id: foreign }]);
+  });
+
+  it('rejects idempotency deletion without locked context and rejects another owner even with locked context', async () => {
+    const owned = await seedCompletedIdempotency(owner);
+    const foreign = await seedCompletedIdempotency(other);
+    await client.query("select set_config('masarifi.account_erasure','on',true)");
+    await client.query('savepoint no_context');
+    await expect(client.query('delete from private.idempotency_keys where id=$1', [owned]))
+      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await client.query('rollback to no_context');
+    await client.query('set local role masarifi_worker');
+    await client.query('select private.freeze_account_deletion_owner($1,$2)', [request, owner]);
+    await client.query('select private.prepare_account_owner_erasure($1,$2)', [request, owner]);
+    await client.query('set local role masarifi_migration');
+    await client.query('savepoint no_lock');
+    await expect(client.query('delete from private.idempotency_keys where id=$1', [owned]))
+      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await client.query('rollback to no_lock');
+    await client.query('set local role masarifi_worker');
+    await client.query('select * from private.lock_account_erasure_objects($1,$2)', [request, owner]);
+    await client.query('set local role masarifi_migration');
+    await client.query('savepoint foreign_owner');
+    await expect(client.query('delete from private.idempotency_keys where id=$1', [foreign]))
+      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await client.query('rollback to foreign_owner');
+    await client.query('savepoint immutable_update');
+    await expect(client.query("update private.idempotency_keys set response_body='{}'::jsonb where id=$1", [owned]))
+      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await client.query('rollback to immutable_update');
   });
 
   it('rejects another owner and worker-forged custom settings without weakening normal history immutability', async () => {

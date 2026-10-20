@@ -10,6 +10,7 @@ import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { TrackingHomeCard } from './TrackingHomeCard';
 import { useTrackingStatus } from './useAutomaticTracking';
 
@@ -81,7 +82,8 @@ function status(
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetRuntimeIdentityData();
   jest.clearAllMocks();
   mockNotificationPreferences = {
     ...createNotificationPreferences(1),
@@ -128,7 +130,7 @@ it('shows reference-sized setup cards in one horizontal rail', () => {
     screen.getByText(translate('tracking.source.smsTracking'))
   ).toBeTruthy();
   expect(
-    screen.getByText(translate('tracking.source.notificationTracking'))
+    screen.getByText(translate('tracking.home.notificationTitle'))
   ).toBeTruthy();
   expect(screen.getByTestId('home-setup-cards-rail').props.horizontal).toBe(
     true
@@ -138,7 +140,7 @@ it('shows reference-sized setup cards in one horizontal rail', () => {
       screen.getByTestId('home-setup-cards-rail').props.contentContainerStyle
     )
   ).toMatchObject({
-    alignItems: 'center',
+    alignItems: 'stretch',
     flexGrow: 1,
     justifyContent: 'center'
   });
@@ -153,8 +155,8 @@ it('shows reference-sized setup cards in one horizontal rail', () => {
   );
   expect(notificationCardStyle).toMatchObject({
     borderRadius: 18 * 1.05,
-    height: (168 + spacing.sm) * 1.05,
-    padding: spacing.lg * 1.05,
+    minHeight: 156 * 1.05,
+    padding: spacing.md * 1.05,
     width: smsCardStyle.width
   });
   expect(smsCardStyle).toEqual(notificationCardStyle);
@@ -257,13 +259,90 @@ it('shows source-specific tracking cards for an eligible authenticated user', ()
     screen.getByText(translate('tracking.source.smsTracking'))
   ).toBeTruthy();
   expect(
-    screen.getByText(translate('tracking.source.notificationTracking'))
+    screen.getByText(translate('tracking.home.notificationTitle'))
   ).toBeTruthy();
   expect(
-    screen.queryByLabelText(translate('tracking.home.dismissAction'))
-  ).toBeNull();
+    screen.getAllByRole('button', {
+      name: new RegExp(translate('tracking.home.dismissAction'))
+    })
+  ).toHaveLength(2);
   expect(screen.getByTestId('sms-tracking-home-icon')).toBeTruthy();
   expect(screen.getByTestId('notification-tracking-home-icon')).toBeTruthy();
+});
+
+it.each(['ar', 'en'] as const)(
+  'dismisses only the selected card for this running app in %s without changing permissions',
+  async (locale) => {
+    changeLocale(locale);
+    usePreferenceStore.setState({
+      locale,
+      direction: locale === 'ar' ? 'rtl' : 'ltr'
+    });
+    mockUseTrackingStatus.mockReturnValue({
+      data: status(),
+      isLoading: false,
+      isError: false
+    });
+    const first = renderWithProviders(<TrackingHomeCard />);
+    fireEvent.press(screen.getByTestId('sms-tracking-home-card-dismiss'));
+    expect(screen.queryByTestId('sms-tracking-home-card')).toBeNull();
+    expect(screen.getByTestId('notification-home-card')).toBeTruthy();
+    expect(screen.getByTestId('notification-tracking-home-card')).toBeTruthy();
+    first.unmount();
+    await act(async () => {
+      await resetRuntimeIdentityData({ restoringOwnerId: 'user-1' });
+    });
+    renderWithProviders(<TrackingHomeCard />);
+    expect(screen.queryByTestId('sms-tracking-home-card')).toBeNull();
+    expect(mockRequestPermission).not.toHaveBeenCalled();
+    expect(mockOpenSettings).not.toHaveBeenCalled();
+    expect(mockSavePreferences).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  }
+);
+
+it('keeps a different owner’s setup suggestions visible', () => {
+  mockUseTrackingStatus.mockReturnValue({
+    data: status(),
+    isLoading: false,
+    isError: false
+  });
+  renderWithProviders(<TrackingHomeCard />);
+  fireEvent.press(screen.getByTestId('sms-tracking-home-card-dismiss'));
+  act(() => {
+    const session = useAppShellStore.getState().session!;
+    useAppShellStore.setState({ session: { ...session, userId: 'user-2' } });
+  });
+  expect(screen.getByTestId('sms-tracking-home-card')).toBeTruthy();
+});
+
+it('removes the empty section after all dismissals and restores only inactive features after a session reset', async () => {
+  mockUseTrackingStatus.mockReturnValue({
+    data: status(),
+    isLoading: false,
+    isError: false
+  });
+  const first = renderWithProviders(<TrackingHomeCard />);
+  for (const id of [
+    'notification-home-card',
+    'sms-tracking-home-card',
+    'notification-tracking-home-card'
+  ]) {
+    fireEvent.press(screen.getByTestId(`${id}-dismiss`));
+  }
+  expect(screen.queryByTestId('tracking-home-onboarding')).toBeNull();
+  first.unmount();
+  mockNotificationPermission = 'granted';
+  mockUseTrackingStatus.mockReturnValue({
+    data: status({ smsPermissionStatus: 'granted', smsTrackingEnabled: true }),
+    isLoading: false,
+    isError: false
+  });
+  await resetRuntimeIdentityData();
+  renderWithProviders(<TrackingHomeCard />);
+  expect(screen.queryByTestId('notification-home-card')).toBeNull();
+  expect(screen.queryByTestId('sms-tracking-home-card')).toBeNull();
+  expect(screen.getByTestId('notification-tracking-home-card')).toBeTruthy();
 });
 
 it('shows the tracking logo without a background badge', () => {

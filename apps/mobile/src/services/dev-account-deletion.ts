@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import {
   isDevPrivacyDeletionEnabled,
-  resolveClientRuntime
+  devPrivacyDeletionApiUrl
 } from '@/config/client-runtime';
 import { useAppShellStore } from '@/state/app-shell';
 import {
@@ -50,6 +50,7 @@ export type DevDeletionPhase =
   | 'deleting'
   | 'pending'
   | 'verification_required'
+  | 'rejected'
   | 'local_retry'
   | 'completed'
   | 'failed'
@@ -61,6 +62,7 @@ export interface DevDeletionSnapshot {
     | 'settings.deletion.error'
     | 'settings.deletion.rateLimited'
     | 'settings.deletion.dev.localRetry'
+    | 'settings.deletion.dev.notAllowed'
     | null;
   nextAttemptAt: number;
   automaticRetries: boolean;
@@ -96,16 +98,19 @@ export async function prepareDevDeletionBootstrap(): Promise<boolean> {
   });
   if (retained && !snapshots.has(ownerId)) {
     const journal = retained as DeletionCompletionJournal;
-    publish(
-      ownerId,
-      ['prepared', 'verification_required'].includes(journal.phase)
-        ? 'verification_required'
-        : 'pending',
-      {
-        nextAttemptAt: journal.nextAttemptAt || Date.now(),
-        automaticRetries: true
-      }
-    );
+    if (journal.phase === 'rejected') publishRejected(ownerId);
+    else {
+      publish(
+        ownerId,
+        ['prepared', 'verification_required'].includes(journal.phase)
+          ? 'verification_required'
+          : 'pending',
+        {
+          nextAttemptAt: journal.nextAttemptAt || Date.now(),
+          automaticRetries: true
+        }
+      );
+    }
   }
   if (!(await isDeletionOwnerFenced(ownerId))) return true;
   useAppShellStore.getState().releaseDeletedOwner(ownerId);
@@ -144,6 +149,10 @@ function publish(
   subscribers.forEach((listener) => listener());
 }
 
+function publishRejected(ownerId: string): void {
+  publish(ownerId, 'rejected', { error: 'settings.deletion.dev.notAllowed' });
+}
+
 function ownerFlight(
   ownerId: string,
   operation: () => Promise<void>
@@ -158,8 +167,9 @@ function ownerFlight(
 }
 
 function requireRuntime(): string {
-  if (!isDevPrivacyDeletionEnabled()) throw new HttpError('forbidden', 403);
-  return resolveClientRuntime().apiUrl!;
+  const apiUrl = devPrivacyDeletionApiUrl();
+  if (!apiUrl) throw new HttpError('forbidden', 403);
+  return apiUrl;
 }
 
 function assertShellOwner(ownerId: string): void {
@@ -171,7 +181,8 @@ function assertShellOwner(ownerId: string): void {
 class DeletionTransportFailure extends Error {
   constructor(
     readonly failure: HttpError,
-    readonly retryAfterMs: number
+    readonly retryAfterMs: number,
+    readonly method: 'POST' | 'GET'
   ) {
     super('Account deletion status unavailable');
   }
@@ -212,7 +223,8 @@ async function deletionRequest<T>(
       failure instanceof HttpError
         ? failure
         : new HttpError('provider_unavailable', 503),
-      retryAfterMs
+      retryAfterMs,
+      options.method
     );
   }
 }
@@ -305,6 +317,22 @@ async function recordFailure(
   }
   const transport =
     failure instanceof DeletionTransportFailure ? failure : null;
+  if (
+    transport?.method === 'POST' &&
+    transport.failure.status === 403 &&
+    transport.failure.domainCode === 'FORBIDDEN' &&
+    journal.requestId === null
+  ) {
+    await saveDeletionCompletion({
+      ...journal,
+      phase: 'rejected',
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    });
+    publishRejected(journal.ownerId);
+    return;
+  }
   if (transport?.failure.domainCode === 'RECENT_AUTH_REQUIRED') {
     await saveDeletionCompletion({
       ...journal,
@@ -344,6 +372,10 @@ async function recoverJournal(
   force: boolean,
   online = true
 ): Promise<void> {
+  if (journal.phase === 'rejected') {
+    publishRejected(journal.ownerId);
+    return;
+  }
   if (
     journal.phase === 'server_completed' ||
     journal.phase === 'local_completed'
@@ -400,6 +432,7 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
     if (
       existing &&
       existing.phase !== 'prepared' &&
+      existing.phase !== 'rejected' &&
       existing.phase !== 'verification_required'
     )
       return recoverJournal(existing, true);

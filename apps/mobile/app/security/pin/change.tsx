@@ -1,7 +1,6 @@
 import React from 'react';
 import { router } from 'expo-router';
 
-import { PinSetupScreen } from '@/features/security/PinSetupScreen';
 import { useAppShellStore } from '@/state/app-shell';
 
 export default function ChangePinRoute() {
@@ -13,6 +12,9 @@ export default function ChangePinRoute() {
     (state) => state.updatePinCredential
   );
 
+  const { PinSetupScreen } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/security/PinSetupScreen') as typeof import('@/features/security/PinSetupScreen');
   return (
     <PinSetupScreen
       currentCredential={pinCredential}

@@ -414,3 +414,44 @@ describe('validateEnvironment', () => {
     }
   });
 });
+
+
+describe('isolated Staging session-authorized self deletion', () => {
+  const key = 'MASARIFI_STAGING_SELF_DELETION_OWNER_ID';
+  const scoped = {
+    ...valid,
+    SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'nonfunctional-fixture',
+    MASARIFI_EXPORT_RETENTION_HOURS: 24,
+    MASARIFI_EXPORT_SIGNED_URL_SECONDS: 300,
+    MASARIFI_DELETION_COOLING_OFF_HOURS: 0,
+    MASARIFI_PRIVACY_DATABASE_URL: 'postgresql://worker:fixture@127.0.0.1:15918/disposable',
+    MASARIFI_PRIVACY_HANDLER_MANIFEST: 'ai@1,engagement@1,identity@1,tracking@1',
+    [key]: 'user_DevDeletion123',
+  };
+  it('accepts an explicit owner only on the immediate-deletion Staging API', () => {
+    expect((validateEnvironment(scoped) as unknown as Record<string, unknown>)[key]).toBe(scoped[key]);
+  });
+  it.each([
+    { SUPABASE_URL: 'https://other.supabase.co' },
+    { MASARIFI_PROCESS_KIND: 'worker' },
+    { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
+    { [key]: 'bad owner' },
+  ])('rejects an unsafe activation scope %j', (patch) => {
+    expect(() => validateEnvironment({ ...scoped, ...patch })).toThrow(key);
+  });
+  const enabledKey = 'MASARIFI_STAGING_SELF_DELETION_ENABLED';
+  const allOwners = { ...scoped, [key]: undefined, [enabledKey]: 'true' };
+  it('accepts session-authorized deletion for every owner on the immediate Staging API', () => {
+    expect((validateEnvironment(allOwners) as unknown as Record<string, unknown>)[enabledKey]).toBe(true);
+  });
+  it.each([
+    { SUPABASE_URL: 'https://other.supabase.co' },
+    { MASARIFI_PROCESS_KIND: 'worker' },
+    { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
+    { [key]: 'user_ConflictingAllowlist' },
+    { [enabledKey]: 'yes-please' },
+  ])('rejects unsafe all-owner activation %j', (patch) => {
+    expect(() => validateEnvironment({ ...allOwners, ...patch })).toThrow(enabledKey);
+  });
+});

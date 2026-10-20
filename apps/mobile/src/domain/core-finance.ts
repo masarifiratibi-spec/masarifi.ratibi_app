@@ -518,6 +518,19 @@ export function projectTransactionEffects(
   transactions: readonly Transaction[],
   accountId: string | null
 ): ReadonlyMap<string, TransactionEffectProjection> {
+  const context = transactionProjectionContext(transactions, accountId);
+  return new Map(
+    transactions.map((transaction) => [
+      transaction.id,
+      projectAggregateTransaction(transaction, context)
+    ])
+  );
+}
+
+function transactionProjectionContext(
+  transactions: readonly Transaction[],
+  accountId: string | null
+): TransactionProjectionContext {
   const transactionById = new Map(
     transactions.map((transaction) => [transaction.id, transaction])
   );
@@ -536,18 +549,12 @@ export function projectTransactionEffects(
     transactionById,
     reversedOriginalIds
   );
-  const context = {
+  return {
     accountId,
     transactionById,
     activeRefundIds,
     activeReversalIds
   };
-  return new Map(
-    transactions.map((transaction) => [
-      transaction.id,
-      projectAggregateTransaction(transaction, context)
-    ])
-  );
 }
 
 function projectAggregateTransaction(
@@ -815,6 +822,47 @@ export function deriveAccountBalance(
     if (next === null) throw new RangeError('unsafe_minor_total');
     return next;
   }, account.openingBalanceMinor);
+}
+
+export function deriveAccountBalances(
+  accounts: readonly Account[],
+  transactions: readonly Transaction[]
+): ReadonlyMap<string, number> {
+  const balances = new Map(
+    accounts.map((account) => [account.id, account.openingBalanceMinor])
+  );
+  if (!balances.size) return balances;
+  const context = transactionProjectionContext(transactions, null);
+  const contextsByAccount = new Map(
+    [...balances.keys()].map((accountId) => [
+      accountId,
+      { ...context, accountId }
+    ])
+  );
+  for (const entry of transactions) {
+    const transaction = context.transactionById.get(entry.id)!;
+    // A reversal affects the original transfer's accounts, including its destination.
+    const affected =
+      transaction.type === 'reversal'
+        ? context.transactionById.get(transaction.originalTransactionId ?? '')
+        : transaction;
+    if (!affected) continue;
+    const affectedAccountIds =
+      affected.destinationAccountId &&
+      affected.destinationAccountId !== affected.accountId
+        ? [affected.accountId, affected.destinationAccountId]
+        : [affected.accountId];
+    for (const accountId of affectedAccountIds) {
+      const accountContext = contextsByAccount.get(accountId);
+      if (!accountContext) continue;
+      const delta = projectAggregateTransaction(transaction, accountContext)
+        .confirmed.accountDeltaMinor;
+      const next = safeMinorSum(balances.get(accountId)!, delta);
+      if (next === null) throw new RangeError('unsafe_minor_total');
+      balances.set(accountId, next);
+    }
+  }
+  return balances;
 }
 
 export function normalizeSearch(value: string): string {

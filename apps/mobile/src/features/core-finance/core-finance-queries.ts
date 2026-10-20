@@ -9,6 +9,7 @@ import {
 import {
   emptyTransactionFilters,
   type Account,
+  type Category,
   type HomeSummary,
   type Transaction,
   type TransactionFilterSet
@@ -232,9 +233,24 @@ export function useRemainingRefundableMinor(
 }
 
 export function useCategories(includeArchived = false, enabled = true) {
+  const client = useQueryClient();
+  const allCategories = () => {
+    if (includeArchived) return;
+    const state = client.getQueryState<Category[]>(
+      coreFinanceKeys.categories(true)
+    );
+    return state?.status === 'success' &&
+      !state.isInvalidated &&
+      state.fetchStatus === 'idle'
+      ? state
+      : undefined;
+  };
   return useQuery({
     queryKey: coreFinanceKeys.categories(includeArchived),
     queryFn: () => coreFinanceService.listCategories(includeArchived),
+    initialData: () =>
+      allCategories()?.data?.filter((category) => category.status === 'active'),
+    initialDataUpdatedAt: () => allCategories()?.dataUpdatedAt,
     enabled
   });
 }

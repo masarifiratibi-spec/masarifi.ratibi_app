@@ -21,8 +21,13 @@ const ar: MessageCatalog = {
   'settings.deletion.dev.deleting':
     'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
   'settings.deletion.dev.completed': 'تم حذف حسابك وبياناته المحفوظة.',
+  'settings.deletion.dev.loadingTitle': 'جاري التحميل',
+  'settings.deletion.dev.loadingDescription':
+    'جارٍ حذف حسابك بأمان\nيرجى الانتظار حتى اكتمال العملية',
   'settings.deletion.dev.localRetry':
     'أكد الخادم الحذف، لكن تنظيف بيانات الجهاز لم يكتمل. أعد المحاولة أو أعد تشغيل التطبيق إذا استمر تعذّر التنظيف.',
+  'settings.deletion.dev.notAllowed':
+    'الحذف غير مفعّل لهذا الحساب في بيئة الاختبار. لم يُحذف الحساب. أعد المحاولة بعد تفعيل الصلاحية.',
   'settings.deletion.retentionNotice':
     'يخفي هذا الإجراء هوية ملفك في التطبيق ويزيل بيانات المساعد والتتبع والدعم ويحذف حسابك لدى مزود تسجيل الدخول. تبقى سجلاتك المالية وبيانات التخطيط محفوظة.',
   'settings.deletion.verificationUnavailable':
@@ -39,6 +44,8 @@ const ar: MessageCatalog = {
   'settings.deletion.recentAuth':
     'تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.',
   'settings.deletion.reverify': 'إرسال رمز التحقق',
+  'settings.deletion.retry': 'إعادة المحاولة',
+  'settings.deletion.dev.sessionRetry': 'تعذر إكمال الحذف بالجلسة الحالية. أعد المحاولة؛ لم يُحذف الحساب.',
   'settings.deletion.code': 'رمز التحقق',
   'settings.deletion.verify': 'تحقق ومتابعة',
   'settings.deletion.codeSent': 'أدخل الرمز المرسل إلى {{destination}}.',
@@ -1057,6 +1064,9 @@ const ar: MessageCatalog = {
   'tracking.home.summary':
     '{{detected}} مكتشفة هذا الشهر، {{review}} تحتاج مراجعة.',
   'tracking.home.onboardingHeading': 'لنبدأ.',
+  'tracking.home.smsBody': 'تتبّع معاملاتك من الرسائل المالية.',
+  'tracking.home.notificationTitle': 'تتبع الإشعارات',
+  'tracking.home.notificationBody': 'التقط معاملاتك من إشعارات البنوك والمحافظ.',
   'tracking.home.enableTitle': 'تتبّع مصاريفك تلقائيًا',
   'tracking.home.enableBody':
     'خلّ مصاريفي وراتبي يلتقط عملياتك تلقائيًا من الرسائل المدعومة.',
@@ -1064,7 +1074,7 @@ const ar: MessageCatalog = {
   'tracking.home.dismissAction': 'إخفاء اقتراح التتبع التلقائي',
   'notifications.home.enableTitle': 'فعّل الإشعارات',
   'notifications.home.enableBody':
-    'استلم إشعارات العمليات والتذكيرات من مصاريفي وراتبي.',
+    'استلم تنبيهات المعاملات والتذكيرات.',
   'notifications.home.enableAction': 'تفعيل الإشعارات',
   'notifications.home.dismissAction': 'إخفاء اقتراح الإشعارات',
   'notifications.home.enableFailed': 'تعذر تفعيل الإشعارات. حاول مرة أخرى.',

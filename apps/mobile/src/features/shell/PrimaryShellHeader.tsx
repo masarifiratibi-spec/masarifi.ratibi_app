@@ -14,6 +14,7 @@ import { useTheme } from '@/state/theme-context';
 import type { PrimaryTabRoute } from './navigation-context';
 import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
 import { resolvePublicDisplayName } from '@/services/live/clerk-name';
+import { useInitialHomeReadiness } from './InitialHomeLoadingBoundary';
 
 export function PrimaryShellHeader({
   origin,
@@ -37,6 +38,9 @@ export function PrimaryShellHeader({
     state.session?.status === 'authenticated' ? state.session.userId : null
   );
   const profile = useSettingsProfile(showAvatar && userId !== null);
+  useInitialHomeReadiness('header', origin === '/(tabs)/home'
+    ? (!showAvatar || userId === null || profile.data !== undefined || profile.isError ? 'ready' : 'pending')
+    : null);
   const publicName = resolvePublicDisplayName(
     userId ? profile.data?.name : null,
     getLiveClerkDisplayName(userId),

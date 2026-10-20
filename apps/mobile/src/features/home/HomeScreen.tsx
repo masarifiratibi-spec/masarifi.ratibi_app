@@ -43,6 +43,7 @@ import type { HomeTodayActivity } from '@/services/contracts/core-finance-servic
 import { useHomeTodayActivity } from './useHomeTodayActivity';
 import { useHomeReadRecovery } from './useHomeReadRecovery';
 import { HomeActivityScrollView } from './HomeActivityViewport';
+import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
 
 export const HomeScreen = React.memo(function HomeScreen({
   accounts,
@@ -117,6 +118,13 @@ function QueriedHomeScreen({
   const accounts = useAccounts(true);
   const categories = useCategories();
   const homeSummary = query.data;
+  const empty = homeSummary?.dataState === 'empty';
+  const initialReadsReady = empty || [query, activity, accounts, categories].every(
+    read => read.data !== undefined || read.isError
+  );
+  useInitialHomeReadiness('home', query.isError && !homeSummary
+    ? 'failed' : initialReadsReady ? 'ready' : 'pending');
+  useInitialHomeReadiness('notice', !notice || empty ? 'ready' : null);
   const activeAccountIds = useMemo(
     () =>
       ((accounts.data ?? []) as Account[])

@@ -43,7 +43,6 @@ import type { HomeTodayActivity } from '@/services/contracts/core-finance-servic
 import { AccountScopeSheet } from '@/features/accounts/AccountScopeSheet';
 import { useHomeActivityOffset } from './HomeActivityViewport';
 import { HomeActivityRows } from './HomeActivityRows';
-import { FirstVoicePrompt } from './FirstVoicePrompt';
 import type { HomeBalanceSummary } from '@/domain/home-balance';
 
 export const HomeSummary = React.memo(function HomeSummary({
@@ -116,6 +115,8 @@ export const HomeSummary = React.memo(function HomeSummary({
     : null;
   const expenses = todayActivity.filter(({ group }) => group === 'expense');
   const income = todayActivity.filter(({ group }) => group === 'income');
+  const compactEmptyState =
+    !summary.recentTransactions?.length && !todayActivity.length;
   const voiceRecording = voice.session.state === 'recording';
   const captureProcessing = [
     'requesting_permission',
@@ -471,14 +472,10 @@ export const HomeSummary = React.memo(function HomeSummary({
         onLayout={activityLayout.onLayout}
         style={[
           styles.activity,
+          compactEmptyState && styles.onboardingActivity,
           { backgroundColor: theme.colors.surfaces.page }
         ]}
       >
-        <FirstVoicePrompt
-          hasRecordedTransactions={
-            Boolean(summary.recentTransactions?.length) || todayActivity.length > 0
-          }
-        />
         {voice.automatic ? (
           <VoiceBatchStatus
             batches={voice.batches}
@@ -601,7 +598,11 @@ export const HomeSummary = React.memo(function HomeSummary({
         ) : null}
         {!activityStatus && !expenses.length && !income.length ? (
           <Text
-            style={[styles.empty, { color: theme.colors.content.secondary }]}
+            style={[
+              styles.empty,
+              compactEmptyState && styles.onboardingEmpty,
+              { color: theme.colors.content.secondary }
+            ]}
           >
             {translate('coreFinance.home.todayEmpty')}
           </Text>
@@ -1120,6 +1121,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg
   },
   section: { gap: spacing.md },
+  onboardingActivity: { gap: spacing.md, paddingTop: spacing.md },
+  onboardingEmpty: { paddingVertical: spacing.sm },
   voiceReview: { gap: spacing.md },
   voiceError: {
     alignItems: 'center',

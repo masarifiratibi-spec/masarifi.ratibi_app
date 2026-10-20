@@ -24,6 +24,15 @@ export function VoiceBatchStatus({
     ).length ?? 0;
   const saved = finished && !result.analysis && result.addedCount > 0;
   const partial = saved && (notSaved > 0 || result.status !== 'completed');
+  const progress = showProgress && batches.processing;
+  const empty =
+    showEmpty &&
+    result?.status === 'completed' &&
+    result.addedCount === 0 &&
+    !result.analysis;
+  const failure =
+    (!saved && result?.status === 'failed') || batches.localFailure;
+  if (!partial && !progress && !empty && !failure) return null;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
       {partial ? (
@@ -38,16 +47,11 @@ export function VoiceBatchStatus({
               })}
         </StyledText>
       ) : null}
-      {showProgress && batches.processing ? (
+      {progress ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
-      {showEmpty &&
-      result?.status === 'completed' &&
-      result.addedCount === 0 &&
-      !result.analysis ? (
-        <StyledText>{translate('voice.batch.empty')}</StyledText>
-      ) : null}
-      {(!saved && result?.status === 'failed') || batches.localFailure ? (
+      {empty ? <StyledText>{translate('voice.batch.empty')}</StyledText> : null}
+      {failure ? (
         <StyledText>
           {translate(
             batches.localFailureCode === 'voice_canary_restricted'

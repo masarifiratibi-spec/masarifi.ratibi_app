@@ -3,6 +3,7 @@ package com.masarifi.smsinbox
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.work.Configuration
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
@@ -75,7 +76,9 @@ class DeletedOwnerPurgeTest {
     return java.util.Base64.getEncoder().encodeToString(iv + cipher.doFinal(json.toByteArray()))
   }
   @Before fun setup() {
-    context = RuntimeEnvironment.getApplication()
+    context = object : ContextWrapper(RuntimeEnvironment.getApplication()) {
+      override fun getPackageName() = "com.masarifi.mobile.dev"
+    }
     WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().build())
     Security.insertProviderAt(object : Provider("DeletionAndroidKeyStore", 1.0, "Test AndroidKeyStore boundary") {
       init { put("KeyStore.AndroidKeyStore", DeletionKeyStore::class.java.name) }
@@ -90,6 +93,30 @@ class DeletedOwnerPurgeTest {
     notifications.notify(notificationB, 0, Notification.Builder(context).setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle("B").build())
   }
   @After fun cleanup() { Security.removeProvider("DeletionAndroidKeyStore"); DeletionKeyStore.entries.clear() }
+
+  @Test fun ordinaryAndUnknownPackagesCannotPurgeAnyOwnerData() {
+    val retained = queue(deleted).all
+    for (packageName in listOf("com.masarifi.mobile", "com.masarifi.mobile.dev.fake", "other.app")) {
+      val ordinary = object : ContextWrapper(context) {
+        override fun getPackageName() = packageName
+      }
+      try { TrackingOwner.purgeOwner(ordinary, deleted); fail("Package must be rejected") }
+      catch (expected: IllegalStateException) { assertEquals("privacy_development_required", expected.message) }
+      assertEquals(retained, queue(deleted).all)
+      assertTrue(DeletionKeyStore.entries.containsKey("masarifi.tracking." + deleted))
+    }
+  }
+
+  @Test fun privacyDevelopmentStillPurgesOnlyTheDeletedOwner() {
+    val privacy = object : ContextWrapper(context) {
+      override fun getPackageName() = "com.masarifi.mobile.dev.privacy"
+    }
+    TrackingOwner.purgeOwner(privacy, deleted)
+    assertTrue(queue(deleted).all.isEmpty())
+    assertTrue(queue(foreign).contains("ciphertext"))
+    assertFalse(DeletionKeyStore.entries.containsKey("masarifi.tracking." + deleted))
+    assertTrue(DeletionKeyStore.entries.containsKey("masarifi.tracking." + foreign))
+  }
 
   @Test fun purgeInactiveOwnerPreservesForeignContextWorkKeysAndNotifications() {
     val foreignContext = ownerContext(foreign)

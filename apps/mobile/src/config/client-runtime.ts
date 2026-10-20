@@ -23,13 +23,19 @@ const bundledEnvironment = (): RuntimeEnvironment => ({
 });
 
 export function isDevPrivacyDeletionEnabled(): boolean {
-  if (process.env.EXPO_PUBLIC_APP_VARIANT !== 'staging-development-privacy')
-    return false;
+  return devPrivacyDeletionApiUrl() !== null;
+}
+
+export function devPrivacyDeletionApiUrl(): string | null {
+  const variant = process.env.EXPO_PUBLIC_APP_VARIANT;
+  if (!['staging-development', 'staging-development-privacy'].includes(variant ?? ''))
+    return null;
   const runtime = resolveClientRuntime();
-  return (
-    runtime.mode === 'live' &&
-    runtime.apiUrl === 'https://api.staging.masarifiratibi.com/dev-privacy'
-  );
+  const staging = 'https://api.staging.masarifiratibi.com';
+  const expected = variant === 'staging-development' ? staging : `${staging}/dev-privacy`;
+  return runtime.mode === 'live' && runtime.apiUrl === expected
+    ? `${staging}/${variant === 'staging-development' ? 'dev-account-deletion' : 'dev-privacy'}`
+    : null;
 }
 
 export function isAppLockEnabled(

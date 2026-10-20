@@ -207,7 +207,9 @@ describe('navigation journey', () => {
       expect(
         screen.getByText(
           googleAccount ??
-            (locale === 'ar' ? 'حساب مصاريفي وراتبي' : 'Masarifi & Ratibi account')
+            (locale === 'ar'
+              ? 'حساب مصاريفي وراتبي'
+              : 'Masarifi & Ratibi account')
         )
       ).toBeOnTheScreen();
       expect(JSON.stringify(screen.toJSON())).not.toContain(
@@ -366,11 +368,10 @@ describe('navigation journey', () => {
 
     const more = renderWithProviders(<MoreRoute />);
     expect(
-      screen.getByLabelText(translate('appShell.shell.security'))
-    ).toBeOnTheScreen();
+      screen.queryByLabelText(translate('appShell.shell.security'))
+    ).toBeNull();
     for (const [label, route] of [
       [translate('appShell.shell.profile'), '/profile'],
-      [translate('appShell.shell.security'), '/security/settings'],
       [translate('settings.profile.applicationOwner'), '/profile/application'],
       [translate('tracking.action.openTracking'), '/tracking'],
       [translate('appShell.shell.support'), '/support']
@@ -532,14 +533,27 @@ describe('navigation journey', () => {
     expect(router.navigate).toHaveBeenCalledWith('/(tabs)/home');
   });
 
-  it('opens notification preferences from the main settings group', () => {
-    renderWithProviders(<MoreRoute />);
-
-    fireEvent.press(
-      screen.getByLabelText(translate('appShell.shell.notifications'))
-    );
-    expect(router.push).toHaveBeenCalledWith('/notifications/preferences');
-  });
+  it.each(['en', 'ar'] as const)(
+    'hides security and notification entries in More (%s)',
+    (locale) => {
+      changeLocale(locale);
+      renderWithProviders(<MoreRoute />);
+      expect(
+        screen.queryByLabelText(translate('appShell.shell.notifications'))
+      ).toBeNull();
+      expect(
+        screen.queryByLabelText(translate('appShell.shell.security'))
+      ).toBeNull();
+      expect(
+        screen.getByRole('link', {
+          name: translate('tracking.action.openTracking')
+        })
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: translate('appShell.auth.signOut') })
+      ).toBeTruthy();
+    }
+  );
 
   it('opens assistant from More and announces disabled and limit states', async () => {
     mockAssistantQueries.useAssistantConsent.mockReturnValue({

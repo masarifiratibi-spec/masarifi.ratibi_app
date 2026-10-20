@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { router } from 'expo-router';
 import {
   ScrollView,
+  Pressable,
   View,
   StyleSheet,
   AppState,
@@ -13,7 +14,8 @@ import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { layoutDirectionStyle } from '@/design-system/direction';
-import { colorTokens, spacing } from '@/design-system/tokens';
+import { colorTokens, minTouchTarget, spacing } from '@/design-system/tokens';
+import { DesignIcon } from '@/design-system/icons';
 import { translate } from '@/localization/i18n';
 import {
   useNotificationPermission,
@@ -22,8 +24,10 @@ import {
 } from '@/features/notifications/notification-preferences-queries';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { useHomeSetupCardDismissals } from '@/state/home-setup-card-dismissals';
 import { useTheme } from '@/state/theme-context';
 import { useTrackingStatus } from './useAutomaticTracking';
+import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
 
 const CARD_SCALE = 1.05;
 
@@ -36,11 +40,25 @@ export function TrackingHomeCard() {
   const status = trackingQuery.data;
   const direction = usePreferenceStore((state) => state.direction);
   const session = useAppShellStore((state) => state.session);
+  const dismissals = useHomeSetupCardDismissals();
+  const ownerId = session?.status === 'authenticated' ? session.userId : null;
+  const dismissed = dismissals.ownerId === ownerId ? dismissals.cards : [];
   const profileSetupStatus = useAppShellStore(
     (state) => state.profileSetupStatus
   );
   const refetchNotificationPermission = notificationPermission.refetch;
   const refetchTrackingStatus = trackingQuery.refetch;
+  const initialReadsReady = [trackingQuery, notificationPermission].every(
+    (query) => query.data !== undefined || query.isError
+  );
+  useInitialHomeReadiness(
+    'notice',
+    session?.status !== 'authenticated' ||
+      profileSetupStatus !== 'complete' ||
+      initialReadsReady
+      ? 'ready'
+      : 'pending'
+  );
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -53,6 +71,7 @@ export function TrackingHomeCard() {
   }, [refetchNotificationPermission, refetchTrackingStatus]);
 
   if (
+    !ownerId ||
     session?.status !== 'authenticated' ||
     profileSetupStatus !== 'complete'
   ) {
@@ -60,6 +79,7 @@ export function TrackingHomeCard() {
   }
 
   const showNotifications =
+    !dismissed.includes('notifications') &&
     !notificationPermission.isLoading &&
     !notificationPermission.isError &&
     notificationPermission.data !== 'granted';
@@ -75,6 +95,7 @@ export function TrackingHomeCard() {
     !trackingQuery.isError &&
     status?.platform === 'android';
   const showSmsTracking =
+    !dismissed.includes('sms') &&
     trackingReady &&
     smsPermission !== 'unavailable' &&
     !(
@@ -85,6 +106,7 @@ export function TrackingHomeCard() {
         : status.permissionStatus === 'granted')
     );
   const showNotificationTracking =
+    !dismissed.includes('transaction-notifications') &&
     trackingReady &&
     notificationAccess !== 'unavailable' &&
     !(
@@ -118,6 +140,11 @@ export function TrackingHomeCard() {
         {translate('tracking.home.onboardingHeading')}
       </StyledText>
       <ScrollView
+        key={[
+          showNotifications,
+          showSmsTracking,
+          showNotificationTracking
+        ].join(':')}
         contentContainerStyle={[
           styles.railContent,
           { paddingHorizontal: railInset }
@@ -134,6 +161,8 @@ export function TrackingHomeCard() {
                 : translate('notifications.preferences.openSettings')
             }
             body={translate('notifications.home.enableBody')}
+            dismissLabel={translate('notifications.home.dismissAction')}
+            onDismiss={() => dismissals.dismiss(ownerId, 'notifications')}
             mark={<NotificationMark />}
             onPress={() =>
               canRequestNotificationPermission
@@ -148,7 +177,9 @@ export function TrackingHomeCard() {
         {showSmsTracking ? (
           <SetupCard
             actionLabel={translate('tracking.home.enableAction')}
-            body={translate('tracking.source.smsTrackingDescription')}
+            body={translate('tracking.home.smsBody')}
+            dismissLabel={translate('tracking.home.dismissAction')}
+            onDismiss={() => dismissals.dismiss(ownerId, 'sms')}
             mark={<TrackingMark testID="sms-tracking-home-icon" />}
             onPress={() => router.push('/tracking')}
             testID="sms-tracking-home-card"
@@ -159,11 +190,15 @@ export function TrackingHomeCard() {
         {showNotificationTracking ? (
           <SetupCard
             actionLabel={translate('tracking.home.enableAction')}
-            body={translate('tracking.source.notificationTrackingDescription')}
+            body={translate('tracking.home.notificationBody')}
+            dismissLabel={translate('tracking.home.dismissAction')}
+            onDismiss={() =>
+              dismissals.dismiss(ownerId, 'transaction-notifications')
+            }
             mark={<TrackingMark testID="notification-tracking-home-icon" />}
             onPress={() => router.push('/tracking')}
             testID="notification-tracking-home-card"
-            title={translate('tracking.source.notificationTracking')}
+            title={translate('tracking.home.notificationTitle')}
             width={cardWidth}
           />
         ) : null}
@@ -175,16 +210,20 @@ export function TrackingHomeCard() {
 function SetupCard({
   actionLabel,
   body,
+  dismissLabel,
   mark,
   onPress,
+  onDismiss,
   testID,
   title,
   width
 }: {
   actionLabel: string;
   body: string;
+  dismissLabel: string;
   mark: React.ReactNode;
   onPress: () => void;
+  onDismiss: () => void;
   testID: string;
   title: string;
   width: number;
@@ -214,6 +253,24 @@ function SetupCard({
           >
             {title}
           </StyledText>
+          <Pressable
+            accessibilityLabel={`${dismissLabel}: ${title}`}
+            accessibilityRole="button"
+            onPress={onDismiss}
+            testID={`${testID}-dismiss`}
+            style={({ pressed }) => [
+              styles.dismiss,
+              { opacity: pressed ? 0.6 : 1 }
+            ]}
+          >
+            <DesignIcon
+              name="close"
+              size="sm"
+              color={theme.colors.content.secondary}
+              decorative
+              label=""
+            />
+          </Pressable>
         </View>
         <StyledText
           variant="caption"
@@ -314,6 +371,12 @@ function NotificationMark() {
 }
 
 const styles = StyleSheet.create({
+  dismiss: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: Math.max(48, minTouchTarget),
+    minWidth: Math.max(48, minTouchTarget)
+  },
   action: {
     alignSelf: 'stretch',
     borderRadius: 16 * CARD_SCALE,
@@ -354,18 +417,18 @@ const styles = StyleSheet.create({
   },
   railContent: {
     ...layoutDirectionStyle('ltr'),
-    alignItems: 'center',
+    alignItems: 'stretch',
     flexDirection: 'row',
     flexGrow: 1,
     gap: spacing.md * CARD_SCALE,
     paddingBottom: spacing.sm * CARD_SCALE,
     justifyContent: 'center'
   },
-  section: { ...layoutDirectionStyle('ltr'), gap: spacing.md },
+  section: { ...layoutDirectionStyle('ltr'), gap: spacing.sm },
   setupCard: {
     borderRadius: 18 * CARD_SCALE,
-    height: (168 + spacing.sm) * CARD_SCALE,
-    padding: spacing.lg * CARD_SCALE
+    minHeight: 156 * CARD_SCALE,
+    padding: spacing.md * CARD_SCALE
   },
   stack: { flex: 1, gap: spacing.sm * CARD_SCALE },
   title: { flex: 1, fontSize: 16, lineHeight: 22 }

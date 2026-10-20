@@ -15,7 +15,7 @@ describe('SecurityService boundaries', () => {
     getReadyExportReference: jest.fn(() => Promise.resolve('private/export.zip')),
   };
   const config = {
-    get: jest.fn(() => 600),
+    get: jest.fn(() => undefined),
     getRequired: jest.fn((key: string) =>
       key.includes('IP_HASH')
         ? `active:${Buffer.alloc(32, 7).toString('base64url')}`
@@ -335,6 +335,42 @@ describe('SecurityService boundaries', () => {
       ],
     });
   });
+
+  it.each(['createMyDeletionRequest', 'getMyDeletionRequest'])(
+    'keeps internal deletion errors out of the strict mobile response for %s',
+    async (operation) => {
+      // 2026-10-20: a real processing response exposed errorCode and failed mobile decoding.
+      const response = {
+        id: '963c1be4-83ec-42af-8b92-fcd89aa7b4bd',
+        status: 'processing',
+        requestedAt: '2026-10-20T12:17:00.000Z',
+        coolingOffEndsAt: '2026-10-20T12:17:00.000Z',
+        completedAt: null,
+        retainedCategories: {},
+        version: 3,
+        errorCode: 'DELETION_HANDLER_FAILED',
+      };
+      repository.execute.mockResolvedValueOnce(response);
+      await expect(service.execute({
+        operation,
+        principal,
+        body: operation === 'createMyDeletionRequest'
+          ? { confirmation: 'DELETE_MY_ACCOUNT' } : {},
+        query: {},
+        params: {},
+        requestId: 'deletion-contract-regression',
+        idempotencyKey: 'deletion-contract-operation',
+      })).resolves.toEqual({
+        id: '963c1be4-83ec-42af-8b92-fcd89aa7b4bd',
+        status: 'processing',
+        requestedAt: '2026-10-20T12:17:00.000Z',
+        coolingOffEndsAt: '2026-10-20T12:17:00.000Z',
+        completedAt: null,
+        retainedCategories: [],
+        version: 3,
+      });
+    },
+  );
 
   it('uses Clerk rather than device links for the live self-session count', async () => {
     repository.execute.mockResolvedValueOnce({

@@ -15,6 +15,7 @@ const journalSchema = z
     phase: z.enum([
       'prepared',
       'submitted',
+      'rejected',
       'verification_required',
       'server_completed',
       'local_completed'

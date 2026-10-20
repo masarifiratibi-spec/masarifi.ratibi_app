@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
+  ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +17,10 @@ import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import type { Category } from '@/domain/core-finance';
-import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
+import {
+  categoryMutationOwner,
+  publishCategoryMutation
+} from './publish-category-mutation';
 import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 import { currentLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -29,11 +34,13 @@ import {
 export function CategoryForm({
   category,
   onClose,
-  onSuccess
+  onSuccess,
+  modal = false
 }: {
   category?: Category;
   onClose?: () => void;
   onSuccess?: (category: Category) => void;
+  modal?: boolean;
 }) {
   const theme = useTheme();
   const client = useQueryClient();
@@ -50,6 +57,7 @@ export function CategoryForm({
   >(category?.financialType ?? 'expense');
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const dirty =
@@ -74,21 +82,23 @@ export function CategoryForm({
     if (onClose) onClose();
     else router.back();
   };
-  const { requestClose: handleCancel, leaveAfterSave } =
-    useDraftNavigationGuard({
-      dirty,
-      discard: () => undefined,
-      close: doClose,
-      copy: {
-        title: translate('coreFinance.categories.discardChanges'),
-        message: translate('coreFinance.categories.discardChangesBody'),
-        keep: translate('coreFinance.categories.keepEditing'),
-        discard: translate('coreFinance.categories.discard')
-      }
-    });
+  const { requestClose, leaveAfterSave } = useDraftNavigationGuard({
+    dirty,
+    discard: () => undefined,
+    close: doClose,
+    copy: {
+      title: translate('coreFinance.categories.discardChanges'),
+      message: translate('coreFinance.categories.discardChangesBody'),
+      keep: translate('coreFinance.categories.keepEditing'),
+      discard: translate('coreFinance.categories.discard')
+    }
+  });
+  const handleCancel = () => {
+    if (!savingRef.current) requestClose();
+  };
 
   const handleSave = async () => {
-    if (saving) return;
+    if (savingRef.current) return;
     if (!name.trim()) {
       setError(translate('coreFinance.validation.required'));
       return;
@@ -115,13 +125,15 @@ export function CategoryForm({
       isFavorite: category?.isFavorite ?? false
     };
 
+    savingRef.current = true;
     setSaving(true);
     setError(undefined);
+    const ownerId = categoryMutationOwner();
     try {
       const result = category
         ? await coreFinanceService.updateCategory(category.id, input)
         : await coreFinanceService.createCategory(input);
-      await invalidateCoreFinanceScopes(client, result.affectedScopes);
+      await publishCategoryMutation(client, result, ownerId);
       leaveAfterSave(() => {
         if (onSuccess) onSuccess(result.value);
         else if (onClose) onClose();
@@ -130,6 +142,7 @@ export function CategoryForm({
     } catch {
       setError(translate('coreFinance.state.error'));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -140,7 +153,7 @@ export function CategoryForm({
     ? translate('coreFinance.categories.editCategoryTitle')
     : translate('coreFinance.categories.addCategoryTitle');
 
-  return (
+  const content = (
     <>
       <ScrollView
         contentContainerStyle={styles.container}
@@ -160,6 +173,7 @@ export function CategoryForm({
             accessibilityRole="button"
             accessibilityLabel={translate('coreFinance.cancel')}
             onPress={handleCancel}
+            disabled={saving}
             style={styles.navBtn}
             hitSlop={8}
           >
@@ -191,17 +205,22 @@ export function CategoryForm({
             accessibilityRole="button"
             accessibilityLabel={translate('coreFinance.categories.save')}
             disabled={saving}
+            accessibilityState={{ busy: saving, disabled: saving }}
             onPress={() => void handleSave()}
             style={[styles.navBtn, { opacity: saving ? 0.6 : 1 }]}
             hitSlop={8}
           >
-            <DesignIcon
-              name="check"
-              label={translate('coreFinance.categories.save')}
-              color={colorTokens.teal[600]}
-              size="md"
-              decorative
-            />
+            {saving ? (
+              <ActivityIndicator color={colorTokens.teal[600]} />
+            ) : (
+              <DesignIcon
+                name="check"
+                label={translate('coreFinance.categories.save')}
+                color={colorTokens.teal[600]}
+                size="md"
+                decorative
+              />
+            )}
           </Pressable>
         </View>
 
@@ -259,6 +278,8 @@ export function CategoryForm({
             {translate('coreFinance.categories.groupName')}
           </Text>
           <TextInput
+            editable={!saving}
+            maxLength={100}
             value={name}
             onChangeText={setName}
             placeholder={translate(
@@ -327,6 +348,28 @@ export function CategoryForm({
         onClose={() => setPickerOpen(false)}
       />
     </>
+  );
+  return modal ? (
+    <Modal
+      visible
+      transparent={false}
+      animationType="slide"
+      onRequestClose={handleCancel}
+    >
+      <View
+        testID="category-form-modal-content"
+        accessibilityViewIsModal
+        style={{
+          flex: 1,
+          backgroundColor: theme.colors.background ?? colorTokens.raw['F6F8F7'],
+          paddingTop: 20
+        }}
+      >
+        {content}
+      </View>
+    </Modal>
+  ) : (
+    content
   );
 }
 

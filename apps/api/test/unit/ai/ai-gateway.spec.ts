@@ -309,9 +309,11 @@ describe('AiGateway', () => {
       answer: { ...output, evidenceIds: ['REPORT-1', 'REPORT-1'] },
       expected: 'AI_SCHEMA_INVALID',
     },
-  ])(
-    'completes strict Azure $name while retaining evidence validation',
-    async ({ answer, expected }) => {
+  ].flatMap((testCase) =>
+    ['financial_advice', 'general_finance'].map((intent) => ({ ...testCase, intent })),
+  ))(
+    'completes strict Azure $intent / $name while retaining evidence validation',
+    async ({ answer, expected, intent }) => {
       const saved: unknown[] = [],
         failures: string[] = [];
       const compatible = (value: unknown): boolean => {
@@ -374,7 +376,7 @@ describe('AiGateway', () => {
           ]),
         workInput: () =>
           Promise.resolve({
-            intent: 'financial_advice',
+            intent,
             operationId: 'sample-operation',
             content: 'Sample data: how can I reduce spending?',
             aliases: [],

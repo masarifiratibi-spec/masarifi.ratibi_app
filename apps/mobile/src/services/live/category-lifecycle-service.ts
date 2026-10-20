@@ -304,7 +304,7 @@ export function createLiveCategoryLifecycleService({
     ): Promise<VersionedCategory> {
       const value = categoryInputSchema.parse(input);
       const owner = await captureOwner();
-      if (value.parentId !== null) await service.listCategories(true, owner);
+      if (value.parentId !== null) await service.prepareCategoryIds();
       await owner.identity.assertCurrent();
       const category = mapCategory(
         await send('POST', '/api/v1/categories', categorySchema, {
@@ -335,7 +335,7 @@ export function createLiveCategoryLifecycleService({
         throw new HttpError('validation_error', 400);
       const value = categoryInputSchema.parse(input);
       const owner = await captureOwner();
-      if (value.parentId !== null) await service.listCategories(true, owner);
+      if (value.parentId !== null) await service.prepareCategoryIds();
       await owner.identity.assertCurrent();
       const category = mapCategory(
         await send(

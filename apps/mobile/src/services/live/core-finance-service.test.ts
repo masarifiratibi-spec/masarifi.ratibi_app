@@ -205,6 +205,110 @@ beforeEach(() => {
   registerLiveClerkBridge(bridge);
 });
 
+it('shares concurrent identical ledger reads but fetches again after completion', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const request = jest.fn(async () => {
+    await gate;
+    return response({
+      items: [],
+      nextCursor: null,
+      ledgerVersion: 0,
+      requestId: 'shared-read'
+    });
+  });
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const first = service.listTransactions(emptyTransactionFilters, null, 100);
+  const second = service.listTransactions(
+    { ...emptyTransactionFilters },
+    null,
+    100
+  );
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  release();
+  expect(await Promise.all([first, second])).toEqual([
+    { items: [], nextCursor: null },
+    { items: [], nextCursor: null }
+  ]);
+  expect(request).toHaveBeenCalledTimes(1);
+  await service.listTransactions(emptyTransactionFilters, null, 100);
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+it('cancelling one ledger reader preserves the identical read of another screen', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const request = jest.fn(async () => {
+    await gate;
+    return response({
+      items: [],
+      nextCursor: null,
+      ledgerVersion: 0,
+      requestId: 'shared-cancel'
+    });
+  });
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const controller = new AbortController();
+  const first = service
+    .listTransactions(emptyTransactionFilters, null, 100, controller.signal)
+    .catch((error) => error);
+  const second = service.listTransactions(emptyTransactionFilters, null, 100);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  controller.abort();
+  release();
+  expect(await first).toMatchObject({ code: 'provider_unavailable' });
+  expect(await second).toEqual({ items: [], nextCursor: null });
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('does not share a pending ledger read across authenticated owners', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const request = jest.fn(async () => {
+    await gate;
+    return response({
+      items: [],
+      nextCursor: null,
+      ledgerVersion: 0,
+      requestId: 'isolated-read'
+    });
+  });
+  const service = createLiveLedgerService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const first = service
+    .listTransactions(emptyTransactionFilters)
+    .catch((error) => error);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  registerLiveClerkBridge({
+    ...bridge,
+    getSession: async () => ({
+      ...(await bridge.getSession())!,
+      id: 'session-b',
+      userId: 'user_owner-b'
+    })
+  });
+  const second = service.listTransactions(emptyTransactionFilters);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  release();
+  expect(await first).toMatchObject({ code: 'session_expired' });
+  expect(await second).toEqual({ items: [], nextCursor: null });
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
 it.each(['expense', 'income'] as const)(
   'uses one fresh write identity for a Manual %s while retaining category preparation',
   async (kind) => {

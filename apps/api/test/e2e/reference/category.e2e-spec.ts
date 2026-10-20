@@ -1,4 +1,6 @@
 import request from 'supertest';
+import { hashNormalizedCommand } from '../../../src/ledger/idempotency';
+import type { ReferenceOperation } from '../../../src/reference/reference.repository';
 
 import { createReferenceE2eHarness, type ReferenceE2eHarness } from './reference-e2e-harness';
 
@@ -40,5 +42,20 @@ describe('category HTTP lifecycle', () => {
       )
       .set('Idempotency-Key', 'valid-key')
       .expect(204);
+  });
+
+  it.each([{}, { icon: null, color: null, parentId: null }])('canonicalizes real Express 5 route params and optional category fields (%j)', async (optionalFields) => {
+    let fingerprint: string | undefined;
+    harness.execute.mockImplementationOnce((input: ReferenceOperation) => {
+      fingerprint = hashNormalizedCommand({ operation: input.operation, body: input.body, params: input.params });
+      return Promise.resolve({ id: '10000000-0000-4000-8000-000000000002', version: 1 });
+    });
+    await request(harness.server)
+      .post('/api/v1/categories')
+      .set('Idempotency-Key', 'express-params-category-key')
+      .send({ labelAr: 'مجموعة اختبار', labelEn: 'Test group', ...optionalFields })
+      .expect(201)
+      .expect({ id: '10000000-0000-4000-8000-000000000002', version: 1 });
+    expect(fingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
   });
 });

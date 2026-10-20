@@ -13,6 +13,8 @@ import * as periods from '@/features/filters/date-period';
 import { makeTransaction } from '@/test-utils/core-finance-fixtures';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { AppState } from 'react-native';
+import { InitialHomeLoadingBoundary } from '@/features/shell/InitialHomeLoadingBoundary';
+import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
 
 let mockLeaveHome: (() => void) | undefined;
 const mockOnline = jest.fn(async () => true);
@@ -35,9 +37,10 @@ const mockActivityQuery = {
   data: [
     {
       transaction: makeTransaction(1, { title: 'Cached coffee' }),
-      group: 'expense'
+      group: 'expense',
+      sign: 'negative'
     }
-  ],
+  ] as HomeTodayActivity[] | undefined,
   dataUpdatedAt: 100,
   isPending: false,
   isError: false,
@@ -97,9 +100,49 @@ beforeEach(() => {
   mockHomeQuery.refetch.mockClear();
   mockHomeQuery.error = null;
   mockActivityQuery.isError = false;
+  mockActivityQuery.isPending = false;
+  mockActivityQuery.isFetching = false;
+  mockActivityQuery.data = [{ transaction: makeTransaction(1, { title: 'Cached coffee' }), group: 'expense', sign: 'negative' }];
   mockActivityQuery.error = null;
   mockActivityQuery.refetch.mockClear();
   mockOnline.mockReset().mockResolvedValue(true);
+});
+
+function layoutInitialHome() {
+  fireEvent(screen.getByTestId('initial-home-content', { includeHiddenElements: true }), 'layout', {
+    nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 720 } }
+  });
+}
+
+it('keeps the branded cover over partial first-page content until today activity is ready', () => {
+  mockHomeQuery.isError = false;
+  const activity = mockActivityQuery.data;
+  mockActivityQuery.data = undefined;
+  mockActivityQuery.isPending = true;
+  renderWithProviders(<InitialHomeLoadingBoundary isHome><HomeScreen /></InitialHomeLoadingBoundary>);
+  layoutInitialHome();
+  expect(screen.getByTestId('startup-loading')).toBeTruthy();
+  expect(screen.queryByTestId('home-account-card')).toBeNull();
+  expect(screen.queryByText(translate('coreFinance.state.loading'))).toBeNull();
+  act(() => {
+    mockActivityQuery.data = activity;
+    mockActivityQuery.isPending = false;
+    mockRefreshHome();
+  });
+  expect(screen.queryByTestId('startup-loading')).toBeNull();
+  expect(screen.getByTestId('home-account-card')).toBeTruthy();
+  expect(screen.getByText('Cached coffee')).toBeTruthy();
+});
+
+it('reveals the complete cached page while its background reads are still fetching', () => {
+  mockHomeQuery.isError = false;
+  mockHomeQuery.isFetching = true;
+  mockActivityQuery.isFetching = true;
+  renderWithProviders(<InitialHomeLoadingBoundary isHome><HomeScreen /></InitialHomeLoadingBoundary>);
+  layoutInitialHome();
+  expect(screen.queryByTestId('startup-loading')).toBeNull();
+  expect(screen.getByTestId('home-account-card')).toBeTruthy();
+  expect(screen.getByText('Cached coffee')).toBeTruthy();
 });
 
 it('keeps the last same-day activity after a failed refresh with a truthful stale notice', () => {
@@ -182,7 +225,7 @@ it.each(['blur', 'background'] as const)(
     jest.useFakeTimers();
     const previousAppState = AppState.currentState;
     AppState.currentState = 'active';
-    const appStateListeners: Array<(state: 'active' | 'background') => void> =
+    const appStateListeners: ((state: 'active' | 'background') => void)[] =
       [];
     jest
       .spyOn(AppState, 'addEventListener')

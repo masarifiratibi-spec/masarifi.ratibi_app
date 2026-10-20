@@ -1,5 +1,5 @@
 import {
-  deriveAccountBalance,
+  deriveAccountBalances,
   type Account,
   type Transaction
 } from '@/domain/core-finance';
@@ -20,13 +20,19 @@ export function buildNetWorthTrend(input: {
   const selectedAccounts = input.accounts.filter(
     (account) =>
       account.status === 'active' &&
-      (!input.accountIds.length || input.accountIds.includes(account.id))
+      (!input.accountIds.length || input.accountIds.includes(account.id)) &&
+      (account.currencyCode === input.currencyCode ||
+        input.ratesByAccount.has(account.id))
   );
 
   return input.pointInstants.map((at) => {
     // Select the historical snapshot once per point, shared by every account.
     const transactionsThroughPoint = input.transactions.filter(
       (transaction) => transaction.occurredAt <= at
+    );
+    const balances = deriveAccountBalances(
+      selectedAccounts,
+      transactionsThroughPoint
     );
     return {
       at,
@@ -37,10 +43,7 @@ export function buildNetWorthTrend(input: {
               ? 1
               : input.ratesByAccount.get(account.id);
           if (rate === undefined) return total;
-          return (
-            total +
-            deriveAccountBalance(account, transactionsThroughPoint) * rate
-          );
+          return total + balances.get(account.id)! * rate;
         }, 0)
       )
     };

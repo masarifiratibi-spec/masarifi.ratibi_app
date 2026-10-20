@@ -20,8 +20,13 @@ const en = {
     'Deleting your account… Keep the app open. Completion has not been confirmed yet.',
   'settings.deletion.dev.completed':
     'Your account and its stored data have been deleted.',
+  'settings.deletion.dev.loadingTitle': 'Loading',
+  'settings.deletion.dev.loadingDescription':
+    'Deleting your account securely\nPlease wait until the process is complete',
   'settings.deletion.dev.localRetry':
     'The server confirmed deletion. Device cleanup still needs to finish. Retry, or restart the app if cleanup remains blocked.',
+  'settings.deletion.dev.notAllowed':
+    'Deletion is not enabled for this test account. Your account has not been deleted. Retry after access is enabled.',
   'settings.deletion.retentionNotice':
     'This workflow anonymizes your app profile, removes assistant, tracking and support data, and deletes your sign-in provider account. Financial ledger and planning records remain retained.',
   'settings.deletion.verificationUnavailable':
@@ -38,6 +43,8 @@ const en = {
   'settings.deletion.recentAuth':
     'Verify your identity again to continue this confirmed deletion request.',
   'settings.deletion.reverify': 'Send verification code',
+  'settings.deletion.retry': 'Try again',
+  'settings.deletion.dev.sessionRetry': 'Deletion could not finish with the current session. Try again; the account has not been deleted.',
   'settings.deletion.code': 'Verification code',
   'settings.deletion.verify': 'Verify and continue',
   'settings.deletion.codeSent': 'Enter the code sent to {{destination}}.',
@@ -1093,6 +1100,9 @@ const en = {
   'tracking.home.summary':
     '{{detected}} detected this month, {{review}} need review.',
   'tracking.home.onboardingHeading': "Let's get started.",
+  'tracking.home.smsBody': 'Track transactions from financial SMS.',
+  'tracking.home.notificationTitle': 'Notification tracking',
+  'tracking.home.notificationBody': 'Detect transactions from bank and wallet alerts.',
   'tracking.home.enableTitle': 'Track your spending automatically',
   'tracking.home.enableBody':
     'Let Masarifi & Ratibi detect supported transactions automatically.',
@@ -1100,7 +1110,7 @@ const en = {
   'tracking.home.dismissAction': 'Dismiss automatic tracking suggestion',
   'notifications.home.enableTitle': 'Turn on notifications',
   'notifications.home.enableBody':
-    'Get transaction alerts and reminders from Masarifi & Ratibi.',
+    'Get transaction alerts and reminders.',
   'notifications.home.enableAction': 'Enable notifications',
   'notifications.home.dismissAction': 'Dismiss notification suggestion',
   'notifications.home.enableFailed':

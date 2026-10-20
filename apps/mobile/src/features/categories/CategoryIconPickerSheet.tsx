@@ -289,6 +289,8 @@ export function CategoryIconPickerSheet({
   const locale = usePreferenceStore((state) => state.locale);
   const isRtl = direction === 'rtl';
 
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}

@@ -21,18 +21,40 @@ import {
 import { startAccountDeletionVerification } from './account-deletion-auth';
 import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
 import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
+import { useTheme } from '@/state/theme-context';
 
-export function AccountDeletionPanel() {
+export function AccountDeletionPanel({
+  presentation = 'default'
+}: {
+  presentation?: 'default' | 'link';
+}) {
   const session = useAppShellStore((state) => state.session);
   const ownerId = session?.status === 'authenticated' ? session.userId : null;
   if (ownerId && isDevPrivacyDeletionEnabled())
-    return <DevAccountDeletionPanel key={ownerId} ownerId={ownerId} />;
+    return (
+      <DevAccountDeletionPanel
+        key={ownerId}
+        ownerId={ownerId}
+        presentation={presentation}
+      />
+    );
   return ownerId ? (
-    <OwnedAccountDeletionPanel key={ownerId} ownerId={ownerId} />
+    <OwnedAccountDeletionPanel
+      key={ownerId}
+      ownerId={ownerId}
+      presentation={presentation}
+    />
   ) : null;
 }
 
-function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
+function OwnedAccountDeletionPanel({
+  ownerId,
+  presentation
+}: {
+  ownerId: string;
+  presentation: 'default' | 'link';
+}) {
+  const theme = useTheme();
   const [request, setRequest] = React.useState<PrivacyRequest | null>(null);
   const [pending, setPending] = React.useState(true);
   const [restored, setRestored] = React.useState(false);
@@ -178,8 +200,12 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
 
   return (
     <View style={styles.stack}>
-      <StyledText>appShell.security.deleteAccount.description</StyledText>
-      <StyledText>settings.deletion.retentionNotice</StyledText>
+      {presentation === 'default' ? (
+        <>
+          <StyledText>appShell.security.deleteAccount.description</StyledText>
+          <StyledText>settings.deletion.retentionNotice</StyledText>
+        </>
+      ) : null}
       {pending ? (
         <StyledText accessibilityLiveRegion="polite">
           settings.deletion.pending
@@ -274,7 +300,12 @@ function OwnedAccountDeletionPanel({ ownerId }: { ownerId: string }) {
       {canRequest && !recentAuth ? (
         <ActionButton
           label="appShell.security.deleteAccount"
-          variant="destructive"
+          variant={presentation === 'link' ? 'quiet' : 'destructive'}
+          labelStyle={
+            presentation === 'link'
+              ? { color: theme.colors.status.danger, fontWeight: '400' }
+              : undefined
+          }
           loading={pending}
           onPress={() => confirm(submit)}
         />

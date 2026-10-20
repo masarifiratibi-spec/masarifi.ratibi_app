@@ -1,7 +1,6 @@
 import React from 'react';
 import { router } from 'expo-router';
 
-import { UnlockScreen } from '@/features/security/UnlockScreen';
 import { createBiometricService } from '@/services/platform/biometric-service';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { useAppShellStore } from '@/state/app-shell';
@@ -18,6 +17,9 @@ export default function UnlockRoute() {
   const firstLaunchOnboardingCompleted = usePreferenceStore(
     (state) => state.firstLaunchOnboardingCompleted
   );
+  const { UnlockScreen } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/security/UnlockScreen') as typeof import('@/features/security/UnlockScreen');
   return (
     <UnlockScreen
       biometricEnabled={privacyLock?.biometricStatus === 'enabled'}

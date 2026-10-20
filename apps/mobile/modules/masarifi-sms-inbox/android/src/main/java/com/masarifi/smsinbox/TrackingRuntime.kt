@@ -86,6 +86,8 @@ internal object TrackingOwner {
     WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
   }
   @Synchronized fun purgeOwner(context: Context, owner: String) {
+    check(context.packageName == "com.masarifi.mobile.dev" ||
+      context.packageName == "com.masarifi.mobile.dev.privacy") {"privacy_development_required"}
     require(owner.matches(Regex("[a-f0-9]{64}")))
     val presentations = TrackingEncryptedStore(context,"masarifi_tracking_presentations_v2",owner).read()
     if(presentations != null) {

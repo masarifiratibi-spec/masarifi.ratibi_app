@@ -232,9 +232,11 @@ export function useAskAssistant() {
 }
 
 export function useAssistantInsights() {
+  const consent = useAssistantConsent();
   return useQuery({
     queryKey: assistantKeys.insights(),
-    queryFn: () => assistantService.listInsights()
+    queryFn: () => assistantService.listInsights(),
+    enabled: consent.data?.status === 'enabled'
   });
 }
 

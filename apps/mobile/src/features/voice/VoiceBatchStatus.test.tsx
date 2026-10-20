@@ -13,6 +13,7 @@ it('can hide historical zero-added copy on Home while retaining the result', () 
   }} />);
   expect(screen.queryByText('لم تتم إضافة أي معاملات.')).toBeNull();
   expect(screen.queryByText('No transactions were added.')).toBeNull();
+  expect(screen.queryByTestId('voice-batch-status')).toBeNull();
 });
 
 it.each([

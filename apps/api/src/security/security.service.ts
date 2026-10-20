@@ -205,6 +205,8 @@ function projectRecord(operation: string, value: unknown): Record<string, unknow
   }
   if (operation.includes('DeletionRequest')) {
     result.retainedCategories = retainedCategories(result.retainedCategories);
+    if (['createMyDeletionRequest', 'getMyDeletionRequest'].includes(operation))
+      delete result.errorCode;
   }
   return result;
 }
@@ -285,7 +287,21 @@ export class SecurityService {
     ) {
       throw new HttpException({ code: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
     }
-    if (recentAuthOperations.has(input.operation)) {
+    const sessionDeletionOwner = this.config.get('MASARIFI_STAGING_SELF_DELETION_OWNER_ID');
+    if (
+      sessionDeletionOwner &&
+      input.operation === 'createMyDeletionRequest' &&
+      sessionDeletionOwner !== input.principal.userId
+    )
+      throw new HttpException({ code: 'FORBIDDEN' }, 403);
+    const scopedSessionDeletion =
+      input.operation === 'createMyDeletionRequest' &&
+      this.config.get('MASARIFI_PROCESS_KIND') === 'api' &&
+      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      this.config.get('MASARIFI_DELETION_COOLING_OFF_HOURS') === 0 &&
+      (this.config.get('MASARIFI_STAGING_SELF_DELETION_ENABLED') === true ||
+        sessionDeletionOwner === input.principal.userId);
+    if (recentAuthOperations.has(input.operation) && !scopedSessionDeletion) {
       this.assertRecentAuth(input.principal);
     }
     if (requiredReasonOperations.has(input.operation) || body.reason !== undefined) {

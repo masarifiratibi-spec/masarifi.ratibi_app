@@ -97,9 +97,9 @@ export function normalizeCreateCategory(value: unknown): Record<string, unknown>
     kind,
     labelAr: text(input.labelAr, 100),
     labelEn: text(input.labelEn, 100),
-    icon: optionalText(input.icon, 64),
-    color: optionalText(input.color, 32),
-    parentId: optionalUuid(input.parentId),
+    icon: optionalText(input.icon, 64) ?? null,
+    color: optionalText(input.color, 32) ?? null,
+    parentId: optionalUuid(input.parentId) ?? null,
     sortOrder: input.sortOrder === undefined ? 0 : integer(input.sortOrder, -100000, 100000),
   };
 }

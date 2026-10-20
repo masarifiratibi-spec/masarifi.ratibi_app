@@ -229,3 +229,23 @@ describe('Mobile client runtime policy', () => {
     ).toBe(false);
   });
 });
+
+
+describe('regular DEV account deletion admission', () => {
+  const original = { ...process.env };
+  afterEach(() => { process.env = { ...original }; });
+  it.each([
+    ['staging-development', 'https://api.staging.masarifiratibi.com', true],
+    ['staging-development-privacy', 'https://api.staging.masarifiratibi.com/dev-privacy', true],
+    [undefined, 'https://api.staging.masarifiratibi.com', false],
+    ['production', 'https://api.staging.masarifiratibi.com', false],
+    ['staging-development', 'https://api.masarifiratibi.com', false],
+  ])('enables the isolated deletion route only for its matching DEV variant %s %s', (variant, url, expected) => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_bWFzYXJpZmkudGVzdCQ';
+    if (variant) process.env.EXPO_PUBLIC_APP_VARIANT = variant;
+    else delete process.env.EXPO_PUBLIC_APP_VARIANT;
+    process.env.EXPO_PUBLIC_API_URL = url;
+    expect(require('./client-runtime').isDevPrivacyDeletionEnabled()).toBe(expected);
+  });
+});

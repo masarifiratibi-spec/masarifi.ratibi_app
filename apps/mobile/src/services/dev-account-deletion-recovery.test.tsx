@@ -87,12 +87,16 @@ function session(ownerId: string | null) {
       : null
   });
 }
-function Runtime() {
+function Runtime({
+  presentation = 'default'
+}: {
+  presentation?: 'default' | 'link';
+}) {
   return (
     <MobileIdentityProvider>
       <FoundationProviders>
         <DevAccountDeletionRecovery />
-        <AccountDeletionPanel />
+        <AccountDeletionPanel presentation={presentation} />
       </FoundationProviders>
     </MobileIdentityProvider>
   );
@@ -145,7 +149,7 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 });
 
-test('shows irreversible confirmation and progress, then removes deletion UI after sign-out', async () => {
+test('shows irreversible confirmation and progress from the compact entry, then removes deletion UI after sign-out', async () => {
   const owner = 'user_native_revoked';
   clerkOwner = owner;
   session(owner);
@@ -160,11 +164,13 @@ test('shows irreversible confirmation and progress, then removes deletion UI aft
   const confirmation = jest
     .spyOn(Alert, 'alert')
     .mockImplementation(() => undefined);
-  render(<Runtime />);
+  render(<Runtime presentation="link" />);
   const deleteButton = await screen.findByRole('button', {
     name: t('appShell.security.deleteAccount')
   });
   await waitFor(() => expect(deleteButton).toBeEnabled());
+  expect(deleteButton).toHaveStyle({ backgroundColor: 'transparent' });
+  expect(screen.queryByText(t('settings.deletion.dev.description'))).toBeNull();
   expect(screen.queryByText(t('settings.deletion.retentionNotice'))).toBeNull();
   fireEvent.press(deleteButton);
   expect(confirmation).toHaveBeenCalledWith(

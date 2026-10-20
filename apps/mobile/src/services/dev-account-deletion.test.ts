@@ -1,3 +1,9 @@
+import { Alert } from 'react-native';
+import React from 'react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { renderWithProviders } from '@/test-utils/render';
+import { changeLocale, translateDynamic as t } from '@/localization/i18n';
+import { DevAccountDeletionPanel } from '@/features/settings/DevAccountDeletionPanel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   deletionNative,
@@ -166,6 +172,29 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 });
 
+test('keeps a forbidden POST as a rejected operation without polling and retries that same operation explicitly', async () => {
+  const ownerFile = seedDeletedOwner(OWNER);
+  http.mockResolvedValueOnce(response({ code: 'FORBIDDEN' }, 403));
+  await submitDevAccountDeletion(OWNER);
+  const rejected = await loadDeletionCompletion(OWNER);
+  expect(rejected?.phase).toBe('rejected');
+  expect(snapshot()).toMatchObject({ phase: 'rejected', automaticRetries: false, error: 'settings.deletion.dev.notAllowed' });
+  expect(deletionNative.files.has(ownerFile)).toBe(true);
+  await reconcileDevAccountDeletions({ force: true });
+  expect(http).toHaveBeenCalledTimes(1);
+  shellOwner(null);
+  http.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe(rejected!.operationId);
+    expect(JSON.parse(init.body as string).completionToken).toBe(rejected!.completionToken);
+    return response(fullRequest, 202);
+  });
+  await submitDevAccountDeletion(OWNER);
+  expect(http).toHaveBeenCalledTimes(2);
+  expect(snapshot()?.phase).toBe('completed');
+  expect(deletionNative.files.has(ownerFile)).toBe(false);
+});
+
 test('persists a secret capability before HTTP, accepts actual completion after Clerk revocation, and erases only that owner', async () => {
   const ownerFile = seedDeletedOwner(OWNER);
   const otherFile = seedDeletedOwner(OTHER);
@@ -254,7 +283,7 @@ test('keeps a completed checkpoint when local erasure fails and finishes without
   expect(deletionNative.files.has(ownerFile)).toBe(false);
 });
 
-test.each([401, 404, 429, 503])(
+test.each([401, 403, 404, 429, 503])(
   'does not infer completion from a %i capability response',
   async (status) => {
     seedDeletedOwner(OWNER);
@@ -262,7 +291,7 @@ test.each([401, 404, 429, 503])(
     await submitDevAccountDeletion(OWNER);
     http.mockResolvedValueOnce(
       response(
-        { code: status === 429 ? 'RATE_LIMITED' : 'NOT_FOUND' },
+        { code: status === 429 ? 'RATE_LIMITED' : status === 403 ? 'FORBIDDEN' : 'NOT_FOUND' },
         status,
         { 'Retry-After': '120' }
       )
@@ -510,4 +539,101 @@ test('bootstrap repairs a prepared secure journal whose public owner index write
     journal.completionToken
   );
   expect(http).not.toHaveBeenCalled();
+});
+
+
+test('regular DEV sends deletion only to the isolated privacy route and preserves its ordinary API base', async () => {
+  process.env.EXPO_PUBLIC_APP_VARIANT = 'staging-development';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  http.mockResolvedValueOnce(response(fullRequest, 202));
+  await submitDevAccountDeletion(OWNER);
+  expect(http.mock.calls[0][0]).toBe('https://api.staging.masarifiratibi.com/dev-account-deletion/api/v1/me/deletion-requests');
+  expect(process.env.EXPO_PUBLIC_API_URL).toBe('https://api.staging.masarifiratibi.com');
+  expect(snapshot()?.phase).toBe('completed');
+});
+
+
+test('DEV deletion recovery offers a retry without an OTP or another confirmation step', async () => {
+  http.mockResolvedValueOnce(response({ code: 'RECENT_AUTH_REQUIRED' }, 403));
+  await submitDevAccountDeletion(OWNER);
+  renderWithProviders(React.createElement(DevAccountDeletionPanel, { ownerId: OWNER }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: t('settings.deletion.reverify') })).toBeNull());
+  expect(screen.queryByLabelText(t('settings.deletion.code'))).toBeNull();
+  http.mockResolvedValueOnce(response(fullRequest, 202));
+  await act(async () => { fireEvent.press(screen.getByRole('button', { name: t('settings.deletion.retry') })); });
+  await waitFor(() => expect(snapshot()?.phase).toBe('completed'));
+});
+
+
+test('DEV deletion waits for the existing confirmation and completes without a second prompt', async () => {
+  const ownerId = 'user_ConfirmedDeletion123';
+  activeOwner = ownerId;
+  shellOwner(ownerId);
+  const confirmation = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  try {
+    renderWithProviders(React.createElement(DevAccountDeletionPanel, { ownerId }));
+    const button = await screen.findByRole('button', { name: t('appShell.security.deleteAccount') });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.press(button);
+    expect(confirmation).toHaveBeenCalledTimes(1);
+    expect(http).not.toHaveBeenCalled();
+    const accept = confirmation.mock.calls[0]?.[2]?.find((action) => action.style === 'destructive');
+    expect(accept).toBeDefined();
+    http.mockResolvedValueOnce(response(fullRequest, 202));
+    await act(async () => { accept?.onPress?.(); });
+    await waitFor(() => expect(getDevDeletionSnapshots().find((entry) => entry.ownerId === ownerId)?.phase).toBe('completed'));
+    expect(confirmation).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText(t('settings.deletion.code'))).toBeNull();
+  } finally {
+    confirmation.mockRestore();
+  }
+});
+
+test.each(['ar', 'en'] as const)('deletion loading modal supports %s through processing and closes only after completion', async (locale) => {
+  changeLocale(locale);
+  const ownerId = `user_loading_${locale}`;
+  activeOwner = ownerId;
+  shellOwner(ownerId);
+  const confirmation = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  let finishRequest!: (value: ReturnType<typeof response>) => void;
+  const pendingRequest = new Promise<ReturnType<typeof response>>((resolve) => {
+    finishRequest = resolve;
+  });
+  try {
+    renderWithProviders(React.createElement(DevAccountDeletionPanel, { ownerId }));
+    const button = await screen.findByRole('button', { name: t('appShell.security.deleteAccount') });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.press(button);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    http.mockReturnValueOnce(pendingRequest);
+    const secureDeletesBefore = deletionNative.secureStore.deleteItemAsync.mock.calls.length;
+    const accept = confirmation.mock.calls[0]?.[2]?.find((action) => action.style === 'destructive');
+    await act(async () => { accept?.onPress?.(); });
+    expect(screen.getByRole('progressbar')).toHaveProp('accessibilityState', { busy: true });
+    expect(screen.getByText(locale === 'ar' ? 'جاري التحميل' : 'Loading')).toBeOnTheScreen();
+    expect(screen.getByRole('progressbar')).toHaveStyle({ direction: locale === 'ar' ? 'rtl' : 'ltr' });
+    await act(async () => {
+      finishRequest(response({ ...fullRequest, status: 'processing', completedAt: null }, 202));
+    });
+    expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+    expect(deletionNative.secureStore.deleteItemAsync).toHaveBeenCalledTimes(secureDeletesBefore);
+    http.mockResolvedValueOnce(response(completedReceipt));
+    await act(async () => { await reconcileDevAccountDeletions({ force: true }); });
+    await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
+    expect(getDevDeletionSnapshots().find((entry) => entry.ownerId === ownerId)?.phase).toBe('completed');
+    expect(confirmation).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => { finishRequest(response(fullRequest, 202)); await pendingRequest; });
+    confirmation.mockRestore();
+    changeLocale('ar');
+  }
+});
+
+test('a failed deletion response releases the loading modal and keeps recovery available', async () => {
+  http.mockResolvedValueOnce(response({ code: 'PROVIDER_UNAVAILABLE' }, 503));
+  await submitDevAccountDeletion(OWNER);
+  renderWithProviders(React.createElement(DevAccountDeletionPanel, { ownerId: OWNER }));
+  await screen.findByRole('button', { name: t('settings.deletion.refresh') });
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(snapshot()?.phase).toBe('unavailable');
 });

@@ -161,7 +161,7 @@ it.each([
   ['ar', 'سجّل أول معاملة بصوتك.'],
   ['en', 'Record your first transaction by voice.']
 ] as const)(
-  'shows the first-transaction voice invitation in %s and removes it after any recorded transaction',
+  'keeps the approved first-use Home free of the voice invitation and its extra history read in %s',
   async (locale, invitation) => {
     changeLocale(locale);
     const history = jest
@@ -172,33 +172,12 @@ it.each([
       recentTransactions: [],
       dataState: 'empty' as const
     };
-    function FirstTransactionJourney() {
-      const [saved, setSaved] = React.useState(false);
-      return (
-        <>
-          <HomeScreen
-            summary={
-              saved
-                ? {
-                    ...summary,
-                    recentTransactions: [
-                      makeTransaction(71, { source: 'manual' })
-                    ]
-                  }
-                : emptySummary
-            }
-          />
-          <StyledText onPress={() => setSaved(true)}>
-            Record any transaction
-          </StyledText>
-        </>
-      );
-    }
-    const view = renderWithProviders(<FirstTransactionJourney />);
+    const view = renderWithProviders(<HomeScreen summary={emptySummary} />);
     try {
-      await waitFor(() => expect(screen.getByText(invitation)).toBeTruthy());
-      fireEvent.press(screen.getByText('Record any transaction'));
+      await act(async () => { await Promise.resolve(); });
       expect(screen.queryByText(invitation)).toBeNull();
+      expect(screen.getByText(translate('coreFinance.home.todayEmpty'))).toBeTruthy();
+      expect(history).not.toHaveBeenCalled();
     } finally {
       view.unmount();
       history.mockRestore();
@@ -223,7 +202,8 @@ it('does not show the first-transaction invitation for an empty period when olde
     <HomeScreen summary={{ ...summary, recentTransactions: [] }} />
   );
   try {
-    await waitFor(() => expect(history).toHaveBeenCalled());
+    await act(async () => { await Promise.resolve(); });
+    expect(history).not.toHaveBeenCalled();
     expect(
       screen.queryByText('Record your first transaction by voice.')
     ).toBeNull();
