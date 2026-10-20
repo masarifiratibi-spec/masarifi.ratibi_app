@@ -4,6 +4,28 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun expandedCurrencyPhrasesRetainNativeMoneyEvidenceWithoutBypassingSafety() {
+    val policy=policy()
+    listOf("درهم اماراتي","درهم إماراتى","درهم اماراتى","دراهم إماراتية","دراهم اماراتية","د.إ","Dhs",
+      "جنيه مصرى","جنية","جنية مصري","جنية مصرى","ج.م","L.E.","ريال سعودى","ر.س").forEach { alias ->
+      listOf("Purchase $alias ١٢٫٥٠","Purchase ۱۲٫۵۰ $alias").forEach { text ->
+        assertTrue(text,policy.isStrong(text,"example.synthetic.wallet"))
+        listOf(" OTP 123456"," offer"," failed").forEach { suffix ->
+          assertFalse(text+suffix,policy.isStrong(text+suffix,"example.synthetic.wallet"))
+        }
+      }
+    }
+  }
+  @Test fun receiptNotificationsAreAdmittedFromAnyWalletWithoutBypassingSafety() {
+    val content=FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
+      .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!
+    listOf("com.egyptianbanks.instapay","example.new.wallet").forEach { source ->
+      assertEquals(NotificationAdmission.TRUSTED,notificationAdmission(source,"com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"You have received  1.00 EGP from example@wallet"))
+      listOf(" OTP 123456"," offer"," failed").forEach { suffix ->
+        assertEquals(NotificationAdmission.DISCARD,notificationAdmission(source,"com.masarifi.mobile.dev",true,emptySet(),emptySet(),content,"You have received 1.00 EGP from example@wallet"+suffix))
+      }
+    }
+  }
   @Test fun financialTextAcceptsUnicodeWhitespaceUsedByAndroidNotifications() {
     val content=FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
       .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!

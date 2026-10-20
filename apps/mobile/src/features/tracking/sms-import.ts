@@ -29,6 +29,9 @@ export interface PreparedSmsImport {
   diagnostics?: TrackingDiagnostic[];
 }
 interface Options {
+  notificationAccountId?: string;
+  preferredAccountId?: string | null;
+  currencyAccountPolicy?: 'source_currency_v1';
   sourceAdmissionPolicy?: 'financial_content_v1';
   accountingPolicy?: 'default_account_nominal_v1';
   activatedAt?: number;
@@ -49,6 +52,16 @@ interface Options {
 }
 const digest = async (value: string) =>
   Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, value);
+
+function safeSourceDisplayName(value: string | undefined, sms: boolean) {
+  if (!value || /[\p{Cc}\p{Cf}]|[a-z][a-z\d+.-]*:\/\/|www\./iu.test(value))
+    return;
+  const label = value.trim();
+  if (!label) return;
+  if (sms && (/\p{N}{4,}/u.test(label) || /^[+\p{N}\s().-]+$/u.test(label)))
+    return;
+  return label.slice(0, 100);
+}
 export const prepareSmsImport = (
   messages: readonly RawSmsMessage[],
   options: Options
@@ -73,6 +86,12 @@ export async function prepareFinancialMessageImport(
       ? input.body
       : [input.title, input.text].filter(Boolean).join('\n');
     const receivedAt = sms ? input.receivedAt : input.postedAt;
+    const sourceCurrencyPolicy =
+      options.currencyAccountPolicy === 'source_currency_v1' &&
+      options.sourceAdmissionPolicy === 'financial_content_v1';
+    const sourceDisplayName = sourceCurrencyPolicy
+      ? safeSourceDisplayName(sms ? input.sender : input.sourceDisplayName, sms)
+      : undefined;
     if (!Number.isSafeInteger(receivedAt) || receivedAt < 0) continue;
     result.newestReceivedAt = Math.max(
       result.newestReceivedAt ?? 0,
@@ -154,6 +173,20 @@ export async function prepareFinancialMessageImport(
         consume();
         continue;
       }
+      const notificationAccount =
+        !sourceCurrencyPolicy && !sms && options.notificationAccountId
+          ? options.accounts.find(
+              (account) => account.id === options.notificationAccountId
+            )
+          : undefined;
+      if (
+        !sourceCurrencyPolicy && !sms && options.notificationAccountId &&
+        (!notificationAccount || !accountAllowsAutomaticTracking(notificationAccount) ||
+          notificationAccount.currencyCode !== classification.currency)
+      ) {
+        result.accountRequiredCount++;
+        continue;
+      }
       const movements = nominal.movements ?? [
         {
           component: null,
@@ -163,6 +196,13 @@ export async function prepareFinancialMessageImport(
       ];
       for (const movement of movements) {
         const classification = movement.classification;
+        const preferredAccount = sourceCurrencyPolicy
+          ? options.accounts.find((account) =>
+              account.id === options.preferredAccountId &&
+              accountAllowsAutomaticTracking(account) &&
+              account.currencyCode === classification.currency
+            )
+          : undefined;
         const movementKey = movement.component
           ? `sha256:${await digest(`${key}\n${movement.component}`)}`
           : key;
@@ -225,6 +265,11 @@ export async function prepareFinancialMessageImport(
             ? { merchant: classification.merchant }
             : {}),
           metadata: {
+            ...(preferredAccount
+              ? { preferredAccountId: preferredAccount.id }
+              : {}),
+            ...(sourceDisplayName ? { sourceDisplayName } : {}),
+            ...(notificationAccount ? { notificationAccountId: notificationAccount.id } : {}),
             ...(options.sourceAdmissionPolicy
               ? { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
               : {}),

@@ -3,6 +3,81 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const parser = require("./index");
 const policy = { sourceAdmissionPolicy: "financial_content_v1" };
+test("receipt wording identifies completed incoming money in content-policy SMS and notifications", () => {
+  const input = {
+    text: "You have received  1.00 EGP from example@wallet",
+    channel: "android_notification",
+  };
+  for (const sender of ["com.egyptianbanks.instapay", "example.new.wallet"]) {
+    const result = parser.discoverNominalTrackingMessage(
+      { ...input, sender },
+      parser.defaultSnapshot,
+      [],
+      [],
+      policy,
+    );
+    assert.equal(result.strong, true);
+    assert.equal(result.classification.direction, "incoming");
+    assert.equal(result.classification.status, "completed");
+    assert.equal(result.classification.amountMinor, 100);
+    assert.equal(result.classification.currency, "EGP");
+  }
+  const sms = parser.discoverNominalTrackingMessage(
+    { ...input, sender: "TESTBANK", channel: "android_sms" },
+    parser.defaultSnapshot,
+    [],
+    [],
+    policy,
+  );
+  assert.equal(sms.strong, true);
+  assert.equal(sms.classification.direction, "incoming");
+  assert.equal(sms.classification.amountMinor, 100);
+  const legacySms = parser.discoverNominalTrackingMessage(
+    { ...input, sender: "TESTBANK", channel: "android_sms" },
+    parser.defaultSnapshot,
+    [],
+    [{ normalizedSender: "TESTBANK", enabled: true, trusted: true }],
+  );
+  assert.equal(legacySms.strong, false);
+  assert.ok(legacySms.classification.reasonCodes.includes("action_unknown"));
+});
+
+test("receipt notification wording never bypasses OTP, marketing or failed state", () => {
+  for (const channel of ["android_sms", "android_notification"]) {
+    for (const suffix of [" OTP 123456", " offer", " failed"]) {
+      const result = parser.discoverNominalTrackingMessage(
+        {
+          text: "You have received 1.00 EGP from example@wallet" + suffix,
+          sender: "example.new.wallet",
+          channel,
+        },
+        parser.defaultSnapshot,
+        [],
+        [],
+        policy,
+      );
+      assert.equal(result.strong, false, suffix);
+    }
+  }
+});
+
+test("a pending receipt remains unresolved instead of becoming a completed transaction", () => {
+  for (const channel of ["android_sms", "android_notification"]) {
+    const result = parser.discoverNominalTrackingMessage(
+      {
+        text: "You have received 1.00 EGP from example@wallet pending",
+        sender: "example.new.wallet",
+        channel,
+      },
+      parser.defaultSnapshot,
+      [],
+      [],
+      policy,
+    );
+    assert.equal(result.classification.status, "pending");
+    assert.notEqual(result.classification.disposition, "capture_candidate");
+  }
+});
 test("content admission excludes Signal, Viber, Slack and Teams", () => {
   for (const sender of [
     "org.thoughtcrime.securesms",

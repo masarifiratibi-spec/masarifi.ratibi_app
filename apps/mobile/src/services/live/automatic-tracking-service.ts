@@ -400,6 +400,12 @@ export function createLiveAutomaticTrackingService({
         throw new TrackingError('unknown');
       const snapshot = validateRuleSnapshot(configuration.snapshot);
       if (
+        configuration.currencyAccountPolicy !== undefined &&
+        (configuration.currencyAccountPolicy !== 'source_currency_v1' ||
+          configuration.sourceAdmissionPolicy !== 'financial_content_v1')
+      )
+        throw new TrackingError('unknown');
+      if (
         configuration.policySmsActivationId !== undefined &&
         (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
           typeof configuration.policySmsActivationId !== 'string' ||
@@ -435,6 +441,9 @@ export function createLiveAutomaticTrackingService({
         : [];
       return {
         snapshot,
+        ...(configuration.currencyAccountPolicy === 'source_currency_v1'
+          ? { currencyAccountPolicy: 'source_currency_v1' as const }
+          : {}),
         ...(configuration.sourceAdmissionPolicy === 'financial_content_v1'
           ? {
               sourceAdmissionPolicy: 'financial_content_v1' as const,

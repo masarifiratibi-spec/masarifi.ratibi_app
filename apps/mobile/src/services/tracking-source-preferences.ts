@@ -17,6 +17,7 @@ export interface TrackingSourceState {
   smsActivatedAt?: number;
   notificationActivatedAt?: number;
   smsActivationId?: string;
+  notificationAccountId?: string;
 }
 
 interface StorageLike {
@@ -53,6 +54,10 @@ export class TrackingSourcePreferences {
       return {
         smsEnabled: value?.smsEnabled === true,
         notificationEnabled: value?.notificationEnabled === true,
+        ...(typeof value?.notificationAccountId === 'string' &&
+        /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value.notificationAccountId)
+          ? { notificationAccountId: value.notificationAccountId }
+          : {}),
         ...(typeof value?.smsActivationId === 'string' &&
         /^\d+$/.test(value.smsActivationId)
           ? { smsActivationId: value.smsActivationId }
@@ -96,6 +101,16 @@ export class TrackingSourcePreferences {
     await this.storage.setItem(storageKey, JSON.stringify(next));
     // Consent changes invalidate all queued native work; the next authenticated pass installs a new generation.
     await disableTrackingBackground(true);
+    return next;
+  }
+
+  async setNotificationAccount(accountId: string | null): Promise<TrackingSourceState> {
+    if (accountId !== null && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(accountId))
+      throw new Error('tracking_notification_account_invalid');
+    consentEpoch++;
+    const { notificationAccountId: _previous, ...current } = await this.load();
+    const next = { ...current, ...(accountId ? { notificationAccountId: accountId } : {}) };
+    await this.storage.setItem(storageKey, JSON.stringify(next));
     return next;
   }
 

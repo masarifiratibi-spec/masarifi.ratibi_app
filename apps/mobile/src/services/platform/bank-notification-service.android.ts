@@ -74,9 +74,17 @@ function parseNotification(value: unknown): RawBankNotification | null {
     Number(row.postedAt) < 0
   )
     return null;
+  const sourceDisplayName =
+    typeof row.sourceDisplayName === 'string'
+      ? row.sourceDisplayName
+          .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
+          .trim()
+          .slice(0, 100)
+      : '';
   return {
     key: row.key,
     packageName: row.packageName,
+    ...(sourceDisplayName ? { sourceDisplayName } : {}),
     title: row.title,
     text: row.text,
     postedAt: Number(row.postedAt),

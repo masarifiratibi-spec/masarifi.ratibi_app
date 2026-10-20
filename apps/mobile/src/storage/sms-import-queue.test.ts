@@ -17,6 +17,36 @@ jest.mock('./database', () => ({
 beforeEach(() => {
   mockDatabase = new StatefulSqlite(['sms_import_queue']);
 });
+it('round trips the recognized source-currency capability through a queued offline restart', async () => {
+  const storage = memoryStorage();
+  const queue = new SmsImportQueue(storage);
+  await queue.saveRules('owner-1', {
+    keywords: [],
+    senders: [],
+    accountingPolicy: 'default_account_nominal_v1',
+    sourceAdmissionPolicy: 'financial_content_v1',
+    currencyAccountPolicy: 'source_currency_v1'
+  } as Parameters<SmsImportQueue['saveRules']>[1]);
+  expect(
+    (await new SmsImportQueue(storage).load('owner-1')).rules
+  ).toMatchObject({ currencyAccountPolicy: 'source_currency_v1' });
+});
+
+it('rejects an unknown source-currency capability without replacing last-known-good rules', async () => {
+  const queue = new SmsImportQueue(memoryStorage());
+  await queue.saveRules('owner-1', { keywords: [], senders: [] });
+  await expect(
+    queue.saveRules('owner-1', {
+      keywords: [],
+      senders: [],
+      currencyAccountPolicy: 'source_currency_v2'
+    } as unknown as Parameters<SmsImportQueue['saveRules']>[1])
+  ).rejects.toThrow();
+  expect((await queue.load('owner-1')).rules).toEqual({
+    keywords: [],
+    senders: []
+  });
+});
 it('round trips a device content policy and its boundary without converting retained work', async () => {
   const queue = new SmsImportQueue(memoryStorage());
   await queue.enqueue('owner-1', {

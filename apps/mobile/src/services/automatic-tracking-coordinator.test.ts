@@ -9,6 +9,7 @@ import { createAutomaticTrackingCoordinator } from './automatic-tracking-coordin
 import { prepareFinancialMessageImport } from '@/features/tracking/sms-import';
 import { invalidateTrackingConsent } from './tracking-source-preferences';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import {
   defaultSnapshot,
   discoverFinancialMessage
@@ -918,6 +919,115 @@ describe('automatic tracking coordinator', () => {
         })
       ]
     });
+  });
+
+  it('persists the selected notification destination without changing the queued SMS destination', async () => {
+    const context = setup({ prepare: prepareFinancialMessageImport });
+    context.setOnline(false);
+    const notificationAccountId = '10000000-0000-4000-8000-000000000002';
+    context.dependencies.listCachedAccounts.mockResolvedValue([ownerAccount, { ...ownerAccount, id: notificationAccountId, type: 'wallet', currencyCode: 'EGP' }]);
+    await context.queue.saveRules('owner-1', { snapshot: defaultSnapshot, keywords: [], senders: [], accountingPolicy: 'default_account_nominal_v1', sourceAdmissionPolicy: 'financial_content_v1' });
+    context.dependencies.sources.load.mockResolvedValue({
+      smsEnabled: true, notificationEnabled: true, smsActivatedAt: 0,
+      notificationActivatedAt: 0, notificationAccountId
+    });
+    context.bankNotifications.getAccessState.mockResolvedValue('granted');
+    context.bankNotifications.readRecent.mockResolvedValue([{ key: 'destination-test', packageName: 'example.wallet', title: '', text: 'You have received 1 EGP', postedAt: 100, capturePolicy: 'default_account_nominal_v1', captureActivatedAt: 0 }]);
+    await context.coordinator.sync();
+    const submissions = (await context.queue.load('owner-1')).pending.map((entry) => entry.submission);
+    expect(submissions.find((submission) => submission.sourceChannel === 'android_sms')?.events[0]?.metadata).not.toHaveProperty('notificationAccountId');
+    expect(submissions.find((submission) => submission.sourceChannel === 'android_notification')?.events[0]).toMatchObject({ currency: 'EGP', amountMinor: 100, metadata: { notificationAccountId } });
+  });
+
+  it('queues source currency with the current matching UI preference and ignores the legacy notification binding in the opted-in cohort', async () => {
+    const context = setup({ prepare: prepareFinancialMessageImport });
+    context.setOnline(false);
+    const walletId = '10000000-0000-4000-8000-000000000002';
+    context.dependencies.listCachedAccounts.mockResolvedValue([
+      ownerAccount,
+      { ...ownerAccount, id: walletId, type: 'wallet', currencyCode: 'EGP' }
+    ]);
+    await context.queue.saveRules('owner-1', {
+      snapshot: defaultSnapshot,
+      keywords: [],
+      senders: [],
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1',
+      currencyAccountPolicy: 'source_currency_v1'
+    });
+    context.dependencies.sources.load.mockResolvedValue({
+      smsEnabled: true,
+      notificationEnabled: true,
+      smsActivatedAt: 0,
+      notificationActivatedAt: 0,
+      notificationAccountId: ownerAccount.id
+    });
+    context.bankNotifications.getAccessState.mockResolvedValue('granted');
+    const receipt = {
+      key: 'source-policy-one',
+      packageName: 'example.wallet',
+      sourceDisplayName: 'Wallet App',
+      title: '',
+      text: 'You have received 1 EGP',
+      postedAt: 100,
+      capturePolicy: 'default_account_nominal_v1',
+      captureActivatedAt: 0
+    };
+    context.bankNotifications.readRecent.mockResolvedValue([receipt]);
+    useCoreFinanceViewState.getState().selectAccount(walletId);
+    try {
+      expect((await context.coordinator.sync()).status).toBe('queued');
+      const pending = (await context.queue.load('owner-1')).pending;
+      const notification = pending.find(
+        (entry) => entry.submission.sourceChannel === 'android_notification'
+      );
+      expect(notification?.submission.events[0]).toMatchObject({
+        currency: 'EGP',
+        amountMinor: 100,
+        metadata: {
+          preferredAccountId: walletId,
+          sourceDisplayName: 'Wallet App'
+        }
+      });
+      const sms = pending.find(
+        (entry) => entry.submission.sourceChannel === 'android_sms'
+      );
+      expect(sms?.submission.events[0].metadata?.sourceDisplayName).toBe(
+        'BANK'
+      );
+      expect(sms?.submission.events[0].metadata).not.toHaveProperty(
+        'preferredAccountId'
+      );
+      expect(notification?.submission.events[0].metadata).not.toHaveProperty(
+        'notificationAccountId'
+      );
+      expect(context.bankNotifications.acknowledge).toHaveBeenCalledWith([
+        'source-policy-one'
+      ]);
+      useCoreFinanceViewState.getState().selectAccount(ownerAccount.id);
+      context.inbox.readRecent.mockResolvedValue([]);
+      context.bankNotifications.readRecent.mockResolvedValue([
+        { ...receipt, key: 'source-policy-two', postedAt: 101 }
+      ]);
+      await context.coordinator.sync();
+      const saved = (await context.queue.load('owner-1')).pending;
+      expect(saved).toHaveLength(3);
+      expect(saved[2].submission.events[0]).toMatchObject({
+        currency: 'EGP',
+        amountMinor: 100
+      });
+      expect(saved[2].submission.events[0].metadata).not.toHaveProperty(
+        'preferredAccountId'
+      );
+      for (const entry of saved)
+        for (const event of entry.submission.events) {
+          expect(event).not.toHaveProperty('accountId');
+          expect(event).not.toHaveProperty('kind');
+        }
+      expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    } finally {
+      useCoreFinanceViewState.getState().selectAccount(null);
+    }
   });
 
   it('queues bank notifications when SMS permission is denied and acknowledges after persistence', async () => {

@@ -25,6 +25,7 @@ import {
   type PreparedSmsImport
 } from '@/features/tracking/sms-import';
 import { useAppShellStore } from '@/state/app-shell';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import {
   SmsImportQueue,
@@ -299,6 +300,9 @@ export function createAutomaticTrackingCoordinator(
       // One nominal observation can contain principal and an additional fee;
       // each durable/API submission permits at most 100 movement events.
       const capturePageSize = config.accountingPolicy ? 50 : 100;
+      const sourceCurrencyPolicy =
+        config.currencyAccountPolicy === 'source_currency_v1' &&
+        config.sourceAdmissionPolicy === 'financial_content_v1';
       update('scanning');
       // Each pass gives both channels a bounded quantum. Unresolved items are durably queued before progress.
       const capture = async (
@@ -315,6 +319,18 @@ export function createAutomaticTrackingCoordinator(
           bindings: config.bindings,
           accountingPolicy: config.accountingPolicy,
           sourceAdmissionPolicy: config.sourceAdmissionPolicy,
+          currencyAccountPolicy: config.currencyAccountPolicy,
+          ...(sourceCurrencyPolicy
+            ? {
+                preferredAccountId:
+                  useCoreFinanceViewState.getState().selectedAccountId
+              }
+            : {}),
+          ...(source === 'provider' &&
+          !sourceCurrencyPolicy &&
+          sources.notificationAccountId
+            ? { notificationAccountId: sources.notificationAccountId }
+            : {}),
           activatedAt:
             source === 'sms'
               ? activation.smsActivatedAt
@@ -783,7 +799,6 @@ const coordinator = createAutomaticTrackingCoordinator({
   deviceId: getTrackingDeviceId,
   onSaved: reconcileTrackingSaves,
   recheckProcessingImport:
-    __DEV__ &&
     Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
     resolveClientRuntime().mode === 'live' &&
     resolveClientRuntime().apiUrl === 'https://api.staging.masarifiratibi.com',

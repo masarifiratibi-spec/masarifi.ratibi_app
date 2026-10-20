@@ -35,7 +35,8 @@ internal class FinancialDiscoveryPolicy private constructor(
 
   private fun inspect(raw: String, sender: String, requireMoney:Boolean): Boolean {
     if (raw.length > 8000) return false
-    val text = normalize(raw)
+    // Match the same completed-transfer wording used by notification parsing.
+    val text = normalize(raw).replace(Regex("\\byou have received\\b"), "transfer received")
     val country = providers.firstOrNull { strings(it.optJSONArray("packages")).contains(sender) }
       ?.optString("country")
     val matched = rules.filter { rule ->

@@ -135,6 +135,7 @@ describe('live automatic tracking adapter', () => {
         keywords: [],
         senders: [],
         sourceAdmissionPolicy: 'financial_content_v1',
+        currencyAccountPolicy: 'source_currency_v1',
         policyActivatedAt: 1791980000000,
         policySmsActivationId: '42'
       })
@@ -145,6 +146,7 @@ describe('live automatic tracking adapter', () => {
     });
     await expect(service.getRuleConfiguration!()).resolves.toMatchObject({
       sourceAdmissionPolicy: 'financial_content_v1',
+      currencyAccountPolicy: 'source_currency_v1',
       policyActivatedAt: 1791980000000,
       policySmsActivationId: '42'
     });
@@ -152,6 +154,36 @@ describe('live automatic tracking adapter', () => {
       '/api/v1/tracking/rule-snapshot?deviceId=aaaaaaaa-1111-4111-8111-111111111111'
     );
   });
+  it.each([
+    {
+      sourceAdmissionPolicy: 'financial_content_v1',
+      currencyAccountPolicy: 'source_currency_v2'
+    },
+    { currencyAccountPolicy: 'source_currency_v1' }
+  ])(
+    'rejects an unrecognized or ungated source currency policy (%j)',
+    async (policy) => {
+      const service = createLiveAutomaticTrackingService({
+        token: async () => 'token',
+        request: jest.fn().mockResolvedValue(
+          response({
+            snapshot: defaultSnapshot,
+            configurationHash: 'event-source-digest',
+            rolloutMode: 'automatic',
+            keywords: [],
+            senders: [],
+            ...('sourceAdmissionPolicy' in policy
+              ? { policyActivatedAt: 1791980000000 }
+              : {}),
+            ...policy
+          })
+        )
+      });
+      await expect(service.getRuleConfiguration!()).rejects.toMatchObject({
+        code: 'unknown'
+      });
+    }
+  );
   it.each([undefined, -1, 1.5])(
     'rejects a content policy without a valid activation boundary (%s)',
     async (policyActivatedAt) => {

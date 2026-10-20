@@ -3,6 +3,7 @@ export type BankNotificationAccessState = 'granted' | 'denied' | 'unavailable';
 export interface RawBankNotification {
   key: string;
   packageName: string;
+  sourceDisplayName?: string;
   title: string;
   text: string;
   postedAt: number;

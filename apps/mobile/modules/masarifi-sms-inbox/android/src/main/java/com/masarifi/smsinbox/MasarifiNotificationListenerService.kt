@@ -2,6 +2,7 @@ package com.masarifi.smsinbox
 
 import android.app.Notification
 import android.content.Context
+import android.content.ComponentName
 import android.content.SharedPreferences
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -18,8 +19,18 @@ data class CapturedNotification(
   val discovered: Boolean = false,
   val observedAt: Long = postedAt,
   val captureActivatedAt: Long = 0,
-  val capturePolicy: String = "legacy"
+  val capturePolicy: String = "legacy",
+  val sourceDisplayName: String? = null
 )
+
+private fun normalizedSourceDisplayName(label: String?): String? = label
+  ?.filterNot { it.isISOControl() }?.trim()?.take(100)?.takeIf { it.isNotBlank() }
+
+// App labels are optional metadata: package visibility or an uninstall must not block retention.
+private fun applicationSourceDisplayName(context: Context, packageName: String): String? = runCatching {
+  val application=context.packageManager.getApplicationInfo(packageName,0)
+  normalizedSourceDisplayName(context.packageManager.getApplicationLabel(application).toString())
+}.getOrNull()
 
 object NotificationCaptureState {
   private const val PREFERENCES = "masarifi_notification_capture_v1"
@@ -114,7 +125,9 @@ internal class NotificationQueue(private val context: Context) {
             item.optBoolean("discovered",false),
             item.optLong("observedAt",postedAt),
             item.optLong("captureActivatedAt",0),
-            item.optString("capturePolicy","legacy")
+            item.optString("capturePolicy","legacy"),
+            normalizedSourceDisplayName(item.opt("sourceDisplayName") as? String)
+              ?: applicationSourceDisplayName(context,packageName)
           )
         )
       }
@@ -136,6 +149,7 @@ internal class NotificationQueue(private val context: Context) {
           .put("observedAt",record.observedAt)
           .put("captureActivatedAt",record.captureActivatedAt)
           .put("capturePolicy",record.capturePolicy)
+          .put("sourceDisplayName",normalizedSourceDisplayName(record.sourceDisplayName))
       )
     }
     encrypted.write(array.toString())
@@ -158,6 +172,24 @@ internal fun retainAdmittedNotification(
 }
 
 class MasarifiNotificationListenerService : NotificationListenerService() {
+  override fun onListenerConnected() {
+    super.onListenerConnected()
+    if (!NotificationCaptureState.isEnabled(this)) return
+    // Reuse the consent boundary, content filter and durable identities on reconnect.
+    runCatching { activeNotifications.orEmpty() }.getOrDefault(emptyArray()).forEach {
+      runCatching { onNotificationPosted(it) }.onFailure {
+        android.util.Log.w("MasarifiTracking","Active notification recovery unavailable")
+      }
+    }
+  }
+
+  override fun onListenerDisconnected() {
+    super.onListenerDisconnected()
+    val state=TrackingOwner.read(this)
+    if (NotificationCaptureState.isEnabled(this) && state.optBoolean("notification") && state.optString("owner").isNotBlank())
+      runCatching { requestRebind(ComponentName(this,MasarifiNotificationListenerService::class.java)) }
+  }
+
   override fun onNotificationPosted(notification: StatusBarNotification) = synchronized(TrackingOwner) {
     if (!NotificationCaptureState.isEnabled(this)) return@synchronized
     val state=TrackingOwner.read(this)
@@ -195,7 +227,8 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
         notification.key,
         admission==NotificationAdmission.DISCOVERED,
         System.currentTimeMillis(),boundary,
-        if(FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy"))?.nominal==true) "default_account_nominal_v1" else "legacy"
+        if(FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy"))?.nominal==true) "default_account_nominal_v1" else "legacy",
+        applicationSourceDisplayName(this,notification.packageName)
       ), admission, {NotificationQueue(this).add(it)}, {TrackingScheduler.incoming(this)}
     )} catch(error:Exception) {
       getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE).edit()

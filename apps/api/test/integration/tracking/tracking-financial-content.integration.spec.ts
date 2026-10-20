@@ -68,6 +68,9 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       native?: string;
       receivedAt?: number;
       marker?: boolean;
+      accountId?: string;
+      preferredAccountId?: string;
+      sourceDisplayName?: string;
     } = {},
     execution = worker,
   ) {
@@ -103,6 +106,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
           receivedAt: new Date(received).toISOString(),
           occurredAt: classification.occurredAt,
           classification,
+          ...(classification.merchant ? { merchant: classification.merchant } : {}),
           ...(classification.amountMinor === null
             ? {}
             : {
@@ -119,6 +123,11 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
             revisionDigest: hash(text),
           },
           metadata: {
+            ...(options.preferredAccountId
+              ? { preferredAccountId: options.preferredAccountId }
+              : {}),
+            ...(options.sourceDisplayName ? { sourceDisplayName: options.sourceDisplayName } : {}),
+            ...(options.accountId ? { notificationAccountId: options.accountId } : {}),
             ruleConfigurationRevision: config.configurationRevision,
             ...(options.marker === false ? {} : { sourceAdmissionPolicy: 'financial_content_v1' }),
             ...(channel === 'android_notification' ? { sourcePackage: sender } : {}),
@@ -134,7 +143,19 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       requestId: randomUUID(),
     });
     const id = String((response.resource as Record<string, unknown>).id);
-    await execution.runJob('import.parse');
+    // Other retained fixtures must not consume this worker's bounded claim batch.
+    await pool.withClient(async (locker) => {
+      await locker.query('begin');
+      try {
+        await locker.query(
+          "select id from public.import_sessions where user_id<>$1 and status in ('received','processing') for update",
+          [owner],
+        );
+        await execution.runJob('import.parse');
+      } finally {
+        await locker.query('rollback');
+      }
+    });
     return id;
   }
   async function effects() {
@@ -153,6 +174,518 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       )
     ).rows;
   }
+
+  describe('source currency account routing', () => {
+    beforeEach(async () => {
+      const installed = (
+        await pool.query<{ installed: boolean }>(
+          "select exists(select 1 from information_schema.columns where table_schema='private' and table_name='tracking_automatic_cohorts' and column_name='currency_account_policy') installed",
+        )
+      ).rows[0]?.installed;
+      if (installed)
+        await pool.query(
+          "update private.tracking_automatic_cohorts set currency_account_policy='source_currency_v1' where user_id=$1",
+          [owner],
+        );
+    });
+
+    const currencyCases = [
+      ['EGP', 'تم خصم ٢٫٥٠ جنيه مصري', '250'],
+      ['AED', 'تم دفع 2.50 درهم إماراتي', '250'],
+      ['SAR', 'Paid SAR2.50', '250'],
+      ['KWD', 'Paid KWD1.250', '1250'],
+      ['JPY', 'Paid JPY250', '250'],
+    ] as const;
+    it.each(
+      currencyCases.flatMap(([currency, text, amount]) =>
+        (['android_sms', 'android_notification'] as const).map(
+          (channel) => [currency, text, amount, channel] as const,
+        ),
+      ),
+    )(
+      'routes %s evidence %s to its currency account over %s/%s',
+      async (currency, text, amount, channel) => {
+        const destination = currency === 'SAR' ? account : randomUUID();
+        if (destination !== account)
+          await pool.query(
+            "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Synthetic currency account','wallet',$3,true)",
+            [destination, owner, currency],
+          );
+        await capture({ text, channel });
+        expect(await effects()).toEqual([
+          expect.objectContaining({ currency, amount, effect: '-' + amount, account: destination }),
+        ]);
+      },
+    );
+
+    it.each(['missing', 'ambiguous', 'disabled', 'archived', 'unknown-currency'])(
+      'retains %s routing evidence without converting it to the SAR default',
+      async (scenario) => {
+        if (scenario !== 'missing' && scenario !== 'unknown-currency') {
+          await pool.query(
+            "insert into public.accounts(user_id,name,type,currency_code,automatic_tracking_enabled,status,deleted_at) values($1,'Synthetic unavailable','wallet','EGP',$2,$3,case when $3='archived' then clock_timestamp() else null end)",
+            [owner, scenario !== 'disabled', scenario === 'archived' ? 'archived' : 'active'],
+          );
+          if (scenario === 'ambiguous')
+            await pool.query(
+              "insert into public.accounts(user_id,name,type,currency_code,automatic_tracking_enabled) values($1,'Another currency account','wallet','EGP',true)",
+              [owner],
+            );
+        }
+        const id = await capture({
+          text: scenario === 'unknown-currency' ? 'تم خصم مبلغ 2' : 'Paid EGP2',
+        });
+        expect(await effects()).toEqual([]);
+        const item = (
+          await pool.query<{ normalized_payload: { diagnosticReason?: string } }>(
+            'select normalized_payload from public.import_items where session_id=$1',
+            [id],
+          )
+        ).rows[0];
+        expect(item?.normalized_payload.diagnosticReason).toMatch(/^source_currency_/);
+      },
+    );
+
+    it('uses an explicitly selected matching-currency account among several accounts', async () => {
+      const preferred = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Selected account','cash','SAR',true)",
+        [preferred, owner],
+      );
+      await capture({ text: 'Paid SAR2', preferredAccountId: preferred });
+      expect(await effects()).toEqual([
+        expect.objectContaining({ currency: 'SAR', account: preferred }),
+      ]);
+    });
+
+    it('posts the retained observation once when a matching currency account becomes available', async () => {
+      const id = await capture({
+        text: 'Paid EGP2',
+        channel: 'android_notification',
+        reference: 'wait-for-currency-account',
+      });
+      expect(await effects()).toEqual([]);
+      const wallet = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Later EGP wallet','wallet','EGP',true)",
+        [wallet, owner],
+      );
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await pool.query(
+          'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
+          [id],
+        );
+        await pool.withClient(async (locker) => {
+          await locker.query('begin');
+          try {
+            await locker.query(
+              "select id from public.import_sessions where user_id<>$1 and status in ('received','processing') for update",
+              [owner],
+            );
+            await worker.runJob('import.parse');
+          } finally {
+            await locker.query('rollback');
+          }
+        });
+      }
+      expect(await effects()).toEqual([
+        expect.objectContaining({ currency: 'EGP', account: wallet }),
+      ]);
+      expect(
+        (
+          await pool.query('select status,accepted_count from public.import_sessions where id=$1', [
+            id,
+          ])
+        ).rows[0],
+      ).toEqual({ status: 'complete', accepted_count: 1 });
+    });
+
+    it('keeps different explicit references as independent movements across selected accounts', async () => {
+      const wallet = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Another SAR wallet','wallet','SAR',true)",
+        [wallet, owner],
+      );
+      await capture({ reference: 'independent-one', preferredAccountId: account });
+      await capture({
+        channel: 'android_notification',
+        reference: 'independent-two',
+        preferredAccountId: wallet,
+      });
+      expect(await effects()).toHaveLength(2);
+    });
+
+    it('keeps a selected SAR account from redirecting an EGP notification', async () => {
+      const wallet = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'EGP wallet','wallet','EGP',true)",
+        [wallet, owner],
+      );
+      await capture({
+        text: 'Paid EGP2',
+        preferredAccountId: account,
+        channel: 'android_notification',
+      });
+      expect(await effects()).toEqual([
+        expect.objectContaining({ currency: 'EGP', account: wallet }),
+      ]);
+    });
+
+    it('uses a generic app source label for title and missing merchant', async () => {
+      await capture({
+        text: 'Paid SAR2',
+        channel: 'android_notification',
+        sourceDisplayName: 'Example Wallet',
+      });
+      expect(
+        (
+          await pool.query('select title,merchant from public.transactions where user_id=$1', [
+            owner,
+          ])
+        ).rows,
+      ).toEqual([{ title: 'Example Wallet', merchant: 'Example Wallet' }]);
+    });
+
+    it('keeps a parsed merchant when adding the bank source label', async () => {
+      await capture({
+        text: 'Paid SAR2 at COFFEE HOUSE',
+        channel: 'android_notification',
+        sourceDisplayName: 'Example Wallet',
+      });
+      expect(
+        (
+          await pool.query('select title,merchant from public.transactions where user_id=$1', [
+            owner,
+          ])
+        ).rows,
+      ).toEqual([{ title: 'Example Wallet', merchant: 'COFFEE HOUSE' }]);
+    });
+
+    it('keeps an admitted currency destination stable when another account is added before matching evidence arrives', async () => {
+      const wallet = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Original EGP wallet','wallet','EGP',true)",
+        [wallet, owner],
+      );
+      await capture({ text: 'Paid EGP2', reference: 'stable-currency-destination' });
+      await pool.query(
+        "insert into public.accounts(user_id,name,type,currency_code,automatic_tracking_enabled) values($1,'New EGP wallet','wallet','EGP',true)",
+        [owner],
+      );
+      await capture({
+        text: 'Paid EGP2',
+        channel: 'android_notification',
+        reference: 'stable-currency-destination',
+        preferredAccountId: wallet,
+      });
+      expect(await effects()).toEqual([
+        expect.objectContaining({ currency: 'EGP', account: wallet }),
+      ]);
+      expect(
+        (
+          await pool.query(
+            "select count(*)::int n from public.import_items where user_id=$1 and status='accepted'",
+            [owner],
+          )
+        ).rows[0]?.n,
+      ).toBe(2);
+    });
+
+    it.each(['android_sms', 'android_notification'] as const)(
+      'blocks duplicate source evidence after selecting another same-currency account: %s first',
+      async (first) => {
+        const wallet = randomUUID();
+        await pool.query(
+          "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Second SAR wallet','wallet','SAR',true)",
+          [wallet, owner],
+        );
+        await capture({
+          channel: first,
+          reference: 'same-money-different-destination',
+          preferredAccountId: account,
+        });
+        const second = await capture({
+          channel: first === 'android_sms' ? 'android_notification' : 'android_sms',
+          reference: 'same-money-different-destination',
+          preferredAccountId: wallet,
+        });
+        expect(await effects()).toEqual([expect.objectContaining({ account })]);
+        expect(
+          (
+            await pool.query<{ normalized_payload: { diagnosticReason?: string } }>(
+              'select normalized_payload from public.import_items where session_id=$1',
+              [second],
+            )
+          ).rows[0]?.normalized_payload.diagnosticReason,
+        ).toMatch(/^(notification_destination_conflict|correlation_unresolved)$/);
+      },
+    );
+
+    it.each(
+      (['android_sms', 'android_notification'] as const).flatMap((channel) =>
+        ['active', 'disabled', 'archived'].map((status) => [channel, status] as const),
+      ),
+    )(
+      'does not post a legacy wrong-currency duplicate after activation: %s first, prior account %s',
+      async (first, status) => {
+        await pool.query(
+          "update private.tracking_automatic_cohorts set currency_account_policy='default_account_nominal_v1' where user_id=$1",
+          [owner],
+        );
+        await capture({ text: 'Paid EGP2', channel: first, reference: 'before-currency-policy' });
+        const prior = await effects();
+        expect(prior).toEqual([expect.objectContaining({ currency: 'SAR', account })]);
+        if (status === 'disabled')
+          await pool.query(
+            'update public.accounts set automatic_tracking_enabled=false where id=$1',
+            [account],
+          );
+        if (status === 'archived')
+          await pool.query(
+            "update public.accounts set is_default=false,status='archived',deleted_at=clock_timestamp() where id=$1",
+            [account],
+          );
+        await pool.query(
+          "insert into public.accounts(user_id,name,type,currency_code,automatic_tracking_enabled) values($1,'New EGP wallet','wallet','EGP',true)",
+          [owner],
+        );
+        await pool.query(
+          "update private.tracking_automatic_cohorts set currency_account_policy='source_currency_v1' where user_id=$1",
+          [owner],
+        );
+        await capture({
+          text: 'Paid EGP2',
+          channel: first === 'android_sms' ? 'android_notification' : 'android_sms',
+          reference: 'before-currency-policy',
+        });
+        expect(await effects()).toEqual(prior);
+      },
+    );
+
+    it.each(['https://example.test', 'Personal 1234567890', 'Bad\nName'])(
+      'does not use unsafe source labels: %s',
+      async (sourceDisplayName) => {
+        await capture({ channel: 'android_notification', sourceDisplayName });
+        expect(await effects()).toHaveLength(1);
+        expect(
+          (
+            await pool.query('select title,merchant from public.transactions where user_id=$1', [
+              owner,
+            ])
+          ).rows[0],
+        ).not.toEqual({ title: sourceDisplayName, merchant: sourceDisplayName });
+      },
+    );
+
+    it('rejects a preferred account belonging to another owner', async () => {
+      const other = 'currency_foreign_' + randomUUID(),
+        foreign = randomUUID();
+      await pool.query("insert into public.profiles(id,status) values($1,'active')", [other]);
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Foreign','cash','SAR',true)",
+        [foreign, other],
+      );
+      const id = await capture({ preferredAccountId: foreign });
+      expect(await effects()).toEqual([]);
+      expect(
+        (
+          await pool.query<{ normalized_payload: { diagnosticReason?: string } }>(
+            'select normalized_payload from public.import_items where session_id=$1',
+            [id],
+          )
+        ).rows[0]?.normalized_payload.diagnosticReason,
+      ).toBe('source_currency_account_invalid');
+    });
+  });
+  it.each([
+    ['You have received 1.00 EGP from someone@wallet', 'income', '100'],
+    ['Paid EGP2 reference WALLET012345', 'expense', '-200'],
+  ])('posts a notification into an explicitly selected wallet: %s', async (text, kind, effect) => {
+    const wallet = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Synthetic notifications','wallet','EGP',true)",
+      [wallet, owner],
+    );
+    await pool.query('update public.accounts set automatic_tracking_enabled=false where id=$1', [
+      account,
+    ]);
+    await capture({ text, channel: 'android_notification', accountId: wallet });
+    await worker.runJob('import.parse');
+    expect(await effects()).toEqual([
+      expect.objectContaining({ kind, effect, currency: 'EGP', account: wallet }),
+    ]);
+    expect(
+      (
+        await pool.query(
+          'select is_default,automatic_tracking_enabled from public.accounts where id=$1',
+          [account],
+        )
+      ).rows[0],
+    ).toEqual({ is_default: true, automatic_tracking_enabled: false });
+  });
+
+  it.each(['other-owner', 'currency', 'disabled', 'malformed'])(
+    'never falls back to the default for an unavailable notification destination: %s',
+    async (failure) => {
+      const wallet = randomUUID();
+      const otherOwner = 'destination_' + randomUUID();
+      await pool.query("insert into public.profiles(id,status) values($1,'active')", [otherOwner]);
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Synthetic destination','wallet',$3,$4)",
+        [
+          wallet,
+          failure === 'other-owner' ? otherOwner : owner,
+          failure === 'currency' ? 'SAR' : 'EGP',
+          failure !== 'disabled',
+        ],
+      );
+      const id = await capture({
+        text: 'You have received 1.00 EGP from someone@wallet',
+        channel: 'android_notification',
+        accountId: failure === 'malformed' ? 'bad' : wallet,
+      });
+      await worker.runJob('import.parse');
+      expect(await effects()).toEqual([]);
+      const item = (
+        await pool.query<{ status: string; normalized_payload: { diagnosticReason?: string } }>(
+          'select status,normalized_payload from public.import_items where session_id=$1',
+          [id],
+        )
+      ).rows[0];
+      expect(item).toBeDefined();
+      expect(item?.normalized_payload.diagnosticReason).toBe(
+        failure === 'malformed' ? 'notification_account_invalid' : 'account_tracking_blocked',
+      );
+    },
+  );
+
+  it('ignores a notification destination hint on SMS and preserves nominal SMS posting', async () => {
+    await capture({ accountId: randomUUID() });
+    expect(await effects()).toEqual([
+      expect.objectContaining({ account, currency: 'SAR', effect: '-200' }),
+    ]);
+  });
+
+  it.each([
+    [true, true],
+    [false, true],
+    [true, false],
+    [false, false],
+  ])(
+    'holds overlapping source evidence across different destination currencies, notification first: %s, reference present: %s',
+    async (notificationFirst, withReference) => {
+      const wallet = randomUUID(),
+        receivedAt = Date.now();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Synthetic EGP wallet','wallet','EGP',true)",
+        [wallet, owner],
+      );
+      const sms = {
+        text: withReference ? 'Paid EGP2 reference SHARED12345' : 'Paid EGP2',
+        reference: withReference ? 'SHARED12345' : undefined,
+        receivedAt,
+      };
+      const notification = { ...sms, channel: 'android_notification' as const, accountId: wallet };
+      await capture(notificationFirst ? notification : sms);
+      const firstEffects = await effects();
+      expect(firstEffects).toHaveLength(1);
+      const second = await capture(notificationFirst ? sms : notification);
+      await worker.runJob('import.parse');
+      expect(await effects()).toEqual(firstEffects);
+      expect(
+        (
+          await pool.query<{ normalized_payload: { diagnosticReason?: string } }>(
+            'select normalized_payload from public.import_items where session_id=$1',
+            [second],
+          )
+        ).rows[0]?.normalized_payload.diagnosticReason,
+      ).toBe('notification_destination_conflict');
+    },
+  );
+
+  it('preserves independent equal-value transactions with different explicit references', async () => {
+    const wallet = randomUUID(),
+      receivedAt = Date.now();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Independent EGP wallet','wallet','EGP',true)",
+      [wallet, owner],
+    );
+    await capture({
+      text: 'Paid EGP2 reference DISTINCT111',
+      reference: 'DISTINCT111',
+      receivedAt,
+    });
+    await capture({
+      text: 'Paid EGP2 reference DISTINCT222',
+      reference: 'DISTINCT222',
+      receivedAt,
+      channel: 'android_notification',
+      accountId: wallet,
+    });
+    expect(await effects()).toHaveLength(2);
+  });
+
+  it('waits for the owner lock before locking a notification destination account', async () => {
+    const wallet = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Lock fixture','wallet','EGP',true)",
+      [wallet, owner],
+    );
+    const id = await capture(
+      { text: 'You have received 1 EGP', channel: 'android_notification', accountId: wallet },
+      { runJob: () => Promise.resolve(0) } as never,
+    );
+    const claim = (await repository.claimImports('notification-lock-fixture')).find(
+      (candidate) => candidate.id === id,
+    );
+    if (!claim) throw new Error('Notification lock fixture not claimed');
+    await repository.prepareImport(id, claim.claim_token);
+    await pool.withClient(async (holder) =>
+      pool.withClient(async (contender) => {
+        await holder.query('begin');
+        await contender.query('begin');
+        await holder.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [owner]);
+        const pid = (await contender.query<{ pid: number }>('select pg_backend_pid() pid')).rows[0]
+          ?.pid;
+        const finalize = contender
+          .query('select private.finalize_import_session($1,$2)', [id, claim.claim_token])
+          .then(
+            () => null,
+            (error: unknown) =>
+              error instanceof Error ? error : new Error('Finalization rejected'),
+          );
+        let failure: Error | null = null;
+        try {
+          let waiting = false;
+          const deadline = Date.now() + 3000;
+          while (!waiting && Date.now() < deadline) {
+            waiting =
+              (
+                await holder.query<{ waiting: boolean }>(
+                  "select exists(select 1 from pg_locks where pid=$1 and locktype='advisory' and not granted) waiting",
+                  [pid],
+                )
+              ).rows[0]?.waiting === true;
+            if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          expect(waiting).toBe(true);
+          expect(
+            (
+              await holder.query('select id from public.accounts where id=$1 for update nowait', [
+                wallet,
+              ])
+            ).rows,
+          ).toHaveLength(1);
+        } finally {
+          await holder.query('rollback');
+          failure = await finalize;
+          await contender.query('rollback');
+        }
+        if (failure) throw failure;
+      }),
+    );
+  });
+
   it('posts personal SMS through the existing cash default and Shopping', async () => {
     await capture();
     expect(await effects()).toEqual([

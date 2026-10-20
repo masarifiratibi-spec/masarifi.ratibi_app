@@ -170,7 +170,7 @@ class MasarifiSmsInboxModule : Module() {
           "captureActivatedAt" to record.captureActivatedAt,
           "capturePolicy" to record.capturePolicy,
           "nativeKey" to record.nativeKey
-        )
+        ) + (record.sourceDisplayName?.let { mapOf("sourceDisplayName" to it) } ?: emptyMap())
       }
     }
 

@@ -30,6 +30,7 @@ export interface SmsImportQueueEntry {
 
 export interface SmsRuleSnapshot {
   sourceAdmissionPolicy?: 'financial_content_v1';
+  currencyAccountPolicy?: 'source_currency_v1';
   policyActivatedAt?: number;
   policySmsActivationId?: string;
   activation?: {
@@ -360,6 +361,7 @@ const queueSchema = z
       .object({
         accountingPolicy: z.literal('default_account_nominal_v1').optional(),
         sourceAdmissionPolicy: z.literal('financial_content_v1').optional(),
+        currencyAccountPolicy: z.literal('source_currency_v1').optional(),
         policyActivatedAt: z.number().int().safe().nonnegative().optional(),
         policySmsActivationId: z
           .string()

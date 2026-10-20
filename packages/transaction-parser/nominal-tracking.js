@@ -152,7 +152,7 @@ function integerWords(values) {
     ? null
     : (factor[0] ?? 1) * values[index] + remainder;
 }
-function normalizeNumberWords(text) {
+function normalizeNumberWords(text, currencyAliases = []) {
   // Unsupported fractions/scales must never be partially read as a smaller amount.
   if (unsupportedNumberWords.test(text)) return text;
   return text.replace(wordPattern, (phrase, offset) => {
@@ -161,6 +161,9 @@ function normalizeNumberWords(text) {
       /^[\p{L}]/u.test(following) &&
       !/^(?:ريال|ريالا|جنيه|دينار|درهم|دولار|SAR|EGP|USD|AED|KWD|BHD|OMR|QAR)(?![\p{L}])/iu.test(
         following,
+      ) &&
+      !currencyAliases.some((alias) =>
+        new RegExp(`^${escape(alias)}(?![\\p{L}])`, "iu").test(following),
       )
     )
       return phrase;
@@ -221,16 +224,22 @@ module.exports = (parser) => {
         (policy.sourceAdmissionPolicy === "financial_content_v1" &&
           ["android_sms", "android_notification"].includes(input.channel)),
       );
-    const text = normalizeNumberWords(
+    const effective = parser.effectiveFinancialSnapshot(snapshot, overrides);
+    const normalized = normalizeNumberWords(
       parser.normalizeFinancialText(input.text),
+      effective.currencies.flatMap((currency) => currency.aliases),
     );
+    // Content-policy receipts use the existing completed-transfer action in either channel.
+    const text =
+      notification || policy.sourceAdmissionPolicy === "financial_content_v1"
+        ? normalized.replace(/\byou have received\b/giu, "transfer received")
+        : normalized;
     const found = parser.discoverFinancialMessage(
       { ...input, text },
       snapshot,
       overrides,
     );
     const c = found.classification;
-    const effective = parser.effectiveFinancialSnapshot(snapshot, overrides);
     const action = c.appliedRuleKeys.some((k) =>
       effective.rules.some((r) => r.ruleKey === k && r.family === "action"),
     );
@@ -251,7 +260,9 @@ module.exports = (parser) => {
       `(?<![\\p{L}\\d.])(?:(${currencyToken})\\s*)?([+-]?\\d[\\d,]*(?:\\.\\d+)?)(?:\\s*(${currencyToken}))?(?![\\p{L}\\d.])`,
       "giu",
     );
-    for (const clause of text.split(/[،;\n]|\.(?!\d)|,(?!\d{3}(?:\D|$))/u)) {
+    for (const clause of text.split(
+      /[،;\n]|(?<![\p{L}])\.(?!\d)|,(?!\d{3}(?:\D|$))/u,
+    )) {
       for (const m of clause.matchAll(pattern)) {
         const before = clause.slice(0, m.index).toLowerCase();
         if (

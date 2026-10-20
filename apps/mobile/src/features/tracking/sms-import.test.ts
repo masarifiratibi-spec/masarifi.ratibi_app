@@ -80,6 +80,186 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  const walletReceipt = {
+    key: 'wallet-receipt',
+    packageName: 'example.new.wallet',
+    title: 'Wallet',
+    text: 'You have received 1.00 EGP from someone@wallet',
+    postedAt: 1000,
+    capturePolicy: 'default_account_nominal_v1' as const
+  };
+  const walletAccount = account({
+    id: '10000000-0000-4000-8000-000000000002',
+    type: 'wallet',
+    currencyCode: 'EGP'
+  });
+  const walletOptions = () => options({
+    accountingPolicy: 'default_account_nominal_v1',
+    sourceAdmissionPolicy: 'financial_content_v1',
+    notificationAccountId: walletAccount.id,
+    accounts: [account({ isDefault: true }), walletAccount]
+  });
+
+  it.each([
+    ['owned matching', walletAccount, walletAccount.id],
+    ['wrong currency', account(), undefined],
+    ['closed', { ...walletAccount, status: 'closed' as const }, undefined],
+    [
+      'tracking disabled',
+      { ...walletAccount, automaticTrackingEnabled: false },
+      undefined
+    ],
+    ['not owned', undefined, undefined]
+  ])(
+    'keeps source currency and only hints a valid current selection: %s',
+    async (_label, selected, expectedId) => {
+      const result = await prepareFinancialMessageImport(
+        [{ ...walletReceipt, sourceDisplayName: '  New Wallet  ' }],
+        {
+          ...walletOptions(),
+          currencyAccountPolicy: 'source_currency_v1',
+          preferredAccountId: walletAccount.id,
+          notificationAccountId: 'missing-legacy-binding',
+          accounts: selected ? [selected] : []
+        }
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]).toMatchObject({
+        currency: 'EGP',
+        amountMinor: 100,
+        metadata: { sourceDisplayName: 'New Wallet' }
+      });
+      expect(result.events[0].metadata?.preferredAccountId).toBe(expectedId);
+      expect(result.events[0].metadata).not.toHaveProperty(
+        'notificationAccountId'
+      );
+      expect(result.events[0]).not.toHaveProperty('accountId');
+      expect(result.events[0]).not.toHaveProperty('kind');
+      expect(result.accountRequiredCount).toBe(0);
+      expect(result.consumedSourceKeys).toEqual(['wallet-receipt']);
+    }
+  );
+
+  it.each([
+    ['  ExampleBank  ', 'ExampleBank'],
+    ['+966 50 123 4567', undefined],
+    ['12345', undefined],
+    ['Bank\nPrivate', undefined],
+    ['https://bank.example', undefined],
+    ['www.bank.example', undefined]
+  ])(
+    'uses only safe SMS sender provenance (%s)',
+    async (senderName, expectedName) => {
+      const result = await prepareSmsImport(
+        [message({ sender: senderName, body: 'تم إيداع 1 جنيه مصري' })],
+        {
+          ...walletOptions(),
+          currencyAccountPolicy: 'source_currency_v1',
+          preferredAccountId: walletAccount.id
+        }
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].metadata?.sourceDisplayName).toBe(expectedName);
+      expect(result.events[0].metadata?.preferredAccountId).toBe(
+        walletAccount.id
+      );
+    }
+  );
+
+  it('retains a parsed real merchant independently from the notification source display label', async () => {
+    const result = await prepareFinancialMessageImport(
+      [
+        {
+          ...walletReceipt,
+          sourceDisplayName: 'New Wallet',
+          text: 'Paid 12.50 EGP at COFFEE HOUSE'
+        }
+      ],
+      {
+        ...walletOptions(),
+        currencyAccountPolicy: 'source_currency_v1'
+      }
+    );
+    expect(result.events[0]).toMatchObject({
+      merchant: 'COFFEE HOUSE',
+      metadata: { sourceDisplayName: 'New Wallet' }
+    });
+  });
+
+  it.each([
+    [undefined, undefined],
+    ['https://wallet.example', undefined],
+    ['Wallet\u202ePrivate', undefined],
+    [' Wallet\nPrivate ', undefined],
+    ['W'.repeat(120), 'W'.repeat(100)]
+  ])(
+    'bounds and validates OS source labels independently from notification titles (%s)',
+    async (sourceDisplayName, expectedName) => {
+      const result = await prepareFinancialMessageImport(
+        [
+          {
+            ...walletReceipt,
+            title: 'Private transaction title',
+            sourceDisplayName
+          }
+        ],
+        {
+          ...walletOptions(),
+          currencyAccountPolicy: 'source_currency_v1'
+        }
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].metadata?.sourceDisplayName).toBe(expectedName);
+    }
+  );
+
+  it('preserves legacy account binding when the currency flag lacks the content cohort capability', async () => {
+    const result = await prepareFinancialMessageImport([walletReceipt], {
+      ...walletOptions(),
+      sourceAdmissionPolicy: undefined,
+      currencyAccountPolicy: 'source_currency_v1',
+      senderRules: [
+        { ...sender(), normalizedSender: walletReceipt.packageName }
+      ]
+    });
+    expect(result.events[0].metadata?.notificationAccountId).toBe(
+      walletAccount.id
+    );
+    expect(result.events[0].metadata).not.toHaveProperty('preferredAccountId');
+  });
+
+  it('routes a wallet notification to its selected currency account without changing SMS routing', async () => {
+    const result = await prepareFinancialMessageImport([walletReceipt], walletOptions());
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({ metadata: { notificationAccountId: walletAccount.id }, currency: 'EGP', amountMinor: 100 });
+    expect(result.events[0]).not.toHaveProperty('accountId');
+    expect(result.events[0]).not.toHaveProperty('kind');
+    const sms = await prepareSmsImport([message({ body: 'تم إيداع 1 جنيه مصري' })], walletOptions());
+    expect(sms.events).toHaveLength(1);
+    expect(sms.events[0]).not.toHaveProperty('accountId');
+  });
+
+  it.each([
+    { status: 'closed' as const },
+    { automaticTrackingEnabled: false },
+    { currencyCode: 'SAR' }
+  ])('retains a notification when the selected destination is unavailable: %j', async (patch) => {
+    const result = await prepareFinancialMessageImport([walletReceipt], {
+      ...walletOptions(), accounts: [account(), { ...walletAccount, ...patch }]
+    });
+    expect(result.events).toEqual([]);
+    expect(result.accountRequiredCount).toBe(1);
+    expect(result.consumedSourceKeys).toEqual([]);
+    expect(result.skippedFingerprints).toEqual([]);
+  });
+
+  it('retains a notification if its selected account is absent from this owner', async () => {
+    const result = await prepareFinancialMessageImport([walletReceipt], { ...walletOptions(), accounts: [account()] });
+    expect(result.events).toEqual([]);
+    expect(result.consumedSourceKeys).toEqual([]);
+    expect(result.accountRequiredCount).toBe(1);
+  });
+
   it('prepares financial content from a personal sender with private source provenance', async () => {
     const result = await prepareSmsImport(
       [message({ sender: '+966500000001', body: 'تم خصم 2 ريال' })],

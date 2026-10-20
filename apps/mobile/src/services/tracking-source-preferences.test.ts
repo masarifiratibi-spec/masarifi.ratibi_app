@@ -1,5 +1,22 @@
 import { TrackingSourcePreferences } from './tracking-source-preferences';
 
+it('persists a notification destination while preserving SMS consent and boundaries', async () => {
+  const original = { smsEnabled: true, notificationEnabled: true, smsActivatedAt: 1000, smsActivationId: '42', notificationActivatedAt: 2000 };
+  const storage = memoryStorage(JSON.stringify(original));
+  const preferences = new TrackingSourcePreferences(storage);
+  const accountId = '10000000-0000-4000-8000-000000000002';
+  await preferences.setNotificationAccount(accountId);
+  expect(await new TrackingSourcePreferences(storage).load()).toEqual({ ...original, notificationAccountId: accountId });
+  await preferences.setNotificationAccount(null);
+  expect(await preferences.load()).toEqual(original);
+});
+
+it('rejects a malformed notification account before saving preferences', async () => {
+  const storage = memoryStorage();
+  await expect(new TrackingSourcePreferences(storage).setNotificationAccount('not-an-account')).rejects.toThrow();
+  expect(storage.setItem).not.toHaveBeenCalled();
+});
+
 it('persists the native ID boundary for SMS received in the activation millisecond', async () => {
   const storage = memoryStorage();
   const preferences = new TrackingSourcePreferences(storage, async () => ({

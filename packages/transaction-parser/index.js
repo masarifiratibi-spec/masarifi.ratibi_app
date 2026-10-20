@@ -68,8 +68,19 @@ function minorUnits(raw, scale) {
   const value = Number(whole + fraction.padEnd(scale, '0'));
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
+const currencySpellingAliases = {
+  SAR: ['ريال سعودى'],
+  AED: ['درهم اماراتي', 'درهم إماراتى', 'درهم اماراتى', 'دراهم إماراتية', 'دراهم اماراتية', 'Dhs'],
+  EGP: ['جنيه مصرى', 'جنية', 'جنية مصري', 'جنية مصرى', 'L.E.'],
+};
+function effectiveCurrencies(currencies) {
+  return currencies.map(currency => ({...currency,
+    // Preserve configured aliases first and the shared/native schema's bounded vocabulary.
+    aliases:[...new Set([...currency.aliases,...(currencySpellingAliases[currency.code] || [])])].slice(0,16)
+  }));
+}
 function moneyCandidates(text, snapshot) {
-  const aliases = snapshot.currencies.flatMap(c => c.aliases.map(a => ({alias: normalizeFinancialText(a), currency: c}))).sort((a,b) => b.alias.length-a.alias.length);
+  const aliases = effectiveCurrencies(snapshot.currencies).flatMap(c => c.aliases.map(a => ({alias: normalizeFinancialText(a), currency: c}))).sort((a,b) => b.alias.length-a.alias.length);
   const byAlias = new Map(aliases.map(a => [a.alias.toLowerCase(), a.currency]));
   const token = aliases.map(a => escape(a.alias)).join('|');
   const number = '[0-9][0-9,]*(?:\\.[0-9]+)?';
@@ -180,7 +191,7 @@ function validateClassification(value) {
 function effectiveFinancialSnapshot(snapshot, overrides = []) {
   validateRuleSnapshot(snapshot);
   const disabled = new Set(overrides.filter(r=>r.enabled===false).map(r=>normalizeFinancialText(r.value).toLowerCase()));
-  return {...snapshot, rules:snapshot.rules.map(rule=>({...rule,
+  return {...snapshot, currencies:effectiveCurrencies(snapshot.currencies), rules:snapshot.rules.map(rule=>({...rule,
     any:rule.family==='action' ? rule.any.filter(phrase=>!disabled.has(normalizeFinancialText(phrase).toLowerCase())) : rule.any
   })).filter(rule=>rule.any.length)};
 }
