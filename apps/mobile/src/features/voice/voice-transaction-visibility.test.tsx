@@ -27,7 +27,6 @@ import {
 } from '@/services/live/voice-batch-api-service';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 import { emptyTransactionFilters } from '@/domain/core-finance';
-import type { HomeBalanceSummary } from '@/domain/home-balance';
 import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
 import {
   fixtureAccounts,
@@ -567,15 +566,11 @@ it('renders a financial receipt only through normal saved components without ref
     expect(screen.queryByText('Analyzed — not saved')).toBeNull();
     expect(screen.queryByText('Review')).toBeNull();
     expect(screen.queryByText('Confirm')).toBeNull();
-    const refreshed = view.client.getQueriesData<HomeBalanceSummary>({
-      queryKey: ['core-finance', 'home']
-    });
     expect(
-      refreshed.some(
-        ([, data]) =>
-          data?.totalBalanceMinor === -2500
+      screen.getByLabelText(
+        new RegExp(`${translate('coreFinance.home.total')}.*-25\\.00\\s+SAR`)
       )
-    ).toBe(true);
+    ).toBeTruthy();
   } finally {
     view.close();
   }
@@ -604,7 +599,11 @@ it('refetches after an accepted receipt races initial pre-commit Home and Transa
       oldPage.resolve({ items: [], nextCursor: null });
     });
     await waitFor(() =>
-      expect(view.client.getQueryData<HomeBalanceSummary>(coreFinanceKeys.homeBalances('SAR', null))?.totalBalanceMinor).toBe(-2500)
+      expect(
+        screen.getByLabelText(
+          new RegExp(`${translate('coreFinance.home.total')}.*-25\\.00\\s+SAR`)
+        )
+      ).toBeTruthy()
     );
     await waitFor(() =>
       expect(

@@ -5,10 +5,12 @@ import {
   useQueryClient,
   type QueryClient
 } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import {
   emptyTransactionFilters,
   type Account,
+  type AccountBalanceProjection,
   type Category,
   type HomeSummary,
   type Transaction,
@@ -28,8 +30,7 @@ export const coreFinanceKeys = {
       : (['core-finance', 'home', currency] as const),
   accounts: (archived = false) =>
     ['core-finance', 'accounts', archived] as const,
-  homeBalances: (currency: string, accountId: string | null) =>
-    ['core-finance', 'home', 'balances', currency, accountId] as const,
+  homeBalanceSource: ['core-finance', 'home', 'balance-source'] as const,
   accountBalances: (archived = false) =>
     ['core-finance', 'account-balances', archived] as const,
   account: (id: string) => ['core-finance', 'account', id] as const,
@@ -63,16 +64,53 @@ export function useHomeSummary(
 }
 
 export function useHomeBalanceSummary(currency: string, accountId: string | null) {
-  return useQuery({
-    queryKey: coreFinanceKeys.homeBalances(currency, accountId),
+  const select = useCallback(
+    ({
+      accounts,
+      balances
+    }: {
+      accounts: Account[];
+      balances: AccountBalanceProjection[];
+    }) => {
+      const selectedCurrency = accountId
+        ? accounts.find((account) => account.id === accountId)?.currencyCode
+        : undefined;
+      return {
+        accountId,
+        currency,
+        summary: summarizeHomeBalances(
+          accounts,
+          balances,
+          selectedCurrency ?? currency,
+          accountId
+        )
+      };
+    },
+    [currency, accountId]
+  );
+  const query = useQuery({
+    // Selection is a projection of the same authoritative balances, not a new read.
+    queryKey: coreFinanceKeys.homeBalanceSource,
     queryFn: async ({ signal }) => {
       const [accounts, balances] = await Promise.all([
         coreFinanceService.listAccounts(false, { signal }),
-        coreFinanceService.listAccountBalances(false, { signal }, accountId ? [accountId] : undefined)
+        coreFinanceService.listAccountBalances(false, { signal })
       ]);
-      return summarizeHomeBalances(accounts, balances, currency, accountId);
-    }
+      return { accounts, balances };
+    },
+    select,
+    staleTime: 0
   });
+  // A failed select retains its previous result; it must never cross account scopes.
+  const scoped =
+    query.data?.accountId === accountId && query.data.currency === currency
+      ? query.data
+      : undefined;
+  return {
+    ...query,
+    data: scoped?.summary,
+    dataUpdatedAt: scoped ? query.dataUpdatedAt : 0
+  };
 }
 
 export function useAccounts(includeArchived = false, enabled = true) {

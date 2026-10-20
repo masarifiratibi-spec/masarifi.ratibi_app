@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { emptyTransactionFilters } from '@/domain/core-finance';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { emptyTransactionFilters, matchesFilters } from '@/domain/core-finance';
 import { todayPeriod } from '@/features/filters/date-period';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
+import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 
 export function useHomeTodayActivity(accountId: string | null) {
+  const client = useQueryClient();
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const [now, setNow] = useState(Date.now);
   const period = useMemo(
@@ -23,10 +25,28 @@ export function useHomeTodayActivity(accountId: string | null) {
     }),
     [period.periodStart, period.periodEnd, accountId]
   );
+  const cachedDay = () => {
+    if (!accountId) return;
+    const state = client.getQueryState<HomeTodayActivity[]>([
+      'core-finance',
+      'transactions',
+      'home-today',
+      timeZone,
+      { ...filters, accountIds: [] }
+    ]);
+    return state?.status === 'success' && !state.isInvalidated
+      ? state
+      : undefined;
+  };
   const query = useQuery({
     queryKey: ['core-finance', 'transactions', 'home-today', timeZone, filters],
     queryFn: ({ signal }) =>
       coreFinanceService.getHomeTodayActivity(filters, signal),
+    initialData: () =>
+      cachedDay()?.data?.filter((row) =>
+        matchesFilters(row.transaction, filters)
+      ),
+    initialDataUpdatedAt: () => cachedDay()?.dataUpdatedAt,
     staleTime: 0,
     refetchOnMount: 'always'
   });

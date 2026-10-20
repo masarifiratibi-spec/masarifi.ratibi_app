@@ -1,7 +1,11 @@
 import React from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient
+} from '@tanstack/react-query';
 import { usePreferenceStore } from '@/state/preferences';
 import { useHomeTodayActivity } from './useHomeTodayActivity';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -67,6 +71,59 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
+
+it('shows only the selected account from the complete cached day while its scoped read is pending', async () => {
+  jest.setSystemTime(Date.parse('2026-10-08T21:15:00Z'));
+  const read = jest.spyOn(coreFinanceService, 'getHomeTodayActivity');
+  const view = renderHook(
+    ({ accountId }: { accountId: string | null }) =>
+      useHomeTodayActivity(accountId),
+    { wrapper: Wrapper, initialProps: { accountId: null } }
+  );
+  try {
+    await waitFor(() => expect(view.result.current.data).toHaveLength(2));
+    read.mockImplementation(() => new Promise(() => {}));
+    view.rerender({ accountId: 'account-wallet' });
+    expect(view.result.current.data?.map((row) => row.transaction.id)).toEqual([
+      'transaction-3'
+    ]);
+    expect(view.result.current.isLoading).toBe(false);
+    expect(view.result.current.isFetching).toBe(true);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read.mock.calls[1][0].accountIds).toEqual(['account-wallet']);
+  } finally {
+    view.unmount();
+  }
+});
+
+it('does not seed a newly selected account from an invalidated complete-day snapshot', async () => {
+  jest.setSystemTime(Date.parse('2026-10-08T21:15:00Z'));
+  const read = jest.spyOn(coreFinanceService, 'getHomeTodayActivity');
+  const view = renderHook(
+    ({ accountId }: { accountId: string | null }) => ({
+      activity: useHomeTodayActivity(accountId),
+      client: useQueryClient()
+    }),
+    { wrapper: Wrapper, initialProps: { accountId: null } }
+  );
+  try {
+    await waitFor(() =>
+      expect(view.result.current.activity.data).toHaveLength(2)
+    );
+    await act(async () =>
+      view.result.current.client.invalidateQueries({
+        queryKey: ['core-finance', 'transactions'],
+        refetchType: 'none'
+      })
+    );
+    read.mockImplementation(() => new Promise(() => {}));
+    view.rerender({ accountId: 'account-wallet' });
+    expect(view.result.current.activity.data).toBeUndefined();
+    expect(view.result.current.activity.isLoading).toBe(true);
+  } finally {
+    view.unmount();
+  }
+});
 
 it.each(['focus', 'foreground'] as const)(
   'refreshes on same-day %s without a redundant date-state render',
