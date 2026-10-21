@@ -5,6 +5,7 @@ export interface ResolvedAssistantContext {
   timezone: string;
   startDate: string;
   endDate: string;
+  periodExplicit: boolean;
   currency: string | null;
   purchasePriceMinor: string | null;
   clarification:
@@ -25,9 +26,14 @@ const monthNames = [
   ['november', 'نوفمبر'],
   ['december', 'ديسمبر'],
 ];
-const currencies = /\b(SAR|USD|EUR|GBP|AED|KWD|BHD|OMR|JPY|QAR)\b|ريال|دولار|يورو/giu;
+const currencies =
+  /\b(EGP|SAR|USD|EUR|GBP|AED|KWD|BHD|OMR|JPY|QAR)\b|جني[هة](?:\s+(?:ال)?(?:إسترليني|استرليني|إسترلينى|مصري|مصرى))?|ريال|دولار|يورو/giu;
 const currencyCode = (value: string) =>
-  ({ ريال: 'SAR', دولار: 'USD', يورو: 'EUR' })[value] ?? value.toUpperCase();
+  /سترلين/u.test(value)
+    ? 'GBP'
+    : /^جني[هة]/u.test(value)
+      ? 'EGP'
+      : ({ ريال: 'SAR', دولار: 'USD', يورو: 'EUR' }[value] ?? value.toUpperCase());
 const day = (value: string) => new Date(`${value}T00:00:00Z`);
 const iso = (value: Date) => value.toISOString().slice(0, 10);
 const validDay = (value: string) =>
@@ -45,6 +51,7 @@ export function resolveAssistantContext(
     .replace(/[۰-۹]/gu, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .toLowerCase();
   const today = localDateAt(now, timezone);
+  const yearRequested = /(?<![\p{L}])(?:year|سنة|السنة|عام|العام)(?![\p{L}])/iu.test(text);
   let month = today.slice(0, 7);
   let clarification: ResolvedAssistantContext['clarification'] = null;
   if (/(last|previous) month|الشهر (الماضي|السابق|اللي قبله)/u.test(text)) {
@@ -88,7 +95,7 @@ export function resolveAssistantContext(
     startDate = iso(start);
     start.setUTCDate(start.getUTCDate() + 6);
     endDate = iso(start);
-  } else if (/year|سنة|عام/u.test(text) && namedMonth < 0) {
+  } else if (yearRequested && namedMonth < 0) {
     const year =
       Number(text.match(/\b20\d{2}\b/u)?.[0] ?? today.slice(0, 4)) -
       (/last|previous|الماضي|السابق/u.test(text) ? 1 : 0);
@@ -100,7 +107,7 @@ export function resolveAssistantContext(
   const periodKinds = [
     dates.length > 0,
     /week|أسبوع|اسبوع/u.test(text),
-    /year|سنة|عام/u.test(text) && namedMonth < 0,
+    yearRequested && namedMonth < 0,
     namedMonths.length > 0 || explicitMonths.length > 0 || /month|الشهر/u.test(text),
   ].filter(Boolean).length;
   if (
@@ -114,11 +121,16 @@ export function resolveAssistantContext(
       /(?:last|previous) month|الشهر (?:الماضي|السابق)/u.test(text))
   )
     clarification = 'period_required';
-  if (/\baccount\b|حساب (?:ال|بنك)|حسابي في/u.test(text)) clarification = 'scope_required';
+  if (/\b(?:account|wallet|card)\b|حساب (?:ال|بنك)|حسابي في|محفظ[ةه]|بطاق[ةه]/u.test(text))
+    clarification = 'scope_required';
   const codes = [...new Set([...text.matchAll(currencies)].map((match) => currencyCode(match[0])))];
   let currency = codes.length === 1 ? (codes[0] ?? null) : null;
   let purchasePriceMinor: string | null = null;
-  if (codes.length > 1) clarification = 'currency_required';
+  if (
+    codes.length > 1 &&
+    !/separat|each currency|both currencies|كل عملة|العملتين|منفصل/iu.test(text)
+  )
+    clarification = 'currency_required';
   if (/afford|buy|purchase|اشتري|أشتري|شراء|اشتريت/u.test(text)) {
     const prices = [
       ...text.matchAll(
@@ -149,6 +161,7 @@ export function resolveAssistantContext(
     timezone,
     startDate,
     endDate,
+    periodExplicit: periodKinds > 0,
     currency,
     purchasePriceMinor,
     clarification,

@@ -4,6 +4,50 @@ import { routeAssistantMessage } from '../../../src/ai/ai-routing';
 describe('assistant request semantics', () => {
   const clock = new Date('2026-09-30T22:30:00Z');
   it.each([
+    ['اي اخر معامله ليا', false],
+    ['آخر معاملة هذا الشهر', true],
+    ['last transaction in August', true],
+  ] as const)(
+    'distinguishes requested periods from the default month: %s',
+    (question, periodExplicit) => {
+      expect(resolveAssistantContext(question, 'Asia/Riyadh', clock)).toMatchObject({
+        periodExplicit,
+      });
+    },
+  );
+  it.each([
+    'Spending this month in EGP',
+    'مصروفاتي هذا الشهر بالجنيه المصري',
+    'مصروفاتي هذا الشهر جنيه',
+  ])('recognizes Egyptian pound scope: %s', (question) => {
+    expect(resolveAssistantContext(question, 'Asia/Riyadh', clock)).toMatchObject({
+      currency: 'EGP',
+      clarification: null,
+    });
+  });
+  it('keeps qualified sterling separate from Egyptian pounds', () => {
+    expect(resolveAssistantContext('مصروفاتي جنيه استرليني', 'Asia/Riyadh', clock).currency).toBe(
+      'GBP',
+    );
+  });
+  it('keeps a multi-currency spending request unconverted', () => {
+    expect(
+      resolveAssistantContext(
+        'Analyze spending this month. Keep EGP and SAR separate.',
+        'Asia/Riyadh',
+        clock,
+      ),
+    ).toMatchObject({ currency: null, clarification: null });
+  });
+  it.each(['Spending from QA21 EGP Wallet this month', 'مصروفاتي من محفظة الاختبار هذا الشهر'])(
+    'clarifies an unresolved named account instead of broadening: %s',
+    (question) => {
+      expect(resolveAssistantContext(question, 'Asia/Riyadh', clock).clarification).toBe(
+        'scope_required',
+      );
+    },
+  );
+  it.each([
     'How much did I spend today?',
     'كم صرفت اليوم؟',
     'daily expenses',

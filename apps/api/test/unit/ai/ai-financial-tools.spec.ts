@@ -79,7 +79,9 @@ describe('AssistantFinancialTools', () => {
   };
   const planningService = { getPlanningSummary: jest.fn(() => Promise.resolve(planning)) };
   const ledger = {
-    listTransactions: jest.fn(() => Promise.resolve({ items: [], ledgerVersion: 12 })),
+    listTransactions: jest.fn(() =>
+      Promise.resolve({ items: [] as Array<Record<string, unknown>>, ledgerVersion: 12 }),
+    ),
   };
   const tools = new AssistantFinancialTools(
     reports as never,
@@ -93,6 +95,103 @@ describe('AssistantFinancialTools', () => {
     jest.setSystemTime(new Date('2026-09-15T12:00:00Z'));
   });
   afterEach(() => jest.useRealTimers());
+
+  it.each([
+    ['اي اخر معامله ليا', 'آخر معاملة مؤكدة: دخل بقيمة 1 EGP'],
+    ['اخر معامله كانت بكام وتصرفت في أي', 'آخر معاملة مؤكدة: دخل بقيمة 1 EGP'],
+    ['What was my last transaction', 'Latest confirmed transaction: income of 1 EGP'],
+  ] as const)(
+    'answers the latest transaction amount and kind across history: %s',
+    async (question, expected) => {
+      ledger.listTransactions.mockResolvedValueOnce({
+        items: [
+          {
+            kind: 'income',
+            amountMinor: 100,
+            currency: 'EGP',
+            title: 'QA bank receipt',
+            merchant: null,
+            occurredAt: '2026-08-30T10:00:00Z',
+          },
+        ],
+        ledgerVersion: 12,
+      });
+      const result = await tools.resolve(owner, 'recent_transactions', question, 'request-id', [
+        'recent_transactions',
+      ]);
+      expect(result.answer).toContain(expected);
+      expect(result.answer).toContain('QA bank receipt');
+      expect(ledger.listTransactions).toHaveBeenCalledWith(
+        owner,
+        { limit: 1, status: 'confirmed' },
+        'request-id',
+      );
+    },
+  );
+
+  it('lists amounts and descriptions rather than only the recent transaction count', async () => {
+    ledger.listTransactions.mockResolvedValueOnce({
+      items: [
+        {
+          kind: 'expense',
+          amountMinor: 250,
+          currency: 'SAR',
+          title: 'QA coffee',
+          merchant: 'QA Cafe',
+          occurredAt: '2026-09-10T10:00:00Z',
+        },
+      ],
+      ledgerVersion: 12,
+    });
+    const result = await tools.resolve(owner, 'recent_transactions', 'آخر معاملاتي', 'request-id', [
+      'recent_transactions',
+    ]);
+    expect(result.answer).toContain('2.5 ريال');
+    expect(result.answer).toContain('QA Cafe');
+  });
+
+  it.each([
+    ['EGP', 4625, '46.25 EGP', -4525, '-45.25 EGP'],
+    ['KWD', 1250, '1.25 KWD', -1150, '-1.15 KWD'],
+    ['JPY', 1250, '1,250 JPY', -1150, '-1,150 JPY'],
+  ] as const)(
+    'sends advice monetary evidence in exact major units for %s',
+    async (currency, expenseMinor, expense, netMinor, net) => {
+      reports.getAssistantSummary.mockResolvedValueOnce({
+        ...report,
+        summaries: [
+          {
+            ...(report.summaries[0] as (typeof report.summaries)[number]),
+            income: { amountMinor: 100, currency },
+            expense: { amountMinor: expenseMinor, currency },
+            netCashFlow: { amountMinor: netMinor, currency },
+          },
+        ],
+        breakdowns: [
+          {
+            ...(report.breakdowns[0] as (typeof report.breakdowns)[number]),
+            currencyCode: currency,
+            expenseMinor,
+          },
+        ],
+      });
+      const result = await tools.resolve(
+        owner,
+        'financial_advice',
+        'Analyze my spending this month',
+        'request-id',
+        ['recent_transactions'],
+      );
+      expect(result.context.report).toMatchObject({
+        summaries: [
+          { expense: { amount: expense, currency }, netCashFlow: { amount: net, currency } },
+        ],
+        categories: [{ expenseAmount: expense, currencyCode: currency }],
+      });
+      expect(JSON.stringify(result.context.report)).not.toContain('amountMinor');
+      expect(result.answer).toBeNull();
+    },
+  );
 
   it('answers the largest-expense suggestion from the highest Reports category', async () => {
     const result = await tools.resolve(
@@ -353,7 +452,7 @@ describe('AssistantFinancialTools', () => {
         'recent_transactions',
       ]),
     ).resolves.toMatchObject({
-      answer: 'لا توجد معاملات حديثة مؤكدة في الفترة المطلوبة.',
+      answer: 'لا توجد معاملات مؤكدة.',
       context: { recentTransactions: [] },
     });
   });
@@ -369,7 +468,28 @@ describe('AssistantFinancialTools', () => {
 
     expect(result).toMatchObject({
       answer: null,
-      context: { planning: { budgets: planning.budgets, savings: planning.savings } },
+      context: {
+        planning: {
+          budgets: [
+            {
+              name: 'المطاعم',
+              currencyCode: 'SAR',
+              totalAmount: '1,720 SAR',
+              spentAmount: '1,300 SAR',
+              remainingAmount: '420 SAR',
+            },
+          ],
+          savings: [
+            {
+              name: 'طوارئ',
+              currencyCode: 'SAR',
+              targetAmount: '10,000 SAR',
+              progressAmount: '3,000 SAR',
+              remainingAmount: '7,000 SAR',
+            },
+          ],
+        },
+      },
     });
     expect(result.context).not.toHaveProperty('report');
     expect(result.context.planning).not.toHaveProperty('salary');

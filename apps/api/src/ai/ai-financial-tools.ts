@@ -7,6 +7,7 @@ import { localDateAt, zonedDateTimeToInstant } from '../reports/reports.period';
 import type { ReportsSummaryResponse } from '../reports/reports.repository';
 import type { AssistantContextScope, AssistantIntent } from './ai-routing';
 import { resolveAssistantContext, type ResolvedAssistantContext } from './assistant-context';
+import { redactAiText } from './ai.schemas';
 
 export interface FinancialToolResult {
   answer: string | null;
@@ -149,38 +150,39 @@ export class AssistantFinancialTools {
         return unavailable(resolved, 'transaction_scope_required');
       const end = new Date(`${resolved.endDate}T00:00:00Z`);
       end.setUTCDate(end.getUTCDate() + 1);
+      const single =
+        /\b(?:last|latest|most recent)\s+transaction\b|(?:آخر|اخر)\s+معامل[ةه](?![\p{L}])/iu.test(
+          question,
+        );
       const response = record(
         await this.ledger.listTransactions(
           principal,
           {
-            limit: 10,
+            limit: single ? 1 : 10,
             status: 'confirmed',
-            from: zonedDateTimeToInstant(
-              resolved.startDate,
-              '00:00',
-              resolved.timezone,
-            ).toISOString(),
-            to: new Date(
-              zonedDateTimeToInstant(
-                end.toISOString().slice(0, 10),
-                '00:00',
-                resolved.timezone,
-              ).valueOf() - 1,
-            ).toISOString(),
+            ...(resolved.periodExplicit
+              ? {
+                  from: zonedDateTimeToInstant(
+                    resolved.startDate,
+                    '00:00',
+                    resolved.timezone,
+                  ).toISOString(),
+                  to: new Date(
+                    zonedDateTimeToInstant(
+                      end.toISOString().slice(0, 10),
+                      '00:00',
+                      resolved.timezone,
+                    ).valueOf() - 1,
+                  ).toISOString(),
+                }
+              : {}),
           },
           requestId,
         ),
       );
       const items = records(response.items);
       result = {
-        answer:
-          resolved.locale === 'en'
-            ? items.length
-              ? `${items.length.toString()} recent confirmed transactions in the requested period (up to 10).`
-              : 'No recent confirmed transactions in the requested period.'
-            : items.length
-              ? `لديك ${items.length.toString()} معاملات حديثة مؤكدة في الفترة المطلوبة (حتى 10).`
-              : 'لا توجد معاملات حديثة مؤكدة في الفترة المطلوبة.',
+        answer: recentTransactionAnswer(items, resolved, single ? 'latest' : 'recent'),
         context: { recentTransactions: items, hasMore: Boolean(response.nextCursor) },
         evidence: [{ kind: 'ledger', version: version(response.ledgerVersion) }],
       };
@@ -249,6 +251,10 @@ export class AssistantFinancialTools {
           ...(contextScope.includes('obligations') ? { obligations: planning.obligations } : {}),
         };
         refs.push(...evidence(planning));
+      }
+      if (intent === 'financial_advice') {
+        for (const scope of ['report', 'planning'])
+          if (context[scope] !== undefined) context[scope] = formatAdviceAmounts(context[scope]);
       }
       result = { answer: null, context, evidence: refs };
     }
@@ -545,6 +551,60 @@ function includesName(question: string, name: string) {
   return (
     name.length > 0 &&
     question.normalize('NFKC').toLowerCase().includes(name.normalize('NFKC').toLowerCase())
+  );
+}
+function recentTransactionAnswer(
+  items: Record<string, unknown>[],
+  resolved: ResolvedAssistantContext,
+  scope: 'latest' | 'recent',
+) {
+  const arabic = resolved.locale === 'ar';
+  if (!items.length) return arabic ? 'لا توجد معاملات مؤكدة.' : 'No confirmed transactions found.';
+  const heading =
+    scope === 'latest'
+      ? arabic
+        ? 'آخر معاملة مؤكدة: '
+        : 'Latest confirmed transaction: '
+      : arabic
+        ? 'أحدث المعاملات المؤكدة (حتى 10): '
+        : 'Recent confirmed transactions (up to 10): ';
+  return (
+    heading + items.map((item) => transactionSummary(item, resolved)).join(arabic ? '؛ ' : '; ')
+  );
+}
+function transactionSummary(item: Record<string, unknown>, resolved: ResolvedAssistantContext) {
+  const labels: Record<string, string> = {
+    income: 'دخل',
+    expense: 'مصروف',
+    transfer: 'تحويل',
+    refund: 'استرداد',
+    reversal: 'عكس قيد',
+    opening: 'رصيد افتتاحي',
+    adjustment: 'تسوية',
+  };
+  const arabic = resolved.locale === 'ar';
+  const kind = String(item.kind);
+  const amount = money(exact(item.amountMinor).toString(), String(item.currency), resolved.locale);
+  const date = localDateAt(new Date(String(item.occurredAt)), resolved.timezone);
+  const label = typeof item.merchant === 'string' && item.merchant ? item.merchant : item.title;
+  const description = typeof label === 'string' ? redactAiText(label).slice(0, 160) : '';
+  return arabic
+    ? `${labels[kind] ?? kind} بقيمة ${amount} بتاريخ ${date}${description ? `. الوصف: ${description}` : ''}`
+    : `${kind} of ${amount} on ${date}${description ? `. Description: ${description}` : ''}`;
+}
+function formatAdviceAmounts(input: unknown): unknown {
+  if (Array.isArray(input)) return input.map(formatAdviceAmounts);
+  if (!input || typeof input !== 'object') return input;
+  const row = input as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(row).map(([key, child]) =>
+      key.endsWith('Minor') && child !== null
+        ? [
+            key === 'amountMinor' ? 'amount' : key.replace(/Minor$/u, 'Amount'),
+            money(exact(child).toString(), String(row.currency ?? row.currencyCode), 'en'),
+          ]
+        : [key, formatAdviceAmounts(child)],
+    ),
   );
 }
 function money(value: string, currency: string, language: 'ar' | 'en') {
