@@ -1,11 +1,11 @@
 # Acceptance checklist
-Baseline `d7871d1a7cd6c009fbd3eda836114004676cf976`; generated 2026-10-21T21:50:36+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
+Baseline `0b03533f35de3d5f69d90c980e46eabde6457c99`; generated 2026-10-21T22:26:13+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
 
 ## Environment and fixture register
 
 | Reference | Current value / requirement |
 |---|---|
-| ENV-SOURCE-01 | HEAD `d7871d1a7cd6c009fbd3eda836114004676cf976` with reviewed repairs at `61117eaf07323ffa63c00f867d5d65e6f3142ece`, including staging-client app lock false. Installed artifact identity remains separate. |
+| ENV-SOURCE-01 | HEAD `0b03533f35de3d5f69d90c980e46eabde6457c99` with reviewed repairs at `61117eaf07323ffa63c00f867d5d65e6f3142ece`, including staging-client app lock false. Installed artifact identity remains separate. |
 | ENV-DEV-01 | `com.masarifi.mobile.dev`; Samsung SM-A165F; Android 16; ADB serial held privately; preserved DEV APK `masarifi-dev-bae79bad.apk`, SHA256 `911510fb75806146ad9468a0126484bfcc1d27cc5507dc0156c36d446fcf1f38`. Installed package update time 2026-10-21 18:21:24 device time; installed base APK hash verified exactly; runtime JS bundle identity is a separate check. |
 | ENV-STAGING-01 | API https://api.staging.masarifiratibi.com; Admin https://staging.masarifiratibi.com/admin; release per ingress family NOT VERIFIED. Supabase project identified as Masarifi Staging; current runtime/provider/worker evidence pending. |
 | ENV-STANDALONE-01 | `com.masarifi.mobile`; no ordinary package installed; exact artifact/hash/signature/bundle/backend release NOT AVAILABLE. No build authorized now. |
@@ -4212,7 +4212,7 @@ Each ACT row is an individual control probe with inherited ENV-SOURCE/DEV/STANDA
 <!-- current-review-evidence -->
 ## Current automated and runtime evidence
 
-Updated 2026-10-21T21:50:37+00:00. Evidence is private under `D:/Masarifi-preservation-2026-10-18/complete-app-review-20261021/`. No suite-level result automatically passes all behavioral cases.
+Updated 2026-10-21T22:26:13+00:00. Evidence is private under `D:/Masarifi-preservation-2026-10-18/complete-app-review-20261021/`. No suite-level result automatically passes all behavioral cases.
 
 | Check | Passed / failed / skipped | Test files | Result | Private evidence |
 |---|---|---|---|---|
@@ -4531,3 +4531,42 @@ During the user-operated interval21:34Z, read-only persisted evidence shows a ne
 ### PHY-028 / TRACK-020 — Active permission revocation prepared
 
 At21:48:45Z, after successful foreground/background controls and with notification capture active, opened Android notification-access settings. Asked user to revoke Masarifi Ratibi Dev access and return, then planned a new synthetic financial notification with expectation of no import/no ledger change. Physical result **NOT RUN** pending that user action and evidence. The earlier paused revocation does not stand in for this case.
+
+### PHY-028 / TRACK-020 — Active notification permission revocation result
+
+- User explicitly confirmed revocation and return. At22:04:22Z idle DEV tracking screen showed both sources off; at22:04:28Z read-only Android verification confirmed listener accessfalse (READ_SMStrue/RECEIVE_SMSfalse unchanged). Existing capture had been active and passed foreground/background controls before the user revoked it.
+- Preconditions: ENV-DEV-04/U-A, ledger11/EGP95400/SAR196300/credit-50000minor, notification permission revoked by user, no SMS capture selected. Steps:1.Verify OS permission and visible switches.2.Record ledger baseline22:04:47Z.3.Post exactly one distinct synthetic OS financial notification22:05:09.972Z, EGP2.00/QA21 Revoked Coffee/refQA21N03.4.Wait beyond the earlier positive processing interval.5.Read imports/history/ledger.
+- Expected: no capture/import/posting or balance change. Actual **PASS** bounded active-revocation case: at22:06:09Z zero new imports/history since the control baseline; at22:06:11Z11transactions, same ledger fingerprint1b47740d0b4bffd94e726db7d635f5fd, EGP95400/SAR196300/credit-50000/pending0. No permission was granted/revoked automatically. Financial notification source was Android shell synthetic content, not a real bank message.
+- Evidence private: qa-tracking-active-revoked-return.{json,png,xml}, qa-tracking-active-revoked-os.json, tracking-active-revoke-ledger-before.json, tracking-notification-revoked-post.json, tracking-active-revoke-server-observation.json, tracking-active-revoke-ledger-after.json. Original positive/background evidence retained. No client APK, queue replay or financial cleanup. Standalone **NOT RUN**.
+- Next case TRACK-007 real SMS: user confirmed a second line/device is available; asked not to send until source/account/text are prepared. Result **NOT RUN** pending a fresh message and trace.
+
+<!-- existing-bank-review -->
+## SRC-029 / TRACK-007, TRACK-012 — One existing bank SMS, isolated preparation
+
+- User requested one existing Banque Misr/InstaPay message instead of an emulator. Entry: Google Messages → observed Banque Misr conversation → one selected small incoming transfer, private alias BANK-SMS-01, amount1EGP. Original text, screenshots, counterparties, bank identifiers and message digest remain private. No forwarding, inbox write, timestamp change, SMS-role/app-op change, historical backfill or server submission occurred. An earlier visible large transfer was examined only locally and was not selected for replay or posting.
+- Preconditions: disposable U-A, A-EGP954EGP selected, SAR1963/credit-500 unchanged, SMS enabled22:06:56Z and notification access revoked. Existing messages predate activation; native reader intentionally does not import them as fresh. Actual fresh native SMS receipt remains **NOT RUN**. Emulator setup was abandoned on the user's updated instruction.
+- Steps:1.Read only the selected message.2.Classify its unchanged text with the actual published snapshot, correct android_sms channel and financial_content_v1 policy.3.Reproduce the currency gap with a synthetic anonymized equivalent.4.Apply the shared alias repair.5.Run real prepareSmsImport locally with the unchanged private text and a synthetic current arrival timestamp.6.Read server balances/count independently. This is source execution, not a physical incoming-SMS test; Expo SHA256 alone is replaced by Node SHA256, with real parser/domain/import preparation. No sender/keyword overrides supplied; owner-specific override equivalence is not established.
+- Expected: identify the explicit EGP abbreviation, incoming amount100minor, select the eligible EGP account, retain origin-review safety and make no ledger writes. Pre-repair source **FAIL**: strong/eligible true, amount decimal1, incoming/generic_credit, but currency/amountMinornull. The initial private harness incorrectly used channel sms; that run is invalid evidence for admission. Correcting it to android_sms established admission before diagnosing the independent currency gap.
+- Retest **PASS** for isolated source preparation at22:24:39Z: one android_sms event, +100minorEGP, preferred EGP account selected, disposition review/reason credit_origin_required; diagnostic review emitted. The message does not establish whether the credit is external income or an own-account transfer. Do not clear this safeguard or post it automatically as income.
+- Visible/persisted result: original Messages content left unchanged; no app transaction or review item submitted. At22:23:41Z read-only server proof:11transactions, EGP95400/SAR196300/credit-50000minor, pending0, same ledger fingerprint. No new cleanup entry is needed because no financial record was created. Physical DEV repair acceptance **NOT RUN**; standalone **NOT RUN**.
+- Private evidence: qa-bank-newer-message-view.{json,png,xml}, existing-bank-message-selected.json, existing-bank-live-configuration.json, existing-bank-message-parser-private.json, existing-bank-prepared-private.json, existing-bank-dry-run-summary.json, existing-bank-ledger-after-private.json, bank-egp-alias-red.log, bank-egp-alias-green.log (intermediate fixture parity failure), bank-egp-alias-green-final.log, bank-egp-mobile-regression.{json,log}. Failed/intermediate attempts retained.
+
+### DEF-022 — Banque Misr unpunctuated EGP abbreviation loses currency
+
+SeverityP2; confirmed source failure with real private text and anonymized regression. Shared effective currency aliases recognize ج.م but omit جم. Repair **0b03533f** adds the alias once in packages/transaction-parser/index.js and updates the native policy parity fixture. No transfer/origin constraints, ownership, public API, deployment or rules database changed. Regression covers both channels, Arabic/Persian digits and currency position, full bank-credit wording retaining review, and rejection of the Arabic word جملة as a currency.
+
+Automated **PASS**: all97 shared parser tests;85 mobile SMS preparation tests. First RED fails on missing EGP as expected; initial GREEN96/97 failed because the native parity fixture needed the new alias, final97/97passes. Code/test guard review: minimal shared-vocabulary change, real behavior assertions, no raw personal test data or weakened review safety. Native JVM suite and installed DEV/standalone original-case retests **NOT RUN** for this repair. No release readiness upgrade.
+
+### ENV-DEV-05 / RT-021-01 — Verified DEV update, no client build
+
+Source0b03533f (also includes tracking-source repair02af0fb3 and privacy copyd7871d1a), package com.masarifi.mobile.dev. Built in isolated cached native project; verified same certificate and installed-r22:28:52Z, no clear/uninstall. APK SHA256 **07874efe756483250fb8f6740f95380c6e67e2ac31b3041a0d514f549a883576**; bundle SHA256 **60371adf840b94ab0e0a8af69ad85c5400e8b9bc66bc717d7d8600d1c03c2bac**; signer **fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c**. Installed repair is not original-case acceptance.
+
+Build provenance: initial8s build reused the previous c8d6fc4c artifact and was rejected as evidence for the new parser. First private force-bundle init script failed on included-build project lookup; no installation followed it. Qualified build scoped the task to the app root and included the external shared parser inputs;40s/853tasks,14executed, BUILD SUCCESSFUL. Source-map parser content exactly matches current source, including the new alias. Preserve all three logs. No repository build-system change or client artifact produced.
+
+Before replacement both source switches were off and Home954EGP/idle was observed. After update, account picker shows all4preserved accounts and expected balances; selected A-EGP again after startup scope reset to all accounts. At22:29:53Z Arabic privacy copy accurately says financial message content may be retained for review under retention settings: **PASS** this Arabic visible-copy subcase, RT-021-01. English copy and native retention semantics remain independently scoped; standalone **NOT RUN**. DEF-020 original retained-preference reproduction retest remains **NOT RUN**.
+
+Private evidence: dev-bank-egp-{artifact,install,source-proof}.json; native-dev-review-bank-egp{,-final,-qualified}.log; qa-tracking-paused-before-dev-update, qa-home-before-bank-dev-update, qa-bank-dev-updated-home, qa-bank-dev-account-picker, qa-bank-dev-updated-tracking. Prior artifact c8d6fc4c remains preserved and was never installed.
+
+### PHY-029 / TRACK-008, TRACK-012 — Real bank text in one new OS notification prepared
+
+At22:30:36Z app notification switch opened the correct Android Notification access list. User has been asked to grant access himself and return. Planned single source: Android shell OS notification containing unchanged BANK-SMS-01 text, labelled as a QA replay. Expected: retained review of1EGP, no automatic income classification and no ledger/balance change; SMS remains off. Result **NOT RUN**, pending user OS decision and actual capture/server/UI evidence. No notification was posted yet; helper refuses repeated/unknown attempts and requires verified ENV-DEV-05, active user-granted permission and notification-only switches. This will not replace a real new SMS or bank-provider delivery acceptance.
