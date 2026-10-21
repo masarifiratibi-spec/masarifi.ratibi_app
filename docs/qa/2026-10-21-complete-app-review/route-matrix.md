@@ -1,5 +1,5 @@
 # Route matrix
-Baseline `058385f83e6ed5ab46be21de41dea74bc786449f`; generated 2026-10-21T20:15:11+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
+Baseline `6f5d1a82f1cc0264e15bbe0148e3e9c02ed41cfe`; generated 2026-10-21T20:37:22+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
 
 Every tracked mobile route/intent/layout and Admin page is represented below. Effective paths omit Expo route-group directories. Bracketed IDs are parameters, never literal customer IDs. Source links point to the reviewed source; line references are baseline-relative.
 

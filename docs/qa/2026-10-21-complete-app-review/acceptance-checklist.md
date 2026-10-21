@@ -1,11 +1,11 @@
 # Acceptance checklist
-Baseline `058385f83e6ed5ab46be21de41dea74bc786449f`; generated 2026-10-21T20:15:11+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
+Baseline `6f5d1a82f1cc0264e15bbe0148e3e9c02ed41cfe`; generated 2026-10-21T20:37:22+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
 
 ## Environment and fixture register
 
 | Reference | Current value / requirement |
 |---|---|
-| ENV-SOURCE-01 | HEAD `058385f83e6ed5ab46be21de41dea74bc786449f` with reviewed repairs at `61117eaf07323ffa63c00f867d5d65e6f3142ece`, including staging-client app lock false. Installed artifact identity remains separate. |
+| ENV-SOURCE-01 | HEAD `6f5d1a82f1cc0264e15bbe0148e3e9c02ed41cfe` with reviewed repairs at `61117eaf07323ffa63c00f867d5d65e6f3142ece`, including staging-client app lock false. Installed artifact identity remains separate. |
 | ENV-DEV-01 | `com.masarifi.mobile.dev`; Samsung SM-A165F; Android 16; ADB serial held privately; preserved DEV APK `masarifi-dev-bae79bad.apk`, SHA256 `911510fb75806146ad9468a0126484bfcc1d27cc5507dc0156c36d446fcf1f38`. Installed package update time 2026-10-21 18:21:24 device time; installed base APK hash verified exactly; runtime JS bundle identity is a separate check. |
 | ENV-STAGING-01 | API https://api.staging.masarifiratibi.com; Admin https://staging.masarifiratibi.com/admin; release per ingress family NOT VERIFIED. Supabase project identified as Masarifi Staging; current runtime/provider/worker evidence pending. |
 | ENV-STANDALONE-01 | `com.masarifi.mobile`; no ordinary package installed; exact artifact/hash/signature/bundle/backend release NOT AVAILABLE. No build authorized now. |
@@ -1659,8 +1659,8 @@ Notification review chat confirmed idle/no resource use; the social-links chat h
 - Expected visible/persisted effect: Nonempty correct answer with correct EGP/SAR/time context; HTTP success alone is insufficient.
 - Dependencies/source: assistant-api-service; consent/quota; direct-read context + provider/assistant worker; secure journal; conversations/action receipts; [apps/admin-web/src/app/admin/ai/failures/page.tsx:1](../../../apps/admin-web/src/app/admin/ai/failures/page.tsx#L1); [apps/admin-web/src/app/admin/ai/models/page.tsx:1](../../../apps/admin-web/src/app/admin/ai/models/page.tsx#L1).
 - Environment: ENV-SOURCE-01; automated local fixtures as test log specifies; DEV ENV-DEV-01 + ENV-STAGING-01; standalone ENV-STANDALONE-01.
-- Source inspection: mapped; this is not an acceptance PASS. Automated: **NOT RUN** for this exact case. Physical DEV: **NOT RUN**. Physical standalone: **NOT RUN**.
-- Observed: Not executed; expectation is not an actual result. Evidence/timestamp: none for this exact case.
+- Source inspection: mapped; this is not an acceptance PASS. Automated: **NOT RUN** for this exact case. Physical DEV: **FAIL** (PHY-018, U-A / ENV-DEV-03). Physical standalone: **NOT RUN**.
+- Observed: PHY-018: fresh Arabic advice question reached provider but reply persistence violated a database constraint. UI unavailable at20:28:33Z, one failed attempt, no ledger effects. DEF-018; original FAIL retained, local source regression PASS, deployed retest BLOCKED.
 - Defect/follow-up/retest: pending execution; attach concrete defect ID and preserve first-failure attempt.
 
 ### AI-003 — English provider answer
@@ -4212,13 +4212,13 @@ Each ACT row is an individual control probe with inherited ENV-SOURCE/DEV/STANDA
 <!-- current-review-evidence -->
 ## Current automated and runtime evidence
 
-Updated 2026-10-21T20:15:13+00:00. Evidence is private under `D:/Masarifi-preservation-2026-10-18/complete-app-review-20261021/`. No suite-level result automatically passes all behavioral cases.
+Updated 2026-10-21T20:37:23+00:00. Evidence is private under `D:/Masarifi-preservation-2026-10-18/complete-app-review-20261021/`. No suite-level result automatically passes all behavioral cases.
 
 | Check | Passed / failed / skipped | Test files | Result | Private evidence |
 |---|---|---|---|---|
 | Admin complete Vitest run, maxWorkers=1/no-file-parallelism | 946 / 0 / 0 | 89 | PASS automated only | `admin-bounded.json` |
 | Mobile latest complete per-file aggregation; 91 bounded batches plus focused retests | 3896 / 0 / 0 | 551 | PASS automated only | `mobile-final-results.json` |
-| API unit/contract/security latest complete per-file aggregation | 234 / 0 / 8 | 50 | PASS automated only | `api-final-results.json` |
+| API unit/contract/security latest complete per-file aggregation | 370 / 0 / 8 | 54 | PASS automated only | `api-final-results.json` |
 
 Installed DEV base APK hash was read directly through ADB at 2026-10-21T18:32:49.575Z: `911510fb75806146ad9468a0126484bfcc1d27cc5507dc0156c36d446fcf1f38`, exactly matching the preserved handoff artifact. `adb reverse --list` was empty at that observation. This proves installed native artifact identity, not a future normal-package build or that DEV had no runtime bundle updates/Metro dependency.
 
@@ -4276,7 +4276,7 @@ Private `cleanup-ledger.json` records fixture labels and balance baselines. Actu
 ## Verification provenance
 
 - Mobile latest complete per-file aggregation: **551 files, 3896 passed, 0 failed, 0 skipped** including the opening-source and signed-direction regressions. This combines completed bounded batches with later complete per-file retests, not one monolithic run. Private `mobile-final-results.json` lists every attempt/file.
-- API: **50 files, 234 passed, 0 failed, 8 skipped**; `api-final-results.json`. Skipped database integration/recovery scenarios are **BLOCKED** until an isolated disposable database is prepared. Docker daemon was unavailable and local 54322 absent; unrelated PostgreSQL on 5432 was left untouched. Shared Staging was not reset.
+- API: **54 files, 370 passed, 0 failed, 8 skipped**; `api-final-results.json`. Skipped database integration/recovery scenarios are **BLOCKED** until an isolated disposable database is prepared. Docker daemon was unavailable and local 54322 absent; unrelated PostgreSQL on 5432 was left untouched. Shared Staging was not reset.
 - Admin: **89 files, 946 passed**, bounded single-worker Vitest; typecheck and lint passed. Authenticated Admin browser acceptance **BLOCKED** at Clerk sign-in; no credentials entered by reviewer.
 - Mobile final typecheck, API typecheck, scoped lint, 18 Node configuration cases and frontend/runtime boundary checks passed at the recorded attempts. A 768 MB mobile typecheck exhausted its heap; 1536 MB rerun passed. Original infrastructure failures remain preserved.
 - Budget routing: original view failed; exact view/edit tests RED → GREEN, 26/26 in the affected two suites. View now targets `/budgets/transactions/:budgetId`; edit remains `/budgets/edit/:budgetId`; no financial action runs on view/edit.
@@ -4397,3 +4397,30 @@ Repair details: special ledger kinds opening/adjustment/reversal derive their di
 Regression provenance: initial direction tests exposed ten failures; two UI test setup failures were corrected before the focused RED. A later icon assertion exposed an unwanted salary fallback. One intermediate repair broke the existing real-income icon contract, then was corrected. Final five-file run **139/139 PASS** (`opening-direction-green-accepted.json`), mobile typecheck PASS (`mobile-typecheck-direction-final.log`), scoped lint exit0 with one existing require-style warning. Interrupted/stalled and intermediate failed attempts retained privately. Latest complete per-file aggregate is551files/3896passed; no claim of a monolithic or physical pass.
 
 Latest cleanup: A-CREDIT negativeSAR fixture retained with one opening; total owned ledger transactions now7 (previous6 plus this deliberate opening). A-EGP96200, A-SAR199300, A-CREDIT-50000 confirmed minor; pending0. No deletion/reversal/cleanup performed. The assistant no-ledger-effect evidence precedes this deliberate account creation and still applies to those informational turns.
+
+<!-- assistant-arabic-failure -->
+## PHY-018 / AI-002 — Arabic provider request fails while saving its response
+
+- Environment/entry: U-A, installed ENV-DEV-03 on Staging; Assistant entry → new question → conversation. Source candidate backend repair is separate from the installed phone bundle and deployed backend.
+- Parameters: user sent one Arabic question. Exact saved text is “حلل مصروفات هذا الشهر وقدم نصايح للتوفير”, a wording variant of the instructed advice question. Resolved intent `financial_advice`, locale ar, owner timezone Asia/Riyadh, period 2026-10-01–31. Owned report context: Shopping2500 EGP minor, Restaurants1300 EGP minor /700 SAR minor, equivalent to25EGP/13EGP/7SAR.
+- Preconditions: enabled owner consent; four active accounts, one default, seven transactions; EGP96200, SAR card199300, credit-50000 confirmed minor, pending0. No owner/device configuration or provider entitlement was changed.
+- Steps: 1. User enters the Arabic question and sends once. 2. User leaves failed result visible and reports Assistant Unavailable; no retry. 3. Reviewer checks idle call/foreground DEV, captures and visually inspects screenshot plus fresh XML. 4. Read owned message, provider usage, failure event, balances and bounded database error logs.
+- Expected: useful Arabic provider answer with correct currency units and no financial mutation; persisted response reopens normally. A completed provider call alone cannot pass this case.
+- Actual: **FAIL**. User message created20:27:30.290Z; one attempt, `work_status=failed`, `failure_code=AI_PROCESSING_FAILED`, no assistant response row. Azure `openai/gpt-6-luna` usage completed with a generation receipt. At20:27:37.513Z Postgres rejected an assistant-message row with `assistant_messages_content_redacted_check`; failure event at20:27:37.587Z, latency6589ms, non-retryable, schema_failurefalse. This locates the failure at response persistence after provider completion, rather than proving a provider outage or missing account entitlement.
+- Visible result: screenshot/XML at20:28:33.882Z (23:28:33 Riyadh) show the Arabic question, “تعذر الإكمال” and “المساعد غير متاح مؤقتًا.” No retry was sent. Evidence `qa-assistant-arabic-unavailable-user.{png,xml,json}`, `assistant-arabic-unavailable-chain.json`, `assistant-arabic-save-constraint.json`; bounded raw database error retained privately as `assistant-arabic-db-error-private.json`. Private screenshot contains synthetic review data only and is kept outside Git.
+- Persisted financial effect: none. At20:28:51Z still seven transactions, newest the deliberate credit opening at20:18:38Z; EGP96200/SAR199300/credit-50000, pending0. Same owned report inputs as before; no action preview/confirmation or duplicate provider attempt observed.
+- Defect/retest: DEF-018; original physical attempt remains FAIL. RT-018-01 physical repair retest **BLOCKED** on deploying a verified backend change; standalone **NOT RUN**. Do not replay or retry the original request blindly.
+
+## DEF-018 — Assistant reply violates persistence text contract
+
+P1, intended Arabic assistant feature unavailable, reproduced PHY-018. Deployed `private.save_assistant_result` inserts its supplied content unchanged into `public.assistant_messages`; the constraint requires1–16384UTF-8bytes and no POSIX control characters. Local provider-output parser checked only string type and upper byte bound. It accepted newlines, tabs, blank answers and C0/C1 controls that the database refuses. Read-only Staging character checks confirmed newline/tab/CR and C1 controls are rejected by the actual constraint.
+
+The actual failed provider answer was not persisted and is absent from the available bounded database log fields. Therefore its precise rejected character/length is **not established**; no invented Arabic-specific encoding failure or provider outage is asserted. The confirmed failure is the save constraint rejection, and the demonstrated source bug is a mismatch between accepted provider output and persistence contract.
+
+Source repair commit `6f5d1a82f1cc0264e15bbe0148e3e9c02ed41cfe`: `parseAssistantOutputValue` collapses ordinary CR/LF/tab formatting into spaces and trims it, rejects empty/C0/C1 text, and retains existing maximum-byte, closed-schema, evidence and action validation. It returns a normalized copy without mutating the provider object. Database constraint, ownership, lease/consent fences, financial values, provider configuration and public API remain unchanged. This is a local repair for the demonstrated contract gap, not a claimed successful repair of the discarded physical response.
+
+Regression: twelve newly parameterized cases failed before repair (12FAIL/80PASS in the full gateway file). Arabic/English formatted replies now reach the worker persistence boundary as single-line text with25EGP/13EGP/7SAR unchanged. Empty, whitespace-only and C0/C1-invalid replies are rejected; unsolicited action/citation protections still pass. Final four-suite regression **136/136 PASS**, API typecheck PASS and final scoped lint PASS. An intermediate lint failure on explicit control-code regex was corrected using the Unicode Cc property; initial failed attempt retained. Evidence `assistant-persistence-red.json/log`, `assistant-persistence-green-final.json/log`, `api-typecheck-assistant-persistence.log`, `assistant-persistence-lint-final.log`.
+
+Deployment/retest: **BLOCKED**. A read-only Staging SSH attempt still timed out on port22. No server/container change, migration, queue replay, provider rerun or client APK build occurred. The tested repair is committed locally; backend deployment identity and fresh Arabic retest must be verified before closing DEF-018. Existing DEF-014 requested scope and DEF-015 hundredfold advice amounts remain separate open critical defects; this text-format repair does not repair or pass them.
+
+Latest automated aggregate: mobile551files/3896PASS; API54files/370PASS/8skipped database cases, using completed per-file runs; Admin89files/946PASS. Isolated-database integration remains BLOCKED, so unit tests are not presented as successful database or physical acceptance. Unused Google identity preparation and second-owner eligibility remain open; no sign-out occurred. Overall decision **NOT READY**; standalone **NOT RUN**.
