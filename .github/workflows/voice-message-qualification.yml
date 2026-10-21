@@ -15,6 +15,11 @@ on:
       - apps/mobile/src/features/voice/VoiceAnalysisResults.tsx
       - apps/mobile/src/features/voice/voice-transaction-visibility.test.tsx
       - .github/workflows/voice-message-qualification.yml
+      - scripts/integration/disposable-database.cjs
+      - apps/api/src/platform/database/migration-runner.ts
+      - apps/api/test/integration/database/migration-role.spec.ts
+      - supabase/migrations/**
+      - supabase/migration-checksums.sha256
 permissions:
   contents: read
 jobs:
@@ -66,11 +71,11 @@ jobs:
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm --prefix apps/api ci --ignore-scripts --no-audit --no-fund
-      - run: npm --prefix apps/api run supabase:start
-      - run: npm --prefix apps/api run db:reset
+      - run: node scripts/integration/disposable-database.cjs start
+      - run: node scripts/integration/disposable-database.cjs reset
       - name: Verify repeated heartbeats, closed epochs, duplicate prevention and legacy exclusions
         working-directory: apps/api
-        run: npx jest --selectProjects integration --runInBand --runTestsByPath test/integration/ai/staging-voice-epoch.spec.ts test/integration/ai/voice-batch.spec.ts --json --outputFile=${{ runner.temp }}/voice-message-database.json
+        run: npx jest --selectProjects integration --runInBand --runTestsByPath test/integration/ai/staging-voice-epoch.spec.ts test/integration/ai/voice-batch.spec.ts test/integration/database/migration-role.spec.ts test/integration/tracking/tracking-financial-content.integration.spec.ts --json --outputFile=${{ runner.temp }}/voice-message-database.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
