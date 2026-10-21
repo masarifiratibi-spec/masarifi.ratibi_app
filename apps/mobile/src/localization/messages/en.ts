@@ -15,6 +15,7 @@ const en = {
   'reminders.onboarding.title': 'Finish setting up your account',
   'reminders.onboarding.body': 'You’re one step away from tracking your spending.',
   'reminders.permission.denied': 'Notifications are unavailable. Allow them in your phone settings, then try again.',
+  'reminders.permission.allow': 'Allow notifications',
   'assistant.report.scope':
     'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
   'reports.state.accountScopeUnavailable':

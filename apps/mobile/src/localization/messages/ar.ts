@@ -17,6 +17,7 @@ const ar: MessageCatalog = {
   'reminders.onboarding.title': 'أكمل إعداد حسابك',
   'reminders.onboarding.body': 'خطوة بسيطة وتبدأ متابعة مصاريفك.',
   'reminders.permission.denied': 'الإشعارات غير متاحة. اسمح بها من إعدادات الهاتف ثم حاول مجددًا.',
+  'reminders.permission.allow': 'السماح بالإشعارات',
   'assistant.report.scope':
     'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
   'reports.state.accountScopeUnavailable':
