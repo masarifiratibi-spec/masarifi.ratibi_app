@@ -2,6 +2,20 @@ import { routeAssistantMessage, selectConversationHistory } from '../../../src/a
 
 describe('assistant domain and intent routing', () => {
   it.each([
+    'What was my last transaction',
+    'Show my latest transaction',
+    'Show my recent transactions',
+    'اخر معامله كانت بكام وتصرفت في أي',
+    'اي اخر معامله ليا',
+  ])('routes the actual latest-transaction question %s to the owned ledger', (content) => {
+    expect(routeAssistantMessage({ content })).toMatchObject({
+      intent: 'recent_transactions',
+      execution: 'deterministic',
+      financialTools: ['ledger.recent_transactions'],
+    });
+  });
+
+  it.each([
     'Analyze my spending behavior.',
     'How can I save more next month?',
     'Give me financial advice based on my recent behavior.',

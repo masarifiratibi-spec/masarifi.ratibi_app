@@ -117,7 +117,7 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   [/(?:خل.?[يى]|عد(?:ل|لّ)|غي(?:ر|رّ)).*(?:ميزاني|budget)/iu, 'update_budget'],
   [/(?:سجل|اضف|أضف|create|add).*(?:مصروف|دخل|transaction)/iu, 'create_transaction'],
   [/(?:اشتريت|أ?شتري|شراء|afford|buy|purchase)/iu, 'purchase_affordability'],
-  [/(?:recent|latest|last).*(?:transactions)|(?:آخر|اخر).*(?:معامل)/iu, 'recent_transactions'],
+  [/(?:recent|latest|last).*\btransactions?\b|(?:آخر|اخر).*(?:معامل)/iu, 'recent_transactions'],
   [/(?:ليه|لماذا|why|مقارن|compare|زاد|انخفض).*(?:صرف|مصروف|spend)/iu, 'period_comparison'],
   [
     /(?:أعلى|اكبر|أكبر|فئة|category|biggest|largest|highest).*(?:صرف|مصروف|spend|expense)|(?:صرف|spend|spent).*(?:فئة|category|\bon\b|\bfor\b|على|في (?!الشهر|سبتمبر|أكتوبر))/iu,
