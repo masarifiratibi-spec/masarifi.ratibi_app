@@ -183,7 +183,8 @@ test('shows irreversible confirmation and progress from the compact entry, then 
       ?.find((button) => button.style === 'destructive')
       ?.onPress?.();
   });
-  expect(screen.getByText(t('settings.deletion.dev.deleting'))).toBeTruthy();
+  expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+  expect(screen.queryByText(t('settings.deletion.dev.deleting'), { includeHiddenElements: true })).toBeNull();
   await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
   expect(sdkToken).toHaveBeenCalledWith({ skipCache: true });
   expect((await loadDeletionCompletion(owner))?.phase).toBe('submitted');

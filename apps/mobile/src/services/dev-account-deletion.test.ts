@@ -611,11 +611,14 @@ test.each(['ar', 'en'] as const)('deletion loading modal supports %s through pro
     await act(async () => { accept?.onPress?.(); });
     expect(screen.getByRole('progressbar')).toHaveProp('accessibilityState', { busy: true });
     expect(screen.getByText(locale === 'ar' ? 'جاري التحميل' : 'Loading')).toBeOnTheScreen();
+    expect(screen.queryByText(t('settings.deletion.dev.deleting'), { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByText(t('settings.deletion.dev.description'), { includeHiddenElements: true })).toBeNull();
     expect(screen.getByRole('progressbar')).toHaveStyle({ direction: locale === 'ar' ? 'rtl' : 'ltr' });
     await act(async () => {
       finishRequest(response({ ...fullRequest, status: 'processing', completedAt: null }, 202));
     });
     expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: t('settings.deletion.refresh'), includeHiddenElements: true })).toBeNull();
     expect(deletionNative.secureStore.deleteItemAsync).toHaveBeenCalledTimes(secureDeletesBefore);
     http.mockResolvedValueOnce(response(completedReceipt));
     await act(async () => { await reconcileDevAccountDeletions({ force: true }); });

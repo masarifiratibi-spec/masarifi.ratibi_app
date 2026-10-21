@@ -105,17 +105,16 @@ export function DevAccountDeletionPanel({
     <View style={styles.stack}>
       <Modal
         visible={loading}
-        transparent
+        transparent={false}
         animationType={reducedMotion ? 'none' : 'fade'}
         onRequestClose={() => undefined}
       >
-        <View style={styles.backdrop}>
-          <View
-            style={[
-              StyleSheet.absoluteFillObject,
-              { backgroundColor: theme.colors.horizon.scrim }
-            ]}
-          />
+        <View
+          style={[
+            styles.backdrop,
+            { backgroundColor: theme.colors.surfaces.page }
+          ]}
+        >
           <View
             accessible
             accessibilityViewIsModal
@@ -147,50 +146,57 @@ export function DevAccountDeletionPanel({
           </View>
         </View>
       </Modal>
-      {!recovery && presentation === 'default' ? (
-        <StyledText>settings.deletion.dev.description</StyledText>
-      ) : null}
-      {deleting || message ? (
-        <StyledText accessibilityLiveRegion="polite">
-          {deleting ? 'settings.deletion.dev.deleting' : message!}
-        </StyledText>
-      ) : null}
-      {error ? (
-        <StyledText accessibilityRole="alert">{error}</StyledText>
-      ) : null}
-      {!phase && !recovery ? (
-        <ActionButton
-          label="appShell.security.deleteAccount"
-          variant={presentation === 'link' ? 'quiet' : 'destructive'}
-          labelStyle={
-            presentation === 'link'
-              ? { color: theme.colors.status.danger, fontWeight: '400' }
-              : undefined
-          }
-          disabled={!restored}
-          loading={busy}
-          onPress={confirm}
-        />
-      ) : null}
-      {phase &&
-      !['deleting', 'completed', 'verification_required', 'rejected'].includes(
-        phase
-      ) ? (
-        <ActionButton
-          label="settings.deletion.refresh"
-          variant="secondary"
-          loading={busy}
-          onPress={() =>
-            void run(() => reconcileDevAccountDeletions({ force: true }))
-          }
-        />
-      ) : null}
-      {phase === 'verification_required' || phase === 'rejected' ? (
-        <ActionButton
-          label="settings.deletion.retry"
-          loading={busy}
-          onPress={() => void run(() => submitDevAccountDeletion(ownerId))}
-        />
+      {!loading ? (
+        <>
+          {!recovery && presentation === 'default' ? (
+            <StyledText>settings.deletion.dev.description</StyledText>
+          ) : null}
+          {message ? (
+            <StyledText accessibilityLiveRegion="polite">
+              {message}
+            </StyledText>
+          ) : null}
+          {error ? (
+            <StyledText accessibilityRole="alert">{error}</StyledText>
+          ) : null}
+          {!phase && !recovery ? (
+            <ActionButton
+              label="appShell.security.deleteAccount"
+              variant={presentation === 'link' ? 'quiet' : 'destructive'}
+              labelStyle={
+                presentation === 'link'
+                  ? { color: theme.colors.status.danger, fontWeight: '400' }
+                  : undefined
+              }
+              disabled={!restored}
+              loading={busy}
+              onPress={confirm}
+            />
+          ) : null}
+          {phase &&
+          ![
+            'deleting',
+            'completed',
+            'verification_required',
+            'rejected'
+          ].includes(phase) ? (
+            <ActionButton
+              label="settings.deletion.refresh"
+              variant="secondary"
+              loading={busy}
+              onPress={() =>
+                void run(() => reconcileDevAccountDeletions({ force: true }))
+              }
+            />
+          ) : null}
+          {phase === 'verification_required' || phase === 'rejected' ? (
+            <ActionButton
+              label="settings.deletion.retry"
+              loading={busy}
+              onPress={() => void run(() => submitDevAccountDeletion(ownerId))}
+            />
+          ) : null}
+        </>
       ) : null}
     </View>
   );
