@@ -11,6 +11,7 @@ import type {
 } from '@/services/contracts/assistant-notifications-service';
 import type { NotificationPermissionState } from '@/domain/notifications';
 import { translateDynamic } from '@/localization/i18n';
+import { z } from 'zod';
 
 const ExpoNotifications =
   (Notifications as unknown as { default?: typeof Notifications }).default ??
@@ -237,10 +238,14 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
       request?: { content?: { data?: Record<string, unknown> } };
     };
   };
-  const notificationId =
-    value.notification?.request?.content?.data?.notificationId;
+  const data = value.notification?.request?.content?.data;
   const action = mapAction(value.actionIdentifier);
   if (!action) return null;
+  if (data?.kind !== undefined) {
+    const local = z.object({ kind: z.literal('onboarding_resume'), cycleId: z.string().uuid() }).strict().safeParse(data);
+    return action === 'view' && local.success ? { ...local.data, action } : null;
+  }
+  const notificationId = data?.notificationId;
   if (typeof notificationId !== 'string') return null;
   return {
     notificationId,

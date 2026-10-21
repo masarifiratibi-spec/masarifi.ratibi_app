@@ -33,6 +33,18 @@ let mockNotificationPermission:
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('./useAutomaticTracking', () => ({ useTrackingStatus: jest.fn() }));
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined)
+}));
+jest.mock('@/services/platform/tracking-native-runtime.android', () => ({
+  trackingNativeRuntime: {
+    restoreTrackingOwner: jest.fn(async () => 'EMPTY'),
+    suspendTrackingOwner: jest.fn(async () => undefined),
+    clearTrackingOwner: jest.fn(async () => undefined)
+  }
+}));
 jest.mock('@/features/notifications/notification-preferences-queries', () => ({
   useNotificationPreferences: () => ({
     data: mockNotificationPreferences,

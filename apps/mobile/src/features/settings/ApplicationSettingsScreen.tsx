@@ -16,6 +16,7 @@ import { formatDayOrdinal } from '@/domain/cycle-start';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import type { Account } from '@/domain/core-finance';
 import { colorTokens } from '@/design-system/tokens';
+import { ReminderConsentControl } from '@/features/notifications/ReminderConsentControl';
 
 export function ApplicationSettingsScreen() {
   const theme = useTheme();
@@ -565,6 +566,7 @@ export function ApplicationSettingsScreen() {
           />
         </View>
       </View>
+      <ReminderConsentControl />
     </ScrollView>
   );
 }

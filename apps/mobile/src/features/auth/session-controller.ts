@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { resolveClientMode } from '@/config/client-runtime';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 import { HttpError } from '@/services/live/http-client';
 
 import type { AuthenticationSession } from '@/domain/app-shell';
@@ -131,6 +132,11 @@ export async function signOutAppShellSession(
   authService: AuthService,
   scope: 'local' | 'all'
 ): Promise<void> {
+  if (isMobileAutomationEnabled()) {
+    await authService.signOut(scope);
+    await useAppShellStore.getState().signOut();
+    return;
+  }
   let failure: unknown;
   try {
     await authService.signOut(scope);

@@ -4,6 +4,48 @@ import { validateClassification, type Classification } from '@masarifi/transacti
 
 type JsonObject = Record<string, unknown>;
 
+export function normalizeTrackingInstallationEnrollment(value: unknown) {
+  const input = object(value);
+  keys(input, [
+    'deviceId',
+    'smsActivationId',
+    'deviceRegistration',
+    'remindersEnabled',
+    'foreground',
+    'reminderLocale',
+    'reminderTimeZone',
+  ]);
+  const registration = object(input.deviceRegistration);
+  keys(registration, ['deviceFingerprint', 'platform', 'appVersion']);
+  const smsActivationId = text(input.smsActivationId, 1, 19);
+  const appVersion = text(registration.appVersion, 1, 32);
+  const reminderTimeZone = text(input.reminderTimeZone, 1, 64);
+  new Intl.DateTimeFormat('en', { timeZone: reminderTimeZone });
+  if (
+    !/^[0-9]{1,19}$/.test(smsActivationId) ||
+    BigInt(smsActivationId) > 9223372036854775807n ||
+    registration.platform !== 'android' ||
+    !/^[A-Za-z0-9._+-]+$/.test(appVersion) ||
+    typeof input.remindersEnabled !== 'boolean' ||
+    typeof input.foreground !== 'boolean' ||
+    (input.reminderLocale !== 'ar' && input.reminderLocale !== 'en')
+  )
+    invalid();
+  return {
+    deviceId: normalizeTrackingId(input.deviceId),
+    smsActivationId,
+    deviceRegistration: {
+      deviceFingerprint: text(registration.deviceFingerprint, 16, 512),
+      platform: 'android' as const,
+      appVersion,
+    },
+    remindersEnabled: input.remindersEnabled,
+    foreground: input.foreground,
+    reminderLocale: input.reminderLocale,
+    reminderTimeZone,
+  } as const;
+}
+
 export interface TrackingCursor {
   at: string;
   id: string;

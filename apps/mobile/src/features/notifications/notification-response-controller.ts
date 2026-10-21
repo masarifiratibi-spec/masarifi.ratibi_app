@@ -28,12 +28,16 @@ export function createNotificationResponseController({
   notificationService,
   phoneService,
   navigate,
-  unlock: requestUnlock
+  unlock: requestUnlock,
+  resumeOnboarding,
+  waitForRemoteReady
 }: {
   notificationService: ResponseNotificationService;
   phoneService: ResponsePhoneService;
   navigate: (destination: string) => void;
   unlock: () => Promise<boolean>;
+  resumeOnboarding?: (cycleId: string) => Promise<void>;
+  waitForRemoteReady?: () => Promise<boolean>;
 }): NotificationResponseController {
   let unsubscribe: (() => void) | null = null;
   const handledResponses = new Map<string, Promise<void>>();
@@ -45,6 +49,11 @@ export function createNotificationResponseController({
     notificationService['executeAction'](id, action, operationId);
 
   async function runResponse(response: PhoneNotificationResponse) {
+    if (response.kind === 'onboarding_resume') {
+      await resumeOnboarding?.(response.cycleId);
+      return;
+    }
+    if (waitForRemoteReady && !(await waitForRemoteReady())) return;
     const targetResolution = await notificationService.resolveTarget(response.notificationId);
     if (targetResolution.status === 'unavailable' || !targetResolution.target) {
       navigate('/notifications');
@@ -103,12 +112,12 @@ export function createNotificationResponseController({
   }
 
   async function handle(response: PhoneNotificationResponse) {
-    const key = `${response.notificationId}:${response.action}`;
+    const key = response.kind === 'onboarding_resume' ? `onboarding:${response.cycleId}` : `${response.notificationId}:${response.action}`;
     const replay = handledResponses.get(key);
     if (replay) return replay;
     const result = runResponse(response).catch(() => {
       handledResponses.delete(key);
-      navigate('/notifications');
+      if (response.kind !== 'onboarding_resume') navigate('/notifications');
     });
     handledResponses.set(key, result);
     return result;
@@ -157,6 +166,8 @@ async function protectedNotificationAction(options: ProtectedActionOptions) {
 }
 
 function routeForTarget(target: NotificationTarget, action: Exclude<NotificationActionKind, 'undo'>): string | null {
+  if (target.kind === 'onboarding') return '/';
+  if (target.kind === 'add_transaction') return '/(tabs)/add';
   if (target.kind === 'home') return '/(tabs)/home';
   if (target.kind === 'tracking') return '/tracking';
   if (target.kind === 'account') return path('/accounts', target.accountId, action === 'edit');

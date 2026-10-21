@@ -13,6 +13,10 @@ export type ProviderResult =
   | { status: 'accepted'; providerRef: string }
   | { status: 'retryable' | 'terminal' | 'ambiguous'; code: string };
 
+export type ExpoReceiptResult =
+  | { status: 'confirmed' | 'pending' }
+  | { status: 'rejected'; code: 'TOKEN_INVALID' | 'PROVIDER_REJECTED' };
+
 export interface NotificationProvider {
   send(input: PushInput): Promise<ProviderResult>;
 }
@@ -62,11 +66,39 @@ export class ExpoPushProvider implements NotificationProvider {
     private readonly accessToken: string,
   ) {}
 
+  async receipt(ticket: string): Promise<ExpoReceiptResult> {
+    if (!/^[A-Za-z0-9_-]{1,254}$/.test(ticket)) throw new Error('EXPO_TICKET_INVALID');
+    const response = await this.transport({
+      url: 'https://exp.host/--/api/v2/push/getReceipts',
+      headers: {
+        ...(this.accessToken ? { authorization: `Bearer ${this.accessToken}` } : {}),
+        'content-type': 'application/json',
+      },
+      body: { ids: [ticket] },
+      timeoutMs: 5_000,
+    });
+    if (response.status !== 200) return { status: 'pending' };
+    const receipt = (
+      response.json as { data?: Record<string, { status?: string; details?: { error?: string } }> }
+    ).data?.[ticket];
+    if (receipt?.status === 'ok') return { status: 'confirmed' };
+    if (receipt?.status === 'error')
+      return {
+        status: 'rejected',
+        code:
+          receipt.details?.error === 'DeviceNotRegistered' ? 'TOKEN_INVALID' : 'PROVIDER_REJECTED',
+      };
+    return { status: 'pending' };
+  }
+
   async send(input: PushInput): Promise<ProviderResult> {
     const payload = safePushPayload(input);
     const response = await this.transport({
       url: 'https://exp.host/--/api/v2/push/send',
-      headers: { authorization: `Bearer ${this.accessToken}`, 'content-type': 'application/json' },
+      headers: {
+        ...(this.accessToken ? { authorization: `Bearer ${this.accessToken}` } : {}),
+        'content-type': 'application/json',
+      },
       body: input.automaticCapture
         ? {
             to: input.token,

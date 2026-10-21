@@ -235,6 +235,24 @@ describe('phone notification platform service', () => {
     expect(mockNotifications.getPermissionsAsync).not.toHaveBeenCalled();
     expect(mockNotifications.requestPermissionsAsync).not.toHaveBeenCalled();
   });
+
+  it('maps validated guest resume taps without a server notification id', async () => {
+    mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({
+      actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER,
+      notification: { request: { content: { data: { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73' } } } }
+    });
+    await expect(createPhoneNotificationService().getLastResponse()).resolves.toEqual({ kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', action: 'view' });
+  });
+
+  it.each([
+    { kind: 'onboarding_resume', cycleId: '../accounts/previous-owner' },
+    { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', notificationId: 'previous-owner' },
+    { kind: 'unknown', notificationId: 'previous-owner' },
+    { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', route: '/accounts/previous-owner' }
+  ])('rejects untrusted mixed or arbitrary resume payload %j', async (data) => {
+    mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({ actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER, notification: { request: { content: { data } } } });
+    await expect(createPhoneNotificationService().getLastResponse()).resolves.toBeNull();
+  });
 });
 
 function response(notificationId: string, actionIdentifier: string) {

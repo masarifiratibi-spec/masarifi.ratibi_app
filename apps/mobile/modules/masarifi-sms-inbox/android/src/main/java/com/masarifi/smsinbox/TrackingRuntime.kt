@@ -28,6 +28,9 @@ import org.json.JSONObject
 internal fun trackingDigest(value: String): String = MessageDigest.getInstance("SHA-256")
   .digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
+internal fun supportsFinancialContentCapture(context: Context): Boolean =
+  context.packageName == "com.masarifi.mobile" || context.packageName == "com.masarifi.mobile.dev"
+
 internal object TrackingOwner {
   private const val PREFS = "masarifi_tracking_owner_v2"
   private const val SUSPENDED = "suspended"
@@ -63,7 +66,7 @@ internal object TrackingOwner {
   @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean,
     packages: List<String>, blockedPackages: List<String>, discoveryPolicy: String?, smsActivatedAt:Long=0, notificationActivatedAt:Long=0) {
     require(owner.matches(Regex("[a-f0-9]{64}")) && generation.length in 16..80)
-    require(FinancialDiscoveryPolicy.parse(discoveryPolicy)?.contentAdmission != true || context.packageName == "com.masarifi.mobile.dev")
+    require(FinancialDiscoveryPolicy.parse(discoveryPolicy)?.contentAdmission != true || supportsFinancialContentCapture(context))
     val old = read(context)
     if (old.optString("owner") != owner) NotificationQueue(context).clear()
     val value = JSONObject().put("owner",owner).put("generation",generation).put("sms",sms).put("notification",notification)
@@ -148,9 +151,8 @@ internal class TrackingEncryptedStore(private val context: Context, private val 
 }
 
 internal object TrackingScheduler {
-  private fun isDev(context: Context) = context.packageName == "com.masarifi.mobile.dev"
-  private fun retryPolicy(context: Context): BackoffPolicy = if (isDev(context)) BackoffPolicy.LINEAR else BackoffPolicy.EXPONENTIAL
-  private fun retryDelay(context: Context): Long = if (isDev(context)) 10 else 30
+  private fun retryPolicy(context: Context): BackoffPolicy = if (supportsFinancialContentCapture(context)) BackoffPolicy.LINEAR else BackoffPolicy.EXPONENTIAL
+  private fun retryDelay(context: Context): Long = if (supportsFinancialContentCapture(context)) 10 else 30
   private fun request(context: Context): Data {
     val owner=TrackingOwner.read(context)
     return workDataOf("ownerDigest" to owner.optString("owner"),"generation" to owner.optString("generation"))
@@ -168,7 +170,7 @@ internal object TrackingScheduler {
     if (!TrackingOwner.read(context).optBoolean("sms")) return@synchronized
     val manager=WorkManager.getInstance(context)
     val constraints=Constraints.Builder()
-    val name=if(isDev(context)) {
+    val name=if(supportsFinancialContentCapture(context)) {
       // Providers can signal a row URI outside /inbox or the combined SMS/MMS root.
       constraints.addContentUriTrigger(Telephony.Sms.CONTENT_URI,true)
         .addContentUriTrigger(Telephony.MmsSms.CONTENT_URI,true)
@@ -191,7 +193,7 @@ internal object TrackingScheduler {
   }
   fun followUp(context: Context, ownerDigest: String, generation: String): Boolean = synchronized(TrackingOwner) {
     val owner=TrackingOwner.read(context)
-    if(!isDev(context) || !TrackingOwner.active(context) || owner.optString("owner")!=ownerDigest ||
+    if(!supportsFinancialContentCapture(context) || !TrackingOwner.active(context) || owner.optString("owner")!=ownerDigest ||
         owner.optString("generation")!=generation) return@synchronized false
     // Persist the pending session's next reconciliation independently of the JS lifetime.
     WorkManager.getInstance(context).enqueueUniqueWork("masarifi-tracking-follow-up",ExistingWorkPolicy.KEEP,

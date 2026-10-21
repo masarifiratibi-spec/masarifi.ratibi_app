@@ -16,7 +16,7 @@ class MasarifiSmsInboxModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("MasarifiSmsInbox")
     AsyncFunction("financialContentAdmissionSupported") {
-      appContext.reactContext?.packageName == "com.masarifi.mobile.dev"
+      appContext.reactContext?.let { supportsFinancialContentCapture(it) } ?: false
     }
     AsyncFunction("notificationCaptureIssue") {
       appContext.reactContext?.getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE)?.getString("captureIssue",null)

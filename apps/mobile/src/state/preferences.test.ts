@@ -1,7 +1,8 @@
 import { buildPreferences } from '@/domain/foundation';
 import { loadPreferences, savePreferences } from '@/storage/secure-preferences';
-import { usePreferenceStore } from './preferences';
+import { usePreferenceStore, effectiveReturnRemindersEnabled } from './preferences';
 import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
+import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 
 jest.mock('@/storage/secure-preferences', () => ({
@@ -20,6 +21,21 @@ beforeEach(() => {
   delete process.env.EXPO_PUBLIC_DEMO_MODE;
   jest.clearAllMocks();
   usePreferenceStore.setState({ ...buildPreferences({}), hydrated: false });
+});
+
+it('defaults reminders on for every new owner while preserving each explicit choice across switches and reloads', async () => {
+  expect(effectiveReturnRemindersEnabled('new-owner')).toBe(true);
+  await usePreferenceStore.getState().setReturnRemindersEnabled(false, 'owner-a');
+  expect(effectiveReturnRemindersEnabled('owner-a')).toBe(false);
+  await resetRuntimeIdentityData({ restoringOwnerId: 'owner-b' });
+  expect(effectiveReturnRemindersEnabled('owner-b')).toBe(true);
+  expect(effectiveReturnRemindersEnabled('owner-a')).toBe(false);
+  const saved = mockSavePreferences.mock.calls.at(-1)![0];
+  mockLoadPreferences.mockResolvedValue(saved);
+  usePreferenceStore.setState({ ...buildPreferences({}), hydrated: false });
+  await usePreferenceStore.getState().hydrate();
+  expect(effectiveReturnRemindersEnabled('owner-a')).toBe(false);
+  expect(effectiveReturnRemindersEnabled('arbitrary-owner-1000')).toBe(true);
 });
 
 it('commits a demo locale switch after its fixtures are relocalized', async () => {
@@ -41,6 +57,51 @@ it('commits a demo locale switch after its fixtures are relocalized', async () =
     locale: 'en',
     direction: 'ltr'
   });
+});
+
+it('defaults reminder consent off and persists explicit consent without changing capture preferences', async () => {
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+  await usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  expect(mockSavePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ returnRemindersEnabled: true, returnRemindersOwnerId: 'owner-a', trackingPersonalization: true }));
+});
+
+it('preserves reminder consent for the same owner and withdraws it before an owner handoff', async () => {
+  await usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  await resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' });
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(true);
+  await resetRuntimeIdentityData({ restoringOwnerId: 'owner-b' });
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+});
+
+it('retains explicit guest consent during an ordinary signed-out cold restore', async () => {
+  await usePreferenceStore.getState().setReturnRemindersEnabled(true, null);
+  await resetRuntimeIdentityData({ kind: 'restore-unavailable' });
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(true);
+});
+
+it('does not publish or synchronize reminder opt-in until persistence succeeds', async () => {
+  mockSavePreferences.mockRejectedValueOnce(new Error('storage unavailable'));
+  await expect(usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a')).rejects.toThrow('storage unavailable');
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+});
+
+it('withdraws reminder consent even if persisting the opt-out fails', async () => {
+  await usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  mockSavePreferences.mockRejectedValueOnce(new Error('storage unavailable'));
+  await expect(usePreferenceStore.getState().setReturnRemindersEnabled(false, 'owner-a')).rejects.toThrow('storage unavailable');
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+});
+
+it('does not publish an old opt-in after owner handoff while storage was pending', async () => {
+  let finish!: () => void;
+  mockSavePreferences.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
+  const enabling = usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  await Promise.resolve();
+  const handoff = resetRuntimeIdentityData({ restoringOwnerId: 'owner-b' });
+  finish();
+  await Promise.all([enabling, handoff]);
+  expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+  expect(mockSavePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ returnRemindersEnabled: false, returnRemindersOwnerId: null }));
 });
 
 it('persists first-launch completion and keeps it through a language switch', async () => {

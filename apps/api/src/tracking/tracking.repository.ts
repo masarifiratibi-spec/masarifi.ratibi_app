@@ -73,6 +73,34 @@ function mappedError(error: unknown): HttpException | Error {
 export class TrackingRepository {
   constructor(private readonly pool: PoolService) {}
 
+  enrollInstallation(
+    principal: ClerkPrincipal,
+    input: {
+      deviceId: string;
+      notificationDeviceId: string;
+      smsActivationId: string;
+      remindersEnabled: boolean;
+      foreground: boolean;
+      reminderLocale: 'ar' | 'en';
+      reminderTimeZone: string;
+    },
+  ): Promise<Record<string, unknown>> {
+    return this.ownerJson(
+      principal,
+      'select private.enroll_dev_mobile_installation($1,$2,$3::uuid,$4,$5,$6,$7,$8) result',
+      [
+        principal.userId,
+        input.deviceId,
+        input.notificationDeviceId,
+        input.smsActivationId,
+        input.remindersEnabled,
+        input.foreground,
+        input.reminderLocale,
+        input.reminderTimeZone,
+      ],
+    );
+  }
+
   ruleSnapshot(principal: ClerkPrincipal, deviceId?: string): Promise<Record<string, unknown>> {
     return deviceId === undefined
       ? this.ownerJson(principal, 'select private.get_tracking_rule_snapshot($1) result', [

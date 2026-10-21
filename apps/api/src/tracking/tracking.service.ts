@@ -6,7 +6,9 @@ import {
   evidenceCorpus as corpus,
 } from '@masarifi/transaction-parser';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
+import { IdentityRepository } from '../identity/identity.repository';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey } from '../ledger/idempotency';
@@ -20,6 +22,7 @@ import {
   normalizeTrackingList,
   normalizeTrackingOwnerFilters,
   normalizeVersion,
+  normalizeTrackingInstallationEnrollment,
   type NormalizedImport,
 } from './tracking.dto';
 import {
@@ -107,6 +110,31 @@ function trackingPage(items: unknown[], limit: number, resource = ''): Record<st
 
 @Injectable()
 export class TrackingService {
+  async deviceRuleSnapshot(principal: ClerkPrincipal, body: unknown) {
+    if (this.config?.get('MASARIFI_MOBILE_AUTOMATION_ENABLED') !== true)
+      throw new HttpException({ code: 'NOT_FOUND' }, 404);
+    let input: ReturnType<typeof normalizeTrackingInstallationEnrollment>;
+    try {
+      input = normalizeTrackingInstallationEnrollment(body);
+    } catch {
+      throw this.validation();
+    }
+    if (!this.identity) throw new Error('TRACKING_IDENTITY_UNAVAILABLE');
+    const registration = await this.identity.registerDevice(principal, input.deviceRegistration);
+    const value = await this.repository.enrollInstallation(principal, {
+      deviceId: input.deviceId,
+      notificationDeviceId: registration.device.id,
+      smsActivationId: input.smsActivationId,
+      remindersEnabled: input.remindersEnabled,
+      foreground: input.foreground,
+      reminderLocale: input.reminderLocale,
+      reminderTimeZone: input.reminderTimeZone,
+    });
+    return {
+      ...value,
+      configurationHash: createHash('sha256').update(canonicalJson(value)).digest('hex'),
+    };
+  }
   confirmation(principal: ClerkPrincipal, id: string) {
     return this.repository.confirmation(principal, normalizeTrackingId(id));
   }
@@ -185,6 +213,8 @@ export class TrackingService {
     readonly repository: TrackingRepository,
     private readonly ledger: LedgerService,
     private readonly storage: TrackingStorage,
+    @Optional() private readonly identity?: IdentityRepository,
+    @Optional() private readonly config?: PlatformConfigService,
   ) {}
 
   preferences(principal: ClerkPrincipal): Promise<Record<string, unknown>> {

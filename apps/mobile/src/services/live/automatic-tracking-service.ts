@@ -1,4 +1,8 @@
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import { usePreferenceStore, effectiveReturnRemindersEnabled } from '@/state/preferences';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+import { getDeviceRegistration, phoneNotificationService } from '../platform/phone-notification-service';
+import { trackingSourcePreferences } from '../tracking-source-preferences';
 import {
   randomUUID,
   digestStringAsync,
@@ -31,7 +35,10 @@ import {
   type TrackingMutationResult
 } from '@/services/contracts/automatic-tracking-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
-import { captureLiveClerkIdentity, captureLiveReadClerkIdentity } from './auth-service';
+import {
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+} from './auth-service';
 import { getTrackingDeviceId } from '../tracking-device';
 import {
   canonicalJson,
@@ -192,14 +199,23 @@ export function createLiveAutomaticTrackingService({
     body?: unknown,
     {
       idempotencyKey,
-      expectedOwnerId
-    }: { idempotencyKey?: string; expectedOwnerId?: string } = {}
+      expectedOwnerId,
+    }: {
+      idempotencyKey?: string;
+      expectedOwnerId?: string;
+    } = {}
   ): Promise<unknown> => {
     const identity =
-      expectedOwnerId === undefined ? null : await (method === 'GET' ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity());
+      expectedOwnerId === undefined
+        ? null
+        : await (method === 'GET'
+            ? captureLiveReadClerkIdentity()
+            : captureLiveClerkIdentity());
     if (identity && identity.userId !== expectedOwnerId)
       throw new TrackingError('permission_required');
-    const accessToken = identity ? identity.token : await token(method === 'GET');
+    const accessToken = identity
+      ? identity.token
+      : await token(method === 'GET');
     await identity?.assertCurrent();
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
       method,
@@ -382,13 +398,39 @@ export function createLiveAutomaticTrackingService({
     async getRuleConfiguration(): Promise<
       import('@/storage/sms-import-queue').SmsRuleSnapshot
     > {
-      const configuration = record(
-        await get(
-          listPath('/api/v1/tracking/rule-snapshot', {
-            deviceId: await getTrackingDeviceId()
-          })
-        )
-      );
+      const deviceId = await getTrackingDeviceId();
+      let value: unknown;
+      if (
+        Platform.OS === 'android' && isMobileAutomationEnabled(baseUrl)
+      ) {
+        const identity = await captureLiveClerkIdentity();
+        const deviceRegistration = await getDeviceRegistration();
+        if (!deviceRegistration) throw new TrackingError('permission_required');
+        const sources = await trackingSourcePreferences.load();
+        const preferences = usePreferenceStore.getState();
+        const permission = await phoneNotificationService.getPermission();
+        await identity.assertCurrent();
+        value = await send(
+          'POST',
+          '/api/v1/tracking/device/rule-snapshot',
+          {
+            deviceId,
+            deviceRegistration,
+            smsActivationId: sources.smsActivationId ?? '0',
+            remindersEnabled:
+              effectiveReturnRemindersEnabled(identity.userId, preferences) && permission === 'granted',
+            foreground: AppState.currentState === 'active',
+            reminderLocale: preferences.locale,
+            reminderTimeZone: preferences.timeZone
+          },
+          { expectedOwnerId: identity.userId }
+        );
+      } else {
+        value = await get(
+          listPath('/api/v1/tracking/rule-snapshot', { deviceId })
+        );
+      }
+      const configuration = record(value);
       const { configurationHash, ...content } = configuration;
       if (
         typeof configurationHash !== 'string' ||

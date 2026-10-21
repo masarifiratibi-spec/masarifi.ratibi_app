@@ -53,9 +53,12 @@ import { HttpError, requestJson } from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
 import { createLiveAssistantApiService } from './assistant-api-service';
 import { createLiveVoiceApiService } from './voice-api-service';
+import * as phoneNotifications from '@/services/platform/phone-notification-service';
+import { usePreferenceStore } from '@/state/preferences';
 jest.mock('expo-crypto', () => ({
   randomUUID: () => require('node:crypto').randomUUID()
 }));
+jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
 import {
   captureLiveAssistantClerkIdentity,
   captureLiveClerkIdentity,
@@ -88,6 +91,61 @@ function clerkBridge(overrides: Record<string, unknown> = {}) {
     ...overrides
   };
 }
+
+describe('DEV authenticated sign-out', () => {
+  const deviceRegistration = { deviceFingerprint: 'owned-installation-fingerprint', platform: 'android' as const, appVersion: '1.0.0' };
+  beforeEach(() => {
+    jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(true);
+    jest.spyOn(phoneNotifications, 'getDeviceRegistration').mockResolvedValue(deviceRegistration);
+    usePreferenceStore.setState({ returnRemindersEnabled: true, returnRemindersOwnerId: liveSession.userId });
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(false);
+  });
+
+  test('revokes the owned DEV installation before closing Clerk and leaves the next owner opted out', async () => {
+    const bridge = clerkBridge();
+    const request = jest.fn(async () => {
+      expect(bridge.signOut).not.toHaveBeenCalled();
+      expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+      return {};
+    });
+    await createLiveAuthService(bridge, request).signOut('local');
+    expect(request).toHaveBeenCalledWith('/api/v1/tracking/device/installations/sign-out', { method: 'POST', body: { deviceRegistration } });
+    expect(bridge.signOut).toHaveBeenCalledWith({ scope: 'current', sessionId: liveSession.id });
+    expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+  });
+
+  test('retains the Clerk credential for retry when the server revoke is offline', async () => {
+    const bridge = clerkBridge();
+    const request = jest.fn(async () => { throw new HttpError('provider_unavailable', 503); });
+    await expect(createLiveAuthService(bridge, request).signOut('local')).rejects.toMatchObject({ code: 'provider_unavailable' });
+    expect(bridge.signOut).not.toHaveBeenCalled();
+    expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+  });
+
+  test('does not close a replacement owner when the old revoke response arrives', async () => {
+    let current = liveSession;
+    const bridge = clerkBridge({ getSession: jest.fn(async () => current) });
+    const request = jest.fn(async () => { current = { ...liveSession, userId: 'owner-b', id: 'session-b' }; return {}; });
+    await expect(createLiveAuthService(bridge, request).signOut('local')).rejects.toMatchObject({ code: 'session_expired' });
+    expect(bridge.signOut).not.toHaveBeenCalled();
+  });
+
+  test('does not revoke a replacement session after delayed device lookup', async () => {
+    let current = liveSession;
+    const bridge = clerkBridge({ getSession: jest.fn(async () => current) });
+    jest.mocked(phoneNotifications.getDeviceRegistration).mockImplementationOnce(async () => {
+      current = { ...liveSession, id: 'replacement-session' };
+      return deviceRegistration;
+    });
+    const request = jest.fn(async () => ({}));
+    await expect(createLiveAuthService(bridge, request).signOut('local')).rejects.toMatchObject({ code: 'session_expired' });
+    expect(request).not.toHaveBeenCalled();
+    expect(bridge.signOut).not.toHaveBeenCalled();
+  });
+});
 
 describe('Voice read authentication', () => {
   const sessionId = '55555555-5555-4555-8555-555555555555';

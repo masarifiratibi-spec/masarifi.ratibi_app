@@ -10,6 +10,13 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'reminders.control.label': 'تذكيرات العودة',
+  'reminders.control.description': 'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
+  'reminders.guest.label': 'ذكّرني باستكمال الإعداد',
+  'reminders.guest.description': 'أرسل تذكيرًا واحدًا غدًا إذا لم أُنشئ حسابًا.',
+  'reminders.onboarding.title': 'أكمل إعداد حسابك',
+  'reminders.onboarding.body': 'خطوة بسيطة وتبدأ متابعة مصاريفك.',
+  'reminders.permission.denied': 'الإشعارات غير متاحة. اسمح بها من إعدادات الهاتف ثم حاول مجددًا.',
   'assistant.report.scope':
     'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
   'reports.state.accountScopeUnavailable':

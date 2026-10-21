@@ -35,6 +35,9 @@ import type { CapabilityProviderHandle } from '@/services/contracts/capability-c
 import { TrackingError } from '@/services/contracts/automatic-tracking-service';
 import { resetLocalUserData } from '@/storage/local-data-reset';
 import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+import { getDeviceRegistration } from '@/services/platform/phone-notification-service';
+import { usePreferenceStore } from '@/state/preferences';
 import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
 import {
   configureMobileApiTokenProvider,
@@ -393,8 +396,39 @@ export function createLiveAuthService(
     async touchActivity() {
       await parsedRequest(request, '/api/v1/me', profileSchema);
     },
-    signOut: (scope) =>
-      bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' })
+    async signOut(scope) {
+      if (!isMobileAutomationEnabled()) {
+        await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' });
+        return;
+      }
+      const session = await bridge.getSession();
+      if (session) {
+        const assertSession = async () => {
+          const current = await bridge.getSession();
+          if (current?.userId !== session.userId || current.id !== session.id)
+            throw new HttpError('session_expired', 401);
+        };
+        const deviceRegistration = await getDeviceRegistration();
+        if (!deviceRegistration) throw new HttpError('provider_unavailable', 503);
+        await assertSession();
+        await usePreferenceStore.getState().withdrawReturnRemindersForSession(session.userId);
+        await assertSession();
+        const options = {
+          method: 'POST',
+          body: { deviceRegistration }
+        };
+        // Keep the old credential until its server installation has been revoked.
+        if (request === defaultIdentityRequest) {
+          const actor = await captureLiveClerkIdentity();
+          if (actor.userId !== session.userId) throw new HttpError('session_expired', 401);
+          await assertSession();
+          await requestJson('/api/v1/tracking/device/installations/sign-out', z.unknown(), { ...options, token: actor.token });
+          await actor.assertCurrent();
+        } else await request('/api/v1/tracking/device/installations/sign-out', options);
+        await assertSession();
+      }
+      await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current', ...(session ? { sessionId: session.id } : {}) });
+    }
   };
 }
 

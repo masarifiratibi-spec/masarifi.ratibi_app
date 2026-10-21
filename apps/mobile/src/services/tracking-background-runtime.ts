@@ -183,8 +183,8 @@ export async function configureTrackingBackground(
       await trackingNativeRuntime.suspendTrackingOwner();
       return;
     }
-    // The independent DEV package has local notifications but no FCM client.
-    // Its bank-message intake and follow-ups are scheduled by native WorkManager.
+    // DEV bank-message intake and follow-ups use native WorkManager.
+    // Visible return-reminder pushes do not require a background tracking task.
     const localOnlyDev =
       Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
       resolveClientRuntime().mode === 'live' &&

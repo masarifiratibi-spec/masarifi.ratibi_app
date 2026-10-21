@@ -9,6 +9,8 @@ import {
 } from '@/domain/notifications';
 import { supportDraftSchema, supportOperationSchema, supportTicketSchema, type SupportArticle, type SupportDraft, type SupportDraftInput, type SupportOperation, type SupportReplyInput, type SupportTicket } from '@/domain/support';
 import { currentLocale } from '@/localization/i18n';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+import { getTrackingDeviceId } from '@/services/tracking-device';
 import { useAppShellStore } from '@/state/app-shell';
 import { notificationServiceCapability, supportServiceCapability, type NotificationService, type PhoneNotificationService, type SupportService } from '@/services/contracts/assistant-notifications-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
@@ -86,11 +88,14 @@ export function createEngagementApi({
     return record(payload);
   };
 
+  const notificationPath = () => isMobileAutomationEnabled()
+    ? '/api/v1/tracking/device/notifications'
+    : '/api/v1/notifications';
   return {
-    listNotifications: ({ cursor, type, unread, limit = 50 }: { cursor?: string; type?: string; unread?: boolean; limit?: number } = {}) => send('GET', `/api/v1/notifications?limit=${Math.min(100, Math.max(1, Math.trunc(limit)))}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}${type ? `&type=${encodeURIComponent(type)}` : ''}${unread === undefined ? '' : `&unread=${String(unread)}`}`),
-    getNotification: (id: string) => send('GET', `/api/v1/notifications/${encodeURIComponent(id)}`),
-    markNotificationRead: (id: string, expectedVersion: number, key: string, read = true) => send('POST', `/api/v1/notifications/${encodeURIComponent(id)}/read`, { read, expectedVersion }, key),
-    actOnNotification: (id: string, actionKey: string, expectedVersion: number, key: string) => send('POST', `/api/v1/notifications/${encodeURIComponent(id)}/actions`, { actionKey, expectedVersion }, key),
+    listNotifications: ({ cursor, type, unread, limit = 50 }: { cursor?: string; type?: string; unread?: boolean; limit?: number } = {}) => send('GET', `${notificationPath()}?limit=${Math.min(100, Math.max(1, Math.trunc(limit)))}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}${type ? `&type=${encodeURIComponent(type)}` : ''}${unread === undefined ? '' : `&unread=${String(unread)}`}`),
+    getNotification: (id: string) => send('GET', `${notificationPath()}/${encodeURIComponent(id)}`),
+    markNotificationRead: (id: string, expectedVersion: number, key: string, read = true) => send('POST', `${notificationPath()}/${encodeURIComponent(id)}/read`, { read, expectedVersion }, key),
+    actOnNotification: (id: string, actionKey: string, expectedVersion: number, key: string) => send('POST', `${notificationPath()}/${encodeURIComponent(id)}/actions`, { actionKey, expectedVersion }, key),
     getPreferences: () => send('GET', '/api/v1/notifications/preferences'),
     savePreferences: (items: unknown[], version: number, key: string) => send('PUT', '/api/v1/notifications/preferences', { items, version, expectedVersion: version }, key),
     listSupportCategories: () => send('GET', '/api/v1/support/categories?limit=100'),
@@ -107,7 +112,11 @@ export function createEngagementApi({
     getContent: (key: string, locale: 'ar' | 'en') => send('GET', `/api/v1/content/${encodeURIComponent(key)}?locale=${locale}`),
     createFeedback: (input: Json, key: string) => send('POST', '/api/v1/feedback', input, key),
     createAbuseReport: (input: Json, key: string) => send('POST', '/api/v1/abuse-reports', input, key),
-    registerDevice: (input: PushDeviceRegistration, key: string, isCurrent?: () => boolean | Promise<boolean>) => send('POST', '/api/v1/me/devices/register', input, key, isCurrent)
+    registerDevice: async (input: PushDeviceRegistration, key: string, isCurrent?: () => boolean | Promise<boolean>) => {
+      const development = isMobileAutomationEnabled();
+      const body = development ? { ...input, trackingDeviceId: await getTrackingDeviceId() } : input;
+      return send('POST', development ? '/api/v1/tracking/device/devices/register' : '/api/v1/me/devices/register', body, key, isCurrent);
+    }
   };
 }
 
@@ -349,6 +358,7 @@ function dateValue(value: unknown): number {
 }
 
 function notificationCategory(type: string): NotificationCategory {
+  if (type === 'reminder.onboarding_incomplete.1d' || type === 'reminder.first_transaction.1d') return 'app_inactivity';
   if (type === 'reminder.app_inactive.3d' || type === 'reminder.app_inactive.7d')
     return 'app_inactivity';
   if (type === 'reminder.financial_inactive.7d') return 'financial_activity';
@@ -391,6 +401,10 @@ function notificationTarget(item: z.infer<typeof notificationApiSchema>): Notifi
   const id = item.dataSafe.targetId;
   if (kind === undefined) return null;
   if (typeof kind !== 'string') throw new EngagementApiError('unavailable');
+  if (kind === 'onboarding' || kind === 'add_transaction') {
+    if (!isMobileAutomationEnabled() || item.dataSafe.scope !== 'dev_reminder') throw new EngagementApiError('unavailable');
+    return { kind };
+  }
   if (kind === 'home' || kind === 'tracking') return { kind };
   if (id !== undefined && typeof id !== 'string')
     throw new EngagementApiError('unavailable');

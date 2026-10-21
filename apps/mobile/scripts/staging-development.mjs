@@ -48,6 +48,7 @@ export function createDevelopmentLaunch(
     MASARIFI_APP_VARIANT: 'staging-development',
     EXPO_PUBLIC_APP_VARIANT: 'staging-development',
     EXPO_PUBLIC_CLIENT_MODE: 'live',
+    EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED: 'true',
     EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
     EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
     EXPO_PUBLIC_APP_LOCK_ENABLED: 'false',

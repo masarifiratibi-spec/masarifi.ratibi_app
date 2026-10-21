@@ -21,6 +21,7 @@ jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn()
 }));
+jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
 jest.mock('@/storage/local-data-reset', () => ({
   resetLocalUserData: jest.fn(async (operationId: string) => ({
     deletedRows: 0,
@@ -377,6 +378,22 @@ describe('session-controller', () => {
     expect(useAppShellStore.getState().session?.status).toBe('signed_out');
     expect(resetIdentity).toHaveBeenCalledTimes(1);
     unregister();
+  });
+
+  it('retains the DEV shell and credential for retry when server withdrawal fails offline', async () => {
+    const gate = jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled as jest.Mock;
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    await restoreAppShellSession(auth);
+    const owner = useAppShellStore.getState().session?.userId;
+    const failure = new HttpError('provider_unavailable', 503);
+    jest.spyOn(auth, 'signOut').mockRejectedValueOnce(failure);
+    gate.mockReturnValue(true);
+    try {
+      await expect(signOutAppShellSession(auth, 'local')).rejects.toBe(failure);
+      expect(useAppShellStore.getState().session?.userId).toBe(owner);
+      expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+    } finally { gate.mockReturnValue(false); }
   });
 
   it('starts the correct onboarding path after authentication', async () => {

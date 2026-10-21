@@ -8,6 +8,13 @@
  */
 
 const en = {
+  'reminders.control.label': 'Return reminders',
+  'reminders.control.description': 'Occasional reminders to finish setup or check your spending. You can turn them off anytime.',
+  'reminders.guest.label': 'Remind me to finish setup',
+  'reminders.guest.description': 'Send one reminder tomorrow if I haven’t created an account.',
+  'reminders.onboarding.title': 'Finish setting up your account',
+  'reminders.onboarding.body': 'You’re one step away from tracking your spending.',
+  'reminders.permission.denied': 'Notifications are unavailable. Allow them in your phone settings, then try again.',
   'assistant.report.scope':
     'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
   'reports.state.accountScopeUnavailable':

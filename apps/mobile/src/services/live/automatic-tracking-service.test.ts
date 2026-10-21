@@ -4,6 +4,30 @@ import {
 } from './automatic-tracking-service';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { defaultSnapshot } from '@masarifi/transaction-parser';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import { usePreferenceStore } from '@/state/preferences';
+import { buildPreferences } from '@/domain/foundation';
+import { spawnSync } from 'node:child_process';
+jest.mock('@/config/mobile-automation', () => {
+  const actual = jest.requireActual('@/config/mobile-automation');
+  return { isMobileAutomationEnabled: (url?: string) => actual.isMobileAutomationEnabled(url, { ...process.env }) };
+});
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { android: { package: 'com.masarifi.mobile' } } }
+}));
+jest.mock('../platform/phone-notification-service', () => ({
+  phoneNotificationService: { getPermission: jest.fn(async () => 'granted') },
+  getDeviceRegistration: async () => ({
+    deviceFingerprint: 'synthetic-fingerprint',
+    platform: 'android',
+    appVersion: '1.0.0'
+  })
+}));
+jest.mock('../tracking-source-preferences', () => ({
+  trackingSourcePreferences: { load: async () => ({ smsActivationId: '42' }) }
+}));
 jest.mock('../tracking-device', () => ({
   getTrackingDeviceId: async () => 'aaaaaaaa-1111-4111-8111-111111111111'
 }));
@@ -35,7 +59,61 @@ function response(value: unknown, status = 200): Response {
   });
 }
 
+const developmentBuild = JSON.parse(
+  spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      "import {createDevelopmentLaunch} from './scripts/staging-development.mjs'; const {env}=createDevelopmentLaunch('config',[],{EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:'pk_live_bWFzYXJpZmkudGVzdCQ'}); console.log(JSON.stringify({apiUrl:env.EXPO_PUBLIC_API_URL,variant:env.EXPO_PUBLIC_APP_VARIANT,mode:env.EXPO_PUBLIC_CLIENT_MODE}));"
+    ],
+    { cwd: process.cwd(), encoding: 'utf8' }
+  ).stdout
+) as { apiUrl: string; variant: string; mode: string };
+
 describe('live automatic tracking adapter', () => {
+  it.each([
+    ['com.masarifi.mobile.dev',true,'live','https://api.staging.masarifiratibi.com','POST'],
+    ['com.masarifi.mobile',true,'live','https://api.staging.masarifiratibi.com','POST'],
+    ['com.masarifi.mobile.dev.privacy',true,'live','https://api.staging.masarifiratibi.com','GET'],
+    ['com.masarifi.mobile.dev',false,'live','https://api.staging.masarifiratibi.com','GET'],
+    ['com.masarifi.mobile.dev',true,'demo','https://api.staging.masarifiratibi.com','GET'],
+    ['com.masarifi.mobile.dev',true,'live','https://evil.example.test','GET']
+  ])('uses managed capture only for a configured supported client (%s,%s,%s,%s)', async (packageName,flag,mode,baseUrl,method) => {
+    const previous = { ...process.env };
+    const platform = Platform.OS;
+    Object.defineProperty(Platform,'OS',{configurable:true,value:'android'});
+    Constants.expoConfig!.android!.package=packageName;
+    process.env.EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED=String(flag);
+    process.env.EXPO_PUBLIC_CLIENT_MODE=mode;
+    process.env.EXPO_PUBLIC_API_URL=developmentBuild.apiUrl;
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY='pk_live_bWFzYXJpZmkudGVzdCQ';
+    registerIdentity({getSession:async()=>({id:'session-any',userId:'any-authenticated-user',method:'google',issuedAt:1,expiresAt:9999999999999}),getToken:async()=>'token'});
+    usePreferenceStore.setState({...buildPreferences({}),hydrated:true,returnRemindersPausedOwnerId:null});
+    const request=jest.fn().mockResolvedValue(response({snapshot:defaultSnapshot,configurationHash:'event-source-digest',rolloutMode:'automatic',keywords:[],senders:[]}));
+    try {
+      await createLiveAutomaticTrackingService({baseUrl,request}).getRuleConfiguration!();
+      const [url,init]=request.mock.calls[0];
+      expect(init.method).toBe(method);
+      if(method==='POST') {
+        expect(url).toBe(baseUrl+'/api/v1/tracking/device/rule-snapshot');
+        expect(init.headers).not.toHaveProperty('x-masarifi-client-variant');
+        expect(JSON.parse(init.body)).toMatchObject({deviceId:'aaaaaaaa-1111-4111-8111-111111111111',remindersEnabled:true,reminderLocale:'ar',reminderTimeZone:'Asia/Riyadh'});
+      }
+    } finally {process.env=previous;Constants.expoConfig!.android!.package='com.masarifi.mobile';Object.defineProperty(Platform,'OS',{configurable:true,value:platform});}
+  });
+  it.each([['granted',false,true],['denied',false,false],['granted',true,false]])('respects OS %s and explicit opt-out %s',async(permission,optedOut,expected)=>{
+    const previous={...process.env};const platform=Platform.OS;
+    Object.defineProperty(Platform,'OS',{configurable:true,value:'android'});
+    Constants.expoConfig!.android!.package='com.masarifi.mobile.dev';
+    process.env.EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED='true';process.env.EXPO_PUBLIC_CLIENT_MODE='live';process.env.EXPO_PUBLIC_API_URL=developmentBuild.apiUrl;process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY='pk_live_bWFzYXJpZmkudGVzdCQ';
+    jest.requireMock('../platform/phone-notification-service').phoneNotificationService.getPermission.mockResolvedValue(permission);
+    registerIdentity({getSession:async()=>({id:'session-any',userId:'new-owner-b',method:'google',issuedAt:1,expiresAt:9999999999999}),getToken:async()=>'token'});
+    usePreferenceStore.setState({...buildPreferences({returnReminderChoices:{'account:owner-a':false,...(optedOut?{'account:new-owner-b':false}:{})}}),hydrated:true,returnRemindersPausedOwnerId:null});
+    const request=jest.fn().mockResolvedValue(response({snapshot:defaultSnapshot,configurationHash:'event-source-digest',rolloutMode:'automatic',keywords:[],senders:[]}));
+    try {await createLiveAutomaticTrackingService({baseUrl:developmentBuild.apiUrl,request}).getRuleConfiguration!();expect(JSON.parse(request.mock.calls[0][1].body).remindersEnabled).toBe(expected);}
+    finally {process.env=previous;Constants.expoConfig!.android!.package='com.masarifi.mobile';Object.defineProperty(Platform,'OS',{configurable:true,value:platform});jest.requireMock('../platform/phone-notification-service').phoneNotificationService.getPermission.mockResolvedValue('granted');}
+  });
   const editorRule = {
     id: 'visible-rule',
     value: 'paid',

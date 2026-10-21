@@ -36,6 +36,8 @@ function providerFailure(error: unknown): never {
   if (message.includes('RECENT_AUTH_REQUIRED')) throw domainError('RECENT_AUTH_REQUIRED', 403);
   if (message.includes('DEVICE_NOT_FOUND')) throw domainError('DEVICE_NOT_FOUND', 404);
   if (message.includes('PUSH_TOKEN_CONFLICT')) throw domainError('PUSH_TOKEN_CONFLICT', 409);
+  if (message.includes('DEV_PUSH_HANDOFF_FORBIDDEN'))
+    throw domainError('DEV_PUSH_HANDOFF_FORBIDDEN', 403);
   if (message.includes('CLERK_PROVIDER_UNAVAILABLE')) {
     throw domainError('PROVIDER_UNAVAILABLE', 503);
   }
@@ -207,11 +209,14 @@ export class IdentityService {
     principal: ClerkPrincipal,
     input: DeviceRegistrationDto,
     idempotencyKey: string | undefined,
+    devTrackingDeviceId?: string,
   ): Promise<{ body: DeviceRegistrationResultDto; created: boolean }> {
     assertIdempotencyKey(idempotencyKey);
     assertPushPair(input);
     try {
-      const result = await this.repository.registerDevice(principal, input);
+      const result = devTrackingDeviceId
+        ? await this.repository.registerDevice(principal, input, devTrackingDeviceId)
+        : await this.repository.registerDevice(principal, input);
       return {
         created: result.created,
         body: {

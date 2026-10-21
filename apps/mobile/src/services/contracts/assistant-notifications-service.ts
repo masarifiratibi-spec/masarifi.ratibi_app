@@ -116,9 +116,10 @@ export type PhonePresentationResult = {
 };
 
 export type PhoneNotificationResponse = {
+  kind?: never;
   notificationId: string;
   action: NotificationActionKind;
-};
+} | { kind: 'onboarding_resume'; cycleId: string; action: 'view' };
 
 export interface NotificationService {
   list(input: NotificationListQuery): Promise<Page<NotificationEvent>>;

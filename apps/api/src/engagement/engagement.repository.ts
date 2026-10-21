@@ -1014,6 +1014,9 @@ export class EngagementRepository {
   }
 
   private async setContext(client: PoolClient, principal: ClerkPrincipal): Promise<void> {
+    await client.query("select set_config('masarifi.dev_reminders_access',$1,true)", [
+      this.config.getRequired('MASARIFI_MOBILE_AUTOMATION_ENABLED') ? 'on' : 'off',
+    ]);
     await client.query("select set_config('request.jwt.claims',$1,true)", [
       JSON.stringify({ role: 'authenticated', sub: principal.userId, sid: principal.sessionId }),
     ]);

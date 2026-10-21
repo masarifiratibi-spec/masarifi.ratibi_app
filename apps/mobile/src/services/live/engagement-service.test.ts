@@ -1,15 +1,52 @@
 import { createNotificationPreferences, notificationCategorySchema } from '@/domain/notifications';
 import type { SupportDraft } from '@/domain/support';
 import { useAppShellStore } from '@/state/app-shell';
+import * as SecureStore from 'expo-secure-store';
 import { getLiveClerkToken, registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import {
   createLiveNotificationService,
+  createEngagementApi,
   createLiveSupportService,
   ensureLivePushDeviceRegistration,
 } from './engagement-service';
 
 const id = (suffix: number) => `11000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
 const at = '2026-09-10T08:00:00.000Z';
+jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
+
+it.each([
+  [true, '/api/v1/tracking/device/notifications'],
+  [false, '/api/v1/notifications'],
+])('uses the isolated notification lane only when exact DEV gating is %s', async (development, prefix) => {
+  const gate = jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled as jest.Mock;
+  gate.mockReturnValue(development);
+  const trackingId = '78c71e06-457f-4f20-95f6-9db73c114a73';
+  const storedDevice = jest.spyOn(SecureStore, 'getItemAsync').mockResolvedValue(trackingId);
+  const request = jest.fn(async () => response({})) as unknown as jest.MockedFunction<typeof fetch>;
+  const api = createEngagementApi({ baseUrl: 'https://api.example.test', token: async () => 'token', request });
+  try {
+    await api.listNotifications({ unread: true });
+    await api.getNotification(id(7));
+    await api.markNotificationRead(id(7), 2, 'read-7');
+    await api.actOnNotification(id(7), 'view', 2, 'view-7');
+    await api.getPreferences();
+    await api.registerDevice({ deviceFingerprint: 'owned-installation-fingerprint', platform: 'android', appVersion: '1.0.0', pushToken: 'ExponentPushToken[owned]', pushProvider: 'expo' }, 'register-7');
+    expect(request.mock.calls.map(([url]) => String(url))).toEqual([
+      `https://api.example.test${prefix}?limit=50&unread=true`,
+      `https://api.example.test${prefix}/${id(7)}`,
+      `https://api.example.test${prefix}/${id(7)}/read`,
+      `https://api.example.test${prefix}/${id(7)}/actions`,
+      'https://api.example.test/api/v1/notifications/preferences',
+      `https://api.example.test${development ? '/api/v1/tracking/device/devices/register' : '/api/v1/me/devices/register'}`,
+    ]);
+    expect(request.mock.calls.map(([, options]) => (options?.headers as Record<string, string>)['x-masarifi-client-variant'])).toEqual([
+      ...Array(6).fill(undefined),
+    ]);
+    const registration = JSON.parse(String(request.mock.calls[5][1]?.body));
+    if (development) expect(registration.trackingDeviceId).toBe(trackingId);
+    else expect(registration).not.toHaveProperty('trackingDeviceId');
+  } finally { storedDevice.mockRestore(); gate.mockReturnValue(false); }
+});
 
 function response(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -160,6 +197,16 @@ it.each([
   await expect(service.list({})).resolves.toMatchObject({
     items: [{ category, target: { kind: targetKind } }],
   });
+});
+
+it.each(['onboarding', 'add_transaction'])('resolves authoritative DEV %s reminders only within their scope', async (targetKind) => {
+  const gate = jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled as jest.Mock;
+  const request = jest.fn().mockResolvedValue(response({ items: [notification(8, { type: targetKind === 'onboarding' ? 'reminder.onboarding_incomplete.1d' : 'reminder.first_transaction.1d', dataSafe: { scope: 'dev_reminder', targetKind } })], nextCursor: null, hasMore: false, unreadCount: 1 })) as unknown as jest.MockedFunction<typeof fetch>;
+  const service = createLiveNotificationService({ baseUrl: 'https://api.example.test', token: async () => 'token', request });
+  gate.mockReturnValue(true);
+  try { await expect(service.list({})).resolves.toMatchObject({ items: [{ target: { kind: targetKind } }] }); }
+  finally { gate.mockReturnValue(false); }
+  await expect(service.list({})).rejects.toThrow();
 });
 
 it('traverses every unread notification page before marking all read', async () => {

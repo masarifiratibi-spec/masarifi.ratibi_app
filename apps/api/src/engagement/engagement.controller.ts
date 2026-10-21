@@ -17,6 +17,7 @@ import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { ClerkAuthGuard, type ClerkPrincipalRequest } from '../identity/clerk-auth.guard';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
 import {
   AdminAuthGuard,
   adminPermission,
@@ -63,8 +64,17 @@ export class EngagementAdminController {
   constructor(public readonly engagement: EngagementService) {}
 }
 
+@Controller('api/v1/tracking/device')
+export class DevEngagementController {
+  constructor(
+    public readonly engagement: EngagementService,
+    public readonly config: PlatformConfigService,
+  ) {}
+}
+
 function register(
-  target: typeof EngagementController | typeof EngagementAdminController,
+  target:
+    typeof EngagementController | typeof EngagementAdminController | typeof DevEngagementController,
   route: EngagementRoute,
   admin: boolean,
 ): void {
@@ -77,6 +87,11 @@ function register(
     key: string | undefined,
     response: Response,
   ) {
+    if (
+      this instanceof DevEngagementController &&
+      !this.config.get('MASARIFI_MOBILE_AUTOMATION_ENABLED')
+    )
+      throw new HttpException({ code: 'NOT_FOUND' }, 404);
     return execute(this, route, request, body, query, params, key, response);
   };
   Object.defineProperty(target.prototype, route.operation, { value: handler });
@@ -94,7 +109,12 @@ function register(
     descriptor,
   );
   HttpCode(route.status)(target.prototype, route.operation, descriptor);
-  ApiOperation({ operationId: route.operation })(target.prototype, route.operation, descriptor);
+  ApiOperation({
+    operationId:
+      target === DevEngagementController
+        ? 'device' + route.operation.charAt(0).toUpperCase() + route.operation.slice(1)
+        : route.operation,
+  })(target.prototype, route.operation, descriptor);
   ApiBearerAuth('ClerkBearer')(target.prototype, route.operation, descriptor);
   if (admin) {
     const adminRoute = ENGAGEMENT_ADMIN_ROUTES.find((value) => value.operation === route.operation);
@@ -112,3 +132,9 @@ function register(
 
 for (const route of ENGAGEMENT_CUSTOMER_ROUTES) register(EngagementController, route, false);
 for (const route of ENGAGEMENT_ADMIN_ROUTES) register(EngagementAdminController, route, true);
+for (const route of ENGAGEMENT_CUSTOMER_ROUTES.filter((value) =>
+  ['listNotifications', 'getNotification', 'setNotificationRead', 'actOnNotification'].includes(
+    value.operation,
+  ),
+))
+  register(DevEngagementController, route, false);

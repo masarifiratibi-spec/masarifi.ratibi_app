@@ -104,9 +104,9 @@ class TrackingSchedulerWakeTest {
     assertTrue(manager.getWorkInfosForUniqueWork("masarifi-tracking-follow-up").get().isEmpty())
   }
 
-  @Test fun ordinaryPackageKeepsItsExistingWatchAndRetryPolicy() {
+  @Test fun privacyPackageKeepsItsExistingWatchAndRetryPolicy() {
     val ordinary = object : ContextWrapper(context) {
-      override fun getPackageName() = "com.masarifi.mobile"
+      override fun getPackageName() = "com.masarifi.mobile.dev.privacy"
     }
     assertFalse(TrackingScheduler.followUp(ordinary, owner, generation))
     TrackingScheduler.watchSms(ordinary)
@@ -114,6 +114,38 @@ class TrackingSchedulerWakeTest {
     assertEquals(setOf(Telephony.Sms.Inbox.CONTENT_URI), work.constraints.contentUriTriggers.map { it.uri }.toSet())
     assertEquals(BackoffPolicy.EXPONENTIAL, spec(work).backoffPolicy)
     assertEquals(30_000L, spec(work).backoffDelayDuration)
+  }
+
+  @Test fun publicReleaseAcceptsFinancialContentAndWatchesRootSmsProviders() {
+    val release = object : ContextWrapper(context) {
+      override fun getPackageName() = "com.masarifi.mobile"
+    }
+    val policy = JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
+      .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString()
+    TrackingOwner.configure(release,owner,generation,true,true,emptyList(),emptyList(),policy,123L,456L)
+    val state = TrackingOwner.read(release)
+    assertEquals(123L,state.getLong("smsActivatedAt"))
+    assertEquals(456L,state.getLong("notificationActivatedAt"))
+    val watches = manager.getWorkInfosByTag("masarifi-tracking").get()
+      .filter { !it.state.isFinished && it.constraints.contentUriTriggers.isNotEmpty() }
+    assertEquals(1,watches.size)
+    assertEquals(setOf(Telephony.Sms.CONTENT_URI,Telephony.MmsSms.CONTENT_URI),
+      watches.single().constraints.contentUriTriggers.map {it.uri}.toSet())
+    assertEquals(BackoffPolicy.LINEAR,spec(watches.single()).backoffPolicy)
+    assertEquals(10_000L,spec(watches.single()).backoffDelayDuration)
+  }
+
+  @Test fun publicReleaseFollowUpIsDurableAndRejectsAStaleOwner() {
+    val release = object : ContextWrapper(context) {
+      override fun getPackageName() = "com.masarifi.mobile"
+    }
+    assertFalse(TrackingScheduler.followUp(release,"b".repeat(64),generation))
+    assertTrue(TrackingScheduler.followUp(release,owner,generation))
+    val work = manager.getWorkInfosForUniqueWork("masarifi-tracking-follow-up").get().single()
+    assertEquals(owner,spec(work).input.getString("ownerDigest"))
+    assertEquals(generation,spec(work).input.getString("generation"))
+    TrackingOwner.suspend(release)
+    assertEquals(WorkInfo.State.CANCELLED,manager.getWorkInfoById(work.id).get()!!.state)
   }
 
   private fun spec(work: WorkInfo): androidx.work.impl.model.WorkSpec {

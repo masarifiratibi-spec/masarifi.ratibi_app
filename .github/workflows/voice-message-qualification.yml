@@ -47,9 +47,9 @@ jobs:
         env:
           MASARIFI_LIVE_DATABASE_TESTS: '0'
           DATABASE_URL: postgresql://test:test@127.0.0.1:1/test
-        run: npx jest --selectProjects unit integration --runInBand --testPathPatterns='test/unit/ai/|test/integration/database/pool.service.spec.ts|test/unit/observability/worker-error.spec.ts' --json --outputFile=${{ runner.temp }}/voice-message-api.json
+        run: node --max-old-space-size=4096 node_modules/jest/bin/jest.js --selectProjects unit contract integration --runInBand --testPathPatterns='test/unit/ai/|test/unit/tracking/|test/unit/engagement/|test/unit/config/environment.schema.spec.ts|openapi-drift.contract-spec.ts|test/integration/database/pool.service.spec.ts|test/unit/observability/worker-error.spec.ts' --json --outputFile=${{ runner.temp }}/voice-message-api.json
       - working-directory: apps/mobile
-        run: npx jest --runInBand --runTestsByPath src/features/voice/voice-transaction-visibility.test.tsx src/features/voice/useVoiceBatches.test.tsx src/features/voice/voice-analysis-result.test.tsx src/features/voice/VoiceBatchStatus.test.tsx src/features/voice/VoiceEventResults.test.tsx src/features/voice/VoiceCaptureScreen.test.tsx src/features/home/HomeScreen.test.tsx --json --outputFile=${{ runner.temp }}/voice-message-mobile.json
+        run: npx jest --runInBand --runTestsByPath src/features/voice/voice-transaction-visibility.test.tsx src/features/voice/useVoiceBatches.test.tsx src/features/voice/voice-analysis-result.test.tsx src/features/voice/VoiceBatchStatus.test.tsx src/features/voice/VoiceEventResults.test.tsx src/features/voice/VoiceCaptureScreen.test.tsx src/features/home/HomeScreen.test.tsx src/config/mobile-automation.test.ts src/features/notifications/DevReminderRuntime.test.tsx src/features/notifications/ReminderConsentControl.test.tsx src/services/platform/guest-onboarding-reminder.test.ts src/services/live/automatic-tracking-service.test.ts src/services/live/engagement-service.test.ts src/state/preferences.test.ts --json --outputFile=${{ runner.temp }}/voice-message-mobile.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -75,7 +75,7 @@ jobs:
       - run: node scripts/integration/disposable-database.cjs reset
       - name: Verify repeated heartbeats, closed epochs, duplicate prevention and legacy exclusions
         working-directory: apps/api
-        run: npx jest --selectProjects integration --runInBand --runTestsByPath test/integration/ai/staging-voice-epoch.spec.ts test/integration/ai/voice-batch.spec.ts test/integration/database/migration-role.spec.ts test/integration/tracking/tracking-financial-content.integration.spec.ts --json --outputFile=${{ runner.temp }}/voice-message-database.json
+        run: node --max-old-space-size=4096 node_modules/jest/bin/jest.js --selectProjects integration --runInBand --runTestsByPath test/integration/ai/staging-voice-epoch.spec.ts test/integration/ai/voice-batch.spec.ts test/integration/database/migration-role.spec.ts test/integration/tracking/tracking-financial-content.integration.spec.ts test/integration/tracking/tracking-dev-enrollment.integration.spec.ts test/integration/engagement/dev-reminders.integration.spec.ts test/integration/engagement/dev-push-ownership.integration.spec.ts --json --outputFile=${{ runner.temp }}/voice-message-database.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

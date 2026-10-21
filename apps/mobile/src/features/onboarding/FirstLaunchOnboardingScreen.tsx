@@ -10,6 +10,7 @@ import { colorTokens } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
+import { ReminderConsentControl } from '@/features/notifications/ReminderConsentControl';
 
 interface TransactionExample {
   amount: string;
@@ -279,6 +280,7 @@ export function FirstLaunchOnboardingScreen({
       </View>
 
       <View style={styles.startActions}>
+        <ReminderConsentControl guest />
         {saveFailed ? (
           <StyledText
             accessibilityRole="alert"

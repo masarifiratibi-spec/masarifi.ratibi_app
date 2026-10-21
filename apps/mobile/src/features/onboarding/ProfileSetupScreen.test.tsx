@@ -16,6 +16,7 @@ const mockBack = jest.fn();
 jest.mock('@/services/live/clerk-provider', () => ({
   getLiveClerkDisplayName: () => null
 }));
+jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
 
 test('does not switch a usable profile form to global Loading while refreshing after a failed save', async () => {
   let finish!: (value: ProfileSetupSnapshot) => void;
@@ -142,6 +143,7 @@ const snapshot: ProfileSetupSnapshot = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(false);
   changeLocale('ar');
   usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   useAppShellStore.getState().reset();
@@ -150,6 +152,13 @@ beforeEach(() => {
     profileSetupStatus: 'incomplete',
     profileSetupSnapshot: snapshot
   });
+});
+
+test('offers authenticated reminder consent before DEV profile setup is complete', () => {
+  jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(true);
+  useAppShellStore.setState({ session: { status: 'authenticated', userId: 'owner-a', issuedAt: 1, expiresAt: 4_000_000_000_000, method: 'google', restoration: 'restored' } });
+  renderWithProviders(<ProfileSetupScreen service={service({})} />);
+  expect(screen.getByRole('switch', { name: /تذكيرات العودة/ })).toBeOnTheScreen();
 });
 
 test('requires an explicit currency choice for a new customer before onboarding can save', async () => {

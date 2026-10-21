@@ -8,6 +8,37 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/tracking/device/rule-snapshot:
+    post:
+      operationId: enrollTrackingInstallation
+      tags: [Tracking Rules]
+      description: Enrolls the authenticated owner's supported Android installation; preserves tracking consent and routes financial capture by source currency.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [deviceId, smsActivationId, deviceRegistration, remindersEnabled, foreground, reminderLocale, reminderTimeZone]
+              properties:
+                deviceId: { type: string, format: uuid }
+                smsActivationId: { type: string, pattern: '^[0-9]{1,19}$' }
+                deviceRegistration:
+                  type: object
+                  additionalProperties: false
+                  required: [deviceFingerprint, platform, appVersion]
+                  properties:
+                    deviceFingerprint: { type: string, minLength: 16, maxLength: 512 }
+                    platform: { type: string, const: android }
+                    appVersion: { type: string, minLength: 1, maxLength: 32 }
+                remindersEnabled: { type: boolean }
+                foreground: { type: boolean }
+                reminderLocale: { type: string, enum: [ar, en] }
+                reminderTimeZone: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200': { $ref: '#/components/responses/TrackingResource' }
   /api/v1/tracking/rule-snapshot:
     get:
       operationId: getTrackingRuleSnapshot

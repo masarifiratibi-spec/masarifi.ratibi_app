@@ -62,6 +62,8 @@ const applicationKeys = new Set([
   'MASARIFI_ASSISTANT_AGENT_ENABLED',
   'MASARIFI_ASSISTANT_AGENT_OWNER_ID',
   'MASARIFI_VOICE_ANALYSIS_ONLY',
+  'MASARIFI_MOBILE_AUTOMATION_ENABLED',
+  'MASARIFI_RETURN_REMINDERS_ENABLED',
   'MASARIFI_FINANCE_DIAGNOSTICS_ENABLED',
   'MASARIFI_STAGING_VOICE_EPOCH_ID',
   'MASARIFI_STAGING_VOICE_CONTINUOUS',
@@ -319,6 +321,8 @@ const schema = Joi.object<PlatformEnvironment>({
     .pattern(/^user_[A-Za-z0-9]+$/)
     .optional(),
   MASARIFI_VOICE_ANALYSIS_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_MOBILE_AUTOMATION_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_RETURN_REMINDERS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_FINANCE_DIAGNOSTICS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_STAGING_PRIVACY_OWNER_ID: Joi.string()
     .pattern(/^user_[A-Za-z0-9]+$/)
@@ -326,7 +330,10 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_STAGING_SELF_DELETION_OWNER_ID: Joi.string()
     .pattern(/^user_[A-Za-z0-9]+$/)
     .optional(),
-  MASARIFI_STAGING_SELF_DELETION_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_STAGING_SELF_DELETION_ENABLED: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .default(false),
   MASARIFI_STAGING_VOICE_EPOCH_ID: Joi.string()
     .guid({ version: ['uuidv4'] })
     .optional(),

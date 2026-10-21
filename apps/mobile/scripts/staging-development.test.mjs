@@ -55,6 +55,7 @@ test('DEV launch emits one native-compatible port while retaining workers, cache
     assert.equal(launch.env.RCT_METRO_PORT, '8081');
     assert.equal(launch.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING, 'true');
     assert.equal(launch.env.EXPO_PUBLIC_CLIENT_MODE, 'live');
+    assert.equal(launch.env.EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED, 'true');
     assert.equal(
       launch.env.EXPO_PUBLIC_API_URL,
       'https://api.staging.masarifiratibi.com'

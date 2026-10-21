@@ -14,6 +14,52 @@ tags:
   - name: Content
   - name: AdminEngagement
 paths:
+  /api/v1/tracking/device/notifications:
+    get:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceListNotifications
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/CustomerLimit'
+        - { name: type, in: query, schema: { type: string, maxLength: 96 } }
+        - { name: unread, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Owner-safe notification page, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPage' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tracking/device/notifications/{notificationId}:
+    get:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceGetNotification
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }]
+      responses:
+        '200': { description: Protected owner detail, content: { application/json: { schema: { $ref: '#/components/schemas/Notification' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tracking/device/notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceSetNotificationRead
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ReadRequest' } } } }
+      responses:
+        '200': { description: Updated owner item, content: { application/json: { schema: { $ref: '#/components/schemas/Notification' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tracking/device/notifications/{notificationId}/actions:
+    post:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceActOnNotification
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationActionRequest' } } } }
+      responses:
+        '200': { description: Protected action result, content: { application/json: { schema: { $ref: '#/components/schemas/ActionResult' } } } }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/notifications:
     get:
       tags: [Notifications]

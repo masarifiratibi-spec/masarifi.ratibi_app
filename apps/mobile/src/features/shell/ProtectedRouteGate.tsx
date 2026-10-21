@@ -4,11 +4,18 @@ import { Redirect, router, usePathname } from 'expo-router';
 import { resolveProtectedAccessGate } from './resolve-entry-route';
 import { sanitizeReturnRoute } from './navigation-context';
 import { useAppShellStore } from '@/state/app-shell';
-import { usePreferenceStore } from '@/state/preferences';
+import {
+  usePreferenceStore,
+  effectiveReturnRemindersEnabled
+} from '@/state/preferences';
+import { useLiveClerkSessionKey } from '@/services/live/clerk-provider';
 import { createNotificationResponseController } from '@/features/notifications/notification-response-controller';
 import { notificationService } from '@/services/engagement-service';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
 import { isAppLockEnabled } from '@/config/client-runtime';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+import { consumeGuestOnboardingReminder } from '@/services/platform/guest-onboarding-reminder';
+import { DevReminderRuntime } from '@/features/notifications/DevReminderRuntime';
 
 export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -99,6 +106,16 @@ export function NotificationResponseRuntime() {
   const session = useAppShellStore((state) => state.session);
   const privacyLock = useAppShellStore((state) => state.privacyLock);
   const pendingUnlocks = useRef(new Set<(unlocked: boolean) => void>());
+  const clerkSessionKey = useLiveClerkSessionKey();
+  const remoteReady = useRef(false);
+  remoteReady.current =
+    isCurrentAuthenticatedSession({ hydrated, session }) &&
+    Boolean(clerkSessionKey);
+  const pendingRemote = useRef(new Set<(ready: boolean) => void>());
+  useEffect(() => {
+    if (remoteReady.current)
+      resolvePendingUnlocks(pendingRemote.current, true);
+  }, [hydrated, session, clerkSessionKey]);
 
   useEffect(() => {
     if (!isCurrentAuthenticatedSession({ hydrated, session })) {
@@ -115,11 +132,24 @@ export function NotificationResponseRuntime() {
 
   useEffect(() => {
     const unlocks = pendingUnlocks.current;
+    const remoteWaiters = pendingRemote.current;
     void phoneNotificationService.registerCategories().catch(() => undefined);
     const controller = createNotificationResponseController({
       notificationService,
       phoneService: phoneNotificationService,
       navigate: (destination) => router.push(destination),
+      waitForRemoteReady: async () =>
+        remoteReady.current ||
+        new Promise<boolean>((resolve) => {
+          remoteWaiters.add(resolve);
+        }),
+      resumeOnboarding: async (cycleId) => {
+        if (!isMobileAutomationEnabled()) return;
+        await usePreferenceStore.getState().hydrate();
+        const state = usePreferenceStore.getState();
+        if (!effectiveReturnRemindersEnabled(null, state)) return;
+        if (await consumeGuestOnboardingReminder(cycleId)) router.replace('/');
+      },
       unlock: async () => {
         const state = useAppShellStore.getState();
         if (!isCurrentAuthenticatedSession(state)) return false;
@@ -139,11 +169,12 @@ export function NotificationResponseRuntime() {
     void controller.start();
     return () => {
       resolvePendingUnlocks(unlocks, false);
+      resolvePendingUnlocks(remoteWaiters, false);
       controller.stop();
     };
   }, []);
 
-  return null;
+  return <DevReminderRuntime />;
 }
 
 function isCurrentAuthenticatedSession({

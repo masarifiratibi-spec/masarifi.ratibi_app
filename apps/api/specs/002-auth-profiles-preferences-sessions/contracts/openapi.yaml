@@ -13,6 +13,43 @@ tags:
   - name: Devices
   - name: Clerk Webhooks
 paths:
+  /api/v1/tracking/device/devices/register:
+    post:
+      operationId: registerMobileDevice
+      tags: [Devices]
+      description: Owner-bound registration for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DevPushRegistration' }
+      responses:
+        '200':
+          description: Registered owner device
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceRegistrationResult' }
+  /api/v1/tracking/device/installations/sign-out:
+    post:
+      operationId: signOutMobileInstallation
+      tags: [Devices]
+      description: Revokes only this owner's mobile installation before signing out.
+      security: [{ ClerkBearer: [] }]
+      parameters:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DevInstallationSignOut' }
+      responses:
+        '200':
+          description: Installation no longer receives reminders
+          content:
+            application/json:
+              schema: { type: object, required: [status], properties: { status: { type: string, const: disabled } } }
   /api/v1/me:
     get:
       operationId: getMyProfile
@@ -712,6 +749,24 @@ components:
           type: [string, 'null']
           minLength: 1
           maxLength: 512
+    DevPushRegistration:
+      type: object
+      additionalProperties: false
+      required: [deviceFingerprint, platform, appVersion, trackingDeviceId]
+      properties:
+        deviceFingerprint: { type: string, minLength: 16, maxLength: 512 }
+        platform: { type: string, enum: [ios, android, web] }
+        appVersion: { type: string, minLength: 1, maxLength: 32 }
+        deviceName: { type: string, minLength: 1, maxLength: 80 }
+        pushToken: { type: string, minLength: 16, maxLength: 4096 }
+        pushProvider: { type: string, enum: [expo, apns, fcm] }
+        trackingDeviceId: { type: string, format: uuid }
+    DevInstallationSignOut:
+      type: object
+      additionalProperties: false
+      required: [deviceRegistration]
+      properties:
+        deviceRegistration: { $ref: '#/components/schemas/DeviceRegistration' }
     DeviceRegistration:
       type: object
       additionalProperties: false

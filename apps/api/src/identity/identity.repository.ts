@@ -832,6 +832,7 @@ export class IdentityRepository {
   async registerDevice(
     principal: ClerkPrincipal,
     input: DeviceRegistrationDto,
+    devTrackingDeviceId?: string,
   ): Promise<DeviceRegistrationRecord> {
     const protection = this.requirePushCrypto();
     const fingerprint = protection.fingerprint(input.deviceFingerprint);
@@ -880,6 +881,14 @@ export class IdentityRepository {
 
       if (input.pushToken && input.pushProvider) {
         const tokenHash = protection.tokenHash(input.pushToken);
+        if (devTrackingDeviceId)
+          await client.query('select private.release_dev_push_token($1,$2,$3,$4,$5)', [
+            principal.userId,
+            record.id,
+            fingerprint,
+            input.pushProvider,
+            tokenHash,
+          ]);
         const tokenCiphertext = protection.encrypt(input.pushToken, {
           provider: input.pushProvider,
           userId: principal.userId,
@@ -910,6 +919,12 @@ export class IdentityRepository {
         }
         if (push.rowCount !== 1) throw new Error('PUSH_TOKEN_CONFLICT');
       }
+      if (devTrackingDeviceId)
+        await client.query('select private.bind_dev_push_installation($1,$2,$3)', [
+          principal.userId,
+          devTrackingDeviceId,
+          record.id,
+        ]);
 
       await client.query(
         `select private.enqueue_outbox_event('device.registered', 'device', $1::uuid, $2::jsonb)`,
@@ -1007,5 +1022,33 @@ export class IdentityRepository {
   private requirePushCrypto(): PushTokenCrypto {
     if (!this.pushCrypto) throw new Error('PUSH_CRYPTO_UNAVAILABLE');
     return this.pushCrypto;
+  }
+
+  async signOutDevInstallation(
+    principal: ClerkPrincipal,
+    input: DeviceRegistrationDto,
+  ): Promise<void> {
+    const fingerprint = this.requirePushCrypto().fingerprint(input.deviceFingerprint);
+    await this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({
+            role: 'authenticated',
+            sub: principal.userId,
+            sid: principal.sessionId,
+          }),
+        ]);
+        await client.query('set local role masarifi_api');
+        await client.query('select private.sign_out_dev_installation($1,$2)', [
+          principal.userId,
+          fingerprint,
+        ]);
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
   }
 }

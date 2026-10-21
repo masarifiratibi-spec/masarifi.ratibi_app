@@ -29,6 +29,61 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('accepts generic mobile automation on a non-Staging production API and keeps the existing API disabled by default', () => {
+    const production = {
+      ...valid,
+      NODE_ENV: 'production',
+      CLERK_PUBLISHABLE_KEY: clerkKey('pk', 'live'),
+      CLERK_SECRET_KEY: clerkKey('sk', 'live'),
+      CLERK_AUTHORIZED_PARTIES: 'https://app.example.test',
+      SUPABASE_URL: 'https://release-project.supabase.co',
+      MASARIFI_CORS_ORIGINS: 'https://app.example.test',
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: true,
+    };
+    expect(validateEnvironment(production)).toMatchObject({
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: true,
+      MASARIFI_RETURN_REMINDERS_ENABLED: false,
+    });
+    expect(validateEnvironment(valid)).toMatchObject({
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: false,
+      MASARIFI_RETURN_REMINDERS_ENABLED: false,
+    });
+  });
+  it('accepts generic return reminders on a non-Staging production worker without an Expo bearer token', () => {
+    const worker: Record<string, unknown> = {
+      ...valid,
+      NODE_ENV: 'production',
+      MASARIFI_PROCESS_KIND: 'worker',
+      CLERK_SECRET_KEY: clerkKey('sk', 'live'),
+      SUPABASE_URL: 'https://release-project.supabase.co',
+      MASARIFI_CORS_ORIGINS: 'https://app.example.test',
+      MASARIFI_RETURN_REMINDERS_ENABLED: true,
+      MASARIFI_ENGAGEMENT_PROVIDER_MODE: 'live',
+      MASARIFI_EXPORT_MAX_BYTES: 16777216,
+      MASARIFI_EXPORT_MAX_ENTRIES: 100,
+      MASARIFI_PRIVACY_HANDLER_MANIFEST: 'identity@1',
+      MASARIFI_SECURITY_WORKER_POLL_MS: 500,
+      MASARIFI_SECURITY_JOB_BATCH_SIZE: 25,
+      EMAIL_SMTP_HOST: 'smtp.example.test',
+      EMAIL_SMTP_PORT: 465,
+      EMAIL_SMTP_USERNAME: 'fixture',
+      EMAIL_SMTP_PASSWORD: 'fixture',
+      EMAIL_FROM: 'test@example.test',
+    };
+    for (const key of [
+      'CLERK_PUBLISHABLE_KEY',
+      'CLERK_INSTANCE_DOMAIN',
+      'CLERK_AUTHORIZED_PARTIES',
+      'CLERK_WEBHOOK_SIGNING_SECRET',
+      'MASARIFI_ADMIN_INVITATION_REDIRECT_URL',
+      'MASARIFI_EXPORT_SIGNED_URL_SECONDS',
+    ])
+      Reflect.deleteProperty(worker, key);
+    expect(validateEnvironment(worker)).toMatchObject({
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: false,
+      MASARIFI_RETURN_REMINDERS_ENABLED: true,
+    });
+  });
   it('allows the planning compatibility owner only on the explicit Staging API', () => {
     const key = 'MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID';
     const staging = {
@@ -415,7 +470,6 @@ describe('validateEnvironment', () => {
   });
 });
 
-
 describe('isolated Staging session-authorized self deletion', () => {
   const key = 'MASARIFI_STAGING_SELF_DELETION_OWNER_ID';
   const scoped = {
@@ -430,7 +484,9 @@ describe('isolated Staging session-authorized self deletion', () => {
     [key]: 'user_DevDeletion123',
   };
   it('accepts an explicit owner only on the immediate-deletion Staging API', () => {
-    expect((validateEnvironment(scoped) as unknown as Record<string, unknown>)[key]).toBe(scoped[key]);
+    expect((validateEnvironment(scoped) as unknown as Record<string, unknown>)[key]).toBe(
+      scoped[key],
+    );
   });
   it.each([
     { SUPABASE_URL: 'https://other.supabase.co' },
@@ -443,7 +499,9 @@ describe('isolated Staging session-authorized self deletion', () => {
   const enabledKey = 'MASARIFI_STAGING_SELF_DELETION_ENABLED';
   const allOwners = { ...scoped, [key]: undefined, [enabledKey]: 'true' };
   it('accepts session-authorized deletion for every owner on the immediate Staging API', () => {
-    expect((validateEnvironment(allOwners) as unknown as Record<string, unknown>)[enabledKey]).toBe(true);
+    expect((validateEnvironment(allOwners) as unknown as Record<string, unknown>)[enabledKey]).toBe(
+      true,
+    );
   });
   it.each([
     { SUPABASE_URL: 'https://other.supabase.co' },

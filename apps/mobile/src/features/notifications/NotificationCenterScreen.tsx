@@ -233,6 +233,10 @@ function routeForNotification(item: NotificationEvent): string | null {
 function routeForTarget(target: NotificationTarget | null): string | null {
   if (target?.kind === 'account') return path('/accounts', target.accountId);
   if (!target) return null;
+  if (target.kind === 'onboarding') return '/';
+  if (target.kind === 'add_transaction') return '/(tabs)/add';
+  if (target.kind === 'home') return '/(tabs)/home';
+  if (target.kind === 'tracking') return '/tracking';
   if (target.kind === 'transaction') return path('/transactions', target.transactionId);
   if (target.kind === 'review') return path('/tracking/review', target.reviewId);
   if (target.kind === 'obligation') return path('/obligations', target.obligationId);
