@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Masarifi.Ratibi",
+    "name": "Masarifi Ratibi",
     "slug": "masarifiratibi",
     "version": "0.0.1",
     "orientation": "portrait",
@@ -25,7 +25,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#055457"
+        "backgroundColor": "#00584F"
       },
       "permissions": [
         "android.permission.READ_SMS",
@@ -41,7 +41,13 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#00584F"
+        }
+      ],
       [
         "expo-local-authentication",
         {

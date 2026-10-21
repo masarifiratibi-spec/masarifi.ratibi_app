@@ -50,11 +50,11 @@ internal object CaptureConfirmation {
       // Recovered builders retain the built actions even when setActions() is empty.
       if(isDev) built.actions=null
       val builder=android.app.Notification.Builder.recoverBuilder(context,built).setOnlyAlertOnce(true)
+        .setSmallIcon(R.drawable.masarifi_stat_brand)
       if(isDev) {
         // Android supplies the app icon and mirrors its placement with the system locale.
-        builder.setSmallIcon(R.drawable.masarifi_stat_wallet)
-          .setLargeIcon(null as android.graphics.Bitmap?)
-          .setColor(Color.rgb(5,84,87)).setVisibility(android.app.Notification.VISIBILITY_PRIVATE)
+        builder.setLargeIcon(null as android.graphics.Bitmap?)
+          .setColor(Color.rgb(0,88,79)).setVisibility(android.app.Notification.VISIBILITY_PRIVATE)
         if(Build.VERSION.SDK_INT<26) builder.setDefaults(android.app.Notification.DEFAULT_ALL)
       }
       return builder.build()

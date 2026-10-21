@@ -40,7 +40,7 @@ test('Staging development installs beside the accepted app with independent link
     const config = configure({ config: JSON.parse(JSON.stringify(app.expo)) });
     assert.equal(config.android.package, 'com.masarifi.mobile.dev');
     assert.equal(config.ios.bundleIdentifier, 'com.masarifi.mobile.dev');
-    assert.equal(config.name, 'Masarifi Dev');
+    assert.equal(config.name, 'Masarifi Ratibi Dev');
     assert.equal(config.scheme, 'masarifi-dev');
     assert.equal(config.android.googleServicesFile, './google-services.dev.json');
     const firebase = JSON.parse(readFileSync(new URL(`../${config.android.googleServicesFile}`, import.meta.url)));
@@ -86,7 +86,7 @@ test('privacy development has an independent package, scheme and display name', 
     assert.equal(config.android.package, 'com.masarifi.mobile.dev.privacy');
     assert.equal(config.ios.bundleIdentifier, 'com.masarifi.mobile.dev.privacy');
     assert.equal(config.scheme, 'masarifi-dev-privacy');
-    assert.equal(config.name, 'Masarifi Dev Privacy');
+    assert.equal(config.name, 'Masarifi Ratibi Dev Privacy');
     assert.equal(config.android.googleServicesFile, undefined);
     assert.deepEqual(config.plugins.slice(0, app.expo.plugins.length), app.expo.plugins);
     assert.deepEqual(config.plugins.at(-1), ['expo-dev-client', { addGeneratedScheme: false }]);

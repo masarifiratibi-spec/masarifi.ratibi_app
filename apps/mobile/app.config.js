@@ -32,7 +32,7 @@ module.exports = ({ config }) => {
   else android.googleServicesFile = './google-services.dev.json';
   return {
     ...config,
-    name: privacy ? 'Masarifi Dev Privacy' : 'Masarifi Dev',
+    name: privacy ? 'Masarifi Ratibi Dev Privacy' : 'Masarifi Ratibi Dev',
     scheme: privacy ? 'masarifi-dev-privacy' : 'masarifi-dev',
     plugins: [...config.plugins, ['expo-dev-client', { addGeneratedScheme: false }]],
     ios: { ...config.ios, bundleIdentifier: privacy ? 'com.masarifi.mobile.dev.privacy' : 'com.masarifi.mobile.dev' },
