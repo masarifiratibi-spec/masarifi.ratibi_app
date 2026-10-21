@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useReverification } from "@clerk/nextjs";
+import { isReverificationHint, reverificationError } from "@clerk/shared/authorization-errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminIdentity } from "@/app/providers";
 import {
@@ -10,6 +12,7 @@ import {
   PageHeader,
 } from "@/components/admin/ui";
 import { apiActorCacheKey } from "@/core/api/client";
+import { ApiError, safeApiMessage } from "@/core/api/errors";
 import { useLocale } from "@/core/localization/provider";
 import { useAdminSession } from "@/features/foundation/hooks";
 import {
@@ -32,6 +35,7 @@ const messages = {
       "تم تغيير الروابط من جلسة أخرى. حدّث الصفحة وراجع القيم قبل الحفظ.",
     error: "تعذر الحفظ. حاول مرة أخرى.",
     auth: "سجّل الدخول من جديد لإكمال الحفظ.",
+    cancelled: "تم إلغاء تأكيد الهوية. الروابط لم تُحفظ؛ يمكنك المحاولة مرة أخرى.",
     refresh: "تحديث",
   },
   en: {
@@ -47,6 +51,7 @@ const messages = {
       "Another session changed these links. Refresh and review the current values before saving.",
     error: "Could not save. Try again.",
     auth: "Sign in again to save these changes.",
+    cancelled: "Verification cancelled. Links were not saved; you can try again.",
     refresh: "Refresh",
   },
 };
@@ -56,23 +61,51 @@ const platforms = [
   ["snapchat", "Snapchat", "https://www.snapchat.com/add/username"],
 ] as const;
 
+type EditorProps = {
+  setting: SocialMediaSetting;
+  canSave: boolean;
+  onSaved: () => Promise<unknown>;
+  save?: typeof socialMediaRepository.save;
+};
+
+function VerifiedSocialMediaEditor(props: Omit<EditorProps, "save">) {
+  const verifiedSave = useReverification(async (
+    actor: string,
+    ...args: Parameters<typeof socialMediaRepository.save>
+  ) => {
+    if (actor !== apiActorCacheKey())
+      throw new ApiError("session_expired", safeApiMessage("session_expired"), 401);
+    try {
+      return await socialMediaRepository.save(...args);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "recent_auth_required")
+        return reverificationError({ level: "first_factor", afterMinutes: 10 });
+      throw error;
+    }
+  });
+  const save: typeof socialMediaRepository.save = async (...args) => {
+    const result = await verifiedSave(apiActorCacheKey(), ...args);
+    // Clerk retries once; a second auth rejection must not be reported as saved.
+    if (!result || isReverificationHint(result))
+      throw new ApiError("recent_auth_required", safeApiMessage("recent_auth_required"), 403);
+    return result;
+  };
+  return <SocialMediaEditor {...props} save={save} />;
+}
+
 function SocialMediaEditor({
   setting,
   canSave,
   onSaved,
-}: {
-  setting: SocialMediaSetting;
-  canSave: boolean;
-  onSaved: () => Promise<unknown>;
-}) {
+  save = socialMediaRepository.save,
+}: EditorProps) {
   const { locale } = useLocale();
   const c = messages[locale];
   const [values, setValues] = useState(setting.value);
   const [reason, setReason] = useState("");
   const [invalid, setInvalid] = useState(false);
   const mutation = useMutation({
-    mutationFn: () =>
-      socialMediaRepository.save(values, setting.version, reason.trim()),
+    mutationFn: () => save(values, setting.version, reason.trim()),
     onSuccess: onSaved,
   });
   const status =
@@ -81,6 +114,7 @@ function SocialMediaEditor({
       : 0;
   const disabled =
     !canSave || mutation.isPending || mutation.isSuccess || status === 409;
+  const code = mutation.error && "code" in mutation.error ? mutation.error.code : null;
   return (
     <form
       className="table-card settings-editor-card"
@@ -136,7 +170,11 @@ function SocialMediaEditor({
           {invalid && <p role="alert">{c.invalid}</p>}
           {mutation.isError && (
             <p role="alert">
-              {status === 409 ? c.conflict : status === 401 ? c.auth : c.error}
+              {status === 409
+                ? c.conflict
+                : status === 401 || code === "recent_auth_required"
+                  ? c.auth
+                  : code === "reverification_cancelled" ? c.cancelled : c.error}
             </p>
           )}
         </div>
@@ -169,6 +207,7 @@ export function SocialMediaSection() {
   if (!identity.loaded || session.isPending) return <LoadingState />;
   if (!canRead)
     return <AccessDeniedState permission="operations.settings.read" />;
+  const Editor = identity.enabled ? VerifiedSocialMediaEditor : SocialMediaEditor;
   return (
     <section className="admin-page">
       <PageHeader
@@ -189,7 +228,7 @@ export function SocialMediaSection() {
       {query.isError && <ErrorState />}
       {saved && <p role="status">{c.saved}</p>}
       {query.data && (
-        <SocialMediaEditor
+        <Editor
           key={`${identity.actorId}:${query.data.version}`}
           setting={query.data}
           canSave={permissions.includes("operations.settings.manage")}

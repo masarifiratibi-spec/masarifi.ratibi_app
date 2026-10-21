@@ -1,12 +1,48 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { mockServer } from "@/mocks/server";
 import { adminSessionFixture } from "@/mocks/fixtures/foundation";
 import { LocaleProvider } from "@/core/localization/provider";
 import { SocialMediaSection } from "./SocialMediaSection";
+import { configureApiActorProvider } from "@/core/api/client";
+
+const verification = vi.hoisted(() => ({
+  live: false,
+  prompt: vi.fn(),
+  complete: undefined as undefined | (() => void),
+  cancel: undefined as undefined | (() => void),
+}));
+vi.mock("@/app/providers", async (original) => {
+  const actual = await original<typeof import("@/app/providers")>();
+  return {
+    ...actual,
+    useAdminIdentity: () => ({ ...actual.useAdminIdentity(), enabled: verification.live }),
+  };
+});
+vi.mock("@clerk/nextjs", () => ({
+  useReverification: (fetcher: (...args: unknown[]) => Promise<unknown>) => async (...args: unknown[]) => {
+    const result = await fetcher(...args);
+    if (result && typeof result === "object" && "clerk_error" in result) {
+      verification.prompt(result);
+      await new Promise<void>((resolve, reject) => {
+        verification.complete = resolve;
+        verification.cancel = () => reject({ code: "reverification_cancelled" });
+      });
+      return fetcher(...args);
+    }
+    return result;
+  },
+}));
+
+beforeEach(() => {
+  verification.live = false;
+  verification.prompt.mockClear();
+  verification.complete = undefined;
+  verification.cancel = undefined;
+});
 
 let root: Root;
 let host: HTMLDivElement;
@@ -169,3 +205,50 @@ test("read-only administrators cannot edit or submit links", async () => {
     (host.querySelector("button[type=submit]") as HTMLButtonElement).disabled,
   ).toBe(true);
 });
+
+test.each(["complete", "cancel", "denied", "account-switch"] as const)(
+  "preserves the draft and handles recent authentication: %s",
+  async (outcome) => {
+    verification.live = true;
+    const data = initial();
+    let writes = 0;
+    mockServer.use(http.patch(endpoint, async ({ request }) => {
+      writes++;
+      if (writes === 1 || outcome === "denied")
+        return HttpResponse.json({ code: "RECENT_AUTH_REQUIRED" }, { status: 403 });
+      const body = await request.json() as { value: typeof data.value };
+      data.value = body.value;
+      data.version++;
+      return HttpResponse.json({ resourceId: data.key, status: "updated", version: data.version });
+    }));
+    await render(undefined, data);
+    const link = "https://www.tiktok.com/@masarifi.ratibi?lang=en";
+    await fill('input[aria-label="TikTok"]', link);
+    await fill("textarea", "Add the official TikTok profile");
+    await submit();
+    await vi.waitFor(() => expect(verification.prompt).toHaveBeenCalledOnce());
+    expect(verification.prompt.mock.calls[0][0]).toMatchObject({
+      clerk_error: { metadata: { reverification: { level: "first_factor" } } },
+    });
+    expect(writes).toBe(1);
+    expect((host.querySelector('input[aria-label="TikTok"]') as HTMLInputElement).value).toBe(link);
+    expect((host.querySelector("button[type=submit]") as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => {
+      if (outcome === "cancel") verification.cancel!();
+      else {
+        if (outcome === "account-switch") configureApiActorProvider(() => "another-admin");
+        verification.complete!();
+      }
+    });
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect((host.querySelector("button[type=submit]") as HTMLButtonElement).disabled).toBe(false);
+    });
+    expect(host.textContent?.includes("Links saved.")).toBe(outcome === "complete");
+    expect(writes).toBe(outcome === "complete" || outcome === "denied" ? 2 : 1);
+    expect((host.querySelector('input[aria-label="TikTok"]') as HTMLInputElement).value).toBe(link);
+    if (outcome === "denied" || outcome === "account-switch")
+      expect(host.textContent).toContain("Sign in again");
+    if (outcome === "cancel") expect(host.textContent).toContain("Verification cancelled");
+  },
+);
