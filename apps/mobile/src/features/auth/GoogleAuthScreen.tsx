@@ -11,7 +11,6 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { useLiveIdentityStatus } from '@/services/live/clerk-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
-import { ReminderConsentControl } from '@/features/notifications/ReminderConsentControl';
 
 export function GoogleAuthScreen() {
   const identity = useLiveIdentityStatus();
@@ -89,7 +88,6 @@ export function GoogleAuthScreen() {
         <View
           style={{ gap: theme.spacing.md, paddingBottom: theme.spacing.xl }}
         >
-          <ReminderConsentControl guest />
           <GoogleAccountSelector
             label={translate('googleAuth.continue')}
             signIn={() => authService.signInWithGoogle()}

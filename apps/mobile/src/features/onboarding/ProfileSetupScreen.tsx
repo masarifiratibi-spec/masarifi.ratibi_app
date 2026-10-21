@@ -27,7 +27,6 @@ import { settingsService } from '@/services/mocks/subscription-settings-service'
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
-import { ReminderConsentControl } from '@/features/notifications/ReminderConsentControl';
 
 type ProfileSetupService = Pick<
   SettingsService,
@@ -283,7 +282,6 @@ export function ProfileSetupScreen({
             </View>
 
             <View style={styles.actions}>
-              <ReminderConsentControl />
               {saveError ? (
                 <StyledText
                   accessibilityRole="alert"

@@ -154,11 +154,11 @@ beforeEach(() => {
   });
 });
 
-test('offers authenticated reminder consent before DEV profile setup is complete', () => {
+test('keeps notification activation out of profile setup even when automation is enabled', () => {
   jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(true);
   useAppShellStore.setState({ session: { status: 'authenticated', userId: 'owner-a', issuedAt: 1, expiresAt: 4_000_000_000_000, method: 'google', restoration: 'restored' } });
   renderWithProviders(<ProfileSetupScreen service={service({})} />);
-  expect(screen.getByRole('switch', { name: /تفعيل الإشعارات/ })).toBeOnTheScreen();
+  expect(screen.queryByRole('switch', { name: /تفعيل الإشعارات/ })).toBeNull();
 });
 
 test('requires an explicit currency choice for a new customer before onboarding can save', async () => {
