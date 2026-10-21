@@ -572,7 +572,45 @@ describe('live automatic tracking adapter', () => {
         })
       })
     );
+    expect(request.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(request.mock.calls[0][1]?.signal?.aborted).toBe(false);
   });
+
+  it.each(['token', 'fetch', 'body'] as const)(
+    'bounds status %s to one deadline and ignores late completion',
+    async (stage) => {
+      jest.useFakeTimers();
+      let release!: (value: unknown) => void;
+      const pending = new Promise((resolve) => { release = resolve; });
+      const json = jest.fn(async () => stage === 'body' ? pending : {});
+      const lateResponse = { ok: true, status: 200, json } as unknown as Response;
+      const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+        .mockImplementation(async () => stage === 'fetch' ? pending as Promise<Response> : lateResponse);
+      const success = jest.fn();
+      const service = createLiveAutomaticTrackingService({
+        token: async () => stage === 'token' ? pending as Promise<string> : 'owner-token',
+        request
+      });
+      const result = service.getStatus().then(success).catch((error: unknown) => error);
+      try {
+        await jest.advanceTimersByTimeAsync(14_999);
+        expect(success).not.toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(1);
+        expect(await result).toMatchObject({
+          code: 'provider_unavailable', failureSource: 'timeout'
+        });
+        if (stage !== 'token')
+          expect(request.mock.calls[0][1]?.signal?.aborted).toBe(true);
+        release(stage === 'token' ? 'late-token' : stage === 'fetch' ? lateResponse : {});
+        await jest.advanceTimersByTimeAsync(0);
+        expect(success).not.toHaveBeenCalled();
+        if (stage === 'token') expect(request).not.toHaveBeenCalled();
+        if (stage === 'fetch') expect(json).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+  );
 
   it('sends expected versions and idempotency keys for rule mutations', async () => {
     const request = jest

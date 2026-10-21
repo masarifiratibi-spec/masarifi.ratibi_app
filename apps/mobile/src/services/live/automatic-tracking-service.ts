@@ -40,6 +40,7 @@ import {
   captureLiveReadClerkIdentity
 } from './auth-service';
 import { getTrackingDeviceId } from '../tracking-device';
+import { assertReadActive, withReadContext } from './read-context';
 import {
   canonicalJson,
   validateRuleSnapshot
@@ -200,9 +201,11 @@ export function createLiveAutomaticTrackingService({
     {
       idempotencyKey,
       expectedOwnerId,
+      signal,
     }: {
       idempotencyKey?: string;
       expectedOwnerId?: string;
+      signal?: AbortSignal;
     } = {}
   ): Promise<unknown> => {
     const identity =
@@ -217,8 +220,10 @@ export function createLiveAutomaticTrackingService({
       ? identity.token
       : await token(method === 'GET');
     await identity?.assertCurrent();
+    assertReadActive(signal);
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
       method,
+      ...(signal ? { signal } : {}),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         ...(method === 'GET'
@@ -228,9 +233,11 @@ export function createLiveAutomaticTrackingService({
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     });
+    assertReadActive(signal);
     const value: unknown =
       response.status === 204 ? null : await response.json();
     await identity?.assertCurrent();
+    assertReadActive(signal);
     if (!response.ok) {
       const error = record(value);
       const code = text(error.code || record(error.error ?? {}).code);
@@ -325,8 +332,8 @@ export function createLiveAutomaticTrackingService({
     completedAt: nullableEpoch(value.completedAt),
     updatedAt: requiredEpoch(value.updatedAt)
   });
-  const status = async (): Promise<TrackingStatusSnapshot> => {
-    const value = record(await get('/api/v1/tracking/status'));
+  const status = (): Promise<TrackingStatusSnapshot> => withReadContext(undefined, async (signal) => {
+    const value = record(await send('GET', '/api/v1/tracking/status', undefined, { signal }));
     const available = boolean(value.available);
     return {
       platform:
@@ -348,7 +355,7 @@ export function createLiveAutomaticTrackingService({
       activeSenderCount: integer(value.activeSenderCount),
       lastUpdatedAt: requiredEpoch(value.lastUpdatedAt)
     };
-  };
+  });
   return {
     metadata: {
       id: 'phase08-tracking-http',
