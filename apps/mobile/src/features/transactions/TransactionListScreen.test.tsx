@@ -1093,6 +1093,11 @@ it('keeps the ledger available when the monthly summary fails', async () => {
 });
 
 describe('selected account scope', () => {
+  const mixedCurrencyAccounts = fixtureAccounts.map((account) =>
+    account.id === 'account-wallet'
+      ? { ...account, currencyCode: 'EGP' }
+      : account
+  );
   const scopedFilters = applyAccountScope(
     emptyTransactionFilters,
     'account-wallet'
@@ -1115,6 +1120,137 @@ describe('selected account scope', () => {
   beforeEach(() => {
     useCoreFinanceViewState.getState().selectAccount(null);
   });
+
+  it('keeps the EGP income in the selected wallet summary and changes currency with the account scope', () => {
+    const monthlyFilters = periodFilters(monthPeriod(Date.UTC(2026, 7, 1)));
+    const egpSummary = {
+      ...homeSummary,
+      currencyCode: 'EGP',
+      periodIncomeMinor: 100,
+      periodExpenseMinor: 0
+    };
+    const sarSummary = {
+      ...homeSummary,
+      periodIncomeMinor: 200,
+      periodExpenseMinor: 0
+    };
+    useCoreFinanceViewState.getState().selectAccount('account-wallet');
+    renderWithQueryData(<TransactionListScreen />, [
+      [coreFinanceKeys.accounts(true), mixedCurrencyAccounts],
+      [coreFinanceKeys.categories(true), fixtureCategories],
+      [
+        coreFinanceKeys.home(
+          'EGP',
+          applyAccountScope(monthlyFilters, 'account-wallet')
+        ),
+        egpSummary
+      ],
+      [
+        coreFinanceKeys.home(
+          'SAR',
+          applyAccountScope(monthlyFilters, 'account-wallet')
+        ),
+        { ...sarSummary, periodIncomeMinor: 0 }
+      ],
+      [
+        coreFinanceKeys.home(
+          'SAR',
+          applyAccountScope(monthlyFilters, 'account-bank')
+        ),
+        sarSummary
+      ],
+      [coreFinanceKeys.home('SAR', monthlyFilters), sarSummary],
+      [
+        coreFinanceKeys.transactionPages(scopedFilters),
+        {
+          pages: [
+            {
+              items: [
+                makeTransaction(701, {
+                  accountId: 'account-wallet',
+                  type: 'income',
+                  currencyCode: 'EGP',
+                  amountMinor: 100
+                })
+              ],
+              nextCursor: null,
+              total: 1
+            }
+          ],
+          pageParams: [null]
+        }
+      ]
+    ]);
+
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+1\.00\sEGP/u
+    );
+    expect(screen.getByTestId('transaction-summary-expense')).toHaveTextContent(
+      /-0\.00\sEGP/u
+    );
+    expect(
+      within(screen.getByTestId('transaction-row')).getByText('+1.00 EGP')
+    ).toBeTruthy();
+    act(() => usePreferenceStore.setState({ baseCurrencyCode: 'USD' }));
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+1\.00\sEGP/u
+    );
+    act(() => {
+      usePreferenceStore.setState({ baseCurrencyCode: 'SAR' });
+      useCoreFinanceViewState.getState().selectAccount('account-bank');
+    });
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+2\.00\sSAR/u
+    );
+    act(() =>
+      useCoreFinanceViewState.getState().selectAccount('account-wallet')
+    );
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+1\.00\sEGP/u
+    );
+    act(() => useCoreFinanceViewState.getState().selectAccount(null));
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+2\.00\sSAR/u
+    );
+  });
+
+  it.each(['ar', 'en'] as const)(
+    'discloses currencies excluded from the All Accounts summary in %s',
+    (locale) => {
+      changeLocale(locale);
+      renderWithQueryData(<TransactionListScreen />, [
+        [coreFinanceKeys.accounts(true), mixedCurrencyAccounts],
+        [coreFinanceKeys.categories(true), fixtureCategories],
+        [
+          coreFinanceKeys.transactionPages(emptyTransactionFilters),
+          {
+            pages: [{ items: [], nextCursor: null, total: 0 }],
+            pageParams: [null]
+          }
+        ],
+        [
+          summarySeed[0],
+          {
+            ...homeSummary,
+            periodIncomeMinor: 0,
+            periodExpenseMinor: 0,
+            excludedAccountIds: ['account-wallet'],
+            isEstimated: true,
+            dataState: 'partial'
+          }
+        ]
+      ]);
+
+      expect(
+        within(screen.getByTestId('transaction-month-summary')).getByText(
+          translate('coreFinance.accounts.otherCurrenciesExcluded')
+        )
+      ).toBeTruthy();
+      expect(
+        screen.getByTestId('transaction-summary-income')
+      ).toHaveTextContent(/\+0\.00\sSAR/u);
+    }
+  );
 
   it('scopes ledger rows and the monthly summary to the selected account', () => {
     useCoreFinanceViewState.getState().selectAccount('account-wallet');

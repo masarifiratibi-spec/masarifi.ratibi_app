@@ -113,6 +113,9 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
     (state) => state.reconcileSelectedAccount
   );
   const direction = usePreferenceStore((state) => state.direction);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const firstDayOfWeek = usePreferenceStore((state) => state.firstDayOfWeek);
   const timeZone = usePreferenceStore((state) => state.timeZone);
@@ -156,6 +159,9 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
       ),
     [categories.data]
   );
+  const summaryCurrencyCode = selectedAccountId
+    ? accountById.get(selectedAccountId)?.currencyCode
+    : baseCurrencyCode;
   const locale = currentLocale();
   const appliedPeriod = periodFromRange(
     filters.periodStart,
@@ -533,10 +539,13 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
               visible={accountScopeOpen}
               onDismiss={() => setAccountScopeOpen(false)}
             />
-            <MonthlySummary
-              period={appliedPeriod}
-              selectedAccountId={selectedAccountId}
-            />
+            {summaryCurrencyCode ? (
+              <MonthlySummary
+                period={appliedPeriod}
+                selectedAccountId={selectedAccountId}
+                currencyCode={summaryCurrencyCode}
+              />
+            ) : null}
             <DateRangeSheet
               visible={periodOpen}
               period={draftPeriod}
@@ -695,24 +704,23 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
 
 function MonthlySummary({
   period,
-  selectedAccountId
+  selectedAccountId,
+  currencyCode
 }: {
   period: ReturnType<typeof periodFromRange>;
   selectedAccountId: string | null;
+  currencyCode: string;
 }) {
   const theme = useTheme();
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const direction = usePreferenceStore((state) => state.direction);
-  const baseCurrencyCode = usePreferenceStore(
-    (state) => state.baseCurrencyCode
-  );
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const summaryFilters = useMemo(
     () => applyAccountScope(periodFilters(period), selectedAccountId),
     [period, selectedAccountId]
   );
-  const summary = useHomeSummary(baseCurrencyCode, summaryFilters);
+  const summary = useHomeSummary(currencyCode, summaryFilters);
   const locale = currentLocale();
   const masked = hideBalances && !revealed;
   const summaryData = summary.data;
@@ -799,6 +807,11 @@ function MonthlySummary({
             masked={masked}
           />
         </View>
+        {summary.data.excludedAccountIds.length > 0 ? (
+          <StyledText style={{ color: theme.colors.content.secondary }}>
+            {translate('coreFinance.accounts.otherCurrenciesExcluded')}
+          </StyledText>
+        ) : null}
       </View>
     );
   }
