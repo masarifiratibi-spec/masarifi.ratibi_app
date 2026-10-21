@@ -122,6 +122,14 @@ const LIVE_ADMIN_NAVIGATION: NavigationGroup[] = [
     labelKey: "الحوكمة",
     items: [
       {
+        id: "social-media",
+        labelKey: "السوشيال ميديا",
+        route: "/admin/social-media",
+        iconKey: "globe",
+        permission: "operations.settings.read",
+        availability: "active",
+      },
+      {
         id: "security",
         labelKey: "الأمان",
         route: "/admin/security",

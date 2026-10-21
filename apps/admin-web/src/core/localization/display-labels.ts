@@ -134,6 +134,7 @@ const periodLabels: Record<string, Record<Locale, string>> = {
 };
 
 const navigationLabels: Record<string, Record<Locale, string>> = {
+  "social-media": { ar: "السوشيال ميديا", en: "Social media" },
   platform: { ar: "المنصة", en: "Platform" },
   overview: { ar: "نظرة عامة", en: "Overview" },
   health: { ar: "صحة النظام", en: "System Health" },

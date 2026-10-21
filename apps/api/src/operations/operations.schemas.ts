@@ -296,10 +296,35 @@ function safeJson(value: unknown, depth = 0): void {
 export function parseOperationCommand(
   operation: OperationCommand,
   value: unknown,
+  resourceKey?: string | null,
 ): Record<string, unknown> {
   const input = record(value);
   exact(input, COMMAND_FIELDS[operation]);
-  safeJson(input);
+  if (operation === 'updateSetting' && resourceKey === 'mobile.social_links') {
+    const links = record(input.value);
+    const patterns: Record<string, RegExp> = {
+      instagram: /^https:\/\/(?:www\.)?instagram\.com\/[a-z0-9._]+\/?(?:[?#][^\s\\]*)?$/iu,
+      tiktok: /^https:\/\/(?:www\.)?tiktok\.com\/@[a-z0-9._]+\/?(?:[?#][^\s\\]*)?$/iu,
+      snapchat:
+        /^https:\/\/(?:www\.)?snapchat\.com\/(?:add\/|@)[a-z0-9._-]+\/?(?:[?#][^\s\\]*)?$/iu,
+    };
+    exact(links, Object.keys(patterns));
+    for (const [platform, pattern] of Object.entries(patterns)) {
+      const link = links[platform];
+      if (
+        typeof link !== 'string' ||
+        link.length > 500 ||
+        CONTROL.test(link) ||
+        /[\s\\]/u.test(link) ||
+        (link !== '' && !pattern.test(link))
+      )
+        throw new Error(INVALID);
+    }
+    // Only validated public profile links may contain URLs; all other fields retain the normal checks.
+    safeJson({ ...input, value: {} });
+  } else {
+    safeJson(input);
+  }
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 4_096) throw new Error(INVALID);
   const output = { ...input };
   output.reason = text(input.reason, 10, 500);

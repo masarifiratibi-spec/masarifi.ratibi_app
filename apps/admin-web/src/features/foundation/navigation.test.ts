@@ -3,6 +3,11 @@ import { getLiveNavigation } from "./navigation";
 import { buildSidebarSections, resolveRoutePermission, strongestActiveRoute } from "@/components/admin/shell-state";
 
 describe("live Admin navigation", () => {
+  test("exposes a separate social media destination with operational read permission", () => {
+    const path = "/admin/social-media";
+    expect(getLiveNavigation().flatMap(group => group.items).find(item => item.route === path)).toMatchObject({ id: "social-media", permission: "operations.settings.read" });
+    expect(resolveRoutePermission(path)).toBe("operations.settings.read");
+  });
   test("opens AI Usage Limits within System Health and selects its own destination", () => {
     const path = "/admin/system-health/ai-usage-limits";
     const sections = buildSidebarSections(getLiveNavigation(), path);

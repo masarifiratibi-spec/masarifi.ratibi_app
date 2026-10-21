@@ -291,6 +291,7 @@ paths:
     patch:
       operationId: updateSystemSetting
       tags: [Configuration]
+      description: Requires operations.settings.manage and recent authentication. The mobile.social_links setting accepts a SocialMediaLinks object; all three accounts are saved atomically with the expected version and a change reason. An empty string hides the corresponding app icon.
       parameters:
         - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
@@ -437,6 +438,23 @@ paths:
         '200': { $ref: '#/components/responses/RecoveryEvidence' }
         '401': { $ref: '#/components/responses/SafeError' }
         '403': { $ref: '#/components/responses/SafeError' }
+  /api/v1/meta/social-media:
+    get:
+      operationId: getSocialMediaLinks
+      tags: [Client configuration]
+      description: Returns only the saved public account links for the mobile settings footer. A verified Clerk session is required. Empty links are not displayed by the app.
+      responses:
+        '200':
+          description: Current configured social media accounts.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'private, no-store' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SocialMediaLinks' }
+        '401': { $ref: '#/components/responses/SafeError' }
+        '500': { $ref: '#/components/responses/SafeError' }
+        '503': { $ref: '#/components/responses/SafeError' }
   /api/v1/meta:
     get:
       operationId: getPlatformMetadata
@@ -609,6 +627,15 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/RecoveryEvidence' }
   schemas:
+    SocialMediaLinks:
+      type: object
+      additionalProperties: false
+      required: [instagram, tiktok, snapchat]
+      description: Each value is either empty or an HTTPS profile URL on the matching platform. Instagram accepts instagram.com/username, TikTok accepts tiktok.com/@username, and Snapchat accepts snapchat.com/add/username or snapchat.com/@username, with optional www, trailing slash and share query parameters.
+      properties:
+        instagram: { type: string, maxLength: 500 }
+        tiktok: { type: string, maxLength: 500 }
+        snapchat: { type: string, maxLength: 500 }
     OperationsTimestamp:
       type: string
       format: date-time

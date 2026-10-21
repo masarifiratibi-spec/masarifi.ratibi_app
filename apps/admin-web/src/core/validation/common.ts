@@ -13,6 +13,7 @@ export const paginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 export const routeSchema = z.enum([
+  "/admin/social-media",
   "/admin",
   "/admin/users",
   "/admin/imports",

@@ -130,7 +130,7 @@ export class OperationsService {
         !/^[a-z][a-z0-9_.-]{2,127}$/u.test(resourceKey)
       )
         throw new Error('INVALID_RESOURCE');
-      const input = parseOperationCommand(operation, body);
+      const input = parseOperationCommand(operation, body, resourceKey);
       const result = await this.repository.command(
         principal,
         operation,

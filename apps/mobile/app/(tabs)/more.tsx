@@ -27,6 +27,7 @@ import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
 import { localDateInTimeZone } from '@/domain/financial-period';
 import { prefetchPlanningDestinations } from '@/features/financial-planning/financial-planning-queries';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
+import { SocialMediaFooter } from '@/features/settings/SocialMediaLinks';
 
 // Keep these settings and their routes available while hiding their menu entries.
 const SHOW_SECURITY_SETTINGS = false;
@@ -326,6 +327,7 @@ export default function MoreRoute() {
           />
         </View>
         <AccountDeletionPanel presentation="link" />
+        <SocialMediaFooter />
         {isFixtureModeEnabled() ? (
           <ActionButton
             label={translate('appShell.security.mockSignOutAll')}

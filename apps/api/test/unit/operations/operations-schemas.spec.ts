@@ -9,6 +9,26 @@ import {
 } from '../../../src/operations/operations.schemas';
 
 describe('operations schemas', () => {
+  it('allows profile URLs only inside the validated social media setting', () => {
+    const value = { instagram: 'https://instagram.com/masarifi', tiktok: '', snapchat: '' };
+    const body = { value, expectedVersion: 1, reason: 'Update public social media accounts' };
+    expect(parseOperationCommand('updateSetting', body, 'mobile.social_links')).toEqual(body);
+    expect(() => parseOperationCommand('updateSetting', body, 'operations.ai.allowance')).toThrow();
+    expect(() =>
+      parseOperationCommand(
+        'updateSetting',
+        { ...body, value: { ...value, instagram: 'https://evil.test/masarifi' } },
+        'mobile.social_links',
+      ),
+    ).toThrow();
+    expect(() =>
+      parseOperationCommand(
+        'updateSetting',
+        { ...body, reason: 'https://evil.test/reason' },
+        'mobile.social_links',
+      ),
+    ).toThrow();
+  });
   it('bounds the AI usage lookup to a selected user and rejects bypass fields', () => {
     expect(parseOperationsReadQuery('ai-usage', {})).toEqual({ userId: null });
     expect(parseOperationsReadQuery('ai-usage', { userId: 'user_example' })).toEqual({

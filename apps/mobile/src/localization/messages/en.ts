@@ -8,6 +8,7 @@
  */
 
 const en = {
+  'settings.socialMedia.openError': 'Could not open this account. Please try again.',
   'reminders.control.label': 'Enable notifications',
   'reminders.control.description': 'Occasional reminders to finish setup or check your spending. You can turn them off anytime.',
   'reminders.guest.label': 'Remind me to finish setup',

@@ -7,6 +7,7 @@ import type { Locale } from "@/core/localization/direction";
 const labels = {
   ar: {
     "/admin": "نظرة عامة",
+    "/admin/social-media": "السوشيال ميديا",
     "/admin/users": "المستخدمون",
     "/admin/imports": "الاستيراد والمعاملات",
     "/admin/system-health": "صحة النظام",
@@ -34,6 +35,7 @@ const labels = {
   },
   en: {
     "/admin": "Overview",
+    "/admin/social-media": "Social media",
     "/admin/users": "Users",
     "/admin/imports": "Imports",
     "/admin/system-health": "System Health",

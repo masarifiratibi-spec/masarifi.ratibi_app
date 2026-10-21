@@ -197,6 +197,7 @@ export function buildSidebarSections(groups: NavigationGroup[], pathname: string
 type RoutePermission = PermissionKey | "operations.settings.read";
 
 const ROUTE_PERMISSION_RULES: ReadonlyArray<{ match: string; permission: RoutePermission }> = [
+  { match: "/admin/social-media", permission: "operations.settings.read" },
   { match: "/admin/security/authentication-events", permission: "security.events.read" },
   { match: "/admin/security/suspicious-activity", permission: "security.incidents.manage" },
   { match: "/admin/security/admins", permission: "security.admins.read" },

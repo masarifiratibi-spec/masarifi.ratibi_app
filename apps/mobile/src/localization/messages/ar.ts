@@ -10,6 +10,7 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'settings.socialMedia.openError': 'تعذر فتح الحساب. حاول مرة أخرى.',
   'reminders.control.label': 'تفعيل الإشعارات',
   'reminders.control.description': 'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
   'reminders.guest.label': 'ذكّرني باستكمال الإعداد',
