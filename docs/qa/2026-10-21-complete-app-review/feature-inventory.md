@@ -1,5 +1,5 @@
 # Feature inventory
-Baseline `0b03533f35de3d5f69d90c980e46eabde6457c99`; generated 2026-10-21T22:26:13+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
+Baseline `7109254b72bdf1828a58c71c442af6ee0ff6a6a7`; generated 2026-10-21T23:40:01+00:00 (timestamps UTC unless offset is explicit). Review date 2026-10-21, Asia/Riyadh. Worktree `D:/Masarifi-integration-2026-10-10`; branch `codex/voice-promoted-operating-2026-10-13`.
 
 Inventory: 98 mobile route/intent files, 16 mobile layouts, 105 Admin pages, 1229 inspected source files, 144 SQL migrations (145 tracked migration-directory files including .gitkeep). This is coverage/source evidence, not application acceptance. Callback discovery includes shared/presentational controls and fixture controls; it does not imply all branches render on every importing route.
 
