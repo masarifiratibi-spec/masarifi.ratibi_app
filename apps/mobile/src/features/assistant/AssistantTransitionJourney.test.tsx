@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -149,9 +149,49 @@ describe('Assistant Transition & Chat Journey', () => {
       successCallback?.({ value: { id: 'conv-101' } });
     });
 
-    expect(router.push).toHaveBeenCalledWith('/assistant/conv-101');
-    // Keeping the underlying route as landing makes returning Back show history.
-    expect(screen.getByTestId('assistant-ask-card')).toBeTruthy();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByTestId('assistant-conversation-view')).toBeTruthy();
+    expect(screen.queryByTestId('assistant-ask-card')).toBeNull();
+  });
+
+  it('DEF-019 keeps the quick question visible through loading and returns Back to the landing', async () => {
+    let accepted: ((result: {value: {id: string}}) => void) | undefined;
+    mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({
+      mutate: (_payload: unknown, options: {onSuccess: typeof accepted}) => { accepted = options.onSuccess; },
+      error: null
+    });
+    const loadedConversation = mockAssistantQueries.useAssistantConversation();
+    mockAssistantQueries.useAssistantConversation.mockReturnValue({data: undefined, isPending: true, isLoading: true});
+    let refresh!: () => void;
+    let back: (() => boolean | null | undefined) | undefined;
+    const listener = jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, callback) => {
+      back = callback;
+      return {remove: jest.fn()};
+    });
+    const keyboard = jest.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
+    function RefreshableHome() {
+      const [, setVersion] = React.useState(0);
+      refresh = () => setVersion(version => version + 1);
+      return <AssistantHomeScreen />;
+    }
+    renderWithProviders(<RefreshableHome />);
+    fireEvent.press(screen.getByTestId('suggestion-card-spending'));
+    expect(within(screen.getByTestId('user-message-bubble')).getByText('كم أنفقت هذا الشهر؟')).toBeTruthy();
+    await act(async () => { accepted?.({value: {id: 'conv-101'}}); });
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('assistant-landing')).toBeNull();
+    expect(screen.getByText('كم أنفقت هذا الشهر؟')).toBeTruthy();
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp('editable', false);
+    mockAssistantQueries.useAssistantConversation.mockReturnValue(loadedConversation);
+    await act(async () => {refresh();});
+    await waitFor(() => {expect(screen.getAllByTestId('user-message-bubble')).toHaveLength(1);});
+    expect(within(screen.getByTestId('user-message-bubble')).getByText('كم أنفقت هذا الشهر؟')).toBeTruthy();
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp('editable', true);
+    act(() => {expect(back?.()).toBe(true);});
+    expect(screen.getByTestId('assistant-hero')).toBeTruthy();
+    expect(router.back).not.toHaveBeenCalled();
+    listener.mockRestore();
+    keyboard.mockRestore();
   });
 
   it('masks financial insight amounts when hideBalances is enabled', () => {

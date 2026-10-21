@@ -69,8 +69,7 @@ export function AssistantHomeScreen({
         { question, intent, operationId },
         {
           onSuccess: (result: { value: { id: string } }) => {
-            setFirstTurn(null);
-            router.push(`/assistant/${result.value.id}`);
+            setActiveConversationId(result.value.id);
             resolve(true);
           },
           onError: () => {
@@ -96,7 +95,8 @@ export function AssistantHomeScreen({
     return (
       <AssistantConversationScreen
         conversationId={activeConversationId}
-        onBack={() => setActiveConversationId(null)}
+        initialUserTurn={firstTurn ?? undefined}
+        onBack={() => {setActiveConversationId(null); setFirstTurn(null);}}
       />
     );
   }
@@ -114,7 +114,7 @@ export function AssistantHomeScreen({
       operation={operation?.data} loading={resume?.isPending || retry?.isPending}
       error={createConversation.isError || resume?.isError || retry?.isError}
       onCheck={() => resume?.mutate(undefined, {onSettled: () => operation?.refetch()})}
-      onRetry={() => retry?.mutate(undefined, {onSuccess: result => {setFirstTurn(null); router.push(`/assistant/${result.value.conversationId}`);}})}
+      onRetry={() => retry?.mutate(undefined, {onSuccess: result => {setActiveConversationId(result.value.conversationId);}})}
     /> : undefined}
   />;
 
@@ -166,9 +166,11 @@ export function AssistantHomeScreen({
 
 export function AssistantConversationScreen({
   conversationId = 'conversation-1',
+  initialUserTurn,
   onBack
 }: {
   conversationId?: string;
+  initialUserTurn?: AssistantUserTurn;
   onBack?: () => void;
 }) {
   const queries = require('./assistant-queries') as AssistantQueries;
@@ -236,6 +238,8 @@ export function AssistantConversationScreen({
     createdAt: operation.data.createdAt ?? 0,
     status: operation.data.phase === 'accepted' ? 'queued' : operation.data.phase === 'completed' ? 'completed' : operation.data.phase === 'failed' ? 'failed' : 'unknown'
   } : null;
+  const waitingForInitialHistory = Boolean(initialUserTurn && !latest.data && !latest.isError);
+  const initialTurns = initialUserTurn && !userTurns.length && !responses.length ? [initialUserTurn] : userTurns;
 
   React.useEffect(() => {
     const pending = pendingAcknowledgement.current;
@@ -252,7 +256,7 @@ export function AssistantConversationScreen({
   }, [conversationId]);
 
   const handleSendMessage = async (questionText: string): Promise<boolean> => {
-    if (!questionText.trim() || pendingAcknowledgement.current || ask.isPending || availability?.data?.capabilities?.directRead === 'disabled' || (operation?.data && !['completed', 'failed'].includes(operation.data.phase))) return false;
+    if (!questionText.trim() || waitingForInitialHistory || pendingAcknowledgement.current || ask.isPending || availability?.data?.capabilities?.directRead === 'disabled' || (operation?.data && !['completed', 'failed'].includes(operation.data.phase))) return false;
     resume?.reset?.();
     retry?.reset?.();
     const operationId = `ask-${Date.now()}`;
@@ -309,7 +313,7 @@ export function AssistantConversationScreen({
         conversation={conversation}
         conversationId={conversationId}
         responses={responses}
-        userTurns={optimisticTurn && !optimisticPersisted ? [...userTurns, {...optimisticTurn, id: optimisticMessageId ?? optimisticTurn.id, status: optimisticOperation?.phase === 'failed' ? 'failed' : optimisticTurn.status}] : restoredTurn ? [...userTurns, restoredTurn] : userTurns}
+        userTurns={optimisticTurn && !optimisticPersisted ? [...userTurns, {...optimisticTurn, id: optimisticMessageId ?? optimisticTurn.id, status: optimisticOperation?.phase === 'failed' ? 'failed' : optimisticTurn.status}] : restoredTurn ? [...userTurns, restoredTurn] : initialTurns}
         onBack={() => {
           if (onBack) onBack();
           else if (router.canGoBack()) router.back();
@@ -323,7 +327,7 @@ export function AssistantConversationScreen({
         onReviewAction={handleReviewAction}
         onViewReport={handleViewReport}
         onFeedback={handleFeedback}
-        isSending={ask.isPending || Boolean(latest.data?.pendingMessageIds?.length) || Boolean(operation?.data && !['completed', 'failed'].includes(operation.data.phase)) || availability?.data?.capabilities?.directRead === 'disabled'}
+        isSending={waitingForInitialHistory || ask.isPending || Boolean(latest.data?.pendingMessageIds?.length) || Boolean(operation?.data && !['completed', 'failed'].includes(operation.data.phase)) || availability?.data?.capabilities?.directRead === 'disabled'}
         error={ask.isError || page.isError || feedback.isError || data?.failureCode ? translateDynamic((ask.error as { code?: string })?.code === 'still_processing' ? 'assistant.thinking' : 'assistant.state.error') : null}
         onEndReached={() => nextCursor && setCursor(nextCursor)}
       />
