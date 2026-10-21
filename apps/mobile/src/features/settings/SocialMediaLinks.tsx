@@ -47,8 +47,8 @@ export function SocialMediaLinks({ links }: { links: SocialMediaLinksValue }) {
           style={({ pressed }) => [styles.icon, { opacity: pressed ? 0.5 : 1 }]}
         >
           <Svg
-            width={26}
-            height={26}
+            width={22}
+            height={22}
             viewBox="0 0 24 24"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
