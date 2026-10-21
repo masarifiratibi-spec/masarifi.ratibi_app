@@ -45,14 +45,29 @@ export const ledgerSummarySchema = z
     occurredAt: instant,
     source: z.preprocess(
       (value) => (value === 'tracking-import' ? 'automatic' : value),
-      z.enum(transactionSources)
+      z.enum([...transactionSources, 'account_opening'])
     ),
     originalTransactionId: uuid.nullable().optional().default(null),
     version: z.number().int().safe().positive(),
     deletedAt: nullableInstant.optional().default(null),
     undoExpiresAt: nullableInstant.optional().default(null)
   })
-  .strict();
+  .strict()
+  .superRefine((summary, context) => {
+    if (summary.source === 'account_opening' && summary.kind !== 'opening') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['source'],
+        message: 'Account-opening source requires an opening transaction'
+      });
+    }
+  })
+  .transform((summary) => ({
+    ...summary,
+    // Account creation persists this source; opening rows project as adjustments.
+    source: summary.source === 'account_opening' ? 'adjustment' as const : summary.source
+  }));
+
 const postingSchema = z
   .object({
     id: uuid,

@@ -240,7 +240,7 @@ function routeForTarget(target: NotificationTarget | null): string | null {
   if (target.kind === 'transaction') return path('/transactions', target.transactionId);
   if (target.kind === 'review') return path('/tracking/review', target.reviewId);
   if (target.kind === 'obligation') return path('/obligations', target.obligationId);
-  if (target.kind === 'budget') return path('/budgets', target.budgetId);
+  if (target.kind === 'budget') return path('/budgets/transactions', target.budgetId);
   if (target.kind === 'salary') return '/salary';
   if (target.kind === 'goal') return path('/savings', target.goalId);
   if (target.kind === 'report') return '/reports';

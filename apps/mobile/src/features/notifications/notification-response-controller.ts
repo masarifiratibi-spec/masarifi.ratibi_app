@@ -176,7 +176,7 @@ function routeForTarget(target: NotificationTarget, action: Exclude<Notification
   if (target.kind === 'obligation') return path('/obligations', target.obligationId, action === 'edit');
   if (target.kind === 'budget') return action === 'edit'
     ? path('/budgets/edit', target.budgetId)
-    : path('/budgets', target.budgetId);
+    : path('/budgets/transactions', target.budgetId);
   if (target.kind === 'salary') return action === 'edit' ? '/salary/profile' : '/salary';
   if (target.kind === 'goal') return path('/savings', target.goalId, action === 'edit');
   if (target.kind === 'report') return '/reports';

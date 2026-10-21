@@ -64,6 +64,7 @@ jest.mock('@/state/AppShellProvider', () => ({
 }));
 
 jest.mock('@/services/live/clerk-provider', () => ({
+  useLiveClerkSessionKey: () => 'navigation-test-session',
   MobileIdentityProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   )
@@ -126,8 +127,10 @@ describe('protected navigation', () => {
           await waitFor(() => expect(mockExecuteAction).toHaveBeenCalled());
         else {
           await waitFor(() =>
-            expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
+            expect(mockGetLastResponse).toHaveBeenCalled()
           );
+          expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+          expect(mockResolveTarget).not.toHaveBeenCalled();
           expect(mockExecuteAction).not.toHaveBeenCalled();
         }
         expect(mockRouterPush).not.toHaveBeenCalledWith('/security/unlock');
@@ -440,8 +443,10 @@ describe('protected navigation', () => {
     render(<RootLayout />);
 
     await waitFor(() =>
-      expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
+      expect(mockGetLastResponse).toHaveBeenCalled()
     );
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+    expect(mockResolveTarget).not.toHaveBeenCalled();
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
 
@@ -460,8 +465,10 @@ describe('protected navigation', () => {
     render(<RootLayout />);
 
     await waitFor(() =>
-      expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
+      expect(mockGetLastResponse).toHaveBeenCalled()
     );
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+    expect(mockResolveTarget).not.toHaveBeenCalled();
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
 

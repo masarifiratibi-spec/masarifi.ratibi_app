@@ -139,6 +139,46 @@ it('lists transactions with one token capture while preserving category preparat
   expect(prepare).toHaveBeenCalledTimes(1);
 });
 
+it('reads a ledger page containing the server account-opening source alongside a voice expense', async () => {
+  const request = jest.fn(async () => response({
+    items: [
+      summary(linkedId, { kind: 'opening', source: 'account_opening', categoryId: null, amountMinor: 100000, currency: 'EGP' }),
+      summary(transactionId, { source: 'voice', amountMinor: 1000, currency: 'EGP' })
+    ],
+    nextCursor: null, ledgerVersion: 4, requestId: 'opening-and-voice'
+  }));
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request });
+  await expect(service.listTransactions(emptyTransactionFilters)).resolves.toMatchObject({
+    items: [
+      { id: linkedId, type: 'adjustment', source: 'adjustment', amountMinor: 100000, currencyCode: 'EGP' },
+      { id: transactionId, type: 'expense', source: 'voice', amountMinor: 1000, currencyCode: 'EGP' }
+    ]
+  });
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('reads account-opening detail without rejecting its persisted source', async () => {
+  const opening = summary(linkedId, { kind: 'opening', source: 'account_opening', categoryId: null });
+  const request = jest.fn(async () => response(detail(opening, [{
+    id: '40000000-0000-4000-8000-000000000001', accountId, amountMinor: 1000,
+    clearingState: 'confirmed', postingRole: 'opening', occurredAt
+  }])));
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request });
+  await expect(service.getTransaction(linkedId)).resolves.toMatchObject({
+    id: linkedId, type: 'adjustment', source: 'adjustment', amountMinor: 1000
+  });
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('rejects the account-opening source on a non-opening transaction', async () => {
+  const request = jest.fn(async () => response({
+    items: [summary(transactionId, { source: 'account_opening' })],
+    nextCursor: null, ledgerVersion: 1, requestId: 'invalid-opening-source'
+  }));
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request });
+  await expect(service.listTransactions(emptyTransactionFilters)).rejects.toMatchObject({ code: 'contract_mismatch' });
+});
+
 it('reads owner-local drafts without fetching an authentication token', async () => {
   bridge.getToken.mockClear();
   const open = jest.spyOn(database, 'openDatabase').mockResolvedValue({

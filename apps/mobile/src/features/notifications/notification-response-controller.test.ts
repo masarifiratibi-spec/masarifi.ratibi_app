@@ -56,6 +56,33 @@ function phoneService(lastResponse: PhoneNotificationResponse | null = null) {
 }
 
 describe('notification response controller', () => {
+  it.each([
+    ['view', '/budgets/transactions/budget-1'],
+    ['edit', '/budgets/edit/budget-1']
+  ] as const)('opens an existing budget destination for a %s notification without posting', async (action, destination) => {
+    const target = { kind: 'budget' as const, budgetId: 'budget-1' };
+    const service = targetService({
+      resolveTarget: jest.fn(async () => ({ status: 'exact' as const, target })),
+      revalidateAction: jest.fn(async (_id, kind) => ({
+        status: 'available' as const,
+        target,
+        action: kind
+      }))
+    });
+    const navigate = jest.fn();
+    const controller = createNotificationResponseController({
+      notificationService: service,
+      phoneService: phoneService().phone,
+      navigate,
+      unlock: async () => true
+    });
+
+    await controller.handle({ notificationId: 'budget-notification', action });
+
+    expect(navigate).toHaveBeenCalledWith(destination);
+    expect(service.executeAction).not.toHaveBeenCalled();
+  });
+
   it('defers a cold remote tap until delayed shell and Clerk readiness, then resolves it once', async () => {
     let becomeReady!: (ready: boolean) => void;
     const ready = new Promise<boolean>((resolve) => { becomeReady = resolve; });

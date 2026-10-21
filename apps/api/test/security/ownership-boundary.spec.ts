@@ -47,6 +47,8 @@ const identityOwned = {
     'PUT /api/v1/me/onboarding',
     'GET /api/v1/me/devices',
     'POST /api/v1/me/devices/register',
+    'POST /api/v1/tracking/device/devices/register',
+    'POST /api/v1/tracking/device/installations/sign-out',
     'DELETE /api/v1/me/devices/{deviceId}',
     'POST /webhooks/clerk',
   ]),

@@ -193,6 +193,27 @@ it('routes settings targets to their existing protected destinations', () => {
   expect(router.push).toHaveBeenCalledWith('/security/settings');
 });
 
+it('opens a budget alert at its transaction view instead of a nonexistent detail route', () => {
+  const target = { kind: 'budget' as const, budgetId: 'budget-1' };
+  mockUseNotifications.mockReturnValue({
+    data: {
+      items: [notification({ category: 'budget', titleKey: 'Budget threshold', target })],
+      total: 1
+    },
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn()
+  });
+  mockResolveOpen.mutate.mockImplementation((_id: string, options: { onSuccess: (value: NotificationEvent['target']) => void }) => options.onSuccess(target));
+
+  renderWithProviders(<NotificationCenterScreen />);
+  fireEvent.press(screen.getByLabelText('Open Budget threshold'));
+
+  expect(router.push).toHaveBeenCalledWith('/budgets/transactions/budget-1');
+  expect(mockMarkRead.mutate).toHaveBeenCalledWith({ id: 'notification-1', read: true });
+  expect(mockRemove.mutate).not.toHaveBeenCalled();
+});
+
 it('uses localized safe copy when an emitted notification key is missing', () => {
   mockUseNotifications.mockReturnValue({
     data: {
