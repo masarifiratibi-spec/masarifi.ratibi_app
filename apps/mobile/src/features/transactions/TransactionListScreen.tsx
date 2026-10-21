@@ -941,7 +941,7 @@ const TransactionItem = React.memo(function TransactionItem({
     category?.iconKey ??
     (presentation.meaning === 'transfer'
       ? 'transfers'
-      : presentation.meaning === 'income'
+      : item.type === 'income'
         ? 'salary'
         : null);
   return (

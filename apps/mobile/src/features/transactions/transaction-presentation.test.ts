@@ -10,6 +10,24 @@ import {
   projectTransaction
 } from './transaction-presentation';
 
+it.each([
+  ['adjustment', 1, 'income'], ['adjustment', -1, 'expense'],
+  ['reversal', 1, 'income'], ['reversal', -1, 'expense']
+] as const)('preserves %s posting direction %i in financial presentation', (type, adjustmentSign, meaning) => {
+  const transaction = { ...fixtureTransactions[0], type, amountMinor: 100000, adjustmentSign };
+  expect(projectTransaction(transaction, 'en').meaning).toBe(meaning);
+});
+
+it.each([
+  ['adjustment', 'Opening balance', 'الرصيد الافتتاحي'],
+  ['voice', 'Voice transaction', 'معاملة صوتية'],
+  ['manual', 'Opening balance', 'Opening balance'],
+  ['manual', 'Voice transaction', 'Voice transaction']
+] as const)('localizes only the system fallback %s / %s', (source, title, expected) => {
+  const transaction = { ...fixtureTransactions[0], id: 'qa-system-title', source, title };
+  expect(projectTransaction(transaction, 'ar').title).toBe(expected);
+});
+
 it('projects transaction display data without changing ledger meaning', () => {
   const transaction = fixtureTransactions.find((item) => item.type === 'expense')!;
   const account = fixtureAccounts.find((item) => item.id === transaction.accountId);

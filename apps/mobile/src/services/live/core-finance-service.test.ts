@@ -140,21 +140,37 @@ it('lists transactions with one token capture while preserving category preparat
 });
 
 it('reads a ledger page containing the server account-opening source alongside a voice expense', async () => {
-  const request = jest.fn(async () => response({
+  const opening = summary(linkedId, { kind: 'opening', source: 'account_opening', categoryId: null, amountMinor: 100000, currency: 'EGP' });
+  const request = jest.fn(async (url: string) => response(url.includes('?') ? {
     items: [
-      summary(linkedId, { kind: 'opening', source: 'account_opening', categoryId: null, amountMinor: 100000, currency: 'EGP' }),
+      opening,
       summary(transactionId, { source: 'voice', amountMinor: 1000, currency: 'EGP' })
     ],
     nextCursor: null, ledgerVersion: 4, requestId: 'opening-and-voice'
-  }));
-  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request });
+  } : detail(opening, [{ id: '40000000-0000-4000-8000-000000000001', accountId, amountMinor: 100000, clearingState: 'confirmed', postingRole: 'opening', occurredAt }])));
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request: request as typeof fetch });
   await expect(service.listTransactions(emptyTransactionFilters)).resolves.toMatchObject({
     items: [
       { id: linkedId, type: 'adjustment', source: 'adjustment', amountMinor: 100000, currencyCode: 'EGP' },
       { id: transactionId, type: 'expense', source: 'voice', amountMinor: 1000, currencyCode: 'EGP' }
     ]
   });
-  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ['opening', 1000, false], ['opening', -1000, false],
+  ['opening', 1000, true], ['opening', -1000, true],
+  ['reversal', 1000, false], ['reversal', -1000, false],
+  ['adjustment', 1000, false], ['adjustment', -1000, false]
+] as const)('reads the actual %s posting direction %i with selected account %s', async (kind, signedMinor, selected) => {
+  const row = summary(linkedId, { kind, source: kind === 'opening' ? 'account_opening' : 'adjustment', categoryId: null });
+  const request = jest.fn(async (url: string) => response(url.includes('?')
+    ? { items: [row], nextCursor: null, ledgerVersion: 2, requestId: 'signed-ledger-read' }
+    : detail(row, [{ id: '40000000-0000-4000-8000-000000000001', accountId, amountMinor: signedMinor, clearingState: 'confirmed', postingRole: kind, occurredAt }])));
+  const service = createLiveLedgerService({ baseUrl: 'https://inert.invalid', request: request as typeof fetch });
+  await expect(service.listTransactions({ ...emptyTransactionFilters, accountIds: selected ? [accountId] : [] })).resolves.toMatchObject({
+    items: [{ id: linkedId, amountMinor: 1000, accountId, adjustmentSign: signedMinor > 0 ? 1 : -1 }]
+  });
 });
 
 it('reads account-opening detail without rejecting its persisted source', async () => {

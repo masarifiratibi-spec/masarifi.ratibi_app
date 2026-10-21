@@ -81,6 +81,18 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
+it.each([[1, '+'], [-1, '-']] as const)('shows an opening adjustment with posting direction %i', (adjustmentSign, prefix) => {
+  const opening = { ...fixtureTransactions[0], id: 'qa-opening-direction', type: 'adjustment' as const, source: 'adjustment' as const, categoryId: null, title: 'Opening balance', amountMinor: 100000, adjustmentSign, accountId: fixtureAccounts[0].id, currencyCode: 'SAR' };
+  renderWithQueryData(<TransactionListScreen />, [
+    [coreFinanceKeys.transactionPages(emptyTransactionFilters), { pages: [{ items: [opening], nextCursor: null }], pageParams: [null] }],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    summarySeed
+  ]);
+  expect(within(screen.getByTestId('transaction-row')).getByText(new RegExp(`${prefix === '+' ? '\\+' : '-'}1,000\\.00`))).toBeTruthy();
+  expect(screen.queryByTestId('category-visual-openmoji-salary') === null).toBe(true);
+});
+
 it('reuses the screen for unrelated parent renders while receiving new query data and privacy state', async () => {
   const label = jest.spyOn(periods, 'formatPeriodLabel');
   let client!: QueryClient;

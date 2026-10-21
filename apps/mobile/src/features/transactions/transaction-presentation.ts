@@ -32,7 +32,7 @@ export function projectTransaction(
   return {
     transaction,
     title:
-      localizedDemoTransactionTitle(transaction.id, locale) ?? transaction.title,
+      localizedDemoTransactionTitle(transaction.id, locale) ?? localizedSystemTitle(transaction, locale),
     accountName: account?.name ?? null,
     categoryName: category
       ? locale === 'ar'
@@ -116,11 +116,21 @@ function previousCalendarKey(key: string): string {
   ].join('-');
 }
 
+function localizedSystemTitle(transaction: Transaction, locale: Locale): string {
+  if (transaction.source === 'adjustment' && transaction.title === 'Opening balance')
+    return translate('coreFinance.accounts.openingBalance', locale);
+  if (transaction.source === 'voice' && transaction.title === 'Voice transaction')
+    return translate('voice.title', locale);
+  return transaction.title;
+}
+
 function financialMeaning(transaction: Transaction): FinancialMeaning {
   if (transaction.type === 'income') return 'income';
   if (transaction.type === 'transfer') return 'transfer';
   if (transaction.type === 'refund') return 'refund';
   if (transaction.type === 'obligation_payment') return 'debt';
   if (transaction.type === 'recurring_payment') return 'expense';
+  if (transaction.type === 'adjustment' || transaction.type === 'reversal')
+    return transaction.adjustmentSign === 1 ? 'income' : 'expense';
   return transaction.amountMinor < 0 ? 'income' : 'expense';
 }
