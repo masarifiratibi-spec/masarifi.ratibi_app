@@ -34,6 +34,7 @@ import { bankNotificationService } from '@/services/platform/bank-notification-s
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import type { KeywordRule } from '@/domain/app-shell';
+import type { TrackingMode } from '@/domain/automatic-tracking';
 import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
@@ -83,11 +84,8 @@ export function TrackingStatusScreen() {
             if (
               (await bankNotificationService.getAccessState()) === 'granted'
             ) {
-              await bankNotificationService.setCaptureEnabled(true);
-              await trackingSourcePreferences.set('notification', true);
               const current = await automaticTrackingService.getStatus();
-              if (current.mode === 'paused')
-                await automaticTrackingService.setMode('automatic_clear');
+              await enableTrackingSource('notification', current.mode);
             }
           }
           await resyncAutomaticTracking();
@@ -179,9 +177,7 @@ export function TrackingStatusScreen() {
             return;
           }
         }
-        await trackingSourcePreferences.set('sms', true);
-        if (query.data?.mode === 'paused')
-          await automaticTrackingService.setMode('automatic_clear');
+        await enableTrackingSource('sms', query.data?.mode);
       } else {
         await trackingSourcePreferences.set('sms', false);
         if (!query.data?.notificationTrackingEnabled)
@@ -225,10 +221,7 @@ export function TrackingStatusScreen() {
           await bankNotificationService.openSettings();
           return;
         }
-        await bankNotificationService.setCaptureEnabled(true);
-        await trackingSourcePreferences.set('notification', true);
-        if (query.data?.mode === 'paused')
-          await automaticTrackingService.setMode('automatic_clear');
+        await enableTrackingSource('notification', query.data?.mode);
       } else {
         await bankNotificationService.setCaptureEnabled(false);
         await trackingSourcePreferences.set('notification', false);
@@ -635,6 +628,17 @@ export function TrackingStatusScreen() {
       </ScrollView>
     </View>
   );
+}
+
+async function enableTrackingSource(source: 'sms' | 'notification', mode: TrackingMode | undefined) {
+  // Both switches appear off while paused; activating one must not revive the hidden other preference.
+  if (mode === 'paused') {
+    if (source === 'sms') await bankNotificationService.setCaptureEnabled(false);
+    await trackingSourcePreferences.set(source === 'sms' ? 'notification' : 'sms', false);
+  }
+  if (source === 'notification') await bankNotificationService.setCaptureEnabled(true);
+  await trackingSourcePreferences.set(source, true);
+  if (mode === 'paused') await automaticTrackingService.setMode('automatic_clear');
 }
 
 function TrackingSourceToggleRow({
