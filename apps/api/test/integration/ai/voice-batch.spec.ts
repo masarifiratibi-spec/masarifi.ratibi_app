@@ -28,6 +28,24 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
   afterAll(async () => {
     await pool.onModuleDestroy();
   });
+  // Legacy SQL execution requires the same authenticated owner as the ledger.
+  // Keep claims on the executing connection and out of unrelated pooled queries.
+  async function legacyOwnerQuery(sql: string, values: readonly unknown[]) {
+    return pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ sub: user }),
+        ]);
+        const result = await client.query(sql, [...values]);
+        await client.query('commit');
+        return result;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
+  }
   it('returns a definitive gate-off rejection with no create effects, and replays accepted create before the gate', async () => {
     const repository = new AiRepository(pool);
     const principal = { userId: user, sessionId: 'voice-local-session', factorAgeSeconds: 0 };
@@ -178,6 +196,45 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       events: events.rows,
     };
   }
+  it.each(['missing', 'different'])(
+    'rejects legacy execution with a %s request owner without financial effects',
+    async (identity) => {
+      const { batch, claim, events } = await fixture();
+      const eventId = required(events[0]).id;
+      await pool.withClient(async (client) => {
+        await client.query('begin');
+        try {
+          await client.query("select set_config('request.jwt.claims',$1,true)", [
+            JSON.stringify(identity === 'missing' ? {} : { sub: 'voice_other_' + randomUUID() }),
+          ]);
+          await client.query('set local role masarifi_worker');
+          await expect(
+            client.query('select private.execute_voice_event($1,$2,$3)', [
+              batch,
+              claim.token,
+              eventId,
+            ]),
+          ).rejects.toThrow('AUTH_TOKEN_INVALID');
+        } finally {
+          await client.query('rollback');
+        }
+      });
+      expect(
+        (
+          await pool.query('select id from public.transactions where external_ref=$1', [
+            'voice-event:' + eventId,
+          ])
+        ).rows,
+      ).toHaveLength(0);
+      expect(
+        (
+          await pool.query('select status,transaction_id from private.voice_events where id=$1', [
+            eventId,
+          ])
+        ).rows[0],
+      ).toMatchObject({ status: 'eligible', transaction_id: null });
+    },
+  );
   it('posts unknown-category expenses to existing Shopping once and updates the exact balance', async () => {
     const repository = new AiRepository(pool);
     let context!: BatchContext;
@@ -239,7 +296,11 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
     const first = required(events[0]);
     await Promise.all(
       Array.from({ length: 3 }, () =>
-        pool.query('select private.execute_voice_event($1,$2,$3)', [batch, claim.token, first.id]),
+        legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
+          batch,
+          claim.token,
+          first.id,
+        ]),
       ),
     );
     const rows = (
@@ -284,6 +345,26 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
     );
     await pool.query(
       `create trigger voice_batch_item_fault before insert on public.transactions for each row execute function private.voice_batch_item_fault('voice-event:${first}')`,
+    );
+    // The legacy repository opens its own transactions. Supply only its fixture
+    // owner on each real connection, restoring session settings before release.
+    const withClient = pool.withClient.bind(pool);
+    const authenticatedConnections = jest.spyOn(pool, 'withClient').mockImplementation((action) =>
+      withClient(async (client) => {
+        const previous = await client.query<{ claims: string | null }>(
+          "select current_setting('request.jwt.claims',true) claims",
+        );
+        await client.query("select set_config('request.jwt.claims',$1,false)", [
+          JSON.stringify({ sub: user }),
+        ]);
+        try {
+          return await action(client);
+        } finally {
+          await client.query("select set_config('request.jwt.claims',$1,false)", [
+            required(previous.rows[0]).claims ?? '',
+          ]);
+        }
+      }),
     );
     try {
       const repository = new AiRepository(pool);
@@ -331,6 +412,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
           .rows,
       ).toHaveLength(0);
     } finally {
+      authenticatedConnections.mockRestore();
       await pool.query('drop trigger voice_batch_item_fault on public.transactions');
       await pool.query('drop function private.voice_batch_item_fault()');
     }
@@ -410,14 +492,14 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
     const { batch, claim, events } = await fixture();
     await Promise.all(
       Array.from({ length: 4 }, () =>
-        pool.query('select private.execute_voice_event($1,$2,$3)', [
+        legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
           batch,
           claim.token,
           required(events[0]).id,
         ]),
       ),
     );
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       claim.token,
       required(events[1]).id,
@@ -469,7 +551,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       for (const event of events.filter((item) => item.status === 'eligible')) {
         await Promise.all(
           Array.from({ length: 2 }, () =>
-            pool.query('select private.execute_voice_event($1,$2,$3)', [
+            legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
               batch,
               claim.token,
               event.id,
@@ -552,13 +634,10 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
   });
   it('cancels remaining items while preserving authoritative committed receipts', async () => {
     const { session, batch, claim, events } = await fixture();
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       claim.token,
       required(events[0]).id,
-    ]);
-    await pool.query("select set_config('request.jwt.claims',$1,false)", [
-      JSON.stringify({ sub: user }),
     ]);
     // Owner authorization is set on the same connection as cancellation.
     await pool.withClient(async (c) => {
@@ -612,7 +691,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
   });
   it('resumes after lease loss using permanent receipts and never recreates an occurrence', async () => {
     const { batch, claim, events } = await fixture();
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       claim.token,
       required(events[0]).id,
@@ -629,18 +708,18 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       ).rows.find((row) => row.batch_id === batch),
     );
     await expect(
-      pool.query('select private.execute_voice_event($1,$2,$3)', [
+      legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
         batch,
         claim.token,
         required(events[1]).id,
       ]),
     ).rejects.toThrow('VOICE_EXECUTION_FENCE_INVALID');
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       replacement.token,
       required(events[0]).id,
     ]);
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       replacement.token,
       required(events[1]).id,
@@ -661,7 +740,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       { status: 'eligible', command },
     ]);
     expect(events.map((event) => event.status)).toEqual(['skipped', 'skipped', 'eligible']);
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       claim.token,
       required(events[2]).id,
@@ -777,7 +856,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
     );
     try {
       await expect(
-        pool.query('select private.execute_voice_event($1,$2,$3)', [
+        legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
           batch,
           claim.token,
           required(events[0]).id,
@@ -812,7 +891,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       { status: 'eligible', command: { ...command, amountMinor: 200, accountId: overflowAccount } },
       { status: 'eligible', command },
     ]);
-    await pool.query('select private.post_transaction($1,$2::jsonb)', [
+    await legacyOwnerQuery('select private.post_transaction($1,$2::jsonb)', [
       user,
       JSON.stringify({
         kind: 'income',
@@ -829,12 +908,12 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
         externalRef: null,
       }),
     ]);
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       claim.token,
       required(events[0]).id,
     ]);
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
       batch,
       claim.token,
       required(events[1]).id,
@@ -855,7 +934,7 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       [account],
     );
     {
-      await pool.query('select private.execute_voice_event($1,$2,$3)', [
+      await legacyOwnerQuery('select private.execute_voice_event($1,$2,$3)', [
         batch,
         claim.token,
         required(events[0]).id,

@@ -55,9 +55,18 @@ describeLiveDatabase('migration executor role restoration', () => {
           'delete from supabase_migrations.schema_migrations where version=any($1::text[])',
           [versions],
         );
-        await client.query(`drop schema if exists ${schema} cascade`);
-        // Fixture roles own no application objects; remove only their fixture ACLs.
-        await client.query(`drop owned by ${executor}, ${ddl}`);
+        // SET membership deliberately does not inherit ownership privileges.
+        await client.query(`set role ${ddl}`);
+        try {
+          await client.query(`drop schema if exists ${schema} cascade`);
+        } finally {
+          await client.query('reset role');
+        }
+        // Revoke the exact fixture ACLs as their original grantor.
+        await client.query(
+          `revoke insert(version, statements, name) on supabase_migrations.schema_migrations from ${executor}`,
+        );
+        await client.query(`revoke usage on schema supabase_migrations from ${executor}`);
         await client.query(`drop role ${executor}, ${ddl}`);
       });
     } finally {
@@ -136,11 +145,13 @@ describeLiveDatabase('migration executor role restoration', () => {
       }
       expect(
         (
-          await client.query<{ relation: string | null }>('select to_regclass($1) as relation', [
-            `${schema}.sql_failure`,
-          ])
-        ).rows[0]?.relation,
-      ).toBeNull();
+          await client.query<{ present: boolean }>(
+            `select exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+              where n.nspname=$1 and c.relname=$2) as present`,
+            [schema, 'sql_failure'],
+          )
+        ).rows[0]?.present,
+      ).toBe(false);
       expect(
         (
           await client.query(
@@ -174,11 +185,13 @@ describeLiveDatabase('migration executor role restoration', () => {
       }
       expect(
         (
-          await client.query<{ relation: string | null }>('select to_regclass($1) as relation', [
-            `${schema}.history_failure`,
-          ])
-        ).rows[0]?.relation,
-      ).toBeNull();
+          await client.query<{ present: boolean }>(
+            `select exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+              where n.nspname=$1 and c.relname=$2) as present`,
+            [schema, 'history_failure'],
+          )
+        ).rows[0]?.present,
+      ).toBe(false);
       expect(
         (
           await client.query(
