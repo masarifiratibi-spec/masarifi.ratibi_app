@@ -68,7 +68,27 @@ async function main() {
       assertCompatibleMigrationHistory(applied, migrations.map(migration => migration.version));
       for (const migration of migrations.filter(item => !applied.includes(item.version))) {
         console.log(`Applying canonical migration ${migration.version}_${migration.name}.sql`);
-        await applyPendingMigrations(client, [migration], [], 60_000);
+        // These historical operator-run files assume the DDL membership already
+        // exists. The intervening erasure migration revokes it. Supply it only
+        // on this guarded disposable database, retaining original SQL/history.
+        const requiresMembership = ['20261017085837', '20261017111007'].includes(migration.version);
+        const membership = requiresMembership ? await client.query(
+          `select pg_has_role(current_user, 'masarifi_migration', 'SET') as allowed,
+           exists(select 1 from pg_auth_members
+             where roleid='masarifi_migration'::regrole and member=current_user::regrole
+               and grantor=current_user::regrole) as existing_grant`) : undefined;
+        const needsGrant = requiresMembership && membership.rows[0].allowed !== true;
+        if (needsGrant && membership.rows[0].existing_grant) throw new Error('BOOTSTRAP_MEMBERSHIP_OPTIONS_UNEXPECTED');
+        let granted = false;
+        if (needsGrant) {
+          await client.query('grant masarifi_migration to current_user with set true, inherit false granted by current_user');
+          granted = true;
+        }
+        try {
+          await applyPendingMigrations(client, [migration], [], 60_000);
+        } finally {
+          if (granted) await client.query('revoke masarifi_migration from current_user granted by current_user');
+        }
       }
       const result = await client.query('select count(*)::int as count from supabase_migrations.schema_migrations');
       if (result.rows[0].count !== migrations.length) throw new Error('MIGRATION_HISTORY_INCOMPLETE');
