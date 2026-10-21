@@ -9,6 +9,7 @@ import {
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { StartupLoadingBoundary } from '@/design-system/components/feedback/StartupLoadingBoundary';
 
 const mockRedirect = jest.fn((_props: { href: string }) => null);
 jest.mock('expo-router', () => ({
@@ -92,3 +93,40 @@ it('admits an already allowed saved destination without inserting a loading fram
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(mockRedirect).toHaveBeenCalledWith({ href: '/(tabs)/reports' });
 });
+
+it.each([
+  'identity-unavailable',
+  'identity-error',
+  'profile-unavailable',
+  'profile-error'
+] as const)(
+  'reveals recovery outside the global startup cover for %s',
+  (failure) => {
+    const profileFailure = failure.startsWith('profile-');
+    if (profileFailure)
+      useAppShellStore.setState({
+        profileSetupStatus:
+          failure === 'profile-error' ? 'error' : 'unavailable'
+      });
+    const screen = render(
+      <StartupLoadingBoundary>
+        <LiveIdentityStatusContext.Provider
+          value={{
+            status: profileFailure
+              ? 'ready'
+              : failure === 'identity-error'
+                ? 'error'
+                : 'unavailable',
+            retry: jest.fn()
+          }}
+        >
+          <AppEntry />
+        </LiveIdentityStatusContext.Provider>
+      </StartupLoadingBoundary>
+    );
+    expect(screen.queryByTestId('startup-loading')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'إعادة المحاولة' })
+    ).toBeOnTheScreen();
+  }
+);

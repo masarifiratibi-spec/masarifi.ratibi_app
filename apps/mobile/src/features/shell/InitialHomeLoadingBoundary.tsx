@@ -6,7 +6,10 @@ import React, {
   useReducer
 } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
+import {
+  StartupLoadingStage,
+  useStartupReady
+} from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { usePreferenceStore } from '@/state/preferences';
 
 type Part = 'home' | 'header' | 'notice';
@@ -64,6 +67,7 @@ export function InitialHomeLoadingBoundary({
     if (!isHome) dispatch({ part: 'leave', state: 'ready' });
   }, [isHome]);
   const waiting = isHome && !state.released;
+  useStartupReady(!waiting);
   return (
     <InitialHomeReadiness.Provider value={report}>
       <View style={styles.screen}>
@@ -83,7 +87,7 @@ export function InitialHomeLoadingBoundary({
         </View>
         {waiting ? (
           <View style={StyleSheet.absoluteFill}>
-            <StartupLoading
+            <StartupLoadingStage
               locale={locale}
               themePreference={themePreference}
               reducedMotion={reducedMotion}

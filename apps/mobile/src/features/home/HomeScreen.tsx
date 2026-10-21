@@ -34,9 +34,7 @@ import {
 import { PrimaryShellHeader } from '@/features/shell/PrimaryShellHeader';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import {
-  useCoreFinanceViewState
-} from '@/state/core-finance-view-state';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useTheme } from '@/state/theme-context';
 import { HomeSummary } from './HomeSummary';
 import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
@@ -119,11 +117,19 @@ function QueriedHomeScreen({
   const categories = useCategories();
   const homeSummary = query.data;
   const empty = homeSummary?.dataState === 'empty';
-  const initialReadsReady = empty || [query, activity, accounts, categories].every(
-    read => read.data !== undefined || read.isError
+  const initialReadsReady =
+    empty ||
+    [query, activity, accounts, categories].every(
+      (read) => read.data !== undefined || read.isError
+    );
+  useInitialHomeReadiness(
+    'home',
+    query.isError && !homeSummary
+      ? 'failed'
+      : initialReadsReady
+        ? 'ready'
+        : 'pending'
   );
-  useInitialHomeReadiness('home', query.isError && !homeSummary
-    ? 'failed' : initialReadsReady ? 'ready' : 'pending');
   useInitialHomeReadiness('notice', !notice || empty ? 'ready' : null);
   const activeAccountIds = useMemo(
     () =>
@@ -144,7 +150,7 @@ function QueriedHomeScreen({
 
   return (
     <HomeLayout period={period} onPeriodChange={onPeriodChange}>
-      <FinancialRefreshStatus query={query} />
+      {query.isError ? <FinancialRefreshStatus query={query} /> : null}
       {query.isError && homeSummary ? (
         <ActionButton
           label={translate('coreFinance.action.retry')}
@@ -174,19 +180,18 @@ function QueriedHomeScreen({
           summary={homeSummary}
           todayActivity={activity.data ?? []}
           activityStatus={
-            activity.data !== undefined && (activity.isError || activity.isFetching) ? (
+            activity.data !== undefined && activity.isError ? (
               <View>
                 <FinancialRefreshStatus query={activity} />
-                {activity.isError ? (
-                  <ActionButton
-                    label={translate('coreFinance.action.retry')}
-                    onPress={() => void activity.refetch()}
-                    disabled={activity.isFetching}
-                    variant="quiet"
-                  />
-                ) : null}
+                <ActionButton
+                  label={translate('coreFinance.action.retry')}
+                  onPress={() => void activity.refetch()}
+                  disabled={activity.isFetching}
+                  variant="quiet"
+                />
               </View>
-            ) : activity.data === undefined && (activity.isPending || activity.isError) ? (
+            ) : activity.data === undefined &&
+              (activity.isPending || activity.isError) ? (
               <StateView
                 state={activity.isError ? 'error' : 'loading'}
                 title={translate(

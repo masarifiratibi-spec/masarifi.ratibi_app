@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, Text } from 'react-native';
 import {
   act,
+  fireEvent,
   renderRouter,
   screen,
   waitFor
@@ -14,6 +15,11 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import { completeAuthenticatedSession } from '@/features/auth/session-controller';
+import { useStartupReady } from '@/design-system/components/feedback/StartupLoadingBoundary';
+import {
+  InitialHomeLoadingBoundary,
+  useInitialHomeReadiness
+} from './InitialHomeLoadingBoundary';
 
 jest.unmock('expo-router');
 jest.unmock('@react-navigation/native');
@@ -50,6 +56,11 @@ jest.mock('./ProtectedRouteGate', () => ({
 }));
 const mockRestoreSession = jest.fn();
 const mockGetProfileSetup = jest.fn();
+
+function ReadyHomeDestination() {
+  useStartupReady(true);
+  return <Text>Home destination</Text>;
+}
 jest.mock('@/features/auth/auth-flow', () => ({
   authService: {
     restoreSession: () => mockRestoreSession(),
@@ -116,7 +127,7 @@ test.each([false, true])(
       '(onboarding)/profile-setup': () => (
         <Text>Profile Setup destination</Text>
       ),
-      '(tabs)/home': () => <Text>Home destination</Text>,
+      '(tabs)/home': ReadyHomeDestination,
       '(tabs)/reports': () => <Text>Reports destination</Text>
     });
     const label = complete ? 'Home destination' : 'Profile Setup destination';
@@ -160,4 +171,54 @@ test('Google completion returns to the installed root route rather than an unmat
     expect(screen.getByText('Bootstrap destination')).toBeOnTheScreen()
   );
   expect(result.getPathname()).toBe('/');
+});
+
+test('keeps one uninterrupted startup cover from session restoration through the first Home layout', async () => {
+  process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+  useAppShellStore.getState().reset();
+  mockRestoreSession.mockReturnValue(new Promise(() => undefined));
+  usePreferenceStore.setState({
+    hydrated: true,
+    firstLaunchOnboardingCompleted: true
+  });
+  let finishHome!: () => void;
+  function HomeContent() {
+    const [ready, setReady] = React.useState(false);
+    finishHome = () => setReady(true);
+    useInitialHomeReadiness('home', ready ? 'ready' : 'pending');
+    useInitialHomeReadiness('header', 'ready');
+    useInitialHomeReadiness('notice', 'ready');
+    return <Text>Complete first Home</Text>;
+  }
+  const result = renderRouter({
+    _layout: RootLayout,
+    index: AppEntry,
+    '(tabs)/home': () => (
+      <InitialHomeLoadingBoundary isHome>
+        <HomeContent />
+      </InitialHomeLoadingBoundary>
+    )
+  });
+  const cover = screen.getByTestId('startup-loading');
+  act(() =>
+    useAppShellStore.setState({
+      hydrated: true,
+      session: authenticatedSession,
+      profileSetupStatus: 'complete'
+    })
+  );
+  await waitFor(() => expect(result.getPathname()).toBe('/home'));
+  expect(screen.getAllByTestId('startup-loading')).toHaveLength(1);
+  expect(screen.getByTestId('startup-loading') === cover).toBe(true);
+  expect(screen.queryByText('Complete first Home')).toBeNull();
+  fireEvent(
+    screen.getByTestId('initial-home-content', { includeHiddenElements: true }),
+    'layout',
+    {
+      nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 720 } }
+    }
+  );
+  act(() => finishHome());
+  expect(screen.queryByTestId('startup-loading')).toBeNull();
+  expect(screen.getByText('Complete first Home')).toBeOnTheScreen();
 });

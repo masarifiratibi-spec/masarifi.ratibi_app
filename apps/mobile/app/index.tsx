@@ -2,7 +2,10 @@ import React from 'react';
 import { Redirect } from 'expo-router';
 
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
+import {
+  StartupLoadingStage,
+  useStartupReady
+} from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { StartupConnectionState } from '@/features/shell/StartupConnectionState';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
@@ -49,6 +52,13 @@ export default function AppEntry() {
     privacyLock
   });
 
+  useStartupReady(
+    identity.status === 'unavailable' ||
+      identity.status === 'error' ||
+      (identity.status === 'ready' &&
+        ['unavailable', 'error'].includes(profileSetupStatus))
+  );
+
   if (
     identity.status === 'unavailable' ||
     (identity.status === 'ready' && profileSetupStatus === 'unavailable')
@@ -76,7 +86,7 @@ export default function AppEntry() {
   }
   if (identity.status === 'loading' || identity.status === 'sso') {
     return (
-      <StartupLoading
+      <StartupLoadingStage
         locale={locale}
         themePreference={themePreference}
         reducedMotion={reducedMotion}
@@ -99,7 +109,7 @@ export default function AppEntry() {
   }
 
   return (
-    <StartupLoading
+    <StartupLoadingStage
       locale={locale}
       themePreference={themePreference}
       reducedMotion={reducedMotion}

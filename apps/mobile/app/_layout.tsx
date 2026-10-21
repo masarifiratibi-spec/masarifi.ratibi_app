@@ -19,25 +19,46 @@ import { MobileIdentityProvider } from '@/services/live/clerk-provider';
 import { isAppLockEnabled } from '@/config/client-runtime';
 import { VoiceCaptureProvider } from '@/features/voice/VoiceCaptureRuntime';
 import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
+import {
+  StartupLoadingBoundary,
+  useStartupReady
+} from '@/design-system/components/feedback/StartupLoadingBoundary';
+import { usePreferenceStore } from '@/state/preferences';
 
 export default function RootLayout() {
+  const locale = usePreferenceStore((state) => state.locale);
+  const themePreference = usePreferenceStore((state) => state.theme);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   return (
     <MobileIdentityProvider>
-      <FontGate>
-        <FoundationProviders>
-          <AppShellProvider>
-            <DevAccountDeletionRecovery />
-            <VoiceCaptureProvider>
-              <RoutePrivacyGate>
-                <NotificationResponseRuntime />
-                <RootStack />
-              </RoutePrivacyGate>
-            </VoiceCaptureProvider>
-          </AppShellProvider>
-        </FoundationProviders>
-      </FontGate>
+      <StartupLoadingBoundary
+        locale={locale}
+        themePreference={themePreference}
+        reducedMotion={reducedMotion}
+      >
+        <FontGate>
+          <FoundationProviders>
+            <AppShellProvider>
+              <DevAccountDeletionRecovery />
+              <VoiceCaptureProvider>
+                <RoutePrivacyGate>
+                  <NotificationResponseRuntime />
+                  <RootStack />
+                </RoutePrivacyGate>
+              </VoiceCaptureProvider>
+            </AppShellProvider>
+          </FoundationProviders>
+        </FontGate>
+      </StartupLoadingBoundary>
     </MobileIdentityProvider>
   );
+}
+
+function StartupDestinationReady() {
+  const pathname = usePathname();
+  // Home releases after its first reads and layout; other destinations are ready on mount.
+  useStartupReady(!['/', '/index', '/home'].includes(pathname));
+  return null;
 }
 
 function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
@@ -89,7 +110,10 @@ function RootStack() {
   return (
     <Stack
       screenLayout={({ children }) => (
-        <ProtectedRouteGate>{children}</ProtectedRouteGate>
+        <ProtectedRouteGate>
+          <StartupDestinationReady />
+          {children}
+        </ProtectedRouteGate>
       )}
       screenOptions={{
         contentStyle: { backgroundColor: theme.colors.surfaces.page },

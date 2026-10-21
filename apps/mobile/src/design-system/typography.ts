@@ -5,7 +5,7 @@ import regularSymbols from 'expo-symbols/androidWeights/regular';
 
 import type { Locale } from '@/domain/foundation';
 import { typography } from './tokens';
-import { StartupLoading } from './components/feedback/StartupLoading';
+import { StartupLoadingStage } from './components/feedback/StartupLoadingBoundary';
 import { recordPerformanceTiming } from '@/services/platform/performance-timing';
 
 export const FONT_ASSETS = {
@@ -77,7 +77,7 @@ export function FontGate({ children }: { children: ReactNode }) {
   }, [loaded, error]);
 
   if (!loaded && !error) {
-    return React.createElement(StartupLoading, { testID: 'font-loading' });
+    return React.createElement(StartupLoadingStage, { testID: 'font-loading' });
   }
 
   return React.createElement(React.Fragment, null, children);

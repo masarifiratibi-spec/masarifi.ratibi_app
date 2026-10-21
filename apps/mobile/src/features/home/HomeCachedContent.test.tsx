@@ -102,16 +102,26 @@ beforeEach(() => {
   mockActivityQuery.isError = false;
   mockActivityQuery.isPending = false;
   mockActivityQuery.isFetching = false;
-  mockActivityQuery.data = [{ transaction: makeTransaction(1, { title: 'Cached coffee' }), group: 'expense', sign: 'negative' }];
+  mockActivityQuery.data = [
+    {
+      transaction: makeTransaction(1, { title: 'Cached coffee' }),
+      group: 'expense',
+      sign: 'negative'
+    }
+  ];
   mockActivityQuery.error = null;
   mockActivityQuery.refetch.mockClear();
   mockOnline.mockReset().mockResolvedValue(true);
 });
 
 function layoutInitialHome() {
-  fireEvent(screen.getByTestId('initial-home-content', { includeHiddenElements: true }), 'layout', {
-    nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 720 } }
-  });
+  fireEvent(
+    screen.getByTestId('initial-home-content', { includeHiddenElements: true }),
+    'layout',
+    {
+      nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 720 } }
+    }
+  );
 }
 
 it('keeps the branded cover over partial first-page content until today activity is ready', () => {
@@ -119,7 +129,11 @@ it('keeps the branded cover over partial first-page content until today activity
   const activity = mockActivityQuery.data;
   mockActivityQuery.data = undefined;
   mockActivityQuery.isPending = true;
-  renderWithProviders(<InitialHomeLoadingBoundary isHome><HomeScreen /></InitialHomeLoadingBoundary>);
+  renderWithProviders(
+    <InitialHomeLoadingBoundary isHome>
+      <HomeScreen />
+    </InitialHomeLoadingBoundary>
+  );
   layoutInitialHome();
   expect(screen.getByTestId('startup-loading')).toBeTruthy();
   expect(screen.queryByTestId('home-account-card')).toBeNull();
@@ -138,7 +152,11 @@ it('reveals the complete cached page while its background reads are still fetchi
   mockHomeQuery.isError = false;
   mockHomeQuery.isFetching = true;
   mockActivityQuery.isFetching = true;
-  renderWithProviders(<InitialHomeLoadingBoundary isHome><HomeScreen /></InitialHomeLoadingBoundary>);
+  renderWithProviders(
+    <InitialHomeLoadingBoundary isHome>
+      <HomeScreen />
+    </InitialHomeLoadingBoundary>
+  );
   layoutInitialHome();
   expect(screen.queryByTestId('startup-loading')).toBeNull();
   expect(screen.getByTestId('home-account-card')).toBeTruthy();
@@ -225,8 +243,7 @@ it.each(['blur', 'background'] as const)(
     jest.useFakeTimers();
     const previousAppState = AppState.currentState;
     AppState.currentState = 'active';
-    const appStateListeners: ((state: 'active' | 'background') => void)[] =
-      [];
+    const appStateListeners: ((state: 'active' | 'background') => void)[] = [];
     jest
       .spyOn(AppState, 'addEventListener')
       .mockImplementation((_event, listener) => {
@@ -289,18 +306,26 @@ it('keeps the error and retry when no prior snapshot exists', () => {
   expect(mockHomeQuery.refetch).toHaveBeenCalledTimes(1);
 });
 
-it('shows cached content with a refreshing notice during revalidation', () => {
-  mockHomeQuery.isError = false;
-  mockHomeQuery.isFetching = true;
-  renderWithProviders(<HomeScreen />);
-  expect(screen.getByTestId('home-account-card')).toBeTruthy();
-  expect(
-    screen.getByText(translate('coreFinance.state.refreshingSnapshot'))
-  ).toBeTruthy();
-  expect(screen.queryByText(translate('coreFinance.state.loading'))).toBeNull();
-});
+it.each(['ar', 'en'] as const)(
+  'refreshes cached Home and activity silently in %s',
+  (locale) => {
+    changeLocale(locale);
+    mockHomeQuery.isError = false;
+    mockHomeQuery.isFetching = true;
+    mockActivityQuery.isFetching = true;
+    renderWithProviders(<HomeScreen />);
+    expect(screen.getByTestId('home-account-card')).toBeTruthy();
+    expect(
+      screen.queryByText(translate('coreFinance.state.refreshingSnapshot'))
+    ).toBeNull();
+    expect(screen.getByText('Cached coffee')).toBeTruthy();
+    expect(
+      screen.queryByText(translate('coreFinance.state.loading'))
+    ).toBeNull();
+  }
+);
 
-it('updates freshness feedback without repeating unchanged summary or header work', () => {
+it('refreshes silently without repeating unchanged summary or header work', () => {
   mockHomeQuery.isError = false;
   const financial = jest.spyOn(
     financialFormatting,
@@ -314,8 +339,8 @@ it('updates freshness feedback without repeating unchanged summary or header wor
     mockHomeQuery.isFetching = true;
     act(() => mockRefreshHome());
     expect(
-      screen.getByText(translate('coreFinance.state.refreshingSnapshot'))
-    ).toBeTruthy();
+      screen.queryByText(translate('coreFinance.state.refreshingSnapshot'))
+    ).toBeNull();
     expect(screen.getByTestId('home-account-card')).toBeTruthy();
     expect(financial).not.toHaveBeenCalled();
     expect(period).not.toHaveBeenCalled();
