@@ -51,6 +51,8 @@ export function resolveAssistantContext(
     .replace(/[۰-۹]/gu, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .toLowerCase();
   const today = localDateAt(now, timezone);
+  const todayRequested = /\btoday\b|اليوم|النهارد[ةه]/u.test(text);
+  const yesterdayRequested = /\byesterday\b|أمس|امس|امبارح|البارح/u.test(text);
   const yearRequested = /(?<![\p{L}])(?:year|سنة|السنة|عام|العام)(?![\p{L}])/iu.test(text);
   let month = today.slice(0, 7);
   let clarification: ResolvedAssistantContext['clarification'] = null;
@@ -88,6 +90,11 @@ export function resolveAssistantContext(
       startDate = firstDate;
       endDate = secondDate;
     }
+  } else if (todayRequested || yesterdayRequested) {
+    const requestedDay = day(today);
+    if (yesterdayRequested) requestedDay.setUTCDate(requestedDay.getUTCDate() - 1);
+    startDate = iso(requestedDay);
+    endDate = startDate;
   } else if (/week|أسبوع|اسبوع/u.test(text)) {
     const start = day(today);
     start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
@@ -101,10 +108,11 @@ export function resolveAssistantContext(
       (/last|previous|الماضي|السابق/u.test(text) ? 1 : 0);
     startDate = `${year.toString()}-01-01`;
     endDate = `${year.toString()}-12-31`;
-  } else if (/quarter|ربع|yesterday|أمس|امس|last \d+|آخر \d+/u.test(text))
-    clarification = 'period_required';
+  } else if (/quarter|ربع|last \d+|آخر \d+/u.test(text)) clarification = 'period_required';
   const explicitMonths = text.match(/\b20\d{2}-(?:0[1-9]|1[0-2])(?!-\d{2})\b/gu) ?? [];
   const periodKinds = [
+    todayRequested,
+    yesterdayRequested,
     dates.length > 0,
     /week|أسبوع|اسبوع/u.test(text),
     yearRequested && namedMonth < 0,
@@ -114,9 +122,7 @@ export function resolveAssistantContext(
     namedMonths.length > 1 ||
     explicitMonths.length > 1 ||
     periodKinds > 1 ||
-    /\btoday\b|\bdaily\b|\bday\b|اليوم|يومي|quarter|ربع|yesterday|أمس|امس|last \d+|آخر \d+/u.test(
-      text,
-    ) ||
+    /\bdaily\b|\bday\b|يومي|quarter|ربع|last \d+|آخر \d+/u.test(text) ||
     (/(?:this|current) month|هذا الشهر/u.test(text) &&
       /(?:last|previous) month|الشهر (?:الماضي|السابق)/u.test(text))
   )

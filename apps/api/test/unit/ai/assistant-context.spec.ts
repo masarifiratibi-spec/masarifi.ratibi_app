@@ -4,6 +4,22 @@ import { routeAssistantMessage } from '../../../src/ai/ai-routing';
 describe('assistant request semantics', () => {
   const clock = new Date('2026-09-30T22:30:00Z');
   it.each([
+    ['How much did I spend today?', '2026-10-01'],
+    ['كم صرفت اليوم؟', '2026-10-01'],
+    ['صرفي كام النهارده؟', '2026-10-01'],
+    ['مصروفاتي النهاردة', '2026-10-01'],
+    ['Spending yesterday', '2026-09-30'],
+    ['كم صرفت أمس؟', '2026-09-30'],
+    ['صرفي امبارح', '2026-09-30'],
+  ])('resolves the requested local day at midnight rollover: %s', (question, date) => {
+    expect(resolveAssistantContext(question, 'Asia/Riyadh', clock)).toMatchObject({
+      startDate: date,
+      endDate: date,
+      periodExplicit: true,
+      clarification: null,
+    });
+  });
+  it.each([
     ['اي اخر معامله ليا', false],
     ['آخر معاملة هذا الشهر', true],
     ['last transaction in August', true],
@@ -48,8 +64,8 @@ describe('assistant request semantics', () => {
     },
   );
   it.each([
-    'How much did I spend today?',
-    'كم صرفت اليوم؟',
+    'Spending today and yesterday',
+    'مصروفاتي اليوم وهذا الشهر',
     'daily expenses',
     'مصروفاتي اليومية',
     'September and October 2026',

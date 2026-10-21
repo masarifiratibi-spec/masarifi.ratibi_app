@@ -57,13 +57,10 @@ export class AssistantFinancialTools {
     const resolved = resolveAssistantContext(question, owner.timezone);
     if (previousQuestion) {
       const previous = resolveAssistantContext(previousQuestion, owner.timezone);
-      if (
-        !/month|week|year|الشهر|شهر|أسبوع|اسبوع|سنة|عام|20\d{2}|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر/iu.test(
-          question,
-        )
-      ) {
+      if (!resolved.periodExplicit) {
         resolved.startDate = previous.startDate;
         resolved.endDate = previous.endDate;
+        resolved.periodExplicit = previous.periodExplicit;
       }
       if (!resolved.currency && !resolved.clarification) resolved.currency = previous.currency;
       if (['category_breakdown', 'budget_status', 'savings_status'].includes(intent))
@@ -315,6 +312,19 @@ function reportResult(
   resolved: ResolvedAssistantContext,
 ): FinancialToolResult {
   checkReport(report);
+  if (
+    report.metadata.dataState === 'empty' &&
+    !report.summaries.length &&
+    !report.breakdowns.length
+  )
+    return {
+      answer:
+        resolved.locale === 'ar'
+          ? `لا توجد معاملات مؤكدة خلال ${resolved.startDate} – ${resolved.endDate}.`
+          : `No confirmed transactions (${resolved.startDate} – ${resolved.endDate}).`,
+      context: { totals: [], dataState: 'empty' },
+      evidence: report.metadata.evidence,
+    };
   if (intent === 'category_breakdown') {
     let selected = report.breakdowns.filter(
       (item) => includesName(question, item.labelAr) || includesName(question, item.labelEn),

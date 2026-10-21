@@ -96,6 +96,47 @@ describe('AssistantFinancialTools', () => {
   });
   afterEach(() => jest.useRealTimers());
 
+  it('keeps an explicit local-day follow-up instead of reusing the prior monthly period', async () => {
+    const result = await tools.resolve(
+      owner,
+      'spending_summary',
+      'طيب النهارده؟',
+      'request-id',
+      ['recent_transactions'],
+      'مصروفاتي هذا الشهر',
+    );
+    expect(result.answer).toContain('2026-09-15 – 2026-09-15');
+  });
+
+  it.each([
+    ['How much did I spend last month', 'No confirmed transactions'],
+    ['كم دخلت الشهر الماضي؟', 'لا توجد معاملات مؤكدة'],
+  ])(
+    'distinguishes a verified empty period from unavailable evidence: %s',
+    async (question, answer) => {
+      reports.getAssistantSummary.mockResolvedValueOnce({
+        ...report,
+        metadata: { ...report.metadata, dataState: 'empty' },
+        summaries: [],
+        breakdowns: [],
+      });
+      const result = await tools.resolve(owner, 'spending_summary', question, 'request-id', [
+        'recent_transactions',
+      ]);
+      expect(result.answer).toContain(answer);
+      expect(result.answer).toContain('2026-08-01');
+      expect(result.context).toMatchObject({
+        dataState: 'empty',
+        totals: [],
+        assistantMetadata: {
+          responseType: 'fact',
+          reasons: [],
+        },
+      });
+      expect(result.evidence).toEqual(report.metadata.evidence);
+    },
+  );
+
   it.each([
     ['اي اخر معامله ليا', 'آخر معاملة مؤكدة: دخل بقيمة 1 EGP'],
     ['اخر معامله كانت بكام وتصرفت في أي', 'آخر معاملة مؤكدة: دخل بقيمة 1 EGP'],
