@@ -9,8 +9,10 @@ import {
 } from '@/domain/notifications';
 import { supportDraftSchema, supportOperationSchema, supportTicketSchema, type SupportArticle, type SupportDraft, type SupportDraftInput, type SupportOperation, type SupportReplyInput, type SupportTicket } from '@/domain/support';
 import { currentLocale } from '@/localization/i18n';
+import { useAppShellStore } from '@/state/app-shell';
 import { notificationServiceCapability, supportServiceCapability, type NotificationService, type PhoneNotificationService, type SupportService } from '@/services/contracts/assistant-notifications-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
+import { captureLiveClerkIdentity, captureLiveClerkOwner, getLiveClerkToken } from './auth-service';
 import {
   getPushDeviceRegistration,
   phoneNotificationService,
@@ -53,20 +55,23 @@ export function createEngagementApi({
   token?: TokenProvider;
   request?: typeof fetch;
 } = {}) {
-  const send = async (method: string, path: string, body?: unknown, idempotencyKey?: string): Promise<Json> => {
+  const send = async (method: string, path: string, body?: unknown, idempotencyKey?: string, isCurrent: () => boolean | Promise<boolean> = () => true): Promise<Json> => {
     if (!baseUrl || !path.startsWith('/api/v1/')) throw new EngagementApiError('unavailable');
     let response: Response;
     try {
+      const accessToken = await token();
+      if (!(await isCurrent())) throw new EngagementApiError('forbidden');
       response = await request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
         method,
         headers: {
-          Authorization: `Bearer ${await token()}`,
+          Authorization: `Bearer ${accessToken}`,
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {})
         },
         body: body === undefined ? undefined : JSON.stringify(body)
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof EngagementApiError) throw error;
       throw new EngagementApiError('offline');
     }
     const payload: unknown = await response.json().catch(() => ({}));
@@ -102,7 +107,7 @@ export function createEngagementApi({
     getContent: (key: string, locale: 'ar' | 'en') => send('GET', `/api/v1/content/${encodeURIComponent(key)}?locale=${locale}`),
     createFeedback: (input: Json, key: string) => send('POST', '/api/v1/feedback', input, key),
     createAbuseReport: (input: Json, key: string) => send('POST', '/api/v1/abuse-reports', input, key),
-    registerDevice: (input: PushDeviceRegistration, key: string) => send('POST', '/api/v1/me/devices/register', input, key)
+    registerDevice: (input: PushDeviceRegistration, key: string, isCurrent?: () => boolean | Promise<boolean>) => send('POST', '/api/v1/me/devices/register', input, key, isCurrent)
   };
 }
 
@@ -121,16 +126,19 @@ async function registerPermittedPushDevice(
   api: ReturnType<typeof createEngagementApi>,
   phone: PushRegistrationPhone,
   pushRegistration: () => Promise<PushDeviceRegistration | null>,
+  isCurrent: () => boolean | Promise<boolean>,
 ) {
   await phone.registerCategories();
+  if (!(await isCurrent())) return 'unavailable' as const;
   const registration = await pushRegistration();
-  if (!registration) return 'unavailable' as const;
+  if (!registration || !(await isCurrent())) return 'unavailable' as const;
   const tokenDigest = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
     registration.pushToken,
   );
   const key = `notification-device:${registration.deviceFingerprint}:${tokenDigest}`;
-  deviceRegistrationResultApiSchema.parse(await api.registerDevice(registration, key));
+  deviceRegistrationResultApiSchema.parse(await api.registerDevice(registration, key, isCurrent));
+  if (!(await isCurrent())) return 'unavailable' as const;
   return 'granted' as const;
 }
 
@@ -145,9 +153,42 @@ export async function ensureLivePushDeviceRegistration(
     pushRegistration = getPushDeviceRegistration,
     ...apiOptions
   } = options;
+  const owner = await capturePushRegistrationOwner(apiOptions.token);
   const permission = await phone.getPermission();
   if (permission !== 'granted') return permission;
-  return registerPermittedPushDevice(createEngagementApi(apiOptions), phone, pushRegistration);
+  if (!(await owner.isCurrent())) return 'unavailable' as const;
+  return registerPermittedPushDevice(createEngagementApi({ ...apiOptions, token: owner.token }), phone, pushRegistration, owner.isCurrent);
+}
+
+async function capturePushRegistrationOwner(token?: TokenProvider) {
+  const owner = useAppShellStore.getState().session?.userId;
+  const identity =
+    !token || token === getLiveClerkToken
+      ? await captureLiveClerkOwner()
+      : null;
+  if (
+    identity &&
+    (identity.userId !== owner ||
+      useAppShellStore.getState().session?.status !== 'authenticated')
+  )
+    throw new EngagementApiError('forbidden');
+  return {
+    token: identity
+      ? async () => {
+          await identity.assertCurrent();
+          // Permission dialogs can outlive a token; refresh within the same owner fence.
+          return (await captureLiveClerkIdentity()).token;
+        }
+      : token,
+    isCurrent: async () => {
+      await identity?.assertCurrent();
+      return (
+        useAppShellStore.getState().session?.userId === owner &&
+        (!identity ||
+          useAppShellStore.getState().session?.status === 'authenticated')
+      );
+    }
+  };
 }
 
 const isoDateSchema = z.string().datetime({ offset: true });
@@ -534,9 +575,11 @@ export function createLiveNotificationService(
     },
     async refreshPermission() { return phone.getPermission(); },
     async requestPermissionAfterEducation() {
+      const owner = await capturePushRegistrationOwner(apiOptions.token);
       const permission = await phone.requestPermission();
       if (permission !== 'granted') return permission;
-      return registerPermittedPushDevice(api, phone, pushRegistration);
+      if (!(await owner.isCurrent())) return 'unavailable';
+      return registerPermittedPushDevice(createEngagementApi({ ...apiOptions, token: owner.token }), phone, pushRegistration, owner.isCurrent);
     },
     async resolveTarget(id) {
       const target = (await this.get(id)).target;

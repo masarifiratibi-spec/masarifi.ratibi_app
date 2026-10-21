@@ -42,7 +42,9 @@ test('Staging development installs beside the accepted app with independent link
     assert.equal(config.ios.bundleIdentifier, 'com.masarifi.mobile.dev');
     assert.equal(config.name, 'Masarifi Dev');
     assert.equal(config.scheme, 'masarifi-dev');
-    assert.equal(config.android.googleServicesFile, undefined);
+    assert.equal(config.android.googleServicesFile, './google-services.dev.json');
+    const firebase = JSON.parse(readFileSync(new URL(`../${config.android.googleServicesFile}`, import.meta.url)));
+    assert.deepEqual(firebase.client.map(client => client.client_info.android_client_info.package_name), [config.android.package]);
     assert.deepEqual(config.plugins.slice(0, app.expo.plugins.length), app.expo.plugins);
     assert.deepEqual(config.plugins.at(-1), ['expo-dev-client', { addGeneratedScheme: false }]);
     assert.deepEqual(config.android.permissions, app.expo.android.permissions);

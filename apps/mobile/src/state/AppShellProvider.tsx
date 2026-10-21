@@ -19,6 +19,7 @@ import { synchronizeLiveCoreFinance } from '@/services/live/core-finance-service
 import { refreshPlatformOperations } from '@/services/platform-operations-service';
 import { syncAutomaticTracking } from '@/services/automatic-tracking-coordinator';
 import { ensureLivePushDeviceRegistration } from '@/services/live/engagement-service';
+import { getLiveClerkToken } from '@/services/live/auth-service';
 import { measurePerformance } from '@/services/platform/performance-timing';
 
 interface AppShellProviderProps {
@@ -51,6 +52,7 @@ export function AppShellProvider({
   const mode = resolveClientMode();
   const restoreQueue = useRef(Promise.resolve());
   const registeredPushSession = useRef<string | null>(null);
+  const pushRegistrationFlight = useRef<{ sessionKey: string } | null>(null);
   const initialLink = useRef<string | null>(null);
   const linkRevision = useRef(0);
   const linksMounted = useRef(false);
@@ -64,6 +66,24 @@ export function AppShellProvider({
   const firstLaunchCompleted = usePreferenceStore(
     (state) => state.firstLaunchOnboardingCompleted
   );
+
+  const registerPushDevice = useCallback((refresh = false) => {
+    if (!liveClerkSessionKey || mode !== 'live') return;
+    if (pushRegistrationFlight.current?.sessionKey === liveClerkSessionKey) return;
+    if (!refresh && registeredPushSession.current === liveClerkSessionKey) return;
+    const flight = { sessionKey: liveClerkSessionKey };
+    pushRegistrationFlight.current = flight;
+    void ensureLivePushDeviceRegistration({ token: getLiveClerkToken })
+      .then((permission) => {
+        if (pushRegistrationFlight.current === flight && permission === 'granted')
+          registeredPushSession.current = flight.sessionKey;
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (pushRegistrationFlight.current === flight)
+          pushRegistrationFlight.current = null;
+      });
+  }, [liveClerkSessionKey, mode]);
 
   useEffect(() => {
     if (mode !== 'live' && !hydrated) void hydrate();
@@ -103,10 +123,7 @@ export function AppShellProvider({
             !['complete', 'incomplete'].includes(restored.profileSetupStatus)
           )
             void authService.touchActivity().catch(() => undefined);
-          if (registeredPushSession.current !== liveClerkSessionKey) {
-            registeredPushSession.current = liveClerkSessionKey;
-            void ensureLivePushDeviceRegistration().catch(() => undefined);
-          }
+          registerPushDevice();
           void synchronizeLiveCoreFinance().catch(() => undefined);
           void refreshPlatformOperations().catch(() => undefined);
           void syncAutomaticTracking().catch(() => undefined);
@@ -126,7 +143,7 @@ export function AppShellProvider({
     return () => {
       current = false;
     };
-  }, [liveClerkSessionKey, mode, bootstrapRevision]);
+  }, [liveClerkSessionKey, mode, bootstrapRevision, registerPushDevice]);
 
   const retainSafeDestination = useCallback(
     async (url: string | null, expectedRevision: number) => {
@@ -211,13 +228,14 @@ export function AppShellProvider({
           useAppShellStore.getState().session?.status === 'authenticated')
       ) {
         void authService.touchActivity().catch(() => undefined);
+        registerPushDevice(true);
         void synchronizeLiveCoreFinance().catch(() => undefined);
         void refreshPlatformOperations().catch(() => undefined);
         void syncAutomaticTracking().catch(() => undefined);
       }
     });
     return () => subscription.remove();
-  }, [liveClerkSessionKey, onAppStateChange]);
+  }, [liveClerkSessionKey, onAppStateChange, registerPushDevice]);
 
   return <>{children}</>;
 }

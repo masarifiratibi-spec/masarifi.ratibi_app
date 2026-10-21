@@ -1,5 +1,7 @@
 import { createNotificationPreferences, notificationCategorySchema } from '@/domain/notifications';
 import type { SupportDraft } from '@/domain/support';
+import { useAppShellStore } from '@/state/app-shell';
+import { getLiveClerkToken, registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import {
   createLiveNotificationService,
   createLiveSupportService,
@@ -455,6 +457,262 @@ it('does not register a push device when permission is denied', async () => {
 
   expect(pushRegistration).not.toHaveBeenCalled();
   expect(request).not.toHaveBeenCalled();
+});
+
+it.each(['device', 'identity'] as const)('does not register a stale device after the account changes during %s lookup', async (phase) => {
+  const original = useAppShellStore.getState().session;
+  useAppShellStore.setState({ session: { status: 'authenticated', userId: 'push-owner-a' } as never });
+  let release!: () => void;
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const registration = {
+    deviceFingerprint: '11000000-0000-4000-8000-000000000099',
+    platform: 'android' as const,
+    appVersion: '0.0.1',
+    pushToken: 'ExponentPushToken[owner-a]',
+    pushProvider: 'expo' as const,
+  };
+  const request = jest.fn().mockResolvedValue(response({ deviceId: id(99), registeredAt: at, version: 1 }));
+  try {
+    const operation = ensureLivePushDeviceRegistration({
+      baseUrl: 'https://api.example.test',
+      phone: { getPermission: async () => 'granted', registerCategories: async () => undefined },
+      pushRegistration: async () => {
+        if (phase === 'device') { entered(); await pending; }
+        return registration;
+      },
+      token: async () => {
+        if (phase === 'identity') { entered(); await pending; }
+        return 'owner-b-token';
+      },
+      request,
+    }).catch(() => 'rejected');
+    await started;
+    useAppShellStore.setState({ session: { status: 'authenticated', userId: 'push-owner-b' } as never });
+    release();
+    expect(await operation).not.toBe('granted');
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    release();
+    useAppShellStore.setState({ session: original });
+  }
+});
+
+it.each([
+  ['startup', 'device'],
+  ['startup', 'identity'],
+  ['startup', 'response'],
+  ['education', 'device'],
+  ['education', 'identity']
+] as const)(
+  'fences the real Clerk owner during %s registration when the shell still holds A (%s)',
+  async (entry, phase) => {
+    const original = useAppShellStore.getState().session;
+    useAppShellStore.setState({
+      session: { status: 'authenticated', userId: 'push-owner-a' } as never
+    });
+    let clerkOwner = 'push-owner-a';
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    registerLiveClerkBridge({
+      getSession: async () => ({
+        id: `session-${clerkOwner}`,
+        userId: clerkOwner,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999
+      }),
+      getToken: async () => {
+        if (phase === 'identity') {
+          entered();
+          await pending;
+        }
+        return `token-${clerkOwner}`;
+      },
+      startPhone: jest.fn(),
+      verifyPhone: jest.fn(),
+      resendPhone: jest.fn(),
+      signInWithGoogle: jest.fn(),
+      reverifyConflict: jest.fn(),
+      signOut: jest.fn()
+    } satisfies LiveClerkBridge);
+    const request = jest.fn(async () => {
+      if (phase === 'response') {
+        entered();
+        await pending;
+      }
+      return response({ deviceId: id(99), registeredAt: at, version: 1 });
+    });
+    const options = {
+      baseUrl: 'https://api.example.test',
+      token: getLiveClerkToken,
+      request,
+      phone: {
+        getPermission: async () => 'granted' as const,
+        requestPermission: async () => 'granted' as const,
+        registerCategories: async () => undefined
+      },
+      pushRegistration: async () => {
+        if (phase === 'device') {
+          entered();
+          await pending;
+        }
+        return {
+          deviceFingerprint: id(99),
+          platform: 'android' as const,
+          appVersion: '0.0.1',
+          pushToken: 'ExponentPushToken[owner-a]',
+          pushProvider: 'expo' as const
+        };
+      }
+    };
+    try {
+      const operation = (
+        entry === 'startup'
+          ? ensureLivePushDeviceRegistration(options)
+          : createLiveNotificationService(
+              options
+            ).requestPermissionAfterEducation()
+      ).catch(() => 'rejected');
+      await started;
+      clerkOwner = 'push-owner-b';
+      release();
+      expect(await operation).not.toBe('granted');
+      expect(request).toHaveBeenCalledTimes(phase === 'response' ? 1 : 0);
+    } finally {
+      release();
+      useAppShellStore.setState({ session: original });
+    }
+  }
+);
+
+it.each([null, 'push-owner-b'])(
+  'registers the real Clerk device only for the matching app-shell owner (%s)',
+  async (shellOwner) => {
+    const original = useAppShellStore.getState().session;
+    useAppShellStore.setState({
+      session: shellOwner
+        ? ({ status: 'authenticated', userId: shellOwner } as never)
+        : null
+    });
+    registerLiveClerkBridge({
+      getSession: async () => ({
+        id: 'session-b',
+        userId: 'push-owner-b',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999
+      }),
+      getToken: async () => 'token-b',
+      startPhone: jest.fn(),
+      verifyPhone: jest.fn(),
+      resendPhone: jest.fn(),
+      signInWithGoogle: jest.fn(),
+      reverifyConflict: jest.fn(),
+      signOut: jest.fn()
+    } satisfies LiveClerkBridge);
+    const request = jest
+      .fn()
+      .mockResolvedValue(
+        response({ deviceId: id(99), registeredAt: at, version: 1 })
+      );
+    try {
+      const outcome = await ensureLivePushDeviceRegistration({
+        baseUrl: 'https://api.example.test',
+        token: getLiveClerkToken,
+        request,
+        phone: {
+          getPermission: async () => 'granted',
+          registerCategories: async () => undefined
+        },
+        pushRegistration: async () => ({
+          deviceFingerprint: id(99),
+          platform: 'android',
+          appVersion: '0.0.1',
+          pushToken: 'ExponentPushToken[owner-b]',
+          pushProvider: 'expo'
+        })
+      }).catch(() => 'rejected');
+      if (shellOwner) {
+        expect(outcome).toBe('granted');
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(request.mock.calls[0]?.[1]).toMatchObject({
+          headers: { Authorization: 'Bearer token-b' }
+        });
+      } else {
+        expect(outcome).not.toBe('granted');
+        expect(request).not.toHaveBeenCalled();
+      }
+    } finally {
+      useAppShellStore.setState({ session: original });
+    }
+  }
+);
+
+it('uses a fresh owned token after permission education rather than one captured before the dialog', async () => {
+  const original = useAppShellStore.getState().session;
+  useAppShellStore.setState({
+    session: { status: 'authenticated', userId: 'push-owner-a' } as never
+  });
+  let permissionReturned = false;
+  registerLiveClerkBridge({
+    getSession: async () => ({
+      id: 'session-a',
+      userId: 'push-owner-a',
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 9999999999999
+    }),
+    getToken: async () =>
+      permissionReturned ? 'fresh-owner-token' : 'expired-during-dialog',
+    startPhone: jest.fn(),
+    verifyPhone: jest.fn(),
+    resendPhone: jest.fn(),
+    signInWithGoogle: jest.fn(),
+    reverifyConflict: jest.fn(),
+    signOut: jest.fn()
+  } satisfies LiveClerkBridge);
+  const request = jest.fn(
+    async (_url: string | URL | Request, init?: RequestInit) =>
+      (init?.headers as Record<string, string>).Authorization ===
+      'Bearer fresh-owner-token'
+        ? response({ deviceId: id(99), registeredAt: at, version: 1 })
+        : response({}, 401)
+  );
+  try {
+    const service = createLiveNotificationService({
+      baseUrl: 'https://api.example.test',
+      token: getLiveClerkToken,
+      request,
+      phone: {
+        getPermission: async () => 'granted',
+        requestPermission: async () => {
+          permissionReturned = true;
+          return 'granted';
+        },
+        registerCategories: async () => undefined
+      },
+      pushRegistration: async () => ({
+        deviceFingerprint: id(99),
+        platform: 'android',
+        appVersion: '0.0.1',
+        pushToken: 'ExponentPushToken[owner-a]',
+        pushProvider: 'expo'
+      })
+    });
+    await expect(service.requestPermissionAfterEducation()).resolves.toBe(
+      'granted'
+    );
+  } finally {
+    useAppShellStore.setState({ session: original });
+  }
 });
 
 it('preserves exact ticket status and attachment metadata and rejects unknown status', async () => {

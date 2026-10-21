@@ -26,10 +26,10 @@ module.exports = ({ config }) => {
     throw new Error('Staging development requires the live Staging API and its own build profile');
   }
 
-  // The ordinary Firebase Android client is registered for the ordinary package.
-  // This independent development package supports local notifications, not FCM push.
+  // Each development identity must use its own registered Firebase client.
   const android = { ...config.android };
-  delete android.googleServicesFile;
+  if (privacy) delete android.googleServicesFile;
+  else android.googleServicesFile = './google-services.dev.json';
   return {
     ...config,
     name: privacy ? 'Masarifi Dev Privacy' : 'Masarifi Dev',
