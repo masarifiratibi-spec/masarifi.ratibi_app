@@ -566,6 +566,38 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     ]);
   });
 
+  it.each(
+    (['android_sms', 'android_notification'] as const).flatMap((channel) =>
+      [true, false].map((hasReference) => [channel, hasReference] as const),
+    ),
+  )(
+    'keeps one financial effect across different source display names: %s first, reference %s',
+    async (first, hasReference) => {
+      for (const channel of [
+        first,
+        first === 'android_sms' ? 'android_notification' : 'android_sms',
+      ] as const) {
+        await capture({
+          text: 'Paid SAR2',
+          channel,
+          sender: channel === 'android_sms' ? 'SyntheticBank' : 'com.synthetic.wallet',
+          sourceDisplayName: channel === 'android_sms' ? 'Synthetic Bank' : 'Example Wallet',
+          ...(hasReference ? { reference: 'same-source-money' } : {}),
+        });
+      }
+      expect(await effects()).toHaveLength(1);
+      if (hasReference)
+        expect(
+          (
+            await pool.query<{ n: number }>(
+              "select count(*)::int n from public.import_items where user_id=$1 and status='accepted'",
+              [owner],
+            )
+          ).rows[0]?.n,
+        ).toBe(2);
+    },
+  );
+
   it.each([
     [true, true],
     [false, true],
