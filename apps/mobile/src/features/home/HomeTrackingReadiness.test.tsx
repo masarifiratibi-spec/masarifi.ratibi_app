@@ -13,21 +13,25 @@ import { useAppShellStore } from '@/state/app-shell';
 import { buildPreferences } from '@/domain/foundation';
 
 const mockGetStatus = jest.fn();
+const mockReadNotificationPermission = jest.fn();
+const mockReadSmsPermission = jest.fn();
+const mockReadNotificationAccess = jest.fn();
+const mockReadSources = jest.fn();
 jest.mock('@/services/automatic-tracking-service', () => ({
   automaticTrackingService: { getStatus: () => mockGetStatus() }
 }));
 jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: () => true }));
 jest.mock('@/services/platform/phone-notification-service', () => ({
-  phoneNotificationService: { getPermission: async () => 'denied' }
+  phoneNotificationService: { getPermission: () => mockReadNotificationPermission() }
 }));
 jest.mock('@/services/platform/tracking-permission-service', () => ({
-  createTrackingPermissionService: () => ({ getState: async () => ({ status: 'granted' }) })
+  createTrackingPermissionService: () => ({ getState: () => mockReadSmsPermission() })
 }));
 jest.mock('@/services/platform/bank-notification-service', () => ({
-  bankNotificationService: { getAccessState: async () => 'granted' }
+  bankNotificationService: { getAccessState: () => mockReadNotificationAccess() }
 }));
 jest.mock('@/services/tracking-source-preferences', () => ({
-  trackingSourcePreferences: { load: async () => ({ smsEnabled: true, notificationEnabled: true }) }
+  trackingSourcePreferences: { load: () => mockReadSources() }
 }));
 jest.mock('@/features/core-finance/core-finance-queries', () => ({
   useHomeBalanceSummary: () => ({ data: {
@@ -65,6 +69,10 @@ const previousPlatform = Platform.OS;
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  mockReadNotificationPermission.mockResolvedValue('denied');
+  mockReadSmsPermission.mockResolvedValue({ status: 'granted' });
+  mockReadNotificationAccess.mockResolvedValue('granted');
+  mockReadSources.mockResolvedValue({ smsEnabled: true, notificationEnabled: true });
   changeLocale('en');
   Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
   usePreferenceStore.setState({ ...buildPreferences({ locale: 'en' }), reducedMotion: true, hydrated: true });
@@ -73,6 +81,39 @@ beforeEach(() => {
     expiresAt: Date.now() + 60000, restoration: 'restored'
   } });
 });
+
+it.each(['display-permission', 'sms-permission', 'notification-access', 'source-preferences'] as const)(
+  'reveals ready Home when the initial %s read never returns',
+  async (stage) => {
+    // October 21: an optional native/storage read must not keep Home behind its startup cover.
+    const pending = new Promise(() => undefined);
+    const reads = {
+      'display-permission': mockReadNotificationPermission,
+      'sms-permission': mockReadSmsPermission,
+      'notification-access': mockReadNotificationAccess,
+      'source-preferences': mockReadSources
+    };
+    reads[stage].mockReturnValue(pending);
+    const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValue(new Response(JSON.stringify(status), { status: 200 }));
+    const service = createLiveAutomaticTrackingService({ token: async () => 'owner-token', request });
+    mockGetStatus.mockImplementation(() => service.getStatus());
+    const view = renderHome();
+    try {
+      await act(async () => { await jest.advanceTimersByTimeAsync(14_999); });
+      expect(screen.getByTestId('startup-loading')).toBeTruthy();
+      await act(async () => { await jest.advanceTimersByTimeAsync(2); });
+      expect(screen.queryByTestId('startup-loading')).toBeNull();
+      expect(screen.getByTestId('home-account-card')).toBeTruthy();
+      if (stage === 'display-permission')
+        expect(screen.queryByTestId('notification-home-card')).toBeNull();
+      else
+        expect(screen.getByRole('button', { name: 'Enable notifications' })).toBeTruthy();
+    } finally {
+      view.unmount();
+    }
+  }
+);
 
 afterEach(() => {
   jest.useRealTimers();

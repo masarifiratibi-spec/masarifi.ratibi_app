@@ -19,11 +19,12 @@ import { createTrackingPermissionService } from '@/services/platform/tracking-pe
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
 import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
+import { withReadContext } from '@/services/live/read-context';
 
 export function useTrackingStatus() {
   return useQuery({
     queryKey: automaticTrackingKeys.status,
-    queryFn: async () => {
+    queryFn: () => withReadContext(undefined, async () => {
       const [status, permission, notificationAccess, sources] =
         await Promise.all([
           automaticTrackingService.getStatus(),
@@ -52,7 +53,7 @@ export function useTrackingStatus() {
           ? ('unavailable' as const)
           : status.serviceState
       };
-    },
+    }),
     refetchOnMount: 'always'
   });
 }
