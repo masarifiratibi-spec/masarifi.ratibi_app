@@ -1,6 +1,6 @@
 # Client release decision
 
-Updated 2026-10-21T21:31:36+00:00; baseline `9b380dfc8e42c3a484df3ac838e3ff91d9b14a48` on `codex/voice-promoted-operating-2026-10-13`, `D:/Masarifi-integration-2026-10-10`.
+Updated 2026-10-21T21:50:38+00:00; baseline `9b380dfc8e42c3a484df3ac838e3ff91d9b14a48` on `codex/voice-promoted-operating-2026-10-13`, `D:/Masarifi-integration-2026-10-10`.
 
 **NOT READY for client delivery. Review is in progress. No client APK build or distribution has occurred.** DEV and exact standalone gates remain independent.
 
@@ -242,3 +242,60 @@ Pending user-reported application issue: Personal Assistant “كم أنفقت�
 
 - At21:32:04Z opened the source-backed Android notification-listener settings intent from idle DEV, then observed the OS Notification access list with Masarifi Ratibi Dev. No grant/revoke toggle was automated. Asked the user to open that app entry, revoke its notification access, return to tracking, and report the result. Expected: sources stay off, no new ledger record, refreshed permission state after return. Physical result **NOT RUN** pending user action/observation; do not treat elapsed time or the OS list as revocation acceptance.
 - At21:32:25–27Z independent read-only verification still showed9owned transactions/unchanged fingerprint and balances, server tracking disabled, zero tracking history since the setup trial. Private evidence `qa-tracking-os-access-{open.json,list.json,list.png,list.xml}` and `tracking-source-trial-final-{0,1}.json`. SMS and other apps' OS permissions were not changed. Installed DEV remains ENV-DEV-04; local source repair02af0fb3 is separate.
+
+<!-- tracking-permissions-capture -->
+## User-confirmed fixture attribution and fresh tracking acceptance
+
+User explicitly confirmed the two20:56Z voice expenses SAR10/SAR20 were his own review recording. Preserve them as U-A review records; prior pending-attribution observations are historical. Before new tracking tests:9transactions, EGP96200/SAR196300/credit-50000minor. No cleanup/deletion performed.
+
+All cases below use **ENV-DEV-04**, installed source d4f389b3. New source fixes02af0fb3/d7871d1a are not in that installed bundle. Standalone **NOT RUN** throughout. U-A's read-only current installation-managed tracking cohort is enabled with no expiry, financial_content_v1 admission and source_currency_v1 account policy. One eligible EGP account exists. This is current DEV eligibility evidence, not a pass for a genuinely new ordinary identity or ordinary-package configuration.
+
+### PHY-022 / TRACK-020 — Permission revoked while tracking already paused
+
+- Preconditions/entry: tracking paused, both source switches off, Android Notification access list. Steps:1.User opens Masarifi Ratibi Dev and revokes access.2.User returns to tracking.3.Read OS permission, visible switches and owned ledger.
+- Expected: access denied, sources stay off, no ledger effects. Actual **PASS**, bounded to permission persistence/refreshed paused state. At21:33:51Z DEV foreground/source screen; at21:34:38Z OS listener accessfalse, READ_SMStrue/RECEIVE_SMSfalse; both source switches unchecked. At21:33:58Z9transactions and original balances/fingerprint unchanged. This does not prove stopping an already active listener.
+- Evidence private `qa-tracking-access-revoked-return.{json,png,xml}`, `qa-tracking-os-revoked-verification.json`; user explicitly confirmed his OS action. No OS permission was toggled by automation.
+
+### PHY-023 / TRACK-003 — Recover notification access from the app
+
+- Preconditions/entry: source screen, notification access denied, both sources off. Steps:1.At21:36:41Z tap notification source once.2.Observe Android Notification access list.3.User grants access and returns.4.Wait for status refresh and inspect switches/ledger/server preferences.
+- Expected: open correct settings; notification source on/SMSoff; no financial write. Actual **PASS** this grant/recovery subcase. OS access verifiedtrue21:37:17Z; settled21:37:41Z notificationtrue/SMSfalse; server enabledtrue/review_requiredfalse/version4 updated21:37:11Z.9transactions/balances unchanged21:37:19Z. Initial old switch state during asynchronous refresh retained as evidence, not a permanent-failure claim. Source preferences for both channels had been explicitly turned off before this case; it does not retest DEF-020's hidden retained-true precondition.
+- Evidence `qa-tracking-user-resumed`, `qa-tracking-notification-recovery-settings`, `qa-tracking-permission-granted-return`, `qa-tracking-permission-grant-settled`, `qa-tracking-os-granted-verification`, `tracking-permission-grant-ledger.json`. Earlier selector attempt during a separately displayed Assistant question failed closed and performed no tap.
+
+### PHY-024 / TRACK-008 — Nonfinancial OS notification control
+
+- Entry/parameters: active notification-only capture, DEV foreground. Synthetic Android `cmd notification` producer, package com.android.shell, title QA21 Calendar, body QA21 meeting starts at noon, unique tag qa21-review-nonfinancial-01. Steps:1.Verify idle phone/access/source switches.2.Post once21:40:22Z.3.Read imports/history/ledger before positive control.
+- Expected: ignore nonfinancial text. Actual **PASS** bounded control: at21:40:44Z zero new import items, zero tracking history,9transactions. Positive control below establishes the capture path was active. This is a real OS notification with synthetic content, not a bank-provider delivery test or an app fixture service.
+- Evidence `tracking-notification-negative-{post,server}.json`. No SMS, personal message or financial queue was replayed.
+
+### PHY-025 / TRACK-008, TRACK-012 — Foreground notification to exact EGP ledger
+
+- Entry/parameters: same source state; unique eligible A-EGP account, no selected foreign-account redirect. OS producer title QA21 Review, body Card purchase EGP5.00 at QA21 Tracking Coffee, reference QA21N01. Steps:1.Post once21:40:51Z.2.Observe tracking status.3.Trace import → transaction/balances.4.Open Accounts and observe refreshed values.
+- Expected: one5EGP expense, EGP962→957, SAR1963 and credit-500 unchanged. Actual **PASS** bounded synthetic-OS-notification case: accepted/complete import21:41:01Z, signed item-500minorEGP, one confirmed tracking-import expense500minorEGP;10owned transactions, EGP95700/SAR196300/credit-50000minor, pending0. At21:43:21Z Accounts visibly shows957EGP/1963SAR/-500SAR and clear SAR totals excluding other currencies. Positive destination followed deployed source_currency_v1 cohort policy; item metadata currency-policy field itself is absent. Parser-version IDnull/applied-rule IDs0: do not invent a provider/legacy-parser-version result for this engine2snapshot path.
+- Trace: OS notification → MasarifiNotificationListenerService/consent boundary/content admission → durable native queue/wake → automatic-tracking-coordinator/prepare import → authenticated POST /api/v1/imports → owned session/item/admission/posting → linked confirmed transaction/account balances → refreshed Accounts. Current integration source references are covered by route/inventory joins; no public API redesign.
+- Evidence `tracking-notification-positive-post.json`, `qa-tracking-first-notification-result`, `tracking-positive-import-transaction-chain.json`, `tracking-positive-ledger.json`, `qa-tracking-post-accounts-settled.{json,png,xml}`. A local saved-result Android notification was visible21:41:46Z with5EGP/owned account. Its tap attempt later failed closed after the target disappeared; notification destination/action acceptance remains **NOT RUN**, and this is not FCM remote delivery proof.
+
+### PHY-026 / TRACK-014 — Exact repeated notification updates reuse the financial transaction
+
+- Preconditions: original positive import/transaction is confirmed. Steps:1.Intentionally post the exact same tag/title/body once as a separately recorded duplicate case.2.Read both import links, canonical transaction version, ledger count/balances. No blind retry of an unknown outcome.
+- Expected: no second expense. Actual **PASS** financial idempotence: second accepted/complete item21:45:24Z; at21:45:48Z2accepted import items, distinct linked transactions1, canonical transaction version1; count10 and EGP95700 remain unchanged. Source/normalized hashes differ. Do not mislabel item statuses as duplicate: both are accepted and reuse the same transaction. Review badges/cross-channel deduplication are separate.
+- Evidence `tracking-notification-duplicate-post.json`, `tracking-duplicate-import-observation.json`, `tracking-duplicate-canonical-proof.json`; original positive artifacts preserved.
+
+### PHY-027 / TRACK-009 — Background OS notification posting before app reopen
+
+- Preconditions: active notification-only source, original ledger10/EGP957. Parameters: distinct tag qa21-review-background-01, EGP3.00 purchase QA21 Background Coffee, ref QA21N02. Steps:1.Press Android Home without force-stop.2.Verify launcher foreground.3.Post once21:46:21Z.4.Read server result while still background.5.Verify launcher again21:47:16Z.6.Only then reopen DEV21:47:37Z.
+- Expected: native background processing posts one3EGP expense without foreground catch-up; EGP954,11transactions, SAR/credit unchanged. Actual **PASS**, bounded ordinary-background case: accepted/complete import21:46:33Z; at21:47:21Z before agent reopen ledger11/EGP95400/SAR196300/credit-50000/pending0, fingerprint1b47740d0b4bffd94e726db7d635f5fd. Launcher observed before dispatch and after server processing. No Metro dependency or foreground processing was introduced by the test. Force-stop/reboot/battery restriction/second device acceptance remain **NOT RUN**.
+- Evidence `tracking-notification-background-post.json`, `qa-tracking-background-proof.{json,png,xml,stdout}`, `tracking-background-ledger-before-reopen.json`, `qa-tracking-after-background-reopen`. Synthetic OS source remains separate from a real bank notification and fresh ordinary-user eligibility.
+
+### DEF-021 — Tracking privacy description overstates nonretention
+
+- SeverityP2. Installed UI says messages are never stored. Native encrypted notification queue retains financial content and review/diagnostic flows use retention settings; notification source description itself discloses retained encrypted cases. Do not accept the unconditional promise.
+- Small source-only repair d7871d1a replaces the Arabic/English sentence with accurate wording that transaction data is saved and financial message content may be retained for review according to retention settings. No collection, retention duration, permissions or runtime behavior changed. Changed-file ESLint **PASS**; no trivial copy-mirroring test added. Physical revised-copy retest **NOT RUN** until next verified DEV bundle; standalone **NOT RUN**.
+
+### Additional assistant observation — DEF-015 remains critical
+
+During the user-operated interval21:34Z, read-only persisted evidence shows a new Arabic provider-backed analysis completed with one attempt, but saved3800EGP/3700SAR instead of38EGP/37SAR. Category values2500/1300/2000/1700 similarly use minor units as currency units. Evidence `assistant-user-question-during-tracking.json`. Its final visible answer was not captured because the app returned to landing; record server correctness **FAIL**, physical reply-readout **NOT RUN**. This is further DEF-015 evidence, not a successful retest of undeployed DEF-018 normalization. The separate free-text phrase حلل مصاريفي received an unsupported-request response; retain that routing observation for follow-up.
+
+### PHY-028 / TRACK-020 — Active permission revocation prepared
+
+At21:48:45Z, after successful foreground/background controls and with notification capture active, opened Android notification-access settings. Asked user to revoke Masarifi Ratibi Dev access and return, then planned a new synthetic financial notification with expectation of no import/no ledger change. Physical result **NOT RUN** pending that user action and evidence. The earlier paused revocation does not stand in for this case.
