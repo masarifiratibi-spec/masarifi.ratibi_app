@@ -107,7 +107,7 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   ],
   [/(?:تضخم|inflation|فائدة مركبة|compound interest)/iu, 'general_finance'],
   [
-    /(?:analy[sz]e|advice|recommend).*(?:spend|expense|income|financ|saving|behavior)|(?:how).*(?:save|reduce.*spend|improve.*financ)|(?:حلل|حلّل|نصيحة|نصائح).*(?:صرف|مصروف|دخل|مالي|ادخار)|كيف.*(?:أوفر|اوفر|أدخر|ادخر)/iu,
+    /(?:analy[sz]e|advice|recommend).*(?:spend|expense|income|financ|saving|behavior)|(?:how).*(?:save|reduce.*spend|improve.*financ)|(?:حلل|حلّل|نصيحة|نصائح).*(?:صرف|مصروف|دخل|مالي|ادخار|توفير)|كيف.*(?:أوفر|اوفر|أدخر|ادخر)/iu,
     'financial_advice',
   ],
   [/(?:عد(?:ل|لّ)|غي(?:ر|رّ)|update).*(?:معامل|transaction)/iu, 'update_transaction'],

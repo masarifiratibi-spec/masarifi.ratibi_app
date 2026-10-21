@@ -21,6 +21,8 @@ describe('assistant domain and intent routing', () => {
     'Give me financial advice based on my recent behavior.',
     'حلل سلوك مصروفاتي',
     'كيف أقدر أوفر أكثر الشهر القادم؟',
+    'نصائح ذكية للتوفير',
+    'نصائح للتوفير',
   ])('keeps reasoning request %s on the provider path', (content) => {
     expect(routeAssistantMessage({ content })).toMatchObject({
       intent: 'financial_advice',
