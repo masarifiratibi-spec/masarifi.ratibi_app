@@ -71,7 +71,7 @@ function minorUnits(raw, scale) {
 const currencySpellingAliases = {
   SAR: ['ريال سعودى'],
   AED: ['درهم اماراتي', 'درهم إماراتى', 'درهم اماراتى', 'دراهم إماراتية', 'دراهم اماراتية', 'Dhs'],
-  EGP: ['جنيه مصرى', 'جنية', 'جنية مصري', 'جنية مصرى', 'L.E.'],
+  EGP: ['جنيه مصرى', 'جنية', 'جنية مصري', 'جنية مصرى', 'L.E.', 'جم'],
 };
 function effectiveCurrencies(currencies) {
   return currencies.map(currency => ({...currency,

@@ -29,6 +29,7 @@ const currencyPhrases = [
       "جنية مصري",
       "جنية مصرى",
       "ج.م",
+      "جم",
       "L.E.",
     ],
   ],
@@ -170,4 +171,32 @@ test("conflicting explicit currencies are held for review", () => {
   });
   assert.equal(result.disposition, "review");
   assert.ok(result.reasonCodes.includes("amount_conflict"));
+});
+
+test("Banque Misr credit wording retains EGP while requiring origin review", () => {
+  const result = parser.discoverNominalTrackingMessage(
+    {
+      text: "تم إضافة تحويل لحسابكم رقم XXXX بمبلغ 1 جم من طرف تجريبي",
+      sender: "Banque Misr",
+      channel: "android_sms",
+      country: "EG",
+    },
+    parser.defaultSnapshot,
+    [],
+    [],
+    { sourceAdmissionPolicy: "financial_content_v1" },
+  );
+  assert.equal(result.strong, true);
+  assert.equal(result.classification.direction, "incoming");
+  assert.equal(result.classification.currency, "EGP");
+  assert.equal(result.classification.amountMinor, 100);
+  assert.equal(result.classification.disposition, "review");
+  assert.ok(result.classification.reasonCodes.includes("credit_origin_required"));
+});
+
+test("Arabic words beginning with the EGP abbreviation are not currencies", () => {
+  const result = classifyFinancialMessage({ text: "Paid 1 جملة" });
+  assert.equal(result.currency, null);
+  assert.equal(result.amountMinor, null);
+  assert.notEqual(result.disposition, "capture_candidate");
 });
