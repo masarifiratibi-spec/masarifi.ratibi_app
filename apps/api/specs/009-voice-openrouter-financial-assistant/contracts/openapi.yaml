@@ -1096,6 +1096,10 @@ components:
         contentHash: { type: string, pattern: '^[0-9a-f]{64}$' }
         recordedAt: { type: string, format: date-time }
         timezoneOffsetMinutes: { type: integer, minimum: -840, maximum: 840 }
+        accountId:
+          type: string
+          format: uuid
+          description: Optional owned active account captured when recording starts. Automatic posting uses its currency when omitted in speech; omission retains the server default account.
     VoiceUploadResponse:
       type: object
       additionalProperties: false

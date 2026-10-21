@@ -58,6 +58,8 @@ describeLiveDatabase('actual Manual ledger receipts accepted by the Mobile parse
     expect(ledgerDetailSchema.parse(await repository.getTransaction(owner,detail.transaction.id)).transaction.kind).toBe(kind);
     const listing=await repository.listTransactions(owner,{});
     expect((listing.items as Array<{id:string;kind:string}>).find(row=>row.id===detail.transaction.id)?.kind).toBe(kind);
+    const accountSummary=await repository.getAccountSummary(owner,accountId,{});
+    expect((accountSummary.recentTransactions as Array<{id:string;kind:string}>).find(row=>row.id===detail.transaction.id)?.kind).toBe(kind);
     await repository.mutate({operation:'reverseTransaction',scope:'ledger.transaction.reverse',principal:owner,
       command:{transactionId:detail.transaction.id,expectedVersion:2,occurredAt:new Date().toISOString(),reason:'Synthetic reversal'},
       idempotencyKey:`correction-reverse-${randomUUID()}`,requestId:randomUUID(),status:201});
