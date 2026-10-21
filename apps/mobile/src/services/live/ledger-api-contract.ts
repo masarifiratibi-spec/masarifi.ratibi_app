@@ -123,6 +123,23 @@ export const ledgerDetailSchema = z
           message: 'invalid transfer postings'
         });
     } else if (
+      ['expense', 'income'].includes(transaction.kind) &&
+      postings.some((posting) => posting.postingRole === 'adjustment')
+    ) {
+      const net = postings.reduce(
+        (sum, posting) => sum + BigInt(posting.amountMinor),
+        0n
+      );
+      const expected = transaction.status === 'deleted'
+        ? 0n
+        : BigInt(transaction.amountMinor) *
+          (transaction.kind === 'income' ? 1n : -1n);
+      if (net !== expected)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'invalid revised transaction postings'
+        });
+    } else if (
       transaction.kind === 'expense' &&
       (!source || source.amountMinor !== -transaction.amountMinor)
     )

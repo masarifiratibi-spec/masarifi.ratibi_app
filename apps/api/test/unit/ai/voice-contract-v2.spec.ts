@@ -14,6 +14,12 @@ it('validates and retains the capture context and content identity', () => {
   expect(createVoiceV2(capture)).toEqual(capture);
 });
 
+it('retains an optional selected account as untrusted context for server ownership validation', () => {
+  const accountId = '10000000-0000-4000-8000-000000000001';
+  expect(createVoiceV2({ ...capture, accountId })).toEqual({ ...capture, accountId });
+  expect(() => createVoiceV2({ ...capture, accountId: 'ACCOUNT-1' })).toThrow();
+});
+
 it.each([
   { durationMs: 60_001 },
   { sizeBytes: 12_582_913 },

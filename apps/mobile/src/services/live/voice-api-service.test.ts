@@ -1017,3 +1017,55 @@ it.each([false, true])('replays the exact authorized confirmation after response
   expect(resumedRequest).toHaveBeenCalledTimes(2);
   expect(await loadVoiceOperation('owner-a')).toBeNull();
 });
+
+it('retains the selected account and create identity across standalone DEV service restart', async () => {
+  const runtime = global as typeof global & { __DEV__: boolean };
+  const previousDev = runtime.__DEV__;
+  runtime.__DEV__ = false;
+  const accountId = id(50);
+  const bodies: unknown[] = [];
+  const keys: unknown[] = [];
+  const request = jest.fn(
+    async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).startsWith('file:')) return new Response(wav);
+      expect(init?.headers).toMatchObject({
+        'X-Masarifi-Client-Variant': 'staging-development'
+      });
+      bodies.push(JSON.parse(init?.body as string));
+      keys.push((init?.headers as Record<string, string>)['idempotency-key']);
+      return json({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' }, 503);
+    }
+  );
+  try {
+    const options = {
+      baseUrl: 'https://api.staging.masarifiratibi.com',
+      token: async () => 'owner',
+      request
+    };
+    const first = createLiveVoiceApiService(options);
+    const captureId = await first.queueBatch!(
+      {
+        uri: 'file:///selected.wav',
+        contentType: 'audio/m4a',
+        durationMs: 2000,
+        recordedAt: Date.now()
+      },
+      'ar',
+      -180,
+      accountId
+    );
+    await expect(first.runBatch!(captureId)).rejects.toBeTruthy();
+    first.pauseBatches?.();
+    const resumed = createLiveVoiceApiService(options);
+    await expect(resumed.runBatch!(captureId)).rejects.toBeTruthy();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toMatchObject({ accountId });
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(keys).toEqual([
+      'voice-create:' + captureId,
+      'voice-create:' + captureId
+    ]);
+  } finally {
+    runtime.__DEV__ = previousDev;
+  }
+});

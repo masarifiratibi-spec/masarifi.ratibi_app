@@ -152,6 +152,12 @@ describe('transfer DTO normalization', () => {
 });
 
 describe('revision DTO normalization', () => {
+  it.each(['income', 'expense'])('accepts a correction to %s', (kind) => {
+    expect(
+      normalizeRevision({ expectedVersion: 1, reason: 'Correct kind', kind, categoryId: null })
+        .patch,
+    ).toEqual({ kind, categoryId: null });
+  });
   it('separates concurrency/reason fields from an allowlisted patch', () => {
     expect(
       normalizeRevision(
@@ -174,7 +180,8 @@ describe('revision DTO normalization', () => {
     { expectedVersion: 1, reason: 'reason' },
     { expectedVersion: 0, reason: 'reason', title: 'x' },
     { expectedVersion: 1, reason: '', title: 'x' },
-    { expectedVersion: 1, reason: 'x', kind: 'income' },
+    { expectedVersion: 1, reason: 'x', kind: 'transfer' },
+    { expectedVersion: 1, reason: 'x', kind: ['income'] },
     { expectedVersion: 1, reason: 'x', occurredAt: 'bad' },
     { expectedVersion: 1, reason: 'x', merchant: '' },
   ])('rejects invalid revision %#', (value) => {

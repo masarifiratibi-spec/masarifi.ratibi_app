@@ -64,8 +64,8 @@ const maxPollAttempts = 125;
 function hasPendingVoiceConfirmation(operation: VoiceOperation): boolean {
   return Boolean(
     operation.confirmationKey ||
-      operation.confirmationBody ||
-      ['confirming', 'confirmation_unknown'].includes(operation.phase)
+    operation.confirmationBody ||
+    ['confirming', 'confirmation_unknown'].includes(operation.phase)
   );
 }
 
@@ -208,13 +208,16 @@ export function createLiveVoiceApiService(
   ).replace(/\/$/u, '');
   // DEV always uses automatic capture on Staging, including standalone DEV builds.
   // Server cohort authorization, Posting and financial validation remain authoritative.
-  const devClient = Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev';
-  const automaticCapture = (
+  const devClient =
+    Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev';
+  const automaticCapture =
     baseUrl === 'https://api.staging.masarifiratibi.com' &&
-    (devClient || process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true')
-  );
-  recordVoiceDiagnostic('transport', { phase: automaticCapture ? 'automatic' : 'legacy' });
-  const token = options.token ?? ((readOnly?: boolean) => tokenProvider(readOnly));
+    (devClient || process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true');
+  recordVoiceDiagnostic('transport', {
+    phase: automaticCapture ? 'automatic' : 'legacy'
+  });
+  const token =
+    options.token ?? ((readOnly?: boolean) => tokenProvider(readOnly));
   const readOwner = options.owner ?? (() => ownerProvider());
   const owner = async () => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -689,14 +692,16 @@ export function createLiveVoiceApiService(
   };
 
   const batchApi = createVoiceBatchApi({
-      baseUrl,
-      devPosting: automaticCapture && __DEV__ && Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev',
-      owner,
-      token,
-      request,
-      sleep,
-      removeAudio: voiceRecorderService.remove
-    });
+    baseUrl,
+    devPosting:
+      automaticCapture &&
+      Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev',
+    owner,
+    token,
+    request,
+    sleep,
+    removeAudio: voiceRecorderService.remove
+  });
   return {
     ...batchApi,
     // Keep legacy proposal recovery; new financial captures use the existing

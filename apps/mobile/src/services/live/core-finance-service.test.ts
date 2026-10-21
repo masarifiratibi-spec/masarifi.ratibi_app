@@ -462,6 +462,74 @@ it('sends the selected Shopping system key as its existing database UUID', async
   });
 });
 
+it.each(['income', 'expense'] as const)(
+  'corrects a manual transaction to %s through one versioned PATCH',
+  async (kind) => {
+    const priorKind = kind === 'income' ? 'expense' : 'income';
+    const nextCategory = categoryId;
+    const posting = (income: boolean) => [
+      {
+        id: '40000000-0000-4000-8000-000000000001',
+        accountId,
+        amountMinor: income ? 1000 : -1000,
+        clearingState: 'confirmed',
+        postingRole: income ? 'destination' : 'source',
+        occurredAt
+      }
+    ];
+    const request = jest.fn(async (_url, init) =>
+      init.method === 'PATCH'
+        ? response(
+            mutation(
+              summary(transactionId, { kind, categoryId: nextCategory }),
+              [
+                ...posting(priorKind === 'income'),
+                {
+                  ...posting(kind === 'income')[0],
+                  id: '40000000-0000-4000-8000-000000000002',
+                  postingRole: 'adjustment',
+                  amountMinor: kind === 'income' ? 2000 : -2000
+                }
+              ]
+            )
+          )
+        : response(
+            detail(
+              summary(transactionId, { kind: priorKind }),
+              posting(priorKind === 'income')
+            )
+          )
+    );
+    const service = createLiveLedgerService({
+      baseUrl: 'https://api.test',
+      request
+    });
+    const result = await service.updateTransaction(transactionId, {
+      type: kind,
+      amountMinor: 1000,
+      currencyCode: 'SAR',
+      accountId,
+      categoryId: nextCategory,
+      title: 'Groceries',
+      occurredAt: Date.parse(occurredAt)
+    });
+    expect(result.value).toMatchObject({ id: transactionId, type: kind });
+    const patches = request.mock.calls.filter(
+      ([, init]) => init.method === 'PATCH'
+    );
+    expect(patches).toHaveLength(1);
+    expect(JSON.parse(patches[0][1].body)).toMatchObject({
+      expectedVersion: 2,
+      kind
+    });
+    expect(
+      request.mock.calls.some(
+        ([, init]) => init.method === 'POST' || init.method === 'DELETE'
+      )
+    ).toBe(false);
+  }
+);
+
 it('keeps multiline notes out of the single-line edit audit reason', async () => {
   const request = jest
     .fn()

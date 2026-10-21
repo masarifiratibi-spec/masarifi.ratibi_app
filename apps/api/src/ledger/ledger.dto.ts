@@ -191,6 +191,7 @@ export function normalizeRevision(
 } {
   const input = record(value);
   const fields = [
+    'kind',
     'amountMinor',
     'accountId',
     'categoryId',
@@ -203,6 +204,10 @@ export function normalizeRevision(
   exact(input, ['expectedVersion', 'reason', ...fields]);
   if (!fields.some((field) => field in input)) invalid();
   const patch: Record<string, unknown> = {};
+  if ('kind' in input) {
+    if (input.kind !== 'income' && input.kind !== 'expense') invalid();
+    patch.kind = input.kind;
+  }
   if ('amountMinor' in input) {
     if (
       typeof input.amountMinor !== 'number' ||

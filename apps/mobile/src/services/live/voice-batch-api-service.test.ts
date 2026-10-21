@@ -36,7 +36,8 @@ it('durably queues separate captures without waiting for upload or provider proc
     contentType: 'audio/m4a' as const,
     recordedAt: Date.now()
   };
-  const a = await api.queueBatch(audio, 'ar', -180);
+  const accountId = '10000000-0000-4000-8000-000000000001';
+  const a = await api.queueBatch(audio, 'ar', -180, accountId);
   const b = await api.queueBatch(audio, 'en', -180);
   expect(a).not.toEqual(b);
   expect(request).not.toHaveBeenCalled();
@@ -45,7 +46,8 @@ it('durably queues separate captures without waiting for upload or provider proc
     id: a,
     revision: 0,
     phase: 'captured',
-    audioReference: audio.uri
+    audioReference: audio.uri,
+    accountId
   });
 });
 

@@ -143,7 +143,8 @@ export interface VoiceBatchApi {
   queueBatch(
     audio: VoiceCapturedAudio,
     locale: 'ar' | 'en',
-    offset: number
+    offset: number,
+    accountId?: string | null
   ): Promise<string>;
   runBatch(id: string): Promise<VoiceBatchResult>;
   recoverBatches(onLocalPending?: (ids: string[]) => void): Promise<{
@@ -608,7 +609,8 @@ export function createVoiceBatchApi(options: {
           sizeBytes: bytes.byteLength,
           contentHash: bytesToHex(sha256(new Uint8Array(bytes))),
           recordedAt: new Date(operation.recordedAt).toISOString(),
-          timezoneOffsetMinutes: operation.timezoneOffsetMinutes
+          timezoneOffsetMinutes: operation.timezoneOffsetMinutes,
+          ...(operation.accountId ? { accountId: operation.accountId } : {})
         }
       });
     }
@@ -746,7 +748,7 @@ export function createVoiceBatchApi(options: {
     return pending;
   };
   return {
-    async queueBatch(audio, locale, offset) {
+    async queueBatch(audio, locale, offset, accountId) {
       const b = await binding();
       const id = randomUUID();
       recordVoiceDiagnostic('journal-handoff', {
@@ -763,6 +765,7 @@ export function createVoiceBatchApi(options: {
         durationMs: audio.durationMs,
         recordedAt: audio.recordedAt,
         timezoneOffsetMinutes: offset,
+        ...(accountId ? { accountId } : {}),
         createBody: null,
         sessionId: null,
         version: null,

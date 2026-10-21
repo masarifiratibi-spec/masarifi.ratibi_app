@@ -103,6 +103,7 @@ export function createVoiceV2(input: unknown) {
     'contentHash',
     'recordedAt',
     'timezoneOffsetMinutes',
+    'accountId',
   ]);
   const media = createVoice({
     locale: value.locale,
@@ -128,6 +129,7 @@ export function createVoiceV2(input: unknown) {
     contentHash: value.contentHash,
     recordedAt: value.recordedAt,
     timezoneOffsetMinutes: Number(value.timezoneOffsetMinutes),
+    ...(value.accountId !== undefined ? { accountId: uuid(value.accountId) } : {}),
   };
 }
 

@@ -26,8 +26,49 @@ import {
 import { useVoiceCapture } from './useVoiceCapture';
 import { VoiceCaptureProvider } from './VoiceCaptureRuntime';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 
 const mockCreateFromSource = jest.fn();
+
+it('keeps the account selected at recording start when selection changes before release', async () => {
+  const account = '10000000-0000-4000-8000-000000000001';
+  const previousQueue = voiceAnalyzerService.queueBatch;
+  const previousRun = voiceAnalyzerService.runBatch;
+  const queue = jest.fn().mockResolvedValue('capture-account');
+  voiceAnalyzerService.queueBatch = queue;
+  voiceAnalyzerService.runBatch = jest
+    .fn()
+    .mockReturnValue(new Promise(() => undefined));
+  jest
+    .spyOn(voiceRecorderService, 'getPermission')
+    .mockResolvedValue('granted');
+  jest
+    .spyOn(voiceRecorderService, 'start')
+    .mockResolvedValue({ id: 'account-recording', startedAt: Date.now() });
+  jest
+    .spyOn(voiceRecorderService, 'stop')
+    .mockResolvedValue({
+      uri: 'file://account.m4a',
+      durationMs: 1000,
+      recordedAt: Date.now(),
+      contentType: 'audio/m4a'
+    });
+  useCoreFinanceViewState.setState({ selectedAccountId: account });
+  const { result, unmount } = renderVoiceHook('on-demand');
+  try {
+    await act(async () => result.current.start());
+    useCoreFinanceViewState.setState({
+      selectedAccountId: '10000000-0000-4000-8000-000000000002'
+    });
+    await act(async () => result.current.stop());
+    expect(queue.mock.calls[0][3]).toBe(account);
+  } finally {
+    unmount();
+    useCoreFinanceViewState.setState({ selectedAccountId: null });
+    voiceAnalyzerService.queueBatch = previousQueue;
+    voiceAnalyzerService.runBatch = previousRun;
+  }
+});
 
 it('hands audio to an independent batch and permits another recording without deleting that audio', async () => {
   const priorQueue = voiceAnalyzerService.queueBatch;

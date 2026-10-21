@@ -687,7 +687,10 @@ export function createLiveLedgerService({
         async ({ operationId, expectedVersion }) => {
           const prior = await current(id);
           if (
-            prior.type !== next.type ||
+            (prior.type !== next.type &&
+              (prior.source !== 'manual' ||
+                !['expense', 'income'].includes(prior.type) ||
+                !['expense', 'income'].includes(next.type))) ||
             prior.currencyCode !== next.currencyCode ||
             prior.destinationAccountId !== next.destinationAccountId ||
             prior.feeMinor !== next.feeMinor ||
@@ -698,6 +701,7 @@ export function createLiveLedgerService({
             expectedVersion,
             reason: 'Mobile edit'
           };
+          if (prior.type !== next.type) body.kind = next.type;
           for (const [field, value] of [
             ['amountMinor', next.amountMinor],
             ['accountId', next.accountId],
@@ -1110,7 +1114,9 @@ function transactionFromSummary(
   const value = summarySchema.parse(input);
   const accountId = mappedAccountId ?? value.sourceAccountId;
   const destinationAccountId =
-    mappedDestinationAccountId ?? value.destinationAccountId ?? undefined;
+    value.kind === 'transfer'
+      ? mappedDestinationAccountId ?? value.destinationAccountId ?? undefined
+      : undefined;
   if (!accountId || (value.kind === 'transfer' && !destinationAccountId))
     throw new HttpError('contract_mismatch', 502);
   return {

@@ -41,6 +41,7 @@ import {
 } from '@/state/voice-capture';
 import { usePreferenceStore } from '@/state/preferences';
 import { useAppShellStore } from '@/state/app-shell';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 
 // Pre-journal audio remains cleanup-owned across component/owner changes.
 // Deletion never owns the capture lifecycle. Journal-owned audio uses its
@@ -122,6 +123,7 @@ function useOwnedVoiceCapture() {
   const startInFlight = useRef(false);
   const stopInFlight = useRef(false);
   const captureTrace = useRef<string | null>(null);
+  const captureAccountId = useRef<string | null>(null);
   const reRecordInFlight = useRef(false);
   const saveInFlight = useRef(false);
   const suspendedTransport = useRef(false);
@@ -278,6 +280,8 @@ function useOwnedVoiceCapture() {
     )
       return;
     startInFlight.current = true;
+    captureAccountId.current =
+      useCoreFinanceViewState.getState().selectedAccountId;
     for (const uri of discardedCaptureAudio) void cleanupCaptureAudio(uri);
     revision.current += 1;
     const attempt = snapshot();
@@ -571,7 +575,8 @@ function useOwnedVoiceCapture() {
           audio,
           usePreferenceStore.getState().locale,
           current.timezoneOffsetMinutes ??
-            new Date(audio.recordedAt).getTimezoneOffset()
+            new Date(audio.recordedAt).getTimezoneOffset(),
+          captureAccountId.current
         );
         batchHandoff.current = { uri: audio.uri, task: handoff };
         const captureId = await handoff;

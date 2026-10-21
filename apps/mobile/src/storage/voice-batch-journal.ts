@@ -21,6 +21,7 @@ export const voiceBatchOperationSchema = z
     durationMs: z.number().int().min(1).max(60000),
     recordedAt: z.number().int().nonnegative(),
     timezoneOffsetMinutes: z.number().int().min(-840).max(840),
+    accountId: z.string().uuid().nullable().optional(),
     createBody: z.record(z.string(), z.unknown()).nullable(),
     sessionId: z.string().uuid().nullable(),
     version: z.number().int().positive().nullable(),

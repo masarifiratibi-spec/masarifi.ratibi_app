@@ -35,4 +35,36 @@ describeLiveDatabase('actual Manual ledger receipts accepted by the Mobile parse
     const invalid={...detail,postings:[{...detail.postings[0],postingRole:kind==='income'?'source':'destination'}]};
     expect(ledgerDetailSchema.safeParse(invalid).success).toBe(false);
   });
+
+  it.each(['income','expense'] as const)('reads and replays a corrected manual %s with append-only postings',async kind=>{
+    const originalKind=kind==='income'?'expense':'income';
+    const created=await repository.mutate({operation:'createTransaction',scope:'ledger.transaction.create',principal:owner,
+      command:{kind:originalKind,amountMinor:1000,currency:'SAR',accountId,categoryId:null,title:'Synthetic correction',
+        merchant:null,paymentMethod:null,note:null,occurredAt:new Date().toISOString(),source:'manual',externalRef:null},
+      idempotencyKey:`correction-create-${randomUUID()}`,requestId:randomUUID(),status:201});
+    const original=ledgerDetailSchema.parse(Reflect.get(created as object,'transaction'));
+    const input={operation:'reviseTransaction',scope:'ledger.transaction.revise',principal:owner,
+      command:{transactionId:original.transaction.id,expectedVersion:original.transaction.version,patch:{kind,categoryId:null},reason:'Synthetic correction'},
+      idempotencyKey:`correction-${randomUUID()}`,requestId:randomUUID(),status:200};
+    const corrected=await repository.mutate(input);
+    const detail=ledgerDetailSchema.parse(Reflect.get(corrected as object,'transaction'));
+    expect(detail.transaction).toMatchObject({id:original.transaction.id,kind,version:2,source:'manual'});
+    expect(detail.postings).toHaveLength(3);
+    expect(detail.postings).toEqual(expect.arrayContaining(original.postings));
+    expect(detail.postings.reduce((sum,posting)=>sum+posting.amountMinor,0)).toBe(kind==='income'?1000:-1000);
+    expect(ledgerDetailSchema.safeParse({...detail,postings:detail.postings.map((posting,index)=>
+      index===1?{...posting,amountMinor:posting.amountMinor+1}:posting)}).success).toBe(false);
+    expect(await repository.mutate(input)).toEqual(corrected);
+    expect(ledgerDetailSchema.parse(await repository.getTransaction(owner,detail.transaction.id)).transaction.kind).toBe(kind);
+    const listing=await repository.listTransactions(owner,{});
+    expect((listing.items as Array<{id:string;kind:string}>).find(row=>row.id===detail.transaction.id)?.kind).toBe(kind);
+    await repository.mutate({operation:'reverseTransaction',scope:'ledger.transaction.reverse',principal:owner,
+      command:{transactionId:detail.transaction.id,expectedVersion:2,occurredAt:new Date().toISOString(),reason:'Synthetic reversal'},
+      idempotencyKey:`correction-reverse-${randomUUID()}`,requestId:randomUUID(),status:201});
+    const reversed=ledgerDetailSchema.parse(await repository.getTransaction(owner,detail.transaction.id));
+    expect(reversed.transaction.status).toBe('reversed');
+    const canonicalPostings=(postings:typeof detail.postings)=>postings.map(posting=>
+      ({...posting,occurredAt:new Date(posting.occurredAt).toISOString()}));
+    expect(canonicalPostings(reversed.postings)).toEqual(canonicalPostings(detail.postings));
+  });
 });

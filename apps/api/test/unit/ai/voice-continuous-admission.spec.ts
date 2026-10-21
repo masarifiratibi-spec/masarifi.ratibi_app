@@ -5,9 +5,11 @@ it.each([
   ['owner', '', '3', true],
   ['other', 'staging-development', '3', true],
   ['owner', 'staging-development', '2', true],
+  ['new-customer', '', '3', false, false],
+  ['another-customer', 'staging-development', '3', false, false],
 ])(
-  'preserves analysis mode for %s variant=%s contract=%s except the configured DEV owner',
-  async (userId, variant, contract, analysisOnly) => {
+  'applies configured posting policy for %s variant=%s contract=%s',
+  async (userId, variant, contract, analysisOnly, configuredAnalysisOnly = true) => {
     let admitted: unknown;
     const repository = {
       workloadAvailable: () => Promise.resolve(true),
@@ -25,7 +27,7 @@ it.each([
       get: (key: string) =>
         (
           ({
-            MASARIFI_VOICE_ANALYSIS_ONLY: true,
+            MASARIFI_VOICE_ANALYSIS_ONLY: configuredAnalysisOnly,
             MASARIFI_STAGING_VOICE_DEV_OWNER_ID: 'owner',
             SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
           }) as Record<string, unknown>

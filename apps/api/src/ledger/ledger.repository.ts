@@ -115,7 +115,7 @@ function transactionAccountRoles(
   sourceAccountId: string | null | undefined,
   destinationAccountId: string | null | undefined,
 ): { sourceAccountId: string; destinationAccountId: string | null } {
-  const source = kind === 'income' ? destinationAccountId : sourceAccountId;
+  const source = kind === 'income' ? (destinationAccountId ?? sourceAccountId) : sourceAccountId;
   if (!source) throw new Error('LEDGER_RESULT_MISSING');
   return {
     sourceAccountId: source,
