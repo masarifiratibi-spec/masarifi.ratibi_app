@@ -114,8 +114,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing.lg,
-    marginTop: spacing.xs
+    gap: spacing.lg
   },
   icon: {
     minWidth: 48,

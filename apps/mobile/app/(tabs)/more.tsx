@@ -326,8 +326,10 @@ export default function MoreRoute() {
             }}
           />
         </View>
-        <AccountDeletionPanel presentation="link" />
-        <SocialMediaFooter />
+        <View>
+          <AccountDeletionPanel presentation="link" />
+          <SocialMediaFooter />
+        </View>
         {isFixtureModeEnabled() ? (
           <ActionButton
             label={translate('appShell.security.mockSignOutAll')}
