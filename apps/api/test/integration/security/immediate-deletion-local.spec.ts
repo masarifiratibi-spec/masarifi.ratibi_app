@@ -29,8 +29,10 @@ describeLocal('immediate deletion committed receipts on the owned local database
     const url = new URL(localUrl);
     if (
       url.hostname !== '127.0.0.1' ||
-      url.port !== '15876' ||
-      url.pathname !== '/reliability_deletion_20261016'
+      !(
+        (url.port === '15876' && url.pathname === '/reliability_deletion_20261016') ||
+        (url.port === '15918' && url.pathname === '/dev_egress_20261020')
+      )
     )
       throw new Error('OWNED_LOCAL_DELETION_DATABASE_REQUIRED');
     pool = new PoolService({
@@ -92,6 +94,103 @@ describeLocal('immediate deletion committed receipts on the owned local database
     params: {},
   });
   const tokenHash = () => createHash('sha256').update(token).digest('hex');
+
+  it.each([false, true])(
+    'makes an existing cooling request eligible immediately, including receipt replay (%s)',
+    async (withReceipt) => {
+      const existing = (await repository.execute({
+        ...operation(),
+        body: {
+          confirmation: 'DELETE_MY_ACCOUNT',
+          coolingOffHours: 72,
+          ...(withReceipt ? { completionTokenHash: tokenHash() } : {}),
+        },
+      })) as { id: string; coolingOffEndsAt: Date };
+      expect(existing.coolingOffEndsAt.getTime()).toBeGreaterThan(Date.now());
+      const immediateRequest = (await repository.execute({
+        ...operation(),
+        body: {
+          confirmation: 'DELETE_MY_ACCOUNT',
+          coolingOffHours: 0,
+          completionTokenHash: tokenHash(),
+        },
+      })) as { id: string; status: string; coolingOffEndsAt: Date };
+      expect(immediateRequest.id).toBe(existing.id);
+      expect(immediateRequest.status).toBe('verified');
+      const stored = await pool.query(
+        'select id,cooling_off_ends_at<=clock_timestamp() as eligible from private.account_deletion_requests where user_id=$1',
+        [owner],
+      );
+      expect(stored.rows).toEqual([{ id: existing.id, eligible: true }]);
+    },
+  );
+
+  it('preserves an existing cooling deadline when the server still requires a cooling period', async () => {
+    const input = {
+      ...operation(),
+      body: { confirmation: 'DELETE_MY_ACCOUNT', coolingOffHours: 72 },
+    };
+    const existing = (await repository.execute(input)) as { id: string; coolingOffEndsAt: Date };
+    const repeated = (await repository.execute(input)) as { id: string; coolingOffEndsAt: Date };
+    expect(repeated.id).toBe(existing.id);
+    expect(repeated.coolingOffEndsAt).toEqual(existing.coolingOffEndsAt);
+    expect(repeated.coolingOffEndsAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('completes the existing delayed request through the immediate service in the same POST', async () => {
+    const existing = (await repository.execute({
+      ...operation(),
+      body: { confirmation: 'DELETE_MY_ACCOUNT', coolingOffHours: 72 },
+    })) as { id: string };
+    await expect(service.execute(operation())).resolves.toMatchObject({
+      id: existing.id,
+      status: 'completed',
+    });
+    expect(clerk.deleteIdentityUser).toHaveBeenCalledWith(owner);
+    expect(
+      (await pool.query('select status from public.profiles where id=$1', [owner])).rows,
+    ).toEqual([{ status: 'deleted' }]);
+  });
+
+  it('does not advance a newer request when replaying a cancelled receipt', async () => {
+    const old = (await repository.execute({
+      ...operation(),
+      body: {
+        confirmation: 'DELETE_MY_ACCOUNT',
+        coolingOffHours: 72,
+        completionTokenHash: tokenHash(),
+      },
+    })) as { id: string };
+    await repository.execute({
+      ...operation(),
+      operation: 'cancelMyDeletionRequest',
+      body: {},
+      params: { deletionId: old.id },
+    });
+    const newer = (await repository.execute({
+      ...operation(),
+      idempotencyKey: randomUUID(),
+      body: { confirmation: 'DELETE_MY_ACCOUNT', coolingOffHours: 72 },
+    })) as { id: string; coolingOffEndsAt: Date };
+    await expect(
+      repository.execute({
+        ...operation(),
+        body: {
+          confirmation: 'DELETE_MY_ACCOUNT',
+          coolingOffHours: 0,
+          completionTokenHash: tokenHash(),
+        },
+      }),
+    ).resolves.toMatchObject({ id: old.id, status: 'cancelled' });
+    expect(
+      (
+        await pool.query(
+          'select cooling_off_ends_at as deadline from private.account_deletion_requests where id=$1',
+          [newer.id],
+        )
+      ).rows,
+    ).toEqual([{ deadline: newer.coolingOffEndsAt }]);
+  });
 
   it('finishes real handlers in the original POST and recovers the actual completion after the profile is deleted', async () => {
     const completed = (await service.execute(operation())) as {
@@ -234,8 +333,8 @@ describeLocal('immediate deletion committed receipts on the owned local database
     expect(pending).toMatchObject({
       status: 'processing',
       completedAt: null,
-      errorCode: 'DELETION_PROVIDER_UNAVAILABLE',
     });
+    expect(pending).not.toHaveProperty('errorCode');
     expect(
       (await pool.query('select status from public.profiles where id=$1', [owner])).rows[0]?.status,
     ).toBe('deleted');

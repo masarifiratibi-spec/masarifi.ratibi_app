@@ -990,11 +990,22 @@ export class SecurityRepository {
             'select request_id,token_hash from private.account_deletion_receipts where user_id=$1 and operation_id=$2',
             [principal.userId, operationId],
           );
+          if (replay.rows[0] && replay.rows[0].token_hash !== tokenHash)
+            throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), {
+              code: 'IDEMPOTENCY_KEY_REUSED',
+            });
+          if (hours === 0) {
+            // Keep a receipt replay bound to its original request while removing an inherited delay.
+            await client.query(
+              `update private.account_deletion_requests
+               set status='verified',verified_at=clock_timestamp(),cooling_off_ends_at=clock_timestamp()
+               where user_id=$1 and ($2::uuid is null or id=$2)
+                 and status in ('requested','verified')
+                 and (status='requested' or cooling_off_ends_at>clock_timestamp())`,
+              [principal.userId, replay.rows[0]?.request_id ?? null],
+            );
+          }
           if (replay.rows[0]) {
-            if (replay.rows[0].token_hash !== tokenHash)
-              throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), {
-                code: 'IDEMPOTENCY_KEY_REUSED',
-              });
             return this.one(
               client,
               `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",
