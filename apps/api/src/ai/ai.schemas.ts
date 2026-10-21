@@ -710,6 +710,9 @@ function parseAssistantOutputValue(input: unknown, aliases: boolean): AssistantO
   ) {
     invalid();
   }
+  // Persisted replies are single-line text; ordinary provider formatting is not a failed answer.
+  const answer = value.answer.replace(/[\r\n\t]+/gu, ' ').trim();
+  if (!answer || /\p{Cc}/u.test(answer)) invalid();
   if (value.actionPreview !== null) {
     const preview = object(value.actionPreview);
     exactKeys(preview, ['schemaVersion', 'actionType', 'payload', 'evidenceIds']);
@@ -726,7 +729,7 @@ function parseAssistantOutputValue(input: unknown, aliases: boolean): AssistantO
     }
     actionPayload(preview.actionType, preview.payload, aliases);
   }
-  return value as unknown as AssistantOutput;
+  return { ...value, answer } as unknown as AssistantOutput;
 }
 
 export function parseAssistantOutput(input: unknown): AssistantOutput {

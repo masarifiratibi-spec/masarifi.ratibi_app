@@ -279,6 +279,23 @@ describe('AiGateway', () => {
   it.each([
     { name: 'advice', answer: output, expected: null },
     {
+      name: 'Arabic formatted advice',
+      answer: { ...output, answer: 'أنفقت 25 EGP على التسوق.\nأنفقت 13 EGP و7 SAR على المطاعم.' },
+      expected: null,
+      expectedContent: 'أنفقت 25 EGP على التسوق. أنفقت 13 EGP و7 SAR على المطاعم.',
+    },
+    {
+      name: 'English formatted advice',
+      answer: { ...output, answer: ' Shopping: 25 EGP.\r\nRestaurants:\t13 EGP and 7 SAR. ' },
+      expected: null,
+      expectedContent: 'Shopping: 25 EGP. Restaurants: 13 EGP and 7 SAR.',
+    },
+    ...['', ' \r\n\t ', 'unsafe\u0001reply', 'unsafe\u0085reply'].map((answer) => ({
+      name: `invalid persisted text ${JSON.stringify(answer)}`,
+      answer: { ...output, answer },
+      expected: 'AI_SCHEMA_INVALID',
+    })),
+    {
       name: 'unsolicited financial action',
       answer: {
         ...output,
@@ -310,10 +327,10 @@ describe('AiGateway', () => {
       expected: 'AI_SCHEMA_INVALID',
     },
   ].flatMap((testCase) =>
-    ['financial_advice', 'general_finance'].map((intent) => ({ ...testCase, intent })),
+    ['financial_advice', 'general_finance'].map((intent) => ({ expectedContent: 'Safe answer', ...testCase, intent })),
   ))(
     'completes strict Azure $intent / $name while retaining evidence validation',
-    async ({ answer, expected, intent }) => {
+    async ({ answer, expected, expectedContent, intent }) => {
       const saved: unknown[] = [],
         failures: string[] = [];
       const compatible = (value: unknown): boolean => {
@@ -410,7 +427,7 @@ describe('AiGateway', () => {
         expect(failures).toEqual([expected]);
       } else {
         expect(saved).toEqual([
-          expect.objectContaining({ content: 'Safe answer', preview: null, provider: 'azure' }),
+          expect.objectContaining({ content: expectedContent, preview: null, provider: 'azure' }),
         ]);
         expect(failures).toEqual([]);
       }
