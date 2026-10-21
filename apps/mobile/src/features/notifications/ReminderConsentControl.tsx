@@ -99,13 +99,20 @@ export function ReminderConsentControl({ guest = false }: { guest?: boolean }) {
     }
   }
 
-  async function openSettings() {
+  async function openSettings(enableIntent = false) {
     setBusy(true);
     setError(null);
+    let persisting = enableIntent;
     try {
+      if (!isCurrentOwner()) return;
+      if (enableIntent)
+        await usePreferenceStore.getState().setReturnRemindersEnabled(true, ownerId);
+      if (!isCurrentOwner()) return;
+      persisting = false;
       await phoneNotificationService.openSystemSettings();
     } catch {
-      if (isCurrentOwner()) setError('reminders.permission.denied');
+      if (isCurrentOwner())
+        setError(persisting ? 'appShell.error.persistenceFailed' : 'reminders.permission.denied');
     } finally {
       setBusy(false);
     }
@@ -115,15 +122,18 @@ export function ReminderConsentControl({ guest = false }: { guest?: boolean }) {
     <View>
       <SwitchRow
         label={guest ? 'reminders.guest.label' : 'reminders.control.label'}
+        icon={guest ? undefined : 'notifications'}
         subtext={
           guest
             ? 'reminders.guest.description'
             : 'reminders.control.description'
         }
-        value={enabled}
+        value={enabled && (guest || permission === 'granted')}
         disabled={busy}
         onValueChange={(value) => {
-          void change(value);
+          void (!guest && value && permission === 'permanently_denied'
+            ? openSettings(!enabled)
+            : change(value));
         }}
       />
       {enabled && permission && permission !== 'granted' ? (

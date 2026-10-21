@@ -8,7 +8,7 @@
  */
 
 const en = {
-  'reminders.control.label': 'Return reminders',
+  'reminders.control.label': 'Enable notifications',
   'reminders.control.description': 'Occasional reminders to finish setup or check your spending. You can turn them off anytime.',
   'reminders.guest.label': 'Remind me to finish setup',
   'reminders.guest.description': 'Send one reminder tomorrow if I haven’t created an account.',

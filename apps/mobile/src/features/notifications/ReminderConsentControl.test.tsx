@@ -7,6 +7,7 @@ import { useAppShellStore } from '@/state/app-shell';
 import { buildPreferences } from '@/domain/foundation';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
+import { DesignIcon } from '@/design-system/icons';
 
 jest.mock('@/config/mobile-automation', () => ({
   isMobileAutomationEnabled: jest.fn(() => true)
@@ -55,6 +56,7 @@ beforeEach(() => {
   gate.mockReturnValue(true);
   permission.mockResolvedValue('granted');
   phone.getPermission.mockResolvedValue('not_requested');
+  phone.openSystemSettings.mockResolvedValue(undefined);
   authenticatedPermission.mockResolvedValue('granted');
   refresh.mockResolvedValue({});
   usePreferenceStore.setState({
@@ -62,6 +64,82 @@ beforeEach(() => {
     hydrated: true
   });
   useAppShellStore.setState({ session: null, hydrated: true });
+});
+
+it.each(['en', 'ar'] as const)('labels the authenticated bell control in %s and reflects real OS permission', async (locale) => {
+  changeLocale(locale);
+  useAppShellStore.setState({ session: {
+    status: 'authenticated', userId: 'owner-a', expiresAt: Date.now() + 60000,
+    issuedAt: Date.now(), method: 'google', restoration: 'idle'
+  } });
+  const view = renderWithProviders(<ReminderConsentControl />);
+  await screen.findByRole('button', { name: locale === 'ar' ? 'السماح بالإشعارات' : 'Allow notifications' });
+  const control = screen.getByRole('switch');
+  expect(control.props.accessibilityLabel).toContain(locale === 'ar' ? 'تفعيل الإشعارات' : 'Enable notifications');
+  expect(control.props.accessibilityState.checked).toBe(false);
+  expect(usePreferenceStore.getState().returnReminderChoices).toEqual({});
+  expect(view.UNSAFE_getByType(DesignIcon).props.name).toBe('notifications');
+  expect(authenticatedPermission).not.toHaveBeenCalled();
+  fireEvent.press(control);
+  await waitFor(() => expect(screen.getByRole('switch').props.accessibilityState.checked).toBe(true));
+});
+
+it('opens settings from the inactive authenticated switch when OS permission is permanently denied', async () => {
+  phone.getPermission.mockResolvedValue('permanently_denied');
+  useAppShellStore.setState({ session: {
+    status: 'authenticated', userId: 'owner-a', expiresAt: Date.now() + 60000,
+    issuedAt: Date.now(), method: 'google', restoration: 'idle'
+  } });
+  renderWithProviders(<ReminderConsentControl />);
+  await screen.findByRole('button', { name: 'Open settings' });
+  expect(screen.getByRole('switch').props.accessibilityState.checked).toBe(false);
+  fireEvent.press(screen.getByRole('switch'));
+  await waitFor(() => expect(phone.openSystemSettings).toHaveBeenCalledTimes(1));
+  expect(authenticatedPermission).not.toHaveBeenCalled();
+  expect(usePreferenceStore.getState().returnReminderChoices).toEqual({});
+});
+
+it('remembers an explicit enable intent before opening permanently denied OS settings', async () => {
+  phone.getPermission.mockResolvedValue('permanently_denied');
+  usePreferenceStore.setState({ returnReminderChoices: { 'account:owner-a': false } });
+  useAppShellStore.setState({ session: {
+    status: 'authenticated', userId: 'owner-a', expiresAt: Date.now() + 60000,
+    issuedAt: Date.now(), method: 'google', restoration: 'idle'
+  } });
+  phone.openSystemSettings.mockImplementation(async () => {
+    expect(usePreferenceStore.getState().returnReminderChoices['account:owner-a']).toBe(true);
+  });
+  renderWithProviders(<ReminderConsentControl />);
+  await waitFor(() => expect(phone.getPermission).toHaveBeenCalled());
+  fireEvent.press(screen.getByRole('switch'));
+  await waitFor(() => expect(phone.openSystemSettings).toHaveBeenCalledTimes(1));
+  expect(usePreferenceStore.getState().returnReminderChoices['account:owner-a']).toBe(true);
+  expect(screen.getByRole('switch').props.accessibilityState.checked).toBe(false);
+  expect(authenticatedPermission).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it('does not open settings or save activation for a replacement owner during enable persistence', async () => {
+  phone.getPermission.mockResolvedValue('permanently_denied');
+  usePreferenceStore.setState({ returnReminderChoices: { 'account:owner-a': false } });
+  useAppShellStore.setState({ session: {
+    status: 'authenticated', userId: 'owner-a', expiresAt: Date.now() + 60000,
+    issuedAt: Date.now(), method: 'google', restoration: 'idle'
+  } });
+  let resolve!: () => void;
+  const save = jest.requireMock('@/storage/secure-preferences').savePreferences as jest.Mock;
+  save.mockReturnValueOnce(new Promise<void>((done) => { resolve = done; }));
+  renderWithProviders(<ReminderConsentControl />);
+  await waitFor(() => expect(phone.getPermission).toHaveBeenCalled());
+  fireEvent.press(screen.getByRole('switch'));
+  await waitFor(() => expect(save).toHaveBeenCalled());
+  await act(async () => {
+    useAppShellStore.setState({ session: { ...useAppShellStore.getState().session!, userId: 'owner-b' } });
+    resolve();
+  });
+  expect(phone.openSystemSettings).not.toHaveBeenCalled();
+  expect(usePreferenceStore.getState().returnReminderChoices['account:owner-b']).toBeUndefined();
+  expect(refresh).not.toHaveBeenCalled();
 });
 
 it('offers OS permission for default-on reminders without prompting or creating an extra opt-in step', async () => {

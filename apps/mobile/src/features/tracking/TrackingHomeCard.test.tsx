@@ -13,6 +13,11 @@ import { usePreferenceStore } from '@/state/preferences';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { TrackingHomeCard } from './TrackingHomeCard';
 import { useTrackingStatus } from './useAutomaticTracking';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => true)
+}));
 
 const mockRequestPermission = jest.fn();
 const mockOpenSettings = jest.fn();
@@ -97,6 +102,7 @@ function status(
 beforeEach(async () => {
   await resetRuntimeIdentityData();
   jest.clearAllMocks();
+  jest.mocked(isMobileAutomationEnabled).mockReturnValue(true);
   mockNotificationPreferences = {
     ...createNotificationPreferences(1),
     version: 1
@@ -202,7 +208,7 @@ it('keeps the notification card first and centered in the Arabic rail', () => {
   );
 });
 
-it('requests OS permission directly from the Home notification card', () => {
+it('opens application settings from the Home notification card', () => {
   mockUseTrackingStatus.mockReturnValue({
     data: status(),
     isLoading: false,
@@ -212,13 +218,14 @@ it('requests OS permission directly from the Home notification card', () => {
   renderWithProviders(<TrackingHomeCard />);
   fireEvent.press(screen.getByRole('button', { name: 'Enable notifications' }));
 
-  expect(mockRequestPermission).toHaveBeenCalledTimes(1);
-  expect(router.push).not.toHaveBeenCalled();
+  expect(mockRequestPermission).not.toHaveBeenCalled();
+  expect(mockOpenSettings).not.toHaveBeenCalled();
+  expect(router.push).toHaveBeenCalledWith('/settings/application');
   expect(mockSavePreferences).not.toHaveBeenCalled();
 });
 
 it.each(['denied', 'permanently_denied'] as const)(
-  'opens system settings when notification permission is %s',
+  'opens application settings when notification permission is %s',
   (permissionState) => {
     mockNotificationPermission = permissionState;
     mockUseTrackingStatus.mockReturnValue({
@@ -229,11 +236,28 @@ it.each(['denied', 'permanently_denied'] as const)(
 
     renderWithProviders(<TrackingHomeCard />);
     fireEvent.press(
-      screen.getByRole('button', { name: 'Open notification settings' })
+      screen.getByRole('button', { name: 'Enable notifications' })
     );
 
-    expect(mockOpenSettings).toHaveBeenCalledTimes(1);
+    expect(mockOpenSettings).not.toHaveBeenCalled();
     expect(mockRequestPermission).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith('/settings/application');
+  }
+);
+
+it.each(['not_requested', 'denied', 'permanently_denied'] as const)(
+  'preserves the flag-off notification action when OS permission is %s',
+  (permissionState) => {
+    jest.mocked(isMobileAutomationEnabled).mockReturnValue(false);
+    mockNotificationPermission = permissionState;
+    mockUseTrackingStatus.mockReturnValue({ data: status(), isLoading: false, isError: false });
+    renderWithProviders(<TrackingHomeCard />);
+    fireEvent.press(within(screen.getByTestId('notification-home-card')).getByRole('button', {
+      name: permissionState === 'not_requested' ? 'Enable notifications' : 'Open notification settings'
+    }));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(mockRequestPermission).toHaveBeenCalledTimes(permissionState === 'not_requested' ? 1 : 0);
+    expect(mockOpenSettings).toHaveBeenCalledTimes(permissionState === 'not_requested' ? 0 : 1);
   }
 );
 

@@ -28,6 +28,7 @@ import { useHomeSetupCardDismissals } from '@/state/home-setup-card-dismissals';
 import { useTheme } from '@/state/theme-context';
 import { useTrackingStatus } from './useAutomaticTracking';
 import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 
 const CARD_SCALE = 1.05;
 
@@ -85,6 +86,7 @@ export function TrackingHomeCard() {
     notificationPermission.data !== 'granted';
   const canRequestNotificationPermission =
     notificationPermission.data === 'not_requested';
+  const managedNotifications = isMobileAutomationEnabled();
   const hasSourcePreferences =
     status?.smsTrackingEnabled !== undefined ||
     status?.notificationTrackingEnabled !== undefined;
@@ -156,7 +158,7 @@ export function TrackingHomeCard() {
         {showNotifications ? (
           <SetupCard
             actionLabel={
-              canRequestNotificationPermission
+              managedNotifications || canRequestNotificationPermission
                 ? translate('notifications.home.enableAction')
                 : translate('notifications.preferences.openSettings')
             }
@@ -165,7 +167,9 @@ export function TrackingHomeCard() {
             onDismiss={() => dismissals.dismiss(ownerId, 'notifications')}
             mark={<NotificationMark />}
             onPress={() =>
-              canRequestNotificationPermission
+              managedNotifications
+                ? router.push('/settings/application')
+                : canRequestNotificationPermission
                 ? requestNotificationPermission.mutate()
                 : openNotificationSettings.mutate()
             }

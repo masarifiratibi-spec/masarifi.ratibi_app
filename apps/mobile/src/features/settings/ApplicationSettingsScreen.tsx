@@ -17,9 +17,12 @@ import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import type { Account } from '@/domain/core-finance';
 import { colorTokens } from '@/design-system/tokens';
 import { ReminderConsentControl } from '@/features/notifications/ReminderConsentControl';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+import { useAppShellStore } from '@/state/app-shell';
 
 export function ApplicationSettingsScreen() {
   const theme = useTheme();
+  const authenticated = useAppShellStore((state) => state.session?.status === 'authenticated');
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
@@ -72,6 +75,18 @@ export function ApplicationSettingsScreen() {
         onBack={() => router.back()}
         direction={direction}
       />
+
+      {isMobileAutomationEnabled() && authenticated ? (
+        <View
+          testID="application-settings-notifications-card"
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
+          ]}
+        >
+          <ReminderConsentControl />
+        </View>
+      ) : null}
 
       {/* Section 1: Regional Preferences (Language & Week Start) */}
       <View
@@ -566,7 +581,6 @@ export function ApplicationSettingsScreen() {
           />
         </View>
       </View>
-      <ReminderConsentControl />
     </ScrollView>
   );
 }

@@ -10,7 +10,7 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
-  'reminders.control.label': 'تذكيرات العودة',
+  'reminders.control.label': 'تفعيل الإشعارات',
   'reminders.control.description': 'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
   'reminders.guest.label': 'ذكّرني باستكمال الإعداد',
   'reminders.guest.description': 'أرسل تذكيرًا واحدًا غدًا إذا لم أُنشئ حسابًا.',
