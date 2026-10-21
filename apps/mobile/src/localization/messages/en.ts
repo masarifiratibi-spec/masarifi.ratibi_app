@@ -1146,7 +1146,7 @@ const en = {
   'tracking.howItWorks.detection':
     'Automatically reads supported bank messages containing your specified keywords and records expenses in your account.',
   'tracking.howItWorks.privacy':
-    'Your messages are never stored. Only expense transaction data is preserved.',
+    'Transaction data is saved. Financial message content may also be retained for review according to retention settings.',
   'tracking.howItWorks.background':
     'Ensure the app is allowed to run in the background via phone settings > Apps > Masarifi & Ratibi > Battery.',
   'tracking.howItWorks.deviceWarning':
