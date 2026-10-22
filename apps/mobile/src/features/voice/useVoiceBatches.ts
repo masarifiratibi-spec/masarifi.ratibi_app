@@ -8,12 +8,14 @@ import {
 } from '@/services/live/voice-batch-api-service';
 import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
 import { voiceAnalysisKey } from './voice-analysis-query';
+import { VoiceCaptureError } from '@/services/contracts/voice-capture-service';
 const terminal = (status: string) =>
   ['completed', 'cancelled', 'failed'].includes(status);
 
 export function useVoiceBatches(owner: string | null) {
   const [results, setResults] = useState<VoiceBatchResult[]>([]);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [rateLimitedIds, setRateLimitedIds] = useState<string[]>([]);
   const [uncertainIds, setUncertainIds] = useState<string[]>([]);
   const [localFailure, setLocalFailure] = useState(false);
   const [localFailureCode, setLocalFailureCode] = useState<
@@ -140,6 +142,11 @@ export function useVoiceBatches(owner: string | null) {
             .slice(-20)
         );
       if (terminal(result.status)) {
+        setRateLimitedIds((previous) =>
+          previous.filter(
+            (id) => localSessions.current[id] !== result.sessionId
+          )
+        );
         for (const [id, session] of Object.entries(localSessions.current))
           if (session === result.sessionId) settled.current.add(id);
       }
@@ -180,6 +187,9 @@ export function useVoiceBatches(owner: string | null) {
       if (expected !== generation.current || !mounted.current) return;
       Object.assign(localSessions.current, values.localSessions);
       values.results.forEach((value) => publish(value, expected));
+      setRateLimitedIds(
+        (values.rateLimitedIds ?? []).filter((id) => !settled.current.has(id))
+      );
       setPendingIds(
         [...new Set([...values.pendingIds, ...active.current])].filter(
           (id) => !settled.current.has(id)
@@ -204,6 +214,7 @@ export function useVoiceBatches(owner: string | null) {
     mounted.current = true;
     setResults([]);
     setPendingIds([]);
+    setRateLimitedIds([]);
     setUncertainIds([]);
     setLocalFailure(false);
     setLocalFailureCode(undefined);
@@ -278,6 +289,13 @@ export function useVoiceBatches(owner: string | null) {
             }
             return;
           }
+          if (
+            error instanceof VoiceCaptureError &&
+            error.code === 'quota_exceeded'
+          ) {
+            setRateLimitedIds((previous) => [...new Set([...previous, id])]);
+            return;
+          }
           setUncertainIds((previous) => [...new Set([...previous, id])]);
         }
       });
@@ -303,6 +321,9 @@ export function useVoiceBatches(owner: string | null) {
           setPendingIds((previous) =>
             previous.filter((value) => !aliases.has(value))
           );
+          setRateLimitedIds((previous) =>
+            previous.filter((value) => !aliases.has(value))
+          );
           setUncertainIds((previous) =>
             previous.filter((value) => !aliases.has(value))
           );
@@ -317,6 +338,9 @@ export function useVoiceBatches(owner: string | null) {
         active.current.delete(id);
         settled.current.add(id);
         setPendingIds((previous) => previous.filter((value) => value !== id));
+        setRateLimitedIds((previous) =>
+          previous.filter((value) => value !== id)
+        );
         setUncertainIds((previous) => previous.filter((value) => value !== id));
         if (error.phase === 'failed') {
           setLocalFailure(true);
@@ -354,15 +378,21 @@ export function useVoiceBatches(owner: string | null) {
     uncertain: uncertainIds.length > 0,
     localFailure,
     localFailureCode,
+    rateLimited: rateLimitedIds.length > 0,
     // Historical recovery continues silently; it is not a new recording.
     processing:
-      pendingIds.some((id) => foregroundCaptures.current.has(id)) ||
+      pendingIds.some(
+        (id) =>
+          foregroundCaptures.current.has(id) && !rateLimitedIds.includes(id)
+      ) ||
       results.some(
         (row) =>
           !terminal(row.status) &&
           Object.entries(localSessions.current).some(
             ([id, session]) =>
-              foregroundCaptures.current.has(id) && session === row.sessionId
+              foregroundCaptures.current.has(id) &&
+              !rateLimitedIds.includes(id) &&
+              session === row.sessionId
           )
       ),
     latest: results.at(-1) ?? null

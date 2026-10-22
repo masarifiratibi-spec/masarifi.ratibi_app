@@ -49,6 +49,7 @@ const fixture = (
   localFailure: false,
   localFailureCode: undefined,
   processing: false,
+  rateLimited: false,
   submit: () => undefined,
   recover: async () => undefined,
   cancel: async () => undefined

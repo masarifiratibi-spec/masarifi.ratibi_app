@@ -1396,6 +1396,7 @@ const en = {
   'voice.batch.restricted':
     'Recording completed, but voice is not enabled for this account in the test app. No transactions were added.',
   'voice.batch.failed': 'Some processing could not finish.',
+  'voice.batch.rateLimited': 'Voice analysis is paused by a usage limit. Your recording is saved and will retry automatically. Do not record it again.',
   'voice.batch.checking': 'Checking the result…',
   'voice.batch.checkResult': 'Check result',
   'voice.state.processing': 'Analyzing recording...',

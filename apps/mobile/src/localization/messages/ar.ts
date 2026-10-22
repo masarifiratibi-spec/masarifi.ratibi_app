@@ -1347,6 +1347,7 @@ const ar: MessageCatalog = {
   'voice.batch.restricted':
     'اكتمل التسجيل، لكن هذا الحساب غير مُفعّل لخدمة الصوت في نسخة الاختبار. لم تُضَف معاملات.',
   'voice.batch.failed': 'تعذر إكمال بعض المعالجة.',
+  'voice.batch.rateLimited': 'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.',
   'voice.batch.checking': 'جارٍ التحقق من النتيجة…',
   'voice.batch.checkResult': 'التحقق من النتيجة',
   'voice.state.processing': 'جاري تحليل التسجيل...',

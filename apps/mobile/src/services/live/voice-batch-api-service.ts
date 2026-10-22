@@ -154,6 +154,7 @@ export interface VoiceBatchApi {
     localFailure: boolean;
     localFailureCode?: 'voice_canary_restricted';
     localSessions?: Record<string, string>;
+    rateLimitedIds?: string[];
   }>;
   cancelBatch(id: string): Promise<VoiceBatchResult | null>;
   pauseBatches(): void;
@@ -894,6 +895,9 @@ export function createVoiceBatchApi(options: {
         ),
         pendingIds: remaining
           .filter((row) => !terminal(row.phase))
+          .map((row) => row.id),
+        rateLimitedIds: remaining
+          .filter((row) => !terminal(row.phase) && Boolean(row.retryAfterAt))
           .map((row) => row.id),
         localFailure: latestLocal?.phase === 'failed' && !latestLocal.sessionId,
         ...(latestLocal?.phase === 'failed' &&

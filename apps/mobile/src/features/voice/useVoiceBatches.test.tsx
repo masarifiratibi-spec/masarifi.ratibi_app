@@ -16,6 +16,7 @@ import {
 import { VoiceBatchStatus } from './VoiceBatchStatus';
 import { useVoiceBatches } from './useVoiceBatches';
 import { voiceAnalysisKey } from './voice-analysis-query';
+import { VoiceCaptureError } from '@/services/contracts/voice-capture-service';
 
 jest.mock('@/services/voice-analyzer-service', () => ({
   voiceAnalyzerService: {}
@@ -49,6 +50,7 @@ function statusFixture(
     cancel: async () => undefined,
     cancelIds: [],
     localFailureCode: undefined,
+    rateLimited: false,
     processing: false
   };
 }
@@ -87,6 +89,102 @@ function mount() {
     }
   };
 }
+
+it.each(['ar', 'en'] as const)(
+  'explains a quota pause in %s, retains the capture, and clears it after recovery',
+  async (locale) => {
+    const previousLocale = currentLocale();
+    changeLocale(locale);
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => empty,
+      runBatch: jest
+        .fn()
+        .mockRejectedValue(new VoiceCaptureError('quota_exceeded')),
+      pauseBatches: () => undefined
+    });
+    const view = mount();
+    try {
+      await act(async () => {});
+      await act(async () => view.batches.submit(capture));
+      expect(view.batches.pendingIds).toEqual([capture]);
+      expect(view.batches.processing).toBe(false);
+      const message =
+        locale === 'ar'
+          ? 'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.'
+          : 'Voice analysis is paused by a usage limit. Your recording is saved and will retry automatically. Do not record it again.';
+      expect(screen.getByText(message)).toBeTruthy();
+      expect(
+        screen.queryByText(translate('voice.state.processing'))
+      ).toBeNull();
+      Object.assign(voiceAnalyzerService, {
+        recoverBatches: async () => ({
+          ...empty,
+          results: [receipt('completed')],
+          localSessions: { [capture]: session }
+        })
+      });
+      await act(async () => view.batches.recover());
+      expect(view.batches.pendingIds).toEqual([]);
+      expect(screen.queryByText(message)).toBeNull();
+    } finally {
+      view.unmount();
+      changeLocale(previousLocale);
+    }
+  }
+);
+
+it('shows a recovered quota pause and removes it when changing owner', async () => {
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: async () => ({
+      ...empty,
+      pendingIds: [capture],
+      rateLimitedIds: [capture],
+      results: [receipt('uploading')],
+      localSessions: { [capture]: session }
+    }),
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {});
+    expect(screen.getByTestId('voice-batch-status')).toBeTruthy();
+    expect(view.batches.processing).toBe(false);
+    Object.assign(voiceAnalyzerService, { recoverBatches: async () => empty });
+    await act(async () => view.setOwner('other-owner'));
+    expect(screen.queryByTestId('voice-batch-status')).toBeNull();
+    expect(view.batches.pendingIds).toEqual([]);
+  } finally {
+    view.unmount();
+  }
+});
+
+it('keeps another fresh recording in progress while one capture is quota-paused', async () => {
+  const otherCapture = '66666666-6666-4666-8666-666666666666';
+  let finish!: (result: VoiceBatchResult) => void;
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: async () => empty,
+    runBatch: (id: string) =>
+      id === capture
+        ? Promise.reject(new VoiceCaptureError('quota_exceeded'))
+        : new Promise<VoiceBatchResult>((resolve) => {
+            finish = resolve;
+          }),
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {});
+    await act(async () => view.batches.submit(capture));
+    act(() => view.batches.submit(otherCapture));
+    expect(view.batches.processing).toBe(true);
+    expect(screen.getByText(translate('voice.state.processing'))).toBeTruthy();
+    await act(async () => finish(receipt('completed')));
+    expect(view.batches.processing).toBe(false);
+    expect(view.batches.pendingIds).toEqual([capture]);
+  } finally {
+    view.unmount();
+  }
+});
 
 it.each(['ar', 'en'] as const)(
   'keeps an old queued receipt recoverable without showing current analysis in %s',
