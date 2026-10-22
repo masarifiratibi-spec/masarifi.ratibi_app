@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -74,6 +75,10 @@ export function getLiveClerkDisplayName(
 }
 
 export function MobileIdentityProvider({ children }: { children: ReactNode }) {
+  const [providerGeneration, setProviderGeneration] = useState(0);
+  const reloadProvider = useCallback(
+    () => setProviderGeneration((current) => current + 1), []
+  );
   const runtime = resolveClientRuntime();
   if (runtime.mode !== 'live')
     return (
@@ -83,15 +88,24 @@ export function MobileIdentityProvider({ children }: { children: ReactNode }) {
     );
   return (
     <ClerkProvider
+      key={providerGeneration}
       publishableKey={runtime.clerkPublishableKey!}
       tokenCache={clerkCache}
     >
-      <LiveClerkRuntime>{children}</LiveClerkRuntime>
+      <LiveClerkRuntime onProviderReload={reloadProvider}>
+        {children}
+      </LiveClerkRuntime>
     </ClerkProvider>
   );
 }
 
-function LiveClerkRuntime({ children }: { children: ReactNode }) {
+function LiveClerkRuntime({ children, onProviderReload }: {
+  children: ReactNode;
+  onProviderReload: () => void;
+}) {
+  const auth = useAuth();
+  const authLoaded = useRef(auth.isLoaded);
+  authLoaded.current = auth.isLoaded;
   const [sessionKey, setSessionKey] = useState<string | null>();
   const [status, setStatus] = useState<IdentityStatus>('loading');
   useEffect(() => {
@@ -115,7 +129,12 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
               experimental:
                 Platform.OS === 'web' ? {} : { runtimeEnvironment: 'headless' }
             })
-            .then(() => setStatus(clerk.status === 'ready' ? 'ready' : 'error'))
+            .then(() => {
+              if (clerk.status !== 'ready') setStatus('error');
+              else if (authLoaded.current) setStatus('ready');
+              // An offline native load can leave React's provider disconnected from the ready SDK.
+              else if (Platform.OS !== 'web') onProviderReload();
+            })
             .catch((error: unknown) => {
               recordDevelopmentAuthDiagnostic('identity_retry_failure', error);
               const networkUnavailable =
@@ -130,6 +149,7 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
     >
       <LiveClerkSessionContext.Provider value={sessionKey}>
         <ClerkBridgeInstaller
+          auth={auth}
           onSessionKey={setSessionKey}
           onStatus={setStatus}
         />
@@ -140,13 +160,14 @@ function LiveClerkRuntime({ children }: { children: ReactNode }) {
 }
 
 function ClerkBridgeInstaller({
+  auth,
   onSessionKey,
   onStatus
 }: {
+  auth: ReturnType<typeof useAuth>;
   onSessionKey: (sessionKey: string | null) => void;
   onStatus: (status: IdentityStatus) => void;
 }) {
-  const auth = useAuth();
   const identityStartedAt = useRef(performance.now());
   const identityRecorded = useRef(false);
   const signInState = useSignIn();
@@ -377,7 +398,7 @@ function ClerkBridgeInstaller({
       if (status === 'error' || status === 'degraded') {
         recordDevelopmentAuthDiagnostic('identity_error');
         onStatus('error');
-      } else if (status === 'ready' || auth.isLoaded) onStatus('ready');
+      } else if (auth.isLoaded) onStatus('ready');
     };
     update(clerk?.status ?? (auth.isLoaded ? 'ready' : 'loading'));
     const listener = (status: string) => update(status);

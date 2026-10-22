@@ -30,6 +30,7 @@ let authState = {
 const mockUseAuth = jest.fn(() => authState);
 const mockRegisterLiveClerkBridge = jest.fn();
 const mockStartSSOFlow = jest.fn();
+const mockProviderInitialize = jest.fn();
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -51,7 +52,11 @@ it.each(['user-1', 'user-other', null])(
 );
 
 jest.mock('@clerk/expo', () => ({
-  ClerkProvider: ({ children }: { children: React.ReactNode }) => children,
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => {
+    const React = jest.requireActual('react');
+    React.useState(() => { mockProviderInitialize(); return true; });
+    return children;
+  },
   getClerkInstance: jest.fn(),
   useAuth: () => mockUseAuth(),
   useSignIn: () => ({ signIn: {} }),
@@ -78,6 +83,7 @@ function SessionProbe() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockProviderInitialize.mockReset();
   authState = {
     getToken: jest.fn(),
     isLoaded: true,
@@ -276,6 +282,31 @@ function StatusProbe() {
   return <Text onPress={identity.retry}>{identity.status}</Text>;
 }
 
+it('recovers an offline cold start when native Clerk is ready but React auth resources never hydrated', async () => {
+  // DEF-027 physical DEV06: reconnect closed the popup but left startup loading indefinitely.
+  jest.useFakeTimers();
+  authState = { ...authState, isLoaded: false };
+  const clerk = { status: 'ready', load: jest.fn(async () => undefined) };
+  jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
+  mockProviderInitialize.mockImplementationOnce(() => {}).mockImplementationOnce(() => {
+    authState = { ...authState, isLoaded: true };
+  });
+  function RecoveryProbe() {
+    const identity = useLiveIdentityStatus();
+    const session = useLiveClerkSessionKey();
+    return <Text onPress={identity.retry}>{identity.status}:{session ?? 'unresolved'}</Text>;
+  }
+  try {
+    render(<MobileIdentityProvider><RecoveryProbe /></MobileIdentityProvider>);
+    expect(screen.getByText('loading:unresolved')).toBeOnTheScreen();
+    await act(async () => { await jest.advanceTimersByTimeAsync(30_000); });
+    fireEvent.press(screen.getByText('unavailable:unresolved'));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText('ready:session-1')).toBeOnTheScreen();
+    expect(authState.signOut).not.toHaveBeenCalled();
+  } finally { jest.useRealTimers(); }
+});
+
 it('keeps SSO progress in the identity provider across callback screen remounts and terminates cancellation', async () => {
   let finish!: (value: unknown) => void;
   mockStartSSOFlow.mockReturnValue(
@@ -359,6 +390,7 @@ it.each(['ready', 'degraded'] as const)(
       status: 'error',
       load: jest.fn(async () => {
         clerk.status = status;
+        if (status === 'ready') authState = { ...authState, isLoaded: true };
       })
     };
     jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
