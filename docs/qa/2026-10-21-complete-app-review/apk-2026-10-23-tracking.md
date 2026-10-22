@@ -60,14 +60,73 @@ which was corrected; production amount handling was unchanged.
 Mobile TypeScript and the changed test's ESLint check passed. TypeScript needed
 a 3072 MB heap after the intentionally reduced 512/1024 MB caps exhausted it.
 
-Replacement APK build/install and new physical SMS acceptance are pending.
-The tested dd4f693a artifact does not contain this additional repair.
+The initial dd4f693a artifact did not contain this additional repair; it has
+now been superseded by the replacement below.
 
 A read-only list-row edit opened a form displaying an older TRACKING TEST
 description/date. No save or change was made. The direct route for the new
 transaction rendered its correct immutable detail and synced state. Editing
-form/draft correctness is not established by this SMS smoke test; the observed
-form discrepancy remains a separate investigation item.
+form/draft correctness is not established by this SMS smoke test. A subsequent
+direct route to the new transaction's edit screen showed its correct description
+and date as well, with no save. The earlier list-tap discrepancy was not reproduced
+through the direct route and does not establish its cause.
+
+## Replacement containing the repair — physical acceptance completed
+
+Committed and pushed the repair on the same branch as
+`86bd926e1842b675b8bf76e51f3bc6a146a80957`; checked the live remote SHA.
+Built `D:/Masarifi-builds/Masarifi-Ratibi-2026-10-23-86bd926e-arm64.apk`, SHA256
+`2364ada06fe4301a6209446d09e5b127de587dd6bb6365a517e036449d84f475`.
+Actual APK contents matched the current generated Hermes bundle and all eleven
+checked production sources, including the repaired shared classifier. Ordinary
+package, release flags, original certificate, Staging endpoint and packaged
+SQLite/Screens repairs passed again.
+
+The first native build itself succeeded in 6m36s (confirmed in its Gradle daemon
+log), but Windows PowerShell treated SDK XML warning stderr as terminating, so
+its wrapper did not record an exit receipt. Corrected the private wrapper to
+retain stderr and check the native exit code. The subsequent package rebuild
+returned exit 0, BUILD SUCCESSFUL in 1m21s, reusing the freshly compiled bundle.
+No SDK, dependency, production config or DEV build/data change was needed.
+
+Installed in place at 01:49:30 Asia/Riyadh. The installed APK hash matched;
+cold launch returned Status ok in 550 ms and rendered the signed-in home at
+0.02 SAR. Accounts, permissions, source toggles and all 14 existing transactions
+were retained. No old message replay or extra financial effect occurred.
+
+After installation/backgrounding, requested a **different new** 0.01 SAR test:
+`Paid SAR0.01 at REF FIX TEST reference`, deliberately ending at the label with
+no code. The owner confirmed delivery. Background SMS import completed at
+22:51:09Z on 22 October (01:51:09 local on 23 October), accepted=1, rejected=0,
+error=null. Its provider-reference digest is absent, reproducing the original
+input shape and confirming the repair on the physical device.
+
+Exactly one new version-1 confirmed expense, one confirmed -1 SAR minor-unit
+posting to the owned cash account and one transaction-created notice exist.
+SAR changed from 2 to 1 minor units; EGP stayed 1 minor unit. There are 15 owned
+transactions total. The previous APK TEST transaction remains version 1 with
+its single original posting and durable notice. Both distinct test operations
+appear once in the phone list. The new detail shows the cash account,
+23 October, automatic source and `تمت المزامنة`.
+
+Android posted one matching save notification tagged with the new durable
+notice ID on `masarifi-tracking-saved-v1`; its actual shade showed
+`دفع · 0.01 SAR` and REF FIX TEST/cash. It appeared about 10 seconds after the
+server ledger event; it was not present in the first check four seconds after
+that event. Do not describe the notification as instantaneous.
+
+**PASS for installation, opening, background capture, incomplete-reference
+handling, single financial effect, sync and visible save notification for this
+new SMS.** The small synthetic test entries remain. Repeat delivery of this
+reference-free SMS was **not run**; this result does not establish general
+deduplication for messages without a provider reference. DEV data is untouched.
+
+Replacement private sanitized evidence:
+`D:/Masarifi-preservation-2026-10-18/client-reference-fix-20261023/` —
+build result/logs, artifact/installed identities, `physical-acceptance.json`,
+before/after backend counts, `backend-fresh-sms.json`,
+`backend-old-operation-after-repair.json`, `notices-after-fresh-sms-delayed.json`,
+`notice-shade-sanitized.json` and phone transaction/detail UI dumps.
 
 Private sanitized evidence is in
 `D:/Masarifi-preservation-2026-10-18/client-dd4f-20261023/`:
