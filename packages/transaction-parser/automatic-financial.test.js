@@ -39,6 +39,20 @@ test('refund reference evidence distinguishes the original purchase from the new
   assert.equal(only.originalProviderReference,'OLD123456');
   assert.ok(only.reasonCodes.includes('original_transaction_required'));
 });
+
+test('incomplete reference labels do not invent a provider identity',()=>{
+  for(const suffix of ['reference','reference number','ref','ref.','preferred654321']) {
+    const text=`Paid SAR0.01 at APK TEST ${suffix}`;
+    assert.equal(parse(text).providerReference,null,text);
+  }
+});
+
+test('complete reference labels preserve their separate provider codes',()=>{
+  for(const label of ['reference','reference number','ref','ref.','ref#','الرقم المرجعي']) {
+    const text=`Paid SAR0.01 at APK TEST ${label} QA2310DD4FA1`;
+    assert.equal(parse(text).providerReference,'QA2310DD4FA1',text);
+  }
+});
 test('a separate fee cannot silently disappear from an ordinary purchase posting',()=>{
   const result=parse('Purchase EGP 5 card XX4242 fee EGP 0.50');
   assert.equal(result.amountMinor,500);

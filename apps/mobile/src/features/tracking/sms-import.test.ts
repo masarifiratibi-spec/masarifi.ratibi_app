@@ -80,6 +80,22 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it.each([
+    ['reference', undefined],
+    ['reference number', undefined],
+    ['reference QA2310DD4FA1', '9755732b92224dd4ba631bdd3359e5198ea0b3e3179392a631a784bdef0f745b']
+  ])('only sends a provider identity when the SMS has its code: %s', async (suffix, expectedDigest) => {
+    const result = await prepareSmsImport([
+      message({ body: `Paid SAR0.01 at APK TEST ${suffix}` })
+    ], options({
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1'
+    }));
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]?.amountMinor).toBe(-1);
+    expect(result.events[0]?.providerReferenceDigest).toBe(expectedDigest);
+  });
+
   it('resolves a short date from a personal SMS in the device timezone', async () => {
     const original = Intl.DateTimeFormat().resolvedOptions();
     const zone = jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
