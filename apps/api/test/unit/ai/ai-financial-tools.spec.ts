@@ -192,6 +192,37 @@ describe('AssistantFinancialTools', () => {
   });
 
   it.each([
+    ['ماهي اخر عمليه صرف قمت بها', 'expense'],
+    ['What was my last expense?', 'expense'],
+    ['ما هي آخر عملية دخل؟', 'income'],
+    ['What was my latest income?', 'income'],
+  ] as const)('reads the latest matching kind across history for %s', async (question, kind) => {
+    ledger.listTransactions.mockResolvedValueOnce({
+      items: [
+        {
+          kind,
+          amountMinor: 500,
+          currency: 'SAR',
+          title: 'QA coffee',
+          merchant: null,
+          occurredAt: '2026-08-30T10:00:00Z',
+        },
+      ],
+      ledgerVersion: 12,
+    });
+    const result = await tools.resolve(owner, 'recent_transactions', question, 'request-id', [
+      'recent_transactions',
+    ]);
+    expect(ledger.listTransactions).toHaveBeenCalledWith(
+      owner,
+      { limit: 1, status: 'confirmed', kind },
+      'request-id',
+    );
+    expect(result.answer).toContain('5');
+    expect(result.answer).toContain('QA coffee');
+  });
+
+  it.each([
     ['EGP', 4625, '46.25 EGP', -4525, '-45.25 EGP'],
     ['KWD', 1250, '1.25 KWD', -1150, '-1.15 KWD'],
     ['JPY', 1250, '1,250 JPY', -1150, '-1,150 JPY'],

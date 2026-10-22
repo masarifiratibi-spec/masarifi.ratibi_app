@@ -5,7 +5,11 @@ import { PlanningService } from '../planning/planning.service';
 import { ReportsService } from '../reports/reports.service';
 import { localDateAt, zonedDateTimeToInstant } from '../reports/reports.period';
 import type { ReportsSummaryResponse } from '../reports/reports.repository';
-import type { AssistantContextScope, AssistantIntent } from './ai-routing';
+import {
+  latestTransactionRequest,
+  type AssistantContextScope,
+  type AssistantIntent,
+} from './ai-routing';
 import { resolveAssistantContext, type ResolvedAssistantContext } from './assistant-context';
 import { redactAiText } from './ai.schemas';
 
@@ -147,16 +151,14 @@ export class AssistantFinancialTools {
         return unavailable(resolved, 'transaction_scope_required');
       const end = new Date(`${resolved.endDate}T00:00:00Z`);
       end.setUTCDate(end.getUTCDate() + 1);
-      const single =
-        /\b(?:last|latest|most recent)\s+transaction\b|(?:آخر|اخر)\s+معامل[ةه](?![\p{L}])/iu.test(
-          question,
-        );
+      const single = latestTransactionRequest(question);
       const response = record(
         await this.ledger.listTransactions(
           principal,
           {
             limit: single ? 1 : 10,
             status: 'confirmed',
+            ...(single?.kind ? { kind: single.kind } : {}),
             ...(resolved.periodExplicit
               ? {
                   from: zonedDateTimeToInstant(

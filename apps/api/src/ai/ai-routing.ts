@@ -118,7 +118,10 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   [/(?:سجل|اضف|أضف|create|add).*(?:مصروف|دخل|transaction)/iu, 'create_transaction'],
   [/(?:اشتريت|أ?شتري|شراء|afford|buy|purchase)/iu, 'purchase_affordability'],
   [/(?:recent|latest|last).*\btransactions?\b|(?:آخر|اخر).*(?:معامل)/iu, 'recent_transactions'],
-  [/(?:ليه|لماذا|why|مقارن|compare|زاد|انخفض).*(?:صرف|مصروف|spend)/iu, 'period_comparison'],
+  [
+    /(?:(?<![\p{L}])ليه(?![\p{L}])|لماذا|\bwhy\b|مقارن|compare|زاد|انخفض).*(?:صرف|مصروف|spend)/iu,
+    'period_comparison',
+  ],
   [
     /(?:أعلى|اكبر|أكبر|فئة|category|biggest|largest|highest).*(?:صرف|مصروف|spend|expense)|(?:صرف|spend|spent).*(?:فئة|category|\bon\b|\bfor\b|على|في (?!الشهر|سبتمبر|أكتوبر))/iu,
     'category_breakdown',
@@ -136,6 +139,31 @@ const RULES: Array<[RegExp, AssistantIntent]> = [
   [/(?:صرف|مصروف|أنفقت|انفقت|spend|spent|expense)/iu, 'spending_summary'],
   [/(?:ميزاني|ادخار|مالي|فلوس|money|finance|budget|saving)/iu, 'financial_advice'],
 ];
+
+export function latestTransactionRequest(content: string): { kind?: 'expense' | 'income' } | null {
+  const text = content
+    .normalize('NFKC')
+    .replace(/[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]/gu, '');
+  if (
+    /\b(?:last|latest|most recent)\s+expense\b|(?:آخر|اخر)\s+(?:عملي[ةه]\s+صرف|مصروف|صرف)(?![\p{L}])/iu.test(
+      text,
+    )
+  )
+    return { kind: 'expense' };
+  if (
+    /\b(?:last|latest|most recent)\s+income\b|(?:آخر|اخر)\s+(?:عملي[ةه]\s+دخل|دخل)(?![\p{L}])/iu.test(
+      text,
+    )
+  )
+    return { kind: 'income' };
+  if (
+    /\b(?:last|latest|most recent)\s+transaction\b|(?:آخر|اخر)\s+(?:معامل[ةه]|عملي[ةه])(?![\p{L}])/iu.test(
+      text,
+    )
+  )
+    return {};
+  return null;
+}
 
 export function selectConversationHistory(turns: readonly AssistantTurn[]): AssistantTurn[] {
   const boundary = turns.findLastIndex(
@@ -175,7 +203,11 @@ function inferredIntent(content: string, history: readonly AssistantTurn[]): Ass
     .replace(/[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]/gu, '')
     .trim()
     .toLowerCase();
-  const explicitIntent = RULES.find(([pattern]) => pattern.test(normalized))?.[1];
+  const explicitIntent = RULES.find(
+    ([pattern, intent]) =>
+      pattern.test(normalized) ||
+      (intent === 'recent_transactions' && latestTransactionRequest(normalized) !== null),
+  )?.[1];
   if (explicitIntent) return explicitIntent;
   if (/^(?:what about|and |how about|وماذا عن|طيب|طب|وماذا|والشهر)/iu.test(normalized)) {
     const previous = [...history].reverse().find((turn) => turn.role === 'user');

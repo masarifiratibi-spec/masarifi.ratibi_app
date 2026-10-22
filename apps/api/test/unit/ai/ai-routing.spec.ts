@@ -7,12 +7,22 @@ describe('assistant domain and intent routing', () => {
     'Show my recent transactions',
     'اخر معامله كانت بكام وتصرفت في أي',
     'اي اخر معامله ليا',
+    'ماهي اخر عمليه صرف قمت بها',
+    'ما هي آخر عملية صرف قمت بها؟',
+    'What was my last expense?',
+    'What was my latest income?',
   ])('routes the actual latest-transaction question %s to the owned ledger', (content) => {
     expect(routeAssistantMessage({ content })).toMatchObject({
       intent: 'recent_transactions',
       execution: 'deterministic',
       financialTools: ['ledger.recent_transactions'],
     });
+  });
+
+  it('does not mistake an Arabic word containing ليه for a why question', () => {
+    expect(routeAssistantMessage({ content: 'عملية صرفي هذا الشهر' }).intent).toBe(
+      'spending_summary',
+    );
   });
 
   it.each([
@@ -23,6 +33,7 @@ describe('assistant domain and intent routing', () => {
     'كيف أقدر أوفر أكثر الشهر القادم؟',
     'نصائح ذكية للتوفير',
     'نصائح للتوفير',
+    'Analyze my last expense and recommend how to save',
   ])('keeps reasoning request %s on the provider path', (content) => {
     expect(routeAssistantMessage({ content })).toMatchObject({
       intent: 'financial_advice',
