@@ -99,7 +99,7 @@ function moneyCandidates(text, snapshot) {
   return candidates;
 }
 function extractTime(text, input) {
-  const zone = {SA:'Asia/Riyadh',AE:'Asia/Dubai',EG:'Africa/Cairo'}[input.country];
+  const zone = {SA:'Asia/Riyadh',AE:'Asia/Dubai',EG:'Africa/Cairo'}[input.country] ?? input.timeZone;
   const build = (year,month,day,hour,minute,second='00') => {
     if (!zone || +month < 1 || +month > 12 || +day < 1 || +day > 31 || +hour > 23 || +minute > 59 || +second > 59) return null;
     const target=Date.UTC(+year,+month-1,+day,+hour,+minute,+second);
@@ -116,10 +116,16 @@ function extractTime(text, input) {
     if(normalized.getUTCDate()!==+day || normalized.getUTCMonth()+1!==+month || matches.length!==1) return null;
     return new Date(matches[0]).toISOString();
   };
-  let m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (m) return {occurredAt:build(m[1],m[2],m[3],m[4],m[5],m[6]), timeProvenance:'embedded'};
-  m = text.match(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (m) return {occurredAt: +m[1] > 12 ? build(m[3],m[2],m[1],m[4],m[5],m[6]) : null, timeProvenance: +m[1] > 12 ? 'embedded' : 'ambiguous'};
+  let m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?\b/);
+  if (m) return {occurredAt:build(m[1],m[2],m[3],m[4]??'00',m[5]??'00',m[6]), timeProvenance:'embedded'};
+  m = text.match(/\b(\d{1,2})([-/])(\d{1,2})\2(20\d{2}|\d{2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\b/);
+  if (m) {
+    // Short years are anchored to the receipt century; day/month order still needs proof.
+    const year=m[4].length===4 ? +m[4] : Number.isFinite(input.receivedAt) ? Math.floor(new Date(input.receivedAt).getUTCFullYear()/100)*100+(+m[4]) : null;
+    const dayFirst=+m[1]>12 || m[1]===m[3], monthFirst=+m[3]>12;
+    return {occurredAt:year!==null && (dayFirst || monthFirst) ? build(year,dayFirst?m[3]:m[1],dayFirst?m[1]:m[3],m[5]??'00',m[6]??'00',m[7]) : null,
+      timeProvenance:dayFirst || monthFirst ? 'embedded' : 'ambiguous'};
+  }
   m = text.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(20\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
   if (m) {
     const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];

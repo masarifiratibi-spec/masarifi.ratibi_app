@@ -57,9 +57,6 @@ describe('TrackingStatusJourney', () => {
       screen.getByTestId('tracking-permission-warning-banner').props
         .accessibilityState
     ).toEqual({ disabled: true });
-    expect(
-      screen.queryByText(translate('tracking.howItWorks.deviceWarning'))
-    ).toBeNull();
   });
 
   it('shows status, recovery, and explanations', async () => {

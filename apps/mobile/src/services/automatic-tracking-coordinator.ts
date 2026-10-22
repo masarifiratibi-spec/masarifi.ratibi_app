@@ -1,5 +1,4 @@
 import * as Crypto from 'expo-crypto';
-import Constants from 'expo-constants';
 import { getTrackingDeviceId } from './tracking-device';
 import { reconcileTrackingSaves } from './tracking-save-confirmation';
 import {
@@ -7,10 +6,7 @@ import {
   scheduleTrackingFollowUp
 } from './tracking-background-runtime';
 
-import {
-  resolveClientMode,
-  resolveClientRuntime
-} from '@/config/client-runtime';
+import { resolveClientMode } from '@/config/client-runtime';
 import type {
   KeywordRuleSummary,
   SenderRule,
@@ -100,7 +96,6 @@ interface CoordinatorDependencies {
   now(): number;
   deviceId?(): Promise<string>;
   onSaved?(ownerId: string, sessionId: string): Promise<boolean | void>;
-  recheckProcessingImport?: boolean;
   scheduleFollowUp?(ownerId: string): Promise<void>;
   configureBackground?(
     ownerId: string,
@@ -142,6 +137,7 @@ export function createAutomaticTrackingCoordinator(
   const execute = async (
     requireFreshConfiguration = false
   ): Promise<AutomaticTrackingSyncState> => {
+    let phase = 'queue';
     const session = dependencies.session();
     if (
       !dependencies.isLive() ||
@@ -162,6 +158,7 @@ export function createAutomaticTrackingCoordinator(
       let status: TrackingStatusSnapshot | null = null;
       if (online) {
         try {
+          phase = 'status';
           status = await dependencies.tracking.getStatus();
           mode = status.mode;
         } catch (error) {
@@ -190,6 +187,7 @@ export function createAutomaticTrackingCoordinator(
       };
       let last: AutomaticTrackingSyncState | null = null;
       const sources = await dependencies.sources.load();
+      phase = 'notification_status';
       const captureIssue = sources.notificationEnabled
         ? await dependencies.bankNotifications.getCaptureIssue?.()
         : null;
@@ -203,6 +201,7 @@ export function createAutomaticTrackingCoordinator(
       let config = queue.rules;
       if (online) {
         try {
+          phase = 'rules';
           const candidate = dependencies.tracking.getRuleConfiguration
             ? await dependencies.tracking.getRuleConfiguration()
             : await onlineRuleSnapshot(dependencies);
@@ -237,13 +236,17 @@ export function createAutomaticTrackingCoordinator(
               ? sources.notificationEnabled
               : sources.smsEnabled)
         );
+      phase = 'pending_receipts';
       if (online && queue.pending.length)
         last = await flush(
           ownerId,
           eligiblePending(queue.pending),
           dependencies,
           update,
-          stillOwner
+          stillOwner,
+          (step) => {
+            phase = step;
+          }
         );
       const sourceSmsAt =
         sources.smsActivatedAt ??
@@ -272,15 +275,18 @@ export function createAutomaticTrackingCoordinator(
             dependencies.now()
         )
       };
+      phase = 'activation';
       await dependencies.queue.setActivation(ownerId, activation);
       const rules = cachedRules(config);
       const deviceId = dependencies.deviceId
         ? await dependencies.deviceId()
         : 'legacy-device';
+      phase = 'accounts';
       const accounts = online
         ? await dependencies.listAccounts()
         : await dependencies.listCachedAccounts();
       stillOwner();
+      phase = 'native_configuration';
       await dependencies.configureBackground?.(
         ownerId,
         { ...config, activation },
@@ -309,6 +315,7 @@ export function createAutomaticTrackingCoordinator(
         inputs: Parameters<typeof prepareFinancialMessageImport>[0],
         source: 'sms' | 'provider'
       ) => {
+        phase = `prepare_${source}`;
         const prepared = await dependencies.prepare(inputs, {
           ...rules,
           accounts,
@@ -364,6 +371,7 @@ export function createAutomaticTrackingCoordinator(
           ...prepared.events.map((e) => e.sourceItemKey),
           ...prepared.skippedFingerprints
         ];
+        phase = `persist_${source}`;
         if (prepared.events.length) {
           await dependencies.queue.enqueue(ownerId, {
             idempotencyKey: await importKey(prepared, source),
@@ -400,6 +408,7 @@ export function createAutomaticTrackingCoordinator(
         fingerprints = new Set([...fingerprints, ...seen]);
       };
       if (sources.notificationEnabled && notificationAccess === 'granted') {
+        phase = 'read_notifications';
         const records =
           await dependencies.bankNotifications.readRecent(capturePageSize);
         if (config.accountingPolicy) {
@@ -452,6 +461,7 @@ export function createAutomaticTrackingCoordinator(
         dependencies.inbox.available
       ) {
         for (let page = 0; page < 4; page++) {
+          phase = 'read_sms';
           const messages = await dependencies.inbox.readRecent({
             since: cursor,
             afterId: cursorId,
@@ -470,19 +480,41 @@ export function createAutomaticTrackingCoordinator(
       }
       stillOwner();
       const pending = (await dependencies.queue.load(ownerId)).pending;
-      if (captureIssue) return update('error', { errorCode: 'sync_failed' });
+      phase = 'submit_receipts';
+      if (captureIssue) {
+        console.warn(
+          'tracking_notification_capture_issue',
+          captureIssue === 'tracking_notification_queue_full'
+            ? 'queue_full'
+            : 'storage_failed'
+        );
+        return update('error', { errorCode: 'sync_failed' });
+      }
       if (online && pending.length)
         return await flush(
           ownerId,
           eligiblePending(pending),
           dependencies,
           update,
-          stillOwner
+          stillOwner,
+          (step) => {
+            phase = step;
+          }
         );
       return captured
         ? update('queued', serviceFailed ? { errorCode: 'sync_failed' } : {})
         : (last ?? update(accountRequired ? 'account_required' : 'idle'));
-    } catch {
+    } catch (error) {
+      // Keep SMS text, identities and server responses out of device logs.
+      const code =
+        error instanceof Error && /^[a-z_]{1,80}$/.test(error.message)
+          ? error.message
+          : error instanceof TypeError
+            ? 'type_error'
+            : error instanceof RangeError
+              ? 'range_error'
+              : 'unknown';
+      console.warn('tracking_sync_failed', phase, code);
       return update('error', { errorCode: 'sync_failed' });
     }
   };
@@ -655,7 +687,8 @@ async function flush(
     status: AutomaticTrackingSyncStatus,
     patch?: Partial<AutomaticTrackingSyncState>
   ) => AutomaticTrackingSyncState,
-  fence: () => void = () => undefined
+  fence: () => void = () => undefined,
+  setPhase: (phase: string) => void = () => undefined
 ): Promise<AutomaticTrackingSyncState> {
   let last = update('idle');
   for (const entry of pending) {
@@ -667,16 +700,19 @@ async function flush(
       throw new Error('tracking_owner_changed');
     let current: TrackingImportSession;
     if (entry.sessionId) {
+      setPhase('poll_import');
       current = await dependencies.tracking.getImportSession(
         entry.sessionId,
         ownerId
       );
     } else {
+      setPhase('submit_import');
       current = await dependencies.tracking.submitImport(
         entry.submission,
         entry.idempotencyKey,
         ownerId
       );
+      setPhase('persist_receipt');
       await dependencies.queue.markSubmitted(
         ownerId,
         entry.idempotencyKey,
@@ -684,7 +720,6 @@ async function flush(
       );
     }
     if (
-      dependencies.recheckProcessingImport &&
       current.acceptedCount === 0 &&
       (current.status === 'received' || current.status === 'processing')
     ) {
@@ -701,6 +736,7 @@ async function flush(
       }
       fence();
     }
+    setPhase('confirm_saved');
     if (
       current.acceptedCount > 0 &&
       (await dependencies.onSaved?.(ownerId, current.id)) === false
@@ -713,6 +749,7 @@ async function flush(
       continue;
     }
     if (current.status === 'review') {
+      setPhase('read_reviews');
       const itemIds = new Set(
         await dependencies.tracking.listImportItemIds(current.id)
       );
@@ -798,10 +835,6 @@ const coordinator = createAutomaticTrackingCoordinator({
   now: Date.now,
   deviceId: getTrackingDeviceId,
   onSaved: reconcileTrackingSaves,
-  recheckProcessingImport:
-    Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
-    resolveClientRuntime().mode === 'live' &&
-    resolveClientRuntime().apiUrl === 'https://api.staging.masarifiratibi.com',
   configureBackground: configureTrackingBackground,
   scheduleFollowUp: scheduleTrackingFollowUp
 });

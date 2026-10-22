@@ -188,7 +188,7 @@ it('presents one stable transaction identity when both channels report its accep
     trackingNativeRuntime?.presentCaptureConfirmation
   ).toHaveBeenCalledTimes(1);
 });
-it('keeps the ordinary package outside DEV notification qualification', async () => {
+it('presents a verified save in the ordinary Staging package', async () => {
   Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
   jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
     {
@@ -201,8 +201,69 @@ it('keeps the ordinary package outside DEV notification qualification', async ()
   expect(await reconcileTrackingSaves('owner', 'session')).toBe(true);
   expect(
     trackingNativeRuntime?.presentCaptureConfirmation
-  ).not.toHaveBeenCalled();
+  ).toHaveBeenCalledWith(
+    'owner',
+    '20000000-0000-4000-8000-000000000019',
+    expect.stringMatching(/^دفع · .*1\.00.*SAR$/u),
+    expect.stringContaining('متجر الاختبار')
+  );
 });
+it('finishes an ordinary verified save even when unrelated finance cache synchronization fails', async () => {
+  Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
+  jest
+    .mocked(automaticTrackingService.listImportOutcomes!)
+    .mockResolvedValue([
+      {
+        itemId: 'item',
+        status: 'accepted',
+        transactionId: '10000000-0000-4000-8000-000000000011',
+        notificationId: '20000000-0000-4000-8000-000000000019'
+      }
+    ]);
+  jest
+    .mocked(synchronizeLiveCoreFinance)
+    .mockRejectedValueOnce(new Error('SYNC_SNAPSHOT_INVALID'));
+  await expect(reconcileTrackingSaves('owner', 'session')).resolves.toBe(true);
+  expect(
+    trackingNativeRuntime?.presentCaptureConfirmation
+  ).toHaveBeenCalledWith(
+    'owner',
+    '20000000-0000-4000-8000-000000000019',
+    expect.any(String),
+    expect.any(String)
+  );
+});
+it.each(['notice_missing', 'ledger_not_posted'] as const)(
+  'retains an ordinary accepted capture until its owned confirmation is verifiable: %s',
+  async (scenario) => {
+    Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
+    jest
+      .mocked(automaticTrackingService.listImportOutcomes!)
+      .mockResolvedValue([
+        {
+          itemId: 'item',
+          status: 'accepted',
+          transactionId: '10000000-0000-4000-8000-000000000011',
+          notificationId:
+            scenario === 'notice_missing'
+              ? null
+              : '20000000-0000-4000-8000-000000000019'
+        }
+      ]);
+    if (scenario === 'ledger_not_posted')
+      jest.mocked(coreFinanceService.getTransaction).mockResolvedValueOnce({
+        id: '10000000-0000-4000-8000-000000000011',
+        source: 'automatic',
+        status: 'pending',
+        syncStatus: 'synced',
+        deletedAt: null
+      } as never);
+    expect(await reconcileTrackingSaves('owner', 'session')).toBe(false);
+    expect(
+      trackingNativeRuntime?.presentCaptureConfirmation
+    ).not.toHaveBeenCalled();
+  }
+);
 it('reconciles finance even when no notice was prepared', async () => {
   jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
     {
@@ -332,17 +393,23 @@ it('refreshes the accepted server balance while retaining a failed cache synchro
       notificationId: '20000000-0000-4000-8000-000000000019'
     }
   ]);
-  jest.mocked(synchronizeLiveCoreFinance).mockRejectedValueOnce(new Error('INTERNAL_ERROR'));
+  jest
+    .mocked(synchronizeLiveCoreFinance)
+    .mockRejectedValueOnce(new Error('INTERNAL_ERROR'));
   const refresh = jest.fn();
   const unsubscribe = subscribeTrackingSaves(refresh);
   try {
-    await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow('INTERNAL_ERROR');
+    await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow(
+      'INTERNAL_ERROR'
+    );
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(refresh).toHaveBeenCalledWith({
       ownerId: 'owner',
       transactionIds: ['10000000-0000-4000-8000-000000000011']
     });
-    expect(trackingNativeRuntime?.presentCaptureConfirmation).toHaveBeenCalledTimes(1);
+    expect(
+      trackingNativeRuntime?.presentCaptureConfirmation
+    ).toHaveBeenCalledTimes(1);
   } finally {
     unsubscribe();
   }
@@ -363,7 +430,9 @@ it('does not refresh a different owner after cache synchronization fails', async
   const refresh = jest.fn();
   const unsubscribe = subscribeTrackingSaves(refresh);
   try {
-    await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow('INTERNAL_ERROR');
+    await expect(reconcileTrackingSaves('owner', 'session')).rejects.toThrow(
+      'INTERNAL_ERROR'
+    );
     expect(refresh).not.toHaveBeenCalled();
   } finally {
     unsubscribe();
@@ -483,16 +552,14 @@ it('shows English transaction content without a saved-status heading', async () 
   jest
     .mocked(usePreferenceStore.getState)
     .mockReturnValue({ locale: 'en' } as never);
-  jest
-    .mocked(automaticTrackingService.listImportOutcomes!)
-    .mockResolvedValue([
-      {
-        itemId: 'item',
-        status: 'accepted',
-        transactionId: '10000000-0000-4000-8000-000000000011',
-        notificationId: '20000000-0000-4000-8000-000000000019'
-      }
-    ]);
+  jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
+    {
+      itemId: 'item',
+      status: 'accepted',
+      transactionId: '10000000-0000-4000-8000-000000000011',
+      notificationId: '20000000-0000-4000-8000-000000000019'
+    }
+  ]);
   await reconcileTrackingSaves('owner', 'session');
   expect(
     trackingNativeRuntime!.presentCaptureConfirmation
@@ -508,16 +575,14 @@ it('still presents verified transaction details when optional cached labels are 
   jest
     .mocked(openDatabase)
     .mockRejectedValueOnce(new Error('cache unavailable'));
-  jest
-    .mocked(automaticTrackingService.listImportOutcomes!)
-    .mockResolvedValue([
-      {
-        itemId: 'item',
-        status: 'accepted',
-        transactionId: '10000000-0000-4000-8000-000000000011',
-        notificationId: '20000000-0000-4000-8000-000000000019'
-      }
-    ]);
+  jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
+    {
+      itemId: 'item',
+      status: 'accepted',
+      transactionId: '10000000-0000-4000-8000-000000000011',
+      notificationId: '20000000-0000-4000-8000-000000000019'
+    }
+  ]);
   expect(await reconcileTrackingSaves('owner', 'session')).toBe(true);
   expect(
     trackingNativeRuntime!.presentCaptureConfirmation
@@ -533,16 +598,14 @@ it('does not present cached details after ownership changes while reading them',
     useAppShellStore.setState({ session: null });
     throw new Error('owner changed');
   });
-  jest
-    .mocked(automaticTrackingService.listImportOutcomes!)
-    .mockResolvedValue([
-      {
-        itemId: 'item',
-        status: 'accepted',
-        transactionId: '10000000-0000-4000-8000-000000000011',
-        notificationId: '20000000-0000-4000-8000-000000000019'
-      }
-    ]);
+  jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
+    {
+      itemId: 'item',
+      status: 'accepted',
+      transactionId: '10000000-0000-4000-8000-000000000011',
+      notificationId: '20000000-0000-4000-8000-000000000019'
+    }
+  ]);
   expect(await reconcileTrackingSaves('owner', 'session')).toBe(false);
   expect(
     trackingNativeRuntime!.presentCaptureConfirmation

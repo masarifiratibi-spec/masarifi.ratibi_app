@@ -24,7 +24,7 @@ export interface Classification {
 export function normalizeFinancialText(value: string): string;
 export function validateRuleSnapshot(value: unknown): RuleSnapshot;
 export function validateClassification(value: unknown): Omit<Classification, 'providerReference'>;
-export function classifyFinancialMessage(input: {text: string; sender?: string; country?: string | null; locale?: string; channel?: string; receivedAt?: number}, snapshot?: RuleSnapshot): Classification;
+export function classifyFinancialMessage(input: {text: string; sender?: string; country?: string | null; timeZone?: string; locale?: string; channel?: string; receivedAt?: number}, snapshot?: RuleSnapshot): Classification;
 export const defaultSnapshot: RuleSnapshot;
 export const evidenceCorpus: {id:string; evidence:string; sender:string; country:string|null; text:string; expected:Record<string,string|number|null>}[];
 

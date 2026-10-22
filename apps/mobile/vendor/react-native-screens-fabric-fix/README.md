@@ -17,21 +17,23 @@ an old proxy's teardown from clearing a newer callback. Our additional guard,
 under `installMutex_`, rejects setup after invalidation so a queued resume
 cannot reinstall a null receiver or replace a newer owner's callback.
 
-## Applying to an explicitly authorized Staging DEV native build
+## Applying to Android builds
 
-From `apps/mobile`, with `MASARIFI_APP_VARIANT=staging-development`:
+Ordinary and DEV Android builds share the pinned repair. From `apps/mobile`:
 
 ```text
-node scripts/screens-fabric-fix.mjs --apply
-node scripts/screens-fabric-fix.mjs --check
+npm run prepare:android
+npm run check:android-native-fixes
 node --test scripts/screens-fabric-fix.test.mjs
 ```
 
 The command validates the version and all four original/replacement hashes
 before writing (normalizing only CRLF/LF). Unknown edits fail without changing any file. Reapplication
-is safe. It is deliberately an explicit DEV build step; there is no automatic
-postinstall, production build, or runtime hook. Reapply after reinstalling
-dependencies. A native build must compile all affected objects together.
+is safe. Postinstall applies both native repairs. Android prebuild repeats the
+preparation when installation scripts were skipped, and the generated Gradle
+configuration refuses a build with missing or unrecognized patches. The older
+single-patch command remains a DEV-only manual entry point. No app data is read
+or removed. A native build must compile all affected objects together.
 JavaScript reload alone cannot activate this change.
 
 ## Native lifecycle regression

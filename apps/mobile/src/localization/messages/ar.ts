@@ -12,12 +12,15 @@ import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 const ar: MessageCatalog = {
   'settings.socialMedia.openError': 'تعذر فتح الحساب. حاول مرة أخرى.',
   'reminders.control.label': 'تفعيل الإشعارات',
-  'reminders.control.description': 'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
+  'reminders.control.description':
+    'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
   'reminders.guest.label': 'ذكّرني باستكمال الإعداد',
-  'reminders.guest.description': 'أرسل تذكيرًا واحدًا غدًا إذا لم أُنشئ حسابًا.',
+  'reminders.guest.description':
+    'أرسل تذكيرًا واحدًا غدًا إذا لم أُنشئ حسابًا.',
   'reminders.onboarding.title': 'أكمل إعداد حسابك',
   'reminders.onboarding.body': 'خطوة بسيطة وتبدأ متابعة مصاريفك.',
-  'reminders.permission.denied': 'الإشعارات غير متاحة. اسمح بها من إعدادات الهاتف ثم حاول مجددًا.',
+  'reminders.permission.denied':
+    'الإشعارات غير متاحة. اسمح بها من إعدادات الهاتف ثم حاول مجددًا.',
   'reminders.permission.allow': 'السماح بالإشعارات',
   'assistant.report.scope':
     'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
@@ -54,7 +57,8 @@ const ar: MessageCatalog = {
     'تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.',
   'settings.deletion.reverify': 'إرسال رمز التحقق',
   'settings.deletion.retry': 'إعادة المحاولة',
-  'settings.deletion.dev.sessionRetry': 'تعذر إكمال الحذف بالجلسة الحالية. أعد المحاولة؛ لم يُحذف الحساب.',
+  'settings.deletion.dev.sessionRetry':
+    'تعذر إكمال الحذف بالجلسة الحالية. أعد المحاولة؛ لم يُحذف الحساب.',
   'settings.deletion.code': 'رمز التحقق',
   'settings.deletion.verify': 'تحقق ومتابعة',
   'settings.deletion.codeSent': 'أدخل الرمز المرسل إلى {{destination}}.',
@@ -594,8 +598,10 @@ const ar: MessageCatalog = {
   'appShell.progressive.savings': 'إنشاء هدف ادخار',
   'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
   'appShell.networkNotice.title': 'أنت غير متصل بالإنترنت',
-  'appShell.networkNotice.message': 'تحقّق من اتصال Wi-Fi أو بيانات الهاتف، ثم حاول مرة أخرى.',
-  'appShell.networkNotice.stale': 'قد تكون الأرصدة والمعاملات المعروضة غير محدثة.',
+  'appShell.networkNotice.message':
+    'تحقّق من اتصال Wi-Fi أو بيانات الهاتف، ثم حاول مرة أخرى.',
+  'appShell.networkNotice.stale':
+    'قد تكون الأرصدة والمعاملات المعروضة غير محدثة.',
   'appShell.networkNotice.retry': 'إعادة المحاولة',
   'appShell.networkNotice.dismiss': 'إغلاق',
   'appShell.connectionUnavailable.message':
@@ -1080,15 +1086,15 @@ const ar: MessageCatalog = {
   'tracking.home.onboardingHeading': 'لنبدأ.',
   'tracking.home.smsBody': 'تتبّع معاملاتك من الرسائل المالية.',
   'tracking.home.notificationTitle': 'تتبع الإشعارات',
-  'tracking.home.notificationBody': 'التقط معاملاتك من إشعارات البنوك والمحافظ.',
+  'tracking.home.notificationBody':
+    'التقط معاملاتك من إشعارات البنوك والمحافظ.',
   'tracking.home.enableTitle': 'تتبّع مصاريفك تلقائيًا',
   'tracking.home.enableBody':
     'خلّ مصاريفي وراتبي يلتقط عملياتك تلقائيًا من الرسائل المدعومة.',
   'tracking.home.enableAction': 'تفعيل التتبع التلقائي',
   'tracking.home.dismissAction': 'إخفاء اقتراح التتبع التلقائي',
   'notifications.home.enableTitle': 'فعّل الإشعارات',
-  'notifications.home.enableBody':
-    'استلم تنبيهات المعاملات والتذكيرات.',
+  'notifications.home.enableBody': 'استلم تنبيهات المعاملات والتذكيرات.',
   'notifications.home.enableAction': 'تفعيل الإشعارات',
   'notifications.home.dismissAction': 'إخفاء اقتراح الإشعارات',
   'notifications.home.enableFailed': 'تعذر تفعيل الإشعارات. حاول مرة أخرى.',
@@ -1104,20 +1110,22 @@ const ar: MessageCatalog = {
     'قراءة الرسائل المالية ومطابقتها مع كلمات التتبع',
   'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
   'tracking.source.notificationTrackingDescription':
-    'فحص نص الإشعارات محلياً لاكتشاف التنبيهات المالية، بما فيها التطبيقات الجديدة. يُتجاهل النص غير المالي وتُشفّر الحالات المحتفظ بها.',
+    'اكتشاف المعاملات من إشعارات التطبيقات المالية',
+  'tracking.source.enabling': 'جارٍ تفعيل التتبع…',
+  'tracking.source.disabling': 'جارٍ إيقاف التتبع…',
+  'tracking.sync.scanning': 'جارٍ فحص الرسائل الجديدة…',
+  'tracking.sync.processing': 'جارٍ معالجة المعاملات…',
+  'tracking.sync.error': 'تعذّرت المزامنة. حاول مرة أخرى.',
   'tracking.status.demo': 'تتبّع تجريبي — ليست بيانات إنتاج',
   'tracking.permission.warning': 'لم يتم منح أذونات الرسائل. اضغط للتفعيل.',
   'tracking.permission.unavailableMessage':
     'التتبع التلقائي للرسائل غير متاح في هذا الإصدار. يظل الإدخال اليدوي متاحًا.',
   'tracking.howItWorks.title': 'كيف يعمل التتبع التلقائي؟',
   'tracking.howItWorks.detection':
-    'قراءة رسائل البنك تلقائياً التي تحتوي على كلماتك المحددة وحفظ المصروفات في حسابك.',
+    'تُضاف المعاملات الواضحة تلقائيًا، وما يحتاج تأكيدًا يظهر للمراجعة.',
   'tracking.howItWorks.privacy':
-    'تُحفظ بيانات المعاملات، وقد يُحتفظ بمحتوى الرسائل المالية للمراجعة وفق إعدادات الاحتفاظ.',
-  'tracking.howItWorks.background':
-    'للسماح للتطبيق بالعمل في الخلفية، افتح إعدادات هاتفك، ثم التطبيقات، ثم تطبيق Masarifi، ثم البطارية.',
-  'tracking.howItWorks.deviceWarning':
-    'بعض الهواتف (شاومي، سامسونج، هواوي، إلخ) توقف التطبيقات في الخلفية. اضغط هنا لمعرفة كيفية إصلاح ذلك لجهازك.',
+    'قد تُحفظ الرسائل المالية للمراجعة حسب إعدادات الاحتفاظ.',
+  'tracking.howItWorks.background': 'اسمح بالعمل في الخلفية لاستمرار التتبع.',
   'tracking.keywords.sectionTitle': 'الكلمات المفتاحية',
   'tracking.keywords.explanation':
     'تساعد العبارات المفعّلة في اكتشاف الرسائل النصية وإشعارات التطبيقات المالية. العبارة وحدها لا تحفظ معاملة. تظل قواعد الحالة الآمنة فعّالة دائماً.',
@@ -1347,7 +1355,8 @@ const ar: MessageCatalog = {
   'voice.batch.restricted':
     'اكتمل التسجيل، لكن هذا الحساب غير مُفعّل لخدمة الصوت في نسخة الاختبار. لم تُضَف معاملات.',
   'voice.batch.failed': 'تعذر إكمال بعض المعالجة.',
-  'voice.batch.rateLimited': 'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.',
+  'voice.batch.rateLimited':
+    'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.',
   'voice.batch.checking': 'جارٍ التحقق من النتيجة…',
   'voice.batch.checkResult': 'التحقق من النتيجة',
   'voice.state.processing': 'جاري تحليل التسجيل...',
@@ -1960,7 +1969,8 @@ const ar: MessageCatalog = {
   'notifications.center.deletePrefix': 'حذف',
   'notifications.preferences.loading': 'جار تحميل تفضيلات الإشعارات',
   'notifications.preferences.offline': 'تفضيلات الإشعارات غير متاحة دون اتصال',
-  'notifications.preferences.loadError': 'تعذّر تحميل تفضيلات الإشعارات. حاول مرة أخرى.',
+  'notifications.preferences.loadError':
+    'تعذّر تحميل تفضيلات الإشعارات. حاول مرة أخرى.',
   'notifications.preferences.retry': 'إعادة المحاولة',
   'notifications.preferences.saveError': 'تعذر حفظ التفضيلات',
   'notifications.preferences.title': 'تفضيلات الإشعارات',

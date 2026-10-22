@@ -84,16 +84,24 @@ export function ObligationPaymentScreen({
     onError: () => setError(translate('planning.state.error'))
   });
 
+  const eligibleAccounts = accounts.data?.filter((account) =>
+    account.status === 'active' && account.currencyCode === obligation.data?.obligation.currencyCode
+  );
+  const defaultAccount = eligibleAccounts?.find((account) => account.id === obligation.data?.obligation.fundingAccountId)
+    ?? eligibleAccounts?.find((account) => account.isDefault)
+    ?? eligibleAccounts?.[0];
+  const selectedAccountId = accountId || defaultAccount?.id;
+  const selectedAccount = accounts.data?.find((entry) => entry.id === selectedAccountId);
+
   const buildPreview = async () => {
-    const selectedAccount = accountId || accounts.data?.[0]?.id;
     const item = obligation.data?.obligation;
     const amountMinor = parseAmountToMinor(normalizeLocalizedNumber(amount), item?.currencyCode ?? 'SAR');
-    if (!amountMinor || !selectedAccount || !item) {
+    if (!amountMinor || !selectedAccountId || !item) {
       setError(translate('planning.validation.required'));
       return;
     }
-    const account = accounts.data?.find((entry) => entry.id === selectedAccount);
-    const balance = balances.data?.find((entry) => entry.accountId === selectedAccount);
+    const account = selectedAccount;
+    const balance = balances.data?.find((entry) => entry.accountId === selectedAccountId);
     if (!account || !balance || account.currencyCode !== item.currencyCode || balance.currencyCode !== item.currencyCode) {
       setError(translate('planning.validation.currencyMismatch'));
       return;
@@ -114,7 +122,7 @@ export function ObligationPaymentScreen({
               type: 'obligation_payment',
               amountMinor,
               currencyCode: item.currencyCode,
-              accountId: selectedAccount,
+              accountId: selectedAccountId,
               destinationAccountId: null,
               feeMinor: 0,
               categoryId: null,
@@ -135,8 +143,6 @@ export function ObligationPaymentScreen({
       setPreviewing(false);
     }
   };
-  const selectedAccountId = accountId || accounts.data?.[0]?.id;
-  const selectedAccount = accounts.data?.find((entry) => entry.id === selectedAccountId);
   const previewAfter = preview && previewBalanceBefore !== null
     ? safeMinorSum(previewBalanceBefore, obligation.data?.obligation.direction === 'payable' ? -preview.amountMinor : preview.amountMinor)
     : null;
@@ -257,6 +263,7 @@ export function ObligationPaymentScreen({
           >
             <AccountPicker
               selectedId={selectedAccountId}
+              currencyCode={obligation.data.obligation.currencyCode}
               onSelect={(account) => {
                 setAccountId(account.id);
                 setAccountPickerOpen(false);

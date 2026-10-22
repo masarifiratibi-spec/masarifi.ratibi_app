@@ -33,6 +33,7 @@ export function TrackingReviewFields({
         subtype?: string;
         status?: string;
         timeProvenance?: string;
+        reasonCodes?: string[];
       }
     | undefined;
   const change = (key: string, value: unknown) =>
@@ -158,7 +159,8 @@ export function TrackingReviewFields({
           />
         </View>
       ) : null}
-      {classification?.timeProvenance === 'ambiguous' ? (
+      {classification?.timeProvenance === 'ambiguous' ||
+      classification?.reasonCodes?.includes('date_ambiguous') ? (
         <FormField
           label={
             ar

@@ -466,11 +466,10 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
-  it('rechecks a DEV import once and reconciles a save before another native follow-up', async () => {
+  it('rechecks a live import once and reconciles a save before another native follow-up', async () => {
     const onSaved = jest.fn(async () => true);
     const scheduleFollowUp = jest.fn(async () => undefined);
     const context = setup({
-      recheckProcessingImport: true,
       onSaved,
       scheduleFollowUp
     });
@@ -488,9 +487,9 @@ describe('automatic tracking coordinator', () => {
     expect((await context.queue.load('owner-1')).pending).toHaveLength(0);
   });
 
-  it('bounds the DEV recheck and retains the normal durable follow-up for slow processing', async () => {
+  it('bounds the live recheck and retains the normal durable follow-up for slow processing', async () => {
     const scheduleFollowUp = jest.fn(async () => undefined);
-    const context = setup({ recheckProcessingImport: true, scheduleFollowUp });
+    const context = setup({ scheduleFollowUp });
     context.tracking.submitImport.mockResolvedValue(session('received'));
 
     expect((await context.coordinator.sync()).status).toBe('processing');
@@ -503,12 +502,11 @@ describe('automatic tracking coordinator', () => {
   });
 
   it.each(['unavailable', 'different receipt'] as const)(
-    'recovers an unconfirmed DEV read (%s) by its retained receipt without submitting again',
+    'recovers an unconfirmed live read (%s) by its retained receipt without submitting again',
     async (failure) => {
       const onSaved = jest.fn(async () => true);
       const scheduleFollowUp = jest.fn(async () => undefined);
       const context = setup({
-        recheckProcessingImport: true,
         onSaved,
         scheduleFollowUp
       });
@@ -538,12 +536,11 @@ describe('automatic tracking coordinator', () => {
   );
 
   it.each(['owner', 'consent'] as const)(
-    'fences the DEV recheck result when the initiating %s changes',
+    'fences the live recheck result when the initiating %s changes',
     async (changed) => {
       let ownerId = 'owner-1';
       const onSaved = jest.fn(async () => true);
       const context = setup({
-        recheckProcessingImport: true,
         onSaved,
         session: () => ({ status: 'authenticated', userId: ownerId })
       });
@@ -559,9 +556,9 @@ describe('automatic tracking coordinator', () => {
     }
   );
 
-  it('does not delay an already accepted effect for another DEV import read', async () => {
+  it('does not delay an already accepted effect for another import read', async () => {
     const onSaved = jest.fn(async () => true);
-    const context = setup({ recheckProcessingImport: true, onSaved });
+    const context = setup({ onSaved });
     context.tracking.submitImport.mockResolvedValue({
       ...session('processing'),
       acceptedCount: 1,
@@ -574,11 +571,17 @@ describe('automatic tracking coordinator', () => {
     expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
   });
 
-  it('keeps the extra import read disabled without the DEV opt-in', async () => {
+  it.each([
+    ['complete', 1],
+    ['processing', 1],
+    ['review', 0],
+    ['failed', 0]
+  ] as const)('does not recheck a %s receipt with %i accepted effects', async (status, acceptedCount) => {
     const context = setup();
+    context.tracking.submitImport.mockResolvedValue({ ...session(status), acceptedCount });
     await context.coordinator.sync();
     expect(context.tracking.getImportSession).not.toHaveBeenCalled();
-    expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+    expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
   });
 
   it('schedules durable follow-up for an asynchronously submitted session', async () => {

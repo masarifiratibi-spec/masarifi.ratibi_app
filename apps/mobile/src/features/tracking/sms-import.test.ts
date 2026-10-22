@@ -80,6 +80,20 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('resolves a short date from a personal SMS in the device timezone', async () => {
+    const original = Intl.DateTimeFormat().resolvedOptions();
+    const zone = jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockReturnValue({ ...original, timeZone: 'Asia/Riyadh' });
+    try {
+      const result = await prepareSmsImport([message({
+        sender: '+966500000001', body: 'تم خصم 2 ريال بتاريخ 22-10-26',
+        receivedAt: Date.parse('2026-10-22T11:08:16Z')
+      })], options({ accountingPolicy:'default_account_nominal_v1',sourceAdmissionPolicy:'financial_content_v1' }));
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]?.occurredAt).toBe('2026-10-21T21:00:00.000Z');
+      expect(result.events[0]?.classification?.reasonCodes).not.toContain('date_ambiguous');
+    } finally { zone.mockRestore(); }
+  });
   const walletReceipt = {
     key: 'wallet-receipt',
     packageName: 'example.new.wallet',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent } from '@testing-library/react-native';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { AccountBalanceProjection } from '@/domain/core-finance';
+import type { Account, AccountBalanceProjection } from '@/domain/core-finance';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 
 import { changeLocale } from '@/localization/i18n';
@@ -11,6 +11,32 @@ import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationPaymentScreen } from './ObligationPaymentScreen';
 import { PaymentMatchReviewScreen } from './PaymentMatchReviewScreen';
 import { usePreferenceStore } from '@/state/preferences';
+
+it.each(['other-currency', 'closed'] as const)(
+  'does not default a SAR payment to a first %s account',
+  async (scenario) => {
+    changeLocale('en');
+    let queryClient: QueryClient | undefined;
+    function QueryAccess() { queryClient = useQueryClient(); return null; }
+    const screen = renderWithProviders(<><QueryAccess /><ObligationPaymentScreen obligationId="obligation-car" /></>);
+    try {
+      await screen.findByLabelText(/Funding account Masarifi/);
+      if (!queryClient) throw new Error('PAYMENT_QUERY_CLIENT_REQUIRED');
+      const key = coreFinanceKeys.accounts();
+      const accounts = queryClient.getQueryData<Account[]>(key);
+      const sample = accounts?.[0];
+      if (!accounts || !sample) throw new Error('PAYMENT_ACCOUNT_FIXTURE_REQUIRED');
+      const first: Account = {...sample, id:'ineligible-first', name:'Ineligible account', isDefault:true,
+        currencyCode: scenario === 'other-currency' ? 'EGP' : 'SAR',
+        status: scenario === 'closed' ? 'closed' : 'active'};
+      await act(async () => { queryClient?.setQueryData(key, [first, ...accounts]); });
+      expect(screen.queryByLabelText('Funding account Ineligible account')).toBeNull();
+      fireEvent.changeText(screen.getByLabelText('Payment amount'), '50');
+      fireEvent.press(screen.getByText('Review payment'));
+      expect(await screen.findByText('Confirm payment')).toBeTruthy();
+    } finally { screen.unmount(); }
+  }
+);
 
 it.each(['2026-10-16T22:30:00Z', '2026-10-17T02:30:00Z'])(
   'records an early-morning payment at %s on the owner local day without a future ledger timestamp',

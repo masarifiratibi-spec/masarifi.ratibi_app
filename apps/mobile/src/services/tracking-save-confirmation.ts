@@ -30,11 +30,27 @@ export async function reconcileTrackingSaves(
     useAppShellStore.getState().session?.userId === ownerId;
   const refreshFinance = async (): Promise<boolean> => {
     if (!currentOwner()) return false;
+    let phase = 'device_registration';
     try {
       await ensureTrackingSyncDevice(ownerId);
       if (!currentOwner()) return false;
+      phase = 'finance_sync';
       await synchronizeLiveCoreFinance();
       return currentOwner();
+    } catch (error) {
+      const diagnostic =
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        typeof error.code === 'string' &&
+        /^[A-Za-z_]{1,80}$/.test(error.code)
+          ? error.code
+          : error instanceof Error &&
+              /^(?:SYNC_|SQLITE_|tracking_)[A-Za-z_]{1,80}$/.test(error.message)
+            ? error.message
+            : 'unknown';
+      console.warn('tracking_finance_refresh_failed', phase, diagnostic);
+      throw error;
     } finally {
       // The accepted server receipt remains valid if local cache sync fails.
       // Refresh live financial reads while preserving the failed sync for retry.
@@ -48,11 +64,15 @@ export async function reconcileTrackingSaves(
   const native = trackingNativeRuntime;
   const { apiUrl } = resolveClientRuntime();
   if (
-    Constants.expoConfig?.android?.package !== 'com.masarifi.mobile.dev' ||
+    !['com.masarifi.mobile', 'com.masarifi.mobile.dev'].includes(
+      Constants.expoConfig?.android?.package ?? ''
+    ) ||
     apiUrl !== 'https://api.staging.masarifiratibi.com' ||
     !native
   )
     return refreshFinance();
+  const ordinary =
+    Constants.expoConfig?.android?.package === 'com.masarifi.mobile';
   const presentVerifiedSaves = async (): Promise<boolean> => {
     // Notice text needs validated ledger details, not category identifier mapping.
     const noticeLedger = createLiveLedgerService({
@@ -61,7 +81,8 @@ export async function reconcileTrackingSaves(
     const presented = new Set<string>();
     for (const item of accepted) {
       if (!currentOwner()) return false;
-      if (!item.notificationId || presented.has(item.transactionId!)) continue;
+      if (presented.has(item.transactionId!)) continue;
+      if (!item.notificationId) continue;
       const transaction = await noticeLedger.getTransaction(
         item.transactionId!
       );
@@ -72,8 +93,9 @@ export async function reconcileTrackingSaves(
         transaction.status !== 'posted' ||
         transaction.syncStatus !== 'synced' ||
         transaction.deletedAt !== null
-      )
+      ) {
         continue;
+      }
       const locale = usePreferenceStore.getState().locale;
       const direction = translate(
         transaction.type === 'income'
@@ -124,8 +146,19 @@ export async function reconcileTrackingSaves(
       );
       presented.add(transaction.id);
     }
-    return true;
+    return (
+      currentOwner() &&
+      (!ordinary ||
+        presented.size ===
+          new Set(accepted.map((item) => item.transactionId!)).size)
+    );
   };
+  if (ordinary) {
+    // An owned posted ledger result confirms the save. Unrelated local sync failures
+    // must not block new captures; the regular finance runtime keeps its own retry state.
+    void refreshFinance().catch(() => undefined);
+    return presentVerifiedSaves();
+  }
   // The owned ledger lookup verifies the save; whole-finance synchronization
   // must still finish before acknowledgement, but must not delay its notice.
   const results = await Promise.allSettled([

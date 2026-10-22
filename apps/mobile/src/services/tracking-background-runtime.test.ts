@@ -55,7 +55,11 @@ const rules = {
   keywords: [],
   senders: [{ normalizedSender: 'com.bank.app', trusted: true, enabled: true }]
 };
+const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 beforeEach(async () => {
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_nonfunctionalfixture';
   Object.defineProperty(Platform, 'OS', {
     configurable: true,
     value: 'android'
@@ -79,7 +83,13 @@ beforeEach(async () => {
   await resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' });
   jest.clearAllMocks();
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+  else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+  if (originalClerkKey === undefined) delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  else process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = originalClerkKey;
+});
 
 describe('durable DEV follow-up scheduling', () => {
   const generation = '11111111-1111-4111-8111-111111111111';
@@ -518,7 +528,9 @@ it('leaves cold authentication uninitialized when ownership cannot be proven', a
   process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
   const session = useAppShellStore.getState().session!;
   mockNativeNotifications = ['retained-notification'];
-  jest.mocked(SecureStore.getItemAsync).mockResolvedValue('{');
+  jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+    key === 'masarifi.tracking.background-context.v2' ? '{' : null
+  );
   useAppShellStore.setState({ session: null });
   try {
     await expect(

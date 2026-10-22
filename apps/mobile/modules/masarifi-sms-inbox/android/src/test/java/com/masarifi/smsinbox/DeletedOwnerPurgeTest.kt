@@ -94,9 +94,9 @@ class DeletedOwnerPurgeTest {
   }
   @After fun cleanup() { Security.removeProvider("DeletionAndroidKeyStore"); DeletionKeyStore.entries.clear() }
 
-  @Test fun ordinaryAndUnknownPackagesCannotPurgeAnyOwnerData() {
+  @Test fun unknownPackagesCannotPurgeAnyOwnerData() {
     val retained = queue(deleted).all
-    for (packageName in listOf("com.masarifi.mobile", "com.masarifi.mobile.dev.fake", "other.app")) {
+    for (packageName in listOf("com.masarifi.mobile.dev.fake", "other.app")) {
       val ordinary = object : ContextWrapper(context) {
         override fun getPackageName() = packageName
       }
@@ -108,8 +108,16 @@ class DeletedOwnerPurgeTest {
   }
 
   @Test fun privacyDevelopmentStillPurgesOnlyTheDeletedOwner() {
+    assertPurgesOnlyDeletedOwner("com.masarifi.mobile.dev.privacy")
+  }
+
+  @Test fun ordinaryClientPurgesOnlyTheDeletedOwner() {
+    assertPurgesOnlyDeletedOwner("com.masarifi.mobile")
+  }
+
+  private fun assertPurgesOnlyDeletedOwner(packageName: String) {
     val privacy = object : ContextWrapper(context) {
-      override fun getPackageName() = "com.masarifi.mobile.dev.privacy"
+      override fun getPackageName() = packageName
     }
     TrackingOwner.purgeOwner(privacy, deleted)
     assertTrue(queue(deleted).all.isEmpty())

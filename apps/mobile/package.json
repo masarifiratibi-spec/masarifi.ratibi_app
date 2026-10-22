@@ -4,6 +4,9 @@
   "private": true,
   "main": "index.js",
   "scripts": {
+    "postinstall": "node scripts/native-stability-fixes.mjs --apply",
+    "prepare:android": "node scripts/native-stability-fixes.mjs --apply",
+    "check:android-native-fixes": "node scripts/native-stability-fixes.mjs --check",
     "start": "expo start --dev-client",
     "dev:staging": "node scripts/staging-development.mjs start",
     "android": "expo run:android",

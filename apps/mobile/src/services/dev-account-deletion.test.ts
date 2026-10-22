@@ -366,7 +366,7 @@ test('fences a deleted owner against stale SDK restoration without blocking anot
   );
 });
 
-test('refuses to send an authenticated deletion for a different actor or ordinary runtime', async () => {
+test('refuses to send an authenticated deletion for a different actor or unqualified privacy runtime', async () => {
   activeOwner = OTHER;
   await expect(submitDevAccountDeletion(OWNER)).rejects.toMatchObject({
     code: 'session_expired'
@@ -542,12 +542,12 @@ test('bootstrap repairs a prepared secure journal whose public owner index write
 });
 
 
-test('regular DEV sends deletion only to the isolated privacy route and preserves its ordinary API base', async () => {
+test('regular DEV sends deletion to the shared completion route and preserves its ordinary API base', async () => {
   process.env.EXPO_PUBLIC_APP_VARIANT = 'staging-development';
   process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
   http.mockResolvedValueOnce(response(fullRequest, 202));
   await submitDevAccountDeletion(OWNER);
-  expect(http.mock.calls[0][0]).toBe('https://api.staging.masarifiratibi.com/dev-account-deletion/api/v1/me/deletion-requests');
+  expect(http.mock.calls[0][0]).toBe('https://api.staging.masarifiratibi.com/account-deletion/api/v1/me/deletion-requests');
   expect(process.env.EXPO_PUBLIC_API_URL).toBe('https://api.staging.masarifiratibi.com');
   expect(snapshot()?.phase).toBe('completed');
 });

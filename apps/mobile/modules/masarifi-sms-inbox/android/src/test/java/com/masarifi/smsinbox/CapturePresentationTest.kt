@@ -62,14 +62,16 @@ class CapturePresentationTest {
     assertFalse(retained.shouldVibrate())
   }
 
-  @Test fun ordinaryPackageRetainsItsCurrentPresentation() {
+  @Test fun ordinarySavedNoticeUsesTheDedicatedAlertChannel() {
     val context = context("com.masarifi.mobile")
     val notification = build(context)
-    assertEquals("expo_notifications_fallback_notification_channel", notification.channelId)
+    assertEquals(channelId, notification.channelId)
     assertEquals("masarifi_stat_brand", context.resources.getResourceEntryName(notification.smallIcon.resId))
     assertNull(notification.getLargeIcon())
-    assertEquals("Ordinary actions stay unchanged", 3, notification.actions.size)
-    assertNull(context.getSystemService(NotificationManager::class.java).getNotificationChannel(channelId))
+    assertTrue(notification.actions.isNullOrEmpty())
+    val channel = context.getSystemService(NotificationManager::class.java).getNotificationChannel(channelId)
+    assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
+    assertNotNull(channel.sound)
   }
 
   private fun build(context: Context): Notification = runBlocking {

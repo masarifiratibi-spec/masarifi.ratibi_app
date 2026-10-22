@@ -276,6 +276,57 @@ describe('TrackingStatusScreen', () => {
     expect(setMode).not.toHaveBeenCalledWith('paused');
   });
 
+  it('releases the source switches after saving while message sync is still running', async () => {
+    let finishSync!: (state: coordinator.AutomaticTrackingSyncState) => void;
+    const resync = jest
+      .spyOn(coordinator, 'resyncAutomaticTracking')
+      .mockReturnValue(
+        new Promise((resolve) => {
+          finishSync = resolve;
+        })
+      );
+    jest.spyOn(trackingSourcePreferences, 'set').mockResolvedValue({
+      smsEnabled: false,
+      notificationEnabled: true
+    });
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      smsPermissionStatus: 'granted',
+      notificationAccessStatus: 'granted',
+      smsTrackingEnabled: true,
+      notificationTrackingEnabled: true,
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 0,
+      activeSenderCount: 0,
+      lastUpdatedAt: 1
+    });
+    try {
+      fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
+      await waitFor(() => expect(resync).toHaveBeenCalled());
+      expect(
+        screen.getByTestId('tracking-sms-switch')
+      ).toHaveAccessibilityState({ checked: false });
+      expect(screen.getByTestId('tracking-sms-switch')).toBeEnabled();
+      expect(screen.getByTestId('tracking-notification-switch')).toBeEnabled();
+    } finally {
+      await act(async () =>
+        finishSync({
+          status: 'idle',
+          sessionId: null,
+          reviewId: null,
+          duplicateId: null,
+          errorCode: null
+        })
+      );
+    }
+  });
+
   it.each(['denied', 'revoked'] as const)(
     'requests Android SMS permission directly from the SMS switch when permission is %s',
     async (permissionStatus) => {
@@ -597,11 +648,11 @@ describe('TrackingStatusScreen', () => {
   );
 
   it.each([
-    ['scanning', 'tracking.state.loading'],
-    ['processing', 'tracking.state.loading'],
+    ['scanning', 'tracking.sync.scanning'],
+    ['processing', 'tracking.sync.processing'],
     ['queued', 'tracking.service.offline'],
     ['account_required', 'coreFinance.accounts.noEligible'],
-    ['error', 'tracking.state.error']
+    ['error', 'tracking.sync.error']
   ] as const)('renders coordinator state %s', (status, titleKey) => {
     renderWithQueryData(
       <TrackingSyncPanel

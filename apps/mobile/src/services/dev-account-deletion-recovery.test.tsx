@@ -149,8 +149,13 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 });
 
-test('shows irreversible confirmation and progress from the compact entry, then removes deletion UI after sign-out', async () => {
-  const owner = 'user_native_revoked';
+test.each(['staging-development-privacy', undefined])('shows confirmation and progress without another OTP, then cleans up the deleted owner (%s)', async (variant) => {
+  if (variant === undefined) {
+    delete process.env.EXPO_PUBLIC_APP_VARIANT;
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_bWFzYXJpZmkudGVzdCQ';
+  }
+  const owner = variant === undefined ? 'user_ordinary_revoked' : 'user_native_revoked';
   clerkOwner = owner;
   session(owner);
   const ownerFile = seedDeletedOwner(owner);
@@ -186,6 +191,8 @@ test('shows irreversible confirmation and progress from the compact entry, then 
   expect(screen.getByRole('progressbar')).toBeOnTheScreen();
   expect(screen.queryByText(t('settings.deletion.dev.deleting'), { includeHiddenElements: true })).toBeNull();
   await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+  if (variant === undefined)
+    expect(fetchBoundary.mock.calls[0][0]).toBe('https://api.staging.masarifiratibi.com/account-deletion/api/v1/me/deletion-requests');
   expect(sdkToken).toHaveBeenCalledWith({ skipCache: true });
   expect((await loadDeletionCompletion(owner))?.phase).toBe('submitted');
   await act(async () => {

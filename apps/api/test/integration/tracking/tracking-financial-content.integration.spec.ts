@@ -58,6 +58,101 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
     await worker.stop();
     await pool.onModuleDestroy();
   });
+  it('posts a short-date personal SMS on its local calendar day and keeps a reference repeat from posting twice', async () => {
+    const session = await capture({
+      text: 'Paid SAR0.01 at TRACKING TEST on 22-10-26 reference DATE221026',
+      timeZone: 'Asia/Riyadh',
+      reference: 'DATE221026',
+    });
+    expect(
+      (
+        await pool.query('select status,accepted_count from public.import_sessions where id=$1', [
+          session,
+        ])
+      ).rows[0],
+    ).toEqual({ status: 'complete', accepted_count: 1 });
+    expect(
+      (
+        await pool.query<{ occurred_at: Date }>(
+          'select occurred_at from public.transactions where user_id=$1',
+          [owner],
+        )
+      ).rows[0]?.occurred_at.toISOString(),
+    ).toBe('2026-10-21T21:00:00.000Z');
+    await capture({
+      text: 'Paid SAR0.01 at TRACKING TEST reference DATE221026',
+      reference: 'DATE221026',
+    });
+    expect(await effects()).toHaveLength(1);
+  });
+  it('moves an ambiguous date to one actionable review without retrying or posting', async () => {
+    const session = await capture({ text: 'Paid SAR2 on 03-04-26', reference: 'ambiguous-date' });
+    const state = (
+      await pool.query('select status,accepted_count from public.import_sessions where id=$1', [
+        session,
+      ])
+    ).rows[0];
+    expect(state).toMatchObject({ status: 'review', accepted_count: 0 });
+    const before = (
+      await pool.query(
+        'select r.id,r.reason,r.status from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+        [session],
+      )
+    ).rows;
+    expect(before).toEqual([
+      expect.objectContaining({ reason: 'date_ambiguous', status: 'pending' }),
+    ]);
+    expect(await effects()).toHaveLength(0);
+    await worker.runJob('import.parse');
+    expect(
+      (
+        await pool.query(
+          'select r.id,r.reason,r.status from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+          [session],
+        )
+      ).rows,
+    ).toEqual(before);
+    expect(await effects()).toHaveLength(0);
+  });
+  it('closes a dismissed date review immediately and keeps reconciliation idempotent without a ledger effect', async () => {
+    const session = await capture({ text: 'Paid SAR2 on 03-04-26', reference: 'dismissed-date' });
+    const review = (
+      await pool.query<{ id: string; version: string }>(
+        'select r.id,r.version from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+        [session],
+      )
+    ).rows[0];
+    if (!review) throw new Error('Date review was not created');
+    const token = randomUUID();
+    await repository.claimReview(principal(), review.id, 'reject', review.version, token);
+    await repository.decideReview(
+      principal(),
+      review.id,
+      { decision: 'reject' },
+      token,
+      null,
+      null,
+      randomUUID(),
+      randomUUID(),
+    );
+    expect(
+      (
+        await pool.query('select status,rejected_count from public.import_sessions where id=$1', [
+          session,
+        ])
+      ).rows[0],
+    ).toEqual({ status: 'complete', rejected_count: 1 });
+    await worker.runJob('tracking.reconcile');
+    expect(
+      (
+        await pool.query(
+          'select status,rejected_count,completed_at is not null completed from public.import_sessions where id=$1',
+          [session],
+        )
+      ).rows[0],
+    ).toEqual({ status: 'complete', rejected_count: 1, completed: true });
+    expect(await effects()).toHaveLength(0);
+  });
   async function capture(
     options: {
       text?: string;
@@ -71,6 +166,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       accountId?: string;
       preferredAccountId?: string;
       sourceDisplayName?: string;
+      timeZone?: string;
     } = {},
     execution = worker,
   ) {
@@ -82,7 +178,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       native = options.native ?? randomUUID();
     const config = await repository.ruleSnapshot(principal());
     const parsed = discoverNominalTrackingMessage(
-      { text, sender, channel, receivedAt: received },
+      { text, sender, channel, receivedAt: received, timeZone: options.timeZone },
       defaultSnapshot,
       [],
       [],

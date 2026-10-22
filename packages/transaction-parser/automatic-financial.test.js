@@ -67,3 +67,26 @@ test('Egyptian embedded time uses the actual Cairo offset for winter and summer'
   assert.equal(parse('Purchase EGP 5 on 2026-01-29 10:00').occurredAt,'2026-01-29T08:00:00.000Z');
   assert.equal(parse('Purchase EGP 5 on 2026-07-29 10:00').occurredAt,'2026-07-29T07:00:00.000Z');
 });
+
+test('unambiguous short bank dates retain their local calendar day',()=>{
+  for(const date of ['22-10-26','22/10/2026','2026-10-22']) {
+    const result=classify({text:`Purchase SAR 5 on ${date}`,country:'SA',receivedAt:Date.parse('2026-10-22T11:08:16Z')});
+    assert.equal(result.occurredAt,'2026-10-21T21:00:00.000Z',date);
+    assert.equal(result.timeProvenance,'embedded',date);
+    assert.ok(!result.reasonCodes.includes('date_ambiguous'),date);
+  }
+});
+
+test('ambiguous and impossible bank dates stay in review instead of becoming receipt time',()=>{
+  for(const date of ['03-04-26','31-02-26','2026-02-30']) {
+    const result=classify({text:`Purchase SAR 5 on ${date}`,country:'SA',receivedAt:Date.parse('2026-10-22T11:08:16Z')});
+    assert.equal(result.occurredAt,null,date);
+    assert.ok(result.reasonCodes.includes('date_ambiguous'),date);
+  }
+});
+
+test('an unknown SMS sender uses the capture timezone while a known provider retains its own zone',()=>{
+  const input={text:'Purchase SAR 5 on 22-10-26',timeZone:'Asia/Dubai',receivedAt:Date.parse('2026-10-22T11:08:16Z')};
+  assert.equal(classify(input).occurredAt,'2026-10-21T20:00:00.000Z');
+  assert.equal(classify({...input,country:'SA'}).occurredAt,'2026-10-21T21:00:00.000Z');
+});

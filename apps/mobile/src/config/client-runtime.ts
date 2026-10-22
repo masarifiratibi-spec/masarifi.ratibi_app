@@ -28,13 +28,13 @@ export function isDevPrivacyDeletionEnabled(): boolean {
 
 export function devPrivacyDeletionApiUrl(): string | null {
   const variant = process.env.EXPO_PUBLIC_APP_VARIANT;
-  if (!['staging-development', 'staging-development-privacy'].includes(variant ?? ''))
+  if (![undefined, 'staging-development', 'staging-development-privacy'].includes(variant))
     return null;
   const runtime = resolveClientRuntime();
   const staging = 'https://api.staging.masarifiratibi.com';
-  const expected = variant === 'staging-development' ? staging : `${staging}/dev-privacy`;
+  const expected = variant === 'staging-development-privacy' ? `${staging}/dev-privacy` : staging;
   return runtime.mode === 'live' && runtime.apiUrl === expected
-    ? `${staging}/${variant === 'staging-development' ? 'dev-account-deletion' : 'dev-privacy'}`
+    ? `${staging}/${variant === 'staging-development-privacy' ? 'dev-privacy' : 'account-deletion'}`
     : null;
 }
 

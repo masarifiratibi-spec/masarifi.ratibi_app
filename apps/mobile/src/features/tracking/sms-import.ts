@@ -119,6 +119,7 @@ export async function prepareFinancialMessageImport(
       )
     );
     const country = options.country ?? provider?.country;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const sourceRules = options.senderRules.filter(
       (rule) =>
         normalizeSender(rule.normalizedSender) === normalizeSender(sender)
@@ -131,14 +132,14 @@ export async function prepareFinancialMessageImport(
     const trusted = sourceRules.some((rule) => rule.enabled && rule.trusted);
     const discovery = options.accountingPolicy
       ? discoverNominalTrackingMessage(
-          { text: normalizedBody, sender, country, channel, receivedAt },
+          { text: normalizedBody, sender, country, timeZone, channel, receivedAt },
           configured,
           options.keywordRules,
           options.senderRules,
           { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
         )
       : discoverFinancialMessage(
-          { text: normalizedBody, sender, country, channel, receivedAt },
+          { text: normalizedBody, sender, country, timeZone, channel, receivedAt },
           configured,
           options.keywordRules
         );

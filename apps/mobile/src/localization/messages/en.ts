@@ -9,18 +9,25 @@
 
 const en = {
   'appShell.networkNotice.title': "You're offline",
-  'appShell.networkNotice.message': 'Check your Wi-Fi or mobile data connection, then try again.',
-  'appShell.networkNotice.stale': 'Displayed balances and transactions may be out of date.',
+  'appShell.networkNotice.message':
+    'Check your Wi-Fi or mobile data connection, then try again.',
+  'appShell.networkNotice.stale':
+    'Displayed balances and transactions may be out of date.',
   'appShell.networkNotice.retry': 'Try again',
   'appShell.networkNotice.dismiss': 'Dismiss',
-  'settings.socialMedia.openError': 'Could not open this account. Please try again.',
+  'settings.socialMedia.openError':
+    'Could not open this account. Please try again.',
   'reminders.control.label': 'Enable notifications',
-  'reminders.control.description': 'Occasional reminders to finish setup or check your spending. You can turn them off anytime.',
+  'reminders.control.description':
+    'Occasional reminders to finish setup or check your spending. You can turn them off anytime.',
   'reminders.guest.label': 'Remind me to finish setup',
-  'reminders.guest.description': 'Send one reminder tomorrow if I haven’t created an account.',
+  'reminders.guest.description':
+    'Send one reminder tomorrow if I haven’t created an account.',
   'reminders.onboarding.title': 'Finish setting up your account',
-  'reminders.onboarding.body': 'You’re one step away from tracking your spending.',
-  'reminders.permission.denied': 'Notifications are unavailable. Allow them in your phone settings, then try again.',
+  'reminders.onboarding.body':
+    'You’re one step away from tracking your spending.',
+  'reminders.permission.denied':
+    'Notifications are unavailable. Allow them in your phone settings, then try again.',
   'reminders.permission.allow': 'Allow notifications',
   'assistant.report.scope':
     'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
@@ -58,7 +65,8 @@ const en = {
     'Verify your identity again to continue this confirmed deletion request.',
   'settings.deletion.reverify': 'Send verification code',
   'settings.deletion.retry': 'Try again',
-  'settings.deletion.dev.sessionRetry': 'Deletion could not finish with the current session. Try again; the account has not been deleted.',
+  'settings.deletion.dev.sessionRetry':
+    'Deletion could not finish with the current session. Try again; the account has not been deleted.',
   'settings.deletion.code': 'Verification code',
   'settings.deletion.verify': 'Verify and continue',
   'settings.deletion.codeSent': 'Enter the code sent to {{destination}}.',
@@ -1116,15 +1124,15 @@ const en = {
   'tracking.home.onboardingHeading': "Let's get started.",
   'tracking.home.smsBody': 'Track transactions from financial SMS.',
   'tracking.home.notificationTitle': 'Notification tracking',
-  'tracking.home.notificationBody': 'Detect transactions from bank and wallet alerts.',
+  'tracking.home.notificationBody':
+    'Detect transactions from bank and wallet alerts.',
   'tracking.home.enableTitle': 'Track your spending automatically',
   'tracking.home.enableBody':
     'Let Masarifi & Ratibi detect supported transactions automatically.',
   'tracking.home.enableAction': 'Enable automatic tracking',
   'tracking.home.dismissAction': 'Dismiss automatic tracking suggestion',
   'notifications.home.enableTitle': 'Turn on notifications',
-  'notifications.home.enableBody':
-    'Get transaction alerts and reminders.',
+  'notifications.home.enableBody': 'Get transaction alerts and reminders.',
   'notifications.home.enableAction': 'Enable notifications',
   'notifications.home.dismissAction': 'Dismiss notification suggestion',
   'notifications.home.enableFailed':
@@ -1141,7 +1149,12 @@ const en = {
     'Read financial SMS and match your tracking keywords',
   'tracking.source.notificationTracking': 'Transaction notification tracking',
   'tracking.source.notificationTrackingDescription':
-    'Inspect notification text locally for financial alerts, including new apps. Unrelated text is discarded; retained candidates are encrypted.',
+    'Detect transactions from financial app notifications',
+  'tracking.source.enabling': 'Enabling tracking…',
+  'tracking.source.disabling': 'Pausing tracking…',
+  'tracking.sync.scanning': 'Checking new messages…',
+  'tracking.sync.processing': 'Processing transactions…',
+  'tracking.sync.error': 'Could not sync. Try again.',
   'tracking.status.demo': 'Demo tracking — not production data',
   'tracking.permission.warning':
     'Message permissions not granted. Tap to enable.',
@@ -1149,13 +1162,11 @@ const en = {
     'Automatic message tracking is unavailable in this version. Manual entry remains available.',
   'tracking.howItWorks.title': 'How automatic tracking works',
   'tracking.howItWorks.detection':
-    'Automatically reads supported bank messages containing your specified keywords and records expenses in your account.',
+    'Clear transactions are added automatically. Items needing confirmation appear for review.',
   'tracking.howItWorks.privacy':
-    'Transaction data is saved. Financial message content may also be retained for review according to retention settings.',
+    'Financial messages may be saved for review according to retention settings.',
   'tracking.howItWorks.background':
-    'Ensure the app is allowed to run in the background via phone settings > Apps > Masarifi & Ratibi > Battery.',
-  'tracking.howItWorks.deviceWarning':
-    'Some devices (Xiaomi, Samsung, Huawei, etc.) restrict background apps. Tap here to learn how to adjust this for your device.',
+    'Allow background activity to keep tracking running.',
   'tracking.keywords.sectionTitle': 'Keywords',
   'tracking.keywords.explanation':
     'Enabled phrases help detect financial SMS and app notifications. A phrase alone cannot save a transaction. Safety status rules always stay active.',
@@ -1396,7 +1407,8 @@ const en = {
   'voice.batch.restricted':
     'Recording completed, but voice is not enabled for this account in the test app. No transactions were added.',
   'voice.batch.failed': 'Some processing could not finish.',
-  'voice.batch.rateLimited': 'Voice analysis is paused by a usage limit. Your recording is saved and will retry automatically. Do not record it again.',
+  'voice.batch.rateLimited':
+    'Voice analysis is paused by a usage limit. Your recording is saved and will retry automatically. Do not record it again.',
   'voice.batch.checking': 'Checking the result…',
   'voice.batch.checkResult': 'Check result',
   'voice.state.processing': 'Analyzing recording...',
@@ -2050,7 +2062,8 @@ const en = {
   'notifications.center.openPrefix': 'Open',
   'notifications.center.deletePrefix': 'Delete',
   'notifications.preferences.loading': 'Loading notification preferences',
-  'notifications.preferences.loadError': 'Could not load notification preferences. Try again.',
+  'notifications.preferences.loadError':
+    'Could not load notification preferences. Try again.',
   'notifications.preferences.offline':
     'Notification preferences are unavailable offline',
   'notifications.preferences.retry': 'Retry',

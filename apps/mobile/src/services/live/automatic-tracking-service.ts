@@ -1,7 +1,13 @@
 import { AppState, Platform } from 'react-native';
-import { usePreferenceStore, effectiveReturnRemindersEnabled } from '@/state/preferences';
+import {
+  usePreferenceStore,
+  effectiveReturnRemindersEnabled
+} from '@/state/preferences';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
-import { getDeviceRegistration, phoneNotificationService } from '../platform/phone-notification-service';
+import {
+  getDeviceRegistration,
+  phoneNotificationService
+} from '../platform/phone-notification-service';
 import { trackingSourcePreferences } from '../tracking-source-preferences';
 import {
   randomUUID,
@@ -201,7 +207,7 @@ export function createLiveAutomaticTrackingService({
     {
       idempotencyKey,
       expectedOwnerId,
-      signal,
+      signal
     }: {
       idempotencyKey?: string;
       expectedOwnerId?: string;
@@ -241,6 +247,14 @@ export function createLiveAutomaticTrackingService({
     if (!response.ok) {
       const error = record(value);
       const code = text(error.code || record(error.error ?? {}).code);
+      // Log bounded protocol metadata only, never request bodies, owner IDs or responses.
+      console.warn(
+        'tracking_http_failed',
+        method,
+        path.startsWith('/api/v1/imports') ? 'imports' : 'tracking',
+        response.status,
+        /^[A-Z_]{1,80}$/.test(code) ? code : 'UNKNOWN'
+      );
       throw new TrackingError(
         code === 'TRACKING_ACCOUNT_BLOCKED'
           ? 'account_blocked'
@@ -332,30 +346,33 @@ export function createLiveAutomaticTrackingService({
     completedAt: nullableEpoch(value.completedAt),
     updatedAt: requiredEpoch(value.updatedAt)
   });
-  const status = (): Promise<TrackingStatusSnapshot> => withReadContext(undefined, async (signal) => {
-    const value = record(await send('GET', '/api/v1/tracking/status', undefined, { signal }));
-    const available = boolean(value.available);
-    return {
-      platform:
-        Platform.OS === 'android'
-          ? 'android'
-          : Platform.OS === 'ios'
-            ? 'ios'
-            : 'conservative',
-      mode: member(value.mode, ['automatic_clear', 'review_all', 'paused']),
-      permissionStatus: null,
-      serviceState: available ? 'healthy' : 'unavailable',
-      lastDetectedAt: nullableEpoch(value.lastDetectedAt),
-      lastSuccessfulTransactionId: nullableText(
-        value.lastSuccessfulTransactionId
-      ),
-      detectedThisMonth: integer(value.detectedThisMonth),
-      reviewCount: integer(value.reviewCount),
-      activeKeywordCount: integer(value.activeKeywordCount),
-      activeSenderCount: integer(value.activeSenderCount),
-      lastUpdatedAt: requiredEpoch(value.lastUpdatedAt)
-    };
-  });
+  const status = (): Promise<TrackingStatusSnapshot> =>
+    withReadContext(undefined, async (signal) => {
+      const value = record(
+        await send('GET', '/api/v1/tracking/status', undefined, { signal })
+      );
+      const available = boolean(value.available);
+      return {
+        platform:
+          Platform.OS === 'android'
+            ? 'android'
+            : Platform.OS === 'ios'
+              ? 'ios'
+              : 'conservative',
+        mode: member(value.mode, ['automatic_clear', 'review_all', 'paused']),
+        permissionStatus: null,
+        serviceState: available ? 'healthy' : 'unavailable',
+        lastDetectedAt: nullableEpoch(value.lastDetectedAt),
+        lastSuccessfulTransactionId: nullableText(
+          value.lastSuccessfulTransactionId
+        ),
+        detectedThisMonth: integer(value.detectedThisMonth),
+        reviewCount: integer(value.reviewCount),
+        activeKeywordCount: integer(value.activeKeywordCount),
+        activeSenderCount: integer(value.activeSenderCount),
+        lastUpdatedAt: requiredEpoch(value.lastUpdatedAt)
+      };
+    });
   return {
     metadata: {
       id: 'phase08-tracking-http',
@@ -407,9 +424,7 @@ export function createLiveAutomaticTrackingService({
     > {
       const deviceId = await getTrackingDeviceId();
       let value: unknown;
-      if (
-        Platform.OS === 'android' && isMobileAutomationEnabled(baseUrl)
-      ) {
+      if (Platform.OS === 'android' && isMobileAutomationEnabled(baseUrl)) {
         const identity = await captureLiveClerkIdentity();
         const deviceRegistration = await getDeviceRegistration();
         if (!deviceRegistration) throw new TrackingError('permission_required');
@@ -425,7 +440,8 @@ export function createLiveAutomaticTrackingService({
             deviceRegistration,
             smsActivationId: sources.smsActivationId ?? '0',
             remindersEnabled:
-              effectiveReturnRemindersEnabled(identity.userId, preferences) && permission === 'granted',
+              effectiveReturnRemindersEnabled(identity.userId, preferences) &&
+              permission === 'granted',
             foreground: AppState.currentState === 'active',
             reminderLocale: preferences.locale,
             reminderTimeZone: preferences.timeZone

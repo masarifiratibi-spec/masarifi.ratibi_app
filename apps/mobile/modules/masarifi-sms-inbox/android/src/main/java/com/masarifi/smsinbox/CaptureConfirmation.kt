@@ -39,19 +39,19 @@ internal object CaptureConfirmation {
   }
   private class CapturePresentation(context:Context):ExpoPresentationDelegate(context) {
     suspend fun build(notification:Notification):android.app.Notification {
-      val isDev=context.packageName=="com.masarifi.mobile.dev"
+      val isTrackingApp=supportsFinancialContentCapture(context)
       val request=notification.notificationRequest
-      val prepared=if(isDev) {
+      val prepared=if(isTrackingApp) {
         ensureSavedChannel()
         Notification(NotificationRequest(request.identifier,request.content,ChannelAwareTrigger(SAVED_CHANNEL_ID)))
       } else notification
       val built=createNotification(prepared,NotificationBehaviorRecord(
-        shouldShowBanner=true,shouldShowList=true,shouldPlaySound=isDev))
+        shouldShowBanner=true,shouldShowList=true,shouldPlaySound=isTrackingApp))
       // Recovered builders retain the built actions even when setActions() is empty.
-      if(isDev) built.actions=null
+      if(isTrackingApp) built.actions=null
       val builder=android.app.Notification.Builder.recoverBuilder(context,built).setOnlyAlertOnce(true)
         .setSmallIcon(R.drawable.masarifi_stat_brand)
-      if(isDev) {
+      if(isTrackingApp) {
         // Android supplies the app icon and mirrors its placement with the system locale.
         builder.setLargeIcon(null as android.graphics.Bitmap?)
           .setColor(Color.rgb(0,88,79)).setVisibility(android.app.Notification.VISIBILITY_PRIVATE)
