@@ -254,3 +254,13 @@ The discriminated target union in [apps/mobile/src/domain/notifications.ts:11](.
 | `NT-ASSISTANT` | assistant: conversationId, responseId | /assistant/:conversationId with response context | Current-owner resource only, correct fallback/Back, no posting by view; invalid/deleted/foreign/logged-out variants per NOTIF-014–017. | NOT RUN / NOT RUN / NOT RUN |
 | `NT-SECURITY` | security: securityEventId | /security/events or valid supported fallback | Current-owner resource only, correct fallback/Back, no posting by view; invalid/deleted/foreign/logged-out variants per NOTIF-014–017. | NOT RUN / NOT RUN / NOT RUN |
 | `NT-SETTINGS` | settings: key=security|notifications|privacy | matching settings screen | Current-owner resource only, correct fallback/Back, no posting by view; invalid/deleted/foreign/logged-out variants per NOTIF-014–017. | NOT RUN / NOT RUN / NOT RUN |
+
+<!-- offline-review-20261022 -->
+
+## 2026-10-22 offline handling — DEF-027
+
+This entry supersedes earlier logo-preview/build scheduling: **the user approved the current project logo and explicitly prohibited building another APK for now**. No APK was built or installed during this offline repair. ENV-DEV-05 remains installed with its existing embedded JavaScript; source/automated results do not update that binary. U-NEW is still being prepared; do not sign out U-A or treat new-user coverage as passed.
+
+### Supplemental route integration R-NET-ROOT
+
+Entry: root layout `/` and all descendant public, setup and protected routes; no new URL or redirect. The network notice is a sibling of the startup cover, rather than a child hidden by font/profile/session loading. Retry performs a new connectivity check and resumes existing read/bootstrap recovery only after an observed offline→online transition. Dismiss and Android Back close the notice without navigating or changing session/account/ledger state. Reconnection does not replay writes. Existing protected destination guards and notification ownership gates remain in force. Source inspection PASS; automated PASS; updated physical DEV NOT RUN; standalone NOT RUN. See NET-001–NET-006 and DEF-027.

@@ -603,3 +603,19 @@ Verified2026-10-22T05:38:55.478997+00:00: user-requested removal of the last ord
 | Standalone gate | Withdrawn candidate had exact identity/signature and bounded unauthenticated startup evidence | After logo review and a new build, repeat critical matrix on exact ordinary APK with Metro stopped/noUSB/reverse/proxy; new users, OAuth/Firebase and preferably second device |
 
 Payments/gateway/subscription activation and app-lock PIN/biometric remain agreed exclusions; authentication/ownership/deletion are not excluded. No overall completion percentage is asserted. Recorded financial totals and assistant speed belong to the timestamped previous review cases, not a fresh read of any transactions the user may have added afterward.
+
+<!-- offline-review-20261022 -->
+
+## 2026-10-22 offline handling — DEF-027
+
+This entry supersedes earlier logo-preview/build scheduling: **the user approved the current project logo and explicitly prohibited building another APK for now**. No APK was built or installed during this offline repair. ENV-DEV-05 remains installed with its existing embedded JavaScript; source/automated results do not update that binary. U-NEW is still being prepared; do not sign out U-A or treat new-user coverage as passed.
+
+### DEF-027 — offline handling lacks the requested global popup and automatic read recovery
+
+- Severity P2; customer impact: startup or foreground network loss can leave a full-screen connection failure with no consistent global notice; the old artifact also stayed on that page after network restoration until manual Retry.
+- Reproduction/evidence: NET-001 baseline PHY-056 at 2026-10-22T06:12:23.873Z, user disabled internet, requested screenshot, old DEV showed Connection unavailable/Retry. The old-artifact manual recovery is separately PHY-057; original observations retained.
+- Cause: root startup/font cover had no independent foreground connectivity notice. Existing StartupConnectionState and Home read recovery are screen-specific and do not provide the requested global interaction.
+- Small repair: reuse validated native connectivity through existing Android read-recovery adapter; add a localized accessible native Modal once per outage; mount it outside startup/font cover with existing providers; retry failed active reads and unavailable normal identity/profile restoration on reconnection. No dependency/native/API/schema/provider changes, cache clearing, auth bypass, financial mutation replay or background polling.
+- Source inspection PASS; automated 72/72 PASS in seven suites, TypeScript/scoped ESLint/boundaries PASS. Check clean-code-guard/test-guard applied to new production and test code; real QueryClient/store preserved and only external connectivity/lifecycle/SDK boundaries are mocked. Partial mock/test setup failures and their repairs remain in evidence.
+- Physical updated DEV NOT RUN, standalone NOT RUN. RT-027-01–06 await a later authorized artifact update. The installed DEV is a non-debuggable embedded-JS build, so the attempted Metro link did not load source changes. The user's no-APK instruction remains in force; this defect is **BLOCKED for physical closure**, not an installed-app fix claim.
+- Private evidence: `qa-offline-baseline-20261022.*`, `qa-offline-baseline-restored-20261022.*`, `qa-offline-old-dev-manual-recovery-20261022.*`, `offline-red.json`, `offline-green-attempt1.json`, `offline-green-attempt2.json`, `offline-regression1.json`, `offline-regression2.json`, `offline-final-regressions.json`, `offline-verified-regressions.json`, `offline-typecheck-final.log`, `offline-lint-final.log`, `metro-offline-review.log`. No financial cleanup required.

@@ -8,6 +8,11 @@
  */
 
 const en = {
+  'appShell.networkNotice.title': "You're offline",
+  'appShell.networkNotice.message': 'Check your Wi-Fi or mobile data connection, then try again.',
+  'appShell.networkNotice.stale': 'Displayed balances and transactions may be out of date.',
+  'appShell.networkNotice.retry': 'Try again',
+  'appShell.networkNotice.dismiss': 'Dismiss',
   'settings.socialMedia.openError': 'Could not open this account. Please try again.',
   'reminders.control.label': 'Enable notifications',
   'reminders.control.description': 'Occasional reminders to finish setup or check your spending. You can turn them off anytime.',

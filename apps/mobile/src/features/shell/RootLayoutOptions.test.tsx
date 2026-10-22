@@ -1,5 +1,7 @@
 import React from 'react';
-import { act, render } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
+import { AppState } from 'react-native';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
 
 import RootLayout from '@app/_layout';
 import AccountsLayout from '@app/accounts/_layout';
@@ -11,6 +13,7 @@ import { useAppShellStore } from '@/state/app-shell';
 const mockStack = jest.fn((_props: unknown) => null);
 const mockShellRender = jest.fn();
 const mockPrivacyProps = jest.fn();
+let mockFontsReady = true;
 let mockPathname = '/(public)/legal';
 const mockPathListeners = new Set<() => void>();
 
@@ -29,7 +32,16 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/design-system/typography', () => ({
-  FontGate: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  ...jest.requireActual('@/design-system/typography'),
+  FontGate: ({ children }: { children: React.ReactNode }) =>
+    mockFontsReady ? <>{children}</> : null
+}));
+
+jest.mock('@/services/platform/read-recovery-network', () => ({
+  readRecoveryNetwork: {
+    available: false,
+    isOnline: jest.fn(async () => false)
+  }
 }));
 
 jest.mock('@/state/FoundationProviders', () => {
@@ -72,7 +84,26 @@ describe('RootLayout navigation chrome', () => {
     mockStack.mockClear();
     mockShellRender.mockClear();
     mockPrivacyProps.mockClear();
+    mockFontsReady = true;
+    readRecoveryNetwork.available = false;
     mockPathname = '/(public)/legal';
+  });
+
+  it('shows the real root connectivity dialog before fonts or protected routes can mount', async () => {
+    const previousState = AppState.currentState;
+    AppState.currentState = 'active';
+    readRecoveryNetwork.available = true;
+    mockFontsReady = false;
+    try {
+      render(<RootLayout />);
+      await act(async () => {});
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /أنت غير متصل بالإنترنت/
+      );
+      expect(mockStack).not.toHaveBeenCalled();
+    } finally {
+      AppState.currentState = previousState;
+    }
   });
 
   it('updates route privacy without rerendering the global shell', () => {

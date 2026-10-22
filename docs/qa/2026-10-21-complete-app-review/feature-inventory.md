@@ -2054,3 +2054,17 @@ These resolve shared controller/repository method names and embedded branches th
 ### Route-to-integration join
 
 Every exact route in route-matrix.md joins the feature action families above and its concrete functional cases. Public/onboarding/root/intent → AUTH; Home → HOME/TX/ACC/planning; Add/transactions/pickers/conflicts → TX/CAT/ACC/sync; accounts → ACC; categories → CAT; assistant → AI; budgets/salary/obligations/savings → BUD/SAL/OBL/SAV; tracking → TRACK; notifications → NOTIF; reports → REP; profile/application settings → SET/AUTH/PRIV; sessions/events → SEC/AUTH; support → SUP; Admin → named registered Admin operation and domain repository. Foundation/design-system live redirects and app-lock/billing exclusions have no accepted activation/persistence chain.
+
+<!-- offline-review-20261022 -->
+
+## 2026-10-22 offline handling — DEF-027
+
+This entry supersedes earlier logo-preview/build scheduling: **the user approved the current project logo and explicitly prohibited building another APK for now**. No APK was built or installed during this offline repair. ENV-DEV-05 remains installed with its existing embedded JavaScript; source/automated results do not update that binary. U-NEW is still being prepared; do not sign out U-A or treat new-user coverage as passed.
+
+### Supplemental embedded feature NET — connectivity notice and safe recovery
+
+No new Expo route, API ingress, database object, migration, worker or provider is introduced. Root layout mounts `NetworkConnectionNotice` outside both font and startup covers, inside existing identity/theme/query providers. Android uses the existing native connectivity capability check (`INTERNET` and `VALIDATED`); this requests no SMS/notification permission. Generic unsupported platforms retain existing screen-level recovery and have no new popup claim.
+
+Trace: every root destination → foreground connectivity probe → localized native Modal → Retry/Dismiss → confirmed network recovery → existing identity/bootstrap restoration and active failed-query reads → existing guarded APIs → refreshed UI. The notice never clears owner caches, resumes paused mutations, posts financial writes, or bypasses authentication. API/database dependencies remain those of each original read. Foreground checks run immediately and every three seconds; background/unmounted results are ignored. Dismiss suppresses repeat presentation for the same outage; a new outage may present again. Displayed balances are explicitly described as potentially out of date.
+
+Stable supplemental cases NET-001–NET-006 and defect DEF-027 are recorded in acceptance-checklist.md. This supplement does not replace the original 231 source-derived functional cases or mark any route accepted. Source anchors: [root layout](../../../apps/mobile/app/_layout.tsx#L1), [notice](../../../apps/mobile/src/features/shell/NetworkConnectionNotice.tsx#L1), [Android native adapter](../../../apps/mobile/src/services/platform/read-recovery-network.android.ts#L1), [component scenarios](../../../apps/mobile/src/features/shell/NetworkConnectionNotice.test.tsx#L1), [actual root/font regression](../../../apps/mobile/src/features/shell/RootLayoutOptions.test.tsx#L1).

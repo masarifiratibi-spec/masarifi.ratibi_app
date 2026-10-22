@@ -509,3 +509,18 @@ Verified2026-10-22T05:38:55.478997+00:00: user-requested removal of the last ord
 | Standalone gate | Withdrawn candidate had exact identity/signature and bounded unauthenticated startup evidence | After logo review and a new build, repeat critical matrix on exact ordinary APK with Metro stopped/noUSB/reverse/proxy; new users, OAuth/Firebase and preferably second device |
 
 Payments/gateway/subscription activation and app-lock PIN/biometric remain agreed exclusions; authentication/ownership/deletion are not excluded. No overall completion percentage is asserted. Recorded financial totals and assistant speed belong to the timestamped previous review cases, not a fresh read of any transactions the user may have added afterward.
+
+<!-- offline-review-20261022 -->
+
+## 2026-10-22 offline handling — DEF-027
+
+This entry supersedes earlier logo-preview/build scheduling: **the user approved the current project logo and explicitly prohibited building another APK for now**. No APK was built or installed during this offline repair. ENV-DEV-05 remains installed with its existing embedded JavaScript; source/automated results do not update that binary. U-NEW is still being prepared; do not sign out U-A or treat new-user coverage as passed.
+
+### Offline parity gate
+
+| Surface | Source | Automated | Physical DEV | Physical standalone |
+|---|---|---|---|---|
+| NET-001–006 localized global connectivity popup/read recovery | PASS | PASS, bounded 72-test run | NOT RUN on updated JS; baseline old-artifact popup FAIL PHY-056 | NOT RUN |
+| Old ENV-DEV-05 explicit Retry restores Home after restored internet | Existing behavior | Separate from new popup suite | PASS PHY-057, bounded visible result only | NOT RUN |
+
+The DEV application name does not imply a debuggable runtime: current installed flags have no DEBUGGABLE and no development-launcher activity. Attempting its Metro deep link left embedded JS active and produced no Metro bundle request. No new source behavior was falsely counted as a device pass. Metro stopped and temporary reverse mapping removed. A future authorized DEV artifact must repeat NET cases; a later standalone request must additionally run with Metro/USB/reverse/proxy absent. No new APK is authorized now.

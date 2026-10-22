@@ -24,6 +24,7 @@ import {
   useStartupReady
 } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { usePreferenceStore } from '@/state/preferences';
+import { NetworkConnectionNotice } from '@/features/shell/NetworkConnectionNotice';
 
 export default function RootLayout() {
   const locale = usePreferenceStore((state) => state.locale);
@@ -31,13 +32,13 @@ export default function RootLayout() {
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   return (
     <MobileIdentityProvider>
-      <StartupLoadingBoundary
-        locale={locale}
-        themePreference={themePreference}
-        reducedMotion={reducedMotion}
-      >
-        <FontGate>
-          <FoundationProviders>
+      <FoundationProviders>
+        <StartupLoadingBoundary
+          locale={locale}
+          themePreference={themePreference}
+          reducedMotion={reducedMotion}
+        >
+          <FontGate>
             <AppShellProvider>
               <DevAccountDeletionRecovery />
               <VoiceCaptureProvider>
@@ -47,9 +48,10 @@ export default function RootLayout() {
                 </RoutePrivacyGate>
               </VoiceCaptureProvider>
             </AppShellProvider>
-          </FoundationProviders>
-        </FontGate>
-      </StartupLoadingBoundary>
+          </FontGate>
+        </StartupLoadingBoundary>
+        <NetworkConnectionNotice />
+      </FoundationProviders>
     </MobileIdentityProvider>
   );
 }

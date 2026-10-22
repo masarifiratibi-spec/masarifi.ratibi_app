@@ -4725,3 +4725,58 @@ Verified2026-10-22T05:38:55.478997+00:00: user-requested removal of the last ord
 | Standalone gate | Withdrawn candidate had exact identity/signature and bounded unauthenticated startup evidence | After logo review and a new build, repeat critical matrix on exact ordinary APK with Metro stopped/noUSB/reverse/proxy; new users, OAuth/Firebase and preferably second device |
 
 Payments/gateway/subscription activation and app-lock PIN/biometric remain agreed exclusions; authentication/ownership/deletion are not excluded. No overall completion percentage is asserted. Recorded financial totals and assistant speed belong to the timestamped previous review cases, not a fresh read of any transactions the user may have added afterward.
+
+<!-- offline-review-20261022 -->
+
+## 2026-10-22 offline handling — DEF-027
+
+This entry supersedes earlier logo-preview/build scheduling: **the user approved the current project logo and explicitly prohibited building another APK for now**. No APK was built or installed during this offline repair. ENV-DEV-05 remains installed with its existing embedded JavaScript; source/automated results do not update that binary. U-NEW is still being prepared; do not sign out U-A or treat new-user coverage as passed.
+
+### NET-001 — offline cold launch and startup visibility
+
+- Entry/parameters: launcher→root; Arabic and English; Wi-Fi/mobile internet absent. Preconditions: preserve DEV session/data; user controls OS network switches; ordinary owner and signed-out variants require separate physical coverage.
+- Steps: 1.Disable internet. 2.Cold-open the intended artifact. 3.Observe startup before fonts/session/profile complete. 4.Read and dismiss the notice.
+- Expected: accessible centered notice with clear no-internet explanation, potentially stale balances warning, Retry and Dismiss; no endless silent loading, auth bypass or claim of current balances.
+- Source PASS; automated PASS (including actual RootLayout with fonts blocked); physical updated DEV NOT RUN; standalone NOT RUN. Baseline PHY-056 FAIL for requested popup: at 2026-10-22T06:12:23.873Z the old ENV-DEV-05 displayed a full-screen connection error and Retry, not a popup. The user had disabled internet and requested this screenshot. Private evidence `qa-offline-baseline-20261022.{json,png,xml}`. Exact process cold launch was not performed in that baseline. Defect DEF-027; retest RT-027-01 remains NOT RUN on device.
+
+### NET-002 — foreground loss, dismissal and a new outage
+
+- Entry/parameters: any loaded owned screen, Arabic/English, online→offline→online→offline. Preconditions: record owned balances and do not create transactions.
+- Steps: 1.Disable internet while in use. 2.Wait up to the three-second foreground probe interval. 3.Dismiss the popup. 4.Remain offline through more probes. 5.Restore internet. 6.Disconnect again.
+- Expected: one popup per outage, no repeated interruption after dismissal, new popup for a new outage; protected screens retain auth guards and no ledger changes occur.
+- Source PASS; automated PASS; physical updated DEV NOT RUN; standalone NOT RUN. Private automated evidence `offline-verified-regressions.json`; DEF-027 / RT-027-02 NOT RUN physically.
+
+### NET-003 — Retry and read recovery without duplicate financial effects
+
+- Entry/parameters: offline notice with failed active reads and a preserved pending financial operation. Preconditions: record balances, transaction receipt/count and pending operation; do not create or replay a historical financial queue.
+- Steps: 1.Tap Retry while still offline. 2.Observe retained message. 3.Restore internet. 4.Tap Retry or wait for the next probe. 5.Inspect reads, balances and pending operation state without resubmitting it.
+- Expected: Retry is busy/disabled during its probe; notice closes on confirmed connectivity; failed active reads recover without cache clearing or paused mutation replay. Existing operation-specific reconciliation remains responsible for unknown writes.
+- Source PASS; automated PASS, using a real QueryClient/active query/preserved cache and paused mutation with a mocked network boundary; physical updated DEV NOT RUN; standalone NOT RUN. DEF-027 / RT-027-03 NOT RUN physically.
+- Separate bounded old-artifact observation PHY-057 PASS: after the user restored internet the old connection page remained visible at 06:16:22.842Z. One observed Retry tap at 06:20:39.884Z restored Home at 06:20:55.988Z, same selected QA21 EGP Wallet and visible 955 EGP. Evidence `qa-offline-baseline-restored-20261022.*`, `qa-offline-old-dev-manual-recovery-20261022.*`; no finance action was submitted. This is not a pass for the new popup or a full database audit.
+
+### NET-004 — background, foreground and stale connectivity responses
+
+- Entry/parameters: delayed native probe; foreground→background→foreground. Preconditions: no call; no financial action.
+- Steps: 1.Start a connectivity check. 2.Background the app before it completes. 3.Change network state. 4.Return to foreground. 5.Observe a fresh check and notice. 6.Close the app and ensure old responses do not update the UI.
+- Expected: no recurring background probes or late background/unmounted UI updates; immediate foreground recheck, at most one probe in flight.
+- Source PASS; automated PASS for background response invalidation/foreground checks; physical updated DEV NOT RUN; standalone NOT RUN. DEF-027 / RT-027-04 NOT RUN physically.
+
+### NET-005 — unavailable identity/profile recovery and ownership
+
+- Entry/parameters: cold session or profile restoration unavailable because of internet loss; U-A then independent U-B in separate authenticated runs. Preconditions: U-B prepared, no credentials shared, no sign-out without coordinated case.
+- Steps: 1.Start offline and observe unavailable restoration. 2.Restore internet. 3.Observe normal authenticated restoration once. 4.Compare current owner/data and default-account count. 5.Repeat with the other ordinary identity.
+- Expected: existing identity/bootstrap path recovers once without auth bypass, old-owner data exposure, extra default accounts or financial writes. A normal failed read retains its existing failure UI if the server remains unavailable.
+- Source PASS; automated PASS for one restoration trigger per outage; physical updated DEV NOT RUN; standalone NOT RUN. Full ownership/default-account acceptance remains under AUTH cases and is not established by the unit scenarios. DEF-027 / RT-027-05 NOT RUN physically.
+
+### NET-006 — localization, accessibility and unsupported connectivity probes
+
+- Entry/parameters: Arabic RTL/English LTR; large text, reduced motion, screen reader, Android Back; native probe unknown/unsupported variants.
+- Steps: 1.Observe popup in both languages. 2.Enlarge system text and enable screen reader/reduced motion as user-chosen settings. 3.Navigate Retry/Dismiss and press Android Back. 4.Exercise an unavailable probe without falsely declaring a known outage.
+- Expected: readable scrollable card, accessible alert and 48px minimum controls; localized text and RTL; fade disabled by reduced-motion preference; Back dismisses. Unknown native failures do not become false offline evidence. Unsupported platforms retain their existing screen-level connection handling.
+- Source PASS; automated PASS for localized controls/alert, unknown/unsupported probe handling; physical updated DEV NOT RUN; standalone NOT RUN. Large-font/screen-reader/motion/Back visual acceptance remains NOT RUN. DEF-027 / RT-027-06 NOT RUN physically.
+
+### Offline evidence and cleanup ledger
+
+All times above UTC, on 2026-10-22. Automated: 72/72 tests in seven suites PASS; full mobile TypeScript PASS; scoped ESLint PASS; app-shell and design-system boundary checks PASS. Original missing-component RED, incorrect Jest AppState fixture, accessibility grouping issue, exact-text matcher fixture failures and a partial typography mock failure are preserved in private attempt logs; none is overwritten by the final result.
+
+No synthetic record was added, modified or deleted. No permission was granted/revoked by the agent; the user changed network settings and restored them. Metro was started only for an attempted JavaScript retest; installed DEV has no debuggable/development-launcher runtime and kept its embedded JS. No bundle was requested by the phone, so no updated-device acceptance is claimed. Temporary ADB tcp:8081 reverse was removed and the owned Metro process stopped. DEV remains on Home. No credentials/receipt bodies/device identifiers are committed.

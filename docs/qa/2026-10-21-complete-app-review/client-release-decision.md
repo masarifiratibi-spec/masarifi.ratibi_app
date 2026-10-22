@@ -2,7 +2,7 @@
 
 Updated 2026-10-21T23:40:03+00:00; baseline `9b380dfc8e42c3a484df3ac838e3ff91d9b14a48` on `codex/voice-promoted-operating-2026-10-13`, `D:/Masarifi-integration-2026-10-10`.
 
-**NOT READY for client delivery. ENV-STAND-01 was withdrawn and uninstalled at the user’s request; DEV is preserved. Native logo resources are repaired and checked. No replacement APK was built; logo preview comes first.**
+**NOT READY for client delivery. ENV-STAND-01 was withdrawn and uninstalled at the user’s request; DEV is preserved. Native logo resources are repaired and checked. The user approved the current project logo; no replacement APK may be built until a later request.**
 
 The source-derived inventory covers **98 mobile route/intent sources, 16 layouts, 105 Admin pages, 1151 callable UI bindings, 231 functional cases, 15 notification targets, 376 API/dispatch entries and 144 SQL migrations**. The 145th tracked migration-directory file is `.gitkeep`. Joined traces connect 218 client adapter operations and 15 delegated integration bridges to actual route/controller/database dependencies. Coverage counts are not acceptance passes. Source repairs/configuration/test maintenance are committed at `61117eaf07323ffa63c00f867d5d65e6f3142ece` and posting-direction/localization repair `058385f83e6ed5ab46be21de41dea74bc786449f`. Latest installed DEV is ENV-DEV-05 (source0b03533f). ENV-STAND-01 has been withdrawn/uninstalled; its bounded startup evidence is historical, and critical standalone acceptance remains NOT RUN.
 
@@ -493,3 +493,15 @@ Verified2026-10-22T05:38:55.478997+00:00: user-requested removal of the last ord
 | Standalone gate | Withdrawn candidate had exact identity/signature and bounded unauthenticated startup evidence | After logo review and a new build, repeat critical matrix on exact ordinary APK with Metro stopped/noUSB/reverse/proxy; new users, OAuth/Firebase and preferably second device |
 
 Payments/gateway/subscription activation and app-lock PIN/biometric remain agreed exclusions; authentication/ownership/deletion are not excluded. No overall completion percentage is asserted. Recorded financial totals and assistant speed belong to the timestamped previous review cases, not a fresh read of any transactions the user may have added afterward.
+
+<!-- offline-review-20261022 -->
+
+## 2026-10-22 offline handling — DEF-027
+
+This entry supersedes earlier logo-preview/build scheduling: **the user approved the current project logo and explicitly prohibited building another APK for now**. No APK was built or installed during this offline repair. ENV-DEV-05 remains installed with its existing embedded JavaScript; source/automated results do not update that binary. U-NEW is still being prepared; do not sign out U-A or treat new-user coverage as passed.
+
+### Current offline checkpoint
+
+**Client delivery remains NOT READY.** DEF-027 has a source repair and 72 passing automated regressions, full mobile TypeScript/scoped ESLint and app-shell/design-system boundary checks; updated physical DEV and standalone remain NOT RUN. Existing DEV recovered to Home at 955 EGP after the explicit Retry; this proves only the bounded old-artifact observation. Current installed DEV cannot load the changed source through Metro, so physical closure is blocked by the no-build instruction; no APK was produced to work around it. No current QA gate is waived.
+
+Next offline acceptance when an artifact update is later authorized: NET-001–006 cold startup, foreground outage, Retry/Dismiss/new outage, reconnection without duplicated writes, auth/owner restoration and Arabic/English accessibility. Continue independent review checks meanwhile. Genuine unused registration/second owner, remaining critical financial/voice/tracking/notifications/assistant/planning/settings/Admin/deletion and standalone cases remain open exactly as recorded. Logo is approved; build remains on hold by the user's explicit instruction.

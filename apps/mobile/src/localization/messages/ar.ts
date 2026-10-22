@@ -593,6 +593,11 @@ const ar: MessageCatalog = {
   'appShell.progressive.obligation': 'إضافة التزام',
   'appShell.progressive.savings': 'إنشاء هدف ادخار',
   'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
+  'appShell.networkNotice.title': 'أنت غير متصل بالإنترنت',
+  'appShell.networkNotice.message': 'تحقّق من اتصال Wi-Fi أو بيانات الهاتف، ثم حاول مرة أخرى.',
+  'appShell.networkNotice.stale': 'قد تكون الأرصدة والمعاملات المعروضة غير محدثة.',
+  'appShell.networkNotice.retry': 'إعادة المحاولة',
+  'appShell.networkNotice.dismiss': 'إغلاق',
   'appShell.connectionUnavailable.message':
     'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
   'appShell.state.loading': 'جار التحميل',
