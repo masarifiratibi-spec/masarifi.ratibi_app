@@ -206,12 +206,21 @@ export class ReportsRepository {
     period: ReportPeriodRange,
     currency: string | null,
     requestId: string,
+    accountIds?: string[],
   ): Promise<ReportsSummaryResponse> {
     void requestId;
     try {
-      return await this.withApiSnapshot(principal, (client) =>
-        this.readSummary(client, principal.userId, reportType, period, currency),
-      );
+      return await this.withApiSnapshot(principal, async (client) => {
+        if (accountIds) {
+          const owned = await client.query(
+            'select id from public.accounts where user_id=$1 and id=any($2::uuid[])',
+            [principal.userId, accountIds],
+          );
+          if (owned.rowCount !== new Set(accountIds).size || accountIds.length === 0)
+            throw new HttpException({ code: 'REPORT_ACCOUNT_NOT_FOUND' }, 404);
+        }
+        return this.readSummary(client, principal.userId, reportType, period, currency, accountIds);
+      });
     } catch (error) {
       throw mapDatabaseError(error);
     }
@@ -1425,9 +1434,12 @@ export class ReportsRepository {
     const hasPlanning = planning && Object.values(planning).some((rows) => rows.length > 0);
     const hasData =
       input.summary.summaries.length > 0 || breakdowns.length > 0 || detailedRows.length > 0;
-    const minorUnit = (await client.query<{ minor_unit: number }>(
-      'select minor_unit from public.currencies where code=$1', [input.currency],
-    )).rows[0]?.minor_unit;
+    const minorUnit = (
+      await client.query<{ minor_unit: number }>(
+        'select minor_unit from public.currencies where code=$1',
+        [input.currency],
+      )
+    ).rows[0]?.minor_unit;
     if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
       throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
     return {
@@ -1448,10 +1460,38 @@ export class ReportsRepository {
     reportType: ReportType,
     period: ReportPeriodRange,
     currency: string | null,
+    accountIds?: string[],
   ): Promise<ReportsSummaryResponse> {
+    // Sum signed postings so account moves cancel and transfer fees stay on their actual account.
+    const reportTransactions = `with report_transactions as (
+      select t.id,t.user_id,t.kind,t.status,t.deleted_at,t.occurred_at,t.currency_code,
+        t.category_id,t.reverses_transaction_id,
+        case when $5::uuid[] is null then t.amount_minor
+          when t.kind='expense' then -p.principal_minor else p.principal_minor end amount_minor,
+        case when $5::uuid[] is null then t.fee_minor else -p.fee_minor end fee_minor
+      from public.transactions t
+      left join lateral (
+        select coalesce(sum(p.amount_minor) filter(where p.posting_role<>'fee'),0)::bigint principal_minor,
+          coalesce(sum(p.amount_minor) filter(where p.posting_role='fee'),0)::bigint fee_minor
+        from public.transaction_postings p
+        where $5::uuid[] is not null and p.transaction_id=t.id
+          and p.account_id=any($5::uuid[]) and p.clearing_state='confirmed'
+      ) p on true
+      where t.user_id=$1 and t.status='confirmed' and t.deleted_at is null
+        and t.occurred_at >= $2::timestamptz and t.occurred_at < $3::timestamptz
+        and ($4::char(3) is null or t.currency_code=$4)
+        and ($5::uuid[] is null or p.principal_minor<>0 or p.fee_minor<>0)
+    )`;
+    const parameters = [
+      userId,
+      period.startInstant,
+      period.endExclusiveInstant,
+      currency,
+      accountIds ?? null,
+    ];
     const summaries = (
       await client.query<SummaryRow>(
-        `with effects as (
+        `${reportTransactions}, effects as (
            select t.currency_code,
              case when t.kind='income' then t.amount_minor else 0 end::bigint income_minor,
              case
@@ -1461,10 +1501,7 @@ export class ReportsRepository {
                else 0
              end::bigint expense_minor,
              case when t.kind in ('income','expense','refund') or t.fee_minor>0 then 1 else 0 end transaction_count
-           from public.transactions t
-           where t.user_id=$1 and t.status='confirmed' and t.deleted_at is null
-             and t.occurred_at >= $2::timestamptz and t.occurred_at < $3::timestamptz
-             and ($4::char(3) is null or t.currency_code=$4)
+           from report_transactions t
          )
          select currency_code,sum(income_minor)::bigint income_minor,
            sum(expense_minor)::bigint expense_minor,
@@ -1472,7 +1509,7 @@ export class ReportsRepository {
            sum(transaction_count)::bigint transaction_count
          from effects where transaction_count>0
          group by currency_code order by currency_code`,
-        [userId, period.startInstant, period.endExclusiveInstant, currency],
+        parameters,
       )
     ).rows.map((row) => {
       const income = safeInteger(row.income_minor);
@@ -1488,21 +1525,15 @@ export class ReportsRepository {
     });
     const breakdowns = (
       await client.query<CategoryRow>(
-        `with category_effects as (
+        `${reportTransactions}, category_effects as (
            select t.currency_code,t.category_id,t.amount_minor::bigint expense_minor
-           from public.transactions t
-           where t.user_id=$1 and t.kind='expense' and t.status='confirmed'
-             and t.deleted_at is null and t.category_id is not null
-             and t.occurred_at >= $2::timestamptz and t.occurred_at < $3::timestamptz
-             and ($4::char(3) is null or t.currency_code=$4)
+           from report_transactions t
+           where t.kind='expense' and t.category_id is not null and t.amount_minor<>0
            union all
            select r.currency_code,o.category_id,-r.amount_minor::bigint
-           from public.transactions r
+           from report_transactions r
            join public.transactions o on o.id=r.reverses_transaction_id and o.user_id=r.user_id
-           where r.user_id=$1 and r.kind='refund' and r.status='confirmed'
-             and r.deleted_at is null and o.category_id is not null
-             and r.occurred_at >= $2::timestamptz and r.occurred_at < $3::timestamptz
-             and ($4::char(3) is null or r.currency_code=$4)
+           where r.kind='refund' and o.category_id is not null
          )
          select e.category_id,c.label_ar category_label_ar,c.label_en category_label_en,e.currency_code,
            sum(e.expense_minor)::bigint expense_minor,count(*)::bigint transaction_count
@@ -1510,7 +1541,7 @@ export class ReportsRepository {
          join public.categories c on c.id=e.category_id
          group by e.category_id,c.label_ar,c.label_en,e.currency_code
          order by currency_code,expense_minor desc,category_id limit 100`,
-        [userId, period.startInstant, period.endExclusiveInstant, currency],
+        parameters,
       )
     ).rows.map((row) => ({
       categoryId: row.category_id,

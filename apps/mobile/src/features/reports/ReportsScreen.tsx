@@ -73,7 +73,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
-  const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const selectedAccountId = useCoreFinanceViewState(
     (state) => state.selectedAccountId
@@ -90,6 +90,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   const selectedAccount = accounts.data?.find(
     (account: Account) => account.id === selectedAccountId
   );
+  const currencyCode = selectedAccount?.currencyCode ?? baseCurrencyCode;
   const home = useHomeSummary(
     currencyCode,
     applyAccountScope(emptyTransactionFilters, selectedAccountId)
@@ -107,7 +108,6 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     () => monthDatePeriod(anchorDate, timeZone),
     [anchorDate, timeZone]
   );
-  const accountScopeUnavailable = (reportQuery.error as {code?: string} | null)?.code === 'report_account_scope_unavailable';
 
   return (
     <ScrollView
@@ -156,13 +156,9 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
         ) : !reportQuery.data ? (
           <StateView
             state="error"
-            title={translate(accountScopeUnavailable ? 'reports.state.accountScopeUnavailable' : 'reports.state.error')}
-            actionLabel={translate(accountScopeUnavailable ? 'coreFinance.home.allAccounts' : 'reports.action.retry')}
+            title={translate('reports.state.error')}
+            actionLabel={translate('reports.action.retry')}
             onAction={() => {
-              if (accountScopeUnavailable) {
-                useCoreFinanceViewState.getState().selectAccount(null);
-                return;
-              }
               void reportQuery.refetch();
               void home.refetch();
               void trendQuery.refetch();
@@ -195,7 +191,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
           accountName={selectedAccountId ? selectedAccount?.name : null}
           direction={direction}
           report={reportQuery.data ?? {
-            key: `monthly:${anchorDate}:${currencyCode}:${timeZone}`,
+            key: `monthly:${anchorDate}:${currencyCode}:${timeZone}${selectedAccountId ? `:${selectedAccountId}` : ''}`,
             period: {startDate: localDateInTimeZone(period.periodStart, timeZone), endDate: localDateInTimeZone(period.periodEnd, timeZone)},
             currencyCode
           }}

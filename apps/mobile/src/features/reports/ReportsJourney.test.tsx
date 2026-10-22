@@ -173,7 +173,7 @@ test('report analysis preserves the selected account and the report period', asy
   } finally { useCoreFinanceViewState.setState({selectedAccountId: before}); }
 });
 
-test('keeps scoped assistant analysis available when the server cannot supply an account report', async () => {
+test('keeps scoped assistant analysis available when an account report fails', async () => {
   changeLocale('en');
   const before = useCoreFinanceViewState.getState().selectedAccountId;
   const accounts = await coreFinanceService.listAccounts(false);
@@ -183,11 +183,30 @@ test('keeps scoped assistant analysis available when the server cannot supply an
   const spy = jest.spyOn(reportsService, 'getReport').mockRejectedValue(Object.assign(new Error('Unsupported scope'), {code: 'report_account_scope_unavailable'}));
   try {
     const view = renderWithProviders(<ReportsScreen />);
-    expect(await view.findByText(translate('reports.state.accountScopeUnavailable'))).toBeTruthy();
+    expect(await view.findByText(translate('reports.state.error'))).toBeTruthy();
     fireEvent.press(view.getByRole('button', {name: 'Explain this report'}));
     const target = jest.mocked(router.push).mock.calls.at(-1)?.[0] as any;
     expect(JSON.parse(target.params.reportContext).accountName).toBe(account.name);
   } finally { spy.mockRestore(); useCoreFinanceViewState.setState({selectedAccountId: before}); }
+});
+
+test('uses the selected EGP account currency across report values and assistant analysis', async () => {
+  changeLocale('en');
+  const before = useCoreFinanceViewState.getState().selectedAccountId;
+  const accounts = await coreFinanceService.listAccounts(false);
+  const account = { ...accounts[0], currencyCode: 'EGP' };
+  const spy = jest.spyOn(coreFinanceService, 'listAccounts').mockResolvedValue([account]);
+  useCoreFinanceViewState.setState({ selectedAccountId: account.id });
+  useReportsViewState.setState({ followToday: false, anchorDate: '2026-08-09' });
+  try {
+    const view = renderWithProviders(<ReportsScreen />);
+    await view.findByText(account.name);
+    await view.findByText('Cash flow');
+    expect(view.getAllByText('EGP').length).toBeGreaterThan(0);
+    fireEvent.press(view.getByRole('button', { name: 'Explain this report' }));
+    const target = jest.mocked(router.push).mock.calls.at(-1)?.[0] as any;
+    expect(JSON.parse(target.params.reportContext)).toEqual({ startDate: '2026-08-01', endDate: '2026-08-31', currencyCode: 'EGP', accountName: account.name });
+  } finally { spy.mockRestore(); act(() => useCoreFinanceViewState.setState({ selectedAccountId: before })); }
 });
 
 test('unavailable report metrics remain unavailable instead of becoming zero amounts', async () => {

@@ -375,6 +375,53 @@ it('records a retryable model failure without publishing an answer', async () =>
   expect(f.jobs.finish).not.toHaveBeenCalled();
 });
 
+it.each([true, false])(
+  'recovers a timed-out failure update with the same claim before polling new work (accepted=%s)',
+  async (accepted) => {
+    const f = fixture();
+    f.jobs.claim.mockResolvedValueOnce(claim).mockResolvedValue(null);
+    f.data.read.mockRejectedValue(new Error('Query read timeout'));
+    f.jobs.fail.mockRejectedValueOnce(new Error('Query read timeout')).mockResolvedValue(accepted);
+    const provider = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new Error('UNEXPECTED_PROVIDER'));
+
+    await f.worker.runOnce();
+    await f.worker.runOnce();
+
+    expect(f.jobs.fail.mock.calls).toEqual([
+      [claim, 'AI_TEMPORARILY_UNAVAILABLE', true],
+      [claim, 'AI_TEMPORARILY_UNAVAILABLE', true],
+    ]);
+    expect(f.jobs.claim).toHaveBeenCalledTimes(1);
+    expect(f.data.read).toHaveBeenCalledTimes(1);
+    expect(provider).not.toHaveBeenCalled();
+    expect(f.jobs.finish).not.toHaveBeenCalled();
+
+    await f.worker.runOnce();
+    expect(f.jobs.claim).toHaveBeenCalledTimes(2);
+    expect(f.jobs.fail).toHaveBeenCalledTimes(2);
+  },
+);
+
+it('does not keep retrying a permanently rejected failure update', async () => {
+  const f = fixture();
+  f.jobs.claim.mockResolvedValueOnce(claim).mockResolvedValue(null);
+  f.data.read.mockRejectedValue(new Error('ASSISTANT_DATA_FENCE_INVALID'));
+  f.jobs.fail.mockRejectedValue(new Error('AUTH_TOKEN_INVALID'));
+  const provider = jest
+    .spyOn(globalThis, 'fetch')
+    .mockRejectedValue(new Error('UNEXPECTED_PROVIDER'));
+
+  await f.worker.runOnce();
+  await f.worker.runOnce();
+
+  expect(f.jobs.fail).toHaveBeenCalledTimes(1);
+  expect(f.jobs.claim).toHaveBeenCalledTimes(2);
+  expect(provider).not.toHaveBeenCalled();
+  expect(f.jobs.finish).not.toHaveBeenCalled();
+});
+
 it('does not dispatch or finish after the claim loses dispatch authorization', async () => {
   const f = fixture();
   f.jobs.authorizeDispatch.mockRejectedValue(new Error('ASSISTANT_DISPATCH_FORBIDDEN'));

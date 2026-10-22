@@ -112,22 +112,31 @@ export function normalizeSummaryQuery(
   period: (typeof REPORT_PERIODS)[number];
   anchorDate: string | null;
   currency: string | null;
+  accountIds?: string[];
 } {
   const input = record(value);
   exact(
     input,
     requireType
-      ? ['type', 'period', 'anchorDate', 'currency']
+      ? ['type', 'period', 'anchorDate', 'currency', 'accountIds']
       : ['period', 'anchorDate', 'currency'],
   );
   if (requireType && input.type === undefined) invalid();
   const currency = input.currency === undefined ? null : text(input.currency, 3, 3);
   if (currency !== null && !/^[A-Z]{3}$/.test(currency)) invalid();
+  let accountIds: string[] | undefined;
+  if (input.accountIds !== undefined) {
+    if (typeof input.accountIds !== 'string') invalid();
+    const ids = input.accountIds.split(',');
+    if (ids.length > 100 || ids.some((id) => !UUID.test(id))) invalid();
+    accountIds = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+  }
   return {
     type: requireType ? oneOf(input.type, REPORT_TYPES) : 'financial_summary',
     period: oneOf(input.period, REPORT_PERIODS),
     anchorDate: input.anchorDate === undefined ? null : localDate(input.anchorDate),
     currency,
+    ...(accountIds ? { accountIds } : {}),
   };
 }
 

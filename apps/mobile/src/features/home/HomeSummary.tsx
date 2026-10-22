@@ -213,19 +213,19 @@ export const HomeSummary = React.memo(function HomeSummary({
           >
             {total.text.replace(/[\u2066\u2069]/g, '')}
           </Text>
-          <Text
-            style={[
-              styles.balanceSupport,
-              {
-                color: theme.colors.content.onFinancialHero,
-                writingDirection: direction
-              }
-            ]}
-          >
-            {summary.isEstimated
-              ? translate('coreFinance.home.estimated')
-              : translate('coreFinance.home.recorded')}
-          </Text>
+          {!summary.isEstimated ? (
+            <Text
+              style={[
+                styles.balanceSupport,
+                {
+                  color: theme.colors.content.onFinancialHero,
+                  writingDirection: direction
+                }
+              ]}
+            >
+              {translate('coreFinance.home.recorded')}
+            </Text>
+          ) : null}
         </Pressable>
 
         <Pressable

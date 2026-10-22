@@ -6,14 +6,22 @@ import { AiGateway, AiGatewayError } from './ai.gateway';
 import { AiRepository } from './ai.repository';
 import { AssistantAgentData } from './assistant-agent-data';
 import { AssistantAgentRepository } from './assistant-agent.repository';
-import { AssistantAgent } from './assistant-agent';
+import { AssistantAgent, type AssistantAgentClaim } from './assistant-agent';
 import { publishAiWorkerHealth } from './ai-worker-health';
+import { isTransientVoiceError } from './voice-transient-error';
+
+interface PendingAssistantFailure {
+  claim: AssistantAgentClaim;
+  code: string;
+  retry: boolean;
+}
 
 @Injectable()
 export class AssistantAgentWorker implements OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
   private controller?: AbortController;
+  private pendingFailure?: PendingAssistantFailure;
   private readonly logger = new PlatformLogger();
 
   constructor(
@@ -44,6 +52,11 @@ export class AssistantAgentWorker implements OnModuleDestroy {
     this.controller = new AbortController();
     const deadline = setTimeout(() => this.controller?.abort(), 150000);
     try {
+      if (this.pendingFailure) {
+        await this.recordFailure(this.pendingFailure);
+        publishAiWorkerHealth('ready');
+        return;
+      }
       const publicAgent = this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED');
       const owner = publicAgent
         ? null
@@ -96,13 +109,13 @@ export class AssistantAgentWorker implements OnModuleDestroy {
               : 'AI_TEMPORARILY_UNAVAILABLE';
         const retry =
           error instanceof AiGatewayError ? error.retryable : code === 'AI_TEMPORARILY_UNAVAILABLE';
-        await this.jobs.fail(claim, code, retry);
         this.logger.error('ASSISTANT_AGENT_FAILED', {
           code,
           durationMs: Date.now() - started,
           ...(error instanceof AiGatewayError ? error.diagnostic : {}),
           ...workerErrorFields(error),
         });
+        await this.recordFailure({ claim, code, retry });
       }
     } catch (error) {
       publishAiWorkerHealth('failed');
@@ -111,6 +124,17 @@ export class AssistantAgentWorker implements OnModuleDestroy {
       clearTimeout(deadline);
       this.controller = undefined;
       this.running = false;
+    }
+  }
+
+  private async recordFailure(failure: PendingAssistantFailure): Promise<void> {
+    this.pendingFailure = undefined;
+    try {
+      await this.jobs.fail(failure.claim, failure.code, failure.retry);
+    } catch (error) {
+      // Retry only the fenced status write, so a short database outage cannot strand the claim.
+      if (isTransientVoiceError(error)) this.pendingFailure = failure;
+      throw error;
     }
   }
 

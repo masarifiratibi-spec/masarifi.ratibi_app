@@ -667,7 +667,7 @@ export class ReportsService {
     const key = ReportsCache.key(
       principal.userId,
       namespace,
-      `${normalized.type}:${normalized.period}:${normalized.anchorDate ?? 'current'}`,
+      `${normalized.type}:${normalized.period}:${normalized.anchorDate ?? 'current'}:${normalized.accountIds?.join(',') ?? 'all'}`,
       normalized.currency ?? 'all',
       context.ledgerVersion,
     );
@@ -682,6 +682,7 @@ export class ReportsService {
             period,
             normalized.currency,
             requestId,
+            ...(normalized.accountIds ? [normalized.accountIds] : []),
           )
         : await this.repository.getHome(principal, period, normalized.currency, requestId);
     const version = (result as { metadata?: { ledgerVersion?: number } }).metadata?.ledgerVersion;

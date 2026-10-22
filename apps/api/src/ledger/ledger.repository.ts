@@ -463,7 +463,7 @@ export class LedgerRepository {
         const rows = (
           await client.query<ListRow>(
             `select t.id,t.kind,t.status,t.amount_minor,t.fee_minor,
-          btrim(t.currency_code::text) currency,t.category_id,t.title,t.merchant,t.payment_method,
+          btrim(t.currency_code::text) currency,coalesce(t.category_id,original.category_id) category_id,t.title,t.merchant,t.payment_method,
           t.note,t.occurred_at,t.source,t.reverses_transaction_id,t.version,t.deleted_at,
           t.undo_expires_at,
           private.ledger_account_ids(t.id) account_ids,
@@ -475,10 +475,11 @@ export class LedgerRepository {
           coalesce((select max(b.ledger_version) from public.account_balances b
             join public.accounts a on a.id=b.account_id where a.user_id=$1),0)::text ledger_version
         from public.transactions t
+        left join public.transactions original on t.kind='refund'
+          and original.id=t.reverses_transaction_id and original.user_id=t.user_id
         where t.user_id=$1
-          and ($2::uuid is null or exists(select 1 from public.transaction_postings p
-            where p.transaction_id=t.id and p.account_id=$2))
-          and ($3::uuid is null or t.category_id=$3)
+          and ($2::uuid is null or $2=any(private.ledger_account_ids(t.id)))
+          and ($3::uuid is null or coalesce(t.category_id,original.category_id)=$3)
           and ($4::text is null or t.kind=$4)
           and ($5::text is null or t.status=$5)
           and ($6::text is null or t.source=$6)
@@ -1243,8 +1244,10 @@ export class LedgerRepository {
       accountIds,
       ...transactionAccountRoles(
         transaction.kind,
-        transaction.source_account_id,
-        transaction.destination_account_id,
+        transaction.kind === 'transfer'
+          ? transaction.source_account_id
+          : (accountIds[0] ?? transaction.source_account_id),
+        transaction.kind === 'transfer' ? transaction.destination_account_id : null,
       ),
       feeMinor: Number(transaction.fee_minor),
       categoryId: transaction.category_id,

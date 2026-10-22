@@ -200,15 +200,14 @@ export function createLiveReportsService(
     input: Parameters<ReportsService['getReport']>[0],
     context?: ReadContext
   ): Promise<FinancialReport> => {
-    if (input.accountIds?.length)
-      throw new ReportsApiError('report_account_scope_unavailable');
     const response = exact(
       await read(
         `/api/v1/reports/summary?${new URLSearchParams({
           type: 'financial_summary',
           period: input.kind,
           anchorDate: input.anchorDate,
-          currency: input.currencyCode
+          currency: input.currencyCode,
+          ...(input.accountIds?.length ? { accountIds: [...new Set(input.accountIds)].sort().join(',') } : {})
         }).toString()}`,
         context
       ),
@@ -287,11 +286,11 @@ export function createLiveReportsService(
       range.endDate !== period.endDate
     )
       throw new ReportsApiError('report_range_mismatch');
-    const key = `report:${input.kind}:${input.anchorDate}:${input.currencyCode}`;
+    const key = `report:${input.kind}:${input.anchorDate}:${input.currencyCode}:${input.accountIds?.length ? [...new Set(input.accountIds)].sort().join(',') : 'all'}`;
     if (!Array.isArray(response.breakdowns))
       throw new ReportsApiError('contract_mismatch');
     const breakdowns = [
-      categoryBreakdown(response.breakdowns, period, input.currencyCode, key)
+      categoryBreakdown(response.breakdowns, period, input.currencyCode, key, input.accountIds ?? [])
     ];
     const sourceReasons: CompletenessReason[] =
       metadata.dataState === 'partial' || metadata.dataState === 'estimated'
@@ -503,6 +502,8 @@ export function createLiveReportsService(
     loadScheduleDraft: () => local.loadDraft(),
     discardScheduleDraft: () => local.discardDraft(),
     async previewOutput(input, context) {
+      if (input.accountIds?.length)
+        throw new ReportsApiError('report_account_scope_unavailable');
       const value = await report(input, context);
       const result = {
         previewId: `preview:${value.key}:${input.detailLevel}`,
@@ -602,7 +603,8 @@ function categoryBreakdown(
   values: unknown[],
   period: FinancialReport['period'],
   currencyCode: string,
-  reportKey: string
+  reportKey: string,
+  accountIds: string[]
 ): ReportBreakdown {
   const items = values
     .map((value) =>
@@ -626,6 +628,7 @@ function categoryBreakdown(
         kind: 'transactions' as const,
         filters: {
           ...emptyTransactionFilters,
+          accountIds,
           periodStart: period.startInstant,
           periodEnd: period.endExclusiveInstant - 1,
           categoryIds: [String(row.categoryId)]

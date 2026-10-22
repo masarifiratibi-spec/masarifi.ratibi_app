@@ -159,7 +159,7 @@ describe('live reports strict mapping', () => {
     }
   });
   it('sends the exact anchor and validates the server-owned range and timezone', async () => {
-    const request = jest.fn().mockResolvedValue(json(summary()));
+    const request = jest.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => json(summary()));
     const reports = service(request);
 
     await expect(reports.getReport(input)).resolves.toMatchObject({
@@ -193,10 +193,27 @@ describe('live reports strict mapping', () => {
       'period=monthly&anchorDate=2026-08-17&currency=SAR'
     );
 
-    await expect(
-      reports.getReport({ ...input, accountIds: ['account-1'] })
-    ).rejects.toEqual(new ReportsApiError('report_account_scope_unavailable'));
-    expect(request).toHaveBeenCalledTimes(1);
+    const scoped = await reports.getReport({ ...input, accountIds: ['account-1'] });
+    const other = await reports.getReport({ ...input, accountIds: ['account-2'] });
+    expect(new URL(String(request.mock.calls[1]?.[0])).searchParams.get('accountIds')).toBe('account-1');
+    expect(scoped.key).not.toBe(other.key);
+    expect(scoped.breakdowns[0].items[0].drillDown).toMatchObject({
+      filters: { accountIds: ['account-1'], categoryIds: ['99000000-0000-4000-8000-000000000001'] }
+    });
+  });
+
+  it('keeps the native EGP currency and refuses a scoped preview that cannot be exported safely', async () => {
+    const egp = summary();
+    egp.summaries[0].income.currency = 'EGP';
+    egp.summaries[0].expense.currency = 'EGP';
+    egp.summaries[0].netCashFlow.currency = 'EGP';
+    egp.breakdowns[0].currencyCode = 'EGP';
+    const reports = service(jest.fn().mockResolvedValue(json(egp)));
+    expect((await reports.getReport({ ...input, accountIds: ['egp-account'], currencyCode: 'EGP' })).summary.expense)
+      .toMatchObject({ value: { currencyCode: 'EGP', minorUnits: 4000 } });
+    await expect(reports.previewOutput({
+      ...input, accountIds: ['egp-account'], currencyCode: 'EGP', language: 'en', detailLevel: 'summary', recipientEmail: null
+    })).rejects.toMatchObject({ code: 'report_account_scope_unavailable' });
   });
 
   it('preserves partial source state and rejects mismatched or unknown response data', async () => {

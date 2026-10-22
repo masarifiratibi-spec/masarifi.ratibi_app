@@ -8,6 +8,8 @@ import type { ReportBreakdown, ReportOutputAttempt } from '@/domain/reports';
 import { currentLocale, translate, type MessageKey } from '@/localization/i18n';
 import { reportsService } from '@/services/reports-service';
 import { usePreferenceStore } from '@/state/preferences';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
+import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { useReportsViewState } from '@/state/reports-view-state';
 import { formatDateTime } from '@/utils/format-financial-value';
 import {
@@ -24,7 +26,10 @@ let outputOperationSequence = 0;
 
 export function ReportPreviewScreen() {
   const anchorDate = useReportAnchorDate();
-  const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const selectedAccountId = useCoreFinanceViewState((state) => state.selectedAccountId);
+  const accounts = useAccounts(false);
+  const currencyCode = accounts.data?.find((account) => account.id === selectedAccountId)?.currencyCode ?? baseCurrencyCode;
   const locale = usePreferenceStore((state) => state.locale);
   const { selectedKind } = useReportsViewState();
   const schedule = useReportSchedule();
@@ -37,7 +42,7 @@ export function ReportPreviewScreen() {
       ? schedule.data.recipient.normalizedEmail
       : null;
   const input = {
-    ...useReportInput(selectedKind, anchorDate, currencyCode),
+    ...useReportInput(selectedKind, anchorDate, currencyCode, selectedAccountId ? [selectedAccountId] : []),
     language: locale,
     detailLevel,
     recipientEmail
@@ -76,7 +81,11 @@ export function ReportPreviewScreen() {
           <StyledText>{reportStateTitle(snapshot.dataState)}</StyledText>
         </View>
       ) : (
-        <StyledText>{translate('reports.state.loading')}</StyledText>
+        <StyledText>{translate(
+          (preview.error as { code?: string } | null)?.code === 'report_account_scope_unavailable'
+            ? 'reports.preview.accountScopeUnavailable'
+            : preview.isError ? 'reports.state.error' : 'reports.state.loading'
+        )}</StyledText>
       )}
 
       <StyledText variant="subtitle">

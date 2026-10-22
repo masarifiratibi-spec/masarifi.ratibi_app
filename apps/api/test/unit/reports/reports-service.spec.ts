@@ -70,6 +70,32 @@ describe('ReportsService summaries', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it('isolates cached account summaries, including accounts sharing a currency', async () => {
+    const first = '99000000-0000-4000-8000-000000000001';
+    const second = '99000000-0000-4000-8000-000000000002';
+    const repository = {
+      getContext: jest.fn().mockResolvedValue({ timezone: 'Asia/Riyadh', ledgerVersion: 4 }),
+      getSummary: jest.fn((...args: unknown[]) =>
+        Promise.resolve({
+          ...response,
+          summaries: [{ accountIds: args[5] ?? [], incomeMinor: args[5] ? 100 : 300 }],
+        }),
+      ),
+    };
+    const service = new ReportsService(repository as never);
+    const query = { type: 'financial_summary', period: 'monthly', currency: 'SAR' };
+    const all = await service.getReportSummary(principal, query, 'all');
+    const a = await service.getReportSummary(principal, { ...query, accountIds: first }, 'a');
+    const b = await service.getReportSummary(principal, { ...query, accountIds: second }, 'b');
+    expect(a).toMatchObject({ summaries: [{ accountIds: [first], incomeMinor: 100 }] });
+    expect(b).toMatchObject({ summaries: [{ accountIds: [second], incomeMinor: 100 }] });
+    expect(all).toMatchObject({ summaries: [{ accountIds: [], incomeMinor: 300 }] });
+    expect(
+      await service.getReportSummary(principal, { ...query, accountIds: first }, 'cached'),
+    ).toEqual(a);
+    expect(repository.getSummary).toHaveBeenCalledTimes(3);
+  });
+
   it('uses an explicit report anchor date instead of the request clock', async () => {
     const repository = {
       getContext: jest.fn().mockResolvedValue({ timezone: 'Asia/Riyadh', ledgerVersion: 4 }),

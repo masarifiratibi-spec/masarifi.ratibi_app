@@ -24,8 +24,8 @@ const ar: MessageCatalog = {
   'reminders.permission.allow': 'السماح بالإشعارات',
   'assistant.report.scope':
     'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
-  'reports.state.accountScopeUnavailable':
-    'التقرير يدعم حاليًا كل الحسابات معًا. اختر «كل الحسابات»، أو اطلب من المساعد بالأسفل تحليل الحساب المحدد.',
+  'reports.preview.accountScopeUnavailable':
+    'تصدير الملفات متاح حاليًا لكل الحسابات معًا فقط. ارجع إلى «كل الحسابات» للتصدير. تحليلات الحساب المحدد متاحة.',
   'settings.deletion.dev.description':
     'احذف حسابك نهائيًا مع بياناته المالية والتخطيط والتتبع والمساعد المحفوظة. لا يمكن التراجع عن هذا الإجراء.',
   'settings.deletion.dev.confirmation':

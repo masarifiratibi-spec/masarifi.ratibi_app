@@ -53,6 +53,7 @@ describe('Phase 10 summary HTTP contract', () => {
       expect(paths['/api/v1/reports/summary']?.get?.parameters).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ name: 'anchorDate', in: 'query', required: false }),
+          expect.objectContaining({ name: 'accountIds', in: 'query', required: false }),
         ]),
       );
     } finally {

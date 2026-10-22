@@ -47,13 +47,10 @@ const summary: HomeSummary = {
   dataState: 'partial'
 };
 
-it('keeps hidden values and the retained non-color estimate status available', () => {
+it('keeps hidden balance values private', () => {
   usePreferenceStore.setState({ hideBalances: true });
   renderWithProviders(<HomeScreen summary={summary} />);
   expect(screen.getAllByText('•••• SAR').length).toBeGreaterThan(0);
-  expect(
-    screen.getByText(translate('coreFinance.home.estimated'))
-  ).toBeTruthy();
   expect(
     screen.queryByText(`${translate('coreFinance.home.pendingSync')} 1`)
   ).toBeNull();

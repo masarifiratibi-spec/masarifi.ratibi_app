@@ -24,6 +24,7 @@ import {
 } from '@/design-system/tokens';
 import { currentLocale, translate, translateDynamic } from '@/localization/i18n';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
+import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { usePreferenceStore } from '@/state/preferences';
 import { useReportsViewState } from '@/state/reports-view-state';
 import { useTheme } from '@/state/theme-context';
@@ -40,13 +41,16 @@ export function ReportDrillDownScreen() {
   const anchorDate = useReportAnchorDate();
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
-  const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const selectedAccountId = useCoreFinanceViewState((state) => state.selectedAccountId);
+  const accounts = useAccounts(false);
+  const currencyCode = accounts.data?.find((account) => account.id === selectedAccountId)?.currencyCode ?? baseCurrencyCode;
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { selectedKind, returnContext, setReturnContext } =
     useReportsViewState();
   const editFilters = useCoreFinanceViewState((state) => state.editFilters);
   const applyFilters = useCoreFinanceViewState((state) => state.applyFilters);
-  const input = useReportInput(selectedKind, anchorDate, currencyCode);
+  const input = useReportInput(selectedKind, anchorDate, currencyCode, selectedAccountId ? [selectedAccountId] : []);
   const report = useReport(input).data;
   const breakdown =
     report?.breakdowns.find(

@@ -31,8 +31,8 @@ const en = {
   'reminders.permission.allow': 'Allow notifications',
   'assistant.report.scope':
     'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
-  'reports.state.accountScopeUnavailable':
-    'The report currently supports all accounts together. Choose All Accounts, or ask the assistant below to analyze the selected account.',
+  'reports.preview.accountScopeUnavailable':
+    'File export currently supports All Accounts only. Return to All Accounts to export; account analytics remain available.',
   'settings.deletion.dev.description':
     'Permanently delete this account and its stored financial, planning, tracking and assistant data. This action cannot be undone.',
   'settings.deletion.dev.confirmation':
