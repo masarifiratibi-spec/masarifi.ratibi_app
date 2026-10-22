@@ -1,4 +1,5 @@
 -- Preserve all route safety predicates; avoid SQL string escaping drift for decimal prices.
+grant masarifi_migration to current_user with admin false, inherit false, set true granted by current_user;
 set local role masarifi_migration;
 
 create or replace function private.ai_route_is_compliant(p_route private.ai_feature_routes)
@@ -35,3 +36,4 @@ $$;
 
 
 reset role;
+revoke masarifi_migration from current_user granted by current_user;
