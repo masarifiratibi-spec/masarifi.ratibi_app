@@ -31,6 +31,7 @@ const mockUseAuth = jest.fn(() => authState);
 const mockRegisterLiveClerkBridge = jest.fn();
 const mockStartSSOFlow = jest.fn();
 const mockProviderInitialize = jest.fn();
+const mockProviderMounted = { current: false };
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -54,7 +55,11 @@ it.each(['user-1', 'user-other', null])(
 jest.mock('@clerk/expo', () => ({
   ClerkProvider: ({ children }: { children: React.ReactNode }) => {
     const React = jest.requireActual('react');
-    React.useState(() => { mockProviderInitialize(); return true; });
+    React.useState(() => { mockProviderInitialize(mockProviderMounted.current); return true; });
+    React.useEffect(() => {
+      mockProviderMounted.current = true;
+      return () => { mockProviderMounted.current = false; };
+    }, []);
     return children;
   },
   getClerkInstance: jest.fn(),
@@ -84,6 +89,7 @@ function SessionProbe() {
 beforeEach(() => {
   jest.clearAllMocks();
   mockProviderInitialize.mockReset();
+  mockProviderMounted.current = false;
   authState = {
     getToken: jest.fn(),
     isLoaded: true,
@@ -288,8 +294,9 @@ it('recovers an offline cold start when native Clerk is ready but React auth res
   authState = { ...authState, isLoaded: false };
   const clerk = { status: 'ready', load: jest.fn(async () => undefined) };
   jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
-  mockProviderInitialize.mockImplementationOnce(() => {}).mockImplementationOnce(() => {
-    authState = { ...authState, isLoaded: true };
+  mockProviderInitialize.mockImplementationOnce(() => {}).mockImplementationOnce((previousProviderMounted) => {
+    // The real SDK releases its React singleton during the preceding unmount cleanup.
+    if (!previousProviderMounted) authState = { ...authState, isLoaded: true };
   });
   function RecoveryProbe() {
     const identity = useLiveIdentityStatus();

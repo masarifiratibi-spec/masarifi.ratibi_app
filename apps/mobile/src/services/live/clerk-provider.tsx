@@ -74,11 +74,16 @@ export function getLiveClerkDisplayName(
   }
 }
 
-export function MobileIdentityProvider({ children }: { children: ReactNode }) {
-  const [providerGeneration, setProviderGeneration] = useState(0);
-  const reloadProvider = useCallback(
-    () => setProviderGeneration((current) => current + 1), []
-  );
+export function MobileIdentityProvider({ children, recoveryFallback = null }: {
+  children: ReactNode;
+  recoveryFallback?: ReactNode;
+}) {
+  const [restarting, setRestarting] = useState(false);
+  const reloadProvider = useCallback(() => setRestarting(true), []);
+  useEffect(() => {
+    // Clerk releases its React singleton on unmount; reconnect only after that cleanup.
+    if (restarting) setRestarting(false);
+  }, [restarting]);
   const runtime = resolveClientRuntime();
   if (runtime.mode !== 'live')
     return (
@@ -86,9 +91,9 @@ export function MobileIdentityProvider({ children }: { children: ReactNode }) {
         {children}
       </LiveClerkSessionContext.Provider>
     );
+  if (restarting) return <>{recoveryFallback}</>;
   return (
     <ClerkProvider
-      key={providerGeneration}
       publishableKey={runtime.clerkPublishableKey!}
       tokenCache={clerkCache}
     >

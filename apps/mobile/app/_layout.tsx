@@ -25,13 +25,16 @@ import {
 } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { usePreferenceStore } from '@/state/preferences';
 import { NetworkConnectionNotice } from '@/features/shell/NetworkConnectionNotice';
+import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
 
 export default function RootLayout() {
   const locale = usePreferenceStore((state) => state.locale);
   const themePreference = usePreferenceStore((state) => state.theme);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   return (
-    <MobileIdentityProvider>
+    <MobileIdentityProvider recoveryFallback={
+      <StartupLoading locale={locale} themePreference={themePreference} reducedMotion={reducedMotion} />
+    }>
       <FoundationProviders>
         <StartupLoadingBoundary
           locale={locale}
