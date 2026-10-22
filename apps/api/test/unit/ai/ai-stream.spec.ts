@@ -71,7 +71,7 @@ describe('assistant SSE orchestration', () => {
       {
         resolve: jest.fn(() => Promise.resolve({ answer: null, context: {}, evidence: [] })),
       } as never,
-      { getRequired: jest.fn(() => true) } as never,
+      { get: jest.fn(() => false), getRequired: jest.fn(() => true) } as never,
     );
 
     await expect(

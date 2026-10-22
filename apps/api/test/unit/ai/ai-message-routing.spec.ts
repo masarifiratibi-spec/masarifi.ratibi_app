@@ -55,7 +55,7 @@ describe('AiService provider-boundary routing', () => {
     {} as never,
     {} as never,
     tools as never,
-    { getRequired: jest.fn(() => true) } as never,
+    { get: jest.fn(() => false), getRequired: jest.fn(() => true) } as never,
   );
 
   beforeEach(() => jest.clearAllMocks());

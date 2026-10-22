@@ -15,7 +15,7 @@ const send = (
     ? instance.createDevelopmentMessage(actor, id, body, key)
     : instance.createMessage(actor, id, body, key);
 
-function service(enabled = true) {
+function service(enabled = true, publicAgent = false) {
   const writes: Record<string, unknown>[] = [];
   const notices: Record<string, unknown>[] = [];
   const checks: string[] = [];
@@ -39,6 +39,7 @@ function service(enabled = true) {
       (
         ({
           MASARIFI_ASSISTANT_AGENT_ENABLED: enabled,
+          MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: publicAgent,
           MASARIFI_ASSISTANT_AGENT_OWNER_ID: owner.userId,
           SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
         }) as Record<string, unknown>
@@ -56,6 +57,57 @@ function service(enabled = true) {
   );
   return { instance, writes, notices, checks };
 }
+
+it.each([
+  'صرفتهم علي اي بظبط',
+  'ازاي اوفر',
+  'عايزك تفهمني اخر مصروفاتي',
+  'And where did that money go?',
+  'What do you mean by that?',
+])('uses semantic data access for an ordinary user asking %s', async (content) => {
+  const { instance, writes, notices } = service(false, true);
+  await instance.createMessage(
+    { ...owner, userId: 'ordinary-owner' },
+    conversation,
+    { content, responseMode: 'async' },
+    'ordinary-semantic-test-key-001',
+  );
+  expect(notices).toEqual([]);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({ content, context: { assistantAgent: 1 } });
+});
+
+it('keeps explicit action previews outside the read-only semantic agent', async () => {
+  const { instance, writes, notices } = service(false, true);
+  await instance.createMessage(
+    owner,
+    conversation,
+    { content: 'Add an expense', intent: 'create_transaction', responseMode: 'async' },
+    'ordinary-semantic-test-key-002',
+  );
+  expect(writes).toEqual([]);
+  expect(notices).toHaveLength(1);
+});
+
+it('does not let an intent hint replace semantic understanding of a financial read', async () => {
+  const { instance, writes, notices } = service(false, true);
+  await instance.createMessage(
+    owner,
+    conversation,
+    {
+      content: 'صرفتهم علي اي بظبط',
+      intent: 'spending_summary',
+      contextScope: ['recent_transactions'],
+      responseMode: 'async',
+    },
+    'ordinary-semantic-test-key-003',
+  );
+  expect(notices).toEqual([]);
+  expect(writes[0]).toMatchObject({
+    context: { assistantAgent: 1 },
+    contextScope: ['recent_transactions'],
+  });
+});
 
 it.each([
   'تعرف تبرمج',

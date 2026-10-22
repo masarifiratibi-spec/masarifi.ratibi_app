@@ -12,6 +12,10 @@ export class AssistantAgentRepository {
     return this.call('select private.claim_assistant_agent_job($1,180) result', [owner]);
   }
 
+  claimNext(): Promise<AssistantAgentClaim | null> {
+    return this.call('select private.claim_next_assistant_agent_job(180) result', []);
+  }
+
   authorizeDispatch(claim: AssistantAgentClaim, route: EffectiveAiRoute): Promise<boolean> {
     return this.call(
       'select private.authorize_assistant_agent_dispatch($1::uuid,$2::uuid,$3::jsonb) result',

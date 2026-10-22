@@ -29,6 +29,25 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('allows the staged ordinary semantic assistant without a developer owner', () => {
+    const result = validateEnvironment({
+      ...valid,
+      SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+      MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: 'true',
+    });
+    expect(result.MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED).toBe(true);
+    expect(result.MASARIFI_ASSISTANT_AGENT_OWNER_ID).toBeUndefined();
+  });
+
+  it('rejects ordinary semantic rollout on a different project', () => {
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        SUPABASE_URL: 'https://another-project.supabase.co',
+        MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: 'true',
+      }),
+    ).toThrow();
+  });
   it('accepts generic mobile automation on a non-Staging production API and keeps the existing API disabled by default', () => {
     const production = {
       ...valid,

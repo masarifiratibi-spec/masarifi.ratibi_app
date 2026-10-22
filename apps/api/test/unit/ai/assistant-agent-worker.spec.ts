@@ -54,6 +54,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   const jobs = {
+    claimNext: jest.fn((): Promise<AssistantAgentClaim | null> => Promise.resolve(null)),
     claim: jest.fn((requestedOwner: string): Promise<AssistantAgentClaim | null> => {
       if (requestedOwner !== owner) throw new Error('OWNER_SCOPE_INVALID');
       return Promise.resolve(claim);
@@ -90,6 +91,16 @@ function fixture(overrides: Record<string, unknown> = {}) {
   );
   return { worker, jobs, data, routes };
 }
+
+it('claims ordinary jobs without a developer owner when public admission is enabled', async () => {
+  const f = fixture({
+    MASARIFI_ASSISTANT_AGENT_ENABLED: false,
+    MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: true,
+  });
+  await f.worker.runOnce();
+  expect(f.jobs.claimNext).toHaveBeenCalledTimes(1);
+  expect(f.jobs.claim).not.toHaveBeenCalled();
+});
 
 it.each([
   { MASARIFI_ASSISTANT_AGENT_ENABLED: false },

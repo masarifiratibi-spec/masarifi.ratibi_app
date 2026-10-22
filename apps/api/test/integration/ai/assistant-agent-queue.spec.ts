@@ -178,6 +178,49 @@ suite('isolated assistant agent durable queue', () => {
     });
     expect(await claim()).toBeNull();
   });
+
+  it('claims a normal queued owner without developer configuration and retains the lease fence', async () => {
+    const request = await enqueue();
+    await db.query('set local role masarifi_worker');
+    const claimed = await scalar<AgentClaim>(
+      'select private.claim_next_assistant_agent_job(120) value',
+    );
+    expect(claimed).toMatchObject({ id: request.id, userId: owner, attempt: 1 });
+    expect(await scalar('select private.claim_next_assistant_agent_job(120) value')).toBeNull();
+    await expect(
+      db.query('select private.read_assistant_agent_data($1,$2,$3)', [
+        claimed.id,
+        randomUUID(),
+        { tool: 'overview' },
+      ]),
+    ).rejects.toThrow();
+  });
+
+  it.each(['masarifi_api', 'authenticated', 'anon'])(
+    'does not grant queue selection to %s',
+    async (role) => {
+      await db.query(`set local role ${role}`);
+      await expect(
+        db.query('select private.claim_next_assistant_agent_job(120)'),
+      ).rejects.toMatchObject({ code: '42501' });
+    },
+  );
+
+  it('cancels a queued ordinary request after consent is revoked', async () => {
+    const request = await enqueue();
+    await db.query(
+      'update public.assistant_consents set revoked_at=clock_timestamp() where user_id=$1',
+      [owner],
+    );
+    await db.query('set local role masarifi_worker');
+    expect(await scalar('select private.claim_next_assistant_agent_job(120) value')).toBeNull();
+    await db.query('reset role');
+    expect(
+      await scalar('select state value from private.assistant_agent_jobs where id=$1', [
+        request.id,
+      ]),
+    ).toBe('failed');
+  });
   it('counts the isolated DEV assistant limit independently from earlier Voice requests', async () => {
     for (let index = 0; index < 6; index += 1) {
       await db.query(

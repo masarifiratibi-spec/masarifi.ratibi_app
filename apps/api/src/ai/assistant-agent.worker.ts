@@ -26,7 +26,8 @@ export class AssistantAgentWorker implements OnModuleDestroy {
   start(): void {
     if (this.timer) return;
     if (
-      !this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') ||
+      (!this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') &&
+        !this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED')) ||
       !this.config.get('MASARIFI_AI_ASSISTANT_ONLY') ||
       this.config.get('SUPABASE_URL') !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
     )
@@ -43,13 +44,16 @@ export class AssistantAgentWorker implements OnModuleDestroy {
     this.controller = new AbortController();
     const deadline = setTimeout(() => this.controller?.abort(), 150000);
     try {
-      const owner = this.config.getRequired('MASARIFI_ASSISTANT_AGENT_OWNER_ID');
-      const claim = await this.jobs.claim(owner);
+      const publicAgent = this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED');
+      const owner = publicAgent
+        ? null
+        : this.config.getRequired('MASARIFI_ASSISTANT_AGENT_OWNER_ID');
+      const claim = owner === null ? await this.jobs.claimNext() : await this.jobs.claim(owner);
       publishAiWorkerHealth('ready');
       if (!claim) return;
       const started = Date.now();
       try {
-        if (claim.userId !== owner) throw Error('ASSISTANT_SCOPE_INVALID');
+        if (owner !== null && claim.userId !== owner) throw Error('ASSISTANT_SCOPE_INVALID');
         const route = await this.routes.getRoute('financial_assistant');
         if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
         const agent = new AssistantAgent(

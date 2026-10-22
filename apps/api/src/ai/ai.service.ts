@@ -639,6 +639,50 @@ export class AiService {
   ) {
     const input = assistantMessage(body);
     const conversationIdValue = uuid(conversationId);
+    // Read questions use model-selected, claim-fenced tools. Explicit action UI
+    // requests retain the existing preview/confirmation flow.
+    const explicitAction =
+      input.intent &&
+      [
+        'create_transaction',
+        'update_transaction',
+        'update_budget',
+        'create_savings_goal',
+        'record_obligation_payment',
+        'resolve_tracking_review',
+      ].includes(input.intent);
+    if (
+      this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED') &&
+      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      !explicitAction
+    ) {
+      await this.available('financial_assistant');
+      return this.accepted(
+        await this.repository.enqueueMessage(
+          principal,
+          conversationIdValue,
+          {
+            content: redactAiText(input.content),
+            intent: 'financial_advice',
+            context: { assistantAgent: 1, intentHint: input.intent ?? null },
+            contextScope: input.contextScopeProvided
+              ? input.contextScope
+              : [
+                  'accounts_summary',
+                  'recent_transactions',
+                  'budgets',
+                  'obligations',
+                  'tracking_reviews',
+                ],
+            evidence: [],
+            history: [],
+            responseMode: input.responseMode,
+            requestIdentity: input,
+          },
+          idempotencyKey(key),
+        ),
+      );
+    }
     let route = routeAssistantMessage({ content: input.content, intentHint: input.intent });
     let history: Array<{ role: 'user' | 'assistant'; content: string; intent: string | null }> = [];
     const followUp = /^(?:what about|and |how about|وماذا عن|طيب|طب|وماذا|والشهر)/iu.test(

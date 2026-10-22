@@ -60,6 +60,7 @@ const applicationKeys = new Set([
   'MASARIFI_AI_PROVIDER_ENABLED',
   'MASARIFI_AI_ASSISTANT_ONLY',
   'MASARIFI_ASSISTANT_AGENT_ENABLED',
+  'MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED',
   'MASARIFI_ASSISTANT_AGENT_OWNER_ID',
   'MASARIFI_VOICE_ANALYSIS_ONLY',
   'MASARIFI_MOBILE_AUTOMATION_ENABLED',
@@ -317,6 +318,10 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_AI_PROVIDER_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_AI_ASSISTANT_ONLY: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_ASSISTANT_AGENT_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .default(false),
   MASARIFI_ASSISTANT_AGENT_OWNER_ID: Joi.string()
     .pattern(/^user_[A-Za-z0-9]+$/)
     .optional(),
@@ -732,8 +737,10 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   validateIdentityEnvironment(environment);
 
   if (
-    environment.MASARIFI_ASSISTANT_AGENT_ENABLED &&
-    (!environment.MASARIFI_ASSISTANT_AGENT_OWNER_ID ||
+    (environment.MASARIFI_ASSISTANT_AGENT_ENABLED &&
+      !environment.MASARIFI_ASSISTANT_AGENT_OWNER_ID) ||
+    ((environment.MASARIFI_ASSISTANT_AGENT_ENABLED ||
+      environment.MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED) &&
       environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
   ) {
     invalidEnvironment(['MASARIFI_ASSISTANT_AGENT_ENABLED']);
