@@ -30,6 +30,20 @@ async function render(permissions = ["operations.settings.read", "operations.set
 }
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
 
+test('loads editable limits when historical maintenance audit rows have a system actor and JSON values', async () => {
+  // Staging 2026-10-22: these real audit shapes blocked the entire budget form.
+  const data = response();
+  const host = await render(undefined, 'en', {
+    ...data, history: [{ id: 'maintenance-event', key: 'ai.chat.user_override',
+      at: '2026-10-22T07:00:00Z', actorId: null, reason: 'Historical system maintenance',
+      before: 500, after: { rollingLimit: null } }]
+  } as unknown as AiUsage);
+  expect(host.querySelector('form[data-setting="ai.global.monthly_budget"]')).not.toBeNull();
+  expect(host.textContent).toContain('Changed by: —');
+  expect(host.textContent).toContain('500');
+  expect(host.textContent).toContain('"rollingLimit":null');
+});
+
 test.each(["chat", "voice"] as const)("saves consecutive %s limits, refreshes the effective value and keeps it on reload",async feature=>{
   const data=response(),key=`ai.${feature}.rolling_limit` as const;
   const writes:{value:number;expectedVersion:number;reason:string}[]=[];

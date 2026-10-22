@@ -10,6 +10,9 @@ export const aiUsageKeys = [
 export type AiUsageKey = typeof aiUsageKeys[number];
 const count = z.number().int().nonnegative();
 const timestamp = z.iso.datetime({ offset: true });
+// System maintenance also writes audit rows; retain their JSON before/after values.
+const auditValue = z.json().nullable().transform(value =>
+  value === null || typeof value === "string" ? value : JSON.stringify(value));
 const feature = z.object({
   feature: z.enum(["chat", "voice"]), limit: count, monthlyLimit: count.nullable(), enabled: z.boolean(),
   override: z.object({ rollingLimit: count.nullable(), monthlyLimit: count.nullable() }).strict(),
@@ -23,8 +26,9 @@ export const aiUsageSchema = z.object({
   features: z.array(feature).length(2).refine(items => new Set(items.map(item => item.feature)).size === 2),
   projectEstimatedCostUsd: z.number().nonnegative(), monthlyProjectResetsAt: timestamp,
   directReadsConsumeQuota: z.literal(false),
-  history: z.array(z.object({ id: z.string(), key: z.enum(aiUsageKeys), at: timestamp, actorId: z.string(),
-    reason: z.string().nullable(), before: z.string().nullable(), after: z.string().nullable() }).strict()).max(20),
+  history: z.array(z.object({ id: z.string(), key: z.enum(aiUsageKeys), at: timestamp,
+    actorId: z.string().nullable().transform(value => value ?? "—"),
+    reason: z.string().nullable(), before: auditValue, after: auditValue }).strict()).max(20),
 }).strict();
 export type AiUsage = z.infer<typeof aiUsageSchema>;
 
