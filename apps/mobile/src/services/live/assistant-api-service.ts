@@ -644,11 +644,13 @@ export function createLiveAssistantApiService(
           label:
             question.metadata?.responseType === 'redirect'
               ? 'scope'
-              : question.metadata?.responseType === 'estimate'
-                ? 'estimate'
-                : question.metadata?.responseType === 'suggestion'
-                  ? 'suggestion'
-                  : 'fact',
+              : question.metadata?.responseType === 'missing'
+                ? 'clarification'
+                : question.metadata?.responseType === 'estimate'
+                  ? 'estimate'
+                  : question.metadata?.responseType === 'suggestion'
+                    ? 'suggestion'
+                    : 'fact',
           key: row.content,
           values: {}
         }

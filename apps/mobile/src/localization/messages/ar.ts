@@ -2102,6 +2102,7 @@ const ar: MessageCatalog = {
     'السياق المتاح تقديري؛ راجع القسم المرتبط.',
   'assistant.label.fact': 'حقيقة مؤكدة',
   'assistant.label.scope': 'تخصص المساعد',
+  'assistant.label.clarification': 'نحتاج تفاصيل',
   'assistant.label.estimate': 'تقدير',
   'assistant.label.suggestion': 'اقتراح',
   'assistant.evidence.report': 'فحص التقرير الداعم',

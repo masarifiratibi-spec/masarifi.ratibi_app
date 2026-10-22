@@ -1479,6 +1479,30 @@ it('maps a scope refusal as a notice without a financial period or confirmed-fac
   });
 });
 
+it('labels a missing-information clarification without claiming a confirmed fact', async () => {
+  const rows = messages();
+  Object.assign(rows.items[1]!, {
+    metadata: {
+      ...backendAgentMetadataFixture,
+      responseType: 'missing',
+      scope: 'current_state'
+    }
+  });
+  const request = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(conversations))
+    .mockResolvedValueOnce(json(rows));
+  const response = await createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request
+  }).getResponse(id(3));
+  expect(assistantResponseSchema.parse(response)).toMatchObject({
+    responseType: 'insufficient_data',
+    blocks: [{ label: 'clarification', key: 'Safe answer' }]
+  });
+});
+
 it('accepts backend agent metadata with a validated prompt hash without losing the answer', async () => {
   const rows = messages();
   Object.assign(rows.items[1]!, { metadata: backendAgentMetadataFixture });
