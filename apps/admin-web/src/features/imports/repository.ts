@@ -62,12 +62,13 @@ const resourcePaths: Record<Phase4Resource, string> = {
 };
 
 const nullableDateTime = z.iso.datetime({ offset: true }).nullable();
+const supportedImportSchemaVersion = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 const liveRecordSchema = z
   .object({
     id: z.string().min(1),
     sourceType: z.enum(["sms", "file", "manual", "provider"]).optional(),
     sourceName: z.string().max(120).nullable().optional(),
-    schemaVersion: z.literal(1).optional(),
+    schemaVersion: supportedImportSchemaVersion.optional(),
     status: z.string().min(1).max(40).optional(),
     itemCount: z.number().int().nonnegative().optional(),
     acceptedCount: z.number().int().nonnegative().optional(),
@@ -133,7 +134,7 @@ const liveRecordSchema = z
 const liveSessionSchema = liveRecordSchema.extend({
   sourceType: z.enum(["sms", "file", "manual", "provider"]),
   sourceName: z.string().max(120).nullable(),
-  schemaVersion: z.literal(1),
+  schemaVersion: supportedImportSchemaVersion,
   status: z.string().min(1).max(40),
   itemCount: z.number().int().nonnegative(),
   acceptedCount: z.number().int().nonnegative(),
