@@ -35,4 +35,20 @@ Acceptance then found two drill-down defects: the live mapper discarded the serv
 
 The effective source-account projection is also restricted to editable income/expense. A deterministic real PostgreSQL regression proves that a transfer reversal retains its explicit source role even when membership UUID ordering differs. The follow-up integration run, including actual refund/reversal compensation, passed 5 suites/27 tests. Final report/core-finance/home mobile regression passed 40 suites/229 tests, and the full mobile typecheck passed. The category-filter regression covers both canonical local IDs and raw server IDs.
 
-Final mobile rebuild, installation and physical re-test are pending at this checkpoint. Private operational evidence is stored outside the repository under the dated Assistant/report preservation folder. Update this section with the final artifact and phone outcome before delivery.
+## Final artifact and phone outcome
+
+Client source: `87ca3bcd4f9da6bc370a2cc8cace25f25c6a0f6e`, pushed to the existing `codex/voice-promoted-operating-2026-10-13` branch. Final ordinary arm64 APK:
+
+`D:/Masarifi-builds/Masarifi-Ratibi-2026-10-23-87ca3bcd-arm64.apk`
+
+SHA256: `33a645aa2776751e142018ab9ecdffcb1b6579f96d085a82ec01612cc5e81e99`.
+
+The fresh-bundle release build passed. The verifier matched 18 actual bundled sources to the committed files and inspected the packaged SQLite/Screens repairs. Package/signing identity and standalone Staging configuration passed. Installation used an in-place update of `com.masarifi.mobile`; the installed base APK hash matched the saved artifact. No DEV package or data was modified.
+
+The final phone run passed bounded checks for SAR/EGP income, expense and net totals against an independent confirmed-posting query; switching back from SAR to EGP; all-accounts reporting; correct category contributor counts; the previously empty EGP Health drill-down now showing its one matching transaction; and removal of the requested support phrase on Home. Confirmed income/expense counts and totals matched the earlier observation; these acceptance actions did not create financial transactions. A subsequent cold launch also loaded the all-accounts report and chart successfully. The final APK's scoped EGP Assistant question returned the correct total and record count in 7.651 seconds, one queue attempt and two model rounds for its scoped read.
+
+One separate SAR net-worth/chart load displayed its existing retry state. A single manual retry recovered the correct balance/chart; no corresponding error was found in the bounded structured API-error inspection. The cause is **unconfirmed**, so this is retained as an observation, not claimed repaired by the Assistant worker change. Other per-account totals remained correct during that failure.
+
+The ordinary file-output route currently displays its production-readiness gate, `إرسال التقارير غير مهيأ للإنتاج.` No export was activated or generated. The scoped-output rejection and disabled-action behavior are covered by automated tests; these tests do not prove a configured physical export flow. Screen reports and analytics are independent of this delivery gate.
+
+Private receipts, sanitized worker diagnosis, deployment/hash preservation checks and phone snapshots remain outside the repository in the dated Assistant/report preservation folder. The disposable local fixture was stopped after tests; its source synthetic databases and unrelated server containers/configurations were unchanged.
