@@ -5,6 +5,7 @@ test("recovery drawer traps keyboard focus and restores it after Escape", async 
 }, info) => {
   test.skip(info.project.name !== "mobile-390");
   await page.goto("/admin");
+  await expect(page.locator("main .date-range-control")).toBeVisible();
   const trigger = page.getByRole("button", { name: "فتح القائمة" });
   await trigger.click();
   const drawer = page.getByRole("dialog", { name: "التنقل الرئيسي" });
@@ -36,5 +37,6 @@ test("recovery shell keeps reporting dates scoped to the page", async ({
   test.skip(info.project.name !== "desktop-1440");
   await page.goto("/admin");
   await expect(page.locator("main .date-range-control")).toHaveCount(1);
+  await expect(page.locator("main .date-range-control")).toBeVisible();
   await expect(page.locator(".topbar .date-range-control")).toHaveCount(0);
 });

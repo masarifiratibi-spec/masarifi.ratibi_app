@@ -1133,13 +1133,13 @@ pre {
 .complex-editor-mobile-note { display: none; }
 
 @media (max-width: 1600px) {
-  .date-range-control { display: none; }
+  .topbar .date-range-control { display: none; }
 }
 @media (max-width: 1399px) {
   .development-disclaimer, .profile > div:not(.avatar) { display: none; }
 }
 @media (max-width: 1199px) {
-  .date-range-control, .development-disclaimer { display: none; }
+  .topbar .date-range-control, .development-disclaimer { display: none; }
   .sidebar { width: 76px; padding-inline: 10px; }.sidebar .brand > div, .sidebar .nav-group > p, .sidebar .nav-item span, .sidebar .nav-item small, .sidebar .nav-arrow, .sidebar-note { display: none; }.sidebar .nav-item { justify-content: center; }
   .admin-main, .shell-compact .admin-main { margin-inline-start: 76px; }.desktop-collapse { display: none; }.metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.summary-strip { grid-template-columns: repeat(3, 1fr); }
   .security-metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

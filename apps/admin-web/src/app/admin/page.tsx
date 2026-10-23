@@ -502,7 +502,7 @@ export default function OverviewPage() {
             ? "Waleed"
             : (session.data?.displayName ?? t("common.loading")),
         })}
-        description={t("overview.description")}
+        description={t(demoMode ? "overview.description" : "overview.liveDescription")}
         actions={
           <>
             {platformOptions.data && (
@@ -763,6 +763,7 @@ export default function OverviewPage() {
             region={
               findRegion(summary.data?.regions, "revenue") ?? summaryRegion
             }
+            unavailableMessage={!demoMode ? t("overview.billingUnavailable") : undefined}
             error={summaryError}
             onRetry={() => summary.refetch()}
           >
@@ -1042,6 +1043,7 @@ export default function OverviewPage() {
             region={
               findRegion(summary.data?.regions, "health") ?? summaryRegion
             }
+            unavailableMessage={!demoMode ? t("overview.healthUnavailable") : undefined}
             error={summaryError}
             onRetry={() => summary.refetch()}
           >
@@ -1167,7 +1169,7 @@ export default function OverviewPage() {
                   }}
                 >
                   <Clock3 size={14} />{" "}
-                  {t("overview.activityFooter", {
+                  {t(demoMode ? "overview.activityFooter" : "overview.liveActivityFooter", {
                     period: getPeriodLabel(locale, period),
                   })}{" "}
                   ·{" "}

@@ -175,6 +175,7 @@ export function RegionState({
   error,
   onRetry,
   emptyLabel,
+  unavailableMessage,
   permission = "attention.read",
   children,
 }: {
@@ -184,12 +185,16 @@ export function RegionState({
   error?: { code?: string };
   onRetry?: () => void;
   emptyLabel?: string;
+  unavailableMessage?: string;
   permission?: string;
   children: React.ReactNode;
 }) {
   const t = useT();
   if (isPending) return <LoadingState />;
   const availability = region?.availability;
+  if (!isError && availability === "unavailable" && unavailableMessage) {
+    return <div className="state-box" role="status"><strong>{t("common.unavailable")}</strong><p>{unavailableMessage}</p></div>;
+  }
   if (isError || availability === "unavailable") {
     const isForbidden = error?.code === "forbidden" || availability === "forbidden";
     return (

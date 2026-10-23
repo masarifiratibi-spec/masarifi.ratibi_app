@@ -283,6 +283,18 @@ describe("CommunicationsRepository", () => {
     );
   });
 
+  test("keeps a successful zero-ticket workload available so the overview still renders", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(response({
+      total: 0,
+      unassigned: 0,
+      byStatus: { open: 0, waiting_support: 0, waiting_customer: 0, resolved: 0, closed: 0 },
+    }));
+    const data = await repository.getSupportOverview({});
+    expect(data.region?.availability).toBe("available");
+    expect(data.metrics).toHaveLength(7);
+    expect(data.metrics.every((metric) => metric.value === 0)).toBe(true);
+  });
+
   test("preserves multiline customer replies and staff notes from the live contract", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(
       response({

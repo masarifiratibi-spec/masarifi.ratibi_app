@@ -507,7 +507,7 @@ export class CommunicationsRepository {
         platform: "all" as const,
       })),
       items: [],
-      region: { availability: result.total ? "available" : "empty" },
+      region: { availability: "available" },
     };
   }
 
