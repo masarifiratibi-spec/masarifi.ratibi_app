@@ -212,3 +212,16 @@ The user explicitly requested publishing the five completed local commits throug
 - Latest changes include nullable live security contracts, audit/privacy/security views, bounded repository wiring and operations UI/tests. No claim that all these changes pass final verification.
 - The replacement implementer `/root/resume_admin_governance` stopped on a usage-limit error. No active implementer should be assumed. Resume using the existing ledger/briefs/rulings and independent review gates.
 - Ignored SDD evidence and the isolated database remain local and are not included in the Git WIP snapshot.
+
+## Latest checkpoint — main-agent continuation (2026-10-23)
+
+This checkpoint supersedes earlier incomplete-task notes above.
+
+- Tasks1–3 are accepted. Task1 was not restarted. Task2 final commits include `fdfb6a52`/`02cdfb1c`; Task3 is `c7ccd671`. These were pushed on the same branch at the user's request.
+- The user explicitly prohibited Astra and all other agents. The Task4 worker was stopped before product edits; all Task4 implementation, verification and review is by the main agent. Continue main-agent-only unless the user changes that instruction.
+- Task4 is complete locally at `f669ce3a` plus self-review fix `6740b8fc`. Final Admin96files978tests, API19suites106tests, native fresh/upgrade10tests each passed. Types/lint/checksums passed. Five legacy privacy-local tests remain skipped because their distinct database guard was preserved.
+- Task4 uses five additive migrations through `20261023191927`; owned scratch/fresh/upgrade databases now have162migrations. Source replay receipts and complete reports are in the preserved SDD workspace. The old customer-candidate refresh script is retired; use finalized source migrations.
+- Provider effects run only in the existing worker process, never by assuming its role in an API request. Customer detail exposes safe pending/failed/completed revocation status. Admin targets are excluded from customer reads and lifecycle actions.
+- Task4 has only author self-review, per the explicit main-agent-only instruction. No independent review is claimed. No Task4 push or deployment has occurred.
+- Next: Task5 Admin/mobile support, then Task6 shell/integration/evidence, with the existing briefs and ledger. Carry Task2 audit lower-bound presentation and Task3 provenance-constraint minor findings into final integration. Also reconcile new customer audit display labels in Task6.
+- Evidence summary: `docs/evidence/2026-10-23-admin-dashboard/customer-admin-verification.md`.
