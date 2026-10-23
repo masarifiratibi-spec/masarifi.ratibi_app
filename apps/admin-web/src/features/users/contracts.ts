@@ -393,8 +393,8 @@ export const userSessionsResponseSchema = z
   .object({
     items: z.array(userSessionSchema).max(100),
     activeCount: z.number().int().min(0),
-    expiredCount: z.number().int().min(0),
-    revokedCount: z.number().int().min(0),
+    expiredCount: z.number().int().min(0).nullable(),
+    revokedCount: z.number().int().min(0).nullable(),
     region: regionStateSchema,
   })
   .strict()
@@ -404,8 +404,8 @@ export const userSessionsResponseSchema = z
     const revoked = response.items.filter(({ state }) => state === "revoked").length;
     if (
       response.activeCount !== active
-      || response.expiredCount !== expired
-      || response.revokedCount !== revoked
+      || (response.expiredCount !== null && response.expiredCount !== expired)
+      || (response.revokedCount !== null && response.revokedCount !== revoked)
     ) {
       context.addIssue({ code: "custom", message: "Session response counts must match items" });
     }

@@ -91,9 +91,13 @@ export class CustomerAdminService {
           revokedAt: null,
         })),
         activeCount: sessions.length,
-        expiredCount: 0,
-        revokedCount: 0,
-        region: { availability: sessions.length ? 'available' : 'empty' },
+        expiredCount: null,
+        revokedCount: null,
+        region: {
+          availability: sessions.length ? 'partial' : 'empty',
+          message:
+            'Active provider sessions only; historical expired/revoked sessions unavailable / الجلسات النشطة فقط؛ السجل السابق غير متاح',
+        },
       };
     } catch (error) {
       return this.failure(error);

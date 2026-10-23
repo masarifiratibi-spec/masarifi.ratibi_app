@@ -72,6 +72,8 @@ describeLiveDatabase('customer admin recovery', () => {
     expect(items[0]?.maskedEmail).toMatch(/^.\*{3}@gmail.com$/);
     expect(JSON.stringify(result)).not.toContain('clerk_session_id');
     await expect(call(customer, 'list', {})).rejects.toThrow('ADMIN_PERMISSION_DENIED');
+    for (const operation of ['detail', 'devices', 'sessions-target'])
+      await expect(call(actor, operation, { userId: actor })).rejects.toThrow('CUSTOMER_NOT_FOUND');
   });
   it('reaches customers beyond the first page using server filters', async () => {
     const prefix = `user_page_${randomUUID()}_`;
@@ -363,6 +365,22 @@ describeLiveDatabase('customer admin recovery', () => {
       expect(detail.body as unknown).toMatchObject({
         verification: 'verified',
         aggregates: { accountsCount: null },
+      });
+      for (const field of [
+        'plan',
+        'iosDeviceCount',
+        'androidDeviceCount',
+        'webDeviceCount',
+        'totalDeviceCount',
+      ])
+        expect(detail.body as unknown).not.toHaveProperty(field);
+      const sessions = await request(server)
+        .get(`/api/v1/admin/users/${customer}/sessions`)
+        .expect(200);
+      expect(sessions.body as unknown).toMatchObject({
+        activeCount: 0,
+        expiredCount: null,
+        revokedCount: null,
       });
       await request(server).get('/api/v1/admin/users').set('x-test-actor', customer).expect(403);
       await request(server)

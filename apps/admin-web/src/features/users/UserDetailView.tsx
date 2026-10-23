@@ -64,7 +64,7 @@ function ProfileOverview({ profile }: { profile: UserProfileSummary }) {
         <DetailItem label="الأهداف">{profile.aggregates.goalsCount ?? "—"}</DetailItem>
         <DetailItem label="الديون النشطة">{profile.aggregates.activeDebtsCount ?? "—"}</DetailItem>
         <DetailItem label="مصادر الاستيراد">{profile.aggregates.importSourcesCount ?? "—"}</DetailItem>
-        <DetailItem label="المخاطر">{profile.risk.label} · {profile.risk.signalsCount}</DetailItem>
+        <DetailItem label="المخاطر">{profile.risk.label} · {profile.risk.signalsCount ?? "—"}</DetailItem>
       </div>
     </>
   );
@@ -103,7 +103,7 @@ function SessionRow({ session, role }: { session: UserSession; role: AdminRole }
     <tr>
       <td>{session.safeDeviceLabel}</td>
       <td><bdi>{session.platform === null ? "—" : session.platform === "ios" ? "iOS" : session.platform === "android" ? "Android" : "Web"}</bdi></td>
-      <td>{session.coarseRegion}</td>
+      <td>{session.coarseRegion ?? "—"}</td>
       <td>{formatDate(session.startedAt, true)}</td>
       <td>{formatDate(session.lastActivityAt, true)}</td>
       <td>{sessionLabels[session.state]}</td>
@@ -204,7 +204,7 @@ export function UserDetailView({ userId, role }: UserDetailViewProps) {
                 {sessionsQuery.data.items.map((session) => (
                   <article className="mobile-data-card" key={session.id}>
                     <strong>{session.safeDeviceLabel}</strong>
-                    <span>{session.coarseRegion}</span>
+                    <span>{session.coarseRegion ?? "—"}</span>
                     <span>{sessionLabels[session.state]} · {riskLabels[session.risk]}</span>
                     {session.isCurrentAdminVisibleSession && <strong>الجلسة الحالية المرئية للمسؤول</strong>}
                   </article>

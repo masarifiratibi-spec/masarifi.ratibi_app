@@ -52,7 +52,10 @@ export class CustomerAdminController {
   @Get(':userId/sessions')
   @adminPermission('sessions.read')
   @ApiOperation({ operationId: 'listCustomerAdminSessions' })
-  @ApiOkResponse({ description: 'Bounded target-bound active sessions with opaque references' })
+  @ApiOkResponse({
+    description:
+      'Target-bound active sessions with opaque references; historical expired/revoked counts are unmeasured and null',
+  })
   sessions(@Req() request: AdminPrincipalRequest, @Param('userId') userId: string) {
     return this.customers.read(principal(request), 'sessions-target', { userId });
   }

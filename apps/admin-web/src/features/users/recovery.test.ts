@@ -6,6 +6,13 @@ import { adminUserListItemSchema } from "./contracts";
 
 describe("live customer projections", () => {
   afterEach(() => { delete process.env.NEXT_PUBLIC_ENABLE_MOCKS; });
+  it("preserves unavailable historical session counts in the live contract", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS="false";
+    mockServer.use(http.get('/api/v1/admin/users/user_liveCustomer/sessions',()=>HttpResponse.json({
+      items:[],activeCount:0,expiredCount:null,revokedCount:null,region:{availability:'empty',message:'Active sessions only'},
+    })));
+    await expect(usersRepository.getSessions({userId:'user_liveCustomer'})).resolves.toMatchObject({activeCount:0,expiredCount:null,revokedCount:null});
+  });
   it("fetches a bounded live customer directory without simulated authority", async () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
     let params: URLSearchParams | undefined;
