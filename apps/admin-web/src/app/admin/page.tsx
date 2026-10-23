@@ -638,7 +638,7 @@ export default function OverviewPage() {
             {analytics.data && (
               <ChartCard
                 title={t("overview.userGrowthTitle")}
-                subtitle={t("overview.userGrowthSubtitle")}
+                subtitle={t(demoMode ? "overview.userGrowthSubtitle" : "overview.liveUserGrowthSubtitle")}
                 summary={t("overview.userGrowthTitle")}
               >
                 <TrendChart
