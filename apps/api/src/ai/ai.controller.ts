@@ -29,9 +29,11 @@ import { AiNoStoreInterceptor } from './ai-no-store.interceptor';
 
 type AiRequest = ClerkPrincipalRequest & { requestId?: string };
 
-function principal(request: AiRequest): ClerkPrincipal {
+export function aiRequestPrincipal(
+  request: Pick<AiRequest, 'clerkPrincipal' | 'headers'>,
+): ClerkPrincipal & { nativeRequest: boolean } {
   if (!request.clerkPrincipal) throw new HttpException({ code: 'AUTH_TOKEN_INVALID' }, 401);
-  return request.clerkPrincipal;
+  return { ...request.clerkPrincipal, nativeRequest: !request.headers.origin };
 }
 
 @Controller('api/v1')
@@ -51,13 +53,19 @@ export class AiController {
     @Headers('x-voice-contract') contract?: string,
     @Headers('x-masarifi-client-variant') variant?: string,
   ) {
-    return this.ai.createVoiceSession(principal(request), body, key, contract ?? '', variant ?? '');
+    return this.ai.createVoiceSession(
+      aiRequestPrincipal(request),
+      body,
+      key,
+      contract ?? '',
+      variant ?? '',
+    );
   }
 
   @Put('voice/sessions/:sessionId/audio')
   @ApiOperation({ operationId: 'uploadVoiceAudio' })
   uploadVoiceAudio(@Req() request: AiRequest & Request, @Param('sessionId') id: string) {
-    return this.ai.uploadVoiceAudio(principal(request), id, request);
+    return this.ai.uploadVoiceAudio(aiRequestPrincipal(request), id, request);
   }
 
   @Post('voice/sessions/:sessionId/cancel')
@@ -68,7 +76,7 @@ export class AiController {
     @Param('sessionId') id: string,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.cancelVoiceSession(principal(request), id, key);
+    return this.ai.cancelVoiceSession(aiRequestPrincipal(request), id, key);
   }
 
   @Get('voice/batches/recovery')
@@ -79,7 +87,7 @@ export class AiController {
     @Query('afterId') afterId?: string,
     @Headers('accept') accept?: string,
   ) {
-    return this.ai.listVoiceBatchRecovery(principal(request), after, afterId, accept);
+    return this.ai.listVoiceBatchRecovery(aiRequestPrincipal(request), after, afterId, accept);
   }
   @Get('voice/sessions/:sessionId/batch')
   @ApiOperation({ operationId: 'getVoiceBatchResult' })
@@ -88,19 +96,19 @@ export class AiController {
     @Param('sessionId') id: string,
     @Headers('accept') accept?: string,
   ) {
-    return this.ai.getVoiceBatchResult(principal(request), id, accept);
+    return this.ai.getVoiceBatchResult(aiRequestPrincipal(request), id, accept);
   }
 
   @Get('voice/sessions/:sessionId/recovery')
   @ApiOperation({ operationId: 'getVoiceRecovery' })
   getVoiceRecovery(@Req() request: AiRequest, @Param('sessionId') id: string) {
-    return this.ai.getVoiceRecovery(principal(request), id);
+    return this.ai.getVoiceRecovery(aiRequestPrincipal(request), id);
   }
 
   @Get('voice/sessions/:sessionId')
   @ApiOperation({ operationId: 'getVoiceSession' })
   getVoiceSession(@Req() request: AiRequest, @Param('sessionId') id: string) {
-    return this.ai.getVoiceSession(principal(request), id);
+    return this.ai.getVoiceSession(aiRequestPrincipal(request), id);
   }
 
   @Post('voice/sessions/:sessionId/process')
@@ -112,13 +120,13 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.processVoiceSession(principal(request), id, body, key);
+    return this.ai.processVoiceSession(aiRequestPrincipal(request), id, body, key);
   }
 
   @Get('voice/sessions/:sessionId/proposal')
   @ApiOperation({ operationId: 'getVoiceProposal' })
   getVoiceProposal(@Req() request: AiRequest, @Param('sessionId') id: string) {
-    return this.ai.getVoiceProposal(principal(request), id);
+    return this.ai.getVoiceProposal(aiRequestPrincipal(request), id);
   }
 
   @Post('voice/proposals/:proposalId/confirm')
@@ -132,7 +140,7 @@ export class AiController {
     @Headers('x-voice-contract') contract?: string,
   ) {
     if (contract !== '2') throw new HttpException({ code: 'VOICE_UPGRADE_REQUIRED' }, 410);
-    return this.ai.confirmVoice(principal(request), id, body, key);
+    return this.ai.confirmVoice(aiRequestPrincipal(request), id, body, key);
   }
 
   @Post('voice/proposals/:proposalId/reject')
@@ -144,13 +152,13 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.reject(principal(request), id, body, key);
+    return this.ai.reject(aiRequestPrincipal(request), id, body, key);
   }
 
   @Get('voice/category-preferences')
   @ApiOperation({ operationId: 'listVoiceCategoryPreferences' })
   listVoicePreferences(@Req() request: AiRequest) {
-    return this.ai.listVoicePreferences(principal(request));
+    return this.ai.listVoicePreferences(aiRequestPrincipal(request));
   }
 
   @Post('voice/category-preferences')
@@ -161,7 +169,7 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.upsertVoicePreference(principal(request), body, key);
+    return this.ai.upsertVoicePreference(aiRequestPrincipal(request), body, key);
   }
 
   @Delete('voice/category-preferences/:preferenceId')
@@ -173,13 +181,13 @@ export class AiController {
     @Query('expectedVersion') version: string,
     @Headers('idempotency-key') key?: string,
   ) {
-    await this.ai.deleteVoicePreference(principal(request), id, version, key);
+    await this.ai.deleteVoicePreference(aiRequestPrincipal(request), id, version, key);
   }
 
   @Get('assistant/consent')
   @ApiOperation({ operationId: 'getAssistantConsent' })
   getConsent(@Req() request: AiRequest) {
-    return this.ai.getConsent(principal(request));
+    return this.ai.getConsent(aiRequestPrincipal(request));
   }
 
   @Put('assistant/consent')
@@ -189,7 +197,7 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.grantConsent(principal(request), body, key);
+    return this.ai.grantConsent(aiRequestPrincipal(request), body, key);
   }
 
   @Delete('assistant/consent')
@@ -200,25 +208,25 @@ export class AiController {
     @Query('expectedVersion') version: string,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.revokeConsent(principal(request), version, key);
+    return this.ai.revokeConsent(aiRequestPrincipal(request), version, key);
   }
 
   @Get('assistant/availability')
   @ApiOperation({ operationId: 'getAssistantAvailability' })
   getAssistantAvailability(@Req() request: AiRequest) {
-    return this.ai.getAssistantAvailability(principal(request));
+    return this.ai.getAssistantAvailability(aiRequestPrincipal(request));
   }
 
   @Get('assistant/insights')
   @ApiOperation({ operationId: 'listAssistantInsights' })
   listInsights(@Req() request: AiRequest) {
-    return this.ai.listInsights(principal(request));
+    return this.ai.listInsights(aiRequestPrincipal(request));
   }
 
   @Get('assistant/conversations')
   @ApiOperation({ operationId: 'listAssistantConversations' })
   listConversations(@Req() request: AiRequest, @Query() query: unknown) {
-    return this.ai.listConversations(principal(request), query);
+    return this.ai.listConversations(aiRequestPrincipal(request), query);
   }
 
   @Post('assistant/conversations')
@@ -229,13 +237,13 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.createConversation(principal(request), body, key);
+    return this.ai.createConversation(aiRequestPrincipal(request), body, key);
   }
 
   @Get('assistant/conversations/:conversationId')
   @ApiOperation({ operationId: 'getAssistantConversation' })
   getConversation(@Req() request: AiRequest, @Param('conversationId') id: string) {
-    return this.ai.getConversation(principal(request), id);
+    return this.ai.getConversation(aiRequestPrincipal(request), id);
   }
 
   @Patch('assistant/conversations/:conversationId')
@@ -246,7 +254,7 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.updateConversation(principal(request), id, body, key);
+    return this.ai.updateConversation(aiRequestPrincipal(request), id, body, key);
   }
 
   @Delete('assistant/conversations/:conversationId')
@@ -258,7 +266,7 @@ export class AiController {
     @Query('expectedVersion') version: string,
     @Headers('idempotency-key') key?: string,
   ) {
-    await this.ai.deleteConversation(principal(request), id, version, key);
+    await this.ai.deleteConversation(aiRequestPrincipal(request), id, version, key);
   }
 
   @Get('assistant/conversations/:conversationId/messages')
@@ -268,7 +276,7 @@ export class AiController {
     @Param('conversationId') id: string,
     @Query() query: unknown,
   ) {
-    return this.ai.listMessages(principal(request), id, query);
+    return this.ai.listMessages(aiRequestPrincipal(request), id, query);
   }
 
   @Post('assistant/conversations/:conversationId/messages')
@@ -283,8 +291,8 @@ export class AiController {
   ) {
     const accepted =
       request.headers['x-masarifi-client-variant'] === 'staging-development'
-        ? await this.ai.createDevelopmentMessage(principal(request), id, body, key)
-        : await this.ai.createMessage(principal(request), id, body, key);
+        ? await this.ai.createDevelopmentMessage(aiRequestPrincipal(request), id, body, key)
+        : await this.ai.createMessage(aiRequestPrincipal(request), id, body, key);
     const { replayed, ...publicAccepted } = accepted;
     if (
       replayed ||
@@ -305,7 +313,7 @@ export class AiController {
       controller.abort();
     });
     for await (const item of this.ai.streamMessage(
-      principal(request),
+      aiRequestPrincipal(request),
       String(publicAccepted.id),
       controller.signal,
     ))
@@ -321,7 +329,7 @@ export class AiController {
     @Param('conversationId') conversationId: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.ai.getMessageResult(principal(request), conversationId, messageId);
+    return this.ai.getMessageResult(aiRequestPrincipal(request), conversationId, messageId);
   }
 
   @Get('assistant/conversations/:conversationId/messages/acceptance')
@@ -331,7 +339,7 @@ export class AiController {
     @Param('conversationId') conversationId: string,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.getMessageAcceptance(principal(request), conversationId, key);
+    return this.ai.getMessageAcceptance(aiRequestPrincipal(request), conversationId, key);
   }
   @Get('assistant/conversations/:conversationId/messages/:messageId')
   @ApiOperation({ operationId: 'getAssistantMessage' })
@@ -340,7 +348,7 @@ export class AiController {
     @Param('conversationId') conversationId: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.ai.getMessage(principal(request), conversationId, messageId);
+    return this.ai.getMessage(aiRequestPrincipal(request), conversationId, messageId);
   }
 
   @Post('assistant/previews/:previewId/confirm')
@@ -352,7 +360,7 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.confirmPreview(principal(request), id, body, key);
+    return this.ai.confirmPreview(aiRequestPrincipal(request), id, body, key);
   }
 
   @Post('assistant/previews/:previewId/reject')
@@ -364,7 +372,7 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.reject(principal(request), id, body, key);
+    return this.ai.reject(aiRequestPrincipal(request), id, body, key);
   }
 
   @Put('assistant/messages/:messageId/feedback')
@@ -375,7 +383,7 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.putFeedback(principal(request), id, body, key);
+    return this.ai.putFeedback(aiRequestPrincipal(request), id, body, key);
   }
 
   @Post('assistant/messages/:messageId/report')
@@ -387,6 +395,6 @@ export class AiController {
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.ai.reportResponse(principal(request), id, body, key);
+    return this.ai.reportResponse(aiRequestPrincipal(request), id, body, key);
   }
 }

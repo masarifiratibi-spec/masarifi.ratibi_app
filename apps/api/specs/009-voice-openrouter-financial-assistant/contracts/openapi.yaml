@@ -601,7 +601,18 @@ paths:
     get:
       tags: [Admin AI]
       operationId: getAiOverview
-      parameters: [{ name: period, in: query, schema: { enum: [7d, 30d, 90d], default: 30d } }]
+      parameters:
+        - {
+            name: platform,
+            in: query,
+            schema: { type: string, enum: [all, ios, android, unknown], default: all },
+          }
+        - { name: period, in: query, schema: { type: string, enum: [7d, 30d, 90d], default: 30d } }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: feature, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: providerId, in: query, schema: { type: string, format: uuid } }
+        - { name: modelId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
       responses:
         '200': { $ref: '#/components/responses/AdminResource' }
   /api/v1/admin/ai/providers:
@@ -609,7 +620,10 @@ paths:
       tags: [Admin AI]
       operationId: listAiProviders
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
   /api/v1/admin/ai/providers/{providerId}:
@@ -658,7 +672,11 @@ paths:
       tags: [Admin AI]
       operationId: listAiModels
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: providerId, in: query, schema: { type: string, format: uuid } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
   /api/v1/admin/ai/models/{modelId}:
@@ -698,7 +716,11 @@ paths:
       tags: [Admin AI]
       operationId: listAiRoutes
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: feature, in: query, schema: { type: string, maxLength: 120 } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
   /api/v1/admin/ai/routes/{routeId}:
@@ -724,7 +746,13 @@ paths:
       tags: [Admin AI]
       operationId: listAiPrompts
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: feature, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
     post:
@@ -781,14 +809,39 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AdminVersionedReason' }
       responses:
-        '200': { $ref: '#/components/responses/AdminResource' }
+        '200':
+          description: Immutable publication receipt.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, workload, status, versionNo]
+                properties:
+                  id: { type: string, format: uuid }
+                  workload: { type: string }
+                  status: { const: approved }
+                  versionNo: { type: integer, minimum: 1 }
         '409': { $ref: '#/components/responses/AiConflict' }
   /api/v1/admin/ai/usage:
     get:
       tags: [Admin AI]
       operationId: listAiUsage
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: feature, in: query, schema: { type: string, maxLength: 120 } }
+        - {
+            name: platform,
+            in: query,
+            schema: { type: string, enum: [all, ios, android, unknown], default: all },
+          }
+        - { name: providerId, in: query, schema: { type: string, format: uuid } }
+        - { name: modelId, in: query, schema: { type: string, format: uuid } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
   /api/v1/admin/ai/failures:
@@ -796,7 +849,20 @@ paths:
       tags: [Admin AI]
       operationId: listAiFailures
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: feature, in: query, schema: { type: string, maxLength: 120 } }
+        - {
+            name: platform,
+            in: query,
+            schema: { type: string, enum: [all, ios, android, unknown], default: all },
+          }
+        - { name: providerId, in: query, schema: { type: string, format: uuid } }
+        - { name: modelId, in: query, schema: { type: string, format: uuid } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
   /api/v1/admin/ai/response-reports:
@@ -804,7 +870,12 @@ paths:
       tags: [Admin AI]
       operationId: listAiResponseReports
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
   /api/v1/admin/ai/response-reports/{reportId}:
@@ -828,7 +899,13 @@ paths:
       tags: [Admin AI]
       operationId: listAiSafetyRules
       parameters:
-        [{ $ref: '#/components/parameters/AiCursor' }, { $ref: '#/components/parameters/AiLimit' }]
+        - { $ref: '#/components/parameters/AiCursor' }
+        - { $ref: '#/components/parameters/AiLimit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: feature, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
       responses:
         '200': { $ref: '#/components/responses/AiAdminPage' }
     post:
@@ -904,7 +981,14 @@ components:
       }
     ExpectedVersion:
       { name: expectedVersion, in: query, required: true, schema: { type: integer, minimum: 1 } }
-    AiCursor: { name: cursor, in: query, required: false, schema: { type: string, maxLength: 512 } }
+    AiCursor:
+      {
+        name: cursor,
+        in: query,
+        description: Opaque cursor bound to the actor resource limit and normalized filters. Reset pagination when scope changes.,
+        required: false,
+        schema: { type: string, maxLength: 512 },
+      }
     AiLimit:
       {
         name: limit,

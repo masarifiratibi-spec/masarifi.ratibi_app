@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLockedMutation } from "@/features/foundation/useLockedMutation";
 import type { AiListQuery, AiOperationalResource, AiOverviewQuery, PlatformScope } from "./contracts";
+import { aiListQuerySchema, aiOverviewQuerySchema } from "./contracts";
 import { aiRepository } from "./repository";
 
 export type AiResource =
@@ -17,9 +18,9 @@ export type AiResource =
 export const aiQueryKeys = {
   all: ["phase5-ai"] as const,
   overview: (input: { platform?: PlatformScope; period?: "7d" | "30d" | "90d" }) =>
-    [...aiQueryKeys.all, "overview", input] as const,
+    [...aiQueryKeys.all, "overview", aiOverviewQuerySchema.parse(input)] as const,
   list: (resource: AiResource, input: AiListQuery) =>
-    [...aiQueryKeys.all, resource, input] as const,
+    [...aiQueryKeys.all, resource, aiListQuerySchema.parse(input)] as const,
   detail: (resource: Extract<AiResource, "providers" | "prompts">, id: string) =>
     [...aiQueryKeys.all, resource, "detail", id] as const,
 };

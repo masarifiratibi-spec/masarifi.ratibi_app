@@ -10,6 +10,7 @@ import { TrackingService } from '../tracking/tracking.service';
 import {
   actionDecision,
   adminCreate,
+  adminPage,
   adminMutation,
   assistantMessage,
   consent,
@@ -119,10 +120,15 @@ function paged(items: Record<string, unknown>[], limit: number, timeKey: string)
   return { items: selected, nextCursor };
 }
 
-function adminCursor(value: string | undefined): string | null {
+function adminCursor(value: string | undefined, scope: string): string | null {
   if (!value) return null;
   try {
-    return uuid(Buffer.from(value, 'base64url').toString('utf8'));
+    const cursor = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as {
+      id: string;
+      scope: string;
+    };
+    if (cursor.scope !== scope) throw new Error('CURSOR_SCOPE_CHANGED');
+    return uuid(cursor.id);
   } catch {
     throw new HttpException({ code: 'VALIDATION_FAILED' }, 422);
   }
@@ -929,12 +935,16 @@ export class AiService {
     };
   }
   async adminList(principal: ClerkPrincipal, resourceName: string, query: unknown) {
-    const input = page(query),
+    const input = adminPage(query, resourceName),
+      scope = createHash('sha256')
+        .update(JSON.stringify([principal.userId, resourceName, input.limit, input.filters]))
+        .digest('hex'),
       rows = await this.repository.adminReadPage(
         principal,
         resourceName,
-        adminCursor(input.cursor),
+        adminCursor(input.cursor, scope),
         input.limit + 1,
+        input.filters,
       );
     const items = rows.slice(0, input.limit),
       last = items.at(-1);
@@ -942,7 +952,7 @@ export class AiService {
       items,
       nextCursor:
         rows.length > input.limit && typeof last?.id === 'string'
-          ? Buffer.from(last.id).toString('base64url')
+          ? Buffer.from(JSON.stringify({ id: last.id, scope })).toString('base64url')
           : null,
     };
   }

@@ -21,7 +21,16 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [deviceId, smsActivationId, deviceRegistration, remindersEnabled, foreground, reminderLocale, reminderTimeZone]
+              required:
+                [
+                  deviceId,
+                  smsActivationId,
+                  deviceRegistration,
+                  remindersEnabled,
+                  foreground,
+                  reminderLocale,
+                  reminderTimeZone,
+                ]
               properties:
                 deviceId: { type: string, format: uuid }
                 smsActivationId: { type: string, pattern: '^[0-9]{1,19}$' }
@@ -359,6 +368,12 @@ paths:
       tags: [Admin Imports]
       x-admin-permission: imports.read
       parameters:
+        - {
+            name: severity,
+            in: query,
+            schema: { type: string, enum: [info, low, medium, high, critical] },
+            description: Failed sessions/items are high; other sessions are info.,
+          }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Search'
@@ -393,6 +408,12 @@ paths:
       tags: [Admin Imports]
       x-admin-permission: imports.read
       parameters:
+        - {
+            name: severity,
+            in: query,
+            schema: { type: string, enum: [info, low, medium, high, critical] },
+            description: Failed sessions/items are high; other sessions are info.,
+          }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Search'
@@ -1525,6 +1546,13 @@ components:
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         parserRuleId: { $ref: '#/components/schemas/TrackingUuid' }
+        parentRuleVersion:
+          {
+            type: integer,
+            minimum: 1,
+            description: Current parent rule revision required for publish retire and rollback.,
+          }
+        status: { type: string, enum: [draft, published, retired] }
         versionNo: { type: integer, minimum: 1 }
         definitionHash: { type: string, pattern: '^[0-9a-f]{64}$' }
         createdBy: { type: string, minLength: 1, maxLength: 128 }

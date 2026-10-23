@@ -950,11 +950,12 @@ export class AiRepository {
     resource: string,
     afterId: string | null,
     limit: number,
+    filters: Record<string, string> = {},
   ) {
     return this.ownerValues(
       principal,
-      'select value from private.read_admin_ai($1,$2::uuid,$3,false)',
-      [resource, afterId, limit],
+      'select value from private.read_admin_ai_filtered($1,$2::uuid,$3,$4::jsonb)',
+      [resource, afterId, limit, JSON.stringify(filters)],
     );
   }
 
@@ -1438,6 +1439,8 @@ export class AiRepository {
               role: 'authenticated',
               sub: principal.userId,
               sid: principal.sessionId,
+              nativeRequest:
+                (principal as ClerkPrincipal & { nativeRequest?: boolean }).nativeRequest === true,
             }),
           ]);
         await client.query(

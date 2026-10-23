@@ -959,17 +959,38 @@ export class TrackingService {
         'purpose',
         'search',
         'status',
+        'severity',
         'sourceType',
         'institutionId',
         'parserVersionId',
         'from',
         'to',
       ]);
-      const page = normalizeTrackingList({ cursor: values.cursor, limit: values.limit });
-      const cursor = page.cursor ? decodeTrackingCursor(page.cursor) : null;
+      const filters = Object.fromEntries(
+        Object.entries(values)
+          .filter(
+            ([key, value]) =>
+              !['cursor', 'limit', 'purpose'].includes(key) && value != null && value !== '',
+          )
+          .map(([key, value]) => [key, String(value).trim()] as const)
+          .sort(([a], [b]) => a.localeCompare(b)),
+      );
+      const page = normalizeTrackingList({ limit: values.limit });
+      const scope = createHash('sha256')
+        .update(JSON.stringify([principal.userId, resource, page.limit, filters]))
+        .digest('hex');
+      let cursor = null;
+      if (values.cursor) {
+        const saved = JSON.parse(
+          Buffer.from(boundedText(values.cursor, 1, 512), 'base64url').toString('utf8'),
+        ) as { scope: string; position: string };
+        if (saved.scope !== scope) throw new Error('CURSOR_SCOPE_CHANGED');
+        cursor = decodeTrackingCursor(saved.position);
+      }
       for (const key of [
         'search',
         'status',
+        'severity',
         'sourceType',
         'institutionId',
         'parserVersionId',
@@ -985,17 +1006,19 @@ export class TrackingService {
         id ? 1 : page.limit + 1,
         purpose,
         cursor,
-        Object.fromEntries(
-          Object.entries(values).filter(
-            ([key, value]) => !['cursor', 'limit', 'purpose'].includes(key) && value != null,
-          ),
-        ),
+        filters,
       );
       if (id) {
         const entries = Array.isArray(response) ? response : [];
         return entries[0] ?? Promise.reject(new HttpException({ code: 'NOT_FOUND' }, 404));
       }
-      return Array.isArray(response) ? trackingPage(response, page.limit, resource) : response;
+      if (!Array.isArray(response)) return response;
+      const result = trackingPage(response, page.limit, resource);
+      if (typeof result.nextCursor === 'string')
+        result.nextCursor = Buffer.from(
+          JSON.stringify({ scope, position: result.nextCursor }),
+        ).toString('base64url');
+      return result;
     } catch {
       throw this.validation();
     }

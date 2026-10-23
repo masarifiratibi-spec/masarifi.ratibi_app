@@ -372,3 +372,61 @@ export function adminCreate(input: unknown, allowed: readonly string[]) {
   if (reason.length < 10) bad();
   return { ...value, reason };
 }
+
+export function adminPage(input: unknown, resource: string) {
+  const value = record(input);
+  const supported: Record<string, string[]> = {
+    overview: ['platform', 'period', 'search', 'feature', 'providerId', 'modelId', 'status'],
+    providers: ['search', 'status'],
+    models: ['search', 'status', 'providerId'],
+    routes: ['search', 'status', 'feature'],
+    prompts: ['search', 'status', 'feature', 'dateFrom', 'dateTo'],
+    usage: [
+      'search',
+      'status',
+      'feature',
+      'platform',
+      'providerId',
+      'modelId',
+      'dateFrom',
+      'dateTo',
+    ],
+    failures: [
+      'search',
+      'status',
+      'feature',
+      'platform',
+      'providerId',
+      'modelId',
+      'dateFrom',
+      'dateTo',
+    ],
+    'response-reports': ['search', 'status', 'dateFrom', 'dateTo'],
+    'safety-rules': ['search', 'status', 'feature', 'dateFrom', 'dateTo'],
+  };
+  if (!supported[resource]) bad();
+  exact(value, ['cursor', 'limit', ...supported[resource]]);
+  const pagination = page({ cursor: value.cursor, limit: value.limit });
+  const filters: Record<string, string> = {};
+  for (const key of supported[resource].sort()) {
+    if (value[key] === undefined || value[key] === '') continue;
+    let filter = text(value[key], '').trim();
+    if (filter.length > 120) bad();
+    if (key === 'platform' && !['all', 'ios', 'android', 'unknown'].includes(filter)) bad();
+    if (key === 'period' && !['7d', '30d', '90d'].includes(filter)) bad();
+    if (key === 'providerId' || key === 'modelId') {
+      uuid(filter);
+      filter = filter.toLowerCase();
+    }
+    if (
+      (key === 'dateFrom' || key === 'dateTo') &&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(filter) ||
+        !Number.isFinite(Date.parse(filter)) ||
+        new Date(filter).toISOString().slice(0, 10) !== filter)
+    )
+      bad();
+    if (filter && !(key === 'platform' && filter === 'all')) filters[key] = filter;
+  }
+  if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) bad();
+  return { ...pagination, filters };
+}

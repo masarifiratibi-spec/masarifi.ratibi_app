@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { mocksEnabled } from "@/core/api/client";
 import { ConfirmDialog, ErrorState, PageHeader } from "@/components/admin/ui";
 import type {
   AiOperationalActionRequest,
@@ -580,8 +581,8 @@ function OperationalDetails({ record }: { record: AiOperationalRecord }) {
       )}
       {record.attemptCount !== undefined && (
         <>
-          المحاولات {record.attemptCount} · البدائل {record.fallbackCount ?? 0}{" "}
-          ·{" "}
+          المحاولات {record.attemptCount} · البدائل{" "}
+          {record.fallbackCount ?? "—"} ·{" "}
         </>
       )}
       {record.inputUnits !== undefined && (
@@ -882,7 +883,9 @@ export function AiOperationalListRoute({
       }
       setDateFrom(params.get("dateFrom") ?? "");
       setDateTo(params.get("dateTo") ?? "");
-      setPage(Math.max(1, Number(params.get("page")) || 1));
+      setPage(
+        mocksEnabled() ? Math.max(1, Number(params.get("page")) || 1) : 1,
+      );
       setUrlReady(true);
     });
     return () => cancelAnimationFrame(frame);
@@ -922,14 +925,23 @@ export function AiOperationalListRoute({
     page,
     pageSize: 25,
     search: search || undefined,
-    platform,
+    platform:
+      mocksEnabled() || ["usage", "failures"].includes(resource)
+        ? platform
+        : undefined,
     status: status || undefined,
-    feature,
-    providerId: safeAiIdSchema.safeParse(providerId).success
-      ? providerId
-      : undefined,
-    modelId: safeAiIdSchema.safeParse(modelId).success ? modelId : undefined,
-    plan,
+    feature: mocksEnabled() || resource !== "reports" ? feature : undefined,
+    providerId:
+      (mocksEnabled() || ["usage", "failures"].includes(resource)) &&
+      safeAiIdSchema.safeParse(providerId).success
+        ? providerId
+        : undefined,
+    modelId:
+      (mocksEnabled() || ["usage", "failures"].includes(resource)) &&
+      safeAiIdSchema.safeParse(modelId).success
+        ? modelId
+        : undefined,
+    plan: mocksEnabled() ? plan : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     sort: "updatedAt",
@@ -975,6 +987,10 @@ export function AiOperationalListRoute({
             <label>
               المنصة
               <select
+                disabled={
+                  !mocksEnabled() && !["usage", "failures"].includes(resource)
+                }
+                title="Only recorded event platforms can be filtered"
                 value={platform}
                 onChange={(event) => {
                   setPlatform(event.target.value as typeof platform);
@@ -1001,6 +1017,7 @@ export function AiOperationalListRoute({
             <label>
               الميزة
               <select
+                disabled={!mocksEnabled() && resource === "reports"}
                 value={feature ?? ""}
                 onChange={(event) => {
                   setFeature(
@@ -1011,7 +1028,20 @@ export function AiOperationalListRoute({
               >
                 <option value="">كل الميزات</option>
                 {aiFeatures.map((item) => (
-                  <option key={item} value={item}>
+                  <option
+                    disabled={
+                      !mocksEnabled() &&
+                      ![
+                        "voice_parsing",
+                        "categorization",
+                        "financial_assistant",
+                        "spending_insights",
+                        "report_explanation",
+                      ].includes(item)
+                    }
+                    key={item}
+                    value={item}
+                  >
                     {item}
                   </option>
                 ))}
@@ -1021,6 +1051,9 @@ export function AiOperationalListRoute({
               المزود
               <input
                 className="ltr"
+                disabled={
+                  !mocksEnabled() && !["usage", "failures"].includes(resource)
+                }
                 value={providerId}
                 onChange={(event) => {
                   setProviderId(event.target.value);
@@ -1033,6 +1066,9 @@ export function AiOperationalListRoute({
               النموذج
               <input
                 className="ltr"
+                disabled={
+                  !mocksEnabled() && !["usage", "failures"].includes(resource)
+                }
                 value={modelId}
                 onChange={(event) => {
                   setModelId(event.target.value);
@@ -1045,6 +1081,8 @@ export function AiOperationalListRoute({
               <label>
                 الخطة
                 <select
+                  disabled={!mocksEnabled()}
+                  title="Plan at request time is not collected"
                   value={plan ?? ""}
                   onChange={(event) => {
                     setPlan(
@@ -1095,6 +1133,7 @@ export function AiOperationalListRoute({
         totalPages={records.data.pagination.totalPages}
         onPage={setPage}
       />
+      {resource === "prompts" && !mocksEnabled() && <CreatePromptDraft />}
       {resource !== "usage" && (
         <ConfigurationActions>
           {records.data.items.map((record) =>
@@ -1135,4 +1174,104 @@ export function AiPromptDetailRoute({ promptId }: { promptId: string }) {
       </div>
     );
   return <AiPromptDetailView prompt={prompt.data} />;
+}
+
+function CreatePromptDraft() {
+  const mutation = useAiLockedAction();
+  const [workload, setWorkload] = useState("financial_assistant");
+  const [template, setTemplate] = useState("");
+  const [reason, setReason] = useState("");
+  const [open, setOpen] = useState(false);
+  return (
+    <ConfigurationActions>
+      <section className="card">
+        <h2>إنشاء مسودة مطالبة</h2>
+        <p>
+          تُنسخ الاختبارات من الإصدار المعتمد لنفس الميزة. يلزم تشغيل الاختبارات
+          ونجاحها قبل النشر. إذا لم يوجد إصدار معتمد باختبارات، يُرفض الإنشاء.
+        </p>
+        <label>
+          الميزة
+          <select
+            value={workload}
+            onChange={(event) => setWorkload(event.target.value)}
+          >
+            {[
+              "financial_assistant",
+              "voice_transcription",
+              "transaction_classification",
+              "report_summarization",
+              "financial_insights",
+              "admin_support",
+            ].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          نص المطالبة
+          <textarea
+            value={template}
+            maxLength={32768}
+            onChange={(event) => setTemplate(event.target.value)}
+          />
+        </label>
+        <label>
+          سبب التغيير
+          <input
+            value={reason}
+            maxLength={500}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </label>
+        <button
+          className="button"
+          disabled={
+            !template.trim() || reason.trim().length < 10 || mutation.isPending
+          }
+          onClick={() => setOpen(true)}
+        >
+          إنشاء المسودة
+        </button>
+        <ConfirmDialog
+          open={open}
+          onClose={() => setOpen(false)}
+          onConfirm={() =>
+            mutation.mutate(
+              {
+                resource: "prompts",
+                id: "new-draft",
+                action: "create",
+                run: () =>
+                  aiRepository.createPrompt({
+                    workload,
+                    template: template.trim(),
+                    schemaVersion: 1,
+                    reason: reason.trim(),
+                  }),
+              },
+              {
+                onSuccess: () => {
+                  setOpen(false);
+                  setTemplate("");
+                },
+              },
+            )
+          }
+          title="إنشاء مسودة مطالبة"
+          scope={workload}
+          consequence="تُنشأ مسودة جديدة مع نسخ الاختبارات المعتمدة دون نشرها."
+          permission="ai.prompts.manage"
+          auditEvent="ai.config-updated"
+          pending={mutation.isPending}
+          outcomes={{
+            success: "تم إنشاء المسودة",
+            failure: "تعذر إنشاء المسودة",
+            conflict: "تغير الإصدار",
+          }}
+        />
+        {mutation.isError && <ErrorState error={mutation.error} />}
+      </section>
+    </ConfigurationActions>
+  );
 }

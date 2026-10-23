@@ -216,7 +216,12 @@ describeLiveDatabase('governed Admin AI operations', () => {
         "select id,version from private.ai_safety_rules where key='global.no_tools'",
       )
     ).rows[0];
-    if (!provider || !rule) throw new Error('AI_POLICY_FIXTURE_MISSING');
+    const policyModel = (
+      await pool.query<{ version: string }>(
+        "select version from private.ai_models where id='99020000-0000-4000-8000-000000000006'",
+      )
+    ).rows[0];
+    if (!provider || !rule || !policyModel) throw new Error('AI_POLICY_FIXTURE_MISSING');
     await expect(
       repository.adminMutate(
         admin,
@@ -237,7 +242,7 @@ describeLiveDatabase('governed Admin AI operations', () => {
         'models',
         '99020000-0000-4000-8000-000000000006',
         {
-          expectedVersion: 1,
+          expectedVersion: Number(policyModel.version),
           reason: 'Reject provider outside the enabled Voice allowlist',
           providerId: vertexProviderId,
         },

@@ -51,8 +51,8 @@ export class AiAdminController {
   @ApiOperation({ operationId: 'getAiOverview' })
   @adminPermission('ai.overview.read')
   @UseGuards(AdminAuthGuard)
-  async overview(@Req() request: Request) {
-    return (await this.ai.adminList(principal(request), 'overview', {})).items[0];
+  async overview(@Req() request: Request, @Query() query: unknown) {
+    return (await this.ai.adminList(principal(request), 'overview', query)).items[0];
   }
 
   @Get('providers')
