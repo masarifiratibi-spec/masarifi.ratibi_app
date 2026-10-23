@@ -270,35 +270,26 @@ export class ReportsService {
       .slice(0, 10);
     const query = { platform: command.platform, period: command.period, locale: 'en' };
     const counts =
-      command.exportType === 'user_report'
+      command.exportType === 'user_report' || command.exportType === 'activity'
         ? undefined
         : await this.repository.getAdminReportCounts(principal, String(command.platform), days);
-    const observation = counts ? adminObservation(counts) : undefined;
+    let observation = counts ? adminObservation(counts) : undefined;
     let data: Record<string, unknown>;
     if (command.exportType === 'user_report') {
       data = await this.repository.getSupportedFinancialReport(
         principal,
         String(command.userId),
-        start,
-        end,
+        days,
+        now,
       );
     } else if (command.exportType === 'activity') {
-      const items: Record<string, unknown>[] = [];
-      let page = 1;
-      let hasMore = true;
-      while (hasMore) {
-        const result = await this.repository.getAdminOverviewActivity(principal, {
-          platform: String(command.platform),
-          days,
-          page,
-          pageSize: 25,
-        });
-        items.push(...result.items);
-        if (items.length > 10000) throw new HttpException({ code: 'REPORT_LIMIT_EXCEEDED' }, 413);
-        hasMore = items.length < result.totalItems && result.items.length > 0;
-        page++;
-      }
-      data = { items };
+      const result = await this.repository.getAdminActivityExport(
+        principal,
+        String(command.platform),
+        days,
+      );
+      observation = result.observation;
+      data = { items: result.items };
     } else {
       if (!counts) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
       data =
@@ -321,12 +312,18 @@ export class ReportsService {
       ledgerVersion,
       reportType: 'account_activity',
       period: {
-        startDate: observation?.start
-          ? localDateAt(new Date(observation.start), observation.timezone)
-          : start,
-        endDate: observation?.end
-          ? localDateAt(new Date(observation.end), observation.timezone)
-          : end,
+        startDate:
+          typeof data.startDate === 'string'
+            ? data.startDate
+            : observation?.start
+              ? localDateAt(new Date(observation.start), observation.timezone)
+              : start,
+        endDate:
+          typeof data.endDate === 'string'
+            ? data.endDate
+            : observation?.end
+              ? localDateAt(new Date(observation.end), observation.timezone)
+              : end,
         timezone:
           observation?.timezone ?? (typeof data.timezone === 'string' ? data.timezone : 'UTC'),
         kind: days === 7 ? 'monthly' : days === 30 ? 'monthly' : 'three_months',
@@ -339,7 +336,11 @@ export class ReportsService {
           ? 'complete'
           : detailedRows.length === 0
             ? 'empty'
-            : detailedRows.some((row) => row.value === null)
+            : detailedRows.some(
+                  (row) =>
+                    row.value === null ||
+                    ['partial', 'unavailable', 'stale'].includes(String(row.freshness)),
+                )
               ? 'partial'
               : 'complete',
       evidence:

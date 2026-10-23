@@ -14,6 +14,29 @@ tags:
   - name: Admin reports
 
 paths:
+  /api/v1/me/mobile-activity:
+    post:
+      tags: [Reports]
+      operationId: recordMobileActivity
+      security: [{ClerkBearer: []}]
+      description: Record a coarse native foreground observation for the authenticated active profile and owned native device session. Browser origins and extra payload fields are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [platform]
+              properties:
+                platform: {type: string, enum: [ios, android]}
+      responses:
+        '204': {description: Observation accepted or already recorded in this bucket. No response body.}
+        '400': {$ref: '#/components/responses/SafeError'}
+        '401': {$ref: '#/components/responses/SafeError'}
+        '403': {$ref: '#/components/responses/SafeError'}
+        '429': {$ref: '#/components/responses/SafeError'}
+        '503': {$ref: '#/components/responses/SafeError'}
   /api/v1/dashboard/home:
     get:
       tags: [Dashboard]
@@ -367,6 +390,10 @@ paths:
 
 components:
   securitySchemes:
+    ClerkBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
     clerkBearer:
       type: http
       scheme: bearer

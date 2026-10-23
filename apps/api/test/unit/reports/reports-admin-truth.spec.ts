@@ -54,6 +54,25 @@ const counts = {
 const make = () => {
   const repository = {
     getAdminReportCounts: jest.fn().mockResolvedValue(counts),
+    getAdminActivityExport: jest.fn().mockResolvedValue({
+      items: [
+        {
+          id: 'audit',
+          eventType: 'account-deletion-cancelled',
+          summary: 'Deletion cancelled.',
+          occurredAt: counts.observedAt,
+          platformScope: 'global',
+          permission: 'admin.overview.read',
+        },
+      ],
+      observation: {
+        timezone: counts.timezone,
+        start: counts.periodStart,
+        end: counts.periodEnd,
+        observedAt: counts.observedAt,
+        collectionStartedAt: counts.collectionStartedAt,
+      },
+    }),
     getAdminOverviewActivity: jest.fn().mockResolvedValue({
       items: [
         {
@@ -124,6 +143,42 @@ describe('measured admin reports', () => {
       ]),
     );
   });
+  it('retains partial monthly history and measurement bounds in a numeric seven-day CSV', async () => {
+    const { service, repository } = make();
+    repository.getAdminReportCounts.mockResolvedValue({
+      ...counts,
+      periodStart: '2026-10-16T21:00:00.000Z',
+      collectionStartedAt: '2026-10-09T09:00:00.000Z',
+    });
+    const snapshot = await service.createAdminExport(
+      principal,
+      { exportType: 'platform_analytics', period: '7d', format: 'csv' },
+      'export-key',
+      'request',
+    );
+    expect(snapshot.dataState).toBe('partial');
+    expect(snapshot.detailedRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          section: 'monthlyActiveUsers',
+          value: 2,
+          freshness: 'partial',
+          timezone: 'Asia/Riyadh',
+          collectionStartedAt: '2026-10-09T09:00:00.000Z',
+          periodStart: '2026-10-16T21:00:00.000Z',
+          periodEnd: counts.periodEnd,
+        }),
+      ]),
+    );
+    const rendered = renderReport(snapshot as never, 'csv', 1_000_000);
+    let csv = '';
+    for await (const chunk of rendered.body) csv += String(chunk);
+    await rendered.byteCounter;
+    expect(csv).toContain('freshness');
+    expect(csv).toContain('collectionStartedAt');
+    expect(csv).toContain('"partial"');
+    expect(csv).toContain('"Asia/Riyadh"');
+  });
   it.each(['overview', 'platform_analytics', 'activity'])(
     'exports actual %s rows and dataset columns',
     async (exportType) => {
@@ -157,5 +212,40 @@ describe('measured admin reports', () => {
     expect(snapshot.currencyCode).toBe('USD');
     expect(JSON.stringify(buildReportPdfSections(snapshot as never))).toContain('12.34 USD');
     expect(JSON.stringify(buildReportPdfSections(snapshot as never))).not.toContain('SAR');
+  });
+  it('delegates relative dates to the authorized customer timezone and retains returned bounds', async () => {
+    const { service, repository } = make();
+    repository.getSupportedFinancialReport.mockResolvedValue({
+      currencyCode: 'USD',
+      timezone: 'Asia/Dubai',
+      startDate: '2026-09-26',
+      endDate: '2026-10-02',
+      summaries: [],
+    });
+    const observed = new Date('2026-10-01T20:30:00Z');
+    const snapshot = await service.createAdminExport(
+      principal,
+      {
+        exportType: 'user_report',
+        period: '7d',
+        format: 'pdf',
+        userId: 'customer',
+        supportReason: 'Customer requested help',
+      },
+      'export-key',
+      'request',
+      observed,
+    );
+    expect(repository.getSupportedFinancialReport).toHaveBeenCalledWith(
+      principal,
+      'customer',
+      7,
+      observed,
+    );
+    expect(snapshot.period).toMatchObject({
+      startDate: '2026-09-26',
+      endDate: '2026-10-02',
+      timezone: 'Asia/Dubai',
+    });
   });
 });

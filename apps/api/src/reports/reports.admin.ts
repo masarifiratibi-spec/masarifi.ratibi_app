@@ -225,6 +225,7 @@ export function aggregateExportRows(
 ): Record<string, unknown>[] {
   if (type === 'activity') return data.items as Record<string, unknown>[];
   const rows: Record<string, unknown>[] = [];
+  type Measurement = { freshness?: { state?: string }; observation?: Record<string, unknown> };
   const add = (
     section: string,
     metric: string,
@@ -233,6 +234,7 @@ export function aggregateExportRows(
     period: unknown,
     observedAt: unknown,
     timestamp: unknown = null,
+    measurement: Measurement = {},
   ) =>
     rows.push({
       section,
@@ -247,6 +249,11 @@ export function aggregateExportRows(
       period,
       observedAt,
       timestamp,
+      freshness: measurement.freshness?.state ?? 'unavailable',
+      timezone: measurement.observation?.timezone ?? null,
+      periodStart: measurement.observation?.start ?? null,
+      periodEnd: measurement.observation?.end ?? null,
+      collectionStartedAt: measurement.observation?.collectionStartedAt ?? null,
     });
   const query = data.query as Record<string, unknown>;
   if (type === 'overview') {
@@ -258,16 +265,32 @@ export function aggregateExportRows(
         metric.platformScope,
         metric.period,
         (metric.freshness as { asOf?: string }).asOf ?? null,
+        null,
+        metric,
       );
   } else {
     const customers = data.customers as Record<string, unknown>;
     const observed = (customers.freshness as { asOf?: string }).asOf ?? null;
     for (const [key, value] of Object.entries(customers))
       if (typeof value === 'number' || value === null)
-        add('customers', key, value, query.platform, query.period, observed);
+        add('customers', key, value, query.platform, query.period, observed, null, {
+          ...(customers as Measurement),
+          freshness: (key.startsWith('active')
+            ? customers.activityFreshness
+            : customers.freshness) as Measurement['freshness'],
+        });
     for (const key of ['userGrowth', 'dailyActiveUsers', 'monthlyActiveUsers']) {
       for (const point of (data[key] as { points: AdminTrendPoint[] }).points)
-        add(key, key, point.value, query.platform, query.period, observed, point.timestamp);
+        add(
+          key,
+          key,
+          point.value,
+          query.platform,
+          query.period,
+          observed,
+          point.timestamp,
+          data[key] as Measurement,
+        );
     }
     for (const key of ['versions', 'devices', 'imports', 'support'])
       for (const item of data[key] as Record<string, unknown>[]) {
@@ -278,6 +301,8 @@ export function aggregateExportRows(
           item.platformScope ?? item.platform,
           query.period,
           observed,
+          null,
+          key === 'imports' || key === 'support' ? item : customers,
         );
       }
   }

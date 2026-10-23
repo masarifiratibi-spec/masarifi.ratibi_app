@@ -1,4 +1,5 @@
 import type { AdminReportCounts } from './reports.admin-types';
+import { adminObservation } from './reports.admin';
 export type { AdminReportCounts } from './reports.admin-types';
 import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
@@ -538,18 +539,49 @@ export class ReportsRepository {
   async getSupportedFinancialReport(
     principal: ClerkPrincipal,
     userId: string,
-    start: string,
-    end: string,
+    days: number,
+    observedAt: Date,
   ): Promise<Record<string, unknown>> {
     return this.withApiSnapshot(principal, async (client) => {
       const row = (
-        await client.query<{ read_supported_financial_report: Record<string, unknown> }>(
-          'select private.read_supported_financial_report($1,$2::date,$3::date)',
-          [userId, start, end],
+        await client.query<{ value: Record<string, unknown> }>(
+          'select private.read_supported_financial_report_relative($1,$2,$3::timestamptz) value',
+          [userId, days, observedAt.toISOString()],
         )
       ).rows[0];
       if (!row) throw new HttpException({ code: 'REPORT_NOT_FOUND' }, 404);
-      return row.read_supported_financial_report;
+      return row.value;
+    });
+  }
+
+  async getAdminActivityExport(principal: ClerkPrincipal, platform: string, days: number) {
+    return this.withApiSnapshot(principal, async (client) => {
+      const measurement = (
+        await client.query<{ value: AdminReportCounts }>(
+          'select private.read_admin_report_measurements($1,$2) value',
+          [platform, days],
+        )
+      ).rows[0]?.value;
+      if (!measurement?.observedAt) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
+      const rows = (
+        await client.query<AdminActivityRow>(
+          'select * from private.read_admin_overview_activity_at($1,$2,10001,$3::timestamptz)',
+          [platform, days, measurement.observedAt],
+        )
+      ).rows;
+      if (rows.length > 10000) throw new HttpException({ code: 'REPORT_LIMIT_EXCEEDED' }, 413);
+      return {
+        observation: adminObservation(measurement),
+        items: rows.map((row) => ({
+          id: row.id,
+          eventType: row.event_type,
+          summary: row.summary,
+          occurredAt: row.occurred_at.toISOString(),
+          platformScope: row.platform_scope,
+          permission: row.permission,
+          ...(row.destination ? { destination: row.destination } : {}),
+        })),
+      };
     });
   }
 

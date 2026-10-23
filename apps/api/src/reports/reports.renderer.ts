@@ -49,9 +49,22 @@ function* csv(snapshot: ReportSnapshot): Generator<string> {
   const type = snapshot.summary.exportType;
   const columns =
     type === 'activity'
-      ? ['occurredAt', 'eventType', 'summary', 'platformScope', 'permission', 'destination']
+      ? ['id', 'occurredAt', 'eventType', 'summary', 'platformScope', 'permission', 'destination']
       : type === 'overview' || type === 'platform_analytics'
-        ? ['section', 'metric', 'value', 'platformScope', 'period', 'observedAt', 'timestamp']
+        ? [
+            'section',
+            'metric',
+            'value',
+            'platformScope',
+            'period',
+            'observedAt',
+            'timestamp',
+            'freshness',
+            'timezone',
+            'periodStart',
+            'periodEnd',
+            'collectionStartedAt',
+          ]
         : CSV_COLUMNS;
   yield `\uFEFF${columns.join(',')}\r\n`;
   for (const row of snapshot.detailedRows)

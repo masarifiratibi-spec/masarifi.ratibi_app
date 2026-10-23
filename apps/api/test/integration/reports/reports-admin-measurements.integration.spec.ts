@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 import type { AdminReportCounts } from '../../../src/reports/reports.admin-types';
+import { ReportsRepository } from '../../../src/reports/reports.repository';
+import { ReportsService } from '../../../src/reports/reports.service';
 type Measurements = Omit<Required<AdminReportCounts>, 'versions'> & {
   versions: { deviceCount: number }[];
 };
@@ -206,6 +208,7 @@ describeLiveDatabase('admin measured activity and exact support ranges', () => {
       for (const [at, amount] of [
         ['2026-09-30T19:59:59Z', 99999],
         ['2026-09-30T20:00:00Z', 1234],
+        ['2026-10-01T20:15:00Z', 765],
         ['2026-10-07T19:59:59Z', 2000],
         ['2026-10-07T20:00:00Z', 99999],
       ])
@@ -224,7 +227,56 @@ describeLiveDatabase('admin measured activity and exact support ranges', () => {
       expect(row.value).toMatchObject({
         currencyCode: 'USD',
         currencyMinorUnits: { USD: 2 },
-        summaries: [{ currency_code: 'USD', income_minor: 3234, transaction_count: 2 }],
+        summaries: [{ currency_code: 'USD', income_minor: 3999, transaction_count: 3 }],
+      });
+      // Keep the fixture transaction rollbackable while running the actual service/repository SQL.
+      const fixturePool = {
+        withClient: <T>(action: (connection: PoolClient) => Promise<T>) =>
+          action(
+            new Proxy(client, {
+              get(target, key, receiver) {
+                if (key !== 'query') return Reflect.get(target, key, receiver) as unknown;
+                return (sql: string, values: unknown[] = []) =>
+                  target.query(
+                    sql.startsWith('begin ')
+                      ? 'savepoint support_export'
+                      : sql === 'commit'
+                        ? 'release savepoint support_export'
+                        : sql,
+                    values,
+                  );
+              },
+            }),
+          ),
+      };
+      const repository = new ReportsRepository(fixturePool as never);
+      jest
+        .spyOn(repository, 'captureAdminExport')
+        .mockImplementation((_principal, _command, snapshot) => Promise.resolve({ ...snapshot }));
+      const report = await new ReportsService(repository).createAdminExport(
+        { userId: admin, sessionId: 'native-session', factorAgeSeconds: 0 },
+        {
+          exportType: 'user_report',
+          userId: user,
+          supportReason: 'Customer requested a report',
+          period: '7d',
+          format: 'pdf',
+        },
+        'relative-support-test',
+        'request',
+        new Date('2026-10-01T20:30:00Z'),
+      );
+      expect(report.period).toMatchObject({
+        startDate: '2026-09-26',
+        endDate: '2026-10-02',
+        timezone: 'Asia/Dubai',
+      });
+      expect(report.summary).toMatchObject({
+        startDate: '2026-09-26',
+        endDate: '2026-10-02',
+        periodStart: '2026-09-25T20:00:00+00:00',
+        periodEndExclusive: '2026-10-02T20:00:00+00:00',
+        summaries: [{ currency_code: 'USD', income_minor: 101998, transaction_count: 3 }],
       });
     }));
   it('bounds version distributions without losing registered devices', () =>
@@ -248,6 +300,16 @@ describeLiveDatabase('admin measured activity and exact support ranges', () => {
           0,
         ),
       ).toBe(row.value.iosDevices);
+    }));
+  it('denies relative support ranges without a grant', () =>
+    scenario(async (client) => {
+      await actor(client, admin);
+      await expect(
+        client.query(
+          "select private.read_supported_financial_report_relative($1,7,'2026-10-01T20:30:00Z')",
+          [user],
+        ),
+      ).rejects.toMatchObject({ code: '42501' });
     }));
   it('deduplicates customers across multiple devices and keeps unknown-platform registrations', () =>
     scenario(async (client) => {
