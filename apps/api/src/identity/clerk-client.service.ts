@@ -201,6 +201,29 @@ export class ClerkClientService {
     }
   }
 
+  async listCustomerSessions(
+    userId: string,
+  ): Promise<Array<{ id: string; createdAt: Date; lastActiveAt: Date; expiresAt: Date }>> {
+    if (!userId || userId.length > 128 || userId.trim() !== userId)
+      throw new ClerkProviderUnavailableError();
+    try {
+      const page = await this.withTimeout(
+        this.client.sessions.getSessionList({ userId, status: 'active', limit: 100 }),
+      );
+      if (page.totalCount > 100 || page.data.some((session) => session.userId !== userId))
+        throw new ClerkProviderUnavailableError();
+      return page.data.map((session) => ({
+        id: session.id,
+        createdAt: new Date(session.createdAt),
+        lastActiveAt: new Date(session.lastActiveAt),
+        expiresAt: new Date(session.expireAt),
+      }));
+    } catch (error) {
+      if (error instanceof ClerkProviderUnavailableError) throw error;
+      throw new ClerkProviderUnavailableError();
+    }
+  }
+
   async deliverAdminInvitation(email: string, token: string): Promise<void> {
     if (
       !this.adminInvitationRedirectUrl ||

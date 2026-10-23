@@ -3,6 +3,9 @@ import type { Locale } from "./direction";
 
 const labels = {
   status: {
+    deletion_pending: { ar: "قيد الحذف", en: "Deletion pending" },
+    deleted: { ar: "محذوف", en: "Deleted" },
+    unknown: { ar: "غير معروف", en: "Unknown" },
     active: { ar: "نشط", en: "Active" },
     disabled: { ar: "معطل", en: "Disabled" },
     pending: { ar: "معلق", en: "Pending" },
@@ -56,6 +59,7 @@ const labels = {
     custom: { ar: "مخصص", en: "Custom" },
   },
   severity: {
+    unknown: { ar: "غير مقاس", en: "Unmeasured" },
     info: { ar: "معلومة", en: "Info" },
     low: { ar: "منخفض", en: "Low" },
     medium: { ar: "متوسط", en: "Medium" },
@@ -100,6 +104,7 @@ const labels = {
 } as const;
 
 const planLabels: Record<string, Record<Locale, string>> = {
+  unknown: { ar: "غير معروف", en: "Unknown" },
   Free: { ar: "مجاني", en: "Free" },
   Basic: { ar: "أساسي", en: "Basic" },
   Premium: { ar: "مميز", en: "Premium" },
@@ -109,6 +114,8 @@ const planLabels: Record<string, Record<Locale, string>> = {
 };
 
 const platformLabels: Record<string, Record<Locale, string>> = {
+  unknown: { ar: "غير معروف", en: "Unknown" },
+  web: { ar: "الويب", en: "Web" },
   all: { ar: "كل المنصات", en: "All platforms" },
   ios: { ar: "iOS", en: "iOS" },
   android: { ar: "Android", en: "Android" },
@@ -118,6 +125,8 @@ const platformLabels: Record<string, Record<Locale, string>> = {
 };
 
 const countryLabels: Record<string, Record<Locale, string>> = {
+  unknown: { ar: "غير معروف", en: "Unknown" },
+  EG: { ar: "مصر", en: "Egypt" },
   SA: { ar: "السعودية", en: "Saudi Arabia" },
   AE: { ar: "الإمارات", en: "United Arab Emirates" },
 };

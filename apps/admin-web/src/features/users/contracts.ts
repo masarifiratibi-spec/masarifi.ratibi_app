@@ -14,22 +14,22 @@ export const deviceIdSchema = opaqueId(/^device_[A-Za-z0-9_-]+$/);
 export const sessionIdSchema = opaqueId(/^sess_[A-Za-z0-9_-]+$/);
 export const auditReferenceSchema = opaqueId(/^audit_[A-Za-z0-9_-]+$/);
 
-export const platformSchema = z.enum(["ios", "android"]);
+export const platformSchema = z.enum(["ios", "android", "web"]);
 export type Platform = z.infer<typeof platformSchema>;
 
 export const platformFilterSchema = z.enum(["all", "ios", "android", "multi"]);
 export type PlatformFilter = z.infer<typeof platformFilterSchema>;
 
-export const accountStatusSchema = z.enum(["active", "suspended", "pending"]);
+export const accountStatusSchema = z.enum(["active", "suspended", "pending", "deletion_pending", "deleted"]);
 export type AccountStatus = z.infer<typeof accountStatusSchema>;
 
-export const verificationStateSchema = z.enum(["verified", "pending"]);
+export const verificationStateSchema = z.enum(["verified", "pending", "unknown"]);
 export type VerificationState = z.infer<typeof verificationStateSchema>;
 
-export const riskLevelSchema = z.enum(["low", "medium", "high"]);
+export const riskLevelSchema = z.enum(["low", "medium", "high", "unknown"]);
 export type RiskLevel = z.infer<typeof riskLevelSchema>;
 
-export const planSchema = z.enum(["Free", "Basic", "Premium"]);
+export const planSchema = z.enum(["Free", "Basic", "Premium", "unknown"]);
 export type Plan = z.infer<typeof planSchema>;
 
 export const capabilityStateSchema = z.enum([
@@ -81,7 +81,7 @@ export const adminUsersQuerySchema = z
     query: z.string().trim().min(1).max(100).optional(),
     status: accountStatusSchema.optional(),
     plan: planSchema.optional(),
-    country: z.enum(["SA", "AE"]).optional(),
+    country: z.string().regex(/^[A-Z]{2}$/).optional(),
     language: z.enum(["ar", "en"]).optional(),
     registeredFrom: z.iso.date().optional(),
     registeredTo: z.iso.date().optional(),
@@ -114,23 +114,23 @@ export const adminUserListItemSchema = z
   .object({
     id: userIdSchema,
     displayName: z.string().min(1).max(100),
-    maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@example\.test$/).max(160),
-    country: z.enum(["SA", "AE"]),
+    maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@[^@\s]+\.[^@\s]+$/).max(320).nullable(),
+    country: z.string().regex(/^[A-Z]{2}$/).nullable(),
     language: z.enum(["ar", "en"]),
-    primaryPlatform: platformSchema,
+    primaryPlatform: platformSchema.nullable(),
     registeredPlatforms: z
       .array(platformSchema)
-      .min(1)
-      .max(2)
+      .max(3)
       .refine((arr) => new Set(arr).size === arr.length, "Platforms must be unique"),
     iosDeviceCount: z.number().int().min(0),
     androidDeviceCount: z.number().int().min(0),
+    webDeviceCount: z.number().int().min(0).optional(),
     totalDeviceCount: z.number().int().min(0),
     plan: planSchema,
     status: accountStatusSchema,
     verification: verificationStateSchema,
     registeredAt: z.iso.datetime({ offset: true }),
-    lastActiveAt: z.iso.datetime({ offset: true }),
+    lastActiveAt: z.iso.datetime({ offset: true }).nullable(),
     risk: riskLevelSchema,
   })
   .strict()
@@ -151,14 +151,14 @@ export const adminUserListItemSchema = z
         path: ["registeredPlatforms"],
       });
     }
-    if (value.totalDeviceCount !== value.iosDeviceCount + value.androidDeviceCount) {
+    if (value.totalDeviceCount !== value.iosDeviceCount + value.androidDeviceCount + (value.webDeviceCount ?? 0)) {
       context.addIssue({
         code: "custom",
         message: "totalDeviceCount must equal iosDeviceCount plus androidDeviceCount",
         path: ["totalDeviceCount"],
       });
     }
-    if (!value.registeredPlatforms.includes(value.primaryPlatform)) {
+    if (value.primaryPlatform !== null && !value.registeredPlatforms.includes(value.primaryPlatform)) {
       context.addIssue({
         code: "custom",
         message: "primaryPlatform must be in registeredPlatforms",
@@ -219,17 +219,17 @@ export type UserDetailRequest = z.infer<typeof userDetailRequestSchema>;
 export const riskSummarySchema = z.object({
   level: riskLevelSchema,
   label: z.string().min(1).max(100),
-  updatedAt: z.iso.datetime({ offset: true }),
-  signalsCount: z.number().int().min(0),
+  updatedAt: z.iso.datetime({ offset: true }).nullable(),
+  signalsCount: z.number().int().min(0).nullable(),
 }).strict();
 export type RiskSummary = z.infer<typeof riskSummarySchema>;
 
 export const userAggregatesSchema = z.object({
-  accountsCount: z.number().int().min(0),
-  transactionsCount: z.number().int().min(0),
-  goalsCount: z.number().int().min(0),
-  activeDebtsCount: z.number().int().min(0),
-  importSourcesCount: z.number().int().min(0),
+  accountsCount: z.number().int().min(0).nullable(),
+  transactionsCount: z.number().int().min(0).nullable(),
+  goalsCount: z.number().int().min(0).nullable(),
+  activeDebtsCount: z.number().int().min(0).nullable(),
+  importSourcesCount: z.number().int().min(0).nullable(),
   lastSyncAt: z.iso.datetime({ offset: true }).nullable(),
 }).strict();
 export type UserAggregates = z.infer<typeof userAggregatesSchema>;
@@ -238,31 +238,33 @@ export const userProfileSummarySchema = z
   .object({
     id: userIdSchema,
     displayName: z.string().min(1).max(100),
-    maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@example\.test$/).max(160),
-    country: z.enum(["SA", "AE"]),
+    maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@[^@\s]+\.[^@\s]+$/).max(320).nullable(),
+    country: z.string().regex(/^[A-Z]{2}$/).nullable(),
     language: z.enum(["ar", "en"]),
-    currency: z.enum(["SAR", "AED"]),
+    currency: z.string().regex(/^[A-Z]{3}$/).nullable(),
     timezone: z.string().min(1).max(64),
     registeredAt: z.iso.datetime({ offset: true }),
-    lastActiveAt: z.iso.datetime({ offset: true }),
+    lastActiveAt: z.iso.datetime({ offset: true }).nullable(),
     lastActivityByPlatform: z.object({
       ios: z.iso.datetime({ offset: true }).optional(),
       android: z.iso.datetime({ offset: true }).optional(),
+      web: z.iso.datetime({ offset: true }).optional(),
     }).strict(),
     status: accountStatusSchema,
-    onboardingStatus: z.enum(["complete", "incomplete"]),
+    onboardingStatus: z.enum(["complete", "incomplete", "unknown"]),
     verification: verificationStateSchema,
     risk: riskSummarySchema,
-    primaryPlatform: platformSchema,
-    registeredPlatforms: z.array(platformSchema).min(1).max(2)
+    primaryPlatform: platformSchema.nullable(),
+    registeredPlatforms: z.array(platformSchema).max(3)
       .refine((platforms) => new Set(platforms).size === platforms.length),
     currentPlan: planSchema,
+    providerRevocationStatus: z.enum(["pending", "completed", "failed"]).nullable().optional(),
     aggregates: userAggregatesSchema,
     region: regionStateSchema,
   })
   .strict()
   .superRefine((profile, context) => {
-    if (!profile.registeredPlatforms.includes(profile.primaryPlatform)) {
+    if (profile.primaryPlatform !== null && !profile.registeredPlatforms.includes(profile.primaryPlatform)) {
       context.addIssue({
         code: "custom",
         message: "primaryPlatform must be registered",
@@ -290,7 +292,7 @@ export const userDeviceSchema = z
     userId: userIdSchema,
     safeLabel: z.string().min(1).max(80),
     platform: platformSchema,
-    osVersion: z.string().min(1).max(32),
+    osVersion: z.string().min(1).max(32).nullable(),
     appVersion: z.string().min(1).max(32),
     lastSeenAt: z.iso.datetime({ offset: true }),
     pushState: capabilityStateSchema,
@@ -299,7 +301,7 @@ export const userDeviceSchema = z
     smsTrackingState: capabilityStateSchema,
     notificationListenerState: capabilityStateSchema,
     backgroundState: capabilityStateSchema,
-    sessionState: z.enum(["active", "none", "revoked"]),
+    sessionState: z.enum(["active", "none", "revoked", "unknown"]),
     state: deviceStateSchema,
     revokedAt: z.iso.datetime({ offset: true }).nullable(),
   })
@@ -328,6 +330,7 @@ export const userDevicesResponseSchema = z
     items: z.array(userDeviceSchema).max(100),
     iosDeviceCount: z.number().int().min(0),
     androidDeviceCount: z.number().int().min(0),
+    webDeviceCount: z.number().int().min(0).optional(),
     totalDeviceCount: z.number().int().min(0),
     activeDeviceCount: z.number().int().min(0),
     revokedDeviceCount: z.number().int().min(0),
@@ -336,13 +339,15 @@ export const userDevicesResponseSchema = z
   .strict()
   .superRefine((response, context) => {
     const ios = response.items.filter(({ platform }) => platform === "ios").length;
-    const android = response.items.length - ios;
+    const android = response.items.filter(({ platform }) => platform === "android").length;
+    const web = response.items.filter(({ platform }) => platform === "web").length;
     const active = response.items.filter(({ state }) => state === "active").length;
     const revoked = response.items.length - active;
     if (
       response.iosDeviceCount !== ios
       || response.androidDeviceCount !== android
-      || response.totalDeviceCount !== ios + android
+      || (response.webDeviceCount ?? 0) !== web
+      || response.totalDeviceCount !== ios + android + web
       || response.activeDeviceCount !== active
       || response.revokedDeviceCount !== revoked
     ) {
@@ -358,10 +363,10 @@ export const userSessionSchema = z
   .object({
     id: sessionIdSchema,
     userId: userIdSchema,
-    deviceId: deviceIdSchema,
+    deviceId: deviceIdSchema.nullable(),
     safeDeviceLabel: z.string().min(1).max(80),
-    platform: platformSchema,
-    coarseRegion: z.string().min(1).max(80),
+    platform: platformSchema.nullable(),
+    coarseRegion: z.string().min(1).max(80).nullable(),
     startedAt: z.iso.datetime({ offset: true }),
     lastActivityAt: z.iso.datetime({ offset: true }),
     state: sessionStateSchema,
@@ -460,6 +465,7 @@ export const userActionResultSchema = z.object({
   occurredAt: z.iso.datetime({ offset: true }),
   message: z.string().max(200),
   auditReference: auditReferenceSchema,
+  providerStatus: z.enum(["pending", "completed", "failed"]).optional(),
 }).strict();
 export type UserActionResult = z.infer<typeof userActionResultSchema>;
 

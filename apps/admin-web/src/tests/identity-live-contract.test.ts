@@ -155,7 +155,12 @@ describe("Admin live identity boundary", () => {
       userId: "user_target_1",
       role: "super-admin",
       scenario: "forbidden",
-    })).rejects.toMatchObject({ code: "provider_unavailable" });
+    })).rejects.toMatchObject({ code: "contract_mismatch" });
+    expect(request).toHaveBeenCalledTimes(1);
+    const userUrl = new URL(String(request.mock.calls[0][0]), "https://admin.example.test");
+    expect(userUrl.pathname).toBe("/api/v1/admin/users/user_target_1");
+    expect([...userUrl.searchParams.keys()]).toEqual([]);
+    request.mockClear();
     await expect(accessRepository.listRequests(
       { scenario: "forbidden" },
       "super-admin",

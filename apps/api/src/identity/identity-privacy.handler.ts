@@ -86,6 +86,9 @@ export class IdentityPrivacyHandler implements PrivacyDomainHandler {
     });
     if (!alreadyDeleted) await this.clerk.revokeUserSessions(evidence.userId);
     const anonymizedCount = await this.workerTransaction(async (client) => {
+      await client.query('delete from private.customer_session_commands where user_id=$1', [
+        evidence.userId,
+      ]);
       await client.query(
         'update public.push_tokens set revoked_at=clock_timestamp() where user_id=$1 and revoked_at is null',
         [evidence.userId],

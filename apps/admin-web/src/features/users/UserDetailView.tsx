@@ -17,11 +17,11 @@ import type {
 import { useUser, useUserDevices, useUserSessions } from "./hooks";
 import { UserActions } from "./UserActions";
 
-const statusLabels = { active: "نشط", suspended: "موقوف", pending: "قيد التفعيل" };
-const verificationLabels = { verified: "موثّق", pending: "معلّق" };
+const statusLabels = { active: "نشط", suspended: "موقوف", pending: "قيد التفعيل", deletion_pending: "قيد الحذف", deleted: "محذوف" };
+const verificationLabels = { verified: "موثّق", pending: "معلّق", unknown: "غير معروف" };
 const sessionLabels = { active: "نشطة", expired: "منتهية", revoked: "ملغاة" };
 const deviceLabels = { active: "نشط", revoked: "ملغى" };
-const riskLabels = { low: "منخفضة", medium: "متوسطة", high: "مرتفعة" };
+const riskLabels = { low: "منخفضة", medium: "متوسطة", high: "مرتفعة", unknown: "غير مقاسة" };
 const capabilityLabels: Record<CapabilityState, string> = {
   enabled: "مفعّل",
   disabled: "معطّل",
@@ -49,18 +49,21 @@ function ProfileOverview({ profile }: { profile: UserProfileSummary }) {
       </div>
       <div className="detail-grid">
         <DetailItem label="البريد المخفي">
-          <MaskedField label="البريد المخفي" maskedValue={profile.maskedEmail} />
+          <MaskedField label="البريد المخفي" maskedValue={profile.maskedEmail ?? "—"} />
         </DetailItem>
         <DetailItem label="الحالة">{statusLabels[profile.status]}</DetailItem>
+        {profile.providerRevocationStatus !== undefined && <DetailItem label="طلبات إلغاء الجلسات">
+          {profile.providerRevocationStatus === "pending" ? "قيد التنفيذ" : profile.providerRevocationStatus === "failed" ? "تعذرت المحاولة؛ إعادة المحاولة مجدولة" : profile.providerRevocationStatus === "completed" ? "اكتملت الطلبات السابقة" : "—"}
+        </DetailItem>}
         <DetailItem label="التحقق">{verificationLabels[profile.verification]}</DetailItem>
         <DetailItem label="الخطة">{profile.currentPlan}</DetailItem>
         <DetailItem label="المنصات"><bdi>{profile.registeredPlatforms.join(" + ")}</bdi></DetailItem>
-        <DetailItem label="آخر نشاط">{formatDate(profile.lastActiveAt, true)}</DetailItem>
-        <DetailItem label="الحسابات">{profile.aggregates.accountsCount}</DetailItem>
-        <DetailItem label="المعاملات المجمّعة">{profile.aggregates.transactionsCount}</DetailItem>
-        <DetailItem label="الأهداف">{profile.aggregates.goalsCount}</DetailItem>
-        <DetailItem label="الديون النشطة">{profile.aggregates.activeDebtsCount}</DetailItem>
-        <DetailItem label="مصادر الاستيراد">{profile.aggregates.importSourcesCount}</DetailItem>
+        <DetailItem label="آخر نشاط">{profile.lastActiveAt ? formatDate(profile.lastActiveAt, true) : "—"}</DetailItem>
+        <DetailItem label="الحسابات">{profile.aggregates.accountsCount ?? "—"}</DetailItem>
+        <DetailItem label="المعاملات المجمّعة">{profile.aggregates.transactionsCount ?? "—"}</DetailItem>
+        <DetailItem label="الأهداف">{profile.aggregates.goalsCount ?? "—"}</DetailItem>
+        <DetailItem label="الديون النشطة">{profile.aggregates.activeDebtsCount ?? "—"}</DetailItem>
+        <DetailItem label="مصادر الاستيراد">{profile.aggregates.importSourcesCount ?? "—"}</DetailItem>
         <DetailItem label="المخاطر">{profile.risk.label} · {profile.risk.signalsCount}</DetailItem>
       </div>
     </>
@@ -78,7 +81,7 @@ function DeviceCard({ device, role }: { device: UserDevice; role: AdminRole }) {
         <strong><MonitorSmartphone size={16} /> {device.safeLabel}</strong>
         <span className={`badge status-${device.state}`}>{deviceLabels[device.state]}</span>
       </div>
-      <p className="ltr">{device.platform === "ios" ? "iOS" : "Android"} · {device.osVersion} · {device.appVersion}</p>
+      <p className="ltr">{device.platform === "ios" ? "iOS" : device.platform === "android" ? "Android" : "Web"} · {device.osVersion ?? "—"} · {device.appVersion}</p>
       <ul>
         <Capability label="الإشعارات" state={device.pushState} />
         <Capability label="الاختصارات" state={device.shortcutState} />
@@ -99,7 +102,7 @@ function SessionRow({ session, role }: { session: UserSession; role: AdminRole }
   return (
     <tr>
       <td>{session.safeDeviceLabel}</td>
-      <td><bdi>{session.platform === "ios" ? "iOS" : "Android"}</bdi></td>
+      <td><bdi>{session.platform === null ? "—" : session.platform === "ios" ? "iOS" : session.platform === "android" ? "Android" : "Web"}</bdi></td>
       <td>{session.coarseRegion}</td>
       <td>{formatDate(session.startedAt, true)}</td>
       <td>{formatDate(session.lastActivityAt, true)}</td>

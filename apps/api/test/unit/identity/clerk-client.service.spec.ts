@@ -29,6 +29,49 @@ const config = {
 } as unknown as PlatformConfigService;
 
 describe('Clerk Admin client adapter', () => {
+  it('lists only target-bound sessions and exposes no provider object', async () => {
+    const adapter = new ClerkClientService(config) as ClerkClientService & {
+      listCustomerSessions(userId: string): Promise<unknown[]>;
+    };
+    getSessionList.mockResolvedValueOnce({
+      totalCount: 1,
+      data: [
+        {
+          id: 'sess_private',
+          userId: 'user_target',
+          status: 'active',
+          createdAt: 1000,
+          lastActiveAt: 2000,
+          expireAt: 3000,
+          clientId: 'private_client',
+        },
+      ],
+    });
+    await expect(adapter.listCustomerSessions('user_target')).resolves.toEqual([
+      {
+        id: 'sess_private',
+        createdAt: new Date(1000),
+        lastActiveAt: new Date(2000),
+        expiresAt: new Date(3000),
+      },
+    ]);
+    getSessionList.mockResolvedValueOnce({
+      totalCount: 1,
+      data: [
+        {
+          id: 'sess_other',
+          userId: 'user_other',
+          status: 'active',
+          createdAt: 1000,
+          lastActiveAt: 2000,
+          expireAt: 3000,
+        },
+      ],
+    });
+    await expect(adapter.listCustomerSessions('user_target')).rejects.toBeInstanceOf(
+      ClerkProviderUnavailableError,
+    );
+  });
   it('deletes external identity with repeatable confirmed-absence semantics and no false success on provider failure', async () => {
     const adapter = new ClerkClientService(config) as ClerkClientService & {
       deleteIdentityUser(owner: string): Promise<'deleted' | 'not_found'>;

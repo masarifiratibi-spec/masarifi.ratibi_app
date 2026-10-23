@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/components/admin/ui";
 import { ApiError } from "@/core/api/errors";
+import { mocksEnabled } from "@/core/api/client";
 import type { AdminRole } from "@/core/permissions/permissions";
 import { hasPermission } from "@/core/permissions/role-map";
 import {
@@ -18,6 +19,7 @@ import {
   type UserDevice,
   type UserSession,
   type VerificationState,
+  type UserActionResult,
 } from "./contracts";
 import {
   useReactivateUser,
@@ -64,7 +66,7 @@ function FormFields({
       {(action === "suspend" || action === "reactivate") && (
         <label>ملاحظة داخلية<textarea className="input" {...register("internalNote")} /></label>
       )}
-      {action === "suspend" && (
+      {action === "suspend" && mocksEnabled() && (
         <>
           <label>المدة بالأيام<input className="input" type="number" {...register("durationDays", { valueAsNumber: true })} /></label>
           <label><input type="checkbox" {...register("notifyUser")} /> تسليم تفضيل إشعار للمزود المستقبلي</label>
@@ -116,29 +118,30 @@ export function UserActions({
   async function submit(fields: ActionFields) {
     if (!action) return;
     try {
+      let result: UserActionResult;
       if (action === "suspend") {
-        await suspend.mutateAsync(suspendUserRequestSchema.parse({
+        result = await suspend.mutateAsync(suspendUserRequestSchema.parse({
           reason: fields.reason,
           durationDays: fields.durationDays,
           internalNote: fields.internalNote,
           notifyUser: fields.notifyUser,
         }));
       } else if (action === "reactivate") {
-        await reactivate.mutateAsync(reactivateUserRequestSchema.parse({
+        result = await reactivate.mutateAsync(reactivateUserRequestSchema.parse({
           reason: fields.reason,
           internalNote: fields.internalNote,
         }));
       } else if (action === "verification") {
-        await verification.mutateAsync(updateVerificationRequestSchema.parse({
+        result = await verification.mutateAsync(updateVerificationRequestSchema.parse({
           reason: fields.reason,
           nextState: fields.nextState,
         }));
       } else {
-        await revokeSessions.mutateAsync(revokeSessionsRequestSchema.parse(selectedSessionId
+        result = await revokeSessions.mutateAsync(revokeSessionsRequestSchema.parse(selectedSessionId
           ? { reason: fields.reason, scope: "selected", sessionIds: [selectedSessionId] }
           : { reason: fields.reason, scope: "all", sessionIds: [] }));
       }
-      setAnnouncement("تم تنفيذ الإجراء. يتوفر مرجع تدقيق آمن في النتيجة.");
+      setAnnouncement(result.message);
       setAction(null);
     } catch (error) {
       if (error instanceof ApiError) {
@@ -153,9 +156,9 @@ export function UserActions({
   return (
     <section aria-label="إجراءات المستخدم">
       <div className="page-actions user-page-actions">
-        {hasPermission(role, "users.status.manage") && user.status !== "suspended" && <button className="button warning" onClick={() => open("suspend")}>تعليق الحساب</button>}
+        {hasPermission(role, "users.status.manage") && user.status === "active" && <button className="button warning" onClick={() => open("suspend")}>تعليق الحساب</button>}
         {hasPermission(role, "users.status.manage") && user.status === "suspended" && <button className="button" onClick={() => open("reactivate")}>إعادة التفعيل</button>}
-        {hasPermission(role, "users.verification.manage") && <button className="button secondary" onClick={() => open("verification")}>تحديث التحقق</button>}
+        {hasPermission(role, "users.verification.manage") && <button disabled={!mocksEnabled()} title={!mocksEnabled() ? "التحقق مصدره Clerk ولا يمكن تعديله يدويًا" : undefined} className="button secondary" onClick={() => open("verification")}>تحديث التحقق</button>}
         {hasPermission(role, "sessions.revoke") && sessions.some(({ state }) => state === "active") && <button className="button danger" onClick={() => openSessions(null)}>إنهاء كل الجلسات</button>}
         {hasPermission(role, "sessions.revoke") && sessions.filter(({ state }) => state === "active").map((session) => (
           <button className="button danger" onClick={() => openSessions(session.id)} key={session.id}>
@@ -202,8 +205,8 @@ function DeviceRevokeAction({ userId, device, role }: { userId: string; device: 
     const parsed = revokeDeviceRequestSchema.safeParse(fields);
     if (!parsed.success) return form.setError("reason", { message: parsed.error.issues[0]?.message });
     try {
-      await mutation.mutateAsync(parsed.data);
-      setOutcome("تم إلغاء الجهاز.");
+      const result = await mutation.mutateAsync(parsed.data);
+      setOutcome(result.message);
       setOpen(false);
     } catch (error) {
       setOutcome(safeActionError(error));
@@ -262,6 +265,7 @@ export function UserBulkActions({
     }
   });
 
+  if (!mocksEnabled()) return <p role="note">الإجراءات الجماعية غير متاحة. استخدم صفحة العميل لتنفيذ إجراء مدقق.</p>;
   return (
     <section className="bulk-bar" aria-label="إجراءات جماعية">
       <span>{selectedUsers.length} محدد · {eligible} مؤهل</span>

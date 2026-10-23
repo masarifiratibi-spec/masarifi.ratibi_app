@@ -15,6 +15,320 @@ tags:
   - name: Privacy
   - name: Retention
 paths:
+  /api/v1/admin/users:
+    get:
+      operationId: listCustomerAdminUsers
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: registeredFrom
+          in: query
+          schema:
+            type: string
+        - name: registeredTo
+          in: query
+          schema:
+            type: string
+        - name: lastActiveFrom
+          in: query
+          schema:
+            type: string
+        - name: lastActiveTo
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: order
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      x-permission: users.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}:
+    get:
+      operationId: getCustomerAdminUser
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      x-permission: users.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}/devices:
+    get:
+      operationId: listCustomerAdminDevices
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      x-permission: devices.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}/sessions:
+    get:
+      operationId: listCustomerAdminSessions
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      x-permission: sessions.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}/suspend:
+    post:
+      operationId: suspendCustomerAdminUser
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: users.status.manage
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+      x-recent-auth-required: true
+  /api/v1/admin/users/{userId}/reactivate:
+    post:
+      operationId: reactivateCustomerAdminUser
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: users.status.manage
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+      x-recent-auth-required: true
+  /api/v1/admin/users/{userId}/devices/{deviceId}/revoke:
+    post:
+      operationId: revokeCustomerAdminDevice
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 36
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: devices.revoke
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+      x-recent-auth-required: true
+  /api/v1/admin/users/{userId}/sessions/revoke:
+    post:
+      operationId: revokeCustomerAdminSessions
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: sessions.revoke
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+                - scope
+                - sessionIds
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+                scope:
+                  type: string
+                  enum:
+                    - all
+                    - selected
+                sessionIds:
+                  type: array
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+                    pattern: ^sess_[a-f0-9]{64}$
+      x-recent-auth-required: true
   /api/v1/admin/access/me:
     get:
       operationId: getAdminSelf
