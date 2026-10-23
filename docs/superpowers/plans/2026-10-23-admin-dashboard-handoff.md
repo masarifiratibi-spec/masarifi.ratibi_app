@@ -1,5 +1,7 @@
 # Admin Dashboard Recovery — Continuation Handoff
 
+Latest status: read the **2026-10-24 final main-agent checkpoint** at the end before resuming. Initial incomplete-task/delegation instructions below are historical and superseded.
+
 Prepared on 2026-10-23 (Asia/Riyadh) at the user's request to continue in a new chat.
 
 ## Objective and authorization
@@ -229,3 +231,15 @@ This checkpoint supersedes earlier incomplete-task notes above.
 ## Main-agent checkpoint — Task5 implemented
 
 Task5 support API/Admin/mobile workflow is implemented and self-reviewed by the main agent. API53suites179tests passed; full Admin97files983tests passed; mobile8suites57tests passed; source-fresh and historical-upgrade databases each165migrations/9recovery tests passed. Scoped type/lint/checksum gates passed (existing mobile test require-import warnings remain). See docs/evidence/2026-10-23-admin-dashboard/support-workflow-verification.md. Final task-done receipt remains the completion authority in the ledger. Task6 remains outstanding; no Task4/5 GitHub push or deployment has been performed. Continue main-agent-only.
+
+## 2026-10-24 final main-agent checkpoint
+
+- Tasks1–6 implementation and local completion gates are finished. Do not restart accepted tasks or the baseline audit. Task1 acceptance and all existing commits/results are preserved.
+- User forbids Astra and every other agent. Tasks4–6 implementation/testing/review were main-agent-only author reviews; no independent review is claimed for them. Continue to honor that restriction for future work.
+- Branch remains `codex/voice-promoted-operating-2026-10-13`, worktree remains `D:/Masarifi-integration-2026-10-10`. Remote `ratibi` is published through `c7ccd6711d84bd47b3f46dd9e1633cef8b2060aa` (Tasks2/3). Task4 commits `f669ce3a`, `6740b8fc`, `4e1729ea`; Task5 `47a36df3`; Task6 code `2f7887907e3de390e031c73903c82ab00d9054b8` remain local. No further push, PR, merge or deployment occurred.
+- Task6 `task-done` full Admin:100files988tests PASS158.04s. API accepted11batches:156suites750passed5guarded legacy privacy skips. Exact-source fresh165 and historical150+15 upgrade each64/64 functional PASS. Pristine SQL/RLS52/64suites PASS1384assertions in passed suites on each candidate; identical12failures on baseline150,0newfailingsuites. Do not claim all repository/SQL tests pass.
+- Actual Next shell2pass2viewportskips; actual localHTTP→selectedNest→restrictedSQL browser24/24; Arabic/English/light/dark responsive visual4/4 and corrected640CSS/doubleDPR200%reflow1/1. Mobile8suites57tests PASS; API/Admin/mobiletypes PASS; fullAPI/Adminlint PASS; scopedmobilelint0errors18existingwarnings; checksums and Next/API/worker/migration builds PASS.
+- Final author integration review range `5781c488..2f788790`, not a merge-base with unrelated earlier history. New packages, detailed report and decision costs are preserved. T2auditcount and Task4auditlabel minors repaired. T3-R1 nullable provenance `source_version` CHECK remains a documented minor hardening follow-up; exposed clone supplies a nonnull version.
+- Native test cluster on55442 is **STOPPED**, and owned browser/API listeners43168/43169 are stopped. Every database, receipt, failed attempt and scratch artifact remains on disk. No5432 mutation, data deletion or source migration rewrite. Restart only the exact owned native-db/data directory if new verification needs it.
+- Authenticated Staging baseline worked earlier; this candidate was not deployed. Remaining external acceptance: targetSupabase17 replay, realClerk/Storage effects, deployed browser and physical device. Broad unrelated API run OOM/failures are retained and not certified. These are explicit concerns, not permission to weaken production policies or bypass identity.
+- Delivery evidence and exhaustive decision/deferred-minor record: `docs/evidence/2026-10-23-admin-dashboard/recovery-final-verification.md`; representative synthetic screenshots tracked beside it. SDD workspace retained per explicit user instruction, overriding cleanup guidance.

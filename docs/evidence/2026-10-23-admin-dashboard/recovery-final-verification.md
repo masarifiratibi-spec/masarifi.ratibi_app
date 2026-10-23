@@ -2,7 +2,7 @@
 
 Branch: `codex/voice-promoted-operating-2026-10-13`. Workspace: `D:/Masarifi-integration-2026-10-10`.
 
-Tasks2/3 are published to GitHub remote `ratibi` through `c7ccd6711d84bd47b3f46dd9e1633cef8b2060aa`. Task4 is implemented in `f669ce3a`, `6740b8fc` and `4e1729ea`; Task5 in `47a36df3`. Task6 integration is being finalized locally. No subsequent push, PR, merge or deployment was performed.
+Tasks2/3 are published to GitHub remote `ratibi` through `c7ccd6711d84bd47b3f46dd9e1633cef8b2060aa`. Task4 is implemented in `f669ce3a`, `6740b8fc` and `4e1729ea`; Task5 in `47a36df3`; Task6 code in `2f7887907e3de390e031c73903c82ab00d9054b8`. All six implementation tasks have passed their recorded local completion gates, with the baseline/external concerns below. No subsequent push, PR, merge or deployment was performed.
 
 Task1 remained accepted. Tasks2/3 retain their recorded independent reviews. Tasks4–6 implementation, verification and review were performed by the main agent only, following the user's explicit prohibition on Astra and other agents. Their review is author self-review.
 
@@ -57,13 +57,13 @@ Detailed logs, failed attempts, JSON reports and native databases are preserved 
 | Mobile scoped lint | 0errors;18 existing require-import warnings across the checked support test modules. `task-6-mobile-lint.log`. |
 | API/Admin static checks | TypeScript and full ESLint passed; migration checksums verified. Final static receipts carry `task-6-*-complete`, checksums `task-6-checksums.log`. |
 | Builds | Next production build passed with temporary synthetic runtime-shaped values and `.test` hosts; API/worker/migration builds passed. `task-6-admin-build.log`, `task-6-api-build.log`. No credentials saved. |
-| Full Admin completion gate | Pending final `task-done` run; Task6 is not yet recorded complete. |
+| Full Admin completion gate | 100 files;988/988 passed in158.04s. `task-6-tests.log`; `task-done` recorded47a36df3..2f788790. No production code changed after this run. |
 
 The attempted single broad API run is **not accepted**: it selected unrelated suites, exposed additional failures and exhausted Node's2GiB heap before producing a final receipt. Its log is retained as `task-6-api-regression.log`. The accepted batch set covers the plan's changed API tests, prior Task4/5 gates, reports/operations and security tests, plus combined OpenAPI drift and tracking contract. It does not assert the entire repository is green. Within recovery scope, stale invitation persistence mocks and controller-specific contract ownership were repaired; tracking uniqueness no longer depends on obsolete endpoint-count literals. The report measurement regression now checks exact contribution deltas, so other suites' committed synthetic customers cannot invalidate its deduplication assertion.
 
 ## Review, rulings and remaining gates
 
-The final author integration review covers `5781c488..Task6 code HEAD`, including accepted Task1 behavior and connections between the15 additive migrations, API projections/contracts, authority, cursor scopes, provider receipts, customer worker and Admin/mobile clients. No new Critical/Important recovery finding remains open after the recorded fix waves. This is neither an independent review nor a whole-repository audit.
+The final author integration review covers `5781c488..2f788790`, including accepted Task1 behavior and connections between the15 additive migrations, API projections/contracts, authority, cursor scopes, provider receipts, customer worker and Admin/mobile clients. No new Critical/Important recovery finding remains open after the recorded fix waves. This is neither an independent review nor a whole-repository audit. Owned HTTP test listeners and the plan-local database cluster were stopped after verification; every database and receipt remains on disk.
 
 - SQL runner compatibility grants `USAGE` on the pgTAP extension schema **inside each rollbackable test transaction only**, and sets the Supabase-style search path. Functional/API tests used exact source grants first. No product grant was widened. Native PostgreSQL18/PGMQ1.4.4/pgTAP1.3.3 and minimal Storage-table fixtures do not replace target Supabase PostgreSQL17/Storage HTTP.
 - The12 historical SQL failures are001,004,005,010,014,027,031,034,035,036,050,052. Their baseline comparison is preserved. They concern native role-bootstrap assumptions and older profile/auth/financial/planning/tracking/content fixtures. Production policies were not weakened to satisfy them. Previously reported012/061 failures do pass on the pristine candidates with the correct harness; integration-fixture pollution had invalidated owner-count assumptions in a reused database.
@@ -95,6 +95,7 @@ These preserve the plan ledger's rulings in their original decision order. Histo
 | Audit authorized attachment attempts before external signing | DB and Storage do not share a transaction; an audited attempt may fail to produce a usable link. |
 | Separate real HTTP feature fixture and actual Next shell checks | Avoid production auth shortcuts/credentials; real Clerk, Next identity/routing integration and deployed acceptance remain separate gates. |
 | Unknown badge for unconfigured unfamiliar hosts | Avoid guessing Production; custom hosts must configure their public deployment environment. |
+| Rollback-only pgTAP schema lookup grants | Native switched-role SQL tests need pgTAP visibility; functional tests used exact source grants first. Native compatibility still cannot certify hosted Supabase17 behavior. |
 | Author review only after the user's prohibition | Preserve the review checklist and test evidence without delegation; there is no fresh independent reviewer for Tasks4–6. |
 | Accept scoped batch evidence, disclose broader failures | Batches cover the recovery surfaces and fit available memory; this does not certify unrelated legacy repository suites. |
 
