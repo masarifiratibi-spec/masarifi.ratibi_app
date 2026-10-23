@@ -1244,10 +1244,10 @@ export class LedgerRepository {
       accountIds,
       ...transactionAccountRoles(
         transaction.kind,
-        transaction.kind === 'transfer'
-          ? transaction.source_account_id
-          : (accountIds[0] ?? transaction.source_account_id),
-        transaction.kind === 'transfer' ? transaction.destination_account_id : null,
+        ['income', 'expense'].includes(transaction.kind)
+          ? (accountIds[0] ?? transaction.source_account_id)
+          : transaction.source_account_id,
+        transaction.kind === 'income' ? null : transaction.destination_account_id,
       ),
       feeMinor: Number(transaction.fee_minor),
       categoryId: transaction.category_id,

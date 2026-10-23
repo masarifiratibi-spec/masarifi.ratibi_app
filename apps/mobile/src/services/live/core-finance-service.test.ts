@@ -952,7 +952,7 @@ it('uses explicit transfer roles when membership account IDs are UUID-sorted', a
   });
 });
 
-it('prepares category filters before transport and maps the response back to local IDs', async () => {
+it.each(['local-category', categoryId])('keeps records when a category filter uses %s while requesting the server ID', async (filterId) => {
   let prepared = false;
   const request = jest.fn(async (url: string) => {
     expect(prepared).toBe(true);
@@ -964,7 +964,7 @@ it('prepares category filters before transport and maps the response back to loc
     toServer: id => { expect(prepared).toBe(true); return id === 'local-category' ? categoryId : id; },
     toLocal: id => id === categoryId ? 'local-category' : id
   } });
-  await expect(service.listTransactions({ ...emptyTransactionFilters, categoryIds: ['local-category'] })).resolves.toMatchObject({ items: [{ categoryId: 'local-category' }] });
+  await expect(service.listTransactions({ ...emptyTransactionFilters, accountIds: [accountId], categoryIds: [filterId] })).resolves.toMatchObject({ items: [{ id: transactionId, categoryId: 'local-category' }] });
 });
 
 it('keeps client-only filter values out of the BE005 query', async () => {

@@ -450,7 +450,11 @@ export function createLiveLedgerService({
         return localTransaction(transactionFromSummary(item, projectionAccountId, undefined, signedAmount));
       }));
       await owner.assertCurrent();
-      const items = projected.filter((item) => matchesFilters(item, filters));
+      const localFilters = {
+        ...filters,
+        categoryIds: filters.categoryIds.map((id) => categoryIds?.toLocal(id) ?? id)
+      };
+      const items = projected.filter((item) => matchesFilters(item, localFilters));
       return { items, nextCursor: page.nextCursor };
     };
   return {

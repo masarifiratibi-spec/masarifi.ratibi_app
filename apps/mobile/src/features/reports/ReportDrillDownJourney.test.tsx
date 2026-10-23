@@ -73,7 +73,10 @@ test('drill-down retains the selected account and native currency when opening t
   jest.spyOn(reportsService, 'getReport').mockImplementation(live.getReport);
   const screen = renderWithProviders(<ReportDrillDownScreen />);
   try {
-    fireEvent.press(await screen.findByLabelText(/Charity/));
+    const row = await screen.findByLabelText(/Charity/);
+    expect(row.props.accessibilityLabel).toContain('1 contributing records');
+    expect(screen.getByText('1 contributing records')).toBeTruthy();
+    fireEvent.press(row);
     expect(useCoreFinanceViewState.getState().filters).toMatchObject({ accountIds: [account.id], categoryIds: ['charity'] });
     expect(screen.getAllByText(/EGP/).length).toBeGreaterThan(0);
   } finally {

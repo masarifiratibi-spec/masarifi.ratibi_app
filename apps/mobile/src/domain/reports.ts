@@ -113,6 +113,7 @@ export interface ReportBreakdownItem {
   value: ReportValue<MoneyValue>;
   metricKind: ReportMetricKind;
   transactionIds: string[];
+  transactionCount?: number;
   memberIds?: string[];
   memberLabels?: string[];
   drillDown: ReportDrillDown;

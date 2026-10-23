@@ -25,6 +25,14 @@ Real PostgreSQL tests ran only on a freshly cloned disposable local database. Th
 
 Report API unit/contract/security: 121 passed. Account summary, legacy summary, ledger read and ledger revision integration: 22 passed, including two owners, SAR/EGP, new empty accounts, fees, refunds, account moves and invalid scope. Final mobile report/home regression: 38 suites, 172 passed. API build/typecheck and changed-file typed lint passed; full mobile typecheck passed at 1280 MB after the initial 768 MB process exhausted its heap.
 
-## Deployment and physical acceptance
+## Physical findings and follow-up
 
-Pending at this source checkpoint. No server activation, new APK installation or post-change physical acceptance is claimed here. Private operational evidence is stored outside the repository under the dated Assistant/report preservation folder. Update this section with the actual runtime and phone outcome before final delivery.
+The ordinary API and dedicated Assistant worker were activated with predecessor images retained for rollback. Offline module-graph checks and health/hash checks passed. Preparing the images initially failed on a local base-image reference and then a missing existing planning helper; both were resolved before activation. No schema migration was needed, and unrelated containers/configuration remained unchanged.
+
+The physical Assistant question after deployment completed in 2.986 seconds, one attempt and one dispatch, with a confirmed-spending amount matching the independent posting query. The first APK candidate at `1757eb58` was built with a fresh bundle, verified against its sources/native repairs, and installed as an ordinary package update. Per-account EGP totals and its scoped Arabic Assistant explanation matched the independent income/expense/net oracle.
+
+Acceptance then found two drill-down defects: the live mapper discarded the server's contributing-record count, and a raw category UUID from the report was compared with locally mapped category IDs, hiding matching transactions. Follow-up preserves the count for visible/accessibility output and normalizes only the local category filter, retaining the server transport ID. Both defects were reproduced before repair and passed after repair. The first APK candidate is therefore not the final accepted artifact.
+
+The effective source-account projection is also restricted to editable income/expense. A deterministic real PostgreSQL regression proves that a transfer reversal retains its explicit source role even when membership UUID ordering differs. The follow-up integration run, including actual refund/reversal compensation, passed 5 suites/27 tests. Final report/core-finance/home mobile regression passed 40 suites/229 tests, and the full mobile typecheck passed. The category-filter regression covers both canonical local IDs and raw server IDs.
+
+Final mobile rebuild, installation and physical re-test are pending at this checkpoint. Private operational evidence is stored outside the repository under the dated Assistant/report preservation folder. Update this section with the final artifact and phone outcome before delivery.

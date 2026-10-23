@@ -624,6 +624,7 @@ function categoryBreakdown(
       value: available(money(integer(row.expenseMinor), currencyCode)),
       metricKind: 'category_spend' as const,
       transactionIds: [],
+      transactionCount: integer(row.transactionCount),
       drillDown: {
         kind: 'transactions' as const,
         filters: {

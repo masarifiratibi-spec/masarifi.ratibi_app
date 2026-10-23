@@ -183,6 +183,7 @@ function DrillDownRow({
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const label = reportBreakdownItemLabel(breakdownItem);
   const memberLabels = reportBreakdownMemberLabels(breakdownItem);
+  const transactionCount = breakdownItem.transactionCount ?? breakdownItem.transactionIds.length;
   const valueText = hidden
     ? translate('designSystem.privacy.hidden')
     : formatReportMoney(breakdownItem.value.value);
@@ -190,7 +191,7 @@ function DrillDownRow({
     <Pressable
       testID={`report-drill-down-row-${index}`}
       accessibilityRole="button"
-      accessibilityLabel={`${label}, ${valueText}, ${breakdownItem.transactionIds.length} ${translate('reports.drillDown.recordCount')}`}
+      accessibilityLabel={`${label}, ${valueText}, ${transactionCount} ${translate('reports.drillDown.recordCount')}`}
       onPress={onPress}
       style={[
         styles.row,
@@ -242,7 +243,7 @@ function DrillDownRow({
         >
           {memberLabels.length
             ? `${translate('reports.drillDown.otherMembers')}: ${memberLabels.join(', ')}`
-            : `${breakdownItem.transactionIds.length} ${translate('reports.drillDown.recordCount')}`}
+            : `${transactionCount} ${translate('reports.drillDown.recordCount')}`}
         </Text>
       </View>
       <View

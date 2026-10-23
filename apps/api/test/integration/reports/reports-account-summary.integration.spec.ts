@@ -310,4 +310,69 @@ describeLiveDatabase('account report summaries', () => {
       );
     },
   );
+
+  it('preserves explicit transfer-reversal roles when posting order differs from account UUID order', async () => {
+    const lowerAccount = first < second ? first : second;
+    const higherAccount = lowerAccount === first ? second : first;
+    const transferId = randomUUID(),
+      reversalId = randomUUID();
+    await pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('masarifi.ledger_command','on',true)");
+        await client.query(
+          `insert into public.transactions(id,user_id,kind,status,amount_minor,currency_code,title,occurred_at,reverses_transaction_id)
+          values($1,$3,'transfer','reversed',900,'SAR','Reversed transfer fixture','2026-08-02T10:00:00Z',null),
+            ($2,$3,'reversal','confirmed',900,'SAR','Transfer reversal fixture','2026-08-02T11:00:00Z',$1)`,
+          [transferId, reversalId, owner.userId],
+        );
+        await client.query(
+          `insert into public.transaction_postings(transaction_id,account_id,amount_minor,posting_role,occurred_at,created_at) values
+          ($1,$3,-900,'source','2026-08-02T10:00:00Z','2026-08-02T10:00:00Z'),
+          ($1,$4,900,'destination','2026-08-02T10:00:00Z','2026-08-02T10:00:00Z'),
+          ($2,$3,900,'reversal','2026-08-02T11:00:00Z','2026-08-02T11:00:00Z'),
+          ($2,$4,-900,'reversal','2026-08-02T11:00:00Z','2026-08-02T11:00:00.001Z')`,
+          [transferId, reversalId, higherAccount, lowerAccount],
+        );
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
+    const page = await ledger.listTransactions(
+      owner,
+      { accountId: higherAccount, kind: 'reversal' },
+      'reversal-roles',
+    );
+    expect(page.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: reversalId,
+          sourceAccountId: higherAccount,
+          destinationAccountId: null,
+          accountIds: [lowerAccount, higherAccount],
+        }),
+      ]),
+    );
+    const detail = await ledger.getTransaction(owner, reversalId, 'reversal-detail-roles');
+    expect(detail.transaction).toMatchObject({
+      sourceAccountId: higherAccount,
+      destinationAccountId: null,
+    });
+    const transfers = await ledger.listTransactions(
+      owner,
+      { kind: 'transfer' },
+      'original-transfer-roles',
+    );
+    expect(transfers.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: transferId,
+          sourceAccountId: higherAccount,
+          destinationAccountId: lowerAccount,
+        }),
+      ]),
+    );
+  });
 });

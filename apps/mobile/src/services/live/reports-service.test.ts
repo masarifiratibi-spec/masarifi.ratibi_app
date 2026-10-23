@@ -185,7 +185,7 @@ describe('live reports strict mapping', () => {
       breakdowns: [
         {
           dimension: 'category',
-          items: [{ id: '99000000-0000-4000-8000-000000000001' }]
+          items: [{ id: '99000000-0000-4000-8000-000000000001', transactionCount: 1 }]
         }
       ]
     });
