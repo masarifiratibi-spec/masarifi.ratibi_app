@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { PoolClient } from 'pg';
+import type { PoolClient, QueryResult } from 'pg';
 import type { PoolService } from '../../../src/platform/database/pool.service';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
+
+type MaintenancePage = { items: Array<{ id: string }>; nextCursor: string | null };
 
 describeLiveDatabase('operations recovery truthful reads', () => {
   let pool: PoolService;
@@ -82,6 +84,43 @@ describeLiveDatabase('operations recovery truthful reads', () => {
       ]);
     });
   });
+  it.each([true, false])(
+    'traverses maintenance pages without omissions or duplicates when current=%s',
+    async (current) => {
+      await fixture(async (client) => {
+        await client.query('delete from private.maintenance_windows');
+        const ids = Array.from({ length: 4 }, () => randomUUID()).sort();
+        await client.query(
+          `insert into private.maintenance_windows(id,starts_at,ends_at,scope,public_message,status,created_by_admin_id,updated_by_admin_id)
+        values($2,statement_timestamp()-interval '1 minute',statement_timestamp()+interval '1 hour',array['api'],'{"ar":"Active","en":"Active"}','active',$1,$1),
+          ($3,statement_timestamp()+interval '2 days',statement_timestamp()+interval '3 days',array['api'],'{"ar":"Scheduled A","en":"Scheduled A"}','scheduled',$1,$1),
+          ($4,statement_timestamp()+interval '2 days',statement_timestamp()+interval '3 days',array['storage'],'{"ar":"Scheduled B","en":"Scheduled B"}','scheduled',$1,$1),
+          ($5,statement_timestamp()+interval '1 day',statement_timestamp()+interval '2 days',array['api'],'{"ar":"Scheduled C","en":"Scheduled C"}','scheduled',$1,$1)`,
+          [actor, ...ids],
+        );
+        await client.query('set local role masarifi_api');
+        const visited: string[] = [];
+        let cursor: string | null = null;
+        for (let page = 0; page < 4; page += 1) {
+          const response: QueryResult<{ value: MaintenancePage }> = await client.query<{
+            value: MaintenancePage;
+          }>("select private.read_operations('maintenance',$1) value", [
+            JSON.stringify({ current, limit: 1, ...(cursor ? { cursor } : {}) }),
+          ]);
+          const windowPage: MaintenancePage | undefined = response.rows[0]?.value;
+          expect(windowPage?.items).toHaveLength(1);
+          if (!windowPage) throw new Error('Maintenance page missing');
+          visited.push(...windowPage.items.map((window) => window.id));
+          cursor = windowPage.nextCursor;
+          expect(cursor).toBe(page < 3 ? visited[page] : null);
+        }
+        expect(visited).toEqual(
+          current ? [ids[0], ids[2], ids[1], ids[3]] : [ids[2], ids[1], ids[3], ids[0]],
+        );
+        expect(new Set(visited).size).toBe(4);
+      });
+    },
+  );
   it('filters incident details by id on the server', async () => {
     await fixture(async (client) => {
       const inserted = await client.query<{ id: string }>(
