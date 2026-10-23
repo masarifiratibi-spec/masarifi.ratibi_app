@@ -220,11 +220,11 @@ describe("BE003 live deletion workflow mapping", () => {
     })).resolves.toMatchObject({ region: { availability: "empty" } });
   });
 
-  test("finds a deletion detail through the real cursor pages", async () => {
+  test("finds a deletion detail through one bounded id lookup", async () => {
     mockServer.use(
       http.get("/api/v1/admin/privacy/deletions", ({ request }) => {
-        const cursor = new URL(request.url).searchParams.get("cursor");
-        return HttpResponse.json(cursor
+        const requestedId = new URL(request.url).searchParams.get("id");
+        return HttpResponse.json(requestedId === deletionId
           ? {
               items: [{
                 id: deletionId,

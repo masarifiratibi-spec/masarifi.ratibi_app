@@ -1,4 +1,4 @@
-import { apiActorCacheKey, apiClient, mocksEnabled } from "@/core/api/client";
+import { apiActorCacheKey, apiClient, liveCursor, rememberLiveCursor, mocksEnabled } from "@/core/api/client";
 import { z } from "zod";
 import {
   adminIdSchema,
@@ -64,7 +64,7 @@ const maintenanceWindows = new Map<string, Phase13Maintenance>();
 
 const percentageCohort = /^percent-(?:0\d|[1-9]\d)$/u;
 
-function isPercentageRule(rule: Phase13Flag["rules"][number]): boolean {
+function isPercentageRule(rule: Pick<Phase13Flag["rules"][number], "audience">): boolean {
   return Object.keys(rule.audience).length === 1 &&
     typeof rule.audience.cohort === "string" &&
     percentageCohort.test(rule.audience.cohort);
@@ -78,37 +78,21 @@ function percentageRules(percent: number) {
   }));
 }
 
-async function loadFlags(): Promise<Phase13Flag[]> {
-  const items: Phase13Flag[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < 100; page += 1) {
-    const params = new URLSearchParams({ limit: "100" });
-    if (cursor) params.set("cursor", cursor);
-    const response = await apiClient.get(`/api/v1/admin/feature-flags?${params.toString()}`, phase13FeatureFlagPageSchema);
-    items.push(...response.items);
-    cursor = response.nextCursor;
-    if (!cursor) return items;
-  }
-  throw new Error("CURSOR_PAGE_LIMIT_EXCEEDED");
-}
-
-async function loadCursorItems<T>(
+async function loadCursorPage<T>(
   path: string,
   schema: z.ZodType<{ items: T[]; nextCursor: string | null }>,
-  filters: URLSearchParams = new URLSearchParams(),
-): Promise<T[]> {
-  const items: T[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < 100; page += 1) {
-    const query = new URLSearchParams(filters);
-    query.set("limit", "100");
-    if (cursor) query.set("cursor", cursor);
-    const response = await apiClient.get(`${path}?${query.toString()}`, schema);
-    items.push(...response.items);
-    cursor = response.nextCursor;
-    if (!cursor) return items;
-  }
-  throw new Error("CURSOR_PAGE_LIMIT_EXCEEDED");
+  input: GovernanceListQuery,
+  filters = new URLSearchParams(),
+) {
+  const { page, pageSize } = paginationQuerySchema.parse(input);
+  const scope = `${path}:${pageSize}:${filters.toString()}`;
+  const cursor = liveCursor(scope, page);
+  const query = new URLSearchParams(filters);
+  query.set("limit", String(pageSize));
+  if (cursor) query.set("cursor", cursor);
+  const response = await apiClient.get(`${path}?${query.toString()}`, schema);
+  rememberLiveCursor(scope, page, response.nextCursor);
+  return { ...response, total: (page - 1) * pageSize + response.items.length + (response.nextCursor ? 1 : 0), page, pageSize };
 }
 
 type AdminId = z.infer<typeof adminIdSchema>;
@@ -165,8 +149,7 @@ export const governanceRepository: GovernanceRepository = {
     const filters = new URLSearchParams();
     if (input.search) filters.set("search", input.search);
     if (input.status && input.status !== "all") filters.set("status", input.status);
-    const items = await loadCursorItems("/api/v1/admin/access/admins", be3AdminPageSchema, filters);
-    return { items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize), total: items.length, page: parsed.page, pageSize: parsed.pageSize };
+    return loadCursorPage("/api/v1/admin/access/admins", be3AdminPageSchema, parsed, filters);
   },
   getAdminUser(adminId) {
     const parsed = adminIdSchema.parse(adminId);
@@ -177,8 +160,7 @@ export const governanceRepository: GovernanceRepository = {
   async listAdminInvitations(input) {
     const parsed = paginationQuerySchema.parse({ page: input.page, pageSize: input.pageSize });
     if (mocksEnabled()) return apiClient.get(`/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}`, invitationListResponseSchema);
-    const items = await loadCursorItems("/api/v1/admin/access/invitations", be3InvitationPageSchema);
-    return { items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize), total: items.length, page: parsed.page, pageSize: parsed.pageSize };
+    return loadCursorPage("/api/v1/admin/access/invitations", be3InvitationPageSchema, parsed);
   },
   inviteAdmin(input) {
     const request = inviteAdminRequestSchema.parse(input);
@@ -242,9 +224,9 @@ export const governanceRepository: GovernanceRepository = {
     const values = new URLSearchParams({ page: String(parsed.page), pageSize: String(parsed.pageSize) });
     if (input.search) values.set("search", input.search);
     if (mocksEnabled()) return apiClient.get(`/api/v1/admin/roles?${values.toString()}`, roleListResponseSchema);
-    const items = await loadCursorItems("/api/v1/admin/access/roles", be3RolePageSchema);
-    const filtered = input.search ? items.filter((role) => `${role.key} ${role.name} ${role.description ?? ""}`.toLocaleLowerCase().includes(input.search!.toLocaleLowerCase())) : items;
-    return { items: filtered.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize), total: filtered.length, page: parsed.page, pageSize: parsed.pageSize };
+    const filters = new URLSearchParams();
+    if (input.search) filters.set("search", input.search);
+    return loadCursorPage("/api/v1/admin/access/roles", be3RolePageSchema, parsed, filters);
   },
   createRole(input) {
     const request = roleCreateRequestSchema.parse(input);
@@ -272,20 +254,7 @@ export const governanceRepository: GovernanceRepository = {
   async getPermissionMatrix(input) {
     const parsed = paginationQuerySchema.parse({ page: input.page, pageSize: input.pageSize });
     if (mocksEnabled()) return apiClient.get("/api/v1/admin/permissions", permissionMatrixSchema);
-    const items: z.infer<typeof be3PermissionPageSchema>["items"] = [];
-    let cursor: string | null = null;
-    let manifestHash: string | null = null;
-    for (let page = 0; page < 100; page += 1) {
-      const query = new URLSearchParams({ limit: "100" });
-      if (cursor) query.set("cursor", cursor);
-      const response = await apiClient.get(`/api/v1/admin/access/permissions?${query.toString()}`, be3PermissionPageSchema);
-      if (manifestHash && manifestHash !== response.manifestHash) throw new Error("PERMISSION_MANIFEST_CHANGED_DURING_PAGINATION");
-      manifestHash = response.manifestHash;
-      items.push(...response.items);
-      cursor = response.nextCursor;
-      if (!cursor) return { items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize), total: items.length, page: parsed.page, pageSize: parsed.pageSize, manifestHash };
-    }
-    throw new Error("CURSOR_PAGE_LIMIT_EXCEEDED");
+    return loadCursorPage("/api/v1/admin/access/permissions", be3PermissionPageSchema, parsed);
   },
   getSettingsGroup(group) {
     const parsed = settingsGroupNameSchema.parse(group);
@@ -314,18 +283,18 @@ export const governanceRepository: GovernanceRepository = {
     const parsed = paginationQuerySchema.parse({ page: input.page, pageSize: input.pageSize });
     if (mocksEnabled())
       return apiClient.get(`/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}`, featureFlagListResponseSchema);
-    const items = (await loadFlags()).filter((flag) =>
-      (!input.search || `${flag.key} ${flag.description}`.toLocaleLowerCase().includes(input.search.toLocaleLowerCase())) &&
-      (!input.status || input.status === "all" || flag.status === input.status),
-    );
+    const filters = new URLSearchParams();
+    if (input.search) filters.set("search", input.search);
+    if (input.status && input.status !== "all") filters.set("status", input.status === "disabled" ? "draft" : input.status === "ended" ? "retired" : input.status);
+    const result = await loadCursorPage("/api/v1/admin/feature-flags", phase13FeatureFlagPageSchema, parsed, filters);
     return featureFlagListResponseSchema.parse({
-      items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize).map((flag) => ({
+      items: result.items.map((flag) => ({
         id: flag.key,
         key: flag.key,
         label: { ar: flag.description, en: flag.description },
         platform: "shared",
         audience: flag.rules.some((rule) => rule.audience.cohort === "internal") ? "internal_testers" : "all_customers",
-        rolloutPercent: flag.defaultEnabled ? 100 : new Set(flag.rules.filter((rule) => rule.enabled && isPercentageRule(rule)).map((rule) => rule.audience.cohort)).size,
+        rolloutPercent: flag.defaultEnabled ? 100 : flag.rules.some(isPercentageRule) ? new Set(flag.rules.filter((rule) => rule.enabled && isPercentageRule(rule)).map((rule) => rule.audience.cohort)).size : flag.rules.some((rule) => rule.enabled) ? 100 : 0,
         targetingRules: flag.rules.map(({ priority, audience, enabled }) => ({ priority, audience, enabled })),
         status: flag.status === "draft" ? "disabled" : flag.status === "active" ? "active" : "ended",
         startsAt: null,
@@ -333,7 +302,7 @@ export const governanceRepository: GovernanceRepository = {
         version: flag.version,
         updatedAt: null,
       })),
-      total: items.length,
+      total: result.total,
       page: parsed.page,
       pageSize: parsed.pageSize,
     });
@@ -346,18 +315,38 @@ export const governanceRepository: GovernanceRepository = {
     if (request.status === "scheduled") throw new Error("FLAG_SCHEDULE_UNSUPPORTED");
     if (request.audience && !["all_customers", "internal_testers"].includes(request.audience))
       throw new Error("FLAG_AUDIENCE_UNSUPPORTED");
-    const current = (await loadFlags()).find((flag) => flag.key === parsed);
+    const response = await apiClient.get(`/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}`, phase13FeatureFlagPageSchema);
+    const current = response.items.find((flag) => flag.key === parsed);
     if (!current) throw new Error("FLAG_NOT_FOUND");
-    const retained = request.audience === undefined
-      ? current.rules.filter((rule) => !isPercentageRule(rule)).map(({ priority, audience, enabled }) => ({ priority, audience, enabled }))
-      : request.audience === "internal_testers"
-        ? [{ priority: 1, audience: { cohort: "internal" }, enabled: true }]
-        : [];
-    const percent = request.rolloutPercent ?? (current.defaultEnabled ? 100 : current.rules.filter((rule) => rule.enabled && isPercentageRule(rule)).length);
-    const rules = percent === 100 ? retained : [...retained, ...percentageRules(percent)];
+    const rawRules = current.rules.map(({ priority, audience, enabled }) => ({ priority, audience, enabled }));
+    const globalRollout = current.defaultEnabled || rawRules.length === 0 || rawRules.some(isPercentageRule);
+    const currentAudience = rawRules.some((rule) => rule.audience.cohort === "internal") ? "internal_testers" : "all_customers";
+    if (request.audience !== undefined && request.audience !== currentAudience) throw new Error("FLAG_AUDIENCE_CHANGE_UNSUPPORTED");
+    const percent = request.rolloutPercent ?? (current.defaultEnabled ? 100 : rawRules.some(isPercentageRule)
+      ? rawRules.filter((rule) => rule.enabled && isPercentageRule(rule)).length
+      : rawRules.some((rule) => rule.enabled) ? 100 : 0);
+    let rules = rawRules;
+    let defaultEnabled = current.defaultEnabled;
+    if (request.rolloutPercent !== undefined) {
+      if ((current.defaultEnabled && rawRules.length > 0) ||
+          (currentAudience === "internal_testers" && rawRules.some(isPercentageRule)) ||
+          (!globalRollout && new Set(rawRules.map(rule => rule.enabled)).size > 1)) {
+        throw new Error("FLAG_ROLLOUT_SHAPE_UNSUPPORTED");
+      }
+      if (globalRollout) {
+        const retained = rawRules.filter((rule) => !isPercentageRule(rule));
+        defaultEnabled = percent === 100 && retained.length === 0;
+        rules = defaultEnabled ? [] : [...retained, ...percentageRules(percent)];
+      } else {
+        // Cohort is a single context value; internal AND percentage cannot be represented.
+        if (percent !== 0 && percent !== 100) throw new Error("FLAG_ROLLOUT_SHAPE_UNSUPPORTED");
+        rules = rawRules.map((rule) => ({ ...rule, enabled: percent === 100 }));
+        defaultEnabled = false;
+      }
+    }
     if (rules.length > 100) throw new Error("FLAG_RULE_LIMIT_EXCEEDED");
     return apiClient.patch(`/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}`, {
-      defaultEnabled: percent === 100,
+      defaultEnabled,
       rules,
       ...(request.status ? { status: request.status === "disabled" ? "draft" : "active" } : {}),
       expectedVersion: request.expectedVersion,
@@ -366,7 +355,7 @@ export const governanceRepository: GovernanceRepository = {
   },
   async getMaintenance() {
     if (mocksEnabled()) return apiClient.get("/api/v1/admin/maintenance", maintenanceSchema);
-    const page = await apiClient.get("/api/v1/admin/maintenance?limit=100", phase13MaintenancePageSchema);
+    const page = await apiClient.get("/api/v1/admin/maintenance?limit=1&current=true", phase13MaintenancePageSchema);
     const item = page.items.find(({ status }) => status === "active") ?? page.items.find(({ status }) => status === "scheduled");
     if (item) maintenanceWindows.set(apiActorCacheKey(), item);
     else maintenanceWindows.delete(apiActorCacheKey());

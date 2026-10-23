@@ -1,3 +1,4 @@
+import { liveSecurityRepository } from "./live-repository";
 import {
   apiClient,
   liveCursor,
@@ -162,10 +163,11 @@ function liveDeletionParams(input: ListQuery): {
 
 export const securityRepository = {
   getSecurityOverview(input: OverviewQuery) {
+    if (!mocksEnabled()) return liveSecurityRepository.getSecurityOverview(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/security/overview?${overviewParams(input)}`, securityOverviewSchema);
   },
   listAuthenticationEvents(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listAuthenticationEvents(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/security/authentication-events?${query(input)}`, authenticationEventsPageSchema);
   },
   listSuspiciousActivity(input: ListQuery) {
@@ -177,19 +179,19 @@ export const securityRepository = {
     return apiClient.post(`${SECURITY_BASE_PATH}/security/suspicious-activity/${encodeSecurityId(id, "SUS-")}/actions`, suspiciousActionSchema.parse(input), actionResultSchema);
   },
   listAdminSecurity(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listAdminSecurity(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/security/admins?${query(input)}`, adminSecurityPageSchema);
   },
   listPermissionChanges(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listPermissionChanges(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/security/permission-changes?${query(input)}`, permissionChangePageSchema);
   },
   listSupportAccess(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listSupportAccess(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/security/support-access?${query(input)}`, supportAccessPageSchema);
   },
   revokeSupportAccess(id: string, input: unknown) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.revokeSupportAccess(id, input);
     return apiClient.post(`${SECURITY_BASE_PATH}/security/support-access/${encodeSecurityId(id, "SAC-")}/revoke`, supportAccessRevokeSchema.parse(input), actionResultSchema);
   },
   async getSecurityIncident(id: string) {
@@ -245,23 +247,23 @@ export const securityRepository = {
     }, operationsIncidentMutationResultSchema);
   },
   listAuditEvents(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listAuditEvents(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/audit-events?${query(input)}`, auditEventsPageSchema);
   },
   getAuditEvent(id: string) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.getAuditEvent(id);
     return apiClient.get(`${SECURITY_BASE_PATH}/audit-events/${encodeSecurityId(id, "AUD-")}`, auditEventDetailSchema);
   },
   listExportRequests(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listExportRequests(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/data-requests/exports?${query(input)}`, exportRequestsPageSchema);
   },
   getExportRequest(id: string) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.getExportRequest(id);
     return apiClient.get(`${SECURITY_BASE_PATH}/data-requests/exports/${encodeSecurityId(id, "EXP-")}`, exportRequestDetailSchema);
   },
   actOnExportRequest(id: string, input: unknown) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.actOnExportRequest(id, input);
     return apiClient.post(`${SECURITY_BASE_PATH}/data-requests/exports/${encodeSecurityId(id, "EXP-")}/actions`, exportActionSchema.parse(input), actionResultSchema);
   },
   simulateExportDownload(id: string, input: unknown) {
@@ -288,18 +290,9 @@ export const securityRepository = {
   async getDeletionRequest(id: string) {
     if (mocksEnabled())
       return apiClient.get(`${SECURITY_BASE_PATH}/data-requests/deletions/${encodeSecurityId(id, "DEL-")}`, deletionRequestDetailSchema);
-    const deletionId = decodeURIComponent(encodeUuid(id));
-    let cursor: string | null = null;
-    for (let page = 0; page < 100; page += 1) {
-      const params = new URLSearchParams({ limit: "100" });
-      if (cursor) params.set("cursor", cursor);
-      const response = await apiClient.get(`${SECURITY_BASE_PATH}/privacy/deletions?${params.toString()}`, liveDeletionPageSchema);
-      const deletion = response.items.find((item) => item.id === deletionId);
-      if (deletion) return mapLiveDeletion(deletion);
-      cursor = response.nextCursor;
-      if (!cursor) break;
-    }
-    throw new ApiError("not_found", safeApiMessage("not_found"), 404);
+    const response = await apiClient.get(`${SECURITY_BASE_PATH}/privacy/deletions?limit=1&id=${encodeUuid(id)}`, liveDeletionPageSchema);
+    if (!response.items[0]) throw new ApiError("not_found", safeApiMessage("not_found"), 404);
+    return mapLiveDeletion(response.items[0]);
   },
   actOnDeletionRequest(id: string, input: unknown) {
     const request = deletionActionSchema.parse(input);
@@ -314,15 +307,15 @@ export const securityRepository = {
     }, liveDeletionSchema).then(mapLiveDeletion);
   },
   listRetentionPolicies(input: ListQuery) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.listRetentionPolicies(input);
     return apiClient.get(`${SECURITY_BASE_PATH}/data-retention/policies?${query(input)}`, retentionPoliciesPageSchema);
   },
   getRetentionPolicy(id: string) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.getRetentionPolicy(id);
     return apiClient.get(`${SECURITY_BASE_PATH}/data-retention/policies/${encodeSecurityId(id, "RET-")}`, retentionPolicyDetailSchema);
   },
   updateRetentionPolicy(id: string, input: unknown) {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveSecurityRepository.updateRetentionPolicy(id, input);
     return requestJson(
       `${SECURITY_BASE_PATH}/data-retention/policies/${encodeSecurityId(id, "RET-")}`,
       actionResultSchema,

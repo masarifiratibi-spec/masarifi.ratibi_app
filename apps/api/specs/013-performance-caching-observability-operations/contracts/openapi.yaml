@@ -311,6 +311,18 @@ paths:
       operationId: listFeatureFlags
       tags: [Configuration]
       parameters:
+        - name: key
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 80 }
+        - name: search
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [draft, active, retired] }
         - { $ref: '#/components/parameters/OperationsPageSize' }
         - { $ref: '#/components/parameters/OperationsCursor' }
       responses:
@@ -378,6 +390,10 @@ paths:
       operationId: listMaintenanceWindows
       tags: [Maintenance]
       parameters:
+        - name: current
+          in: query
+          required: false
+          schema: { type: boolean }
         - { $ref: '#/components/parameters/OperationsPageSize' }
         - { $ref: '#/components/parameters/OperationsCursor' }
       responses:

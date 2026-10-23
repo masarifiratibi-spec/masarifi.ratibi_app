@@ -5,6 +5,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 
 import { isRecentClerkAuthentication, type ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { ClerkClientService, ClerkSessionIneligibleError } from '../identity/clerk-client.service';
+import { hashNormalizedCommand } from '../ledger/idempotency';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { normalizeSupportScope } from './privacy-handlers';
 import { ExportStorage } from './export-storage';
@@ -27,6 +28,7 @@ export interface SecurityOperation {
   params: Record<string, string>;
   requestId: string;
   idempotencyKey?: string;
+  commandHash?: string;
   networkAddress?: string;
 }
 
@@ -230,7 +232,8 @@ export class SecurityService {
   ) {}
 
   async execute(input: SecurityOperation): Promise<unknown> {
-    const body = inputObject(input.body);
+    const body = { ...inputObject(input.body) };
+    const commandHash = hashNormalizedCommand({ operation: input.operation, body, params: input.params });
     assertSafeTextFields(body);
     const category = rateCategory(input.operation);
     const rate = rateLimits[category];
@@ -379,12 +382,6 @@ export class SecurityService {
         delete body.completionToken;
       }
     }
-    if (input.operation === 'createAdminInvitation') {
-      const token = randomBytes(32).toString('base64url');
-      body.tokenHash = `h1:${createHash('sha256').update(token).digest('hex')}`;
-      // The raw token remains process-local and is handed directly to the provider delivery call.
-      body.deliveryToken = token;
-    }
     if (input.operation === 'acceptAdminInvitation') {
       const token = body.token;
       if (typeof token !== 'string' || token.length < 32 || token.length > 512) {
@@ -403,11 +400,12 @@ export class SecurityService {
       delete body.token;
     }
     try {
-      const deliveryToken = typeof body.deliveryToken === 'string' ? body.deliveryToken : undefined;
-      delete body.deliveryToken;
+      if (['createAdminInvitation', 'revokeAdminSessions', 'disableAdmin'].includes(input.operation)) {
+        return await this.executeProviderMutation({ ...input, body, commandHash });
+      }
       const result = projectResult(
         input.operation,
-        await this.repository.execute({ ...input, body }),
+        await this.repository.execute({ ...input, body, commandHash }),
       );
       if (input.operation === 'createMyDeletionRequest' && body.coolingOffHours === 0) {
         const deletionId = record(result).id;
@@ -445,49 +443,6 @@ export class SecurityService {
           downloadUrlExpiresAt: new Date(Date.now() + seconds * 1000).toISOString(),
         };
       }
-      if (input.operation === 'revokeAdminSessions') {
-        const userId = input.params.userId;
-        if (!userId) throw new HttpException({ code: 'NOT_FOUND' }, 404);
-        try {
-          const sessionIds =
-            body.revokeAllEligible === true ? undefined : (body.sessionIds as string[]);
-          return {
-            sessionReferences: await this.clerk.revokeUserSessions(userId, sessionIds),
-            version: (result as { version?: unknown }).version,
-          };
-        } catch (error) {
-          if (error instanceof ClerkSessionIneligibleError)
-            throw new HttpException({ code: 'INELIGIBLE_SESSION' }, 409);
-          throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
-        }
-      }
-      if (input.operation === 'disableAdmin') {
-        const userId = input.params.userId;
-        if (userId)
-          await this.clerk.revokeUserSessions(userId).catch(() => {
-            /* local disable already denies access */
-          });
-      }
-      if (input.operation === 'createAdminInvitation' && deliveryToken) {
-        const email = body.email;
-        if (typeof email !== 'string') throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
-        try {
-          await this.clerk.deliverAdminInvitation(email, deliveryToken);
-        } catch {
-          const invitationId =
-            typeof result === 'object' && result !== null
-              ? (result as { id?: unknown }).id
-              : undefined;
-          if (typeof invitationId === 'string') {
-            await this.repository
-              .revokeUndeliveredInvitation(input.principal, invitationId, input.requestId)
-              .catch(() => {
-                /* best-effort fail-closed cleanup */
-              });
-          }
-          throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
-        }
-      }
       return result;
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -519,6 +474,10 @@ export class SecurityService {
       if (code === 'ACTIVE_ASSIGNMENTS_EXIST')
         throw new HttpException({ code: 'ACTIVE_ASSIGNMENTS_EXIST' }, 409);
       if (code === '23505') throw new HttpException({ code: 'CONFLICT' }, 409);
+      if (code === 'PROVIDER_UNAVAILABLE')
+        throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+      if (code === 'IDEMPOTENCY_IN_PROGRESS')
+        throw new HttpException({ code: 'IDEMPOTENCY_IN_PROGRESS' }, 409);
       if (code === 'IDEMPOTENCY_KEY_REUSED')
         throw new HttpException({ code: 'IDEMPOTENCY_KEY_REUSED' }, 409);
       if (code === '22023' || code === '22P02' || code === '23514')
@@ -532,6 +491,37 @@ export class SecurityService {
       if (code === 'INVALID_CURSOR') throw new HttpException({ code: 'INVALID_CURSOR' }, 400);
       throw new HttpException({ code: 'SECURITY_OPERATION_FAILED' }, 503);
     }
+  }
+
+  private async executeProviderMutation(input: SecurityOperation & { body: Record<string, unknown> }): Promise<unknown> {
+    let deliveryToken: string | undefined;
+    const mutation = await this.repository.executeProviderMutation(input, () => {
+      if (input.operation !== 'createAdminInvitation') return input.body;
+      deliveryToken = randomBytes(32).toString('base64url');
+      return { ...input.body, tokenHash: `h1:${createHash('sha256').update(deliveryToken).digest('hex')}` };
+    });
+    if (mutation.outcome === 'completed') return mutation.value;
+    let result = projectResult(input.operation, mutation.value);
+    try {
+      if (input.operation === 'createAdminInvitation') {
+        await this.clerk.deliverAdminInvitation(input.body.email as string, deliveryToken!);
+      } else {
+        const sessionIds = input.operation === 'revokeAdminSessions' && !input.body.revokeAllEligible
+          ? input.body.sessionIds as string[] : undefined;
+        const sessionReferences = await this.clerk.revokeUserSessions(input.params.userId!, sessionIds);
+        if (input.operation === 'revokeAdminSessions') result = { sessionReferences, version: record(result).version };
+      }
+    } catch (error) {
+      // An ambiguous external effect is terminal for this key; retries must not affect later sessions.
+      await this.repository.finishProviderMutation(input, 'failed', null);
+      if (input.operation === 'createAdminInvitation') {
+        await this.repository.revokeUndeliveredInvitation(input.principal, record(result).id as string, input.requestId);
+      }
+      if (error instanceof ClerkSessionIneligibleError) throw new HttpException({ code: 'INELIGIBLE_SESSION' }, 409);
+      throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+    }
+    await this.repository.finishProviderMutation(input, 'completed', result);
+    return result;
   }
 
   private assertRecentAuth(principal: ClerkPrincipal): void {

@@ -3,13 +3,19 @@ import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
+import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { PoolService } from '../platform/database/pool.service';
 import { permissionManifestHash } from './permission-manifest';
 import { buildSecurityEventPayload, type SecurityEventType } from './security.events';
 import type { SecurityOperation } from './security.service';
 
-type Operation = SecurityOperation & { body: Record<string, unknown> };
+type Operation = SecurityOperation & { body: Record<string, unknown>; prepareProviderBody?: () => Record<string, unknown> };
+
+export interface ProviderMutation {
+  outcome: 'new' | 'completed';
+  value: unknown;
+}
 
 function invalid(): never {
   throw Object.assign(new Error('INPUT_INVALID'), { code: '22023' });
@@ -175,8 +181,52 @@ export class SecurityRepository {
       if (input.permission)
         await client.query('select private.assert_admin_permission($1)', [input.permission]);
       else await client.query('select private.assert_active_profile($1)', [input.principal.userId]);
-      return this.executeInTransaction(client, input);
+      return input.idempotencyKey
+        ? this.executeIdempotently(client, input)
+        : this.executeInTransaction(client, input);
     });
+  }
+
+  async executeProviderMutation(input: Operation, prepareBody: () => Record<string, unknown>): Promise<ProviderMutation> {
+    return this.execute({ ...input, prepareProviderBody: prepareBody }) as Promise<ProviderMutation>;
+  }
+
+  async finishProviderMutation(input: SecurityOperation, status: 'completed' | 'failed', value: unknown): Promise<void> {
+    await this.withPrincipalTransaction(input.principal, async (client) => {
+      await client.query('select private.finish_security_provider_outcome($1,$2,$3,$4,$5::jsonb)', [
+        input.principal.userId, `security.${input.operation.toLowerCase()}`,
+        hashIdempotencyKey(input.idempotencyKey!), status, JSON.stringify(value),
+      ]);
+    });
+  }
+
+  private async executeIdempotently(client: PoolClient, input: Operation): Promise<unknown> {
+    const scope = `security.${input.operation.toLowerCase()}`;
+    const keyHash = hashIdempotencyKey(input.idempotencyKey!);
+    const requestHash = input.commandHash ?? hashNormalizedCommand({ operation: input.operation, body: input.body, params: input.params });
+    const claim = (await client.query<{ outcome: string; response_body: { value: unknown }; lease_token: string }>(
+      'select * from private.claim_security_idempotency($1,$2,$3,$4,$5::interval)',
+      [input.principal.userId, scope, keyHash, requestHash, '2 minutes'],
+    )).rows[0];
+    if (!claim) throw new Error('SECURITY_REPLAY_UNAVAILABLE');
+    if (claim.outcome === 'hash_mismatch') throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), { code: 'IDEMPOTENCY_KEY_REUSED' });
+    if (claim.outcome === 'in_progress') throw Object.assign(new Error('IDEMPOTENCY_IN_PROGRESS'), { code: 'IDEMPOTENCY_IN_PROGRESS' });
+    if (claim.outcome === 'replay') {
+      if (!input.prepareProviderBody) return claim.response_body.value;
+      const receipt = (await client.query<{ status: string; result: unknown }>(
+        'select * from private.read_security_provider_outcome($1,$2,$3)',
+        [input.principal.userId, scope, keyHash],
+      )).rows[0];
+      if (receipt?.status !== 'completed') throw Object.assign(new Error('PROVIDER_UNAVAILABLE'), { code: 'PROVIDER_UNAVAILABLE' });
+      return { outcome: 'completed', value: receipt.result };
+    }
+    const value = await this.executeInTransaction(client, input.prepareProviderBody
+      ? { ...input, body: input.prepareProviderBody() } : input);
+    await client.query('select private.complete_security_idempotency($1,$2,$3,$4,$5,$6,$7::jsonb,$8)',
+      [input.principal.userId, scope, keyHash, requestHash, claim.lease_token, 200, JSON.stringify({ value: value ?? null }), null]);
+    if (!input.prepareProviderBody) return value;
+    await client.query('select private.start_security_provider_outcome($1,$2,$3)', [input.principal.userId, scope, keyHash]);
+    return { outcome: 'new', value };
   }
 
   async revokeUndeliveredInvitation(
@@ -525,7 +575,7 @@ export class SecurityRepository {
         return this.list(
           client,
           `select id,status,scope,requested_at as "requestedAt",expires_at as "expiresAt",version::int
-        from private.privacy_export_requests where ($1::text is null or status=$1) and ($2::timestamptz is null or requested_at>=$2) and ($3::timestamptz is null or requested_at<$3)
+        from private.privacy_export_requests where ($1::text is null or status=$1) and ($2::timestamptz is null or requested_at>=$2) and ($3::timestamptz is null or requested_at<$3) and ($4::uuid is null or id=$4)
         order by requested_at desc,id desc`,
           limit,
           offset,
@@ -540,6 +590,7 @@ export class SecurityRepository {
             ]),
             optionalInstant(input.query.from),
             optionalInstant(input.query.to),
+            optionalText(input.query.id, 36),
           ],
         );
       case 'getMyPrivacyExport':
@@ -554,7 +605,7 @@ export class SecurityRepository {
           client,
           `select d.id,d.status,d.requested_at as "requestedAt",d.cooling_off_ends_at as "coolingOffEndsAt",d.completed_at as "completedAt",d.version::int
         from private.account_deletion_requests d where ($1::text is null or d.status=$1) and ($2::boolean is null or exists(select 1 from private.retention_holds h
-          where h.resource_id=d.user_id and h.starts_at<=clock_timestamp() and (h.ends_at is null or h.ends_at>clock_timestamp()))=$2)
+          where h.resource_id=d.user_id and h.starts_at<=clock_timestamp() and (h.ends_at is null or h.ends_at>clock_timestamp()))=$2) and ($3::uuid is null or d.id=$3)
         order by d.requested_at desc,d.id desc`,
           limit,
           offset,
@@ -568,6 +619,7 @@ export class SecurityRepository {
               'failed',
             ]),
             optionalBoolean(input.query.hold),
+            optionalText(input.query.id, 36),
           ],
         );
       case 'getMyDeletionRequest':
@@ -581,10 +633,10 @@ export class SecurityRepository {
         return this.list(
           client,
           `select id,resource_type as "resourceType",retention_days as "retentionDays",deletion_mode as "deletionMode",legal_basis as "legalBasis",enabled,version::int
-        from private.retention_policies where ($1::text is null or resource_type=$1) and ($2::boolean is null or enabled=$2) order by resource_type`,
+        from private.retention_policies where ($1::text is null or resource_type=$1) and ($2::boolean is null or enabled=$2) and ($3::uuid is null or id=$3) order by resource_type`,
           limit,
           offset,
-          [optionalText(input.query.resource, 64), optionalEnabledStatus(input.query.status)],
+          [optionalText(input.query.resource, 64), optionalEnabledStatus(input.query.status), optionalText(input.query.id, 36)],
         );
       default:
         return this.mutate(client, input);

@@ -166,7 +166,7 @@ function ExportTable({ requests }: { requests: ExportRequestDetail[] }) {
           <tbody>{requests.map((request) => (
             <tr key={request.id}>
               <td><LinkId id={request.id} /></td>
-              <td>{request.customer.label}</td>
+              <td>{(request.customer?.label ?? "Unavailable")}</td>
               <td>{request.scopes.join(", ")}</td>
               <td><Badge value={stateLabel(locale, request.state)} tone={exportTone(request.state)} /></td>
               <td>{request.file ? <Id value={request.file.basename} /> : "-"}</td>
@@ -190,7 +190,7 @@ function ExportCard({ request }: { request: ExportRequestDetail }) {
   return (
     <Card>
       <div className="mobile-data-head"><LinkId id={request.id} /><Badge value={stateLabel(locale, request.state)} tone={exportTone(request.state)} /></div>
-      <strong>{request.customer.label}</strong>
+      <strong>{(request.customer?.label ?? "Unavailable")}</strong>
       <p>{request.scopes.join(" · ")}</p>
       {request.file && <small><Id value={request.file.basename} /> · {stateLabel(locale, request.file.state)} · {copy.noDownloadableUrl}</small>}
     </Card>
@@ -204,7 +204,7 @@ function ExportSummary({ request }: { request: ExportRequestDetail }) {
     <div className="export-detail-grid">
       <div className="export-detail-main">
         <div className="mobile-data-head"><Id value={request.id} /><Badge value={stateLabel(locale, request.state)} tone={exportTone(request.state)} /></div>
-        <strong>{request.customer.label}</strong>
+        <strong>{(request.customer?.label ?? "Unavailable")}</strong>
         <p>{request.scopes.join(" · ")}</p>
       </div>
       <div className="export-detail-file">
@@ -235,7 +235,7 @@ export function ExportDetailRoute({ requestId }: { requestId: string }) {
             {message && <p role="status">{message}</p>}
             <p className="privacy-note">{copy.sensitiveExportNote}</p>
           </div>
-          {data.state === "Ready" && <button className="button primary" onClick={() => mutation.mutate({
+          {data.allowedActions.includes("simulate_download") && <button className="button primary" onClick={() => mutation.mutate({
             resource: "exports",
             id: data.id,
             action: "simulate-download",
@@ -344,8 +344,8 @@ function RetentionCard({ policy }: { policy: RetentionPolicyDetail }) {
     <Card>
       <div className="mobile-data-head"><a href={`/admin/data-requests/retention?policy=${policy.id}`}><Id value={policy.id} /></a><span>{stateLabel(locale, policy.state)}</span></div>
       <strong>{policy.dataCategory}</strong>
-      <p>{policy.retentionDays} {copy.days} · {copy.bounds} {policy.minimumDays}-{policy.maximumDays}</p>
-      <small>{copy.effectiveCleanup}: {stateLabel(locale, policy.effectiveCleanupState)}{policy.legalHold ? ` · ${copy.legalHoldSuspends}` : ""}</small>
+      <p>{policy.retentionDays} {copy.days} · {copy.bounds} {policy.minimumDays ?? "Unavailable"}-{policy.maximumDays ?? "Unavailable"}</p>
+      <small>{copy.effectiveCleanup}: {stateLabel(locale, policy.effectiveCleanupState ?? "unknown")}{policy.legalHold ? ` · ${copy.legalHoldSuspends}` : ""}</small>
     </Card>
   );
 }
@@ -367,7 +367,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
         <p>{copy.retentionHelp}</p>
       </section>
       <RetentionCard policy={data} />
-      <label>{copy.retentionDays}<input type="number" min={data.minimumDays} max={data.maximumDays} step={1} value={days} onChange={(event) => setDays(Number(event.target.value))} /></label>
+      <label>{copy.retentionDays}<input type="number" min={data.minimumDays ?? 0} max={data.maximumDays ?? undefined} step={1} value={days} onChange={(event) => setDays(Number(event.target.value))} /></label>
       <button className="button primary" onClick={() => setOpen(true)}>{copy.updatePolicy}</button>
       <ConfirmDialog
         open={open}

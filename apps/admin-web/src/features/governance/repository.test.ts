@@ -273,6 +273,24 @@ describe("BE013 exact live governance mapping", () => {
     expect(rules.filter((rule) => percentageRule(rule.audience.cohort))).toHaveLength(2);
   });
 
+  test("rejects restricted rule combinations whose deny rules cannot be preserved by a percentage", async () => {
+    mockServer.use(http.get("/api/v1/admin/feature-flags", () => HttpResponse.json({ items: [{ id: "13000000-0000-4000-8000-000000000001", key: "mobile.restricted", description: "Restricted", defaultEnabled: false, status: "active", rules: [
+      { id: "13000000-0000-4000-8000-000000000002", priority: 1, audience: { platform: "android" }, enabled: false, version: 1 },
+      { id: "13000000-0000-4000-8000-000000000003", priority: 2, audience: { cohort: "internal" }, enabled: true, version: 1 },
+    ], version: 1 }], nextCursor: null })));
+    await expect(governanceRepository.updateFeatureFlag("mobile.restricted", { rolloutPercent: 100, expectedVersion: 1, reason: "Preserve restricted audience", submissionKey: "restricted-combination" })).rejects.toThrow("FLAG_ROLLOUT_SHAPE_UNSUPPORTED");
+  });
+
+  test.each([0, 100])("keeps internal-only flags off externally at %i percent", async (rolloutPercent) => {
+    let sent: unknown;
+    mockServer.use(
+      http.get("/api/v1/admin/feature-flags", () => HttpResponse.json({ items: [{ id: liveId, key: "mobile.internal-demo", description: "Internal only", defaultEnabled: false, status: "active", rules: [{ id: liveId, priority: 1, audience: { cohort: "internal", platform: "ios" }, enabled: true, version: 1 }], version: 1 }], nextCursor: null })),
+      http.patch("/api/v1/admin/feature-flags/mobile.internal-demo", async ({ request }) => { sent = await request.json(); return HttpResponse.json({ resourceId: "mobile.internal-demo", status: "updated", version: 2 }); }),
+    );
+    await governanceRepository.updateFeatureFlag("mobile.internal-demo", { rolloutPercent, expectedVersion: 1, reason: "Review restricted rollout", submissionKey: "restricted-rollout" });
+    expect(sent).toMatchObject({ defaultEnabled: false, rules: [{ priority: 1, audience: { cohort: "internal", platform: "ios" }, enabled: rolloutPercent === 100 }] });
+  });
+
   test("selects only active or scheduled maintenance and preserves canonical edits", async () => {
     let body: unknown;
     const scheduled = {
@@ -353,12 +371,16 @@ describe("BE003 exact live access governance mapping", () => {
       }),
     );
 
-    await expect(governanceRepository.listRoles({ page: 1, pageSize: 25 })).resolves.toMatchObject({
-      total: 1,
+    await expect(governanceRepository.listRoles({ page: 1, pageSize: 25 })).resolves.toMatchObject({ items: [] });
+    expect(roleCalls).toBe(1);
+    await expect(governanceRepository.listRoles({ page: 2, pageSize: 25 })).resolves.toMatchObject({
+      total: 26,
       items: [{ id: roleId, key: "operations-reviewer", description: null, systemRole: false, enabled: true, permissionKeys: ["operations.incidents.read"], assignmentCount: 2, version: 4 }],
     });
-    await expect(governanceRepository.getPermissionMatrix({ page: 1, pageSize: 25 })).resolves.toMatchObject({
-      total: 1,
+    await expect(governanceRepository.getPermissionMatrix({ page: 1, pageSize: 25 })).resolves.toMatchObject({ items: [] });
+    expect(permissionCalls).toBe(1);
+    await expect(governanceRepository.getPermissionMatrix({ page: 2, pageSize: 25 })).resolves.toMatchObject({
+      total: 26,
       items: [{ id: permissionId, key: "operations.incidents.read", resource: "operations.incidents", action: "read", description: null }],
     });
     expect(roleCalls).toBe(2);

@@ -1,3 +1,6 @@
+import { http, HttpResponse } from "msw";
+import { mockServer } from "@/mocks/server";
+import { configureApiActorProvider } from "@/core/api/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { flushSync } from "react-dom";
@@ -113,5 +116,26 @@ describe("US6 scheduled jobs view", () => {
     expect(host.textContent).toContain("Scheduled Jobs");
     expect(host.textContent).toContain("Next run");
     expect(host.textContent).not.toMatch(/run now|enable|disable|delete|edit/i);
+  });
+});
+
+
+describe("live job pagination", () => {
+  test.each([["runs", JobRunsView], ["scheduled", ScheduledJobsView]] as const)("reaches rows after page one for %s", async (path, View) => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
+    configureApiActorProvider(() => "admin_job_paging");
+    const cursors: Array<string | null> = [];
+    mockServer.use(http.get(`/api/v1/admin/jobs/${path}`, ({ request }) => {
+      const cursor = new URL(request.url).searchParams.get("cursor");
+      cursors.push(cursor);
+      return HttpResponse.json({ items: [], nextCursor: cursor ? null : "next-page" });
+    }));
+    try {
+      const host = await renderView(<View />);
+      const next = host.querySelector<HTMLButtonElement>('button[aria-label="Next page"]');
+      expect(next).not.toBeNull();
+      await act(async () => { next!.click(); await new Promise(resolve => setTimeout(resolve, 100)); });
+      expect(cursors).toEqual([null, "next-page"]);
+    } finally { process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true"; }
   });
 });

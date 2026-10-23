@@ -134,12 +134,12 @@ function AuditTable({ events }: { events: AuditEventSummary[] }) {
           <thead><tr><th>{c.auditId}</th><th>{c.event}</th><th>{c.actor}</th><th>{c.target}</th><th>{c.result}</th><th>{c.severity}</th><th>{c.timestamp}</th></tr></thead>
           <tbody>{events.map((event) => (
             <tr key={event.id}>
-              <td><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><small><Id value={event.correlationId} /></small></td>
+              <td><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><small><Id value={event.correlationId ?? "Unavailable"} /></small></td>
               <td><strong className="audit-event-key"><Id value={event.action} /></strong><small>{getActionLabel(locale, event.action)} · {event.resource}</small></td>
-              <td>{event.actor.label}</td>
-              <td>{event.target.label}</td>
-              <td><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></td>
-              <td><Badge value={getSeverityLabel(locale, event.severity)} tone={severityTone(event.severity)} /></td>
+              <td>{(event.actor?.label ?? "Unavailable")}</td>
+              <td>{(event.target?.label ?? "Unavailable")}</td>
+              <td><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></td>
+              <td><Badge value={getSeverityLabel(locale, event.severity ?? "unknown")} tone={severityTone(event.severity ?? "unknown")} /></td>
               <td className="audit-time-cell"><Id value={event.occurredAt} /></td>
             </tr>
           ))}</tbody>
@@ -147,10 +147,10 @@ function AuditTable({ events }: { events: AuditEventSummary[] }) {
       </div>
       <div className="mobile-cards ops-mobile-cards">{events.map((event) => (
         <article className="mobile-data-card" key={event.id}>
-          <div className="mobile-data-head"><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></div>
+          <div className="mobile-data-head"><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></div>
           <strong className="audit-event-key"><Id value={event.action} /></strong>
-          <p>{event.actor.label} · {event.resource} · {event.target.label}</p>
-          <div className="mobile-data-meta"><div><small>{c.severity}</small><Badge value={getSeverityLabel(locale, event.severity)} tone={severityTone(event.severity)} /></div><div><small>{c.time}</small><Id value={event.occurredAt} /></div></div>
+          <p>{(event.actor?.label ?? "Unavailable")} · {event.resource} · {(event.target?.label ?? "Unavailable")}</p>
+          <div className="mobile-data-meta"><div><small>{c.severity}</small><Badge value={getSeverityLabel(locale, event.severity ?? "unknown")} tone={severityTone(event.severity ?? "unknown")} /></div><div><small>{c.time}</small><Id value={event.occurredAt} /></div></div>
         </article>
       ))}</div>
     </>
@@ -170,10 +170,10 @@ export function AuditEventDetailRoute({ eventId }: { eventId: string }) {
       <section className="table-card audit-detail-card" aria-labelledby="audit-evidence-title">
         <div className="card-heading ops-card-heading"><div><h2 id="audit-evidence-title">{c.evidence}</h2><p><Id value={data.id} /> · {c.immutableRecord}</p></div></div>
         <div className="audit-detail-grid">
-          <DetailCard label={c.result}><Badge value={getStatusLabel(locale, data.result)} tone={resultTone(data.result)} /></DetailCard>
+          <DetailCard label={c.result}><Badge value={getStatusLabel(locale, data.result ?? "unknown")} tone={resultTone(data.result ?? "unknown")} /></DetailCard>
           <DetailCard label={c.action} className="audit-detail-wide"><span className="audit-event-key"><Id value={data.action} /></span></DetailCard>
-          <DetailCard label={c.region}>{data.region}</DetailCard>
-          <DetailCard label={c.correlation}><Id value={data.correlationId} /></DetailCard>
+          <DetailCard label={c.region}>{data.region ?? "Unavailable"}</DetailCard>
+          <DetailCard label={c.correlation}><Id value={data.correlationId ?? "Unavailable"} /></DetailCard>
         </div>
       </section>
       <section className="table-card audit-detail-card" aria-labelledby="audit-metadata-title">

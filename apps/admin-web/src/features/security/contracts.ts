@@ -22,7 +22,7 @@ export const riskLevelSchema = z.enum(["informational", "low", "medium", "high",
 export const resultSchema = z.enum(["success", "failure", "blocked"]);
 export const securityStateSchema = z.enum(["New", "Investigating", "Escalated", "Resolved", "Dismissed"]);
 export const incidentStateSchema = z.enum(["Open", "Contained", "Monitoring", "Resolved", "Closed"]);
-export const supportAccessStateSchema = z.enum(["active", "expired", "revoked"]);
+export const supportAccessStateSchema = z.enum(["active", "pending", "approved", "denied", "expired", "revoked"]);
 export const exportStateSchema = z.enum(["Requested", "Validating", "Processing", "Ready", "Expired", "Failed", "Cancelled"]);
 export const deletionStateSchema = z.enum(["Requested", "Review Required", "Scheduled", "In Progress", "Blocked", "Completed", "Cancelled"]);
 export const retentionStateSchema = z.enum(["active", "suspended", "review_required"]);
@@ -55,8 +55,8 @@ export const overviewQuerySchema = z.object({
 }).strict();
 
 export const safeReferenceSchema = z.object({
-  id: securityIdSchema,
-  kind: z.enum(["customer", "admin", "device", "session", "ticket", "incident", "request", "subscription", "service"]),
+  id: z.string().min(1).max(128),
+  kind: z.enum(["customer", "admin", "device", "session", "ticket", "incident", "request", "subscription", "service", "system", "actor", "resource"]),
   label: boundedText(120, 512),
   status: boundedText(80, 256).optional(),
 }).strict();
@@ -69,7 +69,7 @@ export const safeMetadataEntrySchema = z.object({
 }).strict();
 
 export const auditReferenceSchema = z.object({
-  eventId: securityIdSchema.refine((id) => id.startsWith("AUD-")),
+  eventId: securityIdSchema.refine((id) => (id.startsWith("AUD-") || z.uuid().safeParse(id).success)),
   eventName: boundedText(120, 512),
   timestamp: z.iso.datetime({ offset: true }),
 }).strict();
@@ -119,17 +119,17 @@ export const timelineEntrySchema = z.object({
 }).strict();
 
 export const authenticationEventSchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("AUTH-")),
-  actor: safeReferenceSchema,
-  actorType: z.enum(["customer", "admin", "system"]),
+  id: securityIdSchema.refine((id) => (id.startsWith("AUTH-") || z.uuid().safeParse(id).success)),
+  actor: safeReferenceSchema.nullable(),
+  actorType: z.enum(["customer", "admin", "system"]).nullable(),
   eventType: boundedText(120, 512),
-  deviceLabel: boundedText(120, 512),
-  broadRegion: boundedText(80, 256),
+  deviceLabel: boundedText(120, 512).nullable(),
+  broadRegion: boundedText(80, 256).nullable(),
   platform: platformScopeSchema,
   risk: riskLevelSchema,
-  result: resultSchema,
+  result: resultSchema.nullable(),
   occurredAt: z.iso.datetime({ offset: true }),
-  correlationId: securityIdSchema.refine((id) => id.startsWith("COR-")),
+  correlationId: z.string().min(1).max(128).nullable(),
 }).strict();
 
 export const suspiciousActivitySchema = z.object({
@@ -155,17 +155,17 @@ export const suspiciousActionSchema = z.object({
 }).strict();
 
 export const adminSecuritySchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("ASA-")),
+  id: z.string().min(1).max(128),
   admin: safeReferenceSchema,
   roleSummary: boundedText(120, 512),
-  twoFactorState: z.enum(["enabled", "disabled", "recovery_required"]),
-  lastLoginAt: z.iso.datetime({ offset: true }),
-  activeSessionCount: z.number().int().nonnegative(),
-  risk: riskLevelSchema,
+  twoFactorState: z.enum(["enabled", "disabled", "recovery_required", "unknown"]),
+  lastLoginAt: z.iso.datetime({ offset: true }).nullable(),
+  activeSessionCount: z.number().int().nonnegative().nullable(),
+  risk: riskLevelSchema.nullable(),
 }).strict();
 
 export const permissionChangeSchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("PCH-")),
+  id: securityIdSchema.refine((id) => (id.startsWith("PCH-") || z.uuid().safeParse(id).success)),
   subject: safeReferenceSchema,
   previousValue: boundedText(160, 512),
   newValue: boundedText(160, 512),
@@ -177,13 +177,13 @@ export const permissionChangeSchema = z.object({
 }).strict();
 
 export const supportAccessGrantSchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("SAC-")),
+  id: securityIdSchema.refine((id) => (id.startsWith("SAC-") || z.uuid().safeParse(id).success)),
   agent: safeReferenceSchema,
   customer: safeReferenceSchema,
   ticket: safeReferenceSchema,
   scopes: z.array(boundedText(80, 256)).min(1).max(8),
-  startedAt: z.iso.datetime({ offset: true }),
-  expiresAt: z.iso.datetime({ offset: true }),
+  startedAt: z.iso.datetime({ offset: true }).nullable(),
+  expiresAt: z.iso.datetime({ offset: true }).nullable(),
   state: supportAccessStateSchema,
   revision: z.number().int().positive(),
   timeline: z.array(timelineEntrySchema).max(20),
@@ -239,19 +239,19 @@ export const operationsIncidentMutationResultSchema = z.object({
 }).strict();
 
 export const auditEventSummarySchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("AUD-")),
+  id: securityIdSchema.refine((id) => (id.startsWith("AUD-") || z.uuid().safeParse(id).success)),
   occurredAt: z.iso.datetime({ offset: true }),
-  actor: safeReferenceSchema,
+  actor: safeReferenceSchema.nullable(),
   action: boundedText(120, 512),
   resource: boundedText(80, 256),
-  target: safeReferenceSchema,
-  result: resultSchema,
-  severity: riskLevelSchema,
-  correlationId: securityIdSchema.refine((id) => id.startsWith("COR-")),
+  target: safeReferenceSchema.nullable(),
+  result: resultSchema.nullable(),
+  severity: riskLevelSchema.nullable(),
+  correlationId: z.string().min(1).max(128).nullable(),
 }).strict();
 
 export const auditEventDetailSchema = auditEventSummarySchema.extend({
-  region: boundedText(80, 256),
+  region: boundedText(80, 256).nullable(),
   metadata: z.array(safeMetadataEntrySchema).max(40),
   before: z.array(safeMetadataEntrySchema).max(20),
   after: z.array(safeMetadataEntrySchema).max(20),
@@ -267,12 +267,12 @@ export const exportFileMetadataSchema = z.object({
 }).strict();
 
 export const exportRequestDetailSchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("EXP-")),
-  customer: safeReferenceSchema,
-  scopes: z.array(exportScopeSchema).min(1).max(8),
+  id: securityIdSchema.refine((id) => (id.startsWith("EXP-") || z.uuid().safeParse(id).success)),
+  customer: safeReferenceSchema.nullable(),
+  scopes: z.array(boundedText(120, 512)).min(1).max(32),
   state: exportStateSchema,
   requestedAt: z.iso.datetime({ offset: true }),
-  expiresAt: z.iso.datetime({ offset: true }).optional(),
+  expiresAt: z.iso.datetime({ offset: true }).nullable().optional(),
   file: exportFileMetadataSchema.optional(),
   safeError: boundedText(160, 512).optional(),
   timeline: z.array(timelineEntrySchema).max(20),
@@ -291,7 +291,7 @@ export const exportDownloadRequestSchema = z.object({
 }).strict();
 
 export const exportDownloadResultSchema = z.object({
-  requestId: securityIdSchema.refine((id) => id.startsWith("EXP-")),
+  requestId: securityIdSchema.refine((id) => (id.startsWith("EXP-") || z.uuid().safeParse(id).success)),
   allowed: z.boolean(),
   expiresAt: z.iso.datetime({ offset: true }),
   message: boundedText(240, 512),
@@ -355,22 +355,22 @@ export const deletionActionSchema = z.object({
 }).strict();
 
 export const retentionPolicyDetailSchema = z.object({
-  id: securityIdSchema.refine((id) => id.startsWith("RET-")),
+  id: securityIdSchema.refine((id) => (id.startsWith("RET-") || z.uuid().safeParse(id).success)),
   dataCategory: boundedText(120, 512),
-  storageCategory: boundedText(120, 512),
-  retentionDays: z.number().int().positive(),
-  minimumDays: z.number().int().positive(),
-  maximumDays: z.number().int().positive(),
-  cleanupProcess: boundedText(120, 512),
+  storageCategory: boundedText(120, 512).nullable(),
+  retentionDays: z.number().int().nonnegative(),
+  minimumDays: z.number().int().nonnegative().nullable(),
+  maximumDays: z.number().int().nonnegative().nullable(),
+  cleanupProcess: boundedText(120, 512).nullable(),
   lastCleanupAt: z.iso.datetime({ offset: true }).optional(),
   state: retentionStateSchema,
-  effectiveCleanupState: z.enum(["active", "suspended"]),
-  legalHold: z.boolean(),
-  protectedAuditPolicy: z.boolean(),
+  effectiveCleanupState: z.enum(["active", "suspended"]).nullable(),
+  legalHold: z.boolean().nullable(),
+  protectedAuditPolicy: z.boolean().nullable(),
   revision: z.number().int().positive(),
   changeHistory: z.array(timelineEntrySchema).max(20),
   allowedActions: z.array(z.enum(["update"])).max(1),
-}).strict().refine((policy) => policy.minimumDays <= policy.retentionDays && policy.retentionDays <= policy.maximumDays);
+}).strict().refine((policy) => (policy.minimumDays === null || policy.minimumDays <= policy.retentionDays) && (policy.maximumDays === null || policy.retentionDays <= policy.maximumDays));
 
 export const retentionUpdateSchema = z.object({
   retentionDays: z.number().int().positive(),

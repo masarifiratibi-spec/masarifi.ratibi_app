@@ -67,8 +67,8 @@ const PAGE_FILTERS: Readonly<Record<string, readonly string[]>> = Object.freeze(
   'job-runs': ['jobKey', 'status'],
   incidents: ['status', 'severity'],
   settings: [],
-  flags: [],
-  maintenance: [],
+  flags: ['key', 'search', 'status'],
+  maintenance: ['current'],
 });
 
 export function parseOperationsReadQuery(kind: string, value: unknown): Record<string, unknown> {
@@ -122,7 +122,9 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
     throw new Error(INVALID);
   if (input.status !== undefined) {
     const statuses =
-      kind === 'providers'
+      kind === 'flags'
+        ? ['draft', 'active', 'retired']
+        : kind === 'providers'
         ? ['up', 'degraded', 'down', 'unknown']
         : kind === 'job-runs'
           ? ['queued', 'running', 'succeeded', 'failed', 'retrying', 'dead_lettered', 'canceled']
@@ -143,6 +145,12 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
     if (!['true', 'false', true, false].includes(input.enabled as never)) throw new Error(INVALID);
     output.enabled = input.enabled === true || input.enabled === 'true';
   }
+  if (input.current !== undefined) {
+    if (!['true', 'false', true, false].includes(input.current as never)) throw new Error(INVALID);
+    output.current = input.current === true || input.current === 'true';
+  }
+  if (input.key !== undefined) output.key = text(input.key, 3, 80);
+  if (input.search !== undefined) output.search = text(input.search, 1, 100);
   if (input.jobKey !== undefined) output.jobKey = text(input.jobKey, 3, 128);
   for (const key of ['provider', 'status', 'severity'] as const)
     if (input[key] !== undefined) output[key] = scalarText(input[key]);

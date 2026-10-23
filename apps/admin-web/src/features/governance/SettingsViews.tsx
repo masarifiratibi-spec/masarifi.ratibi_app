@@ -314,7 +314,6 @@ function FeatureFlagCard({ flag }: { flag: FeatureFlag }) {
       <p>{flag.platform} · {flag.audience} · {flag.status}</p>
       <p>{c.rollout} <span className="numbers">{flag.rolloutPercent}%</span> · {c.version} <span className="numbers">{flag.version}</span></p>
       <button className="button" disabled={flag.status === "ended" || update.isPending} onClick={() => update.mutate({
-        audience: "all_customers",
         rolloutPercent: flag.rolloutPercent === 100 ? 0 : 100,
         expectedVersion: flag.version,
         reason: "Update fixed audience rollout after governance review.",

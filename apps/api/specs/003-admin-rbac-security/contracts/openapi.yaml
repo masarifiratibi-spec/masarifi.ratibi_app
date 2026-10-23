@@ -756,6 +756,7 @@ paths:
       x-permission: privacy.exports.read
       x-recent-auth: true
       parameters:
+        - { name: id, in: query, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
         - { name: status, in: query, schema: { $ref: '#/components/schemas/ExportStatus' } }
@@ -792,6 +793,7 @@ paths:
       x-permission: privacy.deletions.read
       x-recent-auth: true
       parameters:
+        - { name: id, in: query, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
         - { name: status, in: query, schema: { $ref: '#/components/schemas/DeletionStatus' } }
@@ -830,6 +832,7 @@ paths:
       x-permission: retention.read
       x-recent-auth: true
       parameters:
+        - { name: id, in: query, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
         - { name: resource, in: query, schema: { type: string, minLength: 1, maxLength: 80 } }
