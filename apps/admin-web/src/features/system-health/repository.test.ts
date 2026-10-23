@@ -195,4 +195,15 @@ describe("BE013 exact live operations mapping", () => {
     expect(calls).toBe(2);
     expect(page.items[0]).toMatchObject({ id: "database", lastSuccessAt: null });
   });
+  test("marks stale provider observations unknown and serializes operational filters as up", async () => {
+    let status: string | null = null;
+    mockServer.use(http.get("/api/v1/admin/system-health/providers", ({ request }) => {
+      status = new URL(request.url).searchParams.get("status");
+      return HttpResponse.json({ items: [{ provider: "database", status: "up", latencyMs: 7, checkedAt: "2020-01-01T00:00:00Z" }], nextCursor: null });
+    }));
+    const page = await systemHealthRepository.listProviderHealth({ category: "all", status: "operational", platform: "all", page: 1 });
+    expect(status).toBe("up");
+    expect(page.items[0]).toMatchObject({ status: "unknown", freshness: { state: "stale" } });
+    expect(page.partial).toBe(true);
+  });
 });

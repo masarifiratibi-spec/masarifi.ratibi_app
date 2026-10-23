@@ -10,7 +10,10 @@ import { permissionManifestHash } from './permission-manifest';
 import { buildSecurityEventPayload, type SecurityEventType } from './security.events';
 import type { SecurityOperation } from './security.service';
 
-type Operation = SecurityOperation & { body: Record<string, unknown>; prepareProviderBody?: () => Record<string, unknown> };
+type Operation = SecurityOperation & {
+  body: Record<string, unknown>;
+  prepareProviderBody?: () => Record<string, unknown>;
+};
 
 export interface ProviderMutation {
   outcome: 'new' | 'completed';
@@ -187,45 +190,93 @@ export class SecurityRepository {
     });
   }
 
-  async executeProviderMutation(input: Operation, prepareBody: () => Record<string, unknown>): Promise<ProviderMutation> {
-    return this.execute({ ...input, prepareProviderBody: prepareBody }) as Promise<ProviderMutation>;
+  async executeProviderMutation(
+    input: Operation,
+    prepareBody: () => Record<string, unknown>,
+  ): Promise<ProviderMutation> {
+    return this.execute({
+      ...input,
+      prepareProviderBody: prepareBody,
+    }) as Promise<ProviderMutation>;
   }
 
-  async finishProviderMutation(input: SecurityOperation, status: 'completed' | 'failed', value: unknown): Promise<void> {
+  async finishProviderMutation(
+    input: SecurityOperation,
+    status: 'completed' | 'failed',
+    value: unknown,
+  ): Promise<void> {
     await this.withPrincipalTransaction(input.principal, async (client) => {
       await client.query('select private.finish_security_provider_outcome($1,$2,$3,$4,$5::jsonb)', [
-        input.principal.userId, `security.${input.operation.toLowerCase()}`,
-        hashIdempotencyKey(input.idempotencyKey!), status, JSON.stringify(value),
+        input.principal.userId,
+        `security.${input.operation.toLowerCase()}`,
+        hashIdempotencyKey(requiredText(input.idempotencyKey)),
+        status,
+        JSON.stringify(value),
       ]);
     });
   }
 
   private async executeIdempotently(client: PoolClient, input: Operation): Promise<unknown> {
     const scope = `security.${input.operation.toLowerCase()}`;
-    const keyHash = hashIdempotencyKey(input.idempotencyKey!);
-    const requestHash = input.commandHash ?? hashNormalizedCommand({ operation: input.operation, body: input.body, params: input.params });
-    const claim = (await client.query<{ outcome: string; response_body: { value: unknown }; lease_token: string }>(
-      'select * from private.claim_security_idempotency($1,$2,$3,$4,$5::interval)',
-      [input.principal.userId, scope, keyHash, requestHash, '2 minutes'],
-    )).rows[0];
+    const keyHash = hashIdempotencyKey(requiredText(input.idempotencyKey));
+    const requestHash =
+      input.commandHash ??
+      hashNormalizedCommand({ operation: input.operation, body: input.body, params: input.params });
+    const claim = (
+      await client.query<{
+        outcome: string;
+        response_body: { value: unknown };
+        lease_token: string;
+      }>('select * from private.claim_security_idempotency($1,$2,$3,$4,$5::interval)', [
+        input.principal.userId,
+        scope,
+        keyHash,
+        requestHash,
+        '2 minutes',
+      ])
+    ).rows[0];
     if (!claim) throw new Error('SECURITY_REPLAY_UNAVAILABLE');
-    if (claim.outcome === 'hash_mismatch') throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), { code: 'IDEMPOTENCY_KEY_REUSED' });
-    if (claim.outcome === 'in_progress') throw Object.assign(new Error('IDEMPOTENCY_IN_PROGRESS'), { code: 'IDEMPOTENCY_IN_PROGRESS' });
+    if (claim.outcome === 'hash_mismatch')
+      throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), { code: 'IDEMPOTENCY_KEY_REUSED' });
+    if (claim.outcome === 'in_progress')
+      throw Object.assign(new Error('IDEMPOTENCY_IN_PROGRESS'), {
+        code: 'IDEMPOTENCY_IN_PROGRESS',
+      });
     if (claim.outcome === 'replay') {
       if (!input.prepareProviderBody) return claim.response_body.value;
-      const receipt = (await client.query<{ status: string; result: unknown }>(
-        'select * from private.read_security_provider_outcome($1,$2,$3)',
-        [input.principal.userId, scope, keyHash],
-      )).rows[0];
-      if (receipt?.status !== 'completed') throw Object.assign(new Error('PROVIDER_UNAVAILABLE'), { code: 'PROVIDER_UNAVAILABLE' });
+      const receipt = (
+        await client.query<{ status: string; result: unknown }>(
+          'select * from private.read_security_provider_outcome($1,$2,$3)',
+          [input.principal.userId, scope, keyHash],
+        )
+      ).rows[0];
+      if (receipt?.status !== 'completed')
+        throw Object.assign(new Error('PROVIDER_UNAVAILABLE'), { code: 'PROVIDER_UNAVAILABLE' });
       return { outcome: 'completed', value: receipt.result };
     }
-    const value = await this.executeInTransaction(client, input.prepareProviderBody
-      ? { ...input, body: input.prepareProviderBody() } : input);
-    await client.query('select private.complete_security_idempotency($1,$2,$3,$4,$5,$6,$7::jsonb,$8)',
-      [input.principal.userId, scope, keyHash, requestHash, claim.lease_token, 200, JSON.stringify({ value: value ?? null }), null]);
+    const value = await this.executeInTransaction(
+      client,
+      input.prepareProviderBody ? { ...input, body: input.prepareProviderBody() } : input,
+    );
+    await client.query(
+      'select private.complete_security_idempotency($1,$2,$3,$4,$5,$6,$7::jsonb,$8)',
+      [
+        input.principal.userId,
+        scope,
+        keyHash,
+        requestHash,
+        claim.lease_token,
+        200,
+        JSON.stringify({ value: value ?? null }),
+        null,
+      ],
+    );
     if (!input.prepareProviderBody) return value;
-    await client.query('select private.start_security_provider_outcome($1,$2,$3)', [input.principal.userId, scope, keyHash]);
+    await client.query('select private.start_security_provider_outcome($1,$2,$3)', [
+      input.principal.userId,
+      scope,
+      keyHash,
+    ]);
     return { outcome: 'new', value };
   }
 
@@ -491,7 +542,7 @@ export class SecurityRepository {
         return this.list(
           client,
           `select id,actor_id as actor,actor_type as "actorType",action,resource_type as "resourceType",resource_id as "resourceId",
-        request_id as "requestId",occurred_at as "occurredAt",metadata as "safeMetadata" from audit.audit_events
+        request_id as "requestId",occurred_at as "occurredAt",coalesce(metadata->>'result','success') as result,metadata as "safeMetadata" from audit.audit_events
         where ($1::text is null or actor_id=$1) and ($2::text is null or action=$2) and ($3::text is null or resource_type=$3)
           and ($4::text is null or coalesce(metadata->>'result','success')=$4) and ($5::text is null or coalesce(metadata->>'severity','info')=$5)
           and ($6::timestamptz is null or occurred_at>=$6) and ($7::timestamptz is null or occurred_at<$7)
@@ -512,7 +563,7 @@ export class SecurityRepository {
         return this.one(
           client,
           `select id,actor_id as actor,actor_type as "actorType",action,resource_type as "resourceType",resource_id as "resourceId",
-        request_id as "requestId",occurred_at as "occurredAt",metadata as "safeMetadata" from audit.audit_events where id=$1`,
+        request_id as "requestId",occurred_at as "occurredAt",coalesce(metadata->>'result','success') as result,metadata as "safeMetadata" from audit.audit_events where id=$1`,
           [requiredText(input.params.eventId)],
         );
       case 'listSecurityIncidents':
@@ -636,7 +687,11 @@ export class SecurityRepository {
         from private.retention_policies where ($1::text is null or resource_type=$1) and ($2::boolean is null or enabled=$2) and ($3::uuid is null or id=$3) order by resource_type`,
           limit,
           offset,
-          [optionalText(input.query.resource, 64), optionalEnabledStatus(input.query.status), optionalText(input.query.id, 36)],
+          [
+            optionalText(input.query.resource, 64),
+            optionalEnabledStatus(input.query.status),
+            optionalText(input.query.id, 36),
+          ],
         );
       default:
         return this.mutate(client, input);
@@ -884,11 +939,15 @@ export class SecurityRepository {
         resourceId = requiredText(params.requestId);
         await this.one(
           client,
-          `update private.support_access_requests set status='revoked',decided_at=coalesce(decided_at,clock_timestamp()) where id=$1 and status='approved' and version=$2 returning id`,
+          `select id from private.support_access_requests where id=$1 and status='approved' and version=$2 for update`,
           [resourceId, requiredInteger(body.expectedVersion)],
         );
         await client.query(
           'update private.support_access_grants set revoked_at=clock_timestamp() where request_id=$1 and revoked_at is null',
+          [resourceId],
+        );
+        await client.query(
+          "update private.support_access_requests set status='revoked',decided_at=coalesce(decided_at,clock_timestamp()) where id=$1",
           [resourceId],
         );
         result = await this.supportRequest(client, resourceId);

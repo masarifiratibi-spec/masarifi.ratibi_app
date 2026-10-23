@@ -60,7 +60,7 @@ describe("Phase 13 live operations mapping", () => {
     expect(overview.services).toHaveLength(1);
     expect(overview.services.find(({ category }) => category === "database")).toMatchObject({ status: "operational", latency: { value: 8 } });
     expect(overview.services.find(({ category }) => category === "cache")).toBeUndefined();
-    await expect(systemHealthRepository.getApiMonitoring({ range: "24h", platform: "all" })).resolves.toMatchObject({ latency: { value: 20 } });
+    await expect(systemHealthRepository.getApiMonitoring({ range: "24h", platform: "all" })).resolves.toMatchObject({ latency: { value: null, completeness: "unavailable" }, series: [], freshness: { state: "unknown" } });
     await expect(systemHealthRepository.getDatabaseMonitoring({ range: "24h", platform: "all" })).resolves.toMatchObject({ backupState: "healthy" });
     await expect(systemHealthRepository.getStorageMonitoring({ range: "24h", platform: "all" })).resolves.toMatchObject({ cleanupState: "unavailable" });
     await expect(systemHealthRepository.listProviderHealth({ category: "database", status: "all", platform: "all" })).resolves.toMatchObject({ items: [{ category: "database", safeError: null }] });
@@ -70,19 +70,23 @@ describe("Phase 13 live operations mapping", () => {
   test("maps job lists, detail, safe actions, and UUID schedules", async () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
     const run = { id: runId, jobKey: "operations.provider-health", ownerSpec: 13, status: "failed", queuedAt: observedAt, startedAt: observedAt, completedAt: staleAt, correlationId: "phase13-test", summary: { safeCode: "PROVIDER_UNKNOWN" }, version: 2 };
-    const secondRun = { ...run, id: "13000000-0000-4000-8000-000000000004", correlationId: "phase13-page-2" };
+    const firstPageRuns = Array.from({ length: 25 }, (_, index) => ({ ...run, id: `13000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}` }));
+    const secondRun = { ...run, id: "13000000-0000-4000-8000-000000000026", correlationId: "phase13-page-2" };
     mockServer.use(
       http.get("/api/v1/admin/jobs/runs", ({ request }) => {
         const cursor = new URL(request.url).searchParams.get("cursor");
-        return HttpResponse.json(cursor ? { items: [secondRun], nextCursor: null } : { items: [run], nextCursor: runId });
+        return HttpResponse.json(cursor ? { items: [secondRun], nextCursor: null } : { items: firstPageRuns, nextCursor: firstPageRuns[24].id });
       }),
       http.get(`/api/v1/admin/jobs/runs/${runId}`, () => HttpResponse.json({ run, attempts: [{ attempt: 1, status: "failed", workerId: "worker-1", startedAt: observedAt, completedAt: staleAt, safeCode: "PROVIDER_UNKNOWN" }], allowedActions: ["retry"] })),
       http.post(`/api/v1/admin/jobs/runs/${runId}/retry`, () => HttpResponse.json({ status: "queued", runId, version: 3, retryOfRunId: runId })),
       http.get("/api/v1/admin/jobs/scheduled", () => HttpResponse.json({ items: [{ id: scheduleId, key: "operations.provider-health", ownerSpec: 13, type: "provider_health", schedule: { kind: "interval", everySeconds: 300, timezone: "UTC" }, enabled: true, timeoutSeconds: 60, maxAttempts: 3, retrySafe: true, cancelSafe: true, nextRunAt: staleAt, version: 1 }], nextCursor: null })),
     );
 
-    await expect(systemHealthRepository.listJobRuns({ queue: "all", state: "failed" })).resolves.toMatchObject({ total: 2 });
-    await expect(systemHealthRepository.listJobRuns({ queue: "all", state: "failed", page: 2 })).resolves.toMatchObject({ items: [], total: 2 });
+    const firstPage = await systemHealthRepository.listJobRuns({ queue: "all", state: "failed" });
+    expect(firstPage.items).toHaveLength(25);
+    expect(firstPage.items[0].id).toBe(runId);
+    expect(firstPage.total).toBe(26);
+    await expect(systemHealthRepository.listJobRuns({ queue: "all", state: "failed", page: 2 })).resolves.toMatchObject({ items: [{ id: secondRun.id }], total: 26 });
     await expect(systemHealthRepository.getJobRun(runId)).resolves.toMatchObject({ run: { safeErrorCode: "PROVIDER_UNKNOWN" }, allowedActions: ["retry"] });
     await expect(systemHealthRepository.retryJobRun(runId, { jobRunId: runId, expectedVersion: 2, reason: "Retry after operator review", submissionKey: "SUB-DEMO-RETRY" })).resolves.toMatchObject({ status: "queued", version: 3 });
     await expect(systemHealthRepository.listScheduledJobs({ queue: "all" })).resolves.toMatchObject({ items: [{ id: scheduleId, queue: "operations" }] });

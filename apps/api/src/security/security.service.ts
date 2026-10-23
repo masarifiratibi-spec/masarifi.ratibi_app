@@ -187,7 +187,10 @@ function projectRecord(operation: string, value: unknown): Record<string, unknow
   if (['listRoles', 'getRole', 'createRole', 'updateRole'].includes(operation)) {
     result.assignmentCount ??= 0;
   }
-  if (operation.includes('SupportAccessRequest')) {
+  if (
+    operation.includes('SupportAccessRequest') ||
+    ['revokeSupportAccess', 'endSupportAccess'].includes(operation)
+  ) {
     if ('userId' in result) {
       result.user = safeReference(result.userId, 'customer');
       delete result.userId;
@@ -233,7 +236,11 @@ export class SecurityService {
 
   async execute(input: SecurityOperation): Promise<unknown> {
     const body = { ...inputObject(input.body) };
-    const commandHash = hashNormalizedCommand({ operation: input.operation, body, params: input.params });
+    const commandHash = hashNormalizedCommand({
+      operation: input.operation,
+      body,
+      params: input.params,
+    });
     assertSafeTextFields(body);
     const category = rateCategory(input.operation);
     const rate = rateLimits[category];
@@ -400,7 +407,9 @@ export class SecurityService {
       delete body.token;
     }
     try {
-      if (['createAdminInvitation', 'revokeAdminSessions', 'disableAdmin'].includes(input.operation)) {
+      if (
+        ['createAdminInvitation', 'revokeAdminSessions', 'disableAdmin'].includes(input.operation)
+      ) {
         return await this.executeProviderMutation({ ...input, body, commandHash });
       }
       const result = projectResult(
@@ -493,31 +502,47 @@ export class SecurityService {
     }
   }
 
-  private async executeProviderMutation(input: SecurityOperation & { body: Record<string, unknown> }): Promise<unknown> {
-    let deliveryToken: string | undefined;
+  private async executeProviderMutation(
+    input: SecurityOperation & { body: Record<string, unknown> },
+  ): Promise<unknown> {
+    let deliveryToken = '';
     const mutation = await this.repository.executeProviderMutation(input, () => {
       if (input.operation !== 'createAdminInvitation') return input.body;
       deliveryToken = randomBytes(32).toString('base64url');
-      return { ...input.body, tokenHash: `h1:${createHash('sha256').update(deliveryToken).digest('hex')}` };
+      return {
+        ...input.body,
+        tokenHash: `h1:${createHash('sha256').update(deliveryToken).digest('hex')}`,
+      };
     });
     if (mutation.outcome === 'completed') return mutation.value;
     let result = projectResult(input.operation, mutation.value);
     try {
       if (input.operation === 'createAdminInvitation') {
-        await this.clerk.deliverAdminInvitation(input.body.email as string, deliveryToken!);
+        await this.clerk.deliverAdminInvitation(input.body.email as string, deliveryToken);
       } else {
-        const sessionIds = input.operation === 'revokeAdminSessions' && !input.body.revokeAllEligible
-          ? input.body.sessionIds as string[] : undefined;
-        const sessionReferences = await this.clerk.revokeUserSessions(input.params.userId!, sessionIds);
-        if (input.operation === 'revokeAdminSessions') result = { sessionReferences, version: record(result).version };
+        const sessionIds =
+          input.operation === 'revokeAdminSessions' && !input.body.revokeAllEligible
+            ? (input.body.sessionIds as string[])
+            : undefined;
+        const sessionReferences = await this.clerk.revokeUserSessions(
+          input.params.userId as string,
+          sessionIds,
+        );
+        if (input.operation === 'revokeAdminSessions')
+          result = { sessionReferences, version: record(result).version };
       }
     } catch (error) {
       // An ambiguous external effect is terminal for this key; retries must not affect later sessions.
       await this.repository.finishProviderMutation(input, 'failed', null);
       if (input.operation === 'createAdminInvitation') {
-        await this.repository.revokeUndeliveredInvitation(input.principal, record(result).id as string, input.requestId);
+        await this.repository.revokeUndeliveredInvitation(
+          input.principal,
+          record(result).id as string,
+          input.requestId,
+        );
       }
-      if (error instanceof ClerkSessionIneligibleError) throw new HttpException({ code: 'INELIGIBLE_SESSION' }, 409);
+      if (error instanceof ClerkSessionIneligibleError)
+        throw new HttpException({ code: 'INELIGIBLE_SESSION' }, 409);
       throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
     }
     await this.repository.finishProviderMutation(input, 'completed', result);

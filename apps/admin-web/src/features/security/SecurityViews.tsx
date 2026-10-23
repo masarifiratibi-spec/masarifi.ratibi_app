@@ -419,7 +419,7 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
         title={copy.confirmSupport}
         scope={grant.id}
         consequence={copy.supportConsequence}
-        permission="security.support_access.revoke"
+        permission="support.access.revoke"
         auditEvent="security.support_access.revoked"
         pending={mutation.isPending}
         outcomes={{ success: "revoked", failure: "failed", conflict: "conflict" }}

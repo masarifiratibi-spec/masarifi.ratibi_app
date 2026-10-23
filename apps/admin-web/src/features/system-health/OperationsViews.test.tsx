@@ -128,7 +128,12 @@ describe("live job pagination", () => {
     mockServer.use(http.get(`/api/v1/admin/jobs/${path}`, ({ request }) => {
       const cursor = new URL(request.url).searchParams.get("cursor");
       cursors.push(cursor);
-      return HttpResponse.json({ items: [], nextCursor: cursor ? null : "next-page" });
+      const items = Array.from({ length: cursor ? 1 : 25 }, (_, index) => {
+        const id = `13000000-0000-4000-8000-${String(index + (cursor ? 26 : 1)).padStart(12, "0")}`;
+        return path === "runs" ? { id, jobKey: `operations.job-${index}`, ownerSpec: 13, status: "queued", queuedAt: "2026-10-23T10:00:00Z", startedAt: null, completedAt: null, correlationId: id, summary: {}, version: 1 }
+          : { id, key: `operations.job-${index}`, ownerSpec: 13, type: "operation", schedule: null, enabled: true, timeoutSeconds: 30, maxAttempts: 3, retrySafe: true, cancelSafe: true, nextRunAt: null, version: 1 };
+      });
+      return HttpResponse.json({ items, nextCursor: cursor ? null : "next-page" });
     }));
     try {
       const host = await renderView(<View />);

@@ -198,12 +198,9 @@ export const securityRepository = {
     if (mocksEnabled())
       return apiClient.get(`${SECURITY_BASE_PATH}/security/incidents/${encodeSecurityId(id, "INC-")}`, incidentDetailSchema);
     const incidentId = encodeUuid(id);
-    let cursor: string | null = null;
-    for (let page = 0; page < 100; page += 1) {
-      const params = new URLSearchParams({ limit: "100" });
-      if (cursor) params.set("cursor", cursor);
-      const response = await apiClient.get(`${SECURITY_BASE_PATH}/incidents?${params.toString()}`, operationsIncidentPageSchema);
-      const incident = response.items.find((item) => item.id === decodeURIComponent(incidentId));
+    const params = new URLSearchParams({ limit: "1", id: decodeURIComponent(incidentId) });
+    const response = await apiClient.get(`${SECURITY_BASE_PATH}/incidents?${params.toString()}`, operationsIncidentPageSchema);
+    const incident = response.items.find((item) => item.id === decodeURIComponent(incidentId));
       if (incident)
         return incidentDetailSchema.parse({
           id: incident.id,
@@ -229,9 +226,6 @@ export const securityRepository = {
                 : ["resolve"],
           auditReferences: [],
         });
-      cursor = response.nextCursor;
-      if (!cursor) break;
-    }
     throw new ApiError("not_found", safeApiMessage("not_found"), 404);
   },
   actOnSecurityIncident(id: string, input: unknown) {

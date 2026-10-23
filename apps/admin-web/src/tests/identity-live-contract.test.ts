@@ -160,10 +160,14 @@ describe("Admin live identity boundary", () => {
       { scenario: "forbidden" },
       "super-admin",
     )).rejects.toMatchObject({ code: "provider_unavailable" });
+    expect(request).not.toHaveBeenCalled();
+    request.mockResolvedValue(response(200, { items: [], nextCursor: null }));
     await expect(
       securityRepository.listAuditEvents({ page: 1, pageSize: 25 }),
-    ).rejects.toMatchObject({ code: "provider_unavailable" });
-
-    expect(request).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ items: [] });
+    expect(request).toHaveBeenCalledTimes(1);
+    const auditUrl = new URL(String(request.mock.calls[0][0]), "https://admin.example.test");
+    expect(auditUrl.pathname).toBe("/api/v1/admin/audit/events");
+    expect([...auditUrl.searchParams.keys()]).toEqual(["limit"]);
   });
 });

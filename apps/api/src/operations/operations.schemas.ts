@@ -65,7 +65,7 @@ const PAGE_FILTERS: Readonly<Record<string, readonly string[]>> = Object.freeze(
   providers: ['provider', 'status'],
   'scheduled-jobs': ['ownerSpec', 'enabled'],
   'job-runs': ['jobKey', 'status'],
-  incidents: ['status', 'severity'],
+  incidents: ['id', 'status', 'severity'],
   settings: [],
   flags: ['key', 'search', 'status'],
   maintenance: ['current'],
@@ -125,10 +125,10 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
       kind === 'flags'
         ? ['draft', 'active', 'retired']
         : kind === 'providers'
-        ? ['up', 'degraded', 'down', 'unknown']
-        : kind === 'job-runs'
-          ? ['queued', 'running', 'succeeded', 'failed', 'retrying', 'dead_lettered', 'canceled']
-          : ['open', 'investigating', 'monitoring', 'resolved'];
+          ? ['up', 'degraded', 'down', 'unknown']
+          : kind === 'job-runs'
+            ? ['queued', 'running', 'succeeded', 'failed', 'retrying', 'dead_lettered', 'canceled']
+            : ['open', 'investigating', 'monitoring', 'resolved'];
     if (!statuses.includes(scalarText(input.status))) throw new Error(INVALID);
   }
   if (
@@ -148,6 +148,12 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
   if (input.current !== undefined) {
     if (!['true', 'false', true, false].includes(input.current as never)) throw new Error(INVALID);
     output.current = input.current === true || input.current === 'true';
+  }
+  if (input.id !== undefined) {
+    const id = text(input.id, 36, 36);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(id))
+      throw new Error(INVALID);
+    output.id = id;
   }
   if (input.key !== undefined) output.key = text(input.key, 3, 80);
   if (input.search !== undefined) output.search = text(input.search, 1, 100);

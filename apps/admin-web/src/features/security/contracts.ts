@@ -56,7 +56,7 @@ export const overviewQuerySchema = z.object({
 
 export const safeReferenceSchema = z.object({
   id: z.string().min(1).max(128),
-  kind: z.enum(["customer", "admin", "device", "session", "ticket", "incident", "request", "subscription", "service", "system", "actor", "resource"]),
+  kind: z.enum(["customer", "admin", "device", "session", "ticket", "incident", "request", "subscription", "service", "system", "user", "provider", "actor", "resource"]),
   label: boundedText(120, 512),
   status: boundedText(80, 256).optional(),
 }).strict();

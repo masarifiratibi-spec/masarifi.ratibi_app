@@ -94,7 +94,8 @@ begin
     select jsonb_build_object('items',coalesce(jsonb_agg(value order by ord) filter(where ord<=page_limit),'[]'::jsonb),'nextCursor',case when count(*)>page_limit then (array_agg(cursor_key order by ord))[page_limit] end) into result from (
       select jsonb_build_object('id',id,'title',title,'severity',severity,'status',status,'startedAt',started_at,'resolvedAt',resolved_at,'publicSummary',public_summary,'assignedAdminId',assigned_admin_id,'version',version) value,
         id::text cursor_key,row_number() over(order by started_at desc,id desc) ord
-      from private.system_incidents where (p_query->>'status' is null or status=p_query->>'status')
+      from private.system_incidents where (p_query->>'id' is null or id=(p_query->>'id')::uuid)
+        and (p_query->>'status' is null or status=p_query->>'status')
         and (p_query->>'severity' is null or severity=p_query->>'severity')
         and (p_query->>'cursor' is null or (started_at,id)<(select started_at,id from private.system_incidents where id=(p_query->>'cursor')::uuid))
       order by started_at desc,id desc limit page_limit+1

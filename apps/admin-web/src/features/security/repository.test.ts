@@ -79,14 +79,15 @@ describe("BE013 operations incident mapping", () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true";
   });
 
-  test("traverses cursors and preserves incident values without invented impact", async () => {
+  test("fetches one incident by id and preserves values without invented impact", async () => {
     let calls = 0;
     mockServer.use(
       http.get("/api/v1/admin/incidents", ({ request }) => {
         calls += 1;
-        const cursor = new URL(request.url).searchParams.get("cursor");
-        return HttpResponse.json(cursor
-          ? {
+        const params = new URL(request.url).searchParams;
+        expect(params.get("id")).toBe(incidentId);
+        expect(params.get("limit")).toBe("1");
+        return HttpResponse.json({
               items: [{
                 id: incidentId,
                 title: "Provider latency under review",
@@ -100,7 +101,7 @@ describe("BE013 operations incident mapping", () => {
               }],
               nextCursor: null,
             }
-          : { items: [], nextCursor: "incident-page-2" });
+          );
       }),
     );
 
@@ -114,7 +115,7 @@ describe("BE013 operations incident mapping", () => {
       revision: 3,
       allowedActions: ["resolve"],
     });
-    expect(calls).toBe(2);
+    expect(calls).toBe(1);
   });
 
   test("maps only supported incident actions to exact BE013 PATCH fields", async () => {

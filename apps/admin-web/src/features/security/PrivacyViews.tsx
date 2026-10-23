@@ -49,17 +49,17 @@ const privacyCopy = {
     confirmDeletion: "تأكيد إجراء سير الحذف",
     deletionConsequence: "يحدّث حالة طلب الحذف في الباك؛ التنفيذ الفعلي يتم بواسطة عامل الحذف بعد انتهاء مهلة التراجع.",
     retentionTitle: "سياسات الاحتفاظ",
-    retentionDescription: "فترات احتفاظ mock محدودة. تنفيذ التنظيف يخص خلفية مستقبلية.",
+    retentionDescription: "سياسات الاحتفاظ المسجلة؛ تنفيذ التنظيف تحكمه مهام الباك والحجوزات القانونية.",
     days: "أيام",
     bounds: "الحدود",
     effectiveCleanup: "التنظيف الفعال",
     legalHoldSuspends: "الحجز القانوني يعلق التنظيف",
     retentionPolicy: "سياسة الاحتفاظ",
-    retentionHelp: "تحديث أيام mock داخل حدود العقد مع إقرار واضح بالأثر.",
+    retentionHelp: "تحديث مدة الاحتفاظ مع إقرار واضح بالأثر؛ يتحقق الباك من الحدود والحجوزات.",
     retentionDays: "أيام الاحتفاظ",
     updatePolicy: "تحديث السياسة",
     confirmRetention: "تأكيد تحديث الاحتفاظ",
-    retentionConsequence: "يحدث سياسة mock حتمية فقط؛ بلا تنظيف أو تعديل تخزين أو قائمة انتظار أو مهام.",
+    retentionConsequence: "يحدّث سياسة الاحتفاظ في الباك وقد يؤثر في أهلية البيانات للتنظيف لاحقاً.",
   },
   en: {
     exportTitle: "Data Export Requests",
@@ -94,17 +94,17 @@ const privacyCopy = {
     confirmDeletion: "Confirm deletion workflow action",
     deletionConsequence: "Updates the backend deletion request; the deletion worker executes it after the cooling-off period.",
     retentionTitle: "Retention Policies",
-    retentionDescription: "Bounded mock retention periods. Cleanup execution belongs to a future backend.",
+    retentionDescription: "Recorded retention policies. Backend jobs and legal holds govern cleanup.",
     days: "days",
     bounds: "bounds",
     effectiveCleanup: "Effective cleanup",
     legalHoldSuspends: "legal hold suspends cleanup",
     retentionPolicy: "Retention Policy",
-    retentionHelp: "Update mock days inside contract bounds with explicit impact acknowledgement.",
+    retentionHelp: "Update retention days with explicit impact acknowledgement. The backend validates bounds and holds.",
     retentionDays: "Retention days",
     updatePolicy: "Update Policy",
     confirmRetention: "Confirm retention update",
-    retentionConsequence: "Updates deterministic mock policy only; no cleanup, storage mutation, queue, or job runs.",
+    retentionConsequence: "Updates the backend retention policy and may affect eligibility for later cleanup.",
   },
 } as const;
 
@@ -128,7 +128,7 @@ function defaultContext(state: string, revision: number) {
   return {
     expectedState: state,
     expectedRevision: revision,
-    reason: "Phase 7 mock privacy review",
+    reason: "Review requested privacy operation",
     confirmationToken: "CONFIRM-SPEC-008" as const,
   };
 }
@@ -312,7 +312,7 @@ export function DeletionDetailRoute({ requestId }: { requestId: string }) {
         title={copy.confirmDeletion}
         scope={data.id}
         consequence={copy.deletionConsequence}
-        permission="data_requests.deletions.manage"
+        permission="privacy.deletions.manage"
         auditEvent="account_deletion.updated"
         pending={mutation.isPending}
         outcomes={{ success: "updated", failure: "failed", conflict: "conflict" }}
@@ -378,7 +378,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
           action: "update",
           run: () => securityRepository.updateRetentionPolicy(data.id, {
             retentionDays: days,
-            reason: "Phase 7 retention review",
+            reason: "Review retention policy duration",
             impactAcknowledged: true,
             expectedRevision: data.revision,
             confirmationToken: "CONFIRM-SPEC-008",
@@ -387,7 +387,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
         title={copy.confirmRetention}
         scope={data.id}
         consequence={copy.retentionConsequence}
-        permission="data_retention.manage"
+        permission="retention.write"
         auditEvent="retention_policy.updated"
         pending={mutation.isPending}
         outcomes={{ success: "updated", failure: "failed", conflict: "conflict" }}

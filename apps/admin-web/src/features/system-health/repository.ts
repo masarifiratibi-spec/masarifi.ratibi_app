@@ -247,16 +247,19 @@ export const systemHealthRepository: SystemHealthRepository = {
     const response = await cursorPage("/api/v1/admin/system-health/providers", liveParams, phase13ProviderPageSchema, parsed.page);
     return providerHealthPageSchema.parse({
       items: response.items.map((provider) => {
+        const staleAt = new Date(Date.parse(provider.checkedAt) + 300_000).toISOString();
+        const stale = Date.parse(staleAt) <= Date.now();
+        const freshness = { observedAt: provider.checkedAt, staleAt, state: stale ? "stale" as const : "fresh" as const };
         return {
           id: provider.provider,
           name: provider.provider,
           category: provider.provider,
-          status: healthStatus(provider.status),
-          latency: unavailableMetric("latency", "Latency", "milliseconds", unknownFreshness, provider.latencyMs),
+          status: stale ? "unknown" : healthStatus(provider.status),
+          latency: unavailableMetric("latency", "Latency", "milliseconds", freshness, provider.latencyMs),
           errorRate: unavailableMetric("error_rate", "Error rate", "percent", unknownFreshness),
           lastSuccessAt: null,
           lastCheckedAt: provider.checkedAt,
-          freshness: unknownFreshness,
+          freshness,
           capabilities: [provider.provider],
           fallbackState: "not_applicable",
           safeError: provider.safeCode ?? null,
@@ -268,7 +271,7 @@ export const systemHealthRepository: SystemHealthRepository = {
       pageSize: parsed.pageSize,
       total: response.total,
       freshness: unknownFreshness,
-      partial: parsed.platform !== "all",
+      partial: parsed.platform !== "all" || response.items.some(provider => provider.status === "unknown" || Date.parse(provider.checkedAt) + 300_000 <= Date.now()),
     });
   },
   async listQueueHealth(query) {
