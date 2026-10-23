@@ -22,21 +22,27 @@ describe('Phase 03 route authorization contract', () => {
         >
       >;
     };
-    const expected = Object.entries(contract.paths).flatMap(([path, methods]) =>
-      Object.entries(methods)
-        .filter(
-          ([method, operation]) =>
-            ['get', 'post', 'patch', 'delete'].includes(method) &&
-            operation.operationId !== 'getDeletionCompletion',
-        )
-        .map(([method, operation]) => ({
-          method: method.toUpperCase(),
-          path: path.slice(1).replaceAll(/{([^}]+)}/g, ':$1'),
-          operation: operation.operationId,
-          status: Number(Object.keys(operation.responses).find((status) => status.startsWith('2'))),
-          permission: operation['x-permission'],
-        })),
-    );
+    // Customer lifecycle routes now belong to CustomerAdminController; the full
+    // generated OpenAPI drift gate covers both controllers together.
+    const expected = Object.entries(contract.paths)
+      .filter(([path]) => !path.startsWith('/api/v1/admin/users'))
+      .flatMap(([path, methods]) =>
+        Object.entries(methods)
+          .filter(
+            ([method, operation]) =>
+              ['get', 'post', 'patch', 'delete'].includes(method) &&
+              operation.operationId !== 'getDeletionCompletion',
+          )
+          .map(([method, operation]) => ({
+            method: method.toUpperCase(),
+            path: path.slice(1).replaceAll(/{([^}]+)}/g, ':$1'),
+            operation: operation.operationId,
+            status: Number(
+              Object.keys(operation.responses).find((status) => status.startsWith('2')),
+            ),
+            permission: operation['x-permission'],
+          })),
+      );
     expect(SECURITY_ROUTES).toHaveLength(46);
     expect(
       SECURITY_ROUTES.map(({ method, path, operation, status, permission }) => ({

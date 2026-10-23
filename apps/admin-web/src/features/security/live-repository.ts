@@ -153,6 +153,7 @@ async function list<T, U>(
         response.items.length +
         (response.nextCursor ? 1 : 0),
       totalPages: page + (response.nextCursor ? 1 : 0),
+      totalItemsRelation: response.nextCursor || page > 1 ? ("lower-bound" as const) : ("exact" as const),
     },
     region: {
       availability: response.items.length

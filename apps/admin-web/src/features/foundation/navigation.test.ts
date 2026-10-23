@@ -3,6 +3,16 @@ import { getLiveNavigation } from "./navigation";
 import { buildSidebarSections, resolveRoutePermission, strongestActiveRoute } from "@/components/admin/shell-state";
 
 describe("live Admin navigation", () => {
+  test("exposes completed customer, support and governance capabilities with their exact read permissions", () => {
+    const items = getLiveNavigation().flatMap((group) => group.items);
+    for (const [route,permission] of [["/admin/users","users.read"],["/admin/support","support.overview.read"],
+      ["/admin/support/tickets","support.tickets.read"],["/admin/access-requests","support.access.read"],
+      ["/admin/audit","audit.logs.read"],["/admin/data-requests/exports","data_requests.exports.read"]])
+      expect(items.find((item) => item.route === route)?.permission).toBe(permission);
+    expect(resolveRoutePermission("/admin/support")).toBe("support.overview.read");
+    expect(resolveRoutePermission("/admin/support/tickets/11000000-0000-4000-8000-000000000001")).toBe("support.tickets.detail.read");
+    expect(items.some((item) => item.route?.startsWith("/admin/payments") || item.route?.startsWith("/admin/notifications/campaigns/new"))).toBe(false);
+  });
   test("exposes a separate social media destination with operational read permission", () => {
     const path = "/admin/social-media";
     expect(getLiveNavigation().flatMap(group => group.items).find(item => item.route === path)).toMatchObject({ id: "social-media", permission: "operations.settings.read" });
@@ -11,8 +21,8 @@ describe("live Admin navigation", () => {
   test("opens AI Usage Limits within System Health and selects its own destination", () => {
     const path = "/admin/system-health/ai-usage-limits";
     const sections = buildSidebarSections(getLiveNavigation(), path);
-    const platform = sections.find((section) => section.id === "platform");
-    expect(platform?.items.map((item) => item.id)).toEqual(["overview", "system-health"]);
+    const platform = sections.find((section) => section.id === "health");
+    expect(platform?.items.map((item) => item.id)).toEqual(["system-health"]);
     const health = platform?.items.find((item) => item.id === "system-health");
     expect(health?.kind).toBe("accordion");
     if (health?.kind !== "accordion") throw new Error("Missing System Health menu");

@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageHeader, RegionState } from "@/components/admin/ui";
 import { useLocale } from "@/core/localization/provider";
-import { useSimulatedRole } from "@/core/auth/use-simulated-role";
-import { hasPermission } from "@/core/permissions/role-map";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import { getStatusLabel } from "@/core/localization/display-labels";
 import {
   communicationsRepository,
@@ -250,7 +249,7 @@ export function SupportTicketList() {
 export function SupportTicketConversation({ ticketId }: { ticketId: string }) {
   const { locale } = useLocale();
   const c = labels[locale];
-  const role = useSimulatedRole();
+  const can = useCurrentPermission();
   const query = useSupportConversation(ticketId);
   const mutation = useTicketAction();
   const [download, setDownload] = useState<{
@@ -306,7 +305,7 @@ export function SupportTicketConversation({ ticketId }: { ticketId: string }) {
           <SupportConversation
             item={item}
             pending={mutation.isPending || query.isFetchingNextPage}
-            canAct={(permission) => !changed && hasPermission(role, permission)}
+            canAct={(permission) => !changed && can(permission) && (permission === "support.tickets.notes" || can("support.tickets.manage"))}
             onLoadMore={() => void query.fetchNextPage()}
             onRefresh={() => void query.refetch()}
             onAction={async (action) => {

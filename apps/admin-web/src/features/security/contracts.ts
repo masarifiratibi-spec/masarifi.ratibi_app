@@ -391,6 +391,7 @@ export function pageSchema<T extends z.ZodType>(item: T) {
       page: z.number().int().positive(),
       pageSize: pageSizeSchema,
       totalItems: z.number().int().nonnegative(),
+      totalItemsRelation: z.enum(["exact", "lower-bound"]).optional(),
       totalPages: z.number().int().nonnegative(),
     }).strict(),
     region: z.object({

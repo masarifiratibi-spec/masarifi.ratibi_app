@@ -146,7 +146,7 @@ export function ExportRequestsRoute() {
       <PageHeader title={copy.exportTitle} description={copy.exportDescription} />
       {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
         <section className="table-card ops-table-card" aria-labelledby="exports-title">
-          <div className="card-heading ops-card-heading"><div><h2 id="exports-title">{copy.exportList}</h2><p>{query.data.pagination.totalItems} {copy.metadataRequests}</p></div></div>
+          <div className="card-heading ops-card-heading"><div><h2 id="exports-title">{copy.exportList}</h2><p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {copy.metadataRequests}</p></div></div>
           <ExportTable requests={query.data.items as ExportRequestDetail[]} />
         </section>
       )}

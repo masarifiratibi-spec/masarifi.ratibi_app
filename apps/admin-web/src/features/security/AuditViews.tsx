@@ -1,6 +1,7 @@
 "use client";
 
-import { ErrorState, LoadingState, PageHeader } from "@/components/admin/ui";
+import { useState } from "react";
+import { ErrorState, LoadingState, PageHeader, RegionState } from "@/components/admin/ui";
 import { getActionLabel, getSeverityLabel, getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
 import { useAuditEvent, useSecurityList } from "./hooks";
@@ -55,6 +56,8 @@ const copy = {
     timestamp: "التوقيت",
     title: "سجلات التدقيق",
     time: "الوقت",
+    previous: "السابق",
+    next: "التالي",
   },
   en: {
     action: "Action",
@@ -82,6 +85,8 @@ const copy = {
     timestamp: "Timestamp",
     title: "Audit Logs",
     time: "Time",
+    previous: "Previous",
+    next: "Next",
   },
 } as const;
 
@@ -107,18 +112,26 @@ function MetadataGrid({ rows }: { rows: AuditEventDetail["metadata"] }) {
 }
 
 export function AuditExplorerRoute() {
-  const query = useSecurityList("audit", { page: 1, pageSize: 25 });
+  const [page,setPage] = useState(1);
+  const query = useSecurityList("audit", { page, pageSize: 25 });
   const { locale } = useLocale();
   const c = copy[locale];
   return (
     <div className="page">
       <PageHeader title={c.title} description={c.listDescription} />
-      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
+      <RegionState isPending={query.isPending} isError={query.isError} region={query.data?.region} permission="audit.logs.read" onRetry={() => void query.refetch()}>
+      {query.data && (
         <section className="table-card ops-table-card audit-table-card" aria-labelledby="audit-title">
-          <div className="card-heading ops-card-heading"><div><h2 id="audit-title">{c.eventList}</h2><p>{query.data.pagination.totalItems} {c.entries}</p></div></div>
+          <div className="card-heading ops-card-heading"><div><h2 id="audit-title">{c.eventList}</h2><p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {c.entries}</p></div></div>
           <AuditTable events={query.data.items as AuditEventSummary[]} />
         </section>
       )}
+      </RegionState>
+      {(page > 1 || (query.data?.pagination.totalPages ?? 0) > 1) && <nav className="toolbar-actions" aria-label={c.eventList}>
+        <button className="button" disabled={page === 1 || query.isPending} onClick={() => setPage((value) => value - 1)}>{c.previous}</button>
+        <span>{page}</span>
+        <button className="button" disabled={query.isPending || query.isError || page >= (query.data?.pagination.totalPages ?? 0)} onClick={() => setPage((value) => value + 1)}>{c.next}</button>
+      </nav>}
     </div>
   );
 }

@@ -9,9 +9,8 @@ import { ConfirmDialog, PageHeader, RegionState } from "@/components/admin/ui";
 import { importsCopy } from "./importsCopy";
 import { operationalCopy } from "./operationalCopy";
 import { ApiError } from "@/core/api/errors";
-import { useSimulatedRole } from "@/core/auth/use-simulated-role";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import type { PermissionKey } from "@/core/permissions/permissions";
-import { hasPermission } from "@/core/permissions/role-map";
 import { formatAdminNumber, formatDate } from "@/lib/admin-utils";
 import {
   type ImportSessionDetail,
@@ -224,7 +223,7 @@ export function OperationalListView({
   const { locale } = useLocale();
   const copy = operationalCopy[locale];
   const resCopy = copy.resources[resource];
-  const role = useSimulatedRole();
+  const can = useCurrentPermission();
   const [search, setSearch] = useState("");
   const [platform, setPlatform] = useState<PlatformScope>("all");
   const [source, setSource] = useState<ImportSource | "">("");
@@ -649,7 +648,7 @@ export function OperationalListView({
               <button
                 className="button"
                 disabled={
-                  !hasPermission(role, actionPermissions[resource]) ||
+                  !can(actionPermissions[resource]) ||
                   mutation.isPending
                 }
                 key={`${record.id}:${action}`}
@@ -828,7 +827,7 @@ export function OperationalDetailView({
   const { locale } = useLocale();
   const copy = operationalCopy[locale];
   const resCopy = copy.resources[resource];
-  const role = useSimulatedRole();
+  const can = useCurrentPermission();
   const [selectedAction, setSelectedAction] = useState<
     Phase4ActionRequest["action"] | null
   >(null);
@@ -1034,7 +1033,7 @@ export function OperationalDetailView({
                       <button
                         className="button"
                         disabled={
-                          !hasPermission(role, actionPermission) ||
+                          !can(actionPermission) ||
                           mutation.isPending
                         }
                         key={action}

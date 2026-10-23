@@ -363,6 +363,14 @@ export const SIMULATED_ACTORS: Record<AdminRole, string> = {
 };
 
 const CANONICAL_CLIENT_PERMISSION: Readonly<Record<string, PermissionKey>> = {
+  "audit.read": "audit.logs.read",
+  "privacy.exports.read": "data_requests.exports.read",
+  "privacy.exports.manage": "data_requests.exports.manage",
+  "privacy.deletions.read": "data_requests.deletions.read",
+  "privacy.deletions.manage": "data_requests.deletions.manage",
+  "retention.read": "data_retention.read",
+  "retention.write": "data_retention.manage",
+  "support.access.request": "support.request_access",
   "access.invites.write": "admin-team.invite",
   "access.roles.read": "roles.read",
   "access.roles.write": "roles.manage",

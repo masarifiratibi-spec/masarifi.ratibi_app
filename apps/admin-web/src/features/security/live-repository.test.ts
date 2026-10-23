@@ -47,6 +47,7 @@ describe("live security and privacy projections", () => {
       severity: null,
       correlationId: "request-live",
     });
+    expect(first.pagination).toMatchObject({ totalItems: 2,totalItemsRelation: "lower-bound" });
     await securityRepository.listAuditEvents({ page: 2, pageSize: 25 });
     expect(seen).toEqual(["?limit=25", "?limit=25&cursor=MjU"]);
   });

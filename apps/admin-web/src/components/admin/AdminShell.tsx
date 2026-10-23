@@ -11,22 +11,24 @@ import {
   Sun,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { setSimulatedRole, useSimulatedRole } from "@/core/auth/use-simulated-role";
 import type { AdminRole } from "@/core/permissions/permissions";
 import { hasPermission, toClientPermission } from "@/core/permissions/role-map";
 import { ApiError } from "@/core/api/errors";
 import { mocksEnabled } from "@/core/config/runtime";
 import { ADMIN_ROLES } from "@/core/permissions/permissions";
+import { CurrentPermissionsProvider } from "@/core/permissions/current-permissions";
+import { resolveDeploymentEnvironment } from "@/core/config/deployment-environment";
+import { permittedNavigation } from "@/features/foundation/navigation";
 import { applyDocumentLocale, type Locale } from "@/core/localization/direction";
 import { getNavigationLabel, getRoleLabel } from "@/core/localization/display-labels";
 import { LocaleProvider, useLocale, useT } from "@/core/localization/provider";
 import { t } from "@/core/localization/messages";
-import type { DateRangeInput, NavigationGroup } from "@/features/foundation/contracts";
+import type { NavigationGroup } from "@/features/foundation/contracts";
 import { useAdminNavigation, useAdminSession } from "@/features/foundation/hooks";
 import { AttentionPanel } from "./AttentionPanel";
 import { AccessDenied } from "./AccessDenied";
-import { DateRangeControl } from "./DateRangeControl";
 import { EnvironmentIndicator } from "./EnvironmentIndicator";
 import { GlobalSearch } from "./GlobalSearch";
 import { RoleSwitcher } from "./RoleSwitcher";
@@ -34,21 +36,26 @@ import { SessionExpired } from "./SessionExpired";
 import { SignOutButton } from "./SignOutButton";
 import { SidebarNavigationList } from "./SidebarAccordion";
 import { ToastRegion } from "./ToastRegion";
+import { RegionState } from "./ui";
 import { buildSidebarSections, nextTheme, resolveRoutePermission } from "./shell-state";
 import { useAdminIdentity } from "@/app/providers";
 
-const defaultRange = { start: "2026-06-28", end: "2026-07-27", preset: "30d" as const };
+const subscribeToEnvironment = () => () => undefined;
+const serverEnvironment = () => resolveDeploymentEnvironment(process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT);
+const browserEnvironment = () => resolveDeploymentEnvironment(process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT, window.location.hostname);
 
 function Sidebar({
   compact,
   groups,
   mobile = false,
   close,
+  inert = false,
 }: {
   compact: boolean;
   groups: NavigationGroup[];
   mobile?: boolean;
   close?: () => void;
+  inert?: boolean;
 }) {
   const pathname = usePathname();
   const { locale } = useLocale();
@@ -58,7 +65,7 @@ function Sidebar({
     <aside
       aria-label={mobile ? translate("shell.mainNavigation") : undefined}
       className={`sidebar ${compact ? "sidebar-compact" : ""} ${mobile ? "sidebar-mobile" : ""}`}
-      role={mobile ? "dialog" : undefined}
+      inert={inert}
     >
       <div className="brand">
         <Image className="brand-mark" src="/brand-icon.png" alt="" width={36} height={36} />
@@ -81,15 +88,16 @@ function Sidebar({
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const identity = useAdminIdentity();
   const pathname = usePathname();
-  const demoMode = !identity.enabled || mocksEnabled();
+  const demoMode = mocksEnabled();
   const session = useAdminSession(identity.actorId);
   const [compact, setCompact] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [locale, setLocale] = useState<Locale>("ar");
-  const [range, setRange] = useState<DateRangeInput>(defaultRange);
   const mobileTrigger = useRef<HTMLButtonElement>(null);
+  const mobileDialog = useRef<HTMLDialogElement>(null);
   const simulatedRole = useSimulatedRole();
+  const deploymentEnvironment = useSyncExternalStore(subscribeToEnvironment, browserEnvironment, serverEnvironment);
   const currentSession = (demoMode || (identity.loaded && session.data?.id === identity.actorId)) && !session.error ? session.data : undefined;
   const serverRole = currentSession?.roleKeys.find((key): key is AdminRole =>
     ADMIN_ROLES.some((role) => role === key),
@@ -101,10 +109,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const navigation = useAdminNavigation(role);
   const groups = demoMode || currentSession ? navigation.data?.groups ?? [] : [];
   const displayName = currentSession?.displayName ?? (demoMode ? "Waleed" : t(locale, "common.loading"));
-  // Communications is temporarily hidden from the Admin Dashboard sidebar.
-  // Its implementation, routes, and navigation configuration are intentionally preserved for future use.
-  // Restore it by adding the communications navigation configuration back to this rendered sidebar array.
-  const sidebarGroups = groups.filter((group) => group.id !== "communications");
+  const sidebarGroups = mocksEnabled() ? groups.filter((group) => group.id !== "communications") : permittedNavigation(groups, effectivePermissions);
   const routePermission = resolveRoutePermission(pathname);
   const deniedPermission = routePermission === "forbidden"
     ? routePermission
@@ -127,14 +132,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!mobileOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMobileOpen(false);
-        requestAnimationFrame(() => mobileTrigger.current?.focus());
-      }
+    const dialog = mobileDialog.current;
+    const trigger = mobileTrigger.current;
+    dialog?.showModal();
+    dialog?.querySelector<HTMLButtonElement>("button")?.focus();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const desktop = window.matchMedia("(min-width: 900px)");
+    const closeOnDesktop = (event: MediaQueryListEvent) => { if (event.matches) setMobileOpen(false); };
+    desktop.addEventListener("change",closeOnDesktop);
+    return () => {
+      if (dialog?.open) dialog.close();
+      document.body.style.overflow = overflow;
+      desktop.removeEventListener("change",closeOnDesktop);
+      requestAnimationFrame(() => trigger?.focus());
     };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
   }, [mobileOpen]);
 
   const changeRole = (nextRole: AdminRole) => {
@@ -148,31 +160,44 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider locale={locale} setLocale={setLocale}>
     <div className={`admin-shell ${compact ? "shell-compact" : ""}`} data-admin-shell>
-      <Sidebar compact={compact} groups={sidebarGroups} />
+      <Sidebar compact={compact} groups={sidebarGroups} inert={mobileOpen} />
       {mobileOpen && (
-        <div
+        <dialog
+          ref={mobileDialog}
           className="mobile-overlay"
-          role="presentation"
-          onMouseDown={closeMobile}
+          aria-modal="true"
+          aria-label={t(locale, "shell.mainNavigation")}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) closeMobile(); }}
+          onCancel={(event) => { event.preventDefault(); closeMobile(); }}
+          tabIndex={-1}
           onKeyDown={(event) => {
-            if (event.key === "Escape") closeMobile();
+            if (event.key !== "Tab") return;
+            const dialog = event.currentTarget;
+            const controls = [...dialog.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+              .filter((element) => element.getClientRects().length > 0);
+            const first = controls[0]; const last = controls.at(-1);
+            if (!first || !last) { event.preventDefault(); dialog.focus(); return; }
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+              event.preventDefault(); last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault(); first.focus();
+            }
           }}
         >
           <div onMouseDown={(event) => event.stopPropagation()}>
             <Sidebar close={closeMobile} compact={false} groups={sidebarGroups} mobile />
           </div>
-        </div>
+        </dialog>
       )}
-      <div className="admin-main">
+      <div className="admin-main" inert={mobileOpen}>
         <header className="topbar">
           <div className="topbar-start">
             <button ref={mobileTrigger} className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label={t(locale, "shell.mobileOpen")}><Menu size={20} /></button>
             <button className="icon-button desktop-collapse" onClick={() => setCompact((value) => !value)} aria-label={compact ? t(locale, "shell.expandSidebar") : t(locale, "shell.collapseSidebar")}><PanelRightClose size={20} /></button>
             {demoMode && <GlobalSearch role={role} />}
-            <DateRangeControl value={range} onChange={setRange} />
           </div>
           <div className="topbar-actions">
-            <EnvironmentIndicator environment={demoMode ? "development" : "production"} locale={locale} />
+            <EnvironmentIndicator environment={deploymentEnvironment} locale={locale} />
             {demoMode && <RoleSwitcher role={role} onChange={changeRole} />}
             {demoMode && <span className="development-disclaimer">{t(locale, "shell.developmentDisclaimer")}</span>}
             <button className="icon-button" aria-label={t(locale, "shell.languageToggle")} onClick={() => setLocale((value) => value === "ar" ? "en" : "ar")}><Languages size={19} /></button>
@@ -187,7 +212,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
-        <main>{!demoMode && !currentSession ? <p role="status">{t(locale, "common.loading")}</p> : deniedPermission ? <AccessDenied permission={deniedPermission} /> : children}</main>
+        <main><CurrentPermissionsProvider permissions={mocksEnabled() ? null : effectivePermissions}>{!demoMode && !currentSession ? <RegionState isPending={!session.isError} isError={session.isError} error={session.error instanceof ApiError ? session.error : undefined} permission={routePermission ?? "admin.overview.read"} onRetry={() => void session.refetch()}>{null}</RegionState> : deniedPermission ? <AccessDenied permission={deniedPermission} /> : children}</CurrentPermissionsProvider></main>
       </div>
       <ToastRegion messages={[]} />
     </div>

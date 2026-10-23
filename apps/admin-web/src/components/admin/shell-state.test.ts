@@ -233,10 +233,10 @@ describe("Spec 006 AI route permissions", () => {
 
 describe("Spec 007 communications route permissions", () => {
   test.each([
-    ["/admin/support", "support.tickets.read"],
+    ["/admin/support", "support.overview.read"],
     ["/admin/support/tickets", "support.tickets.read"],
-    ["/admin/support/tickets/TKT-1001", "support.tickets.read"],
-    ["/admin/support/categories", "support.categories.manage"],
+    ["/admin/support/tickets/TKT-1001", "support.tickets.detail.read"],
+    ["/admin/support/categories", "support.categories.read"],
     ["/admin/feedback", "feedback.read"],
     ["/admin/feedback/FDB-1001", "feedback.read"],
     ["/admin/feedback/abuse", "feedback.abuse.manage"],

@@ -181,7 +181,7 @@ export function buildSidebarSections(groups: NavigationGroup[], pathname: string
         const communications = communicationAccordion(group, pathname);
         return { ...group, items: communications ? [communications] : [] };
       }
-      if (group.id === "platform") {
+      if (group.id === "platform" || group.id === "health") {
         const groupedIds = new Set(["health", "health-api", "health-database", "health-storage", "health-providers", "ai-usage-limits", "jobs", "job-runs", "scheduled-jobs"]);
         const flatItems = group.items
           .filter((item) => !groupedIds.has(item.id))
@@ -248,8 +248,8 @@ const ROUTE_PERMISSION_RULES: ReadonlyArray<{ match: string; permission: RoutePe
   { match: "/admin/subscriptions", permission: "subscriptions.read" },
   { match: "/admin/payments", permission: "payments.read" },
   { match: "/admin/support/tickets", permission: "support.tickets.read" },
-  { match: "/admin/support/categories", permission: "support.categories.manage" },
-  { match: "/admin/support", permission: "support.tickets.read" },
+  { match: "/admin/support/categories", permission: "support.categories.read" },
+  { match: "/admin/support", permission: "support.overview.read" },
   { match: "/admin/feedback/abuse", permission: "feedback.abuse.manage" },
   { match: "/admin/feedback", permission: "feedback.read" },
   { match: "/admin/content/categories", permission: "content.categories.manage" },
@@ -330,7 +330,7 @@ export function resolveRoutePermission(pathname: string): RoutePermission | "for
     return "subscriptions.detail.read";
   }
   if (/^\/admin\/support\/tickets\/[^/]+$/.test(pathname)) {
-    return "support.tickets.read";
+    return "support.tickets.detail.read";
   }
   if (/^\/admin\/feedback\/(?!abuse$)[^/]+$/.test(pathname)) {
     return "feedback.read";

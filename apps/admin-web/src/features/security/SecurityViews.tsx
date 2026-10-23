@@ -163,7 +163,7 @@ function SimpleList({ resource, title }: { resource: string; title: string }) {
       <div className="card-heading ops-card-heading">
         <div>
           <h2 id={`${resource}-title`}>{title}</h2>
-          <p>{query.data.pagination.totalItems} {copy.records}</p>
+          <p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {copy.records}</p>
         </div>
       </div>
       {items.length === 0 ? <p role="status">{copy.empty}</p> : (

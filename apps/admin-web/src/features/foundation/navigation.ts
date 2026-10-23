@@ -137,6 +137,10 @@ const LIVE_ADMIN_NAVIGATION: NavigationGroup[] = [
         permission: "security.events.read",
         availability: "active",
       },
+      { id: "audit-logs", labelKey: "Audit logs", route: "/admin/audit", iconKey: "shield-check", permission: "audit.logs.read", availability: "active" },
+      { id: "data-exports", labelKey: "Data exports", route: "/admin/data-requests/exports", iconKey: "database", permission: "data_requests.exports.read", availability: "active" },
+      { id: "data-deletions", labelKey: "Account deletion", route: "/admin/data-requests/deletions", iconKey: "database", permission: "data_requests.deletions.read", availability: "active" },
+      { id: "data-retention", labelKey: "Data retention", route: "/admin/data-requests/retention", iconKey: "database", permission: "data_retention.read", availability: "active" },
       {
         id: "admin-team",
         labelKey: "Admin Team",
@@ -166,5 +170,27 @@ const LIVE_ADMIN_NAVIGATION: NavigationGroup[] = [
 ];
 
 export function getLiveNavigation(): NavigationGroup[] {
-  return LIVE_ADMIN_NAVIGATION;
+  const platform = LIVE_ADMIN_NAVIGATION.find((group) => group.id === "platform");
+  const operations = LIVE_ADMIN_NAVIGATION.find((group) => group.id === "operations");
+  const governance = LIVE_ADMIN_NAVIGATION.find((group) => group.id === "governance");
+  if (!platform || !operations || !governance) throw new Error("Navigation configuration is incomplete");
+  return [
+    { ...platform, items: platform.items.filter((item) => item.id === "overview") },
+    { id: "customers", labelKey: "Customers and support", items: [
+      { id: "users", labelKey: "Customers", route: "/admin/users", iconKey: "users", permission: "users.read", availability: "active" },
+      { id: "support-overview", labelKey: "Support overview", route: "/admin/support", iconKey: "activity", permission: "support.overview.read", availability: "active" },
+      { id: "support-tickets", labelKey: "Support tickets", route: "/admin/support/tickets", iconKey: "activity", permission: "support.tickets.read", availability: "active" },
+      { id: "support-categories", labelKey: "Support categories", route: "/admin/support/categories", iconKey: "database", permission: "support.categories.read", availability: "active" },
+      { id: "access-requests", labelKey: "Support access requests", route: "/admin/access-requests", iconKey: "shield-check", permission: "support.access.read", availability: "active" },
+    ] },
+    operations,
+    { id: "health", labelKey: "System Health", items: platform.items.filter((item) => item.id !== "overview") },
+    governance,
+  ];
+}
+
+export function permittedNavigation(groups: NavigationGroup[], permissions: ReadonlySet<string>): NavigationGroup[] {
+  return groups.map((group) => ({ ...group, items: group.items.filter((item) =>
+    item.availability === "active" && (!item.permission || permissions.has(item.permission))) }))
+    .filter((group) => group.items.length > 0);
 }

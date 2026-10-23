@@ -249,7 +249,7 @@ pre {
 .confirmation-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .confirmation-details dd.ltr { direction: ltr; text-align: start; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 16px 24px; background: var(--surface); border-top: 1px solid var(--border); }
-.state-box { min-height: 310px; display: grid; place-content: center; justify-items: center; text-align: center; padding: 30px; color: var(--text-muted); }.state-box strong { margin-top: 10px; color: var(--text); font-size: 16px; }.state-box p { max-width: 360px; margin: 4px 0; }.state-box.error svg { color: var(--danger); }
+.state-box { min-height: 168px; display: grid; place-content: center; justify-items: center; text-align: center; padding: 24px; color: var(--text-muted); }.state-box strong { margin-top: 10px; color: var(--text); font-size: 16px; }.state-box p { max-width: 360px; margin: 4px 0; }.state-box.error svg { color: var(--danger); }
 .skeleton-list { display: grid; gap: 12px; padding: 20px; }.skeleton-list span { height: 54px; border-radius: 9px; background: linear-gradient(90deg, var(--surface-muted), var(--surface-strong), var(--surface-muted)); background-size: 200% 100%; animation: shimmer 1.4s infinite; }@keyframes shimmer { to { background-position: -200% 0; } }
 .summary-strip { display: grid; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 0; }
 .summary-item { display: flex; flex-direction: column; justify-content: center; padding: 15px 20px; border-inline-end: 1px solid var(--border); }
@@ -1155,7 +1155,7 @@ pre {
   .sidebar-mobile .nav-arrow { display: block; }
   .sidebar-mobile .sidebar-note { display: flex; }
   .sidebar-mobile .nav-item { justify-content: flex-start; }
-  .topbar { padding-inline: 16px; }.profile > div:not(.avatar), .environment, .global-search kbd { display: none; }.global-search { width: min(42vw, 320px); }
+  .topbar { padding-inline: 16px; }.profile > div:not(.avatar), .global-search kbd { display: none; }.global-search { width: min(42vw, 320px); }
   .page { padding: 24px 18px 48px; }.section-grid, .section-grid.equal { grid-template-columns: 1fr; }.page-header { align-items: flex-start; flex-direction: column; }.page-actions { width: 100%; }
   .health-row { grid-template-columns: minmax(150px, 1fr) repeat(2, minmax(75px, .7fr)); }.health-row .health-cell:nth-child(4), .health-row .health-cell:nth-child(5) { display: none; }
   .toolbar { align-items: stretch; flex-direction: column; }.toolbar-filters { display: grid; grid-template-columns: repeat(2, 1fr); }.search-input { grid-column: 1 / -1; }.search-input input { width: 100%; min-width: 0; }
@@ -2892,4 +2892,17 @@ pre {
 .support-action textarea { min-height: 100px; resize: vertical; }
 .support-action :is(input,textarea,select), .support-filters :is(input,select) { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: inherit; font: inherit; }
 .support-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,210px),1fr)); gap: 16px; align-items: end; }
+.support-filters { padding: 20px; }
 .support-ticket-list { display: grid; gap: 16px; }
+.support-ticket-list > article { display: grid; gap: 8px; padding: 20px; overflow-wrap: anywhere; }
+.support-ticket-list h2 { font-size: 16px; line-height: 1.5; font-weight: 600; }
+.support-ticket-list small { color: var(--text-muted); }
+.mobile-overlay[open] { margin: 0; padding: 0; border: 0; max-width: none; max-height: none; width: 100vw; height: 100dvh; color: var(--text); }
+.mobile-overlay::backdrop { background: transparent; }
+@media (max-width: 599px) {
+  .support-filters { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 16px; gap: 12px; }
+  .support-filters label:first-child, .support-filters label:nth-child(4), .support-filters > button { grid-column: 1 / -1; }
+  .topbar .global-search, .development-disclaimer { display: none; }
+  .environment { display: inline-flex; font-size: 10px; padding: 4px 6px; white-space: nowrap; }
+}
+.environment-unknown span { background: var(--text-muted); box-shadow: none; }

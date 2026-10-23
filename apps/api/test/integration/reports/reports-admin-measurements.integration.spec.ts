@@ -313,6 +313,15 @@ describeLiveDatabase('admin measured activity and exact support ranges', () => {
     }));
   it('deduplicates customers across multiple devices and keeps unknown-platform registrations', () =>
     scenario(async (client) => {
+      // Other integration suites commit their own isolated customer fixtures.
+      // Measure this customer's contribution without assuming a globally empty database.
+      await actor(client, admin);
+      const baseline = await client.query<{ value: Measurements }>(
+        "select private.read_admin_report_measurements('ios',7) value",
+      );
+      const before = baseline.rows[0]?.value;
+      if (!before) throw new Error('Expected baseline measurement row');
+      await client.query('reset role');
       await client.query(
         "insert into public.user_devices(user_id,device_fingerprint,clerk_session_id,platform,app_version) values($1,$2,'native-session','android','2.0'),($1,$3,'native-session','ios','1.2')",
         [user, 'h1:' + 'b'.repeat(64), 'h1:' + 'c'.repeat(64)],
@@ -325,11 +334,11 @@ describeLiveDatabase('admin measured activity and exact support ranges', () => {
       );
       if (!row) throw new Error('Expected measurement row');
       expect(row.value).toMatchObject({
-        totalUsers: 1,
-        iosUsers: 1,
-        androidUsers: 1,
-        bothUsers: 1,
-        iosDevices: 2,
+        totalUsers: before.totalUsers,
+        iosUsers: before.iosUsers,
+        androidUsers: before.androidUsers + 1,
+        bothUsers: before.bothUsers + 1,
+        iosDevices: before.iosDevices + 1,
         androidDevices: 0,
       });
       const {

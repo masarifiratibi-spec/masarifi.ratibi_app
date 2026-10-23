@@ -6,7 +6,8 @@ import { ConfirmDialog } from "@/components/admin/ui";
 import { ApiError } from "@/core/api/errors";
 import { mocksEnabled } from "@/core/api/client";
 import type { AdminRole } from "@/core/permissions/permissions";
-import { hasPermission } from "@/core/permissions/role-map";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
+import { useLocale } from "@/core/localization/provider";
 import {
   reactivateUserRequestSchema,
   revokeDeviceRequestSchema,
@@ -40,11 +41,22 @@ interface ActionFields {
 }
 
 const actionCopy = {
-  suspend: ["تعليق الحساب", "الحساب المحدد", "سيُمنع المستخدم من الوصول حتى إعادة التفعيل.", "users.status.manage", "user.suspended"],
-  reactivate: ["إعادة تفعيل الحساب", "الحساب المحدد", "سيستعيد المستخدم إمكانية الوصول.", "users.status.manage", "user.reactivated"],
+  suspend: ["تعليق الحساب", "الحساب المحدد", "سيُمنع المستخدم من الوصول حتى إعادة التفعيل.", "users.status.manage", "customer.suspend"],
+  reactivate: ["إعادة تفعيل الحساب", "الحساب المحدد", "سيستعيد المستخدم إمكانية الوصول.", "users.status.manage", "customer.reactivate"],
   verification: ["تحديث التحقق", "حالة التحقق", "ستتغير حالة التحقق المعروضة للمشغلين.", "users.verification.manage", "user.verification.updated"],
-  sessions: ["إنهاء كل الجلسات", "كل الجلسات النشطة", "سيُطلب من المستخدم تسجيل الدخول مجدداً.", "sessions.revoke", "user.sessions.revoked"],
+  sessions: ["إنهاء كل الجلسات", "كل الجلسات النشطة", "سيُطلب من المستخدم تسجيل الدخول مجدداً.", "sessions.revoke", "customer.revoke_sessions"],
 } satisfies Record<UserAction, readonly [string, string, string, string, string]>;
+
+const englishActionCopy = {
+  suspend: ["Suspend account", "Selected account", "The customer cannot access the account until reactivation.", "users.status.manage", "customer.suspend"],
+  reactivate: ["Reactivate account", "Selected account", "The customer can access the account again.", "users.status.manage", "customer.reactivate"],
+  verification: ["Update verification", "Selected account", "Change the verification state in the development fixture.", "users.verification.manage", "user.verification.updated"],
+  sessions: ["End all sessions", "All active sessions", "The customer must sign in again.", "sessions.revoke", "customer.revoke_sessions"],
+} satisfies Record<UserAction, readonly [string, string, string, string, string]>;
+const actionLabels = {
+  ar: { reason: "سبب الإجراء", note: "ملاحظة داخلية", days: "المدة بالأيام", notify: "تسليم تفضيل إشعار للمزود المستقبلي", proposed: "الحالة المقترحة", verified: "موثّق", pending: "معلّق", section: "إجراءات المستخدم", suspend: "تعليق الحساب", reactivate: "إعادة التفعيل", verification: "تحديث التحقق", providerVerification: "التحقق مصدره Clerk ولا يمكن تعديله يدويًا", sessions: "إنهاء كل الجلسات", session: "إنهاء جلسة", sessionScope: "الجلسة", success: "نجاح", failure: "فشل آمن", conflict: "تعارض الحالة", current: "تحذير: يشمل النطاق الجلسة الحالية المرئية للمسؤول.", revokeDevice: "إلغاء الجهاز", revokeDeviceAction: "إلغاء جهاز", deviceEffect: "ستُلغى جلسات الجهاز وقد يلزم تسجيل الدخول مجدداً.", revoked: "الجهاز ملغى مسبقاً" },
+  en: { reason: "Reason for action", note: "Internal note", days: "Duration in days", notify: "Store notification preference for a future provider", proposed: "Proposed state", verified: "Verified", pending: "Pending", section: "Customer actions", suspend: "Suspend account", reactivate: "Reactivate account", verification: "Update verification", providerVerification: "Verification comes from Clerk and cannot be edited manually", sessions: "End all sessions", session: "End session", sessionScope: "Session", success: "Success", failure: "Safe failure", conflict: "State conflict", current: "Warning: the scope includes the current session visible to the administrator.", revokeDevice: "Revoke device", revokeDeviceAction: "Revoke device", deviceEffect: "Device sessions will be revoked; signing in again may be required.", revoked: "Device already revoked" },
+};
 
 function safeActionError(error: unknown): string {
   return error instanceof ApiError ? error.message : "تعذر تنفيذ الإجراء بأمان.";
@@ -59,22 +71,23 @@ function FormFields({
   register: ReturnType<typeof useForm<ActionFields>>["register"];
   error?: string;
 }) {
+  const { locale } = useLocale(); const c = actionLabels[locale];
   return (
     <span className="form-grid">
-      <label>سبب الإجراء<input className="input" {...register("reason")} /></label>
+      <label>{c.reason}<input className="input" {...register("reason")} /></label>
       {error && <span className="field-error" role="alert">{error}</span>}
       {(action === "suspend" || action === "reactivate") && (
-        <label>ملاحظة داخلية<textarea className="input" {...register("internalNote")} /></label>
+        <label>{c.note}<textarea className="input" {...register("internalNote")} /></label>
       )}
       {action === "suspend" && mocksEnabled() && (
         <>
-          <label>المدة بالأيام<input className="input" type="number" {...register("durationDays", { valueAsNumber: true })} /></label>
-          <label><input type="checkbox" {...register("notifyUser")} /> تسليم تفضيل إشعار للمزود المستقبلي</label>
+          <label>{c.days}<input className="input" type="number" {...register("durationDays", { valueAsNumber: true })} /></label>
+          <label><input type="checkbox" {...register("notifyUser")} /> {c.notify}</label>
         </>
       )}
       {action === "verification" && (
-        <label>الحالة المقترحة<select className="select" {...register("nextState")}>
-          <option value="verified">موثّق</option><option value="pending">معلّق</option>
+        <label>{c.proposed}<select className="select" {...register("nextState")}>
+          <option value="verified">{c.verified}</option><option value="pending">{c.pending}</option>
         </select></label>
       )}
     </span>
@@ -92,6 +105,8 @@ export function UserActions({
   sessions: UserSession[];
   role: AdminRole;
 }) {
+  const can = useCurrentPermission(role);
+  const { locale } = useLocale(); const c = actionLabels[locale];
   const [action, setAction] = useState<UserAction | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -152,17 +167,17 @@ export function UserActions({
     }
   }
 
-  const copy = action ? actionCopy[action] : null;
+  const copy = action ? (locale === "ar" ? actionCopy : englishActionCopy)[action] : null;
   return (
-    <section aria-label="إجراءات المستخدم">
+    <section aria-label={c.section}>
       <div className="page-actions user-page-actions">
-        {hasPermission(role, "users.status.manage") && user.status === "active" && <button className="button warning" onClick={() => open("suspend")}>تعليق الحساب</button>}
-        {hasPermission(role, "users.status.manage") && user.status === "suspended" && <button className="button" onClick={() => open("reactivate")}>إعادة التفعيل</button>}
-        {hasPermission(role, "users.verification.manage") && <button disabled={!mocksEnabled()} title={!mocksEnabled() ? "التحقق مصدره Clerk ولا يمكن تعديله يدويًا" : undefined} className="button secondary" onClick={() => open("verification")}>تحديث التحقق</button>}
-        {hasPermission(role, "sessions.revoke") && sessions.some(({ state }) => state === "active") && <button className="button danger" onClick={() => openSessions(null)}>إنهاء كل الجلسات</button>}
-        {hasPermission(role, "sessions.revoke") && sessions.filter(({ state }) => state === "active").map((session) => (
+        {can("users.status.manage") && user.status === "active" && <button className="button warning" onClick={() => open("suspend")}>{c.suspend}</button>}
+        {can("users.status.manage") && user.status === "suspended" && <button className="button" onClick={() => open("reactivate")}>{c.reactivate}</button>}
+        {can("users.verification.manage") && <button disabled={!mocksEnabled()} title={!mocksEnabled() ? c.providerVerification : undefined} className="button secondary" onClick={() => open("verification")}>{c.verification}</button>}
+        {can("sessions.revoke") && sessions.some(({ state }) => state === "active") && <button className="button danger" onClick={() => openSessions(null)}>{c.sessions}</button>}
+        {can("sessions.revoke") && sessions.filter(({ state }) => state === "active").map((session) => (
           <button className="button danger" onClick={() => openSessions(session.id)} key={session.id}>
-            إنهاء جلسة {session.safeDeviceLabel}
+            {c.session} {session.safeDeviceLabel}
           </button>
         ))}
       </div>
@@ -175,19 +190,19 @@ export function UserActions({
         onClose={() => setAction(null)}
         onConfirm={form.handleSubmit(submit)}
         title={copy[0]}
-        scope={action === "sessions" && selectedSessionId ? `الجلسة ${selectedSessionId}` : copy[1]}
+        scope={action === "sessions" && selectedSessionId ? `${c.sessionScope} ${selectedSessionId}` : copy[1]}
         consequence={copy[2]}
         permission={copy[3]}
         auditEvent={copy[4]}
         pending={pending}
-        outcomes={{ success: "نجاح", failure: "فشل آمن", conflict: "تعارض الحالة" }}
+        outcomes={{ success: c.success, failure: c.failure, conflict: c.conflict }}
       >
         <FormFields action={action as UserAction} register={form.register} error={form.formState.errors.reason?.message} />
         {action === "sessions" && sessions.some((session) =>
           session.isCurrentAdminVisibleSession
           && session.state === "active"
           && (!selectedSessionId || session.id === selectedSessionId)) && (
-          <span className="state-warning">تحذير: يشمل النطاق الجلسة الحالية المرئية للمسؤول.</span>
+          <span className="state-warning">{c.current}</span>
         )}
       </ConfirmDialog>}
     </section>
@@ -195,11 +210,13 @@ export function UserActions({
 }
 
 function DeviceRevokeAction({ userId, device, role }: { userId: string; device: UserDevice; role: AdminRole }) {
+  const { locale } = useLocale(); const c = actionLabels[locale];
+  const can = useCurrentPermission(role);
   const [open, setOpen] = useState(false);
   const [outcome, setOutcome] = useState("");
   const form = useForm<{ reason: string }>({ defaultValues: { reason: "" } });
   const mutation = useRevokeDevice(userId, device.id, role);
-  if (!hasPermission(role, "devices.revoke")) return null;
+  if (!can("devices.revoke")) return null;
   if (device.state !== "active") return outcome ? <p role="status">{outcome}</p> : null;
   const submit = form.handleSubmit(async (fields) => {
     const parsed = revokeDeviceRequestSchema.safeParse(fields);
@@ -214,12 +231,12 @@ function DeviceRevokeAction({ userId, device, role }: { userId: string; device: 
   });
   return (
     <>
-      <button className="button" onClick={() => setOpen(true)}>إلغاء جهاز {device.safeLabel}</button>
+      <button className="button" onClick={() => setOpen(true)}>{c.revokeDeviceAction} {device.safeLabel}</button>
       <ConfirmDialog open={open} onClose={() => setOpen(false)} onConfirm={submit}
-        title="إلغاء الجهاز" scope={device.safeLabel} consequence="ستُلغى جلسات الجهاز وقد يلزم تسجيل الدخول مجدداً."
-        permission="devices.revoke" auditEvent="device.revoked" pending={mutation.isPending}
-        outcomes={{ success: "نجاح", failure: "فشل آمن", conflict: "الجهاز ملغى مسبقاً" }}>
-        <label>سبب الإجراء<input className="input" {...form.register("reason")} /></label>
+        title={c.revokeDevice} scope={device.safeLabel} consequence={c.deviceEffect}
+        permission="devices.revoke" auditEvent="customer.revoke_device" pending={mutation.isPending}
+        outcomes={{ success: c.success, failure: c.failure, conflict: c.revoked }}>
+        <label>{c.reason}<input className="input" {...form.register("reason")} /></label>
       </ConfirmDialog>
       {outcome && <p role="status">{outcome}</p>}
     </>
@@ -237,6 +254,7 @@ export function UserBulkActions({
   onClear: () => void;
   onComplete: (message: string) => void;
 }) {
+  const { locale } = useLocale();
   const [action, setAction] = useState<UserBulkActionRequest["action"]>("suspend");
   const [open, setOpen] = useState(false);
   const [outcome, setOutcome] = useState("");
@@ -265,7 +283,7 @@ export function UserBulkActions({
     }
   });
 
-  if (!mocksEnabled()) return <p role="note">الإجراءات الجماعية غير متاحة. استخدم صفحة العميل لتنفيذ إجراء مدقق.</p>;
+  if (!mocksEnabled()) return <p role="note">{locale === "ar" ? "الإجراءات الجماعية غير متاحة. استخدم صفحة العميل لتنفيذ إجراء مدقق." : "Bulk actions are unavailable. Use the customer page for an audited individual change."}</p>;
   return (
     <section className="bulk-bar" aria-label="إجراءات جماعية">
       <span>{selectedUsers.length} محدد · {eligible} مؤهل</span>

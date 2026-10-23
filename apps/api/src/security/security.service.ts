@@ -239,7 +239,7 @@ export class SecurityService {
     const commandHash = hashNormalizedCommand({
       operation: input.operation,
       body,
-      params: input.params,
+      params: { ...input.params },
     });
     assertSafeTextFields(body);
     const category = rateCategory(input.operation);

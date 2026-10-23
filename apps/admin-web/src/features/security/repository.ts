@@ -277,6 +277,7 @@ export const securityRepository = {
         pageSize,
         totalItems: (page - 1) * pageSize + response.items.length + (response.nextCursor ? 1 : 0),
         totalPages: page + (response.nextCursor ? 1 : 0),
+        totalItemsRelation: response.nextCursor || page > 1 ? ("lower-bound" as const) : ("exact" as const),
       },
       region: { availability: response.items.length === 0 ? "empty" as const : "available" as const },
     };
