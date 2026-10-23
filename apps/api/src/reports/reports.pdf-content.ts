@@ -90,7 +90,9 @@ function fieldRows(
       ? record.currency
       : typeof record.currencyCode === 'string'
         ? record.currencyCode
-        : context.currency;
+        : typeof record.currency_code === 'string'
+          ? record.currency_code
+          : context.currency;
   if (Object.hasOwn(record, 'amountMinor')) {
     if (typeof record.amountMinor !== 'number') throw new Error('REPORT_PDF_AMOUNT_INVALID');
     return [
@@ -102,7 +104,8 @@ function fieldRows(
   }
   if (Object.keys(record).length)
     return Object.entries(record).flatMap(([key, entry]) => {
-      if (['currency', 'currencyCode', 'currencyMinorUnits'].includes(key)) return [];
+      if (['currency', 'currencyCode', 'currency_code', 'currencyMinorUnits'].includes(key))
+        return [];
       const path = [...context.path, label(key)];
       if (/(?:Minor|_minor)$/.test(key)) {
         if (typeof entry !== 'number') throw new Error('REPORT_PDF_AMOUNT_INVALID');

@@ -1,3 +1,9 @@
+import {
+  adminAnalytics,
+  adminOverview,
+  adminObservation,
+  aggregateExportRows,
+} from './reports.admin';
 import { HttpException, Injectable, Optional } from '@nestjs/common';
 
 import { ClerkClientService } from '../identity/clerk-client.service';
@@ -206,82 +212,7 @@ export class ReportsService {
       String(normalized.platform),
       this.periodDays(String(normalized.period)),
     );
-    const now = new Date().toISOString(),
-      period = String(normalized.period),
-      platform = String(normalized.platform);
-    const freshness = { state: 'fresh', asOf: now };
-    const point = (value: number) => [{ timestamp: now, value }];
-    const trend = (id: string, label: string, kind: string, value: number, unit = 'customers') => ({
-      id,
-      label,
-      kind,
-      unit,
-      period,
-      platformScope: platform,
-      points: point(value),
-      summary: label,
-    });
-    const iosOnly = counts.iosUsers - counts.bothUsers,
-      androidOnly = counts.androidUsers - counts.bothUsers;
-    return {
-      query: normalized,
-      customers: {
-        uniqueCustomersTotal: counts.iosUsers + counts.androidUsers - counts.bothUsers,
-        iosCustomers: counts.iosUsers,
-        androidCustomers: counts.androidUsers,
-        iosOnlyCustomers: iosOnly,
-        androidOnlyCustomers: androidOnly,
-        multiPlatformCustomers: counts.bothUsers,
-        activeCustomersTotal: counts.iosUsers + counts.androidUsers - counts.bothUsers,
-        activeIosCustomers: counts.iosUsers,
-        activeAndroidCustomers: counts.androidUsers,
-        newCustomersTotal: 0,
-        newIosCustomers: 0,
-        newAndroidCustomers: 0,
-        period,
-        freshness,
-      },
-      userGrowth: trend('user-growth', 'User growth', 'unique-customers', counts.newUsers),
-      dailyActiveUsers: trend(
-        'daily-active',
-        'Daily active users',
-        'unique-customers',
-        counts.iosUsers + counts.androidUsers - counts.bothUsers,
-      ),
-      monthlyActiveUsers: trend(
-        'monthly-active',
-        'Monthly active users',
-        'unique-customers',
-        counts.iosUsers + counts.androidUsers - counts.bothUsers,
-      ),
-      versions: [],
-      capabilities: [],
-      devices: [
-        {
-          platform: 'ios',
-          category: 'active',
-          deviceCount: counts.iosDevices,
-          share:
-            counts.iosDevices + counts.androidDevices === 0
-              ? 0
-              : counts.iosDevices / (counts.iosDevices + counts.androidDevices),
-        },
-        {
-          platform: 'android',
-          category: 'active',
-          deviceCount: counts.androidDevices,
-          share:
-            counts.iosDevices + counts.androidDevices === 0
-              ? 0
-              : counts.androidDevices / (counts.iosDevices + counts.androidDevices),
-        },
-      ],
-      imports: [],
-      support: [],
-      comparisonTrends: [],
-      errorRateTrend: trend('error-rate', 'Error rate', 'events', 0, 'ratio'),
-      regions: [{ region: 'customers', availability: 'available', retryable: true }],
-    };
+    return adminAnalytics(normalized, counts);
   }
 
   async getAdminOverviewActivity(
@@ -337,22 +268,48 @@ export class ReportsService {
     const start = new Date(Date.parse(`${end}T00:00:00.000Z`) - (days - 1) * 86_400_000)
       .toISOString()
       .slice(0, 10);
-    const data =
+    const query = { platform: command.platform, period: command.period, locale: 'en' };
+    const counts =
       command.exportType === 'user_report'
-        ? await this.repository.getSupportedFinancialReport(
-            principal,
-            String(command.userId),
-            start,
-            end,
-          )
-        : {
-            adminAggregate: true,
-            counts: await this.repository.getAdminReportCounts(
-              principal,
-              String(command.platform),
-              days,
-            ),
-          };
+        ? undefined
+        : await this.repository.getAdminReportCounts(principal, String(command.platform), days);
+    const observation = counts ? adminObservation(counts) : undefined;
+    let data: Record<string, unknown>;
+    if (command.exportType === 'user_report') {
+      data = await this.repository.getSupportedFinancialReport(
+        principal,
+        String(command.userId),
+        start,
+        end,
+      );
+    } else if (command.exportType === 'activity') {
+      const items: Record<string, unknown>[] = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const result = await this.repository.getAdminOverviewActivity(principal, {
+          platform: String(command.platform),
+          days,
+          page,
+          pageSize: 25,
+        });
+        items.push(...result.items);
+        if (items.length > 10000) throw new HttpException({ code: 'REPORT_LIMIT_EXCEEDED' }, 413);
+        hasMore = items.length < result.totalItems && result.items.length > 0;
+        page++;
+      }
+      data = { items };
+    } else {
+      if (!counts) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
+      data =
+        command.exportType === 'overview'
+          ? adminOverview(query, counts)
+          : adminAnalytics(query, counts);
+    }
+    const detailedRows =
+      command.exportType === 'user_report'
+        ? []
+        : aggregateExportRows(String(command.exportType), data);
     const sourceLedgerVersion = (data as { ledgerVersion?: unknown }).ledgerVersion;
     const ledgerVersion =
       command.exportType === 'user_report' && Number.isSafeInteger(sourceLedgerVersion)
@@ -364,22 +321,37 @@ export class ReportsService {
       ledgerVersion,
       reportType: 'account_activity',
       period: {
-        startDate: start,
-        endDate: end,
-        timezone: 'UTC',
+        startDate: observation?.start
+          ? localDateAt(new Date(observation.start), observation.timezone)
+          : start,
+        endDate: observation?.end
+          ? localDateAt(new Date(observation.end), observation.timezone)
+          : end,
+        timezone:
+          observation?.timezone ?? (typeof data.timezone === 'string' ? data.timezone : 'UTC'),
         kind: days === 7 ? 'monthly' : days === 30 ? 'monthly' : 'three_months',
       },
       format: command.format,
       delivery: 'download',
-      currencyCode: 'SAR',
-      dataState: 'complete',
+      currencyCode: typeof data.currencyCode === 'string' ? data.currencyCode : 'XXX',
+      dataState:
+        command.exportType === 'user_report'
+          ? 'complete'
+          : detailedRows.length === 0
+            ? 'empty'
+            : detailedRows.some((row) => row.value === null)
+              ? 'partial'
+              : 'complete',
       evidence:
         command.exportType === 'user_report'
           ? [{ kind: 'ledger', version: ledgerVersion, asOf: now.toISOString() }]
           : [],
-      summary: data,
+      summary:
+        command.exportType === 'user_report'
+          ? data
+          : { adminAggregate: true, exportType: command.exportType, observation },
       breakdowns: [],
-      detailedRows: [],
+      detailedRows,
     });
     return this.repository.captureAdminExport(
       principal,
@@ -584,59 +556,7 @@ export class ReportsService {
     query: Record<string, unknown>,
     counts: AdminReportCounts,
   ): Record<string, unknown> {
-    const now = new Date().toISOString(),
-      period = String(query.period),
-      platform = String(query.platform);
-    const freshness = { state: 'fresh', asOf: now };
-    return {
-      query,
-      metrics: [
-        {
-          id: 'unique-customers',
-          label: 'Unique customers',
-          numericValue: counts.totalUsers,
-          formattedValue: String(counts.totalUsers),
-          kind: 'unique-customers',
-          platformScope: platform,
-          period,
-          freshness,
-        },
-      ],
-      subscriptionRevenue: {
-        paidCustomers: 0,
-        freeCustomers: counts.totalUsers,
-        recurringRevenue: 0,
-        currency: 'SAR',
-        distribution: [
-          {
-            plan: 'unclassified',
-            customers: counts.totalUsers,
-            share: counts.totalUsers === 0 ? 0 : 1,
-          },
-        ],
-        revenueTrend: {
-          id: 'recurring-revenue',
-          label: 'Recurring revenue',
-          kind: 'currency',
-          unit: 'SAR',
-          period,
-          platformScope: platform,
-          points: [{ timestamp: now, value: 0 }],
-          summary: 'No billing projection is exposed by reports.',
-        },
-        freshness,
-      },
-      operationalMetrics: [],
-      serviceHealth: [],
-      regions: [
-        {
-          region: 'metrics',
-          availability: counts.totalUsers === 0 ? 'empty' : 'available',
-          retryable: true,
-        },
-      ],
-      freshness,
-    };
+    return adminOverview(query, counts);
   }
 
   private requireRecent(principal: ClerkPrincipal): void {

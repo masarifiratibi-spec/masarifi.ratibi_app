@@ -1,3 +1,4 @@
+import { recordMobileForeground } from '@/services/live/mobile-activity';
 import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { router } from 'expo-router';
 import { AppState, Linking, type AppStateStatus } from 'react-native';
@@ -124,6 +125,7 @@ export function AppShellProvider({
           )
             void authService.touchActivity().catch(() => undefined);
           registerPushDevice();
+          void recordMobileForeground().catch(() => undefined);
           void synchronizeLiveCoreFinance().catch(() => undefined);
           void refreshPlatformOperations().catch(() => undefined);
           void syncAutomaticTracking().catch(() => undefined);
@@ -229,6 +231,7 @@ export function AppShellProvider({
       ) {
         void authService.touchActivity().catch(() => undefined);
         registerPushDevice(true);
+        void recordMobileForeground().catch(() => undefined);
         void synchronizeLiveCoreFinance().catch(() => undefined);
         void refreshPlatformOperations().catch(() => undefined);
         void syncAutomaticTracking().catch(() => undefined);

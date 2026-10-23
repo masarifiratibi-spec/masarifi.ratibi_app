@@ -110,3 +110,22 @@ describe('customer PDF report content', () => {
     expect(sections.flatMap((section) => section.rows.flat())).not.toContain('0.00 SAR');
   });
 });
+
+it('honors snake_case per-row currencies and scales in supported multi-currency summaries', () => {
+  const sections = buildReportPdfSections({
+    ...snapshot,
+    summary: {
+      currencyMinorUnits: { USD: 2, AED: 2, KWD: 3 },
+      summaries: [
+        { currency_code: 'USD', income_minor: 1234 },
+        { currency_code: 'AED', income_minor: 1234 },
+        { currency_code: 'KWD', income_minor: 1234 },
+      ],
+    },
+    breakdowns: [],
+    detailedRows: [],
+  });
+  expect(JSON.stringify(sections)).toContain('12.34 USD');
+  expect(JSON.stringify(sections)).toContain('12.34 AED');
+  expect(JSON.stringify(sections)).toContain('1.234 KWD');
+});

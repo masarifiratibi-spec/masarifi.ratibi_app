@@ -1,3 +1,5 @@
+import type { AdminReportCounts } from './reports.admin-types';
+export type { AdminReportCounts } from './reports.admin-types';
 import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
@@ -106,16 +108,6 @@ interface ScheduleRow extends QueryResultRow {
   created_at: Date;
   updated_at: Date;
   version: string;
-}
-
-export interface AdminReportCounts {
-  totalUsers: number;
-  newUsers: number;
-  iosUsers: number;
-  androidUsers: number;
-  bothUsers: number;
-  iosDevices: number;
-  androidDevices: number;
 }
 
 interface AdminActivityRow extends QueryResultRow {
@@ -485,29 +477,34 @@ export class ReportsRepository {
     platform: string,
     days: number,
   ): Promise<AdminReportCounts> {
-    const rows = await this.withApiSnapshot(principal, async (client) => {
-      const result = await client.query<{
-        total_users: string;
-        new_users: string;
-        ios_users: string;
-        android_users: string;
-        both_users: string;
-        ios_devices: string;
-        android_devices: string;
-      }>('select * from private.read_admin_report_counts($1,$2)', [platform, days]);
-      return result.rows;
+    return this.withApiSnapshot(principal, async (client) => {
+      const row = (
+        await client.query<{ value: AdminReportCounts }>(
+          'select private.read_admin_report_measurements($1,$2) value',
+          [platform, days],
+        )
+      ).rows[0];
+      if (!row) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
+      return row.value;
     });
-    const row = rows[0];
-    if (!row) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
-    return {
-      totalUsers: safeInteger(row.total_users),
-      newUsers: safeInteger(row.new_users),
-      iosUsers: safeInteger(row.ios_users),
-      androidUsers: safeInteger(row.android_users),
-      bothUsers: safeInteger(row.both_users),
-      iosDevices: safeInteger(row.ios_devices),
-      androidDevices: safeInteger(row.android_devices),
-    };
+  }
+
+  async recordMobileActivity(principal: ClerkPrincipal, platform: string): Promise<void> {
+    try {
+      await this.pool.withClient(async (client) => {
+        await client.query('begin');
+        try {
+          await this.setApiContext(client, principal);
+          await client.query('select private.record_mobile_activity($1)', [platform]);
+          await client.query('commit');
+        } catch (error) {
+          await client.query('rollback');
+          throw error;
+        }
+      });
+    } catch (error) {
+      throw mapDatabaseError(error);
+    }
   }
 
   async getAdminOverviewActivity(
@@ -723,9 +720,11 @@ export class ReportsRepository {
 
   async listWork(kind: ReportWorkKind, limit: number): Promise<string[]> {
     return this.pool.withClient(async (client) => {
-      await client.query('begin read only');
+      await client.query(kind === 'report.output.expire' ? 'begin' : 'begin read only');
       try {
         await this.setWorkerContext(client);
+        if (kind === 'report.output.expire')
+          await client.query('select private.prune_mobile_activity()');
         const rows = (
           await client.query<{ id: string }>('select * from private.list_report_work($1,$2)', [
             kind,

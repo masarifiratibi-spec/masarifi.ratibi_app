@@ -46,9 +46,16 @@ function csvCell(value: unknown): string {
 }
 
 function* csv(snapshot: ReportSnapshot): Generator<string> {
-  yield `\uFEFF${CSV_COLUMNS.join(',')}\r\n`;
+  const type = snapshot.summary.exportType;
+  const columns =
+    type === 'activity'
+      ? ['occurredAt', 'eventType', 'summary', 'platformScope', 'permission', 'destination']
+      : type === 'overview' || type === 'platform_analytics'
+        ? ['section', 'metric', 'value', 'platformScope', 'period', 'observedAt', 'timestamp']
+        : CSV_COLUMNS;
+  yield `\uFEFF${columns.join(',')}\r\n`;
   for (const row of snapshot.detailedRows)
-    yield `${CSV_COLUMNS.map((column) => csvCell(row[column])).join(',')}\r\n`;
+    yield `${columns.map((column) => csvCell(row[column])).join(',')}\r\n`;
 }
 
 function pdf(snapshot: ReportSnapshot, font: Buffer): PDFKit.PDFDocument {
@@ -149,11 +156,13 @@ export function renderReport(
     const document = pdfDocument;
     queueMicrotask(() => {
       if (document.destroyed) return;
-      void writeReportPdf(document, snapshot).then(() => {
-        if (!document.destroyed) document.end();
-      }).catch((error: unknown) => {
-        document.destroy(error instanceof Error ? error : new Error('REPORT_RENDER_FAILED'));
-      });
+      void writeReportPdf(document, snapshot)
+        .then(() => {
+          if (!document.destroyed) document.end();
+        })
+        .catch((error: unknown) => {
+          document.destroy(error instanceof Error ? error : new Error('REPORT_RENDER_FAILED'));
+        });
     });
   }
   return {
