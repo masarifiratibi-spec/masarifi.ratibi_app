@@ -96,7 +96,7 @@ test('translates preference fields only at the legacy database function boundary
   let databaseBody: unknown;
   const client = {
     query: jest.fn((sql: string, values?: unknown[]) => {
-      if (sql.includes('claim_idempotency_key'))
+      if (sql.includes('claim_engagement_key'))
         return Promise.resolve({ rows: [{ outcome: 'new' }] });
       if (sql.includes('execute_engagement_command')) {
         databaseBody = JSON.parse(String(values?.[3]));
@@ -156,7 +156,7 @@ test.each([
     const query = jest.fn((sql: string, values?: unknown[]) => {
       void values;
       return Promise.resolve({
-        rows: sql.includes('claim_idempotency_key')
+        rows: sql.includes('claim_engagement_key')
           ? [{ outcome: 'new' }]
           : sql.includes('execute_engagement_command')
             ? [{ value: { version: 2 } }]

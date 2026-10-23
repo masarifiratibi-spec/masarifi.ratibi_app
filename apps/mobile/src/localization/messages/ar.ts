@@ -2442,6 +2442,8 @@ const ar: MessageCatalog = {
   'support.ticket.reply': 'الرد',
   'support.ticket.sendReply': 'إرسال الرد',
   'support.ticket.replyFailed': 'فشل الرد. تم حفظ النص.',
+  'support.ticket.refresh': 'تحديث التذكرة',
+  'support.ticket.replyUnavailable': 'الرد غير متاح في حالة التذكرة الحالية.',
   'settings.application.weekStart.sunday': 'الأحد',
   'settings.application.transactionDefaults.expense': 'مصروف',
   'settings.application.dashboard.default':

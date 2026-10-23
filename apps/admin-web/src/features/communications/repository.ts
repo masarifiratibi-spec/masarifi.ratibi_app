@@ -66,6 +66,8 @@ const ticketFields = {
   closedAt: nullableTimestampSchema,
   version: z.number().int().positive(),
   createdAt: timestampSchema,
+  assignedAdminId: z.string().min(1).max(128).nullable(),
+  customerReference: z.string().regex(/^CUS-[a-f0-9]{16}$/),
 };
 const ticketSchema = z.object(ticketFields).strict();
 const internalNoteSchema = z
@@ -256,6 +258,7 @@ type AdminListItem =
   | z.infer<typeof adminResourceSchema>;
 
 export interface SupportTicketQuery extends Pagination {
+  cursor?: string;
   search?: string;
   platform?: Platform;
   status?: TicketState;
@@ -274,6 +277,8 @@ export interface SupportTicketPage {
   tickets: CommunicationPage["items"];
   items?: CommunicationPage["items"];
   pagination: CommunicationPage["pagination"];
+  nextCursor?: string | null;
+  hasMore?: boolean;
 }
 
 export type SupportTicketDetail = CommunicationDetail;
@@ -304,7 +309,7 @@ export interface TicketActionRequest {
   expectedVersion: number;
   reason: string;
   assignTo?: string;
-  assigneeId?: string;
+  assigneeId?: string | null;
   priority?: TicketPriority;
   message?: string;
   body?: string;
@@ -392,41 +397,56 @@ export class CommunicationsRepository {
   async getSupportTickets(
     params: SupportTicketQuery,
   ): Promise<SupportTicketPage> {
-    const items = await this.collect(
-      `/support/tickets${this.query({ status: params.status })}`,
-      ticketPageSchema,
+    const page = await apiClient.get(
+      `${this.baseUrl}/support/tickets${this.query({
+        limit: Number(params.pageSize),
+        cursor: params.cursor,
+        query: params.search,
+        status: params.status,
+        priority: params.priority,
+        assignee: params.assignedAgent,
+        categoryId: params.categoryId,
+        from: params.dateFrom,
+        to: params.dateTo,
+      })}`,
+      ticketPageSchema.extend({ totalItems: z.number().int().nonnegative() }),
     );
-    const page = this.mapPage(items, params);
+    const items = page.items.map((item) => this.mapRecord(item));
     return {
-      tickets: page.items,
-      items: page.items,
-      pagination: page.pagination,
+      tickets: items,
+      items,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      pagination: {
+        page: params.page,
+        pageSize: Number(params.pageSize),
+        totalItems: page.totalItems,
+        totalPages: Math.ceil(page.totalItems / Number(params.pageSize)),
+      },
     };
   }
 
-  async getSupportTicket(ticketId: string): Promise<SupportTicketDetail> {
-    let cursor: string | null = null;
-    let first: z.infer<typeof ticketDetailSchema> | null = null;
-    const messages: z.infer<typeof messageApiSchema>[] = [];
-    const messageIds = new Set<string>();
-    const cursors = new Set<string>();
-    do {
-      const page = await apiClient.get(
-        `${this.baseUrl}/support/tickets/${encodeURIComponent(ticketId)}${this.query({ limit: 100, cursor })}`,
-        ticketDetailSchema,
-      );
-      first ??= page;
-      if (page.id !== first.id || page.version !== first.version)
-        throw contractMismatch();
-      for (const message of page.messages) {
-        if (messageIds.has(message.id)) throw contractMismatch();
-        messageIds.add(message.id);
-        messages.push(message);
-      }
-      cursor = this.nextCursor(page, cursors);
-    } while (cursor);
-    if (!first) throw contractMismatch();
-    return this.ticketDetail({ ...first, messages });
+  async getSupportTicket(
+    ticketId: string,
+    cursor?: string,
+  ): Promise<SupportTicketDetail> {
+    const page = await apiClient.get(
+      `${this.baseUrl}/support/tickets/${encodeURIComponent(ticketId)}${this.query({ limit: 50, cursor })}`,
+      ticketDetailSchema,
+    );
+    return this.ticketDetail(page);
+  }
+
+  async downloadSupportAttachment(ticketId: string, attachmentId: string) {
+    return apiClient.get(
+      `${this.baseUrl}/support/tickets/${encodeURIComponent(ticketId)}/attachments/${encodeURIComponent(attachmentId)}/download`,
+      z
+        .object({
+          url: z.url().refine((value) => value.startsWith("https://")),
+          expiresAt: timestampSchema,
+        })
+        .strict(),
+    );
   }
 
   async actOnSupportTicket(
@@ -453,17 +473,41 @@ export class CommunicationsRepository {
   async getSupportOverview(
     params: CommunicationsQuery,
   ): Promise<CommunicationOverview> {
-    const page = await this.getSupportTickets({
-      page: 1,
-      pageSize: "100",
-      status: params.status as TicketState | undefined,
-    });
+    const count = z.number().int().nonnegative();
+    const result = await apiClient.get(
+      `${this.baseUrl}/support/overview${this.query(params)}`,
+      z
+        .object({
+          total: count,
+          unassigned: count,
+          byStatus: z
+            .object({
+              open: count,
+              waiting_customer: count,
+              waiting_support: count,
+              resolved: count,
+              closed: count,
+            })
+            .strict(),
+        })
+        .strict(),
+    );
     return {
       title: "Support overview",
       description: "Current support workload",
-      metrics: [],
-      items: page.tickets.slice(0, 12),
-      region: { availability: page.tickets.length ? "available" : "empty" },
+      metrics: Object.entries({
+        total: result.total,
+        unassigned: result.unassigned,
+        ...result.byStatus,
+      }).map(([key, value]) => ({
+        key,
+        label: key,
+        value,
+        unit: "tickets" as const,
+        platform: "all" as const,
+      })),
+      items: [],
+      region: { availability: result.total ? "available" : "empty" },
     };
   }
 
@@ -822,6 +866,12 @@ export class CommunicationsRepository {
         safe.locale === "ar" || safe.locale === "en" ? safe.locale : "unknown",
       updatedAt,
       revision: source.version,
+      ...(typeof source.customerReference === "string"
+        ? {
+            customerReference: source.customerReference,
+            assignedAdminId: source.assignedAdminId,
+          }
+        : {}),
       tags: [type, nonempty(safe.channel)].filter((value): value is string =>
         Boolean(value),
       ),
@@ -850,6 +900,8 @@ export class CommunicationsRepository {
         attachments: message.attachments.map(attachment),
       })),
       internalNotes: item.internalNotes,
+      nextMessageCursor: item.nextCursor,
+      hasMoreMessages: item.hasMore,
       auditTrail: [],
     });
   }
@@ -859,8 +911,13 @@ export class CommunicationsRepository {
       action: request.action,
       expectedVersion: request.expectedVersion,
       reason: request.reason,
-      ...(request.assigneeId || request.assignTo
-        ? { assigneeId: request.assigneeId ?? request.assignTo }
+      ...(request.assigneeId !== undefined || request.assignTo !== undefined
+        ? {
+            assigneeId:
+              request.assigneeId !== undefined
+                ? request.assigneeId
+                : request.assignTo,
+          }
         : {}),
       ...(request.priority ? { priority: request.priority } : {}),
       ...(request.message || request.body

@@ -709,13 +709,13 @@ export function createLiveSupportService(options: Parameters<typeof createEngage
         const categories = supportCategoryPageApiSchema.parse(await api.listSupportCategories());
         const category = categories.items.find((item) => item.key === draft.category);
         if (!category) throw new EngagementApiError('unavailable');
-        const created = actionResultApiSchema.parse(
+        const created = ticketDetailApiSchema.parse(
           await api.createTicket(
             { categoryId: category.id, subject: draft.subject, message: draft.description },
             operationId,
           ),
         );
-        ticketId = created.resourceId;
+        ticketId = created.id;
       }
       await drafts.discardDraft(id);
       const value = supportOperation(operationId, kind, ticketId, id);

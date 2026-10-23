@@ -2885,3 +2885,11 @@ pre {
   .workspace-sections { display: none; }
   .workspace-banner::after { content: "Protected temporary access content is omitted from print."; display: block; font-weight: 700; }
 }
+.support-messages, .support-action { display: grid; gap: 16px; }
+.support-message { padding: 16px; border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.support-message header { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.support-action label, .support-filters label { display: grid; gap: 8px; min-width: 0; }
+.support-action textarea { min-height: 100px; resize: vertical; }
+.support-action :is(input,textarea,select), .support-filters :is(input,select) { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: inherit; font: inherit; }
+.support-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,210px),1fr)); gap: 16px; align-items: end; }
+.support-ticket-list { display: grid; gap: 16px; }

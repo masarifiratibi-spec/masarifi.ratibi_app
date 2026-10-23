@@ -2608,6 +2608,8 @@ const en = {
   'support.ticket.reply': 'Reply',
   'support.ticket.sendReply': 'Send reply',
   'support.ticket.replyFailed': 'Reply failed. Your text is preserved.',
+  'support.ticket.refresh': 'Refresh ticket',
+  'support.ticket.replyUnavailable': 'Replies are unavailable for this ticket status.',
   'support.ticket.status.open': 'Open',
   'support.ticket.status.in_progress': 'In progress',
   'support.ticket.status.resolved': 'Resolved',

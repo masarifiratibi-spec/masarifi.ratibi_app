@@ -6,6 +6,13 @@ import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency
 import { PoolService } from '../platform/database/pool.service';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import type { ReminderCandidate } from './engagement.reminders';
+import {
+  readSupportWorkload,
+  SUPPORT_ADMIN_REFERENCE,
+  SUPPORT_TICKET_VALUE,
+  supportFilter,
+  supportFilterValues,
+} from './support-admin.reads';
 
 export interface EngagementCommand {
   operation: string;
@@ -94,6 +101,8 @@ export interface PreparedDelivery {
 }
 
 const READS = new Set([
+  'adminSupportOverview',
+  'adminDownloadSupportAttachment',
   'listNotifications',
   'getNotification',
   'getNotificationPreferences',
@@ -156,7 +165,7 @@ function cursorPage(rows: CursorRow[], limit: number): Record<string, unknown> {
     nextCursor: last
       ? Buffer.from(
           JSON.stringify({
-            at: new Date(last.sort_at).toISOString(),
+            at: typeof last.sort_at === 'string' ? last.sort_at : last.sort_at.toISOString(),
             id: last.sort_id,
           } satisfies EngagementCursor),
         ).toString('base64url')
@@ -614,7 +623,11 @@ export class EngagementRepository {
 
   private async read(principal: ClerkPrincipal, command: EngagementCommand): Promise<unknown> {
     return this.pool.withClient(async (client) => {
-      await client.query('begin isolation level repeatable read read only');
+      await client.query(
+        command.operation === 'adminDownloadSupportAttachment'
+          ? 'begin'
+          : 'begin isolation level repeatable read read only',
+      );
       try {
         await this.setContext(client, principal);
         const value = await this.readOperation(client, principal.userId, command);
@@ -640,6 +653,30 @@ export class EngagementRepository {
     );
     const cursor = decodeCursor(query.cursor);
     switch (command.operation) {
+      case 'adminSupportOverview':
+        return readSupportWorkload(client, query);
+      case 'adminDownloadSupportAttachment':
+        return this.one(
+          client,
+          'select private.support_admin_attachment($1::uuid,$2::uuid,$3) value',
+          [command.params?.ticketId, command.params?.attachmentId, command.requestId],
+        );
+      case 'adminListSupportTickets': {
+        await client.query("select private.assert_admin_permission('support.tickets.read')");
+        const values = supportFilterValues(query);
+        const rows = await client.query<CursorRow>(
+          `select ${SUPPORT_TICKET_VALUE}||${SUPPORT_ADMIN_REFERENCE} value,t.last_message_at::text sort_at,t.id::text sort_id
+           from public.support_tickets t where ${supportFilter}
+           and ($8::timestamptz is null or (t.last_message_at,t.id)<($8::timestamptz,$9::uuid))
+           order by t.last_message_at desc,t.id desc limit $10`,
+          [...values, cursor?.at ?? null, cursor?.id ?? null, limit + 1],
+        );
+        const count = await client.query<{ count: number }>(
+          `select count(*)::int count from public.support_tickets t where ${supportFilter}`,
+          values,
+        );
+        return { ...cursorPage(rows.rows, limit), totalItems: count.rows[0]?.count ?? 0 };
+      }
       case 'listNotifications': {
         const rows = (
           await client.query<CursorRow>(
@@ -692,30 +729,26 @@ export class EngagementRepository {
             )
           ).rows.map((row: ValueRow) => row.value),
         );
-      case 'listSupportTickets':
-      case 'adminListSupportTickets': {
-        const admin = command.operation.startsWith('admin');
+      case 'listSupportTickets': {
         const rows = await client.query<CursorRow>(
-          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value,last_message_at sort_at,id::text sort_id
+          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value,last_message_at::text sort_at,id::text sort_id
            from public.support_tickets where ($1::text is null or user_id=$1)
            and ($2::timestamptz is null or (last_message_at,id)<($2::timestamptz,$3::uuid))
            and ($4::text is null or status=$4) order by last_message_at desc,id desc limit $5`,
-          [
-            admin ? null : userId,
-            cursor?.at ?? null,
-            cursor?.id ?? null,
-            query.status ?? null,
-            limit + 1,
-          ],
+          [userId, cursor?.at ?? null, cursor?.id ?? null, query.status ?? null, limit + 1],
         );
         return cursorPage(rows.rows, limit);
       }
       case 'getSupportTicket':
       case 'adminGetSupportTicket': {
         const admin = command.operation.startsWith('admin');
+        if (admin)
+          await client.query(
+            "select private.assert_admin_permission('support.tickets.detail.read')",
+          );
         const ticket = await this.one(
           client,
-          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value from public.support_tickets where id=$1 ${admin ? '' : 'and user_id=$2'}`,
+          `select ${SUPPORT_TICKET_VALUE}${admin ? `||${SUPPORT_ADMIN_REFERENCE}` : ''} value from public.support_tickets t where t.id=$1 ${admin ? '' : 'and t.user_id=$2'}`,
           admin ? [id] : [id, userId],
         );
         const messageRows = (
@@ -723,7 +756,7 @@ export class EngagementRepository {
             `select jsonb_build_object('id',m.id,'senderType',m.sender_type,'body',m.body,'attachments',coalesce((
                select jsonb_agg(jsonb_build_object('id',a.id,'filename',a.filename_safe,'contentType',a.content_type,'sizeBytes',a.size_bytes,'status',a.scan_status) order by a.id)
                from private.support_attachments a where a.message_id=m.id and ${admin ? "a.scan_status<>'uploading'" : "a.scan_status='clean'"}
-             ),'[]'::jsonb),'createdAt',m.created_at) value,m.created_at sort_at,m.id::text sort_id
+             ),'[]'::jsonb),'createdAt',m.created_at) value,m.created_at::text sort_at,m.id::text sort_id
              from public.support_messages m where m.ticket_id=$1
              and ($2::timestamptz is null or (m.created_at,m.id)>($2::timestamptz,$3::uuid))
              order by m.created_at,m.id limit $4`,
@@ -851,16 +884,16 @@ export class EngagementRepository {
       await client.query('begin');
       try {
         await this.setContext(client, principal);
-        const scope = `engagement.${command.operation}`;
+        const scope = `engagement.${command.operation.toLowerCase()}`;
         const keyHash = hashIdempotencyKey(command.idempotencyKey ?? '');
         const requestHash = hashNormalizedCommand({
           operation: command.operation,
-          body: command.body,
-          params: command.params,
+          body: command.body ?? {},
+          params: { ...command.params },
         });
         const claim = (
           await client.query<Claim>(
-            'select * from private.claim_idempotency_key($1,$2,$3,$4,$5::interval)',
+            'select * from private.claim_engagement_key($1,$2,$3,$4,$5::interval)',
             [principal.userId, scope, keyHash, requestHash, '2 minutes'],
           )
         ).rows[0];
@@ -874,7 +907,7 @@ export class EngagementRepository {
           return claim.response_body;
         }
         const value = await this.mutationOperation(client, principal, command);
-        await client.query('select private.complete_idempotency_key($1,$2,$3,$4,$5,$6::jsonb,$7)', [
+        await client.query('select private.complete_engagement_key($1,$2,$3,$4,$5,$6::jsonb,$7)', [
           principal.userId,
           scope,
           keyHash,

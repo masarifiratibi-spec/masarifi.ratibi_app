@@ -54,6 +54,8 @@ test('ticket list appends next pages without losing prior rows or order', async 
 test('ticket detail preserves reply input through failure and only rates resolved or closed tickets', () => {
   const reply = jest.fn();
   const rate = jest.fn();
+  const refetch = jest.fn();
+  mockQueries.useSupportTicket.mockReturnValue({ data: ticket('open'), isLoading: false,isError: false,refetch });
   mockQueries.useReplyToTicket.mockReturnValue({ mutate: reply, isPending: false, isError: true });
   mockQueries.useRateTicket.mockReturnValue({ mutate: rate, isPending: false, isError: false });
 
@@ -68,6 +70,9 @@ test('ticket detail preserves reply input through failure and only rates resolve
   expect(reply).toHaveBeenCalledWith(expect.objectContaining({ input: { description: 'Please help again.' }, operationId: expect.stringMatching(/^support-reply-/) }));
   expect(screen.getByDisplayValue('Please help again.')).toBeTruthy();
   expect(screen.getByText(t('support.ticket.replyFailed'))).toBeTruthy();
+  fireEvent.press(screen.getByText(t('support.ticket.refresh')));
+  expect(refetch).toHaveBeenCalledTimes(1);
+  expect(screen.getByDisplayValue('Please help again.')).toBeTruthy();
 
   mockQueries.useSupportTicket.mockReturnValue({ data: ticket('resolved', 'resolved'), isLoading: false, isError: false });
   renderWithProviders(<TicketDetailScreen ticketId="resolved" />);
@@ -79,6 +84,13 @@ test('ticket detail has no attachment UI', () => {
   renderWithProviders(<TicketDetailScreen ticketId="open" />);
 
   expect(screen.queryByText(/attachment|upload|file/i)).toBeNull();
+});
+
+test('closed ticket shows its conversation without offering an unsupported reply', () => {
+  mockQueries.useSupportTicket.mockReturnValue({ data: ticket('closed','closed'),isLoading: false,isError: false });
+  renderWithProviders(<TicketDetailScreen ticketId="closed" />);
+  expect(screen.getByText('SUP-closed')).toBeTruthy();
+  expect(screen.queryByText(t('support.ticket.sendReply'))).toBeNull();
 });
 
 function ticket(id: string, status: 'open' | 'resolved' | 'closed' = 'open') {

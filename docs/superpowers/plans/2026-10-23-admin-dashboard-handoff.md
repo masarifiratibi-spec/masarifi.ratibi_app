@@ -225,3 +225,7 @@ This checkpoint supersedes earlier incomplete-task notes above.
 - Task4 has only author self-review, per the explicit main-agent-only instruction. No independent review is claimed. No Task4 push or deployment has occurred.
 - Next: Task5 Admin/mobile support, then Task6 shell/integration/evidence, with the existing briefs and ledger. Carry Task2 audit lower-bound presentation and Task3 provenance-constraint minor findings into final integration. Also reconcile new customer audit display labels in Task6.
 - Evidence summary: `docs/evidence/2026-10-23-admin-dashboard/customer-admin-verification.md`.
+
+## Main-agent checkpoint — Task5 implemented
+
+Task5 support API/Admin/mobile workflow is implemented and self-reviewed by the main agent. API53suites179tests passed; full Admin97files983tests passed; mobile8suites57tests passed; source-fresh and historical-upgrade databases each165migrations/9recovery tests passed. Scoped type/lint/checksum gates passed (existing mobile test require-import warnings remain). See docs/evidence/2026-10-23-admin-dashboard/support-workflow-verification.md. Final task-done receipt remains the completion authority in the ledger. Task6 remains outstanding; no Task4/5 GitHub push or deployment has been performed. Continue main-agent-only.

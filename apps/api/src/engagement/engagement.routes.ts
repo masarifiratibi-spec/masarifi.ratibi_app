@@ -168,6 +168,24 @@ export const ENGAGEMENT_CUSTOMER_ROUTES: readonly EngagementRoute[] = Object.fre
 export const ENGAGEMENT_ADMIN_ROUTES: readonly EngagementAdminRoute[] = Object.freeze([
   {
     method: 'GET',
+    path: 'admin/support/overview',
+    operation: 'adminSupportOverview',
+    status: 200,
+    idempotent: false,
+    permission: 'support.overview.read',
+    recentAuth: false,
+  },
+  {
+    method: 'GET',
+    path: 'admin/support/tickets/:ticketId/attachments/:attachmentId/download',
+    operation: 'adminDownloadSupportAttachment',
+    status: 200,
+    idempotent: false,
+    permission: 'support.tickets.detail.read',
+    recentAuth: false,
+  },
+  {
+    method: 'GET',
     path: 'admin/communications/templates',
     operation: 'adminListNotificationTemplates',
     status: 200,

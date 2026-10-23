@@ -25,6 +25,8 @@ const ticket = (suffix: number) => ({
   closedAt: null,
   version: suffix,
   createdAt: at,
+  assignedAdminId: null,
+  customerReference: "CUS-0123456789abcdef",
 });
 
 describe("CommunicationsRepository", () => {
@@ -97,7 +99,7 @@ describe("CommunicationsRepository", () => {
     ).rejects.toMatchObject({ code: clientCode, status });
   });
 
-  test("traverses every ticket cursor and computes exact local pagination", async () => {
+  test("fetches only the requested ticket cursor and preserves the exact server total", async () => {
     const fetchSpy = vi
       .spyOn(global, "fetch")
       .mockImplementation(async (input) => {
@@ -106,18 +108,19 @@ describe("CommunicationsRepository", () => {
           items: [ticket(second ? 2 : 1)],
           nextCursor: second ? null : "tickets-2",
           hasMore: !second,
+          totalItems: 26,
         });
       });
     const page = await repository.getSupportTickets({
       page: 1,
       pageSize: "25",
     });
-    expect(page.tickets.map((item) => item.id)).toEqual([id(1), id(2)]);
+    expect(page.tickets.map((item) => item.id)).toEqual([id(1)]);
     expect(page.pagination).toEqual({
       page: 1,
       pageSize: 25,
-      totalItems: 2,
-      totalPages: 1,
+      totalItems: 26,
+      totalPages: 2,
     });
     expect(page.tickets[0]).toMatchObject({
       title: "Ticket 1",
@@ -130,7 +133,9 @@ describe("CommunicationsRepository", () => {
       fetchSpy.mock.calls.some(([url]) =>
         String(url).includes("cursor=tickets-2"),
       ),
-    ).toBe(true);
+    ).toBe(false);
+    expect(page.nextCursor).toBe("tickets-2");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   test("keeps UI pagination local and sends only supported server filters", async () => {
@@ -153,7 +158,7 @@ describe("CommunicationsRepository", () => {
     expect(url).not.toContain("search=");
   });
 
-  test("traverses complete ticket history and preserves bodies, notes, and attachments", async () => {
+  test("loads bounded message pages and preserves bodies, notes, attachments and safe references", async () => {
     const fetchSpy = vi
       .spyOn(global, "fetch")
       .mockImplementation(async (input) => {
@@ -192,31 +197,127 @@ describe("CommunicationsRepository", () => {
       revision: 1,
       notes: ["Internal review"],
       attachments: [{ id: id(20), filename: "receipt.png", status: "clean" }],
-      messages: [
-        { id: id(11), body: "Customer body" },
-        { id: id(12), body: "Support reply" },
-      ],
+      messages: [{ id: id(11), body: "Customer body" }],
       internalNotes: [{ id: id(30), body: "Internal review" }],
     });
     expect(
       fetchSpy.mock.calls.some(([url]) =>
         String(url).includes("cursor=messages-2"),
       ),
-    ).toBe(true);
+    ).toBe(false);
+    expect(detail).toMatchObject({
+      nextMessageCursor: "messages-2",
+      hasMoreMessages: true,
+      customerReference: "CUS-0123456789abcdef",
+    });
+    const next = await repository.getSupportTicket(id(1), "messages-2");
+    expect(next.messages).toEqual([
+      expect.objectContaining({ body: "Support reply" }),
+    ]);
   });
 
-  test("sends exact versions and reasons and accepts only exact action results", async () => {
+  test("sends support search, priority, assignment, category and UTC date filters to the server", async () => {
     const fetchSpy = vi
       .spyOn(global, "fetch")
       .mockResolvedValue(
         response({
-          resourceId: id(1),
-          outcome: "success",
-          currentState: "waiting_support",
-          version: 2,
-          requestId: "request-2",
+          items: [],
+          nextCursor: null,
+          hasMore: false,
+          totalItems: 0,
         }),
       );
+    await repository.getSupportTickets({
+      page: 2,
+      pageSize: "25",
+      cursor: "next",
+      search: "Need help",
+      priority: "urgent",
+      assignedAgent: "unassigned",
+      categoryId: id(90),
+      dateFrom: "2026-10-01",
+      dateTo: "2026-10-23",
+    });
+    const url = new URL(
+      String(fetchSpy.mock.calls[0][0]),
+      "https://admin.test",
+    );
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      limit: "25",
+      cursor: "next",
+      query: "Need help",
+      priority: "urgent",
+      assignee: "unassigned",
+      categoryId: id(90),
+      from: "2026-10-01",
+      to: "2026-10-23",
+    });
+  });
+
+  test("uses the real aggregate workload endpoint without scanning ticket pages", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValue(
+        response({
+          total: 80,
+          unassigned: 9,
+          byStatus: {
+            open: 5,
+            waiting_support: 30,
+            waiting_customer: 20,
+            resolved: 15,
+            closed: 10,
+          },
+        }),
+      );
+    const data = await repository.getSupportOverview({});
+    expect(data.metrics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "total", value: 80 }),
+        expect.objectContaining({ key: "waiting_support", value: 30 }),
+      ]),
+    );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0][0])).toContain(
+      "/admin/support/overview",
+    );
+  });
+
+  test("preserves multiline customer replies and staff notes from the live contract", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        ...ticket(1),
+        messages: [
+          {
+            id: id(2),
+            senderType: "customer",
+            body: "First line\nSecond line",
+            attachments: [],
+            createdAt: at,
+          },
+        ],
+        internalNotes: [
+          { id: id(3), body: "Review\nFollow up", createdAt: at },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    );
+    const detail = await repository.getSupportTicket(id(1));
+    expect(detail.messages?.[0]?.body).toBe("First line\nSecond line");
+    expect(detail.internalNotes?.[0]?.body).toBe("Review\nFollow up");
+  });
+
+  test("sends exact versions and reasons and accepts only exact action results", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        resourceId: id(1),
+        outcome: "success",
+        currentState: "waiting_support",
+        version: 2,
+        requestId: "request-2",
+      }),
+    );
     await expect(
       repository.actOnSupportTicket(id(1), {
         action: "assign",
@@ -320,18 +421,16 @@ describe("CommunicationsRepository", () => {
   });
 
   test("preserves exact audience preview identity, expiry, and counts", async () => {
-    const fetchSpy = vi
-      .spyOn(global, "fetch")
-      .mockResolvedValue(
-        response({
-          previewId: id(50),
-          audienceVersion: "audience-v7",
-          eligible: 7,
-          excluded: 3,
-          optedOut: 2,
-          expiresAt: "2026-09-10T08:10:00.000Z",
-        }),
-      );
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        previewId: id(50),
+        audienceVersion: "audience-v7",
+        eligible: 7,
+        excluded: 3,
+        optedOut: 2,
+        expiresAt: "2026-09-10T08:10:00.000Z",
+      }),
+    );
     await expect(
       repository.previewAudience({ platform: "ios", locale: "ar" }),
     ).resolves.toEqual({

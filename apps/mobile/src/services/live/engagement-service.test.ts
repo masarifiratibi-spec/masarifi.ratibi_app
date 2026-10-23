@@ -881,3 +881,14 @@ it('keeps the draft and refuses ticket submission when its category is unavailab
   expect(drafts.discardDraft).not.toHaveBeenCalled();
   expect(request).toHaveBeenCalledTimes(1);
 });
+
+it('submits a live support draft using the owner detail response and discards only after success', async () => {
+  const draft = { id: 'draft-live', mode: 'ticket', category: 'technical', subject: 'Need help',
+    description: 'Please help with this problem', ticketId: null, context: null, attachmentUploadIds: [], status: 'draft', updatedAt: 1 } as SupportDraft;
+  const drafts = { saveDraft: jest.fn(), loadDraft: jest.fn().mockResolvedValue(draft), discardDraft: jest.fn() };
+  const request = jest.fn().mockResolvedValueOnce(response({ items: [{ id: id(21), key: 'technical', name: 'Technical', sortOrder: 0, active: true, version: 1 }], nextCursor: null, hasMore: false }))
+    .mockResolvedValueOnce(response(ticket()));
+  const service = createLiveSupportService({ baseUrl: 'https://api.example.test', token: async () => 'token', request, drafts });
+  await expect(service.submitDraft(draft.id,'support-live-submit')).resolves.toMatchObject({ value: { ticketId: id(20) } });
+  expect(drafts.discardDraft).toHaveBeenCalledWith(draft.id);
+});
