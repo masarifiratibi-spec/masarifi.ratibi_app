@@ -217,8 +217,10 @@ export function RecordCards({
 
 export function OperationalListView({
   resource,
+  showOverview = false,
 }: {
   resource: Phase4Resource;
+  showOverview?: boolean;
 }) {
   const { locale } = useLocale();
   const copy = operationalCopy[locale];
@@ -280,6 +282,7 @@ export function OperationalListView({
         title={resCopy.title}
         description={resCopy.description}
       />
+      {showOverview && <ImportOverviewAnalytics />}
       {notice && (
         <p className="privacy-notice" role="status">
           {notice}
@@ -774,7 +777,7 @@ export function ImportOverviewAnalytics() {
             </div>
             <div className="summary-item">
               <small>{copy.analytics.topFailedSource}</small>
-              <strong>{overview.data.highestFailureSource}</strong>
+              <strong>{overview.data.failedSessions ? overview.data.highestFailureSource : "—"}</strong>
             </div>
           </div>
         )}

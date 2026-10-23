@@ -14,13 +14,17 @@ import { mocksEnabled } from "@/core/api/client";
 import { useSimulatedRole } from "@/core/auth/use-simulated-role";
 import { useLocale } from "@/core/localization/provider";
 import { hasPermission } from "@/core/permissions/role-map";
-import { ImportOverviewAnalytics } from "@/features/imports/ImportsViews";
+import { ImportOverviewAnalytics, OperationalListView } from "@/features/imports/ImportsViews";
 import { useImports, useRetryImport } from "@/features/imports/hooks";
 import { importsCopy } from "@/features/imports/importsCopy";
 import { formatDate } from "@/lib/admin-utils";
 import type { ImportRecord } from "@/types/admin";
 
 export default function ImportsPage() {
+  return mocksEnabled() ? <DemoImportsPage /> : <OperationalListView resource="sessions" showOverview />;
+}
+
+function DemoImportsPage() {
   const role = useSimulatedRole();
   const { locale } = useLocale();
   const copy = importsCopy[locale];
