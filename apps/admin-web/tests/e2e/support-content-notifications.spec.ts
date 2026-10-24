@@ -73,7 +73,7 @@ test("Phase 11 detail actions are keyboard operable and send only versioned reas
   ] as const) {
     await page.goto(route);
     if (action === "resolve") {
-      await page.getByLabel("الإجراء", { exact: true }).selectOption("resolve");
+      await page.getByRole("combobox", { name: "الإجراء", exact: true }).selectOption("resolve");
       await page.getByLabel("سبب الإجراء لسجل التدقيق").fill("Resolved after reviewing the conversation");
     }
     const button = page.getByRole("button", { name: label });
