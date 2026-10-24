@@ -1,6 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select no_plan();
+grant masarifi_migration to current_user with set true, inherit false;
 set local role masarifi_migration;
 do $test$
 declare

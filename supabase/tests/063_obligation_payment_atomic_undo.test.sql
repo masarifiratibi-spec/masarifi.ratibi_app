@@ -2,6 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path to public,extensions,pg_temp;
 select no_plan();
+grant masarifi_migration to current_user with set true, inherit false;
 set local role masarifi_migration;
 
 do $test$
