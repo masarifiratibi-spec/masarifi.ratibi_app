@@ -9,7 +9,7 @@ import {
   type TrackingCursor,
 } from '../../../src/tracking/tracking.dto';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, fixtureOwnerQuery } from '../../live-database';
 
 describeLiveDatabase('automatic database tracking defaults', () => {
   const pool = createLivePool();
@@ -67,8 +67,8 @@ describeLiveDatabase('automatic database tracking defaults', () => {
        values($1,'my custom purchase','expense','en')`,
       [owner],
     );
-    await pool.query('select private.seed_default_keyword_rules($1)', [owner]);
-    await pool.query('select private.seed_default_keyword_rules($1)', [owner]);
+    await fixtureOwnerQuery(pool, owner, 'select private.seed_default_keyword_rules($1)', [owner]);
+    await fixtureOwnerQuery(pool, owner, 'select private.seed_default_keyword_rules($1)', [owner]);
     const result = await pool.query<{ total: number; purchase: boolean; custom: number }>(
       `select count(*)::int total,
         bool_or(enabled) filter(where keyword='purchase') purchase,
@@ -85,7 +85,9 @@ describeLiveDatabase('automatic database tracking defaults', () => {
        values($1,'my custom purchase','expense','en')`,
       [owner],
     );
-    await pool.query('select private.restore_default_keyword_rules($1)', [owner]);
+    await fixtureOwnerQuery(pool, owner, 'select private.restore_default_keyword_rules($1)', [
+      owner,
+    ]);
     const result = await pool.query<{ keyword: string; priority: number }>(
       'select keyword,priority from public.user_keyword_rules where user_id=$1',
       [owner],
@@ -172,7 +174,7 @@ describeLiveDatabase('automatic database tracking defaults', () => {
     ['شراء عبر نقاط بيع SAR 3.95', 'completed', 'pos_purchase', 'outgoing', 395, 'SAR'],
     ['bill payment مبلغ ٥٠ درهم', 'completed', 'bill_payment', 'outgoing', 5000, 'AED'],
     ['purchase SAR 4.00 declined', 'declined', 'purchase', 'outgoing', 400, 'SAR'],
-    ['دفع ٤ ريال غير ناجحة', 'failed', 'payment', 'outgoing', 400, 'SAR'],
+    ['دفع ٤ ريال سعودي غير ناجحة', 'failed', 'payment', 'outgoing', 400, 'SAR'],
     [
       'refunded AED 12.95 will be credited within 2-3 working days',
       'pending',

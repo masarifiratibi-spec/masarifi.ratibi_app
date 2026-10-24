@@ -8,7 +8,12 @@ import { AiGateway } from '../../../src/ai/ai.gateway';
 import { LedgerService } from '../../../src/ledger/ledger.service';
 import { LedgerRepository } from '../../../src/ledger/ledger.repository';
 import { SecurityRepository } from '../../../src/security/security.repository';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import {
+  createLivePool,
+  describeLiveDatabase,
+  prepareFixtureVoiceEpoch,
+  withFixtureVoiceWork,
+} from '../../live-database';
 import {
   sessionSchema,
   uploadResponseSchema,
@@ -32,6 +37,11 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     provider_allowlist: string[];
   };
   let fixtureModelId: string | undefined;
+  let epoch: Awaited<ReturnType<typeof prepareFixtureVoiceEpoch>> | undefined;
+  function operatingEpochId() {
+    if (!epoch) throw new Error('VOICE_FIXTURE_EPOCH_MISSING');
+    return epoch.id;
+  }
   let originalRequestLimit: unknown;
   const media = new Map<string, Buffer>();
   const storage = {
@@ -135,8 +145,10 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
     await pool.query(
       "update private.ai_feature_routes set enabled=true where workload='voice_transcription'",
     );
+    epoch = await prepareFixtureVoiceEpoch(pool);
   });
   afterAll(async () => {
+    await epoch?.close();
     await pool.query(
       "update private.system_settings set value=$1 where setting_key='ai.voice.rolling_limit'",
       [JSON.stringify(originalRequestLimit)],
@@ -303,7 +315,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
         config as never,
       );
       try {
-        await worker.runJob('voice.transcribe_extract');
+        await withFixtureVoiceWork(pool, userId, () => worker.runJob('voice.transcribe_extract'));
         if (recover429) {
           expect(
             (
@@ -334,21 +346,25 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
             'update public.voice_sessions set next_attempt_at=clock_timestamp() where id=$1',
             [created.session.id],
           );
-          await worker.runJob('voice.transcribe_extract');
+          await withFixtureVoiceWork(pool, userId, () => worker.runJob('voice.transcribe_extract'));
         }
         expect(await service.getVoiceBatchResult(principal, created.session.id)).toMatchObject({
           status: 'finalizing',
           addedCount: 0,
         });
         for (let pass = 0; pass < 50; pass++) {
-          await worker.runJob('voice.finalize');
+          await withFixtureVoiceWork(pool, userId, () =>
+            repository.finalizeVoiceEpoch(operatingEpochId(), 4, false, true),
+          );
           if (
             (await service.getVoiceBatchResult(principal, created.session.id)).status ===
             'completed'
           )
             break;
         }
-        await worker.runJob('voice.finalize');
+        await withFixtureVoiceWork(pool, userId, () =>
+          repository.finalizeVoiceEpoch(operatingEpochId(), 4, false, true),
+        );
         const result = await service.getVoiceBatchResult(principal, created.session.id);
         expect(result).toMatchObject({
           status: 'completed',

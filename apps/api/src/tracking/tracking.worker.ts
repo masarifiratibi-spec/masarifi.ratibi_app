@@ -319,7 +319,9 @@ export class TrackingWorker implements OnModuleDestroy {
           await this.repository.acceptImportItem(
             String(item.id),
             claim.claim_token,
-            typeof response.operationId === 'string' ? response.operationId : stableUuid(key),
+            typeof response.operationId === 'string'
+              ? response.operationId
+              : stableUuid(`${principal.userId}:${key}`),
             String(transaction.id),
           );
         } catch (error) {

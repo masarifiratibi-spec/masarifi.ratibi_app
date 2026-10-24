@@ -113,7 +113,7 @@ describeLiveDatabase('native assistant result and recovery under the API role', 
             evidence: [],
           }),
       } as never,
-      {} as never,
+      { get: () => false } as never,
     );
     const typedKey = `native-typed-${randomUUID()}`;
     const body = { content: 'How much did I spend?', responseMode: 'async' };

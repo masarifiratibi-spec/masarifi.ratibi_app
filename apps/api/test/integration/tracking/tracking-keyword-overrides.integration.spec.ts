@@ -1,17 +1,22 @@
 import { randomUUID } from 'node:crypto';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import type { QueryResultRow } from 'pg';
+import { createLivePool, describeLiveDatabase, fixtureOwnerQuery } from '../../live-database';
 
 describeLiveDatabase('persisted published keyword safety', () => {
   const pool = createLivePool();
   let owner: string;
+  const ownerQuery = <T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values: readonly unknown[] = [],
+  ) => fixtureOwnerQuery<T>(pool, owner, text, values);
   beforeEach(async () => {
     owner = `tracking_keyword_policy_${randomUUID()}`;
-    await pool.query("insert into public.profiles(id,status) values($1,'active')", [owner]);
+    await ownerQuery("insert into public.profiles(id,status) values($1,'active')", [owner]);
   });
   afterAll(async () => pool.onModuleDestroy());
   async function defaultRow(keyword = 'purchase') {
     const row = (
-      await pool.query<{
+      await ownerQuery<{
         id: string;
         version: string;
         keyword: string;
@@ -27,7 +32,7 @@ describeLiveDatabase('persisted published keyword safety', () => {
     return row;
   }
   it('accepts a persisted neutral financial keyword', async () => {
-    const result = await pool.query<{ rule: { group_key: string; origin: string } }>(
+    const result = await ownerQuery<{ rule: { group_key: string; origin: string } }>(
       "select private.upsert_keyword_rule($1,null,'MyBank alert','financial','en','contains',null,100,true,null) rule",
       [owner],
     );
@@ -36,7 +41,7 @@ describeLiveDatabase('persisted published keyword safety', () => {
   it('rejects default wording edits without losing the original override', async () => {
     const row = await defaultRow();
     await expect(
-      pool.query(
+      ownerQuery(
         "select private.upsert_keyword_rule($1,$2,'rewritten default',$3,$4,'contains',null,100,true,$5)",
         [owner, row.id, row.group_key, row.language_code, row.version],
       ),
@@ -45,11 +50,11 @@ describeLiveDatabase('persisted published keyword safety', () => {
   });
   it('retains a user deletion tombstone instead of silently reactivating the release phrase', async () => {
     const row = await defaultRow();
-    await pool.query('select private.delete_keyword_rule($1,$2,$3)', [owner, row.id, row.version]);
-    await pool.query('select private.seed_default_keyword_rules($1)', [owner]);
+    await ownerQuery('select private.delete_keyword_rule($1,$2,$3)', [owner, row.id, row.version]);
+    await ownerQuery('select private.seed_default_keyword_rules($1)', [owner]);
     expect(
       (
-        await pool.query(
+        await ownerQuery(
           'select enabled,deleted_at is not null deleted from public.user_keyword_rules where id=$1',
           [row.id],
         )
@@ -59,7 +64,7 @@ describeLiveDatabase('persisted published keyword safety', () => {
   });
   it('allows default action toggles while preserving published priority and identity', async () => {
     const row = await defaultRow();
-    const result = await pool.query<{
+    const result = await ownerQuery<{
       rule: { enabled: boolean; priority: number; id: string; origin: string };
     }>("select private.upsert_keyword_rule($1,$2,$3,$4,$5,'contains',null,100,false,$6) rule", [
       owner,
@@ -79,7 +84,7 @@ describeLiveDatabase('persisted published keyword safety', () => {
   it('does not disable lifecycle precedence through a default keyword toggle', async () => {
     const row = await defaultRow('failed');
     await expect(
-      pool.query(
+      ownerQuery(
         "select private.upsert_keyword_rule($1,$2,$3,$4,$5,'contains',null,100,false,$6)",
         [owner, row.id, row.keyword, row.group_key, row.language_code, row.version],
       ),

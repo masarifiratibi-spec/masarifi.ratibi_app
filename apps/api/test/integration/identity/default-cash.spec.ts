@@ -5,7 +5,8 @@ import { ReferenceRepository } from '../../../src/reference/reference.repository
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('authenticated default Cash onboarding', () => {
-  const pool = createLivePool();
+  // Exercise all 25 concurrent sessions at the database instead of timing out in a 10-slot fixture queue.
+  const pool = createLivePool(25);
   const identity = new IdentityRepository(pool);
 
   async function customer() {

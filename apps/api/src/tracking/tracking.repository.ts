@@ -182,7 +182,7 @@ export class TrackingRepository {
     );
   }
   reserveCapture(itemId: string, fence: string): Promise<Record<string, unknown>> {
-    return this.worker((client) =>
+    return this.claimedWorker('item', itemId, fence, (client) =>
       this.queryJson(client, 'select private.reserve_tracking_capture($1::uuid,$2::uuid) result', [
         itemId,
         fence,
@@ -190,7 +190,7 @@ export class TrackingRepository {
     );
   }
   commitNominalCapture(itemId: string, fence: string): Promise<Record<string, unknown>> {
-    return this.worker((client) =>
+    return this.claimedWorker('item', itemId, fence, (client) =>
       this.queryJson(
         client,
         'select private.commit_tracking_nominal_capture($1::uuid,$2::uuid) result',
@@ -919,7 +919,7 @@ export class TrackingRepository {
     status: 'succeeded' | 'failed',
     code: string | null,
   ): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('session', id, token, async (client) => {
       await client.query('select private.complete_import_attempt($1::uuid,$2::uuid,$3,$4)', [
         id,
         token,
@@ -930,7 +930,10 @@ export class TrackingRepository {
   }
 
   prepareImport(id: string, token: string): Promise<Record<string, unknown>> {
-    return this.worker(
+    return this.claimedWorker(
+      'session',
+      id,
+      token,
       async (client) =>
         publicValue(
           await this.queryJson(
@@ -943,7 +946,7 @@ export class TrackingRepository {
   }
 
   applyParserResult(id: string, token: string, result: Record<string, unknown>): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('item', id, token, async (client) => {
       await client.query('select private.apply_parser_result($1::uuid,$2::uuid,$3::jsonb)', [
         id,
         token,
@@ -953,7 +956,7 @@ export class TrackingRepository {
   }
 
   finalizeImport(id: string, token: string): Promise<Record<string, unknown>> {
-    return this.worker((client) =>
+    return this.claimedWorker('session', id, token, (client) =>
       this.queryJson(client, 'select private.finalize_import_session($1::uuid,$2::uuid) result', [
         id,
         token,
@@ -967,7 +970,7 @@ export class TrackingRepository {
     operationId: string | null,
     transactionId: string,
   ): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('item', id, token, async (client) => {
       await client.query('select private.accept_import_item($1::uuid,$2::uuid,$3::uuid,$4::uuid)', [
         id,
         token,
@@ -978,7 +981,7 @@ export class TrackingRepository {
   }
 
   deferImportItem(id: string, token: string, reason: string): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('item', id, token, async (client) => {
       await client.query('select private.defer_import_item($1::uuid,$2::uuid,$3)', [
         id,
         token,
@@ -1108,6 +1111,22 @@ export class TrackingRepository {
     action: (client: PoolClient) => Promise<T>,
   ): Promise<T> {
     return this.transaction('masarifi_api', principal, action);
+  }
+
+  private claimedWorker<T>(
+    kind: 'session' | 'item',
+    id: string,
+    token: string,
+    action: (client: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    return this.worker(async (client) => {
+      await client.query('select private.set_tracking_worker_context($1,$2::uuid,$3::uuid)', [
+        kind,
+        id,
+        token,
+      ]);
+      return action(client);
+    });
   }
 
   private worker<T>(action: (client: PoolClient) => Promise<T>): Promise<T> {

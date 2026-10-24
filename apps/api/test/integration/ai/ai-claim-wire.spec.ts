@@ -9,22 +9,31 @@ describeLiveDatabase('idle AI queue database response budget', () => {
   it.each(['work', 'analysis', 'purge'] as const)(
     'keeps the empty %s claim transaction within 180 PostgreSQL response bytes',
     async (kind) => {
-      const observed = await pool.withClient(async (client) => {
-        await client.query('select 1');
-        const stream = Reflect.get(client, 'connection').stream as Socket;
-        return { stream, before: stream.bytesRead };
+      // Other suites retain queue evidence. Hold it as busy, without deleting it.
+      await pool.withClient(async (locker) => {
+        await locker.query('begin');
+        try {
+          await locker.query('select id from public.voice_sessions order by id for update');
+          const observed = await pool.withClient(async (client) => {
+            await client.query('select 1');
+            const stream = Reflect.get(client, 'connection').stream as Socket;
+            return { stream, before: stream.bytesRead };
+          });
+          const worker = 'wire-budget-test';
+          const claims =
+            kind === 'work'
+              ? await repository.claimWork('voice.transcribe_extract', worker, 1, 120)
+              : kind === 'analysis'
+                ? await repository.claimAnalysisWork(worker, 1, 120)
+                : await repository.claimAnalysisPurges(worker, 1, 120);
+          expect(claims).toEqual([]);
+          const bytes = observed.stream.bytesRead - observed.before;
+          expect(bytes).toBeGreaterThan(0);
+          expect(bytes).toBeLessThanOrEqual(180);
+        } finally {
+          await locker.query('rollback');
+        }
       });
-      const worker = 'wire-budget-test';
-      const claims =
-        kind === 'work'
-          ? await repository.claimWork('voice.transcribe_extract', worker, 1, 120)
-          : kind === 'analysis'
-            ? await repository.claimAnalysisWork(worker, 1, 120)
-            : await repository.claimAnalysisPurges(worker, 1, 120);
-      expect(claims).toEqual([]);
-      const bytes = observed.stream.bytesRead - observed.before;
-      expect(bytes).toBeGreaterThan(0);
-      expect(bytes).toBeLessThanOrEqual(180);
     },
   );
 });

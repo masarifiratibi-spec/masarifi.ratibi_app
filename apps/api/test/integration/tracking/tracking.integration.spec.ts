@@ -5,7 +5,7 @@ import { HttpException } from '@nestjs/common';
 import { decodeTrackingCursor, encodeTrackingCursor } from '../../../src/tracking/tracking.dto';
 import { executeParserDefinition } from '../../../src/tracking/tracking.parser';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, withFixtureImportWork } from '../../live-database';
 
 async function rejectedCode(promise: Promise<unknown>): Promise<string> {
   try {
@@ -33,6 +33,9 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
   const adminPrincipal = { userId: admin, sessionId: 'tracking-admin', factorAgeSeconds: 0 };
   const readerPrincipal = { userId: reader, sessionId: 'tracking-reader', factorAgeSeconds: 0 };
   const trackingAccountId = randomUUID();
+  const fixtureInstitution = randomUUID(),
+    fixtureRule = randomUUID(),
+    fixtureVersion = randomUUID();
 
   beforeAll(async () => {
     await pool.query(
@@ -55,6 +58,27 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
        union all select $2,id,$1,'Tracking integration reader role' from public.roles where key='support-agent'`,
       [admin, reader],
     );
+    // This raw-parser fixture owns its synthetic catalog; disabled demo seeds stay disabled.
+    await pool.query(
+      "insert into public.financial_institutions(id,country_code,name,code) values($1,'SA','Synthetic parser fixture',$2)",
+      [fixtureInstitution, 'fixture-' + fixtureInstitution.slice(0, 8)],
+    );
+    await pool.query(
+      "insert into public.institution_senders(institution_id,sender_pattern,display_label) values($1,'TRACKING-FIXTURE-SOURCE','Synthetic parser fixture')",
+      [fixtureInstitution],
+    );
+    await pool.query(
+      "insert into public.parser_rules(id,institution_id,name,source_type,status) values($1,$2,'Synthetic parser fixture','sms','draft')",
+      [fixtureRule, fixtureInstitution],
+    );
+    await pool.query(
+      "insert into public.parser_rule_versions(id,parser_rule_id,version_no,definition,definition_hash,created_by,corpus_status) select $1,$2,1,definition,definition_hash,'integration-fixture','passed' from public.parser_rule_versions where id='08000000-0000-4000-8000-000000000031'",
+      [fixtureVersion, fixtureRule],
+    );
+    await pool.query(
+      "update public.parser_rules set active_version_id=$1,status='active' where id=$2",
+      [fixtureVersion, fixtureRule],
+    );
   });
 
   afterAll(async () => {
@@ -76,6 +100,12 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
         reader,
       ]);
     });
+    await pool.query('update public.institution_senders set active=false where institution_id=$1', [
+      fixtureInstitution,
+    ]);
+    await pool.query('update public.financial_institutions set active=false where id=$1', [
+      fixtureInstitution,
+    ]);
     await pool.onModuleDestroy();
   });
 
@@ -177,7 +207,7 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
       events: [
         {
           sourceItemKey: 'message-1',
-          sender: 'EXAMPLE-CRESCENT',
+          sender: 'TRACKING-FIXTURE-SOURCE',
           body: 'paid 120 SAR',
           accountId: trackingAccountId,
           receivedAt: new Date().toISOString(),
@@ -232,9 +262,11 @@ describeLiveDatabase('tracking owner, import, lease, and retention lifecycle', (
     await expect(
       repository.listOwner(principal, 'sessions', null, 10, null, { sourceType: 'manual' }),
     ).resolves.toEqual([]);
-    const claim = (await repository.claimImports('tracking-integration-worker')).find(
-      (candidate) => candidate.id === sessionId,
-    );
+    const claim = (
+      await withFixtureImportWork(pool, owner, () =>
+        repository.claimImports('tracking-integration-worker'),
+      )
+    ).find((candidate) => candidate.id === sessionId);
     expect(claim?.id).toBe(sessionId);
     if (!claim) throw new Error('IMPORT_CLAIM_EXPECTED');
     const prepared = await repository.prepareImport(claim.id, claim.claim_token);

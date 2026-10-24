@@ -60,7 +60,7 @@ describeLiveDatabase('customer keyword persistence and financial understanding',
     let saved = await createKeyword();
     let configuration = await effective();
     expect(configuration.keywords.filter((row) => row.origin === 'custom')).toHaveLength(1);
-    const clear = understand('تنبيه محفظتي تم إيداع 5 ريال', configuration);
+    const clear = understand('تنبيه محفظتي تم إيداع 5 ريال سعودي', configuration);
     expect(clear.customRuleKeys).toContain(`custom.${saved.id}`);
     expect(clear.classification).toMatchObject({
       direction: 'incoming',
@@ -105,7 +105,7 @@ describeLiveDatabase('customer keyword persistence and financial understanding',
     expect(
       compileFinancialDiscoveryPolicy(configuration.snapshot, configuration.keywords).custom,
     ).toEqual([]);
-    expect(understand('تم إيداع 5 ريال', configuration).classification.disposition).toBe(
+    expect(understand('تم إيداع 5 ريال سعودي', configuration).classification.disposition).toBe(
       'capture_candidate',
     );
     await repository.removeRule(
@@ -143,8 +143,8 @@ describeLiveDatabase('customer keyword persistence and financial understanding',
         randomUUID(),
       ),
     ).rejects.toMatchObject({ response: { code: 'TRACKING_RULE_CONFLICT' } });
-    expect(understand('تنبيه محفظتي تم إيداع 5 ريال', await effective()).customRuleKeys).toContain(
-      `custom.${saved.id}`,
-    );
+    expect(
+      understand('تنبيه محفظتي تم إيداع 5 ريال سعودي', await effective()).customRuleKeys,
+    ).toContain(`custom.${saved.id}`);
   });
 });

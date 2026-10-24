@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
 import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, withFixtureImportWork } from '../../live-database';
 
 describeLiveDatabase('automatic tracking source assurance', () => {
   const pool = createLivePool();
@@ -91,7 +91,9 @@ describeLiveDatabase('automatic tracking source assurance', () => {
       { sourceName: 'Isolated automatic safety test', key: native, requestId: randomUUID() },
     );
     const session = String((created.resource as Record<string, unknown>).id);
-    const claim = (await repository.claimImports('assurance-test')).find((c) => c.id === session);
+    const claim = (
+      await withFixtureImportWork(pool, owner, () => repository.claimImports('assurance-test'))
+    ).find((c) => c.id === session);
     if (!claim) throw new Error('Claim missing');
     await repository.prepareImport(session, claim.claim_token);
     return (

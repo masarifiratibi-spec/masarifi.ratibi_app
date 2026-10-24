@@ -61,6 +61,43 @@ describe('tracking worker', () => {
     },
   );
 
+  it('keeps fallback operation identities stable per owner and distinct across owners', async () => {
+    const operations: string[] = [];
+    for (const owner of ['first-owner', 'second-owner', 'first-owner']) {
+      const repository = {
+        claimImports: jest.fn().mockResolvedValue([{ id: 'session', claim_token: 'fence' }]),
+        prepareImport: jest.fn().mockResolvedValue({ parserItems: [] }),
+        finalizeImport: jest.fn().mockResolvedValue({
+          autoItems: [
+            {
+              id: 'item',
+              userId: owner,
+              values: { kind: 'expense', amountMinor: 100, currency: 'SAR', accountId: 'account' },
+            },
+          ],
+        }),
+        getImportSourceIdentityHash: jest.fn().mockResolvedValue('same-provider-reference'),
+        acceptImportItem: jest
+          .fn<Promise<void>, [string, string, string, string]>()
+          .mockResolvedValue(undefined),
+        completeImport: jest.fn().mockResolvedValue(undefined),
+      };
+      const ledger = {
+        createTransaction: jest
+          .fn()
+          .mockResolvedValue({ transaction: { transaction: { id: 'transaction' } } }),
+      };
+      await new TrackingWorker(repository as never, ledger as never, {} as never).runJob(
+        'import.parse',
+      );
+      const operation = repository.acceptImportItem.mock.calls[0]?.[2];
+      expect(typeof operation).toBe('string');
+      operations.push(operation ?? '');
+    }
+    expect(operations[0]).not.toBe(operations[1]);
+    expect(operations[0]).toBe(operations[2]);
+  });
+
   it('coalesces concurrent runs and completes parse, raw purge, reconciliation, and metrics', async () => {
     let release!: () => void;
     const claim = new Promise<Array<never>>((resolve) => {

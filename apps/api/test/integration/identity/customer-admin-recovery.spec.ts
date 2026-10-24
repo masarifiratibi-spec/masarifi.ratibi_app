@@ -402,15 +402,22 @@ describeLiveDatabase('customer admin recovery', () => {
     const apiPool = new PoolService({
       get: (key: string) =>
         key === 'DATABASE_URL'
-          ? process.env.DATABASE_URL
+          ? (process.env.TEST_AI_ROLE_DATABASE_URL ?? process.env.DATABASE_URL)
           : key === 'MASARIFI_DATABASE_POOL_MAX'
             ? 1
             : undefined,
     } as unknown as PlatformConfigService);
     try {
-      await apiPool.query('set session authorization masarifi_api');
+      if (process.env.TEST_AI_ROLE_DATABASE_URL) {
+        await expect(apiPool.query('set role masarifi_worker')).rejects.toMatchObject({
+          code: '42501',
+        });
+        await apiPool.query('set role masarifi_api');
+      } else {
+        await apiPool.query('set session authorization masarifi_api');
+      }
       expect(
-        (await apiPool.query<{ role: string }>('select session_user as role')).rows[0]?.role,
+        (await apiPool.query<{ role: string }>('select current_user as role')).rows[0]?.role,
       ).toBe('masarifi_api');
       const repository = new CustomerAdminRepository(apiPool);
       const clerk = {} as ClerkClientService;

@@ -130,6 +130,9 @@ describeLiveDatabase('ledger concurrency and idempotency stress', () => {
     const claim = async () =>
       pool.withClient(async (client) => {
         await client.query('begin');
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ role: 'authenticated', sub: owner.userId, sid: 'lease-fixture' }),
+        ]);
         await client.query('set local role masarifi_migration');
         const result = await client.query<{ outcome: string }>(
           'select outcome from private.claim_idempotency_key($1,$2,$3,$4,$5::interval)',

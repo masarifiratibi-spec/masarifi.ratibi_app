@@ -14,10 +14,13 @@ describeLiveDatabase('reference reads', () => {
     } as never);
     repository = new ReferenceRepository(pool);
     await pool.query(
-      `insert into public.profiles(id,status) values($1,'active'),($2,'suspended')
+      `insert into public.profiles(id,status) values($1,'active'),($2,'active')
       on conflict(id) do update set status=excluded.status`,
       [active.userId, inactive.userId],
     );
+    await pool.query("update public.profiles set status='suspended' where id=$1", [
+      inactive.userId,
+    ]);
   });
 
   afterAll(async () => {

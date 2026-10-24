@@ -9,7 +9,12 @@ import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
 import { TrackingWorker } from '../../../src/tracking/tracking.worker';
 import { EngagementRepository } from '../../../src/engagement/engagement.repository';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import {
+  createLivePool,
+  describeLiveDatabase,
+  withFixtureImportWork,
+  fixtureOwnerQuery,
+} from '../../live-database';
 
 describeLiveDatabase('nominal default-account tracking', () => {
   const pool = createLivePool(),
@@ -122,7 +127,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
       requestId: randomUUID(),
     });
     const id = String((response.resource as Record<string, unknown>).id);
-    await worker.runJob('import.parse');
+    await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
     return {
       id,
       items: (await repository.listOwner(principal(), 'items', null, 100, null, {
@@ -312,7 +317,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
       'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
       [sessionId],
     );
-    await worker.runJob('import.parse');
+    await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
     expect(await finances()).toEqual(before);
     expect(
       (
@@ -330,8 +335,12 @@ describeLiveDatabase('nominal default-account tracking', () => {
       )
     ).rows[0];
     if (!row) throw new Error('DEFAULT_KEYWORD_EXPECTED');
-    await pool.query('select private.delete_keyword_rule($1,$2,$3)', [owner, row.id, row.version]);
-    await pool.query('select private.seed_default_keyword_rules($1)', [owner]);
+    await fixtureOwnerQuery(pool, owner, 'select private.delete_keyword_rule($1,$2,$3)', [
+      owner,
+      row.id,
+      row.version,
+    ]);
+    await fixtureOwnerQuery(pool, owner, 'select private.seed_default_keyword_rules($1)', [owner]);
     expect(
       (
         await pool.query(
@@ -364,8 +373,14 @@ describeLiveDatabase('nominal default-account tracking', () => {
       )
     ).rows[0];
     if (!row) throw new Error('DEFAULT_KEYWORD_EXPECTED');
-    await pool.query('select private.delete_keyword_rule($1,$2,$3)', [owner, row.id, row.version]);
-    await pool.query(
+    await fixtureOwnerQuery(pool, owner, 'select private.delete_keyword_rule($1,$2,$3)', [
+      owner,
+      row.id,
+      row.version,
+    ]);
+    await fixtureOwnerQuery(
+      pool,
+      owner,
       "select private.upsert_keyword_rule($1,null,'دفع','financial','ar','contains',null,100,true,null)",
       [owner],
     );
@@ -454,7 +469,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
       'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
       [result.id],
     );
-    await worker.runJob('import.parse');
+    await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
     expect(await finances()).toHaveLength(1);
   });
 });

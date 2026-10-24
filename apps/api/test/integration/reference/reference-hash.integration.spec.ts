@@ -24,7 +24,7 @@ describeLiveDatabase('reference cache hashing with the restricted API role', () 
 
   beforeAll(async () => {
     await pool.query(
-      "insert into public.profiles(id,status) values($1,'active'),($2,'active'),($3,'suspended')",
+      "insert into public.profiles(id,status) values($1,'active'),($2,'active'),($3,'active')",
       [owner.userId, other.userId, inactive.userId],
     );
     await pool.query(
@@ -32,6 +32,9 @@ describeLiveDatabase('reference cache hashing with the restricted API role', () 
       values($1,null,$6,'expense','بقالة','Hash groceries',0),($2,$4,null,'expense','خاص','Owner only',1),($3,$5,null,'expense','خاص','Other only',2)`,
       [systemId, ownerId, otherId, owner.userId, other.userId, `hash-${systemId}`],
     );
+    await pool.query("update public.profiles set status='suspended' where id=$1", [
+      inactive.userId,
+    ]);
   });
   afterAll(async () => {
     await pool.query('delete from public.categories where id=any($1::uuid[])', [

@@ -3,7 +3,12 @@ import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
 import { EngagementRepository } from '../../../src/engagement/engagement.repository';
 import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import {
+  createLivePool,
+  describeLiveDatabase,
+  withFixtureImportWork,
+  fixtureOwnerQuery,
+} from '../../live-database';
 
 describeLiveDatabase('scoped automatic tracking acceptance', () => {
   const pool = createLivePool();
@@ -94,9 +99,9 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
       requestId: randomUUID(),
     });
     const session = String((response.resource as Record<string, unknown>).id);
-    const claim = (await repository.claimImports('cohort-test')).find(
-      (entry) => entry.id === session,
-    );
+    const claim = (
+      await withFixtureImportWork(pool, userId, () => repository.claimImports('cohort-test'))
+    ).find((entry) => entry.id === session);
     if (!claim) throw new Error('CLAIM_EXPECTED');
     await repository.prepareImport(session, claim.claim_token);
     const finalized = await repository.finalizeImport(session, claim.claim_token);
@@ -125,7 +130,9 @@ describeLiveDatabase('scoped automatic tracking acceptance', () => {
   it('keeps committed cohort captures quiet and leaves unrelated events alone', async () => {
     const { principal, account, session } = await journey('cohort-approved-device');
     const transaction = (
-      await pool.query<{ result: { transactionId: string } }>(
+      await fixtureOwnerQuery<{ result: { transactionId: string } }>(
+        pool,
+        principal.userId,
         'select private.post_transaction($1,$2::jsonb) result',
         [
           principal.userId,

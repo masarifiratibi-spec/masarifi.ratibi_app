@@ -206,6 +206,7 @@ export class IdentityRepository {
   async withCustomerTransaction<T>(
     principal: ClerkPrincipal,
     action: (client: PoolClient) => Promise<T>,
+    writesProfile = false,
   ): Promise<T> {
     return this.pool.withClient(async (client) => {
       await client.query('begin');
@@ -218,6 +219,12 @@ export class IdentityRepository {
           }),
         ]);
         await client.query('set local role masarifi_api');
+        // Take the writer lock before assert_active_profile's shared lock. Concurrent
+        // activity updates must not all hold shared locks while awaiting upgrades.
+        if (writesProfile)
+          await client.query('select id from public.profiles where id=$1 for no key update', [
+            principal.userId,
+          ]);
         await client.query('select private.assert_active_profile($1)', [principal.userId]);
         const result = await action(client);
         await client.query('commit');
@@ -589,10 +596,12 @@ export class IdentityRepository {
   }
 
   async getProfile(principal: ClerkPrincipal): Promise<ProfileRecord | null> {
-    return this.withCustomerTransaction(principal, async (client) => {
-      await client.query('select private.ensure_default_cash_account($1)', [principal.userId]);
-      const result = await client.query<ProfileRow>(
-        `with touched as (
+    return this.withCustomerTransaction(
+      principal,
+      async (client) => {
+        await client.query('select private.ensure_default_cash_account($1)', [principal.userId]);
+        const result = await client.query<ProfileRow>(
+          `with touched as (
            update public.profiles
            set last_seen_at = now()
            where id = $1
@@ -605,10 +614,12 @@ export class IdentityRepository {
          from public.profiles
          where id = $1 and not exists (select 1 from touched)
          limit 1`,
-        [principal.userId],
-      );
-      return result.rows[0] ? profile(result.rows[0]) : null;
-    });
+          [principal.userId],
+        );
+        return result.rows[0] ? profile(result.rows[0]) : null;
+      },
+      true,
+    );
   }
 
   async ensureProfileBootstrap(

@@ -10,7 +10,7 @@ insert into public.user_devices(id,user_id,device_fingerprint,clerk_session_id,p
  ('65000000-0000-4000-8000-000000000002','closure_owner','h1:'||repeat('b',64),'other-session','android','1.0.0');
 insert into public.accounts(id,user_id,name,type,currency_code) values
  ('65000000-0000-4000-8000-000000000011','closure_owner','Source','bank','SAR'),
- ('65000000-0000-4000-8000-000000000012','closure_owner','Destination','cash','SAR');
+ ('65000000-0000-4000-8000-000000000012','closure_owner','Destination','bank','SAR');
 reset role;
 select set_config('request.jwt.claims','{"sub":"closure_owner","sid":"closure-session","role":"authenticated"}',true);
 set local role masarifi_api;
@@ -87,6 +87,18 @@ select throws_ok(format('select private.transfer_funds(''closure_owner'',%L::jso
 select lives_ok(format('select private.transfer_funds(''closure_owner'',%L::jsonb)',command),'missing fee means explicit zero') from closure_transfer;
 select lives_ok(format('select private.transfer_funds(''closure_owner'',%L::jsonb)',command||'{"feeMinor":10}'),'valid fee posts normally') from closure_transfer;
 select is((select count(*)::integer from public.transactions where user_id='closure_owner' and kind='transfer'),2,'only valid commands created transfers');
+reset role;
+set local role masarifi_migration;
+insert into public.tracking_preferences(user_id,enabled) values('closure_owner',true)
+ on conflict(user_id) do update set enabled=true;
+reset role;
+set local role masarifi_api;
+select lives_ok(format('select private.transfer_funds(''closure_owner'',%L::jsonb)',
+ command||jsonb_build_object('source','tracking-import','externalRef','tracking:closure-transfer','note',E'Line one\nLine two')),
+ 'fee validation preserves tracked transfer provenance and multiline notes') from closure_transfer;
+select is((select source from public.transactions where user_id='closure_owner' and external_ref='tracking:closure-transfer'),'tracking-import','transfer provenance is retained');
+select is((select external_ref from public.transactions where user_id='closure_owner' and external_ref='tracking:closure-transfer'),'tracking:closure-transfer','tracking replay identity is retained');
+select is((select note from public.transactions where user_id='closure_owner' and external_ref='tracking:closure-transfer'),E'Line one\nLine two','multiline note normalization is retained');
 reset role;
 select * from finish();
 rollback;

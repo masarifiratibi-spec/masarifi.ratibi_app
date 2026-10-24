@@ -10,7 +10,7 @@ import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
 import { TrackingService } from '../../../src/tracking/tracking.service';
 import { TrackingWorker } from '../../../src/tracking/tracking.worker';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, withFixtureImportWork } from '../../live-database';
 
 describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
   const pool = createLivePool();
@@ -154,7 +154,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
       requestId: randomUUID(),
     });
     const sessionId = String((response.resource as Record<string, unknown>).id);
-    await worker.runJob('import.parse');
+    await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
     const items = await repository.listOwner(principal, 'items', null, 100, null, { sessionId });
     return { sessionId, items: items as Record<string, unknown>[] };
   }
@@ -477,7 +477,7 @@ describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
         'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
         [lost.sessionId],
       );
-      await worker.runJob('import.parse');
+      await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
       const recovered = (
         await repository.listOwner(principal, 'items', String(itemFor(lost).id), 1)
       )[0] as Record<string, unknown>;

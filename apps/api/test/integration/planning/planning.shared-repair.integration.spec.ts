@@ -20,7 +20,17 @@ describeLiveDatabase('shared planning repairs for ordinary owners', () => {
   const pool = createLivePool();
   beforeAll(() => {
     const target = new URL(process.env.DATABASE_URL ?? '');
-    if (target.hostname !== '127.0.0.1' || target.pathname !== '/planning_shared_20261022')
+    const ciTarget =
+      process.env.GITHUB_ACTIONS === 'true' &&
+      process.env.NODE_ENV === 'test' &&
+      process.env.CROSS_FEATURE_DISPOSABLE_DATABASE_NAME === 'postgres' &&
+      target.hostname === '127.0.0.1' &&
+      target.port === '54322' &&
+      target.pathname === '/postgres';
+    if (
+      !ciTarget &&
+      (target.hostname !== '127.0.0.1' || target.pathname !== '/planning_shared_20261022')
+    )
       throw new Error('ISOLATED_SHARED_PLANNING_DATABASE_REQUIRED');
   });
   afterAll(() => pool.onModuleDestroy());

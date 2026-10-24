@@ -9,7 +9,12 @@ import {
   type BatchContext,
 } from '../../../src/ai/voice-batch';
 import { ReportsRepository } from '../../../src/reports/reports.repository';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import {
+  createLivePool,
+  describeLiveDatabase,
+  prepareFixtureVoiceEpoch,
+  withFixtureVoiceWork,
+} from '../../live-database';
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('missing multi-event fixture row');
@@ -31,7 +36,14 @@ interface EventEffect {
 
 describeLiveDatabase('Voice extracted multi-event authoritative posting', () => {
   const pool = createLivePool();
-  afterAll(() => pool.onModuleDestroy());
+  let epoch: Awaited<ReturnType<typeof prepareFixtureVoiceEpoch>> | undefined;
+  beforeAll(async () => {
+    epoch = await prepareFixtureVoiceEpoch(pool);
+  });
+  afterAll(async () => {
+    await epoch?.close();
+    await pool.onModuleDestroy();
+  });
   const event = (patch = {}) => ({
     s: 1,
     k: 'e',
@@ -61,7 +73,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       salary = randomUUID();
     const session = randomUUID(),
       token = randomUUID();
-    const recordedAt = new Date(Date.now() - 1000).toISOString();
+    const recordedAt = new Date().toISOString();
     await pool.query("insert into public.profiles(id,status) values($1,'active')", [user]);
     const bankOwner = foreignBank ? 'voice_stranger_' + randomUUID() : user;
     if (foreignBank)
@@ -106,6 +118,8 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
         { alias: 'CATEGORY-3', id: salary, kind: 'category', data: { kind: 'income' } },
       ],
     };
+    if (!epoch) throw new Error('VOICE_FIXTURE_EPOCH_MISSING');
+    await epoch.register(session);
     await beforeAccept?.(session, token);
     const decisions = decideVoiceBatch(
       parseVoiceBatchProviderOutput({ complete: true, language, events }),
@@ -160,8 +174,10 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     expect(mismatches).toEqual({ mismatch: 0 });
     return { effects, balances };
   }
-  async function finish() {
-    await new AiRepository(pool).finalizeVoiceBatches(25);
+  async function finish(owner: string) {
+    await withFixtureVoiceWork(pool, owner, () =>
+      new AiRepository(pool).finalizeVoiceEpoch(required(epoch).id, 25, false, true),
+    );
   }
   it.each(['batch', 'recovery'] as const)(
     'keeps the negotiated %s snapshot consistent when finalization commits during the owner read',
@@ -192,7 +208,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
               ).result;
               expect(aggregate.addedCount).toBe(0);
               // A distinct connection commits through the unchanged real executor.
-              await finish();
+              await finish(f.user);
               expect((await result(f)).effects[0]?.status).toBe('committed');
             }
             return client.query<Record<string, unknown>>(sql, values);
@@ -238,7 +254,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
   );
   it('projects every outcome only for opted-in owners and preserves legacy recovery receipts', async () => {
     const f = await fixture([event(), event({ s: 2, b: 'a:' }), event({ s: 3, k: 't' })]);
-    await finish();
+    await finish(f.user);
     const repository = new AiRepository(pool);
     const principal = { userId: f.user, sessionId: 'local-fixture', factorAgeSeconds: 0 };
     const before = await result(f);
@@ -289,7 +305,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
         {} as never,
       ),
     );
-    const request = { clerkPrincipal: principal } as Parameters<
+    const request = { clerkPrincipal: principal, headers: {} } as Parameters<
       AiController['getVoiceBatchResult']
     >[0];
     expect(await controller.getVoiceBatchResult(request, f.session)).toEqual(legacy);
@@ -443,7 +459,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
         ],
         language,
       );
-      await finish();
+      await finish(f.user);
       const { effects, balances } = await result(f);
       expect(effects).toMatchObject([
         {
@@ -479,7 +495,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
         JSON.stringify(f.decisions),
         'automatic-or-skip-v3.1',
       ]);
-      await finish();
+      await finish(f.user);
       expect(await result(f)).toEqual({ effects, balances });
     },
   );
@@ -489,7 +505,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       event({ s: 2, a: '2500', g: 'CATEGORY-2' }),
       event({ s: 3, k: 'i', a: '-10000', b: 'e:ACCOUNT-2', g: 'CATEGORY-3' }),
     ]);
-    await finish();
+    await finish(f.user);
     const { effects, balances } = await result(f);
     expect(effects.map((row) => [row.kind, row.amount_minor])).toEqual([
       ['expense', '1000'],
@@ -535,7 +551,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       event({ s: 5, k: 't', a: '20000' }),
       event({ s: 6, c: 'e:USD', a: '1200' }),
     ]);
-    await finish();
+    await finish(f.user);
     const { effects, balances } = await result(f);
     expect(effects.map((row) => [row.status, row.reason_code])).toEqual([
       ['committed', null],
@@ -567,11 +583,12 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     const claim = required(
       (
         await pool.query<{ batch_id: string; token: string }>(
-          'select * from private.claim_voice_finalization(25)',
+          'select * from private.claim_staging_voice_finalization($1,25)',
+          [required(epoch).id],
         )
       ).rows.find((row) => row.batch_id === f.batch),
     );
-    await pool.query('select private.execute_voice_event($1,$2,$3)', [
+    await pool.query('select private.execute_operating_voice_event($1,$2,$3)', [
       f.batch,
       claim.token,
       required(f.rows[0]).id,
@@ -580,20 +597,24 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       "update private.voice_batches set lease_until=clock_timestamp()-interval '1 second' where id=$1",
       [f.batch],
     );
-    await finish();
+    await finish(f.user);
     const before = await result(f);
     expect(before.effects.map((row) => row.status)).toEqual(['committed', 'committed']);
     expect(before.balances).toContainEqual({ account_id: f.account, confirmed_minor: '-2000' });
     await Promise.all(
       f.rows.map((row) =>
-        pool.query('select private.execute_voice_event($1,$2,$3)', [f.batch, claim.token, row.id]),
+        pool.query('select private.execute_operating_voice_event($1,$2,$3)', [
+          f.batch,
+          claim.token,
+          row.id,
+        ]),
       ),
     );
     expect(await result(f)).toEqual(before);
   });
   it('rejects a forged foreign-account alias at execution without substituting the default or blocking a safe sibling', async () => {
     const f = await fixture([event({ b: 'e:ACCOUNT-2' }), event({ s: 2 })], 'ar', true);
-    await finish();
+    await finish(f.user);
     const { effects, balances } = await result(f);
     expect(effects.map((row) => [row.status, row.reason_code])).toEqual([
       ['skipped', 'ambiguous_account'],
