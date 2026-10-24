@@ -202,3 +202,7 @@ At 59f496b1, historical upgrades pass; the complete upgraded integration passes 
 
 ### Read-only release checks and remaining CI timing
 API36/min24 and38 native64-bit libraries pass bounded static compatibility inspection. Public root/privacy/deletion/health paths serve Hostinger parked-domain HTML despite HTTP200, so public production pages remain external. At7f227c5e, four browser viewports pass;1dcfd399 repairs the desktop1440 accessible selector using the artifact's confirmed combobox name. Two5-second tracking journey timeouts remain recorded; no assertion/timeout change, unchanged-source retry pending. No production infrastructure/key/configuration changes.
+
+
+### Restricted-runner fresh SQL qualification
+Unchanged-source upgraded integration retry passes145 suites/1,002 tests; the earlier two5-second timeouts do not reproduce. Fresh SQL fixture role assumptions in062/063/066 are corrected in2c03e8fd without production grant/migration changes. Both local paths pass67 suites/1,915 assertions and50focused checks; an explicit non-superuser runner with no initial migration SET capability passes3suites/10assertions per path, all rolled back. Local browser binding is blocked by WindowsEACCES on existing port3100; no new runtime/port is created. Four remote viewport jobs and native minification/identity pass. Desktop selector corrected in1dcfd399; next exact candidate required.

@@ -1,6 +1,7 @@
 {
   "database": "admin_recovery_rls_fresh",
   "rolledBack": true,
+  "restrictedFixtureRunner": false,
   "receipts": [
     {
       "file": "001_foundation_structure.test.sql",

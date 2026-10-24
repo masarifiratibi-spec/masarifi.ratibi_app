@@ -253,7 +253,7 @@
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "7f227c5e: application/Admin/Mobile, four browser viewports, encrypted journals, voice/tracking and secret/redaction checks pass. Desktop1440 locator mismatch is corrected in1dcfd399. Upgraded integration reports two default5000ms tracking journey timeouts; the same production code passed these tests on59f496b1. No timeout or assertion changed. An unchanged-source database retry is pending completion of the current workflow.",
+  "remoteCandidateCI": "7f227c5e unchanged-source database retry: upgraded integration145 suites/1002 tests passed;7suites/116 tests skipped. Earlier two5000ms timeouts did not reproduce. Fresh SQL then exposed062/063 role-membership assumptions and066 execution under the wrong fixture role. Test-only corrections in2c03e8fd; restricted non-superuser fixture qualification passes3 suites/10 assertions per path, and full SQL67 suites/1915 per path passes. Four browser viewports and native minification/manifest/identity/ABIs pass; desktop1440 accessible selector fixed in1dcfd399. Exact next-candidate CI pending.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -285,8 +285,17 @@
     "baselineSuites": 64,
     "baselineAssertions": 1865,
     "target": "Previously approved localhost:55442 PostgreSQL18.6 scratch cluster; no hosted migrations",
-    "sourceCommit": "1426e90e162cbcbe9a06692872e7a37dc079d28e"
+    "sourceCommit": "1426e90e162cbcbe9a06692872e7a37dc079d28e",
+    "restrictedFixturesPerPath": {
+      "suites": 3,
+      "assertions": 10,
+      "runnerSuperuser": false,
+      "initialMigrationRoleSetAllowed": false,
+      "rolledBack": true
+    },
+    "fixtureCommit": "2c03e8fdd75440f471e634b00551a2b0e76e64b2"
   },
-  "qualificationTestCommit": "1dcfd399be890c8c8e83ae619b26eeb4f2e664f2",
-  "nativeCompatibilityReceipt": "native-compatibility-inspection.json"
+  "qualificationTestCommit": "2c03e8fdd75440f471e634b00551a2b0e76e64b2",
+  "nativeCompatibilityReceipt": "native-compatibility-inspection.json",
+  "localBrowserQualification": "Existing C0 Playwright config and cached Chromium verified; WindowsEACCES binding both0.0.0.0:3100 and127.0.0.1:3100 prevented local execution. No new port/runtime or network-setting changes; CI verifies the focused selector."
 }
