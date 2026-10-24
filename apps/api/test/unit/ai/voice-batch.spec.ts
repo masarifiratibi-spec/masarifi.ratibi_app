@@ -153,7 +153,9 @@ describe('Voice expense Shopping fallback', () => {
     ).toEqual([
       expect.objectContaining({
         status: 'eligible',
-        command: expect.objectContaining({ categoryId: '04000000-0000-4000-8000-000000000006' }) as unknown,
+        command: expect.objectContaining({
+          categoryId: '04000000-0000-4000-8000-000000000006',
+        }) as unknown,
       }),
       { status: 'skipped', reason: 'invalid_event' },
     ]);

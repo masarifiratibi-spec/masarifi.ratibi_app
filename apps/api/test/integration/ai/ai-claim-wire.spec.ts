@@ -15,11 +15,12 @@ describeLiveDatabase('idle AI queue database response budget', () => {
         return { stream, before: stream.bytesRead };
       });
       const worker = 'wire-budget-test';
-      const claims = kind === 'work'
-        ? await repository.claimWork('voice.transcribe_extract', worker, 1, 120)
-        : kind === 'analysis'
-          ? await repository.claimAnalysisWork(worker, 1, 120)
-          : await repository.claimAnalysisPurges(worker, 1, 120);
+      const claims =
+        kind === 'work'
+          ? await repository.claimWork('voice.transcribe_extract', worker, 1, 120)
+          : kind === 'analysis'
+            ? await repository.claimAnalysisWork(worker, 1, 120)
+            : await repository.claimAnalysisPurges(worker, 1, 120);
       expect(claims).toEqual([]);
       const bytes = observed.stream.bytesRead - observed.before;
       expect(bytes).toBeGreaterThan(0);

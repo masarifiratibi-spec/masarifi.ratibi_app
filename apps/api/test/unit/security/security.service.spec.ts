@@ -351,16 +351,18 @@ describe('SecurityService boundaries', () => {
         errorCode: 'DELETION_HANDLER_FAILED',
       };
       repository.execute.mockResolvedValueOnce(response);
-      await expect(service.execute({
-        operation,
-        principal,
-        body: operation === 'createMyDeletionRequest'
-          ? { confirmation: 'DELETE_MY_ACCOUNT' } : {},
-        query: {},
-        params: {},
-        requestId: 'deletion-contract-regression',
-        idempotencyKey: 'deletion-contract-operation',
-      })).resolves.toEqual({
+      await expect(
+        service.execute({
+          operation,
+          principal,
+          body:
+            operation === 'createMyDeletionRequest' ? { confirmation: 'DELETE_MY_ACCOUNT' } : {},
+          query: {},
+          params: {},
+          requestId: 'deletion-contract-regression',
+          idempotencyKey: 'deletion-contract-operation',
+        }),
+      ).resolves.toEqual({
         id: '963c1be4-83ec-42af-8b92-fcd89aa7b4bd',
         status: 'processing',
         requestedAt: '2026-10-20T12:17:00.000Z',

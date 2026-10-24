@@ -67,7 +67,9 @@ describe('ClerkAuthGuard', () => {
           resourceId: createHash('sha256').update('sess_1').digest('hex'),
         }),
       ]);
-      expect(JSON.stringify(lines)).not.toMatch(/user_phone_1|sess_1|Bearer|secret|non_string_message/);
+      expect(JSON.stringify(lines)).not.toMatch(
+        /user_phone_1|sess_1|Bearer|secret|non_string_message/,
+      );
       lines.length = 0;
       await guard.canActivate(context());
       process.env.SUPABASE_URL = 'https://another.supabase.co';

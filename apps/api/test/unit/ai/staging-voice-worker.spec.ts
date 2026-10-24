@@ -220,7 +220,13 @@ it('does not close continuous posting when a pending background heartbeat fails 
   f.engine.processVoiceClaim = (_claim: unknown, signal?: AbortSignal) =>
     new Promise((resolve) => {
       if (!signal) throw new Error('ABORT_SIGNAL_REQUIRED');
-      signal.addEventListener('abort', () => { resolve(false); }, { once: true });
+      signal.addEventListener(
+        'abort',
+        () => {
+          resolve(false);
+        },
+        { once: true },
+      );
     });
   try {
     f.worker.start();

@@ -7,15 +7,13 @@ test('accepts Express transport params without a prototype when reading the Admi
   const service = new SecurityService(
     {
       consumeRateLimit: jest.fn().mockResolvedValue(true),
-      execute: jest
-        .fn()
-        .mockResolvedValue({
-          id: 'transport-admin',
-          displayName: 'Test admin',
-          roleKeys: ['super-admin'],
-          effectivePermissionKeys: ['admin.overview.read'],
-          version: 1,
-        }),
+      execute: jest.fn().mockResolvedValue({
+        id: 'transport-admin',
+        displayName: 'Test admin',
+        roleKeys: ['super-admin'],
+        effectivePermissionKeys: ['admin.overview.read'],
+        version: 1,
+      }),
     } as unknown as SecurityRepository,
     { get: () => undefined } as unknown as PlatformConfigService,
     { countActiveSessions: () => Promise.resolve(0) } as unknown as ClerkClientService,

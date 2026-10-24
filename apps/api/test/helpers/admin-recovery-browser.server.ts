@@ -135,13 +135,11 @@ async function main() {
   const reports = new ReportsService(new ReportsRepository(pool, config), undefined, config, clerk);
   const identity = {
     canActivate(context: ExecutionContext) {
-      const incoming = context
-        .switchToHttp()
-        .getRequest<{
-          headers: Record<string, string | undefined>;
-          clerkPrincipal?: { userId: string; sessionId: string; factorAgeSeconds: number };
-          requestId?: string;
-        }>();
+      const incoming = context.switchToHttp().getRequest<{
+        headers: Record<string, string | undefined>;
+        clerkPrincipal?: { userId: string; sessionId: string; factorAgeSeconds: number };
+        requestId?: string;
+      }>();
       if (incoming.headers.authorization !== 'Bearer recovery-test-principal') return false;
       const actor = incoming.headers['x-recovery-actor'] ?? admin;
       if (![admin, owner].includes(actor)) return false;

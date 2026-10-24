@@ -31,7 +31,10 @@ it('logs the actual analysis poll root exception while preserving scoped schedul
         expect.objectContaining({
           message: 'AI_WORKER_RUNTIME_FAILED',
           failureStage: 'voice.transcribe_extract',
-          exception: expect.objectContaining({ code: '57014', reason: 'Query read timeout' }) as unknown,
+          exception: expect.objectContaining({
+            code: '57014',
+            reason: 'Query read timeout',
+          }) as unknown,
         }),
       ]),
     );

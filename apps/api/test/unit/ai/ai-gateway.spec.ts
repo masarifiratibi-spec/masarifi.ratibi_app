@@ -276,59 +276,65 @@ describe('AiGateway', () => {
   );
 
   // Samsung 2026-10-08: Azure rejected the action schema on an advice-only request.
-  it.each([
-    { name: 'advice', answer: output, expected: null },
-    {
-      name: 'Arabic formatted advice',
-      answer: { ...output, answer: 'أنفقت 25 EGP على التسوق.\nأنفقت 13 EGP و7 SAR على المطاعم.' },
-      expected: null,
-      expectedContent: 'أنفقت 25 EGP على التسوق. أنفقت 13 EGP و7 SAR على المطاعم.',
-    },
-    {
-      name: 'English formatted advice',
-      answer: { ...output, answer: ' Shopping: 25 EGP.\r\nRestaurants:\t13 EGP and 7 SAR. ' },
-      expected: null,
-      expectedContent: 'Shopping: 25 EGP. Restaurants: 13 EGP and 7 SAR.',
-    },
-    ...['', ' \r\n\t ', 'unsafe\u0001reply', 'unsafe\u0085reply'].map((answer) => ({
-      name: `invalid persisted text ${JSON.stringify(answer)}`,
-      answer: { ...output, answer },
-      expected: 'AI_SCHEMA_INVALID',
-    })),
-    {
-      name: 'unsolicited financial action',
-      answer: {
-        ...output,
-        actionPreview: {
-          schemaVersion: 1,
-          actionType: 'transaction.create',
-          payload: {
-            amountMinor: '2500',
-            currency: 'SAR',
-            accountId: 'ACCOUNT-1',
-            categoryId: null,
-            date: '2026-10-08',
-            merchant: null,
-            note: null,
-          },
-          evidenceIds: [],
-        },
+  it.each(
+    [
+      { name: 'advice', answer: output, expected: null },
+      {
+        name: 'Arabic formatted advice',
+        answer: { ...output, answer: 'أنفقت 25 EGP على التسوق.\nأنفقت 13 EGP و7 SAR على المطاعم.' },
+        expected: null,
+        expectedContent: 'أنفقت 25 EGP على التسوق. أنفقت 13 EGP و7 SAR على المطاعم.',
       },
-      expected: 'AI_SCHEMA_INVALID',
-    },
-    {
-      name: 'unverified citation',
-      answer: { ...output, evidenceIds: ['REPORT-99'] },
-      expected: 'AI_SCHEMA_INVALID',
-    },
-    {
-      name: 'duplicate citations',
-      answer: { ...output, evidenceIds: ['REPORT-1', 'REPORT-1'] },
-      expected: 'AI_SCHEMA_INVALID',
-    },
-  ].flatMap((testCase) =>
-    ['financial_advice', 'general_finance'].map((intent) => ({ expectedContent: 'Safe answer', ...testCase, intent })),
-  ))(
+      {
+        name: 'English formatted advice',
+        answer: { ...output, answer: ' Shopping: 25 EGP.\r\nRestaurants:\t13 EGP and 7 SAR. ' },
+        expected: null,
+        expectedContent: 'Shopping: 25 EGP. Restaurants: 13 EGP and 7 SAR.',
+      },
+      ...['', ' \r\n\t ', 'unsafe\u0001reply', 'unsafe\u0085reply'].map((answer) => ({
+        name: `invalid persisted text ${JSON.stringify(answer)}`,
+        answer: { ...output, answer },
+        expected: 'AI_SCHEMA_INVALID',
+      })),
+      {
+        name: 'unsolicited financial action',
+        answer: {
+          ...output,
+          actionPreview: {
+            schemaVersion: 1,
+            actionType: 'transaction.create',
+            payload: {
+              amountMinor: '2500',
+              currency: 'SAR',
+              accountId: 'ACCOUNT-1',
+              categoryId: null,
+              date: '2026-10-08',
+              merchant: null,
+              note: null,
+            },
+            evidenceIds: [],
+          },
+        },
+        expected: 'AI_SCHEMA_INVALID',
+      },
+      {
+        name: 'unverified citation',
+        answer: { ...output, evidenceIds: ['REPORT-99'] },
+        expected: 'AI_SCHEMA_INVALID',
+      },
+      {
+        name: 'duplicate citations',
+        answer: { ...output, evidenceIds: ['REPORT-1', 'REPORT-1'] },
+        expected: 'AI_SCHEMA_INVALID',
+      },
+    ].flatMap((testCase) =>
+      ['financial_advice', 'general_finance'].map((intent) => ({
+        expectedContent: 'Safe answer',
+        ...testCase,
+        intent,
+      })),
+    ),
+  )(
     'completes strict Azure $intent / $name while retaining evidence validation',
     async ({ answer, expected, expectedContent, intent }) => {
       const saved: unknown[] = [],

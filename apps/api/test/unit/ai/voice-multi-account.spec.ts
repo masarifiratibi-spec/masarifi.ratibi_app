@@ -58,17 +58,23 @@ describe('Voice independently resolves each owned account', () => {
   it.each([
     [bank, 'SAR'],
     [usd, 'EGP'],
-  ])('uses the captured account %s and its %s currency when both are omitted in speech', (accountId, currency) => {
-    const selected = {
-      ...context,
-      defaultAccountId: accountId,
-      references: context.references.map(reference => reference.id === accountId
-        ? {...reference, data: {...reference.data, currency}} : reference),
-    };
-    expect(decide([event({b: 'o:', c: 'o:'})], selected)).toMatchObject([
-      {status: 'eligible', command: {accountId, currency, amountMinor: 1000}},
-    ]);
-  });
+  ])(
+    'uses the captured account %s and its %s currency when both are omitted in speech',
+    (accountId, currency) => {
+      const selected = {
+        ...context,
+        defaultAccountId: accountId,
+        references: context.references.map((reference) =>
+          reference.id === accountId
+            ? { ...reference, data: { ...reference.data, currency } }
+            : reference,
+        ),
+      };
+      expect(decide([event({ b: 'o:', c: 'o:' })], selected)).toMatchObject([
+        { status: 'eligible', command: { accountId, currency, amountMinor: 1000 } },
+      ]);
+    },
+  );
   it.each(['ar', 'en'])(
     'retains two %s expenses on separately named Cash and Al Rajhi accounts',
     (language) => {

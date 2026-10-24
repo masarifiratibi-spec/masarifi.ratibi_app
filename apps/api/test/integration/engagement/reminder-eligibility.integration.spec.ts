@@ -117,19 +117,38 @@ describeLiveDatabase('reminder eligibility', () => {
         await client.query(`update public.profiles set last_seen_at=
           date_trunc('second',clock_timestamp())-interval '4 days'+interval '0.123456 seconds'
           where id='reminder-app-3d'`);
-        const candidate = (await client.query<{ baseline_at: string }>(`select * from private.list_reminder_candidates(100)
-          where user_id='reminder-app-3d'`)).rows[0];
+        const candidate = (
+          await client.query<{
+            baseline_at: string;
+          }>(`select * from private.list_reminder_candidates(100)
+          where user_id='reminder-app-3d'`)
+        ).rows[0];
         if (!candidate) throw new Error('REMINDER_FIXTURE_MISSING');
         expect(candidate.baseline_at).toMatch(/^\d{4}-\d{2}-\d{2}T.*\.123456Z$/);
-        const event = (await client.query<{ id: string }>(`insert into public.notification_events(user_id,type,title,body_safe,data)
+        const event = (
+          await client.query<{ id: string }>(
+            `insert into public.notification_events(user_id,type,title,body_safe,data)
           values('reminder-app-3d','reminder.app_inactive.3d','Reminder','Open Masarifi.',
-            jsonb_build_object('cycleBaseline',$1::text)) returning id`, [candidate.baseline_at])).rows[0];
+            jsonb_build_object('cycleBaseline',$1::text)) returning id`,
+            [candidate.baseline_at],
+          )
+        ).rows[0];
         if (!event) throw new Error('REMINDER_FIXTURE_MISSING');
-        const eligible = () => client.query<{ eligible: boolean }>(`select private.reminder_delivery_eligible($1,'reminder-app-3d') eligible`, [event.id]);
+        const eligible = () =>
+          client.query<{ eligible: boolean }>(
+            `select private.reminder_delivery_eligible($1,'reminder-app-3d') eligible`,
+            [event.id],
+          );
         expect((await eligible()).rows[0]?.eligible).toBe(true);
-        expect((await client.query(`select * from private.list_reminder_candidates(100)
-          where user_id='reminder-app-3d'`)).rows).toHaveLength(0);
-        await client.query(`update public.profiles set last_seen_at=clock_timestamp() where id='reminder-app-3d'`);
+        expect(
+          (
+            await client.query(`select * from private.list_reminder_candidates(100)
+          where user_id='reminder-app-3d'`)
+          ).rows,
+        ).toHaveLength(0);
+        await client.query(
+          `update public.profiles set last_seen_at=clock_timestamp() where id='reminder-app-3d'`,
+        );
         expect((await eligible()).rows[0]?.eligible).toBe(false);
       } finally {
         await client.query('rollback');
@@ -142,16 +161,41 @@ describeLiveDatabase('reminder eligibility', () => {
       await client.query('begin');
       try {
         await client.query('set local role masarifi_migration');
-        const event = (await client.query<{ id: string }>(`insert into public.notification_events(user_id,type,title,body_safe,data)
+        const event = (
+          await client.query<{
+            id: string;
+          }>(`insert into public.notification_events(user_id,type,title,body_safe,data)
           select id,'reminder.app_inactive.3d','Reminder','Open Masarifi.',
             jsonb_build_object('cycleBaseline',last_seen_at::text)
-          from public.profiles where id='reminder-app-3d' returning id`)).rows[0];
+          from public.profiles where id='reminder-app-3d' returning id`)
+        ).rows[0];
         if (!event) throw new Error('REMINDER_FIXTURE_MISSING');
-        expect((await client.query<{ eligible: boolean }>(`select private.reminder_delivery_eligible($1,'reminder-app-3d') eligible`, [event.id])).rows[0]?.eligible).toBe(true);
-        expect((await client.query(`select * from private.list_reminder_candidates(100)
-          where user_id='reminder-app-3d'`)).rows).toHaveLength(0);
-        await client.query(`update public.notification_events set data=jsonb_build_object('cycleBaseline','2026-99-99T00:00:00Z') where id=$1`, [event.id]);
-        expect((await client.query<{ eligible: boolean }>(`select private.reminder_delivery_eligible($1,'reminder-app-3d') eligible`, [event.id])).rows[0]?.eligible).toBe(false);
+        expect(
+          (
+            await client.query<{ eligible: boolean }>(
+              `select private.reminder_delivery_eligible($1,'reminder-app-3d') eligible`,
+              [event.id],
+            )
+          ).rows[0]?.eligible,
+        ).toBe(true);
+        expect(
+          (
+            await client.query(`select * from private.list_reminder_candidates(100)
+          where user_id='reminder-app-3d'`)
+          ).rows,
+        ).toHaveLength(0);
+        await client.query(
+          `update public.notification_events set data=jsonb_build_object('cycleBaseline','2026-99-99T00:00:00Z') where id=$1`,
+          [event.id],
+        );
+        expect(
+          (
+            await client.query<{ eligible: boolean }>(
+              `select private.reminder_delivery_eligible($1,'reminder-app-3d') eligible`,
+              [event.id],
+            )
+          ).rows[0]?.eligible,
+        ).toBe(false);
       } finally {
         await client.query('rollback');
       }

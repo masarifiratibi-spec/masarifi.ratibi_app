@@ -6,7 +6,10 @@ import {
   type PdfReportSection,
 } from './reports.pdf-content';
 
-export async function writeReportPdf(document: PDFKit.PDFDocument, snapshot: ReportSnapshot): Promise<void> {
+export async function writeReportPdf(
+  document: PDFKit.PDFDocument,
+  snapshot: ReportSnapshot,
+): Promise<void> {
   let page = 0;
   const left = document.page.margins.left;
   const width = document.page.width - left - document.page.margins.right;

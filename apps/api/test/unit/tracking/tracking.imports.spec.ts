@@ -77,7 +77,9 @@ describe('tracking unsupported import handling', () => {
         },
       };
 
-      await expect(service.createImport(notification, 'application/json')).resolves.toEqual(receipt);
+      await expect(service.createImport(notification, 'application/json')).resolves.toEqual(
+        receipt,
+      );
       expect(repository.createImport).toHaveBeenCalledTimes(1);
       expect(repository.createImport).toHaveBeenCalledWith(
         validImport.principal,

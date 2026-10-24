@@ -81,7 +81,14 @@ describe('backend workflow action pins', () => {
     );
     const parsed = load(workflow) as { jobs: { image: { needs: string[] } } };
     expect(parsed.jobs.image.needs).toEqual([
-      'secrets', 'sentinel-redaction', 'application', 'mobile', 'android-build', 'admin', 'admin-e2e', 'database',
+      'secrets',
+      'sentinel-redaction',
+      'application',
+      'mobile',
+      'android-build',
+      'admin',
+      'admin-e2e',
+      'database',
     ]);
     expect(workflow).toContain('working-directory: apps/mobile');
     expect(workflow).toContain('npx jest --forceExit');
@@ -116,7 +123,12 @@ describe('isolated consolidation candidate verification policy', () => {
     return job;
   }
   function policy() {
-    return load(readFileSync(resolve(__dirname, '../../../../.github/workflows/backend-foundation.yml'), 'utf8')) as {
+    return load(
+      readFileSync(
+        resolve(__dirname, '../../../../.github/workflows/backend-foundation.yml'),
+        'utf8',
+      ),
+    ) as {
       on: { push: { branches: string[] } };
       jobs: Record<string, Job>;
     };
@@ -124,29 +136,56 @@ describe('isolated consolidation candidate verification policy', () => {
 
   it('runs the full candidate push gates without publishing or deploying', () => {
     const workflow = policy();
-    expect(workflow.on.push.branches).toEqual(['main', 'codex/masarifi-complete-integration-2026-10-10']);
-    const publication = requireJob(workflow.jobs, 'image').steps.filter(step => step.run?.includes('docker push '));
+    expect(workflow.on.push.branches).toEqual([
+      'main',
+      'codex/masarifi-complete-integration-2026-10-10',
+    ]);
+    const publication = requireJob(workflow.jobs, 'image').steps.filter((step) =>
+      step.run?.includes('docker push '),
+    );
     expect(publication).toHaveLength(1);
     expect(publication[0]?.if).toBe("github.event_name == 'workflow_dispatch'");
-    expect(requireJob(workflow.jobs, 'image').steps.find(step => step.name === 'Record local image evidence')?.if).toBe("github.event_name != 'workflow_dispatch'");
-    const allCommands = Object.values(workflow.jobs).flatMap(job => job.steps).map(step => step.run ?? '').join('\n');
+    expect(
+      requireJob(workflow.jobs, 'image').steps.find(
+        (step) => step.name === 'Record local image evidence',
+      )?.if,
+    ).toBe("github.event_name != 'workflow_dispatch'");
+    const allCommands = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps)
+      .map((step) => step.run ?? '')
+      .join('\n');
     expect(allCommands).not.toMatch(/\b(?:ssh|scp)\s|\beas\s+(?:build|update|submit)\b/);
   });
 
   it('verifies committed ledger and Savings history through main-schema upgrades before fresh reset', () => {
     const database = requireJob(policy().jobs, 'database');
-    expect(database.env).toMatchObject({ NODE_ENV: 'test', CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: 'postgres' });
+    expect(database.env).toMatchObject({
+      NODE_ENV: 'test',
+      CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: 'postgres',
+    });
     expect(database.env?.DATABASE_URL).toContain('@127.0.0.1:54322/postgres');
-    const steps = database.steps.map(step => step.run ?? '');
-    const baseline = steps.findIndex(command => command.includes('db reset --local --version 20260922220434 --no-seed'));
-    const seed = steps.findIndex((command, index) => index > baseline && command.includes('main-upgrade-fixture.cjs seed'));
-    const upgrade = steps.findIndex((command, index) => index > seed && command.includes('npm run start:migration'));
-    const upgradedIntegration = steps.findIndex(command => command.includes('masarifi-upgrade-integration.json'));
-    const fresh = steps.findIndex(command => command === 'npm run db:reset');
+    const steps = database.steps.map((step) => step.run ?? '');
+    const baseline = steps.findIndex((command) =>
+      command.includes('db reset --local --version 20260922220434 --no-seed'),
+    );
+    const seed = steps.findIndex(
+      (command, index) => index > baseline && command.includes('main-upgrade-fixture.cjs seed'),
+    );
+    const upgrade = steps.findIndex(
+      (command, index) => index > seed && command.includes('npm run start:migration'),
+    );
+    const upgradedIntegration = steps.findIndex((command) =>
+      command.includes('masarifi-upgrade-integration.json'),
+    );
+    const fresh = steps.findIndex((command) => command === 'npm run db:reset');
     expect(baseline).toBeGreaterThan(-1);
     expect(steps.slice(0, baseline).join('\n')).toContain('verify-migration-baselines.cjs');
-    expect(steps.slice(0, baseline).join('\n')).toContain('db reset --local --version 20260915150000 --no-seed');
-    expect(steps.slice(0, baseline).join('\n')).toContain('main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-local-main-upgrade.json"');
+    expect(steps.slice(0, baseline).join('\n')).toContain(
+      'db reset --local --version 20260915150000 --no-seed',
+    );
+    expect(steps.slice(0, baseline).join('\n')).toContain(
+      'main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-local-main-upgrade.json"',
+    );
     expect(seed).toBeGreaterThan(baseline);
     expect(upgrade).toBeGreaterThan(seed);
     expect(steps.slice(seed + 1, upgrade)).toContain('npm run build');
@@ -156,7 +195,7 @@ describe('isolated consolidation candidate verification policy', () => {
     expect(fresh).toBeGreaterThan(upgradedIntegration);
     expect(steps.slice(fresh)).toContain('npm run security:workflow-pins');
     for (const command of ['npm run test:performance:tracking', 'npm run test:stress:tracking']) {
-      const step = database.steps.find(entry => entry.run === command);
+      const step = database.steps.find((entry) => entry.run === command);
       expect(step).toBeDefined();
       expect(step?.if).toBe("github.event_name != 'workflow_dispatch' || inputs.run_k6");
     }
@@ -168,7 +207,7 @@ describe('isolated consolidation candidate verification policy', () => {
     const android = requireJob(workflow.jobs, 'android-build');
     expect(android.needs).toBe('mobile');
     expect(android.env?.EXPO_PUBLIC_API_URL).toBe('https://api.example.invalid');
-    const commands = android.steps.map(step => step.run ?? '').join('\n');
+    const commands = android.steps.map((step) => step.run ?? '').join('\n');
     expect(commands).toContain('verify-android-identity.cjs');
     expect(commands).toContain(':app:assembleRelease');
     expect(commands).toContain('-PreactNativeArchitectures=arm64-v8a');
@@ -180,11 +219,13 @@ describe('isolated consolidation candidate verification policy', () => {
 
   it('runs API-only role integration tests after both upgraded and fresh schemas', () => {
     const database = requireJob(policy().jobs, 'database');
-    const commands = database.steps.map(step => step.run ?? '');
+    const commands = database.steps.map((step) => step.run ?? '');
     const setup = commands.flatMap((command, index) =>
-      command.includes('prepare-restricted-api-role.cjs') ? [index] : []);
+      command.includes('prepare-restricted-api-role.cjs') ? [index] : [],
+    );
     const integration = commands.flatMap((command, index) =>
-      command.includes('npm run test:integration -- --json') ? [index] : []);
+      command.includes('npm run test:integration -- --json') ? [index] : [],
+    );
     expect(setup).toHaveLength(2);
     expect(integration).toHaveLength(2);
     expect(setup[0]).toBeLessThan(integration[0] ?? -1);

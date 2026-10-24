@@ -19,21 +19,19 @@ it('prepares tracking cohort confirmations without claiming historical events or
     claimTrackingSourceEvents: jest.fn().mockResolvedValue([source]),
     claimSourceEvents: jest.fn(),
     claimNotificationDeliveries: jest.fn(),
-    loadSourceTemplates: jest
-      .fn()
-      .mockResolvedValue(
-        ['in_app', 'push'].map((channel) => ({
-          id: channel,
-          key: 'transaction.created',
-          locale: 'en',
-          channel,
-          template_version: 1,
-          subject: 'Saved',
-          body: 'Transaction saved',
-          enabled: true,
-          quiet_hours: {},
-        })),
-      ),
+    loadSourceTemplates: jest.fn().mockResolvedValue(
+      ['in_app', 'push'].map((channel) => ({
+        id: channel,
+        key: 'transaction.created',
+        locale: 'en',
+        channel,
+        template_version: 1,
+        subject: 'Saved',
+        body: 'Transaction saved',
+        enabled: true,
+        quiet_hours: {},
+      })),
+    ),
     createNotificationFromSource: jest.fn().mockResolvedValue(true),
   };
   const worker = new EngagementWorker(

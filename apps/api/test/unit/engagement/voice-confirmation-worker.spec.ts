@@ -21,21 +21,19 @@ it('uses only fresh operating Voice sources and scoped deliveries, never histori
     claimNotificationDeliveries: jest.fn(() => {
       throw Error('HISTORICAL_DELIVERY_CLAIM');
     }),
-    loadSourceTemplates: jest
-      .fn()
-      .mockResolvedValue([
-        {
-          id: 'in-app',
-          key: 'transaction.created',
-          locale: 'en',
-          channel: 'in_app',
-          template_version: 1,
-          subject: 'Saved',
-          body: 'Transaction saved',
-          enabled: true,
-          quiet_hours: {},
-        },
-      ]),
+    loadSourceTemplates: jest.fn().mockResolvedValue([
+      {
+        id: 'in-app',
+        key: 'transaction.created',
+        locale: 'en',
+        channel: 'in_app',
+        template_version: 1,
+        subject: 'Saved',
+        body: 'Transaction saved',
+        enabled: true,
+        quiet_hours: {},
+      },
+    ]),
     createNotificationFromSource: jest.fn().mockResolvedValue(true),
   };
   const worker = new EngagementWorker(repository as never, {} as never, {} as never, {} as never);

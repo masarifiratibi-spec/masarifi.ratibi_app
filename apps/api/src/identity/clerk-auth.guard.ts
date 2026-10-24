@@ -68,9 +68,7 @@ export class ClerkAuthGuard implements CanActivate {
         context: 'VoiceAdmissionDiagnostics',
         failureStage: 'voice-auth',
         requestId,
-        resourceId: createHash('sha256')
-          .update(request.clerkPrincipal.sessionId)
-          .digest('hex'),
+        resourceId: createHash('sha256').update(request.clerkPrincipal.sessionId).digest('hex'),
       });
     }
     return true;

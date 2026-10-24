@@ -128,7 +128,10 @@ it.each(['expo', 'fcm'] as const)(
     const requests: Parameters<HttpTransport>[0][] = [];
     const transport: HttpTransport = (request) => {
       requests.push(request);
-      return Promise.resolve({ status: 200, json: { data: { status: 'ok', id: 'expo-id' }, name: 'fcm-id' } });
+      return Promise.resolve({
+        status: 200,
+        json: { data: { status: 'ok', id: 'expo-id' }, name: 'fcm-id' },
+      });
     };
     const push =
       provider === 'expo'

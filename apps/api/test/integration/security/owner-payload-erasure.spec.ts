@@ -126,10 +126,16 @@ suite('request-bound owner payload erasure on the owned local fixture', () => {
     await client.query('set local role masarifi_worker');
     await client.query('select private.freeze_account_deletion_owner($1,$2)', [request, owner]);
     await client.query('select private.prepare_account_owner_erasure($1,$2)', [request, owner]);
-    await client.query('select * from private.lock_account_erasure_objects($1,$2)', [request, owner]);
+    await client.query('select * from private.lock_account_erasure_objects($1,$2)', [
+      request,
+      owner,
+    ]);
     await client.query('select private.erase_account_owner_payload($1,$2)', [request, owner]);
     await client.query('reset role');
-    const rows = await client.query('select id from private.idempotency_keys where id=any($1::uuid[])', [[owned, foreign]]);
+    const rows = await client.query(
+      'select id from private.idempotency_keys where id=any($1::uuid[])',
+      [[owned, foreign]],
+    );
     expect(rows.rows).toEqual([{ id: foreign }]);
   });
 
@@ -138,27 +144,36 @@ suite('request-bound owner payload erasure on the owned local fixture', () => {
     const foreign = await seedCompletedIdempotency(other);
     await client.query("select set_config('masarifi.account_erasure','on',true)");
     await client.query('savepoint no_context');
-    await expect(client.query('delete from private.idempotency_keys where id=$1', [owned]))
-      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await expect(
+      client.query('delete from private.idempotency_keys where id=$1', [owned]),
+    ).rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
     await client.query('rollback to no_context');
     await client.query('set local role masarifi_worker');
     await client.query('select private.freeze_account_deletion_owner($1,$2)', [request, owner]);
     await client.query('select private.prepare_account_owner_erasure($1,$2)', [request, owner]);
     await client.query('set local role masarifi_migration');
     await client.query('savepoint no_lock');
-    await expect(client.query('delete from private.idempotency_keys where id=$1', [owned]))
-      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await expect(
+      client.query('delete from private.idempotency_keys where id=$1', [owned]),
+    ).rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
     await client.query('rollback to no_lock');
     await client.query('set local role masarifi_worker');
-    await client.query('select * from private.lock_account_erasure_objects($1,$2)', [request, owner]);
+    await client.query('select * from private.lock_account_erasure_objects($1,$2)', [
+      request,
+      owner,
+    ]);
     await client.query('set local role masarifi_migration');
     await client.query('savepoint foreign_owner');
-    await expect(client.query('delete from private.idempotency_keys where id=$1', [foreign]))
-      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await expect(
+      client.query('delete from private.idempotency_keys where id=$1', [foreign]),
+    ).rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
     await client.query('rollback to foreign_owner');
     await client.query('savepoint immutable_update');
-    await expect(client.query("update private.idempotency_keys set response_body='{}'::jsonb where id=$1", [owned]))
-      .rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
+    await expect(
+      client.query("update private.idempotency_keys set response_body='{}'::jsonb where id=$1", [
+        owned,
+      ]),
+    ).rejects.toMatchObject({ code: '42501', message: 'IDEMPOTENCY_KEY_IMMUTABLE' });
     await client.query('rollback to immutable_update');
   });
 

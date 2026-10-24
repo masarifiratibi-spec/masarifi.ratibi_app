@@ -69,9 +69,7 @@ async function getBootstrapIdentity(
     secretKey,
     telemetry: { disabled: true, debug: false, samplingRate: 0 },
   }).users.getUser(userId);
-  const primaryEmail = user.emailAddresses.find(
-    (entry) => entry.id === user.primaryEmailAddressId,
-  );
+  const primaryEmail = user.emailAddresses.find((entry) => entry.id === user.primaryEmailAddressId);
   return {
     id: user.id,
     primaryEmail: primaryEmail?.emailAddress.trim().toLowerCase() ?? null,
@@ -88,9 +86,7 @@ export async function bootstrapAdmin(
   const client = await pool.connect();
   try {
     await client.query('begin');
-    await client.query(
-      'grant masarifi_migration to current_user with set true, inherit false',
-    );
+    await client.query('grant masarifi_migration to current_user with set true, inherit false');
     await client.query('set local role masarifi_migration');
     await client.query(
       "select pg_advisory_xact_lock(hashtextextended('masarifi:first-super-admin',0))",
@@ -150,9 +146,7 @@ export async function bootstrapAdmin(
       ],
     );
     await client.query('reset role');
-    await client.query(
-      'revoke masarifi_migration from current_user granted by current_user',
-    );
+    await client.query('revoke masarifi_migration from current_user granted by current_user');
     await client.query('commit');
     return { assignmentId: row.id };
   } catch (error) {

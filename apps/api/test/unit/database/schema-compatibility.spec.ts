@@ -15,12 +15,15 @@ describe('SchemaCompatibilityService', () => {
     );
   });
 
-  it.each([false, null])('fails closed when the runtime schema contract is %s', async (compatible) => {
-    const database = {
-      query: jest.fn().mockResolvedValue({ rows: [{ compatible }] }),
-    };
-    const service = new SchemaCompatibilityService(database as never);
+  it.each([false, null])(
+    'fails closed when the runtime schema contract is %s',
+    async (compatible) => {
+      const database = {
+        query: jest.fn().mockResolvedValue({ rows: [{ compatible }] }),
+      };
+      const service = new SchemaCompatibilityService(database as never);
 
-    await expect(service.check()).rejects.toThrow('SCHEMA_INCOMPATIBLE');
-  });
+      await expect(service.check()).rejects.toThrow('SCHEMA_INCOMPATIBLE');
+    },
+  );
 });

@@ -81,7 +81,9 @@ describe('report renderer', () => {
   });
 
   it('rejects both the PDF output stream and byte counter when the generated file exceeds the limit', async () => {
-    const font = readFileSync(join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'));
+    const font = readFileSync(
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    );
     const report = renderReport(snapshot, 'pdf', 5_000, font);
     const completed = await Promise.allSettled([readAll(report.body), report.byteCounter]);
     for (const outcome of completed) {
@@ -94,15 +96,22 @@ describe('report renderer', () => {
   });
 
   it('lets unrelated event-loop work run before a long PDF finishes drawing', async () => {
-    const font = readFileSync(join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'));
+    const font = readFileSync(
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    );
     const document = new PDFDocument({ size: 'A4', margin: 48 });
     document.registerFont('report', font).font('report');
     document.resume();
     let completed = false;
-    const pending = Promise.resolve(writeReportPdf(document, {
-      ...snapshot, reportType: 'account_activity',
-      detailedRows: Array.from({ length: 200 }, () => snapshot.detailedRows[0] ?? {}),
-    })).then(() => { completed = true; });
+    const pending = Promise.resolve(
+      writeReportPdf(document, {
+        ...snapshot,
+        reportType: 'account_activity',
+        detailedRows: Array.from({ length: 200 }, () => snapshot.detailedRows[0] ?? {}),
+      }),
+    ).then(() => {
+      completed = true;
+    });
     try {
       await new Promise<void>((resolve) => setImmediate(resolve));
       expect(completed).toBe(false);
@@ -113,7 +122,9 @@ describe('report renderer', () => {
   });
 
   it('settles rendering evidence when the consumer closes without an error', async () => {
-    const font = readFileSync(join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'));
+    const font = readFileSync(
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    );
     const report = renderReport(snapshot, 'pdf', 1_000_000, font);
     if (!(report.body instanceof Readable)) throw new Error('readable stream required');
     report.body.destroy();

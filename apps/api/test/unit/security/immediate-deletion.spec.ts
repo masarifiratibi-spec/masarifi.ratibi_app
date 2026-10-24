@@ -42,7 +42,6 @@ describe('immediate account deletion admission', () => {
   );
 });
 
-
 describe('session-authorized self deletion on isolated Staging DEV', () => {
   const owner = 'user_DevDeletion123';
   const operationId = '9d04a565-4fe1-4e37-89a8-cb1323d65651';
@@ -57,19 +56,31 @@ describe('session-authorized self deletion on isolated Staging DEV', () => {
     operation: 'createMyDeletionRequest',
     principal: { userId: owner, sessionId: 'active-session', factorAgeSeconds: 36_000 },
     body: { confirmation: 'DELETE_MY_ACCOUNT', completionToken: 'a'.repeat(64) },
-    query: {}, params: {}, requestId: 'dev-delete', idempotencyKey: operationId,
+    query: {},
+    params: {},
+    requestId: 'dev-delete',
+    idempotencyKey: operationId,
   };
   const service = (patch: Record<string, unknown> = {}) => {
     const values = { ...configuration, ...patch };
     return new SecurityService(
-      { consumeRateLimit: () => Promise.resolve(true), execute: () => Promise.resolve({ id: 'request-one' }) } as never,
+      {
+        consumeRateLimit: () => Promise.resolve(true),
+        execute: () => Promise.resolve({ id: 'request-one' }),
+      } as never,
       { get: (key: string) => values[key], getRequired: (key: string) => values[key] } as never,
-      {} as never, {} as never,
-      { runDeletionRequestForOwner: () => Promise.resolve({ id: 'request-one', status: 'completed' }) } as never,
+      {} as never,
+      {} as never,
+      {
+        runDeletionRequestForOwner: () =>
+          Promise.resolve({ id: 'request-one', status: 'completed' }),
+      } as never,
     );
   };
   it('completes the explicitly scoped owner request using its authenticated session without an OTP step', async () => {
-    await expect(service().execute(structuredClone(input))).resolves.toMatchObject({ status: 'completed' });
+    await expect(service().execute(structuredClone(input))).resolves.toMatchObject({
+      status: 'completed',
+    });
   });
   it.each([
     { MASARIFI_STAGING_SELF_DELETION_OWNER_ID: undefined },
@@ -78,17 +89,22 @@ describe('session-authorized self deletion on isolated Staging DEV', () => {
     { MASARIFI_PROCESS_KIND: 'worker' },
     { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
   ])('retains recent authentication outside the exact isolated scope: %j', async (patch) => {
-    await expect(service(patch).execute(structuredClone(input))).rejects.toMatchObject({ status: 403 });
+    await expect(service(patch).execute(structuredClone(input))).rejects.toMatchObject({
+      status: 403,
+    });
   });
   it('does not relax privacy export verification for the same owner', async () => {
-    await expect(service().execute({ ...input, operation: 'createMyPrivacyExport', body: {} }))
-      .rejects.toMatchObject({ status: 403 });
+    await expect(
+      service().execute({ ...input, operation: 'createMyPrivacyExport', body: {} }),
+    ).rejects.toMatchObject({ status: 403 });
   });
   it('refuses another owner even when that owner has just authenticated', async () => {
-    await expect(service().execute({
-      ...structuredClone(input),
-      principal: { userId: 'user_OtherOwner', sessionId: 'another-session', factorAgeSeconds: 0 },
-    })).rejects.toMatchObject({ status: 403 });
+    await expect(
+      service().execute({
+        ...structuredClone(input),
+        principal: { userId: 'user_OtherOwner', sessionId: 'another-session', factorAgeSeconds: 0 },
+      }),
+    ).rejects.toMatchObject({ status: 403 });
   });
   describe('all authenticated Staging owners', () => {
     const enabled = {
@@ -98,19 +114,23 @@ describe('session-authorized self deletion on isolated Staging DEV', () => {
     it.each(['user_NewGoogleOwner', 'user_AnotherDeviceOwner'])(
       'completes self deletion for %s without an owner allowlist or factor-age challenge',
       async (userId) => {
-        await expect(service(enabled).execute({
-          ...structuredClone(input),
-          principal: { userId, sessionId: 'authenticated-session', factorAgeSeconds: null },
-        })).resolves.toMatchObject({ status: 'completed' });
+        await expect(
+          service(enabled).execute({
+            ...structuredClone(input),
+            principal: { userId, sessionId: 'authenticated-session', factorAgeSeconds: null },
+          }),
+        ).resolves.toMatchObject({ status: 'completed' });
       },
     );
     it.each(['userId', 'ownerId', 'email'])(
       'rejects caller-selected %s instead of deleting a different account',
       async (field) => {
-        await expect(service(enabled).execute({
-          ...structuredClone(input),
-          body: { ...input.body, [field]: 'user_Victim' },
-        })).rejects.toMatchObject({ status: 400 });
+        await expect(
+          service(enabled).execute({
+            ...structuredClone(input),
+            body: { ...input.body, [field]: 'user_Victim' },
+          }),
+        ).rejects.toMatchObject({ status: 400 });
       },
     );
     it.each([
@@ -119,12 +139,14 @@ describe('session-authorized self deletion on isolated Staging DEV', () => {
       { MASARIFI_PROCESS_KIND: 'worker' },
       { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
     ])('retains recent authentication outside the enabled Staging API: %j', async (patch) => {
-      await expect(service({ ...enabled, ...patch }).execute(structuredClone(input)))
-        .rejects.toMatchObject({ status: 403 });
+      await expect(
+        service({ ...enabled, ...patch }).execute(structuredClone(input)),
+      ).rejects.toMatchObject({ status: 403 });
     });
     it('keeps export verification enabled for an authenticated owner', async () => {
-      await expect(service(enabled).execute({ ...input, operation: 'createMyPrivacyExport', body: {} }))
-        .rejects.toMatchObject({ status: 403 });
+      await expect(
+        service(enabled).execute({ ...input, operation: 'createMyPrivacyExport', body: {} }),
+      ).rejects.toMatchObject({ status: 403 });
     });
   });
 });
