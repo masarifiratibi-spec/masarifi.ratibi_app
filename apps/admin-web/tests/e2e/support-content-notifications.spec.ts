@@ -60,12 +60,16 @@ test("Phase 11 detail actions are keyboard operable and send only versioned reas
     };
   });
   for (const [route, label, action] of [
-    ["/admin/support/tickets/TKT-1001", "حل التذكرة", "resolve"],
+    ["/admin/support/tickets/TKT-1001", "تنفيذ الإجراء", "resolve"],
     ["/admin/feedback/FDB-1001", "مراجعة الملاحظة", "review"],
     ["/admin/content/categories/CAT-1001", "نشر", "publish"],
     ["/admin/notifications/campaigns/CMP-1001", "اعتماد", "approve"],
   ] as const) {
     await page.goto(route);
+    if (action === "resolve") {
+      await page.getByLabel("الإجراء", { exact: true }).selectOption("resolve");
+      await page.getByLabel("سبب الإجراء لسجل التدقيق").fill("Resolved after reviewing the conversation");
+    }
     const button = page.getByRole("button", { name: label });
     await button.focus();
     await expect(button).toBeFocused();

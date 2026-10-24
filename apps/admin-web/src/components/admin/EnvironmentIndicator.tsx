@@ -13,7 +13,7 @@ export function EnvironmentIndicator({
   const label = getEnvironmentLabel(locale, environment);
   return (
     <span className={`environment environment-${environment}`} data-environment={environment} aria-label={t(locale, "environment.aria", { label })}>
-      <span aria-hidden="true" /> {t(locale, "environment.text", { label })}
+      <span aria-hidden="true" /> <span className="environment-label">{t(locale, "environment.text", { label })}</span>
     </span>
   );
 }
