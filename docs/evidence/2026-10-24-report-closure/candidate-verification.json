@@ -1,6 +1,6 @@
 {
   "inspectedDate": "2026-10-24",
-  "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
+  "sourceCommit": "7fc9c86d34353d8f9df64799c5a4992542b24a3b",
   "mainHistoryPreserved": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
   "localChecks": [
     {
@@ -145,7 +145,7 @@
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "First candidate found stale whole-file schema pin, generated-artifact prebuild test, direct Supabase CLI role-history failure and two ambiguous-currency tracking fixtures. Corrected in ff570bed; exact new candidate remote checks pending.",
+  "remoteCandidateCI": "41baa43b: API application, Admin, Mobile, secrets/redaction, authenticated voice, 249 voice/tracking PG checks and all encrypted-journal jobs pass. Database upgrade fixture failed due to owner context and unbounded historical comparison; corrected in 7fc9c86d. Browser and native qualification remain running; new exact candidate checks pending.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -158,5 +158,12 @@
   ],
   "mainHistoryMergeCommit": "c7532a27fae4475f4714701009e58dfaf87210fc",
   "pullRequest": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9",
-  "nativeDiagnosticScope": "Native compiler output predates the semantics-preserving copyReleasePolicy extraction; clean-generated-directory test proves the same three source policy files are installed/overwritten. Merged manifest overlay is independently qualified. Final signed artifact still required."
+  "nativeDiagnosticScope": "Native compiler output predates the semantics-preserving copyReleasePolicy extraction; clean-generated-directory test proves the same three source policy files are installed/overwritten. Merged manifest overlay is independently qualified. Final signed artifact still required.",
+  "ciRunWithPassingMobileAndEncryptedJournals": {
+    "commit": "41baa43b5ebc75a937b97d7957bba94d6270d5f9",
+    "foundation": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/40074697967",
+    "encryptedJournals": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/40074697968",
+    "voiceAndTracking": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/40074693413"
+  },
+  "disposableTargetGuard": "8 negative target/operation/version tests passed; tests refuse workstation port 55442 as well as remote targets. No new local runtime or database reset."
 }
