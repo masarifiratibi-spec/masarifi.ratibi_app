@@ -99,6 +99,29 @@ select lives_ok(format('select private.transfer_funds(''closure_owner'',%L::json
 select is((select source from public.transactions where user_id='closure_owner' and external_ref='tracking:closure-transfer'),'tracking-import','transfer provenance is retained');
 select is((select external_ref from public.transactions where user_id='closure_owner' and external_ref='tracking:closure-transfer'),'tracking:closure-transfer','tracking replay identity is retained');
 select is((select note from public.transactions where user_id='closure_owner' and external_ref='tracking:closure-transfer'),E'Line one\nLine two','multiline note normalization is retained');
+
+-- Reauthentication must not remove the registered Phase 07 planning queue contract.
+select is((select status from private.receive_client_mutation(
+ 'closure_owner','65000000-0000-4000-8000-000000000001',0,extensions.gen_random_uuid(),
+ 'planning',resource_type,1,'{}','create','planning-regression',null,'sha256:'||repeat('d',64),'{}')),
+ 'received',format('planning %s retains its queue receipt',resource_type))
+ from unnest(array['salary-profile','salary-receipt','budget','budget-category','obligation',
+ 'obligation-schedule','obligation-payment','payment-match','savings-goal','savings-movement']) resource_type;
+select ok(not exists(select 1 from public.client_mutations
+ where user_id='closure_owner' and domain='planning' and authenticated_at is null),
+ 'planning receipts retain the durable authentication instant');
+select throws_ok($$select private.receive_client_mutation(
+ 'closure_owner','65000000-0000-4000-8000-000000000001',0,extensions.gen_random_uuid(),
+ 'planning','account',1,'{}','create','planning-invalid',null,'sha256:'||repeat('d',64),'{}')$$,
+ '22023','SYNC_MUTATION_INVALID','planning cannot receive another domain resource');
+select throws_ok($$select private.receive_client_mutation(
+ 'closure_owner','65000000-0000-4000-8000-000000000001',0,extensions.gen_random_uuid(),
+ 'planning','invented',1,'{}','create','planning-invalid',null,'sha256:'||repeat('d',64),'{}')$$,
+ '22023','SYNC_MUTATION_INVALID','unknown planning resources remain rejected');
+select throws_ok($$select private.receive_client_mutation(
+ 'closure_owner','65000000-0000-4000-8000-000000000001',0,extensions.gen_random_uuid(),
+ 'planning','budget',1,'{}','invented','planning-invalid',null,'sha256:'||repeat('d',64),'{}')$$,
+ '22023','SYNC_MUTATION_INVALID','unknown planning operations remain rejected');
 reset role;
 select * from finish();
 rollback;
