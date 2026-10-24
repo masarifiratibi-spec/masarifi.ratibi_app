@@ -37,13 +37,19 @@ test("Phase 11 routes are available at five viewports and remain privacy-safe", 
   }
 });
 
-test("Phase 11 notification campaign preview is aggregate-only and supports RTL/LTR", async ({ page }) => {
+test("deferred campaign creation stays unavailable and privacy-safe in RTL/LTR", async ({ page }) => {
+  const mutations: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/admin\/notifications\/(?:audience-preview|campaigns)(?:$|\?)/.test(request.url())) mutations.push(request.url());
+  });
   await page.goto("/admin/notifications/campaigns/new");
-  await expect(page.getByText(/مؤهل: 1280|Eligible: 1280/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "غير متاح بعد" })).toBeDisabled();
   await expect(page.locator("body")).not.toContainText(/recipient|deviceToken|emailAddress|providerPayload/i);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await page.getByRole("button", { name: "تغيير اللغة" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+  await expect(page.getByRole("button", { name: "Not available yet" })).toBeDisabled();
+  expect(mutations).toEqual([]);
 });
 
 test("Phase 11 detail actions are keyboard operable and send only versioned reasoned payloads", async ({ page }, testInfo) => {

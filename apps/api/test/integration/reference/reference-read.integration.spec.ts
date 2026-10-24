@@ -42,7 +42,13 @@ describeLiveDatabase('reference reads', () => {
     const first = (await repository.execute(input)) as { code: string }[];
     const second = (await repository.execute(input)) as { code: string }[];
     expect(first).toEqual(second);
-    expect(first).toHaveLength(12);
+    const enabled = await pool.query<{ code: string }>(
+      'select code from public.currencies where enabled order by code',
+    );
+    expect(first.map((currency) => currency.code)).toEqual(
+      enabled.rows.map((currency) => currency.code),
+    );
+    expect(first.length).toBeGreaterThan(0);
     await expect(repository.execute({ ...input, principal: inactive })).rejects.toThrow(
       'PROFILE_INACTIVE',
     );
