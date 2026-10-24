@@ -1,6 +1,6 @@
 {
   "inspectedDate": "2026-10-24",
-  "sourceCommit": "70a989e0fa746cce784c0e7725e2d641c0d421a2",
+  "sourceCommit": "d600096ccae45f688f5c2f4ec59490b60a082f6a",
   "mainHistoryPreserved": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
   "localChecks": [
     {
@@ -309,7 +309,7 @@
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "5de5a4fe / tested merge82397e3d (same source tree): application, Admin, Mobile, secrets/redaction, authenticated voice, encrypted journals and4 browser viewports passed. Fresh and upgrade integration each145 suites/1002 tests passed with116 skipped; fresh SQL67 suites/1915 assertions passed. Full E2E41 suites/82 tests passed, one planning queue recovery failed: P1 receiver whitelist had dropped Phase07 types. Fixed in70a989e0 via forward migration and14 SQL regressions. Next exact candidate CI pending; desktop1440/native were still running before update.",
+  "remoteCandidateCI": "42f56aaa: all5 browser viewports, native minification/manifest/identity/4ABIs, API/Admin/Mobile, secrets/redaction, encrypted journals and voice pass. PostgreSQL17 fresh+upgrade integration each145 suites/1002 passed with116 skipped; SQL67/1929 and E2E42/83 passed. Remaining database failure: tracking performance intake has no owner JWT context;591/591 intake failures despite green latency/duplicate/history thresholds. Fixed fixture in d600096c;9 concurrent real-SQL scoped receipts and wrong-owner rejection probes pass; data rolled back. Tracking stress and later platform/AI/outbox gates were not reached; next exact-candidate CI required.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -356,5 +356,7 @@
   "qualificationTestCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c",
   "nativeCompatibilityReceipt": "native-compatibility-inspection.json",
   "localBrowserQualification": "Existing C0 Playwright config and cached Chromium verified; WindowsEACCES binding both0.0.0.0:3100 and127.0.0.1:3100 prevented local execution. No new port/runtime or network-setting changes; CI verifies the focused selector.",
-  "trackingRecoveryProfile": "tracking-recovery-profile.json"
+  "trackingRecoveryProfile": "tracking-recovery-profile.json",
+  "ciQualificationReceipt": "ci-qualification-42f56aaa.json",
+  "trackingPerformanceContextReceipt": "tracking-performance-context.json"
 }

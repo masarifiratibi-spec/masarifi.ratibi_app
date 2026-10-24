@@ -20,3 +20,5 @@
 !admin_recovery_rls_fresh-restricted-rls.json
 !admin_recovery_rls_upgrade-restricted-rls.json
 !tracking-recovery-profile.json
+!tracking-performance-context.json
+!ci-qualification-42f56aaa.json
