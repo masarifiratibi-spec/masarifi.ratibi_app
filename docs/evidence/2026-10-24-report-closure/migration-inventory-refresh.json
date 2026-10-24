@@ -402,6 +402,13 @@
     },
     {
       "kind": "functions",
+      "name": "finalize_import_session_before_owner_context",
+      "migrations": [
+        "20261024080700_report_closure_tracking_worker_context.sql"
+      ]
+    },
+    {
+      "kind": "functions",
       "name": "finish_dev_reminder",
       "migrations": [
         "20261021053557_dev_reminder_delivery.sql"
@@ -597,6 +604,13 @@
       "name": "salary_income_is_clear",
       "migrations": [
         "20261017140043_automatic_salary_detection.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "set_tracking_worker_context",
+      "migrations": [
+        "20261024081800_report_closure_tracking_claim_context.sql"
       ]
     },
     {

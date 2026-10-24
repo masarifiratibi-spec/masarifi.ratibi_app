@@ -27,7 +27,8 @@ Inspected 24 October 2026. Read-only service inspection; no production service, 
 1. Identify the intended Play publisher account; verify its upload certificate and highest uploaded Android version code. No replacement signing key is needed based on current evidence.
 2. Decide the production destination and whether the existing live Clerk instance bound to the staging domain is intended for release, or identify a previously configured production account/service outside the inspected access. Do not send passwords or private keys.
 3. Approve the public release version label after that history check; EAS currently indicates build code 2 next.
-4. Complete Console-only SMS declaration/approval, Data safety/privacy/deletion URLs and applicable testing. Physical-device and hosted provider acceptance remain outstanding.
+4. A repository administrator must configure required checks on main once the candidate is green. The current GitHub account has push/triage rights but no admin/maintain rights, so it cannot establish branch protection.
+5. Complete Console-only SMS declaration/approval, Data safety/privacy/deletion URLs and applicable testing. Physical-device and hosted provider acceptance remain outstanding.
 
 SSH to the existing pinned Staging host timed out from this workstation during inspection. Hostinger dashboard, DNS, public HTTPS checks and EAS metadata remained accessible. No firewall change or credential request was made to work around that timeout.
 

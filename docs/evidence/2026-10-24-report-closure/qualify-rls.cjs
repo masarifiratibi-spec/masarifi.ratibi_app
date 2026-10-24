@@ -12,7 +12,7 @@ for (const database of ['admin_recovery_rls_fresh','admin_recovery_rls_upgrade']
   const target = spawnSync(psql,['--no-password','-h','127.0.0.1','-p','55442','-U','postgres','-d',database,'-X','-At','-c',"select current_setting('data_directory'),count(*),max(version) from supabase_migrations.schema_migrations"],{encoding:'utf8'});
   if (target.status !== 0 || !target.stdout.replaceAll('\\','/').includes('/2026-10-23-admin-dashboard-recovery/native-db/data|165|20261023195606')) throw Error('UNVERIFIED_TEST_TARGET');
   const receipts = [];
-  for (const file of fs.readdirSync('supabase/tests').filter(name=>name.endsWith('.sql') && (!baseline || !/^06[56]_/.test(name))).sort()) {
+  for (const file of fs.readdirSync('supabase/tests').filter(name=>name.endsWith('.sql') && (!baseline || !/^06[567]_/.test(name))).sort()) {
     const sql = fs.readFileSync(path.join('supabase/tests',file),'utf8').replace(/^\s*begin;\s*/i,'').replace(/rollback;\s*$/i,'');
     fs.writeFileSync(scratch, 'begin;\n' + prefix + '\nset local search_path=public,extensions;\ngrant usage on schema extensions to anon,authenticated,masarifi_api,masarifi_worker;\n' + sql + '\nreset role; rollback;\n');
     const result = spawnSync(psql,['--no-password','-h','127.0.0.1','-p','55442','-U','postgres','-d',database,'-X','-At','-v','ON_ERROR_STOP=1','-f',scratch],{encoding:'utf8',timeout:60000,maxBuffer:4*1024*1024});

@@ -18,9 +18,21 @@
     {
       "name": "20261024003511_report_closure_upload_cleanup.sql",
       "sha256": "d791262ce18357e4a84bf7fb41a104bdcb549db1c2073ac64ed8e764d02ed7e7"
+    },
+    {
+      "name": "20261024080700_report_closure_tracking_worker_context.sql",
+      "sha256": "19ba73b52d93ce931a91bad62a3b8c344bbc1237dbf9accae06234aff9d53b1d"
+    },
+    {
+      "name": "20261024081800_report_closure_tracking_claim_context.sql",
+      "sha256": "c7d754794c5f8c885ad421c2b4019c96225e4a3f3372fe49a1be9aec12f16294"
+    },
+    {
+      "name": "20261024083200_report_closure_transfer_provenance.sql",
+      "sha256": "e6fc6aaac534b1869e10f2cc7212c3f7365818aad416aeaab2ec1a1bd0827b1d"
     }
   ],
-  "assertions": 28,
+  "assertions": 50,
   "failures": [],
   "rolledBack": true
 }

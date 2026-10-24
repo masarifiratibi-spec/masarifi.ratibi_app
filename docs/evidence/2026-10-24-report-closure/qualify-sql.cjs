@@ -26,7 +26,7 @@ const candidates = fs.readdirSync('supabase/migrations').filter(name => name.inc
       }
       await db.query('set local search_path=public,extensions');
       const results=[];
-      for (const file of ['065_report_closure_sync_fee.test.sql','066_report_closure_upload_cleanup.test.sql']) {
+      for (const file of ['065_report_closure_sync_fee.test.sql','066_report_closure_upload_cleanup.test.sql','067_report_closure_tracking_worker_context.test.sql']) {
         const sql=fs.readFileSync('supabase/tests/'+file,'utf8').replace(/^\s*begin;\s*/i,'').replace(/rollback;\s*$/i,'');
         await db.query('savepoint closure_suite');
         const suite=await db.query(sql);
@@ -38,7 +38,7 @@ const candidates = fs.readdirSync('supabase/migrations').filter(name => name.inc
       receipt.assertions = lines.filter(line => /^ok /.test(line)).length;
       receipt.failures = lines.filter(line => /^(?:not ok |# Looks like)/.test(line));
       fs.writeFileSync(path.join(directory, `${database}-closure.tap`), lines.join('\n') + '\n');
-      if (receipt.assertions < 28 || receipt.failures.length) throw Error('SQL_ASSERTIONS_FAILED');
+      if (receipt.assertions < 50 || receipt.failures.length) throw Error('SQL_ASSERTIONS_FAILED');
     } catch (error) {
       receipt.error = { message: error.message, code: error.code };
       process.exitCode = 1;

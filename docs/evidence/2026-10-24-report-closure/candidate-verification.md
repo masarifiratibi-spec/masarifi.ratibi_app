@@ -1,6 +1,6 @@
 # Report closure candidate verification
 
-Source commit: `7fc9c86d34353d8f9df64799c5a4992542b24a3b`. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
+Source commit: `d67dafb768f7d7bcbf1de82e8e424e571b977215`. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
 
 This is a review candidate, **not a production release qualification**. The [closure ledger](closure-ledger.json) retains 69 original references and 88 independently tracked acceptance units; no completion percentage is inferred. Billing and its grouped subscription subcheck stay open. Screenshots remain allowed everywhere, including local unlock.
 
@@ -8,10 +8,10 @@ This is a review candidate, **not a production release qualification**. The [clo
 
 | Check | Observed result |
 | --- | --- |
-| API unit/contract | 263 suites, 2,149 tests passed |
+| API unit/contract | 263 suites, 2,150 tests passed |
 | Other API offline projects | 100 suites, 307 tests passed; 138 suites/1,059 external tests skipped |
 | Selected actual-PG service tests | 6 suites, 96 tests passed; tracking financial-content follow-up 86/86 passed |
-| Actual MigrationRunner | 1 test passed: four forward migrations, idempotent rerun and exact inventory |
+| Actual MigrationRunner | 1 test passed: seven forward migrations, idempotent rerun and exact inventory |
 | Admin full suite | 104 suites, 1,001 tests passed |
 | Admin build/typecheck/lint | Passed using explicitly inert CI build configuration; /delete-account compiled |
 | Mobile final complete serial suite | 559 suites, 3,992 tests passed after final disclosure routing/copy changes |
@@ -31,9 +31,9 @@ Exact commands and raw local log hashes are in [candidate-verification.json](can
 
 Only the previously approved disposable PostgreSQL 18.6 cluster at localhost:55442 was used, after verifying its data directory and migration history. No new cluster, shared/hosted reset or production migration was performed.
 
-- Both source-exact fresh/upgrade transactional candidates pass the 28 new sync/fee/upload cleanup checks; candidate changes roll back.
-- Both full RLS paths pass **66 suites / 1,893 assertions**, with no inherited-failure allowlist. Refreshed baseline fixtures pass **64 / 1,865**. Eleven old failures were traced to fixtures that predated stronger verified-identity/suspension requirements or counted intentionally development-only templates; the assertions were preserved and fixtures brought into valid setup states. Production authorization was not relaxed. The old 12-failure T8 result remains historical evidence, superseded only for this local target.
-- The real application migration runner applies all four registered forward migrations to the existing browser scratch target, runs idempotently, and passes exact object inventory. The refreshed inventory adds 12 tables and 81 functions tied to registered migrations.
+- Both source-exact fresh/upgrade transactional candidates pass the 50 new sync/fee/upload cleanup/worker-context checks; candidate changes roll back.
+- Both full RLS paths pass **67 suites / 1,915 assertions**, with no inherited-failure allowlist. Refreshed baseline fixtures pass **64 / 1,865**. Eleven old failures were traced to fixtures that predated stronger verified-identity/suspension requirements or counted intentionally development-only templates; the assertions were preserved and fixtures brought into valid setup states. Production authorization was not relaxed. The old 12-failure T8 result remains historical evidence, superseded only for this local target.
+- The real application migration runner applies all seven registered forward migrations to the existing browser scratch target, runs idempotently, and passes exact object inventory. The refreshed inventory adds 12 tables and 83 functions tied to registered migrations.
 - Hosted Supabase remains on PostgreSQL 17.6 with 165 migration entries. Its candidate/provider behavior is still an external gate. Local all-green RLS does not claim hosted parity.
 
 Receipts: [fresh](admin_recovery_rls_fresh-rls.json), [upgrade](admin_recovery_rls_upgrade-rls.json), [inventory](migration-inventory-refresh.json). Reproducers verify the exact retained test target before proceeding.
@@ -57,3 +57,16 @@ The native diagnostic output predates a semantics-preserving extraction of its f
 ## Remote qualification continuation
 
 At `41baa43b`, remote API application, Admin, Mobile, secret/redaction checks, authenticated voice, 249 voice/tracking integration checks and all three encrypted-journal jobs pass. The full database job then exposed a historical upgrade fixture that inspected owner-guarded functions without owner claims and compared a 110→111 snapshot against every later policy release. The fixture now supplies scoped owner claims, tests the exact registered nominal migration prefix, and leaves full-candidate financial-history upgrades as independent checks. No old migration or production authorization guard changed. Eight negative target/operation/version tests pass before any database connection. Browser qualification stops on its first failure while retaining the same tests and retries; failures still fail the job. Updated exact-candidate CI remains pending.
+
+
+## Broad integration repairs and current qualification
+
+At `6e0a1d6c`, remote application, Admin unit/build, Mobile, secrets/redaction, Android minification/identity and all encrypted-journal jobs pass. The broad upgraded-database run then failed 19 suites (116 tests), while five browser viewports failed a stale expectation that deployment-only import settings were editable.
+
+`1426e90e` repairs demonstrated production defects: worker configuration reads now bind owner identity from a live server-issued import lease; fallback tracking operation IDs are owner-specific; profile activity updates acquire the writer lock before the active-profile shared lock; and a new forward migration restores transfer source/external-reference and multiline-note support lost by the earlier fee fix. Existing authorization, lease, posting, replay and deletion guards remain enabled. The additional SQL tests include wrong/stale lease, suspended owner, claims restoration, worker-only ACLs and transfer provenance. Historical migrations are unchanged.
+
+Fixtures now provide the claims required by existing guards, create their own synthetic source rather than reviving disabled demo institutions, use real disposable operating epochs for voice, and isolate other retained owners' pending claims through row locks. The explicit disposable planning guard accepts the existing GitHub database; it was not broadened to workstation or hosted targets. Local qualification reran the other 18 failing suites: **171/171 tests passed**. The planning suite and the complete upgraded/fresh integrations remain mandatory remote checks. The new cross-owner operation-ID regression failed before its fix and passes afterward. All 263 API unit/contract suites (2,150 tests), three build targets, typecheck, lint, formatting and migration checksums pass.
+
+`d67dafb7` preserves the accepted read-only import settings page in browser expectations. All 675 browser tests remain listed across five viewports, with lint passing. Full exact-candidate GitHub qualification is pending; no all-green CI claim is made here.
+
+A repository administrator must configure required checks on main. The current account has push/triage access but no admin/maintain rights. No branch protection, production configuration, DNS, hosted schema, credential or deployment was changed during this inspection.

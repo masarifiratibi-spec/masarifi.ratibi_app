@@ -389,13 +389,19 @@
     {
       "file": "065_report_closure_sync_fee.test.sql",
       "status": "passed",
-      "assertions": 20,
+      "assertions": 24,
       "inheritedFailure": false
     },
     {
       "file": "066_report_closure_upload_cleanup.test.sql",
       "status": "passed",
       "assertions": 8,
+      "inheritedFailure": false
+    },
+    {
+      "file": "067_report_closure_tracking_worker_context.test.sql",
+      "status": "passed",
+      "assertions": 18,
       "inheritedFailure": false
     }
   ],
