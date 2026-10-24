@@ -41,7 +41,7 @@ async function main() {
       await client.query('begin');
       await client.query('grant masarifi_migration to current_user with set true, inherit false');
       await client.query('set local role masarifi_migration');
-      await client.query("select set_config('request.jwt.claims',$1,true)", [JSON.stringify({ sub: owner })]);
+      await client.query("select set_config('request.jwt.claims',$1,true)", [JSON.stringify({ role: 'authenticated', sub: owner, sid: 'main-upgrade-fixture' })]);
       await client.query("insert into public.profiles(id,status) values($1,'active')", [owner]);
       await client.query("insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Upgrade cash','cash','SAR')", [accountId, owner]);
       await client.query("insert into public.savings_goals(id,user_id,name,currency_code,target_minor,opening_tracked_minor,linked_account_id) values($1,$2,'Upgrade Savings','SAR',100000,1000,$3)", [goalId,owner,accountId]);

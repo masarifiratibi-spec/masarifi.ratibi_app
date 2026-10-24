@@ -261,7 +261,7 @@ jobs:
         run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --project=${{ matrix.project }}
+      - run: npx playwright test --project=${{ matrix.project }} --max-failures=1
       - name: Preserve browser acceptance artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -301,6 +301,7 @@ jobs:
       - run: npm ci --ignore-scripts
       # The integrated Voice journey validates the actual Mobile parser.
       - run: npm --prefix ../mobile ci --ignore-scripts
+      - run: node --test ../../scripts/integration/disposable-database.test.cjs
       - run: node ../../scripts/integration/disposable-database.cjs start
       - name: Verify both exact historical main migration prefixes
         run: node ../../scripts/integration/verify-migration-baselines.cjs "$RUNNER_TEMP/masarifi-main-baselines.json"
@@ -309,7 +310,7 @@ jobs:
         run: |
           npx supabase db reset --local --version 20261013053237 --no-seed --workdir ../.. --yes
           node ../../scripts/integration/tracking-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-tracking-upgrade.json"
-          node ../../scripts/integration/disposable-database.cjs migrate
+          node ../../scripts/integration/disposable-database.cjs migrate 20261013235719
           node ../../scripts/integration/tracking-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-tracking-upgrade.json"
         env:
           TRACKING_UPGRADE_DATABASE_URL: ${{ env.DATABASE_URL }}

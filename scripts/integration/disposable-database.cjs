@@ -12,6 +12,8 @@ const api = join(root, 'apps/api');
 const apiRequire = createRequire(join(api, 'package.json'));
 const prefix = '20261016101500';
 const operation = process.argv[2];
+const throughVersion = process.argv[3];
+if (throughVersion && (operation !== 'migrate' || !/^\d{14}$/.test(throughVersion))) throw new Error('INVALID_MIGRATION_TARGET');
 const connectionString = process.env.DATABASE_URL;
 const database = new URL(connectionString ?? 'invalid:');
 if (process.env.MASARIFI_LIVE_DATABASE_TESTS !== '1' ||
@@ -28,8 +30,10 @@ const { applyPendingMigrations, assertCompatibleMigrationHistory, withMigrationL
   require(join(api, 'src/platform/database/migration-runner.ts'));
 const migrationsDirectory = join(root, 'supabase/migrations');
 verifyMigrationManifest(migrationsDirectory, join(root, 'supabase/migration-checksums.sha256'));
-const files = readdirSync(migrationsDirectory).filter(name => /^\d{14}_.+\.sql$/.test(name)).sort();
-if (!files.some(name => name.startsWith(`${prefix}_`))) throw new Error('BOOTSTRAP_PREFIX_MISSING');
+const allFiles = readdirSync(migrationsDirectory).filter(name => /^\d{14}_.+\.sql$/.test(name)).sort();
+if (throughVersion && !allFiles.some(name => name.startsWith(`${throughVersion}_`))) throw new Error('MIGRATION_TARGET_NOT_REGISTERED');
+const files = throughVersion ? allFiles.filter(name => name.slice(0, 14) <= throughVersion) : allFiles;
+if (!allFiles.some(name => name.startsWith(`${prefix}_`))) throw new Error('BOOTSTRAP_PREFIX_MISSING');
 function cli(args) {
   const result = spawnSync(process.execPath, [join(api, 'node_modules/supabase/dist/supabase.js'), ...args],
     { cwd: root, env: process.env, stdio: 'inherit' });
