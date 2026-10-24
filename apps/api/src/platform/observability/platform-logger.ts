@@ -26,6 +26,9 @@ export interface SafeLogFields {
   exceptionChain?: SafeWorkerException[];
   causeTruncated?: boolean;
   providerCode?: string;
+  workload?: string;
+  modelId?: string;
+  provider?: string;
   providerReason?: 'UNSPECIFIED_INVALID_ARGUMENT';
   providerRequestIdHash?: string;
   rejectedFields?: string[];

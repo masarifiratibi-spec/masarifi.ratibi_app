@@ -37,6 +37,7 @@ const applicationKeys = new Set([
   'MASARIFI_MIGRATION_CHECKSUM_FILE',
   'MASARIFI_MIGRATION_STATEMENT_TIMEOUT_MS',
   'MASARIFI_PUSH_TOKEN_HASH_KEY',
+  'MASARIFI_SYNC_CURSOR_KEY',
   'MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS',
   'MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS',
   'MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS',
@@ -280,6 +281,7 @@ const schema = Joi.object<PlatformEnvironment>({
     .pattern(/^whsec_[A-Za-z0-9_+\x2f-]{8,}={0,2}$/)
     .max(512)
     .optional(),
+  MASARIFI_SYNC_CURSOR_KEY: Joi.string().trim().pattern(base64UrlKey).optional(),
   MASARIFI_PUSH_TOKEN_HASH_KEY: Joi.string().trim().pattern(base64UrlKey).optional(),
   MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS: Joi.string().trim().min(1).max(1_024).optional(),
   MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: Joi.number().integer().min(60).max(3_600).default(600),
@@ -426,6 +428,7 @@ const schema = Joi.object<PlatformEnvironment>({
 
 const requiredByProcess: Record<ProcessKind, readonly (keyof PlatformEnvironment)[]> = {
   api: [
+    'MASARIFI_SYNC_CURSOR_KEY',
     'CLERK_PUBLISHABLE_KEY',
     'CLERK_SECRET_KEY',
     'CLERK_INSTANCE_DOMAIN',
@@ -534,6 +537,13 @@ function validateIdentityEnvironment(environment: PlatformEnvironment): void {
     ? decodedKey(environment.MASARIFI_PUSH_TOKEN_HASH_KEY)
     : undefined;
   if (!hashKey) invalidEnvironment(['MASARIFI_PUSH_TOKEN_HASH_KEY']);
+  if (
+    environment.MASARIFI_PROCESS_KIND === 'api' &&
+    (!environment.MASARIFI_SYNC_CURSOR_KEY ||
+      !decodedKey(environment.MASARIFI_SYNC_CURSOR_KEY) ||
+      environment.MASARIFI_SYNC_CURSOR_KEY === environment.MASARIFI_PUSH_TOKEN_HASH_KEY)
+  )
+    invalidEnvironment(['MASARIFI_SYNC_CURSOR_KEY']);
 
   const entries = environment.MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS?.split(',') ?? [];
   const ids = new Set<string>();

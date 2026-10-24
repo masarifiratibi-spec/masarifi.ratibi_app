@@ -353,7 +353,7 @@ export class SecurityRepository {
       );
       if ((rate.rows[0]?.attempts ?? 61) > 60) return { rateLimited: true, value: null };
       const result = await client.query<Record<string, unknown>>(
-        `select d.id,d.status,d.completed_at as "completedAt",d.error_code as "errorCode",d.version::int
+        `select d.id,d.status,d.cooling_off_ends_at as "coolingOffEndsAt",d.completed_at as "completedAt",d.error_code as "errorCode",d.version::int
          from private.account_deletion_receipts r join private.account_deletion_requests d
            on d.id=r.request_id and d.user_id=r.user_id
          where r.operation_id=$1 and r.token_hash=$2 and r.expires_at>clock_timestamp()`,
@@ -1151,8 +1151,8 @@ export class SecurityRepository {
           const deletionId = (result as { id: string }).id;
           await client.query(
             `insert into private.account_deletion_receipts(user_id,operation_id,request_id,token_hash,expires_at)
-             values($1,$2,$3,$4,clock_timestamp()+interval '24 hours')`,
-            [principal.userId, operationId, deletionId, tokenHash],
+             values($1,$2,$3,$4,clock_timestamp()+make_interval(hours=>$5)+interval '24 hours')`,
+            [principal.userId, operationId, deletionId, tokenHash, hours],
           );
         }
         return result;

@@ -584,11 +584,12 @@ export class ReportsService {
       normalized.period,
       normalized.anchorDate ?? localDateAt(now, context.timezone),
       context.timezone,
+      normalized.monthStartDay ?? 1,
     );
     const key = ReportsCache.key(
       principal.userId,
       namespace,
-      `${normalized.type}:${normalized.period}:${normalized.anchorDate ?? 'current'}:${normalized.accountIds?.join(',') ?? 'all'}`,
+      `${normalized.type}:${normalized.period}:${normalized.anchorDate ?? 'current'}:${String(normalized.monthStartDay ?? 1)}:${normalized.accountIds?.join(',') ?? 'all'}`,
       normalized.currency ?? 'all',
       context.ledgerVersion,
     );

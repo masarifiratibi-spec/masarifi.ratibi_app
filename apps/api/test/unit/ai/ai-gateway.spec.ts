@@ -1,6 +1,9 @@
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { AiWorker } from '../../../src/ai/ai.worker';
-import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
+import {
+  PlatformLogger,
+  type SafeLogFields,
+} from '../../../src/platform/observability/platform-logger';
 import { VOICE_OUTPUT_SCHEMA, parseVoiceWorkerOutput } from '../../../src/ai/ai.schemas';
 import { VOICE_BATCH_OUTPUT_SCHEMA, parseVoiceBatchEnvelope } from '../../../src/ai/voice-batch';
 
@@ -62,6 +65,54 @@ function requestBody(init: RequestInit | undefined): Record<string, unknown> {
 }
 
 describe('AiGateway', () => {
+  it('reports only safe routing diagnostics and ignores telemetry failures', async () => {
+    const onAttempt = jest.fn<never, [SafeLogFields]>(() => {
+      throw new Error('telemetry unavailable');
+    });
+    const fetcher = jest.fn().mockResolvedValue(
+      response({
+        id: 'provider-id',
+        model: route.primary.modelId,
+        choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+      }),
+    );
+    const gateway = new AiGateway({ apiKey: 'private-key', fetcher, onAttempt });
+    await expect(
+      gateway.complete({
+        route,
+        userContent: 'private financial evidence',
+        schema: {},
+        parse: (value) => value,
+        requestId: 'request-123',
+      }),
+    ).resolves.toMatchObject({ value: output });
+    expect(onAttempt).toHaveBeenCalledTimes(1);
+    expect(onAttempt.mock.calls[0]?.[0]).toMatchObject({
+      eventName: 'ai.attempt',
+      requestId: 'request-123',
+      workload: route.workload,
+      modelId: route.primary.modelId,
+      provider: route.primary.provider,
+      attempt: 1,
+      state: 'success',
+    });
+    expect(typeof onAttempt.mock.calls[0]?.[0].durationMs).toBe('number');
+    expect(Object.keys(onAttempt.mock.calls[0]?.[0] ?? {}).sort()).toEqual([
+      'attempt',
+      'durationMs',
+      'eventName',
+      'modelId',
+      'provider',
+      'requestId',
+      'state',
+      'workload',
+    ]);
+    expect(JSON.stringify(onAttempt.mock.calls)).not.toMatch(
+      /private-key|financial evidence|provider-id/,
+    );
+  });
+
   it.each(['voice_transcription', 'transaction_extraction'])(
     'leaves %s timeout and approved fallback policy unchanged with assistant recovery enabled',
     async (workload) => {
@@ -1544,6 +1595,11 @@ describe('AiGateway', () => {
 
   it('rejects provider model, token, cost, and response-size accounting violations', async () => {
     const bodies = [
+      {
+        id: 'missing-model',
+        choices: [{ message: { content: JSON.stringify(output) } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+      },
       {
         id: 'g1',
         model: 'attacker/model',

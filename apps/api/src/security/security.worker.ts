@@ -73,7 +73,7 @@ export class SecurityWorkerService {
         await this.expireExports();
         await this.generateExport();
       });
-      await this.isolated('account-deletion', () => this.executeDeletion());
+      await this.isolated('account-deletion', () => this.deleteAccountsAndUploads());
       await this.isolated('retention', () => this.applyRetention());
     } finally {
       this.running = false;
@@ -86,7 +86,7 @@ export class SecurityWorkerService {
       'security.alert-dispatch': () => this.dispatchSecurityAlerts(),
       'privacy.export-generate': () => this.generateExport(),
       'privacy.export-expire': () => this.expireExports(),
-      'privacy.account-delete': () => this.executeDeletion(),
+      'privacy.account-delete': () => this.deleteAccountsAndUploads(),
       'retention.apply': () => this.applyRetention(),
     };
     const handler = handlers[job];
@@ -98,8 +98,7 @@ export class SecurityWorkerService {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(userId)) throw new Error('PRIVACY_OWNER_INVALID');
     await this.measured('privacy.account-delete', async () => {
       await this.executeDeletion(userId);
-      if (this.config.get('MASARIFI_DELETION_COOLING_OFF_HOURS') === 0)
-        await this.erasure.purgeOutstandingUploads(userId);
+      await this.erasure.purgeOutstandingUploads(userId);
     });
   }
 
@@ -109,8 +108,7 @@ export class SecurityWorkerService {
       throw new Error('PRIVACY_REQUEST_INVALID');
     await this.measured('privacy.account-delete', async () => {
       await this.executeDeletion(userId, requestId);
-      if (this.config.get('MASARIFI_DELETION_COOLING_OFF_HOURS') === 0)
-        await this.erasure.purgeOutstandingUploads(userId);
+      await this.erasure.purgeOutstandingUploads(userId);
     });
     return this.repository.getDeletionRequestForWorker(userId, requestId);
   }
@@ -307,11 +305,15 @@ export class SecurityWorkerService {
       });
   }
 
+  private async deleteAccountsAndUploads(): Promise<void> {
+    await this.executeDeletion();
+    await this.erasure.purgeDueUploads();
+  }
+
   private async executeDeletion(
     userId: string | null = null,
     requestId: string | null = null,
   ): Promise<void> {
-    const immediate = this.config.get('MASARIFI_DELETION_COOLING_OFF_HOURS') === 0;
     const claim = await this.repository.withWorkerTransaction(async (client) => {
       const result = await client.query<DeletionClaim>(
         `with selected as (select d.id from private.account_deletion_requests d
@@ -322,7 +324,7 @@ export class SecurityWorkerService {
         [userId, requestId],
       );
       const claim = result.rows[0];
-      if (claim && immediate)
+      if (claim)
         await client.query('select private.freeze_account_deletion_owner($1::uuid,$2)', [
           claim.id,
           claim.user_id,
@@ -338,14 +340,14 @@ export class SecurityWorkerService {
     };
     try {
       const outcomes: Array<Record<string, unknown>> = [];
-      if (immediate) await this.erasure.prepare(evidence);
+      await this.erasure.prepare(evidence);
       // Keep the identity usable until every data-domain cleanup has succeeded.
       const handlers = [...this.registry.entries()].sort(
         (left, right) =>
           Number(left.resourceType === 'identity') - Number(right.resourceType === 'identity'),
       );
       for (const handler of handlers) {
-        if (immediate && handler.resourceType === 'identity')
+        if (handler.resourceType === 'identity')
           outcomes.push({ resourceType: 'owner-data', ...(await this.erasure.erase(evidence)) });
         const held = await this.repository.withWorkerTransaction(
           async (client) =>
@@ -357,18 +359,11 @@ export class SecurityWorkerService {
               )
             ).rows[0]?.held === true,
         );
-        if (immediate && held) throw new Error('ERASURE_ACTIVE_HOLD');
-        outcomes.push(
-          held
-            ? {
-                resourceType: handler.resourceType,
-                deletedCount: 0,
-                anonymizedCount: 0,
-                retainedCount: 1,
-                policyIds: [],
-              }
-            : { resourceType: handler.resourceType, ...(await handler.deleteAccount(evidence)) },
-        );
+        if (held) throw new Error('ERASURE_ACTIVE_HOLD');
+        outcomes.push({
+          resourceType: handler.resourceType,
+          ...(await handler.deleteAccount(evidence)),
+        });
       }
       await this.repository.withWorkerTransaction(async (client) => {
         const completion = await client.query(
@@ -400,9 +395,7 @@ export class SecurityWorkerService {
           "update private.account_deletion_requests set status=$2,error_code=$3 where id=$1 and status='processing'",
           [
             claim.id,
-            immediate || error instanceof ClerkProviderUnavailableError || dependencyBusy
-              ? 'processing'
-              : 'failed',
+            'processing',
             error instanceof ClerkProviderUnavailableError
               ? 'DELETION_PROVIDER_UNAVAILABLE'
               : dependencyBusy

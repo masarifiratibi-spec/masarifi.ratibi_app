@@ -292,6 +292,9 @@ export class ReportsRepository {
       format: ReportFormat;
       delivery: DeliveryChannel;
       recipient: null;
+      accountIds?: string[];
+      currency?: string;
+      timezone?: string;
     },
     idempotencyKey: string,
     requestId: string,
@@ -341,6 +344,22 @@ export class ReportsRepository {
             )
           ).rows[0];
           if (!context) throw new HttpException({ code: 'NOT_FOUND' }, 404);
+          if (command.timezone && command.timezone !== context.timezone)
+            throw new HttpException({ code: 'REPORT_TIMEZONE_CHANGED' }, 409);
+          if (command.accountIds) {
+            const owned = await client.query(
+              'select id from public.accounts where user_id=$1 and id=any($2::uuid[])',
+              [principal.userId, command.accountIds],
+            );
+            if (owned.rowCount !== new Set(command.accountIds).size)
+              throw new HttpException({ code: 'REPORT_ACCOUNT_NOT_FOUND' }, 404);
+          }
+          const currency = command.currency ?? context.currency.trim();
+          const allowedCurrency = await client.query(
+            'select code from public.currencies where code=$1 and enabled',
+            [currency],
+          );
+          if (!allowedCurrency.rowCount) throw new HttpException({ code: 'INVALID_CURRENCY' }, 400);
           const days =
             Math.floor(
               (Date.parse(`${command.periodEnd}T00:00:00Z`) -
@@ -371,13 +390,15 @@ export class ReportsRepository {
             principal.userId,
             command.type,
             period,
-            context.currency.trim(),
+            currency,
+            command.accountIds,
           );
           const content = await this.reportContent(client, {
             userId: principal.userId,
             reportType: command.type,
             period,
-            currency: context.currency.trim(),
+            currency,
+            accountIds: command.accountIds,
             summary,
           });
           const snapshot = parseReportSnapshot(
@@ -394,10 +415,15 @@ export class ReportsRepository {
               },
               format: command.format,
               delivery: command.delivery,
-              currencyCode: context.currency.trim(),
+              currencyCode: currency,
               dataState: content.dataState,
               evidence: summary.metadata.evidence,
-              summary: content.summary,
+              summary: {
+                ...content.summary,
+                accountScope: command.accountIds
+                  ? `Selected accounts (${String(command.accountIds.length)})`
+                  : 'All accounts',
+              },
               breakdowns: content.breakdowns,
               detailedRows: content.detailedRows,
             },
@@ -1278,7 +1304,7 @@ export class ReportsRepository {
       timezone: row.timezone,
       nextRunAt: row.next_run_at.toISOString(),
       deliveryChannel: row.delivery_channel,
-      ...(recipientMasked ? { recipientMasked } : {}),
+      ...(recipientMasked ? { recipientMasked, recipient: row.recipient } : {}),
       enabled: row.enabled,
       lastRunAt: row.last_run_at?.toISOString() ?? null,
       createdAt: row.created_at.toISOString(),
@@ -1391,7 +1417,7 @@ export class ReportsRepository {
     client: PoolClient,
     userId: string,
     period: ReportPeriodRange,
-    options: { currency: string | null; limit: number },
+    options: { currency: string | null; limit: number; accountIds?: string[] },
   ): Promise<Record<string, unknown>[]> {
     const rows = (
       await client.query<{
@@ -1407,6 +1433,8 @@ export class ReportsRepository {
          where t.user_id=$1 and t.status='confirmed' and t.deleted_at is null
            and t.occurred_at>=$2::timestamptz and t.occurred_at<$3::timestamptz
            and ($4::char(3) is null or t.currency_code=$4)
+           and ($6::uuid[] is null or exists(select 1 from public.transaction_postings p
+             where p.transaction_id=t.id and p.account_id=any($6::uuid[]) and p.clearing_state='confirmed'))
          order by t.occurred_at,t.id limit $5`,
         [
           userId,
@@ -1414,6 +1442,7 @@ export class ReportsRepository {
           period.endExclusiveInstant,
           options.currency,
           options.limit + 1,
+          options.accountIds ?? null,
         ],
       )
     ).rows;
@@ -1435,6 +1464,7 @@ export class ReportsRepository {
       reportType: ReportType;
       period: ReportPeriodRange;
       currency: string;
+      accountIds?: string[];
       summary: ReportsSummaryResponse;
     },
   ): Promise<{
@@ -1443,12 +1473,14 @@ export class ReportsRepository {
     detailedRows: Record<string, unknown>[];
     dataState: 'complete' | 'empty';
   }> {
-    const includePlanning = [
-      'financial_summary',
-      'budget_performance',
-      'obligation_progress',
-      'savings_progress',
-    ].includes(input.reportType);
+    const includePlanning =
+      !input.accountIds?.length &&
+      [
+        'financial_summary',
+        'budget_performance',
+        'obligation_progress',
+        'savings_progress',
+      ].includes(input.reportType);
     const planning = includePlanning
       ? await this.readPlanning(client, input.userId, input.period, input.currency)
       : undefined;
@@ -1456,6 +1488,7 @@ export class ReportsRepository {
       input.reportType === 'account_activity'
         ? await this.readDetailedRows(client, input.userId, input.period, {
             currency: input.currency,
+            accountIds: input.accountIds,
             limit: this.config?.get('MASARIFI_REPORT_MAX_ROWS') ?? 100_000,
           })
         : [];

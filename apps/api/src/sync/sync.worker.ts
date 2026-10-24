@@ -112,10 +112,14 @@ export class SyncWorker implements OnModuleDestroy {
   }
 
   private async process(claimed: ClaimedMutation): Promise<void> {
+    const authenticatedAt = claimed.authenticatedAt ? Date.parse(claimed.authenticatedAt) : NaN;
     const principal = {
       userId: claimed.userId,
       sessionId: `sync-worker:${this.workerId}`,
-      factorAgeSeconds: claimed.factorAgeSeconds,
+      factorAgeSeconds:
+        Number.isFinite(authenticatedAt) && authenticatedAt <= Date.now()
+          ? Math.ceil((Date.now() - authenticatedAt) / 1000)
+          : null,
     };
     try {
       const result = await this.handlers.dispatch(

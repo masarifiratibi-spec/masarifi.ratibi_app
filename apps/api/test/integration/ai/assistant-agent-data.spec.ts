@@ -267,6 +267,54 @@ suite('fenced assistant finance tools on isolated PostgreSQL', () => {
       );
     }
   });
+  it('ranks expense principals separately per currency instead of comparing raw minor units', async () => {
+    const rankOwner = `currency_rank_${randomUUID()}`;
+    const rankMessage = randomUUID(),
+      rankConversation = randomUUID(),
+      rankToken = randomUUID();
+    await db.query('insert into public.profiles(id) values($1)', [rankOwner]);
+    await db.query(
+      "insert into public.assistant_consents(user_id,policy_version) values($1,'assistant-privacy-v1')",
+      [rankOwner],
+    );
+    await db.query('insert into public.assistant_conversations(id,user_id) values($1,$2)', [
+      rankConversation,
+      rankOwner,
+    ]);
+    await db.query(
+      "insert into public.assistant_messages(id,user_id,conversation_id,role,content_redacted,work_status,context_scope) values($1,$2,$3,'user','largest expenses','processing',array['accounts_summary','recent_transactions'])",
+      [rankMessage, rankOwner, rankConversation],
+    );
+    await db.query(
+      "insert into private.assistant_agent_jobs(id,user_id,state,claim_token,lease_until) values($1,$2,'processing',$3,clock_timestamp()+interval '10 minutes')",
+      [rankMessage, rankOwner, rankToken],
+    );
+    await db.query(
+      `insert into public.transactions(user_id,kind,amount_minor,currency_code,title,occurred_at,status) values
+      ($1,'expense',12345,'SAR','SAR larger','2026-10-01','confirmed'),($1,'expense',200,'SAR','SAR smaller','2026-10-01','confirmed'),
+      ($1,'expense',900000,'JPY','JPY larger','2026-10-01','confirmed'),($1,'expense',800000,'JPY','JPY smaller','2026-10-01','confirmed'),
+      ($1,'expense',2,'KWD','KWD larger','2026-10-01','confirmed'),($1,'expense',1,'KWD','KWD smaller','2026-10-01','confirmed')`,
+      [rankOwner],
+    );
+    const result = await reader.read(rankMessage, rankToken, {
+      tool: 'transactions',
+      kind: 'expense',
+      sort: 'largest',
+      limit: 3,
+    });
+    const items = (
+      result.data.transactions as { items: { currency: string; amountMinor: string }[] }
+    ).items;
+    expect(items).toHaveLength(3);
+    expect(new Set(items.map((item) => item.currency))).toEqual(new Set(['SAR', 'JPY', 'KWD']));
+    expect(items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ currency: 'SAR', amountMinor: '12345' }),
+        expect.objectContaining({ currency: 'JPY', amountMinor: '900000' }),
+        expect.objectContaining({ currency: 'KWD', amountMinor: '2' }),
+      ]),
+    );
+  });
   it('sorts only the requested expense kind even when an income is larger', async () => {
     const result = await reader.read(message, token, {
       tool: 'transactions',

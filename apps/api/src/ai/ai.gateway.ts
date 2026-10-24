@@ -70,6 +70,7 @@ export class AiGateway {
       fetcher?: Fetcher;
       now?: () => number;
       assistantRecovery?: boolean;
+      onAttempt?: (fields: SafeLogFields) => void;
     },
   ) {
     this.fetcher = options.fetcher ?? fetch;
@@ -94,6 +95,7 @@ export class AiGateway {
     for (let index = 0; index < candidates.length; index += 1) {
       const candidate = candidates[index];
       if (!candidate) break;
+      const attemptStarted = this.now();
       try {
         if (input.signal?.aborted) throw new AiGatewayError('AI_WORK_CANCELLED');
         const attemptDeadline = recover
@@ -106,6 +108,7 @@ export class AiGateway {
           !recover && index > 0,
           startedAt,
         );
+        this.observe(input, candidate, index, attemptStarted, 'success');
         this.onSuccess();
         return result;
       } catch (error) {
@@ -113,6 +116,7 @@ export class AiGateway {
           error instanceof AiGatewayError
             ? error
             : new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
+        this.observe(input, candidate, index, attemptStarted, 'failure', last.code);
         this.onFailure(last.retryable);
         if (recover && last.code !== 'AI_TEMPORARILY_UNAVAILABLE') break;
         if (!last.retryable || index === candidates.length - 1) break;
@@ -122,6 +126,33 @@ export class AiGateway {
     if (recover && last?.code === 'AI_TEMPORARILY_UNAVAILABLE')
       throw new AiGatewayError(last.code, false, last.diagnostic);
     throw last ?? new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
+  }
+
+  private observe<T>(
+    input: CompletionInput<T>,
+    candidate: Candidate,
+    attempt: number,
+    started: number,
+    state: string,
+    code?: string,
+  ): void {
+    // Only routing/correlation fields; never prompts, financial context, audio, tokens or provider bodies.
+    const safe = (value: string) => (/^[A-Za-z0-9_./:-]{1,128}$/.test(value) ? value : 'invalid');
+    try {
+      this.options.onAttempt?.({
+        eventName: 'ai.attempt',
+        requestId: safe(input.requestId),
+        workload: safe(input.route.workload),
+        modelId: safe(candidate.modelId),
+        provider: safe(candidate.provider),
+        attempt: attempt + 1,
+        state,
+        ...(code ? { code: safe(code) } : {}),
+        durationMs: Math.max(0, this.now() - started),
+      });
+    } catch {
+      /* Observability must not alter request accounting or retry behavior. */
+    }
   }
 
   private async attempt<T>(
@@ -267,7 +298,7 @@ export class AiGateway {
               envelope.model.trim().length === 0 ||
               typeof envelope.id !== 'string' ||
               envelope.id.trim().length === 0)) ||
-          (!voice && typeof envelope.model === 'string' && envelope.model !== candidate.modelId)
+          (!voice && (typeof envelope.model !== 'string' || envelope.model !== candidate.modelId))
         ) {
           throw new AiGatewayError('AI_SCHEMA_INVALID');
         }

@@ -92,6 +92,8 @@ export interface ConflictRecord {
 }
 
 interface ClaimedMutationRow extends QueryResultRow {
+  created_at: Date | string;
+  authenticated_at?: Date | string | null;
   id: string;
   user_id: string;
   device_id: string;
@@ -114,6 +116,7 @@ export interface ClaimedMutation {
   userId: string;
   deviceId: string;
   factorAgeSeconds: number | null;
+  authenticatedAt: string | null;
   mutation: SyncMutation;
   attemptCount: number;
   leaseToken: string;
@@ -563,6 +566,14 @@ export class SyncRepository {
       userId: row.user_id,
       deviceId: row.device_id,
       factorAgeSeconds: row.factor_age_seconds,
+      authenticatedAt:
+        row.authenticated_at != null
+          ? new Date(row.authenticated_at).toISOString()
+          : row.factor_age_seconds !== null && Number.isFinite(new Date(row.created_at).getTime())
+            ? new Date(
+                new Date(row.created_at).getTime() - row.factor_age_seconds * 1000,
+              ).toISOString()
+            : null,
       mutation: {
         operationId: row.operation_id,
         domain: row.domain,

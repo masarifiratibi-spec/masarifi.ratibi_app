@@ -44,6 +44,7 @@ export interface PlatformEnvironment {
   CLERK_AUTHORIZED_PARTIES?: readonly string[];
   CLERK_WEBHOOK_SIGNING_SECRET?: string;
   MASARIFI_PUSH_TOKEN_HASH_KEY?: string;
+  MASARIFI_SYNC_CURSOR_KEY?: string;
   MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS?: string;
   MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: number;
   MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS?: Readonly<Record<string, number>>;

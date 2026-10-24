@@ -18,6 +18,7 @@ const valid = {
   CLERK_AUTHORIZED_PARTIES: 'https://admin.example.test,http://localhost:3000',
   CLERK_WEBHOOK_SIGNING_SECRET: ['whsec', 'nonfunctionalfixture'].join('_'),
   MASARIFI_PUSH_TOKEN_HASH_KEY: pushKey(1),
+  MASARIFI_SYNC_CURSOR_KEY: pushKey(4),
   MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS: `active:${pushKey(2)}`,
   MASARIFI_ADMIN_INVITATION_REDIRECT_URL: 'https://admin.example.test/invitations/accept',
   MASARIFI_SECURITY_IP_HASH_KEYS: `active:${pushKey(3)}`,
@@ -29,6 +30,21 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('requires an independent API cursor key', () => {
+    expect(() => validateEnvironment({ ...valid, MASARIFI_SYNC_CURSOR_KEY: undefined })).toThrow(
+      'MASARIFI_SYNC_CURSOR_KEY',
+    );
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        MASARIFI_SYNC_CURSOR_KEY: valid.MASARIFI_PUSH_TOKEN_HASH_KEY,
+      }),
+    ).toThrow('MASARIFI_SYNC_CURSOR_KEY');
+    expect(
+      validateEnvironment({ ...valid, MASARIFI_SYNC_CURSOR_KEY: pushKey(4) })
+        .MASARIFI_SYNC_CURSOR_KEY,
+    ).toBe(pushKey(4));
+  });
   it('allows the staged ordinary semantic assistant without a developer owner', () => {
     const result = validateEnvironment({
       ...valid,

@@ -1,6 +1,60 @@
 import { SecurityWorkerService } from '../../../src/security/security.worker';
 
 describe('SecurityWorkerService', () => {
+  it.each([0, 24])('erases an eligible owner before identity at cooldown %s', async (hours) => {
+    const events: string[] = [];
+    const query = jest.fn((sql: string) => {
+      if (sql.includes('with selected as'))
+        return Promise.resolve({ rows: [{ id: 'request', user_id: 'owner' }] });
+      if (sql.includes('freeze_account')) events.push('freeze');
+      return Promise.resolve({ rows: [{ held: false }], rowCount: 1 });
+    });
+    const handler = (resourceType: string) => ({
+      resourceType,
+      schemaVersion: 1,
+      deleteAccount: () => {
+        events.push(resourceType);
+        return Promise.resolve({});
+      },
+    });
+    const worker = new SecurityWorkerService(
+      {
+        withWorkerTransaction: (action: (client: unknown) => unknown) => action({ query }),
+      } as never,
+      {} as never,
+      handler('identity') as never,
+      handler('tracking') as never,
+      handler('ai') as never,
+      handler('engagement') as never,
+      {
+        get: (key: string) =>
+          key === 'MASARIFI_DELETION_COOLING_OFF_HOURS'
+            ? hours
+            : ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'],
+      } as never,
+      {
+        purgeDueUploads: () => Promise.resolve(),
+        prepare: () => {
+          events.push('prepare');
+          return Promise.resolve();
+        },
+        erase: () => {
+          events.push('erase');
+          return Promise.resolve({});
+        },
+      } as never,
+    );
+    await worker.runJob('privacy.account-delete');
+    expect(events).toEqual([
+      'freeze',
+      'prepare',
+      'ai',
+      'engagement',
+      'tracking',
+      'erase',
+      'identity',
+    ]);
+  });
   it('isolates each bounded job so one failure cannot starve the others', async () => {
     const query = jest
       .fn()

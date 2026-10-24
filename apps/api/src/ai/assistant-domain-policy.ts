@@ -9,7 +9,7 @@ export function assistantScopeNotice(question: string, greeting = false) {
   return {
     content: greeting
       ? arabic
-        ? 'أهلاً بيك! أنا مساعدك لتحليل مصروفاتك ودخلك وبياناتك المالية. تحب تعرف إيه عنها؟'
+        ? 'حيّاك الله! أنا مساعدك لتحليل مصروفاتك ودخلك وبياناتك المالية. وش تحب تعرف عنها؟'
         : 'Hello! I help analyze your spending, income and financial data. What would you like to know about them?'
       : arabic
         ? ARABIC_SCOPE_NOTICE

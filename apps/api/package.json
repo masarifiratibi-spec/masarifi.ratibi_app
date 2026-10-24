@@ -5,7 +5,8 @@
   "description": "Masarifi backend API and worker",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=24 <25"
+    "node": "24.16.0",
+    "npm": "11.17.0"
   },
   "scripts": {
     "build": "nest build api && nest build worker && nest build migration",
@@ -126,7 +127,7 @@
     "express": "5.1.0",
     "helmet": "^8.0.0",
     "joi": "^18.2.9",
-    "nodemailer": "10.0.13",
+    "nodemailer": "10.1.4",
     "pdfkit": "0.20.2",
     "pg": "^8.0.0",
     "reflect-metadata": "^0.2.0",
@@ -157,11 +158,12 @@
     "typescript-eslint": "^8.0.0"
   },
   "overrides": {
-    "multer": "2.4.0",
+    "multer": "2.5.0",
     "qs": "6.16.0",
     "js-yaml@^5.0.0": "$js-yaml",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "4.3.2"
     }
-  }
+  },
+  "packageManager": "npm@11.17.0"
 }

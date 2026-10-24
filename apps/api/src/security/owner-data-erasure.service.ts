@@ -26,6 +26,18 @@ export class OwnerDataErasureService {
     });
   }
 
+  async purgeDueUploads(): Promise<void> {
+    const owners = await this.worker(
+      async (client) =>
+        (
+          await client.query<{ user_id: string }>(
+            'select * from private.list_due_account_upload_erasure_owners(16)',
+          )
+        ).rows,
+    );
+    for (const owner of owners) await this.purgeOutstandingUploads(owner.user_id);
+  }
+
   async purgeOutstandingUploads(userId: string): Promise<void> {
     const claims = await this.worker(
       async (client) =>

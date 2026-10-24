@@ -24,6 +24,8 @@ function fixture(failStorage = false) {
           { kind: 'support', storage_ref: 'support/ticket/attachment' },
         ],
       };
+    if (sql.includes('list_due_account_upload_erasure_owners'))
+      return { rows: [{ user_id: 'owner' }] };
     if (sql.includes('claim_account_upload_erasure'))
       return {
         rows: [
@@ -95,4 +97,15 @@ it('deletes only the owner-claimed late-upload object before acknowledging its l
   const acknowledged = calls.findIndex((sql) => sql.includes('complete_account_upload_erasure'));
   expect(calls.indexOf('support-object')).toBeLessThan(acknowledged);
   expect(calls.at(-1)).toBe('commit');
+});
+
+it('sweeps due owners through the existing claim/delete/acknowledgment protocol', async () => {
+  const { service, calls } = fixture();
+  await service.purgeDueUploads();
+  expect(calls.some((sql) => sql.includes('list_due_account_upload_erasure_owners(16)'))).toBe(
+    true,
+  );
+  expect(calls.indexOf('support-object')).toBeLessThan(
+    calls.findIndex((sql) => sql.includes('complete_account_upload_erasure')),
+  );
 });

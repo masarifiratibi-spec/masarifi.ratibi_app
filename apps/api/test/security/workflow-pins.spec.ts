@@ -209,11 +209,14 @@ describe('isolated consolidation candidate verification policy', () => {
     expect(android.env?.EXPO_PUBLIC_API_URL).toBe('https://api.example.invalid');
     const commands = android.steps.map((step) => step.run ?? '').join('\n');
     expect(commands).toContain('verify-android-identity.cjs');
-    expect(commands).toContain(':app:assembleRelease');
+    expect(commands).toContain(':app:minifyReleaseWithR8');
+    expect(commands).toContain(':app:mergeReleaseNativeLibs');
+    expect(commands).toContain('convert --output-format binary');
     expect(commands).toContain('-PreactNativeArchitectures=arm64-v8a');
     expect(commands).toContain("package: name='com.masarifi.mobile'");
-    expect(commands).toContain("application-label:'Masarifi.Ratibi'");
-    expect(commands).toContain('sha256sum "$apk"');
+    expect(commands).toContain("application-label:'Masarifi Ratibi'");
+    expect(commands).toContain('sha256sum android-diagnostic-resources.ap_');
+    expect(commands).toContain('test -s "$native/$abi/libappmodules.so"');
     expect(commands).toContain('"$GITHUB_SHA"');
   });
 

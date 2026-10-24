@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { hashNormalizedCommand } from '../../../src/ledger/idempotency';
 import { PoolService } from '../../../src/platform/database/pool.service';
 import { SecurityRepository } from '../../../src/security/security.repository';
 import { ImmediateDeletionService } from '../../../src/security/immediate-deletion.service';
@@ -21,17 +22,19 @@ describeLocal('immediate deletion committed receipts on the owned local database
   let immediate: ImmediateDeletionService;
   let service: SecurityService;
   let repository: SecurityRepository;
+  let values: Record<string, unknown>;
   const networkHash = 'a'.repeat(64);
   const clerk = { revokeUserSessions: jest.fn(), deleteIdentityUser: jest.fn() };
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (!localUrl) throw new Error('OWNED_LOCAL_DELETION_DATABASE_REQUIRED');
     const url = new URL(localUrl);
     if (
       url.hostname !== '127.0.0.1' ||
       !(
         (url.port === '15876' && url.pathname === '/reliability_deletion_20261016') ||
-        (url.port === '15918' && url.pathname === '/dev_egress_20261020')
+        (url.port === '15918' && url.pathname === '/dev_egress_20261020') ||
+        (url.port === '55442' && url.pathname === '/admin_recovery_fresh')
       )
     )
       throw new Error('OWNED_LOCAL_DELETION_DATABASE_REQUIRED');
@@ -39,13 +42,22 @@ describeLocal('immediate deletion committed receipts on the owned local database
       get: (key: string) =>
         key === 'DATABASE_URL' ? localUrl : key === 'MASARIFI_DATABASE_POOL_MAX' ? 4 : undefined,
     } as never);
+    if (url.port === '55442') {
+      const target = await pool.query<{ data_directory: string }>('show data_directory');
+      if (
+        !target.rows[0]?.data_directory
+          .replaceAll('\\', '/')
+          .endsWith('/2026-10-23-admin-dashboard-recovery/native-db/data')
+      )
+        throw new Error('WRONG_LOCAL_DELETION_CLUSTER');
+    }
   });
   beforeEach(async () => {
     owner = 'immediate_local_' + randomUUID();
     operationId = randomUUID();
     token = randomBytes(32).toString('hex');
     await pool.query("insert into public.profiles(id,status) values($1,'active')", [owner]);
-    const values: Record<string, unknown> = {
+    values = {
       MASARIFI_DELETION_COOLING_OFF_HOURS: 0,
       MASARIFI_PRIVACY_DATABASE_URL: localUrl,
       MASARIFI_DATABASE_POOL_MAX: 4,
@@ -80,7 +92,10 @@ describeLocal('immediate deletion committed receipts on the owned local database
     await pool.query('delete from private.deletion_completion_rate_buckets where network_hash=$1', [
       networkHash,
     ]);
-    await pool.query('delete from public.profiles where id=$1', [owner]);
+    await pool.query(
+      'delete from public.profiles p where p.id=$1 and not exists(select 1 from public.security_events e where e.user_id=p.id)',
+      [owner],
+    );
   });
   afterAll(async () => pool.onModuleDestroy());
 
@@ -89,6 +104,12 @@ describeLocal('immediate deletion committed receipts on the owned local database
     principal: { userId: owner, sessionId: 'session_local', factorAgeSeconds: 0 },
     body: { confirmation: 'DELETE_MY_ACCOUNT', completionToken: token },
     idempotencyKey: operationId,
+    // The service hashes the unchanged client command before adding server policy fields.
+    commandHash: hashNormalizedCommand({
+      operation: 'createMyDeletionRequest',
+      body: { confirmation: 'DELETE_MY_ACCOUNT', completionToken: token },
+      params: {},
+    }),
     requestId: randomUUID(),
     query: {},
     params: {},
@@ -96,7 +117,7 @@ describeLocal('immediate deletion committed receipts on the owned local database
   const tokenHash = () => createHash('sha256').update(token).digest('hex');
 
   it.each([false, true])(
-    'makes an existing cooling request eligible immediately, including receipt replay (%s)',
+    'a new confirmed command makes an existing cooling request eligible immediately (prior receipt=%s)',
     async (withReceipt) => {
       const existing = (await repository.execute({
         ...operation(),
@@ -109,6 +130,7 @@ describeLocal('immediate deletion committed receipts on the owned local database
       expect(existing.coolingOffEndsAt.getTime()).toBeGreaterThan(Date.now());
       const immediateRequest = (await repository.execute({
         ...operation(),
+        idempotencyKey: randomUUID(),
         body: {
           confirmation: 'DELETE_MY_ACCOUNT',
           coolingOffHours: 0,
@@ -125,6 +147,50 @@ describeLocal('immediate deletion committed receipts on the owned local database
     },
   );
 
+  it('erases eligible delayed financial data and completes each provider only once', async () => {
+    values.MASARIFI_DELETION_COOLING_OFF_HOURS = 72;
+    const account = randomUUID(),
+      deletion = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Delayed deletion fixture','bank','SAR')",
+      [account, owner],
+    );
+    await pool.query(
+      `insert into private.account_deletion_requests(id,user_id,status,requested_at,verified_at,cooling_off_ends_at)
+      values($1,$2,'verified',clock_timestamp()-interval '96 hours',clock_timestamp()-interval '96 hours',clock_timestamp()-interval '24 hours')`,
+      [deletion, owner],
+    );
+    await expect(immediate.runDeletionRequestForOwner(owner, deletion)).resolves.toMatchObject({
+      status: 'completed',
+    });
+    expect(
+      (await pool.query('select id from public.accounts where user_id=$1', [owner])).rows,
+    ).toEqual([]);
+    expect(
+      (await pool.query('select status from public.profiles where id=$1', [owner])).rows,
+    ).toEqual([{ status: 'deleted' }]);
+    await expect(immediate.runDeletionRequestForOwner(owner, deletion)).resolves.toMatchObject({
+      status: 'completed',
+    });
+    expect(clerk.deleteIdentityUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('retains a completion receipt until after the delayed cooling window', async () => {
+    const requested = (await repository.execute({
+      ...operation(),
+      body: {
+        confirmation: 'DELETE_MY_ACCOUNT',
+        coolingOffHours: 72,
+        completionTokenHash: tokenHash(),
+      },
+    })) as { id: string };
+    const receipt = await pool.query<{ afterCooling: boolean }>(
+      `select r.expires_at>d.cooling_off_ends_at+interval '23 hours' as "afterCooling" from private.account_deletion_receipts r join private.account_deletion_requests d on d.id=r.request_id where r.request_id=$1`,
+      [requested.id],
+    );
+    expect(receipt.rows[0]?.afterCooling).toBe(true);
+  });
+
   it('preserves an existing cooling deadline when the server still requires a cooling period', async () => {
     const input = {
       ...operation(),
@@ -133,14 +199,17 @@ describeLocal('immediate deletion committed receipts on the owned local database
     const existing = (await repository.execute(input)) as { id: string; coolingOffEndsAt: Date };
     const repeated = (await repository.execute(input)) as { id: string; coolingOffEndsAt: Date };
     expect(repeated.id).toBe(existing.id);
-    expect(repeated.coolingOffEndsAt).toEqual(existing.coolingOffEndsAt);
-    expect(repeated.coolingOffEndsAt.getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(repeated.coolingOffEndsAt).getTime()).toEqual(
+      new Date(existing.coolingOffEndsAt).getTime(),
+    );
+    expect(new Date(repeated.coolingOffEndsAt).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('completes the existing delayed request through the immediate service in the same POST', async () => {
     const existing = (await repository.execute({
       ...operation(),
       body: { confirmation: 'DELETE_MY_ACCOUNT', coolingOffHours: 72 },
+      idempotencyKey: randomUUID(),
     })) as { id: string };
     await expect(service.execute(operation())).resolves.toMatchObject({
       id: existing.id,
@@ -181,6 +250,16 @@ describeLocal('immediate deletion committed receipts on the owned local database
           completionTokenHash: tokenHash(),
         },
       }),
+    ).resolves.toMatchObject({ id: old.id });
+    await expect(
+      repository.execute({
+        ...operation(),
+        operation: 'getMyDeletionRequest',
+        idempotencyKey: undefined,
+        commandHash: undefined,
+        body: {},
+        params: { deletionId: old.id },
+      }),
     ).resolves.toMatchObject({ id: old.id, status: 'cancelled' });
     expect(
       (
@@ -220,6 +299,7 @@ describeLocal('immediate deletion committed receipts on the owned local database
     expect((recovery.value as { completedAt: Date }).completedAt).toBeInstanceOf(Date);
     expect(Object.keys(recovery.value as object).sort()).toEqual([
       'completedAt',
+      'coolingOffEndsAt',
       'errorCode',
       'id',
       'status',
@@ -279,6 +359,11 @@ describeLocal('immediate deletion committed receipts on the owned local database
       repository.execute({
         ...input,
         body: { ...input.body, completionTokenHash: 'b'.repeat(64) },
+        commandHash: hashNormalizedCommand({
+          operation: 'createMyDeletionRequest',
+          body: { confirmation: 'DELETE_MY_ACCOUNT', completionToken: 'b'.repeat(64) },
+          params: {},
+        }),
       }),
     ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
     const foreign = 'immediate_foreign_' + randomUUID();

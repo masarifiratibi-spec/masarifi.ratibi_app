@@ -37,6 +37,8 @@ select ok((select count(*) >= 2 from public.parser_test_cases),'parser corpus is
 grant masarifi_migration to current_user with inherit true,set true;
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('tracking-pgtap-owner','active');
+-- Model the verified API caller; do not bypass active-owner command guards.
+select set_config('request.jwt.claims','{"sub":"tracking-pgtap-owner","role":"authenticated"}',true);
 select is(private.get_tracking_preferences('tracking-pgtap-owner')->>'enabled','false','preferences default to paused');
 select is(
   private.update_tracking_preferences('tracking-pgtap-owner',true,true,7,90,1)->>'version',
