@@ -24,14 +24,15 @@ if (process.env.MASARIFI_LIVE_DATABASE_TESTS !== '1' ||
   throw new Error('DISPOSABLE_DATABASE_ONLY');
 }
 
+const migrationsDirectory = join(root, 'supabase/migrations');
+const allFiles = readdirSync(migrationsDirectory).filter(name => /^\d{14}_.+\.sql$/.test(name)).sort();
+if (throughVersion && !allFiles.some(name => name.startsWith(`${throughVersion}_`))) throw new Error('MIGRATION_TARGET_NOT_REGISTERED');
+
 apiRequire('ts-node').register({ project: join(api, 'tsconfig.json'), transpileOnly: true });
 const { verifyMigrationManifest } = require(join(api, 'src/platform/database/migration-checksums.ts'));
 const { applyPendingMigrations, assertCompatibleMigrationHistory, withMigrationLock } =
   require(join(api, 'src/platform/database/migration-runner.ts'));
-const migrationsDirectory = join(root, 'supabase/migrations');
 verifyMigrationManifest(migrationsDirectory, join(root, 'supabase/migration-checksums.sha256'));
-const allFiles = readdirSync(migrationsDirectory).filter(name => /^\d{14}_.+\.sql$/.test(name)).sort();
-if (throughVersion && !allFiles.some(name => name.startsWith(`${throughVersion}_`))) throw new Error('MIGRATION_TARGET_NOT_REGISTERED');
 const files = throughVersion ? allFiles.filter(name => name.slice(0, 14) <= throughVersion) : allFiles;
 if (!allFiles.some(name => name.startsWith(`${prefix}_`))) throw new Error('BOOTSTRAP_PREFIX_MISSING');
 function cli(args) {

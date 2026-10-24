@@ -31,13 +31,14 @@ const evidenceFile = process.argv[3];
 assert.ok(evidenceFile && ['seed', 'verify'].includes(process.argv[2]), 'FIXTURE_PHASE_REQUIRED');
 // Direct fixture inspection still supplies the authenticated owner context required
 // by the current schema; no production authentication guard is bypassed.
-async function ownerQuery(owner, sql, values) {
+async function ownerQuery(owner, sql, values, asWorker = false) {
   return pool.withClient(async client => {
     await client.query('begin');
     try {
       await client.query("select set_config('request.jwt.claims',$1,true)", [JSON.stringify({
         role: 'authenticated', sub: owner, sid: 'upgrade-fixture'
       })]);
+      if (asWorker) await client.query('set local role masarifi_worker');
       const result = await client.query(sql, values);
       await client.query('commit');
       return result;
@@ -93,7 +94,10 @@ async function verify() {
   for (const id of [state.queued, offlineId]) {
     const claim = claims.find(item => item.id === id);
     assert.ok(claim, 'UPGRADE_CAPTURE_CLAIM_MISSING');
-    await repository.prepareImport(id, claim.claim_token);
+    // Exercise the function present at migration 111. The current repository
+    // requires a context-binding RPC introduced at migration 171.
+    await ownerQuery(state.owner, 'select private.prepare_import_session($1::uuid,$2::uuid)',
+      [id, claim.claim_token], true);
     const item = (await pool.query('select id,normalized_payload from public.import_items where session_id=$1', [id])).rows[0];
     assert.equal(item.normalized_payload.metadata.ruleConfigurationRevision, state.revision);
     assert.equal((await ownerQuery(state.owner, 'select private.tracking_capture_exception($1) reason', [item.id])).rows[0].reason, null, 'LEGACY_CAPTURE_STRANDED');
@@ -106,6 +110,10 @@ async function verify() {
   console.log('PASS: legacy snapshot/revision and queued/offline v2 captures survive 110 -> 111; real preference changes remain fenced.');
 }
 async function run() {
+  const history = (await pool.query('select count(*)::int count,max(version) latest from supabase_migrations.schema_migrations')).rows[0];
+  assert.deepEqual(history, process.argv[2] === 'seed'
+    ? { count: 110, latest: '20261013053237' }
+    : { count: 111, latest: '20261013235719' }, 'EXACT_HISTORICAL_SCHEMA_REQUIRED');
   // Supabase's fixture login owns roles but does not inherit application grants.
   // This bootstrap is bounded by the disposable-loopback guards above.
   await pool.query('grant masarifi_api, masarifi_worker, masarifi_migration to current_user with inherit true, set true');
