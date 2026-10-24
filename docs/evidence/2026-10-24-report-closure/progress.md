@@ -198,3 +198,7 @@ Source commits 1426e90e and d67dafb7 repair demonstrated owner-context, operatio
 
 ### Registry and accepted campaign gate
 At 59f496b1, historical upgrades pass; the complete upgraded integration passes 144 suites/1,001 tests and fails one stale fixed currency-count assertion. 2b7982cb preserves exact enabled-registry/order and inactive/anonymous checks; 2 local tests pass with an extra synthetic currency, cleaned up afterward. Mobile viewport and 22 route checks pass. The next browser expectation is updated to preserve the accepted deferred campaign-creation gate, with RTL/LTR, privacy and no-mutation assertions. Full next-candidate CI remains pending.
+
+
+### Read-only release checks and remaining CI timing
+API36/min24 and38 native64-bit libraries pass bounded static compatibility inspection. Public root/privacy/deletion/health paths serve Hostinger parked-domain HTML despite HTTP200, so public production pages remain external. At7f227c5e, four browser viewports pass;1dcfd399 repairs the desktop1440 accessible selector using the artifact's confirmed combobox name. Two5-second tracking journey timeouts remain recorded; no assertion/timeout change, unchanged-source retry pending. No production infrastructure/key/configuration changes.

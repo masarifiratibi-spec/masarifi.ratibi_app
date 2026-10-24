@@ -253,7 +253,7 @@
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "59f496b1: application, Admin build/unit, Mobile, voice/tracking and encrypted-journal checks pass. Historical upgrades all pass. Full upgraded integration passes144 suites/1001 tests with one stale 12-currency assertion failing after synthetic registry fixtures. Mobile notification viewport and22 Phase11 routes pass. Browser next rejects a stale expectation for explicitly deferred campaign creation. Test-only corrections in2b7982cb; exact new candidate checks pending.",
+  "remoteCandidateCI": "7f227c5e: application/Admin/Mobile, four browser viewports, encrypted journals, voice/tracking and secret/redaction checks pass. Desktop1440 locator mismatch is corrected in1dcfd399. Upgraded integration reports two default5000ms tracking journey timeouts; the same production code passed these tests on59f496b1. No timeout or assertion changed. An unchanged-source database retry is pending completion of the current workflow.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -287,5 +287,6 @@
     "target": "Previously approved localhost:55442 PostgreSQL18.6 scratch cluster; no hosted migrations",
     "sourceCommit": "1426e90e162cbcbe9a06692872e7a37dc079d28e"
   },
-  "qualificationTestCommit": "2b7982cb77773f6be0b6c504d04b72d283d7124b"
+  "qualificationTestCommit": "1dcfd399be890c8c8e83ae619b26eeb4f2e664f2",
+  "nativeCompatibilityReceipt": "native-compatibility-inspection.json"
 }
