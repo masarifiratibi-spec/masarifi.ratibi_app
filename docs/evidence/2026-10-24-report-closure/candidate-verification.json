@@ -1,7 +1,6 @@
 {
   "inspectedDate": "2026-10-24",
-  "sourceCommit": "c7532a27fae4475f4714701009e58dfaf87210fc",
-  "codeEquivalentTo": "bff8e77719535d89568daad063aadcc19745cb7c",
+  "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
   "mainHistoryPreserved": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
   "localChecks": [
     {
@@ -54,11 +53,11 @@
       "rawLogSHA256": "51a1bd3fc62d67d9082ce207ee35bdb81a1fbac93322af2520ee366b2e83caf7"
     },
     {
-      "name": "Mobile preceding complete serial suite",
+      "name": "Mobile final complete serial suite",
       "command": "node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
-      "outcome": "559 suites / 3992 tests passed before final disclosure routing/copy refinement",
-      "localRawLog": "mobile-serial-final.log",
-      "rawLogSHA256": "1ebaa85943f22e23db795a503eeb476ee9dc9c246902929da059315ad5c4066a"
+      "outcome": "559 suites / 3992 tests passed",
+      "localRawLog": "mobile-candidate-final.log",
+      "rawLogSHA256": "5a3e535658680db414c83140219a2e2c605361336e37624bdad6b60e1ef9c64f"
     },
     {
       "name": "Final disclosure delta",
@@ -114,7 +113,7 @@
       "command": "node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts",
       "outcome": "8 tests passed",
       "localRawLog": "workflow-pins-candidate.log",
-      "rawLogSHA256": "35b62a165370d3233ddb57c5696b1dfaab868ee591ac32bd7996c47462bf8be6"
+      "rawLogSHA256": "4d76a856bab32b839fa177d53abe5975481bf8728ce3c3bd05f407db597649eb"
     },
     {
       "name": "API formatting",
@@ -136,10 +135,17 @@
       "outcome": "847 packages installed; audit 0 vulnerabilities",
       "localRawLog": "api-clean-install-final.log",
       "rawLogSHA256": "ca60df914b6c5baa0050059a78b27ac778d1c8fb85d01e57434938d1ed4a46ce"
+    },
+    {
+      "name": "Tracking final financial-content fixtures",
+      "command": "node node_modules/jest/bin/jest.js --selectProjects integration --runInBand --runTestsByPath test/integration/tracking/tracking-financial-content.integration.spec.ts",
+      "outcome": "1 suite / 86 tests passed against verified existing admin_recovery_browser (169 migrations)",
+      "localRawLog": "tracking-fixtures-qualified.log",
+      "rawLogSHA256": "9379743622f61a0ce0a78f80468bb226e21f7dc3ad2c21bbcd3948b1f8db7d26"
     }
   ],
-  "finalMobileRerun": "running; record completion separately",
-  "remoteCandidateCI": "not yet run",
+  "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
+  "remoteCandidateCI": "First candidate found stale whole-file schema pin, generated-artifact prebuild test, direct Supabase CLI role-history failure and two ambiguous-currency tracking fixtures. Corrected in ff570bed; exact new candidate remote checks pending.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -149,5 +155,8 @@
     "R8 Kotlin metadata warnings require actual release runtime checks",
     "External providers/Console and intended Play publisher remain unverified",
     "Jest uses existing forceExit behavior; clean async teardown not established"
-  ]
+  ],
+  "mainHistoryMergeCommit": "c7532a27fae4475f4714701009e58dfaf87210fc",
+  "pullRequest": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9",
+  "nativeDiagnosticScope": "Native compiler output predates the semantics-preserving copyReleasePolicy extraction; clean-generated-directory test proves the same three source policy files are installed/overwritten. Merged manifest overlay is independently qualified. Final signed artifact still required."
 }

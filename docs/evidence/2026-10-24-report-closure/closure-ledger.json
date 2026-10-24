@@ -16,7 +16,7 @@
           "acceptance": "Signing",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -49,7 +49,7 @@
           "acceptance": "Approved production API/Clerk identity",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -74,7 +74,7 @@
           "acceptance": "Application lock",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -99,7 +99,7 @@
           "acceptance": "Automation and diagnostic flags",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -124,7 +124,7 @@
           "acceptance": "Approved version/build number",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -157,7 +157,7 @@
           "acceptance": "R8/shrinking",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -190,7 +190,7 @@
           "acceptance": "SMS declaration/approval",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -223,7 +223,7 @@
           "acceptance": "Media playback FGS permission",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -256,7 +256,7 @@
           "acceptance": "Unjustified storage/overlay permissions",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -281,7 +281,7 @@
           "acceptance": "Unrelated wallet queries",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -314,7 +314,7 @@
           "acceptance": "Immediate/delayed eligible owner-data erasure",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -337,7 +337,7 @@
           "acceptance": "Idempotent retries/provider and late-upload cleanup",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -360,7 +360,7 @@
           "acceptance": "Public deletion request and truthful retention disclosure",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -391,7 +391,7 @@
           "acceptance": "Public repository private material",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P0",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
             "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
@@ -422,7 +422,7 @@
           "acceptance": "Main integration and CI",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P0",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
             "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
@@ -453,7 +453,7 @@
           "acceptance": "Closed testing",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -486,7 +486,7 @@
           "acceptance": "Offline startup/categories",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -517,7 +517,7 @@
           "acceptance": "Startup latency",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -548,7 +548,7 @@
           "acceptance": "Assistant dialect",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P4",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract tests including AI gateway and assistant data",
             "Selected actual-PG assistant financial queries",
@@ -575,7 +575,7 @@
           "acceptance": "Intermittent hosted assistant failure",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P4",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract tests including AI gateway and assistant data",
             "Selected actual-PG assistant financial queries",
@@ -602,7 +602,7 @@
           "acceptance": "Support submission",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P5",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/deletion integration tests",
             "Admin: npm test; diagnostic npm run build",
@@ -630,7 +630,7 @@
           "acceptance": "Activation persistence and stale-request fencing",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -652,7 +652,7 @@
           "acceptance": "OEM battery/settings guidance",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -674,7 +674,7 @@
           "acceptance": "Permission revocation and return from settings",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -704,7 +704,7 @@
           "acceptance": "Hosted planning",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -733,7 +733,7 @@
           "acceptance": "First onboarding save",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -764,7 +764,7 @@
           "acceptance": "Leading zero",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -793,7 +793,7 @@
           "acceptance": "Readable localized period chip",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -811,7 +811,7 @@
           "acceptance": "Assistant dates",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -837,7 +837,7 @@
           "acceptance": "Malformed SMS batch",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -867,7 +867,7 @@
           "acceptance": "Voice database qualification",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -900,7 +900,7 @@
           "acceptance": "Lost SQLCipher key",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -931,7 +931,7 @@
           "acceptance": "Model identity",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P4",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract tests including AI gateway and assistant data",
             "Selected actual-PG assistant financial queries",
@@ -958,7 +958,7 @@
           "acceptance": "Bare riyal",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -988,7 +988,7 @@
           "acceptance": "Linked refund entry",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1017,7 +1017,7 @@
           "acceptance": "Arabic spelling",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1043,7 +1043,7 @@
           "acceptance": "Obligation header layout",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1061,7 +1061,7 @@
           "acceptance": "Date locale on the actual screen",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1079,7 +1079,7 @@
           "acceptance": "Net-worth source/comparison behavior",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1097,7 +1097,7 @@
           "acceptance": "Subscriptions - deferred",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P8",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [],
           "evidenceArtifacts": [
             "candidate-verification.md"
@@ -1119,7 +1119,7 @@
           "acceptance": "Budget/subscription dates",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1145,7 +1145,7 @@
           "acceptance": "Assistant time locale",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1171,7 +1171,7 @@
           "acceptance": "Period chip",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1197,7 +1197,7 @@
           "acceptance": "Budget validation feedback",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1223,7 +1223,7 @@
           "acceptance": "Category mini-bars",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1249,7 +1249,7 @@
           "acceptance": "Demo bank seeds",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1279,7 +1279,7 @@
           "acceptance": "Recent-auth step-up",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -1310,7 +1310,7 @@
           "acceptance": "Obsolete flat three-second timeout claim",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P4",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract tests including AI gateway and assistant data",
             "Selected actual-PG assistant financial queries",
@@ -1337,7 +1337,7 @@
           "acceptance": "Latest dependencies",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P0",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
             "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
@@ -1368,7 +1368,7 @@
           "acceptance": "Toolchain/install",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P0",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
             "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
@@ -1399,7 +1399,7 @@
           "acceptance": "System dark mode",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P6",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile full Jest suite; npm run typecheck; npm run lint",
             "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
@@ -1425,7 +1425,7 @@
           "acceptance": "Mixed-currency ranking",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1454,7 +1454,7 @@
           "acceptance": "API formatting",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P0",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
             "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
@@ -1485,7 +1485,7 @@
           "acceptance": "feeMinor SQL error",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1514,7 +1514,7 @@
           "acceptance": "Unknown sync operation already rejected",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -1545,7 +1545,7 @@
           "acceptance": "Cursor signing key",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -1576,7 +1576,7 @@
           "acceptance": "Queued auth age",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -1607,7 +1607,7 @@
           "acceptance": "Deployment circuit/rate topology",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P4",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract tests including AI gateway and assistant data",
             "Selected actual-PG assistant financial queries",
@@ -1634,7 +1634,7 @@
           "acceptance": "Mock startup rejection",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P0",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
             "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
@@ -1665,7 +1665,7 @@
           "acceptance": "Arabic morphology",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1695,7 +1695,7 @@
           "acceptance": "Promotion substring",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1725,7 +1725,7 @@
           "acceptance": "OTP context",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1755,7 +1755,7 @@
           "acceptance": "Encrypted queue/journal: 35 baseline tests",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1785,7 +1785,7 @@
           "acceptance": "Bills/URLs vs posted transactions",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1815,7 +1815,7 @@
           "acceptance": "Credit-limit amount roles",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1845,7 +1845,7 @@
           "acceptance": "Merchant suffixes",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1875,7 +1875,7 @@
           "acceptance": "Pending entries kept until acknowledgment",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1897,7 +1897,7 @@
           "acceptance": "Owner/generation/release policy cache",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1919,7 +1919,7 @@
           "acceptance": "Measured processing and acknowledgment compaction",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -1949,7 +1949,7 @@
           "acceptance": "PIN escalation",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -1980,7 +1980,7 @@
           "acceptance": "Botim/imo exclusions",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2010,7 +2010,7 @@
           "acceptance": "Release development scheme",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -2043,7 +2043,7 @@
           "acceptance": "Native financial discovery/pagination",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2073,7 +2073,7 @@
           "acceptance": "Currency aliases/bare dinar",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P2",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2103,7 +2103,7 @@
           "acceptance": "Billing/subscriptions - deferred",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P8",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [],
           "evidenceArtifacts": [
             "candidate-verification.md"
@@ -2117,7 +2117,7 @@
           "acceptance": "Report preview/download/email/schedule/history",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P5",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/deletion integration tests",
             "Admin: npm test; diagnostic npm run build",
@@ -2137,7 +2137,7 @@
           "acceptance": "Support ticket/conversation",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P5",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/deletion integration tests",
             "Admin: npm test; diagnostic npm run build",
@@ -2157,7 +2157,7 @@
           "acceptance": "Security-event paging",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P5",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/deletion integration tests",
             "Admin: npm test; diagnostic npm run build",
@@ -2177,7 +2177,7 @@
           "acceptance": "Export request/status/download",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P5",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/deletion integration tests",
             "Admin: npm test; diagnostic npm run build",
@@ -2205,7 +2205,7 @@
           "acceptance": "Arabic/Persian amount inputs",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2234,7 +2234,7 @@
           "acceptance": "Salary-cycle monthly reports",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2263,7 +2263,7 @@
           "acceptance": "Local civil today",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2292,7 +2292,7 @@
           "acceptance": "Salary timezone resolution/persistence",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2313,7 +2313,7 @@
           "acceptance": "Budget timezone resolution/persistence",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P3",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/assistant integration tests",
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
@@ -2342,7 +2342,7 @@
           "acceptance": "User expressly allows screenshots",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -2375,7 +2375,7 @@
           "acceptance": "Demo production bundle",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P7",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
             "python scripts/integration/verify-release-manifest.test.py",
@@ -2408,7 +2408,7 @@
           "acceptance": "Logout retention",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P1",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
             "API unit/contract and selected actual-PG lifecycle/sync integration tests",
@@ -2439,7 +2439,7 @@
           "acceptance": "Privacy lifecycle copy",
           "owner": "main agent; external checks by user/authorized service administrator",
           "phase": "P5",
-          "sourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+          "sourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
           "testCommands": [
             "API unit/contract and selected actual-PG report/deletion integration tests",
             "Admin: npm test; diagnostic npm run build",
@@ -2464,7 +2464,7 @@
       "status": "separately tracked; excluded from report denominator"
     }
   ],
-  "qualifiedSourceCommit": "bff8e77719535d89568daad063aadcc19745cb7c",
+  "qualifiedSourceCommit": "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
   "inventoryUnits": 88,
   "acceptanceRule": "Local implementation and bounded tests do not close device, hosted provider, signing or Console acceptance. Initial classification is historical inventory, not a completion percentage.",
   "implementationCommits": [
@@ -2474,7 +2474,8 @@
     "6de052fb536a9c77009005a19f7f8a637d72747f",
     "edc4942f106ddd0a4843225f8f087d569452b682",
     "9f7fc9b7092ffea7a5d71d78a9def09e98469183",
-    "bff8e77719535d89568daad063aadcc19745cb7c"
+    "bff8e77719535d89568daad063aadcc19745cb7c",
+    "ff570bedebb092f1b5b221aa22cd1ef6b967af51"
   ],
   "nonPdfFollowUps": [
     {
@@ -2483,5 +2484,6 @@
       "status": "separately_tracked_open",
       "inOriginalFindingCount": false
     }
-  ]
+  ],
+  "integrationPullRequest": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9"
 }

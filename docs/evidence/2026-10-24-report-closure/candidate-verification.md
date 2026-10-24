@@ -1,6 +1,6 @@
 # Report closure candidate verification
 
-Source commit: `c7532a27fae4475f4714701009e58dfaf87210fc`. This merges release main `ecfba4d7de40555c122bd3b5e53e7e7fd71f6294` into the existing working branch without changing the code tree relative to `bff8e77719535d89568daad063aadcc19745cb7c`. Preserve all earlier recovery/voice changes. Evidence documentation commits may follow without changing this source tree.
+Source commit: `ff570bedebb092f1b5b221aa22cd1ef6b967af51`. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
 
 This is a review candidate, **not a production release qualification**. The [closure ledger](closure-ledger.json) retains 69 original references and 88 independently tracked acceptance units; no completion percentage is inferred. Billing and its grouped subscription subcheck stay open. Screenshots remain allowed everywhere, including local unlock.
 
@@ -10,11 +10,11 @@ This is a review candidate, **not a production release qualification**. The [clo
 | --- | --- |
 | API unit/contract | 263 suites, 2,149 tests passed |
 | Other API offline projects | 100 suites, 307 tests passed; 138 suites/1,059 external tests skipped |
-| Selected actual-PG service tests | 6 suites, 96 tests passed |
+| Selected actual-PG service tests | 6 suites, 96 tests passed; tracking financial-content follow-up 86/86 passed |
 | Actual MigrationRunner | 1 test passed: four forward migrations, idempotent rerun and exact inventory |
 | Admin full suite | 104 suites, 1,001 tests passed |
 | Admin build/typecheck/lint | Passed using explicitly inert CI build configuration; /delete-account compiled |
-| Mobile preceding full serial suite | 559 suites, 3,992 tests passed; final disclosure delta separately covered by 43 passing tests; new full rerun in progress |
+| Mobile final complete serial suite | 559 suites, 3,992 tests passed after final disclosure routing/copy changes |
 | Mobile typecheck/lint/boundaries | Passed; lint retains 116 inherited warnings and no errors |
 | Parser | 109 tests passed |
 | Native SMS JUnit | 15 suites, 96 tests, zero failures |
@@ -50,4 +50,6 @@ The requested [read-only inspection report](production-configuration-inspection.
 
 Remaining gates: intended Play publisher and registered upload certificate; production environment decision and release label; existing EAS code 1 implies next code 2 subject to Play history; dedicated server cursor key configuration; final signed AAB; physical-device/offline/OEM/RTL/screenshot acceptance; real hosted provider, sender fixtures, delivery and seven server behaviors; public deletion/privacy URLs; SMS approval, Data safety and applicable closed testing. No passwords, private keys or keystore exports are needed in chat.
 
-Exact integration-candidate CI is pending. Main required-check configuration remains open; repository infrastructure/settings were not changed during inspection. Billing stays explicitly deferred with the requested Stripe/Google Play policy TODO. The non-PDF nullable source_version CHECK is separately tracked and does not increase the 69-item inventory.
+The first remote candidate exposed a stale whole-file SQLite source pin, a test dependency on an already generated Gradle policy, old direct Supabase CLI bootstrap calls that lose the invoking history role, and two tracking fixtures whose collision/replay tests assumed bare-riyal currency. The three extracted SQLite schema segments are byte-identical to C0; the full-file pin was refreshed. Prebuild installation is now exercised in a clean temporary project with overwrite/idempotency checks. Existing guarded canonical migration setup is reused for disposable CI start/reset/migrate while preserving historical SQL. The collision/replay fixtures now explicitly name Saudi riyals and all 86 actual-PG checks pass. Historical image publication now requires explicit invocation with its original qualification gates retained. Exact updated integration-candidate CI remains pending. Main required-check configuration remains open; repository infrastructure/settings were not changed during inspection. Billing stays explicitly deferred with the requested Stripe/Google Play policy TODO. The non-PDF nullable source_version CHECK is separately tracked and does not increase the 69-item inventory.
+
+The native diagnostic output predates a semantics-preserving extraction of its file-copy helper; the clean-project test verifies all three checked policy files are installed and stale generated copies are replaced. Final signed-artifact qualification remains mandatory.
