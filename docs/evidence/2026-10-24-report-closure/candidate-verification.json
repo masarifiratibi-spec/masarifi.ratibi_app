@@ -242,10 +242,18 @@
       "localRawLog": "admin-support-mock-green.log",
       "rawLogSHA256": "c2e2e5fd1aab2e0992e6ab9f148dd18ba31e51bcb1d33e3990087cbc10635765",
       "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913"
+    },
+    {
+      "name": "Reference registry with extra enabled currency",
+      "command": "Live reference-read integration on verified retained browser172 target with an additional synthetic currency; cleanup in finally",
+      "outcome": "2 tests passed with13 enabled currencies; no production change",
+      "sourceCommit": "2b7982cb77773f6be0b6c504d04b72d283d7124b",
+      "localRawLog": "reference-registry-qualified.log",
+      "rawLogSHA256": "05017689b97e1b175c5c63b46086c4c6fbdb28ec68a01cdc17648b793297f7a6"
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "3cddb81d: application, Admin unit/build, Mobile, secrets/redaction and voice/tracking checks pass. Historical 110->111 verifier called a migration171 RPC, corrected in112e336a without weakening current worker. Browser exposed missing support overview/old ticket mock contract and mobile LTR layout expansion (417px for390px device); repaired in3026ac60. Exact new candidate full CI pending.",
+  "remoteCandidateCI": "59f496b1: application, Admin build/unit, Mobile, voice/tracking and encrypted-journal checks pass. Historical upgrades all pass. Full upgraded integration passes144 suites/1001 tests with one stale 12-currency assertion failing after synthetic registry fixtures. Mobile notification viewport and22 Phase11 routes pass. Browser next rejects a stale expectation for explicitly deferred campaign creation. Test-only corrections in2b7982cb; exact new candidate checks pending.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -278,5 +286,6 @@
     "baselineAssertions": 1865,
     "target": "Previously approved localhost:55442 PostgreSQL18.6 scratch cluster; no hosted migrations",
     "sourceCommit": "1426e90e162cbcbe9a06692872e7a37dc079d28e"
-  }
+  },
+  "qualificationTestCommit": "2b7982cb77773f6be0b6c504d04b72d283d7124b"
 }

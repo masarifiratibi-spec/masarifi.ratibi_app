@@ -194,3 +194,7 @@ Source commits 1426e90e and d67dafb7 repair demonstrated owner-context, operatio
 
 ### Historical verifier and browser continuation
 112e336a isolates the110→111 verifier from the migration171-only worker context RPC and keeps exact history guards.3026ac60 aligns support MSW contracts with the live client, preserves audited keyboard actions, and constrains the mobile LTR notification toolbar/panel. New real-client mock regression red→green;20focused and1,002full Admin tests pass, typecheck/lint and8negative disposable guards pass. Latest source requires fresh remote qualification; production configuration/signing/provider/device gates remain external.
+
+
+### Registry and accepted campaign gate
+At 59f496b1, historical upgrades pass; the complete upgraded integration passes 144 suites/1,001 tests and fails one stale fixed currency-count assertion. 2b7982cb preserves exact enabled-registry/order and inactive/anonymous checks; 2 local tests pass with an extra synthetic currency, cleaned up afterward. Mobile viewport and 22 route checks pass. The next browser expectation is updated to preserve the accepted deferred campaign-creation gate, with RTL/LTR, privacy and no-mutation assertions. Full next-candidate CI remains pending.
