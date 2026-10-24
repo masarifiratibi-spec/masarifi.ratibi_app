@@ -26,8 +26,8 @@ describe('backend workflow action pins', () => {
     const workflow = readFileSync(workflowPath, 'utf8');
 
     for (const command of [
-      'npm run supabase:start',
-      'npm run db:reset',
+      'node ../../scripts/integration/disposable-database.cjs start',
+      'node ../../scripts/integration/disposable-database.cjs reset',
       'npm run db:lint',
       'npm run test:db',
       'npm run start:migration',
@@ -177,7 +177,9 @@ describe('isolated consolidation candidate verification policy', () => {
     const upgradedIntegration = steps.findIndex((command) =>
       command.includes('masarifi-upgrade-integration.json'),
     );
-    const fresh = steps.findIndex((command) => command === 'npm run db:reset');
+    const fresh = steps.findIndex(
+      (command) => command === 'node ../../scripts/integration/disposable-database.cjs reset',
+    );
     expect(baseline).toBeGreaterThan(-1);
     expect(steps.slice(0, baseline).join('\n')).toContain('verify-migration-baselines.cjs');
     expect(steps.slice(0, baseline).join('\n')).toContain(
@@ -233,6 +235,8 @@ describe('isolated consolidation candidate verification policy', () => {
     expect(integration).toHaveLength(2);
     expect(setup[0]).toBeLessThan(integration[0] ?? -1);
     expect(setup[1]).toBeLessThan(integration[1] ?? -1);
-    expect(setup[1]).toBeGreaterThan(commands.indexOf('npm run db:reset'));
+    expect(setup[1]).toBeGreaterThan(
+      commands.indexOf('node ../../scripts/integration/disposable-database.cjs reset'),
+    );
   });
 });

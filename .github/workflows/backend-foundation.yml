@@ -278,6 +278,7 @@ jobs:
       MASARIFI_RELEASE_VERSION: ci
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: postgres
+      MASARIFI_LIVE_DATABASE_TESTS: "1"
       K6_DATABASE_URL: postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
     defaults:
       run:
@@ -300,7 +301,7 @@ jobs:
       - run: npm ci --ignore-scripts
       # The integrated Voice journey validates the actual Mobile parser.
       - run: npm --prefix ../mobile ci --ignore-scripts
-      - run: npm run supabase:start
+      - run: node ../../scripts/integration/disposable-database.cjs start
       - name: Verify both exact historical main migration prefixes
         run: node ../../scripts/integration/verify-migration-baselines.cjs "$RUNNER_TEMP/masarifi-main-baselines.json"
       - run: npm run build
@@ -308,7 +309,7 @@ jobs:
         run: |
           npx supabase db reset --local --version 20261013053237 --no-seed --workdir ../.. --yes
           node ../../scripts/integration/tracking-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-tracking-upgrade.json"
-          npx supabase migration up --local --workdir ../..
+          node ../../scripts/integration/disposable-database.cjs migrate
           node ../../scripts/integration/tracking-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-tracking-upgrade.json"
         env:
           TRACKING_UPGRADE_DATABASE_URL: ${{ env.DATABASE_URL }}
@@ -316,7 +317,7 @@ jobs:
         run: |
           npx supabase db reset --local --version 20260915150000 --no-seed --workdir ../.. --yes
           node ../../scripts/integration/main-upgrade-fixture.cjs seed "$RUNNER_TEMP/masarifi-local-main-upgrade.json"
-          npx supabase migration up --local --workdir ../..
+          node ../../scripts/integration/disposable-database.cjs migrate
           node ../../scripts/integration/main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-local-main-upgrade.json"
       - name: Restore the exact current canonical-main migration baseline
         run: npx supabase db reset --local --version 20260922220434 --no-seed --workdir ../.. --yes
@@ -327,6 +328,7 @@ jobs:
       - run: npm run build
       - name: Apply every candidate migration and verify unchanged financial history
         run: |
+          node ../../scripts/integration/disposable-database.cjs migrate
           npm run start:migration
           node ../../scripts/integration/main-upgrade-fixture.cjs verify "$RUNNER_TEMP/masarifi-main-upgrade.json"
           npx supabase migration list --local --workdir ../.. > "$RUNNER_TEMP/masarifi-upgraded-migrations.txt"
@@ -357,7 +359,7 @@ jobs:
             /tmp/masarifi-upgrade-integration.json
           if-no-files-found: warn
           retention-days: 14
-      - run: npm run db:reset
+      - run: node ../../scripts/integration/disposable-database.cjs reset
       - run: npm run db:lint
       - run: npm run test:db
       - run: npm run build

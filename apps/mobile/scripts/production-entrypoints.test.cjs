@@ -54,24 +54,51 @@ test('live production resolves actual providers while keeping demo builds availa
   );
 });
 
-test('Expo prebuild reinstalls the checked release policy idempotently', () => {
-  const fs = require('node:fs');
+test('Expo prebuild reinstalls the checked release policy in a clean generated project', async () => {
+  const fs = require('node:fs/promises');
+  const os = require('node:os');
   const {
-    installReleasePolicy
+    installReleasePolicy,
+    copyReleasePolicy
   } = require('../plugins/with-release-safety.cjs');
   const template =
     'android { buildTypes { release { signingConfig signingConfigs.debug } } }';
   const installed = installReleasePolicy(template);
   assert.equal(installReleasePolicy(installed), installed);
   assert.ok(installed.endsWith('apply from: "release-safety.gradle"\n'));
-  assert.equal(
-    fs.readFileSync(
-      require.resolve('../plugins/release-safety.gradle'),
-      'utf8'
-    ),
-    fs.readFileSync(
-      require.resolve('../android/app/release-safety.gradle'),
-      'utf8'
-    )
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'masarifi-release-policy-')
   );
+  try {
+    await fs.mkdir(path.join(directory, 'app'));
+    await copyReleasePolicy(directory);
+    for (const [source, target] of [
+      ['release-safety.gradle', 'app/release-safety.gradle'],
+      ['release-rules.pro', 'app/release-rules.pro'],
+      ['release-AndroidManifest.xml', 'app/src/release/AndroidManifest.xml']
+    ]) {
+      assert.equal(
+        await fs.readFile(path.join(directory, target), 'utf8'),
+        await fs.readFile(path.join(root, 'plugins', source), 'utf8')
+      );
+    }
+    await fs.writeFile(
+      path.join(directory, 'app/release-safety.gradle'),
+      'stale generated policy'
+    );
+    await copyReleasePolicy(directory);
+    assert.equal(
+      await fs.readFile(
+        path.join(directory, 'app/release-safety.gradle'),
+        'utf8'
+      ),
+      await fs.readFile(
+        path.join(root, 'plugins/release-safety.gradle'),
+        'utf8'
+      )
+    );
+  } finally {
+    assert.equal(path.dirname(directory), path.resolve(os.tmpdir()));
+    await fs.rm(directory, { recursive: true, force: true });
+  }
 });

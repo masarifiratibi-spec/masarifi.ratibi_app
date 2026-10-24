@@ -13,6 +13,25 @@ function installReleasePolicy(contents) {
     ? contents
     : contents.trimEnd() + '\n' + policyLine + '\n';
 }
+async function copyReleasePolicy(platformProjectRoot) {
+  for (const name of ['release-safety.gradle', 'release-rules.pro']) {
+    await copyFile(
+      path.join(__dirname, name),
+      path.join(platformProjectRoot, 'app', name)
+    );
+  }
+  const releaseDirectory = path.join(
+    platformProjectRoot,
+    'app',
+    'src',
+    'release'
+  );
+  await mkdir(releaseDirectory, { recursive: true });
+  await copyFile(
+    path.join(__dirname, 'release-AndroidManifest.xml'),
+    path.join(releaseDirectory, 'AndroidManifest.xml')
+  );
+}
 module.exports = function withReleaseSafety(config) {
   config = withProjectBuildGradle(config, (mod) => {
     const dependency = "classpath('com.android.tools:r8:8.13.19')";
@@ -39,25 +58,10 @@ module.exports = function withReleaseSafety(config) {
   return withDangerousMod(config, [
     'android',
     async (mod) => {
-      for (const name of ['release-safety.gradle', 'release-rules.pro']) {
-        await copyFile(
-          path.join(__dirname, name),
-          path.join(mod.modRequest.platformProjectRoot, 'app', name)
-        );
-      }
-      const releaseDirectory = path.join(
-        mod.modRequest.platformProjectRoot,
-        'app',
-        'src',
-        'release'
-      );
-      await mkdir(releaseDirectory, { recursive: true });
-      await copyFile(
-        path.join(__dirname, 'release-AndroidManifest.xml'),
-        path.join(releaseDirectory, 'AndroidManifest.xml')
-      );
+      await copyReleasePolicy(mod.modRequest.platformProjectRoot);
       return mod;
     }
   ]);
 };
 module.exports.installReleasePolicy = installReleasePolicy;
+module.exports.copyReleasePolicy = copyReleasePolicy;

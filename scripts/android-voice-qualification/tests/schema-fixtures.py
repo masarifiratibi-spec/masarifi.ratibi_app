@@ -9,7 +9,8 @@ import sqlite3
 import struct
 import subprocess
 
-SOURCE_SHA = "e932c00613e54ac45c59ad2f2b79f27c9090e1c0fec78a69334ee4f91f0a2b36"
+# Lifecycle/key recovery changed; the migration and history templates remain byte-identical to C0.
+SOURCE_SHA = "610d28845f0ef634392d341f48228e27425dd352751b1577331aa5398fcdc09b"
 SOURCE_PATH = "apps/mobile/src/storage/database.ts"
 
 def pinned_source():

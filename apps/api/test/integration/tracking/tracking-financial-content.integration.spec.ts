@@ -1108,7 +1108,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       channel: 'android_notification',
       reference: 'retained-pair',
       receivedAt,
-      text: 'تم دفع 2 ريال لدى متجر الاختبار، الرقم المرجعي CONTENT12345',
+      text: 'تم دفع 2 ريال سعودي لدى متجر الاختبار، الرقم المرجعي CONTENT12345',
     });
     await capture({ reference: 'unrelated-pending', marker: false }, {
       runJob: () => Promise.resolve(0),
@@ -1117,7 +1117,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
       {
         reference: 'retained-pair',
         receivedAt: receivedAt - 40000,
-        text: 'تم دفع 2 ريال، الرقم المرجعي CONTENT12345',
+        text: 'تم دفع 2 ريال سعودي، الرقم المرجعي CONTENT12345',
       },
       {
         runJob: () => Promise.resolve(0),
@@ -1208,7 +1208,7 @@ describeLiveDatabase('DEV financial content authority and correspondence', () =>
   });
   it.each([
     ['Paid EGP2', 'Paid SAR2'],
-    ['تم دفع 2 ريال لدى متجر ألف', 'تم دفع 2 ريال لدى متجر باء'],
+    ['تم دفع 2 ريال سعودي لدى متجر ألف', 'تم دفع 2 ريال سعودي لدى متجر باء'],
   ])('holds contradictory source evidence: %s versus %s', async (first, second) => {
     await capture({
       channel: 'android_notification',

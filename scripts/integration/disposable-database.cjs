@@ -18,7 +18,7 @@ if (process.env.MASARIFI_LIVE_DATABASE_TESTS !== '1' ||
     database.protocol !== 'postgresql:' ||
     !['127.0.0.1', 'localhost', '[::1]'].includes(database.hostname) ||
     database.port !== '54322' || database.pathname !== '/postgres' ||
-    !['start', 'reset'].includes(operation)) {
+    !['start', 'reset', 'migrate'].includes(operation)) {
   throw new Error('DISPOSABLE_DATABASE_ONLY');
 }
 
@@ -53,7 +53,7 @@ async function main() {
       // mkdtemp owns this exact directory; no repository or database files enter it.
       rmSync(temporaryRoot, { recursive: true, force: true });
     }
-  } else {
+  } else if (operation === 'reset') {
     cli(['db', 'reset', '--local', '--version', prefix, '--no-seed', '--yes', '--workdir', root]);
   }
 

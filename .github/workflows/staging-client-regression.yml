@@ -31,5 +31,5 @@ jobs:
       - name: Select validated npm version
         run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
-      - run: npm run supabase:start
+      - run: node ../../scripts/integration/disposable-database.cjs start
       - run: npm run test:integration -- --runTestsByPath test/integration/ai/voice-explicit-review.spec.ts
