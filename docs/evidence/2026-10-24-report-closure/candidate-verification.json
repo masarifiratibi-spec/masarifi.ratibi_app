@@ -250,10 +250,34 @@
       "sourceCommit": "2b7982cb77773f6be0b6c504d04b72d283d7124b",
       "localRawLog": "reference-registry-qualified.log",
       "rawLogSHA256": "05017689b97e1b175c5c63b46086c4c6fbdb28ec68a01cdc17648b793297f7a6"
+    },
+    {
+      "name": "Compensation lookup migration application",
+      "command": "jest --selectProjects e2e --runInBand --runTestsByPath test/e2e/migration-apply.e2e-spec.ts",
+      "outcome": "1 passed; actual MigrationRunner173 inventory/idempotency",
+      "localRawLog": "migration-compensation.log",
+      "rawLogSHA256": "f79caa80f8f288cdbb2ebc5fdc26cb582d831a8b8a5a800c368b1e04e32e173c",
+      "sourceCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c"
+    },
+    {
+      "name": "Retained tracking and voice fixture qualification",
+      "command": "7 selected live integration suites on verified retained browser173 target; temporary disposable global budget200 restored in finally",
+      "outcome": "7 suites /112 tests passed; timeout5000 unchanged; unrelated sessions/tombstones held busy and restored",
+      "localRawLog": "retained-fixtures173-qualified.log",
+      "rawLogSHA256": "302bcb9e201d562f6bb4c2da80ced56befc838c34ae7e9c12801155fae59c605",
+      "sourceCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c"
+    },
+    {
+      "name": "Broad retained database probe",
+      "command": "jest --selectProjects integration --runInBand on retained browser173 before fixture refinements",
+      "outcome": "FAILED:139 suites/975 tests passed,5 suites/23 tests failed;8 suites/120 tests skipped.17 failures from explicit dedicated-planning-target guard; remaining6 from retained queue, rollout and allowance preconditions. All affected non-planning suites pass in the subsequent112-test qualification. This is not an all-green broad integration claim.",
+      "localRawLog": "integration173.log",
+      "rawLogSHA256": "853b6f67bbb0cc89575cda343b7114630afb09f80de96eafb0703a353c861605",
+      "sourceCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c"
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "7f227c5e unchanged-source database retry: upgraded integration145 suites/1002 tests passed;7suites/116 tests skipped. Earlier two5000ms timeouts did not reproduce. Fresh SQL then exposed062/063 role-membership assumptions and066 execution under the wrong fixture role. Test-only corrections in2c03e8fd; restricted non-superuser fixture qualification passes3 suites/10 assertions per path, and full SQL67 suites/1915 per path passes. Four browser viewports and native minification/manifest/identity/ABIs pass; desktop1440 accessible selector fixed in1dcfd399. Exact next-candidate CI pending.",
+  "remoteCandidateCI": "d12b1e17: application, Admin, Mobile, secret/redaction, four browser viewports and native minification/manifest/identity/ABIs passed. Upgraded integration failed two tracking timeouts and two retained voice queue fixture cases. Desktop support passed; later device-revocation assertion expected obsolete wording. Forward compensation lookup and fixture repairs verified locally; next exact-candidate CI pending.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [
@@ -276,8 +300,8 @@
   },
   "disposableTargetGuard": "8 negative target/operation/version tests passed; tests refuse workstation port 55442 as well as remote targets. No new local runtime or database reset.",
   "databaseQualification": {
-    "forwardMigrationCount": 7,
-    "registeredTotal": 172,
+    "forwardMigrationCount": 8,
+    "registeredTotal": 173,
     "focusedAssertionsPerPath": 50,
     "rlsSuitesPerPath": 67,
     "rlsAssertionsPerPath": 1915,
@@ -285,7 +309,7 @@
     "baselineSuites": 64,
     "baselineAssertions": 1865,
     "target": "Previously approved localhost:55442 PostgreSQL18.6 scratch cluster; no hosted migrations",
-    "sourceCommit": "1426e90e162cbcbe9a06692872e7a37dc079d28e",
+    "sourceCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c",
     "restrictedFixturesPerPath": {
       "suites": 3,
       "assertions": 10,
@@ -293,9 +317,11 @@
       "initialMigrationRoleSetAllowed": false,
       "rolledBack": true
     },
-    "fixtureCommit": "2c03e8fdd75440f471e634b00551a2b0e76e64b2"
+    "fixtureCommit": "2c03e8fdd75440f471e634b00551a2b0e76e64b2",
+    "compensationLookupMigration": "20261024105000_report_closure_compensation_lookup.sql"
   },
-  "qualificationTestCommit": "2c03e8fdd75440f471e634b00551a2b0e76e64b2",
+  "qualificationTestCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c",
   "nativeCompatibilityReceipt": "native-compatibility-inspection.json",
-  "localBrowserQualification": "Existing C0 Playwright config and cached Chromium verified; WindowsEACCES binding both0.0.0.0:3100 and127.0.0.1:3100 prevented local execution. No new port/runtime or network-setting changes; CI verifies the focused selector."
+  "localBrowserQualification": "Existing C0 Playwright config and cached Chromium verified; WindowsEACCES binding both0.0.0.0:3100 and127.0.0.1:3100 prevented local execution. No new port/runtime or network-setting changes; CI verifies the focused selector.",
+  "trackingRecoveryProfile": "tracking-recovery-profile.json"
 }
