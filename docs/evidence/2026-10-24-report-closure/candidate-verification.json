@@ -1,0 +1,153 @@
+{
+  "inspectedDate": "2026-10-24",
+  "sourceCommit": "c7532a27fae4475f4714701009e58dfaf87210fc",
+  "codeEquivalentTo": "bff8e77719535d89568daad063aadcc19745cb7c",
+  "mainHistoryPreserved": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
+  "localChecks": [
+    {
+      "name": "API unit and contract",
+      "command": "node node_modules/jest/bin/jest.js --selectProjects unit contract --runInBand",
+      "outcome": "263 suites / 2149 tests passed",
+      "localRawLog": "api-patched-qualified.log",
+      "rawLogSHA256": "a7f96d006b1e2acac2e02e80c327e10bff9cd83cb204f24c12144d6495aac19e"
+    },
+    {
+      "name": "API other offline projects",
+      "command": "node node_modules/jest/bin/jest.js --selectProjects integration e2e security --runInBand",
+      "outcome": "100 suites / 307 tests passed; 138 suites / 1059 tests skipped for external prerequisites",
+      "localRawLog": "api-offline-qualified-final.log",
+      "rawLogSHA256": "e56311343e486682c80fdfb7ba8c7bda060a85bd907b433e0df519e2ea432823"
+    },
+    {
+      "name": "API selected actual PostgreSQL integration",
+      "command": "Selected integration paths: report generation/account scope/schedules, voice explicit review, account deletion and assistant data; MASARIFI_LIVE_DATABASE_TESTS=1 against verified existing scratch database",
+      "outcome": "6 suites / 96 tests passed",
+      "localRawLog": "live-pg-qualified.log",
+      "rawLogSHA256": "4fe97e8c79293d2f91d9f094dc039ed45b2dc4ae1a96f15056d30ba9cd455528"
+    },
+    {
+      "name": "Actual migration runner and exact inventory",
+      "command": "e2e database migration runner test, verified existing admin_recovery_browser scratch target",
+      "outcome": "1 test passed; registered 165 -> 169 migrations and idempotent rerun",
+      "localRawLog": "migration-runner-qualified.log",
+      "rawLogSHA256": "92983e2d393d802c57641639551b823f67df9e41ef4215f25827e6b11f5b1beb"
+    },
+    {
+      "name": "Admin complete suite",
+      "command": "npm test",
+      "outcome": "104 suites / 1001 tests passed",
+      "localRawLog": "admin-final-tests.log",
+      "rawLogSHA256": "6f380d113253ac161fb9160e7443415a77865394d652dec8ef48106843f6c6da"
+    },
+    {
+      "name": "Admin diagnostic build",
+      "command": "npm run build with explicitly inert CI example origin and noncredential Clerk placeholders",
+      "outcome": "Next build passed, including /delete-account",
+      "localRawLog": "admin-diagnostic-build.log",
+      "rawLogSHA256": "069376a594c16f44328617bcfd8c109298b8a8159e749a3cbeaebe7d28901c9a"
+    },
+    {
+      "name": "Admin lint/typecheck",
+      "command": "npm run lint; npm run typecheck",
+      "outcome": "passed",
+      "localRawLog": "admin-final-lint.log",
+      "rawLogSHA256": "51a1bd3fc62d67d9082ce207ee35bdb81a1fbac93322af2520ee366b2e83caf7"
+    },
+    {
+      "name": "Mobile preceding complete serial suite",
+      "command": "node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+      "outcome": "559 suites / 3992 tests passed before final disclosure routing/copy refinement",
+      "localRawLog": "mobile-serial-final.log",
+      "rawLogSHA256": "1ebaa85943f22e23db795a503eeb476ee9dc9c246902929da059315ad5c4066a"
+    },
+    {
+      "name": "Final disclosure delta",
+      "command": "node node_modules/jest/bin/jest.js --runInBand --runTestsByPath src/features/tracking/TrackingStatusScreen.test.tsx src/features/onboarding/PermissionEducation.test.tsx src/features/onboarding/TrackingConfigurationJourney.test.tsx src/features/foundation/CaptureFallbackPanel.test.tsx",
+      "outcome": "4 suites / 43 tests passed",
+      "localRawLog": "disclosure-qualified.log",
+      "rawLogSHA256": "2ff12d721e94be839136bbef4ecb25cc64aef86a70b11bc2496573c6cc526bf7"
+    },
+    {
+      "name": "Mobile lint/typecheck",
+      "command": "npm run lint; npm run typecheck",
+      "outcome": "0 errors / 116 inherited warnings; typecheck passed",
+      "localRawLog": "mobile-lint-final.log",
+      "rawLogSHA256": "f511d5ee1ffb86d7f36475c1ea3ff8347e497ff353c73ff579ed1762fe03a989"
+    },
+    {
+      "name": "Mobile architecture and secret boundaries",
+      "command": "NODE_ENV=test npm run check:frontend-quality",
+      "outcome": "passed",
+      "localRawLog": "mobile-boundaries-final.log",
+      "rawLogSHA256": "c8eafc7e505594eaad3c29b7734f46bec7e26e11d7b5cf6669f3206f26cf63c5"
+    },
+    {
+      "name": "Build/profile policy",
+      "command": "node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs scripts/firebase-config.test.mjs scripts/staging-client-profile.test.mjs",
+      "outcome": "13 tests passed",
+      "localRawLog": "build-policy-final.log",
+      "rawLogSHA256": "c605c2a5e64b7e447aec47d9f439cef62c250edb26e5d89595e22753b1510de9"
+    },
+    {
+      "name": "Parser",
+      "command": "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+      "outcome": "109 tests passed",
+      "localRawLog": "parser-final.log",
+      "rawLogSHA256": "03a6e4c6fac30bd1a9aa7b5783c9150138a0969870716d5d6e0404bd16be38d1"
+    },
+    {
+      "name": "Native prebuild/minification",
+      "command": "Expo prebuild; Gradle compileReleaseKotlin/minifyReleaseWithR8/processReleaseMainManifest/mergeReleaseNativeLibs and masarifi-sms-inbox unit tests",
+      "outcome": "BUILD SUCCESSFUL; 489 tasks; native SMS XML receipts total 15 suites / 96 tests / 0 failures",
+      "localRawLog": "native-prebuild-qualified.log",
+      "rawLogSHA256": "515127fb6ccdf9ff7329be373b172dd48cada207731440b459548e6def3e2ec7"
+    },
+    {
+      "name": "Final manifest after release overlay",
+      "command": "Gradle processReleaseMainManifest; python scripts/integration/verify-release-manifest.py <merged manifest> <receipt>",
+      "outcome": "passed; no development scheme, blocked permissions or wallet query",
+      "localRawLog": "manifest-query-qualified.log",
+      "rawLogSHA256": "3b4971025a20ddcbe13a93e51ce468d5fc76246ee8ce3144b90950317f29659e"
+    },
+    {
+      "name": "Workflow contract",
+      "command": "node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts",
+      "outcome": "8 tests passed",
+      "localRawLog": "workflow-pins-candidate.log",
+      "rawLogSHA256": "35b62a165370d3233ddb57c5696b1dfaab868ee591ac32bd7996c47462bf8be6"
+    },
+    {
+      "name": "API formatting",
+      "command": "npm run format:check",
+      "outcome": "passed",
+      "localRawLog": "api-format-final.log",
+      "rawLogSHA256": "30af24ec93c0a46a28d55cbddd2b17ec0b537bbc1ffd595fa8de30afa119509e"
+    },
+    {
+      "name": "API three build targets",
+      "command": "npm run build",
+      "outcome": "passed",
+      "localRawLog": "api-build-final.log",
+      "rawLogSHA256": "ef0d163d208291774b592bcfbda62f693a4a00f26cb8464fc7834f42235cf064"
+    },
+    {
+      "name": "API final clean installation",
+      "command": "npm ci --ignore-scripts",
+      "outcome": "847 packages installed; audit 0 vulnerabilities",
+      "localRawLog": "api-clean-install-final.log",
+      "rawLogSHA256": "ca60df914b6c5baa0050059a78b27ac778d1c8fb85d01e57434938d1ed4a46ce"
+    }
+  ],
+  "finalMobileRerun": "running; record completion separately",
+  "remoteCandidateCI": "not yet run",
+  "releaseQualified": false,
+  "billing": "deferred_open",
+  "limitations": [
+    "No signed production AAB or physical device qualification",
+    "No deployment or production service/credential creation",
+    "No hosted PostgreSQL17 candidate qualification; local approved scratch uses PostgreSQL18.6",
+    "R8 Kotlin metadata warnings require actual release runtime checks",
+    "External providers/Console and intended Play publisher remain unverified",
+    "Jest uses existing forceExit behavior; clean async teardown not established"
+  ]
+}

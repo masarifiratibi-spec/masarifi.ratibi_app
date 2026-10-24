@@ -1,0 +1,403 @@
+{
+  "database": "admin_recovery_rls_fresh",
+  "rolledBack": true,
+  "receipts": [
+    {
+      "file": "001_foundation_structure.test.sql",
+      "status": "passed",
+      "assertions": 32,
+      "inheritedFailure": false
+    },
+    {
+      "file": "002_foundation_privileges.test.sql",
+      "status": "passed",
+      "assertions": 18,
+      "inheritedFailure": false
+    },
+    {
+      "file": "003_outbox_functions.test.sql",
+      "status": "passed",
+      "assertions": 19,
+      "inheritedFailure": false
+    },
+    {
+      "file": "004_identity_profiles_rls.test.sql",
+      "status": "passed",
+      "assertions": 53,
+      "inheritedFailure": false
+    },
+    {
+      "file": "005_identity_preferences_onboarding.test.sql",
+      "status": "passed",
+      "assertions": 79,
+      "inheritedFailure": false
+    },
+    {
+      "file": "006_identity_devices_push.test.sql",
+      "status": "passed",
+      "assertions": 50,
+      "inheritedFailure": false
+    },
+    {
+      "file": "007_clerk_webhook_inbox.test.sql",
+      "status": "passed",
+      "assertions": 36,
+      "inheritedFailure": false
+    },
+    {
+      "file": "008_identity_admin_denial.test.sql",
+      "status": "passed",
+      "assertions": 25,
+      "inheritedFailure": false
+    },
+    {
+      "file": "009_admin_rbac_structure.test.sql",
+      "status": "passed",
+      "assertions": 33,
+      "inheritedFailure": false
+    },
+    {
+      "file": "010_admin_permission_rls.test.sql",
+      "status": "passed",
+      "assertions": 19,
+      "inheritedFailure": false
+    },
+    {
+      "file": "011_audit_security_immutability.test.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    },
+    {
+      "file": "012_support_access.test.sql",
+      "status": "passed",
+      "assertions": 10,
+      "inheritedFailure": false
+    },
+    {
+      "file": "013_privacy_retention.test.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    },
+    {
+      "file": "014_admin_denial_matrix.test.sql",
+      "status": "passed",
+      "assertions": 5,
+      "inheritedFailure": false
+    },
+    {
+      "file": "015_security_alert_dispatch.test.sql",
+      "status": "passed",
+      "assertions": 4,
+      "inheritedFailure": false
+    },
+    {
+      "file": "016_reference_structure_seed.test.sql",
+      "status": "passed",
+      "assertions": 31,
+      "inheritedFailure": false
+    },
+    {
+      "file": "017_reference_rls_grants.test.sql",
+      "status": "passed",
+      "assertions": 20,
+      "inheritedFailure": false
+    },
+    {
+      "file": "018_category_account_functions.test.sql",
+      "status": "passed",
+      "assertions": 18,
+      "inheritedFailure": false
+    },
+    {
+      "file": "019_ledger_idempotency.test.sql",
+      "status": "passed",
+      "assertions": 35,
+      "inheritedFailure": false
+    },
+    {
+      "file": "020_ledger_structure.test.sql",
+      "status": "passed",
+      "assertions": 44,
+      "inheritedFailure": false
+    },
+    {
+      "file": "021_ledger_commands.test.sql",
+      "status": "passed",
+      "assertions": 34,
+      "inheritedFailure": false
+    },
+    {
+      "file": "022_ledger_rls_grants.test.sql",
+      "status": "passed",
+      "assertions": 29,
+      "inheritedFailure": false
+    },
+    {
+      "file": "023_sync_structure.test.sql",
+      "status": "passed",
+      "assertions": 61,
+      "inheritedFailure": false
+    },
+    {
+      "file": "024_sync_rls_grants.test.sql",
+      "status": "passed",
+      "assertions": 28,
+      "inheritedFailure": false
+    },
+    {
+      "file": "025_sync_outbox.test.sql",
+      "status": "passed",
+      "assertions": 16,
+      "inheritedFailure": false
+    },
+    {
+      "file": "026_sync_idempotency_workers.test.sql",
+      "status": "passed",
+      "assertions": 27,
+      "inheritedFailure": false
+    },
+    {
+      "file": "027_sync_conflicts.test.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    },
+    {
+      "file": "028_sync_read_functions.test.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    },
+    {
+      "file": "029_planning_structure.test.sql",
+      "status": "passed",
+      "assertions": 143,
+      "inheritedFailure": false
+    },
+    {
+      "file": "030_planning_rls_grants.test.sql",
+      "status": "passed",
+      "assertions": 36,
+      "inheritedFailure": false
+    },
+    {
+      "file": "031_planning_commands_views.test.sql",
+      "status": "passed",
+      "assertions": 75,
+      "inheritedFailure": false
+    },
+    {
+      "file": "032_planning_jobs_reconciliation.test.sql",
+      "status": "passed",
+      "assertions": 14,
+      "inheritedFailure": false
+    },
+    {
+      "file": "033_tracking_structure.test.sql",
+      "status": "passed",
+      "assertions": 103,
+      "inheritedFailure": false
+    },
+    {
+      "file": "034_tracking_rls_grants.test.sql",
+      "status": "passed",
+      "assertions": 93,
+      "inheritedFailure": false
+    },
+    {
+      "file": "035_tracking_commands.test.sql",
+      "status": "passed",
+      "assertions": 51,
+      "inheritedFailure": false
+    },
+    {
+      "file": "036_tracking_jobs.test.sql",
+      "status": "passed",
+      "assertions": 35,
+      "inheritedFailure": false
+    },
+    {
+      "file": "037_ai_structure.test.sql",
+      "status": "passed",
+      "assertions": 95,
+      "inheritedFailure": false
+    },
+    {
+      "file": "038_ai_rls_grants.test.sql",
+      "status": "passed",
+      "assertions": 82,
+      "inheritedFailure": false
+    },
+    {
+      "file": "039_ai_commands_routes.test.sql",
+      "status": "passed",
+      "assertions": 29,
+      "inheritedFailure": false
+    },
+    {
+      "file": "040_ai_workers_retention.test.sql",
+      "status": "passed",
+      "assertions": 12,
+      "inheritedFailure": false
+    },
+    {
+      "file": "041_phase10_reports_schema.test.sql",
+      "status": "passed",
+      "assertions": 16,
+      "inheritedFailure": false
+    },
+    {
+      "file": "042_phase10_reports_rls.test.sql",
+      "status": "passed",
+      "assertions": 11,
+      "inheritedFailure": false
+    },
+    {
+      "file": "043_phase10_reports_functions.test.sql",
+      "status": "passed",
+      "assertions": 21,
+      "inheritedFailure": false
+    },
+    {
+      "file": "044_phase11_notifications.sql",
+      "status": "passed",
+      "assertions": 13,
+      "inheritedFailure": false
+    },
+    {
+      "file": "045_phase11_support.sql",
+      "status": "passed",
+      "assertions": 9,
+      "inheritedFailure": false
+    },
+    {
+      "file": "046_phase11_content_feedback.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    },
+    {
+      "file": "047_phase11_rls_grants.sql",
+      "status": "passed",
+      "assertions": 12,
+      "inheritedFailure": false
+    },
+    {
+      "file": "048_phase11_support_commands.sql",
+      "status": "passed",
+      "assertions": 7,
+      "inheritedFailure": false
+    },
+    {
+      "file": "049_phase11_feedback_abuse.sql",
+      "status": "passed",
+      "assertions": 5,
+      "inheritedFailure": false
+    },
+    {
+      "file": "050_phase11_content_commands.sql",
+      "status": "passed",
+      "assertions": 5,
+      "inheritedFailure": false
+    },
+    {
+      "file": "051_client_category_usage.sql",
+      "status": "passed",
+      "assertions": 18,
+      "inheritedFailure": false
+    },
+    {
+      "file": "052_account_automatic_tracking.sql",
+      "status": "passed",
+      "assertions": 26,
+      "inheritedFailure": false
+    },
+    {
+      "file": "053_credit_card_terms.sql",
+      "status": "passed",
+      "assertions": 28,
+      "inheritedFailure": false
+    },
+    {
+      "file": "054_phase13_operations_schema.sql",
+      "status": "passed",
+      "assertions": 33,
+      "inheritedFailure": false
+    },
+    {
+      "file": "055_phase13_operations_security.sql",
+      "status": "passed",
+      "assertions": 25,
+      "inheritedFailure": false
+    },
+    {
+      "file": "056_phase13_job_lifecycle.sql",
+      "status": "passed",
+      "assertions": 31,
+      "inheritedFailure": false
+    },
+    {
+      "file": "057_phase13_incidents_maintenance.sql",
+      "status": "passed",
+      "assertions": 11,
+      "inheritedFailure": false
+    },
+    {
+      "file": "058_phase13_settings_flags.sql",
+      "status": "passed",
+      "assertions": 17,
+      "inheritedFailure": false
+    },
+    {
+      "file": "059_user_reminders.sql",
+      "status": "passed",
+      "assertions": 6,
+      "inheritedFailure": false
+    },
+    {
+      "file": "060_assistant_routing.test.sql",
+      "status": "passed",
+      "assertions": 13,
+      "inheritedFailure": false
+    },
+    {
+      "file": "060_security_definer_privileges.sql",
+      "status": "passed",
+      "assertions": 1,
+      "inheritedFailure": false
+    },
+    {
+      "file": "061_owner_bootstrap_rbac.test.sql",
+      "status": "passed",
+      "assertions": 21,
+      "inheritedFailure": false
+    },
+    {
+      "file": "062_obligation_initial_schedule.test.sql",
+      "status": "passed",
+      "assertions": 1,
+      "inheritedFailure": false
+    },
+    {
+      "file": "063_obligation_payment_atomic_undo.test.sql",
+      "status": "passed",
+      "assertions": 1,
+      "inheritedFailure": false
+    },
+    {
+      "file": "065_report_closure_sync_fee.test.sql",
+      "status": "passed",
+      "assertions": 20,
+      "inheritedFailure": false
+    },
+    {
+      "file": "066_report_closure_upload_cleanup.test.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    }
+  ],
+  "unexpectedFailures": []
+}

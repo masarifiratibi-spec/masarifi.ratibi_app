@@ -1,0 +1,26 @@
+{
+  "database": "admin_recovery_final_fresh",
+  "host": "127.0.0.1",
+  "port": 55442,
+  "sourceFiles": [
+    {
+      "name": "20261023232159_report_closure_sync_reauthentication.sql",
+      "sha256": "8320632ba903f414c6dcd3de6d17364caee7cd97d5e37f0849f5f2724edb27e0"
+    },
+    {
+      "name": "20261023232451_report_closure_financial_semantics.sql",
+      "sha256": "28b10e647df6a48e50d943c385ec007090e393fe26fc0310cd6a11770bdf5690"
+    },
+    {
+      "name": "20261023233237_report_closure_tracking_policy.sql",
+      "sha256": "1e380df7842ec9b22cc8555053ee195fb30353df39ba0b05ba90f89ba88eea8d"
+    },
+    {
+      "name": "20261024003511_report_closure_upload_cleanup.sql",
+      "sha256": "d791262ce18357e4a84bf7fb41a104bdcb549db1c2073ac64ed8e764d02ed7e7"
+    }
+  ],
+  "assertions": 28,
+  "failures": [],
+  "rolledBack": true
+}
