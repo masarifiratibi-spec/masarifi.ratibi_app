@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { AiRepository } from '../../../src/ai/ai.repository';
 import { HttpException } from '@nestjs/common';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, withFixtureVoiceWork } from '../../live-database';
 import {
   decideVoiceBatch,
   parseVoiceBatchProviderOutput,
@@ -468,9 +468,15 @@ describeLiveDatabase('Voice automatic batch ledger boundary', () => {
       [session, user, randomUUID()],
     );
     const claim = (
-      await pool.query<{ id: string; purge_token: string }>(
-        'select * from private.claim_voice_media_purge($1,100,120)',
-        ['test-v3-purge'],
+      await withFixtureVoiceWork(
+        pool,
+        user,
+        () =>
+          pool.query<{ id: string; purge_token: string }>(
+            'select * from private.claim_voice_media_purge($1,100,120)',
+            ['test-v3-purge'],
+          ),
+        true,
       )
     ).rows.find((row) => row.id === session);
     expect(claim).toBeDefined();

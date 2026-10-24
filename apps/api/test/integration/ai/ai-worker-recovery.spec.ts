@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { AiRepository } from '../../../src/ai/ai.repository';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, withFixtureVoiceWork } from '../../live-database';
 
 describeLiveDatabase('AI worker recovery', () => {
   const pool = createLivePool(),
@@ -52,16 +52,15 @@ describeLiveDatabase('AI worker recovery', () => {
       { expectedVersion: 1, contentHash: 'c'.repeat(64) },
       'recovery-process-key-0001',
     );
-    const [first] = await repository.claimWork('voice.transcribe_extract', 'crashed-worker', 1, 10);
+    const [first] = await withFixtureVoiceWork(pool, userId, () =>
+      repository.claimWork('voice.transcribe_extract', 'crashed-worker', 1, 10),
+    );
     await pool.query(
       "update public.voice_sessions set lease_until=clock_timestamp()-interval '1 second' where id=$1",
       [sessionId],
     );
-    const [reclaimed] = await repository.claimWork(
-      'voice.transcribe_extract',
-      'replacement-worker',
-      1,
-      120,
+    const [reclaimed] = await withFixtureVoiceWork(pool, userId, () =>
+      repository.claimWork('voice.transcribe_extract', 'replacement-worker', 1, 120),
     );
     expect(reclaimed).toMatchObject({ id: sessionId, attempt_count: 2 });
     if (!first || !reclaimed) throw new Error('AI_RECOVERY_CLAIM_MISSING');
@@ -89,24 +88,39 @@ describeLiveDatabase('AI worker recovery', () => {
       },
     });
 
-    const purges = await repository.claimPurges('purge-worker', 100, 120);
+    const purges = await withFixtureVoiceWork(
+      pool,
+      userId,
+      () => repository.claimPurges('purge-worker', 100, 120),
+      true,
+    );
     const purge = purges.find(({ id }) => id === sessionId);
     expect(purge).toMatchObject({ id: sessionId });
     if (!purge) throw new Error('AI_PURGE_CLAIM_MISSING');
     await expect(repository.completePurge(purge.id, purge.purge_token, false)).resolves.toBe(true);
     expect(
-      (await repository.claimPurges('purge-before-backoff', 100, 120)).some(
-        ({ id }) => id === sessionId,
-      ),
+      (
+        await withFixtureVoiceWork(
+          pool,
+          userId,
+          () => repository.claimPurges('purge-before-backoff', 100, 120),
+          true,
+        )
+      ).some(({ id }) => id === sessionId),
     ).toBe(false);
     // Advance this fixture's cleanup deadline and actual legacy upload capability lifetime.
     await pool.query(
       "update public.voice_sessions set next_attempt_at=clock_timestamp()-interval '1 second',media_capability_expires_at=clock_timestamp()-interval '1 second' where id=$1",
       [sessionId],
     );
-    const retry = (await repository.claimPurges('purge-worker-retry', 100, 120)).find(
-      ({ id }) => id === sessionId,
-    );
+    const retry = (
+      await withFixtureVoiceWork(
+        pool,
+        userId,
+        () => repository.claimPurges('purge-worker-retry', 100, 120),
+        true,
+      )
+    ).find(({ id }) => id === sessionId);
     if (!retry) throw new Error('AI_PURGE_RETRY_MISSING');
     await expect(repository.completePurge(retry.id, retry.purge_token, true)).resolves.toBe(true);
     expect(

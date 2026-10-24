@@ -4,7 +4,7 @@ import { Readable } from 'node:stream';
 import type { Request } from 'express';
 import { AiRepository } from '../../../src/ai/ai.repository';
 import { AiService } from '../../../src/ai/ai.service';
-import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { createLivePool, describeLiveDatabase, withFixtureVoiceWork } from '../../live-database';
 
 describeLiveDatabase('Master Voice operation identity', () => {
   const pool = createLivePool();
@@ -56,6 +56,10 @@ describeLiveDatabase('Master Voice operation identity', () => {
   beforeAll(async () => {
     await pool.query("insert into public.profiles(id,status) values($1,'active')", [userId]);
     await pool.query("insert into public.profiles(id,status) values($1,'active')", [adminId]);
+    await pool.query(
+      "insert into private.ai_user_quota_overrides(user_id,workload,rolling_limit) values($1,'voice_transcription',30)",
+      [userId],
+    );
     await pool.query("insert into public.admin_profiles(user_id,status) values($1,'active')", [
       adminId,
     ]);
@@ -74,6 +78,7 @@ describeLiveDatabase('Master Voice operation identity', () => {
     );
     await pool.query('delete from private.ai_usage_events where user_id=$1', [userId]);
     await pool.query('delete from public.voice_sessions where user_id=$1', [userId]);
+    await pool.query('delete from private.ai_user_quota_overrides where user_id=$1', [userId]);
     await pool.query(
       "update private.ai_feature_routes set enabled=false where workload='voice_transcription'",
     );
@@ -210,7 +215,12 @@ describeLiveDatabase('Master Voice operation identity', () => {
     const created = await create('voice-master-purge-0001');
     const id = String(created.session.id);
     await service.cancelVoiceSession(principal, id, 'voice-master-purge-cancel');
-    const claims = await repository.claimPurges('master-purge-worker', 100, 120);
+    const claims = await withFixtureVoiceWork(
+      pool,
+      userId,
+      () => repository.claimPurges('master-purge-worker', 100, 120),
+      true,
+    );
     const purge = claims.find((claim) => claim.id === id);
     if (!purge) throw new Error('missing purge claim');
     expect(purge).toBeDefined();

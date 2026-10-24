@@ -145,18 +145,22 @@ export function withFixtureVoiceWork<T>(
   pool: PoolService,
   owner: string,
   action: () => Promise<T>,
+  includeExpired = false,
 ) {
   return pool.withClient(async (locker) => {
     await locker.query('begin');
     try {
       await locker.query(
-        'select id from public.voice_sessions where user_id<>$1 and expires_at>clock_timestamp() order by id for update',
-        [owner],
+        'select id from public.voice_sessions where user_id<>$1 and ($2::boolean or expires_at>clock_timestamp()) order by id for update',
+        [owner, includeExpired],
       );
       await locker.query(
-        'select b.id from private.voice_batches b join public.voice_sessions s on s.id=b.session_id where b.user_id<>$1 and s.expires_at>clock_timestamp() order by b.id for update of b',
-        [owner],
+        'select b.id from private.voice_batches b join public.voice_sessions s on s.id=b.session_id where b.user_id<>$1 and ($2::boolean or s.expires_at>clock_timestamp()) order by b.id for update of b',
+        [owner, includeExpired],
       );
+      if (includeExpired)
+        // Deleted-session tombstones contain no owner identifier.
+        await locker.query('select id from private.voice_media_tombstones order by id for update');
       return await action();
     } finally {
       await locker.query('rollback');

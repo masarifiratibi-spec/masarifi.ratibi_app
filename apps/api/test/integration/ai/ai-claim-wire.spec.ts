@@ -14,6 +14,9 @@ describeLiveDatabase('idle AI queue database response budget', () => {
         await locker.query('begin');
         try {
           await locker.query('select id from public.voice_sessions order by id for update');
+          await locker.query(
+            'select id from private.voice_media_tombstones order by id for update',
+          );
           const observed = await pool.withClient(async (client) => {
             await client.query('select 1');
             const stream = Reflect.get(client, 'connection').stream as Socket;

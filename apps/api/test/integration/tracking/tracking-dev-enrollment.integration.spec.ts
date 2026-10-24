@@ -11,6 +11,19 @@ describeLiveDatabase('permanent device installation enrollment', () => {
   const pool = createLivePool();
   const repository = new TrackingRepository(pool);
   let owner: string, device: string, registered: string;
+  let originalMode: string;
+  beforeAll(async () => {
+    const channel = (
+      await pool.query<{ mode: string }>(
+        "select mode from public.tracking_rule_channels where environment='default' and market='global' and channel='all'",
+      )
+    ).rows[0];
+    if (!channel) throw new Error('TRACKING_CHANNEL_EXPECTED');
+    originalMode = channel.mode;
+    await pool.query(
+      "update public.tracking_rule_channels set mode='review' where environment='default' and market='global' and channel='all'",
+    );
+  });
   const principal = () => ({
     userId: owner,
     sessionId: 'dev-enrollment-session',
@@ -53,7 +66,16 @@ describeLiveDatabase('permanent device installation enrollment', () => {
       ],
     );
   });
-  afterAll(() => pool.onModuleDestroy());
+  afterAll(async () => {
+    try {
+      await pool.query(
+        "update public.tracking_rule_channels set mode=$1 where environment='default' and market='global' and channel='all'",
+        [originalMode],
+      );
+    } finally {
+      await pool.onModuleDestroy();
+    }
+  });
   it('resolves production module dependencies and enrolls through authenticated device registration', async () => {
     const module = await Test.createTestingModule({
       imports: [PlatformConfigModule, TrackingModule],
