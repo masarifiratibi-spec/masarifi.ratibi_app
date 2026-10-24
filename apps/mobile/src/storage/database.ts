@@ -29,6 +29,77 @@ let databaseLifecycleQueue: Promise<void> = Promise.resolve();
 let activeDatabase: SQLite.SQLiteDatabase | null = null;
 let databaseName = DATABASE_NAME;
 let databaseOwnerHash: string | null = null;
+let databaseOwnerId: string | null = null;
+let recoveryListener: ((ownerId: string) => void) | undefined;
+
+export function configureDatabaseRecoveryListener(
+  listener?: (ownerId: string) => void
+): void {
+  recoveryListener = listener;
+}
+
+/** Explicit recovery preserves the unreadable encrypted original and its sidecars. */
+export async function quarantineUnrecoverableDatabase(
+  ownerId: string,
+  confirmation: 'PRESERVE_ENCRYPTED_ORIGINAL'
+): Promise<void> {
+  if (confirmation !== 'PRESERVE_ENCRYPTED_ORIGINAL')
+    throw new Error('recovery confirmation required');
+  await withTransactionDraftWrite(() =>
+    enqueueDatabaseLifecycle(async () => {
+      assertDatabaseOwner(ownerId);
+      const hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        ownerId
+      );
+      if (hash !== databaseOwnerHash) throw new Error('stale database owner');
+      await closeActiveDatabase();
+      const metadataKey = `masarifi.database.quarantine.${hash}`;
+      const saved = await SecureStore.getItemAsync(metadataKey);
+      const name = ownerDatabaseName(hash);
+      const backup = saved ?? `${name}.unrecoverable-${Date.now()}`;
+      if (
+        !backup.startsWith(`${name}.unrecoverable-`) ||
+        !/^[a-zA-Z0-9.-]+$/.test(backup)
+      )
+        throw new Error('invalid recovery record');
+      await SecureStore.setItemAsync(metadataKey, backup);
+      for (const suffix of ['', '-wal', '-shm']) {
+        const source = databaseFile(`${name}${suffix}`);
+        if (source.exists) source.move(databaseFile(`${backup}${suffix}`));
+      }
+      if (databaseFilesExist(name))
+        throw new Error('database quarantine incomplete');
+      await SecureStore.deleteItemAsync(`${DATABASE_KEY_PREFIX}${hash}`);
+    })
+  );
+}
+
+async function quarantinedDatabaseName(
+  ownerHash: string
+): Promise<string | null> {
+  const saved = await SecureStore.getItemAsync(
+    `masarifi.database.quarantine.${ownerHash}`
+  );
+  if (
+    saved &&
+    (!saved.startsWith(`${ownerDatabaseName(ownerHash)}.unrecoverable-`) ||
+      !/^[a-zA-Z0-9.-]+$/.test(saved))
+  )
+    throw new Error('invalid recovery record');
+  return saved;
+}
+
+export async function hasQuarantinedOwnerDatabase(
+  ownerId: string
+): Promise<boolean> {
+  assertDatabaseOwner(ownerId);
+  const hash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    ownerId
+  );
+  return (await quarantinedDatabaseName(hash)) !== null;
+}
 
 export async function configureDatabaseOwner(userId: string): Promise<void> {
   return withTransactionDraftWrite(async () => {
@@ -46,12 +117,13 @@ export async function configureDatabaseOwner(userId: string): Promise<void> {
       if (ownerHash === databaseOwnerHash) return;
       await closeActiveDatabase();
       databaseOwnerHash = ownerHash;
+      databaseOwnerId = userId;
       databaseName = ownerDatabaseName(ownerHash);
     });
   });
 }
 
-/** Only call after the server confirms completed account erasure. */
+/** Only after confirmed server erasure or sync-first logout with explicit unsynced-data removal. */
 export async function purgeAccountDatabase(ownerId: string): Promise<void> {
   return withTransactionDraftWrite(async () => {
     assertDatabaseOwner(ownerId);
@@ -63,12 +135,28 @@ export async function purgeAccountDatabase(ownerId: string): Promise<void> {
       if (databaseOwnerHash === ownerHash) {
         await closeActiveDatabase();
         databaseOwnerHash = null;
+        databaseOwnerId = null;
         databaseName = DATABASE_NAME;
       }
+      const quarantined = await quarantinedDatabaseName(ownerHash);
       const ownerFilename = ownerDatabaseName(ownerHash);
       removeDatabaseFiles(ownerFilename);
       if (databaseFilesExist(ownerFilename))
         throw new Error('database files remain');
+      if (quarantined) {
+        removeDatabaseFiles(quarantined);
+        if (databaseFilesExist(quarantined))
+          throw new Error('quarantined database files remain');
+        await SecureStore.deleteItemAsync(
+          `masarifi.database.quarantine.${ownerHash}`
+        );
+      }
+      if ((await SecureStore.getItemAsync(LEGACY_OWNER_KEY)) === ownerHash) {
+        removeDatabaseFiles(DATABASE_NAME);
+        if (databaseFilesExist(DATABASE_NAME))
+          throw new Error('legacy database files remain');
+        await SecureStore.deleteItemAsync(LEGACY_OWNER_KEY);
+      }
       const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
       await SecureStore.deleteItemAsync(storageKey);
       if ((await SecureStore.getItemAsync(storageKey)) !== null)
@@ -116,6 +204,7 @@ export async function clearDatabaseOwner(
       } finally {
         await closeActiveDatabase();
         databaseOwnerHash = null;
+        databaseOwnerId = null;
         databaseName = DATABASE_NAME;
       }
     });
@@ -188,10 +277,12 @@ async function createAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const ownerHash = databaseOwnerHash;
   const targetExisted = ownerHash ? databaseFile(databaseName).exists : false;
   let removeLegacyAfterMigration = false;
+  const key = ownerHash
+    ? await databaseKey(ownerHash, !databaseFilesExist(databaseName))
+    : null;
   const db = await SQLite.openDatabaseAsync(databaseName);
   try {
     if (ownerHash) {
-      const key = await databaseKey(ownerHash);
       await db.execAsync(`PRAGMA key = "x'${key}'";`);
       const cipher = await db.getFirstAsync<{ cipher_version: string }>(
         'PRAGMA cipher_version'
@@ -275,10 +366,17 @@ function enqueueDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
   return result;
 }
 
-async function databaseKey(ownerHash: string): Promise<string> {
+async function databaseKey(
+  ownerHash: string,
+  allowCreate = false
+): Promise<string> {
   const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
   const stored = await SecureStore.getItemAsync(storageKey);
   if (stored && /^[0-9a-f]{64}$/i.test(stored)) return stored.toLowerCase();
+  if (!allowCreate && databaseFilesExist(ownerDatabaseName(ownerHash))) {
+    if (databaseOwnerId) recoveryListener?.(databaseOwnerId);
+    throw new Error('DATABASE_KEY_RECOVERY_REQUIRED');
+  }
   const bytes = await Crypto.getRandomBytesAsync(32);
   const key = Array.from(bytes, (byte) =>
     byte.toString(16).padStart(2, '0')

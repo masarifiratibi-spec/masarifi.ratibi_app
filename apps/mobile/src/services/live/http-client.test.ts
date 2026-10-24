@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   HttpError,
   configureMobileApiTokenProvider,
+  configureRecentAuthHandler,
   requestJson,
   sanitizeHttpLog
 } from './http-client';
@@ -15,16 +16,86 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
-  it.each(['network', 'timeout', 'server', 'auth'] as const)('preserves %s provenance for honest startup recovery', async (kind) => {
-    const request = jest.fn(async () => {
-      if (kind === 'timeout') return new Promise<Response>(() => {});
-      if (kind === 'network') throw new TypeError('Failed to fetch');
-      return response(kind === 'auth' ? 401 : 503, { code: kind === 'auth' ? 'UNAUTHORIZED' : 'SERVICE_UNAVAILABLE' });
-    });
-    const failure = await requestJson('/api/v1/me', schema, { baseUrl: 'https://inert.invalid', token: 'token', request, timeoutMs: 5 }).catch((error: unknown) => error);
-    expect(failure).toMatchObject({ code: kind === 'auth' ? 'session_expired' : 'provider_unavailable' });
-    expect((failure as HttpError & { failureSource?: string }).failureSource).toBe(kind === 'network' || kind === 'timeout' ? kind : undefined);
+  it('reverifies once and retries the same mutation identity with a fresh credential', async () => {
+    const request = jest
+      .fn()
+      .mockResolvedValueOnce(response(403, { code: 'RECENT_AUTH_REQUIRED' }))
+      .mockResolvedValueOnce(response(200, { state: 'ready' }));
+    configureRecentAuthHandler(async () => 'fresh-token');
+    try {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'old-token',
+          method: 'POST',
+          headers: { 'Idempotency-Key': 'same-operation' },
+          body: { amountMinor: 5000 },
+          request
+        })
+      ).resolves.toEqual({ state: 'ready' });
+      const [first, second] = request.mock.calls.map(
+        (call) => call[1] as RequestInit
+      );
+      expect(second.body).toBe(first.body);
+      expect(second.headers).toMatchObject({
+        Authorization: 'Bearer fresh-token',
+        'Idempotency-Key': 'same-operation'
+      });
+    } finally {
+      configureRecentAuthHandler();
+    }
   });
+  it('does not replay a cancelled or repeatedly rejected step-up', async () => {
+    const request = jest.fn(async () =>
+      response(403, { code: 'RECENT_AUTH_REQUIRED' })
+    );
+    configureRecentAuthHandler(async () => null);
+    try {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'token',
+          request
+        })
+      ).rejects.toMatchObject({ code: 'recent_auth_required' });
+      expect(request).toHaveBeenCalledTimes(1);
+      configureRecentAuthHandler(async () => 'fresh-token');
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'token',
+          request
+        })
+      ).rejects.toMatchObject({ code: 'recent_auth_required' });
+      expect(request).toHaveBeenCalledTimes(3);
+    } finally {
+      configureRecentAuthHandler();
+    }
+  });
+  it.each(['network', 'timeout', 'server', 'auth'] as const)(
+    'preserves %s provenance for honest startup recovery',
+    async (kind) => {
+      const request = jest.fn(async () => {
+        if (kind === 'timeout') return new Promise<Response>(() => {});
+        if (kind === 'network') throw new TypeError('Failed to fetch');
+        return response(kind === 'auth' ? 401 : 503, {
+          code: kind === 'auth' ? 'UNAUTHORIZED' : 'SERVICE_UNAVAILABLE'
+        });
+      });
+      const failure = await requestJson('/api/v1/me', schema, {
+        baseUrl: 'https://inert.invalid',
+        token: 'token',
+        request,
+        timeoutMs: 5
+      }).catch((error: unknown) => error);
+      expect(failure).toMatchObject({
+        code: kind === 'auth' ? 'session_expired' : 'provider_unavailable'
+      });
+      expect(
+        (failure as HttpError & { failureSource?: string }).failureSource
+      ).toBe(kind === 'network' || kind === 'timeout' ? kind : undefined);
+    }
+  );
   it.each<HeadersInit>([
     { Accept: 'application/json; currency-onboarding=1' },
     { accept: 'application/json; currency-onboarding=1' },
@@ -55,30 +126,49 @@ describe('Mobile strict HTTP client', () => {
   it.each(['server', 'cancelled', 'timeout', 'network'] as const)(
     'distinguishes %s failures from an actual HTTP 503 without logging protected data',
     async (kind) => {
-      const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+      const log = jest
+        .spyOn(console, 'info')
+        .mockImplementation(() => undefined);
       const controller = new AbortController();
       if (kind === 'cancelled') controller.abort();
       const request = jest.fn(async () => {
-        if (kind === 'server') return response(503, {
-          code: 'LEDGER_UNAVAILABLE', requestId: 'safe-request-503', message: 'private balance'
-        });
+        if (kind === 'server')
+          return response(503, {
+            code: 'LEDGER_UNAVAILABLE',
+            requestId: 'safe-request-503',
+            message: 'private balance'
+          });
         if (kind === 'timeout') return new Promise<Response>(() => {});
         throw new TypeError('private network information');
       });
       try {
-        await expect(requestJson('/api/v1/transactions?account=private-owner', schema, {
-          baseUrl: 'https://inert.invalid', token: 'private-token', request,
-          signal: controller.signal, timeoutMs: 5
-        })).rejects.toMatchObject({ status: 503, code: 'provider_unavailable' });
-        expect(log).toHaveBeenCalledWith('[mobile:http-failure]', expect.objectContaining({
-          failureSource: kind === 'server' ? 'http_response' : kind,
-          httpStatus: kind === 'server' ? 503 : null,
-          endpointGroup: 'ledger', method: 'GET', status: 503,
-          elapsedMs: expect.any(Number)
-        }));
-        expect(JSON.stringify(log.mock.calls)).not.toMatch(/private-owner|private-token|private balance|private network/);
+        await expect(
+          requestJson('/api/v1/transactions?account=private-owner', schema, {
+            baseUrl: 'https://inert.invalid',
+            token: 'private-token',
+            request,
+            signal: controller.signal,
+            timeoutMs: 5
+          })
+        ).rejects.toMatchObject({ status: 503, code: 'provider_unavailable' });
+        expect(log).toHaveBeenCalledWith(
+          '[mobile:http-failure]',
+          expect.objectContaining({
+            failureSource: kind === 'server' ? 'http_response' : kind,
+            httpStatus: kind === 'server' ? 503 : null,
+            endpointGroup: 'ledger',
+            method: 'GET',
+            status: 503,
+            elapsedMs: expect.any(Number)
+          })
+        );
+        expect(JSON.stringify(log.mock.calls)).not.toMatch(
+          /private-owner|private-token|private balance|private network/
+        );
         expect(request).toHaveBeenCalledTimes(kind === 'cancelled' ? 0 : 1);
-      } finally { log.mockRestore(); }
+      } finally {
+        log.mockRestore();
+      }
     }
   );
   it('preserves a definite ledger rejection when debug logging fails', async () => {

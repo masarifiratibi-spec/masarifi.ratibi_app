@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -15,7 +16,7 @@ import {
   spacing
 } from '@/design-system/tokens';
 import { minorToMajorAmountText } from '@/domain/currencies';
-import { parseAmountToMinor, type Account } from '@/domain/core-finance';
+import { type Account } from '@/domain/core-finance';
 import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import {
@@ -56,12 +57,19 @@ export function SalaryProfileForm() {
     (account: Account) => account.id === (accountId || accounts.data?.[0]?.id)
   );
   const currencyCode =
-    selectedAccount?.currencyCode ?? profile.data?.currencyCode ?? baseCurrencyCode;
+    selectedAccount?.currencyCode ??
+    profile.data?.currencyCode ??
+    baseCurrencyCode;
   const amountMinor = parseAmountToMinor(
-    normalizeLocalizedNumber(amount), currencyCode
+    normalizeLocalizedNumber(amount),
+    currencyCode
   );
   const payload = {
-    amount, salaryDay, sourceName, accountId, automaticDetectionEnabled
+    amount,
+    salaryDay,
+    sourceName,
+    accountId,
+    automaticDetectionEnabled
   };
   const payloadKey = JSON.stringify(payload);
   const saved = savedPayload === payloadKey;
@@ -122,7 +130,9 @@ export function SalaryProfileForm() {
 
   useEffect(() => {
     if (saved) {
-      void discardDraft().catch(() => setError(translate('planning.state.error')));
+      void discardDraft().catch(() =>
+        setError(translate('planning.state.error'))
+      );
     }
   }, [saved, discardDraft]);
 
@@ -132,7 +142,10 @@ export function SalaryProfileForm() {
     const dayText = normalizeLocalizedNumber(salaryDay);
     const day = Number(dayText);
     if (
-      !/^\d{1,2}$/.test(dayText) || !Number.isInteger(day) || day < 1 || day > 31
+      !/^\d{1,2}$/.test(dayText) ||
+      !Number.isInteger(day) ||
+      day < 1 ||
+      day > 31
     ) {
       setError(translate('planning.salary.dayHelper'));
       return;
@@ -192,12 +205,14 @@ export function SalaryProfileForm() {
               accessibilityLabel={translate('common.back')}
               accessibilityRole="button"
               onPress={() => router.back()}
-              style={[
-                styles.backButton,
-                styles.backAtStart
-              ]}
+              style={[styles.backButton, styles.backAtStart]}
             >
-              <DesignIcon name="back" decorative direction={direction} size="lg" />
+              <DesignIcon
+                name="back"
+                decorative
+                direction={direction}
+                size="lg"
+              />
             </Pressable>
             <StyledText
               accessibilityRole="header"
@@ -325,9 +340,7 @@ export function SalaryProfileForm() {
               />
             </SalarySettingRow>
             <RowDivider />
-            <View
-              style={styles.switchRow}
-            >
+            <View style={styles.switchRow}>
               <View
                 style={[
                   styles.iconBadge,
@@ -344,7 +357,9 @@ export function SalaryProfileForm() {
               <View
                 style={[
                   styles.switchCopy,
-                  { alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start' }
+                  {
+                    alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start'
+                  }
                 ]}
               >
                 <StyledText
@@ -368,7 +383,9 @@ export function SalaryProfileForm() {
                 </StyledText>
               </View>
               <Toggle
-                accessibilityLabel={translate('planning.salary.automaticDetection')}
+                accessibilityLabel={translate(
+                  'planning.salary.automaticDetection'
+                )}
                 onValueChange={setAutomaticDetectionEnabled}
                 value={automaticDetectionEnabled}
               />
@@ -495,7 +512,9 @@ function SalarySettingRow({
 
 function RowDivider() {
   const theme = useTheme();
-  return <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />;
+  return (
+    <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+  );
 }
 
 function InlineAccountOptions({

@@ -18,6 +18,11 @@ import {
 
 const mockNavigationTheme = jest.fn();
 let mockPathname = '/';
+let mockSystemScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
+  __esModule: true,
+  default: () => mockSystemScheme
+}));
 
 jest.mock('expo-router', () => ({
   usePathname: () => mockPathname
@@ -46,6 +51,8 @@ jest.mock('@react-navigation/native', () => ({
 
 beforeEach(() => {
   mockPathname = '/';
+  mockSystemScheme = 'light';
+  usePreferenceStore.setState({ theme: 'system' });
 });
 
 it('reuses the validated bootstrap profile and does not overwrite a newer profile query', async () => {
@@ -186,7 +193,7 @@ it('invalidates only the current owner financial reads after a tracking receipt'
   }
 });
 
-it('keeps nested navigators light while dark mode is disabled', () => {
+it('applies an explicit dark override to nested navigators', () => {
   usePreferenceStore.setState({ hydrated: true, theme: 'dark' });
 
   render(
@@ -195,10 +202,10 @@ it('keeps nested navigators light while dark mode is disabled', () => {
     </FoundationProviders>
   );
 
-  const colors = resolveTheme('light', 'light').colors;
+  const colors = resolveTheme('dark', 'light').colors;
   expect(mockNavigationTheme).toHaveBeenLastCalledWith(
     expect.objectContaining({
-      dark: false,
+      dark: true,
       colors: expect.objectContaining({
         background: colors.surfaces.page,
         card: colors.surfaces.card,
@@ -206,6 +213,32 @@ it('keeps nested navigators light while dark mode is disabled', () => {
       })
     })
   );
+});
+
+it('follows live OS theme changes while preserving a saved app override', () => {
+  usePreferenceStore.setState({ hydrated: true, theme: 'system' });
+  const view = render(
+    <FoundationProviders>
+      <Text>Theme probe</Text>
+    </FoundationProviders>
+  );
+  expect(mockNavigationTheme).toHaveBeenLastCalledWith(
+    expect.objectContaining({ dark: false })
+  );
+  mockSystemScheme = 'dark';
+  view.rerender(
+    <FoundationProviders>
+      <Text>Theme probe</Text>
+    </FoundationProviders>
+  );
+  expect(mockNavigationTheme).toHaveBeenLastCalledWith(
+    expect.objectContaining({ dark: true })
+  );
+  act(() => usePreferenceStore.getState().setTheme('light'));
+  expect(mockNavigationTheme).toHaveBeenLastCalledWith(
+    expect.objectContaining({ dark: false })
+  );
+  view.unmount();
 });
 
 it('uses the obligation reference color behind the safe area on detail routes', () => {

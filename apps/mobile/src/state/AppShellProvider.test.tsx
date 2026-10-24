@@ -21,7 +21,9 @@ const mockRefreshPlatformOperations = jest.fn(async () => undefined);
 const mockSyncAutomaticTracking = jest.fn(async () => undefined);
 const mockTouchActivity = jest.fn(async () => undefined);
 const mockRestoreSession = jest.fn();
-const mockEnsureLivePushDeviceRegistration = jest.fn(async (..._args: unknown[]) => 'granted');
+const mockEnsureLivePushDeviceRegistration = jest.fn(
+  async (..._args: unknown[]) => 'granted'
+);
 let mockLiveClerkSessionKey: string | null | undefined;
 
 jest.mock('@/features/auth/session-controller', () => ({
@@ -47,7 +49,8 @@ jest.mock('@/services/automatic-tracking-coordinator', () => ({
   syncAutomaticTracking: () => mockSyncAutomaticTracking()
 }));
 jest.mock('@/services/live/engagement-service', () => ({
-  ensureLivePushDeviceRegistration: (...args: unknown[]) => mockEnsureLivePushDeviceRegistration(...args)
+  ensureLivePushDeviceRegistration: (...args: unknown[]) =>
+    mockEnsureLivePushDeviceRegistration(...args)
 }));
 
 jest.mock('expo-secure-store', () => ({
@@ -182,7 +185,7 @@ describe('AppShellProvider', () => {
     expect(mockSyncAutomaticTracking).toHaveBeenCalledTimes(1);
     expect(mockTouchActivity).toHaveBeenCalledTimes(1);
     expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
-    expect(hydrate).not.toHaveBeenCalled();
+    expect(hydrate).toHaveBeenCalledTimes(1);
     hydrate.mockRestore();
   });
 
@@ -417,16 +420,32 @@ describe('AppShellProvider', () => {
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
     mockLiveClerkSessionKey = 'session-push-retry';
     let receiveState!: (state: AppStateStatus) => void;
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
-      receiveState = listener;
-      return { remove: jest.fn() };
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receiveState = listener;
+        return { remove: jest.fn() };
+      });
+    mockEnsureLivePushDeviceRegistration.mockRejectedValueOnce(
+      new Error('offline')
+    );
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1)
+    );
+    await act(async () => {
+      receiveState('active');
     });
-    mockEnsureLivePushDeviceRegistration.mockRejectedValueOnce(new Error('offline'));
-    render(<AppShellProvider><ProtectedContent /></AppShellProvider>);
-    await waitFor(() => expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1));
-    await act(async () => { receiveState('active'); });
-    await waitFor(() => expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(2));
-    expect(mockEnsureLivePushDeviceRegistration.mock.calls[1]?.[0]).toEqual({ token: expect.any(Function) });
+    await waitFor(() =>
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(2)
+    );
+    expect(mockEnsureLivePushDeviceRegistration.mock.calls[1]?.[0]).toEqual({
+      token: expect.any(Function)
+    });
   });
 
   it('does not start concurrent push registrations during repeated foreground events', async () => {
@@ -434,17 +453,37 @@ describe('AppShellProvider', () => {
     mockLiveClerkSessionKey = 'session-push-flight';
     let receiveState!: (state: AppStateStatus) => void;
     let finish!: (value: string) => void;
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
-      receiveState = listener;
-      return { remove: jest.fn() };
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receiveState = listener;
+        return { remove: jest.fn() };
+      });
+    mockEnsureLivePushDeviceRegistration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1)
+    );
+    act(() => {
+      receiveState('active');
+      receiveState('active');
     });
-    mockEnsureLivePushDeviceRegistration.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    render(<AppShellProvider><ProtectedContent /></AppShellProvider>);
-    await waitFor(() => expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1));
-    act(() => { receiveState('active'); receiveState('active'); });
     expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
-    await act(async () => { finish('granted'); });
-    await act(async () => { receiveState('active'); });
+    await act(async () => {
+      finish('granted');
+    });
+    await act(async () => {
+      receiveState('active');
+    });
     expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(2);
   });
 

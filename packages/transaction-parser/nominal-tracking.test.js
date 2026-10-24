@@ -113,7 +113,7 @@ test("separates only an explicitly additional fee from a completed principal", (
     "تم دفع 50 ريال، رسوم إضافية 2 ريال",
   ]) {
     const r = p.discoverNominalTrackingMessage(
-      { text, sender: "BANK" },
+      { text, sender: "BANK", verifiedAccountCurrency: "SAR" },
       p.defaultSnapshot,
       [],
       source,

@@ -37,6 +37,43 @@ const base = {
 };
 
 describe('resolveEntryRoute', () => {
+  test('waits for authoritative first-time restoration without redirecting to sign-in', () => {
+    expect(
+      resolveEntryRoute({
+        ...base,
+        session: {
+          ...authenticatedSession,
+          status: 'restoring',
+          restoration: 'pending'
+        }
+      })
+    ).toBe('/index');
+  });
+  test('permits an expired cached owner only through a configured local lock', () => {
+    const localSession = {
+      ...authenticatedSession,
+      restoration: 'local' as const
+    };
+    expect(
+      resolveEntryRoute({
+        ...base,
+        session: localSession,
+        now: 100,
+        privacyLock: { ...unlocked, appLockStatus: 'locked' }
+      })
+    ).toBe('/security/unlock');
+    expect(
+      resolveEntryRoute({ ...base, session: localSession, now: 100 })
+    ).toBe('/(tabs)/home');
+    expect(
+      resolveEntryRoute({
+        ...base,
+        session: localSession,
+        now: 100,
+        privacyLock: null
+      })
+    ).toBe('/(public)/auth-pending');
+  });
   test('disabled Staging lock permits only a valid authenticated session without changing stored lock state', () => {
     process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
     process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';

@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useRef } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -34,6 +34,40 @@ const SHOW_SECURITY_SETTINGS = false;
 const SHOW_NOTIFICATION_PREFERENCES = false;
 
 export default function MoreRoute() {
+  const loggingOut = useRef(false);
+  const signOut = async () => {
+    if (loggingOut.current) return;
+    loggingOut.current = true;
+    try {
+      const completed = await signOutAppShellSession(authService, 'local', {
+        confirmRemoval: () =>
+          new Promise<boolean>((resolve) =>
+            Alert.alert(
+              translate('logout.unsyncedTitle'),
+              translate('logout.unsyncedBody'),
+              [
+                {
+                  text: translate('logout.wait'),
+                  style: 'cancel',
+                  onPress: () => resolve(false)
+                },
+                {
+                  text: translate('logout.remove'),
+                  style: 'destructive',
+                  onPress: () => resolve(true)
+                }
+              ],
+              { cancelable: true, onDismiss: () => resolve(false) }
+            )
+          )
+      });
+      if (completed !== false) router.replace('/(public)/auth-pending');
+    } catch {
+      Alert.alert(translate('logout.failed'));
+    } finally {
+      loggingOut.current = false;
+    }
+  };
   const client = useQueryClient();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
@@ -320,10 +354,7 @@ export default function MoreRoute() {
             iconBackground={colorTokens.raw['F1F5F3']}
             iconColor={theme.colors.content.secondary}
             hideBorder
-            onPress={async () => {
-              await signOutAppShellSession(authService, 'local');
-              router.replace('/(public)/auth-pending');
-            }}
+            onPress={signOut}
           />
         </View>
         <View>

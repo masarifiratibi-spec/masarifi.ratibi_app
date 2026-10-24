@@ -24,6 +24,39 @@ jest.mock('expo-crypto', () => ({
       .digest('hex')
 }));
 
+it('continues across filtered-empty pages and durably advances the scanned boundary', async () => {
+  const context = setup({ prepare: prepareFinancialMessageImport });
+  context.setOnline(false);
+  const readPage = jest
+    .fn()
+    .mockResolvedValueOnce({
+      version: 2,
+      messages: [],
+      lastScanned: { receivedAt: 100, id: '1000' },
+      hasMore: true,
+      scanned: 1000
+    })
+    .mockResolvedValueOnce({
+      version: 2,
+      messages: [],
+      lastScanned: { receivedAt: 200, id: '2000' },
+      hasMore: false,
+      scanned: 1000
+    });
+  Object.assign(context.inbox, { readPage });
+  await context.coordinator.sync();
+  expect(readPage).toHaveBeenCalledTimes(2);
+  expect(readPage.mock.calls[1][0]).toMatchObject({
+    since: 100,
+    afterId: '1000'
+  });
+  expect(await context.queue.load('owner-1')).toMatchObject({
+    cursor: 200,
+    cursorId: '2000',
+    pending: []
+  });
+});
+
 it('retains a fee-bearing backlog in submissions within the durable import limit', async () => {
   const context = setup({ prepare: prepareFinancialMessageImport });
   context.setOnline(false);
@@ -576,13 +609,19 @@ describe('automatic tracking coordinator', () => {
     ['processing', 1],
     ['review', 0],
     ['failed', 0]
-  ] as const)('does not recheck a %s receipt with %i accepted effects', async (status, acceptedCount) => {
-    const context = setup();
-    context.tracking.submitImport.mockResolvedValue({ ...session(status), acceptedCount });
-    await context.coordinator.sync();
-    expect(context.tracking.getImportSession).not.toHaveBeenCalled();
-    expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
-  });
+  ] as const)(
+    'does not recheck a %s receipt with %i accepted effects',
+    async (status, acceptedCount) => {
+      const context = setup();
+      context.tracking.submitImport.mockResolvedValue({
+        ...session(status),
+        acceptedCount
+      });
+      await context.coordinator.sync();
+      expect(context.tracking.getImportSession).not.toHaveBeenCalled();
+      expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('schedules durable follow-up for an asynchronously submitted session', async () => {
     const scheduleFollowUp = jest.fn(async () => undefined);
@@ -928,18 +967,59 @@ describe('automatic tracking coordinator', () => {
     const context = setup({ prepare: prepareFinancialMessageImport });
     context.setOnline(false);
     const notificationAccountId = '10000000-0000-4000-8000-000000000002';
-    context.dependencies.listCachedAccounts.mockResolvedValue([ownerAccount, { ...ownerAccount, id: notificationAccountId, type: 'wallet', currencyCode: 'EGP' }]);
-    await context.queue.saveRules('owner-1', { snapshot: defaultSnapshot, keywords: [], senders: [], accountingPolicy: 'default_account_nominal_v1', sourceAdmissionPolicy: 'financial_content_v1' });
+    context.dependencies.listCachedAccounts.mockResolvedValue([
+      ownerAccount,
+      {
+        ...ownerAccount,
+        id: notificationAccountId,
+        type: 'wallet',
+        currencyCode: 'EGP'
+      }
+    ]);
+    await context.queue.saveRules('owner-1', {
+      snapshot: defaultSnapshot,
+      keywords: [],
+      senders: [],
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1'
+    });
     context.dependencies.sources.load.mockResolvedValue({
-      smsEnabled: true, notificationEnabled: true, smsActivatedAt: 0,
-      notificationActivatedAt: 0, notificationAccountId
+      smsEnabled: true,
+      notificationEnabled: true,
+      smsActivatedAt: 0,
+      notificationActivatedAt: 0,
+      notificationAccountId
     });
     context.bankNotifications.getAccessState.mockResolvedValue('granted');
-    context.bankNotifications.readRecent.mockResolvedValue([{ key: 'destination-test', packageName: 'example.wallet', title: '', text: 'You have received 1 EGP', postedAt: 100, capturePolicy: 'default_account_nominal_v1', captureActivatedAt: 0 }]);
+    context.bankNotifications.readRecent.mockResolvedValue([
+      {
+        key: 'destination-test',
+        packageName: 'example.wallet',
+        title: '',
+        text: 'You have received 1 EGP',
+        postedAt: 100,
+        capturePolicy: 'default_account_nominal_v1',
+        captureActivatedAt: 0
+      }
+    ]);
     await context.coordinator.sync();
-    const submissions = (await context.queue.load('owner-1')).pending.map((entry) => entry.submission);
-    expect(submissions.find((submission) => submission.sourceChannel === 'android_sms')?.events[0]?.metadata).not.toHaveProperty('notificationAccountId');
-    expect(submissions.find((submission) => submission.sourceChannel === 'android_notification')?.events[0]).toMatchObject({ currency: 'EGP', amountMinor: 100, metadata: { notificationAccountId } });
+    const submissions = (await context.queue.load('owner-1')).pending.map(
+      (entry) => entry.submission
+    );
+    expect(
+      submissions.find(
+        (submission) => submission.sourceChannel === 'android_sms'
+      )?.events[0]?.metadata
+    ).not.toHaveProperty('notificationAccountId');
+    expect(
+      submissions.find(
+        (submission) => submission.sourceChannel === 'android_notification'
+      )?.events[0]
+    ).toMatchObject({
+      currency: 'EGP',
+      amountMinor: 100,
+      metadata: { notificationAccountId }
+    });
   });
 
   it('queues source currency with the current matching UI preference and ignores the legacy notification binding in the opted-in cohort', async () => {

@@ -1,6 +1,12 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Rect,
+  Stop
+} from 'react-native-svg';
 
 import { StyledText } from '@/components/StyledText';
 import { DesignIcon, type DesignIconName } from '@/design-system/icons';
@@ -43,23 +49,55 @@ export function ObligationHeroHeader({
   const overview = variant === 'overview';
 
   return (
-    <View accessible={Boolean(accessibilityLabel)} accessibilityLabel={accessibilityLabel} style={[styles.header, overview && styles.headerOverview]} testID={testID}>
+    <View
+      accessible={Boolean(accessibilityLabel)}
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.header, overview && styles.headerOverview]}
+      testID={testID}
+    >
       <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Defs>
           <LinearGradient id="obligationHeader" x1="0" x2="1" y1="0" y2="1">
             <Stop offset="0" stopColor={theme.colors.horizon.referenceStart} />
             <Stop offset="0.58" stopColor={theme.colors.horizon.referenceEnd} />
-            <Stop offset="1" stopColor={overview ? theme.colors.horizon.referenceStart : theme.colors.horizon.referenceEnd} />
+            <Stop
+              offset="1"
+              stopColor={
+                overview
+                  ? theme.colors.horizon.referenceStart
+                  : theme.colors.horizon.referenceEnd
+              }
+            />
           </LinearGradient>
         </Defs>
-        <Rect fill="url(#obligationHeader)" height="100%" width="100%" x="0" y="0" />
-        <Circle cx={overview ? '7%' : -18} cy={overview ? '-20%' : -62} fill={theme.colors.horizon.glow} r={overview ? 170 : 190} />
-        <Circle cx={overview ? '22%' : 118} cy={overview ? '82%' : 260} fill={referenceGlass} r={overview ? 92 : 92} />
+        <Rect
+          fill="url(#obligationHeader)"
+          height="100%"
+          width="100%"
+          x="0"
+          y="0"
+        />
+        <Circle
+          cx={overview ? '7%' : -18}
+          cy={overview ? '-20%' : -62}
+          fill={theme.colors.horizon.glow}
+          r={overview ? 170 : 190}
+        />
+        <Circle
+          cx={overview ? '22%' : 118}
+          cy={overview ? '82%' : 260}
+          fill={referenceGlass}
+          r={overview ? 92 : 92}
+        />
       </Svg>
       <View style={[styles.headerTop, overview && styles.headerTopOverview]}>
         {onBack ? (
           <View style={styles.headerButtonStart}>
-            <HeaderIconButton icon="back" label={translate('common.back')} onPress={onBack} />
+            <HeaderIconButton
+              icon="back"
+              label={translate('common.back')}
+              onPress={onBack}
+            />
           </View>
         ) : null}
         <StyledText
@@ -75,29 +113,87 @@ export function ObligationHeroHeader({
         </StyledText>
         {onAction ? (
           <View style={styles.headerButtonEnd}>
-            <HeaderIconButton icon="add" label={translate('planning.obligations.new')} onPress={onAction} variant={variant} />
+            <HeaderIconButton
+              icon="add"
+              label={translate('planning.obligations.new')}
+              onPress={onAction}
+              variant={variant}
+            />
           </View>
         ) : null}
       </View>
       <View style={[styles.heroRow, overview && styles.heroRowOverview]}>
-        <View style={[styles.heroCopy, overview && styles.heroCopyOverview, direction === 'rtl' ? styles.heroCopyRtl : styles.heroCopyLtr]}>
-          {eyebrow ? <StyledText style={[styles.eyebrow, overview && styles.eyebrowOverview, { color: theme.colors.textInverse }, textDirection]}>{eyebrow}</StyledText> : null}
+        <View
+          style={[
+            styles.heroCopy,
+            overview && styles.heroCopyOverview,
+            direction === 'rtl' ? styles.heroCopyRtl : styles.heroCopyLtr
+          ]}
+        >
+          {eyebrow ? (
+            <StyledText
+              style={[
+                styles.eyebrow,
+                overview && styles.eyebrowOverview,
+                { color: theme.colors.textInverse },
+                textDirection
+              ]}
+            >
+              {eyebrow}
+            </StyledText>
+          ) : null}
           {amount ? (
             <StyledText
               adjustsFontSizeToFit
               minimumFontScale={overview ? 0.58 : 0.68}
               numberOfLines={1}
               variant="amount"
-              style={[styles.heroAmount, overview && styles.heroAmountOverview, { color: theme.colors.textInverse }]}
+              style={[
+                styles.heroAmount,
+                overview && styles.heroAmountOverview,
+                { color: theme.colors.textInverse }
+              ]}
             >
               {amount}
             </StyledText>
           ) : null}
-          {description ? <StyledText numberOfLines={1} variant="subtitle" style={[styles.description, overview && styles.descriptionOverview, { color: theme.colors.textInverse }, textDirection]}>{description}</StyledText> : null}
-          {meta ? <StyledText numberOfLines={1} style={[styles.meta, overview && styles.metaOverview, { color: theme.colors.textInverse }, textDirection]}>{meta}</StyledText> : null}
+          {description ? (
+            <StyledText
+              variant="subtitle"
+              style={[
+                styles.description,
+                overview && styles.descriptionOverview,
+                { color: theme.colors.textInverse },
+                textDirection
+              ]}
+            >
+              {description}
+            </StyledText>
+          ) : null}
+          {meta ? (
+            <StyledText
+              style={[
+                styles.meta,
+                overview && styles.metaOverview,
+                { color: theme.colors.textInverse },
+                textDirection
+              ]}
+            >
+              {meta}
+            </StyledText>
+          ) : null}
         </View>
       </View>
-      {children ? <View style={[styles.headerChildren, overview && styles.headerChildrenOverview]}>{children}</View> : null}
+      {children ? (
+        <View
+          style={[
+            styles.headerChildren,
+            overview && styles.headerChildrenOverview
+          ]}
+        >
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -122,19 +218,56 @@ export function ObligationMetricStrip({
       style={[
         styles.metricStrip,
         overview && styles.metricStripOverview,
-        { backgroundColor: overview ? 'rgba(255,255,255,0.20)' : referenceGlass, borderColor: referenceGlassBorder }
+        {
+          backgroundColor: overview ? 'rgba(255,255,255,0.20)' : referenceGlass,
+          borderColor: referenceGlassBorder
+        }
       ]}
       testID={testID}
     >
       {metrics.map((metric, index) => (
         <React.Fragment key={metric.label}>
-          {index ? <View style={[styles.metricDivider, overview && styles.metricDividerOverview, { backgroundColor: referenceGlassBorder }]} /> : null}
+          {index ? (
+            <View
+              style={[
+                styles.metricDivider,
+                overview && styles.metricDividerOverview,
+                { backgroundColor: referenceGlassBorder }
+              ]}
+            />
+          ) : null}
           <View style={[styles.metric, overview && styles.metricOverview]}>
-            {metric.icon ? <DesignIcon name={metric.icon} decorative color={theme.colors.textInverse} size={overview ? 'control' : 'sm'} /> : null}
-            <StyledText adjustsFontSizeToFit minimumFontScale={0.5} numberOfLines={1} variant="subtitle" style={[styles.metricValue, overview && styles.metricValueOverview, { color: theme.colors.textInverse }]}>
+            {metric.icon ? (
+              <DesignIcon
+                name={metric.icon}
+                decorative
+                color={theme.colors.textInverse}
+                size={overview ? 'control' : 'sm'}
+              />
+            ) : null}
+            <StyledText
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+              numberOfLines={1}
+              variant="subtitle"
+              style={[
+                styles.metricValue,
+                overview && styles.metricValueOverview,
+                { color: theme.colors.textInverse }
+              ]}
+            >
               {metric.value}
             </StyledText>
-            <StyledText adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={[styles.metricLabel, overview && styles.metricLabelOverview, { color: theme.colors.textInverse }]}>
+            <StyledText
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={[
+                styles.metricLabel,
+                overview && styles.metricLabelOverview,
+                { color: theme.colors.textInverse }
+              ]}
+            >
               {metric.label}
             </StyledText>
           </View>
@@ -157,7 +290,11 @@ export function ObligationSegmentedControl<T extends string>({
 }) {
   const theme = useTheme();
   return (
-    <View accessibilityRole="tablist" style={[styles.segments, { backgroundColor: theme.colors.surfaceMuted }]} testID={testID}>
+    <View
+      accessibilityRole="tablist"
+      style={[styles.segments, { backgroundColor: theme.colors.surfaceMuted }]}
+      testID={testID}
+    >
       {options.map((option) => {
         const selected = value === option.value;
         return (
@@ -167,9 +304,21 @@ export function ObligationSegmentedControl<T extends string>({
             accessibilityState={{ selected }}
             accessibilityLabel={option.label}
             onPress={() => onChange(option.value)}
-            style={[styles.segment, selected && { backgroundColor: theme.colors.surface }]}
+            style={[
+              styles.segment,
+              selected && { backgroundColor: theme.colors.surface }
+            ]}
           >
-            <StyledText style={[styles.segmentText, { color: selected ? theme.colors.primary : theme.colors.textSecondary }]}>
+            <StyledText
+              style={[
+                styles.segmentText,
+                {
+                  color: selected
+                    ? theme.colors.primary
+                    : theme.colors.textSecondary
+                }
+              ]}
+            >
               {option.label}
             </StyledText>
           </Pressable>
@@ -179,7 +328,17 @@ export function ObligationSegmentedControl<T extends string>({
   );
 }
 
-export function HeaderIconButton({ icon, label, onPress, variant = 'default' }: { icon: DesignIconName; label: string; onPress: () => void; variant?: 'default' | 'overview' }) {
+export function HeaderIconButton({
+  icon,
+  label,
+  onPress,
+  variant = 'default'
+}: {
+  icon: DesignIconName;
+  label: string;
+  onPress: () => void;
+  variant?: 'default' | 'overview';
+}) {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const overview = variant === 'overview';
@@ -188,9 +347,18 @@ export function HeaderIconButton({ icon, label, onPress, variant = 'default' }: 
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={[styles.headerButton, overview && styles.headerButtonOverview, { backgroundColor: referenceGlass, borderColor: referenceGlassBorder }]}
+      style={[
+        styles.headerButton,
+        overview && styles.headerButtonOverview,
+        { backgroundColor: referenceGlass, borderColor: referenceGlassBorder }
+      ]}
     >
-      <DesignIcon name={icon} decorative color={theme.colors.textInverse} direction={direction} />
+      <DesignIcon
+        name={icon}
+        decorative
+        color={theme.colors.textInverse}
+        direction={direction}
+      />
     </Pressable>
   );
 }
@@ -217,7 +385,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg + spacing.xs,
     paddingTop: spacing.md
   },
-  headerTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget },
+  headerTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: minTouchTarget
+  },
   headerTopOverview: { minHeight: 46 },
   headerTitle: { flex: 1, flexShrink: 1, fontSize: 24, lineHeight: 32 },
   headerTitleOverview: { fontSize: 24, lineHeight: 30 },
@@ -243,7 +416,12 @@ const styles = StyleSheet.create({
   heroAmount: { fontSize: 32, lineHeight: 40 },
   heroAmountOverview: { fontSize: 34, lineHeight: 42 },
   description: { fontSize: 15, lineHeight: 20, opacity: 0.9 },
-  descriptionOverview: { fontSize: 17, fontWeight: '700', lineHeight: 22, opacity: 0.96 },
+  descriptionOverview: {
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 22,
+    opacity: 0.96
+  },
   meta: { fontSize: 12, lineHeight: 18, opacity: 0.86 },
   metaOverview: { fontSize: 12, lineHeight: 18, opacity: 0.86 },
   headerChildren: { gap: spacing.sm },
@@ -260,7 +438,13 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
     minHeight: 82
   },
-  metric: { alignItems: 'center', flex: 1, gap: 3, justifyContent: 'center', paddingHorizontal: spacing.xs },
+  metric: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 3,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs
+  },
   metricOverview: { gap: 2, paddingHorizontal: 6 },
   metricDivider: { width: 1 },
   metricDividerOverview: { marginVertical: 10 },

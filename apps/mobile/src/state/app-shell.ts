@@ -32,6 +32,10 @@ import {
   configureAppShellStorageOwner,
   createAppShellStorage
 } from '@/storage/app-shell-storage';
+import {
+  loadLocalOwnerAccess,
+  clearLocalOwnerAccess
+} from '@/storage/app-shell-storage';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 import { usePreferenceStore } from '@/state/preferences';
 import {
@@ -60,7 +64,7 @@ interface AppShellState {
     isCurrent?: () => boolean
   ) => Promise<void>;
   expireSession: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (localDataRemoved?: boolean) => Promise<void>;
   releaseDeletedOwner: (ownerId: string) => void;
   suspendUnavailableRestoration: () => Promise<void>;
   setOnboarding: (progress: OnboardingProgress) => Promise<void>;
@@ -134,9 +138,45 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     try {
       const demoMode = isDemoModeEnabled();
       if (!demoMode && resolveClientMode() === 'live') {
+        const cached = await loadLocalOwnerAccess();
+        if (
+          cached?.status === 'authenticated' &&
+          cached.userId &&
+          !(await isDeletionOwnerFenced(cached.userId))
+        ) {
+          await configureDatabaseOwner(cached.userId);
+          await configureAppShellStorageOwner(cached.userId);
+          const [privacyLock, pinCredential] = await Promise.all([
+            storage.loadPrivacyLock(),
+            storage.loadPinCredential()
+          ]);
+          const launchLock = lockForLaunch(privacyLock, pinCredential, now);
+          if (
+            launchLock &&
+            (pinCredential || launchLock.biometricStatus === 'enabled')
+          ) {
+            set({
+              ...initialState,
+              hydrated: true,
+              session: { ...cached, restoration: 'local' },
+              privacyLock: launchLock,
+              pinCredential,
+              profileSetupStatus: 'complete'
+            });
+            return;
+          }
+        }
         await clearDatabaseOwner();
         clearAppShellStorageOwner();
-        set({ ...initialState, hydrated: true, session: signedOutSession });
+        set({
+          ...initialState,
+          hydrated: true,
+          session: {
+            ...signedOutSession,
+            status: 'restoring',
+            restoration: 'pending'
+          }
+        });
         return;
       }
       if (demoMode && !usePreferenceStore.getState().hydrated)
@@ -276,11 +316,13 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     const session = get().session;
     if (!session || session.status !== 'authenticated') return;
     const expired = { ...session, status: 'expired' as const };
+    await clearLocalOwnerAccess();
     await storage.saveSession(expired);
     set({ session: expired });
   },
 
   suspendUnavailableRestoration: async () => {
+    await clearLocalOwnerAccess();
     set({ ...initialState, hydrated: true, session: signedOutSession });
     clearAppShellStorageOwner();
     await Promise.all([
@@ -295,7 +337,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set({ ...initialState, hydrated: true, session: signedOutSession });
   },
 
-  signOut: async () => {
+  signOut: async (localDataRemoved = false) => {
     const ownerId = get().session?.userId;
     set({
       hydrated: true,
@@ -310,12 +352,14 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       profileSetupSnapshot: null
     });
     await Promise.all([
+      clearLocalOwnerAccess(),
       storage.clearSession(),
       (async () => {
         try {
-          await clearDatabaseOwner(
-            ownerId && resolveClientMode() === 'live' ? ownerId : undefined
-          );
+          if (!localDataRemoved)
+            await clearDatabaseOwner(
+              ownerId && resolveClientMode() === 'live' ? ownerId : undefined
+            );
         } finally {
           await clearLegacySmsImportQueue();
         }
@@ -441,6 +485,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     const unlocked = {
       ...privacyLock,
       invalidAttempts: 0,
+      lockoutStage: 0,
       lockedUntil: null,
       appLockStatus: 'unlocked' as const
     };

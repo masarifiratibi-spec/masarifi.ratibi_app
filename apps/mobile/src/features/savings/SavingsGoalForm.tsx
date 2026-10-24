@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -8,7 +9,7 @@ import { PickerField } from '@/design-system/components/forms/PickerField';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { minorToMajorAmountText } from '@/domain/currencies';
-import { parseAmountToMinor, type Account } from '@/domain/core-finance';
+import { type Account } from '@/domain/core-finance';
 import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import {
   localDateFromTimestamp,

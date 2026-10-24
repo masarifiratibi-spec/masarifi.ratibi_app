@@ -12,7 +12,7 @@ internal fun notificationAdmission(
   source: String, self: String, enabled: Boolean, trusted: Set<String>, blocked: Set<String>,
   policy: FinancialDiscoveryPolicy?, text: String, messagingStyle: Boolean = false
 ): NotificationAdmission {
-  if (messagingStyle || source.lowercase(Locale.ROOT) in setOf("com.whatsapp","com.whatsapp.w4b","org.telegram.messenger","org.telegram.messenger.web","com.facebook.orca","com.facebook.mlite","com.discord","com.snapchat.android","com.instagram.android","com.google.android.apps.messaging","com.samsung.android.messaging","org.thoughtcrime.securesms","com.viber.voip","com.slack","com.microsoft.teams","com.skype.raider","jp.naver.line.android","com.tencent.mm","com.kakao.talk","im.vector.app","io.element.android.x","com.google.android.apps.dynamite")) return NotificationAdmission.DISCARD
+  if (messagingStyle || source.lowercase(Locale.ROOT) in setOf("com.whatsapp","com.whatsapp.w4b","org.telegram.messenger","org.telegram.messenger.web","com.facebook.orca","com.facebook.mlite","com.discord","com.snapchat.android","com.instagram.android","com.google.android.apps.messaging","com.samsung.android.messaging","org.thoughtcrime.securesms","com.viber.voip","com.slack","com.microsoft.teams","com.skype.raider","jp.naver.line.android","com.tencent.mm","com.kakao.talk","im.vector.app","io.element.android.x","com.google.android.apps.dynamite","im.thebot.messenger","com.imo.android.imoim")) return NotificationAdmission.DISCARD
   if (!enabled || source == self || source in blocked || text.isBlank() || text.length > 8000)
     return NotificationAdmission.DISCARD
   if (policy == null) return NotificationAdmission.DISCARD
@@ -30,18 +30,18 @@ internal class FinancialDiscoveryPolicy private constructor(
   val nominal: Boolean = false, val contentAdmission: Boolean = false
 ) {
   fun knownPackage(source:String):Boolean = providers.any {source in strings(it.optJSONArray("packages"))}
-  fun isStrong(raw:String,sender:String): Boolean = inspect(raw,sender,true)
-  fun isFinancial(raw:String,sender:String): Boolean = inspect(raw,sender,false)
+  fun isStrong(raw:String,sender:String,channel:String="android_notification"): Boolean = inspect(raw,sender,true,channel)
+  fun isFinancial(raw:String,sender:String,channel:String="android_notification"): Boolean = inspect(raw,sender,false,channel)
 
-  private fun inspect(raw: String, sender: String, requireMoney:Boolean): Boolean {
+  private fun inspect(raw: String, sender: String, requireMoney:Boolean, channel:String): Boolean {
     if (raw.length > 8000) return false
     // Match the same completed-transfer wording used by notification parsing.
     val text = normalize(raw).replace(Regex("\\byou have received\\b"), "transfer received")
-    val country = providers.firstOrNull { strings(it.optJSONArray("packages")).contains(sender) }
+    val country = providers.firstOrNull { (strings(it.optJSONArray("packages"))+strings(it.optJSONArray("senders"))).any { source -> source.equals(sender,ignoreCase=true) } }
       ?.optString("country")
     val matched = rules.filter { rule ->
       rule.optBoolean("enabled") &&
-        mapOf("countries" to country, "providers" to sender, "channels" to "android_notification", "locales" to null)
+        mapOf("countries" to country, "providers" to sender, "channels" to channel, "locales" to null)
           .all { (field, value) -> strings(rule.optJSONArray(field)).let { values ->
             values.isEmpty() || value != null && values.any { it.equals(value, ignoreCase = true) }
           } } &&
@@ -49,7 +49,7 @@ internal class FinancialDiscoveryPolicy private constructor(
         strings(rule.optJSONArray("all")).all { phrase(text, it) } &&
         strings(rule.optJSONArray("not")).none { phrase(text, it) }
     }
-    if (marketing.containsMatchIn(text) || matched.any {
+    if (Regex("\\b(?:use|enter|verification|security|one[ -]time)\\s+(?:the\\s+)?(?:code|password)\\b[^\\n]{0,40}[0-9]{4,8}\\b").containsMatchIn(text) || marketing.containsMatchIn(text) || matched.any {
       it.optString("family") == "exclusion" || it.getJSONObject("effects").optString("disposition") == "ignore"
     }) return false
     val actions = matched.filter { it.optString("family") == "action" }
@@ -70,28 +70,38 @@ internal class FinancialDiscoveryPolicy private constructor(
       val amount = match.groups[2]?.value ?: match.groups[3]!!.value
       val before = text.substring(maxOf(0, match.range.first - 60), match.range.first)
       val after = text.substring(match.range.last + 1, minOf(text.length, match.range.last + 33))
-      val balance = Regex("(?:avl\\.?\\s*bal|available\\s+balance|balance|الرصيد|رصيد)[^.;:،,]*[: ]*$").containsMatchIn(before)
+      val balance = Regex("(?:avl\\.?\\s*(?:cr\\.?\\s*)?(?:bal(?:ance)?|limit)|available\\s+(?:balance|credit(?:\\s+limit)?)|credit\\s+limit|balance|الرصيد|رصيد|الحد\\s+الائتماني|حد\\s+الائتمان)[^.;:،,]*[: ]*$").containsMatchIn(before)
       val feeRole = Regex("(?:fee|fees|charge|commission|رسوم|عمولة)\\s*[: ]*$").containsMatchIn(before)
       val fx = Regex("(?:equivalent|exchange rate|converted|ما يعادل)\\s*[: ]*$").containsMatchIn(before) ||
         Regex("^\\s*(?:equivalent|ما يعادل)").containsMatchIn(after)
-      !balance && !fx && (!feeRole || fee) && validAmount(amount, scales.getValue(currency))
+      !balance && !fx && (!feeRole || fee) && validAmount(amount,
+        if(currency in listOf("ريال","ريالا","دينار","دينارا")) 3 else scales.getValue(currency))
     }
   }
 
   companion object {
     private fun normalize(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
+      .replace(Regex("[\\u064b-\\u065f\\u0670\\u0640]"), "")
       .map { when (it) {
         in '٠'..'٩' -> '0' + (it - '٠')
         in '۰'..'۹' -> '0' + (it - '۰')
         '٫' -> '.'
         '٬' -> ','
+        'أ','إ','آ','ٱ' -> 'ا'
+        'ى' -> 'ي'
         else -> it
       } }.joinToString("").replace(Regex("[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]"), "")
       // Android's ICU rejects the JVM-only (?U) flag.
       .replace(Regex("[\\s\\p{Z}\\u0085]+"), " ").trim().lowercase(Locale.ROOT)
 
-    private fun phrase(text: String, raw: String): Boolean =
-      Regex("(?<![\\p{L}])${Regex.escape(normalize(raw))}(?![\\p{L}])").containsMatchIn(text)
+    private fun phrase(text: String, raw: String): Boolean {
+      val pattern=normalize(raw).split(' ').joinToString(" ") { word ->
+        if(Regex("[\\u0600-\\u06ff]").containsMatchIn(word))
+          "(?:[وف])?(?:بال|كال|لل|ال|ب|ك|ل)?${Regex.escape(word)}(?:ك|كم|كما|كن|نا|ها|هم|هن|ه|ا)?"
+        else Regex.escape(word)
+      }
+      return Regex("(?<![\\p{L}])$pattern(?![\\p{L}])").containsMatchIn(text)
+    }
 
     private fun validAmount(raw: String, scale: Int): Boolean {
       if (!Regex("^(?:\\d+|\\d{1,3}(?:,\\d{3})+)(?:\\.\\d+)?$").matches(raw)) return false
@@ -140,7 +150,7 @@ internal class FinancialDiscoveryPolicy private constructor(
       val providers = (0 until providerArray.length()).map { providerArray.getJSONObject(it) }
       // Structural syntax is fixed; never execute a user-provided regex in the listener.
       FinancialDiscoveryPolicy(rules, currencies, contexts, custom, providers,
-        Regex("\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"),value.optBoolean("nominal",false),
+        Regex("\\b(?:offer|promo|discount)\\b|(?<![\\p{L}])عرض(?![\\p{L}])|خصم\\s*\\d+\\s*%"),value.optBoolean("nominal",false),
         value.optString("sourceAdmissionPolicy") == "financial_content_v1")
     }.getOrNull()
   }

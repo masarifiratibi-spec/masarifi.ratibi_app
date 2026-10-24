@@ -123,8 +123,25 @@ describe('App PIN lockout', () => {
 
     expect(failUnlock(lock, now + 1)).toMatchObject({
       invalidAttempts: 5,
-      lockedUntil: 31_001,
+      lockedUntil: 31_000,
       appLockStatus: 'temporarily_locked'
     });
+  });
+  it('escalates repeated failed blocks without accepting attempts during lockout', () => {
+    let lock = createPinLock();
+    let now = 1_000;
+    for (const duration of [30_000, 300_000, 1_800_000, 3_600_000, 3_600_000]) {
+      for (let attempt = 0; attempt < 5; attempt++)
+        lock = failUnlock(lock, now);
+      expect(lock.lockedUntil).toBe(now + duration);
+      expect(failUnlock(lock, now + 1)).toEqual(lock);
+      now += duration + 1;
+      lock = {
+        ...lock,
+        invalidAttempts: 0,
+        lockedUntil: null,
+        appLockStatus: 'locked'
+      };
+    }
   });
 });

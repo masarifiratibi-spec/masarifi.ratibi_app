@@ -1,6 +1,7 @@
 import {
   useMutation,
   useQuery,
+  useInfiniteQuery,
   useQueryClient,
   type QueryClient
 } from '@tanstack/react-query';
@@ -42,7 +43,8 @@ export const reportKeys = {
     currencyCode: string,
     accountIds: readonly string[],
     timeframe: ReportTimeframe,
-    timeZone: string
+    timeZone: string,
+    monthStartDay = 1
   ) =>
     [
       'reports',
@@ -51,7 +53,8 @@ export const reportKeys = {
       currencyCode,
       accountIds,
       timeframe,
-      timeZone
+      timeZone,
+      monthStartDay
     ] as const
 };
 
@@ -72,7 +75,8 @@ export function useReportInput(
     kind,
     anchorDate,
     currencyCode,
-    timeZone: usePreferenceStore.getState().timeZone,
+    timeZone: usePreferenceStore((state) => state.timeZone),
+    monthStartDay: usePreferenceStore((state) => state.monthStartDay),
     ...(accountIds?.length ? { accountIds } : {})
   };
 }
@@ -89,6 +93,7 @@ export function useNetWorthTrend({
   timeframe: ReportTimeframe;
 }) {
   const timeZone = usePreferenceStore((state) => state.timeZone);
+  const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
   const client = useQueryClient();
   return useQuery({
     queryKey: reportKeys.netWorth(
@@ -96,7 +101,8 @@ export function useNetWorthTrend({
       currencyCode,
       accountIds,
       timeframe,
-      timeZone
+      timeZone,
+      monthStartDay
     ),
     queryFn: async ({ signal }) => {
       const filters = { ...emptyTransactionFilters, accountIds };
@@ -130,7 +136,8 @@ export function useNetWorthTrend({
         anchorDate,
         timeZone,
         accounts.map((account) => account.createdAt),
-        transactions.map((transaction) => transaction.occurredAt)
+        transactions.map((transaction) => transaction.occurredAt),
+        monthStartDay
       );
       return buildNetWorthTrend({
         accounts,
@@ -164,10 +171,27 @@ export function useReportPreview(input: ReportOutputPreviewInput) {
 }
 
 export function useReportAttempts() {
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: reportKeys.attempts(),
-    queryFn: ({ signal }) => reportsService.listAttempts(undefined, { signal })
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ signal, pageParam }) =>
+      reportsService.listAttempts({ cursor: pageParam }, { signal }),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) =>
+        page.items.some((item) =>
+          ['scheduled', 'sending'].includes(item.status)
+        )
+      )
+        ? 5000
+        : false
   });
+  return {
+    ...query,
+    data: query.data
+      ? { ...query.data, items: query.data.pages.flatMap((page) => page.items) }
+      : undefined
+  };
 }
 
 export function useReportMutation<TVariables, TResult>(
@@ -237,7 +261,8 @@ function trendPointInstants(
   anchorDate: LocalDate,
   timeZone: string,
   accountDates: readonly number[],
-  transactionDates: readonly number[]
+  transactionDates: readonly number[],
+  monthStartDay = 1
 ): number[] {
   const end = buildFinancialPeriod({
     anchorDate,
@@ -247,7 +272,7 @@ function trendPointInstants(
   }).endInstant;
   const preset =
     timeframe === 'month'
-      ? 'calendar_month'
+      ? 'current_cycle'
       : timeframe === 'quarter'
         ? 'three_months'
         : timeframe === 'year'
@@ -259,7 +284,7 @@ function trendPointInstants(
       : buildFinancialPeriod({
           anchorDate:
             timeframe === 'week' ? addLocalDays(anchorDate, -6) : anchorDate,
-          monthStartDay: 1,
+          monthStartDay,
           preset: timeframe === 'week' ? 'today' : preset!,
           timeZone
         }).startInstant;

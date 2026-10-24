@@ -1,3 +1,4 @@
+import * as recentAuthentication from './http-client';
 import { createLiveReportsService, ReportsApiError } from './reports-service';
 import { ReportsRepository } from '@/storage/reports-repository';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
@@ -159,7 +160,9 @@ describe('live reports strict mapping', () => {
     }
   });
   it('sends the exact anchor and validates the server-owned range and timezone', async () => {
-    const request = jest.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => json(summary()));
+    const request = jest.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) => json(summary())
+    );
     const reports = service(request);
 
     await expect(reports.getReport(input)).resolves.toMatchObject({
@@ -185,7 +188,9 @@ describe('live reports strict mapping', () => {
       breakdowns: [
         {
           dimension: 'category',
-          items: [{ id: '99000000-0000-4000-8000-000000000001', transactionCount: 1 }]
+          items: [
+            { id: '99000000-0000-4000-8000-000000000001', transactionCount: 1 }
+          ]
         }
       ]
     });
@@ -193,27 +198,55 @@ describe('live reports strict mapping', () => {
       'period=monthly&anchorDate=2026-08-17&currency=SAR'
     );
 
-    const scoped = await reports.getReport({ ...input, accountIds: ['account-1'] });
-    const other = await reports.getReport({ ...input, accountIds: ['account-2'] });
-    expect(new URL(String(request.mock.calls[1]?.[0])).searchParams.get('accountIds')).toBe('account-1');
+    const scoped = await reports.getReport({
+      ...input,
+      accountIds: ['account-1']
+    });
+    const other = await reports.getReport({
+      ...input,
+      accountIds: ['account-2']
+    });
+    expect(
+      new URL(String(request.mock.calls[1]?.[0])).searchParams.get('accountIds')
+    ).toBe('account-1');
     expect(scoped.key).not.toBe(other.key);
     expect(scoped.breakdowns[0].items[0].drillDown).toMatchObject({
-      filters: { accountIds: ['account-1'], categoryIds: ['99000000-0000-4000-8000-000000000001'] }
+      filters: {
+        accountIds: ['account-1'],
+        categoryIds: ['99000000-0000-4000-8000-000000000001']
+      }
     });
   });
 
-  it('keeps the native EGP currency and refuses a scoped preview that cannot be exported safely', async () => {
+  it('keeps EGP currency and the selected account scope on the export preview', async () => {
     const egp = summary();
     egp.summaries[0].income.currency = 'EGP';
     egp.summaries[0].expense.currency = 'EGP';
     egp.summaries[0].netCashFlow.currency = 'EGP';
     egp.breakdowns[0].currencyCode = 'EGP';
-    const reports = service(jest.fn().mockResolvedValue(json(egp)));
-    expect((await reports.getReport({ ...input, accountIds: ['egp-account'], currencyCode: 'EGP' })).summary.expense)
-      .toMatchObject({ value: { currencyCode: 'EGP', minorUnits: 4000 } });
-    await expect(reports.previewOutput({
-      ...input, accountIds: ['egp-account'], currencyCode: 'EGP', language: 'en', detailLevel: 'summary', recipientEmail: null
-    })).rejects.toMatchObject({ code: 'report_account_scope_unavailable' });
+    const reports = service(jest.fn(async () => json(egp)));
+    expect(
+      (
+        await reports.getReport({
+          ...input,
+          accountIds: ['egp-account'],
+          currencyCode: 'EGP'
+        })
+      ).summary.expense
+    ).toMatchObject({ value: { currencyCode: 'EGP', minorUnits: 4000 } });
+    await expect(
+      reports.previewOutput({
+        ...input,
+        accountIds: ['egp-account'],
+        currencyCode: 'EGP',
+        language: 'en',
+        detailLevel: 'summary',
+        recipientEmail: null
+      })
+    ).resolves.toMatchObject({
+      accountIds: ['egp-account'],
+      snapshot: { currencyCode: 'EGP' }
+    });
   });
 
   it('preserves partial source state and rejects mismatched or unknown response data', async () => {
@@ -379,8 +412,115 @@ describe('live reports strict mapping', () => {
         })
       )
     );
-    await expect(cold.listAttempts()).rejects.toMatchObject({
-      code: 'report_snapshot_unavailable'
+    await expect(cold.listAttempts()).resolves.toMatchObject({
+      items: [{ status: 'sent', snapshot: null }]
     });
   });
 });
+
+it('creates and pauses a live schedule using server fields and optimistic versions', async () => {
+  const row = {
+    id: '99000000-0000-4000-8000-000000000051',
+    version: 1,
+    reportType: 'financial_summary',
+    frequency: 'monthly',
+    timezone: 'Asia/Riyadh',
+    nextRunAt: '2026-11-01T05:00:00.000Z',
+    deliveryChannel: 'email',
+    recipient: 'owner@example.test',
+    recipientMasked: 'o***@example.test',
+    enabled: true,
+    lastRunAt: null,
+    createdAt: generatedAt,
+    updatedAt: generatedAt
+  };
+  const request = jest
+    .fn()
+    .mockResolvedValueOnce(json(row))
+    .mockResolvedValueOnce(json({ ...row, version: 2, enabled: false }));
+  const reports = service(request);
+  const saved = await reports.saveSchedule(
+    {
+      recipientEmail: row.recipient,
+      frequency: 'monthly',
+      language: 'en',
+      currencyCode: 'SAR',
+      deliveryDay: 1,
+      timeZone: row.timezone,
+      includeAssistantSummary: false,
+      detailLevel: 'summary'
+    },
+    null,
+    'schedule-operation'
+  );
+  expect(saved.value).toMatchObject({
+    id: row.id,
+    status: 'active',
+    version: 1
+  });
+  expect(JSON.parse(String(request.mock.calls[0][1].body))).toEqual({
+    reportType: 'financial_summary',
+    frequency: 'monthly',
+    timezone: row.timezone,
+    deliveryChannel: 'email',
+    recipient: row.recipient,
+    enabled: true
+  });
+  await expect(
+    reports.setScheduleStatus('paused', 1, 'pause-operation')
+  ).resolves.toMatchObject({ value: { status: 'paused', version: 2 } });
+  expect(JSON.parse(String(request.mock.calls[1][1].body))).toEqual({
+    expectedVersion: 1,
+    enabled: false
+  });
+});
+
+it.each([true, false])(
+  'preserves report mutation identity through fresh-auth approval=%s',
+  async (approved) => {
+    const stepUp = jest
+      .spyOn(recentAuthentication, 'requestRecentAuthentication')
+      .mockResolvedValue(approved ? 'fresh-token' : null);
+    const request = jest
+      .fn()
+      .mockResolvedValueOnce(json({ code: 'RECENT_AUTH_REQUIRED' }, 403))
+      .mockResolvedValueOnce(
+        json({
+          normalizedEmail: 'owner@example.test',
+          status: 'verified',
+          verifiedAt: generatedAt
+        })
+      );
+    try {
+      const service = createLiveReportsService({
+        baseUrl: 'https://inert.invalid',
+        token: async () => 'old-token',
+        request
+      });
+      const pending = service.verifyRecipient(
+        'owner@example.test',
+        'stable-operation'
+      );
+      if (approved) {
+        await expect(pending).resolves.toMatchObject({
+          value: { status: 'verified' }
+        });
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(request.mock.calls[1][1]).toMatchObject({
+          body: request.mock.calls[0][1].body,
+          headers: {
+            Authorization: 'Bearer fresh-token',
+            'Idempotency-Key': 'stable-operation'
+          }
+        });
+      } else {
+        await expect(pending).rejects.toMatchObject({
+          code: 'recent_auth_required'
+        });
+        expect(request).toHaveBeenCalledTimes(1);
+      }
+    } finally {
+      stepUp.mockRestore();
+    }
+  }
+);

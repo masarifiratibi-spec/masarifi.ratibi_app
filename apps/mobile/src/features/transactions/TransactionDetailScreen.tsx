@@ -10,11 +10,16 @@ import {
   GroupedList,
   NavigationRow
 } from '@/design-system/components/navigation/GroupedList';
-import type { Account, Category } from '@/domain/core-finance';
+import {
+  isConfirmedTransaction,
+  type Account,
+  type Category
+} from '@/domain/core-finance';
 import {
   useAccounts,
   useCategories,
-  useTransaction
+  useTransaction,
+  useRemainingRefundableMinor
 } from '@/features/core-finance/core-finance-queries';
 import { currentLocale, translate } from '@/localization/i18n';
 import { useTheme } from '@/state/theme-context';
@@ -27,6 +32,9 @@ export function TransactionDetailScreen({ id }: { id: string }) {
   const theme = useTheme();
   const query = useTransaction(id);
   const originalQuery = useTransaction(query.data?.originalTransactionId ?? '');
+  const eligibleExpense =
+    query.data?.type === 'expense' && isConfirmedTransaction(query.data);
+  const refundable = useRemainingRefundableMinor(id, eligibleExpense);
   const accounts = useAccounts(true);
   const categories = useCategories(true);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
@@ -148,6 +156,22 @@ export function TransactionDetailScreen({ id }: { id: string }) {
         variant="secondary"
         onPress={() => router.push(`/transactions/${id}/edit`)}
       />
+      {eligibleExpense && (refundable.data ?? 0) > 0 ? (
+        <ActionButton
+          label={translate('coreFinance.type.refund')}
+          variant="secondary"
+          onPress={() =>
+            router.push({
+              pathname: '/(tabs)/add',
+              params: {
+                type: 'refund',
+                originalTransactionId: item.id,
+                accountId: item.accountId
+              }
+            })
+          }
+        />
+      ) : null}
       <TransactionActions transaction={item} variant="delete-only" />
     </ScrollView>
   );

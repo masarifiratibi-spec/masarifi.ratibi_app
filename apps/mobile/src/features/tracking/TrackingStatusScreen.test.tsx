@@ -232,7 +232,7 @@ describe('TrackingStatusScreen', () => {
 
     expect(await screen.findByText('SMS tracking')).toBeOnTheScreen();
     expect(
-      screen.getByText('Read financial SMS and match your tracking keywords')
+      screen.getByText(translate('tracking.source.smsTrackingDescription'))
     ).toBeOnTheScreen();
     expect(
       screen.getByText('Transaction notification tracking')
@@ -244,6 +244,43 @@ describe('TrackingStatusScreen', () => {
     expect(screen.getByTestId('tracking-sms-switch')).toBeEnabled();
     expect(screen.getByTestId('tracking-notification-switch')).toBeEnabled();
   });
+
+  it.each(['denied', 'revoked', 'permanently_denied'] as const)(
+    'shows disclosure before requesting SMS access from %s state',
+    async (permission) => {
+      const push = jest.spyOn(router, 'push').mockImplementation(jest.fn());
+      const setSource = jest.spyOn(trackingSourcePreferences, 'set');
+      const setMode = jest.spyOn(automaticTrackingService, 'setMode');
+      renderStatus(
+        {
+          platform: 'android',
+          mode: 'paused',
+          permissionStatus: permission,
+          smsPermissionStatus: permission,
+          smsTrackingEnabled: false,
+          notificationTrackingEnabled: false,
+          serviceState: 'healthy',
+          lastDetectedAt: null,
+          lastSuccessfulTransactionId: null,
+          detectedThisMonth: 0,
+          reviewCount: 0,
+          activeKeywordCount: 0,
+          activeSenderCount: 0,
+          lastUpdatedAt: 1
+        },
+        'granted'
+      );
+      fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith({
+          pathname: '/tracking/permission',
+          params: { mode: 'automatic_clear' }
+        })
+      );
+      expect(setSource).not.toHaveBeenCalled();
+      expect(setMode).not.toHaveBeenCalled();
+    }
+  );
 
   it('turns off SMS tracking without pausing enabled notification tracking', async () => {
     const saveSource = jest
@@ -325,78 +362,6 @@ describe('TrackingStatusScreen', () => {
         })
       );
     }
-  });
-
-  it.each(['denied', 'revoked'] as const)(
-    'requests Android SMS permission directly from the SMS switch when permission is %s',
-    async (permissionStatus) => {
-      const saveSource = jest
-        .spyOn(trackingSourcePreferences, 'set')
-        .mockResolvedValue({ smsEnabled: true, notificationEnabled: false });
-      const setMode = jest
-        .spyOn(automaticTrackingService, 'setMode')
-        .mockResolvedValue({} as never);
-      const push = jest.spyOn(router, 'push');
-      renderStatus(
-        {
-          platform: 'android',
-          mode: 'paused',
-          permissionStatus,
-          smsPermissionStatus: permissionStatus,
-          notificationAccessStatus: 'denied',
-          smsTrackingEnabled: false,
-          notificationTrackingEnabled: false,
-          serviceState: 'healthy',
-          lastDetectedAt: null,
-          lastSuccessfulTransactionId: null,
-          detectedThisMonth: 0,
-          reviewCount: 0,
-          activeKeywordCount: 0,
-          activeSenderCount: 0,
-          lastUpdatedAt: 1
-        },
-        'granted'
-      );
-
-      fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
-
-      await waitFor(() => expect(saveSource).toHaveBeenCalledWith('sms', true));
-      expect(setMode).toHaveBeenCalledWith('automatic_clear');
-      expect(push).not.toHaveBeenCalledWith(
-        expect.objectContaining({ pathname: '/tracking/permission' })
-      );
-    }
-  );
-
-  it('opens app settings when Android reports never ask again for SMS', async () => {
-    const saveSource = jest.spyOn(trackingSourcePreferences, 'set');
-    const setMode = jest.spyOn(automaticTrackingService, 'setMode');
-    renderStatus(
-      {
-        platform: 'android',
-        mode: 'paused',
-        permissionStatus: 'denied',
-        smsPermissionStatus: 'denied',
-        notificationAccessStatus: 'denied',
-        smsTrackingEnabled: false,
-        notificationTrackingEnabled: false,
-        serviceState: 'healthy',
-        lastDetectedAt: null,
-        lastSuccessfulTransactionId: null,
-        detectedThisMonth: 0,
-        reviewCount: 0,
-        activeKeywordCount: 0,
-        activeSenderCount: 0,
-        lastUpdatedAt: 1
-      },
-      'permanently_denied'
-    );
-
-    fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
-
-    await waitFor(() => expect(openSmsSettings).toHaveBeenCalledTimes(1));
-    expect(saveSource).not.toHaveBeenCalled();
-    expect(setMode).not.toHaveBeenCalled();
   });
 
   it('enables notification tracking directly when Android access is already granted', async () => {

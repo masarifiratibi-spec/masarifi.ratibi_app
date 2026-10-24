@@ -22,7 +22,10 @@ import React, {
 } from 'react';
 
 import { resolveClientRuntime } from '@/config/client-runtime';
-import { measurePerformance, recordPerformanceTiming } from '@/services/platform/performance-timing';
+import {
+  measurePerformance,
+  recordPerformanceTiming
+} from '@/services/platform/performance-timing';
 import { recordDevelopmentAuthDiagnostic } from '@/services/platform/development-auth-diagnostics';
 import type {
   AuthResult,
@@ -30,6 +33,7 @@ import type {
 } from '@/services/contracts/app-shell-service';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { classifyPhoneVerificationError } from './clerk-errors';
+import { RecentAuthDialog } from '@/features/security/RecentAuthDialog';
 import { resolveClerkDisplayName } from './clerk-name';
 import {
   LiveIdentityStatusContext,
@@ -50,7 +54,10 @@ type PendingPhoneAttempt = {
 };
 
 const clerkCache: TokenCache = {
-  getToken: (key) => measurePerformance('identity.cache.read', () => SecureStore.getItemAsync(`masarifi.clerk.${key}`)),
+  getToken: (key) =>
+    measurePerformance('identity.cache.read', () =>
+      SecureStore.getItemAsync(`masarifi.clerk.${key}`)
+    ),
   saveToken: (key, token) =>
     SecureStore.setItemAsync(`masarifi.clerk.${key}`, token),
   clearToken: (key) => SecureStore.deleteItemAsync(`masarifi.clerk.${key}`)
@@ -74,7 +81,10 @@ export function getLiveClerkDisplayName(
   }
 }
 
-export function MobileIdentityProvider({ children, recoveryFallback = null }: {
+export function MobileIdentityProvider({
+  children,
+  recoveryFallback = null
+}: {
   children: ReactNode;
   recoveryFallback?: ReactNode;
 }) {
@@ -104,7 +114,10 @@ export function MobileIdentityProvider({ children, recoveryFallback = null }: {
   );
 }
 
-function LiveClerkRuntime({ children, onProviderReload }: {
+function LiveClerkRuntime({
+  children,
+  onProviderReload
+}: {
   children: ReactNode;
   onProviderReload: () => void;
 }) {
@@ -388,7 +401,10 @@ function ClerkBridgeInstaller({
     if (!auth.isLoaded) return;
     if (!identityRecorded.current) {
       identityRecorded.current = true;
-      recordPerformanceTiming('startup.identity', performance.now() - identityStartedAt.current);
+      recordPerformanceTiming(
+        'startup.identity',
+        performance.now() - identityStartedAt.current
+      );
     }
     registerLiveClerkBridge(bridge);
     if (!ssoPending.current)
@@ -412,7 +428,12 @@ function ClerkBridgeInstaller({
       clerk?.off?.('status', listener);
     };
   }, [auth.isLoaded, onStatus]);
-  return null;
+  return (
+    <RecentAuthDialog
+      enabled={auth.isLoaded && !!auth.isSignedIn}
+      sessionId={auth.sessionId}
+    />
+  );
 }
 
 function isIdentifierNotFound(error: unknown): boolean {

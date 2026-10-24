@@ -98,11 +98,16 @@ export function failUnlock(
   lock: PrivacyLockPreference,
   now: number
 ): PrivacyLockPreference {
-  const invalidAttempts = Math.min(lock.invalidAttempts + 1, 5);
+  if (lock.lockedUntil !== null && lock.lockedUntil > now) return lock;
+  const invalidAttempts =
+    lock.lockedUntil !== null ? 1 : Math.min(lock.invalidAttempts + 1, 5);
+  const stage = Math.min((lock.lockoutStage ?? 0) + 1, 4);
+  const delays = [30_000, 300_000, 1_800_000, 3_600_000];
   return {
     ...lock,
+    ...(invalidAttempts >= 5 ? { lockoutStage: stage } : {}),
     invalidAttempts,
-    lockedUntil: invalidAttempts >= 5 ? now + 30_000 : lock.lockedUntil,
+    lockedUntil: invalidAttempts >= 5 ? now + delays[stage - 1] : null,
     appLockStatus: invalidAttempts >= 5 ? 'temporarily_locked' : 'locked'
   };
 }

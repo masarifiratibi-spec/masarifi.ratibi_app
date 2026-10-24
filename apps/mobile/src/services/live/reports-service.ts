@@ -1,3 +1,6 @@
+import { requestRecentAuthentication } from './http-client';
+import { usePreferenceStore } from '@/state/preferences';
+import { currentLocale } from '@/localization/i18n';
 import {
   available,
   money,
@@ -79,7 +82,9 @@ export function createLiveReportsService(
   const local = options.repository ?? new ReportsRepository(false);
   const previews = new Map<string, ReportPreview>();
   const attempts = new Map<string, ReportOutputAttempt>();
+  let currentSchedule: import('@/domain/reports').ReportSchedule | null = null;
   const reset = () => {
+    currentSchedule = null;
     previews.clear();
     attempts.clear();
     local.reset();
@@ -90,7 +95,13 @@ export function createLiveReportsService(
   const sendRequest = async (
     method: string,
     path: string,
-    requestContext: { body?: unknown; key?: string; signal: AbortSignal }
+    requestContext: {
+      body?: unknown;
+      key?: string;
+      signal: AbortSignal;
+      verifiedToken?: string;
+      reverified?: boolean;
+    }
   ): Promise<unknown> => {
     const { body, key, signal } = requestContext;
     if (!baseUrl) throw new ReportsApiError('reports_unavailable');
@@ -107,7 +118,9 @@ export function createLiveReportsService(
               ? captureLiveReadClerkIdentity
               : captureLiveClerkIdentity
           );
-      const sessionToken = token ? await token() : identity!.token;
+      const sessionToken =
+        requestContext.verifiedToken ??
+        (token ? await token() : identity!.token);
       await identity?.assertCurrent();
       if (signal?.aborted) throw new ReportsApiError('offline');
       response = await measurePerformance('reports.read', () =>
@@ -137,6 +150,25 @@ export function createLiveReportsService(
     }
     await identity?.assertCurrent();
     assertReadActive(signal);
+    if (
+      !response.ok &&
+      response.status === 403 &&
+      method !== 'GET' &&
+      object(value).code === 'RECENT_AUTH_REQUIRED'
+    ) {
+      if (!requestContext.reverified) {
+        const freshToken = await requestRecentAuthentication();
+        await identity?.assertCurrent();
+        assertReadActive(signal);
+        if (freshToken)
+          return sendRequest(method, path, {
+            ...requestContext,
+            verifiedToken: freshToken,
+            reverified: true
+          });
+      }
+      throw new ReportsApiError('recent_auth_required');
+    }
     if (!response.ok)
       throw new ReportsApiError(
         response.status === 403
@@ -206,8 +238,13 @@ export function createLiveReportsService(
           type: 'financial_summary',
           period: input.kind,
           anchorDate: input.anchorDate,
+          ...(input.monthStartDay === undefined
+            ? {}
+            : { monthStartDay: String(input.monthStartDay) }),
           currency: input.currencyCode,
-          ...(input.accountIds?.length ? { accountIds: [...new Set(input.accountIds)].sort().join(',') } : {})
+          ...(input.accountIds?.length
+            ? { accountIds: [...new Set(input.accountIds)].sort().join(',') }
+            : {})
         }).toString()}`,
         context
       ),
@@ -286,11 +323,17 @@ export function createLiveReportsService(
       range.endDate !== period.endDate
     )
       throw new ReportsApiError('report_range_mismatch');
-    const key = `report:${input.kind}:${input.anchorDate}:${input.currencyCode}:${input.accountIds?.length ? [...new Set(input.accountIds)].sort().join(',') : 'all'}`;
+    const key = `report:${input.kind}:${input.anchorDate}:${input.currencyCode}:${input.monthStartDay ?? 1}:${input.accountIds?.length ? [...new Set(input.accountIds)].sort().join(',') : 'all'}`;
     if (!Array.isArray(response.breakdowns))
       throw new ReportsApiError('contract_mismatch');
     const breakdowns = [
-      categoryBreakdown(response.breakdowns, period, input.currencyCode, key, input.accountIds ?? [])
+      categoryBreakdown(
+        response.breakdowns,
+        period,
+        input.currencyCode,
+        key,
+        input.accountIds ?? []
+      )
     ];
     const sourceReasons: CompletenessReason[] =
       metadata.dataState === 'partial' || metadata.dataState === 'estimated'
@@ -367,7 +410,7 @@ export function createLiveReportsService(
   });
   const attempt = (
     value: unknown,
-    fallback?: ReportSnapshot,
+    fallback?: ReportSnapshot | null,
     operationId = ''
   ): ReportOutputAttempt => {
     const row = exact(value, [
@@ -404,10 +447,13 @@ export function createLiveReportsService(
     )
       throw new ReportsApiError('contract_mismatch');
     const saved = attempts.get(String(row.id ?? row.attemptId));
-    if (!fallback && !saved)
-      throw new ReportsApiError('report_snapshot_unavailable');
-    const outputSnapshot = fallback ?? saved?.snapshot;
-    if (!outputSnapshot) throw new ReportsApiError('reports_unavailable');
+    const outputSnapshot = fallback ?? saved?.snapshot ?? null;
+    if (
+      row.downloadUrl !== undefined &&
+      (typeof row.downloadUrl !== 'string' ||
+        new URL(row.downloadUrl).protocol !== 'https:')
+    )
+      throw new ReportsApiError('contract_mismatch');
     return {
       id: String(row.id ?? row.attemptId),
       operationId,
@@ -429,14 +475,86 @@ export function createLiveReportsService(
                 ? 'failed'
                 : 'scheduled',
       snapshot: outputSnapshot,
+      ...(typeof row.downloadUrl === 'string'
+        ? {
+            downloadUrl: row.downloadUrl,
+            downloadUrlExpiresAt: epoch(row.downloadUrlExpiresAt)
+          }
+        : {}),
       retryOfAttemptId: null,
       failureCategory: status === 'failed' ? 'unknown' : null,
       requestedAt: epoch(row.requestedAt ?? row.generatedAt),
-      completedAt: ['ready', 'delivered', 'failed', 'expired'].includes(status)
-        ? epoch(row.updatedAt ?? row.generatedAt)
-        : null,
+      completedAt:
+        ['ready', 'delivered', 'failed', 'expired'].includes(status) &&
+        (row.updatedAt ?? row.generatedAt)
+          ? epoch(row.updatedAt ?? row.generatedAt)
+          : null,
       scheduleStatusAtCompletion: null
     };
+  };
+
+  const schedule = (
+    value: unknown
+  ): import('@/domain/reports').ReportSchedule => {
+    const row = exact(value, [
+      'id',
+      'scheduleId',
+      'version',
+      'reportType',
+      'frequency',
+      'timezone',
+      'nextRunAt',
+      'deliveryChannel',
+      'recipientMasked',
+      'recipient',
+      'enabled',
+      'lastRunAt',
+      'createdAt',
+      'updatedAt',
+      'requestId'
+    ]);
+    if (
+      row.reportType !== 'financial_summary' ||
+      row.deliveryChannel !== 'email' ||
+      !['monthly', 'three_months', 'half_year', 'annual'].includes(
+        String(row.frequency)
+      ) ||
+      typeof row.timezone !== 'string' ||
+      typeof row.enabled !== 'boolean' ||
+      typeof row.id !== 'string'
+    )
+      throw new ReportsApiError('contract_mismatch');
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: row.timezone });
+    } catch {
+      throw new ReportsApiError('contract_mismatch');
+    }
+    const recipient = typeof row.recipient === 'string' ? row.recipient : '';
+    const next: import('@/domain/reports').ReportSchedule = {
+      id: row.id,
+      version: integer(row.version),
+      status: row.enabled ? 'active' : 'paused',
+      recipient: {
+        normalizedEmail: recipient,
+        status: recipient ? 'verified' : 'unverified',
+        verifiedAt: null,
+        failureCategory: null
+      },
+      frequency: row.frequency as import('@/domain/reports').ReportPeriodKind,
+      language: currentLocale(),
+      currencyCode: usePreferenceStore.getState().baseCurrencyCode,
+      deliveryDay: 1,
+      timeZone: row.timezone,
+      includeAssistantSummary: false,
+      detailLevel: 'summary',
+      lastSuccessfulAttemptId: null,
+      lastRunAt: row.lastRunAt ? epoch(row.lastRunAt) : null,
+      nextDeliveryAt: row.enabled ? epoch(row.nextRunAt) : null,
+      createdAt: epoch(row.createdAt),
+      updatedAt: epoch(row.updatedAt)
+    };
+    currentSchedule = next;
+    return next;
   };
 
   return {
@@ -463,8 +581,8 @@ export function createLiveReportsService(
         ['items', 'nextCursor', 'requestId']
       );
       const item = Array.isArray(page.items) ? page.items[0] : undefined;
-      if (item)
-        throw new ReportsApiError('report_schedule_settings_unavailable');
+      if (item) return schedule(item);
+      currentSchedule = null;
       return null;
     },
     async verifyRecipient(email, operationId) {
@@ -487,26 +605,64 @@ export function createLiveReportsService(
       };
     },
     async saveSchedule(input, expectedVersion, operationId) {
-      void input;
-      void expectedVersion;
-      void operationId;
-      throw new ReportsApiError('report_schedule_settings_unavailable');
+      if (
+        input.deliveryDay !== 1 ||
+        input.includeAssistantSummary ||
+        input.detailLevel !== 'summary'
+      )
+        throw new ReportsApiError('report_schedule_settings_unavailable');
+      const body = {
+        reportType: 'financial_summary',
+        frequency: input.frequency,
+        timezone: input.timeZone,
+        deliveryChannel: 'email',
+        recipient: input.recipientEmail,
+        enabled:
+          !input.status ||
+          input.status === 'active' ||
+          input.status === 'verification_required'
+      };
+      if (expectedVersion !== null && !currentSchedule)
+        await this.getSchedule();
+      if (expectedVersion !== null && !currentSchedule)
+        throw new ReportsApiError('not_found');
+      const path =
+        expectedVersion === null
+          ? '/api/v1/report-schedules'
+          : `/api/v1/report-schedules/${encodeURIComponent(currentSchedule!.id)}`;
+      const value = schedule(
+        await send(
+          expectedVersion === null ? 'POST' : 'PATCH',
+          path,
+          expectedVersion === null ? body : { ...body, expectedVersion },
+          operationId
+        )
+      );
+      return { value, affectedScopes: ['reports.schedule'] };
     },
     async setScheduleStatus(status, expectedVersion, operationId) {
-      void status;
-      void expectedVersion;
-      void operationId;
-      throw new ReportsApiError('report_schedule_settings_unavailable');
+      if (!currentSchedule) await this.getSchedule();
+      if (!currentSchedule) throw new ReportsApiError('not_found');
+      const value = schedule(
+        await send(
+          'PATCH',
+          `/api/v1/report-schedules/${encodeURIComponent(currentSchedule.id)}`,
+          { expectedVersion, enabled: status === 'active' },
+          operationId
+        )
+      );
+      return { value, affectedScopes: ['reports.schedule'] };
     },
     saveScheduleDraft: (value) => local.saveDraft(value),
     loadScheduleDraft: () => local.loadDraft(),
     discardScheduleDraft: () => local.discardDraft(),
     async previewOutput(input, context) {
-      if (input.accountIds?.length)
-        throw new ReportsApiError('report_account_scope_unavailable');
       const value = await report(input, context);
       const result = {
         previewId: `preview:${value.key}:${input.detailLevel}`,
+        ...(input.accountIds?.length
+          ? { accountIds: [...new Set(input.accountIds)].sort() }
+          : {}),
         snapshot: snapshot(value, input.language, input.detailLevel),
         recipientEmail: input.recipientEmail ?? null
       };
@@ -530,6 +686,11 @@ export function createLiveReportsService(
       if (!preview) throw new ReportsApiError('stale_preview');
       const body = {
         type: 'financial_summary',
+        currency: preview.snapshot.currencyCode,
+        timezone: preview.snapshot.period.timeZone,
+        ...(preview.accountIds?.length
+          ? { accountIds: preview.accountIds }
+          : {}),
         periodStart: preview.snapshot.period.startDate,
         periodEnd: preview.snapshot.period.endDate,
         format: 'pdf',
@@ -553,6 +714,7 @@ export function createLiveReportsService(
     async listAttempts(input, context) {
       const query = new URLSearchParams({
         limit: '100',
+        ...(input?.cursor ? { cursor: input.cursor } : {}),
         ...(input?.scheduleId ? { scheduleId: input.scheduleId } : {}),
         ...(input?.status
           ? { status: input.status === 'sent' ? 'delivered' : input.status }
@@ -562,8 +724,6 @@ export function createLiveReportsService(
         await read(`/api/v1/reports?${query.toString()}`, context),
         ['items', 'nextCursor', 'requestId']
       );
-      if (page.nextCursor !== null)
-        throw new ReportsApiError('report_attempt_paging_unavailable');
       const persisted = new Map(
         (await local.listAttempts()).map((item) => [item.id, item])
       );

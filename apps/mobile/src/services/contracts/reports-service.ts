@@ -28,6 +28,7 @@ export interface ReportQuery {
   anchorDate: LocalDate;
   currencyCode: string;
   timeZone: string;
+  monthStartDay?: number;
   accountIds?: string[];
 }
 
@@ -42,6 +43,7 @@ export interface ReportOutputPreviewInput extends ReportQuery {
 }
 
 export interface AttemptQuery {
+  cursor?: string;
   scheduleId?: string;
   status?: ReportOutputAttempt['status'];
 }

@@ -195,6 +195,12 @@ export class SyncRepository {
     );
   }
 
+  async clearCursor(domain: SyncDomain): Promise<void> {
+    await (
+      await this.db()
+    ).runAsync('DELETE FROM sync_state WHERE domain=?', domain);
+  }
+
   async mapId(
     domain: SyncDomain,
     localId: string,

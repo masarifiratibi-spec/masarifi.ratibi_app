@@ -1,5 +1,8 @@
+import { privacyExportStatusSchema } from '@/domain/settings';
+import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { z } from 'zod';
 import { measurePerformance } from '@/services/platform/performance-timing';
+import { useAppShellStore } from '@/state/app-shell';
 
 import {
   onboardingSteps,
@@ -196,18 +199,37 @@ async function requestClerkToken(
   bridge: LiveClerkBridge,
   options: { skipCache: boolean }
 ) {
+  if (useAppShellStore.getState().session?.restoration === 'local')
+    throw new HttpError(
+      'provider_unavailable',
+      503,
+      undefined,
+      undefined,
+      'network'
+    );
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await measurePerformance(
       options.skipCache ? 'identity.token.fresh' : 'identity.token.read',
-      () => Promise.race([
-        bridge.getToken(options),
-        new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new HttpError(
-            'provider_unavailable', 503, undefined, undefined, 'timeout'
-          )), 10_000);
-        })
-      ])
+      () =>
+        Promise.race([
+          bridge.getToken(options),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(
+              () =>
+                reject(
+                  new HttpError(
+                    'provider_unavailable',
+                    503,
+                    undefined,
+                    undefined,
+                    'timeout'
+                  )
+                ),
+              10_000
+            );
+          })
+        ])
     );
   } catch (error) {
     if (
@@ -248,6 +270,21 @@ export async function getLiveClerkOwnerId(): Promise<string | null> {
 }
 
 export async function captureLiveClerkOwner() {
+  const local = useAppShellStore.getState();
+  if (local.session?.restoration === 'local') {
+    const session = local.session;
+    const assertCurrent = async () => {
+      const current = useAppShellStore.getState();
+      if (
+        current.session !== session ||
+        !session.userId ||
+        current.privacyLock?.appLockStatus !== 'unlocked'
+      )
+        throw new HttpError('session_expired', 401);
+    };
+    await assertCurrent();
+    return { userId: session.userId!, assertCurrent };
+  }
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (!bridge || !session) throw new HttpError('session_expired', 401);
@@ -397,6 +434,14 @@ export function createLiveAuthService(
       await parsedRequest(request, '/api/v1/me', profileSchema);
     },
     async signOut(scope) {
+      const expectedOwner = useAppShellStore.getState().session?.userId;
+      const currentSession = await bridge.getSession();
+      if (
+        expectedOwner &&
+        currentSession &&
+        expectedOwner !== currentSession.userId
+      )
+        throw new HttpError('session_expired', 401);
       if (!isMobileAutomationEnabled()) {
         await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' });
         return;
@@ -409,9 +454,12 @@ export function createLiveAuthService(
             throw new HttpError('session_expired', 401);
         };
         const deviceRegistration = await getDeviceRegistration();
-        if (!deviceRegistration) throw new HttpError('provider_unavailable', 503);
+        if (!deviceRegistration)
+          throw new HttpError('provider_unavailable', 503);
         await assertSession();
-        await usePreferenceStore.getState().withdrawReturnRemindersForSession(session.userId);
+        await usePreferenceStore
+          .getState()
+          .withdrawReturnRemindersForSession(session.userId);
         await assertSession();
         const options = {
           method: 'POST',
@@ -420,14 +468,26 @@ export function createLiveAuthService(
         // Keep the old credential until its server installation has been revoked.
         if (request === defaultIdentityRequest) {
           const actor = await captureLiveClerkIdentity();
-          if (actor.userId !== session.userId) throw new HttpError('session_expired', 401);
+          if (actor.userId !== session.userId)
+            throw new HttpError('session_expired', 401);
           await assertSession();
-          await requestJson('/api/v1/tracking/device/installations/sign-out', z.unknown(), { ...options, token: actor.token });
+          await requestJson(
+            '/api/v1/tracking/device/installations/sign-out',
+            z.unknown(),
+            { ...options, token: actor.token }
+          );
           await actor.assertCurrent();
-        } else await request('/api/v1/tracking/device/installations/sign-out', options);
+        } else
+          await request(
+            '/api/v1/tracking/device/installations/sign-out',
+            options
+          );
         await assertSession();
       }
-      await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current', ...(session ? { sessionId: session.id } : {}) });
+      await bridge.signOut({
+        scope: scope === 'all' ? 'all' : 'current',
+        ...(session ? { sessionId: session.id } : {})
+      });
     }
   };
 }
@@ -573,7 +633,7 @@ export function createLiveIdentityService({
         headers: { 'Idempotency-Key': operationId },
         body: {
           displayName: input.name,
-          timezone: input.timeZone,
+          timezone: resolveEffectiveTimeZone(input.timeZone),
           expectedVersion
         }
       });
@@ -702,8 +762,51 @@ export function createLiveIdentityService({
     async revokeAllSessions() {
       throw new HttpError('provider_unavailable', 503);
     },
-    async listSecurityEvents() {
-      throw new HttpError('provider_unavailable', 503);
+    async listSecurityEvents(cursor) {
+      const page = await parsedRequest(
+        request,
+        `/api/v1/me/security/events?${new URLSearchParams({ limit: '50', ...(cursor ? { cursor } : {}) })}`,
+        z
+          .object({
+            items: z
+              .array(
+                z
+                  .object({
+                    id: z.string().uuid(),
+                    eventType: z.string().max(80),
+                    severity: z.enum([
+                      'info',
+                      'low',
+                      'medium',
+                      'high',
+                      'critical'
+                    ]),
+                    occurredAt: z.string().datetime()
+                  })
+                  .strip()
+              )
+              .max(50),
+            nextCursor: z.string().max(2048).nullable()
+          })
+          .strict()
+      );
+      return {
+        items: page.items.map((event) => ({
+          id: event.id,
+          type: 'other' as const,
+          eventType: event.eventType,
+          deviceLabel: '—',
+          platform: 'unknown' as const,
+          occurredAt: Date.parse(event.occurredAt),
+          status: 'succeeded' as const,
+          recoveryDestination: {
+            kind: 'settings' as const,
+            key: 'privacy' as const
+          }
+        })),
+        nextCursor: page.nextCursor,
+        total: page.items.length
+      };
     },
     async requestPrivacyAction(kind, operationId) {
       const serverRequest =
@@ -731,6 +834,13 @@ export function createLiveIdentityService({
       return mutation(privacyRequest(kind, operationId, serverRequest), [
         `settings.privacy-request.${kind}`
       ]);
+    },
+    async getPrivacyExport(requestId) {
+      return parsedRequest(
+        request,
+        `/api/v1/me/privacy/exports/${encodeURIComponent(requestId)}`,
+        privacyExportStatusSchema
+      );
     },
     async getAccountDeletion(requestId) {
       const deletion = await parsedRequest(

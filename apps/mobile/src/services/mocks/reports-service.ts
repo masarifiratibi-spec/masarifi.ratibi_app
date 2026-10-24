@@ -190,8 +190,9 @@ export function createMockReportsService(
       return preview;
     },
     async requestOutput(input, operationId) {
-      let snapshot: ReportSnapshot | undefined = [...previews.values()][0]
-        ?.snapshot;
+      let snapshot: ReportSnapshot | null | undefined = [
+        ...previews.values()
+      ][0]?.snapshot;
       let retryOfAttemptId: string | null = null;
       const kind = input.kind;
       if (input.kind !== 'scheduled' && input.kind !== 'retry') {

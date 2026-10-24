@@ -11,6 +11,7 @@ const SUBTYPES = ['administrative', 'reversal', 'refund', 'salary', 'pos_purchas
 function normalizeFinancialText(value) {
   return value.normalize('NFKC').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/٫/g, '.').replace(/٬/g, ',')
+    .replace(/[\u064b-\u065f\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي')
     .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim();
 }
 function boundedStrings(value, max = 64) {
@@ -54,7 +55,11 @@ function canonicalJson(value) {
 }
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function phraseMatches(text, phrase) {
-  return new RegExp(`(?<![\\p{L}])${escape(normalizeFinancialText(phrase).toLowerCase())}(?![\\p{L}])`, 'u').test(text);
+  const pattern = normalizeFinancialText(phrase).toLowerCase().split(' ').map(word =>
+    /\p{Script=Arabic}/u.test(word)
+      ? `(?:[وف])?(?:بال|كال|لل|ال|ب|ك|ل)?${escape(word)}(?:ك|كم|كما|كن|نا|ها|هم|هن|ه|ا)?`
+      : escape(word)).join(' ');
+  return new RegExp(`(?<![\\p{L}])${pattern}(?![\\p{L}])`, 'u').test(text);
 }
 function applies(rule, input, text) {
   return rule.enabled && [['countries', input.country], ['locales', input.locale], ['providers', input.sender], ['channels', input.channel]]
@@ -69,17 +74,22 @@ function minorUnits(raw, scale) {
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 const currencySpellingAliases = {
-  SAR: ['ريال سعودى'],
-  AED: ['درهم اماراتي', 'درهم إماراتى', 'درهم اماراتى', 'دراهم إماراتية', 'دراهم اماراتية', 'Dhs'],
+  SAR: ['ريال سعودى', 'SR', 'ريالاً', 'ريالا'],
+  KWD: ['KD'], BHD: ['BD'], OMR: ['RO'],
+  JOD: ['دينار أردني', 'دينار اردني', 'دينار', 'دينارا'],
+  AED: ['درهم اماراتي', 'درهم إماراتى', 'درهم اماراتى', 'دراهم إماراتية', 'دراهم اماراتية', 'Dhs', 'درهماً', 'درهما'],
   EGP: ['جنيه مصرى', 'جنية', 'جنية مصري', 'جنية مصرى', 'L.E.', 'جم'],
 };
 function effectiveCurrencies(currencies) {
-  return currencies.map(currency => ({...currency,
+  const values = [...currencies];
+  if (values.length < 32 && !values.some(currency => currency.code === 'YER'))
+    values.push({code:'YER',scale:2,supported:false,aliases:['YER','ريال يمني']});
+  return values.map(currency => ({...currency,
     // Preserve configured aliases first and the shared/native schema's bounded vocabulary.
     aliases:[...new Set([...currency.aliases,...(currencySpellingAliases[currency.code] || [])])].slice(0,16)
   }));
 }
-function moneyCandidates(text, snapshot) {
+function moneyCandidates(text, snapshot, verifiedAccountCurrency) {
   const aliases = effectiveCurrencies(snapshot.currencies).flatMap(c => c.aliases.map(a => ({alias: normalizeFinancialText(a), currency: c}))).sort((a,b) => b.alias.length-a.alias.length);
   const byAlias = new Map(aliases.map(a => [a.alias.toLowerCase(), a.currency]));
   const token = aliases.map(a => escape(a.alias)).join('|');
@@ -87,14 +97,21 @@ function moneyCandidates(text, snapshot) {
   const pattern = new RegExp(`(?<![\\p{L}])(?:(${token})\\s*(${number})|(${number})\\s*(${token}))(?![\\p{L}])`, 'giu');
   const candidates = [];
   for (const m of text.matchAll(pattern)) {
-    const currency = byAlias.get((m[1] || m[4]).toLowerCase());
+    const alias = (m[1] || m[4]).toLowerCase();
+    const riyal = ['ريال','ريالا'].includes(alias), dinar = ['دينار','دينارا'].includes(alias);
+    const family = riyal ? ['SAR','QAR','OMR','YER','IRR'] : ['KWD','BHD','JOD','IQD','DZD','TND','LYD'];
+    const currency = riyal || dinar
+      ? family.includes(verifiedAccountCurrency) ? effectiveCurrencies(snapshot.currencies).find(c => c.code === verifiedAccountCurrency) : null
+      : byAlias.get(alias);
     const before = text.slice(Math.max(0,m.index-60),m.index).toLowerCase();
     const after = text.slice(m.index+m[0].length,m.index+m[0].length+32).toLowerCase();
     // Roles are structural boundaries, not a preference for one currency over another.
-    const role = /(?:avl\.?\s*bal|available\s+balance|balance|الرصيد|رصيد)[^.;:،,]*[: ]*$/.test(before) ? 'balance' :
+    const role = /(?:avl\.?\s*(?:cr\.?\s*)?(?:bal(?:ance)?|limit)|available\s+(?:balance|credit(?:\s+limit)?)|credit\s+limit|balance|الرصيد|رصيد|الحد\s+الائتماني|حد\s+الائتمان)[^.;:،,]*[: ]*$/.test(before) ? 'balance' :
       /(?:fee|fees|charge|commission|رسوم|عمولة)\s*[: ]*$/.test(before) ? 'fee' :
       /(?:equivalent|exchange rate|converted|ما يعادل)\s*[: ]*$/.test(before) || /^\s*(?:equivalent|ما يعادل)/.test(after) ? 'fx' : 'transaction';
-    candidates.push({ role, amountMinor: minorUnits(m[2] || m[3],currency.scale), currency:currency.code, supported:currency.supported });
+    const raw = m[2] || m[3];
+    candidates.push({ role, raw, ambiguous: !currency, amountMinor: currency ? minorUnits(raw,currency.scale) : null,
+      currency:currency?.code ?? null, supported:currency?.supported ?? false });
   }
   return candidates;
 }
@@ -151,23 +168,29 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   if (action) Object.assign(result,action.effects);
   if (action && matched.some(r=>r.family==='action' && r.effects.direction && r.effects.direction!==action.effects.direction)) result.reasonCodes.push('conflicting_direction');
   if (lifecycle) Object.assign(result,lifecycle.effects);
+  if (new RegExp(securityCodePattern, 'iu').test(lower)) {
+    result.status='administrative'; result.disposition='ignore';
+    result.reasonCodes.push('administrative_or_excluded'); return result;
+  }
   if (exclusion) { Object.assign(result,exclusion.effects); result.reasonCodes.push('administrative_or_excluded'); return result; }
-  const candidates = moneyCandidates(text,snapshot);
-  if(result.subtype!=='fee' && candidates.some(c=>c.role==='fee' && c.amountMinor!==null)) result.reasonCodes.push('fee_components_required');
+  const candidates = moneyCandidates(text,snapshot,input.verifiedAccountCurrency);
+  if(result.subtype!=='fee' && candidates.some(c=>c.role==='fee' && (c.amountMinor!==null || c.ambiguous && minorUnits(c.raw,3)!==null))) result.reasonCodes.push('fee_components_required');
   const amounts = candidates.filter(c=>c.role==='transaction' || result.subtype==='fee' && c.role==='fee');
-  if (amounts.length === 1) {result.amountMinor=amounts[0].amountMinor; result.currency=amounts[0].currency; if(!amounts[0].supported) result.reasonCodes.push('unsupported_currency');}
+  if (amounts.length === 1) {result.amountMinor=amounts[0].amountMinor; result.currency=amounts[0].currency;
+    if(amounts[0].ambiguous) result.reasonCodes.push('currency_ambiguous');
+    else if(!amounts[0].supported) result.reasonCodes.push('unsupported_currency');}
   else result.reasonCodes.push(amounts.length ? 'amount_conflict':'amount_missing');
   if (result.amountMinor===null) result.reasonCodes.push('amount_invalid');
   for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
     const label = (m[1]||m[2]).toLowerCase(), suffix=m[3].replace(/[^0-9]/g,'');
     const prefix=lower.slice(0,m.index).trimEnd();
     const side=['transfer_sent','transfer_received','withdrawal'].includes(result.subtype)
-      ? /(?:\bfrom|من)$/u.test(prefix) ? 'source' : /(?:\bto|إلى|الى)$/u.test(prefix) ? 'destination' : undefined
+      ? /(?:\bfrom|من)$/u.test(prefix) ? 'source' : /(?:\bto|إلى|الى|الي)$/u.test(prefix) ? 'destination' : undefined
       : undefined;
     result.instruments.push({role:/card|بطاقة|ending/.test(label)?'card':'account',suffix,...(side?{side}:{})});
   }
-  const merchant = text.match(/(?:\bat\b|\bby\b|لدى|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\bcard\b|\baccount\b|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];
-  result.merchant=merchant ? merchant.replace(/[.,\s]+$/,'').slice(0,160) : null;
+  const merchant = text.match(/(?:\bat\b|\bby\b|لدي|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\b(?:card|account)\s*[:#-]?\s*[xX*•]*\d|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];
+  result.merchant=merchant ? merchant.replace(/(?:[.;،]\s*|\s+)(?:never share|do not share|don't share|لا تشارك|لا تفصح)[\s\S]*$/iu,'').replace(/[.,\s]+$/,'').slice(0,160) : null;
   const originalReference=text.match(/(?:original(?: transaction)? reference|مرجع العملية الأصلية|مرجع العملية الاصلية)\s*[:#]?\s*([A-Za-z0-9-]{6,80})/iu);
   if(originalReference && ['refund','reversal'].includes(result.subtype)) result.originalProviderReference=originalReference[1];
   const referenceText=originalReference ? text.slice(0,originalReference.index)+text.slice(originalReference.index+originalReference[0].length) : text;
@@ -179,7 +202,7 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   if (['refund','reversal'].includes(result.subtype)) result.reasonCodes.push('original_transaction_required');
   if (result.timeProvenance === 'ambiguous' || result.timeProvenance === 'embedded' && !result.occurredAt) result.reasonCodes.push('date_ambiguous');
   if (!lifecycle && action && !result.reasonCodes.length) result.disposition='capture_candidate';
-  if (/\b(?:offer|promo|discount)\b|عرض|خصم\s*\d+\s*%/iu.test(lower)) result.disposition='ignore';
+  if (new RegExp(marketingPattern,'iu').test(lower)) result.disposition='ignore';
   return result;
 }
 function validateClassification(value) {
@@ -208,14 +231,15 @@ function customFinancialEvidence(overrides) {
 }
 // This pattern is structural marketing syntax shared with the classifier;
 // published exclusions supply the editable phrase vocabulary.
-const marketingPattern = '\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%';
+const marketingPattern = '\\b(?:offer|promo|discount)\\b|(?<![\\p{L}])عرض(?![\\p{L}])|خصم\\s*\\d+\\s*%';
+const securityCodePattern = '\\b(?:use|enter|verification|security|one[ -]time)\\s+(?:the\\s+)?(?:code|password)\\b[^\\n]{0,40}[0-9]{4,8}\\b';
 function compileFinancialDiscoveryPolicy(snapshot, overrides = []) {
   const effective=effectiveFinancialSnapshot(snapshot,overrides);
   return {version:1,releaseId:effective.releaseId,engineVersion:ENGINE_VERSION,
     rules:effective.rules.map(rule=>({...rule,any:rule.any.map(p=>normalizeFinancialText(p).toLowerCase()),
       all:(rule.all||[]).map(p=>normalizeFinancialText(p).toLowerCase()),not:(rule.not||[]).map(p=>normalizeFinancialText(p).toLowerCase())})),
     currencies:effective.currencies,contexts:(effective.discoveryContexts||[]).map(p=>normalizeFinancialText(p).toLowerCase()),
-    custom:customFinancialEvidence(overrides),providers:effective.providers||[],marketingPattern};
+    custom:customFinancialEvidence(overrides),providers:effective.providers||[],marketingPattern,securityCodePattern};
 }
 function discoverFinancialMessage(input, snapshot = defaultSnapshot, overrides = []) {
   const effective=effectiveFinancialSnapshot(snapshot,overrides);
@@ -225,7 +249,7 @@ function discoverFinancialMessage(input, snapshot = defaultSnapshot, overrides =
   const custom=customFinancialEvidence(overrides).filter(rule=>phraseMatches(text,rule.phrase));
   const customRuleKeys=custom.map(rule=>rule.ruleKey);
   classification.appliedRuleKeys=[...new Set([...classification.appliedRuleKeys,...customRuleKeys])].slice(0,64);
-  const monetaryEvidence=moneyCandidates(text,effective).some(c=>c.amountMinor!==null &&
+  const monetaryEvidence=moneyCandidates(text,effective,input.verifiedAccountCurrency).some(c=>(c.amountMinor!==null || c.ambiguous && minorUnits(c.raw,3)!==null) &&
     (c.role==='transaction' || classification.subtype==='fee' && c.role==='fee'));
   const financialEvidence=matched.some(rule=>rule.family==='action') || custom.length>0 &&
     (effective.discoveryContexts||[]).some(phrase=>phraseMatches(text,phrase));

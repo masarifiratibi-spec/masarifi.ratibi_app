@@ -4,8 +4,12 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
 
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => '11111111-1111-4111-8111-111111111111'
+}));
+
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), back: jest.fn() },
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({})
 }));
 
@@ -22,20 +26,42 @@ jest.mock('./useSupportDraft', () => ({ useSupportDraft: jest.fn() }));
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const mockQueries = require('./support-queries') as Record<string, jest.Mock>;
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const mockDraft = require('./useSupportDraft') as { useSupportDraft: jest.Mock };
+const mockDraft = require('./useSupportDraft') as {
+  useSupportDraft: jest.Mock;
+};
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SupportHomeScreen } = require('./SupportHomeScreen') as { SupportHomeScreen: React.ComponentType };
+const { SupportHomeScreen } = require('./SupportHomeScreen') as {
+  SupportHomeScreen: React.ComponentType;
+};
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SupportFormScreen } = require('./SupportFormScreen') as { SupportFormScreen: React.ComponentType<{ mode?: string }> };
+const { SupportFormScreen } = require('./SupportFormScreen') as {
+  SupportFormScreen: React.ComponentType<{ mode?: string }>;
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   changeLocale('en');
-  mockQueries.useArticleSearch.mockReturnValue({ data: articles(), isLoading: false, isError: false });
-  mockQueries.useSaveSupportDraft.mockReturnValue({ mutateAsync: jest.fn(async (draft) => draft), isPending: false });
-  mockQueries.useSubmitSupportDraft.mockReturnValue({ mutate: jest.fn(), isPending: false, isError: false });
+  mockQueries.useArticleSearch.mockReturnValue({
+    data: articles(),
+    isLoading: false,
+    isError: false
+  });
+  mockQueries.useSaveSupportDraft.mockReturnValue({
+    mutateAsync: jest.fn(async (draft) => draft),
+    isPending: false
+  });
+  mockQueries.useSubmitSupportDraft.mockReturnValue({
+    mutateAsync: jest.fn(async () => ({ value: { ticketId: null } })),
+    isPending: false,
+    isError: false
+  });
   mockDraft.useSupportDraft.mockReturnValue({
-    values: { category: 'technical', subject: '', description: '', context: null },
+    values: {
+      category: 'technical',
+      subject: '',
+      description: '',
+      context: null
+    },
     update: jest.fn(),
     discard: jest.fn(),
     retrySave: jest.fn(),
@@ -57,9 +83,16 @@ test('support form validates, flushes latest draft before submit, reviews/remove
   const update = jest.fn();
   const save = jest.fn(async (draft) => draft);
   const markSubmitted = jest.fn();
-  const submit = jest.fn((_variables, options) => options?.onSuccess?.());
-  mockQueries.useSaveSupportDraft.mockReturnValue({ mutateAsync: save, isPending: false });
-  mockQueries.useSubmitSupportDraft.mockReturnValue({ mutate: submit, isPending: false, isError: true });
+  const submit = jest.fn(async () => ({ value: { ticketId: null } }));
+  mockQueries.useSaveSupportDraft.mockReturnValue({
+    mutateAsync: save,
+    isPending: false
+  });
+  mockQueries.useSubmitSupportDraft.mockReturnValue({
+    mutateAsync: submit,
+    isPending: false,
+    isError: true
+  });
   mockDraft.useSupportDraft.mockReturnValue({
     values: transactionReportDraft(),
     update,
@@ -72,7 +105,11 @@ test('support form validates, flushes latest draft before submit, reviews/remove
 
   renderWithProviders(<SupportFormScreen mode="transaction_report" />);
 
-  expect(screen.getByLabelText(`${t('support.category.technical')} ${t('designSystem.state.selected')}`)).toBeTruthy();
+  expect(
+    screen.getByLabelText(
+      `${t('support.category.technical')} ${t('designSystem.state.selected')}`
+    )
+  ).toBeTruthy();
   expect(screen.getByText(t('support.form.context.transaction'))).toBeTruthy();
   fireEvent.press(screen.getByText(t('support.form.removeContext')));
   expect(update).toHaveBeenCalledWith({ context: null });
@@ -83,20 +120,51 @@ test('support form validates, flushes latest draft before submit, reviews/remove
   expect(screen.getByText(t('support.form.validation.subject'))).toBeTruthy();
   expect(submit).not.toHaveBeenCalled();
 
-  fireEvent.changeText(screen.getByLabelText(t('support.form.subject')), 'Wrong category');
-  fireEvent.changeText(screen.getByLabelText(t('support.form.description')), 'Latest description');
+  fireEvent.changeText(
+    screen.getByLabelText(t('support.form.subject')),
+    'Wrong category'
+  );
+  fireEvent.changeText(
+    screen.getByLabelText(t('support.form.description')),
+    'Latest description'
+  );
   fireEvent.press(screen.getByText(t('support.form.submit')));
-  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Wrong category', description: 'Latest description' })));
-  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ operationId: expect.stringMatching(/^support-submit-/) }), expect.any(Object));
-  expect(markSubmitted).toHaveBeenCalled();
+  await waitFor(() =>
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Wrong category',
+        description: 'Latest description'
+      })
+    )
+  );
+  await waitFor(() =>
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationId: expect.stringMatching(/^[0-9a-f-]{36}$/)
+      })
+    )
+  );
+  await waitFor(() => expect(markSubmitted).toHaveBeenCalled());
   expect(screen.getByText(t('support.form.failure.offline'))).toBeTruthy();
 });
 
 function articles() {
   return [
-    { id: 'faq-subscription', kind: 'faq', titleKey: 'support.article.faq.subscription.title' },
-    { id: 'help-notifications', kind: 'help', titleKey: 'support.article.help.notifications.title' },
-    { id: 'whats-new-009', kind: 'whats_new', titleKey: 'support.article.whatsNew.v009.title' }
+    {
+      id: 'faq-subscription',
+      kind: 'faq',
+      titleKey: 'support.article.faq.subscription.title'
+    },
+    {
+      id: 'help-notifications',
+      kind: 'help',
+      titleKey: 'support.article.help.notifications.title'
+    },
+    {
+      id: 'whats-new-009',
+      kind: 'whats_new',
+      titleKey: 'support.article.whatsNew.v009.title'
+    }
   ];
 }
 
@@ -105,6 +173,13 @@ function transactionReportDraft() {
     category: 'technical',
     subject: 'Wrong category',
     description: 'This transaction looks wrong.',
-    context: { itemId: 'transaction-1', itemKind: 'transaction', category: 'food', status: 'posted', appVersion: '1.0.0', diagnosticCategory: 'transaction' }
+    context: {
+      itemId: 'transaction-1',
+      itemKind: 'transaction',
+      category: 'food',
+      status: 'posted',
+      appVersion: '1.0.0',
+      diagnosticCategory: 'transaction'
+    }
   };
 }

@@ -1,3 +1,4 @@
+import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useReportAnchorDate } from './useReportAnchorDate';
 import React, { useMemo, useState } from 'react';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
@@ -73,13 +74,14 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
-  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const selectedAccountId = useCoreFinanceViewState(
     (state) => state.selectedAccountId
   );
-  const { scrollOffset, setPeriod, setScrollOffset } =
-    useReportsViewState();
+  const { scrollOffset, setPeriod, setScrollOffset } = useReportsViewState();
   const { fontScale, width } = useWindowDimensions();
   const stackMetrics = width < 350 || fontScale >= 1.6;
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
@@ -177,24 +179,37 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             stackMetrics={stackMetrics}
             timeframe={timeframe}
             trend={trendQuery.data ?? []}
-            trendFeedback={trendQuery.isError ? (
-              <StateView state="error" title={translate('reports.state.error')}
-                actionLabel={translate('reports.action.retry')}
-                onAction={() => void trendQuery.refetch()} />
-            ) : trendQuery.isPending ? (
-              <StateView state="loading" title={translate('reports.state.loading')} />
-            ) : undefined}
+            trendFeedback={
+              trendQuery.isError ? (
+                <StateView
+                  state="error"
+                  title={translate('reports.state.error')}
+                  actionLabel={translate('reports.action.retry')}
+                  onAction={() => void trendQuery.refetch()}
+                />
+              ) : trendQuery.isPending ? (
+                <StateView
+                  state="loading"
+                  title={translate('reports.state.loading')}
+                />
+              ) : undefined
+            }
             onTimeframeChange={setTimeframe}
           />
         )}
         <AssistantActions
           accountName={selectedAccountId ? selectedAccount?.name : null}
           direction={direction}
-          report={reportQuery.data ?? {
-            key: `monthly:${anchorDate}:${currencyCode}:${timeZone}${selectedAccountId ? `:${selectedAccountId}` : ''}`,
-            period: {startDate: localDateInTimeZone(period.periodStart, timeZone), endDate: localDateInTimeZone(period.periodEnd, timeZone)},
-            currencyCode
-          }}
+          report={
+            reportQuery.data ?? {
+              key: `monthly:${anchorDate}:${currencyCode}:${timeZone}${selectedAccountId ? `:${selectedAccountId}` : ''}`,
+              period: {
+                startDate: localDateInTimeZone(period.periodStart, timeZone),
+                endDate: localDateInTimeZone(period.periodEnd, timeZone)
+              },
+              currencyCode
+            }
+          }
           stacked={stackMetrics}
         />
       </View>
@@ -426,7 +441,6 @@ function AnalyticsContent({
           budgetBreakdown?.items.length ? budgetRemaining : undefined
         }
       />
-
     </View>
   );
 }
@@ -452,10 +466,13 @@ function NetWorthCard({
 }) {
   const theme = useTheme();
   const first = trend[0]?.minorUnits ?? netWorthMinor;
-  const change = netWorthMinor !== null && first !== null ? netWorthMinor - first : 0;
-  const changePercent = first
-    ? Math.round((change * 10_000) / Math.abs(first)) / 100
-    : null;
+  const change =
+    netWorthMinor !== null && first !== null ? netWorthMinor - first : 0;
+  const changePercent =
+    first !== null &&
+    Math.abs(first) >= 10 ** getCurrencyMinorUnitScale(currency)
+      ? Math.round((change * 10_000) / Math.abs(first)) / 100
+      : null;
   return (
     <View style={[styles.card, styles.netWorthCard]}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
@@ -468,39 +485,43 @@ function NetWorthCard({
         size="hero"
         value={netWorthMinor}
       />
-      {trend.length > 0 && netWorthMinor !== null ? <View
-        style={[
-          styles.changeBadge,
-          {
-            alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start',
-            backgroundColor:
-              change < 0
-                ? theme.colors.financial.expenseSurface
-                : theme.colors.financial.incomeSurface
-          }
-        ]}
-      >
-        <Text
+      {trend.length > 0 && netWorthMinor !== null ? (
+        <View
           style={[
-            styles.changeText,
+            styles.changeBadge,
             {
-              color:
+              alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start',
+              backgroundColor:
                 change < 0
-                  ? theme.colors.financial.expense
-                  : theme.colors.financial.income
+                  ? theme.colors.financial.expenseSurface
+                  : theme.colors.financial.incomeSurface
             }
           ]}
         >
-          {hidden
-            ? translate('designSystem.privacy.hidden')
-            : `${change < 0 ? '▼' : '▲'} ${moneyInline(change, currency)} · ${changePercent === null ? '—' : `${changePercent}%`}`}
-        </Text>
-      </View> : null}
+          <Text
+            style={[
+              styles.changeText,
+              {
+                color:
+                  change < 0
+                    ? theme.colors.financial.expense
+                    : theme.colors.financial.income
+              }
+            ]}
+          >
+            {hidden
+              ? translate('designSystem.privacy.hidden')
+              : `${change < 0 ? '▼' : '▲'} ${moneyInline(change, currency)} · ${changePercent === null ? '—' : `${changePercent}%`}`}
+          </Text>
+        </View>
+      ) : null}
       {trendFeedback}
-      {trend.length > 0 ? <>
-        <NetWorthLine trend={trend} />
-        <ChartDateLabels trend={trend} />
-      </> : null}
+      {trend.length > 0 ? (
+        <>
+          <NetWorthLine trend={trend} />
+          <ChartDateLabels trend={trend} />
+        </>
+      ) : null}
       <View
         style={[
           styles.timeframeRow,
@@ -665,13 +686,14 @@ function MiniBars({
 }) {
   const theme = useTheme();
   const categoryValues = breakdownItems
-    .slice(0, 7)
-    .map((item) => item.value.value?.minorUnits ?? 0);
+    .filter(
+      (item) => item.value.status === 'available' && item.value.value !== null
+    )
+    .map((item) => item.value.value!.minorUnits);
   const max = Math.max(...categoryValues, 1);
-  const bars = Array.from(
-    { length: 7 },
-    (_, index) => categoryValues[index] ?? 0
-  );
+  if (!categoryValues.length)
+    return <Text>{translate('reports.state.empty')}</Text>;
+  const bars = categoryValues;
   return (
     <View style={styles.miniBars}>
       {bars.map((value, index) => (
@@ -825,10 +847,12 @@ function SavingsRateCard({
       <DirectionalText direction={direction} style={styles.savingsFooter} muted>
         {hidden
           ? translate('designSystem.privacy.hidden')
-          : expense === null || income === null ? translate('reports.state.unavailable') : translateDynamic('reports.analytics.spentOfIncome', {
-              expense: moneyInline(expense, currency),
-              income: moneyInline(income, currency)
-            })}
+          : expense === null || income === null
+            ? translate('reports.state.unavailable')
+            : translateDynamic('reports.analytics.spentOfIncome', {
+                expense: moneyInline(expense, currency),
+                income: moneyInline(income, currency)
+              })}
       </DirectionalText>
     </View>
   );
@@ -913,7 +937,9 @@ function AssistantActions({
 }: {
   accountName: string | null | undefined;
   direction: 'ltr' | 'rtl';
-  report: Pick<FinancialReport, 'key' | 'currencyCode'> & {period: Pick<FinancialReport['period'], 'startDate' | 'endDate'>};
+  report: Pick<FinancialReport, 'key' | 'currencyCode'> & {
+    period: Pick<FinancialReport['period'], 'startDate' | 'endDate'>;
+  };
   stacked: boolean;
 }) {
   const actions = [
@@ -930,7 +956,12 @@ function AssistantActions({
       params: {
         action,
         reportKey: report.key,
-        reportContext: JSON.stringify({startDate: report.period.startDate, endDate: report.period.endDate, currencyCode: report.currencyCode, accountName}),
+        reportContext: JSON.stringify({
+          startDate: report.period.startDate,
+          endDate: report.period.endDate,
+          currencyCode: report.currencyCode,
+          accountName
+        }),
         returnTo: '/(tabs)/reports'
       }
     });
@@ -1077,14 +1108,18 @@ function ReportAmount({
   const locale = usePreferenceStore((state) => state.locale);
   const formatted = hidden
     ? '••••'
-    : value === null ? '—' : formatMinorAmount(value, currency, locale).split('\u00a0')[0];
+    : value === null
+      ? '—'
+      : formatMinorAmount(value, currency, locale).split('\u00a0')[0];
   return (
     <View
       accessible
       accessibilityLabel={
         hidden
           ? translate('designSystem.privacy.hidden')
-          : value === null ? translate('reports.state.unavailable') : formatMinorAmount(value, currency, locale)
+          : value === null
+            ? translate('reports.state.unavailable')
+            : formatMinorAmount(value, currency, locale)
       }
       style={[
         styles.amountRow,
@@ -1110,14 +1145,14 @@ function ReportAmount({
 function monthDatePeriod(anchorDate: LocalDate, timeZone: string): DatePeriod {
   const boundary = buildFinancialPeriod({
     anchorDate,
-    monthStartDay: 1,
-    preset: 'calendar_month',
+    monthStartDay: usePreferenceStore.getState().monthStartDay,
+    preset: 'current_cycle',
     timeZone
   });
   return {
     kind: 'month',
     periodStart: boundary.startInstant,
-    periodEnd: boundary.endInstant - 1
+    periodEnd: boundary.endInstant
   };
 }
 

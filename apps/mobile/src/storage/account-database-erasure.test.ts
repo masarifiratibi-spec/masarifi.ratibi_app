@@ -32,18 +32,21 @@ it.each([
   ['configure', () => configureDatabaseOwner(OWNER_A)],
   ['clear', () => clearDatabaseOwner()],
   ['purge', () => purgeAccountDatabase(OWNER_A)]
-] as const)('invalidates draft snapshots on database owner %s', async (_name, lifecycle) => {
-  await configureDatabaseOwner(OWNER_A);
-  const owner = { userId: OWNER_A, assertCurrent: async () => undefined };
-  const read = jest.fn(async () => null);
-  await readTransactionDraftSnapshot(owner, 'manual', read);
-  const pending = lifecycle();
-  // Lifecycle work has not finished its queued async operation yet.
-  await readTransactionDraftSnapshot(owner, 'manual', read);
-  await pending;
-  await readTransactionDraftSnapshot(owner, 'manual', read);
-  expect(read).toHaveBeenCalledTimes(3);
-});
+] as const)(
+  'invalidates draft snapshots on database owner %s',
+  async (_name, lifecycle) => {
+    await configureDatabaseOwner(OWNER_A);
+    const owner = { userId: OWNER_A, assertCurrent: async () => undefined };
+    const read = jest.fn(async () => null);
+    await readTransactionDraftSnapshot(owner, 'manual', read);
+    const pending = lifecycle();
+    // Lifecycle work has not finished its queued async operation yet.
+    await readTransactionDraftSnapshot(owner, 'manual', read);
+    await pending;
+    await readTransactionDraftSnapshot(owner, 'manual', read);
+    expect(read).toHaveBeenCalledTimes(3);
+  }
+);
 const mockDirectory = '/data/user/0/com.masarifi.mobile/files/SQLite';
 
 jest.mock('expo-crypto', () => ({
@@ -324,4 +327,20 @@ test('rejects a retained encryption key even when the SecureStore deletion promi
     'database key remains'
   );
   expect(mockSecrets.has(KEY_A)).toBe(true);
+});
+
+test('removes a plaintext legacy database only when its protected owner claim matches', async () => {
+  mockSecrets.set('masarifi.database.legacyOwnerHash', HASH_A);
+  await purgeAccountDatabase(OWNER_A);
+  expect(remainingFilenames()).not.toContain('masarifi.db');
+  expect(remainingFilenames()).not.toContain('masarifi.db-wal');
+  expect(mockSecrets.has('masarifi.database.legacyOwnerHash')).toBe(false);
+  expect(remainingFilenames()).toContain(NAME_B);
+});
+
+test('preserves another owners claimed plaintext legacy database', async () => {
+  mockSecrets.set('masarifi.database.legacyOwnerHash', HASH_B);
+  await purgeAccountDatabase(OWNER_A);
+  expect(remainingFilenames()).toContain('masarifi.db');
+  expect(mockSecrets.get('masarifi.database.legacyOwnerHash')).toBe(HASH_B);
 });

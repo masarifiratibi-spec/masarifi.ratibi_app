@@ -17,14 +17,20 @@ import {
   type UserPreferences
 } from '@/domain/foundation';
 import { loadPreferences, savePreferences } from '@/storage/secure-preferences';
-import { registerRuntimeIdentityReset, registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
+import {
+  registerRuntimeIdentityReset,
+  registerRuntimeUserDataReset
+} from '@/storage/runtime-user-data-reset';
 import { changeLocale } from '@/localization/i18n';
 import { isDemoModeEnabled } from '@/config/demo-mode';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 
 interface PreferenceState extends UserPreferences {
   hydrated: boolean;
-  setReturnRemindersEnabled: (enabled: boolean, ownerId: string | null) => Promise<void>;
+  setReturnRemindersEnabled: (
+    enabled: boolean,
+    ownerId: string | null
+  ) => Promise<void>;
   withdrawReturnRemindersForSession: (ownerId: string) => Promise<void>;
   returnRemindersPausedOwnerId: string | null;
   hydrate: () => Promise<void>;
@@ -67,18 +73,51 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
   hydrated: false,
   returnRemindersPausedOwnerId: null,
   withdrawReturnRemindersForSession: async (ownerId) => {
-    set({ returnRemindersPausedOwnerId: ownerId, returnRemindersEnabled: false, returnRemindersOwnerId: ownerId });
+    set({
+      returnRemindersPausedOwnerId: ownerId,
+      returnRemindersEnabled: false,
+      returnRemindersOwnerId: ownerId
+    });
     await reminderPersistence.catch(() => undefined);
   },
-  setReturnRemindersEnabled: async (returnRemindersEnabled, returnRemindersOwnerId) => {
+  setReturnRemindersEnabled: async (
+    returnRemindersEnabled,
+    returnRemindersOwnerId
+  ) => {
     const revision = ++reminderPreferenceRevision;
-    const key = returnRemindersOwnerId === null ? 'guest' : `account:${returnRemindersOwnerId}`;
-    const choice = () => ({ ...get().returnReminderChoices, [key]: returnRemindersEnabled });
-    if (!returnRemindersEnabled) set({ returnRemindersEnabled, returnRemindersOwnerId, returnReminderChoices: choice() });
-    const storing = reminderPersistence.catch(() => undefined).then(() => persist({ ...get(), returnRemindersEnabled, returnRemindersOwnerId, returnReminderChoices: choice() }));
+    const key =
+      returnRemindersOwnerId === null
+        ? 'guest'
+        : `account:${returnRemindersOwnerId}`;
+    const choice = () => ({
+      ...get().returnReminderChoices,
+      [key]: returnRemindersEnabled
+    });
+    if (!returnRemindersEnabled)
+      set({
+        returnRemindersEnabled,
+        returnRemindersOwnerId,
+        returnReminderChoices: choice()
+      });
+    const storing = reminderPersistence
+      .catch(() => undefined)
+      .then(() =>
+        persist({
+          ...get(),
+          returnRemindersEnabled,
+          returnRemindersOwnerId,
+          returnReminderChoices: choice()
+        })
+      );
     reminderPersistence = storing;
     await storing;
-    if (revision === reminderPreferenceRevision) set({ returnRemindersEnabled, returnRemindersOwnerId, returnReminderChoices: choice(), returnRemindersPausedOwnerId: null });
+    if (revision === reminderPreferenceRevision)
+      set({
+        returnRemindersEnabled,
+        returnRemindersOwnerId,
+        returnReminderChoices: choice(),
+        returnRemindersPausedOwnerId: null
+      });
   },
 
   hydrate: async () => {
@@ -145,7 +184,11 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
     return requestVersion === localeRequestVersion;
   },
 
-  setTheme: () => set({ theme: 'light' }),
+  setTheme: (theme) => {
+    const next = { ...get(), theme };
+    set(next);
+    void persist(next);
+  },
 
   toggleHideBalances: () => {
     const next = { ...get(), hideBalances: !get().hideBalances };
@@ -195,16 +238,39 @@ registerRuntimeUserDataReset(() => {
 
 registerRuntimeIdentityReset(async (context) => {
   const state = usePreferenceStore.getState();
-  if (context && 'kind' in context && context.kind === 'restore-unavailable' && state.returnRemindersOwnerId === null) return;
-  if (context && 'restoringOwnerId' in context && state.returnRemindersOwnerId === context.restoringOwnerId) return;
+  if (
+    context &&
+    'kind' in context &&
+    context.kind === 'restore-unavailable' &&
+    state.returnRemindersOwnerId === null
+  )
+    return;
+  if (
+    context &&
+    'restoringOwnerId' in context &&
+    state.returnRemindersOwnerId === context.restoringOwnerId
+  )
+    return;
   reminderPreferenceRevision += 1;
-  usePreferenceStore.setState({ returnRemindersEnabled: false, returnRemindersOwnerId: null, returnRemindersPausedOwnerId: null });
+  usePreferenceStore.setState({
+    returnRemindersEnabled: false,
+    returnRemindersOwnerId: null,
+    returnRemindersPausedOwnerId: null
+  });
   await reminderPersistence.catch(() => undefined);
-  await persist({ ...usePreferenceStore.getState(), returnRemindersEnabled: false, returnRemindersOwnerId: null });
+  await persist({
+    ...usePreferenceStore.getState(),
+    returnRemindersEnabled: false,
+    returnRemindersOwnerId: null
+  });
 });
 
-export function effectiveReturnRemindersEnabled(ownerId: string | null, state = usePreferenceStore.getState()): boolean {
-  if (ownerId !== null && state.returnRemindersPausedOwnerId === ownerId) return false;
+export function effectiveReturnRemindersEnabled(
+  ownerId: string | null,
+  state = usePreferenceStore.getState()
+): boolean {
+  if (ownerId !== null && state.returnRemindersPausedOwnerId === ownerId)
+    return false;
   const key = ownerId === null ? 'guest' : `account:${ownerId}`;
   return state.returnReminderChoices[key] ?? true;
 }
@@ -250,8 +316,7 @@ async function hydratePreferences(
 ): Promise<void> {
   // Preferences are optional startup state; storage failure must not block routing.
   const loaded = await loadPreferences().catch(() => buildPreferences({}));
-  const next = { ...loaded, theme: 'light' as const };
+  const next = loaded;
   changeLocale(next.locale);
   set({ ...next, hydrated: true });
-  if (loaded.theme !== 'light') await savePreferences(next);
 }

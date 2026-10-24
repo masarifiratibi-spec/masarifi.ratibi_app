@@ -19,6 +19,12 @@ export interface MasarifiSmsInboxModule {
     activationBoundaries: string
   ): Promise<void>;
   readRecentSms(since: number, limit: number): Promise<unknown>;
+  readFinancialSmsPageV2?(
+    since: number,
+    afterId: string,
+    limit: number,
+    ownerDigest: string
+  ): Promise<unknown>;
   readSmsPage(since: number, afterId: string, limit: number): Promise<unknown>;
   configureTrackingOwner(
     ownerDigest: string,

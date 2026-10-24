@@ -80,35 +80,91 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('resolves bare riyal only through a unique trusted instrument, never the default currency', async () => {
+    const input = message({ body: 'Purchase 50 ريال with card 4242' });
+    const result = await prepareSmsImport(
+      [input],
+      options({ accounts: [account({ currencyCode: 'QAR' })] })
+    );
+    expect(result.events[0]).toMatchObject({
+      currency: 'QAR',
+      amountMinor: -5000
+    });
+    const ambiguous = await prepareSmsImport(
+      [input],
+      options({
+        accounts: [
+          account(),
+          account({
+            id: '10000000-0000-4000-8000-000000000002',
+            currencyCode: 'QAR'
+          })
+        ]
+      })
+    );
+    expect(ambiguous.events[0]?.classification).toMatchObject({
+      currency: null,
+      disposition: 'review'
+    });
+    const noInstrument = await prepareSmsImport(
+      [message({ body: 'Purchase 50 ريال' })],
+      options()
+    );
+    expect(noInstrument.events[0]?.classification).toMatchObject({
+      currency: null,
+      disposition: 'review'
+    });
+  });
   it.each([
     ['reference', undefined],
     ['reference number', undefined],
-    ['reference QA2310DD4FA1', '9755732b92224dd4ba631bdd3359e5198ea0b3e3179392a631a784bdef0f745b']
-  ])('only sends a provider identity when the SMS has its code: %s', async (suffix, expectedDigest) => {
-    const result = await prepareSmsImport([
-      message({ body: `Paid SAR0.01 at APK TEST ${suffix}` })
-    ], options({
-      accountingPolicy: 'default_account_nominal_v1',
-      sourceAdmissionPolicy: 'financial_content_v1'
-    }));
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0]?.amountMinor).toBe(-1);
-    expect(result.events[0]?.providerReferenceDigest).toBe(expectedDigest);
-  });
+    [
+      'reference QA2310DD4FA1',
+      '9755732b92224dd4ba631bdd3359e5198ea0b3e3179392a631a784bdef0f745b'
+    ]
+  ])(
+    'only sends a provider identity when the SMS has its code: %s',
+    async (suffix, expectedDigest) => {
+      const result = await prepareSmsImport(
+        [message({ body: `Paid SAR0.01 at APK TEST ${suffix}` })],
+        options({
+          accountingPolicy: 'default_account_nominal_v1',
+          sourceAdmissionPolicy: 'financial_content_v1'
+        })
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]?.amountMinor).toBe(-1);
+      expect(result.events[0]?.providerReferenceDigest).toBe(expectedDigest);
+    }
+  );
 
   it('resolves a short date from a personal SMS in the device timezone', async () => {
     const original = Intl.DateTimeFormat().resolvedOptions();
-    const zone = jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+    const zone = jest
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
       .mockReturnValue({ ...original, timeZone: 'Asia/Riyadh' });
     try {
-      const result = await prepareSmsImport([message({
-        sender: '+966500000001', body: 'تم خصم 2 ريال بتاريخ 22-10-26',
-        receivedAt: Date.parse('2026-10-22T11:08:16Z')
-      })], options({ accountingPolicy:'default_account_nominal_v1',sourceAdmissionPolicy:'financial_content_v1' }));
+      const result = await prepareSmsImport(
+        [
+          message({
+            sender: '+966500000001',
+            body: 'تم خصم 2 ريال بتاريخ 22-10-26',
+            receivedAt: Date.parse('2026-10-22T11:08:16Z')
+          })
+        ],
+        options({
+          accountingPolicy: 'default_account_nominal_v1',
+          sourceAdmissionPolicy: 'financial_content_v1'
+        })
+      );
       expect(result.events).toHaveLength(1);
       expect(result.events[0]?.occurredAt).toBe('2026-10-21T21:00:00.000Z');
-      expect(result.events[0]?.classification?.reasonCodes).not.toContain('date_ambiguous');
-    } finally { zone.mockRestore(); }
+      expect(result.events[0]?.classification?.reasonCodes).not.toContain(
+        'date_ambiguous'
+      );
+    } finally {
+      zone.mockRestore();
+    }
   });
   const walletReceipt = {
     key: 'wallet-receipt',
@@ -123,12 +179,13 @@ describe('financial capture preparation', () => {
     type: 'wallet',
     currencyCode: 'EGP'
   });
-  const walletOptions = () => options({
-    accountingPolicy: 'default_account_nominal_v1',
-    sourceAdmissionPolicy: 'financial_content_v1',
-    notificationAccountId: walletAccount.id,
-    accounts: [account({ isDefault: true }), walletAccount]
-  });
+  const walletOptions = () =>
+    options({
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1',
+      notificationAccountId: walletAccount.id,
+      accounts: [account({ isDefault: true }), walletAccount]
+    });
 
   it.each([
     ['owned matching', walletAccount, walletAccount.id],
@@ -259,12 +316,22 @@ describe('financial capture preparation', () => {
   });
 
   it('routes a wallet notification to its selected currency account without changing SMS routing', async () => {
-    const result = await prepareFinancialMessageImport([walletReceipt], walletOptions());
+    const result = await prepareFinancialMessageImport(
+      [walletReceipt],
+      walletOptions()
+    );
     expect(result.events).toHaveLength(1);
-    expect(result.events[0]).toMatchObject({ metadata: { notificationAccountId: walletAccount.id }, currency: 'EGP', amountMinor: 100 });
+    expect(result.events[0]).toMatchObject({
+      metadata: { notificationAccountId: walletAccount.id },
+      currency: 'EGP',
+      amountMinor: 100
+    });
     expect(result.events[0]).not.toHaveProperty('accountId');
     expect(result.events[0]).not.toHaveProperty('kind');
-    const sms = await prepareSmsImport([message({ body: 'تم إيداع 1 جنيه مصري' })], walletOptions());
+    const sms = await prepareSmsImport(
+      [message({ body: 'تم إيداع 1 جنيه مصري' })],
+      walletOptions()
+    );
     expect(sms.events).toHaveLength(1);
     expect(sms.events[0]).not.toHaveProperty('accountId');
   });
@@ -273,18 +340,25 @@ describe('financial capture preparation', () => {
     { status: 'closed' as const },
     { automaticTrackingEnabled: false },
     { currencyCode: 'SAR' }
-  ])('retains a notification when the selected destination is unavailable: %j', async (patch) => {
-    const result = await prepareFinancialMessageImport([walletReceipt], {
-      ...walletOptions(), accounts: [account(), { ...walletAccount, ...patch }]
-    });
-    expect(result.events).toEqual([]);
-    expect(result.accountRequiredCount).toBe(1);
-    expect(result.consumedSourceKeys).toEqual([]);
-    expect(result.skippedFingerprints).toEqual([]);
-  });
+  ])(
+    'retains a notification when the selected destination is unavailable: %j',
+    async (patch) => {
+      const result = await prepareFinancialMessageImport([walletReceipt], {
+        ...walletOptions(),
+        accounts: [account(), { ...walletAccount, ...patch }]
+      });
+      expect(result.events).toEqual([]);
+      expect(result.accountRequiredCount).toBe(1);
+      expect(result.consumedSourceKeys).toEqual([]);
+      expect(result.skippedFingerprints).toEqual([]);
+    }
+  );
 
   it('retains a notification if its selected account is absent from this owner', async () => {
-    const result = await prepareFinancialMessageImport([walletReceipt], { ...walletOptions(), accounts: [account()] });
+    const result = await prepareFinancialMessageImport([walletReceipt], {
+      ...walletOptions(),
+      accounts: [account()]
+    });
     expect(result.events).toEqual([]);
     expect(result.consumedSourceKeys).toEqual([]);
     expect(result.accountRequiredCount).toBe(1);
@@ -300,7 +374,11 @@ describe('financial capture preparation', () => {
     );
     expect(result.events).toHaveLength(1);
     expect(result.events[0]).toMatchObject({
-      amountMinor: -200,
+      classification: {
+        currency: null,
+        amountMinor: null,
+        disposition: 'review'
+      },
       sourceAmountDecimal: '2',
       metadata: { sourceAdmissionPolicy: 'financial_content_v1' }
     });
@@ -328,7 +406,11 @@ describe('financial capture preparation', () => {
     );
     expect(result.events).toHaveLength(1);
     expect(result.events[0]).toMatchObject({
-      amountMinor: 300,
+      classification: {
+        currency: null,
+        amountMinor: null,
+        disposition: 'review'
+      },
       metadata: {
         sourcePackage: 'example.new.wallet',
         sourceAdmissionPolicy: 'financial_content_v1'

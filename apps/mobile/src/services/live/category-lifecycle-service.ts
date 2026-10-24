@@ -6,7 +6,7 @@ import {
   type Category,
   type CategoryInput
 } from '@/domain/core-finance';
-import { createDefaultCategories } from '@/domain/core-finance-seeds';
+import { createDefaultCategories } from '@/domain/default-categories';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import {
   openDatabase,
@@ -21,7 +21,11 @@ import {
   HttpError,
   requestJson
 } from './http-client';
-import { captureLiveClerkIdentity, captureLiveClerkOwner, captureLiveReadClerkIdentity } from './auth-service';
+import {
+  captureLiveClerkIdentity,
+  captureLiveClerkOwner,
+  captureLiveReadClerkIdentity
+} from './auth-service';
 
 const categorySchema = z
   .object({
@@ -119,13 +123,17 @@ export function createLiveCategoryLifecycleService({
   const localToServer = new Map<string, string>();
   let categoryIdsReady = false;
   let mappingOwner: CategoryOwner['identity'] | undefined;
-  let preparation: {
-    owner: Awaited<ReturnType<typeof captureLiveClerkOwner>>;
-    promise: Promise<void>;
-  } | undefined;
+  let preparation:
+    | {
+        owner: Awaited<ReturnType<typeof captureLiveClerkOwner>>;
+        promise: Promise<void>;
+      }
+    | undefined;
   const localCategories = new CoreFinanceRepository();
   const captureOwner = async (readOnly = false): Promise<CategoryOwner> => {
-    const identity = await (readOnly ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity());
+    const identity = await (readOnly
+      ? captureLiveReadClerkIdentity()
+      : captureLiveClerkIdentity());
     const database = await openDatabase(identity.userId);
     await identity.assertCurrent();
     return { database, identity };
@@ -176,7 +184,10 @@ export function createLiveCategoryLifecycleService({
   ) => {
     const operationId = options.operationId ?? randomUUID();
     const identity =
-      options.owner?.identity ?? (await (method === 'GET' ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity()));
+      options.owner?.identity ??
+      (await (method === 'GET'
+        ? captureLiveReadClerkIdentity()
+        : captureLiveClerkIdentity()));
     await identity.assertCurrent();
     const result = await requestJson(path, schema, {
       baseUrl,
@@ -227,9 +238,11 @@ export function createLiveCategoryLifecycleService({
           promise: service.listCategories(true).then(() => undefined)
         };
         preparation = pending;
-        void pending.promise.finally(() => {
-          if (preparation === pending) preparation = undefined;
-        }).catch(() => undefined);
+        void pending.promise
+          .finally(() => {
+            if (preparation === pending) preparation = undefined;
+          })
+          .catch(() => undefined);
       }
       await preparation.promise;
       await owner.assertCurrent();
@@ -249,8 +262,9 @@ export function createLiveCategoryLifecycleService({
     ): Promise<VersionedCategory[]> {
       const owner = capturedOwner ?? (await captureOwner(true));
       if (mappingOwner) {
-        try { await mappingOwner.assertCurrent(); }
-        catch {
+        try {
+          await mappingOwner.assertCurrent();
+        } catch {
           categoryIdsReady = false;
           serverToLocal.clear();
           localToServer.clear();

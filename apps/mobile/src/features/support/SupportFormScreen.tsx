@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   View
 } from 'react-native';
 import { router } from 'expo-router';
+import { randomUUID } from 'expo-crypto';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -49,6 +50,10 @@ export function SupportFormScreen({
   const [showSubjectError, setShowSubjectError] = useState(false);
   const [showDescriptionError, setShowDescriptionError] = useState(false);
 
+  const submitting = useRef(false);
+  const operation = useRef<string | null>(null);
+  const [submitFailure, setSubmitFailure] = useState(false);
+
   const categories = ['technical', 'privacy', 'account', 'feedback'] as const;
   const isPending = save.isPending || submit.isPending;
 
@@ -58,6 +63,7 @@ export function SupportFormScreen({
   }, [draft.values.description, draft.values.subject]);
 
   async function submitDraft() {
+    if (submitting.current || draft.loading) return;
     if (!subject.trim()) {
       setShowSubjectError(true);
       return;
@@ -66,17 +72,33 @@ export function SupportFormScreen({
       setShowDescriptionError(true);
       return;
     }
-    await save.mutateAsync({
+    submitting.current = true;
+    setSubmitFailure(false);
+    operation.current ??= draft.values.submissionOperationId ?? randomUUID();
+    const values = {
       ...draft.values,
       id: draftId,
       mode,
       subject,
-      description
-    } as SupportDraftInput);
-    submit.mutate(
-      { draftId, operationId: `support-submit-${Date.now()}` },
-      { onSuccess: () => draft.markSubmitted?.() }
-    );
+      description,
+      submissionOperationId: operation.current
+    } as SupportDraftInput;
+    draft.update(values);
+    try {
+      await save.mutateAsync(values);
+      const result = await submit.mutateAsync({
+        draftId,
+        operationId: operation.current
+      });
+      draft.markSubmitted();
+      if (result.value.ticketId)
+        router.replace(`/support/tickets/${result.value.ticketId}`);
+      else router.back();
+    } catch {
+      setSubmitFailure(true);
+    } finally {
+      submitting.current = false;
+    }
   }
 
   const backLabel = translate('appShell.navigation.back');
@@ -122,7 +144,10 @@ export function SupportFormScreen({
           {translateDynamic('support.form.title')}
         </StyledText>
         <StyledText
-          style={[styles.heroSubtitle, { color: theme.colors.content.secondary }]}
+          style={[
+            styles.heroSubtitle,
+            { color: theme.colors.content.secondary }
+          ]}
           variant="caption"
         >
           {translateDynamic('support.form.subtitle')}
@@ -405,8 +430,8 @@ export function SupportFormScreen({
             style={[
               styles.warningBanner,
               {
-                backgroundColor: colorTokens.raw["FFFBEB"],
-                borderColor: colorTokens.raw["FDE68A"],
+                backgroundColor: colorTokens.raw['FFFBEB'],
+                borderColor: colorTokens.raw['FDE68A'],
                 flexDirection: isRtl ? 'row-reverse' : 'row'
               }
             ]}
@@ -415,16 +440,23 @@ export function SupportFormScreen({
               name="warning"
               label=""
               size="sm"
-              color={colorTokens.raw["D97706"]}
+              color={colorTokens.raw['D97706']}
               decorative
             />
-            <StyledText style={[styles.warningText, { color: colorTokens.raw["92400E"] }]}>
+            <StyledText
+              style={[styles.warningText, { color: colorTokens.raw['92400E'] }]}
+            >
               {translateDynamic(`support.form.failure.${draft.safeFailure}`)}
             </StyledText>
           </View>
         ) : null}
       </View>
 
+      {submitFailure ? (
+        <StyledText accessibilityRole="alert">
+          support.form.failure.representative_failure
+        </StyledText>
+      ) : null}
       {/* Submit Button */}
       <Pressable
         accessibilityRole="button"
@@ -565,7 +597,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs
   },
   submitButtonText: {
-    color: colorTokens.raw["FFFFFF"],
+    color: colorTokens.raw['FFFFFF'],
     fontSize: 16,
     fontWeight: '700'
   }

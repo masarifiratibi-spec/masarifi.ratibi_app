@@ -4,6 +4,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun reportClosureDiscoveryPreservesMerchantsAndRejectsOtpAndLimitOnlyAmounts() {
+    val policy=policy()
+    listOf("شراء 50 SAR من معرض النور","تم الشراء 50 SAR","Purchase KD 12.750","Purchase AED25 at Code Coffee").forEach {
+      assertTrue(it,policy.isStrong(it,"BANK","android_sms"))
+    }
+    listOf("Use code 481920 for purchase AED250","Purchase. Avl Cr. Limit AED9000").forEach {
+      assertFalse(it,policy.isStrong(it,"BANK","android_sms"))
+    }
+    listOf("im.thebot.messenger","com.imo.android.imoim").forEach {
+      assertEquals(NotificationAdmission.DISCARD,notificationAdmission(it,"com.masarifi.mobile",true,setOf(it),emptySet(),policy,"Purchase SAR50"))
+    }
+  }
   @Test fun expandedCurrencyPhrasesRetainNativeMoneyEvidenceWithoutBypassingSafety() {
     val policy=policy()
     listOf("درهم اماراتي","درهم إماراتى","درهم اماراتى","دراهم إماراتية","دراهم اماراتية","د.إ","Dhs",

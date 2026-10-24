@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { usePathname } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Platform, View, useColorScheme } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DefaultTheme,
@@ -22,6 +22,7 @@ import {
   SafeAreaView
 } from 'react-native-safe-area-context';
 
+import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { resolveTheme } from '@/design-system/theme';
 import type { ResolvedTheme } from '@/design-system/theme';
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -57,6 +58,8 @@ export function FoundationProviders({
   client?: QueryClient;
 }) {
   const locale = usePreferenceStore((state) => state.locale);
+  const preference = usePreferenceStore((state) => state.theme);
+  const systemScheme = useColorScheme();
   const direction = usePreferenceStore((state) => state.direction);
   const hydrated = usePreferenceStore((state) => state.hydrated);
   const hydrate = usePreferenceStore((state) => state.hydrate);
@@ -83,12 +86,16 @@ export function FoundationProviders({
         snapshot !== previous.profileSetupSnapshot &&
         state.session?.status === 'authenticated' &&
         ['complete', 'incomplete'].includes(state.profileSetupStatus)
-      )
+      ) {
+        usePreferenceStore
+          .getState()
+          .setTimeZone(resolveEffectiveTimeZone(snapshot.profile.timeZone));
         client.setQueryData<UserProfile>(['settings', 'profile'], (cached) =>
           cached && cached.version > snapshot.profile.version
             ? cached
             : snapshot.profile
         );
+      }
     });
     const unsubscribeSaves = subscribeTrackingSaves((event) => {
       if (useAppShellStore.getState().session?.userId !== event.ownerId) return;
@@ -146,7 +153,10 @@ export function FoundationProviders({
     }
   }, [client, locale, direction]);
 
-  const resolved: ResolvedTheme = useMemo(() => resolveTheme('light'), []);
+  const resolved: ResolvedTheme = useMemo(
+    () => resolveTheme(preference, systemScheme),
+    [preference, systemScheme]
+  );
   const obligationHeroVisible =
     pathname.startsWith('/obligations') &&
     pathname !== '/obligations/new' &&

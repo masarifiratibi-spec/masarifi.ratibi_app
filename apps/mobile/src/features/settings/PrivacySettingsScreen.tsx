@@ -7,6 +7,7 @@ import { useDeleteLocalData, usePrivacyRequest } from './settings-queries';
 import { StyledText } from '@/components/StyledText';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { usePreferenceStore } from '@/state/preferences';
+import { PrivacyExportPanel } from './PrivacyExportPanel';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 
@@ -74,7 +75,7 @@ export function PrivacySettingsScreen() {
             />
           </>
         ) : (
-          <StyledText>settings.privacy.backendUnavailable</StyledText>
+          <PrivacyExportPanel />
         )}
         <ActionButton
           label="settings.privacy.localDelete"

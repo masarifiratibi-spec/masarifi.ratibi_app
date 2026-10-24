@@ -1,3 +1,4 @@
+import { isFixtureModeEnabled } from '@/config/demo-mode';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -15,7 +16,7 @@ import type {
 import { currentLocale, translate } from '@/localization/i18n';
 import { reportsService } from '@/services/reports-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatDate } from '@/utils/format-financial-value';
+import { formatDateTime, formatDate } from '@/utils/format-financial-value';
 import {
   useReportAttempts,
   useReportMutation,
@@ -116,7 +117,13 @@ export function ReportScheduleScreen() {
           ? scheduleStateTitle(schedule.data.status)
           : translate('reports.schedule.empty')}
       </StyledText>
-      <StyledText>{translate('reports.schedule.mockNotice')}</StyledText>
+      <StyledText>
+        {translate(
+          isFixtureModeEnabled()
+            ? 'reports.schedule.mockNotice'
+            : 'reports.schedule.liveSettings'
+        )}
+      </StyledText>
 
       <FormField
         label={translate('reports.schedule.recipient')}
@@ -154,75 +161,102 @@ export function ReportScheduleScreen() {
         }
       />
 
+      {isFixtureModeEnabled() ? (
+        <>
+          <FormField
+            label={translate('reports.schedule.deliveryDay')}
+            variant="amount"
+            onChangeText={(deliveryDay) =>
+              updateInput('deliveryDay', Number(deliveryDay))
+            }
+            value={String(input.deliveryDay)}
+          />
+          <FieldLabel label={translate('reports.schedule.language')} />
+          <ChipSelector
+            options={languageLabels}
+            selected={[
+              translate(
+                input.language === 'ar' ? 'common.arabic' : 'common.english'
+              )
+            ]}
+            onToggle={(label) =>
+              updateInput(
+                'language',
+                languages[languageLabels.indexOf(label)] ?? input.language
+              )
+            }
+          />
+          <FormField
+            label={translate('reports.schedule.currency')}
+            autoCapitalize="characters"
+            maxLength={3}
+            onChangeText={(nextCurrency) =>
+              updateInput('currencyCode', nextCurrency.toUpperCase())
+            }
+            value={input.currencyCode}
+          />
+        </>
+      ) : null}
       <FormField
-        label={translate('reports.schedule.deliveryDay')}
-        variant="amount"
-        onChangeText={(deliveryDay) =>
-          updateInput('deliveryDay', Number(deliveryDay))
-        }
-        value={String(input.deliveryDay)}
+        label={translate('reports.schedule.timeZone')}
+        value={input.timeZone}
+        autoCapitalize="none"
+        onChangeText={(value) => updateInput('timeZone', value.trim())}
       />
-      <FieldLabel label={translate('reports.schedule.language')} />
-      <ChipSelector
-        options={languageLabels}
-        selected={[
-          translate(
-            input.language === 'ar' ? 'common.arabic' : 'common.english'
-          )
-        ]}
-        onToggle={(label) =>
-          updateInput(
-            'language',
-            languages[languageLabels.indexOf(label)] ?? input.language
-          )
-        }
-      />
-      <FormField
-        label={translate('reports.schedule.currency')}
-        autoCapitalize="characters"
-        maxLength={3}
-        onChangeText={(nextCurrency) =>
-          updateInput('currencyCode', nextCurrency.toUpperCase())
-        }
-        value={input.currencyCode}
-      />
-      <StyledText>{`${translate('reports.schedule.timeZone')}: ${input.timeZone}`}</StyledText>
       <StyledText>{`${translate('reports.schedule.coveredPeriod')}: ${translate(`reports.period.${input.frequency}`)}`}</StyledText>
 
-      <ChipSelector
-        options={detailLabels}
-        selected={[translate(`reports.schedule.${input.detailLevel}`)]}
-        onToggle={(label) =>
-          updateInput(
-            'detailLevel',
-            detailLevels[detailLabels.indexOf(label)] ?? input.detailLevel
-          )
-        }
-      />
-      {input.detailLevel === 'detailed' ? (
-        <StyledText>{translate('reports.schedule.detailWarning')}</StyledText>
-      ) : (
-        <StyledText>{translate('reports.schedule.summaryOnly')}</StyledText>
-      )}
-      <SwitchRow
-        label={translate('reports.schedule.assistantSummary')}
-        value={input.includeAssistantSummary}
-        onValueChange={(value) => updateInput('includeAssistantSummary', value)}
-      />
-
+      {isFixtureModeEnabled() ? (
+        <>
+          <ChipSelector
+            options={detailLabels}
+            selected={[translate(`reports.schedule.${input.detailLevel}`)]}
+            onToggle={(label) =>
+              updateInput(
+                'detailLevel',
+                detailLevels[detailLabels.indexOf(label)] ?? input.detailLevel
+              )
+            }
+          />
+          {input.detailLevel === 'detailed' ? (
+            <StyledText>
+              {translate('reports.schedule.detailWarning')}
+            </StyledText>
+          ) : (
+            <StyledText>{translate('reports.schedule.summaryOnly')}</StyledText>
+          )}
+          <SwitchRow
+            label={translate('reports.schedule.assistantSummary')}
+            value={input.includeAssistantSummary}
+            onValueChange={(value) =>
+              updateInput('includeAssistantSummary', value)
+            }
+          />
+        </>
+      ) : null}
       <ActionButton
         disabled={!verified}
         label={translate('reports.action.saveSchedule')}
         loading={save.isPending}
         onPress={() => save.mutate(input)}
       />
+      {save.isError || verify.isError || changeStatus.isError ? (
+        <StyledText accessibilityRole="alert">
+          {translate('reports.state.error')}
+        </StyledText>
+      ) : null}
+      {schedule.isError ? (
+        <ActionButton
+          label={translate('reports.action.retry')}
+          onPress={() => void schedule.refetch()}
+        />
+      ) : null}
       <LifecycleActions
         status={schedule.data?.status}
         pending={changeStatus.isPending}
         onChange={(status) => changeStatus.mutate(status)}
       />
 
-      <StyledText>{`${translate('reports.schedule.lastDelivery')}: ${lastAttempt?.completedAt ? formatDate(lastAttempt.completedAt, currentLocale()) : translate('reports.schedule.noDelivery')}`}</StyledText>
+      <StyledText>{`${translate(lastAttempt?.completedAt ? 'reports.schedule.lastDelivery' : 'reports.schedule.lastRun')}: ${lastAttempt?.completedAt ? formatDateTime(lastAttempt.completedAt, currentLocale()) : schedule.data?.lastRunAt ? formatDateTime(schedule.data.lastRunAt, currentLocale()) : translate('reports.schedule.noDelivery')}`}</StyledText>
       <StyledText>{`${translate('reports.schedule.nextDelivery')}: ${schedule.data?.nextDeliveryAt ? formatDate(schedule.data.nextDeliveryAt, currentLocale()) : translate('reports.schedule.noDelivery')}`}</StyledText>
     </ScrollView>
   );

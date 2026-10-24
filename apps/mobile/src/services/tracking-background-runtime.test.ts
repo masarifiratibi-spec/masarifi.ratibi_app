@@ -21,7 +21,10 @@ import {
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import { createMockAuthService } from '@/services/mocks/auth-service';
 
-jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { android: { package: 'com.masarifi.mobile' } } } }));
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { android: { package: 'com.masarifi.mobile' } } }
+}));
 
 let mockNativeNotifications: string[] = [];
 
@@ -59,7 +62,8 @@ const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
 const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 beforeEach(async () => {
   process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
-  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_nonfunctionalfixture';
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+    'pk_test_nonfunctionalfixture';
   Object.defineProperty(Platform, 'OS', {
     configurable: true,
     value: 'android'
@@ -87,7 +91,8 @@ afterEach(() => {
   jest.restoreAllMocks();
   if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
   else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
-  if (originalClerkKey === undefined) delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (originalClerkKey === undefined)
+    delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
   else process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = originalClerkKey;
 });
 
@@ -104,7 +109,11 @@ describe('durable DEV follow-up scheduling', () => {
     };
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
     process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = ['pk', 'test', 'nonfunctionalfixture'].join('_');
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = [
+      'pk',
+      'test',
+      'nonfunctionalfixture'
+    ].join('_');
     jest.mocked(SecureStore.getItemAsync).mockResolvedValue(retainedContext);
   });
   afterEach(() => {
@@ -125,6 +134,21 @@ describe('durable DEV follow-up scheduling', () => {
     }
   });
 
+  it('allows follow-up for the explicitly marked production build origin', async () => {
+    const channel = process.env.EXPO_PUBLIC_RELEASE_CHANNEL;
+    process.env.EXPO_PUBLIC_RELEASE_CHANNEL = 'production';
+    process.env.EXPO_PUBLIC_API_URL = 'https://approved-production.example.com';
+    try {
+      await scheduleTrackingFollowUp('owner-a');
+      expect(MasarifiSmsInbox!.scheduleTrackingFollowUp).toHaveBeenCalledWith(
+        'digest:owner-a',
+        generation
+      );
+    } finally {
+      if (channel === undefined) delete process.env.EXPO_PUBLIC_RELEASE_CHANNEL;
+      else process.env.EXPO_PUBLIC_RELEASE_CHANNEL = channel;
+    }
+  });
   it('requests follow-up using only the authenticated retained owner digest and generation', async () => {
     await scheduleTrackingFollowUp('owner-a');
 
@@ -242,7 +266,8 @@ describe('durable DEV follow-up scheduling', () => {
 });
 
 it.each(['com.masarifi.mobile.dev', 'com.masarifi.mobile'])(
-  'keeps local tracking independent of unsupported remote push only in %s', async packageName => {
+  'keeps local tracking independent of unsupported remote push only in %s',
+  async (packageName) => {
     const previousPackage = Constants.expoConfig!.android!.package;
     const previousUrl = process.env.EXPO_PUBLIC_API_URL;
     const previousMode = process.env.EXPO_PUBLIC_CLIENT_MODE;
@@ -250,16 +275,27 @@ it.each(['com.masarifi.mobile.dev', 'com.masarifi.mobile'])(
     Constants.expoConfig!.android!.package = packageName;
     process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_nonfunctionalfixture';
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+      'pk_test_nonfunctionalfixture';
     const register = jest.mocked(Notifications.registerTaskAsync);
-    register.mockRejectedValueOnce(new Error('class expo.modules.interfaces.taskManager.TaskManagerInterface module not found'));
+    register.mockRejectedValueOnce(
+      new Error(
+        'class expo.modules.interfaces.taskManager.TaskManagerInterface module not found'
+      )
+    );
     try {
-      const configured = configureTrackingBackground('owner-a', rules, 'automatic_clear');
+      const configured = configureTrackingBackground(
+        'owner-a',
+        rules,
+        'automatic_clear'
+      );
       if (packageName === 'com.masarifi.mobile.dev') {
         await expect(configured).resolves.toBeUndefined();
         expect(register).not.toHaveBeenCalled();
       } else {
-        await expect(configured).rejects.toThrow('TaskManagerInterface module not found');
+        await expect(configured).rejects.toThrow(
+          'TaskManagerInterface module not found'
+        );
         expect(register).toHaveBeenCalledTimes(1);
       }
       expect(MasarifiSmsInbox!.configureTrackingOwner).toHaveBeenCalled();
@@ -267,9 +303,14 @@ it.each(['com.masarifi.mobile.dev', 'com.masarifi.mobile'])(
     } finally {
       register.mockReset().mockResolvedValue(null);
       Constants.expoConfig!.android!.package = previousPackage;
-      if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL; else process.env.EXPO_PUBLIC_API_URL = previousUrl;
-      if (previousMode === undefined) delete process.env.EXPO_PUBLIC_CLIENT_MODE; else process.env.EXPO_PUBLIC_CLIENT_MODE = previousMode;
-      if (previousKey === undefined) delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY; else process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = previousKey;
+      if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+      else process.env.EXPO_PUBLIC_API_URL = previousUrl;
+      if (previousMode === undefined)
+        delete process.env.EXPO_PUBLIC_CLIENT_MODE;
+      else process.env.EXPO_PUBLIC_CLIENT_MODE = previousMode;
+      if (previousKey === undefined)
+        delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+      else process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = previousKey;
     }
   }
 );
@@ -338,9 +379,13 @@ it.each([
       const restoring = restoreAppShellSession(auth);
       if (outcome === 'signed-out') await restoring;
       else {
-        const rejected = outcome === 'timeout'
-          ? expect(restoring).rejects.toMatchObject({ code: 'provider_unavailable', failureSource: 'timeout' })
-          : expect(restoring).rejects.toThrow('identity unavailable');
+        const rejected =
+          outcome === 'timeout'
+            ? expect(restoring).rejects.toMatchObject({
+                code: 'provider_unavailable',
+                failureSource: 'timeout'
+              })
+            : expect(restoring).rejects.toThrow('identity unavailable');
         if (outcome === 'timeout') await jest.advanceTimersByTimeAsync(30_000);
         await rejected;
       }
@@ -384,9 +429,13 @@ it.each(['rejected', 'timeout'] as const)(
     } as AuthService;
     try {
       const restoring = restoreAppShellSession(auth, () => current);
-      const rejected = outcome === 'timeout'
-        ? expect(restoring).rejects.toMatchObject({ code: 'provider_unavailable', failureSource: 'timeout' })
-        : expect(restoring).rejects.toThrow('stale identity');
+      const rejected =
+        outcome === 'timeout'
+          ? expect(restoring).rejects.toMatchObject({
+              code: 'provider_unavailable',
+              failureSource: 'timeout'
+            })
+          : expect(restoring).rejects.toThrow('stale identity');
       current = false;
       useAppShellStore.setState({ session: newerSession });
       if (outcome === 'timeout') await jest.advanceTimersByTimeAsync(30_000);
@@ -419,7 +468,12 @@ it('keeps unavailable restoration denied when native suspension fails without de
     );
     expect(useAppShellStore.getState().session?.status).toBe('signed_out');
     expect(mockNativeNotifications).toEqual(['retained']);
-    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalledWith(
+      'masarifi.tracking.background-context.v2'
+    );
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      'masarifi.appShell.localOwner.v1'
+    );
     expect(MasarifiSmsInbox?.suspendTrackingOwner).toHaveBeenCalledTimes(1);
     await configureTrackingBackground('owner-a', rules, 'automatic_clear');
     expect(MasarifiSmsInbox?.configureTrackingOwner).not.toHaveBeenCalled();
@@ -528,9 +582,11 @@ it('leaves cold authentication uninitialized when ownership cannot be proven', a
   process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
   const session = useAppShellStore.getState().session!;
   mockNativeNotifications = ['retained-notification'];
-  jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
-    key === 'masarifi.tracking.background-context.v2' ? '{' : null
-  );
+  jest
+    .mocked(SecureStore.getItemAsync)
+    .mockImplementation(async (key) =>
+      key === 'masarifi.tracking.background-context.v2' ? '{' : null
+    );
   useAppShellStore.setState({ session: null });
   try {
     await expect(

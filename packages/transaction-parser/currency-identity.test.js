@@ -151,17 +151,17 @@ for (const [text, currency, amountMinor] of [
   ["Paid 1.250 دينار بحريني", "BHD", 1250],
   ["Paid 25 ريال قطري", "QAR", 2500],
   ["Paid 25 ريال سعودي", "SAR", 2500],
-  ["Paid 25 ريال", "SAR", 2500],
+  ["Paid 25 ريال", null, null],
   ["Paid 1.250 دينار كويتي", "KWD", 1250],
 ]) {
-  test(`qualified currency preserves its identity and scale: ${text}`, () => {
+  test(`currency evidence preserves its identity and scale: ${text}`, () => {
     const result = classifyFinancialMessage({
       text,
       receivedAt: Date.parse("2026-10-18T10:00:00Z"),
     });
     assert.equal(result.currency, currency);
     assert.equal(result.amountMinor, amountMinor);
-    assert.equal(result.disposition, "capture_candidate");
+    assert.equal(result.disposition, currency === null ? "review" : "capture_candidate");
   });
 }
 

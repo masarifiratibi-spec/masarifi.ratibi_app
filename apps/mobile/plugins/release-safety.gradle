@@ -1,0 +1,36 @@
+// Approved upload credentials come from the release environment or EAS injection.
+def closureStore = System.getenv('MASARIFI_UPLOAD_STORE_FILE')
+def closurePassword = System.getenv('MASARIFI_UPLOAD_STORE_PASSWORD')
+def closureAlias = System.getenv('MASARIFI_UPLOAD_KEY_ALIAS')
+def closureKeyPassword = System.getenv('MASARIFI_UPLOAD_KEY_PASSWORD')
+def closureSigningConfigured = [closureStore, closurePassword, closureAlias, closureKeyPassword].every { it }
+def closureReleaseSigning = android.signingConfigs.maybeCreate('release')
+if (closureSigningConfigured) {
+    closureReleaseSigning.storeFile = file(closureStore)
+    closureReleaseSigning.storePassword = closurePassword
+    closureReleaseSigning.keyAlias = closureAlias
+    closureReleaseSigning.keyPassword = closureKeyPassword
+}
+android.buildTypes.release.signingConfig = closureReleaseSigning
+android.buildTypes.release.minifyEnabled = true
+android.buildTypes.release.shrinkResources = true
+android.buildTypes.release.proguardFiles = [android.getDefaultProguardFile('proguard-android-optimize.txt'), file('proguard-rules.pro'), file('release-rules.pro')]
+if (System.getenv('MASARIFI_RELEASE_VERSION_NAME')) android.defaultConfig.versionName = System.getenv('MASARIFI_RELEASE_VERSION_NAME')
+
+def verifyReleaseClientEnvironment = tasks.register('verifyReleaseClientEnvironment', Exec) {
+    workingDir rootDir.parentFile
+    environment 'NODE_ENV', 'production'
+    commandLine 'node', new File(rootDir.parentFile, 'scripts/check-client-runtime.mjs').absolutePath
+}
+tasks.configureEach { task ->
+    if (task.name in ['createBundleReleaseJsAndAssets', 'bundleRelease', 'assembleRelease', 'packageRelease', 'signReleaseBundle']) {
+        task.dependsOn verifyReleaseClientEnvironment
+    }
+}
+// Compilation and manifest inspection need no signing key; packaging cannot use debug signing.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project && it.name in ['bundleRelease','assembleRelease','packageRelease','signReleaseBundle'] }
+        && !android.signingConfigs.release.isSigningReady()) {
+        throw new GradleException('Approved upload signing credentials are required for a release artifact.')
+    }
+}

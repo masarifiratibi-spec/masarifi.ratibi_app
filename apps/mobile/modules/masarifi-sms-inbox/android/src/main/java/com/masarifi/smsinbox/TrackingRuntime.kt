@@ -32,6 +32,14 @@ internal fun supportsFinancialContentCapture(context: Context): Boolean =
   context.packageName == "com.masarifi.mobile" || context.packageName == "com.masarifi.mobile.dev"
 
 internal object TrackingOwner {
+  private var policyKey: String? = null
+  private var parsedPolicy: FinancialDiscoveryPolicy? = null
+  @Synchronized fun policy(state: JSONObject): FinancialDiscoveryPolicy? {
+    val raw=state.optString("discoveryPolicy")
+    val key=state.optString("owner")+"\u0000"+state.optString("generation")+"\u0000"+raw
+    if(key!=policyKey) { parsedPolicy=FinancialDiscoveryPolicy.parse(raw); policyKey=key }
+    return parsedPolicy
+  }
   private const val PREFS = "masarifi_tracking_owner_v2"
   private const val SUSPENDED = "suspended"
   private fun preferences(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

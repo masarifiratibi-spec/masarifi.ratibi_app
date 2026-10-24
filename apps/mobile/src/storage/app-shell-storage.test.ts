@@ -10,7 +10,10 @@ import {
   clearAppShellStorageOwner,
   clearAppShellUserData,
   configureAppShellStorageOwner,
-  createAppShellStorage
+  createAppShellStorage,
+  cacheLocalOwnerAccess,
+  loadLocalOwnerAccess,
+  clearLocalOwnerAccess
 } from './app-shell-storage';
 import type {
   AuthenticationSession,
@@ -435,4 +438,45 @@ describe('createAppShellStorage', () => {
     );
     expect(secureSet).not.toHaveBeenCalled();
   });
+});
+
+it('serializes cached-owner writes so a delayed previous owner cannot replace current admission', async () => {
+  const values = new Map<string, string>();
+  let release!: () => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let first = true;
+  secureSet.mockImplementation(async (key, value) => {
+    if (key === 'masarifi.appShell.localOwner.v1' && first) {
+      first = false;
+      entered();
+      await delayed;
+    }
+    values.set(key, value);
+  });
+  secureGet.mockImplementation(async (key) => values.get(key) ?? null);
+  secureDelete.mockImplementation(async (key) => {
+    values.delete(key);
+  });
+  try {
+    await configureAppShellStorageOwner('user_owner-a');
+    const a = cacheLocalOwnerAccess({ ...session, userId: 'user_owner-a' });
+    await started;
+    await configureAppShellStorageOwner('user_owner-b');
+    const b = cacheLocalOwnerAccess({ ...session, userId: 'user_owner-b' });
+    release();
+    await Promise.all([a, b]);
+    expect((await loadLocalOwnerAccess())?.userId).toBe('user_owner-b');
+    await clearLocalOwnerAccess();
+    expect(await loadLocalOwnerAccess()).toBeNull();
+  } finally {
+    secureSet.mockReset();
+    secureGet.mockReset();
+    secureDelete.mockReset();
+  }
 });

@@ -104,7 +104,7 @@ describe('protected settings storage', () => {
     expect(usePreferenceStore.getState()).toMatchObject({
       locale: 'en',
       direction: 'ltr',
-      theme: 'light',
+      theme: 'dark',
       hideBalances: false,
       baseCurrencyCode: 'USD',
       timeZone: 'Europe/London',
@@ -112,6 +112,6 @@ describe('protected settings storage', () => {
       hydrated: true
     });
     expect(currentLocale()).toBe('en');
-    expect(JSON.parse(persisted ?? '{}')).toMatchObject({ theme: 'light' });
+    expect(JSON.parse(persisted ?? '{}')).toMatchObject({ theme: 'dark' });
   });
 });

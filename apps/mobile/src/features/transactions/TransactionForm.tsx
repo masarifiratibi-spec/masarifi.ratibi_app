@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -30,7 +31,6 @@ import {
 } from '@/design-system/tokens';
 import {
   isConfirmedTransaction,
-  parseAmountToMinor,
   manualSubmissionSchema,
   transactionInputSchema,
   type ManualSubmission,
@@ -454,7 +454,11 @@ function TransactionFormContent({
           setDraftReady(true);
         })
         .catch(() => {
-          if (current && expectedOwner === ownerRef.current && mounted.current) {
+          if (
+            current &&
+            expectedOwner === ownerRef.current &&
+            mounted.current
+          ) {
             setDraftLoadFailed(true);
             setError(translate('coreFinance.state.error'));
           }

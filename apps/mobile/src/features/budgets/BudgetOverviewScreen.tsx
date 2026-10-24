@@ -1,3 +1,4 @@
+import { formatMonthPeriod } from '@/utils/format-month-period';
 import React from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
@@ -7,11 +8,7 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { NavigationRow } from '@/design-system/components/navigation/GroupedList';
-import {
-  colorTokens,
-  radius,
-  spacing
-} from '@/design-system/tokens';
+import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import { safeMinorSum } from '@/domain/core-finance';
 import type { BudgetDetail } from '@/services/contracts/financial-planning-service';
 import {
@@ -65,7 +62,9 @@ export function BudgetOverviewScreen({
         />
       ) : (
         <>
-          <StyledText variant="caption">{periodKey}</StyledText>
+          <StyledText variant="caption">
+            {formatMonthPeriod(periodKey, currentLocale())}
+          </StyledText>
           {budgets.map((detail) => (
             <BudgetCard key={detail.budget.id} detail={detail} />
           ))}

@@ -17,11 +17,11 @@ import {
   type TransactionFilterSet,
   type TransactionInput
 } from '@/domain/core-finance';
+import { createDefaultCategories } from '@/domain/default-categories';
 import {
-  createDefaultCategories,
   isLegacyFixtureAccount,
   isLegacyFixtureTransaction
-} from '@/domain/core-finance-seeds';
+} from '@/domain/legacy-fixture-identity';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   CoreFinanceError,
@@ -31,6 +31,7 @@ import {
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 import { mergeTransactionDraft } from './core-finance-draft-storage';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
+import { SyncRepository } from './sync-repository';
 
 export interface CoreFinanceSeed {
   accounts?: Account[];
@@ -359,6 +360,77 @@ export class CoreFinanceRepository {
         await persistOperation(sqliteTransaction, operationId, transaction);
       }
     );
+  }
+
+  async queueTransactionEdit(
+    id: string,
+    input: TransactionInput,
+    operationId: string
+  ): Promise<Transaction> {
+    return withTransactionDraftWrite(async () => {
+      const previous = this.requireTransaction(id);
+      const value = transactionInputSchema.parse(input);
+      if (
+        !/^[0-9a-f-]{36}$/i.test(id) ||
+        !['expense', 'income'].includes(previous.type) ||
+        previous.status !== 'posted' ||
+        value.type !== previous.type ||
+        value.accountId !== previous.accountId ||
+        value.currencyCode !== previous.currencyCode ||
+        value.categoryId !== previous.categoryId ||
+        value.destinationAccountId !== previous.destinationAccountId ||
+        value.feeMinor !== previous.feeMinor
+      )
+        throw new CoreFinanceError('offline');
+      const database = await openDatabase(this.expectedUserId);
+      const next = {
+        ...this.saveTransaction(value, id),
+        syncStatus: 'pending' as const
+      };
+      try {
+        await runExclusiveDatabaseTransaction(database, async (transaction) => {
+          const dependency = await transaction.getFirstAsync<{
+            operation_id: string;
+            status: string;
+          }>(
+            "SELECT operation_id,status FROM sync_mutation_queue WHERE domain='transactions' AND resource_id=? AND status!='applied' ORDER BY created_at DESC,rowid DESC LIMIT 1",
+            id
+          );
+          if (
+            dependency &&
+            ['conflict', 'rejected'].includes(dependency.status)
+          )
+            throw new CoreFinanceError('conflict');
+          await persistTransaction(transaction, next);
+          await new SyncRepository(transaction).enqueue({
+            operationId,
+            domain: 'transactions',
+            resourceType: 'transaction',
+            schemaVersion: 1,
+            dependsOn: dependency ? [dependency.operation_id] : [],
+            operation: 'update',
+            resourceId: id,
+            baseVersion: previous.version,
+            payload: {
+              title: value.title,
+              merchant: value.merchant,
+              note: value.notes,
+              occurredAt: new Date(value.occurredAt).toISOString(),
+              amountMinor: value.amountMinor
+            }
+          });
+        });
+        this.transactions = this.transactions.map((item) =>
+          item.id === id ? next : item
+        );
+        return copy(next);
+      } catch (error) {
+        this.transactions = this.transactions.map((item) =>
+          item.id === id ? previous : item
+        );
+        throw error;
+      }
+    });
   }
 
   async persistDraft(draft: TransactionDraft): Promise<void> {

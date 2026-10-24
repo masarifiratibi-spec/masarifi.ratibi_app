@@ -6,6 +6,7 @@ import * as database from '@/storage/database';
 import { waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { cacheLocalOwnerAccess } from '@/storage/app-shell-storage';
 import type {
   AuthenticationSession,
   OnboardingProgress,
@@ -80,6 +81,33 @@ test('rejects a synthetic authenticated session outside demo mode', async () => 
     })
   ).rejects.toThrow('invalid live session');
   expect(useAppShellStore.getState().session).toBeNull();
+});
+
+test('restores only a completed cached real owner behind its local PIN, retaining lockout stage', async () => {
+  const values = new Map<string, string>();
+  secureGet.mockImplementation(async (key) => values.get(key) ?? null);
+  jest
+    .mocked(SecureStore.setItemAsync)
+    .mockImplementation(async (key, value) => {
+      values.set(key, value);
+    });
+  jest.spyOn(database, 'configureDatabaseOwner').mockResolvedValue(undefined);
+  await cacheLocalOwnerAccess(liveSession);
+  values.set(
+    `masarifi.appShell.pinCredential.${'a'.repeat(24)}`,
+    JSON.stringify(credential)
+  );
+  values.set(
+    `masarifi.appShell.privacyLock.${'a'.repeat(24)}`,
+    JSON.stringify({ ...pinLock, lockoutStage: 2 })
+  );
+  await useAppShellStore.getState().hydrate(100_000);
+  expect(useAppShellStore.getState()).toMatchObject({
+    hydrated: true,
+    session: { userId: liveSession.userId, restoration: 'local' },
+    privacyLock: { appLockStatus: 'locked', lockoutStage: 2 },
+    profileSetupStatus: 'complete'
+  });
 });
 
 test('sign-out hides the previous owner view while preserving its stored data', async () => {

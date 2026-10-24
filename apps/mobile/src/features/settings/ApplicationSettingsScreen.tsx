@@ -22,7 +22,11 @@ import { useAppShellStore } from '@/state/app-shell';
 
 export function ApplicationSettingsScreen() {
   const theme = useTheme();
-  const authenticated = useAppShellStore((state) => state.session?.status === 'authenticated');
+  const themePreference = usePreferenceStore((state) => state.theme);
+  const setTheme = usePreferenceStore((state) => state.setTheme);
+  const authenticated = useAppShellStore(
+    (state) => state.session?.status === 'authenticated'
+  );
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
@@ -81,13 +85,31 @@ export function ApplicationSettingsScreen() {
           testID="application-settings-notifications-card"
           style={[
             styles.card,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border
+            }
           ]}
         >
           <ReminderConsentControl />
         </View>
       ) : null}
 
+      <View style={styles.card}>
+        <StyledText>{t('settings.application.theme')}</StyledText>
+        <ChipSelector
+          options={['light', 'dark', 'system'].map((mode) =>
+            t(`common.${mode}`)
+          )}
+          selected={[t(`common.${themePreference}`)]}
+          onToggle={(label) => {
+            const mode = (['light', 'dark', 'system'] as const).find(
+              (mode) => t(`common.${mode}`) === label
+            );
+            if (mode) setTheme(mode);
+          }}
+        />
+      </View>
       {/* Section 1: Regional Preferences (Language & Week Start) */}
       <View
         testID="application-settings-regional-group"

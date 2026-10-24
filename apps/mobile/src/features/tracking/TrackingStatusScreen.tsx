@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   AppState,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -146,22 +147,16 @@ export function TrackingStatusScreen() {
     }
   }
 
-  async function recoverPermission(status: string | null) {
+  async function recoverPermission() {
     setActionFailed(false);
     try {
-      if (status === 'revoked' || status === 'permanently_denied') {
-        await permissionService.openSettings();
-      } else {
-        router.push({
-          pathname: '/tracking/permission',
-          params: {
-            mode:
-              query.data?.mode === 'review_all'
-                ? 'review_all'
-                : 'automatic_clear'
-          }
-        });
-      }
+      router.push({
+        pathname: '/tracking/permission',
+        params: {
+          mode:
+            query.data?.mode === 'review_all' ? 'review_all' : 'automatic_clear'
+        }
+      });
     } catch {
       setActionFailed(true);
     }
@@ -179,19 +174,8 @@ export function TrackingStatusScreen() {
         const permissionStatus =
           query.data?.smsPermissionStatus ?? query.data?.permissionStatus;
         if (permissionStatus !== 'granted') {
-          if (permissionStatus === 'permanently_denied') {
-            await permissionService.openSettings();
-            return;
-          }
-          const permission = await permissionService.requestAfterEducation();
-          if (permission.status === 'permanently_denied') {
-            await permissionService.openSettings();
-            return;
-          }
-          if (permission.status !== 'granted') {
-            await query.refetch();
-            return;
-          }
+          await recoverPermission();
+          return;
         }
         sources = await enableTrackingSource('sms', mode);
         if (mode === 'paused') mode = 'automatic_clear';
@@ -441,6 +425,16 @@ export function TrackingStatusScreen() {
             </View>
           )}
 
+          {Platform.OS === 'android' && (smsEnabled || notificationEnabled) ? (
+            <View style={{ gap: 8 }}>
+              <StyledText>tracking.background.oemGuidance</StyledText>
+              <ActionButton
+                label="appShell.permission.openSettings"
+                variant="secondary"
+                onPress={() => void permissionService.openSettings()}
+              />
+            </View>
+          ) : null}
           <TrackingDemoNotice />
           <TrackingSyncPanel
             state={syncState}
@@ -455,7 +449,7 @@ export function TrackingStatusScreen() {
               onPress={
                 permissionUnavailable
                   ? undefined
-                  : () => void recoverPermission(status.permissionStatus)
+                  : () => void recoverPermission()
               }
               style={({ pressed }) => [
                 styles.warningBanner,

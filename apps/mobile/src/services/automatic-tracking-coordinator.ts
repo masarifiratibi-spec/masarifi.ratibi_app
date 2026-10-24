@@ -313,7 +313,8 @@ export function createAutomaticTrackingCoordinator(
       // Each pass gives both channels a bounded quantum. Unresolved items are durably queued before progress.
       const capture = async (
         inputs: Parameters<typeof prepareFinancialMessageImport>[0],
-        source: 'sms' | 'provider'
+        source: 'sms' | 'provider',
+        scanned?: { receivedAt: number; id: string }
       ) => {
         phase = `prepare_${source}`;
         const prepared = await dependencies.prepare(inputs, {
@@ -360,7 +361,10 @@ export function createAutomaticTrackingCoordinator(
               if (!event.classification.reasonCodes.includes('rollout_review'))
                 event.classification.reasonCodes.push('rollout_review');
             }
-        if (source === 'sms' && inputs.length) {
+        if (source === 'sms' && scanned) {
+          cursor = scanned.receivedAt;
+          cursorId = scanned.id;
+        } else if (source === 'sms' && inputs.length) {
           const tail = inputs[inputs.length - 1];
           if (tail && 'body' in tail) {
             cursor = tail.receivedAt;
@@ -462,17 +466,29 @@ export function createAutomaticTrackingCoordinator(
       ) {
         for (let page = 0; page < 4; page++) {
           phase = 'read_sms';
-          const messages = await dependencies.inbox.readRecent({
-            since: cursor,
-            afterId: cursorId,
-            limit: capturePageSize
-          });
-          if (!messages.length) break;
+          const scannedPage = dependencies.inbox.readPage
+            ? await dependencies.inbox.readPage({
+                since: cursor,
+                afterId: cursorId,
+                limit: capturePageSize,
+                ownerId
+              })
+            : null;
+          const messages =
+            scannedPage?.messages ??
+            (await dependencies.inbox.readRecent({
+              since: cursor,
+              afterId: cursorId,
+              limit: capturePageSize
+            }));
+          if (!messages.length && !scannedPage) break;
           const priorId = cursorId,
             priorCursor = cursor;
-          await capture(messages, 'sms');
+          await capture(messages, 'sms', scannedPage?.lastScanned);
           if (
-            messages.length < capturePageSize ||
+            (scannedPage
+              ? !scannedPage.hasMore
+              : messages.length < capturePageSize) ||
             (priorId === cursorId && priorCursor === cursor)
           )
             break;

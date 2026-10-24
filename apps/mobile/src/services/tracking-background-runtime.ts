@@ -45,7 +45,11 @@ export async function scheduleTrackingFollowUp(ownerId: string): Promise<void> {
   if (
     Platform.OS !== 'android' ||
     runtime.mode !== 'live' ||
-    runtime.apiUrl !== 'https://api.staging.masarifiratibi.com' ||
+    (runtime.apiUrl !== 'https://api.staging.masarifiratibi.com' &&
+      !(
+        process.env.EXPO_PUBLIC_RELEASE_CHANNEL === 'production' &&
+        runtime.apiUrl
+      )) ||
     !native?.scheduleTrackingFollowUp
   )
     return;
@@ -188,9 +192,12 @@ export async function configureTrackingBackground(
     const localOnlyDev =
       Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
       resolveClientRuntime().mode === 'live' &&
-      resolveClientRuntime().apiUrl === 'https://api.staging.masarifiratibi.com';
+      resolveClientRuntime().apiUrl ===
+        'https://api.staging.masarifiratibi.com';
     if (!localOnlyDev)
-      await registerTrackingNotificationTask('masarifi-tracking-confirmation-v2');
+      await registerTrackingNotificationTask(
+        'masarifi-tracking-confirmation-v2'
+      );
   });
 }
 export async function disableTrackingBackground(
@@ -232,7 +239,9 @@ export async function purgeDeletedOwnerTracking(
     }
   });
 }
-async function restoreTrackingBackground(ownerId: string): Promise<void> {
+export async function restoreTrackingBackground(
+  ownerId: string
+): Promise<void> {
   const generation = ++nativeGeneration;
   restorationBlocked = true;
   return serializeNative(async () => {

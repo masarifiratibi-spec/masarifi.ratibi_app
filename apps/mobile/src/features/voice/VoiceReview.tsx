@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -16,11 +17,7 @@ import {
   CheckboxRow,
   RadioCard
 } from '@/design-system/components/forms/SelectionControls';
-import {
-  parseAmountToMinor,
-  type Account,
-  type Category
-} from '@/domain/core-finance';
+import { type Account, type Category } from '@/domain/core-finance';
 import { minorToMajorAmountText } from '@/domain/currencies';
 import type {
   VoiceField,

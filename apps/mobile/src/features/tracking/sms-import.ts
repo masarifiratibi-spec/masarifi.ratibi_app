@@ -130,19 +130,51 @@ export async function prepareFinancialMessageImport(
       continue;
     }
     const trusted = sourceRules.some((rule) => rule.enabled && rule.trusted);
-    const discovery = options.accountingPolicy
-      ? discoverNominalTrackingMessage(
-          { text: normalizedBody, sender, country, timeZone, channel, receivedAt },
-          configured,
-          options.keywordRules,
-          options.senderRules,
-          { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
-        )
-      : discoverFinancialMessage(
-          { text: normalizedBody, sender, country, timeZone, channel, receivedAt },
-          configured,
-          options.keywordRules
-        );
+    const discover = (verifiedAccountCurrency?: string) =>
+      options.accountingPolicy
+        ? discoverNominalTrackingMessage(
+            {
+              text: normalizedBody,
+              sender,
+              country,
+              timeZone,
+              channel,
+              receivedAt,
+              verifiedAccountCurrency
+            },
+            configured,
+            options.keywordRules,
+            options.senderRules,
+            { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
+          )
+        : discoverFinancialMessage(
+            {
+              text: normalizedBody,
+              sender,
+              country,
+              timeZone,
+              channel,
+              receivedAt,
+              verifiedAccountCurrency
+            },
+            configured,
+            options.keywordRules
+          );
+    let discovery = discover();
+    if (
+      trusted &&
+      discovery.classification.reasonCodes.includes('currency_ambiguous')
+    ) {
+      const bound = selectAccount(
+        null,
+        discovery.classification.instruments.filter(
+          (hint) => hint.side !== 'destination'
+        ),
+        options,
+        provider?.providerKey
+      );
+      if (bound) discovery = discover(bound.currencyCode);
+    }
     const classification = discovery.classification;
     if (options.accountingPolicy) {
       const nominal = discovery as ReturnType<
@@ -181,8 +213,11 @@ export async function prepareFinancialMessageImport(
             )
           : undefined;
       if (
-        !sourceCurrencyPolicy && !sms && options.notificationAccountId &&
-        (!notificationAccount || !accountAllowsAutomaticTracking(notificationAccount) ||
+        !sourceCurrencyPolicy &&
+        !sms &&
+        options.notificationAccountId &&
+        (!notificationAccount ||
+          !accountAllowsAutomaticTracking(notificationAccount) ||
           notificationAccount.currencyCode !== classification.currency)
       ) {
         result.accountRequiredCount++;
@@ -198,10 +233,11 @@ export async function prepareFinancialMessageImport(
       for (const movement of movements) {
         const classification = movement.classification;
         const preferredAccount = sourceCurrencyPolicy
-          ? options.accounts.find((account) =>
-              account.id === options.preferredAccountId &&
-              accountAllowsAutomaticTracking(account) &&
-              account.currencyCode === classification.currency
+          ? options.accounts.find(
+              (account) =>
+                account.id === options.preferredAccountId &&
+                accountAllowsAutomaticTracking(account) &&
+                account.currencyCode === classification.currency
             )
           : undefined;
         const movementKey = movement.component
@@ -270,7 +306,9 @@ export async function prepareFinancialMessageImport(
               ? { preferredAccountId: preferredAccount.id }
               : {}),
             ...(sourceDisplayName ? { sourceDisplayName } : {}),
-            ...(notificationAccount ? { notificationAccountId: notificationAccount.id } : {}),
+            ...(notificationAccount
+              ? { notificationAccountId: notificationAccount.id }
+              : {}),
             ...(options.sourceAdmissionPolicy
               ? { sourceAdmissionPolicy: options.sourceAdmissionPolicy }
               : {}),
@@ -550,7 +588,9 @@ function selectAccount(
   provider?: string
 ): Account | null {
   const eligible = options.accounts.filter(
-    (a) => a.currencyCode === currency && accountAllowsAutomaticTracking(a)
+    (a) =>
+      (currency === null || a.currencyCode === currency) &&
+      accountAllowsAutomaticTracking(a)
   );
   if (hints.length) {
     const matches = hints.map((hint) => {

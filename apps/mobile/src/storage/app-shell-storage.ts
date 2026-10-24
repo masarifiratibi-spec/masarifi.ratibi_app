@@ -1,3 +1,4 @@
+import { defaultKeywordRules } from '@/domain/default-tracking-keywords';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
@@ -6,6 +7,7 @@ import { z } from 'zod';
 
 import {
   authSessionSchema,
+  type AuthenticationSession,
   keywordRuleSchema,
   onboardingProgressSchema,
   pinCredentialSchema,
@@ -48,6 +50,43 @@ const sensitiveUserDataKeys = [
 let activeOwnerHash: string | null = null;
 let ownerGeneration = 0;
 
+const localOwnerKey = 'masarifi.appShell.localOwner.v1';
+let localOwnerMutation: Promise<void> = Promise.resolve();
+function serializeLocalOwner(change: () => Promise<void>): Promise<void> {
+  const next = localOwnerMutation.then(change, change);
+  localOwnerMutation = next.catch(() => undefined);
+  return next;
+}
+
+/** Save only after an authenticated server bootstrap confirms profile completion. */
+export async function cacheLocalOwnerAccess(
+  session: AuthenticationSession,
+  isCurrent = () => true
+): Promise<void> {
+  if (
+    session.status !== 'authenticated' ||
+    !session.userId ||
+    /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(session.userId)
+  )
+    throw new Error('invalid cached owner');
+  if (!isCurrent()) return;
+  const generation = ownerGeneration;
+  await serializeLocalOwner(async () => {
+    if (!isCurrent() || generation !== ownerGeneration) return;
+    await writeSensitive(localOwnerKey, authSessionSchema.parse(session));
+    if (!isCurrent() || generation !== ownerGeneration) {
+      const stored = await readSensitive(localOwnerKey, authSessionSchema);
+      if (stored?.userId === session.userId)
+        await removeSensitive(localOwnerKey);
+    }
+  });
+}
+
+export const loadLocalOwnerAccess = () =>
+  readSensitive(localOwnerKey, authSessionSchema);
+export const clearLocalOwnerAccess = () =>
+  serializeLocalOwner(() => removeSensitive(localOwnerKey));
+
 export async function configureAppShellStorageOwner(
   userId: string
 ): Promise<void> {
@@ -80,7 +119,10 @@ export async function purgeAppShellOwnerData(ownerId: string): Promise<void> {
     ownerId
   );
   const suffix = ownerHash.slice(0, 24);
-  const asyncKeys = asyncUserDataKeys.map((key) => `${key}.${suffix}`);
+  const asyncKeys = [
+    ...asyncUserDataKeys.map((key) => `${key}.${suffix}`),
+    `masarifi.export.${ownerId}`
+  ];
   const secureKeys = sensitiveUserDataKeys.map((key) => `${key}.${suffix}`);
   await Promise.all([
     ...asyncKeys.map((key) => AsyncStorage.removeItem(key)),
@@ -116,11 +158,7 @@ export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorag
       writeJson(ownerKey(keys.onboarding), progress),
     loadKeywords: async () =>
       (await readJson(ownerKey(keys.keywords), z.array(keywordRuleSchema))) ??
-      // Generate fallback rules only when no stored rules are available.
-      (
-        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-        require('@/services/mocks/default-keywords') as typeof import('@/services/mocks/default-keywords')
-      ).defaultKeywordRules,
+      defaultKeywordRules,
     saveKeywords: (rules) => writeJson(ownerKey(keys.keywords), rules),
     loadTrackingPreference: () =>
       readJson(ownerKey(keys.trackingPreference), trackingPreferenceSchema),

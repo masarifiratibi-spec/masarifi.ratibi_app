@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -19,7 +20,6 @@ import { FormField } from '@/design-system/components/forms/FormField';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
 import {
-  parseAmountToMinor,
   supportsAutomaticTrackingAccountType,
   type Account,
   type AccountType
@@ -69,9 +69,7 @@ export function AccountForm({
   );
   const initialBalance = account
     ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
-    : initialType === 'credit_card'
-      ? ''
-      : '0';
+    : '';
   const [balance, setBalance] = useState(initialBalance);
   const [creditLimit, setCreditLimit] = useState(
     account?.creditLimitMinor
@@ -210,7 +208,10 @@ export function AccountForm({
     if (saving || account?.status === 'closed') return;
     let openingBalanceMinor = account
       ? account.openingBalanceMinor
-      : parseAmountToMinor(normalizeLocalizedNumber(balance), currency);
+      : parseAmountToMinor(
+          balance.trim() || (isCreditCard ? '' : '0'),
+          currency
+        );
     if (!name.trim()) {
       setError(translate('coreFinance.validation.required'));
       setErrorField('name');
@@ -464,6 +465,7 @@ export function AccountForm({
                   ? t('coreFinance.accounts.setup.availableBalance')
                   : t('coreFinance.accounts.openingBalance')
               }
+              placeholder={t('common.zeroPlaceholder')}
               value={balance}
               onChangeText={setBalance}
               variant="amount"

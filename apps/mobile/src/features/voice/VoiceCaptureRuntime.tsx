@@ -33,7 +33,7 @@ import type { NotificationSourceEvent } from '@/services/contracts/assistant-not
 import { VoiceCaptureError } from '@/services/contracts/voice-capture-service';
 import { notificationService } from '@/services/engagement-service';
 import { voiceAnalyzerService } from '@/services/voice-analyzer-service';
-import { voiceCategoryService } from '@/services/mocks/voice-category-service';
+import { voiceCategoryService } from '@/services/voice-category-service';
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import {
   useVoiceCaptureStore,

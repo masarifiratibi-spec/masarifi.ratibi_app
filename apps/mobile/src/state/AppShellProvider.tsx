@@ -1,7 +1,12 @@
 import { recordMobileForeground } from '@/services/live/mobile-activity';
 import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { router } from 'expo-router';
-import { AppState, Linking, type AppStateStatus } from 'react-native';
+import { Alert, AppState, Linking, type AppStateStatus } from 'react-native';
+import {
+  configureDatabaseRecoveryListener,
+  quarantineUnrecoverableDatabase
+} from '@/storage/database';
+import { translate } from '@/localization/i18n';
 
 import { parseDeepLinkDestination } from '@/features/shell/deep-link-controller';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
@@ -52,11 +57,50 @@ export function AppShellProvider({
   );
   const mode = resolveClientMode();
   const restoreQueue = useRef(Promise.resolve());
+  const localHydration = useRef<Promise<void> | null>(null);
   const registeredPushSession = useRef<string | null>(null);
   const pushRegistrationFlight = useRef<{ sessionKey: string } | null>(null);
   const initialLink = useRef<string | null>(null);
   const linkRevision = useRef(0);
   const linksMounted = useRef(false);
+  const recoveryOwner = useRef<string | null>(null);
+  useEffect(() => {
+    configureDatabaseRecoveryListener((ownerId) => {
+      if (recoveryOwner.current === ownerId) return;
+      recoveryOwner.current = ownerId;
+      Alert.alert(
+        translate('storageRecovery.title'),
+        translate('storageRecovery.body'),
+        [
+          {
+            text: translate('storageRecovery.cancel'),
+            style: 'cancel',
+            onPress: () => {
+              recoveryOwner.current = null;
+            }
+          },
+          {
+            text: translate('storageRecovery.confirm'),
+            onPress: () => {
+              void quarantineUnrecoverableDatabase(
+                ownerId,
+                'PRESERVE_ENCRYPTED_ORIGINAL'
+              )
+                .then(() => {
+                  recoveryOwner.current = null;
+                  useAppShellStore.getState().retryBootstrap();
+                })
+                .catch(() => {
+                  recoveryOwner.current = null;
+                  Alert.alert(translate('storageRecovery.failed'));
+                });
+            }
+          }
+        ]
+      );
+    });
+    return () => configureDatabaseRecoveryListener();
+  }, []);
   const session = useAppShellStore((state) => state.session);
   const onboarding = useAppShellStore((state) => state.onboarding);
   const privacyLock = useAppShellStore((state) => state.privacyLock);
@@ -68,26 +112,34 @@ export function AppShellProvider({
     (state) => state.firstLaunchOnboardingCompleted
   );
 
-  const registerPushDevice = useCallback((refresh = false) => {
-    if (!liveClerkSessionKey || mode !== 'live') return;
-    if (pushRegistrationFlight.current?.sessionKey === liveClerkSessionKey) return;
-    if (!refresh && registeredPushSession.current === liveClerkSessionKey) return;
-    const flight = { sessionKey: liveClerkSessionKey };
-    pushRegistrationFlight.current = flight;
-    void ensureLivePushDeviceRegistration({ token: getLiveClerkToken })
-      .then((permission) => {
-        if (pushRegistrationFlight.current === flight && permission === 'granted')
-          registeredPushSession.current = flight.sessionKey;
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (pushRegistrationFlight.current === flight)
-          pushRegistrationFlight.current = null;
-      });
-  }, [liveClerkSessionKey, mode]);
+  const registerPushDevice = useCallback(
+    (refresh = false) => {
+      if (!liveClerkSessionKey || mode !== 'live') return;
+      if (pushRegistrationFlight.current?.sessionKey === liveClerkSessionKey)
+        return;
+      if (!refresh && registeredPushSession.current === liveClerkSessionKey)
+        return;
+      const flight = { sessionKey: liveClerkSessionKey };
+      pushRegistrationFlight.current = flight;
+      void ensureLivePushDeviceRegistration({ token: getLiveClerkToken })
+        .then((permission) => {
+          if (
+            pushRegistrationFlight.current === flight &&
+            permission === 'granted'
+          )
+            registeredPushSession.current = flight.sessionKey;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (pushRegistrationFlight.current === flight)
+            pushRegistrationFlight.current = null;
+        });
+    },
+    [liveClerkSessionKey, mode]
+  );
 
   useEffect(() => {
-    if (mode !== 'live' && !hydrated) void hydrate();
+    if (!hydrated) localHydration.current ??= hydrate();
   }, [hydrate, hydrated, mode]);
 
   useEffect(() => {
@@ -99,6 +151,7 @@ export function AppShellProvider({
     restoreQueue.current = restoreQueue.current
       .catch(() => undefined)
       .then(async () => {
+        await localHydration.current;
         if (
           current &&
           isDevPrivacyDeletionEnabled() &&

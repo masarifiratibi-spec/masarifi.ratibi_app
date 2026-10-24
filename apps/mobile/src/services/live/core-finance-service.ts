@@ -20,14 +20,31 @@ import type {
 } from '@/services/contracts/core-finance-service';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
-import { readTransactionDraft, writeTransactionDraft, deleteTransactionDraft } from '@/storage/core-finance-draft-storage';
+import {
+  readTransactionDraft,
+  writeTransactionDraft,
+  deleteTransactionDraft
+} from '@/storage/core-finance-draft-storage';
 import { CoreFinanceSyncAdapter } from '@/storage/core-finance-sync-adapter';
 import { openDatabase } from '@/storage/database';
 import { SyncRepository } from '@/storage/sync-repository';
 import { SyncHttpService } from '@/services/contracts/sync-service';
-import { captureLiveClerkIdentity, captureLiveClerkOwner, captureLiveReadClerkIdentity } from './auth-service';
-import { HttpError, requestJson } from './http-client';
-import { ledgerDetailSchema as detailSchema, ledgerSummarySchema as summarySchema, serverKind, serverStatus } from './ledger-api-contract';
+import {
+  captureLiveClerkIdentity,
+  captureLiveClerkOwner,
+  captureLiveReadClerkIdentity
+} from './auth-service';
+import {
+  HttpError,
+  requestJson,
+  requestRecentAuthentication
+} from './http-client';
+import {
+  ledgerDetailSchema as detailSchema,
+  ledgerSummarySchema as summarySchema,
+  serverKind,
+  serverStatus
+} from './ledger-api-contract';
 import { readHomeTodayActivity } from '@/services/home-today-activity';
 import { measurePerformance } from '@/services/platform/performance-timing';
 import { SharedReadPool } from './shared-read';
@@ -146,8 +163,11 @@ const receiptSchema = z
     result: z.record(z.unknown()).optional(),
     conflictId: uuid.optional(),
     error: z
-      .object({ code: z.string().min(1), message: z.string().min(1) })
-      .passthrough()
+      .object({
+        code: z.string().regex(/^[A-Z][A-Z0-9_]{0,79}$/u),
+        message: z.string().min(1).max(200).optional()
+      })
+      .strip()
       .optional()
   })
   .strict();
@@ -248,7 +268,9 @@ export function createLiveLedgerService({
       local = { repository, ready: null };
       ownerRepositories.set(owner.userId, local);
     }
-    const ready = (local.ready ??= local.repository.hydrate({ preserveDrafts: true }));
+    const ready = (local.ready ??= local.repository.hydrate({
+      preserveDrafts: true
+    }));
     try {
       await ready;
     } catch (error) {
@@ -277,7 +299,11 @@ export function createLiveLedgerService({
   ): Promise<T> => {
     if (method !== 'GET' && !operationId?.trim())
       throw new HttpError('validation_error', 400);
-    const identity = capturedIdentity ?? await (method === 'GET' ? captureLiveReadClerkIdentity() : captureLiveClerkIdentity());
+    const identity =
+      capturedIdentity ??
+      (await (method === 'GET'
+        ? captureLiveReadClerkIdentity()
+        : captureLiveClerkIdentity()));
     if (!capturedIdentity) await categoryIds?.prepare();
     await identity.assertCurrent();
     const serverBody =
@@ -317,10 +343,13 @@ export function createLiveLedgerService({
   const mutate = async <T>(
     key: string,
     prepare: () => Promise<number | undefined>,
-    command: (state: {
-      operationId: string;
-      expectedVersion?: number;
-    }, identity: Awaited<ReturnType<typeof captureLiveClerkIdentity>>) => Promise<T>,
+    command: (
+      state: {
+        operationId: string;
+        expectedVersion?: number;
+      },
+      identity: Awaited<ReturnType<typeof captureLiveClerkIdentity>>
+    ) => Promise<T>,
     operationId?: string
   ): Promise<T> => {
     const identity = await captureLiveClerkIdentity();
@@ -390,18 +419,21 @@ export function createLiveLedgerService({
   });
 
   const listTransactions = async (
-      filters: TransactionFilterSet,
-      cursor: string | null = null,
-      pageSize = 25,
-      signal?: AbortSignal
-    ): Promise<TransactionPage> => {
-      if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
-        throw new CoreFinanceError('validation');
-      const owner = await captureLiveReadClerkIdentity();
-      const prepareCategories = () => measurePerformance('ledger.categories', async () => { await categoryIds?.prepare(); });
-      const readPage = async () => {
-        await owner.assertCurrent();
-        const query = ledgerQuery(
+    filters: TransactionFilterSet,
+    cursor: string | null = null,
+    pageSize = 25,
+    signal?: AbortSignal
+  ): Promise<TransactionPage> => {
+    if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
+      throw new CoreFinanceError('validation');
+    const owner = await captureLiveReadClerkIdentity();
+    const prepareCategories = () =>
+      measurePerformance('ledger.categories', async () => {
+        await categoryIds?.prepare();
+      });
+    const readPage = async () => {
+      await owner.assertCurrent();
+      const query = ledgerQuery(
         {
           ...filters,
           categoryIds: filters.categoryIds.map(
@@ -411,70 +443,133 @@ export function createLiveLedgerService({
         cursor,
         pageSize
       );
-        return measurePerformance('ledger.read', () => send(
-        'GET',
-        `/api/v1/transactions?${query.toString()}`,
-        pageSchema,
-        undefined,
-        undefined,
-        signal,
-        owner
-        ));
-      };
-      // Only category-filtered transport needs the mapping before it can start.
-      let page: Awaited<ReturnType<typeof readPage>>;
-      if (filters.categoryIds.length) {
-        await prepareCategories();
-        page = await readPage();
-      } else {
-        [, page] = await Promise.all([prepareCategories(), readPage()]);
-      }
-      await owner.assertCurrent();
-      const accountId = filters.accountIds.length === 1 ? filters.accountIds[0] : undefined;
-      const projected = await Promise.all(page.items.map(async (item) => {
+      return measurePerformance('ledger.read', () =>
+        send(
+          'GET',
+          `/api/v1/transactions?${query.toString()}`,
+          pageSchema,
+          undefined,
+          undefined,
+          signal,
+          owner
+        )
+      );
+    };
+    // Only category-filtered transport needs the mapping before it can start.
+    let page: Awaited<ReturnType<typeof readPage>>;
+    if (filters.categoryIds.length) {
+      await prepareCategories();
+      page = await readPage();
+    } else {
+      [, page] = await Promise.all([prepareCategories(), readPage()]);
+    }
+    await owner.assertCurrent();
+    const accountId =
+      filters.accountIds.length === 1 ? filters.accountIds[0] : undefined;
+    const projected = await Promise.all(
+      page.items.map(async (item) => {
         if (!['opening', 'adjustment', 'reversal'].includes(item.kind))
           return localTransaction(transactionFromSummary(item));
         const projectionAccountId = accountId ?? item.sourceAccountId;
-        const detail = await send('GET', `/api/v1/transactions/${item.id}`, detailSchema, undefined, undefined, signal, owner);
-        if (detail.transaction.id !== item.id || detail.transaction.version !== item.version ||
-            detail.transaction.kind !== item.kind || detail.transaction.status !== item.status ||
-            detail.transaction.currency !== item.currency || detail.transaction.amountMinor !== item.amountMinor)
+        const detail = await send(
+          'GET',
+          `/api/v1/transactions/${item.id}`,
+          detailSchema,
+          undefined,
+          undefined,
+          signal,
+          owner
+        );
+        if (
+          detail.transaction.id !== item.id ||
+          detail.transaction.version !== item.version ||
+          detail.transaction.kind !== item.kind ||
+          detail.transaction.status !== item.status ||
+          detail.transaction.currency !== item.currency ||
+          detail.transaction.amountMinor !== item.amountMinor
+        )
           throw new CoreFinanceError('conflict');
-        const postings = detail.postings.filter((posting) => posting.accountId === projectionAccountId && posting.clearingState === 'confirmed');
+        const postings = detail.postings.filter(
+          (posting) =>
+            posting.accountId === projectionAccountId &&
+            posting.clearingState === 'confirmed'
+        );
         if (!postings.length) throw new CoreFinanceError('conflict');
         const signedAmount = postings.reduce((total, posting) => {
           const sum = safeMinorSum(total, posting.amountMinor);
           if (sum === null) throw new CoreFinanceError('unknown');
           return sum;
         }, 0);
-        return localTransaction(transactionFromSummary(item, projectionAccountId, undefined, signedAmount));
-      }));
-      await owner.assertCurrent();
-      const localFilters = {
-        ...filters,
-        categoryIds: filters.categoryIds.map((id) => categoryIds?.toLocal(id) ?? id)
-      };
-      const items = projected.filter((item) => matchesFilters(item, localFilters));
-      return { items, nextCursor: page.nextCursor };
+        return localTransaction(
+          transactionFromSummary(
+            item,
+            projectionAccountId,
+            undefined,
+            signedAmount
+          )
+        );
+      })
+    );
+    await owner.assertCurrent();
+    const localFilters = {
+      ...filters,
+      categoryIds: filters.categoryIds.map(
+        (id) => categoryIds?.toLocal(id) ?? id
+      )
     };
+    const items = projected.filter((item) =>
+      matchesFilters(item, localFilters)
+    );
+    return { items, nextCursor: page.nextCursor };
+  };
   return {
     listTransactions,
     async getHomeTodayActivity(filters, signal) {
       return measurePerformance('ledger.today', async () => {
         const owner = await captureLiveReadClerkIdentity();
         const activity = await readHomeTodayActivity({
-          filters, signal, listTransactions,
+          filters,
+          signal,
+          listTransactions,
           readSignedEffect: async (transaction) => {
-            const detail = await send('GET', `/api/v1/transactions/${transaction.id}`, detailSchema, undefined, undefined, signal);
-            if (detail.transaction.version !== transaction.version || detail.transaction.id !== transaction.id ||
-                detail.transaction.currency !== transaction.currencyCode || detail.postings.some((posting) => posting.clearingState !== 'confirmed'))
+            const detail = await send(
+              'GET',
+              `/api/v1/transactions/${transaction.id}`,
+              detailSchema,
+              undefined,
+              undefined,
+              signal
+            );
+            if (
+              detail.transaction.version !== transaction.version ||
+              detail.transaction.id !== transaction.id ||
+              detail.transaction.currency !== transaction.currencyCode ||
+              detail.postings.some(
+                (posting) => posting.clearingState !== 'confirmed'
+              )
+            )
               throw new CoreFinanceError('conflict');
             if (detail.transaction.kind === 'opening') return null;
-            if (detail.transaction.kind === 'reversal' && detail.transaction.originalTransactionId) {
-              const original = await send('GET', `/api/v1/transactions/${detail.transaction.originalTransactionId}`, detailSchema, undefined, undefined, signal);
-              if (original.transaction.kind === 'transfer' || original.transaction.kind === 'opening') return null;
+            if (
+              detail.transaction.kind === 'reversal' &&
+              detail.transaction.originalTransactionId
+            ) {
+              const original = await send(
+                'GET',
+                `/api/v1/transactions/${detail.transaction.originalTransactionId}`,
+                detailSchema,
+                undefined,
+                undefined,
+                signal
+              );
+              if (
+                original.transaction.kind === 'transfer' ||
+                original.transaction.kind === 'opening'
+              )
+                return null;
             }
-            return detail.postings.filter((posting) => posting.clearingState === 'confirmed')
+            return detail.postings
+              .filter((posting) => posting.clearingState === 'confirmed')
               .reduce((total, posting) => {
                 const sum = safeMinorSum(total, posting.amountMinor);
                 if (sum === null) throw new CoreFinanceError('unknown');
@@ -577,7 +672,15 @@ export function createLiveLedgerService({
         async () => undefined,
         async ({ operationId: key }, identity) => {
           await categoryIds?.prepare();
-          return send('POST', '/api/v1/transactions', mutationSchema, body, key, undefined, identity);
+          return send(
+            'POST',
+            '/api/v1/transactions',
+            mutationSchema,
+            body,
+            key,
+            undefined,
+            identity
+          );
         },
         operationId
       );
@@ -862,7 +965,11 @@ export function createLiveCoreFinanceSync({
     async synchronize() {
       const owner = await (identity ?? captureLiveReadClerkIdentity)();
       await owner.assertCurrent();
-      let writeOwner: Promise<Awaited<ReturnType<typeof captureLiveClerkIdentity>>> | undefined;
+      let writeOwner:
+        | Promise<Awaited<ReturnType<typeof captureLiveClerkIdentity>>>
+        | undefined;
+      let reverifiedToken: string | null = null;
+      let verificationAttempted = false;
       let syncDeviceId: Promise<string> | undefined;
       const requestToken = async (readOnly?: boolean) => {
         await owner.assertCurrent();
@@ -870,7 +977,7 @@ export function createLiveCoreFinanceSync({
         const actor = !readOnly && writeOwner ? await writeOwner : owner;
         await owner.assertCurrent();
         await actor.assertCurrent();
-        return actor.token;
+        return !readOnly && reverifiedToken ? reverifiedToken : actor.token;
       };
       let ownerDatabase = database;
       if (!ownerDatabase && (!repository || !adapter))
@@ -936,6 +1043,7 @@ export function createLiveCoreFinanceSync({
           await queue.recoverSending();
           throw new HttpError('contract_mismatch', 502);
         }
+        let needsRecentAuth = false;
         for (const entry of ready) {
           const receipt = receipts.get(entry.operationId)!;
           if (receipt.status === 'applied') {
@@ -952,7 +1060,17 @@ export function createLiveCoreFinanceSync({
               'conflict',
               receipt.error?.code ?? 'SYNC_CONFLICT'
             );
-          else if (receipt.status === 'rejected')
+          else if (
+            receipt.status === 'rejected' &&
+            receipt.error?.code === 'RECENT_AUTH_REQUIRED'
+          ) {
+            await queue.retry(
+              entry.operationId,
+              Date.now(),
+              'RECENT_AUTH_REQUIRED'
+            );
+            needsRecentAuth = true;
+          } else if (receipt.status === 'rejected')
             await queue.complete(
               entry.operationId,
               'rejected',
@@ -966,10 +1084,27 @@ export function createLiveCoreFinanceSync({
             );
           uploaded += 1;
         }
+        if (needsRecentAuth) {
+          if (verificationAttempted)
+            throw new HttpError(
+              'recent_auth_required',
+              403,
+              'RECENT_AUTH_REQUIRED'
+            );
+          verificationAttempted = true;
+          reverifiedToken = await requestRecentAuthentication();
+          await owner.assertCurrent();
+          if (!reverifiedToken)
+            throw new HttpError(
+              'recent_auth_required',
+              403,
+              'RECENT_AUTH_REQUIRED'
+            );
+        }
       }
       for (const domain of syncDomain.options) {
         const cursor = await queue.cursor(domain);
-        if (!cursor) {
+        const bootstrap = async () => {
           let after: string | undefined;
           for (;;) {
             const value = bootstrapSchema.parse(
@@ -992,13 +1127,29 @@ export function createLiveCoreFinanceSync({
               throw new HttpError('contract_mismatch', 502);
             after = page.nextPage;
           }
+        };
+        if (!cursor) {
+          await bootstrap();
           continue;
         }
         let next = syncCursor.parse(cursor);
         for (;;) {
-          const value = deltaSchema.parse(
-            await client.delta(domain, next, 500)
-          );
+          let value: z.infer<typeof deltaSchema>;
+          try {
+            value = deltaSchema.parse(await client.delta(domain, next, 500));
+          } catch (error) {
+            if (
+              !(error instanceof HttpError) ||
+              !['SYNC_CURSOR_INVALID', 'SYNC_CURSOR_EXPIRED'].includes(
+                error.domainCode ?? ''
+              )
+            )
+              throw error;
+            await owner.assertCurrent();
+            await queue.clearCursor(domain);
+            await bootstrap();
+            break;
+          }
           if (value.data.domain !== domain)
             throw new HttpError('contract_mismatch', 502);
           await apply.applyDelta(
@@ -1120,7 +1271,7 @@ function transactionFromSummary(
   const accountId = mappedAccountId ?? value.sourceAccountId;
   const destinationAccountId =
     value.kind === 'transfer'
-      ? mappedDestinationAccountId ?? value.destinationAccountId ?? undefined
+      ? (mappedDestinationAccountId ?? value.destinationAccountId ?? undefined)
       : undefined;
   if (!accountId || (value.kind === 'transfer' && !destinationAccountId))
     throw new HttpError('contract_mismatch', 502);
@@ -1345,8 +1496,9 @@ function derivedOperationId(operationId: string, index: number): string {
 let liveCoreFinanceSync: Promise<unknown> | null = null;
 
 export function synchronizeLiveCoreFinance(): Promise<unknown> {
-  return (liveCoreFinanceSync ??= measurePerformance('sync.core', () => createLiveCoreFinanceSync().synchronize())
-    .finally(() => {
-      liveCoreFinanceSync = null;
-    }));
+  return (liveCoreFinanceSync ??= measurePerformance('sync.core', () =>
+    createLiveCoreFinanceSync().synchronize()
+  ).finally(() => {
+    liveCoreFinanceSync = null;
+  }));
 }

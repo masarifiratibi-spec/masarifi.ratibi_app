@@ -448,6 +448,7 @@ it('retires an exact pre-create unavailability response durably and reports loca
     results: [],
     uncertain: false,
     pendingIds: [],
+    rateLimitedIds: [],
     localFailure: true
   });
   expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
@@ -655,6 +656,7 @@ it('persists failure before deleting audio and never resurrects it after cleanup
   cleanupFails = false;
   expect(await api.recoverBatches()).toMatchObject({
     pendingIds: [],
+    rateLimitedIds: [],
     localFailure: true
   });
   await waitFor(async () => {

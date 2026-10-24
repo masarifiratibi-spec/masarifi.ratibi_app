@@ -462,7 +462,7 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
                   {/* Account label */}
                   <StyledText
                     variant="subtitle"
-                    numberOfLines={largeText ? undefined : 1}
+                    numberOfLines={undefined}
                     style={styles.filterBarText}
                   >
                     {(selectedAccountId &&
@@ -518,7 +518,7 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
                 {/* Period label */}
                 <StyledText
                   variant="subtitle"
-                  numberOfLines={largeText ? undefined : 1}
+                  numberOfLines={undefined}
                   style={styles.filterBarText}
                 >
                   {periodLabel}

@@ -8,6 +8,7 @@ export const authSessionStatuses = [
 ] as const;
 export const authMethods = ['phone', 'google'] as const;
 export const restorationStatuses = [
+  'local',
   'idle',
   'pending',
   'restored',
@@ -26,7 +27,12 @@ export const authSessionSchema = z
   })
   .superRefine((session, ctx) => {
     if (session.status !== 'authenticated') return;
-    if (!session.userId || !session.method || !session.issuedAt || !session.expiresAt) {
+    if (
+      !session.userId ||
+      !session.method ||
+      !session.issuedAt ||
+      !session.expiresAt
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'authenticated sessions require identity and expiry data'
@@ -37,12 +43,13 @@ export const authSessionSchema = z
 export type AuthenticationSession = z.infer<typeof authSessionSchema>;
 export type AuthSessionStatus = AuthenticationSession['status'];
 
-const authTransitions: Record<AuthSessionStatus, readonly AuthSessionStatus[]> = {
-  signed_out: ['restoring'],
-  restoring: ['authenticated', 'signed_out'],
-  authenticated: ['expired', 'signed_out'],
-  expired: ['authenticated', 'signed_out']
-};
+const authTransitions: Record<AuthSessionStatus, readonly AuthSessionStatus[]> =
+  {
+    signed_out: ['restoring'],
+    restoring: ['authenticated', 'signed_out'],
+    authenticated: ['expired', 'signed_out'],
+    expired: ['authenticated', 'signed_out']
+  };
 
 export function canTransitionAuthSession(
   from: AuthSessionStatus,
@@ -123,7 +130,9 @@ export const permissionStateSchema = z.object({
     'unavailable'
   ]),
   blocking: z.literal(false),
-  recoveryAction: z.enum(['request', 'retry', 'open_settings', 'continue']).nullable()
+  recoveryAction: z
+    .enum(['request', 'retry', 'open_settings', 'continue'])
+    .nullable()
 });
 
 export type PermissionState = z.infer<typeof permissionStateSchema>;
@@ -174,7 +183,9 @@ export const keywordRuleSchema = z
     return {
       ...rule,
       value,
-      normalizedValue: value.toLocaleLowerCase(rule.language === 'ar' ? 'ar' : 'en')
+      normalizedValue: value.toLocaleLowerCase(
+        rule.language === 'ar' ? 'ar' : 'en'
+      )
     };
   });
 
@@ -211,8 +222,14 @@ export const privacyLockPreferenceSchema = z.object({
     'enabled',
     'locked_out'
   ]),
-  autoLockDuration: z.enum(['immediate', 'one_minute', 'five_minutes', 'fifteen_minutes']),
+  autoLockDuration: z.enum([
+    'immediate',
+    'one_minute',
+    'five_minutes',
+    'fifteen_minutes'
+  ]),
   invalidAttempts: z.number().int().min(0).max(5),
+  lockoutStage: z.number().int().min(0).max(4).optional(),
   lockedUntil: z.number().int().nonnegative().nullable(),
   appLockStatus: z.enum(['unlocked', 'locked', 'temporarily_locked'])
 });

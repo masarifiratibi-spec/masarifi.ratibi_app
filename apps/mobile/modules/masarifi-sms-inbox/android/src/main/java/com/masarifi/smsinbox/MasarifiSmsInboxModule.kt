@@ -33,16 +33,11 @@ class MasarifiSmsInboxModule : Module() {
       mapOf("activatedAt" to timestamp,"afterId" to afterId)
     }
 
-    AsyncFunction("readSmsPage") { since: Double, afterId: String, requestedLimit: Int ->
-      val context=appContext.reactContext ?: throw IllegalStateException("sms_context_unavailable")
-      if(context.checkSelfPermission(Manifest.permission.READ_SMS)!=PackageManager.PERMISSION_GRANTED) throw SecurityException("sms_permission_required")
-      val messages=mutableListOf<Map<String,Any>>()
-      val id=afterId.toLongOrNull() ?: -1L
-      context.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI,arrayOf("_id","address","body","date"),
-        "date > ? OR (date = ? AND _id > ?)",arrayOf(since.toLong().toString(),since.toLong().toString(),id.toString()),"date ASC, _id ASC")?.use { cursor ->
-        while(messages.size<requestedLimit.coerceIn(1,100) && cursor.moveToNext()) messages.add(mapOf("id" to cursor.getString(0),"sender" to (cursor.getString(1)?:""),"body" to (cursor.getString(2)?:""),"receivedAt" to cursor.getLong(3),"observedAt" to System.currentTimeMillis()))
-      }
-      messages
+    AsyncFunction("readFinancialSmsPageV2") { since:Double,afterId:String,limit:Int,owner:String ->
+      readFinancialPage(since,afterId,limit,owner)
+    }
+    AsyncFunction("readSmsPage") { since:Double,afterId:String,limit:Int ->
+      readFinancialPage(since,afterId.ifBlank { "0" },limit,null)["messages"]
     }
     AsyncFunction("configureTrackingOwner") { owner:String,generation:String,sms:Boolean,notifications:Boolean,packages:List<String>,blocked:List<String>,policy:String? ->
       val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
@@ -77,43 +72,8 @@ class MasarifiSmsInboxModule : Module() {
       CaptureConfirmation.present(context,ownerId,notificationId,title,body)
     }
 
-    AsyncFunction("readRecentSms") { since: Double, requestedLimit: Int ->
-      val context = appContext.reactContext
-        ?: throw IllegalStateException("sms_context_unavailable")
-      if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-        throw SecurityException("sms_permission_required")
-      }
-      val limit = requestedLimit.coerceIn(1, 100)
-      val messages = mutableListOf<Map<String, Any>>()
-      context.contentResolver.query(
-        Telephony.Sms.Inbox.CONTENT_URI,
-        arrayOf(
-          Telephony.Sms.Inbox._ID,
-          Telephony.Sms.Inbox.ADDRESS,
-          Telephony.Sms.Inbox.BODY,
-          Telephony.Sms.Inbox.DATE
-        ),
-        "${Telephony.Sms.Inbox.DATE} >= ?",
-        arrayOf(since.toLong().toString()),
-        "${Telephony.Sms.Inbox.DATE} ASC"
-      )?.use { cursor ->
-        val id = cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox._ID)
-        val sender = cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox.ADDRESS)
-        val body = cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox.BODY)
-        val receivedAt = cursor.getColumnIndexOrThrow(Telephony.Sms.Inbox.DATE)
-        while (messages.size < limit && cursor.moveToNext()) {
-          messages.add(
-            mapOf(
-              "id" to cursor.getString(id),
-              "sender" to (cursor.getString(sender) ?: ""),
-              "body" to (cursor.getString(body) ?: ""),
-              "receivedAt" to cursor.getLong(receivedAt),
-              "observedAt" to System.currentTimeMillis()
-            )
-          )
-        }
-      }
-      messages
+    AsyncFunction("readRecentSms") { since:Double,limit:Int ->
+      readFinancialPage(since,"0",limit,null)["messages"]
     }
 
     AsyncFunction("isNetworkAvailable") {
@@ -180,4 +140,31 @@ class MasarifiSmsInboxModule : Module() {
       NotificationQueue(context).acknowledge(keys.filter { it.isNotBlank() }.toSet())
     }
   }
+  private fun readFinancialPage(since:Double,afterId:String,limit:Int,expectedOwner:String?):Map<String,Any> = synchronized(TrackingOwner) {
+    require(since.isFinite() && since>=0 && since%1.0==0.0 && since<=9007199254740991.0 && limit in 1..100)
+    val id=afterId.toLongOrNull() ?: throw IllegalArgumentException("sms_cursor_invalid")
+    require(id>=0)
+    val context=appContext.reactContext ?: throw IllegalStateException("sms_context_unavailable")
+    if(context.checkSelfPermission(Manifest.permission.READ_SMS)!=PackageManager.PERMISSION_GRANTED)
+      throw SecurityException("sms_permission_required")
+    val state=TrackingOwner.read(context)
+    if(!state.optBoolean("sms") || state.optString("owner").isBlank() ||
+        expectedOwner!=null && state.optString("owner")!=expectedOwner)
+      throw IllegalStateException("sms_owner_unavailable")
+    val policy=TrackingOwner.policy(state) ?: throw IllegalStateException("tracking_policy_unavailable")
+    val observedAt=System.currentTimeMillis()
+    val cursor=context.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI,arrayOf("_id","address","body","date"),
+      "date > ? OR (date = ? AND _id > ?)",arrayOf(since.toLong().toString(),since.toLong().toString(),id.toString()),"date ASC, _id ASC")
+      ?: throw IllegalStateException("sms_inbox_unavailable")
+    cursor.use {
+      val rows=sequence {
+        while(cursor.moveToNext()) yield(SmsInboxRow(cursor.getLong(0).toString(),cursor.getString(1)?:"",cursor.getString(2)?:"",cursor.getLong(3)))
+      }
+      scanFinancialSmsPage(rows.iterator(),since.toLong(),afterId,limit,observedAt) { row ->
+        if(policy.nominal) policy.isFinancial(row.body,row.sender,"android_sms")
+        else policy.isStrong(row.body,row.sender,"android_sms")
+      }
+    }
+  }
+
 }

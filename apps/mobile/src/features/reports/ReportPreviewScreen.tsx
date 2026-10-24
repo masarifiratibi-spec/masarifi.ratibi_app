@@ -1,17 +1,23 @@
+import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { useReportAnchorDate } from './useReportAnchorDate';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Linking, Share, ScrollView, StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import type { ReportBreakdown, ReportOutputAttempt } from '@/domain/reports';
 import { currentLocale, translate, type MessageKey } from '@/localization/i18n';
+import { useAppShellStore } from '@/state/app-shell';
 import { reportsService } from '@/services/reports-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { useReportsViewState } from '@/state/reports-view-state';
-import { formatDateTime } from '@/utils/format-financial-value';
+import {
+  formatDate,
+  formatDateTime,
+  formatMinorAmount
+} from '@/utils/format-financial-value';
 import {
   useReportAttempts,
   useReportInput,
@@ -26,23 +32,45 @@ let outputOperationSequence = 0;
 
 export function ReportPreviewScreen() {
   const anchorDate = useReportAnchorDate();
-  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
-  const selectedAccountId = useCoreFinanceViewState((state) => state.selectedAccountId);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
+  const selectedAccountId = useCoreFinanceViewState(
+    (state) => state.selectedAccountId
+  );
   const accounts = useAccounts(false);
-  const currencyCode = accounts.data?.find((account) => account.id === selectedAccountId)?.currencyCode ?? baseCurrencyCode;
+  const currencyCode =
+    accounts.data?.find((account) => account.id === selectedAccountId)
+      ?.currencyCode ?? baseCurrencyCode;
   const locale = usePreferenceStore((state) => state.locale);
   const { selectedKind } = useReportsViewState();
   const schedule = useReportSchedule();
   const attempts = useReportAttempts();
+  const hideBalances = usePreferenceStore((state) => state.hideBalances);
+  const downloadFlight = useRef(false);
+  const [pendingOutput, setPendingOutput] = useState<{
+    id: string;
+    kind: 'download' | 'share';
+    owner: string | null | undefined;
+  } | null>(null);
+  const [downloadFailed, setDownloadFailed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [detailLevel, setDetailLevel] = useState<'summary' | 'detailed'>(
-    schedule.data?.detailLevel ?? 'summary'
+    isFixtureModeEnabled()
+      ? (schedule.data?.detailLevel ?? 'summary')
+      : 'summary'
   );
   const recipientEmail =
     schedule.data?.recipient.status === 'verified'
       ? schedule.data.recipient.normalizedEmail
       : null;
   const input = {
-    ...useReportInput(selectedKind, anchorDate, currencyCode, selectedAccountId ? [selectedAccountId] : []),
+    ...useReportInput(
+      selectedKind,
+      anchorDate,
+      currencyCode,
+      selectedAccountId ? [selectedAccountId] : []
+    ),
     language: locale,
     detailLevel,
     recipientEmail
@@ -57,10 +85,73 @@ export function ReportPreviewScreen() {
 
   const submit = (kind: 'send_test' | 'send_now' | 'download' | 'share') => {
     if (preview.data)
-      output.mutate({ kind, previewId: preview.data.previewId });
+      output.mutate(
+        { kind, previewId: preview.data.previewId },
+        {
+          onSuccess: (result) => {
+            if (
+              !isFixtureModeEnabled() &&
+              (kind === 'download' || kind === 'share')
+            )
+              setPendingOutput({
+                id: result.value.id,
+                kind,
+                owner: useAppShellStore.getState().session?.userId
+              });
+          }
+        }
+      );
   };
   const retry = (attempt: ReportOutputAttempt) =>
     output.mutate({ kind: 'retry', previousAttemptId: attempt.id });
+  const download = useCallback(
+    async (
+      attempt: ReportOutputAttempt,
+      kind: 'download' | 'share' = 'download'
+    ) => {
+      if (downloadFlight.current) return;
+      downloadFlight.current = true;
+      const owner = useAppShellStore.getState().session?.userId;
+      setDownloading(true);
+      setDownloadFailed(false);
+      try {
+        const fresh = await reportsService.getAttempt(attempt.id);
+        if (owner !== useAppShellStore.getState().session?.userId) return;
+        if (
+          fresh.id !== attempt.id ||
+          fresh.status !== 'ready' ||
+          !fresh.downloadUrl ||
+          (fresh.downloadUrlExpiresAt ?? 0) <= Date.now()
+        )
+          throw new Error('REPORT_NOT_READY');
+        if (kind === 'share')
+          await Share.share({
+            message: fresh.downloadUrl,
+            url: fresh.downloadUrl
+          });
+        else await Linking.openURL(fresh.downloadUrl);
+      } catch {
+        if (owner === useAppShellStore.getState().session?.userId)
+          setDownloadFailed(true);
+      } finally {
+        downloadFlight.current = false;
+        setDownloading(false);
+      }
+    },
+    []
+  );
+  useEffect(() => {
+    if (!pendingOutput) return;
+    const attempt = attempts.data?.items.find(
+      (item) => item.id === pendingOutput.id
+    );
+    if (!attempt || !['ready', 'failed'].includes(attempt.status)) return;
+    setPendingOutput(null);
+    if (pendingOutput.owner !== useAppShellStore.getState().session?.userId)
+      return;
+    if (attempt.status === 'failed') setDownloadFailed(true);
+    else void download(attempt, pendingOutput.kind);
+  }, [attempts.data, pendingOutput, download]);
   const snapshot = preview.data?.snapshot;
 
   return (
@@ -70,7 +161,7 @@ export function ReportPreviewScreen() {
       </StyledText>
       {snapshot ? (
         <View style={styles.stack}>
-          <StyledText>{`${translate('reports.preview.period')}: ${snapshot.period.startDate} – ${snapshot.period.endDate}`}</StyledText>
+          <StyledText>{`${translate('reports.preview.period')}: ${formatDate(snapshot.period.startInstant, currentLocale(), snapshot.period.timeZone)} – ${formatDate(snapshot.period.endExclusiveInstant - 1, currentLocale(), snapshot.period.timeZone)}`}</StyledText>
           <StyledText>{`${translate('reports.preview.generated')}: ${formatDateTime(snapshot.generatedAt, currentLocale())}`}</StyledText>
           <StyledText>{`${translate('reports.preview.dataAsOf')}: ${formatDateTime(snapshot.dataAsOf, currentLocale())}`}</StyledText>
           <StyledText>{`${translate('reports.preview.language')}: ${translate(snapshot.language === 'ar' ? 'common.arabic' : 'common.english')}`}</StyledText>
@@ -79,32 +170,71 @@ export function ReportPreviewScreen() {
           <StyledText>{`${translate('reports.preview.detail')}: ${translate(`reports.schedule.${snapshot.detailLevel}` as MessageKey)}`}</StyledText>
           <StyledText>{`${translate('reports.preview.recipient')}: ${recipientEmail ?? translate('reports.preview.notSet')}`}</StyledText>
           <StyledText>{reportStateTitle(snapshot.dataState)}</StyledText>
+          {(['income', 'expense', 'netCashFlow'] as const).map((metric) => (
+            <StyledText key={metric}>
+              {translate(`reports.metric.${metric}`)}:{' '}
+              {hideBalances
+                ? '••••'
+                : snapshot.summary[metric].value
+                  ? formatMinorAmount(
+                      snapshot.summary[metric].value.minorUnits,
+                      snapshot.currencyCode,
+                      currentLocale()
+                    )
+                  : '—'}
+            </StyledText>
+          ))}
+          {snapshot.breakdowns
+            .flatMap((group) => group.items)
+            .map((item) => (
+              <StyledText key={item.id}>
+                {item.label}:{' '}
+                {hideBalances
+                  ? '••••'
+                  : item.value.value
+                    ? formatMinorAmount(
+                        item.value.value.minorUnits,
+                        snapshot.currencyCode,
+                        currentLocale()
+                      )
+                    : '—'}
+              </StyledText>
+            ))}
         </View>
       ) : (
-        <StyledText>{translate(
-          (preview.error as { code?: string } | null)?.code === 'report_account_scope_unavailable'
-            ? 'reports.preview.accountScopeUnavailable'
-            : preview.isError ? 'reports.state.error' : 'reports.state.loading'
-        )}</StyledText>
+        <StyledText>
+          {translate(
+            (preview.error as { code?: string } | null)?.code ===
+              'report_account_scope_unavailable'
+              ? 'reports.preview.accountScopeUnavailable'
+              : preview.isError
+                ? 'reports.state.error'
+                : 'reports.state.loading'
+          )}
+        </StyledText>
       )}
 
       <StyledText variant="subtitle">
         {translate('reports.preview.privacy')}
       </StyledText>
-      <View style={styles.actions}>
-        <ActionButton
-          label={translate('reports.schedule.summary')}
-          onPress={() => setDetailLevel('summary')}
-          variant="secondary"
-        />
-        <ActionButton
-          label={translate('reports.schedule.detailed')}
-          onPress={() => setDetailLevel('detailed')}
-          variant="secondary"
-        />
-      </View>
+      {isFixtureModeEnabled() ? (
+        <View style={styles.actions}>
+          <ActionButton
+            label={translate('reports.schedule.summary')}
+            onPress={() => setDetailLevel('summary')}
+            variant="secondary"
+          />
+          <ActionButton
+            label={translate('reports.schedule.detailed')}
+            onPress={() => setDetailLevel('detailed')}
+            variant="secondary"
+          />
+        </View>
+      ) : null}
       <StyledText>{`${translate('reports.preview.privacyWarning')}: ${translate('reports.preview.emailWarning')}`}</StyledText>
-      <StyledText>{translate('reports.preview.mockNotice')}</StyledText>
+      {isFixtureModeEnabled() ? (
+        <StyledText>{translate('reports.preview.mockNotice')}</StyledText>
+      ) : null}
 
       <View style={styles.actions}>
         <ActionButton
@@ -151,6 +281,13 @@ export function ReportPreviewScreen() {
                 )}
               </StyledText>
             ) : null}
+            {attempt.status === 'ready' ? (
+              <ActionButton
+                label={translate('reports.action.download')}
+                loading={downloading}
+                onPress={() => void download(attempt)}
+              />
+            ) : null}
             {attempt.status === 'failed' ? (
               <ActionButton
                 disabled={output.isPending}
@@ -164,6 +301,29 @@ export function ReportPreviewScreen() {
       ) : (
         <StyledText>{translate('reports.preview.noHistory')}</StyledText>
       )}
+      {output.isError || downloadFailed ? (
+        <StyledText accessibilityRole="alert">
+          {translate('reports.state.error')}
+        </StyledText>
+      ) : null}
+      <ActionButton
+        label={translate('reports.action.retry')}
+        loading={attempts.isFetching}
+        onPress={() => void attempts.refetch()}
+      />
+      {attempts.hasNextPage ? (
+        <ActionButton
+          label={translate('reports.action.more')}
+          loading={attempts.isFetchingNextPage}
+          onPress={() => void attempts.fetchNextPage()}
+        />
+      ) : null}
+      {attempts.isError ? (
+        <ActionButton
+          label={translate('reports.action.retry')}
+          onPress={() => void attempts.refetch()}
+        />
+      ) : null}
     </ScrollView>
   );
 }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "releaseId": "bundled-currency-identity-2026-10-18",
+  "releaseId": "bundled-report-closure-2026-10-24",
   "engineVersion": "2.0.0",
   "rules": [
     {
@@ -13,7 +13,7 @@
         "verification code",
         "one-time password",
         "رمز التحقق",
-        "رمز الأمان",
+        "رمز الامان",
         "كود التحقق"
       ],
       "effects": {
@@ -33,7 +33,7 @@
       "any": [
         "payee addition request",
         "beneficiary added",
-        "إضافة مستفيد",
+        "اضافة مستفيد",
         "اضافة مستفيد",
         "transfers will be enabled"
       ],
@@ -51,13 +51,7 @@
       "family": "exclusion",
       "enabled": true,
       "priority": 980,
-      "any": [
-        "special offer",
-        "promo code",
-        "عرض خاص",
-        "عرض حصري",
-        "واحصل"
-      ],
+      "any": ["special offer", "promo code", "عرض خاص", "عرض حصري", "واحصل"],
       "effects": {
         "status": "administrative",
         "subtype": "administrative",
@@ -116,12 +110,7 @@
       "family": "status",
       "enabled": true,
       "priority": 930,
-      "any": [
-        "cancelled",
-        "canceled",
-        "ملغاة",
-        "ملغى"
-      ],
+      "any": ["cancelled", "canceled", "ملغاة", "ملغي"],
       "effects": {
         "status": "cancelled",
         "disposition": "ignore"
@@ -140,7 +129,7 @@
         "working days",
         "قيد المعالجة",
         "معلق",
-        "سيتم إيداع",
+        "سيتم ايداع",
         "سيتم ايداع",
         "payment request",
         "scheduled payment",
@@ -156,7 +145,7 @@
         "request for a refund",
         "request for deposit",
         "requested refund",
-        "طلب إيداع",
+        "طلب ايداع",
         "طلب ايداع",
         "طلب استرداد",
         "طلب تحويل",
@@ -174,12 +163,7 @@
       "family": "action",
       "enabled": true,
       "priority": 850,
-      "any": [
-        "reversed",
-        "reversal",
-        "عكس القيد",
-        "عكس العملية"
-      ],
+      "any": ["reversed", "reversal", "عكس القيد", "عكس العملية"],
       "effects": {
         "direction": "incoming",
         "subtype": "reversal",
@@ -193,12 +177,7 @@
       "family": "action",
       "enabled": true,
       "priority": 840,
-      "any": [
-        "refund",
-        "refunded",
-        "استرداد",
-        "مسترد"
-      ],
+      "any": ["refund", "refunded", "استرداد", "مسترد"],
       "effects": {
         "direction": "incoming",
         "subtype": "refund",
@@ -212,10 +191,7 @@
       "family": "action",
       "enabled": true,
       "priority": 830,
-      "any": [
-        "salary",
-        "راتب"
-      ],
+      "any": ["salary", "راتب"],
       "effects": {
         "direction": "incoming",
         "subtype": "salary",
@@ -229,10 +205,7 @@
       "family": "action",
       "enabled": true,
       "priority": 820,
-      "any": [
-        "شراء عبر نقاط بيع",
-        "pos purchase"
-      ],
+      "any": ["شراء عبر نقاط بيع", "pos purchase"],
       "effects": {
         "direction": "outgoing",
         "subtype": "pos_purchase",
@@ -247,7 +220,7 @@
       "enabled": true,
       "priority": 810,
       "any": [
-        "شراء إنترنت",
+        "شراء انترنت",
         "شراء انترنت",
         "online purchase",
         "internet purchase"
@@ -265,9 +238,7 @@
       "family": "action",
       "enabled": true,
       "priority": 800,
-      "any": [
-        "used for"
-      ],
+      "any": ["used for"],
       "effects": {
         "direction": "outgoing",
         "subtype": "card_purchase",
@@ -281,11 +252,7 @@
       "family": "action",
       "enabled": true,
       "priority": 790,
-      "any": [
-        "سدادك",
-        "bill payment",
-        "فاتورة"
-      ],
+      "any": ["سدادك", "bill payment", "فاتورة"],
       "effects": {
         "direction": "outgoing",
         "subtype": "bill_payment",
@@ -299,13 +266,7 @@
       "family": "action",
       "enabled": true,
       "priority": 780,
-      "any": [
-        "cash withdrawal",
-        "withdrawal",
-        "withdrawn",
-        "سحب نقدي",
-        "سحب"
-      ],
+      "any": ["cash withdrawal", "withdrawal", "withdrawn", "سحب نقدي", "سحب"],
       "effects": {
         "direction": "outgoing",
         "subtype": "withdrawal",
@@ -382,11 +343,7 @@
       "family": "action",
       "enabled": true,
       "priority": 740,
-      "any": [
-        "purchase",
-        "شراء",
-        "spent"
-      ],
+      "any": ["purchase", "شراء", "spent"],
       "effects": {
         "direction": "outgoing",
         "subtype": "purchase",
@@ -400,13 +357,7 @@
       "family": "action",
       "enabled": true,
       "priority": 730,
-      "any": [
-        "paid",
-        "payment",
-        "charged",
-        "دفع",
-        "سداد"
-      ],
+      "any": ["paid", "payment", "charged", "دفع", "سداد"],
       "effects": {
         "direction": "outgoing",
         "subtype": "payment",
@@ -420,14 +371,7 @@
       "family": "action",
       "enabled": true,
       "priority": 755,
-      "any": [
-        "fee",
-        "fees",
-        "service charge",
-        "commission",
-        "رسوم",
-        "عمولة"
-      ],
+      "any": ["fee", "fees", "service charge", "commission", "رسوم", "عمولة"],
       "effects": {
         "direction": "outgoing",
         "subtype": "fee",
@@ -448,14 +392,7 @@
       "family": "action",
       "enabled": true,
       "priority": 710,
-      "any": [
-        "deposit",
-        "deposited",
-        "إيداع",
-        "ايداع",
-        "تم إيداع",
-        "تم ايداع"
-      ],
+      "any": ["deposit", "deposited", "ايداع", "ايداع", "تم ايداع", "تم ايداع"],
       "effects": {
         "direction": "incoming",
         "subtype": "deposit",
@@ -473,7 +410,7 @@
         "credited",
         "cr. transaction",
         "cr transaction",
-        "إضافة",
+        "اضافة",
         "اضافة"
       ],
       "effects": {
@@ -495,7 +432,10 @@
         "ريال سعودي",
         "ريال",
         "ر.س",
-        "ريال سعودى"
+        "ريال سعودى",
+        "SR",
+        "ريالاً",
+        "ريالا"
       ]
     },
     {
@@ -512,37 +452,28 @@
         "درهم اماراتى",
         "دراهم إماراتية",
         "دراهم اماراتية",
-        "Dhs"
+        "Dhs",
+        "درهماً",
+        "درهما"
       ]
     },
     {
       "code": "USD",
       "scale": 2,
       "supported": true,
-      "aliases": [
-        "USD",
-        "US$",
-        "دولار"
-      ]
+      "aliases": ["USD", "US$", "دولار"]
     },
     {
       "code": "EUR",
       "scale": 2,
       "supported": true,
-      "aliases": [
-        "EUR",
-        "يورو"
-      ]
+      "aliases": ["EUR", "يورو"]
     },
     {
       "code": "GBP",
       "scale": 2,
       "supported": true,
-      "aliases": [
-        "GBP",
-        "جنيه استرليني",
-        "جنيه إسترليني"
-      ]
+      "aliases": ["GBP", "جنيه استرليني", "جنيه إسترليني"]
     },
     {
       "code": "EGP",
@@ -567,74 +498,52 @@
       "code": "KWD",
       "scale": 3,
       "supported": true,
-      "aliases": [
-        "KWD",
-        "دينار كويتي",
-        "د.ك"
-      ]
+      "aliases": ["KWD", "دينار كويتي", "د.ك", "KD"]
     },
     {
       "code": "QAR",
       "scale": 2,
       "supported": true,
-      "aliases": [
-        "QAR",
-        "ريال قطري",
-        "ر.ق"
-      ]
+      "aliases": ["QAR", "ريال قطري", "ر.ق"]
     },
     {
       "code": "OMR",
       "scale": 3,
       "supported": true,
-      "aliases": [
-        "OMR",
-        "ريال عماني",
-        "ريال عُماني",
-        "ريال عمانى",
-        "ر.ع"
-      ]
+      "aliases": ["OMR", "ريال عماني", "ريال عُماني", "ريال عمانى", "ر.ع", "RO"]
     },
     {
       "code": "BHD",
       "scale": 3,
       "supported": true,
-      "aliases": [
-        "BHD",
-        "دينار بحريني",
-        "دينار بحرينى",
-        "د.ب"
-      ]
+      "aliases": ["BHD", "دينار بحريني", "دينار بحرينى", "د.ب", "BD"]
     },
     {
       "code": "JOD",
       "scale": 3,
       "supported": true,
-      "aliases": [
-        "JOD"
-      ]
+      "aliases": ["JOD", "دينار أردني", "دينار اردني", "دينار", "دينارا"]
     },
     {
       "code": "JPY",
       "scale": 0,
       "supported": true,
-      "aliases": [
-        "JPY"
-      ]
+      "aliases": ["JPY"]
     },
     {
       "code": "SEK",
       "scale": 2,
       "supported": false,
-      "aliases": [
-        "SEK"
-      ]
+      "aliases": ["SEK"]
+    },
+    {
+      "code": "YER",
+      "scale": 2,
+      "supported": false,
+      "aliases": ["YER", "ريال يمني"]
     }
   ],
-  "contexts": [
-    "transaction",
-    "معاملة"
-  ],
+  "contexts": ["transaction", "معاملة"],
   "custom": [
     {
       "ruleKey": "custom.my-phrase",
@@ -645,35 +554,28 @@
     {
       "providerKey": "alinma",
       "country": "SA",
-      "senders": [
-        "alinma"
-      ],
+      "senders": ["alinma"],
       "packages": []
     },
     {
       "providerKey": "adcb",
       "country": "AE",
-      "senders": [
-        "ADCBAlert"
-      ],
+      "senders": ["ADCBAlert"],
       "packages": []
     },
     {
       "providerKey": "instapay",
       "country": "EG",
       "senders": [],
-      "packages": [
-        "com.egyptianbanks.instapay"
-      ]
+      "packages": ["com.egyptianbanks.instapay"]
     },
     {
       "providerKey": "du",
       "country": "AE",
-      "senders": [
-        "du"
-      ],
+      "senders": ["du"],
       "packages": []
     }
   ],
-  "marketingPattern": "\\b(?:offer|promo|discount)\\b|عرض|خصم\\s*\\d+\\s*%"
+  "marketingPattern": "\\b(?:offer|promo|discount)\\b|(?<![\\p{L}])عرض(?![\\p{L}])|خصم\\s*\\d+\\s*%",
+  "securityCodePattern": "\\b(?:use|enter|verification|security|one[ -]time)\\s+(?:the\\s+)?(?:code|password)\\b[^\\n]{0,40}[0-9]{4,8}\\b"
 }

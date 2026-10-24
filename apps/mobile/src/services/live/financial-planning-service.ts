@@ -3,7 +3,10 @@ import { z } from 'zod';
 
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { safeMinorSum } from '@/domain/core-finance';
-import { localDateInTimeZone, localDateTimeInstant } from '@/domain/financial-period';
+import {
+  localDateInTimeZone,
+  localDateTimeInstant
+} from '@/domain/financial-period';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   available,
@@ -41,13 +44,25 @@ import {
 } from '@/services/contracts/financial-planning-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { FinancialPlanningRepository } from '@/storage/financial-planning-repository';
-import { readPlanningDraft, writePlanningDraft, deletePlanningDraft } from '@/storage/planning-draft-storage';
+import {
+  readPlanningDraft,
+  writePlanningDraft,
+  deletePlanningDraft
+} from '@/storage/planning-draft-storage';
 import {
   registerRuntimeIdentityReset,
   registerRuntimeUserDataReset
 } from '@/storage/runtime-user-data-reset';
-import { captureLiveClerkIdentity, captureLiveReadClerkIdentity, captureLiveClerkOwner } from './auth-service';
-import { assertReadActive, withReadContext, type ReadContext } from './read-context';
+import {
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity,
+  captureLiveClerkOwner
+} from './auth-service';
+import {
+  assertReadActive,
+  withReadContext,
+  type ReadContext
+} from './read-context';
 import { measurePerformance } from '../platform/performance-timing';
 import {
   mapBudgetFromApi,
@@ -531,8 +546,13 @@ function fromReceipt(
     id: value.id,
     salaryProfileId: value.salaryProfileId,
     transactionId: value.transactionId,
-    expectedOccurrenceDate: localDateInTimeZone(Date.parse(value.expectedAt), timeZone),
-    receivedDate: value.receivedAt ? localDateInTimeZone(Date.parse(value.receivedAt), timeZone) : null,
+    expectedOccurrenceDate: localDateInTimeZone(
+      Date.parse(value.expectedAt),
+      timeZone
+    ),
+    receivedDate: value.receivedAt
+      ? localDateInTimeZone(Date.parse(value.receivedAt), timeZone)
+      : null,
     status:
       value.status === 'received'
         ? 'linked'
@@ -889,25 +909,39 @@ function salaryCycle(
   const expenses = parsePlanningMinor(salary.actualExpenseMinor);
   const reserved = parsePlanningMinor(salary.reservedObligationMinor);
   const remaining = requireSafeMinorSum([income, -expenses, -reserved]);
-  const next = salary.nextExpectedAt ? localDateInTimeZone(Date.parse(salary.nextExpectedAt), timeZone) : undefined;
+  const next = salary.nextExpectedAt
+    ? localDateInTimeZone(Date.parse(salary.nextExpectedAt), timeZone)
+    : undefined;
   const daysRemaining = next ? Math.max(0, daysBetween(today, next)) : 0;
   const value = (minorUnits: number) =>
     available(money(minorUnits, salary.currencyCode));
   return {
     profileId: salary.id,
     startReceiptId: salary.startReceiptId ?? null,
-    startDate: salary.startAt ? localDateInTimeZone(Date.parse(salary.startAt), timeZone) : null,
+    startDate: salary.startAt
+      ? localDateInTimeZone(Date.parse(salary.startAt), timeZone)
+      : null,
     projectedNextSalaryDate: next ?? null,
     daysRemaining,
     income: salary.startReceiptId ? value(income) : unavailable('missing_data'),
-    expenses: salary.startReceiptId ? value(expenses) : unavailable('missing_data'),
-    reservedObligations: salary.startReceiptId ? value(reserved) : unavailable('missing_data'),
-    remaining: salary.startReceiptId ? value(remaining) : unavailable('missing_data'),
-    suggestedDaily:
-      !salary.startReceiptId ? unavailable('missing_data') : !next || next < today ? unavailable('salary_overdue') :
-      remaining < 0 ? unavailable('balance_negative') : daysRemaining > 0
-        ? value(Math.floor(remaining / daysRemaining))
-        : unavailable('cycle_elapsed'),
+    expenses: salary.startReceiptId
+      ? value(expenses)
+      : unavailable('missing_data'),
+    reservedObligations: salary.startReceiptId
+      ? value(reserved)
+      : unavailable('missing_data'),
+    remaining: salary.startReceiptId
+      ? value(remaining)
+      : unavailable('missing_data'),
+    suggestedDaily: !salary.startReceiptId
+      ? unavailable('missing_data')
+      : !next || next < today
+        ? unavailable('salary_overdue')
+        : remaining < 0
+          ? unavailable('balance_negative')
+          : daysRemaining > 0
+            ? value(Math.floor(remaining / daysRemaining))
+            : unavailable('cycle_elapsed'),
     previousCycleComparison: {
       status: 'unavailable',
       reason: 'insufficient_history'
@@ -963,64 +997,67 @@ function goalInput(input: SavingsGoalInput) {
   };
 }
 
-function planningOverviewFromSummary(summary: z.infer<typeof summarySchema>, input: { currencyCode: string; today: LocalDate; timeZone?: string }): import('../contracts/financial-planning-service').PlanningReadSnapshot['byCurrency'][string] {
-      const salary = salaryCycle(summary, input.today, input.timeZone);
-      const budget = summary.budgets.find(
-        (item) => item.currencyCode === input.currencyCode
-      );
-      const payables = summary.obligations.payables.filter(
-        (item) => item.currencyCode === input.currencyCode
-      );
-      const obligationTotal = requireSafeMinorSum(
-        payables.map((item) => parsePlanningMinor(item.remainingMinor))
-      );
-      const budgetSpent = budget ? parsePlanningMinor(budget.spentMinor) : 0;
-      const budgetTotal = budget ? parsePlanningMinor(budget.totalMinor) : 0;
-      const budgetRemaining = budget
-        ? parsePlanningMinor(budget.remainingMinor)
-        : 0;
-      const budgetPercentage = roundedPercentage(budgetSpent, budgetTotal);
-      return {
-        dataState: summary.dataState,
-        salary,
-        budget: budget
-          ? {
-              budgetId: budget.id,
-              eligibleSpendMinor: available(budgetSpent),
-              remainingMinor: available(budgetRemaining),
-              percentage: available(budgetPercentage),
-              forecastMinor: {
-                status: 'unavailable',
-                reason: 'insufficient_history'
-              },
-              comparison: {
-                status: 'unavailable',
-                reason: 'insufficient_history'
-              },
-              state:
-                budget.dataState === 'partial'
-                  ? 'incomplete'
-                  : budgetRemaining < 0
-                    ? 'exceeded'
-                    : budgetPercentage >= 90
-                      ? 'near_limit'
-                      : budgetPercentage >= 80
-                        ? 'threshold'
-                        : 'healthy',
-              excludedTransactionIds: []
-            }
-          : null,
-        obligationsDueMinor: available({
-          minorUnits: obligationTotal,
-          currencyCode: input.currencyCode,
-          scale: getCurrencyMinorUnitScale(input.currencyCode)
-        }),
-        savings: summary.savings
-          .filter((item) => item.currencyCode === input.currencyCode)
-          .map((item) => {
-            return goalProgress(item, input.today);
-          })
-      };
+function planningOverviewFromSummary(
+  summary: z.infer<typeof summarySchema>,
+  input: { currencyCode: string; today: LocalDate; timeZone?: string }
+): import('../contracts/financial-planning-service').PlanningReadSnapshot['byCurrency'][string] {
+  const salary = salaryCycle(summary, input.today, input.timeZone);
+  const budget = summary.budgets.find(
+    (item) => item.currencyCode === input.currencyCode
+  );
+  const payables = summary.obligations.payables.filter(
+    (item) => item.currencyCode === input.currencyCode
+  );
+  const obligationTotal = requireSafeMinorSum(
+    payables.map((item) => parsePlanningMinor(item.remainingMinor))
+  );
+  const budgetSpent = budget ? parsePlanningMinor(budget.spentMinor) : 0;
+  const budgetTotal = budget ? parsePlanningMinor(budget.totalMinor) : 0;
+  const budgetRemaining = budget
+    ? parsePlanningMinor(budget.remainingMinor)
+    : 0;
+  const budgetPercentage = roundedPercentage(budgetSpent, budgetTotal);
+  return {
+    dataState: summary.dataState,
+    salary,
+    budget: budget
+      ? {
+          budgetId: budget.id,
+          eligibleSpendMinor: available(budgetSpent),
+          remainingMinor: available(budgetRemaining),
+          percentage: available(budgetPercentage),
+          forecastMinor: {
+            status: 'unavailable',
+            reason: 'insufficient_history'
+          },
+          comparison: {
+            status: 'unavailable',
+            reason: 'insufficient_history'
+          },
+          state:
+            budget.dataState === 'partial'
+              ? 'incomplete'
+              : budgetRemaining < 0
+                ? 'exceeded'
+                : budgetPercentage >= 90
+                  ? 'near_limit'
+                  : budgetPercentage >= 80
+                    ? 'threshold'
+                    : 'healthy',
+          excludedTransactionIds: []
+        }
+      : null,
+    obligationsDueMinor: available({
+      minorUnits: obligationTotal,
+      currencyCode: input.currencyCode,
+      scale: getCurrencyMinorUnitScale(input.currencyCode)
+    }),
+    savings: summary.savings
+      .filter((item) => item.currencyCode === input.currencyCode)
+      .map((item) => {
+        return goalProgress(item, input.today);
+      })
+  };
 }
 
 export function createLiveFinancialPlanningService({
@@ -1092,19 +1129,31 @@ export function createLiveFinancialPlanningService({
     )
       throw new HttpError('validation_error', 400);
     assertSafeFinancialBody(options.body);
-    if (method === 'GET') return withReadContext(options, async (signal) => {
-      const identity = options.identity ?? await measurePerformance('planning.auth', captureLiveReadClerkIdentity);
-      assertReadActive(signal);
-      await identity.assertCurrent();
-      assertReadActive(signal);
-      const value = await measurePerformance('planning.read', () => requestJson(path, schema, {
-        baseUrl, request, method, signal, token: identity.token
-      }));
-      await identity.assertCurrent();
-      assertReadActive(signal);
-      return value;
-    });
-    const identity = options.identity ?? await captureLiveClerkIdentity();
+    if (method === 'GET')
+      return withReadContext(options, async (signal) => {
+        const identity =
+          options.identity ??
+          (await measurePerformance(
+            'planning.auth',
+            captureLiveReadClerkIdentity
+          ));
+        assertReadActive(signal);
+        await identity.assertCurrent();
+        assertReadActive(signal);
+        const value = await measurePerformance('planning.read', () =>
+          requestJson(path, schema, {
+            baseUrl,
+            request,
+            method,
+            signal,
+            token: identity.token
+          })
+        );
+        await identity.assertCurrent();
+        assertReadActive(signal);
+        return value;
+      });
+    const identity = options.identity ?? (await captureLiveClerkIdentity());
     await identity.assertCurrent();
     const value = await requestJson(path, schema, {
       baseUrl,
@@ -1120,30 +1169,45 @@ export function createLiveFinancialPlanningService({
     return value;
   };
 
-  const allPages = <T>(path: string, schema: z.ZodType<T>, context?: ReadContext) => withReadContext(context, async (signal) => {
-    const identity = await measurePerformance('planning.auth', captureLiveReadClerkIdentity);
-    assertReadActive(signal);
-    const values: T[] = [];
-    const seen = new Set<string>();
-    let cursor: string | null = null;
-    do {
-      const separator = path.includes('?') ? '&' : '?';
-      const suffix: string = `${separator}limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
-      const response: {
-        items: T[];
-        nextCursor: string | null;
-        requestId?: string;
-      } = await send('GET', `${path}${suffix}`, page(schema), { identity, signal });
-      values.push(...response.items);
-      cursor = response.nextCursor;
-      if (cursor && seen.has(cursor))
-        throw new HttpError('contract_mismatch', 502);
-      if (cursor) seen.add(cursor);
-    } while (cursor);
-    return values;
-  });
+  const allPages = <T>(
+    path: string,
+    schema: z.ZodType<T>,
+    context?: ReadContext
+  ) =>
+    withReadContext(context, async (signal) => {
+      const identity = await measurePerformance(
+        'planning.auth',
+        captureLiveReadClerkIdentity
+      );
+      assertReadActive(signal);
+      const values: T[] = [];
+      const seen = new Set<string>();
+      let cursor: string | null = null;
+      do {
+        const separator = path.includes('?') ? '&' : '?';
+        const suffix: string = `${separator}limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+        const response: {
+          items: T[];
+          nextCursor: string | null;
+          requestId?: string;
+        } = await send('GET', `${path}${suffix}`, page(schema), {
+          identity,
+          signal
+        });
+        values.push(...response.items);
+        cursor = response.nextCursor;
+        if (cursor && seen.has(cursor))
+          throw new HttpError('contract_mismatch', 502);
+        if (cursor) seen.add(cursor);
+      } while (cursor);
+      return values;
+    });
 
-  const readSummary = (period: string, asOf?: LocalDate, context?: ReadContext) =>
+  const readSummary = (
+    period: string,
+    asOf?: LocalDate,
+    context?: ReadContext
+  ) =>
     send(
       'GET',
       `/api/v1/planning/summary?period=${encodeURIComponent(period)}${asOf ? `&asOf=${asOf}` : ''}`,
@@ -1171,12 +1235,17 @@ export function createLiveFinancialPlanningService({
     const budget = mapBudgetFromApi(wire);
     return {
       budget,
-      categories: wire.categories.map((item) => mapBudgetCategory(item, budget.id)),
+      categories: wire.categories.map((item) =>
+        mapBudgetCategory(item, budget.id)
+      ),
       progress: budgetProgress(budget, summary)
     };
   };
 
-  const mapBudgetCategory = (item: z.infer<typeof categorySchema>, budgetId: string): CategoryBudget => ({
+  const mapBudgetCategory = (
+    item: z.infer<typeof categorySchema>,
+    budgetId: string
+  ): CategoryBudget => ({
     ...fromCategory(item, budgetId),
     categoryId: categoryIds?.toLocal(item.categoryId) ?? item.categoryId
   });
@@ -1185,15 +1254,20 @@ export function createLiveFinancialPlanningService({
     (
       await allPages(
         `/api/v1/obligations/${encodeURIComponent(id)}/schedule`,
-        scheduleSchema, context
+        scheduleSchema,
+        context
       )
     ).map(fromSchedule);
 
-  const readGoal = async (id: string, context?: ReadContext): Promise<SavingsGoalDetail> => {
+  const readGoal = async (
+    id: string,
+    context?: ReadContext
+  ): Promise<SavingsGoalDetail> => {
     const wire = await send(
       'GET',
       `/api/v1/savings-goals/${encodeURIComponent(id)}`,
-      goalDetailSchema, context
+      goalDetailSchema,
+      context
     );
     const goal = mapSavingsGoalFromApi(wire);
     const goalMovements = wire.movements.map(fromMovement);
@@ -1204,100 +1278,104 @@ export function createLiveFinancialPlanningService({
       movements: goalMovements,
       progress: goalProgress(
         wire,
-        new Date(now()).toISOString().slice(0, 10) as LocalDate
+        localDateInTimeZone(now(), usePreferenceStore.getState().timeZone)
       )
     };
   };
 
-  const mapHistory = (id: string, currencyCode: string, history: z.infer<typeof paymentHistorySchema>[] | null): ObligationPayment[] => {
-      return (history ?? []).map(
-        (entry) => {
-          if (
-            entry.obligationId !== id ||
-            entry.currencyCode !== currencyCode
-          )
-            throw new HttpError('contract_mismatch', 502);
-          const payment: ObligationPayment = {
-            id: entry.id,
-            obligationId: entry.obligationId,
-            transactionId: entry.transactionId,
-            amountMinor: parsePlanningMinor(entry.amountMinor),
-            currencyCode: entry.currencyCode,
-            paidDate: localDateInTimeZone(
-              Date.parse(entry.paidAt),
-              usePreferenceStore.getState().timeZone
-            ),
-            case: entry.paymentCase,
-            allocationIntent:
-              entry.allocationIntent === 'prepayment'
-                ? 'principal'
-                : entry.allocationIntent,
-            allocations: entry.allocations.map((a) => ({
-              scheduleItemId: a.scheduleItemId,
-              amountMinor: parsePlanningMinor(a.amountMinor)
-            })),
-            principalReductionMinor: parsePlanningMinor(
-              entry.principalReductionMinor
-            ),
-            settlementAdjustmentMinor: parsePlanningMinor(
-              entry.settlementAdjustmentMinor
-            ),
-            source: entry.source,
-            transactionOwnership: entry.transactionOwnership,
-            status: entry.status === 'confirmed' ? 'posted' : entry.status,
-            operationId: entry.operationId,
-            replacesPaymentId: entry.replacesPaymentId,
-            version: entry.version,
-            createdAt: Date.parse(entry.createdAt),
-            updatedAt: Date.parse(entry.updatedAt),
-            syncStatus: 'synced'
-          };
-          payments.set(payment.id, {
-            obligationId: id,
-            version: payment.version,
-            allocations: payment.allocations
-          });
-          return payment;
-        }
-      );
+  const mapHistory = (
+    id: string,
+    currencyCode: string,
+    history: z.infer<typeof paymentHistorySchema>[] | null
+  ): ObligationPayment[] => {
+    return (history ?? []).map((entry) => {
+      if (entry.obligationId !== id || entry.currencyCode !== currencyCode)
+        throw new HttpError('contract_mismatch', 502);
+      const payment: ObligationPayment = {
+        id: entry.id,
+        obligationId: entry.obligationId,
+        transactionId: entry.transactionId,
+        amountMinor: parsePlanningMinor(entry.amountMinor),
+        currencyCode: entry.currencyCode,
+        paidDate: localDateInTimeZone(
+          Date.parse(entry.paidAt),
+          usePreferenceStore.getState().timeZone
+        ),
+        case: entry.paymentCase,
+        allocationIntent:
+          entry.allocationIntent === 'prepayment'
+            ? 'principal'
+            : entry.allocationIntent,
+        allocations: entry.allocations.map((a) => ({
+          scheduleItemId: a.scheduleItemId,
+          amountMinor: parsePlanningMinor(a.amountMinor)
+        })),
+        principalReductionMinor: parsePlanningMinor(
+          entry.principalReductionMinor
+        ),
+        settlementAdjustmentMinor: parsePlanningMinor(
+          entry.settlementAdjustmentMinor
+        ),
+        source: entry.source,
+        transactionOwnership: entry.transactionOwnership,
+        status: entry.status === 'confirmed' ? 'posted' : entry.status,
+        operationId: entry.operationId,
+        replacesPaymentId: entry.replacesPaymentId,
+        version: entry.version,
+        createdAt: Date.parse(entry.createdAt),
+        updatedAt: Date.parse(entry.updatedAt),
+        syncStatus: 'synced'
+      };
+      payments.set(payment.id, {
+        obligationId: id,
+        version: payment.version,
+        allocations: payment.allocations
+      });
+      return payment;
+    });
   };
 
-  const obligationDetailFromWire = (id: string, wire: z.infer<typeof obligationDetailSchema>, schedule: ObligationScheduleItem[], history: z.infer<typeof paymentHistorySchema>[] | null): ObligationDetail => {
-      const obligation = fromObligation(wire);
-      const historyPayments = mapHistory(id, obligation.currencyCode, history);
-      const fallback = deriveObligationStatus({
-        obligation,
-        schedule,
-        payments: historyPayments,
-        today: new Date(now()).toISOString().slice(0, 10) as LocalDate
-      });
-      return {
-        obligation,
-        schedule,
-        payments: historyPayments,
-        paymentHistoryState: history === null ? 'unavailable' : 'available',
-        status: wire.summary
+  const obligationDetailFromWire = (
+    id: string,
+    wire: z.infer<typeof obligationDetailSchema>,
+    schedule: ObligationScheduleItem[],
+    history: z.infer<typeof paymentHistorySchema>[] | null
+  ): ObligationDetail => {
+    const obligation = fromObligation(wire);
+    const historyPayments = mapHistory(id, obligation.currencyCode, history);
+    const fallback = deriveObligationStatus({
+      obligation,
+      schedule,
+      payments: historyPayments,
+      today: localDateInTimeZone(now(), usePreferenceStore.getState().timeZone)
+    });
+    return {
+      obligation,
+      schedule,
+      payments: historyPayments,
+      paymentHistoryState: history === null ? 'unavailable' : 'available',
+      status: wire.summary
+        ? {
+            paidMinor: parsePlanningMinor(wire.summary.paidMinor),
+            remainingMinor: available(
+              parsePlanningMinor(wire.summary.remainingMinor)
+            ),
+            nextDueDate: wire.summary.nextDueAt
+              ? localDateInTimeZone(
+                  Date.parse(wire.summary.nextDueAt),
+                  usePreferenceStore.getState().timeZone
+                )
+              : null,
+            overdue: parsePlanningMinor(wire.summary.overdueMinor) > 0
+          }
+        : history === null
           ? {
-              paidMinor: parsePlanningMinor(wire.summary.paidMinor),
-              remainingMinor: available(
-                parsePlanningMinor(wire.summary.remainingMinor)
-              ),
-              nextDueDate: wire.summary.nextDueAt
-                ? localDateInTimeZone(
-                    Date.parse(wire.summary.nextDueAt),
-                    usePreferenceStore.getState().timeZone
-                  )
-                : null,
-              overdue: parsePlanningMinor(wire.summary.overdueMinor) > 0
+              ...fallback,
+              paidMinor: null,
+              remainingMinor: unavailable('missing_data')
             }
-          : history === null
-            ? {
-                ...fallback,
-                paidMinor: null,
-                remainingMinor: unavailable('missing_data')
-              }
-            : fallback
-      };
+          : fallback
+    };
   };
 
   const service: CapabilityProviderHandle<FinancialPlanningService> = {
@@ -1328,7 +1406,9 @@ export function createLiveFinancialPlanningService({
         salaryReceipts: [],
         budgets: budgets.map(mapBudgetFromApi),
         categoryBudgets: summary.budgets.flatMap((budget) =>
-          budget.categories.map((category) => mapBudgetCategory(category, budget.id))
+          budget.categories.map((category) =>
+            mapBudgetCategory(category, budget.id)
+          )
         ),
         obligations: obligations.map(fromObligation),
         obligationPayments: [],
@@ -1340,15 +1420,34 @@ export function createLiveFinancialPlanningService({
     },
 
     async getPlanningSnapshot(input, context) {
-      const summary = await readSummary(input.today.slice(0, 7), input.today, context);
-      const currencies = new Set(['SAR', ...summary.budgets.map(item => item.currencyCode),
-        ...summary.obligations.payables.map(item => item.currencyCode), ...summary.savings.map(item => item.currencyCode)]);
-      return { salary: salaryCycle(summary, input.today, input.timeZone), dataState: summary.dataState,
-        byCurrency: Object.fromEntries([...currencies].map(currencyCode => [currencyCode, planningOverviewFromSummary(summary, { ...input, currencyCode })])) };
+      const summary = await readSummary(
+        input.today.slice(0, 7),
+        input.today,
+        context
+      );
+      const currencies = new Set([
+        'SAR',
+        ...summary.budgets.map((item) => item.currencyCode),
+        ...summary.obligations.payables.map((item) => item.currencyCode),
+        ...summary.savings.map((item) => item.currencyCode)
+      ]);
+      return {
+        salary: salaryCycle(summary, input.today, input.timeZone),
+        dataState: summary.dataState,
+        byCurrency: Object.fromEntries(
+          [...currencies].map((currencyCode) => [
+            currencyCode,
+            planningOverviewFromSummary(summary, { ...input, currencyCode })
+          ])
+        )
+      };
     },
 
     async getPlanningOverview(input, context) {
-      return planningOverviewFromSummary(await readSummary(input.today.slice(0, 7), input.today, context), input);
+      return planningOverviewFromSummary(
+        await readSummary(input.today.slice(0, 7), input.today, context),
+        input
+      );
     },
 
     async getSalaryOverview(input, context) {
@@ -1360,7 +1459,11 @@ export function createLiveFinancialPlanningService({
     },
 
     async getSalaryProfile(context) {
-      const profiles = await allPages('/api/v1/salary-profiles', salarySchema, context);
+      const profiles = await allPages(
+        '/api/v1/salary-profiles',
+        salarySchema,
+        context
+      );
       const profile = profiles.find((item) => item.status === 'active');
       return profile ? mapSalaryProfileFromApi(profile) : null;
     },
@@ -1371,16 +1474,31 @@ export function createLiveFinancialPlanningService({
       if (!profile) return null;
       const query = `/api/v1/salary-profiles/${profile.id}/receipts`;
       const found = await allPages(query, receiptSchema);
-      const match = found.find((item) => item.id === transactionId || item.transactionId === transactionId);
+      const match = found.find(
+        (item) =>
+          item.id === transactionId || item.transactionId === transactionId
+      );
       return match ? fromReceipt(match) : null;
     },
 
     async listSalaryExpectedDates() {
-      const profile = (await allPages('/api/v1/salary-profiles', salarySchema)).find(item => item.status === 'active');
+      const profile = (
+        await allPages('/api/v1/salary-profiles', salarySchema)
+      ).find((item) => item.status === 'active');
       if (!profile) return [];
-      return (await allPages(`/api/v1/salary-profiles/${profile.id}/receipts`, receiptSchema))
-        .filter(item => ['expected', 'missed'].includes(item.status))
-        .map(item => localDateInTimeZone(Date.parse(item.expectedAt), usePreferenceStore.getState().timeZone));
+      return (
+        await allPages(
+          `/api/v1/salary-profiles/${profile.id}/receipts`,
+          receiptSchema
+        )
+      )
+        .filter((item) => ['expected', 'missed'].includes(item.status))
+        .map((item) =>
+          localDateInTimeZone(
+            Date.parse(item.expectedAt),
+            usePreferenceStore.getState().timeZone
+          )
+        );
     },
 
     async saveSalaryProfile(input, operationId) {
@@ -1422,9 +1540,16 @@ export function createLiveFinancialPlanningService({
 
     async confirmSalaryReceipt(input, operationId) {
       const timeZone = input.timeZone ?? usePreferenceStore.getState().timeZone;
-      const occurrences = await allPages(`/api/v1/salary-profiles/${input.salaryProfileId}/receipts`, receiptSchema);
-      const occurrence = occurrences.find((item) => ['expected', 'missed'].includes(item.status)
-        && localDateInTimeZone(Date.parse(item.expectedAt), timeZone) === input.expectedOccurrenceDate);
+      const occurrences = await allPages(
+        `/api/v1/salary-profiles/${input.salaryProfileId}/receipts`,
+        receiptSchema
+      );
+      const occurrence = occurrences.find(
+        (item) =>
+          ['expected', 'missed'].includes(item.status) &&
+          localDateInTimeZone(Date.parse(item.expectedAt), timeZone) ===
+            input.expectedOccurrenceDate
+      );
       const response = await send(
         'POST',
         `/api/v1/salary-profiles/${input.salaryProfileId}/receipts`,
@@ -1433,7 +1558,11 @@ export function createLiveFinancialPlanningService({
           operationId,
           body: {
             transactionId: input.transactionId,
-            expectedAt: occurrence?.expectedAt ?? new Date(localDateTimeInstant(input.expectedOccurrenceDate, timeZone)).toISOString(),
+            expectedAt:
+              occurrence?.expectedAt ??
+              new Date(
+                localDateTimeInstant(input.expectedOccurrenceDate, timeZone)
+              ).toISOString(),
             replacesReceiptId: input.replacesReceiptId ?? null
           }
         }
@@ -1477,7 +1606,10 @@ export function createLiveFinancialPlanningService({
       const profile = mapSalaryProfileFromApi(wire);
       const receipt = requireReceipt(response.resource, timeZone);
       const cycle = await service.getSalaryOverview({
-        today: localDateInTimeZone(now(), timeZone ?? usePreferenceStore.getState().timeZone),
+        today: localDateInTimeZone(
+          now(),
+          timeZone ?? usePreferenceStore.getState().timeZone
+        ),
         timeZone
       });
       return scopes({ profile, receipt, cycle }, [
@@ -1619,7 +1751,10 @@ export function createLiveFinancialPlanningService({
           {
             operationId: `${operationId}:activate`,
             identity,
-            body: { expectedVersion: budget.version, patch: { status: 'active' } }
+            body: {
+              expectedVersion: budget.version,
+              patch: { status: 'active' }
+            }
           }
         );
         budget = mapBudgetFromApi(activated.resource);
@@ -1698,7 +1833,8 @@ export function createLiveFinancialPlanningService({
           body: {
             expectedVersion: current.budget.version,
             allocations: preview.value.categories.map((item) => ({
-              categoryId: categoryIds?.toServer(item.categoryId) ?? item.categoryId,
+              categoryId:
+                categoryIds?.toServer(item.categoryId) ?? item.categoryId,
               limitMinor: String(item.limitMinor),
               rolloverMinor: '0',
               alertThresholds: item.alertThresholds,
@@ -1750,7 +1886,14 @@ export function createLiveFinancialPlanningService({
       const [list, summary] = await Promise.all([
         service.listObligations(input, context),
         !input.status || input.status === 'active'
-          ? readSummary(new Date(now()).toISOString().slice(0, 7), undefined, context)
+          ? readSummary(
+              localDateInTimeZone(
+                now(),
+                usePreferenceStore.getState().timeZone
+              ).slice(0, 7),
+              undefined,
+              context
+            )
           : Promise.resolve(null)
       ]);
       const items = list.items;
@@ -1787,9 +1930,15 @@ export function createLiveFinancialPlanningService({
         if (
           detail?.nextDueAt &&
           (!result.nextDueDate ||
-            localDateInTimeZone(Date.parse(detail.nextDueAt), usePreferenceStore.getState().timeZone) < result.nextDueDate)
+            localDateInTimeZone(
+              Date.parse(detail.nextDueAt),
+              usePreferenceStore.getState().timeZone
+            ) < result.nextDueDate)
         ) {
-          result.nextDueDate = localDateInTimeZone(Date.parse(detail.nextDueAt), usePreferenceStore.getState().timeZone);
+          result.nextDueDate = localDateInTimeZone(
+            Date.parse(detail.nextDueAt),
+            usePreferenceStore.getState().timeZone
+          );
           result.nextDueAmountMinor = detail.nextDueAmountMinor
             ? parsePlanningMinor(detail.nextDueAmountMinor)
             : null;
@@ -1810,18 +1959,40 @@ export function createLiveFinancialPlanningService({
     },
 
     async getObligationHeader(id, context) {
-      const wire = await send('GET', '/api/v1/obligations/' + encodeURIComponent(id), obligationDetailSchema, context);
-      if (!wire.summary) return { ...await service.getObligation(id, context), sectionsState: 'complete' };
-      return { ...obligationDetailFromWire(id, wire, [], null), sectionsState: 'pending' };
+      const wire = await send(
+        'GET',
+        '/api/v1/obligations/' + encodeURIComponent(id),
+        obligationDetailSchema,
+        context
+      );
+      if (!wire.summary)
+        return {
+          ...(await service.getObligation(id, context)),
+          sectionsState: 'complete'
+        };
+      return {
+        ...obligationDetailFromWire(id, wire, [], null),
+        sectionsState: 'pending'
+      };
     },
     getObligationSchedule: readSchedule,
     async getObligationPayments(id, currencyCode, context) {
-      const history = await allPages('/api/v1/obligations/' + encodeURIComponent(id) + '/payments', paymentHistorySchema, context)
-        .catch((error: unknown) => {
-          if (!(error instanceof HttpError) || ['session_expired', 'forbidden'].includes(error.code)) throw error;
-          return null;
-        });
-      return { items: mapHistory(id, currencyCode, history), state: history === null ? 'unavailable' : 'available' };
+      const history = await allPages(
+        '/api/v1/obligations/' + encodeURIComponent(id) + '/payments',
+        paymentHistorySchema,
+        context
+      ).catch((error: unknown) => {
+        if (
+          !(error instanceof HttpError) ||
+          ['session_expired', 'forbidden'].includes(error.code)
+        )
+          throw error;
+        return null;
+      });
+      return {
+        items: mapHistory(id, currencyCode, history),
+        state: history === null ? 'unavailable' : 'available'
+      };
     },
 
     async getObligation(id, context): Promise<ObligationDetail> {
@@ -1829,12 +2000,14 @@ export function createLiveFinancialPlanningService({
         send(
           'GET',
           `/api/v1/obligations/${encodeURIComponent(id)}`,
-          obligationDetailSchema, context
+          obligationDetailSchema,
+          context
         ),
         readSchedule(id, context),
         allPages(
           `/api/v1/obligations/${encodeURIComponent(id)}/payments`,
-          paymentHistorySchema, context
+          paymentHistorySchema,
+          context
         ).catch((error: unknown) => {
           if (
             !(error instanceof HttpError) ||
@@ -1978,23 +2151,31 @@ export function createLiveFinancialPlanningService({
         throw new FinancialPlanningError('stale_preview');
       const transaction = stored.input.transaction;
       const created = transaction.kind === 'create';
-      const kind = current.obligation.direction === 'payable' ? 'expense' : 'income';
-      const transactionBody = transaction.kind === 'create' ? {
-        transaction: {
-          kind,
-          amountMinor: transaction.input.amountMinor,
-          currency: transaction.input.currencyCode,
-          accountId: transaction.input.accountId,
-          categoryId: transaction.input.categoryId ?? (kind === 'expense'
-            ? '04000000-0000-4000-8000-000000000019'
-            : '04000000-0000-4000-8000-000000000017'),
-          title: transaction.input.title,
-          merchant: transaction.input.merchant ?? null,
-          note: transaction.input.notes ?? null,
-          occurredAt: new Date(transaction.input.occurredAt).toISOString(),
-          source: 'manual'
-        }
-      } : { transactionId: transaction.transactionId };
+      const kind =
+        current.obligation.direction === 'payable' ? 'expense' : 'income';
+      const transactionBody =
+        transaction.kind === 'create'
+          ? {
+              transaction: {
+                kind,
+                amountMinor: transaction.input.amountMinor,
+                currency: transaction.input.currencyCode,
+                accountId: transaction.input.accountId,
+                categoryId:
+                  transaction.input.categoryId ??
+                  (kind === 'expense'
+                    ? '04000000-0000-4000-8000-000000000019'
+                    : '04000000-0000-4000-8000-000000000017'),
+                title: transaction.input.title,
+                merchant: transaction.input.merchant ?? null,
+                note: transaction.input.notes ?? null,
+                occurredAt: new Date(
+                  transaction.input.occurredAt
+                ).toISOString(),
+                source: 'manual'
+              }
+            }
+          : { transactionId: transaction.transactionId };
       const response = await send(
         'POST',
         `/api/v1/obligations/${stored.input.obligationId}/payments`,
@@ -2025,7 +2206,10 @@ export function createLiveFinancialPlanningService({
         transactionId: wire.transactionId,
         amountMinor: parsePlanningMinor(wire.amountMinor),
         currencyCode: current.obligation.currencyCode,
-        paidDate: localDateInTimeZone(Date.parse(wire.paidAt), usePreferenceStore.getState().timeZone),
+        paidDate: localDateInTimeZone(
+          Date.parse(wire.paidAt),
+          usePreferenceStore.getState().timeZone
+        ),
         case: wire.paymentCase,
         allocationIntent:
           wire.allocationIntent === 'prepayment'
@@ -2046,9 +2230,9 @@ export function createLiveFinancialPlanningService({
             : 0,
         settlementAdjustmentMinor: 0,
         source: wire.source,
-        transactionOwnership: wire.transactionOwnership ?? (created
-          ? ('created' as const)
-          : ('linked_existing' as const)),
+        transactionOwnership:
+          wire.transactionOwnership ??
+          (created ? ('created' as const) : ('linked_existing' as const)),
         status: wire.status === 'confirmed' ? ('posted' as const) : wire.status,
         operationId: wire.operationId,
         replacesPaymentId: null,
@@ -2109,7 +2293,8 @@ export function createLiveFinancialPlanningService({
         principalReductionMinor: 0,
         settlementAdjustmentMinor: 0,
         source: wire.source,
-        transactionOwnership: wire.transactionOwnership ?? ('linked_existing' as const),
+        transactionOwnership:
+          wire.transactionOwnership ?? ('linked_existing' as const),
         status: wire.status === 'confirmed' ? ('posted' as const) : wire.status,
         operationId: wire.operationId,
         replacesPaymentId: null,
@@ -2251,9 +2436,9 @@ export function createLiveFinancialPlanningService({
     async listGoals(input, context) {
       const status = input.status === 'archived' ? 'deleted' : input.status;
       const query = status ? `?status=${status}` : '';
-      return (await allPages(`/api/v1/savings-goals${query}`, goalSchema, context)).map(
-        mapSavingsGoalFromApi
-      );
+      return (
+        await allPages(`/api/v1/savings-goals${query}`, goalSchema, context)
+      ).map(mapSavingsGoalFromApi);
     },
 
     getGoal: readGoal,
@@ -2409,13 +2594,17 @@ export function createLiveFinancialPlanningService({
     async saveDraft(draft) {
       if (!persistent) return repository.saveDraft(draft);
       const owner = await captureLiveClerkOwner();
-      return measurePerformance('storage.draft.write', () => writePlanningDraft(owner, draft));
+      return measurePerformance('storage.draft.write', () =>
+        writePlanningDraft(owner, draft)
+      );
     },
 
     async loadDraft(id) {
       if (!persistent) return repository.loadDraft(id);
       const owner = await captureLiveClerkOwner();
-      return measurePerformance('storage.draft.read', () => readPlanningDraft(owner, id));
+      return measurePerformance('storage.draft.read', () =>
+        readPlanningDraft(owner, id)
+      );
     },
 
     async discardDraft(id) {

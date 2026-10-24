@@ -66,7 +66,7 @@ it('renders budget overview, form, allocation, and transaction states', async ()
     <BudgetTransactionsScreen budgetId="budget-jan" />
   );
   expect(await transactions.findByText('Budget transactions')).toBeTruthy();
-  expect(await transactions.findByText('2026-01')).toBeTruthy();
+  expect(await transactions.findByText('January 2026')).toBeTruthy();
   transactions.unmount();
 });
 
@@ -81,20 +81,31 @@ it('opens the creation form directly when the selected month is empty', async ()
   expect(
     screen.getByRole('button', { name: 'Save' }).props.accessibilityState
   ).toMatchObject({
-    disabled: true
+    disabled: false
   });
+  fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+  expect(
+    await screen.findAllByText(
+      'Complete the required fields with valid values.'
+    )
+  ).not.toHaveLength(0);
 });
 
 it('saves a limit entered for the displayed default category without requiring the picker', async () => {
   changeLocale('en');
   const form = renderWithProviders(<BudgetForm initialPeriodKey="2042-09" />);
-  fireEvent.changeText(await form.findByLabelText('Budget name'), 'Typed category');
+  fireEvent.changeText(
+    await form.findByLabelText('Budget name'),
+    'Typed category'
+  );
   fireEvent.changeText(form.getByLabelText('Expense limit'), '1000');
   expect(form.getByLabelText(/Category Housing/)).toBeTruthy();
   fireEvent.changeText(form.getByLabelText('Category limit'), '125');
   fireEvent.press(form.getByText('Save'));
   expect(await form.findByText('Saved')).toBeTruthy();
-  expect((await financialPlanningService.getBudget('2042-09'))?.categories).toEqual([
+  expect(
+    (await financialPlanningService.getBudget('2042-09'))?.categories
+  ).toEqual([
     expect.objectContaining({ categoryId: 'housing', limitMinor: 12500 })
   ]);
 });
@@ -160,14 +171,18 @@ it('identifies and excludes categories owned by another monthly budget', async (
   ).toEqual(expect.arrayContaining(['housing']));
 });
 
-it('disables save for an incomplete month without crashing the form', async () => {
+it('shows validation when saving an incomplete month', async () => {
   changeLocale('en');
   const form = renderWithProviders(<BudgetForm />);
 
   fireEvent.changeText(await form.findByLabelText('Budget month'), '2042-');
   expect(
     form.getByRole('button', { name: 'Save' }).props.accessibilityState
-  ).toMatchObject({ disabled: true });
+  ).toMatchObject({ disabled: false });
+  fireEvent.press(form.getByRole('button', { name: 'Save' }));
+  expect(
+    await form.findAllByText('Complete the required fields with valid values.')
+  ).not.toHaveLength(0);
   expect(form.getByLabelText('Budget month')).toBeTruthy();
 });
 

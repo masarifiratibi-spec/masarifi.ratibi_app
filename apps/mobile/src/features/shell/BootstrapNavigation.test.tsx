@@ -200,6 +200,7 @@ test('keeps one uninterrupted startup cover from session restoration through the
     )
   });
   const cover = screen.getByTestId('startup-loading');
+  await waitFor(() => expect(useAppShellStore.getState().hydrated).toBe(true));
   act(() =>
     useAppShellStore.setState({
       hydrated: true,
@@ -212,7 +213,9 @@ test('keeps one uninterrupted startup cover from session restoration through the
   expect(screen.getByTestId('startup-loading') === cover).toBe(true);
   expect(screen.queryByText('Complete first Home')).toBeNull();
   fireEvent(
-    screen.getByTestId('initial-home-content', { includeHiddenElements: true }),
+    await screen.findByTestId('initial-home-content', {
+      includeHiddenElements: true
+    }),
     'layout',
     {
       nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 720 } }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { rememberAuthenticatedOwner } from '@/services/owner-lifecycle';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -115,6 +116,17 @@ export function ProfileSetupScreen({
         snapshot,
         operationId.current
       );
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
+      const session = useAppShellStore.getState().session;
+      if (
+        session?.status === 'authenticated' &&
+        session.userId &&
+        !/^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(session.userId)
+      )
+        await rememberAuthenticatedOwner(
+          session,
+          () => useAppShellStore.getState().session?.userId === ownerId
+        );
       if (useAppShellStore.getState().session?.userId !== ownerId) return;
       setProfileSetup('complete', result.value);
       setBaseCurrencyCode(result.value.profile.currency);

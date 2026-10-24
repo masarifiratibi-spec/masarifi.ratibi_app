@@ -247,6 +247,7 @@ export interface ReportSchedule {
   includeAssistantSummary: boolean;
   detailLevel: 'summary' | 'detailed';
   lastSuccessfulAttemptId: string | null;
+  lastRunAt?: number | null;
   nextDeliveryAt: number | null;
   createdAt: number;
   updatedAt: number;
@@ -297,6 +298,7 @@ export interface ReportSnapshot {
 
 export interface ReportPreview {
   previewId: string;
+  accountIds?: string[];
   snapshot: ReportSnapshot;
   recipientEmail: string | null;
 }
@@ -307,7 +309,9 @@ export interface ReportOutputAttempt {
   scheduleId: string | null;
   kind: ReportOutputKind;
   status: 'ready' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'simulated';
-  snapshot: ReportSnapshot;
+  snapshot: ReportSnapshot | null;
+  downloadUrl?: string;
+  downloadUrlExpiresAt?: number;
   retryOfAttemptId: string | null;
   failureCategory:
     'temporary' | 'recipient' | 'configuration' | 'unknown' | null;
@@ -344,6 +348,7 @@ export function resolveReportPeriod(input: {
   kind: ReportPeriodKind;
   anchorDate: LocalDate;
   timeZone: string;
+  monthStartDay?: number;
   now?: number;
 }): ReportPeriod {
   const nowDate = localDateInTimeZone(input.now ?? Date.now(), input.timeZone);
@@ -356,16 +361,25 @@ export function resolveReportPeriod(input: {
           ? 3
           : 1;
   const current = buildFinancialPeriod({
-    preset: reportPeriodPreset(input.kind),
+    preset:
+      input.kind === 'monthly'
+        ? 'current_cycle'
+        : reportPeriodPreset(input.kind),
     anchorDate: input.anchorDate,
     timeZone: input.timeZone,
-    monthStartDay: 1
+    monthStartDay: input.monthStartDay ?? 1
   });
   const previous = buildFinancialPeriod({
-    preset: reportPeriodPreset(input.kind),
-    anchorDate: shiftedAnchorMonth(input.anchorDate, -monthSpan),
+    preset:
+      input.kind === 'monthly'
+        ? 'current_cycle'
+        : reportPeriodPreset(input.kind),
+    anchorDate:
+      input.kind === 'monthly'
+        ? addLocalDays(current.startDate, -1)
+        : shiftedAnchorMonth(input.anchorDate, -monthSpan),
     timeZone: input.timeZone,
-    monthStartDay: 1
+    monthStartDay: input.monthStartDay ?? 1
   });
   const { startDate, endDate } = current;
   const inProgress = startDate <= nowDate && nowDate <= endDate;
@@ -412,7 +426,7 @@ function reportPeriodPreset(kind: ReportPeriodKind): FinancialPeriodPreset {
 
 function shiftedAnchorMonth(anchorDate: LocalDate, months: number): LocalDate {
   const anchor = parseDate(anchorDate);
-  return toLocalDate(
+  return utcCivilProxyDate(
     Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + months, 1)
   );
 }
@@ -697,7 +711,7 @@ export function projectNextDelivery(
     input.deliveryDay
   );
   let candidate = localDateTimeInstant(
-    toLocalDate(candidateDate.getTime()),
+    utcCivilProxyDate(candidateDate.getTime()),
     input.timeZone,
     9
   );
@@ -708,7 +722,7 @@ export function projectNextDelivery(
       input.deliveryDay
     );
     candidate = localDateTimeInstant(
-      toLocalDate(candidateDate.getTime()),
+      utcCivilProxyDate(candidateDate.getTime()),
       input.timeZone,
       9
     );
@@ -926,7 +940,7 @@ function compareMoney(
     metricKind === 'obligation_payment' ||
     metricKind === 'debt_progress';
   const currentEnd = period.inProgress
-    ? toLocalDate(
+    ? utcCivilProxyDate(
         addDays(
           parseDate(period.startDate),
           daysBetween(period.comparisonStartDate, period.comparisonEndDate)
@@ -1131,7 +1145,8 @@ function buildPlanningBreakdowns(
   const salaryItems = planning.salaryReceipts
     .filter(
       (receipt) =>
-        receipt.status !== 'undone' && receipt.receivedDate !== null &&
+        receipt.status !== 'undone' &&
+        receipt.receivedDate !== null &&
         containsDate(period, receipt.receivedDate)
     )
     .map((receipt) => {
@@ -1458,7 +1473,7 @@ function withDimensionFilter(
     );
     filters.periodEnd =
       localDateTimeInstant(
-        toLocalDate(nextMonth.getTime()),
+        utcCivilProxyDate(nextMonth.getTime()),
         item.drillDown.returnContext.period.timeZone
       ) - 1;
   }
@@ -1530,6 +1545,13 @@ function daysBetween(start: LocalDate, end: LocalDate): number {
   );
 }
 
-export function toLocalDate(timestamp: number): LocalDate {
+function utcCivilProxyDate(timestamp: number): LocalDate {
   return new Date(timestamp).toISOString().slice(0, 10) as LocalDate;
+}
+
+export function toLocalDate(
+  timestamp: number,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+): LocalDate {
+  return localDateInTimeZone(timestamp, timeZone);
 }

@@ -1,6 +1,9 @@
 import { buildPreferences } from '@/domain/foundation';
 import { loadPreferences, savePreferences } from '@/storage/secure-preferences';
-import { usePreferenceStore, effectiveReturnRemindersEnabled } from './preferences';
+import {
+  usePreferenceStore,
+  effectiveReturnRemindersEnabled
+} from './preferences';
 import { resetRuntimeUserData } from '@/storage/runtime-user-data-reset';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
@@ -25,7 +28,9 @@ beforeEach(() => {
 
 it('defaults reminders on for every new owner while preserving each explicit choice across switches and reloads', async () => {
   expect(effectiveReturnRemindersEnabled('new-owner')).toBe(true);
-  await usePreferenceStore.getState().setReturnRemindersEnabled(false, 'owner-a');
+  await usePreferenceStore
+    .getState()
+    .setReturnRemindersEnabled(false, 'owner-a');
   expect(effectiveReturnRemindersEnabled('owner-a')).toBe(false);
   await resetRuntimeIdentityData({ restoringOwnerId: 'owner-b' });
   expect(effectiveReturnRemindersEnabled('owner-b')).toBe(true);
@@ -61,12 +66,22 @@ it('commits a demo locale switch after its fixtures are relocalized', async () =
 
 it('defaults reminder consent off and persists explicit consent without changing capture preferences', async () => {
   expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
-  await usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
-  expect(mockSavePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ returnRemindersEnabled: true, returnRemindersOwnerId: 'owner-a', trackingPersonalization: true }));
+  await usePreferenceStore
+    .getState()
+    .setReturnRemindersEnabled(true, 'owner-a');
+  expect(mockSavePreferences).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      returnRemindersEnabled: true,
+      returnRemindersOwnerId: 'owner-a',
+      trackingPersonalization: true
+    })
+  );
 });
 
 it('preserves reminder consent for the same owner and withdraws it before an owner handoff', async () => {
-  await usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  await usePreferenceStore
+    .getState()
+    .setReturnRemindersEnabled(true, 'owner-a');
   await resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' });
   expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(true);
   await resetRuntimeIdentityData({ restoringOwnerId: 'owner-b' });
@@ -81,27 +96,44 @@ it('retains explicit guest consent during an ordinary signed-out cold restore', 
 
 it('does not publish or synchronize reminder opt-in until persistence succeeds', async () => {
   mockSavePreferences.mockRejectedValueOnce(new Error('storage unavailable'));
-  await expect(usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a')).rejects.toThrow('storage unavailable');
+  await expect(
+    usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a')
+  ).rejects.toThrow('storage unavailable');
   expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
 });
 
 it('withdraws reminder consent even if persisting the opt-out fails', async () => {
-  await usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  await usePreferenceStore
+    .getState()
+    .setReturnRemindersEnabled(true, 'owner-a');
   mockSavePreferences.mockRejectedValueOnce(new Error('storage unavailable'));
-  await expect(usePreferenceStore.getState().setReturnRemindersEnabled(false, 'owner-a')).rejects.toThrow('storage unavailable');
+  await expect(
+    usePreferenceStore.getState().setReturnRemindersEnabled(false, 'owner-a')
+  ).rejects.toThrow('storage unavailable');
   expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
 });
 
 it('does not publish an old opt-in after owner handoff while storage was pending', async () => {
   let finish!: () => void;
-  mockSavePreferences.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
-  const enabling = usePreferenceStore.getState().setReturnRemindersEnabled(true, 'owner-a');
+  mockSavePreferences.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    })
+  );
+  const enabling = usePreferenceStore
+    .getState()
+    .setReturnRemindersEnabled(true, 'owner-a');
   await Promise.resolve();
   const handoff = resetRuntimeIdentityData({ restoringOwnerId: 'owner-b' });
   finish();
   await Promise.all([enabling, handoff]);
   expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
-  expect(mockSavePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ returnRemindersEnabled: false, returnRemindersOwnerId: null }));
+  expect(mockSavePreferences).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      returnRemindersEnabled: false,
+      returnRemindersOwnerId: null
+    })
+  );
 });
 
 it('persists first-launch completion and keeps it through a language switch', async () => {
@@ -232,7 +264,7 @@ it('restores the committed demo locale when the latest queued switch fails', asy
 });
 
 it.each(['dark', 'system'] as const)(
-  'replaces and persists a stored %s theme during hydration',
+  'preserves a stored %s theme during hydration',
   async (theme) => {
     mockLoadPreferences.mockResolvedValue(buildPreferences({ theme }));
 
@@ -240,41 +272,29 @@ it.each(['dark', 'system'] as const)(
 
     expect(usePreferenceStore.getState()).toMatchObject({
       hydrated: true,
-      theme: 'light'
+      theme
     });
-    expect(mockSavePreferences).toHaveBeenCalledWith(
-      expect.objectContaining({ theme: 'light' })
-    );
+    expect(mockSavePreferences).not.toHaveBeenCalled();
   }
 );
 
-it('waits for an active hydration normalization write', async () => {
-  mockLoadPreferences.mockResolvedValue(buildPreferences({ theme: 'dark' }));
-  let finishSave!: () => void;
-  mockSavePreferences.mockReturnValueOnce(
-    new Promise<void>((resolve) => {
-      finishSave = resolve;
+it('coalesces concurrent preference hydration while storage is pending', async () => {
+  let finishLoad!: (value: ReturnType<typeof buildPreferences>) => void;
+  mockLoadPreferences.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishLoad = resolve;
     })
   );
-
-  const firstHydration = usePreferenceStore.getState().hydrate();
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(mockSavePreferences).toHaveBeenCalled();
-
-  let secondHydrationFinished = false;
-  const secondHydration = usePreferenceStore
-    .getState()
-    .hydrate()
-    .then(() => {
-      secondHydrationFinished = true;
-    });
-  await Promise.resolve();
-  expect(secondHydrationFinished).toBe(false);
-
-  finishSave();
-  await Promise.all([firstHydration, secondHydration]);
-  expect(secondHydrationFinished).toBe(true);
+  const first = usePreferenceStore.getState().hydrate();
+  const second = usePreferenceStore.getState().hydrate();
+  expect(mockLoadPreferences).toHaveBeenCalledTimes(1);
+  expect(usePreferenceStore.getState().hydrated).toBe(false);
+  finishLoad(buildPreferences({ theme: 'dark' }));
+  await Promise.all([first, second]);
+  expect(usePreferenceStore.getState()).toMatchObject({
+    hydrated: true,
+    theme: 'dark'
+  });
 });
 
 it('does not rewrite an already-light stored theme', async () => {
@@ -296,15 +316,18 @@ it('finishes hydration with defaults when persisted preferences cannot be read',
   expect(usePreferenceStore.getState()).toMatchObject({
     hydrated: true,
     locale: 'ar',
-    theme: 'light',
+    theme: 'system',
     hideBalances: false
   });
 });
 
-it('prevents transient theme changes while dark mode is disabled', () => {
+it('persists an explicit theme override', () => {
   usePreferenceStore.getState().setTheme('dark');
 
-  expect(usePreferenceStore.getState().theme).toBe('light');
+  expect(usePreferenceStore.getState().theme).toBe('dark');
+  expect(mockSavePreferences).toHaveBeenLastCalledWith(
+    expect.objectContaining({ theme: 'dark' })
+  );
 });
 
 it('drops in-memory user preferences when runtime user data resets', () => {

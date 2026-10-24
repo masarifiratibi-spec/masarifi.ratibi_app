@@ -33,8 +33,16 @@ afterEach(() => {
 
 describe('loadPreferences', () => {
   it('restores reminder consent only with its persisted owner association', async () => {
-    getItemAsync.mockResolvedValue(JSON.stringify({ returnRemindersEnabled: true, returnRemindersOwnerId: 'owner-a' }));
-    await expect(loadPreferences()).resolves.toMatchObject({ returnRemindersEnabled: true, returnRemindersOwnerId: 'owner-a' });
+    getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        returnRemindersEnabled: true,
+        returnRemindersOwnerId: 'owner-a'
+      })
+    );
+    await expect(loadPreferences()).resolves.toMatchObject({
+      returnRemindersEnabled: true,
+      returnRemindersOwnerId: 'owner-a'
+    });
   });
   it('clears native persisted preferences', async () => {
     await clearPersistedPreferences();
@@ -70,7 +78,7 @@ describe('loadPreferences', () => {
       buildPreferences({
         locale: 'ar',
         direction: 'rtl',
-        theme: 'light',
+        theme: 'system',
         hideBalances: false,
         baseCurrencyCode: 'SAR',
         timeZone: 'Asia/Riyadh',

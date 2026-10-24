@@ -21,7 +21,9 @@ jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn()
 }));
-jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => false)
+}));
 jest.mock('@/storage/local-data-reset', () => ({
   resetLocalUserData: jest.fn(async (operationId: string) => ({
     deletedRows: 0,
@@ -92,17 +94,28 @@ afterAll(() => {
 });
 
 describe('session-controller', () => {
-  it.each(['network', 'timeout', 'server'] as const)('keeps a recoverable %s profile failure separate from expired authentication', async (kind) => {
-    const auth = createMockAuthService();
-    await auth.signInWithGoogle();
-    const failure = new HttpError('provider_unavailable', 503);
-    if (kind !== 'server') Object.assign(failure, { failureSource: kind });
-    await restoreAppShellSession(auth, () => true, { getProfileSetup: async () => { throw failure; } });
-    expect(useAppShellStore.getState().profileSetupStatus).toBe(kind === 'server' ? 'error' : 'unavailable');
-    expect(useAppShellStore.getState().session?.status).toBe('authenticated');
-    await restoreAppShellSession(auth, () => true, { getProfileSetup: async () => aedProfileSetup });
-    expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
-  });
+  it.each(['network', 'timeout', 'server'] as const)(
+    'keeps a recoverable %s profile failure separate from expired authentication',
+    async (kind) => {
+      const auth = createMockAuthService();
+      await auth.signInWithGoogle();
+      const failure = new HttpError('provider_unavailable', 503);
+      if (kind !== 'server') Object.assign(failure, { failureSource: kind });
+      await restoreAppShellSession(auth, () => true, {
+        getProfileSetup: async () => {
+          throw failure;
+        }
+      });
+      expect(useAppShellStore.getState().profileSetupStatus).toBe(
+        kind === 'server' ? 'error' : 'unavailable'
+      );
+      expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+      await restoreAppShellSession(auth, () => true, {
+        getProfileSetup: async () => aedProfileSetup
+      });
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+    }
+  );
   it('requires Google authentication again when profile bootstrap rejects the account token', async () => {
     const auth = createMockAuthService();
     await auth.signInWithGoogle();
@@ -282,19 +295,19 @@ describe('session-controller', () => {
     });
   });
 
-  it('waits for an active preference normalization before saving server currency', async () => {
+  it('waits for active preference hydration before saving server currency', async () => {
     let finishNormalization!: () => void;
     let normalizationStarted!: () => void;
     const started = new Promise<void>((resolve) => {
       normalizationStarted = resolve;
     });
-    mockLoadPreferences.mockResolvedValueOnce(
-      buildPreferences({ theme: 'dark', baseCurrencyCode: 'SAR' })
-    );
-    mockSavePreferences.mockImplementationOnce(
+    mockLoadPreferences.mockImplementationOnce(
       () =>
-        new Promise<void>((resolve) => {
-          finishNormalization = resolve;
+        new Promise((resolve) => {
+          finishNormalization = () =>
+            resolve(
+              buildPreferences({ theme: 'dark', baseCurrencyCode: 'SAR' })
+            );
           normalizationStarted();
         })
     );
@@ -323,7 +336,7 @@ describe('session-controller', () => {
     await profileRequest;
     await Promise.resolve();
 
-    expect(mockSavePreferences).toHaveBeenCalledTimes(1);
+    expect(mockSavePreferences).not.toHaveBeenCalled();
     expect(restored).toBe(false);
     finishNormalization();
     await Promise.all([hydration, restoration]);
@@ -381,7 +394,8 @@ describe('session-controller', () => {
   });
 
   it('retains the DEV shell and credential for retry when server withdrawal fails offline', async () => {
-    const gate = jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled as jest.Mock;
+    const gate = jest.requireMock('@/config/mobile-automation')
+      .isMobileAutomationEnabled as jest.Mock;
     const auth = createMockAuthService();
     await auth.signInWithGoogle();
     await restoreAppShellSession(auth);
@@ -393,7 +407,9 @@ describe('session-controller', () => {
       await expect(signOutAppShellSession(auth, 'local')).rejects.toBe(failure);
       expect(useAppShellStore.getState().session?.userId).toBe(owner);
       expect(useAppShellStore.getState().session?.status).toBe('authenticated');
-    } finally { gate.mockReturnValue(false); }
+    } finally {
+      gate.mockReturnValue(false);
+    }
   });
 
   it('starts the correct onboarding path after authentication', async () => {

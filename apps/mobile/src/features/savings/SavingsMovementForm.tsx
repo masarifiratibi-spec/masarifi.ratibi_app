@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -5,7 +6,6 @@ import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { FormField } from '@/design-system/components/forms/FormField';
-import { parseAmountToMinor } from '@/domain/core-finance';
 import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { localDateInTimeZone } from '@/domain/financial-period';
 import {

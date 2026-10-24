@@ -126,9 +126,10 @@ test("content policy admits personal SMS with extracted debit without granting l
   assert.equal(result.eligibleSource, true);
   assert.equal(result.strong, true);
   assert.equal(result.sourceAmountDecimal, "2");
-  assert.equal(result.classification.amountMinor, 200);
+  assert.equal(result.classification.amountMinor, null);
+  assert.equal(result.classification.currency, null);
   assert.equal(result.classification.direction, "outgoing");
-  assert.equal(result.classification.disposition, "capture_candidate");
+  assert.equal(result.classification.disposition, "review");
   assert.equal(
     discover("تم خصم 2 ريال", "+966500000001", "android_sms", [], [], {})
       .eligibleSource,

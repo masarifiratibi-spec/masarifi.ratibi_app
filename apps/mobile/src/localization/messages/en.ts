@@ -8,6 +8,38 @@
  */
 
 const en = {
+  'reports.action.more': 'Load more',
+  'tracking.background.oemGuidance':
+    'On Samsung, check that Masarifi is outside Sleeping apps and battery use allows background activity. Other phones may need Auto-start or background activity enabled in app settings. Reopen Masarifi after changing settings.',
+  'reports.schedule.liveSettings':
+    'Scheduled reports run at 08:00 on the first day of the selected calendar period, in the shown timezone. They use your server profile currency and report defaults. Re-enter and verify your account email when editing the recipient.',
+  'settings.privacy.exportExplanation':
+    'Request a copy of your server data. Processing takes time. Download links expire; account deletion is a separate action.',
+  'settings.privacy.exportFailure':
+    'Could not complete the export action. Your request is retained; retry or refresh its status.',
+  'settings.privacy.exportDownload': 'Download export',
+  'settings.privacy.exportNew': 'Request a new export',
+  'settings.privacy.exportState.requested': 'Export requested',
+  'settings.privacy.exportState.verified': 'Export queued for processing',
+  'settings.privacy.exportState.processing': 'Preparing your export',
+  'settings.privacy.exportState.ready': 'Export ready to download',
+  'settings.privacy.exportState.expired': 'Export expired; request a new copy',
+  'settings.privacy.exportState.failed': 'Export failed; request a new copy',
+
+  'settings.securityEvent.admin.role_assigned': 'Administrator role assigned',
+  'settings.securityEvent.admin.role_revoked': 'Administrator role revoked',
+  'settings.securityEvent.support_access.requested': 'Support access requested',
+  'settings.securityEvent.support_access.granted': 'Support access approved',
+  'settings.securityEvent.support_access.revoked': 'Support access revoked',
+  'settings.securityEvent.security.incident_opened': 'Security incident opened',
+  'settings.securityEvent.privacy.export_ready': 'Data export ready',
+  'settings.securityEvent.privacy.export_expired': 'Data export expired',
+  'settings.securityEvent.privacy.deletion_requested':
+    'Account deletion requested',
+  'settings.securityEvent.privacy.deletion_completed':
+    'Account deletion completed',
+  'settings.securityEvents.empty': 'No security events yet',
+
   'appShell.networkNotice.title': "You're offline",
   'appShell.networkNotice.message':
     'Check your Wi-Fi or mobile data connection, then try again.',
@@ -242,7 +274,7 @@ const en = {
   'capture.sms.title': 'SMS tracking (Android)',
   'capture.sms.purpose': 'Detect transactions from bank SMS automatically',
   'capture.sms.dataUse':
-    'Messages are analyzed on your device to add transactions',
+    'Messages are analyzed locally. Detected transaction details sync to Masarifi servers for review and account synchronization.',
   'capture.sms.continue': 'Continue',
   'capture.sms.skip': 'Skip for now',
   'capture.manual': 'Add manually',
@@ -478,9 +510,9 @@ const en = {
     'Android can help detect clear financial messages after you approve access.',
   'appShell.onboarding.permission.title': 'Allow message tracking',
   'appShell.onboarding.permission.purpose':
-    'Masarifi & Ratibi checks financial messages on this device only.',
+    'With your permission, Masarifi reads SMS on this device to identify financial transactions.',
   'appShell.onboarding.permission.dataUse':
-    'Codes, marketing, and unclear messages are not added silently.',
+    'Message analysis runs locally. Detected financial details, including sender, merchant, amount, currency and date, sync to Masarifi servers for review and account synchronization. Codes, marketing and unclear messages are not added silently.',
   'appShell.onboarding.permission.benefit':
     'Clear transactions can appear with edit and undo controls.',
   'appShell.onboarding.permission.denial':
@@ -1146,10 +1178,10 @@ const en = {
   'tracking.source.financialSms': 'Financial SMS',
   'tracking.source.smsTracking': 'SMS tracking',
   'tracking.source.smsTrackingDescription':
-    'Read financial SMS and match your tracking keywords',
+    'Read SMS locally and sync detected transaction details with Masarifi servers',
   'tracking.source.notificationTracking': 'Transaction notification tracking',
   'tracking.source.notificationTrackingDescription':
-    'Detect transactions from financial app notifications',
+    'Read financial notifications locally and sync detected transaction details with Masarifi servers',
   'tracking.source.enabling': 'Enabling tracking…',
   'tracking.source.disabling': 'Pausing tracking…',
   'tracking.sync.scanning': 'Checking new messages…',
@@ -1164,7 +1196,7 @@ const en = {
   'tracking.howItWorks.detection':
     'Clear transactions are added automatically. Items needing confirmation appear for review.',
   'tracking.howItWorks.privacy':
-    'Financial messages may be saved for review according to retention settings.',
+    'Message analysis runs locally. Detected financial details sync to Masarifi servers for review and account synchronization, subject to retention settings.',
   'tracking.howItWorks.background':
     'Allow background activity to keep tracking running.',
   'tracking.keywords.sectionTitle': 'Keywords',
@@ -1948,6 +1980,7 @@ const en = {
   'reports.schedule.resume': 'Resume schedule',
   'reports.schedule.disable': 'Disable schedule',
   'reports.schedule.nextDelivery': 'Next delivery',
+  'reports.schedule.lastRun': 'Last scheduled execution',
   'reports.schedule.lastDelivery': 'Last successful delivery',
   'reports.schedule.noDelivery': 'None yet',
   'reports.schedule.status.verification_required':
@@ -2511,7 +2544,7 @@ const en = {
   'settings.application.notificationsOwner': 'Notification preferences',
   'settings.application.reportsOwner': 'Reports',
   'settings.privacy.legalExplanation':
-    'Control personalization and requests without exposing financial details.',
+    'Export creates a copy of server data. Local removal affects this device and can lose unsynced edits. Account deletion follows the displayed waiting period and completes after confirmed erasure, with any required retention disclosed.',
   'settings.privacy.title': 'Privacy',
   'settings.privacy.tracking': 'Tracking personalization',
   'settings.privacy.assistantPersonalization': 'Assistant personalization',
@@ -2526,6 +2559,8 @@ const en = {
     'Assistant personalization is disabled.',
   'settings.privacy.assistantPersonalization.consequence':
     'The assistant will not use personalized financial context.',
+  'settings.privacy.exportRequest': 'Request data export',
+  'settings.privacy.exportRefresh': 'Refresh export status',
   'settings.privacy.exportReview': 'Review data export request',
   'settings.privacy.accountDeletionReview': 'Review account deletion request',
   'settings.privacy.localDelete': 'Delete local data',
@@ -2609,7 +2644,8 @@ const en = {
   'support.ticket.sendReply': 'Send reply',
   'support.ticket.replyFailed': 'Reply failed. Your text is preserved.',
   'support.ticket.refresh': 'Refresh ticket',
-  'support.ticket.replyUnavailable': 'Replies are unavailable for this ticket status.',
+  'support.ticket.replyUnavailable':
+    'Replies are unavailable for this ticket status.',
   'support.ticket.status.open': 'Open',
   'support.ticket.status.in_progress': 'In progress',
   'support.ticket.status.resolved': 'Resolved',
@@ -2739,7 +2775,30 @@ const en = {
   'frontendQuality.selector.failure': 'Reset failed: {{code}}',
   'frontendQuality.selector.routeLinks': 'Seeded route links',
   'frontendQuality.selector.unavailable':
-    'Scenario selector is only available in development builds.'
+    'Scenario selector is only available in development builds.',
+  'recentAuth.title': 'Verify your identity',
+  'recentAuth.code':
+    'Enter the verification code sent to your registered phone or email.',
+  'recentAuth.password': 'Enter your account password.',
+  'recentAuth.confirm': 'Verify and continue',
+  'recentAuth.cancel': 'Cancel action',
+  'recentAuth.retry': 'Try verification again',
+  'recentAuth.failed':
+    'Verification could not finish. Check your code or password and connection. Your account must support code or password verification.',
+  'logout.unsyncedTitle': 'Unsynced work remains',
+  'logout.unsyncedBody':
+    'Some changes, drafts, tracking messages or voice work have not synced, or their status could not be checked. Stay signed in to retry, or explicitly remove this device’s local data and sign out. Removed unsynced work cannot be restored from the server.',
+  'logout.wait': 'Stay and retry sync',
+  'logout.remove': 'Remove local data and sign out',
+  'logout.failed':
+    'Sign out could not finish. Retry before switching accounts.',
+  'storageRecovery.title': 'Encrypted storage needs recovery',
+  'storageRecovery.body':
+    'The encryption key is unavailable. The encrypted original will be preserved. Unsynced changes cannot be restored from the server. Continue to create a new local database, then sign in online to restore synced data?',
+  'storageRecovery.cancel': 'Keep data and cancel',
+  'storageRecovery.confirm': 'Preserve original and recover',
+  'storageRecovery.failed':
+    'Recovery could not finish. Your encrypted original is preserved. Try again.'
 } as const;
 
 export type MessageKey = keyof typeof en;

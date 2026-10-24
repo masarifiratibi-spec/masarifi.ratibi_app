@@ -31,7 +31,13 @@
         "android.permission.READ_SMS",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.masarifi.mobile"
+      "package": "com.masarifi.mobile",
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -40,6 +46,7 @@
     },
     "plugins": [
       "./plugins/with-native-stability-fixes.cjs",
+      "./plugins/with-release-safety.cjs",
       "expo-router",
       "expo-font",
       [
@@ -56,14 +63,26 @@
         }
       ],
       "expo-asset",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
       [
         "expo-sqlite",
         {
           "useSQLCipher": true
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-dev-client",
+        {
+          "addGeneratedScheme": false
+        }
+      ]
     ],
     "experiments": {
       "tsconfigPaths": true
@@ -76,11 +95,7 @@
         "projectId": "c8cc3dd3-a7e9-4737-ac4d-32f076107600"
       },
       "clientPolicy": {
-        "modes": [
-          "live",
-          "demo",
-          "test"
-        ],
+        "modes": ["live", "demo", "test"],
         "billingAvailable": false
       }
     },

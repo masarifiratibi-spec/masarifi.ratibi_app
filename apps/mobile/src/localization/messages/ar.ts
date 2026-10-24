@@ -10,6 +10,39 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'reports.action.more': 'عرض المزيد',
+  'tracking.background.oemGuidance':
+    'في أجهزة سامسونج، تأكد أن مصاريفي خارج التطبيقات في وضع السكون وأن البطارية تسمح بالنشاط في الخلفية. في الأجهزة الأخرى قد تحتاج إلى تفعيل التشغيل التلقائي أو نشاط الخلفية من إعدادات التطبيق. ارجع إلى مصاريفي بعد تعديل الإعدادات.',
+  'reports.schedule.liveSettings':
+    'تُرسل التقارير المجدولة الساعة 08:00 في أول يوم من الفترة التقويمية المختارة، حسب المنطقة الزمنية المعروضة. تستخدم عملة ملفك في الخادم وإعدادات التقرير الافتراضية. أعد إدخال بريد حسابك والتحقق منه عند تعديل المستلم.',
+  'settings.privacy.exportExplanation':
+    'اطلب نسخة من بياناتك المحفوظة في الخادم. تستغرق المعالجة وقتًا وتنتهي صلاحية رابط التنزيل. حذف الحساب إجراء مستقل.',
+  'settings.privacy.exportFailure':
+    'تعذّر إكمال إجراء التصدير. تم الاحتفاظ بطلبك؛ أعد المحاولة أو حدّث حالته.',
+  'settings.privacy.exportDownload': 'تنزيل البيانات',
+  'settings.privacy.exportNew': 'طلب تصدير جديد',
+  'settings.privacy.exportState.requested': 'تم طلب التصدير',
+  'settings.privacy.exportState.verified': 'التصدير بانتظار المعالجة',
+  'settings.privacy.exportState.processing': 'جارٍ تجهيز بياناتك',
+  'settings.privacy.exportState.ready': 'البيانات جاهزة للتنزيل',
+  'settings.privacy.exportState.expired':
+    'انتهت صلاحية التصدير؛ اطلب نسخة جديدة',
+  'settings.privacy.exportState.failed': 'تعذّر التصدير؛ اطلب نسخة جديدة',
+
+  'settings.securityEvent.admin.role_assigned': 'تم تعيين دور إداري',
+  'settings.securityEvent.admin.role_revoked': 'تم إلغاء دور إداري',
+  'settings.securityEvent.support_access.requested': 'طلب الوصول للدعم',
+  'settings.securityEvent.support_access.granted':
+    'تمت الموافقة على وصول الدعم',
+  'settings.securityEvent.support_access.revoked': 'تم إلغاء وصول الدعم',
+  'settings.securityEvent.security.incident_opened': 'تم فتح بلاغ أمني',
+  'settings.securityEvent.privacy.export_ready': 'تصدير البيانات جاهز',
+  'settings.securityEvent.privacy.export_expired':
+    'انتهت صلاحية تصدير البيانات',
+  'settings.securityEvent.privacy.deletion_requested': 'تم طلب حذف الحساب',
+  'settings.securityEvent.privacy.deletion_completed': 'اكتمل حذف الحساب',
+  'settings.securityEvents.empty': 'لا توجد أحداث أمنية حتى الآن',
+
   'settings.socialMedia.openError': 'تعذر فتح الحساب. حاول مرة أخرى.',
   'reminders.control.label': 'تفعيل الإشعارات',
   'reminders.control.description':
@@ -202,7 +235,7 @@ const ar: MessageCatalog = {
   'position.spending': 'المصروفات الأخيرة',
   'position.nextObligation': 'الالتزام القادم',
   'position.reviewItems': 'بحاجة إلى انتباهك',
-  'position.empty.title': 'مرحبًا بك في مسارف',
+  'position.empty.title': 'مرحبًا بك في مصاريفي',
   'position.empty.action': 'أضف أول معاملة',
   'position.partial.title': 'بعض المعلومات غير مكتملة',
   'position.partial.action': 'راجع البيانات الناقصة',
@@ -212,7 +245,8 @@ const ar: MessageCatalog = {
   'capture.title': 'خيارات الإدخال',
   'capture.sms.title': 'تتبع رسائل SMS (أندرويد)',
   'capture.sms.purpose': 'اكتشف المعاملات من رسائل البنك تلقائيًا',
-  'capture.sms.dataUse': 'تُحلَّل الرسائل على جهازك لإضافة المعاملات',
+  'capture.sms.dataUse':
+    'تُحلَّل الرسائل على جهازك، وتُزامَن تفاصيل المعاملات المكتشفة مع خوادم مصاريفي للمراجعة ومزامنة الحساب.',
   'capture.sms.continue': 'متابعة',
   'capture.sms.skip': 'تخطٍ للآن',
   'capture.manual': 'إضافة يدوية',
@@ -378,7 +412,7 @@ const ar: MessageCatalog = {
   'appShell.auth.pending.message':
     'هذه الصفحة مؤقتة وفي انتظار ربط تسجيل الدخول عبر Clerk.',
   'appShell.auth.pending.preview': 'متابعة للتجربة',
-  'profileSetup.title': 'وش ناديلك؟',
+  'profileSetup.title': 'وش نناديك؟',
   'profileSetup.supporting': 'نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.',
   'profileSetup.nameLabel': 'الاسم',
   'profileSetup.nameHelper': 'من حسابك، ويمكنك تعديله في أي وقت.',
@@ -442,9 +476,9 @@ const ar: MessageCatalog = {
     'يمكن لأندرويد مساعدتك في اكتشاف الرسائل المالية الواضحة بعد موافقتك.',
   'appShell.onboarding.permission.title': 'السماح بتتبع الرسائل',
   'appShell.onboarding.permission.purpose':
-    'يفحص مسارفي الرسائل المالية على هذا الجهاز فقط.',
+    'بموافقتك، يقرأ مصاريفي الرسائل النصية على هذا الجهاز لاكتشاف المعاملات المالية.',
   'appShell.onboarding.permission.dataUse':
-    'لا تتم إضافة الأكواد أو الرسائل التسويقية أو غير الواضحة تلقائيًا.',
+    'يتم التحليل على جهازك، وتُرسل التفاصيل المالية المكتشفة، مثل الجهة والتاجر والمبلغ والعملة والتاريخ، إلى خوادم مصاريفي للمراجعة ومزامنة الحساب. لا تتم إضافة الأكواد أو الرسائل التسويقية أو غير الواضحة تلقائيًا.',
   'appShell.onboarding.permission.benefit':
     'يمكن للمعاملات الواضحة أن تظهر مع خيارات التعديل والتراجع.',
   'appShell.onboarding.permission.denial':
@@ -1107,10 +1141,10 @@ const ar: MessageCatalog = {
   'tracking.source.financialSms': 'الرسائل المالية',
   'tracking.source.smsTracking': 'تتبع الرسائل النصية (\u2068SMS\u2069)',
   'tracking.source.smsTrackingDescription':
-    'قراءة الرسائل المالية ومطابقتها مع كلمات التتبع',
+    'قراءة الرسائل على جهازك ومزامنة تفاصيل المعاملات المكتشفة مع خوادم مصاريفي',
   'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
   'tracking.source.notificationTrackingDescription':
-    'اكتشاف المعاملات من إشعارات التطبيقات المالية',
+    'قراءة الإشعارات المالية على جهازك ومزامنة تفاصيل المعاملات المكتشفة مع خوادم مصاريفي',
   'tracking.source.enabling': 'جارٍ تفعيل التتبع…',
   'tracking.source.disabling': 'جارٍ إيقاف التتبع…',
   'tracking.sync.scanning': 'جارٍ فحص الرسائل الجديدة…',
@@ -1124,7 +1158,7 @@ const ar: MessageCatalog = {
   'tracking.howItWorks.detection':
     'تُضاف المعاملات الواضحة تلقائيًا، وما يحتاج تأكيدًا يظهر للمراجعة.',
   'tracking.howItWorks.privacy':
-    'قد تُحفظ الرسائل المالية للمراجعة حسب إعدادات الاحتفاظ.',
+    'يتم تحليل الرسائل على جهازك ومزامنة التفاصيل المالية المكتشفة مع خوادم مصاريفي للمراجعة ومزامنة الحساب، وفق إعدادات الاحتفاظ بالبيانات.',
   'tracking.howItWorks.background': 'اسمح بالعمل في الخلفية لاستمرار التتبع.',
   'tracking.keywords.sectionTitle': 'الكلمات المفتاحية',
   'tracking.keywords.explanation':
@@ -1878,6 +1912,7 @@ const ar: MessageCatalog = {
   'reports.schedule.resume': 'استئناف الجدولة',
   'reports.schedule.disable': 'تعطيل الجدولة',
   'reports.schedule.nextDelivery': 'الإرسال التالي',
+  'reports.schedule.lastRun': 'آخر تنفيذ مجدول',
   'reports.schedule.lastDelivery': 'آخر إرسال ناجح',
   'reports.schedule.noDelivery': 'لا يوجد بعد',
   'reports.schedule.status.verification_required': 'يلزم التحقق من البريد',
@@ -2012,7 +2047,7 @@ const ar: MessageCatalog = {
   'notifications.preferences.save': 'حفظ تفضيلات الإشعارات',
   'notifications.preferences.requestTitle': 'طلب إذن الإشعارات',
   'notifications.preferences.requestMessage':
-    'سيطلب مسارفي إذن الإشعارات من الجهاز بعد ذلك.',
+    'سيطلب مصاريفي إذن الإشعارات من الجهاز بعد ذلك.',
   'notifications.preferences.requestConfirm': 'طلب الإذن',
   'notifications.actions.view': 'عرض',
   'notifications.actions.edit': 'تعديل',
@@ -2353,7 +2388,7 @@ const ar: MessageCatalog = {
   'settings.application.notificationsOwner': 'تفضيلات الإشعارات',
   'settings.application.reportsOwner': 'التقارير',
   'settings.privacy.legalExplanation':
-    'تحكم في التخصيص والطلبات دون كشف التفاصيل المالية.',
+    'التصدير ينشئ نسخة من بيانات الخادم. الحذف المحلي يزيل بيانات هذا الجهاز فقط، وقد تفقد التعديلات غير المتزامنة. حذف الحساب يمر بفترة الانتظار الموضّحة، ويكتمل بعد تأكيد محو البيانات مع الإفصاح عن أي احتفاظ نظامي.',
   'settings.privacy.title': 'الخصوصية',
   'settings.privacy.tracking': 'تخصيص التتبع',
   'settings.privacy.assistantPersonalization': 'تخصيص المساعد',
@@ -2366,6 +2401,8 @@ const ar: MessageCatalog = {
   'settings.privacy.assistantPersonalization.disabled': 'تخصيص المساعد متوقف.',
   'settings.privacy.assistantPersonalization.consequence':
     'لن يستخدم المساعد السياق المالي المخصص.',
+  'settings.privacy.exportRequest': 'طلب تصدير البيانات',
+  'settings.privacy.exportRefresh': 'تحديث حالة التصدير',
   'settings.privacy.exportReview': 'مراجعة طلب تصدير البيانات',
   'settings.privacy.accountDeletionReview': 'مراجعة طلب حذف الحساب',
   'settings.privacy.localDelete': 'حذف البيانات المحلية',
@@ -2631,7 +2668,28 @@ const ar: MessageCatalog = {
   'notifications.validation.view': 'عرض إشعار فتح',
   'notifications.validation.edit': 'عرض إشعار تعديل',
   'notifications.validation.undo': 'عرض إشعار تراجع',
-  'notifications.validation.expired': 'عرض إشعار تراجع منتهي'
+  'notifications.validation.expired': 'عرض إشعار تراجع منتهي',
+  'recentAuth.title': 'تأكيد هويتك',
+  'recentAuth.code': 'أدخل رمز التحقق المرسل إلى جوالك أو بريدك المسجّل.',
+  'recentAuth.password': 'أدخل كلمة مرور حسابك.',
+  'recentAuth.confirm': 'التحقق والمتابعة',
+  'recentAuth.cancel': 'إلغاء العملية',
+  'recentAuth.retry': 'إعادة محاولة التحقق',
+  'recentAuth.failed':
+    'تعذّر إكمال التحقق. تأكد من الرمز أو كلمة المرور والاتصال. يجب أن يدعم حسابك التحقق بالرمز أو كلمة المرور.',
+  'logout.unsyncedTitle': 'يوجد عمل غير متزامن',
+  'logout.unsyncedBody':
+    'بعض التغييرات أو المسودات أو رسائل التتبع أو العمليات الصوتية لم تتزامن، أو تعذّر التحقق من حالتها. ابقَ مسجّلًا لإعادة المحاولة، أو احذف بيانات هذا الجهاز المحلية وسجّل الخروج. لا يمكن استعادة العمل غير المتزامن المحذوف من الخادم.',
+  'logout.wait': 'البقاء وإعادة المزامنة',
+  'logout.remove': 'حذف البيانات المحلية وتسجيل الخروج',
+  'logout.failed': 'تعذّر إكمال تسجيل الخروج. حاول مجددًا قبل تبديل الحساب.',
+  'storageRecovery.title': 'التخزين المشفّر يحتاج إلى استعادة',
+  'storageRecovery.body':
+    'مفتاح التشفير غير متاح. سنحتفظ بالنسخة المشفّرة الأصلية. لا يمكن استعادة التغييرات غير المتزامنة من الخادم. هل تريد إنشاء قاعدة محلية جديدة ثم تسجيل الدخول بالإنترنت لاستعادة البيانات المتزامنة؟',
+  'storageRecovery.cancel': 'الاحتفاظ بالبيانات وإلغاء',
+  'storageRecovery.confirm': 'حفظ الأصل وبدء الاستعادة',
+  'storageRecovery.failed':
+    'تعذّر إكمال الاستعادة. النسخة المشفّرة الأصلية محفوظة. حاول مجددًا.'
 };
 
 export default ar;

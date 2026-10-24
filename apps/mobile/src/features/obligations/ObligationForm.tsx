@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +20,6 @@ import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { DesignIcon } from '@/design-system/icons';
 import { radius, spacing } from '@/design-system/tokens';
 import { minorToMajorAmountText } from '@/domain/currencies';
-import { parseAmountToMinor } from '@/domain/core-finance';
 import {
   addMonthsClamped,
   localDateFromTimestamp,
@@ -280,16 +280,26 @@ export function ObligationForm({
     onError: () => setError(translate('planning.state.error'))
   });
 
-  const amountMinor = parseAmountToMinor(normalizeLocalizedNumber(amount), owningCurrencyCode);
-  const installmentMinor = parseAmountToMinor(normalizeLocalizedNumber(installment), owningCurrencyCode);
+  const amountMinor = parseAmountToMinor(
+    normalizeLocalizedNumber(amount),
+    owningCurrencyCode
+  );
+  const installmentMinor = parseAmountToMinor(
+    normalizeLocalizedNumber(installment),
+    owningCurrencyCode
+  );
   const openingPaidMinor = item?.openingPaidMinor ?? 0;
   const remaining = (amountMinor ?? 0) - openingPaidMinor;
   const keepCount =
     retainedPlan !== null &&
-    parseAmountToMinor(normalizeLocalizedNumber(retainedPlan.amount), owningCurrencyCode) ===
-      amountMinor &&
-    parseAmountToMinor(normalizeLocalizedNumber(retainedPlan.installment), owningCurrencyCode) ===
-      installmentMinor &&
+    parseAmountToMinor(
+      normalizeLocalizedNumber(retainedPlan.amount),
+      owningCurrencyCode
+    ) === amountMinor &&
+    parseAmountToMinor(
+      normalizeLocalizedNumber(retainedPlan.installment),
+      owningCurrencyCode
+    ) === installmentMinor &&
     retainedPlan.count > 0 &&
     retainedPlan.count <= 1200 &&
     installmentMinor !== null &&

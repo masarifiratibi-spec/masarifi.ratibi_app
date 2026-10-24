@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { resolveClientMode } from '@/config/client-runtime';
-import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+
 import { HttpError } from '@/services/live/http-client';
 
 import type { AuthenticationSession } from '@/domain/app-shell';
@@ -17,6 +17,8 @@ import { settingsService } from '@/services/mocks/subscription-settings-service'
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { measurePerformance } from '@/services/platform/performance-timing';
+import { rememberAuthenticatedOwner } from '@/services/owner-lifecycle';
+export { signOutAppShellSession } from '@/services/owner-lifecycle';
 
 interface CompleteSessionOptions {
   platform?: PlatformPathInput;
@@ -60,7 +62,15 @@ export async function restoreAppShellSession(
       deadline
     ]);
   } catch (error) {
-    if (resolveClientMode() === 'live' && isCurrent())
+    if (
+      resolveClientMode() === 'live' &&
+      isCurrent() &&
+      !(
+        error instanceof HttpError &&
+        error.failureSource &&
+        useAppShellStore.getState().session?.restoration === 'local'
+      )
+    )
       await suspendUnavailable();
     throw error;
   } finally {
@@ -94,6 +104,18 @@ async function restoreCurrentSession(
       );
     } catch (error) {
       if (!isCurrent()) return;
+      if (
+        currentSession?.restoration === 'local' &&
+        currentSession.userId === session.userId &&
+        error instanceof HttpError &&
+        error.failureSource
+      ) {
+        useAppShellStore.setState({
+          session: currentSession,
+          profileSetupStatus: 'complete'
+        });
+        return;
+      }
       if (error instanceof HttpError && error.code === 'session_expired') {
         await useAppShellStore.getState().expireSession();
         if (isCurrent()) useAppShellStore.getState().setProfileSetup('unknown');
@@ -108,6 +130,10 @@ async function restoreCurrentSession(
       return;
     }
     if (!isCurrent()) return;
+    if (snapshot.complete && resolveClientMode() === 'live') {
+      await rememberAuthenticatedOwner(session, isCurrent);
+      if (!isCurrent()) return;
+    }
     const preferences = usePreferenceStore.getState();
     // Optional local persistence must not invalidate the server profile.
     await preferences.hydrate().catch(() => undefined);
@@ -126,30 +152,6 @@ async function restoreCurrentSession(
     if (resolveClientMode() === 'live') await suspendUnavailable();
     else await useAppShellStore.getState().signOut();
   }
-}
-
-export async function signOutAppShellSession(
-  authService: AuthService,
-  scope: 'local' | 'all'
-): Promise<void> {
-  if (isMobileAutomationEnabled()) {
-    await authService.signOut(scope);
-    await useAppShellStore.getState().signOut();
-    return;
-  }
-  let failure: unknown;
-  try {
-    await authService.signOut(scope);
-  } catch (error) {
-    failure = error;
-  } finally {
-    try {
-      await useAppShellStore.getState().signOut();
-    } catch (error) {
-      failure ??= error;
-    }
-  }
-  if (failure !== undefined) throw failure;
 }
 
 export async function completeAuthenticatedSession(

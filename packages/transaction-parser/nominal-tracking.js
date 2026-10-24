@@ -24,6 +24,8 @@ const excludedPackages = [
   "im.vector.app",
   "io.element.android.x",
   "com.google.android.apps.dynamite",
+  "im.thebot.messenger",
+  "com.imo.android.imoim",
 ];
 const numberWords = {
   صفر: 0,
@@ -227,7 +229,7 @@ module.exports = (parser) => {
     const effective = parser.effectiveFinancialSnapshot(snapshot, overrides);
     const normalized = normalizeNumberWords(
       parser.normalizeFinancialText(input.text),
-      effective.currencies.flatMap((currency) => currency.aliases),
+      effective.currencies.flatMap((currency) => currency.aliases.map(parser.normalizeFinancialText)),
     );
     // Content-policy receipts use the existing completed-transfer action in either channel.
     const text =
@@ -330,7 +332,7 @@ module.exports = (parser) => {
         amounts[0].sign !== c.direction
       )
         c.reasonCodes.push("conflicting_direction");
-      if (c.currency === null && amounts[0].currency)
+      if (c.currency === null && amounts[0].currency && !c.reasonCodes.includes('currency_ambiguous'))
         c.currency = amounts[0].currency;
       if (c.currency)
         c.amountMinor = decimalToMinor(

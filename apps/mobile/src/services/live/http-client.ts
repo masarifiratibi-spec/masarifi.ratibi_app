@@ -6,6 +6,7 @@ export type HttpErrorCode =
   | 'not_found'
   | 'conflict'
   | 'session_expired'
+  | 'recent_auth_required'
   | 'gone'
   | 'rate_limited'
   | 'provider_unavailable'
@@ -42,6 +43,7 @@ const SAFE_MESSAGES: Record<HttpErrorCode, string> = {
   not_found: 'The requested item was not found.',
   conflict: 'The request conflicts with the current state.',
   session_expired: 'The session has expired. Sign in again.',
+  recent_auth_required: 'Verify your identity to complete this action.',
   gone: 'This item is no longer available.',
   rate_limited: 'Too many attempts. Try again later.',
   provider_unavailable: 'The service is temporarily unavailable.',
@@ -75,7 +77,7 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   AMOUNT_BELOW_REFUNDED: 'conflict',
   UNDO_EXPIRED: 'conflict',
   FINANCIAL_ACCESS_DENIED: 'forbidden',
-  RECENT_AUTH_REQUIRED: 'session_expired',
+  RECENT_AUTH_REQUIRED: 'recent_auth_required',
   LEDGER_BUSY: 'conflict',
   LEDGER_UNAVAILABLE: 'provider_unavailable',
   DUPLICATE_RESOURCE: 'conflict',
@@ -92,6 +94,17 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
 const PRIVATE_KEYS =
   /token|secret|password|authorization|cookie|path|payload|error/i;
 let tokenProvider: TokenProvider | null = null;
+let recentAuthHandler: (() => Promise<string | null>) | undefined;
+
+export function configureRecentAuthHandler(
+  handler?: () => Promise<string | null>
+): void {
+  recentAuthHandler = handler;
+}
+
+export async function requestRecentAuthentication(): Promise<string | null> {
+  return (await recentAuthHandler?.()) ?? null;
+}
 
 export function configureMobileApiTokenProvider(provider: TokenProvider): void {
   tokenProvider = provider;
@@ -114,10 +127,34 @@ export async function requestJson<T>(
   schema: z.ZodType<T>,
   options: RequestOptions<T> = {}
 ): Promise<T> {
+  try {
+    return await performRequestJson(path, schema, options);
+  } catch (error) {
+    if (
+      !(error instanceof HttpError) ||
+      error.code !== 'recent_auth_required' ||
+      !recentAuthHandler ||
+      options.signal?.aborted
+    )
+      throw error;
+    const token = await recentAuthHandler();
+    if (!token || options.signal?.aborted) throw error;
+    // Keep the original body and idempotency key; retry at most once.
+    return performRequestJson(path, schema, { ...options, token });
+  }
+}
+
+async function performRequestJson<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  options: RequestOptions<T> = {}
+): Promise<T> {
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   let abortSource: 'cancelled' | 'timeout' | null = null;
-  const diagnostic: { stage: 'auth' | 'transport' | 'decode' } = { stage: 'auth' };
+  const diagnostic: { stage: 'auth' | 'transport' | 'decode' } = {
+    stage: 'auth'
+  };
   const controller = new AbortController();
   const abort = () => {
     abortSource ??= 'cancelled';
@@ -188,22 +225,44 @@ export async function requestJson<T>(
     return await Promise.race([operation, aborted]);
   } catch (error) {
     const failure = normalizeFailure(error, controller.signal.aborted);
-    const recoverableConnectionFailure = httpStatus === null &&
-      (abortSource === 'timeout' || (abortSource === null && diagnostic.stage === 'transport' && failure.code === 'provider_unavailable'));
+    const recoverableConnectionFailure =
+      httpStatus === null &&
+      (abortSource === 'timeout' ||
+        (abortSource === null &&
+          diagnostic.stage === 'transport' &&
+          failure.code === 'provider_unavailable'));
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       try {
         console.info(
           '[mobile:http-failure]',
           sanitizeHttpLog({
-            path, error: failure, status: failure.status,
+            path,
+            error: failure,
+            status: failure.status,
             httpStatus,
-            failureSource: abortSource ?? (httpStatus !== null ? 'http_response' : diagnostic.stage === 'transport' ? 'network' : 'client'),
+            failureSource:
+              abortSource ??
+              (httpStatus !== null
+                ? 'http_response'
+                : diagnostic.stage === 'transport'
+                  ? 'network'
+                  : 'client'),
             stage: diagnostic.stage,
             endpointGroup: httpEndpointGroup(path),
-            method: /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/u.test(options.method ?? 'GET') ? options.method ?? 'GET' : 'OTHER',
+            method: /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/u.test(
+              options.method ?? 'GET'
+            )
+              ? (options.method ?? 'GET')
+              : 'OTHER',
             elapsedMs: Math.max(0, Date.now() - startedAt),
-            ...(failure.domainCode && /^[A-Z][A-Z0-9_]{0,79}$/u.test(failure.domainCode) ? { domainCode: failure.domainCode } : {}),
-            ...(failure.requestId && /^[a-zA-Z0-9_-]{1,128}$/u.test(failure.requestId) ? { requestId: failure.requestId } : {})
+            ...(failure.domainCode &&
+            /^[A-Z][A-Z0-9_]{0,79}$/u.test(failure.domainCode)
+              ? { domainCode: failure.domainCode }
+              : {}),
+            ...(failure.requestId &&
+            /^[a-zA-Z0-9_-]{1,128}$/u.test(failure.requestId)
+              ? { requestId: failure.requestId }
+              : {})
           })
         );
       } catch {
@@ -211,7 +270,13 @@ export async function requestJson<T>(
       }
     }
     throw recoverableConnectionFailure
-      ? new HttpError(failure.code, failure.status, failure.domainCode, failure.requestId, abortSource === 'timeout' ? 'timeout' : 'network')
+      ? new HttpError(
+          failure.code,
+          failure.status,
+          failure.domainCode,
+          failure.requestId,
+          abortSource === 'timeout' ? 'timeout' : 'network'
+        )
       : failure;
   } finally {
     clearTimeout(timer);
@@ -221,7 +286,8 @@ export async function requestJson<T>(
 }
 
 function httpEndpointGroup(path: string): string {
-  if (/^\/api\/v1\/(transactions|transfers|accounts)(?:[/?]|$)/u.test(path)) return 'ledger';
+  if (/^\/api\/v1\/(transactions|transfers|accounts)(?:[/?]|$)/u.test(path))
+    return 'ledger';
   if (/^\/api\/v1\/reports(?:[/?]|$)/u.test(path)) return 'reports';
   if (/^\/api\/v1\/ai(?:[/?]|$)/u.test(path)) return 'ai';
   return 'other';

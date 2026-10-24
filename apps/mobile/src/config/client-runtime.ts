@@ -4,6 +4,7 @@ type RuntimeEnvironment = Record<string, string | undefined>;
 
 export interface ClientRuntime {
   apiUrl: string | null;
+  // TODO(report-8.2): Implement real subscription billing in the final closure phase; verify the intended Stripe integration against current Google Play Payments requirements and applicable regional programs before enabling purchases. Deferred, not resolved.
   billingAvailable: false;
   clerkPublishableKey: string | null;
   mode: ClientMode;
@@ -28,11 +29,23 @@ export function isDevPrivacyDeletionEnabled(): boolean {
 
 export function devPrivacyDeletionApiUrl(): string | null {
   const variant = process.env.EXPO_PUBLIC_APP_VARIANT;
-  if (![undefined, 'staging-development', 'staging-development-privacy'].includes(variant))
+  if (
+    ![undefined, 'staging-development', 'staging-development-privacy'].includes(
+      variant
+    )
+  )
+    return null;
+  if (
+    !process.env.EXPO_PUBLIC_API_URL ||
+    !process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+  )
     return null;
   const runtime = resolveClientRuntime();
   const staging = 'https://api.staging.masarifiratibi.com';
-  const expected = variant === 'staging-development-privacy' ? `${staging}/dev-privacy` : staging;
+  const expected =
+    variant === 'staging-development-privacy'
+      ? `${staging}/dev-privacy`
+      : staging;
   return runtime.mode === 'live' && runtime.apiUrl === expected
     ? `${staging}/${variant === 'staging-development-privacy' ? 'dev-privacy' : 'account-deletion'}`
     : null;

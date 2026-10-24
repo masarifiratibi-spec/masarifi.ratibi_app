@@ -209,8 +209,9 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
       )?.toString().orEmpty()
     if (title.isBlank() && text.isBlank()) return@synchronized
     val oversized=title.length+text.length>8000
+    val policy=TrackingOwner.policy(state)
     val admission=notificationAdmission(notification.packageName,packageName,true,packages("packages"),blocked,
-      FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy")),title+"\n"+text,
+      policy,title+"\n"+text,
       extras.containsKey(Notification.EXTRA_MESSAGES) || extras.getString(Notification.EXTRA_TEMPLATE)=="android.app.Notification\u0024MessagingStyle")
     val counters=getSharedPreferences("masarifi_tracking_admission_counters",Context.MODE_PRIVATE)
     if(admission==NotificationAdmission.DISCARD) {
@@ -227,7 +228,7 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
         notification.key,
         admission==NotificationAdmission.DISCOVERED,
         System.currentTimeMillis(),boundary,
-        if(FinancialDiscoveryPolicy.parse(state.optString("discoveryPolicy"))?.nominal==true) "default_account_nominal_v1" else "legacy",
+        if(policy?.nominal==true) "default_account_nominal_v1" else "legacy",
         applicationSourceDisplayName(this,notification.packageName)
       ), admission, {NotificationQueue(this).add(it)}, {TrackingScheduler.incoming(this)}
     )} catch(error:Exception) {

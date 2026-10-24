@@ -16,7 +16,9 @@ const mockBack = jest.fn();
 jest.mock('@/services/live/clerk-provider', () => ({
   getLiveClerkDisplayName: () => null
 }));
-jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => false)
+}));
 
 test('does not switch a usable profile form to global Loading while refreshing after a failed save', async () => {
   let finish!: (value: ProfileSetupSnapshot) => void;
@@ -143,7 +145,9 @@ const snapshot: ProfileSetupSnapshot = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(false);
+  jest
+    .requireMock('@/config/mobile-automation')
+    .isMobileAutomationEnabled.mockReturnValue(false);
   changeLocale('ar');
   usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   useAppShellStore.getState().reset();
@@ -155,8 +159,19 @@ beforeEach(() => {
 });
 
 test('keeps notification activation out of profile setup even when automation is enabled', () => {
-  jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(true);
-  useAppShellStore.setState({ session: { status: 'authenticated', userId: 'owner-a', issuedAt: 1, expiresAt: 4_000_000_000_000, method: 'google', restoration: 'restored' } });
+  jest
+    .requireMock('@/config/mobile-automation')
+    .isMobileAutomationEnabled.mockReturnValue(true);
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'owner-a',
+      issuedAt: 1,
+      expiresAt: 4_000_000_000_000,
+      method: 'google',
+      restoration: 'restored'
+    }
+  });
   renderWithProviders(<ProfileSetupScreen service={service({})} />);
   expect(screen.queryByRole('switch', { name: /تفعيل الإشعارات/ })).toBeNull();
 });
@@ -248,12 +263,14 @@ test('matches the Arabic reference and keeps the saved name ahead of Clerk prefi
   expect(screen.getByTestId('profile-setup-content')).toHaveStyle({
     direction: 'rtl'
   });
-  expect(screen.getByText('وش ناديلك؟')).toHaveStyle({
+  expect(screen.getByText('وش نناديك؟')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'rtl',
     width: '100%'
   });
-  expect(screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.')).toHaveStyle({
+  expect(
+    screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.')
+  ).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'rtl',
     width: '100%'
@@ -385,7 +402,9 @@ test('keeps edits while switching to English and uses concise LTR copy', async (
     writingDirection: 'ltr',
     width: '100%'
   });
-  expect(screen.getByText('We use it to personalize Masarifi & Ratibi.')).toHaveStyle({
+  expect(
+    screen.getByText('We use it to personalize Masarifi & Ratibi.')
+  ).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'ltr',
     width: '100%'

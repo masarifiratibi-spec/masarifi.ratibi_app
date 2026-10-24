@@ -59,6 +59,9 @@ export default function AppEntry() {
         ['unavailable', 'error'].includes(profileSetupStatus))
   );
 
+  if (session?.restoration === 'local' && destination !== '/index')
+    return <Redirect href={destination} />;
+
   if (
     identity.status === 'unavailable' ||
     (identity.status === 'ready' && profileSetupStatus === 'unavailable')

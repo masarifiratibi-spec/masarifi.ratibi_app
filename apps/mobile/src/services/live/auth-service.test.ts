@@ -58,7 +58,9 @@ import { usePreferenceStore } from '@/state/preferences';
 jest.mock('expo-crypto', () => ({
   randomUUID: () => require('node:crypto').randomUUID()
 }));
-jest.mock('@/config/mobile-automation', () => ({ isMobileAutomationEnabled: jest.fn(() => false) }));
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => false)
+}));
 import {
   captureLiveAssistantClerkIdentity,
   captureLiveClerkIdentity,
@@ -93,15 +95,28 @@ function clerkBridge(overrides: Record<string, unknown> = {}) {
 }
 
 describe('DEV authenticated sign-out', () => {
-  const deviceRegistration = { deviceFingerprint: 'owned-installation-fingerprint', platform: 'android' as const, appVersion: '1.0.0' };
+  const deviceRegistration = {
+    deviceFingerprint: 'owned-installation-fingerprint',
+    platform: 'android' as const,
+    appVersion: '1.0.0'
+  };
   beforeEach(() => {
-    jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(true);
-    jest.spyOn(phoneNotifications, 'getDeviceRegistration').mockResolvedValue(deviceRegistration);
-    usePreferenceStore.setState({ returnRemindersEnabled: true, returnRemindersOwnerId: liveSession.userId });
+    jest
+      .requireMock('@/config/mobile-automation')
+      .isMobileAutomationEnabled.mockReturnValue(true);
+    jest
+      .spyOn(phoneNotifications, 'getDeviceRegistration')
+      .mockResolvedValue(deviceRegistration);
+    usePreferenceStore.setState({
+      returnRemindersEnabled: true,
+      returnRemindersOwnerId: liveSession.userId
+    });
   });
   afterEach(() => {
     jest.restoreAllMocks();
-    jest.requireMock('@/config/mobile-automation').isMobileAutomationEnabled.mockReturnValue(false);
+    jest
+      .requireMock('@/config/mobile-automation')
+      .isMobileAutomationEnabled.mockReturnValue(false);
   });
 
   test('revokes the owned DEV installation before closing Clerk and leaves the next owner opted out', async () => {
@@ -112,15 +127,25 @@ describe('DEV authenticated sign-out', () => {
       return {};
     });
     await createLiveAuthService(bridge, request).signOut('local');
-    expect(request).toHaveBeenCalledWith('/api/v1/tracking/device/installations/sign-out', { method: 'POST', body: { deviceRegistration } });
-    expect(bridge.signOut).toHaveBeenCalledWith({ scope: 'current', sessionId: liveSession.id });
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tracking/device/installations/sign-out',
+      { method: 'POST', body: { deviceRegistration } }
+    );
+    expect(bridge.signOut).toHaveBeenCalledWith({
+      scope: 'current',
+      sessionId: liveSession.id
+    });
     expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
   });
 
   test('retains the Clerk credential for retry when the server revoke is offline', async () => {
     const bridge = clerkBridge();
-    const request = jest.fn(async () => { throw new HttpError('provider_unavailable', 503); });
-    await expect(createLiveAuthService(bridge, request).signOut('local')).rejects.toMatchObject({ code: 'provider_unavailable' });
+    const request = jest.fn(async () => {
+      throw new HttpError('provider_unavailable', 503);
+    });
+    await expect(
+      createLiveAuthService(bridge, request).signOut('local')
+    ).rejects.toMatchObject({ code: 'provider_unavailable' });
     expect(bridge.signOut).not.toHaveBeenCalled();
     expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
   });
@@ -128,20 +153,29 @@ describe('DEV authenticated sign-out', () => {
   test('does not close a replacement owner when the old revoke response arrives', async () => {
     let current = liveSession;
     const bridge = clerkBridge({ getSession: jest.fn(async () => current) });
-    const request = jest.fn(async () => { current = { ...liveSession, userId: 'owner-b', id: 'session-b' }; return {}; });
-    await expect(createLiveAuthService(bridge, request).signOut('local')).rejects.toMatchObject({ code: 'session_expired' });
+    const request = jest.fn(async () => {
+      current = { ...liveSession, userId: 'owner-b', id: 'session-b' };
+      return {};
+    });
+    await expect(
+      createLiveAuthService(bridge, request).signOut('local')
+    ).rejects.toMatchObject({ code: 'session_expired' });
     expect(bridge.signOut).not.toHaveBeenCalled();
   });
 
   test('does not revoke a replacement session after delayed device lookup', async () => {
     let current = liveSession;
     const bridge = clerkBridge({ getSession: jest.fn(async () => current) });
-    jest.mocked(phoneNotifications.getDeviceRegistration).mockImplementationOnce(async () => {
-      current = { ...liveSession, id: 'replacement-session' };
-      return deviceRegistration;
-    });
+    jest
+      .mocked(phoneNotifications.getDeviceRegistration)
+      .mockImplementationOnce(async () => {
+        current = { ...liveSession, id: 'replacement-session' };
+        return deviceRegistration;
+      });
     const request = jest.fn(async () => ({}));
-    await expect(createLiveAuthService(bridge, request).signOut('local')).rejects.toMatchObject({ code: 'session_expired' });
+    await expect(
+      createLiveAuthService(bridge, request).signOut('local')
+    ).rejects.toMatchObject({ code: 'session_expired' });
     expect(request).not.toHaveBeenCalled();
     expect(bridge.signOut).not.toHaveBeenCalled();
   });
@@ -311,21 +345,46 @@ test('preserves cached reads across a bridge refresh for the same active session
   });
 });
 
-test.each([getLiveClerkToken, captureLiveClerkIdentity, captureLiveReadClerkIdentity])(
+test.each([
+  getLiveClerkToken,
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+])(
   'bounds a stalled Clerk token lookup and allows recovery without accepting its late result',
   async (capture) => {
     jest.useFakeTimers();
     let release!: (token: string) => void;
-    const getToken = jest.fn().mockImplementationOnce(() => new Promise<string>((resolve) => { release = resolve; }))
+    const getToken = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            release = resolve;
+          })
+      )
       .mockResolvedValue('recovered-token');
     registerLiveClerkBridge(clerkBridge({ getToken }));
-    const pending = capture().then(value => ({ value }), error => ({ error }));
+    const pending = capture().then(
+      (value) => ({ value }),
+      (error) => ({ error })
+    );
     try {
       await jest.advanceTimersByTimeAsync(10_000);
-      const observed = await Promise.race([pending, Promise.resolve({ stillPending: true })]);
-      expect(observed).toEqual({ error: expect.objectContaining({ code: 'provider_unavailable', status: 503, failureSource: 'timeout' }) });
+      const observed = await Promise.race([
+        pending,
+        Promise.resolve({ stillPending: true })
+      ]);
+      expect(observed).toEqual({
+        error: expect.objectContaining({
+          code: 'provider_unavailable',
+          status: 503,
+          failureSource: 'timeout'
+        })
+      });
       const recovered = await capture();
-      expect(typeof recovered === 'string' ? recovered : recovered.token).toBe('recovered-token');
+      expect(typeof recovered === 'string' ? recovered : recovered.token).toBe(
+        'recovered-token'
+      );
       expect(getToken).toHaveBeenCalledTimes(2);
     } finally {
       release('late-original-token');
@@ -1735,21 +1794,19 @@ test.each([false, true])(
     const originalFetch = global.fetch;
     const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
     process.env.EXPO_PUBLIC_API_URL = 'https://inert.invalid';
-    const request = jest
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        status: 202,
-        json: async () => ({
-          id: 'deletion-fenced',
-          status: 'verified',
-          requestedAt: '2026-10-16T00:00:00.000Z',
-          coolingOffEndsAt: '2026-10-19T00:00:00.000Z',
-          completedAt: null,
-          retainedCategories: [],
-          version: 1
-        })
-      });
+    const request = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        id: 'deletion-fenced',
+        status: 'verified',
+        requestedAt: '2026-10-16T00:00:00.000Z',
+        coolingOffEndsAt: '2026-10-19T00:00:00.000Z',
+        completedAt: null,
+        retainedCategories: [],
+        version: 1
+      })
+    });
     global.fetch = request;
     let current = duringToken
       ? liveSession
@@ -1785,3 +1842,49 @@ test.each([false, true])(
     }
   }
 );
+
+it('maps owner security events and pagination without carrying metadata into UI state', async () => {
+  const request = jest.fn(async (_path: string) => ({
+    items: [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        eventType: 'privacy.export_ready',
+        severity: 'info',
+        occurredAt: '2026-10-24T00:00:00.000Z',
+        safeMetadata: { token: 'never-render-this' }
+      }
+    ],
+    nextCursor: 'next-page'
+  }));
+  const service = createLiveIdentityService({ request });
+  const page = await service.listSecurityEvents('previous-page');
+  expect(request.mock.calls[0][0]).toContain('cursor=previous-page');
+  expect(page.nextCursor).toBe('next-page');
+  expect(page.items[0]).toMatchObject({ eventType: 'privacy.export_ready' });
+  expect(JSON.stringify(page)).not.toContain('never-render-this');
+});
+
+it('reads a ready export with a validated HTTPS signed download link', async () => {
+  const value = {
+    id: 'export-owner',
+    status: 'ready',
+    scope: ['identity@1'],
+    requestedAt: '2026-10-24T00:00:00.000Z',
+    expiresAt: '2026-10-25T00:00:00.000Z',
+    version: 2,
+    basename: 'masarifi-privacy-export.zip',
+    mediaType: 'application/zip',
+    downloadUrl: 'https://storage.example.test/signed',
+    downloadUrlExpiresAt: '2026-10-24T01:00:00.000Z'
+  };
+  const request = jest.fn(async () => value);
+  const service = createLiveIdentityService({ request });
+  await expect(service.getPrivacyExport(value.id)).resolves.toEqual(value);
+  request.mockResolvedValueOnce({
+    ...value,
+    downloadUrl: 'http://unsafe.example.test/signed'
+  });
+  await expect(service.getPrivacyExport(value.id)).rejects.toMatchObject({
+    code: 'contract_mismatch'
+  });
+});

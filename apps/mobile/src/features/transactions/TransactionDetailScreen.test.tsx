@@ -107,7 +107,7 @@ it('restores the undo window from a persisted deleted transaction', () => {
   ).toBeNull();
 });
 
-it('offers only edit and delete for an automatic refundable expense', () => {
+it('opens a linked refund for an eligible automatic expense', () => {
   const item = {
     ...fixtureTransactions[0],
     id: 'eligible-expense',
@@ -131,12 +131,22 @@ it('offers only edit and delete for an automatic refundable expense', () => {
       .map((button) => button.props.accessibilityLabel)
   ).toEqual([
     translate('coreFinance.transaction.edit'),
+    translate('coreFinance.type.refund'),
     translate('coreFinance.transaction.delete')
   ]);
   fireEvent.press(
     screen.getByLabelText(translate('coreFinance.transaction.edit'))
   );
   expect(router.push).toHaveBeenCalledWith(`/transactions/${item.id}/edit`);
+  fireEvent.press(screen.getByLabelText(translate('coreFinance.type.refund')));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/(tabs)/add',
+    params: {
+      type: 'refund',
+      originalTransactionId: item.id,
+      accountId: item.accountId
+    }
+  });
 });
 
 it('opens the original transaction from a refund relationship row', () => {

@@ -6,6 +6,10 @@ const findings = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
+  // Policy TODO comments are documentation, not provider dependencies. Preserve line offsets.
+  const executableSource = source.replace(/^[ \t]*\/\/[^\r\n]*/gm, (comment) =>
+    ' '.repeat(comment.length)
+  );
   const normalized = file.replaceAll('\\', '/');
   const isTest = /\.(test|spec)\.(ts|tsx)$/.test(normalized);
   const isStorage = normalized.startsWith('src/storage/');
@@ -40,7 +44,7 @@ for (const file of files) {
   if (!isTest && normalized !== 'src/config/client-runtime.ts') {
     report(
       file,
-      source,
+      executableSource,
       /(?:openai|stripe|supabase|firebase|service[_-]?role)/gi,
       'production provider import'
     );
@@ -76,7 +80,10 @@ function collect(root) {
 
 function report(file, source, pattern, label) {
   for (const match of source.matchAll(pattern)) {
-    if (label.includes('hard-coded English UI') && isLocalizationMatch(match[0])) {
+    if (
+      label.includes('hard-coded English UI') &&
+      isLocalizationMatch(match[0])
+    ) {
       continue;
     }
     findings.push(
@@ -87,5 +94,7 @@ function report(file, source, pattern, label) {
 
 function isLocalizationMatch(value) {
   const match = value.match(/["']([^"']+)["']/);
-  return Boolean(match && /^[a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9_-]+)+$/.test(match[1]));
+  return Boolean(
+    match && /^[a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9_-]+)+$/.test(match[1])
+  );
 }
