@@ -390,7 +390,7 @@
     {
       "file": "065_report_closure_sync_fee.test.sql",
       "status": "passed",
-      "assertions": 24,
+      "assertions": 38,
       "inheritedFailure": false
     },
     {

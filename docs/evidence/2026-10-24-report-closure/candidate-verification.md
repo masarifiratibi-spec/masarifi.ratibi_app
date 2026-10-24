@@ -1,6 +1,6 @@
 # Report closure candidate verification
 
-Source commit: `3026ac60100d46c856321ab195c80823dfff1913`. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
+Implementation through `70a989e0fa746cce784c0e7725e2d641c0d421a2`; per-check historical source commits remain recorded in the JSON receipt. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
 
 This is a review candidate, **not a production release qualification**. The [closure ledger](closure-ledger.json) retains 69 original references and 88 independently tracked acceptance units; no completion percentage is inferred. Billing and its grouped subscription subcheck stay open. Screenshots remain allowed everywhere, including local unlock.
 
@@ -11,7 +11,7 @@ This is a review candidate, **not a production release qualification**. The [clo
 | API unit/contract | 263 suites, 2,150 tests passed |
 | Other API offline projects | 100 suites, 307 tests passed; 138 suites/1,059 external tests skipped |
 | Selected actual-PG service tests | 6 suites, 96 tests passed; tracking financial-content follow-up 86/86 passed |
-| Actual MigrationRunner | 1 test passed: seven forward migrations, idempotent rerun and exact inventory |
+| Actual MigrationRunner | 1 test passed: nine forward migrations / 174 registered, idempotent rerun and exact inventory |
 | Admin full suite | 104 suites, 1,002 tests passed |
 | Admin build/typecheck/lint | Passed using explicitly inert CI build configuration; /delete-account compiled |
 | Mobile final complete serial suite | 559 suites, 3,992 tests passed after final disclosure routing/copy changes |
@@ -106,3 +106,12 @@ Voice recovery fixtures hold unrelated sessions and deleted-session tombstones a
 
 
 The broader retained-target probe records **139 suites / 975 tests passed, 5 suites / 23 tests failed**, with 8 suites / 120 tests skipped. Seventeen failures are the dedicated shared-planning database guard refusing this target; that guard was preserved and no new environment was created. The other six failures expose saturated retained purge queues, a previously automatic rollout mode, and a retained global budget of 2. The affected queue/enrollment fixtures now declare and restore their own preconditions. Master Voice uses a temporary owner-specific 30-request allowance and removes it on cleanup. The subsequent seven-suite qualification passes **112 tests** with disposable global budget 200, restored to its previous value in finally. The broad probe remains recorded as failed; exact full CI on the guarded disposable target is still required.
+
+
+## Planning queue compatibility after full CI
+
+The source-equivalent PR merge `82397e3d` for head `5de5a4fe` passes both fresh and upgrade integrations: **145 suites / 1,002 tests per path**, with 7 suites / 116 tests skipped. Fresh PostgreSQL 17 SQL qualification passes 67 suites / 1,915 assertions. The following full E2E step passes 41 suites / 82 tests but exposes a real planning receipt regression: the initial reauthentication migration copied the older Phase 06 allowlist and dropped Phase 07 planning types. The API types and dispatch still support those ten types.
+
+Forward migration `20261024110500_report_closure_planning_sync_receipts.sql` restores exactly the existing Phase 07 domain/resource allowlist, retaining the durable authentication instant, immutable replay checks, recent-auth requeue and operation rejection. No historical migration is edited. Local reproduction fails before the fix and passes afterward. The actual migration runner reaches 174 registrations idempotently; planning and sync recovery pass 7 tests. Fourteen added SQL checks cover all ten resource receipts, durable authentication, mismatched/unknown resources and unknown operations. Both approved local paths now pass **64 focused checks and 67 suites / 1,929 assertions**, with all candidate transactions rolled back.
+
+A broader local E2E probe remains recorded as failed: 38 suites / 79 tests passed, four failed (a saturated retained purge fixture, two backups tied to the stopped Supabase CLI stack, and a Windows checksum-test timeout). Those four passed on the remote approved setup; no new local stack, reset, production change or timeout increase was introduced. Full candidate CI must pass after this correction. Device, signed-artifact, hosted-provider and Play acceptance remain external; billing remains deferred and screenshots enabled.

@@ -2482,7 +2482,8 @@
     "7fc9c86d34353d8f9df64799c5a4992542b24a3b",
     "1426e90e162cbcbe9a06692872e7a37dc079d28e",
     "d67dafb768f7d7bcbf1de82e8e424e571b977215",
-    "67638e7ad66e9be2b559f21718d672d4ab4e161c"
+    "67638e7ad66e9be2b559f21718d672d4ab4e161c",
+    "70a989e0fa746cce784c0e7725e2d641c0d421a2"
   ],
   "nonPdfFollowUps": [
     {
@@ -2493,15 +2494,15 @@
     }
   ],
   "integrationPullRequest": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9",
-  "latestImplementationCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c",
+  "latestImplementationCommit": "70a989e0fa746cce784c0e7725e2d641c0d421a2",
   "latestBoundedVerification": {
     "apiUnitContract": 2150,
     "repairedPgIntegration": 171,
     "rlsPerPath": {
       "suites": 67,
-      "assertions": 1915
+      "assertions": 1929
     },
-    "focusedSqlPerPath": 50,
+    "focusedSqlPerPath": 64,
     "fullExactCandidateCi": "pending",
     "releaseQualified": false,
     "adminTests": 1002,
@@ -2510,6 +2511,6 @@
       "tests": 112,
       "commit": "67638e7ad66e9be2b559f21718d672d4ab4e161c"
     },
-    "registeredMigrations": 173
+    "registeredMigrations": 174
   }
 }
