@@ -190,3 +190,7 @@ Implementation and current bounded verification now supersede the earlier chrono
 
 ### Broad CI repair checkpoint
 Source commits 1426e90e and d67dafb7 repair demonstrated owner-context, operation-identity, profile-lock and transfer-provenance defects while preserving production guards. Eighteen repaired actual-PG suites pass 171 tests; API unit/contract passes 2,150 tests; three builds, typecheck, lint, format and checksums pass. Both fresh/upgrade RLS paths pass 67 suites/1,915 assertions and 50 focused new SQL checks. Exact seven forward migrations are registered (172 total). Admin retains read-only deployment settings; all 675 browser tests remain selected across five viewports. Current full remote integration/browser qualification remains pending. Earlier 6e0a1d6c native, Mobile, encrypted-journal, API/Admin unit and secret checks pass. Main protection requires a repository administrator; no production infrastructure, credential or deployment was modified.
+
+
+### Historical verifier and browser continuation
+112e336a isolates the110→111 verifier from the migration171-only worker context RPC and keeps exact history guards.3026ac60 aligns support MSW contracts with the live client, preserves audited keyboard actions, and constrains the mobile LTR notification toolbar/panel. New real-client mock regression red→green;20focused and1,002full Admin tests pass, typecheck/lint and8negative disposable guards pass. Latest source requires fresh remote qualification; production configuration/signing/provider/device gates remain external.

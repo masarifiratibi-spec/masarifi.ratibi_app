@@ -1,6 +1,6 @@
 {
   "inspectedDate": "2026-10-24",
-  "sourceCommit": "d67dafb768f7d7bcbf1de82e8e424e571b977215",
+  "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
   "mainHistoryPreserved": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
   "localChecks": [
     {
@@ -38,10 +38,10 @@
     {
       "name": "Admin complete suite",
       "command": "npm test",
-      "outcome": "104 suites / 1001 tests passed",
-      "localRawLog": "admin-final-tests.log",
-      "rawLogSHA256": "6f380d113253ac161fb9160e7443415a77865394d652dec8ef48106843f6c6da",
-      "sourceCommit": "7fc9c86d34353d8f9df64799c5a4992542b24a3b"
+      "outcome": "104 suites / 1002 tests passed",
+      "localRawLog": "admin-browser-final-full.log",
+      "rawLogSHA256": "0d5d30d6a2ecdc9b4072b3ca4dbfc62871af16a433345badba4450d6637864ae",
+      "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913"
     },
     {
       "name": "Admin diagnostic build",
@@ -210,10 +210,42 @@
       "localRawLog": "admin-e2e-updated-list.log",
       "rawLogSHA256": "7c9130d450b0a5c7f3da8167a30ac1d50e86af9bf64a2b19a374fd65a0daa981",
       "sourceCommit": "d67dafb768f7d7bcbf1de82e8e424e571b977215"
+    },
+    {
+      "name": "Admin updated typecheck",
+      "command": "npm run typecheck",
+      "outcome": "passed",
+      "localRawLog": "admin-browser-final-typecheck.log",
+      "rawLogSHA256": "fcdf720a10735f323fa1297cc000f695e9091646c55bbcb387713638b65378cb",
+      "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913"
+    },
+    {
+      "name": "Admin updated lint",
+      "command": "npm run lint",
+      "outcome": "passed",
+      "localRawLog": "admin-browser-final-lint.log",
+      "rawLogSHA256": "51a1bd3fc62d67d9082ce207ee35bdb81a1fbac93322af2520ee366b2e83caf7",
+      "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913"
+    },
+    {
+      "name": "Historical schema guards",
+      "command": "node --test scripts/integration/disposable-database.test.cjs",
+      "outcome": "8 passed; unregistered versions rejected before loading compiler or connecting",
+      "localRawLog": "historical-context-guard-tests.log",
+      "rawLogSHA256": "74b5154b8a83aadc6af48b7c7314a01bcad6b3b6d9effebc6ab11ecc71837eb0",
+      "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913"
+    },
+    {
+      "name": "Support mock/client contract",
+      "command": "vitest run communications mock, repository and conversation tests",
+      "outcome": "3 suites / 20 tests passed; new real-client contract case failed before mock repair",
+      "localRawLog": "admin-support-mock-green.log",
+      "rawLogSHA256": "c2e2e5fd1aab2e0992e6ab9f148dd18ba31e51bcb1d33e3990087cbc10635765",
+      "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913"
     }
   ],
   "finalMobileRerun": "559 suites / 3992 tests passed; 748.24 seconds",
-  "remoteCandidateCI": "6e0a1d6c: application/Admin/Mobile/secrets/redaction/native minification/identity and all encrypted-journal/voice checks passed. Database broad integration and all five Admin browser jobs failed. Demonstrated production defects and stale fixtures corrected in 1426e90e/d67dafb7; exact new candidate CI pending.",
+  "remoteCandidateCI": "3cddb81d: application, Admin unit/build, Mobile, secrets/redaction and voice/tracking checks pass. Historical 110->111 verifier called a migration171 RPC, corrected in112e336a without weakening current worker. Browser exposed missing support overview/old ticket mock contract and mobile LTR layout expansion (417px for390px device); repaired in3026ac60. Exact new candidate full CI pending.",
   "releaseQualified": false,
   "billing": "deferred_open",
   "limitations": [

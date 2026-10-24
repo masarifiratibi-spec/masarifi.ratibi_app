@@ -1,6 +1,6 @@
 # Report closure candidate verification
 
-Source commit: `d67dafb768f7d7bcbf1de82e8e424e571b977215`. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
+Source commit: `3026ac60100d46c856321ab195c80823dfff1913`. Main history is preserved through merge `c7532a27fae4475f4714701009e58dfaf87210fc`. [Draft integration PR #9](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9) carries the candidate. Evidence-only commits may follow without changing this implementation.
 
 This is a review candidate, **not a production release qualification**. The [closure ledger](closure-ledger.json) retains 69 original references and 88 independently tracked acceptance units; no completion percentage is inferred. Billing and its grouped subscription subcheck stay open. Screenshots remain allowed everywhere, including local unlock.
 
@@ -12,7 +12,7 @@ This is a review candidate, **not a production release qualification**. The [clo
 | Other API offline projects | 100 suites, 307 tests passed; 138 suites/1,059 external tests skipped |
 | Selected actual-PG service tests | 6 suites, 96 tests passed; tracking financial-content follow-up 86/86 passed |
 | Actual MigrationRunner | 1 test passed: seven forward migrations, idempotent rerun and exact inventory |
-| Admin full suite | 104 suites, 1,001 tests passed |
+| Admin full suite | 104 suites, 1,002 tests passed |
 | Admin build/typecheck/lint | Passed using explicitly inert CI build configuration; /delete-account compiled |
 | Mobile final complete serial suite | 559 suites, 3,992 tests passed after final disclosure routing/copy changes |
 | Mobile typecheck/lint/boundaries | Passed; lint retains 116 inherited warnings and no errors |
@@ -70,3 +70,10 @@ Fixtures now provide the claims required by existing guards, create their own sy
 `d67dafb7` preserves the accepted read-only import settings page in browser expectations. All 675 browser tests remain listed across five viewports, with lint passing. Full exact-candidate GitHub qualification is pending; no all-green CI claim is made here.
 
 A repository administrator must configure required checks on main. The current account has push/triage access but no admin/maintain rights. No branch protection, production configuration, DNS, hosted schema, credential or deployment was changed during this inspection.
+
+
+At `3cddb81d`, application, Admin unit/build, Mobile, secrets/redaction and voice/tracking CI pass. Its historical 110→111 verifier used the current repository after that repository gained a migration171 context RPC. `112e336a` instead verifies the exact 110/111 schema and executes its original prepared-import function with owner claims and the worker role. The complete current-candidate worker remains independently covered; no production fallback is added. Eight negative target guards pass, with unregistered versions rejected before loading the compiler.
+
+The browser run then exposed missing support overview and older ticket list/detail fixtures. `3026ac60` aligns the mock with the current live client DTOs, keeps permission denial, and tests list/detail/overview plus a real client mutation and refreshed counts. The new contract case failed before the repair; three focused suites pass20 tests, and the full Admin suite passes104/1,002 with typecheck/lint green. The keyboard browser test uses the current action selector and required audit reason. Its assertions are retained.
+
+The390px English browser trace records a417px layout viewport because the full environment badge widened the toolbar; the panel inherited that wider containing viewport. The mobile toolbar now allows the badge text to shrink while keeping its full accessible label, and the portal panel uses an explicit viewport width. The existing browser viewport assertions remain unchanged. Remote browser acceptance is still pending on this source.
