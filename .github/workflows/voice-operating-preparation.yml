@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: apps/api/.nvmrc
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - name: Verify retained controls and OFF-only adapter against inert host boundaries
         shell: bash
         run: |

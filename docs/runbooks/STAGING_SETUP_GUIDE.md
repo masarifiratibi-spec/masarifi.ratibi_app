@@ -211,6 +211,7 @@ Classification rule: a row explicitly marked `secret` is confidential VPS enviro
 | `CLERK_AUTHORIZED_PARTIES` | API | **BLOCKING** — exact HTTPS Admin staging origin(s) | Unapproved browser party is rejected. |
 | `CLERK_WEBHOOK_SIGNING_SECRET` | API secret | **BLOCKING** — staging webhook signing secret | Valid signature accepted; altered payload rejected. |
 | `MASARIFI_PUSH_TOKEN_HASH_KEY` | API/worker secret | **BLOCKING** — exactly 32 random bytes encoded as 43-character base64url | Push registration works; raw token never appears in DB/logs. |
+| `MASARIFI_SYNC_CURSOR_KEY` | API secret | **BLOCKING** — independent 32 random bytes encoded as base64url; must differ from the push hash key | Existing cursor format is v2; invalid/retired signatures trigger owner-scoped bootstrap without deleting pending mutations. Set this secret before deploying the API change. |
 | `MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS` | API/worker secret ring | **BLOCKING** — `id:<43-char-base64url>`, 1–3 entries; different from hash key | Current key encrypts; older listed key decrypts during rotation. |
 | `MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS` | API | **BLOCKING** — `600` initially | Sensitive operation fails after threshold and succeeds after Clerk reauthentication. |
 | `MASARIFI_LEDGER_RECENT_AUTH_THRESHOLDS` | API | **OPTIONAL** — only approved integer-minor-unit threshold overrides | Boundary tests pass; omit to use repository defaults. |

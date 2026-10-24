@@ -21,6 +21,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: node --test scripts/staging-voice/diagnostic-canary/canary-db.test.cjs
       - run: python3 -m unittest discover -s scripts/staging-voice/diagnostic-canary -p 'test_*.py' -v
       - run: python3 -O -m unittest discover -s scripts/staging-voice/diagnostic-canary -p 'test_*.py' -v

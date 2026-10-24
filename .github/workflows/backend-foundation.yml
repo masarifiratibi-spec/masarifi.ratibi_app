@@ -14,6 +14,7 @@ on:
         "apps/api/**",
         "apps/admin-web/**",
         "apps/mobile/**",
+        "packages/transaction-parser/**",
         "supabase/**",
         "docker/**",
         "scripts/voice-manual-canary/**",
@@ -57,6 +58,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: npm run test:unit -- logger.spec.ts safe-exception-filter.spec.ts queue-publisher.spec.ts
 
@@ -74,11 +77,14 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       # The integrated Voice journey validates the actual Mobile parser.
       - run: npm --prefix ../mobile ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run format:check
       - run: npm run test:unit
       - run: npm run test:contract
       - run: npm run test:openapi
@@ -114,12 +120,16 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
+      - run: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs
+      - run: node --test --test-concurrency=1 ../../packages/transaction-parser/*.test.js
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run check:frontend-quality
       - run: npx expo prebuild --platform android --no-install
-      - run: npx jest --forceExit
+      - run: npx jest --runInBand --forceExit
       - name: Verify bounded native deep-link decoder mitigation
         run: node --test scripts/deep-link-decoder.test.mjs
       - name: Verify standalone Staging client scope
@@ -133,6 +143,7 @@ jobs:
       EXPO_PUBLIC_CLIENT_MODE: live
       EXPO_PUBLIC_API_URL: https://api.example.invalid
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_bWFzYXJpZmkudGVzdCQ
+      EAS_BUILD_PROFILE: staging-client
       NODE_OPTIONS: --max-old-space-size=1536
     defaults:
       run:
@@ -146,9 +157,13 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - name: Verify unchanged package, EAS, Firebase and slug identities
-        run: node ../../scripts/integration/verify-android-identity.cjs
+        run: |
+          node --test ../../scripts/integration/verify-android-identity.test.cjs
+          node ../../scripts/integration/verify-android-identity.cjs
       - name: Select the runner Java 17 installation
         shell: bash
         run: |
@@ -157,33 +172,46 @@ jobs:
           echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
       - run: java -version
       - run: npx expo prebuild --platform android --no-install
-      - name: Compile the Android release candidate for supported ABIs
+      - name: Compile and minify the unsigned diagnostic build
         working-directory: apps/mobile/android
         env:
           NODE_ENV: production
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64 --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
-      - name: Verify the packaged identity and record exact-commit evidence
+          ./gradlew :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64 --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
+      - name: Verify compiled identity and all intended native architectures
         shell: bash
         run: |
-          apk=android/app/build/outputs/apk/release/app-release.apk
-          test -s "$apk"
-          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
-          test -x "$aapt"
-          "$aapt" dump badging "$apk" > android-candidate-badging.txt
-          grep -q "package: name='com.masarifi.mobile'" android-candidate-badging.txt
-          grep -q "application-label:'Masarifi.Ratibi'" android-candidate-badging.txt
-          printf '%s\n' "$GITHUB_SHA" > android-candidate-commit.txt
-          sha256sum "$apk" > android-candidate-sha256.txt
-      - name: Preserve the compiled candidate and identity evidence
+          python3 ../../scripts/integration/verify-release-manifest.test.py
+          python3 ../../scripts/integration/verify-release-manifest.py android/app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml android-diagnostic-manifest.json
+          aapt2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -n 1)
+          test -x "$aapt2"
+          resources=android/app/build/intermediates/linked_resources_proto_format/release/processReleaseResources/linked-resources-proto-format-release.ap_
+          "$aapt2" convert --output-format binary -o android-diagnostic-resources.ap_ "$resources"
+          "$aapt2" dump badging android-diagnostic-resources.ap_ > android-diagnostic-badging.txt
+          grep -F "package: name='com.masarifi.mobile'" android-diagnostic-badging.txt
+          grep -F "application-label:'Masarifi Ratibi'" android-diagnostic-badging.txt
+          native=android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -s "$native/$abi/libappmodules.so"
+          done
+          sha256sum android-diagnostic-resources.ap_ "$native"/*/libappmodules.so > android-diagnostic-sha256.txt
+      - name: Record source identity for the diagnostic build
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > android-diagnostic-commit.txt
+      - name: Preserve diagnostic build evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: android-${{ github.sha }}-candidate
+          name: android-${{ github.sha }}-diagnostics
           path: |
-            apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            apps/mobile/android-candidate-*.txt
+            apps/mobile/android/app/build/outputs/mapping/release
+            apps/mobile/android/app/build/intermediates/merged_manifests/release
+            apps/mobile/android-diagnostic-commit.txt
+            apps/mobile/android-diagnostic-manifest.json
+            apps/mobile/android-diagnostic-badging.txt
+            apps/mobile/android-diagnostic-sha256.txt
           if-no-files-found: warn
           retention-days: 14
 
@@ -199,6 +227,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/admin-web/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
@@ -227,6 +257,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/admin-web/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --project=${{ matrix.project }}
@@ -259,6 +291,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - if: github.event_name != 'workflow_dispatch' || inputs.run_k6
         uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065
         with:
@@ -486,6 +520,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm --prefix apps/api ci --ignore-scripts
       - name: Verify staging Compose contract
         env:
@@ -557,6 +593,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: apps/api/.nvmrc
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: cd apps/api && npm ci --omit=dev --ignore-scripts && npx --yes @cyclonedx/cyclonedx-npm@4.1.1 --omit dev --output-file ../../backend-sbom.cdx.json
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
         with:

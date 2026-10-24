@@ -3,7 +3,7 @@ FROM node:24.16.0-bookworm-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c57
 WORKDIR /workspace/apps/api
 COPY apps/api/package.json apps/api/package-lock.json ./
 COPY packages/transaction-parser /workspace/packages/transaction-parser
-RUN npm ci --ignore-scripts
+RUN npm install --global npm@11.17.0 --ignore-scripts && npm ci --ignore-scripts
 COPY apps/api/nest-cli.json apps/api/tsconfig.json apps/api/tsconfig.build.json ./
 COPY apps/api/src ./src
 RUN npm run build && npm prune --omit=dev --ignore-scripts --no-audit --no-fund

@@ -91,7 +91,7 @@ describe('backend workflow action pins', () => {
       'database',
     ]);
     expect(workflow).toContain('working-directory: apps/mobile');
-    expect(workflow).toContain('npx jest --forceExit');
+    expect(workflow).toContain('npx jest --runInBand --forceExit');
     expect(workflow).not.toMatch(/supabase\/tests\/.*(?:migration|db push)/i);
   });
 

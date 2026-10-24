@@ -2,7 +2,9 @@ name: Staging Client Regression
 
 on:
   push:
-    branches: [codex/staging-client-readiness-2026-10-10]
+    branches: [codex/staging-client-readiness-2026-10-10, codex/voice-promoted-operating-2026-10-13]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +28,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: npm run supabase:start
       - run: npm run test:integration -- --runTestsByPath test/integration/ai/voice-explicit-review.spec.ts

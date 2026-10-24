@@ -33,8 +33,12 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: node --test scripts/native-stability-fixes.test.mjs scripts/sqlite-cleanup-fix.test.mjs scripts/screens-fabric-fix.test.mjs
+      - run: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs
+      - run: node --test --test-concurrency=1 ../../packages/transaction-parser/*.test.js
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:dependency-security
@@ -71,6 +75,8 @@ jobs:
           node-version-file: apps/api/.nvmrc
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - name: Select existing standalone Staging configuration
         shell: bash
