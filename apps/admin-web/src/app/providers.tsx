@@ -1,8 +1,15 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { bindApiSession } from "@/core/api/client";
 import { returnToAdminSignIn } from "@/core/auth/sign-in-navigation";
 import { MockProvider } from "./MockProvider";
@@ -40,7 +47,9 @@ function IdentityBridge({
   const mounted = useRef(false);
   const clerkRef = useRef(clerk);
 
-  useLayoutEffect(() => { clerkRef.current = clerk; }, [clerk]);
+  useLayoutEffect(() => {
+    clerkRef.current = clerk;
+  }, [clerk]);
 
   useLayoutEffect(() => {
     mounted.current = true;
@@ -48,8 +57,15 @@ function IdentityBridge({
       release.current = bindApiSession(userId, sessionId, async () => {
         const session = clerkRef.current.session;
         const assertActive = () => {
-          if (clerkRef.current.session?.id !== sessionId || clerkRef.current.session?.user.id !== userId) {
-            throw new ApiError("session_expired", safeApiMessage("session_expired"), 401);
+          if (
+            clerkRef.current.session?.id !== sessionId ||
+            clerkRef.current.session?.user.id !== userId
+          ) {
+            throw new ApiError(
+              "session_expired",
+              safeApiMessage("session_expired"),
+              401,
+            );
           }
         };
         assertActive();
@@ -59,7 +75,10 @@ function IdentityBridge({
       });
     }
     const unsubscribe = clerkRef.current.addListener?.(({ session, user }) => {
-      if (mounted.current && (session?.id !== sessionId || user?.id !== userId)) {
+      if (
+        mounted.current &&
+        (session?.id !== sessionId || user?.id !== userId)
+      ) {
         release.current?.();
         void queryClient.cancelQueries();
         queryClient.clear();
@@ -78,20 +97,34 @@ function IdentityBridge({
   const signOut = async () => {
     if (!isLoaded || !userId || !sessionId) return;
     // A missing sessionId would revoke every session in a multi-session Clerk client.
-    await clerk.signOut(async () => {
-      release.current?.();
-      await queryClient.cancelQueries();
-      queryClient.clear();
-      if (mounted.current) {
-        setRevoked(true);
-        returnToAdminSignIn();
-      }
-    }, { sessionId });
+    await clerk.signOut(
+      async () => {
+        release.current?.();
+        await queryClient.cancelQueries();
+        queryClient.clear();
+        if (mounted.current) {
+          setRevoked(true);
+          returnToAdminSignIn();
+        }
+      },
+      { sessionId },
+    );
   };
 
   return (
-    <AdminIdentityContext.Provider value={{ actorId: isLoaded && sessionId && !revoked ? userId ?? "" : "", enabled: true, loaded: isLoaded && !revoked, signOut: !revoked && userId && sessionId ? signOut : undefined }}>
-      {revoked ? <SessionExpired temporary onReturn={returnToAdminSignIn} /> : children}
+    <AdminIdentityContext.Provider
+      value={{
+        actorId: isLoaded && sessionId && !revoked ? (userId ?? "") : "",
+        enabled: true,
+        loaded: isLoaded && !revoked,
+        signOut: !revoked && userId && sessionId ? signOut : undefined,
+      }}
+    >
+      {revoked ? (
+        <SessionExpired temporary onReturn={returnToAdminSignIn} />
+      ) : (
+        children
+      )}
     </AdminIdentityContext.Provider>
   );
 }
@@ -99,7 +132,13 @@ function IdentityBridge({
 function IdentityQueryProvider({ children }: { children: React.ReactNode }) {
   const identity = useAuth();
   return (
-    <QueryProvider key={identity.isLoaded ? `${identity.userId ?? "anonymous"}:${identity.sessionId ?? "signed-out"}` : "loading"}>
+    <QueryProvider
+      key={
+        identity.isLoaded
+          ? `${identity.userId ?? "anonymous"}:${identity.sessionId ?? "signed-out"}`
+          : "loading"
+      }
+    >
       <IdentityBridge identity={identity}>{children}</IdentityBridge>
     </QueryProvider>
   );
@@ -112,6 +151,9 @@ export function Providers({
   children: React.ReactNode;
   identityEnabled: boolean;
 }) {
+  const pathname = usePathname();
+  // Public deletion remains usable after erasure revokes the current session.
+  if (pathname === "/delete-account") return children;
   const content = <MockProvider>{children}</MockProvider>;
   return identityEnabled ? (
     <IdentityQueryProvider>{content}</IdentityQueryProvider>
