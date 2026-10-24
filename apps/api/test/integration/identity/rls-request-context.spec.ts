@@ -12,6 +12,7 @@ describeLiveDatabase('identity RLS request context', () => {
       get: (key: string) => {
         if (key === 'DATABASE_URL') return process.env.DATABASE_URL;
         if (key === 'MASARIFI_DATABASE_POOL_MAX') return 1;
+        if (key === 'MASARIFI_PROCESS_KIND') return undefined;
         throw new Error(`UNEXPECTED_CONFIG_KEY:${key}`);
       },
     } as never);
@@ -23,8 +24,11 @@ describeLiveDatabase('identity RLS request context', () => {
         `insert into public.profiles (id, status) values
          ('integration_owner_1', 'active'),
          ('integration_owner_2', 'active'),
-         ('integration_inactive', 'suspended')
+         ('integration_inactive', 'active')
          on conflict (id) do update set status = excluded.status`,
+      );
+      await client.query(
+        "update public.profiles set status='suspended' where id='integration_inactive'",
       );
       await client.query('commit');
     });

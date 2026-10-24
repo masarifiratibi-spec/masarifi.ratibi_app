@@ -70,7 +70,7 @@ function seededRequest(
   return {
     id,
     userId,
-    maskedCustomerLabel: customerSummary(userId).maskedEmail,
+    maskedCustomerLabel: customerSummary(userId).maskedEmail ?? userId,
     supportTicketId: ticketId,
     requestedBy,
     assignee: options.assignee ?? "ADM-DEMO-SUPPORT",

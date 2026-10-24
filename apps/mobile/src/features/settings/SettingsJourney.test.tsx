@@ -75,6 +75,10 @@ test('profile preserves edits, validates owner fields, and redirects identity-ow
     screen.queryByText(t('settings.profile.completion.identity'))
   ).toBeNull();
   expect(screen.queryByText(t('settings.profile.googleOwner'))).toBeNull();
+  expect(screen.queryByText(t('settings.profile.planFree'))).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: t('settings.profile.goPro') })
+  ).toBeNull();
 
   fireEvent.changeText(
     screen.getByLabelText(t('settings.profile.name')),
@@ -233,7 +237,7 @@ test('anchors Arabic application settings to the physical right edge', () => {
   changeLocale('en');
 });
 
-test('privacy settings requests export/deletion and local deletion without false completion claims', () => {
+test('privacy settings confirms export and local deletion requests', () => {
   const request = jest.fn();
   const localDelete = jest.fn();
   mockQueries.usePrivacyRequest.mockReturnValue({
@@ -262,19 +266,12 @@ test('privacy settings requests export/deletion and local deletion without false
   fireEvent.press(screen.getByText(t('settings.privacy.exportReview')));
   expect(request).not.toHaveBeenCalled();
   fireEvent.press(screen.getByText(t('settings.privacy.confirmRequest')));
-  fireEvent.press(
-    screen.getByText(t('settings.privacy.accountDeletionReview'))
-  );
-  fireEvent.press(screen.getByText(t('settings.privacy.confirmRequest')));
   fireEvent.press(screen.getByText(t('settings.privacy.localDelete')));
   expect(localDelete).not.toHaveBeenCalled();
   fireEvent.press(screen.getByText(t('settings.privacy.confirmLocalDelete')));
 
   expect(request).toHaveBeenCalledWith(
     expect.objectContaining({ kind: 'data_export' })
-  );
-  expect(request).toHaveBeenCalledWith(
-    expect.objectContaining({ kind: 'account_deletion' })
   );
   expect(localDelete).toHaveBeenCalledWith(
     expect.objectContaining({

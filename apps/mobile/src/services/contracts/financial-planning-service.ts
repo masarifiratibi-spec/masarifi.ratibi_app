@@ -26,6 +26,13 @@ import type {
 import type { PlanningReportingSnapshot, ReportPeriod } from '@/domain/reports';
 import type { MutationResult } from './core-finance-service';
 import type { CapabilityContractMetadata } from './capability-contract';
+import type { ReadContext } from './read-context';
+
+export interface PlanningReadSnapshot {
+  salary: SalaryCycle;
+  dataState: PlanningOverview['dataState'];
+  byCurrency: Record<string, PlanningOverview>;
+}
 
 export const financialPlanningServiceCapability: CapabilityContractMetadata = {
   capability: 'financial-planning.records',
@@ -97,6 +104,8 @@ export interface ObligationInput {
   direction: Obligation['direction'];
   type: Obligation['type'];
   scheduleKind: Obligation['scheduleKind'];
+  frequency?: Obligation['frequency'];
+  customIntervalDays?: number | null;
   title: string;
   provider?: string | null;
   currencyCode: string;
@@ -115,6 +124,7 @@ export interface ObligationInput {
 }
 
 export interface ObligationDetail {
+  sectionsState?: 'pending' | 'complete';
   obligation: Obligation;
   schedule: ObligationScheduleItem[];
   payments: ObligationPayment[];
@@ -239,19 +249,46 @@ export interface GoalMovementOutcome {
 }
 
 export interface FinancialPlanningService {
+  getObligationHeader?(
+    id: string,
+    context?: ReadContext
+  ): Promise<ObligationDetail>;
+  getObligationSchedule?(
+    id: string,
+    context?: ReadContext
+  ): Promise<ObligationScheduleItem[]>;
+  getObligationPayments?(
+    id: string,
+    currencyCode: string,
+    context?: ReadContext
+  ): Promise<{
+    items: ObligationPayment[];
+    state: 'available' | 'unavailable';
+  }>;
+  getPlanningSnapshot?(
+    input: { today: LocalDate; timeZone?: string },
+    context?: ReadContext
+  ): Promise<PlanningReadSnapshot>;
   getReportingSnapshot(
     period: ReportPeriod
   ): Promise<PlanningReportingSnapshot>;
-  getPlanningOverview(input: {
-    currencyCode: string;
-    today: LocalDate;
-    timeZone?: string;
-  }): Promise<PlanningOverview>;
-  getSalaryOverview(input: {
-    today: LocalDate;
-    timeZone?: string;
-  }): Promise<SalaryCycle>;
-  getSalaryProfile(): Promise<SalaryProfile | null>;
+  getPlanningOverview(
+    input: {
+      currencyCode: string;
+      today: LocalDate;
+      timeZone?: string;
+    },
+    context?: ReadContext
+  ): Promise<PlanningOverview>;
+  getSalaryOverview(
+    input: {
+      today: LocalDate;
+      timeZone?: string;
+    },
+    context?: ReadContext
+  ): Promise<SalaryCycle>;
+  getSalaryProfile(context?: ReadContext): Promise<SalaryProfile | null>;
+  listSalaryExpectedDates(): Promise<LocalDate[]>;
   getSalaryReceiptReview(
     transactionId: string
   ): Promise<SalaryReceiptLink | null>;
@@ -292,9 +329,15 @@ export interface FinancialPlanningService {
     expectedVersion: number,
     operationId: string
   ): Promise<MutationResult<Budget>>;
-  getObligationsOverview(input: ObligationQuery): Promise<ObligationsOverview>;
-  listObligations(input: ObligationQuery): Promise<ObligationPage>;
-  getObligation(id: string): Promise<ObligationDetail>;
+  getObligationsOverview(
+    input: ObligationQuery,
+    context?: ReadContext
+  ): Promise<ObligationsOverview>;
+  listObligations(
+    input: ObligationQuery,
+    context?: ReadContext
+  ): Promise<ObligationPage>;
+  getObligation(id: string, context?: ReadContext): Promise<ObligationDetail>;
   createObligation(
     input: ObligationInput,
     operationId: string
@@ -334,8 +377,8 @@ export interface FinancialPlanningService {
     input: PaymentMatchResolution,
     operationId: string
   ): Promise<MutationResult<PaymentMatchOutcome>>;
-  listGoals(input: GoalQuery): Promise<SavingsGoal[]>;
-  getGoal(id: string): Promise<SavingsGoalDetail>;
+  listGoals(input: GoalQuery, context?: ReadContext): Promise<SavingsGoal[]>;
+  getGoal(id: string, context?: ReadContext): Promise<SavingsGoalDetail>;
   createGoal(
     input: SavingsGoalInput,
     operationId: string

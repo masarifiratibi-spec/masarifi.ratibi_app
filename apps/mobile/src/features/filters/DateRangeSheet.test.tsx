@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { Button, Modal, Platform } from 'react-native';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
@@ -9,6 +9,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 import { DateRangeSheet } from './DateRangeSheet';
 import { customPeriod, thisWeekPeriod, todayPeriod } from './date-period';
+import * as periodFormatting from './date-period';
 
 const riyadh = { timeZone: 'Asia/Riyadh', monthStartDay: 1 } as const;
 
@@ -28,6 +29,39 @@ beforeEach(() => {
 });
 
 afterEach(() => jest.restoreAllMocks());
+
+it('keeps the iOS native modal mounted while dismissal finishes', () => {
+  jest.replaceProperty(Platform, 'OS', 'ios');
+  const period = todayPeriod(Date.UTC(2026, 7, 22, 12), riyadh);
+  const view = renderWithProviders(<DateRangeSheet
+    visible={false} period={period} onApply={jest.fn()} onDismiss={jest.fn()}
+  />);
+  expect(view.UNSAFE_getByType(Modal).props.visible).toBe(false);
+});
+
+it('defers hidden preset labels and refreshes them when the sheet reopens', () => {
+  const period = todayPeriod(Date.UTC(2026, 7, 22, 12), riyadh);
+  const formatSpan = jest.spyOn(periodFormatting, 'formatDaySpan');
+  const props = { period, onApply: jest.fn(), onDismiss: jest.fn() };
+  function Journey() {
+    const [visible, setVisible] = React.useState(false);
+    return <>
+      <Button title="Open period" onPress={() => setVisible(true)} />
+      <DateRangeSheet {...props} visible={visible} />
+    </>;
+  }
+  renderWithProviders(<Journey />);
+  expect(screen.queryByTestId('date-period-option-today')).toBeNull();
+  expect(formatSpan).not.toHaveBeenCalled();
+  jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 23, 12));
+  fireEvent.press(screen.getByRole('button', { name: /open period/i }));
+  expect(screen.getByText('23 August 2026')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('date-period-option-today'));
+  expect(props.onApply).toHaveBeenCalledWith({
+    kind: 'custom', periodStart: Date.UTC(2026, 7, 22, 21),
+    periodEnd: Date.UTC(2026, 7, 23, 21) - 1
+  });
+});
 
 it('renders the 7 date range options in Arabic RTL with instruction text', () => {
   changeLocale('ar');

@@ -1,0 +1,118 @@
+{
+  "headCommit": "42f56aaa1213151d1511347875b8d7e2798703e3",
+  "testedMergeCommit": "267fb15f4051782871146eeb50cbdbbc850fb8f5",
+  "workflowRun": 40088593865,
+  "workflowUrl": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/40088593865",
+  "passed": [
+    "application",
+    "admin",
+    "mobile",
+    "secrets",
+    "sentinel-redaction",
+    "admin-e2e desktop1440",
+    "admin-e2e desktop1280",
+    "admin-e2e tablet1024",
+    "admin-e2e tablet768",
+    "admin-e2e mobile390",
+    "android-build"
+  ],
+  "database": {
+    "freshIntegration": {
+      "suites": 145,
+      "passed": 1002,
+      "skipped": 116
+    },
+    "upgradeIntegration": {
+      "suites": 145,
+      "passed": 1002,
+      "skipped": 116
+    },
+    "freshSql": {
+      "suites": 67,
+      "assertions": 1929
+    },
+    "e2e": {
+      "suites": 42,
+      "tests": 83
+    },
+    "failure": {
+      "step": "test:performance:tracking",
+      "intakeFailures": 591,
+      "intakeSuccesses": 0,
+      "duplicateAndHistoryPassed": true,
+      "latencyThresholdsPassed": true,
+      "rootCause": "The intake fixture lacks request.jwt.claims; exact local SQL reproduces AUTH_TOKEN_INVALID and succeeds with matching owner context",
+      "fixtureFixCommit": "d600096ccae45f688f5c2f4ec59490b60a082f6a"
+    },
+    "laterGatesNotRun": [
+      "tracking stress",
+      "platform HTTP performance",
+      "AI performance/stress",
+      "outbox performance/stress"
+    ]
+  },
+  "nativeDiagnostic": {
+    "unsigned": true,
+    "package": "com.masarifi.mobile",
+    "targetSdk": 36,
+    "minSdk": 24,
+    "versionName": "0.0.1",
+    "versionCode": 1,
+    "abis": 4,
+    "mergedManifest": {
+      "diagnosticOnly": true,
+      "package": "com.masarifi.mobile",
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.READ_APP_BADGE",
+        "android.permission.READ_SMS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK",
+        "com.anddoes.launcher.permission.UPDATE_COUNT",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "com.htc.launcher.permission.READ_SETTINGS",
+        "com.htc.launcher.permission.UPDATE_SHORTCUT",
+        "com.huawei.android.launcher.permission.CHANGE_BADGE",
+        "com.huawei.android.launcher.permission.READ_SETTINGS",
+        "com.huawei.android.launcher.permission.WRITE_SETTINGS",
+        "com.majeur.launcher.permission.UPDATE_BADGE",
+        "com.masarifi.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        "com.oppo.launcher.permission.READ_SETTINGS",
+        "com.oppo.launcher.permission.WRITE_SETTINGS",
+        "com.sec.android.provider.badge.permission.READ",
+        "com.sec.android.provider.badge.permission.WRITE",
+        "com.sonyericsson.home.permission.BROADCAST_BADGE",
+        "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+        "me.everything.badger.permission.BADGE_COUNT_READ",
+        "me.everything.badger.permission.BADGE_COUNT_WRITE"
+      ],
+      "intentSchemes": [
+        "clerk",
+        "masarifi"
+      ],
+      "queriedSchemes": [
+        "https"
+      ],
+      "queryPackages": []
+    },
+    "sha256Receipt": [
+      "4cefea2c1f492a3d0ce34006ee847e1df667e64ee38770b64d154c03d46e4747  android-diagnostic-resources.ap_",
+      "88f80a382c2c368187d4aa6c28b09eea64e5615e3ee166c2e375d7747bc2d1bb  android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libappmodules.so",
+      "fa73d613a4a61d02c91768371361019ace20de424e5d1c034f274c0487d6ec61  android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libappmodules.so",
+      "9c1c853634835c4fdda7bd1cbdb7d15c440414d253ddec566fc22c53af5f6c3f  android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86/libappmodules.so",
+      "eb4ac051ad8b03772bb89a2ca65721f660310590843a60936854bee1e39a6e27  android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libappmodules.so"
+    ]
+  },
+  "allSafeP7Passed": false,
+  "releaseQualified": false,
+  "billing": "deferred_open"
+}

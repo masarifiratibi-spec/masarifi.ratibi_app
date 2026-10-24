@@ -4,6 +4,7 @@ import { Transform } from 'node:stream';
 import { Injectable, Optional } from '@nestjs/common';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 import type { ReportFormat } from './reports.schemas';
 
 const KEY =
@@ -167,7 +168,11 @@ export class ReportsStorage {
           signal: controller.signal,
         },
       );
-      if (!response.ok && !(missingOkay && response.status === 404)) throw failure();
+      if (
+        !response.ok &&
+        !(missingOkay && (await isMissingStorageObject(response, controller.signal)))
+      )
+        throw failure();
       return response;
     } catch (error) {
       if (

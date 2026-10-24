@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   Database,
   FileInput,
+  Globe,
   HeartPulse,
   LayoutDashboard,
   Settings,
@@ -30,6 +31,7 @@ const icons: Record<string, LucideIcon> = {
   database: Database,
   "shield-check": ShieldCheck,
   settings: Settings,
+  globe: Globe,
 };
 
 function SidebarIcon({ iconKey }: { iconKey: string }) {

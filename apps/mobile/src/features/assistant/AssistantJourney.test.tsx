@@ -4,9 +4,11 @@ import { FlatList } from 'react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
+import AssistantRoute from '@app/assistant/index';
 
 const { AssistantHomeScreen, AssistantConversationScreen } = require('./AssistantHomeScreen') as Record<string, React.ComponentType<any>>;
 const { createMockAssistantService } = require('@/services/mocks/assistant-service') as { createMockAssistantService(input?: Record<string, unknown>): any };
+const mockAssistantRouteParams: Record<string, string> = {};
 const mockAssistantQueries = {
   useAssistantConsent: jest.fn(),
   useAssistantInsights: jest.fn(),
@@ -20,11 +22,12 @@ const mockAssistantQueries = {
   useAssistantFeedback: jest.fn()
 };
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useLocalSearchParams: () => ({ conversationId: 'conversation-1' }) }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useLocalSearchParams: () => mockAssistantRouteParams }));
 jest.mock('./assistant-queries', () => mockAssistantQueries);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  Object.keys(mockAssistantRouteParams).forEach(key => delete mockAssistantRouteParams[key]);
   changeLocale('en');
   mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'enabled', version: 1 }, isLoading: false, isError: false });
   mockAssistantQueries.useAssistantInsights.mockReturnValue({ data: [] });
@@ -49,7 +52,39 @@ beforeEach(() => {
   mockAssistantQueries.useAssistantFeedback.mockReturnValue({ mutate: jest.fn() });
 });
 
-test('home shows consent disclosure, suggestions, history, and required data states', () => {
+test('report entry prepares the scoped question without automatically sending or enabling consent', () => {
+  Object.assign(mockAssistantRouteParams, {
+    action: 'explain',
+    reportContext: JSON.stringify({startDate: '2026-08-01', endDate: '2026-08-31', currencyCode: 'SAR', accountName: 'Test'}),
+    returnTo: '/(tabs)/reports'
+  });
+  const create = jest.fn();
+  const consent = jest.fn();
+  mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({mutate: create});
+  mockAssistantQueries.useSetAssistantConsent.mockReturnValue({mutate: consent});
+  renderWithProviders(<AssistantRoute />);
+  const question = screen.getByTestId('assistant-ask-input').props.value;
+  expect(question).toContain('Explain this report');
+  expect(question).toContain('2026-08-01');
+  expect(question).toContain('2026-08-31');
+  expect(question).toContain('SAR');
+  expect(question).toContain('Test');
+  expect(create).not.toHaveBeenCalled();
+  expect(consent).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({question}), expect.any(Object));
+});
+
+test('invalid report dates do not prefill a misleading report question', () => {
+  Object.assign(mockAssistantRouteParams, {
+    action: 'explain',
+    reportContext: JSON.stringify({startDate: '2026-02-30', endDate: '2026-02-31', currencyCode: 'SAR', accountName: null})
+  });
+  renderWithProviders(<AssistantRoute />);
+  expect(screen.getByTestId('assistant-ask-input').props.value).toBe('');
+});
+
+test('original home shows consent disclosure, suggestions and required data states without a history redesign', () => {
   const create = jest.fn();
   mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create, error: { code: 'offline' } });
   mockAssistantQueries.useAssistantConversations.mockReturnValue({
@@ -64,7 +99,7 @@ test('home shows consent disclosure, suggestions, history, and required data sta
   expect(screen.getByText(t('assistant.consent.title'))).toBeTruthy();
   expect(screen.getByText(t('assistant.privacy.transactions'))).toBeTruthy();
   expect(screen.getByText(t('assistant.suggestions.spending'))).toBeTruthy();
-  expect(screen.getByText('January budget help')).toBeTruthy();
+  expect(screen.queryByText('January budget help')).toBeNull();
   expect(screen.getByText(t('assistant.state.offline'))).toBeTruthy();
   expect(screen.getByText(t('assistant.state.empty'))).toBeTruthy();
 
@@ -117,7 +152,7 @@ test('conversation renders structured labels, evidence, limitations, feedback, r
   fireEvent.press(screen.getByText(t('assistant.feedback.report')));
   act(() => rendered.UNSAFE_getByType(FlatList).props.onEndReached());
 
-  expect(ask).toHaveBeenCalledWith(expect.objectContaining({ conversationId: 'conversation-1', question: 'How can I save?' }));
+  expect(ask).toHaveBeenCalledWith(expect.objectContaining({ conversationId: 'conversation-1', question: 'How can I save?' }), expect.objectContaining({onSuccess: expect.any(Function), onError: expect.any(Function)}));
   expect(rename).toHaveBeenCalledWith(expect.objectContaining({ id: 'conversation-1', title: 'Renamed budget help' }));
   expect(remove).toHaveBeenCalledWith(expect.objectContaining({ id: 'conversation-1' }));
   expect(feedback).toHaveBeenCalledWith(expect.objectContaining({ responseId: 'response-1' }));

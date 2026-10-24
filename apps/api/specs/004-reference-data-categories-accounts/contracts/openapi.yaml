@@ -268,7 +268,7 @@ paths:
       tags: [Admin Reference]
       operationId: updateAdminCurrency
       x-permission: reference.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - { name: currencyCode, in: path, required: true, schema: { $ref: '#/components/schemas/CurrencyCode' } }
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -292,7 +292,7 @@ paths:
       tags: [Admin Reference]
       operationId: updateAdminCountry
       x-permission: reference.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - { name: countryCode, in: path, required: true, schema: { $ref: '#/components/schemas/CountryCode' } }
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -316,7 +316,7 @@ paths:
       tags: [Admin Reference]
       operationId: updateAdminSystemCategory
       x-permission: reference.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/CategoryId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -339,7 +339,7 @@ paths:
       tags: [Admin Reference]
       operationId: createAdminExchangeRate
       x-permission: reference.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateExchangeRateRequest' } } } }
       responses:

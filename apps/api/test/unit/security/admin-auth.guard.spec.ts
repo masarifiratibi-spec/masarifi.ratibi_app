@@ -36,10 +36,18 @@ describe('AdminAuthGuard', () => {
     ),
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clerk.canActivate.mockImplementation((context: ExecutionContext) => {
+      context.switchToHttp().getRequest<AdminPrincipalRequest>().clerkPrincipal = principal;
+      return Promise.resolve(true);
+    });
+    repository.assertAdminPermission.mockResolvedValue(undefined);
+    config.get.mockImplementation((key) => (key === 'MASARIFI_ADMIN_ROUTES_ENABLED' ? true : 600));
+  });
 
   it('requires one exact manifest permission and ignores client assertions', async () => {
-    reflector.getAllAndOverride.mockReturnValue({ permission: 'audit.read', recentMfa: false });
+    reflector.getAllAndOverride.mockReturnValue({ permission: 'audit.read', recentAuth: false });
     const guard = new AdminAuthGuard(
       clerk as never,
       repository as never,
@@ -55,7 +63,7 @@ describe('AdminAuthGuard', () => {
   });
 
   it('reuses only the same subject and permission within one request', async () => {
-    reflector.getAllAndOverride.mockReturnValue({ permission: 'audit.read', recentMfa: false });
+    reflector.getAllAndOverride.mockReturnValue({ permission: 'audit.read', recentAuth: false });
     const guard = new AdminAuthGuard(
       clerk as never,
       repository as never,
@@ -69,21 +77,21 @@ describe('AdminAuthGuard', () => {
   });
 
   it.each([
-    ['routes disabled', false, { permission: 'audit.read', recentMfa: false }, principal, 404],
+    ['routes disabled', false, { permission: 'audit.read', recentAuth: false }, principal, 404],
     ['missing metadata', true, undefined, principal, 403],
-    ['unknown key', true, { permission: '*', recentMfa: false }, principal, 403],
+    ['unknown key', true, { permission: '*', recentAuth: false }, principal, 403],
     [
-      'missing MFA',
+      'missing login age',
       true,
-      { permission: 'audit.read', recentMfa: true },
-      { ...principal, mfaAgeSeconds: null },
+      { permission: 'audit.read', recentAuth: true },
+      { ...principal, factorAgeSeconds: null, mfaAgeSeconds: 0 },
       403,
     ],
     [
-      'stale MFA',
+      'stale login with fresh MFA',
       true,
-      { permission: 'audit.read', recentMfa: true },
-      { ...principal, mfaAgeSeconds: 601 },
+      { permission: 'audit.read', recentAuth: true },
+      { ...principal, factorAgeSeconds: 601, mfaAgeSeconds: 0 },
       403,
     ],
   ])('fails closed for %s', async (_label, enabled, metadata, authPrincipal, status) => {
@@ -108,7 +116,7 @@ describe('AdminAuthGuard', () => {
   });
 
   it('maps evaluator failures to a safe unavailable response', async () => {
-    reflector.getAllAndOverride.mockReturnValue({ permission: 'audit.read', recentMfa: false });
+    reflector.getAllAndOverride.mockReturnValue({ permission: 'audit.read', recentAuth: false });
     repository.assertAdminPermission.mockRejectedValueOnce(new Error('database detail'));
     const guard = new AdminAuthGuard(
       clerk as never,
@@ -122,7 +130,106 @@ describe('AdminAuthGuard', () => {
   });
 
   it('exports a decorator that writes only canonical metadata', () => {
-    expect(() => adminPermission('audit.read', { recentMfa: true })).not.toThrow();
+    expect(() => adminPermission('audit.read', { recentAuth: true })).not.toThrow();
     expect(() => adminPermission('*')).toThrow('ADMIN_PERMISSION_INVALID');
   });
+
+  it.each([null, undefined, 99_999])(
+    'allows a recent authorized login without a verified second factor (%s)',
+    async (mfaAgeSeconds) => {
+      reflector.getAllAndOverride.mockReturnValue({
+        permission: 'ai.routes.manage',
+        recentAuth: true,
+      });
+      const authPrincipal = { ...principal, factorAgeSeconds: 600, mfaAgeSeconds };
+      clerk.canActivate.mockImplementation((context: ExecutionContext) => {
+        context.switchToHttp().getRequest<AdminPrincipalRequest>().clerkPrincipal = authPrincipal;
+        return Promise.resolve(true);
+      });
+      const guard = new AdminAuthGuard(
+        clerk as never,
+        repository as never,
+        reflector as never,
+        config as never,
+      );
+      await expect(guard.canActivate(execution({} as AdminPrincipalRequest))).resolves.toBe(true);
+      expect(repository.assertAdminPermission).toHaveBeenCalledWith(
+        authPrincipal,
+        'ai.routes.manage',
+      );
+    },
+  );
+
+  it.each([undefined, -1, NaN, Infinity, 601])(
+    'denies invalid/stale login age even with fresh MFA (%s)',
+    async (factorAgeSeconds) => {
+      reflector.getAllAndOverride.mockReturnValue({
+        permission: 'ai.routes.manage',
+        recentAuth: true,
+      });
+      clerk.canActivate.mockImplementation((context: ExecutionContext) => {
+        context.switchToHttp().getRequest<AdminPrincipalRequest>().clerkPrincipal = {
+          ...principal,
+          factorAgeSeconds,
+          mfaAgeSeconds: 0,
+        } as typeof principal;
+        return Promise.resolve(true);
+      });
+      const guard = new AdminAuthGuard(
+        clerk as never,
+        repository as never,
+        reflector as never,
+        config as never,
+      );
+      await expect(guard.canActivate(execution({} as AdminPrincipalRequest))).rejects.toEqual(
+        new HttpException({ code: 'RECENT_AUTH_REQUIRED' }, 403),
+      );
+      expect(repository.assertAdminPermission).not.toHaveBeenCalled();
+    },
+  );
+
+  it('denies a signed-out caller before permission evaluation', async () => {
+    clerk.canActivate.mockRejectedValueOnce(new HttpException({ code: 'AUTH_TOKEN_INVALID' }, 401));
+    const guard = new AdminAuthGuard(
+      clerk as never,
+      repository as never,
+      reflector as never,
+      config as never,
+    );
+    await expect(guard.canActivate(execution({} as AdminPrincipalRequest))).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(repository.assertAdminPermission).not.toHaveBeenCalled();
+  });
+
+  it.each(['normal-user', 'admin-without-required-permission'])(
+    'denies %s despite a recent valid login',
+    async (userId) => {
+      reflector.getAllAndOverride.mockReturnValue({
+        permission: 'ai.routes.manage',
+        recentAuth: true,
+      });
+      const authPrincipal = { ...principal, userId, mfaAgeSeconds: null };
+      clerk.canActivate.mockImplementation((context: ExecutionContext) => {
+        context.switchToHttp().getRequest<AdminPrincipalRequest>().clerkPrincipal = authPrincipal;
+        return Promise.resolve(true);
+      });
+      repository.assertAdminPermission.mockRejectedValueOnce(
+        Object.assign(new Error('ADMIN_PERMISSION_DENIED'), { code: '42501' }),
+      );
+      const guard = new AdminAuthGuard(
+        clerk as never,
+        repository as never,
+        reflector as never,
+        config as never,
+      );
+      await expect(guard.canActivate(execution({} as AdminPrincipalRequest))).rejects.toEqual(
+        new HttpException({ code: 'ADMIN_PERMISSION_DENIED' }, 403),
+      );
+      expect(repository.assertAdminPermission).toHaveBeenCalledWith(
+        authPrincipal,
+        'ai.routes.manage',
+      );
+    },
+  );
 });

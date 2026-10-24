@@ -37,6 +37,8 @@ select ok((select count(*) >= 2 from public.parser_test_cases),'parser corpus is
 grant masarifi_migration to current_user with inherit true,set true;
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('tracking-pgtap-owner','active');
+-- Model the verified API caller; do not bypass active-owner command guards.
+select set_config('request.jwt.claims','{"sub":"tracking-pgtap-owner","role":"authenticated"}',true);
 select is(private.get_tracking_preferences('tracking-pgtap-owner')->>'enabled','false','preferences default to paused');
 select is(
   private.update_tracking_preferences('tracking-pgtap-owner',true,true,7,90,1)->>'version',
@@ -49,7 +51,14 @@ select throws_ok(
   'TRACKING_VERSION_CONFLICT',
   'stale preference update is rejected'
 );
-select is(private.restore_default_keyword_rules('tracking-pgtap-owner'),22,'all bilingual default groups restore');
+select is((select count(*) from public.user_keyword_rules where user_id='tracking-pgtap-owner'),113::bigint,'new profile automatically receives the published bilingual defaults');
+-- Simulate an existing custom phrase that conflicts with a catalog default.
+delete from public.user_keyword_rules where user_id='tracking-pgtap-owner' and lower(keyword)='purchase';
+insert into public.user_keyword_rules(user_id,keyword,group_key,language_code,origin,match_type,priority,enabled)
+values('tracking-pgtap-owner','Purchase','expense','en','custom','contains',50,false);
+select is(private.restore_default_keyword_rules('tracking-pgtap-owner'),112,'published bilingual defaults restore without replacing a conflicting custom rule');
+select is((select count(*) from public.user_keyword_rules where user_id='tracking-pgtap-owner'),113::bigint,'restore retains the custom rule and installs every non-conflicting default');
+select is((select enabled from public.user_keyword_rules where user_id='tracking-pgtap-owner' and origin='custom' and keyword='Purchase'),false,'restore preserves custom keyword state');
 insert into public.accounts(id,user_id,name,type,currency_code)
 values('85000000-0000-4000-8000-000000000010','tracking-pgtap-owner','Tracking card','credit_card','SAR');
 

@@ -38,7 +38,7 @@ export function CategoryDetailScreen({ id }: { id: string }) {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError)
+  if (query.isError && !query.data)
     return (
       <StateView
         state="error"
@@ -188,11 +188,11 @@ export function CategoryDetailScreen({ id }: { id: string }) {
   return (
     <ScrollView contentContainerStyle={styles.stack}>
       <CategoryRow presentation={presentation} groupedPosition="only" />
-      <ActionButton
+      {category.kind === 'custom' ? <ActionButton
         label={translate('coreFinance.categories.edit')}
         variant="secondary"
         onPress={() => router.push(`/categories/${id}?edit=1`)}
-      />
+      /> : null}
       {category.kind === 'custom' ? (
         <ActionButton
           label={lifecycleLabel}

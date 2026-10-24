@@ -2,6 +2,9 @@ import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+jest.mock('@/config/demo-mode', () => ({ isFixtureModeEnabled: () => false }));
+jest.mock('@/services/engagement-service', () => ({ supportService: { metadata: { availability: 'available' } } }));
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SupportLayout = require('@app/support/_layout')
   .default as () => React.ReactElement<{

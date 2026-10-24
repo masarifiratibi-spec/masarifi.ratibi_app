@@ -31,8 +31,11 @@ export class ClerkSessionIneligibleError extends Error {
 export interface ClerkIdentityUser {
   id: string;
   primaryEmail: string | null;
+  primaryEmailVerified?: boolean;
   primaryPhone: string | null;
   displayName: string | null;
+  banned?: boolean;
+  locked?: boolean;
 }
 
 export interface ClerkIdentityPage {
@@ -130,6 +133,18 @@ export class ClerkClientService {
     }
   }
 
+  async deleteIdentityUser(userId: string): Promise<'deleted' | 'not_found'> {
+    if (!/^user_[A-Za-z0-9_]+$/.test(userId) || userId.length > 128)
+      throw new ClerkProviderUnavailableError();
+    try {
+      await this.withTimeout(this.client.users.deleteUser(userId));
+      return 'deleted';
+    } catch (error) {
+      if (statusCode(error) === 404) return 'not_found';
+      throw new ClerkProviderUnavailableError();
+    }
+  }
+
   async revokeSession(sessionId: string): Promise<'revoked' | 'not_found'> {
     if (sessionId.trim() !== sessionId || sessionId.length < 1 || sessionId.length > 255) {
       throw new ClerkProviderUnavailableError();
@@ -180,6 +195,29 @@ export class ClerkClientService {
       if (!Number.isSafeInteger(page.totalCount) || page.totalCount < 0)
         throw new ClerkProviderUnavailableError();
       return page.totalCount;
+    } catch (error) {
+      if (error instanceof ClerkProviderUnavailableError) throw error;
+      throw new ClerkProviderUnavailableError();
+    }
+  }
+
+  async listCustomerSessions(
+    userId: string,
+  ): Promise<Array<{ id: string; createdAt: Date; lastActiveAt: Date; expiresAt: Date }>> {
+    if (!userId || userId.length > 128 || userId.trim() !== userId)
+      throw new ClerkProviderUnavailableError();
+    try {
+      const page = await this.withTimeout(
+        this.client.sessions.getSessionList({ userId, status: 'active', limit: 100 }),
+      );
+      if (page.totalCount > 100 || page.data.some((session) => session.userId !== userId))
+        throw new ClerkProviderUnavailableError();
+      return page.data.map((session) => ({
+        id: session.id,
+        createdAt: new Date(session.createdAt),
+        lastActiveAt: new Date(session.lastActiveAt),
+        expiresAt: new Date(session.expireAt),
+      }));
     } catch (error) {
       if (error instanceof ClerkProviderUnavailableError) throw error;
       throw new ClerkProviderUnavailableError();
@@ -260,6 +298,9 @@ export class ClerkClientService {
       .find((entry) => entry.id === user.primaryEmailAddressId)
       ?.emailAddress.trim()
       .toLowerCase();
+    const primaryEmail = user.emailAddresses.find(
+      (entry) => entry.id === user.primaryEmailAddressId,
+    );
     const phoneValue = user.phoneNumbers
       .find((entry) => entry.id === user.primaryPhoneNumberId)
       ?.phoneNumber.trim();
@@ -273,8 +314,11 @@ export class ClerkClientService {
         emailValue && emailValue.length <= 320 && /^[^\s@]+@[^\s@]+$/.test(emailValue)
           ? emailValue
           : null,
+      primaryEmailVerified: primaryEmail?.verification?.status === 'verified',
       primaryPhone: phoneValue && /^\+[1-9][0-9]{7,14}$/.test(phoneValue) ? phoneValue : null,
       displayName: name.length >= 1 && name.length <= 100 ? name : null,
+      banned: user.banned,
+      locked: user.locked,
     };
   }
 

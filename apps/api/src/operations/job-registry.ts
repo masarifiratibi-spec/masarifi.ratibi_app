@@ -55,6 +55,7 @@ export const GOVERNED_JOB_KEYS = Object.freeze([
   'tracking.reconcile',
   'ai.evaluate_route',
   'voice.transcribe_extract',
+  'voice.finalize',
   'assistant.respond',
   'ai.usage_rollup',
   'voice-media.purge',
@@ -116,7 +117,10 @@ export class OperationsJobRegistry {
       result = await this.required(this.tracking).runJob(
         jobKey as Parameters<TrackingWorker['runJob']>[0],
       );
-    else if (/^(ai\.|voice\.|assistant\.|financial-insights\.)/u.test(jobKey))
+    else if (
+      jobKey === 'voice-media.purge' ||
+      /^(ai\.|voice\.|assistant\.|financial-insights\.)/u.test(jobKey)
+    )
       result = await this.required(this.ai).runJob(jobKey as Parameters<AiWorker['runJob']>[0]);
     else if (jobKey.startsWith('report.'))
       result = await this.required(this.reports).runJob(

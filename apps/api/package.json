@@ -5,7 +5,8 @@
   "description": "Masarifi backend API and worker",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=24 <25"
+    "node": "24.16.0",
+    "npm": "11.17.0"
   },
   "scripts": {
     "build": "nest build api && nest build worker && nest build migration",
@@ -107,6 +108,7 @@
   },
   "dependencies": {
     "@clerk/backend": "3.16.12",
+    "@masarifi/transaction-parser": "file:../../packages/transaction-parser",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
@@ -119,12 +121,13 @@
     "@opentelemetry/sdk-metrics": "2.10.0",
     "@opentelemetry/sdk-node": "0.221.0",
     "archiver": "7.0.1",
+    "bidi-js": "1.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "express": "5.1.0",
     "helmet": "^8.0.0",
-    "joi": "^18.0.0",
-    "nodemailer": "9.1.1",
+    "joi": "^18.2.9",
+    "nodemailer": "10.1.4",
     "pdfkit": "0.20.2",
     "pg": "^8.0.0",
     "reflect-metadata": "^0.2.0",
@@ -145,7 +148,7 @@
     "@types/supertest": "^6.0.0",
     "eslint": "^9.0.0",
     "jest": "^30.0.0",
-    "js-yaml": "5.3.0",
+    "js-yaml": "5.4.1",
     "prettier": "^3.0.0",
     "supabase": "2.116.0",
     "supertest": "^7.0.0",
@@ -155,6 +158,12 @@
     "typescript-eslint": "^8.0.0"
   },
   "overrides": {
-    "multer": "2.3.0"
-  }
+    "multer": "2.5.0",
+    "qs": "6.16.0",
+    "js-yaml@^5.0.0": "$js-yaml",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "4.3.2"
+    }
+  },
+  "packageManager": "npm@11.17.0"
 }

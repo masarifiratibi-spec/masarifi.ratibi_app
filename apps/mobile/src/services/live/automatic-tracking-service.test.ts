@@ -3,6 +3,34 @@ import {
   createLiveAutomaticTrackingService
 } from './automatic-tracking-service';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
+import { defaultSnapshot } from '@masarifi/transaction-parser';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import { usePreferenceStore } from '@/state/preferences';
+import { buildPreferences } from '@/domain/foundation';
+import { spawnSync } from 'node:child_process';
+jest.mock('@/config/mobile-automation', () => {
+  const actual = jest.requireActual('@/config/mobile-automation');
+  return { isMobileAutomationEnabled: (url?: string) => actual.isMobileAutomationEnabled(url, { ...process.env }) };
+});
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { android: { package: 'com.masarifi.mobile' } } }
+}));
+jest.mock('../platform/phone-notification-service', () => ({
+  phoneNotificationService: { getPermission: jest.fn(async () => 'granted') },
+  getDeviceRegistration: async () => ({
+    deviceFingerprint: 'synthetic-fingerprint',
+    platform: 'android',
+    appVersion: '1.0.0'
+  })
+}));
+jest.mock('../tracking-source-preferences', () => ({
+  trackingSourcePreferences: { load: async () => ({ smsActivationId: '42' }) }
+}));
+jest.mock('../tracking-device', () => ({
+  getTrackingDeviceId: async () => 'aaaaaaaa-1111-4111-8111-111111111111'
+}));
 
 function registerIdentity(
   identity: Pick<LiveClerkBridge, 'getSession' | 'getToken'>
@@ -31,7 +59,258 @@ function response(value: unknown, status = 200): Response {
   });
 }
 
+const developmentBuild = JSON.parse(
+  spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      "import {createDevelopmentLaunch} from './scripts/staging-development.mjs'; const {env}=createDevelopmentLaunch('config',[],{EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:'pk_live_bWFzYXJpZmkudGVzdCQ'}); console.log(JSON.stringify({apiUrl:env.EXPO_PUBLIC_API_URL,variant:env.EXPO_PUBLIC_APP_VARIANT,mode:env.EXPO_PUBLIC_CLIENT_MODE}));"
+    ],
+    { cwd: process.cwd(), encoding: 'utf8' }
+  ).stdout
+) as { apiUrl: string; variant: string; mode: string };
+
 describe('live automatic tracking adapter', () => {
+  it.each([
+    ['com.masarifi.mobile.dev',true,'live','https://api.staging.masarifiratibi.com','POST'],
+    ['com.masarifi.mobile',true,'live','https://api.staging.masarifiratibi.com','POST'],
+    ['com.masarifi.mobile.dev.privacy',true,'live','https://api.staging.masarifiratibi.com','GET'],
+    ['com.masarifi.mobile.dev',false,'live','https://api.staging.masarifiratibi.com','GET'],
+    ['com.masarifi.mobile.dev',true,'demo','https://api.staging.masarifiratibi.com','GET'],
+    ['com.masarifi.mobile.dev',true,'live','https://evil.example.test','GET']
+  ])('uses managed capture only for a configured supported client (%s,%s,%s,%s)', async (packageName,flag,mode,baseUrl,method) => {
+    const previous = { ...process.env };
+    const platform = Platform.OS;
+    Object.defineProperty(Platform,'OS',{configurable:true,value:'android'});
+    Constants.expoConfig!.android!.package=packageName;
+    process.env.EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED=String(flag);
+    process.env.EXPO_PUBLIC_CLIENT_MODE=mode;
+    process.env.EXPO_PUBLIC_API_URL=developmentBuild.apiUrl;
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY='pk_live_bWFzYXJpZmkudGVzdCQ';
+    registerIdentity({getSession:async()=>({id:'session-any',userId:'any-authenticated-user',method:'google',issuedAt:1,expiresAt:9999999999999}),getToken:async()=>'token'});
+    usePreferenceStore.setState({...buildPreferences({}),hydrated:true,returnRemindersPausedOwnerId:null});
+    const request=jest.fn().mockResolvedValue(response({snapshot:defaultSnapshot,configurationHash:'event-source-digest',rolloutMode:'automatic',keywords:[],senders:[]}));
+    try {
+      await createLiveAutomaticTrackingService({baseUrl,request}).getRuleConfiguration!();
+      const [url,init]=request.mock.calls[0];
+      expect(init.method).toBe(method);
+      if(method==='POST') {
+        expect(url).toBe(baseUrl+'/api/v1/tracking/device/rule-snapshot');
+        expect(init.headers).not.toHaveProperty('x-masarifi-client-variant');
+        expect(JSON.parse(init.body)).toMatchObject({deviceId:'aaaaaaaa-1111-4111-8111-111111111111',remindersEnabled:true,reminderLocale:'ar',reminderTimeZone:'Asia/Riyadh'});
+      }
+    } finally {process.env=previous;Constants.expoConfig!.android!.package='com.masarifi.mobile';Object.defineProperty(Platform,'OS',{configurable:true,value:platform});}
+  });
+  it.each([['granted',false,true],['denied',false,false],['granted',true,false]])('respects OS %s and explicit opt-out %s',async(permission,optedOut,expected)=>{
+    const previous={...process.env};const platform=Platform.OS;
+    Object.defineProperty(Platform,'OS',{configurable:true,value:'android'});
+    Constants.expoConfig!.android!.package='com.masarifi.mobile.dev';
+    process.env.EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED='true';process.env.EXPO_PUBLIC_CLIENT_MODE='live';process.env.EXPO_PUBLIC_API_URL=developmentBuild.apiUrl;process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY='pk_live_bWFzYXJpZmkudGVzdCQ';
+    jest.requireMock('../platform/phone-notification-service').phoneNotificationService.getPermission.mockResolvedValue(permission);
+    registerIdentity({getSession:async()=>({id:'session-any',userId:'new-owner-b',method:'google',issuedAt:1,expiresAt:9999999999999}),getToken:async()=>'token'});
+    usePreferenceStore.setState({...buildPreferences({returnReminderChoices:{'account:owner-a':false,...(optedOut?{'account:new-owner-b':false}:{})}}),hydrated:true,returnRemindersPausedOwnerId:null});
+    const request=jest.fn().mockResolvedValue(response({snapshot:defaultSnapshot,configurationHash:'event-source-digest',rolloutMode:'automatic',keywords:[],senders:[]}));
+    try {await createLiveAutomaticTrackingService({baseUrl:developmentBuild.apiUrl,request}).getRuleConfiguration!();expect(JSON.parse(request.mock.calls[0][1].body).remindersEnabled).toBe(expected);}
+    finally {process.env=previous;Constants.expoConfig!.android!.package='com.masarifi.mobile';Object.defineProperty(Platform,'OS',{configurable:true,value:platform});jest.requireMock('../platform/phone-notification-service').phoneNotificationService.getPermission.mockResolvedValue('granted');}
+  });
+  const editorRule = {
+    id: 'visible-rule',
+    value: 'paid',
+    normalizedValue: 'paid',
+    group: 'expense' as const,
+    language: 'en' as const,
+    origin: 'custom' as const,
+    enabled: true
+  };
+  const keywordRow = (id: string, keyword: string) => ({
+    id,
+    keyword,
+    groupKey: 'expense',
+    languageCode: 'en',
+    origin: 'custom',
+    enabled: true,
+    version: 1,
+    recentUseCount: 0,
+    lastUsedAt: null
+  });
+
+  it('preserves a concurrently added keyword when deleting a visible keyword', async () => {
+    const rows = new Map([
+      ['visible-rule', keywordRow('visible-rule', 'paid')],
+      ['other-rule', keywordRow('other-rule', 'spent')]
+    ]);
+    const request = jest.fn(
+      async (url: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === 'DELETE') {
+          rows.delete(
+            new URL(String(url), 'https://inert.invalid').pathname
+              .split('/')
+              .pop()!
+          );
+          return response({}, 204);
+        }
+        return response({ items: [...rows.values()], nextCursor: null });
+      }
+    );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    const result = await service.saveKeywordRules([], [editorRule]);
+    expect(
+      request.mock.calls
+        .filter(([, init]) => init?.method === 'DELETE')
+        .map(([url]) => String(url))
+    ).toEqual([expect.stringContaining('/visible-rule?expectedVersion=1')]);
+    expect(result.value.map((rule) => rule.id)).toEqual(['other-rule']);
+  });
+
+  it('rejects a stale keyword edit before issuing any mutation', async () => {
+    const request = jest.fn(
+      async (_url: string | URL | Request, init?: RequestInit) =>
+        init?.method === 'GET'
+          ? response({
+              items: [keywordRow('visible-rule', 'credited')],
+              nextCursor: null
+            })
+          : response({}, 204)
+    );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    await expect(
+      service.saveKeywordRules(
+        [{ ...editorRule, enabled: false }],
+        [editorRule]
+      )
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(request.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(
+      true
+    );
+  });
+
+  it('keeps tracking preference reads cached and commands freshly authenticated', async () => {
+    const getToken = jest.fn(async ({ skipCache }: { skipCache: boolean }) => skipCache ? 'fresh-token' : 'cached-token');
+    registerIdentity({ getSession: async () => ({ id: 'sess_live_tracking', userId: 'user_live_tracking', method: 'google', issuedAt: 1, expiresAt: 9999999999999 }), getToken });
+    const request = jest.fn(async (_url: string | URL | Request, init?: RequestInit) => init?.method === 'GET'
+      ? response({ sourceRetentionDays: 30, historyRetentionDays: 90, version: 1 })
+      : response({ code: 'SERVICE_UNAVAILABLE' }, 503));
+    await expect(createLiveAutomaticTrackingService({ baseUrl: 'https://inert.invalid', request }).setMode('paused')).rejects.toThrow();
+    expect(request.mock.calls.map(([, init]) => ({ method: init?.method, authorization: (init?.headers as Record<string, string>).Authorization }))).toEqual([
+      { method: 'GET', authorization: 'Bearer cached-token' },
+      { method: 'PUT', authorization: 'Bearer fresh-token' }
+    ]);
+    expect(getToken.mock.calls).toEqual([[{ skipCache: false }], [{ skipCache: true }]]);
+  });
+  it('requests and preserves the authenticated device content policy boundary', async () => {
+    const request = jest.fn().mockResolvedValue(
+      response({
+        snapshot: defaultSnapshot,
+        configurationHash: 'event-source-digest',
+        rolloutMode: 'automatic',
+        keywords: [],
+        senders: [],
+        sourceAdmissionPolicy: 'financial_content_v1',
+        currencyAccountPolicy: 'source_currency_v1',
+        policyActivatedAt: 1791980000000,
+        policySmsActivationId: '42'
+      })
+    );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    await expect(service.getRuleConfiguration!()).resolves.toMatchObject({
+      sourceAdmissionPolicy: 'financial_content_v1',
+      currencyAccountPolicy: 'source_currency_v1',
+      policyActivatedAt: 1791980000000,
+      policySmsActivationId: '42'
+    });
+    expect(request.mock.calls[0][0]).toContain(
+      '/api/v1/tracking/rule-snapshot?deviceId=aaaaaaaa-1111-4111-8111-111111111111'
+    );
+  });
+  it.each([
+    {
+      sourceAdmissionPolicy: 'financial_content_v1',
+      currencyAccountPolicy: 'source_currency_v2'
+    },
+    { currencyAccountPolicy: 'source_currency_v1' }
+  ])(
+    'rejects an unrecognized or ungated source currency policy (%j)',
+    async (policy) => {
+      const service = createLiveAutomaticTrackingService({
+        token: async () => 'token',
+        request: jest.fn().mockResolvedValue(
+          response({
+            snapshot: defaultSnapshot,
+            configurationHash: 'event-source-digest',
+            rolloutMode: 'automatic',
+            keywords: [],
+            senders: [],
+            ...('sourceAdmissionPolicy' in policy
+              ? { policyActivatedAt: 1791980000000 }
+              : {}),
+            ...policy
+          })
+        )
+      });
+      await expect(service.getRuleConfiguration!()).rejects.toMatchObject({
+        code: 'unknown'
+      });
+    }
+  );
+  it.each([undefined, -1, 1.5])(
+    'rejects a content policy without a valid activation boundary (%s)',
+    async (policyActivatedAt) => {
+      const service = createLiveAutomaticTrackingService({
+        token: async () => 'token',
+        request: jest.fn().mockResolvedValue(
+          response({
+            snapshot: defaultSnapshot,
+            configurationHash: 'event-source-digest',
+            rolloutMode: 'automatic',
+            keywords: [],
+            senders: [],
+            sourceAdmissionPolicy: 'financial_content_v1',
+            policyActivatedAt
+          })
+        )
+      });
+      await expect(service.getRuleConfiguration!()).rejects.toMatchObject({
+        code: 'unknown'
+      });
+    }
+  );
+  it.each([
+    'source_proof_required',
+    'account_proof_required',
+    'lifecycle_not_completed',
+    'original_transaction_required',
+    'configuration_stale'
+  ])('preserves the specific exception reason %s', async (reason) => {
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request: jest.fn().mockResolvedValue(
+        response({
+          id: 'review-safety',
+          importItemId: 'item-safety',
+          status: 'pending',
+          reason,
+          proposedValues: {},
+          version: 1,
+          reviewedAt: null,
+          createdAt: '2026-10-09T10:00:00Z',
+          updatedAt: '2026-10-09T10:00:00Z'
+        })
+      )
+    });
+    await expect(service.getReviewItem('review-safety')).resolves.toMatchObject(
+      { reasonCodes: [reason] }
+    );
+  });
   it.each(['before capture', 'during token acquisition'])(
     'rejects an owner A import or session poll after switching to B %s',
     async (timing) => {
@@ -293,7 +572,45 @@ describe('live automatic tracking adapter', () => {
         })
       })
     );
+    expect(request.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(request.mock.calls[0][1]?.signal?.aborted).toBe(false);
   });
+
+  it.each(['token', 'fetch', 'body'] as const)(
+    'bounds status %s to one deadline and ignores late completion',
+    async (stage) => {
+      jest.useFakeTimers();
+      let release!: (value: unknown) => void;
+      const pending = new Promise((resolve) => { release = resolve; });
+      const json = jest.fn(async () => stage === 'body' ? pending : {});
+      const lateResponse = { ok: true, status: 200, json } as unknown as Response;
+      const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+        .mockImplementation(async () => stage === 'fetch' ? pending as Promise<Response> : lateResponse);
+      const success = jest.fn();
+      const service = createLiveAutomaticTrackingService({
+        token: async () => stage === 'token' ? pending as Promise<string> : 'owner-token',
+        request
+      });
+      const result = service.getStatus().then(success).catch((error: unknown) => error);
+      try {
+        await jest.advanceTimersByTimeAsync(14_999);
+        expect(success).not.toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(1);
+        expect(await result).toMatchObject({
+          code: 'provider_unavailable', failureSource: 'timeout'
+        });
+        if (stage !== 'token')
+          expect(request.mock.calls[0][1]?.signal?.aborted).toBe(true);
+        release(stage === 'token' ? 'late-token' : stage === 'fetch' ? lateResponse : {});
+        await jest.advanceTimersByTimeAsync(0);
+        expect(success).not.toHaveBeenCalled();
+        if (stage === 'token') expect(request).not.toHaveBeenCalled();
+        if (stage === 'fetch') expect(json).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+  );
 
   it('sends expected versions and idempotency keys for rule mutations', async () => {
     const request = jest
@@ -350,7 +667,7 @@ describe('live automatic tracking adapter', () => {
         origin: 'custom',
         enabled: true
       }
-    ]);
+    ], [{ ...editorRule, id: 'rule-1' }]);
 
     const mutation = request.mock.calls[1]?.[1];
     expect(mutation?.headers).toEqual(
@@ -419,7 +736,7 @@ describe('live automatic tracking adapter', () => {
         origin: 'custom',
         enabled: true
       }
-    ]);
+    ], [{ ...editorRule, id: 'rule-1', origin: 'default' }]);
 
     expect(request.mock.calls[1]?.[0]).toContain(
       '/api/v1/tracking/keyword-rules/rule-1?expectedVersion=7'

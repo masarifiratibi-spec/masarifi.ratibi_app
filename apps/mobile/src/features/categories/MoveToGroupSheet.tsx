@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Modal,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,7 +24,8 @@ export function MoveToGroupSheet({
   groups,
   onSelectGroup,
   onNewGroup,
-  onClose
+  onClose,
+  pending = false
 }: {
   visible: boolean;
   category: Category | null;
@@ -31,6 +33,7 @@ export function MoveToGroupSheet({
   onSelectGroup: (groupId: string | null) => void;
   onNewGroup: () => void;
   onClose: () => void;
+  pending?: boolean;
 }) {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
@@ -54,7 +57,7 @@ export function MoveToGroupSheet({
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => { if (!pending) onClose(); }}
     >
       <Pressable
         testID="move-to-group-backdrop"
@@ -62,6 +65,7 @@ export function MoveToGroupSheet({
         importantForAccessibility="no-hide-descendants"
         style={styles.backdrop}
         onPress={onClose}
+          disabled={pending}
       />
       <View
         testID="move-to-group-sheet"
@@ -110,6 +114,7 @@ export function MoveToGroupSheet({
             accessibilityRole="button"
             accessibilityLabel={translate('coreFinance.cancel')}
             onPress={onClose}
+            disabled={pending}
             style={[
               styles.closeBtn,
               isRtl ? styles.closeBtnRtl : styles.closeBtnLtr
@@ -127,7 +132,8 @@ export function MoveToGroupSheet({
         </View>
 
         {/* Content Body */}
-        {availableGroups.length === 0 ? (
+        {pending ? <ActivityIndicator accessibilityLabel={translate('coreFinance.state.loading')} color={theme.colors.primary} /> : null}
+        {availableGroups.length === 0 && !category.parentId ? (
           /* Empty Groups State */
           <View style={styles.emptyContainer}>
             <View
@@ -174,9 +180,9 @@ export function MoveToGroupSheet({
               <Pressable
                 key="remove-from-group"
                 accessibilityRole="button"
+                disabled={pending}
                 onPress={() => {
                   onSelectGroup(null);
-                  onClose();
                 }}
                 style={[
                   styles.groupCard,
@@ -214,9 +220,9 @@ export function MoveToGroupSheet({
                 <Pressable
                   key={group.id ? `group-${group.id}` : `group-idx-${index}`}
                   accessibilityRole="button"
+                  disabled={pending}
                   onPress={() => {
                     onSelectGroup(group.id);
-                    onClose();
                   }}
                   style={[
                     styles.groupCard,
@@ -261,6 +267,7 @@ export function MoveToGroupSheet({
             accessibilityRole="button"
             accessibilityLabel={translate('coreFinance.categories.newGroup')}
             onPress={onNewGroup}
+            disabled={pending}
             style={({ pressed }) => [
               styles.newGroupBtn,
               {

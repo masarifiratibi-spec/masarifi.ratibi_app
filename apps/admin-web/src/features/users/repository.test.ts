@@ -79,7 +79,9 @@ describe("user detail repository", () => {
     ]);
     expect(profile).toMatchObject({ id: request.userId, maskedEmail: "n***@example.test" });
     expect(devices).toMatchObject({ iosDeviceCount: 2, androidDeviceCount: 0, totalDeviceCount: 2 });
-    expect(sessions.activeCount + sessions.expiredCount + sessions.revokedCount).toBe(sessions.items.length);
+    expect(sessions.activeCount).toBe(sessions.items.filter(session => session.state === "active").length);
+    expect(sessions.expiredCount).toBe(sessions.items.filter(session => session.state === "expired").length);
+    expect(sessions.revokedCount).toBe(sessions.items.filter(session => session.state === "revoked").length);
   });
 
   test.each([

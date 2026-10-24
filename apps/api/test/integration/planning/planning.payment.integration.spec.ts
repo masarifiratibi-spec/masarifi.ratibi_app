@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { planningOwnerQuery, withPlanningOwner } from './planning.integration-harness';
 
 describeLiveDatabase('obligation payment live invariants', () => {
   const pool = createLivePool();
@@ -9,36 +10,31 @@ describeLiveDatabase('obligation payment live invariants', () => {
   const obligationId = randomUUID();
   const itemA = randomUUID();
   const itemB = randomUUID();
-  const transactionA = randomUUID();
-  const transactionExcess = randomUUID();
+  let transactionExcess = '';
   const paymentId = randomUUID();
   const accountId = randomUUID();
   async function command(userId: string, body: Record<string, unknown>) {
-    return pool.query<{ result: Record<string, unknown> }>(
+    return planningOwnerQuery<{ result: Record<string, unknown> }>(
+      pool,
+      userId,
       'select private.allocate_obligation_payment($1,$2::jsonb) result',
       [userId, JSON.stringify(body)],
     );
   }
-  async function seedLinkedPayment(
-    label: string,
-    options: { transactionAmount?: string; allocationIntent?: 'current' | 'prepayment' } = {},
-  ) {
-    const transactionAmount = options.transactionAmount ?? '100';
-    const allocationIntent = options.allocationIntent ?? 'current';
-    const linkedObligationId = randomUUID();
-    const linkedScheduleItemId = randomUUID();
-    const linkedPaymentId = randomUUID();
-    const created = await pool.query<{ result: { transactionId: string } }>(
+  async function postExpense(title: string, amountMinor: string) {
+    const created = await planningOwnerQuery<{ result: { transactionId: string } }>(
+      pool,
+      owner,
       'select private.post_transaction($1,$2::jsonb) result',
       [
         owner,
         JSON.stringify({
           kind: 'expense',
-          amountMinor: transactionAmount,
+          amountMinor,
           currency: 'SAR',
           accountId,
           categoryId: null,
-          title: `Lifecycle ${label}`,
+          title,
           merchant: null,
           paymentMethod: null,
           note: null,
@@ -48,7 +44,21 @@ describeLiveDatabase('obligation payment live invariants', () => {
         }),
       ],
     );
-    const linkedTransactionId = created.rows[0]?.result.transactionId;
+    const transactionId = created.rows[0]?.result.transactionId;
+    if (!transactionId) throw new Error('POSTED_PAYMENT_TRANSACTION_REQUIRED');
+    return transactionId;
+  }
+
+  async function seedLinkedPayment(
+    label: string,
+    options: { transactionAmount?: string; allocationIntent?: 'current' | 'prepayment' } = {},
+  ) {
+    const transactionAmount = options.transactionAmount ?? '100';
+    const allocationIntent = options.allocationIntent ?? 'current';
+    const linkedObligationId = randomUUID();
+    const linkedScheduleItemId = randomUUID();
+    const linkedPaymentId = randomUUID();
+    const linkedTransactionId = await postExpense(`Lifecycle ${label}`, transactionAmount);
 
     await pool.withClient(async (client) => {
       await client.query('begin');
@@ -104,20 +114,17 @@ describeLiveDatabase('obligation payment live invariants', () => {
       ($1,$3,$4,current_date,300,1),($2,$3,$4,current_date+interval '1 month',300,2)`,
         [itemA, itemB, owner, obligationId],
       );
-      await client.query(
-        `insert into public.transactions(id,user_id,kind,status,amount_minor,currency_code,title,occurred_at) values
-      ($1,$3,'expense','confirmed',300,'SAR','Payment',clock_timestamp()),($2,$3,'expense','confirmed',400,'SAR','Excess',clock_timestamp())`,
-        [transactionA, transactionExcess, owner],
-      );
       await client.query('commit');
     });
+    record.transactionId = await postExpense('Payment', '300');
+    transactionExcess = await postExpense('Excess', '400');
   });
   afterAll(() => pool.onModuleDestroy());
   const record = {
     operation: 'record',
     obligationId,
     paymentId,
-    transactionId: transactionA,
+    transactionId: '',
     expectedVersion: 1,
     paymentMethod: null,
     paymentCase: 'partial',
@@ -147,7 +154,6 @@ describeLiveDatabase('obligation payment live invariants', () => {
   it('retains authorized prepayment excess without overfilling and reverses its schedule projection', async () => {
     const prepaymentObligationId = randomUUID();
     const prepaymentScheduleItemId = randomUUID();
-    const prepaymentTransactionId = randomUUID();
     const prepaymentPaymentId = randomUUID();
     await pool.withClient(async (client) => {
       await client.query('begin');
@@ -162,13 +168,9 @@ describeLiveDatabase('obligation payment live invariants', () => {
          values($1,$2,$3,current_date+interval '1 month',100,1)`,
         [prepaymentScheduleItemId, owner, prepaymentObligationId],
       );
-      await client.query(
-        `insert into public.transactions(id,user_id,kind,status,amount_minor,currency_code,title,occurred_at)
-         values($1,$2,'expense','confirmed',150,'SAR','Authorized prepayment',clock_timestamp())`,
-        [prepaymentTransactionId, owner],
-      );
       await client.query('commit');
     });
+    const prepaymentTransactionId = await postExpense('Authorized prepayment', '150');
 
     await command(owner, {
       operation: 'record',
@@ -277,17 +279,19 @@ describeLiveDatabase('obligation payment live invariants', () => {
       const { linkedTransactionId } = await seedLinkedPayment(transactionStatus);
 
       if (transactionStatus === 'reversed') {
-        await pool.query('select private.reverse_transaction($1,$2::uuid,1,clock_timestamp(),$3)', [
+        await planningOwnerQuery(
+          pool,
           owner,
-          linkedTransactionId,
-          'Linked payment reversal',
-        ]);
+          'select private.reverse_transaction($1,$2::uuid,1,clock_timestamp(),$3)',
+          [owner, linkedTransactionId, 'Linked payment reversal'],
+        );
       } else {
-        await pool.query('select private.soft_delete_transaction($1,$2::uuid,1,$3)', [
+        await planningOwnerQuery(
+          pool,
           owner,
-          linkedTransactionId,
-          'Linked payment deletion',
-        ]);
+          'select private.soft_delete_transaction($1,$2::uuid,1,$3)',
+          [owner, linkedTransactionId, 'Linked payment deletion'],
+        );
       }
 
       const state = await pool.query<{
@@ -323,7 +327,7 @@ describeLiveDatabase('obligation payment live invariants', () => {
       });
 
       if (transactionStatus === 'deleted') {
-        await pool.query('select private.restore_transaction($1,$2::uuid,2)', [
+        await planningOwnerQuery(pool, owner, 'select private.restore_transaction($1,$2::uuid,2)', [
           owner,
           linkedTransactionId,
         ]);
@@ -384,12 +388,13 @@ describeLiveDatabase('obligation payment live invariants', () => {
       'authorized-prepayment-restore',
       { transactionAmount: '150', allocationIntent: 'prepayment' },
     );
-    await pool.query('select private.soft_delete_transaction($1,$2::uuid,1,$3)', [
+    await planningOwnerQuery(
+      pool,
       owner,
-      linkedTransactionId,
-      'Delete authorized prepayment',
-    ]);
-    await pool.query('select private.restore_transaction($1,$2::uuid,2)', [
+      'select private.soft_delete_transaction($1,$2::uuid,1,$3)',
+      [owner, linkedTransactionId, 'Delete authorized prepayment'],
+    );
+    await planningOwnerQuery(pool, owner, 'select private.restore_transaction($1,$2::uuid,2)', [
       owner,
       linkedTransactionId,
     ]);
@@ -416,7 +421,7 @@ describeLiveDatabase('obligation payment live invariants', () => {
     });
   });
 
-  it('does not restore a payment that was reversed manually before transaction undo', async () => {
+  it('does not resurrect a manually reversed payment through stale deletion or transaction undo', async () => {
     const { linkedObligationId, linkedPaymentId, linkedTransactionId } = await seedLinkedPayment(
       'manual-reversal-before-undo',
     );
@@ -428,62 +433,76 @@ describeLiveDatabase('obligation payment live invariants', () => {
       operationId: randomUUID(),
       requestId: 'payment-manual-before-transaction-undo',
     });
-    await pool.query('select private.soft_delete_transaction($1,$2::uuid,1,$3)', [
-      owner,
-      linkedTransactionId,
-      'Delete after manual payment reversal',
-    ]);
-    await pool.query('select private.restore_transaction($1,$2::uuid,2)', [
-      owner,
-      linkedTransactionId,
-    ]);
+    const balanceBefore = (
+      await pool.query(
+        'select confirmed_minor,ledger_version from public.account_balances where account_id=$1',
+        [accountId],
+      )
+    ).rows;
+    await expect(
+      planningOwnerQuery(pool, owner, 'select private.soft_delete_transaction($1,$2::uuid,1,$3)', [
+        owner,
+        linkedTransactionId,
+        'Delete after manual payment reversal',
+      ]),
+    ).rejects.toThrow(/VERSION_CONFLICT/);
+    await expect(
+      planningOwnerQuery(pool, owner, 'select private.soft_delete_transaction($1,$2::uuid,2,$3)', [
+        owner,
+        linkedTransactionId,
+        'Delete compensated payment',
+      ]),
+    ).rejects.toThrow(/TRANSACTION_HAS_DEPENDENTS/);
+    await expect(
+      planningOwnerQuery(pool, owner, 'select private.restore_transaction($1,$2::uuid,2)', [
+        owner,
+        linkedTransactionId,
+      ]),
+    ).rejects.toThrow(/TRANSACTION_INELIGIBLE/);
 
     const state = await pool.query<{
       transaction_status: string;
       payment_status: string;
       ledger_invalidation_status: string | null;
+      compensations: string;
+      paid_minor: string;
     }>(
-      `select t.status transaction_status,p.status payment_status,p.ledger_invalidation_status
+      `select t.status transaction_status,p.status payment_status,p.ledger_invalidation_status,
+         (select count(*)::text from public.transactions r where r.reverses_transaction_id=t.id
+           and r.kind='reversal' and r.status='confirmed') compensations,
+         (select sum(i.paid_minor)::text from public.obligation_schedule_items i where i.obligation_id=p.obligation_id) paid_minor
        from public.transactions t
        join public.obligation_payments p on p.transaction_id=t.id
        where t.id=$1`,
       [linkedTransactionId],
     );
     expect(state.rows[0]).toEqual({
-      transaction_status: 'confirmed',
+      transaction_status: 'reversed',
       payment_status: 'reversed',
       ledger_invalidation_status: null,
+      compensations: '1',
+      paid_minor: '0',
     });
+    expect(
+      (
+        await pool.query(
+          'select confirmed_minor,ledger_version from public.account_balances where account_id=$1',
+          [accountId],
+        )
+      ).rows,
+    ).toEqual(balanceBefore);
   });
 
   it('rejects transaction undo atomically when another payment consumed the released schedule', async () => {
     const { linkedObligationId, linkedScheduleItemId, linkedTransactionId } =
       await seedLinkedPayment('restore-conflict');
-    await pool.query('select private.soft_delete_transaction($1,$2::uuid,1,$3)', [
+    await planningOwnerQuery(
+      pool,
       owner,
-      linkedTransactionId,
-      'Delete before replacement payment',
-    ]);
-    const replacement = await pool.query<{ result: { transactionId: string } }>(
-      'select private.post_transaction($1,$2::jsonb) result',
-      [
-        owner,
-        JSON.stringify({
-          kind: 'expense',
-          amountMinor: '100',
-          currency: 'SAR',
-          accountId,
-          categoryId: null,
-          title: 'Replacement obligation payment',
-          merchant: null,
-          paymentMethod: null,
-          note: null,
-          occurredAt: new Date().toISOString(),
-          source: 'manual',
-          externalRef: null,
-        }),
-      ],
+      'select private.soft_delete_transaction($1,$2::uuid,1,$3)',
+      [owner, linkedTransactionId, 'Delete before replacement payment'],
     );
+    const replacementTransactionId = await postExpense('Replacement obligation payment', '100');
     const replacementPaymentId = randomUUID();
     const obligationVersion = await pool.query<{ version: string }>(
       'select version::text from public.obligations where id=$1',
@@ -493,7 +512,7 @@ describeLiveDatabase('obligation payment live invariants', () => {
       operation: 'record',
       obligationId: linkedObligationId,
       paymentId: replacementPaymentId,
-      transactionId: replacement.rows[0]?.result.transactionId,
+      transactionId: replacementTransactionId,
       expectedVersion: Number(obligationVersion.rows[0]?.version),
       paymentMethod: null,
       paymentCase: 'full',
@@ -505,7 +524,10 @@ describeLiveDatabase('obligation payment live invariants', () => {
     });
 
     await expect(
-      pool.query('select private.restore_transaction($1,$2::uuid,2)', [owner, linkedTransactionId]),
+      planningOwnerQuery(pool, owner, 'select private.restore_transaction($1,$2::uuid,2)', [
+        owner,
+        linkedTransactionId,
+      ]),
     ).rejects.toThrow(/TRANSACTION_INELIGIBLE/);
     const state = await pool.query<{
       transaction_status: string;
@@ -534,74 +556,108 @@ describeLiveDatabase('obligation payment live invariants', () => {
     const { linkedObligationId, linkedPaymentId, linkedTransactionId } =
       await seedLinkedPayment('concurrent-reversal');
 
-    await pool.withClient(async (manualClient) => {
-      await manualClient.query('begin');
-      try {
-        await manualClient.query('select id from public.obligations where id=$1 for update', [
-          linkedObligationId,
-        ]);
-
-        let publishLedgerPid!: (pid: number) => void;
-        const ledgerPid = new Promise<number>((resolve) => {
-          publishLedgerPid = resolve;
-        });
-        const ledgerReversal = pool.withClient(async (ledgerClient) => {
-          await ledgerClient.query('begin');
-          const pid = await ledgerClient.query<{ pid: number }>('select pg_backend_pid() pid');
-          const backendPid = pid.rows[0]?.pid;
-          if (backendPid === undefined) throw new Error('LEDGER_BACKEND_PID_MISSING');
-          publishLedgerPid(backendPid);
-          try {
-            const result = await ledgerClient.query(
-              'select private.reverse_transaction($1,$2::uuid,1,clock_timestamp(),$3)',
-              [owner, linkedTransactionId, 'Concurrent linked payment reversal'],
-            );
-            await ledgerClient.query('commit');
-            return result;
-          } catch (error) {
-            await ledgerClient.query('rollback');
-            throw error;
-          }
-        });
-
-        const pid = await ledgerPid;
-        for (let attempt = 0; attempt < 100; attempt += 1) {
-          const activity = await pool.query<{ wait_event_type: string | null }>(
-            'select wait_event_type from pg_stat_activity where pid=$1',
-            [pid],
-          );
-          if (activity.rows[0]?.wait_event_type === 'Lock') break;
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          if (attempt === 99) throw new Error('LEDGER_REVERSAL_DID_NOT_WAIT_FOR_LOCK');
-        }
-
-        await manualClient.query('select private.allocate_obligation_payment($1,$2::jsonb)', [
-          owner,
-          JSON.stringify({
-            operation: 'reverse',
-            obligationId: linkedObligationId,
-            paymentId: linkedPaymentId,
-            expectedVersion: 1,
-            operationId: randomUUID(),
-            requestId: 'payment-manual-concurrent-reversal',
+    async function waitForOwnerLock(pid: number) {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const locks = await pool.query<{ waiting: boolean }>(
+          "select exists(select 1 from pg_locks where pid=$1 and locktype='advisory' and not granted) as waiting",
+          [pid],
+        );
+        if (locks.rows[0]?.waiting) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw new Error('REVERSAL_DID_NOT_WAIT_FOR_OWNER_LOCK');
+    }
+    function queueReversal(sql: string, values: unknown[]) {
+      let publishPid!: (pid: number) => void;
+      const pid = new Promise<number>((resolve) => {
+        publishPid = resolve;
+      });
+      const operation = withPlanningOwner(pool, owner, async (client) => {
+        const backend = (await client.query<{ pid: number }>('select pg_backend_pid() as pid'))
+          .rows[0]?.pid;
+        if (backend === undefined) throw new Error('REVERSAL_BACKEND_PID_MISSING');
+        publishPid(backend);
+        return client.query(sql, values);
+      });
+      return {
+        pid: Promise.race([
+          pid,
+          operation.then(() => {
+            throw new Error('REVERSAL_COMPLETED_WITHOUT_WAITING');
           }),
-        ]);
-        await manualClient.query('commit');
-        await expect(ledgerReversal).resolves.toBeDefined();
+        ]),
+        operation,
+        settled: Promise.allSettled([operation]),
+      };
+    }
+    await pool.withClient(async (barrier) => {
+      await barrier.query('begin');
+      const pending: Promise<unknown>[] = [];
+      try {
+        // Queue both commands at the same owner lock, without inverting production lock order.
+        await barrier.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [owner]);
+
+        const ledgerReversal = queueReversal(
+          'select private.reverse_transaction($1,$2::uuid,1,clock_timestamp(),$3)',
+          [owner, linkedTransactionId, 'Concurrent linked payment reversal'],
+        );
+        pending.push(ledgerReversal.settled);
+        await waitForOwnerLock(await ledgerReversal.pid);
+        const manualReversal = queueReversal(
+          'select private.allocate_obligation_payment($1,$2::jsonb)',
+          [
+            owner,
+            JSON.stringify({
+              operation: 'reverse',
+              obligationId: linkedObligationId,
+              paymentId: linkedPaymentId,
+              expectedVersion: 1,
+              operationId: randomUUID(),
+              requestId: 'payment-manual-concurrent-reversal',
+            }),
+          ],
+        );
+        pending.push(manualReversal.settled);
+        await waitForOwnerLock(await manualReversal.pid);
+        const results = Promise.allSettled([ledgerReversal.operation, manualReversal.operation]);
+        await barrier.query('commit');
+        const [ledger, manual] = await results;
+        expect(ledger.status).toBe('fulfilled');
+        expect(manual.status).toBe('rejected');
+        if (manual.status === 'rejected') expect(String(manual.reason)).toMatch(/VERSION_CONFLICT/);
       } catch (error) {
-        await manualClient.query('rollback');
+        await barrier.query('rollback');
+        await Promise.all(pending);
         throw error;
       }
     });
 
-    const state = await pool.query<{ transaction_status: string; payment_status: string }>(
-      `select t.status transaction_status,p.status payment_status
+    const state = await pool.query<{
+      transaction_status: string;
+      payment_status: string;
+      compensations: string;
+      paid_minor: string;
+      net_effect: string;
+    }>(
+      `select t.status transaction_status,p.status payment_status,
+         (select count(*)::text from public.transactions r where r.reverses_transaction_id=t.id
+           and r.kind='reversal' and r.status='confirmed') compensations,
+         (select sum(i.paid_minor)::text from public.obligation_schedule_items i where i.obligation_id=p.obligation_id) paid_minor,
+         (select sum(posting.amount_minor)::text from public.transaction_postings posting
+           join public.transactions affected on affected.id=posting.transaction_id
+           where affected.id=t.id or affected.reverses_transaction_id=t.id) net_effect
        from public.transactions t
        join public.obligation_payments p on p.transaction_id=t.id
        where t.id=$1`,
       [linkedTransactionId],
     );
-    expect(state.rows[0]).toEqual({ transaction_status: 'reversed', payment_status: 'reversed' });
+    expect(state.rows[0]).toEqual({
+      transaction_status: 'reversed',
+      payment_status: 'reversed',
+      compensations: '1',
+      paid_minor: '0',
+      net_effect: '0',
+    });
   });
 
   it('serializes reversal and reconstruction with one terminal winner', async () => {

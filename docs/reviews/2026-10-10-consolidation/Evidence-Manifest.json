@@ -1,0 +1,81 @@
+{
+  "artifacts": [
+    {
+      "path": "Backup-Recovery-Guide.md",
+      "sourceSHA256": "1e27d0694ed4bf8e026ecc48922d2fe8cf71c0f1cf89c61e83fb1dadf52bb6c8",
+      "copy": "exact"
+    },
+    {
+      "path": "Helpers-Deep-Review.json",
+      "sourceSHA256": "203ff5a6b56c43813e96d10adb200d23263a17868456df085409dc9e23b968c5",
+      "copy": "all disposition/proof records; raw historical snippets and absolute source paths omitted"
+    },
+    {
+      "path": "Helpers-Deep-Review.md",
+      "sourceSHA256": "f7c1349feec9293593379580ccca9d5a451514a7557af5a0bb6a4b754e7e6d59",
+      "copy": "exact"
+    },
+    {
+      "path": "Ignored-Voice-All-Source-Disposition.json",
+      "sourceSHA256": "8d4028ef342a6da8ad2ee138d2619feeefb1df634f7f679653026751bfb12519",
+      "copy": "exact"
+    },
+    {
+      "path": "Ignored-Voice-All-Source-Review-Receipt.json",
+      "sourceSHA256": "5a4703c979df5f70ce0a77b596d1aff2f8d48b9e718a5523d07f3ed643232817",
+      "copy": "exact"
+    },
+    {
+      "path": "Ignored-Voice-Snapshots-A-Review.json",
+      "sourceSHA256": "15c8ca4b502645d3150641b894d6e48daaac5570adc4596a0db09acbfa3215da",
+      "copy": "all disposition/proof records; raw historical snippets and absolute source paths omitted"
+    },
+    {
+      "path": "Ignored-Voice-Snapshots-B-Review.json",
+      "sourceSHA256": "dd9d136d9962ac6f94f37f7da0c87662133f596b29e24e75de269b39e0235df5",
+      "copy": "all disposition/proof records; raw historical snippets and absolute source paths omitted"
+    },
+    {
+      "path": "Remaining-Divergent-Commits-Review.json",
+      "sourceSHA256": "d7601fbb7e3f88ff9cf942b474ec6e517bacb51c90e87e4ed6c38324a2e50764",
+      "copy": "exact"
+    },
+    {
+      "path": "Remaining-Divergent-Commits-Review.md",
+      "sourceSHA256": "34be5c6e8e9e5872cbcd4db844f3ad6329b364b2d3444b9a472510f6535103ae",
+      "copy": "exact"
+    },
+    {
+      "path": "Stashes-0-to-3-Review.json",
+      "sourceSHA256": "69c7234455f8915547e6f24e31fc944188e1ee89fde5e0e19dd731c48007a720",
+      "copy": "all disposition/proof records; raw historical snippets and absolute source paths omitted"
+    },
+    {
+      "path": "Stashes-0-to-3-Review.md",
+      "sourceSHA256": "35ce070394a94e8891e2941c1bae1f0e9449706af126a3f73f8dbccb9cf454de",
+      "copy": "exact"
+    },
+    {
+      "path": "Stashes-4-to-6-and-Source-Review.json",
+      "sourceSHA256": "6eb3a6c279277de6b9b72b8e2f4437f9396f2ea15040c9dcd1285b0b5acf9077",
+      "copy": "all disposition/proof records; raw historical snippets and absolute source paths omitted"
+    },
+    {
+      "path": "Stashes-4-to-6-and-Source-Review.md",
+      "sourceSHA256": "8f45d4af512070190af2f642e634f012ef62fe3c1a8f9fceb61b080c623cd845",
+      "copy": "exact"
+    },
+    {
+      "path": "Voice-Source-Disposition.json",
+      "sourceSHA256": "583f25c8150b76ec5674db731ea02c6831b22ca2c238761532ed0c6069210da3",
+      "copy": "exact"
+    },
+    {
+      "path": "Voice-Source-Disposition.md",
+      "sourceSHA256": "211d724cec496a0c5c0454722f8e3bb07c26b15728f0d9d7109dc5d80ef51c21",
+      "copy": "exact"
+    }
+  ],
+  "localFullEvidence": "C:\\Users\\DELL\\.codex\\visualizations\\2026\\10\\10\\01a1246b-1e96-7402-a61c-35bd296d00c7",
+  "rawEvidencePreserved": true
+}

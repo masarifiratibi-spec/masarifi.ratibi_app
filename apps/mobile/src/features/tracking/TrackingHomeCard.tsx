@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { router } from 'expo-router';
 import {
-  Pressable,
   ScrollView,
+  Pressable,
   View,
   StyleSheet,
   AppState,
@@ -14,8 +14,8 @@ import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { layoutDirectionStyle } from '@/design-system/direction';
+import { colorTokens, minTouchTarget, spacing } from '@/design-system/tokens';
 import { DesignIcon } from '@/design-system/icons';
-import { colorTokens, spacing } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import {
   useNotificationPermission,
@@ -24,8 +24,11 @@ import {
 } from '@/features/notifications/notification-preferences-queries';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { useHomeSetupCardDismissals } from '@/state/home-setup-card-dismissals';
 import { useTheme } from '@/state/theme-context';
 import { useTrackingStatus } from './useAutomaticTracking';
+import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 
 const CARD_SCALE = 1.05;
 
@@ -34,21 +37,29 @@ export function TrackingHomeCard() {
   const notificationPermission = useNotificationPermission();
   const requestNotificationPermission = useRequestNotificationPermission();
   const openNotificationSettings = useOpenNotificationSettings();
-  const [notificationDismissed, setNotificationDismissed] = useState(false);
   const { width } = useWindowDimensions();
   const status = trackingQuery.data;
   const direction = usePreferenceStore((state) => state.direction);
   const session = useAppShellStore((state) => state.session);
+  const dismissals = useHomeSetupCardDismissals();
+  const ownerId = session?.status === 'authenticated' ? session.userId : null;
+  const dismissed = dismissals.ownerId === ownerId ? dismissals.cards : [];
   const profileSetupStatus = useAppShellStore(
     (state) => state.profileSetupStatus
   );
-  const dismissed = useAppShellStore(
-    (state) => state.trackingHomeCardDismissed
-  );
-  const dismiss = useAppShellStore((state) => state.dismissTrackingHomeCard);
-  const theme = useTheme();
   const refetchNotificationPermission = notificationPermission.refetch;
   const refetchTrackingStatus = trackingQuery.refetch;
+  const initialReadsReady = [trackingQuery, notificationPermission].every(
+    (query) => query.data !== undefined || query.isError
+  );
+  useInitialHomeReadiness(
+    'notice',
+    session?.status !== 'authenticated' ||
+      profileSetupStatus !== 'complete' ||
+      initialReadsReady
+      ? 'ready'
+      : 'pending'
+  );
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -61,6 +72,7 @@ export function TrackingHomeCard() {
   }, [refetchNotificationPermission, refetchTrackingStatus]);
 
   if (
+    !ownerId ||
     session?.status !== 'authenticated' ||
     profileSetupStatus !== 'complete'
   ) {
@@ -68,30 +80,45 @@ export function TrackingHomeCard() {
   }
 
   const showNotifications =
-    !notificationDismissed &&
+    !dismissed.includes('notifications') &&
     !notificationPermission.isLoading &&
     !notificationPermission.isError &&
     notificationPermission.data !== 'granted';
-  const hasSourceStatuses =
-    status !== undefined &&
-    ('smsPermissionStatus' in status || 'notificationAccessStatus' in status);
-  const trackingSourceActive = hasSourceStatuses
-    ? status.smsPermissionStatus === 'granted' ||
-      status.notificationAccessStatus === 'granted'
-    : status?.permissionStatus === 'granted';
-  const trackingSourceAvailable = hasSourceStatuses
-    ? status.smsPermissionStatus !== 'unavailable' ||
-      status.notificationAccessStatus !== 'unavailable'
-    : status?.serviceState !== 'unavailable';
-  const showTracking =
-    !dismissed &&
+  const canRequestNotificationPermission =
+    notificationPermission.data === 'not_requested';
+  const managedNotifications = isMobileAutomationEnabled();
+  const hasSourcePreferences =
+    status?.smsTrackingEnabled !== undefined ||
+    status?.notificationTrackingEnabled !== undefined;
+  const smsPermission = status?.smsPermissionStatus ?? status?.permissionStatus;
+  const notificationAccess = status?.notificationAccessStatus ?? 'denied';
+  const trackingReady =
     !trackingQuery.isLoading &&
     !trackingQuery.isError &&
-    status?.platform === 'android' &&
-    trackingSourceAvailable &&
-    !(trackingSourceActive && status.mode !== 'paused');
+    status?.platform === 'android';
+  const showSmsTracking =
+    !dismissed.includes('sms') &&
+    trackingReady &&
+    smsPermission !== 'unavailable' &&
+    !(
+      status.mode !== 'paused' &&
+      smsPermission === 'granted' &&
+      (hasSourcePreferences
+        ? status.smsTrackingEnabled === true
+        : status.permissionStatus === 'granted')
+    );
+  const showNotificationTracking =
+    !dismissed.includes('transaction-notifications') &&
+    trackingReady &&
+    notificationAccess !== 'unavailable' &&
+    !(
+      status.mode !== 'paused' &&
+      notificationAccess === 'granted' &&
+      status.notificationTrackingEnabled === true
+    );
 
-  if (!showNotifications && !showTracking) return null;
+  if (!showNotifications && !showSmsTracking && !showNotificationTracking)
+    return null;
 
   const cardWidth = Math.min(
     312 * CARD_SCALE,
@@ -115,6 +142,11 @@ export function TrackingHomeCard() {
         {translate('tracking.home.onboardingHeading')}
       </StyledText>
       <ScrollView
+        key={[
+          showNotifications,
+          showSmsTracking,
+          showNotificationTracking
+        ].join(':')}
         contentContainerStyle={[
           styles.railContent,
           { paddingHorizontal: railInset }
@@ -124,162 +156,158 @@ export function TrackingHomeCard() {
         testID="home-setup-cards-rail"
       >
         {showNotifications ? (
-          <SurfaceCard
+          <SetupCard
+            actionLabel={
+              managedNotifications || canRequestNotificationPermission
+                ? translate('notifications.home.enableAction')
+                : translate('notifications.preferences.openSettings')
+            }
+            body={translate('notifications.home.enableBody')}
+            dismissLabel={translate('notifications.home.dismissAction')}
+            onDismiss={() => dismissals.dismiss(ownerId, 'notifications')}
+            mark={<NotificationMark />}
+            onPress={() =>
+              managedNotifications
+                ? router.push('/settings/application')
+                : canRequestNotificationPermission
+                ? requestNotificationPermission.mutate()
+                : openNotificationSettings.mutate()
+            }
             testID="notification-home-card"
-            style={[styles.setupCard, { width: cardWidth }]}
-          >
-            <View style={styles.stack}>
-              <View
-                testID="notification-home-card-header"
-                style={[
-                  styles.header,
-                  {
-                    flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
-                  }
-                ]}
-              >
-                <NotificationMark />
-                <StyledText
-                  variant="subtitle"
-                  style={[
-                    styles.title,
-                    {
-                      textAlign: direction === 'rtl' ? 'right' : 'left',
-                      writingDirection: direction
-                    }
-                  ]}
-                >
-                  {translate('notifications.home.enableTitle')}
-                </StyledText>
-                <Pressable
-                  accessibilityLabel={translate(
-                    'notifications.home.dismissAction'
-                  )}
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => setNotificationDismissed(true)}
-                  style={styles.dismiss}
-                >
-                  <DesignIcon
-                    color={theme.colors.content.muted}
-                    decorative
-                    name="close"
-                    size="sm"
-                  />
-                </Pressable>
-              </View>
-              <StyledText
-                variant="caption"
-                style={[
-                  styles.description,
-                  {
-                    color: theme.colors.content.secondary,
-                    textAlign: direction === 'rtl' ? 'right' : 'left',
-                    writingDirection: direction
-                  }
-                ]}
-              >
-                {translate('notifications.home.enableBody')}
-              </StyledText>
-              <ActionButton
-                label={
-                  notificationPermission.data === 'permanently_denied'
-                    ? translate('notifications.preferences.openSettings')
-                    : translate('notifications.home.enableAction')
-                }
-                onPress={() =>
-                  notificationPermission.data === 'permanently_denied'
-                    ? openNotificationSettings.mutate()
-                    : requestNotificationPermission.mutate()
-                }
-                style={styles.action}
-                labelStyle={styles.actionLabel}
-                variant="secondary"
-              />
-            </View>
-          </SurfaceCard>
+            title={translate('notifications.home.enableTitle')}
+            width={cardWidth}
+          />
         ) : null}
-        {showTracking ? (
-          <SurfaceCard
-            testID="tracking-home-card"
-            style={[styles.setupCard, { width: cardWidth }]}
-          >
-            <View style={styles.stack}>
-              <View
-                testID="tracking-home-card-header"
-                style={[
-                  styles.header,
-                  { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
-                ]}
-              >
-                <TrackingMark />
-                <StyledText
-                  variant="subtitle"
-                  style={[
-                    styles.title,
-                    {
-                      textAlign: direction === 'rtl' ? 'right' : 'left',
-                      writingDirection: direction
-                    }
-                  ]}
-                >
-                  {translate('tracking.home.enableTitle')}
-                </StyledText>
-                <Pressable
-                  accessibilityLabel={translate('tracking.home.dismissAction')}
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => void dismiss()}
-                  style={styles.dismiss}
-                >
-                  <DesignIcon
-                    color={theme.colors.content.muted}
-                    decorative
-                    label=""
-                    name="close"
-                    size="sm"
-                  />
-                </Pressable>
-              </View>
-              <StyledText
-                variant="caption"
-                style={[
-                  styles.description,
-                  {
-                    color: theme.colors.content.secondary,
-                    textAlign: direction === 'rtl' ? 'right' : 'left',
-                    writingDirection: direction
-                  }
-                ]}
-              >
-                {translate('tracking.home.enableBody')}
-              </StyledText>
-              <ActionButton
-                label={translate('tracking.home.enableAction')}
-                onPress={() => router.push('/tracking')}
-                style={styles.action}
-                labelStyle={styles.actionLabel}
-                variant="secondary"
-              />
-            </View>
-          </SurfaceCard>
+        {showSmsTracking ? (
+          <SetupCard
+            actionLabel={translate('tracking.home.enableAction')}
+            body={translate('tracking.home.smsBody')}
+            dismissLabel={translate('tracking.home.dismissAction')}
+            onDismiss={() => dismissals.dismiss(ownerId, 'sms')}
+            mark={<TrackingMark testID="sms-tracking-home-icon" />}
+            onPress={() => router.push('/tracking')}
+            testID="sms-tracking-home-card"
+            title={translate('tracking.source.smsTracking')}
+            width={cardWidth}
+          />
+        ) : null}
+        {showNotificationTracking ? (
+          <SetupCard
+            actionLabel={translate('tracking.home.enableAction')}
+            body={translate('tracking.home.notificationBody')}
+            dismissLabel={translate('tracking.home.dismissAction')}
+            onDismiss={() =>
+              dismissals.dismiss(ownerId, 'transaction-notifications')
+            }
+            mark={<TrackingMark testID="notification-tracking-home-icon" />}
+            onPress={() => router.push('/tracking')}
+            testID="notification-tracking-home-card"
+            title={translate('tracking.home.notificationTitle')}
+            width={cardWidth}
+          />
         ) : null}
       </ScrollView>
     </View>
   );
 }
 
-function TrackingMark() {
+function SetupCard({
+  actionLabel,
+  body,
+  dismissLabel,
+  mark,
+  onPress,
+  onDismiss,
+  testID,
+  title,
+  width
+}: {
+  actionLabel: string;
+  body: string;
+  dismissLabel: string;
+  mark: React.ReactNode;
+  onPress: () => void;
+  onDismiss: () => void;
+  testID: string;
+  title: string;
+  width: number;
+}) {
+  const direction = usePreferenceStore((state) => state.direction);
+  const theme = useTheme();
   return (
-    <View
-      accessible={false}
-      testID="tracking-home-message-icon"
-      style={styles.trackingMark}
-    >
+    <SurfaceCard testID={testID} style={[styles.setupCard, { width }]}>
+      <View style={styles.stack}>
+        <View
+          testID={`${testID}-header`}
+          style={[
+            styles.header,
+            { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+          ]}
+        >
+          {mark}
+          <StyledText
+            variant="subtitle"
+            style={[
+              styles.title,
+              {
+                textAlign: direction === 'rtl' ? 'right' : 'left',
+                writingDirection: direction
+              }
+            ]}
+          >
+            {title}
+          </StyledText>
+          <Pressable
+            accessibilityLabel={`${dismissLabel}: ${title}`}
+            accessibilityRole="button"
+            onPress={onDismiss}
+            testID={`${testID}-dismiss`}
+            style={({ pressed }) => [
+              styles.dismiss,
+              { opacity: pressed ? 0.6 : 1 }
+            ]}
+          >
+            <DesignIcon
+              name="close"
+              size="sm"
+              color={theme.colors.content.secondary}
+              decorative
+              label=""
+            />
+          </Pressable>
+        </View>
+        <StyledText
+          variant="caption"
+          style={[
+            styles.description,
+            {
+              color: theme.colors.content.secondary,
+              textAlign: direction === 'rtl' ? 'right' : 'left',
+              writingDirection: direction
+            }
+          ]}
+        >
+          {body}
+        </StyledText>
+        <ActionButton
+          label={actionLabel}
+          onPress={onPress}
+          style={styles.action}
+          labelStyle={styles.actionLabel}
+          variant="secondary"
+        />
+      </View>
+    </SurfaceCard>
+  );
+}
+
+function TrackingMark({ testID }: { testID: string }) {
+  return (
+    <View accessible={false} testID={testID} style={styles.trackingMark}>
       <Svg
         accessibilityElementsHidden
         height={30 * CARD_SCALE}
-        testID="tracking-home-sync-icon"
+        testID={`${testID}-sync-icon`}
         viewBox="0 0 32 32"
         width={30 * CARD_SCALE}
       >
@@ -339,24 +367,20 @@ function NotificationMark() {
           d="M12.8 24.2a3.35 3.35 0 0 0 6.4 0h-6.4Z"
           fill={colorTokens.financial.expense}
         />
-        <Circle
-          cx={23.5}
-          cy={7.5}
-          fill={colorTokens.financial.expense}
-          r={4}
-        />
-        <Circle
-          cx={23.5}
-          cy={7.5}
-          fill={colorTokens.raw['FFFFFF']}
-          r={1.35}
-        />
+        <Circle cx={23.5} cy={7.5} fill={colorTokens.financial.expense} r={4} />
+        <Circle cx={23.5} cy={7.5} fill={colorTokens.raw['FFFFFF']} r={1.35} />
       </Svg>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  dismiss: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: Math.max(48, minTouchTarget),
+    minWidth: Math.max(48, minTouchTarget)
+  },
   action: {
     alignSelf: 'stretch',
     borderRadius: 16 * CARD_SCALE,
@@ -371,14 +395,6 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 13,
     lineHeight: 20
-  },
-  dismiss: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['200'],
-    borderRadius: 14 * CARD_SCALE,
-    height: 28 * CARD_SCALE,
-    justifyContent: 'center',
-    width: 28 * CARD_SCALE
   },
   header: {
     alignItems: 'center',
@@ -405,18 +421,18 @@ const styles = StyleSheet.create({
   },
   railContent: {
     ...layoutDirectionStyle('ltr'),
-    alignItems: 'center',
+    alignItems: 'stretch',
     flexDirection: 'row',
     flexGrow: 1,
     gap: spacing.md * CARD_SCALE,
     paddingBottom: spacing.sm * CARD_SCALE,
     justifyContent: 'center'
   },
-  section: { ...layoutDirectionStyle('ltr'), gap: spacing.md },
+  section: { ...layoutDirectionStyle('ltr'), gap: spacing.sm },
   setupCard: {
     borderRadius: 18 * CARD_SCALE,
-    height: (168 + spacing.sm) * CARD_SCALE,
-    padding: spacing.lg * CARD_SCALE
+    minHeight: 156 * CARD_SCALE,
+    padding: spacing.md * CARD_SCALE
   },
   stack: { flex: 1, gap: spacing.sm * CARD_SCALE },
   title: { flex: 1, fontSize: 16, lineHeight: 22 }

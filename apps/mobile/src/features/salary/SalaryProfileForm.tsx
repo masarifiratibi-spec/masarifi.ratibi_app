@@ -1,5 +1,6 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
@@ -15,7 +16,8 @@ import {
   spacing
 } from '@/design-system/tokens';
 import { minorToMajorAmountText } from '@/domain/currencies';
-import { parseAmountToMinor, type Account } from '@/domain/core-finance';
+import { type Account } from '@/domain/core-finance';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import {
   PlanningScreen,
@@ -49,16 +51,28 @@ export function SalaryProfileForm() {
     useState(false);
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [error, setError] = useState<string>();
-  const [saved, setSaved] = useState(false);
-  const currencyCode =
-    accounts.data?.find((account: Account) => account.id === accountId)
-      ?.currencyCode ??
-    profile.data?.currencyCode ??
-    baseCurrencyCode;
+  const [savedPayload, setSavedPayload] = useState<string>();
+  const profileLoaded = useRef(false);
   const selectedAccount = accounts.data?.find(
     (account: Account) => account.id === (accountId || accounts.data?.[0]?.id)
   );
-  const amountMinor = parseAmountToMinor(amount, currencyCode);
+  const currencyCode =
+    selectedAccount?.currencyCode ??
+    profile.data?.currencyCode ??
+    baseCurrencyCode;
+  const amountMinor = parseAmountToMinor(
+    normalizeLocalizedNumber(amount),
+    currencyCode
+  );
+  const payload = {
+    amount,
+    salaryDay,
+    sourceName,
+    accountId,
+    automaticDetectionEnabled
+  };
+  const payloadKey = JSON.stringify(payload);
+  const saved = savedPayload === payloadKey;
   const amountDisplay = amountMinor
     ? formatMinorAmount(amountMinor, currencyCode, currentLocale()).replace(
         '\u00a0',
@@ -74,6 +88,8 @@ export function SalaryProfileForm() {
   );
 
   useEffect(() => {
+    if (profileLoaded.current || profile.isLoading || profile.isError) return;
+    profileLoaded.current = true;
     if (!profile.data) return;
     setAmount(
       minorToMajorAmountText(
@@ -85,20 +101,14 @@ export function SalaryProfileForm() {
     setSourceName(profile.data.sourceName);
     setAccountId(profile.data.receivingAccountId ?? '');
     setAutomaticDetectionEnabled(profile.data.automaticDetectionEnabled);
-  }, [profile.data]);
+  }, [profile.data, profile.isLoading, profile.isError]);
 
   const { draftReady, discardDraft } = usePlanningFormDraft({
     id: 'planning-form-salary',
     kind: 'salary',
     entityId: null,
-    payload: {
-      amount,
-      salaryDay,
-      sourceName,
-      accountId,
-      automaticDetectionEnabled
-    },
-    meaningful: Boolean(amount || sourceName || accountId),
+    payload,
+    meaningful: !saved && Boolean(amount || sourceName || accountId),
     enabled: !profile.isLoading && !profile.isError,
     restore: (payload) => {
       const draft = payload as Partial<{
@@ -118,14 +128,32 @@ export function SalaryProfileForm() {
     onError: () => setError(translate('planning.state.error'))
   });
 
+  useEffect(() => {
+    if (saved) {
+      void discardDraft().catch(() =>
+        setError(translate('planning.state.error'))
+      );
+    }
+  }, [saved, discardDraft]);
+
   const submit = () => {
-    const expectedAmountMinor = parseAmountToMinor(amount, currencyCode);
-    const day = Number(salaryDay);
-    const receivingAccountId = accountId || accounts.data?.[0]?.id;
+    if (save.isPending) return;
+    const expectedAmountMinor = amountMinor;
+    const dayText = normalizeLocalizedNumber(salaryDay);
+    const day = Number(dayText);
     if (
-      !expectedAmountMinor ||
+      !/^\d{1,2}$/.test(dayText) ||
+      !Number.isInteger(day) ||
       day < 1 ||
-      day > 31 ||
+      day > 31
+    ) {
+      setError(translate('planning.salary.dayHelper'));
+      return;
+    }
+    const receivingAccountId = selectedAccount?.id;
+    if (
+      expectedAmountMinor === null ||
+      expectedAmountMinor <= 0 ||
       !sourceName.trim() ||
       !receivingAccountId
     ) {
@@ -144,8 +172,7 @@ export function SalaryProfileForm() {
       },
       {
         onSuccess: () => {
-          setSaved(true);
-          void discardDraft();
+          setSavedPayload(payloadKey);
         },
         onError: () => setError(translate('planning.state.error'))
       }
@@ -161,9 +188,7 @@ export function SalaryProfileForm() {
       hideHeader
       titleKey="planning.salary.setup"
     >
-      {accounts.isLoading || profile.isLoading || !draftReady ? (
-        <PlanningState state="loading" />
-      ) : accounts.isError || profile.isError ? (
+      {accounts.isError || profile.isError ? (
         <PlanningState
           state="error"
           onRetry={() => {
@@ -171,6 +196,8 @@ export function SalaryProfileForm() {
             void profile.refetch();
           }}
         />
+      ) : accounts.isLoading || profile.isLoading || !draftReady ? (
+        <PlanningState state="loading" />
       ) : (
         <>
           <View style={[styles.header, { direction }]}>
@@ -178,12 +205,14 @@ export function SalaryProfileForm() {
               accessibilityLabel={translate('common.back')}
               accessibilityRole="button"
               onPress={() => router.back()}
-              style={[
-                styles.backButton,
-                styles.backAtStart
-              ]}
+              style={[styles.backButton, styles.backAtStart]}
             >
-              <DesignIcon name="back" decorative direction={direction} size="lg" />
+              <DesignIcon
+                name="back"
+                decorative
+                direction={direction}
+                size="lg"
+              />
             </Pressable>
             <StyledText
               accessibilityRole="header"
@@ -252,6 +281,7 @@ export function SalaryProfileForm() {
               <FormField
                 autoFocus
                 helperText={translate('planning.salary.dayHelper')}
+                keyboardType="number-pad"
                 label={translate('planning.salary.day')}
                 labelPlacement="accessibility-only"
                 onChangeText={setSalaryDay}
@@ -276,6 +306,7 @@ export function SalaryProfileForm() {
                 autoFocus
                 label={translate('planning.salary.source')}
                 labelPlacement="accessibility-only"
+                maxLength={120}
                 onChangeText={setSourceName}
                 style={{
                   textAlign: direction === 'rtl' ? 'right' : 'left',
@@ -301,7 +332,7 @@ export function SalaryProfileForm() {
               <InlineAccountOptions
                 accounts={accounts.data ?? []}
                 direction={direction}
-                selectedId={accountId || accounts.data?.[0]?.id}
+                selectedId={selectedAccount?.id}
                 onSelect={(account) => {
                   setAccountId(account.id);
                   setEditingField(null);
@@ -309,9 +340,7 @@ export function SalaryProfileForm() {
               />
             </SalarySettingRow>
             <RowDivider />
-            <View
-              style={styles.switchRow}
-            >
+            <View style={styles.switchRow}>
               <View
                 style={[
                   styles.iconBadge,
@@ -328,7 +357,9 @@ export function SalaryProfileForm() {
               <View
                 style={[
                   styles.switchCopy,
-                  { alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start' }
+                  {
+                    alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start'
+                  }
                 ]}
               >
                 <StyledText
@@ -481,7 +512,9 @@ function SalarySettingRow({
 
 function RowDivider() {
   const theme = useTheme();
-  return <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />;
+  return (
+    <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+  );
 }
 
 function InlineAccountOptions({

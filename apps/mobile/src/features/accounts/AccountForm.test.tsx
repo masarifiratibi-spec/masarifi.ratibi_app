@@ -217,6 +217,18 @@ describe('AccountForm', () => {
     );
     fireEvent.changeText(
       screen.getByLabelText(
+        translate('coreFinance.accounts.setup.availableBalance')
+      ),
+      '1000'
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(
+        translate('coreFinance.accounts.setup.creditLimit')
+      ),
+      '1000'
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(
         translate('coreFinance.accounts.setup.statementDay')
       ),
       '7'

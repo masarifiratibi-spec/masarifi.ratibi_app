@@ -6,6 +6,7 @@ import type { ReportPeriodKind, ReportReturnContext } from '@/domain/reports';
 interface ReportsViewState {
   selectedKind: ReportPeriodKind;
   anchorDate: LocalDate;
+  followToday: boolean;
   scrollOffset: number;
   returnContext: ReportReturnContext | null;
   setPeriod: (kind: ReportPeriodKind, anchorDate: LocalDate) => void;
@@ -15,10 +16,11 @@ interface ReportsViewState {
 
 export const useReportsViewState = create<ReportsViewState>((set) => ({
   selectedKind: 'monthly',
+  followToday: true,
   anchorDate: new Date().toISOString().slice(0, 10) as LocalDate,
   scrollOffset: 0,
   returnContext: null,
-  setPeriod: (selectedKind, anchorDate) => set({ selectedKind, anchorDate }),
+  setPeriod: (selectedKind, anchorDate) => set({ selectedKind, anchorDate, followToday: false }),
   setScrollOffset: (scrollOffset) => set({ scrollOffset }),
   setReturnContext: (returnContext) => set({ returnContext })
 }));

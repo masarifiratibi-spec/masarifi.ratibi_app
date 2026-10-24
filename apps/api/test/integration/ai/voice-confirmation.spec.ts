@@ -45,7 +45,7 @@ describeLiveDatabase('voice proposal and confirmation lifecycle', () => {
     await pool.onModuleDestroy();
   });
 
-  it('queues one fenced worker item, persists an inert proposal, and replays one execution', async () => {
+  it('queues one fenced worker item, persists an inert proposal, and blocks the legacy confirmation path', async () => {
     const created = await repository.createVoiceSession(
       principal,
       { locale: 'en', durationMs: 1000, contentType: 'audio/wav', sizeBytes: 44 },
@@ -58,12 +58,9 @@ describeLiveDatabase('voice proposal and confirmation lifecycle', () => {
       { expectedVersion: 1, contentHash: 'a'.repeat(64) },
       'voice-process-key-0001',
     );
-    const [claim] = await repository.claimWork(
-      'voice.transcribe_extract',
-      'voice-test-worker',
-      1,
-      120,
-    );
+    const claim = (
+      await repository.claimWork('voice.transcribe_extract', 'voice-test-worker', 100, 120)
+    ).find((item) => item.id === session.id);
     expect(claim).toMatchObject({ id: session.id, user_id: userId, attempt_count: 1 });
     if (!claim) throw new Error('AI_VOICE_CLAIM_MISSING');
     const input = await repository.workInput(claim.kind, claim.id, claim.claim_token);
@@ -99,36 +96,16 @@ describeLiveDatabase('voice proposal and confirmation lifecycle', () => {
       `ai.action.confirm:${proposalId}`,
       'voice-confirm-key-0001',
     );
-    const decision = await repository.claimAction(principal, proposalId, 1, operationId);
-    const recovered = await repository.claimAction(principal, proposalId, 1, operationId);
-    expect(recovered).toMatchObject({ replayed: false, operationId });
-    expect(recovered.decisionToken).not.toBe(decision.decisionToken);
-    const transactionId = randomUUID();
-    await pool.withClient(async (client) => {
-      await client.query('begin');
-      await client.query('set local role masarifi_migration');
-      await client.query(
-        "insert into public.transactions(id,user_id,kind,status,amount_minor,currency_code,title,occurred_at,source) values($1,$2,'expense','confirmed',1250,'SAR','Shop','2026-09-03T12:00:00Z','voice')",
-        [transactionId, userId],
-      );
-      await client.query('commit');
-    });
-    await repository.completeAction(
-      principal,
-      proposalId,
-      String(recovered.decisionToken),
-      transactionId,
-    );
     await expect(
       repository.claimAction(principal, proposalId, 1, operationId),
-    ).resolves.toMatchObject({ resourceId: transactionId, replayed: true });
+    ).rejects.toMatchObject({ response: { code: 'VOICE_CONTRACT_REQUIRED' } });
     expect(
       (
-        await pool.query<{ count: string }>(
-          'select count(*)::text count from public.transactions where id=$1',
-          [transactionId],
+        await pool.query(
+          'select count(*)::integer count from public.transactions where user_id=$1',
+          [userId],
         )
       ).rows[0]?.count,
-    ).toBe('1');
+    ).toBe(0);
   });
 });

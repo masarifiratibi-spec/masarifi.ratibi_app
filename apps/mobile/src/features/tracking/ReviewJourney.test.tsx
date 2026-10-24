@@ -14,12 +14,38 @@ import { renderWithQueryData } from '@/test-utils/render';
 import { DuplicateComparison } from './DuplicateComparison';
 import { ReviewDetail } from './ReviewDetail';
 import { ReviewQueue } from './ReviewQueue';
+import { TrackingReviewFields } from './TrackingReviewFields';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn() }
 }));
 
 describe('ReviewJourney', () => {
+  it('lets the owner correct an invalid embedded transaction date', () => {
+    const onChange = jest.fn();
+    renderWithQueryData(
+      <TrackingReviewFields
+        proposed={{
+          currency: 'SAR',
+          kind: 'expense',
+          occurredAt: null,
+          classification: {
+            status: 'completed',
+            timeProvenance: 'embedded',
+            reasonCodes: ['date_ambiguous']
+          }
+        }}
+        edits={{}}
+        onChange={onChange}
+      />,
+      []
+    );
+    const field = screen.getByLabelText('وقت المعاملة مع المنطقة الزمنية');
+    fireEvent.changeText(field, '2026-10-22T00:00:00+03:00');
+    expect(onChange).toHaveBeenCalledWith({
+      occurredAt: '2026-10-22T00:00:00+03:00'
+    });
+  });
   it('opens review items and renders duplicate actions accessibly', () => {
     renderWithQueryData(<ReviewQueue />, [
       [
@@ -67,11 +93,11 @@ describe('ReviewJourney', () => {
     ]);
 
     fireEvent.press(
-      screen.getByLabelText(
-        new RegExp(translate('tracking.reason.duplicate'))
-      )
+      screen.getByLabelText(new RegExp(translate('tracking.reason.duplicate')))
     );
-    expect(router.push).toHaveBeenCalledWith('/tracking/duplicates/duplicate-1');
+    expect(router.push).toHaveBeenCalledWith(
+      '/tracking/duplicates/duplicate-1'
+    );
     expect(
       screen.getByText(translate('tracking.reason.duplicate'))
     ).toBeOnTheScreen();
@@ -136,7 +162,9 @@ describe('ReviewJourney', () => {
       ]
     ]);
 
-    expect(screen.getByText(translate('tracking.review.notDetected'))).toBeTruthy();
+    expect(
+      screen.getByText(translate('tracking.review.notDetected'))
+    ).toBeTruthy();
     expect(screen.queryByText(/SAR/)).toBeNull();
   });
 
@@ -166,7 +194,9 @@ describe('ReviewJourney', () => {
       [coreFinanceKeys.categories(true), fixtureCategories]
     ]);
 
-    expect(screen.getByText(translate('tracking.review.notDetected'))).toBeTruthy();
+    expect(
+      screen.getByText(translate('tracking.review.notDetected'))
+    ).toBeTruthy();
     expect(screen.queryByText(/SAR/)).toBeNull();
   });
 });

@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -35,6 +34,10 @@ import { CategoryForm } from './CategoryForm';
 import { GroupFormModal } from './GroupFormModal';
 import { MoveToGroupSheet } from './MoveToGroupSheet';
 import {
+  categoryMutationOwner,
+  publishCategoryMutation
+} from './publish-category-mutation';
+import {
   matchesCategorySearch,
   projectCategory,
   type CategoryPresentation
@@ -52,6 +55,8 @@ export function CategoryListScreen() {
     useState<Category | null>(null);
   const [groupModalVisible, setGroupModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const movingRef = useRef(false);
 
   const query = useCategories(true);
   const txQuery = useTransactions();
@@ -157,7 +162,10 @@ export function CategoryListScreen() {
   // Move category to group
   const handleSelectGroup = async (groupId: string | null) => {
     const target = targetCategoryForGroup;
-    if (!target?.financialType) return;
+    if (!target?.financialType || movingRef.current) return;
+    movingRef.current = true;
+    setMoving(true);
+    const ownerId = categoryMutationOwner();
     try {
       const result = await coreFinanceService.updateCategory(target.id, {
         labelAr: target.labelAr,
@@ -168,35 +176,19 @@ export function CategoryListScreen() {
         colorKey: target.colorKey,
         isFavorite: target.isFavorite
       });
-      await invalidateCoreFinanceScopes(client, result.affectedScopes);
+      await publishCategoryMutation(client, result, ownerId);
+      setTargetCategoryForGroup(null);
     } catch {
       Alert.alert(translate('coreFinance.state.error'));
     } finally {
-      setTargetCategoryForGroup(null);
+      movingRef.current = false;
+      setMoving(false);
     }
   };
 
   // When a new group is created, if there was a targetCategoryForGroup, move it in!
   const handleGroupCreated = async (newGroup: Category) => {
-    const target = targetCategoryForGroup;
-    if (target?.financialType) {
-      try {
-        const result = await coreFinanceService.updateCategory(target.id, {
-          labelAr: target.labelAr,
-          labelEn: target.labelEn,
-          financialType: target.financialType,
-          parentId: newGroup.id,
-          iconKey: target.iconKey,
-          colorKey: target.colorKey,
-          isFavorite: target.isFavorite
-        });
-        await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      } catch {
-        Alert.alert(translate('coreFinance.state.error'));
-      } finally {
-        setTargetCategoryForGroup(null);
-      }
-    }
+    if (targetCategoryForGroup) await handleSelectGroup(newGroup.id);
   };
 
   if (query.isLoading)
@@ -206,7 +198,7 @@ export function CategoryListScreen() {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError)
+  if (query.isError && !query.data)
     return (
       <StateView
         state="error"
@@ -229,6 +221,14 @@ export function CategoryListScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.header}>
+            {query.isError ? (
+              <StateView
+                state="error"
+                title={translate('coreFinance.state.error')}
+                actionLabel={translate('coreFinance.action.retry')}
+                onAction={() => void query.refetch()}
+              />
+            ) : null}
             {/* Page title */}
             <Text
               style={[
@@ -372,11 +372,13 @@ export function CategoryListScreen() {
             rowIndex={index}
             txCount={
               completeTxCounts
-                ? completeTxCounts.get(item.category.id) ?? 0
+                ? (completeTxCounts.get(item.category.id) ?? 0)
                 : undefined
             }
             onPress={() =>
-              router.push(`/categories/${item.category.id}?edit=1`)
+              router.push(
+                `/categories/${item.category.id}${item.category.kind === 'custom' ? '?edit=1' : ''}`
+              )
             }
             onDelete={
               item.category.kind === 'custom' &&
@@ -395,37 +397,21 @@ export function CategoryListScreen() {
       />
 
       {/* Add / Edit Category Modal */}
-      <Modal
-        visible={categoryModalVisible}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={() => {
-          setCategoryModalVisible(false);
-        }}
-      >
-        <View
-          testID="category-form-modal-content"
-          accessibilityViewIsModal
-          style={{
-            flex: 1,
-            backgroundColor:
-              theme.colors.background ?? colorTokens.raw['F6F8F7'],
-            paddingTop: 20
+      {categoryModalVisible ? (
+        <CategoryForm
+          modal
+          onClose={() => {
+            setCategoryModalVisible(false);
           }}
-        >
-          <CategoryForm
-            onClose={() => {
-              setCategoryModalVisible(false);
-            }}
-            onSuccess={() => {
-              setCategoryModalVisible(false);
-            }}
-          />
-        </View>
-      </Modal>
+          onSuccess={() => {
+            setCategoryModalVisible(false);
+          }}
+        />
+      ) : null}
 
       {/* Move To Group Bottom Sheet */}
       <MoveToGroupSheet
+        pending={moving}
         visible={Boolean(targetCategoryForGroup) && !groupModalVisible}
         category={targetCategoryForGroup}
         groups={allCategories}
@@ -435,11 +421,14 @@ export function CategoryListScreen() {
       />
 
       {/* New Group Modal */}
-      <GroupFormModal
-        visible={groupModalVisible}
-        onCreated={(newGroup) => void handleGroupCreated(newGroup)}
-        onClose={() => setGroupModalVisible(false)}
-      />
+      {groupModalVisible ? (
+        <GroupFormModal
+          visible
+          financialType={targetCategoryForGroup?.financialType ?? undefined}
+          onCreated={handleGroupCreated}
+          onClose={() => setGroupModalVisible(false)}
+        />
+      ) : null}
     </>
   );
 }

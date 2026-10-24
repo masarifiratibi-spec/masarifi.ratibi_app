@@ -79,9 +79,9 @@ export type AccessRequestsPage = z.infer<typeof accessRequestsPageSchema>;
 export const maskedCustomerSummarySchema = z.object({
   userId: userIdSchema,
   displayName: z.string().min(1).max(100),
-  maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@example\.test$/).max(160),
+  maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@[^@\s]+\.[^@\s]+$/).max(320).nullable(),
   status: accountStatusSchema,
-  primaryPlatform: platformSchema,
+  primaryPlatform: platformSchema.nullable(),
   registeredPlatforms: z.array(platformSchema).min(1).max(2).refine(unique),
   risk: riskLevelSchema,
 }).strict();

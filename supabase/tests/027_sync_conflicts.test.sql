@@ -5,6 +5,8 @@ grant masarifi_migration to current_user with inherit true,set true;
 set local role masarifi_migration;
 
 insert into public.profiles(id,status) values('sync_conflict_owner','active');
+-- Model the verified API caller; do not bypass active-owner command guards.
+select set_config('request.jwt.claims','{"sub":"sync_conflict_owner","role":"authenticated"}',true);
 insert into public.user_devices(id,user_id,device_fingerprint,platform,app_version)
 values('72000000-0000-4000-8000-000000000009','sync_conflict_owner','h1:'||repeat('d',64),'ios','1.0.0');
 insert into public.accounts(id,user_id,name,type,currency_code)

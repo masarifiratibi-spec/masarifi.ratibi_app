@@ -8,6 +8,8 @@ import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency
 import { PoolService } from '../platform/database/pool.service';
 import type { EffectiveAiRoute } from './ai.gateway';
 import type { AssistantTurn } from './ai-routing';
+import { isTransientVoiceError, permanentVoiceFailure } from './voice-transient-error';
+import { PlatformLogger } from '../platform/observability/platform-logger';
 
 interface JsonRow extends QueryResultRow {
   result: Record<string, unknown>;
@@ -61,6 +63,9 @@ function mapped(error: unknown): Error {
     error && typeof error === 'object' && 'message' in error
       ? String(Reflect.get(error, 'message'))
       : '';
+  if (message === 'VOICE_AUTOMATIC_UNAVAILABLE')
+    return new HttpException({ code: 'VOICE_AUTOMATIC_UNAVAILABLE' }, 503);
+  if (message === 'PROFILE_INACTIVE') return new HttpException({ code: 'PROFILE_INACTIVE' }, 403);
   if (/NOT_FOUND/.test(message)) return new HttpException({ code: message }, 404);
   if (/EXPIRED/.test(message)) return new HttpException({ code: message }, 410);
   if (/CONFLICT|FENCE|IN_PROGRESS|REUSED/.test(message))
@@ -68,7 +73,7 @@ function mapped(error: unknown): Error {
   if (/CONSENT|OWNER|PERMISSION|DENIED/.test(message))
     return new HttpException({ code: message }, 403);
   if (/QUOTA|BUDGET/.test(message)) return new HttpException({ code: message }, 429);
-  if (/ROUTE_UNAVAILABLE|PROMPT_UNAVAILABLE/.test(message))
+  if (/ROUTE_UNAVAILABLE|PROMPT_UNAVAILABLE|AUTOMATIC_UNAVAILABLE/.test(message))
     return new HttpException({ code: 'AI_UNAVAILABLE' }, 503);
   if (/INVALID|LIMIT|REQUIRED|SCHEMA/.test(message))
     return new HttpException({ code: message }, 422);
@@ -95,35 +100,93 @@ export class AiRepository {
     return stableUuid(`${principal.userId}:${scope}:${hashIdempotencyKey(key)}`);
   }
 
-  workloadAvailable(workload: string): Promise<boolean> {
-    return this.worker(async (client) =>
-      Boolean(
-        (
-          await client.query<{ result: boolean }>(
-            'select private.ai_workload_available($1) result',
-            [workload],
-          )
-        ).rows[0]?.result,
-      ),
+  async workloadAvailable(workload: string): Promise<boolean> {
+    return Boolean(
+      (
+        await this.pool.query<{ result: boolean }>(
+          'select private.ai_workload_available($1) result',
+          [workload],
+        )
+      ).rows[0]?.result,
     );
   }
 
-  createVoiceSession(principal: ClerkPrincipal, input: Record<string, unknown>, key: string) {
+  createVoiceSession(
+    principal: ClerkPrincipal,
+    input: Record<string, unknown>,
+    key: string,
+    uploadSeconds = 300,
+    automatic?: { maxAuthAge: number; thresholds: Record<string, number>; analysisOnly?: boolean },
+  ) {
+    return this.idempotent(
+      principal,
+      'ai.voice-session.create',
+      key,
+      automatic
+        ? {
+            ...input,
+            contractVersion: 3,
+            ...(automatic.analysisOnly ? { analysisOnly: true } : {}),
+          }
+        : input,
+      201,
+      async (client, operationId) =>
+        automatic
+          ? this.json(
+              client,
+              automatic.analysisOnly
+                ? 'select private.create_voice_analysis_session($1,$2::jsonb,$3::uuid,$4,$5,$6,$7::jsonb) result'
+                : 'select private.create_voice_session_v3($1,$2::jsonb,$3::uuid,$4,$5,$6,$7::jsonb) result',
+              [
+                principal.userId,
+                JSON.stringify(input),
+                operationId,
+                uploadSeconds,
+                principal.factorAgeSeconds,
+                automatic.maxAuthAge,
+                JSON.stringify(automatic.thresholds),
+              ],
+            )
+          : input.contentHash
+            ? this.json(
+                client,
+                'select private.create_voice_session_v2($1,$2::jsonb,$3::uuid,$4) result',
+                [principal.userId, JSON.stringify(input), operationId, uploadSeconds],
+              )
+            : this.json(
+                client,
+                'select private.create_voice_session($1,$2,$3,$4,$5,$6::uuid) result',
+                [
+                  principal.userId,
+                  input.locale,
+                  input.durationMs,
+                  input.contentType,
+                  input.sizeBytes,
+                  operationId,
+                ],
+              ),
+    );
+  }
+
+  createVoiceReviewSession(
+    principal: ClerkPrincipal,
+    input: Record<string, unknown>,
+    key: string,
+    uploadSeconds = 300,
+  ) {
+    // Keep the legacy create identity/hash so recovery cannot replace the operation.
     return this.idempotent(
       principal,
       'ai.voice-session.create',
       key,
       input,
       201,
-      async (client, operationId) =>
-        this.json(client, 'select private.create_voice_session($1,$2,$3,$4,$5,$6::uuid) result', [
-          principal.userId,
-          input.locale,
-          input.durationMs,
-          input.contentType,
-          input.sizeBytes,
-          operationId,
-        ]),
+      (client, operationId) =>
+        this.json(
+          client,
+          'select private.create_voice_review_session($1,$2::jsonb,$3::uuid,$4) result',
+          [principal.userId, JSON.stringify(input), operationId, uploadSeconds],
+        ),
     );
   }
 
@@ -148,10 +211,198 @@ export class AiRepository {
         if (!quota.allowed) quotaError(quota);
         return this.json(
           client,
-          'select private.finalize_voice_session($1,$2::uuid,$3,$4) result',
-          [principal.userId, sessionId, input.expectedVersion, input.contentHash],
+          'select private.finalize_voice_session($1,$2::uuid,$3,$4,$5::uuid) result',
+          [principal.userId, sessionId, input.expectedVersion, input.contentHash, operationId],
         );
       },
+    );
+  }
+
+  getVoiceBatchResult(principal: ClerkPrincipal, sessionId: string, eventResults = false) {
+    const sql = eventResults
+      ? 'select private.get_voice_batch_event_result($1,$2::uuid) result'
+      : 'select private.get_voice_batch_result($1,$2::uuid) result';
+    return this.ownerJson(principal, sql, [principal.userId, sessionId], eventResults);
+  }
+  listVoiceBatchRecovery(
+    principal: ClerkPrincipal,
+    after: string | null,
+    afterId: string | null,
+    limit: number,
+    eventResults = false,
+  ) {
+    const sql = eventResults
+      ? 'select private.list_voice_batch_event_recovery($1,$2::timestamptz,$3::uuid,$4) result'
+      : 'select private.list_voice_batch_recovery($1,$2::timestamptz,$3::uuid,$4) result';
+    return this.ownerJson(principal, sql, [principal.userId, after, afterId, limit], eventResults);
+  }
+  acceptVoiceBatch(id: string, token: string, decisions: unknown, policy: string) {
+    return this.workerJson(
+      'select private.accept_voice_batch($1::uuid,$2::uuid,$3::jsonb,$4) result',
+      [id, token, JSON.stringify(decisions), policy],
+    );
+  }
+  async finalizeVoiceBatches(limit: number): Promise<number> {
+    limit = Math.min(limit, 25);
+    await this.worker(async (client) => {
+      await client.query('select private.purge_expired_voice_commands($1)', [limit]);
+    });
+    const claims = await this.worker(
+      async (client) =>
+        (
+          await client.query<{ batch_id: string; token: string }>(
+            'select * from private.claim_voice_finalization($1)',
+            [limit],
+          )
+        ).rows,
+    );
+    await this.finalizeVoiceClaims(claims);
+    return claims.length;
+  }
+
+  async finalizeVoiceEpoch(
+    epoch: string,
+    limit: number,
+    bounded = false,
+    continuous = false,
+  ): Promise<boolean> {
+    if (!bounded)
+      await this.worker(async (client) => {
+        await client.query('select private.expire_staging_voice_commands($1::uuid,$2)', [
+          epoch,
+          limit,
+        ]);
+      });
+    const claims = await this.worker(
+      async (client) =>
+        (
+          await client.query<{ batch_id: string; token: string }>(
+            'select * from private.claim_staging_voice_finalization($1::uuid,$2)',
+            [epoch, limit],
+          )
+        ).rows,
+    );
+    return this.finalizeVoiceClaims(
+      claims,
+      bounded
+        ? () => this.closeVoiceEpoch(epoch, 'execution_failed').then(() => undefined)
+        : undefined,
+      continuous,
+    );
+  }
+
+  private async finalizeVoiceClaims(
+    claims: { batch_id: string; token: string }[],
+    stopOnFailure?: () => Promise<void>,
+    continuous = false,
+  ): Promise<boolean> {
+    let failed = false;
+    for (const claim of claims) {
+      try {
+        const events = await this.worker(
+          async (client) =>
+            (
+              await client.query<{ result: { eventId: string }[] }>(
+                'select private.list_voice_finalization_events($1::uuid,$2::uuid) result',
+                [claim.batch_id, claim.token],
+              )
+            ).rows[0]?.result,
+        );
+        for (const next of events ?? []) {
+          try {
+            const receipt = await this.workerJson(
+              continuous
+                ? 'select private.execute_operating_voice_event($1::uuid,$2::uuid,$3::uuid) result'
+                : 'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
+              [claim.batch_id, claim.token, next.eventId],
+            );
+            if (stopOnFailure && receipt.status !== 'committed') {
+              failed = true;
+              await stopOnFailure();
+              break;
+            }
+          } catch (error) {
+            if (continuous && isTransientVoiceError(error)) throw error;
+            const permanent = continuous ? permanentVoiceFailure(error) : null;
+            if (permanent) {
+              await this.workerJson(
+                'select private.fail_operating_voice_event($1::uuid,$2::uuid,$3::uuid) result',
+                [claim.batch_id, claim.token, next.eventId],
+              );
+              try {
+                new PlatformLogger().error('VOICE_FINALIZATION_REJECTED', {
+                  failureStage: 'finalize',
+                  code: permanent,
+                  resourceId: next.eventId,
+                });
+              } catch {
+                /* A diagnostic sink cannot invalidate a durable outcome. */
+              }
+              continue;
+            }
+            if (stopOnFailure) {
+              failed = true;
+              await stopOnFailure();
+              break;
+            }
+            await this.worker(async (client) => {
+              await client.query('select private.retry_voice_event($1::uuid,$2::uuid,$3::uuid)', [
+                claim.batch_id,
+                claim.token,
+                next.eventId,
+              ]);
+            });
+          }
+        }
+      } finally {
+        if (!failed)
+          await this.worker(async (client) => {
+            await client.query(
+              continuous
+                ? 'select private.release_operating_voice_finalization($1::uuid,$2::uuid)'
+                : 'select private.retry_voice_finalization($1::uuid,$2::uuid)',
+              [claim.batch_id, claim.token],
+            );
+          });
+      }
+      if (failed) break;
+    }
+    return !failed;
+  }
+
+  voiceEpochHeartbeat(epoch: string, workerId: string, sourceSha: string) {
+    return this.workerJson('select private.staging_voice_heartbeat($1::uuid,$2,$3) result', [
+      epoch,
+      workerId,
+      sourceSha,
+    ]);
+  }
+  closeVoiceEpoch(epoch: string, reason: string) {
+    return this.workerJson(
+      "select jsonb_build_object('closed',private.close_staging_voice_epoch($1::uuid,$2)) result",
+      [epoch, reason],
+    );
+  }
+  claimVoiceEpochWork(epoch: string, workerId: string, limit: number, lease: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<AiWorkClaim>(
+            'select * from private.claim_staging_voice_work($1::uuid,$2,$3,$4)',
+            [epoch, workerId, limit, lease],
+          )
+        ).rows,
+    );
+  }
+  claimVoiceEpochPurges(epoch: string, workerId: string, limit: number, lease: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<VoicePurgeClaim>(
+            'select * from private.claim_staging_voice_purge($1::uuid,$2,$3,$4)',
+            [epoch, workerId, limit, lease],
+          )
+        ).rows,
     );
   }
 
@@ -164,6 +415,53 @@ export class AiRepository {
 
   getVoiceProposal(principal: ClerkPrincipal, sessionId: string) {
     return this.ownerJson(principal, 'select private.get_voice_proposal($1,$2::uuid) result', [
+      principal.userId,
+      sessionId,
+    ]);
+  }
+
+  beginVoiceUpload(principal: ClerkPrincipal, sessionId: string) {
+    return this.ownerJson(principal, 'select private.begin_voice_upload($1,$2::uuid) result', [
+      principal.userId,
+      sessionId,
+    ]);
+  }
+
+  finishVoiceUpload(principal: ClerkPrincipal, sessionId: string, token: string, hash: string) {
+    return this.ownerJson(
+      principal,
+      'select private.finish_voice_upload($1,$2::uuid,$3::uuid,$4) result',
+      [principal.userId, sessionId, token, hash],
+    );
+  }
+
+  releaseVoiceUpload(principal: ClerkPrincipal, sessionId: string, token: string) {
+    return this.owner(principal, async (client) => {
+      await client.query('select private.release_voice_upload($1,$2::uuid,$3::uuid)', [
+        principal.userId,
+        sessionId,
+        token,
+      ]);
+    });
+  }
+
+  cancelVoiceSession(principal: ClerkPrincipal, sessionId: string, key: string) {
+    return this.idempotent(
+      principal,
+      'ai.voice-session.cancel.' + sessionId,
+      key,
+      {},
+      200,
+      (client) =>
+        this.json(client, 'select private.cancel_voice_session($1,$2::uuid) result', [
+          principal.userId,
+          sessionId,
+        ]),
+    );
+  }
+
+  getVoiceRecovery(principal: ClerkPrincipal, sessionId: string) {
+    return this.ownerJson(principal, 'select private.get_voice_recovery($1,$2::uuid) result', [
       principal.userId,
       sessionId,
     ]);
@@ -308,12 +606,16 @@ export class AiRepository {
     return this.owner(principal, async (client) => {
       const row = (
         await client.query<Record<string, unknown>>(
-          `select id,title,status,last_message_at,version,created_at from public.assistant_conversations where id=$1 and user_id=$2 and status<>'deleted'`,
+          `select id,title,status,last_message_at,version,created_at,updated_at from public.assistant_conversations where id=$1 and user_id=$2 and status<>'deleted'`,
           [id, principal.userId],
         )
       ).rows[0];
       if (!row) throw new Error('AI_CONVERSATION_NOT_FOUND');
-      return publicValue(row) as Record<string, unknown>;
+      // pg returns bigint as text; the public optimistic-lock contract is a safe integer.
+      const version = Number(row.version);
+      if (!Number.isSafeInteger(version) || version < 1)
+        throw new Error('AI_CONVERSATION_SCHEMA_INVALID');
+      return publicValue({ ...row, version }) as Record<string, unknown>;
     });
   }
 
@@ -339,7 +641,7 @@ export class AiRepository {
       principal,
       `ai.assistant-message.create.${conversationId}`,
       key,
-      input,
+      (input.requestIdentity as Record<string, unknown> | undefined) ?? input,
       202,
       async (client, operationId) => {
         const quota = await this.json(
@@ -350,12 +652,15 @@ export class AiRepository {
         if (!quota.allowed) quotaError(quota);
         return this.json(
           client,
-          'select private.enqueue_assistant_message_v2($1,$2::uuid,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::uuid) result',
+          (input.context as Record<string, unknown> | undefined)?.assistantAgent === 1
+            ? 'select private.enqueue_assistant_agent_message($1,$2::uuid,$3,$4,$5::text[],$6::jsonb,$7::jsonb,$8::jsonb,$9,$10::uuid) result'
+            : 'select private.enqueue_assistant_message_v3($1,$2::uuid,$3,$4,$5::text[],$6::jsonb,$7::jsonb,$8::jsonb,$9,$10::uuid) result',
           [
             principal.userId,
             conversationId,
             input.content,
             input.intent,
+            input.contextScope ?? [],
             JSON.stringify(input.context ?? {}),
             JSON.stringify(input.evidence ?? []),
             JSON.stringify(input.history ?? []),
@@ -377,7 +682,7 @@ export class AiRepository {
       principal,
       `ai.assistant-message.create.${conversationId}`,
       key,
-      input,
+      (input.requestIdentity as Record<string, unknown> | undefined) ?? input,
       202,
       (client, operationId) =>
         this.json(
@@ -408,7 +713,8 @@ export class AiRepository {
       `select jsonb_build_object('role',role,'content',content_redacted,'intent',intent) value
        from public.assistant_messages
        where conversation_id=$1 and user_id=$2 and work_status='completed'
-       order by created_at desc,id desc limit least($3,private.ai_history_turn_limit())`,
+       order by created_at desc,coalesce(reply_to_message_id,id) desc,
+         (role='assistant') desc,id desc limit least($3,private.ai_history_turn_limit())`,
       [conversationId, principal.userId, limit],
     ).then((rows) => rows.reverse() as unknown as AssistantTurn[]);
   }
@@ -441,6 +747,53 @@ export class AiRepository {
     );
   }
 
+  async getMessage(principal: ClerkPrincipal, messageId: string) {
+    const rows = await this.ownerValues(
+      principal,
+      `select (to_jsonb(m)-array['user_id','claim_token','claimed_by','lease_until','context_scope','evidence_payload']) || jsonb_build_object(
+       'snapshot',(select to_jsonb(s)-array['user_id','message_id'] from public.assistant_response_snapshots s where s.message_id=m.id),
+       'preview',(select to_jsonb(a)-array['user_id','decision_token','decision_action','decision_lease_until','deleted_at'] from public.assistant_action_previews a where a.message_id=m.id order by a.created_at limit 1)) value
+       from public.assistant_messages m join public.assistant_conversations c on c.id=m.conversation_id
+       where m.id=$1::uuid and m.user_id=$2 and c.user_id=$2 and c.deleted_at is null`,
+      [messageId, principal.userId],
+    );
+    if (!rows[0]) throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return rows[0];
+  }
+
+  async messageAcceptance(principal: ClerkPrincipal, conversationId: string, key: string) {
+    const operationId = this.operationId(
+      principal,
+      `ai.assistant-message.create.${conversationId}`,
+      key,
+    );
+    const rows = await this.ownerValues(
+      principal,
+      `select jsonb_build_object('id',m.id,'status',m.work_status) value from public.assistant_messages m
+       join public.assistant_conversations c on c.id=m.conversation_id
+       where m.user_id=$1 and m.conversation_id=$2::uuid and m.operation_id=$3::uuid and m.role='user' and c.user_id=$1 and c.deleted_at is null`,
+      [principal.userId, conversationId, operationId],
+    );
+    if (!rows[0]) throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return rows[0];
+  }
+
+  async getPreviewTimezone(principal: ClerkPrincipal, previewId: string): Promise<string> {
+    const rows = await this.ownerValues(
+      principal,
+      `select jsonb_build_object('timezone',q.context_payload->>'timezone') value
+       from public.assistant_action_previews p join public.assistant_messages r on r.id=p.message_id
+       join public.assistant_messages q on q.id=r.reply_to_message_id
+       join public.assistant_conversations c on c.id=q.conversation_id
+       where p.id=$1::uuid and p.user_id=$2 and q.user_id=$2 and c.user_id=$2 and c.deleted_at is null`,
+      [previewId, principal.userId],
+    );
+    const timezone = rows[0]?.timezone;
+    if (typeof timezone !== 'string' || !timezone)
+      throw new HttpException({ code: 'AI_EVIDENCE_INCOMPLETE' }, 409);
+    return timezone;
+  }
+
   cancelMessage(principal: ClerkPrincipal, messageId: string) {
     return this.owner(principal, async (client) =>
       Boolean(
@@ -448,6 +801,52 @@ export class AiRepository {
           await client.query<{ result: boolean }>(
             'select private.cancel_assistant_message($1,$2::uuid) result',
             [principal.userId, messageId],
+          )
+        ).rows[0]?.result,
+      ),
+    );
+  }
+
+  claimVoiceAction(
+    principal: ClerkPrincipal,
+    id: string,
+    operationId: string,
+    decision: {
+      expectedVersion: number;
+      editedFields?: Record<string, unknown>;
+      command: unknown;
+      timezoneOffsetMinutes: number;
+    },
+  ) {
+    return this.ownerJson(
+      principal,
+      'select private.claim_voice_action($1::uuid,$2,$3::uuid,$4::jsonb,$5::jsonb,$6) result',
+      [
+        id,
+        decision.expectedVersion,
+        operationId,
+        JSON.stringify(decision.editedFields),
+        JSON.stringify(decision.command),
+        decision.timezoneOffsetMinutes,
+      ],
+    );
+  }
+
+  completeVoiceAction(principal: ClerkPrincipal, id: string, token: string, resourceId: string) {
+    return this.ownerJson(
+      principal,
+      'select private.complete_voice_action($1::uuid,$2::uuid,$3::uuid) result',
+      [id, token, resourceId],
+    );
+  }
+
+  abandonVoiceAction(principal: ClerkPrincipal, id: string, token: string) {
+    return this.owner(principal, async (client) =>
+      Boolean(
+        (
+          await client.query<{ result: boolean }>(
+            'select private.abandon_voice_action($1::uuid,$2::uuid) result',
+            [id, token],
           )
         ).rows[0]?.result,
       ),
@@ -551,11 +950,12 @@ export class AiRepository {
     resource: string,
     afterId: string | null,
     limit: number,
+    filters: Record<string, string> = {},
   ) {
     return this.ownerValues(
       principal,
-      'select value from private.read_admin_ai($1,$2::uuid,$3,false)',
-      [resource, afterId, limit],
+      'select value from private.read_admin_ai_filtered($1,$2::uuid,$3,$4::jsonb)',
+      [resource, afterId, limit, JSON.stringify(filters)],
     );
   }
 
@@ -656,16 +1056,22 @@ export class AiRepository {
   }
 
   claimWork(kind: AiWorkClaim['kind'], workerId: string, limit: number, leaseSeconds: number) {
-    return this.worker(
-      async (client) =>
-        (
-          await client.query<AiWorkClaim>('select * from private.claim_ai_work($1,$2,$3,$4)', [
-            kind,
-            workerId,
-            limit,
-            leaseSeconds,
-          ])
-        ).rows,
+    return this.workerClaims<AiWorkClaim>(
+      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_ai_work($1,$2,$3,$4) work",
+      [kind, workerId, limit, leaseSeconds],
+    );
+  }
+
+  claimAnalysisWork(workerId: string, limit: number, leaseSeconds: number) {
+    return this.workerClaims<AiWorkClaim>(
+      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_voice_analysis_work($1,$2,$3) work",
+      [workerId, limit, leaseSeconds],
+    );
+  }
+  claimAnalysisPurges(workerId: string, limit: number, leaseSeconds: number) {
+    return this.workerClaims<VoicePurgeClaim>(
+      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_voice_analysis_purge($1,$2,$3) work",
+      [workerId, limit, leaseSeconds],
     );
   }
 
@@ -680,6 +1086,58 @@ export class AiRepository {
           id,
           token,
         ]);
+  }
+
+  renewVoiceWork(id: string, token: string, leaseSeconds: number) {
+    return this.worker(
+      async (client) =>
+        (
+          await client.query<{ result: boolean }>(
+            'select private.renew_voice_work($1::uuid,$2::uuid,$3) result',
+            [id, token, leaseSeconds],
+          )
+        ).rows[0]?.result === true,
+    );
+  }
+
+  authorizeVoiceDispatch(
+    id: string,
+    token: string,
+    model: string,
+    provider: string,
+    policy: EffectiveAiRoute,
+  ) {
+    return this.workerJson(
+      'select private.authorize_voice_dispatch($1::uuid,$2::uuid,$3,$4,$5::jsonb) result',
+      [id, token, model, provider, JSON.stringify(policy)],
+    );
+  }
+
+  recordVoiceAttempt(
+    operationId: string,
+    attempt: number,
+    receipt: {
+      usage: { inputTokens: number; outputTokens: number; cost: number };
+      generationId: string;
+      latencyMs: number;
+      fallbackUsed: boolean;
+    } | null,
+    responseReceived: boolean,
+  ) {
+    const safeReceipt = receipt
+      ? {
+          ...receipt.usage,
+          latencyMs: receipt.latencyMs,
+          fallbackUsed: receipt.fallbackUsed,
+          generationHash: createHash('sha256').update(receipt.generationId).digest('hex'),
+        }
+      : null;
+    return this.workerJson('select private.record_voice_attempt($1::uuid,$2,$3::jsonb,$4) result', [
+      operationId,
+      attempt,
+      safeReceipt ? JSON.stringify(safeReceipt) : null,
+      responseReceived,
+    ]);
   }
 
   saveVoiceResult(
@@ -911,12 +1369,26 @@ export class AiRepository {
     });
   }
 
-  private ownerJson(principal: ClerkPrincipal, sql: string, values: readonly unknown[]) {
+  private ownerJson(
+    principal: ClerkPrincipal,
+    sql: string,
+    values: readonly unknown[],
+    repeatableRead = false,
+  ) {
     return this.owner(
       principal,
       async (client) =>
         publicValue(await this.json(client, sql, values)) as Record<string, unknown>,
+      repeatableRead,
     );
+  }
+  private workerClaims<T extends QueryResultRow>(sql: string, values: readonly unknown[]) {
+    // One JSON column avoids repeating every claim column's metadata on empty polls.
+    return this.worker(async (client) => {
+      const row = (await client.query<{ claims: T[] }>(sql, [...values])).rows[0];
+      if (!row || !Array.isArray(row.claims)) throw new Error('AI_RESULT_MISSING');
+      return row.claims;
+    });
   }
   private workerJson(sql: string, values: readonly unknown[]) {
     return this.worker(
@@ -940,8 +1412,12 @@ export class AiRepository {
     if (!result) throw new Error('AI_RESULT_MISSING');
     return result;
   }
-  private owner<T>(principal: ClerkPrincipal, action: (client: PoolClient) => Promise<T>) {
-    return this.transaction('masarifi_api', principal, action);
+  private owner<T>(
+    principal: ClerkPrincipal,
+    action: (client: PoolClient) => Promise<T>,
+    repeatableRead = false,
+  ) {
+    return this.transaction('masarifi_api', principal, action, repeatableRead);
   }
   private worker<T>(action: (client: PoolClient) => Promise<T>) {
     return this.transaction('masarifi_worker', null, action);
@@ -950,9 +1426,12 @@ export class AiRepository {
     role: 'masarifi_api' | 'masarifi_worker',
     principal: ClerkPrincipal | null,
     action: (client: PoolClient) => Promise<T>,
+    repeatableRead = false,
   ): Promise<T> {
     return this.pool.withClient(async (client) => {
-      await client.query('begin');
+      // Negotiated Voice receipts compose multiple capability reads. Keep one
+      // snapshot, while allowing the legacy getter to expire analysis context.
+      await client.query(repeatableRead ? 'begin isolation level repeatable read' : 'begin');
       try {
         if (principal)
           await client.query("select set_config('request.jwt.claims',$1,true)", [
@@ -960,6 +1439,8 @@ export class AiRepository {
               role: 'authenticated',
               sub: principal.userId,
               sid: principal.sessionId,
+              nativeRequest:
+                (principal as ClerkPrincipal & { nativeRequest?: boolean }).nativeRequest === true,
             }),
           ]);
         await client.query(

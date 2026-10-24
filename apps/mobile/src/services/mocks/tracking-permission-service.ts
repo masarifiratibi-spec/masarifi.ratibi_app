@@ -5,24 +5,8 @@ import {
 } from '@/services/contracts/app-shell-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 
-const recoveryByStatus: Record<PermissionState['status'], PermissionState['recoveryAction']> = {
-  not_requested: 'request',
-  granted: 'continue',
-  denied: 'retry',
-  permanently_denied: 'open_settings',
-  revoked: 'open_settings',
-  unavailable: 'continue'
-};
-
-export function permissionState(status: PermissionState['status']): PermissionState {
-  return {
-    id: 'sms',
-    status,
-    blocking: false,
-    recoveryAction: recoveryByStatus[status]
-  };
-}
-
+import { permissionState } from '../platform/permission-state';
+export { permissionState } from '../platform/permission-state';
 export function createMockTrackingPermissionService(
   initial: PermissionState['status'] = 'not_requested'
 ): CapabilityProviderHandle<TrackingPermissionService> & {

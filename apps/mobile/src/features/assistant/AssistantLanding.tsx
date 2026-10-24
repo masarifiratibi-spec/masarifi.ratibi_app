@@ -20,8 +20,11 @@ import type { AssistantQuestionIntent } from '@/services/contracts/assistant-not
 import type { AssistantFinancialInsight } from '@/services/contracts/assistant-notifications-service';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { formatMinorAmount } from '@/utils/format-financial-value';
+import { ActionButton } from '@/design-system/components/ActionButton';
+import { useAssistantFinancialVisibility } from './useAssistantFinancialVisibility';
 
 export interface AssistantLandingProps {
+  initialQuestion?: string;
   onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void;
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
@@ -29,20 +32,24 @@ export interface AssistantLandingProps {
   conversations?: readonly { id: string; title: string }[];
   onSelectConversation?: (id: string) => void;
   loading?: boolean;
+  consentLoading?: boolean;
   error?: string | null;
   onBack?: () => void;
 }
 
 export function AssistantLanding({
+  initialQuestion,
   onAskQuestion,
   consent,
   onEnableConsent,
   insight,
   loading = false,
+  consentLoading = false,
   error = null,
   onBack
 }: AssistantLandingProps) {
   const direction = usePreferenceStore((state) => state.direction);
+  const { hidden, reveal } = useAssistantFinancialVisibility(insight?.id ?? 'no-insight');
 
   const handleBack = () => {
     if (onBack) {
@@ -74,13 +81,13 @@ export function AssistantLanding({
           <AssistantHero />
 
           {/* 3. Main Question Input Card */}
-          <AssistantAskCard onAskQuestion={onAskQuestion} loading={loading} />
+          <AssistantAskCard key={initialQuestion ?? 'general'} initialQuestion={initialQuestion} onAskQuestion={onAskQuestion} loading={loading} />
 
           {/* 4. Personalization Card */}
           <AssistantConsentCard
             consent={consent}
             onEnableConsent={onEnableConsent}
-            loading={loading}
+            loading={consentLoading}
           />
 
           {/* Error message if any */}
@@ -98,10 +105,11 @@ export function AssistantLanding({
 
           {insight ? (
             <SurfaceCard testID="assistant-proactive-insight" style={styles.insightCard}>
-              <StyledText variant="title">{insight.budgetName}</StyledText>
+              <StyledText variant="title">{hidden ? '••••' : insight.budgetName}</StyledText>
               <StyledText>
-                {formatMinorAmount(insight.spentMinor, insight.currency, currentLocale()).replace('\u00a0', ' ')}
+                {hidden ? `•••• ${insight.currency}` : formatMinorAmount(insight.spentMinor, insight.currency, currentLocale()).replace('\u00a0', ' ')}
               </StyledText>
+              {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
             </SurfaceCard>
           ) : null}
         </View>

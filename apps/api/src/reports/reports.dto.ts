@@ -112,22 +112,42 @@ export function normalizeSummaryQuery(
   period: (typeof REPORT_PERIODS)[number];
   anchorDate: string | null;
   currency: string | null;
+  accountIds?: string[];
+  monthStartDay?: number;
 } {
   const input = record(value);
   exact(
     input,
     requireType
-      ? ['type', 'period', 'anchorDate', 'currency']
+      ? ['type', 'period', 'anchorDate', 'currency', 'accountIds', 'monthStartDay']
       : ['period', 'anchorDate', 'currency'],
   );
   if (requireType && input.type === undefined) invalid();
   const currency = input.currency === undefined ? null : text(input.currency, 3, 3);
   if (currency !== null && !/^[A-Z]{3}$/.test(currency)) invalid();
+  let accountIds: string[] | undefined;
+  if (input.accountIds !== undefined) {
+    if (typeof input.accountIds !== 'string') invalid();
+    const ids = input.accountIds.split(',');
+    if (ids.length > 100 || ids.some((id) => !UUID.test(id))) invalid();
+    accountIds = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+  }
+  const monthStartDay = input.monthStartDay === undefined ? undefined : Number(input.monthStartDay);
+  if (
+    monthStartDay !== undefined &&
+    (!/^[0-9]{1,2}$/.test(String(input.monthStartDay)) ||
+      !Number.isInteger(monthStartDay) ||
+      monthStartDay < 1 ||
+      monthStartDay > 28)
+  )
+    invalid();
   return {
+    ...(monthStartDay === undefined ? {} : { monthStartDay }),
     type: requireType ? oneOf(input.type, REPORT_TYPES) : 'financial_summary',
     period: oneOf(input.period, REPORT_PERIODS),
     anchorDate: input.anchorDate === undefined ? null : localDate(input.anchorDate),
     currency,
+    ...(accountIds ? { accountIds } : {}),
   };
 }
 
@@ -138,9 +158,22 @@ export function normalizeCreateReport(value: unknown): {
   format: ReportFormat;
   delivery: DeliveryChannel;
   recipient: string | null;
+  accountIds?: string[];
+  currency?: string;
+  timezone?: string;
 } {
   const input = record(value);
-  exact(input, ['type', 'periodStart', 'periodEnd', 'format', 'delivery', 'recipient']);
+  exact(input, [
+    'type',
+    'periodStart',
+    'periodEnd',
+    'format',
+    'delivery',
+    'recipient',
+    'accountIds',
+    'currency',
+    'timezone',
+  ]);
   const periodStart = localDate(input.periodStart);
   const periodEnd = localDate(input.periodEnd);
   const start = new Date(`${periodStart}T00:00:00.000Z`);
@@ -152,7 +185,23 @@ export function normalizeCreateReport(value: unknown): {
   const recipient =
     input.recipient === undefined || input.recipient === null ? null : email(input.recipient);
   if ((delivery === 'email') !== Boolean(recipient)) invalid();
+  let accountIds: string[] | undefined;
+  if (input.accountIds !== undefined) {
+    if (
+      !Array.isArray(input.accountIds) ||
+      input.accountIds.length < 1 ||
+      input.accountIds.length > 100 ||
+      input.accountIds.some((id) => typeof id !== 'string' || !UUID.test(id))
+    )
+      invalid();
+    accountIds = [...new Set((input.accountIds as string[]).map((id) => id.toLowerCase()))].sort();
+  }
+  const currency = input.currency === undefined ? undefined : text(input.currency, 3, 3);
+  if (currency !== undefined && !/^[A-Z]{3}$/.test(currency)) invalid();
   return {
+    ...(accountIds ? { accountIds } : {}),
+    ...(currency ? { currency } : {}),
+    ...(input.timezone === undefined ? {} : { timezone: timezone(input.timezone) }),
     type: oneOf(input.type, REPORT_TYPES),
     periodStart,
     periodEnd,

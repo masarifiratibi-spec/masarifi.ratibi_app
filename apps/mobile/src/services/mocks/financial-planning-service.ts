@@ -212,11 +212,11 @@ export function createMockFinancialPlanningService(
           );
           const linked = receipts
             .filter(
-              (r) => r.status === 'linked' && r.salaryProfileId === profile.id
+              (r) => r.status === 'linked' && r.receivedDate !== null && r.salaryProfileId === profile.id
             )
-            .sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
+            .sort((a, b) => b.receivedDate!.localeCompare(a.receivedDate!));
           if (linked.length) {
-            const cycleStart = linked[0].receivedDate;
+            const cycleStart = linked[0].receivedDate!;
             const cycleEnd = profile.nextExpectedDate;
             for (const item of schedule) {
               if (item.status === 'cancelled' || item.status === 'paid')
@@ -242,6 +242,16 @@ export function createMockFinancialPlanningService(
       await ensureReady();
       const profile = repository.activeSalaryProfile();
       return profile ? { ...profile } : null;
+    },
+    async listSalaryExpectedDates() {
+      await ensureReady();
+      const profile = repository.activeSalaryProfile();
+      if (!profile) return [];
+      const date = new Date(now());
+      return [-1,0,1].map(offset => {
+        const month = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth()+offset, 1));
+        return expectedDateForMonth(month.getUTCFullYear(), month.getUTCMonth()+1, profile.salaryDay);
+      });
     },
     async getSalaryReceiptReview(transactionId) {
       await ensureReady();
@@ -1031,6 +1041,8 @@ function normalizeObligation(
     direction: input.direction,
     type: input.type,
     scheduleKind: input.scheduleKind,
+    frequency: input.frequency ?? (input.scheduleKind === 'irregular' ? 'irregular' : 'monthly'),
+    customIntervalDays: input.customIntervalDays ?? null,
     title: input.title,
     provider: input.provider ?? null,
     currencyCode: input.currencyCode,
@@ -1084,10 +1096,12 @@ function buildSchedule(obligation: Obligation): ObligationScheduleItem[] {
     sequence: index + 1,
     dueDate: expectedDateForMonth(
       Number(start.slice(0, 4)),
-      Number(start.slice(5, 7)) + index,
+      Number(start.slice(5, 7)) + index * (obligation.frequency === 'yearly' ? 12 : obligation.frequency === 'quarterly' ? 3 : 1),
       obligation.dueDay ?? Number(start.slice(8, 10))
     ),
-    scheduledMinor: amount,
+    scheduledMinor: index === obligation.installmentCount! - 1
+      ? (obligation.contractedTotalMinor ?? amount * obligation.installmentCount!) - obligation.openingPaidMinor - amount * index
+      : amount,
     kind: 'installment' as const,
     status: 'upcoming' as const
   }));

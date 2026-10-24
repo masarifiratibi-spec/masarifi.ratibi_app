@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -22,7 +23,6 @@ import { colorTokens, elevation, spacing } from '@/design-system/tokens';
 import { editorialFontFamilyForLocale } from '@/design-system/typography';
 import {
   emptyTransactionFilters,
-  parseAmountToMinor,
   supportsAutomaticTrackingAccountType,
   type Transaction
 } from '@/domain/core-finance';

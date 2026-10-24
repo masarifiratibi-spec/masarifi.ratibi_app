@@ -53,7 +53,10 @@ select ok(exists(select 1 from pg_policies where schemaname = 'public' and table
 insert into public.profiles (id, status) values
   ('clerk_owner_1', 'active'),
   ('clerk_owner_2', 'active'),
-  ('clerk_inactive', 'suspended');
+  ('clerk_inactive', 'active');
+
+-- Suspend after seeding: frozen-owner payload writes are intentionally forbidden.
+update public.profiles set status='suspended' where id='clerk_inactive';
 
 select set_config('request.jwt.claims', '{"sub":"clerk_owner_1","role":"authenticated"}', true);
 set local role authenticated;

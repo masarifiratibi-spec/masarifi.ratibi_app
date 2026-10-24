@@ -1,17 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import * as Crypto from 'expo-crypto';
+import { useAppShellStore } from '@/state/app-shell';
+import { restoreAppShellSession } from '@/features/auth/session-controller';
+import type { AuthService } from '@/services/contracts/app-shell-service';
 
 import {
   clearAppShellStorageOwner,
   clearAppShellUserData,
   configureAppShellStorageOwner,
-  createAppShellStorage
+  createAppShellStorage,
+  cacheLocalOwnerAccess,
+  loadLocalOwnerAccess,
+  clearLocalOwnerAccess
 } from './app-shell-storage';
 import type {
   AuthenticationSession,
   KeywordRule,
   OnboardingProgress,
+  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -79,6 +87,8 @@ const lock: PrivacyLockPreference = {
   lockedUntil: null,
   appLockStatus: 'locked'
 };
+const credential =
+  `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(32)}` as PinCredential;
 
 beforeEach(() => {
   clearAppShellStorageOwner();
@@ -90,6 +100,65 @@ afterEach(() => {
 });
 
 describe('createAppShellStorage', () => {
+  it.each(['digest', 'migration'] as const)(
+    'does not restore owner access when %s finishes after unavailable-session suspension',
+    async (stage) => {
+      let finish!: () => void;
+      let entered!: () => void;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      if (stage === 'digest')
+        jest.mocked(Crypto.digestStringAsync).mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finish = () => resolve('b'.repeat(64));
+              entered();
+            })
+        );
+      else
+        secureGet.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finish = () => resolve(null);
+              entered();
+            })
+        );
+      await AsyncStorage.setItem(
+        'masarifi.appShell.pendingDestination',
+        '/welcome'
+      );
+      await AsyncStorage.setItem(
+        `masarifi.appShell.pendingDestination.${'b'.repeat(24)}`,
+        '/private'
+      );
+      const configuring = configureAppShellStorageOwner('owner-b');
+      await started;
+      process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+      jest.useFakeTimers();
+      useAppShellStore.setState({ session: null });
+      try {
+        const auth = {
+          restoreSession: () => new Promise(() => undefined)
+        } as AuthService;
+        const restoring = restoreAppShellSession(auth);
+        const rejected = expect(restoring).rejects.toMatchObject({
+          code: 'provider_unavailable',
+          failureSource: 'timeout'
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+        await rejected;
+      } finally {
+        jest.useRealTimers();
+        delete process.env.EXPO_PUBLIC_CLIENT_MODE;
+      }
+      finish();
+      await configuring;
+      expect(await createAppShellStorage().loadPendingDestination()).toBe(
+        '/welcome'
+      );
+    }
+  );
   it('clears every native app-shell user record', async () => {
     await clearAppShellUserData();
 
@@ -137,12 +206,12 @@ describe('createAppShellStorage', () => {
     expect(secureDelete).not.toHaveBeenCalled();
   });
 
-  it('stores native session and privacy lock records in SecureStore', async () => {
+  it('stores native session, privacy lock, and PIN records in SecureStore', async () => {
     const storage = createAppShellStorage();
 
     await storage.saveSession(session);
     await storage.savePrivacyLock(lock);
-    await storage.savePinCredential('pin:123456');
+    await storage.savePinCredential(credential);
     await storage.clearSession();
     await storage.clearPrivacyLock();
     await storage.clearPinCredential();
@@ -157,7 +226,7 @@ describe('createAppShellStorage', () => {
     );
     expect(secureSet).toHaveBeenCalledWith(
       'masarifi.appShell.pinCredential',
-      JSON.stringify('pin:123456')
+      JSON.stringify(credential)
     );
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.privacyLock');
@@ -225,6 +294,25 @@ describe('createAppShellStorage', () => {
     expect(ownerBKey).toMatch(/^masarifi\.appShell\.pendingDestination\./);
   });
 
+  it('loads and saves PIN credentials only in the active owner namespace', async () => {
+    const storage = createAppShellStorage();
+    await configureAppShellStorageOwner('user_owner-a');
+    jest.clearAllMocks();
+    secureGet.mockImplementation(async (key) =>
+      key === `masarifi.appShell.pinCredential.${'a'.repeat(24)}`
+        ? JSON.stringify(credential)
+        : null
+    );
+
+    await storage.savePinCredential(credential);
+
+    await expect(storage.loadPinCredential()).resolves.toBe(credential);
+    expect(secureSet).toHaveBeenCalledWith(
+      `masarifi.appShell.pinCredential.${'a'.repeat(24)}`,
+      JSON.stringify(credential)
+    );
+  });
+
   it('isolates the tracking-card dismissal between authenticated owners', async () => {
     const storage = createAppShellStorage();
     await configureAppShellStorageOwner('user_owner-a');
@@ -244,11 +332,11 @@ describe('createAppShellStorage', () => {
     );
   });
 
-  it('moves a legacy PIN and privacy lock into the first verified owner namespace', async () => {
+  it('moves a valid legacy PIN and privacy lock into the first owner namespace', async () => {
     secureGet.mockImplementation(async (key) => {
       if (key === 'masarifi.appShell.privacyLock') return JSON.stringify(lock);
       if (key === 'masarifi.appShell.pinCredential')
-        return JSON.stringify('pin:123456');
+        return JSON.stringify(credential);
       return null;
     });
 
@@ -260,12 +348,46 @@ describe('createAppShellStorage', () => {
     );
     expect(secureSet).toHaveBeenCalledWith(
       `masarifi.appShell.pinCredential.${'a'.repeat(24)}`,
-      JSON.stringify('pin:123456')
+      JSON.stringify(credential)
     );
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.privacyLock');
     expect(secureDelete).toHaveBeenCalledWith(
       'masarifi.appShell.pinCredential'
     );
+  });
+
+  it.each(['pin:123456', 'corrupt'])(
+    'removes an invalid legacy PIN without copying it: %s',
+    async (invalidCredential) => {
+      secureGet.mockImplementation(async (key) =>
+        key === 'masarifi.appShell.pinCredential'
+          ? JSON.stringify(invalidCredential)
+          : null
+      );
+
+      await configureAppShellStorageOwner('user_owner-a');
+
+      expect(secureSet).not.toHaveBeenCalledWith(
+        expect.stringContaining('pinCredential'),
+        expect.any(String)
+      );
+      expect(secureDelete).toHaveBeenCalledWith(
+        'masarifi.appShell.pinCredential'
+      );
+    }
+  );
+
+  it('removes an invalid owner PIN when it is loaded', async () => {
+    const ownerKey = `masarifi.appShell.pinCredential.${'a'.repeat(24)}`;
+    secureGet.mockImplementation(async (key) =>
+      key === ownerKey ? JSON.stringify('pin:123456') : null
+    );
+
+    await configureAppShellStorageOwner('user_owner-a');
+    const storage = createAppShellStorage();
+
+    await expect(storage.loadPinCredential()).resolves.toBeNull();
+    expect(secureDelete).toHaveBeenCalledWith(ownerKey);
   });
 
   it('returns null or empty defaults for missing and corrupt records', async () => {
@@ -294,6 +416,7 @@ describe('createAppShellStorage', () => {
     try {
       await storage.saveSession(session);
       await storage.savePrivacyLock(lock);
+      await storage.savePinCredential(credential);
     } finally {
       Object.defineProperty(Platform, 'OS', {
         configurable: true,
@@ -309,6 +432,51 @@ describe('createAppShellStorage', () => {
       'masarifi.appShell.preview.privacyLock',
       JSON.stringify(lock)
     );
+    expect(asyncSet).toHaveBeenCalledWith(
+      'masarifi.appShell.preview.masarifi.appShell.pinCredential',
+      JSON.stringify(credential)
+    );
     expect(secureSet).not.toHaveBeenCalled();
   });
+});
+
+it('serializes cached-owner writes so a delayed previous owner cannot replace current admission', async () => {
+  const values = new Map<string, string>();
+  let release!: () => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let first = true;
+  secureSet.mockImplementation(async (key, value) => {
+    if (key === 'masarifi.appShell.localOwner.v1' && first) {
+      first = false;
+      entered();
+      await delayed;
+    }
+    values.set(key, value);
+  });
+  secureGet.mockImplementation(async (key) => values.get(key) ?? null);
+  secureDelete.mockImplementation(async (key) => {
+    values.delete(key);
+  });
+  try {
+    await configureAppShellStorageOwner('user_owner-a');
+    const a = cacheLocalOwnerAccess({ ...session, userId: 'user_owner-a' });
+    await started;
+    await configureAppShellStorageOwner('user_owner-b');
+    const b = cacheLocalOwnerAccess({ ...session, userId: 'user_owner-b' });
+    release();
+    await Promise.all([a, b]);
+    expect((await loadLocalOwnerAccess())?.userId).toBe('user_owner-b');
+    await clearLocalOwnerAccess();
+    expect(await loadLocalOwnerAccess()).toBeNull();
+  } finally {
+    secureSet.mockReset();
+    secureGet.mockReset();
+    secureDelete.mockReset();
+  }
 });

@@ -1,0 +1,499 @@
+import React from 'react';
+import {
+  act,
+  render,
+  waitFor,
+  screen,
+  fireEvent
+} from '@testing-library/react-native';
+import { Text } from 'react-native';
+import Constants from 'expo-constants';
+
+import {
+  MobileIdentityProvider,
+  getLiveClerkDisplayName,
+  useLiveClerkSessionKey,
+  useLiveIdentityStatus
+} from './clerk-provider';
+import { getClerkInstance } from '@clerk/expo';
+import type { LiveClerkBridge } from './auth-service';
+
+let authState = {
+  getToken: jest.fn(),
+  isLoaded: true,
+  isSignedIn: true,
+  sessionClaims: { exp: 2, iat: 1 },
+  sessionId: 'session-1',
+  signOut: jest.fn(),
+  userId: 'user-1'
+};
+const mockUseAuth = jest.fn(() => authState);
+const mockRegisterLiveClerkBridge = jest.fn();
+const mockStartSSOFlow = jest.fn();
+const mockProviderInitialize = jest.fn();
+const mockProviderMounted = { current: false };
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { scheme: 'masarifi' } }
+}));
+
+it.each(['user-1', 'user-other', null])(
+  'only returns the current authenticated owner name for %s',
+  (ownerId) => {
+    jest
+      .mocked(getClerkInstance)
+      .mockReturnValue({
+        user: { id: 'user-1', fullName: 'Provider Person' }
+      } as never);
+    expect(getLiveClerkDisplayName(ownerId)).toBe(
+      ownerId === 'user-1' ? 'Provider Person' : null
+    );
+  }
+);
+
+jest.mock('@clerk/expo', () => ({
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => {
+    const React = jest.requireActual('react');
+    React.useState(() => { mockProviderInitialize(mockProviderMounted.current); return true; });
+    React.useEffect(() => {
+      mockProviderMounted.current = true;
+      return () => { mockProviderMounted.current = false; };
+    }, []);
+    return children;
+  },
+  getClerkInstance: jest.fn(),
+  useAuth: () => mockUseAuth(),
+  useSignIn: () => ({ signIn: {} }),
+  useSignUp: () => ({ signUp: {} })
+}));
+jest.mock('@clerk/expo/experimental', () => ({
+  useSSO: () => ({ startSSOFlow: mockStartSSOFlow })
+}));
+jest.mock('@/config/client-runtime', () => ({
+  resolveClientRuntime: () => ({
+    clerkPublishableKey: 'pk_test_staging',
+    mode: 'live'
+  })
+}));
+jest.mock('./auth-service', () => ({
+  registerLiveClerkBridge: (bridge: unknown) =>
+    mockRegisterLiveClerkBridge(bridge)
+}));
+
+function SessionProbe() {
+  useLiveClerkSessionKey();
+  return null;
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockProviderInitialize.mockReset();
+  mockProviderMounted.current = false;
+  authState = {
+    getToken: jest.fn(),
+    isLoaded: true,
+    isSignedIn: true,
+    sessionClaims: { exp: 2, iat: 1 },
+    sessionId: 'session-1',
+    signOut: jest.fn(),
+    userId: 'user-1'
+  };
+});
+
+it('synchronizes a stable Clerk session without another state update pass', async () => {
+  const rendered = render(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+
+  await waitFor(() => expect(mockUseAuth).toHaveBeenCalledTimes(2));
+  rendered.rerender(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await act(async () => Promise.resolve());
+
+  expect(mockUseAuth).toHaveBeenCalledTimes(3);
+  expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(1);
+});
+
+it('reinstalls the bridge once when the Clerk session identity changes', async () => {
+  const rendered = render(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await waitFor(() =>
+    expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(1)
+  );
+
+  authState = { ...authState, sessionId: 'session-2' };
+  rendered.rerender(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await waitFor(() =>
+    expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(2)
+  );
+
+  rendered.rerender(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  await act(async () => Promise.resolve());
+  expect(mockRegisterLiveClerkBridge).toHaveBeenCalledTimes(2);
+});
+
+it('restores the active Clerk session expiry instead of the short-lived JWT expiry', async () => {
+  jest.mocked(getClerkInstance).mockReturnValue({
+    user: { id: 'user-1' },
+    session: {
+      id: 'session-1',
+      status: 'active',
+      lastActiveAt: new Date(1000),
+      expireAt: new Date(4_000_000_000_000)
+    }
+  } as never);
+  render(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  const bridge = mockRegisterLiveClerkBridge.mock.calls.at(
+    -1
+  )![0] as LiveClerkBridge;
+  expect(await bridge.getSession()).toMatchObject({
+    expiresAt: 4_000_000_000_000
+  });
+});
+
+it.each(['new', 'existing'] as const)(
+  'accepts an SDK-activated %s Google session without activating it twice',
+  async (kind) => {
+    const setActive = jest.fn();
+    jest.mocked(getClerkInstance).mockReturnValue({
+      user: { id: 'user-1' },
+      setActive,
+      session: {
+        id: 'session-1',
+        status: 'active',
+        lastActiveAt: new Date(1000),
+        expireAt: new Date(4_000_000_000_000)
+      }
+    } as never);
+    mockStartSSOFlow.mockResolvedValue({
+      createdSessionId: kind === 'new' ? 'session-1' : null,
+      signIn: {
+        status: 'complete',
+        existingSession: kind === 'existing' ? { sessionId: 'session-1' } : null
+      },
+      authSessionResult: { type: 'success' }
+    });
+    render(
+      <MobileIdentityProvider>
+        <SessionProbe />
+      </MobileIdentityProvider>
+    );
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(
+      -1
+    )![0] as LiveClerkBridge;
+    let session: unknown;
+    await act(async () => {
+      session = await bridge.signInWithGoogle();
+    });
+    expect(session).toMatchObject({ id: 'session-1', userId: 'user-1' });
+    expect(setActive).not.toHaveBeenCalled();
+  }
+);
+
+it.each([
+  ['masarifi', 'masarifi://sso-callback'],
+  ['masarifi-dev', 'masarifi-dev://sso-callback'],
+  ['masarifi-dev-privacy', 'masarifi-dev-privacy://sso-callback']
+])('returns Google authentication to the installed %s app', async (scheme, redirectUrl) => {
+  const config = Constants.expoConfig!;
+  const previousScheme = config.scheme;
+  config.scheme = scheme;
+  try {
+    mockStartSSOFlow.mockResolvedValue({ authSessionResult: { type: 'cancel' } });
+    render(
+      <MobileIdentityProvider>
+        <SessionProbe />
+      </MobileIdentityProvider>
+    );
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => { await bridge.signInWithGoogle(); });
+    expect(mockStartSSOFlow).toHaveBeenCalledWith({ strategy: 'oauth_google', redirectUrl });
+  } finally {
+    config.scheme = previousScheme;
+  }
+});
+
+it('does not misclassify incomplete Google registration as cancellation', async () => {
+  mockStartSSOFlow.mockResolvedValue({
+    createdSessionId: null,
+    signUp: { status: 'missing_requirements' },
+    authSessionResult: { type: 'success' }
+  });
+  render(
+    <MobileIdentityProvider>
+      <SessionProbe />
+    </MobileIdentityProvider>
+  );
+  const bridge = mockRegisterLiveClerkBridge.mock.calls.at(
+    -1
+  )![0] as LiveClerkBridge;
+  await act(async () => {
+    await expect(bridge.signInWithGoogle()).rejects.toThrow(
+      'googleAuth.incomplete'
+    );
+  });
+});
+
+it('reports a development SSO rejection without exposing OAuth contents', async () => {
+  const config = Constants.expoConfig!;
+  const oldScheme = config.scheme;
+  const oldUrl = process.env.EXPO_PUBLIC_API_URL;
+  config.scheme = 'masarifi-dev';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const failure = { status: 422, errors: [{ code: 'form_redirect_url_invalid', message: 'private nonce and email' }] };
+  mockStartSSOFlow.mockRejectedValue(failure);
+  try {
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => { await expect(bridge.signInWithGoogle()).rejects.toBe(failure); });
+    expect(screen.getByText('error')).toBeOnTheScreen();
+    expect(log.mock.calls.filter(([label]) => label === 'DEV_AUTH_DIAG')).toEqual([
+      ['DEV_AUTH_DIAG', expect.stringContaining('"stage":"sso_start"')],
+      ['DEV_AUTH_DIAG', expect.stringContaining('"stage":"sso_failure"')]
+    ]);
+    const output = log.mock.calls.map((args) => args.join(' ')).join(' ');
+    expect(output).toContain('form_redirect_url_invalid');
+    expect(output).not.toMatch(/nonce|email|private/);
+  } finally {
+    log.mockRestore();
+    config.scheme = oldScheme;
+    process.env.EXPO_PUBLIC_API_URL = oldUrl;
+  }
+});
+
+function StatusProbe() {
+  const identity = useLiveIdentityStatus();
+  return <Text onPress={identity.retry}>{identity.status}</Text>;
+}
+
+it('recovers an offline cold start when native Clerk is ready but React auth resources never hydrated', async () => {
+  // DEF-027 physical DEV06: reconnect closed the popup but left startup loading indefinitely.
+  jest.useFakeTimers();
+  authState = { ...authState, isLoaded: false };
+  const clerk = { status: 'ready', load: jest.fn(async () => undefined) };
+  jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
+  mockProviderInitialize.mockImplementationOnce(() => {}).mockImplementationOnce((previousProviderMounted) => {
+    // The real SDK releases its React singleton during the preceding unmount cleanup.
+    if (!previousProviderMounted) authState = { ...authState, isLoaded: true };
+  });
+  function RecoveryProbe() {
+    const identity = useLiveIdentityStatus();
+    const session = useLiveClerkSessionKey();
+    return <Text onPress={identity.retry}>{identity.status}:{session ?? 'unresolved'}</Text>;
+  }
+  try {
+    render(<MobileIdentityProvider><RecoveryProbe /></MobileIdentityProvider>);
+    expect(screen.getByText('loading:unresolved')).toBeOnTheScreen();
+    await act(async () => { await jest.advanceTimersByTimeAsync(30_000); });
+    fireEvent.press(screen.getByText('unavailable:unresolved'));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText('ready:session-1')).toBeOnTheScreen();
+    expect(authState.signOut).not.toHaveBeenCalled();
+  } finally { jest.useRealTimers(); }
+});
+
+it('keeps SSO progress in the identity provider across callback screen remounts and terminates cancellation', async () => {
+  let finish!: (value: unknown) => void;
+  mockStartSSOFlow.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    })
+  );
+  const view = render(
+    <MobileIdentityProvider>
+      <StatusProbe />
+    </MobileIdentityProvider>
+  );
+  const bridge = mockRegisterLiveClerkBridge.mock.calls.at(
+    -1
+  )![0] as LiveClerkBridge;
+  let attempt!: Promise<unknown>;
+  act(() => {
+    attempt = bridge.signInWithGoogle();
+  });
+  expect(screen.getByText('sso')).toBeOnTheScreen();
+  view.rerender(
+    <MobileIdentityProvider>
+      <StatusProbe key="callback-return" />
+    </MobileIdentityProvider>
+  );
+  expect(screen.getByText('sso')).toBeOnTheScreen();
+  await act(async () => {
+    finish({ authSessionResult: { type: 'cancel' } });
+    await attempt;
+  });
+  expect(screen.getByText('cancelled')).toBeOnTheScreen();
+});
+
+it('terminates stalled Clerk initialization with a recoverable connection state', async () => {
+  jest.useFakeTimers();
+  authState = { ...authState, isLoaded: false };
+  jest.mocked(getClerkInstance).mockReturnValue({ status: 'loading' } as never);
+  render(
+    <MobileIdentityProvider>
+      <StatusProbe />
+    </MobileIdentityProvider>
+  );
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(30_000);
+  });
+  expect(screen.getByText('unavailable')).toBeOnTheScreen();
+  jest.useRealTimers();
+});
+
+it('terminates a stalled Clerk startup Retry as well as the first attempt', async () => {
+  jest.useFakeTimers();
+  authState = { ...authState, isLoaded: false };
+  jest.mocked(getClerkInstance).mockReturnValue({
+    status: 'loading',
+    load: () => new Promise(() => {})
+  } as never);
+  render(
+    <MobileIdentityProvider>
+      <StatusProbe />
+    </MobileIdentityProvider>
+  );
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(30_000);
+  });
+  fireEvent.press(screen.getByText('unavailable'));
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(30_000);
+  });
+  try {
+    expect(screen.getByText('unavailable')).toBeOnTheScreen();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it.each(['ready', 'degraded'] as const)(
+  'retries with Expo native initialization options and reports actual %s SDK status',
+  async (status) => {
+    authState = { ...authState, isLoaded: false };
+    const clerk = {
+      status: 'error',
+      load: jest.fn(async () => {
+        clerk.status = status;
+        if (status === 'ready') authState = { ...authState, isLoaded: true };
+      })
+    };
+    jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
+    render(
+      <MobileIdentityProvider>
+        <StatusProbe />
+      </MobileIdentityProvider>
+    );
+    fireEvent.press(screen.getByText('error'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(clerk.load).toHaveBeenCalledWith(
+      expect.objectContaining({
+        standardBrowser: false,
+        experimental: expect.objectContaining({
+          runtimeEnvironment: 'headless'
+        })
+      })
+    );
+    expect(
+      screen.getByText(status === 'ready' ? 'ready' : 'error')
+    ).toBeOnTheScreen();
+  }
+);
+
+it.each(['network_error', 'invalid_publishable_key'] as const)(
+  'keeps %s retry failures in the appropriate recovery state',
+  async (code) => {
+    authState = { ...authState, isLoaded: false };
+    jest.mocked(getClerkInstance).mockReturnValue({
+      status: 'error',
+      load: jest.fn(async () => { throw Object.assign(new Error('Clerk load failed'), { code }); })
+    } as never);
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    fireEvent.press(screen.getByText('error'));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText(code === 'network_error' ? 'unavailable' : 'error')).toBeOnTheScreen();
+  }
+);
+
+it('keeps Google retry available when development diagnostic logging throws', async () => {
+  const config = Constants.expoConfig!;
+  const previousScheme = config.scheme;
+  const previousUrl = process.env.EXPO_PUBLIC_API_URL;
+  config.scheme = 'masarifi-dev';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const log = jest.spyOn(console, 'info').mockImplementation(() => {
+    throw new Error('Diagnostic sink unavailable');
+  });
+  mockStartSSOFlow.mockResolvedValue({ authSessionResult: { type: 'cancel' } });
+  try {
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(mockStartSSOFlow).toHaveBeenCalledTimes(2);
+  } finally {
+    log.mockRestore();
+    config.scheme = previousScheme;
+    process.env.EXPO_PUBLIC_API_URL = previousUrl;
+  }
+});
+
+it('retains the provider failure and releases Google pending state when diagnostics fail', async () => {
+  const config = Constants.expoConfig!;
+  const previousScheme = config.scheme;
+  const previousUrl = process.env.EXPO_PUBLIC_API_URL;
+  config.scheme = 'masarifi-dev';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+  const providerError = new Error('Provider unavailable');
+  const log = jest.spyOn(console, 'info').mockImplementation(() => {
+    throw new Error('Diagnostic sink unavailable');
+  });
+  mockStartSSOFlow.mockRejectedValueOnce(providerError)
+    .mockResolvedValueOnce({ authSessionResult: { type: 'cancel' } });
+  try {
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).rejects.toBe(providerError);
+    });
+    expect(screen.getByText('error')).toBeOnTheScreen();
+    await act(async () => {
+      await expect(bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(mockStartSSOFlow).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+  } finally {
+    log.mockRestore();
+    config.scheme = previousScheme;
+    process.env.EXPO_PUBLIC_API_URL = previousUrl;
+  }
+});

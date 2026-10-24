@@ -13,7 +13,6 @@ import type {
 } from "./contracts";
 import {
   useAbuseReports,
-  useAudiencePreview,
   useCampaignAction,
   useCampaignDetail,
   useCampaigns,
@@ -27,10 +26,7 @@ import {
   useNotificationOverview,
   useSupportCategories,
   useSupportOverview,
-  useSupportTicketDetail,
-  useSupportTickets,
   useTemplates,
-  useTicketAction,
   useTransactionalTemplates,
 } from "./hooks";
 import {
@@ -38,6 +34,10 @@ import {
   type OperationalFilterState,
 } from "./shared/OperationalFilters";
 import { SafeText } from "./shared/SafeText";
+import {
+  SupportTicketList,
+  SupportTicketConversation,
+} from "./SupportTicketViews";
 
 type QueryLike<T> = {
   data?: T;
@@ -226,7 +226,13 @@ function RecordTable({
               <span>{getStatusLabel(locale, item.state)}</span>
             </div>
             <strong>
-              <SafeText text={item.title} />
+              {detailBase ? (
+                <Link href={`${detailBase}/${item.id}`}>
+                  <SafeText text={item.title} />
+                </Link>
+              ) : (
+                <SafeText text={item.title} />
+              )}
             </strong>
             {item.subtitle && (
               <p>
@@ -358,14 +364,40 @@ export function SupportOverviewRoute() {
   const query = useSupportOverview({});
   const { locale } = useLocale();
   const c = copy[locale];
+  const metricLabels: Record<string, string> =
+    locale === "ar"
+      ? {
+          total: "كل التذاكر",
+          unassigned: "غير مكلّفة",
+          open: "مفتوحة",
+          waiting_support: "بانتظار الدعم",
+          waiting_customer: "بانتظار العميل",
+          resolved: "محلولة",
+          closed: "مغلقة",
+        }
+      : {
+          total: "All tickets",
+          unassigned: "Unassigned",
+          open: "Open",
+          waiting_support: "Waiting for support",
+          waiting_customer: "Waiting for customer",
+          resolved: "Resolved",
+          closed: "Closed",
+        };
   return (
     <div className="page">
       <PageState query={query} permission="support.overview.read">
         {(data) => (
           <>
             <PageHeader
-              title={data.title}
-              description={data.description}
+              title={
+                locale === "ar" ? "نظرة عامة على الدعم" : "Support overview"
+              }
+              description={
+                locale === "ar"
+                  ? "عبء العمل الحالي من جميع التذاكر المحفوظة."
+                  : "Current workload across all stored tickets."
+              }
               actions={
                 <Link className="button" href="/admin/support/tickets">
                   {c.openTickets}
@@ -378,7 +410,7 @@ export function SupportOverviewRoute() {
                   <MetricCard
                     key={metric.key}
                     metric={{
-                      label: metric.label,
+                      label: metricLabels[metric.key] ?? metric.label,
                       value: String(metric.value),
                       context: metric.denominator,
                     }}
@@ -386,10 +418,12 @@ export function SupportOverviewRoute() {
                 ),
               )}
             </div>
-            <RecordTable
-              items={data.items}
-              detailBase="/admin/support/tickets"
-            />
+            {data.items.length > 0 && (
+              <RecordTable
+                items={data.items}
+                detailBase="/admin/support/tickets"
+              />
+            )}
           </>
         )}
       </PageState>
@@ -398,60 +432,11 @@ export function SupportOverviewRoute() {
 }
 
 export function SupportTicketsRoute() {
-  const query = useSupportTickets({ page: 1, pageSize: "25" });
-  const { locale } = useLocale();
-  const pageQuery = {
-    ...query,
-    data: query.data
-      ? {
-          ...query.data,
-          items: query.data.tickets,
-          region: { availability: "available" as const },
-        }
-      : undefined,
-  };
-  return (
-    <ListShell
-      title={copy[locale].supportTickets}
-      description={copy[locale].supportTicketsDescription}
-      query={pageQuery}
-      permission="support.tickets.read"
-      detailBase="/admin/support/tickets"
-    />
-  );
+  return <SupportTicketList />;
 }
 
 export function SupportTicketDetailRoute({ ticketId }: { ticketId: string }) {
-  const query = useSupportTicketDetail(ticketId);
-  const mutation = useTicketAction();
-  const { locale } = useLocale();
-  return (
-    <PageState query={query} permission="support.tickets.read">
-      {(item) => (
-        <Detail
-          item={item}
-          action={
-            <button
-              className="button primary"
-              disabled={mutation.isPending}
-              onClick={() =>
-                mutation.mutate({
-                  ticketId,
-                  action: {
-                    action: "resolve",
-                    expectedVersion: item.revision,
-                    reason: "Resolved by support administrator",
-                  },
-                })
-              }
-            >
-              {locale === "ar" ? "حل التذكرة" : "Resolve"}
-            </button>
-          }
-        />
-      )}
-    </PageState>
-  );
+  return <SupportTicketConversation ticketId={ticketId} />;
 }
 
 export function SupportCategoriesRoute() {
@@ -465,8 +450,7 @@ export function SupportCategoriesRoute() {
           : "Manage routing categories and retirement replacements."
       }
       query={useSupportCategories({})}
-      permission="support.categories.manage"
-      detailBase="/admin/support/categories"
+      permission="support.categories.read"
     />
   );
 }
@@ -734,36 +718,20 @@ export function CampaignDetailRoute({ campaignId }: { campaignId: string }) {
 }
 
 export function CampaignNewRoute() {
-  const preview = useAudiencePreview({
-    channel: "push",
-    platform: "all",
-    locale: "both",
-  });
   const { locale } = useLocale();
-  const c = copy[locale];
   return (
     <div className="page">
       <PageHeader
-        title={c.newCampaign}
-        description={c.campaignNewDescription}
+        title={copy[locale].newCampaign}
+        description={
+          locale === "ar"
+            ? "إنشاء الحملات المتقدمة مؤجل ضمن الخطة الحالية."
+            : "Advanced campaign creation is deferred in the current plan."
+        }
       />
-      <PageState query={preview} permission="notifications.audience.preview">
-        {(data) => (
-          <section className="table-card" aria-label={c.audiencePreview}>
-            <h2>{c.audiencePreview}</h2>
-            <p>
-              {c.eligible}: {data.eligibleCount}; {c.optedOut}:{" "}
-              {data.optedOutCount}; excluded: {data.excludedCount}
-            </p>
-            <Link
-              className="button primary"
-              href="/admin/notifications/campaigns/CMP-1001"
-            >
-              {c.reviewCampaign}
-            </Link>
-          </section>
-        )}
-      </PageState>
+      <button className="button" disabled>
+        {locale === "ar" ? "غير متاح بعد" : "Not available yet"}
+      </button>
     </div>
   );
 }

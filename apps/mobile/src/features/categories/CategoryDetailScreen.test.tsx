@@ -62,6 +62,7 @@ it('keeps system category lifecycle read-only', () => {
   expect(
     screen.queryByText(translate('coreFinance.categories.merge'))
   ).toBeNull();
+  expect(screen.queryByRole('button', { name: translate('coreFinance.categories.edit') })).toBeNull();
 });
 
 it('fetches and shows canonical usage before changing category lifecycle', async () => {

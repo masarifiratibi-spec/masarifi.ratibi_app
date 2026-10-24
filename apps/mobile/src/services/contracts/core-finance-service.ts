@@ -1,5 +1,6 @@
 import type {
   Account,
+  AccountBalanceProjection,
   AccountInput,
   Category,
   CategoryInput,
@@ -38,12 +39,13 @@ export interface TransactionPage {
   total?: number;
 }
 
-export interface AccountBalanceProjection {
-  accountId: string;
-  balanceMinor: number;
-  currencyCode: string;
-  asOf?: number | null;
+export interface HomeTodayActivity {
+  transaction: Transaction;
+  group: 'expense' | 'income';
+  sign: 'negative' | 'positive';
 }
+
+export type { AccountBalanceProjection } from '@/domain/core-finance';
 
 export interface MutationResult<T> {
   value: T;
@@ -89,13 +91,23 @@ export interface DeleteResult extends MutationResult<Transaction> {
 }
 
 export interface CoreFinanceService {
+  getHomeTodayActivity(
+    filters: TransactionFilterSet,
+    signal?: AbortSignal
+  ): Promise<HomeTodayActivity[]>;
   getHomeSummary(
     profileCurrency: string,
-    filters?: TransactionFilterSet
+    filters?: TransactionFilterSet,
+    context?: import('./read-context').ReadContext
   ): Promise<HomeSummary>;
-  listAccounts(includeArchived?: boolean): Promise<Account[]>;
+  listAccounts(
+    includeArchived?: boolean,
+    context?: import('./read-context').ReadContext
+  ): Promise<Account[]>;
   listAccountBalances(
-    includeArchived?: boolean
+    includeArchived?: boolean,
+    context?: import('./read-context').ReadContext,
+    accountIds?: readonly string[]
   ): Promise<AccountBalanceProjection[]>;
   getAccount(id: string): Promise<Account>;
   createAccount(input: AccountInput): Promise<MutationResult<Account>>;
@@ -128,7 +140,8 @@ export interface CoreFinanceService {
   listTransactions(
     filters: TransactionFilterSet,
     cursor?: string | null,
-    pageSize?: number
+    pageSize?: number,
+    signal?: AbortSignal
   ): Promise<TransactionPage>;
   getTransaction(id: string): Promise<Transaction>;
   getRemainingRefundableMinor(
@@ -138,7 +151,8 @@ export interface CoreFinanceService {
   createTransaction(
     input: TransactionInput,
     operationId?: string,
-    source?: Transaction['source']
+    source?: Transaction['source'],
+    preparedVersion?: number
   ): Promise<MutationResult<Transaction>>;
   createCardPayoff(
     input: CardPayoffInput,
@@ -188,7 +202,15 @@ export type CoreFinanceErrorCode =
   | 'unknown';
 
 export class CoreFinanceError extends Error {
-  constructor(public readonly code: CoreFinanceErrorCode) {
+  constructor(
+    public readonly code: CoreFinanceErrorCode,
+    public readonly metadata?: {
+      domainCode?: string;
+      status?: number;
+      requestId?: string;
+      uncertain?: boolean;
+    }
+  ) {
     super(code);
     this.name = 'CoreFinanceError';
   }

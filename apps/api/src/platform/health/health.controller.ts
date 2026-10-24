@@ -15,6 +15,36 @@ import { HealthService, type LivenessResponse, type ReadinessResponse } from './
 export class HealthController {
   constructor(private readonly health: HealthService) {}
 
+  @Get('compatibility')
+  @ApiOperation({ operationId: 'getRuntimeCompatibility' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        schemaVersion: { type: 'integer', enum: [1] },
+        contracts: { type: 'object', additionalProperties: { type: 'integer' } },
+      },
+      required: ['schemaVersion', 'contracts'],
+    },
+  })
+  compatibility() {
+    // Protocol versions identify interoperability, not an immutable image.
+    // Readiness and behavioral candidate gates remain separate requirements.
+    return {
+      schemaVersion: 1,
+      contracts: {
+        voiceSession: 2,
+        voiceBatch: 3,
+        voiceExtraction: 3,
+        voiceWorker: 1,
+        voiceConfirmation: 2,
+        assistantDirect: 2,
+        assistantProvider: 1,
+        manualReceipt: 1,
+      },
+    };
+  }
+
   @Get('live')
   @ApiOperation({ operationId: 'getLiveness' })
   @ApiOkResponse({ type: LivenessResponseDto })

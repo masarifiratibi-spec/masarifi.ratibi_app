@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   TextInput,
   Pressable,
   StyleSheet,
   Text,
-  KeyboardAvoidingView,
   Platform
 } from 'react-native';
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -15,7 +14,8 @@ import { radius, spacing } from '@/design-system/tokens';
 import { colorTokens } from '@/design-system/tokens';
 
 export interface AssistantComposerProps {
-  onSendMessage: (message: string) => void;
+  /** True acknowledges a successful send; false preserves the question for recovery. */
+  onSendMessage: (message: string) => Promise<boolean>;
   loading?: boolean;
 }
 
@@ -24,84 +24,87 @@ export function AssistantComposer({
   loading = false
 }: AssistantComposerProps) {
   const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const sending = useRef(false);
+  const draftRevision = useRef(0);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const disabled = !text.trim() || loading || submitting;
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    onSendMessage(trimmed);
-    setText('');
+    if (!trimmed || loading || sending.current) return;
+    const sentRevision = draftRevision.current;
+    sending.current = true;
+    setSubmitting(true);
+    try {
+      const accepted = await onSendMessage(trimmed);
+      if (accepted && draftRevision.current === sentRevision) setText('');
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-      style={styles.keyboardContainer}
+    <View
+      testID="assistant-composer"
+      style={[
+        styles.container,
+        { flexDirection: isRtl ? 'row-reverse' : 'row' }
+      ]}
     >
-      <View
-        testID="assistant-composer"
-        style={[
-          styles.container,
-          { flexDirection: isRtl ? 'row-reverse' : 'row' }
-        ]}
+      {/* Leading Sparkle Button */}
+      <Pressable
+        style={styles.actionBtn}
+        accessibilityLabel={translate('assistant.hero.title')}
+        accessibilityRole="button"
       >
-        {/* Leading Sparkle Button */}
-        <Pressable
-          style={styles.actionBtn}
-          accessibilityLabel={translate('assistant.hero.title')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.actionIcon}>✨</Text>
-        </Pressable>
+        <Text style={styles.actionIcon}>✨</Text>
+      </Pressable>
 
-        {/* Input Field */}
-        <View style={styles.inputWrapper}>
-          <TextInput
-            testID="assistant-composer-input"
-            value={text}
-            onChangeText={setText}
-            placeholder={translate('assistant.chat.placeholder')}
-            placeholderTextColor={colorTokens.raw["7C8B85"]}
-            multiline
-            style={[
-              styles.input,
-              {
-                textAlign: isRtl ? 'right' : 'left',
-                writingDirection: direction
-              }
-            ]}
-            editable={!loading}
-          />
-        </View>
-
-        {/* Trailing Circular Send Button */}
-        <Pressable
-          testID="assistant-composer-send-button"
-          onPress={handleSend}
-          disabled={!text.trim() || loading}
-          style={({ pressed }) => [
-            styles.sendButton,
-            !text.trim() && styles.sendButtonDisabled,
-            pressed && styles.sendButtonPressed
+      {/* Input Field */}
+      <View style={styles.inputWrapper}>
+        <TextInput
+          testID="assistant-composer-input"
+          value={text}
+          onChangeText={(value) => { draftRevision.current += 1; setText(value); }}
+          placeholder={translate('assistant.chat.placeholder')}
+          placeholderTextColor={colorTokens.raw["7C8B85"]}
+          multiline
+          style={[
+            styles.input,
+            {
+              textAlign: isRtl ? 'right' : 'left',
+              writingDirection: direction
+            }
           ]}
-          accessibilityLabel={translate('assistant.action.ask')}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.sendIcon, isRtl && styles.sendIconRtl]}>
-            ➤
-          </Text>
-        </Pressable>
+          editable={!loading}
+        />
       </View>
-    </KeyboardAvoidingView>
+
+      {/* Trailing Circular Send Button */}
+      <Pressable
+        testID="assistant-composer-send-button"
+        onPress={handleSend}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.sendButton,
+          disabled && styles.sendButtonDisabled,
+          pressed && styles.sendButtonPressed
+        ]}
+        accessibilityLabel={translate('assistant.action.ask')}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.sendIcon, isRtl && styles.sendIconRtl]}>
+          ➤
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    backgroundColor: colorTokens.raw["FFFFFF"]
-  },
   container: {
     alignItems: 'center',
     backgroundColor: colorTokens.raw["FFFFFF"],
@@ -145,7 +148,10 @@ const styles = StyleSheet.create({
   input: {
     color: colorTokens.raw["10231F"],
     fontSize: 14.5,
-    maxHeight: 100
+    maxHeight: 100,
+    minHeight: 48,
+    paddingVertical: 0,
+    textAlignVertical: 'top'
   },
   sendButton: {
     alignItems: 'center',

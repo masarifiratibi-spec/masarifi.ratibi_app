@@ -61,7 +61,7 @@ describe('sync delta, ack, and conflict HTTP routes', () => {
           provide: PlatformConfigService,
           useValue: {
             getRequired: (name: string) =>
-              name === 'MASARIFI_PUSH_TOKEN_HASH_KEY' ? cursorKey : 524_288,
+              name === 'MASARIFI_SYNC_CURSOR_KEY' ? cursorKey : 524_288,
           },
         },
         { provide: SyncHandlers, useValue: { dispatch: jest.fn() } },

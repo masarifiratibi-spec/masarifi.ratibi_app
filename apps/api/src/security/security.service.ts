@@ -3,8 +3,9 @@ import { isIP } from 'node:net';
 
 import { HttpException, Injectable } from '@nestjs/common';
 
-import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
+import { isRecentClerkAuthentication, type ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { ClerkClientService, ClerkSessionIneligibleError } from '../identity/clerk-client.service';
+import { hashNormalizedCommand } from '../ledger/idempotency';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { normalizeSupportScope } from './privacy-handlers';
 import { ExportStorage } from './export-storage';
@@ -16,6 +17,7 @@ import {
   inputObject,
 } from './security.dto';
 import { SecurityRepository } from './security.repository';
+import { ImmediateDeletionService } from './immediate-deletion.service';
 
 export interface SecurityOperation {
   operation: string;
@@ -26,6 +28,7 @@ export interface SecurityOperation {
   params: Record<string, string>;
   requestId: string;
   idempotencyKey?: string;
+  commandHash?: string;
   networkAddress?: string;
 }
 
@@ -184,7 +187,10 @@ function projectRecord(operation: string, value: unknown): Record<string, unknow
   if (['listRoles', 'getRole', 'createRole', 'updateRole'].includes(operation)) {
     result.assignmentCount ??= 0;
   }
-  if (operation.includes('SupportAccessRequest')) {
+  if (
+    operation.includes('SupportAccessRequest') ||
+    ['revokeSupportAccess', 'endSupportAccess'].includes(operation)
+  ) {
     if ('userId' in result) {
       result.user = safeReference(result.userId, 'customer');
       delete result.userId;
@@ -204,6 +210,8 @@ function projectRecord(operation: string, value: unknown): Record<string, unknow
   }
   if (operation.includes('DeletionRequest')) {
     result.retainedCategories = retainedCategories(result.retainedCategories);
+    if (['createMyDeletionRequest', 'getMyDeletionRequest'].includes(operation))
+      delete result.errorCode;
   }
   return result;
 }
@@ -223,10 +231,16 @@ export class SecurityService {
     private readonly config: PlatformConfigService,
     private readonly clerk: ClerkClientService,
     private readonly storage: ExportStorage,
+    private readonly worker: ImmediateDeletionService,
   ) {}
 
   async execute(input: SecurityOperation): Promise<unknown> {
-    const body = inputObject(input.body);
+    const body = { ...inputObject(input.body) };
+    const commandHash = hashNormalizedCommand({
+      operation: input.operation,
+      body,
+      params: { ...input.params },
+    });
     assertSafeTextFields(body);
     const category = rateCategory(input.operation);
     const rate = rateLimits[category];
@@ -283,11 +297,22 @@ export class SecurityService {
     ) {
       throw new HttpException({ code: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
     }
-    if (recentAuthOperations.has(input.operation)) {
-      this.assertRecentAuth(
-        input.principal,
-        input.permission !== undefined || input.operation === 'acceptAdminInvitation',
-      );
+    const sessionDeletionOwner = this.config.get('MASARIFI_STAGING_SELF_DELETION_OWNER_ID');
+    if (
+      sessionDeletionOwner &&
+      input.operation === 'createMyDeletionRequest' &&
+      sessionDeletionOwner !== input.principal.userId
+    )
+      throw new HttpException({ code: 'FORBIDDEN' }, 403);
+    const scopedSessionDeletion =
+      input.operation === 'createMyDeletionRequest' &&
+      this.config.get('MASARIFI_PROCESS_KIND') === 'api' &&
+      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      this.config.get('MASARIFI_DELETION_COOLING_OFF_HOURS') === 0 &&
+      (this.config.get('MASARIFI_STAGING_SELF_DELETION_ENABLED') === true ||
+        sessionDeletionOwner === input.principal.userId);
+    if (recentAuthOperations.has(input.operation) && !scopedSessionDeletion) {
+      this.assertRecentAuth(input.principal);
     }
     if (requiredReasonOperations.has(input.operation) || body.reason !== undefined) {
       const reason = body.reason;
@@ -353,12 +378,16 @@ export class SecurityService {
     }
     if (input.operation === 'createMyDeletionRequest') {
       body.coolingOffHours = this.config.getRequired('MASARIFI_DELETION_COOLING_OFF_HOURS');
-    }
-    if (input.operation === 'createAdminInvitation') {
-      const token = randomBytes(32).toString('base64url');
-      body.tokenHash = `h1:${createHash('sha256').update(token).digest('hex')}`;
-      // The raw token remains process-local and is handed directly to the provider delivery call.
-      body.deliveryToken = token;
+      if (body.coolingOffHours === 0 || body.completionToken !== undefined) {
+        if (
+          typeof body.completionToken !== 'string' ||
+          !/^[0-9a-f]{64}$/.test(body.completionToken) ||
+          !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(input.idempotencyKey ?? '')
+        )
+          throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
+        body.completionTokenHash = createHash('sha256').update(body.completionToken).digest('hex');
+        delete body.completionToken;
+      }
     }
     if (input.operation === 'acceptAdminInvitation') {
       const token = body.token;
@@ -366,24 +395,41 @@ export class SecurityService {
         throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
       }
       const identity = await this.clerk.getIdentityUser(input.principal.userId);
-      if (!identity?.primaryEmail)
+      if (
+        !identity?.primaryEmail ||
+        !identity.primaryEmailVerified ||
+        identity.banned ||
+        identity.locked
+      )
         throw new HttpException({ code: 'VERIFIED_EMAIL_REQUIRED' }, 403);
       body.tokenHash = `h1:${createHash('sha256').update(token).digest('hex')}`;
       body.verifiedEmail = identity.primaryEmail;
       delete body.token;
     }
     try {
-      const deliveryToken = typeof body.deliveryToken === 'string' ? body.deliveryToken : undefined;
-      delete body.deliveryToken;
+      if (
+        ['createAdminInvitation', 'revokeAdminSessions', 'disableAdmin'].includes(input.operation)
+      ) {
+        return await this.executeProviderMutation({ ...input, body, commandHash });
+      }
       const result = projectResult(
         input.operation,
-        await this.repository.execute({ ...input, body }),
+        await this.repository.execute({ ...input, body, commandHash }),
       );
+      if (input.operation === 'createMyDeletionRequest' && body.coolingOffHours === 0) {
+        const deletionId = record(result).id;
+        if (typeof deletionId !== 'string') throw new Error('DELETION_REQUEST_INVALID');
+        // The creation transaction has committed; completion can revoke this request's session.
+        return projectResult(
+          input.operation,
+          await this.worker.runDeletionRequestForOwner(input.principal.userId, deletionId),
+        );
+      }
       if (input.operation === 'getAdminSelf') {
         return {
           ...record(result),
           activeSessionCount: await this.clerk.countActiveSessions(input.principal.userId),
-          mfaStatus: input.principal.mfaAgeSeconds === null ? 'missing' : 'enabled',
+          mfaStatus: input.principal.mfaAgeSeconds == null ? 'missing' : 'enabled',
         };
       }
       if (
@@ -392,7 +438,7 @@ export class SecurityService {
         result !== null &&
         (result as { status?: unknown }).status === 'ready'
       ) {
-        this.assertRecentAuth(input.principal, false);
+        this.assertRecentAuth(input.principal);
         const exportId = input.params.exportId;
         if (!exportId) throw new HttpException({ code: 'NOT_FOUND' }, 404);
         const reference = await this.repository.getReadyExportReference(input.principal, exportId);
@@ -405,49 +451,6 @@ export class SecurityService {
           downloadUrl: await this.storage.sign(reference, seconds),
           downloadUrlExpiresAt: new Date(Date.now() + seconds * 1000).toISOString(),
         };
-      }
-      if (input.operation === 'revokeAdminSessions') {
-        const userId = input.params.userId;
-        if (!userId) throw new HttpException({ code: 'NOT_FOUND' }, 404);
-        try {
-          const sessionIds =
-            body.revokeAllEligible === true ? undefined : (body.sessionIds as string[]);
-          return {
-            sessionReferences: await this.clerk.revokeUserSessions(userId, sessionIds),
-            version: (result as { version?: unknown }).version,
-          };
-        } catch (error) {
-          if (error instanceof ClerkSessionIneligibleError)
-            throw new HttpException({ code: 'INELIGIBLE_SESSION' }, 409);
-          throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
-        }
-      }
-      if (input.operation === 'disableAdmin') {
-        const userId = input.params.userId;
-        if (userId)
-          await this.clerk.revokeUserSessions(userId).catch(() => {
-            /* local disable already denies access */
-          });
-      }
-      if (input.operation === 'createAdminInvitation' && deliveryToken) {
-        const email = body.email;
-        if (typeof email !== 'string') throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
-        try {
-          await this.clerk.deliverAdminInvitation(email, deliveryToken);
-        } catch {
-          const invitationId =
-            typeof result === 'object' && result !== null
-              ? (result as { id?: unknown }).id
-              : undefined;
-          if (typeof invitationId === 'string') {
-            await this.repository
-              .revokeUndeliveredInvitation(input.principal, invitationId, input.requestId)
-              .catch(() => {
-                /* best-effort fail-closed cleanup */
-              });
-          }
-          throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
-        }
       }
       return result;
     } catch (error) {
@@ -464,6 +467,11 @@ export class SecurityService {
         throw new HttpException({ code: 'SYSTEM_ROLE_PROTECTED' }, 409);
       if (message === 'LAST_SUPER_ADMIN_REQUIRED')
         throw new HttpException({ code: 'LAST_SUPER_ADMIN' }, 409);
+      if (
+        message === 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN' ||
+        code === 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN'
+      )
+        throw new HttpException({ code: 'SUPER_ADMIN_REQUIRED' }, 403);
       if (message === 'SUPPORT_GRANT_INVARIANT_INVALID')
         throw new HttpException({ code: 'SCOPE_WIDENING' }, 409);
       if (message === 'SUPPORT_GRANT_DENIED')
@@ -475,6 +483,12 @@ export class SecurityService {
       if (code === 'ACTIVE_ASSIGNMENTS_EXIST')
         throw new HttpException({ code: 'ACTIVE_ASSIGNMENTS_EXIST' }, 409);
       if (code === '23505') throw new HttpException({ code: 'CONFLICT' }, 409);
+      if (code === 'PROVIDER_UNAVAILABLE')
+        throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+      if (code === 'IDEMPOTENCY_IN_PROGRESS')
+        throw new HttpException({ code: 'IDEMPOTENCY_IN_PROGRESS' }, 409);
+      if (code === 'IDEMPOTENCY_KEY_REUSED')
+        throw new HttpException({ code: 'IDEMPOTENCY_KEY_REUSED' }, 409);
       if (code === '22023' || code === '22P02' || code === '23514')
         throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
       if (code === '42501') throw new HttpException({ code: 'FORBIDDEN' }, 403);
@@ -488,9 +502,60 @@ export class SecurityService {
     }
   }
 
-  private assertRecentAuth(principal: ClerkPrincipal, requireMfa: boolean): void {
-    const age = requireMfa ? (principal.mfaAgeSeconds ?? null) : principal.factorAgeSeconds;
-    if (age === null || age > this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS')) {
+  private async executeProviderMutation(
+    input: SecurityOperation & { body: Record<string, unknown> },
+  ): Promise<unknown> {
+    let deliveryToken = '';
+    const mutation = await this.repository.executeProviderMutation(input, () => {
+      if (input.operation !== 'createAdminInvitation') return input.body;
+      deliveryToken = randomBytes(32).toString('base64url');
+      return {
+        ...input.body,
+        tokenHash: `h1:${createHash('sha256').update(deliveryToken).digest('hex')}`,
+      };
+    });
+    if (mutation.outcome === 'completed') return mutation.value;
+    let result = projectResult(input.operation, mutation.value);
+    try {
+      if (input.operation === 'createAdminInvitation') {
+        await this.clerk.deliverAdminInvitation(input.body.email as string, deliveryToken);
+      } else {
+        const sessionIds =
+          input.operation === 'revokeAdminSessions' && !input.body.revokeAllEligible
+            ? (input.body.sessionIds as string[])
+            : undefined;
+        const sessionReferences = await this.clerk.revokeUserSessions(
+          input.params.userId as string,
+          sessionIds,
+        );
+        if (input.operation === 'revokeAdminSessions')
+          result = { sessionReferences, version: record(result).version };
+      }
+    } catch (error) {
+      // An ambiguous external effect is terminal for this key; retries must not affect later sessions.
+      await this.repository.finishProviderMutation(input, 'failed', null);
+      if (input.operation === 'createAdminInvitation') {
+        await this.repository.revokeUndeliveredInvitation(
+          input.principal,
+          record(result).id as string,
+          input.requestId,
+        );
+      }
+      if (error instanceof ClerkSessionIneligibleError)
+        throw new HttpException({ code: 'INELIGIBLE_SESSION' }, 409);
+      throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+    }
+    await this.repository.finishProviderMutation(input, 'completed', result);
+    return result;
+  }
+
+  private assertRecentAuth(principal: ClerkPrincipal): void {
+    if (
+      !isRecentClerkAuthentication(
+        principal,
+        this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
+      )
+    ) {
       throw new HttpException({ code: 'RECENT_AUTH_REQUIRED' }, 403);
     }
   }

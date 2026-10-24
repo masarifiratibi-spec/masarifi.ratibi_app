@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
+import PDFDocument from 'pdfkit';
 
 import { neutralizeCsvCell, renderReport } from '../../../src/reports/reports.renderer';
 import type { ReportSnapshot } from '../../../src/reports/reports.schemas';
+import { writeReportPdf } from '../../../src/reports/reports.pdf';
 
 async function readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -61,7 +64,7 @@ describe('report renderer', () => {
 
   it('embeds the packaged Arabic font and rejects output overflow', async () => {
     const font = readFileSync(
-      join(process.cwd(), '../mobile/assets/fonts/NotoSansArabicUI-Regular.ttf'),
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
     );
     const pdf = renderReport(snapshot, 'pdf', 1_000_000, font);
     const pdfBody = await readAll(pdf.body);
@@ -76,4 +79,55 @@ describe('report renderer', () => {
     expect(report.extension).toBe('json');
     expect(report.contentType).not.toMatch(/[\r\n]/);
   });
+
+  it('rejects both the PDF output stream and byte counter when the generated file exceeds the limit', async () => {
+    const font = readFileSync(
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    );
+    const report = renderReport(snapshot, 'pdf', 5_000, font);
+    const completed = await Promise.allSettled([readAll(report.body), report.byteCounter]);
+    for (const outcome of completed) {
+      expect(outcome.status).toBe('rejected');
+      if (outcome.status === 'rejected') {
+        const failure: unknown = outcome.reason;
+        expect(failure).toMatchObject({ message: 'REPORT_LIMIT_EXCEEDED' });
+      }
+    }
+  });
+
+  it('lets unrelated event-loop work run before a long PDF finishes drawing', async () => {
+    const font = readFileSync(
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    );
+    const document = new PDFDocument({ size: 'A4', margin: 48 });
+    document.registerFont('report', font).font('report');
+    document.resume();
+    let completed = false;
+    const pending = Promise.resolve(
+      writeReportPdf(document, {
+        ...snapshot,
+        reportType: 'account_activity',
+        detailedRows: Array.from({ length: 200 }, () => snapshot.detailedRows[0] ?? {}),
+      }),
+    ).then(() => {
+      completed = true;
+    });
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(completed).toBe(false);
+    } finally {
+      await pending;
+      document.end();
+    }
+  });
+
+  it('settles rendering evidence when the consumer closes without an error', async () => {
+    const font = readFileSync(
+      join(process.cwd(), '../mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    );
+    const report = renderReport(snapshot, 'pdf', 1_000_000, font);
+    if (!(report.body instanceof Readable)) throw new Error('readable stream required');
+    report.body.destroy();
+    await expect(report.byteCounter).rejects.toThrow('REPORT_RENDER_CANCELLED');
+  }, 1_000);
 });

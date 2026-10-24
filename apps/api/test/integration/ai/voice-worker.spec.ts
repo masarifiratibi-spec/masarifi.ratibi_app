@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { AiWorker } from '../../../src/ai/ai.worker';
 
 const claim = {
@@ -32,6 +33,7 @@ describe('voice transcription worker', () => {
     'validates %s/noisy output, stores a redacted proposal, and purges media',
     async (language, transcript) => {
       const repository = {
+        renewVoiceWork: jest.fn(() => Promise.resolve(true)),
         claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
         workInput: jest.fn(() =>
           Promise.resolve({
@@ -39,7 +41,20 @@ describe('voice transcription worker', () => {
               'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
             sizeBytes: 44,
             contentType: 'audio/wav',
+            contentHash: createHash('sha256')
+              .update(
+                (() => {
+                  const b = Buffer.alloc(44);
+                  b.write('RIFF');
+                  b.write('WAVE', 8);
+                  return b;
+                })(),
+              )
+              .digest('hex'),
             locale: language,
+            recordedAt: '2026-09-03T08:00:00.000Z',
+            timezoneOffsetMinutes: -180,
+            captureContextLegacy: false,
             operationId: 'request-voice-0001',
             aliases: [
               {
@@ -68,6 +83,7 @@ describe('voice transcription worker', () => {
         completeWork: jest.fn(),
         recordFailure: jest.fn(),
         expire: jest.fn(),
+        finalizeVoiceBatches: jest.fn(() => Promise.resolve(0)),
         rollup: jest.fn(),
         claimPurges: jest.fn(() => Promise.resolve([])),
         reconcile: jest.fn(),
@@ -119,7 +135,7 @@ describe('voice transcription worker', () => {
               }) as Record<string, unknown>
             )[name],
         ),
-        get: jest.fn(() => 'voice-worker'),
+        get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
       };
       await new AiWorker(
         repository as never,
@@ -135,11 +151,38 @@ describe('voice transcription worker', () => {
         payload: { type: 'transaction.create', accountId },
       });
       expect(storage.delete).toHaveBeenCalledTimes(1);
+      expect(gateway.complete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userContent: expect.arrayContaining([
+            expect.objectContaining({
+              type: 'text',
+              text: expect.stringContaining(
+                'Expenses use positive amountMinor; income uses negative amountMinor.',
+              ) as unknown,
+            }),
+          ]) as unknown,
+        }),
+      );
     },
   );
 
-  it('fails closed before provider dispatch when media magic is invalid', async () => {
+  it.each([
+    'magic',
+    'expected_size',
+    'header_missing',
+    'declared_length',
+    'response_body',
+    'stream_overflow',
+    'stream_length',
+    'Bearer private-fixture-token',
+  ])('fails closed before provider dispatch and logs only a fixed stage for %s', async (stage) => {
+    const lines: string[] = [];
+    jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      lines.push(String(chunk));
+      return true;
+    });
     const repository = {
+      renewVoiceWork: jest.fn(() => Promise.resolve(true)),
       claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
       workInput: jest.fn(() =>
         Promise.resolve({
@@ -147,12 +190,23 @@ describe('voice transcription worker', () => {
             'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
           sizeBytes: 44,
           contentType: 'audio/wav',
+          contentHash: createHash('sha256')
+            .update(
+              (() => {
+                const b = Buffer.alloc(44);
+                b.write('RIFF');
+                b.write('WAVE', 8);
+                return b;
+              })(),
+            )
+            .digest('hex'),
         }),
       ),
       getRoute: jest.fn(() => Promise.resolve(route)),
       completeWork: jest.fn(),
       recordFailure: jest.fn(),
       expire: jest.fn(),
+      finalizeVoiceBatches: jest.fn(() => Promise.resolve(0)),
       rollup: jest.fn(),
       claimPurges: jest.fn(() => Promise.resolve([])),
       reconcile: jest.fn(),
@@ -170,11 +224,17 @@ describe('voice transcription worker', () => {
             }) as Record<string, unknown>
           )[name],
       ),
-      get: jest.fn(() => 'voice-worker'),
+      get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
     };
     await new AiWorker(
       repository as never,
-      { download: jest.fn(() => Promise.resolve(Buffer.alloc(44))) } as never,
+      {
+        download: jest.fn(() =>
+          stage === 'magic'
+            ? Promise.resolve(Buffer.alloc(44))
+            : Promise.reject(new Error('VOICE_MEDIA_INVALID', { cause: stage })),
+        ),
+      } as never,
       gateway as never,
       config as never,
     ).runOnce();
@@ -186,19 +246,42 @@ describe('voice transcription worker', () => {
       'failed',
       'VOICE_MEDIA_INVALID',
     );
+    expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
+      {
+        timestamp: expect.any(String) as unknown,
+        level: 'warn',
+        message: 'VOICE_MEDIA_INVALID',
+        eventName: 'voice.media.rejected',
+        state: stage === 'Bearer private-fixture-token' ? 'unknown' : stage,
+      },
+    ]);
   });
 
   it.each(['transfer', 'multiple', 'obligation'] as const)(
     'fails %s intent explicitly without saving a transaction proposal',
     async (unsupportedReason) => {
       const repository = {
+        renewVoiceWork: jest.fn(() => Promise.resolve(true)),
         claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
         workInput: jest.fn(() =>
           Promise.resolve({
             storageRef: 'voice/session/audio',
             sizeBytes: 44,
             contentType: 'audio/wav',
+            contentHash: createHash('sha256')
+              .update(
+                (() => {
+                  const b = Buffer.alloc(44);
+                  b.write('RIFF');
+                  b.write('WAVE', 8);
+                  return b;
+                })(),
+              )
+              .digest('hex'),
             locale: 'en',
+            recordedAt: '2026-09-03T08:00:00.000Z',
+            timezoneOffsetMinutes: -180,
+            captureContextLegacy: false,
             operationId: 'request-voice-unsupported',
             aliases: [],
           }),
@@ -209,6 +292,7 @@ describe('voice transcription worker', () => {
         completeWork: jest.fn(),
         recordFailure: jest.fn(),
         expire: jest.fn(),
+        finalizeVoiceBatches: jest.fn(() => Promise.resolve(0)),
         rollup: jest.fn(),
         claimPurges: jest.fn(() => Promise.resolve([])),
         reconcile: jest.fn(),
@@ -246,7 +330,7 @@ describe('voice transcription worker', () => {
               MASARIFI_AI_MAX_CONCURRENCY: 1,
             })[name as 'MASARIFI_AI_PROVIDER_ENABLED'],
         ),
-        get: jest.fn(() => 'voice-worker'),
+        get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
       };
 
       await new AiWorker(
@@ -273,6 +357,7 @@ describe('voice transcription worker', () => {
       dispatched = resolve;
     });
     const repository = {
+      renewVoiceWork: jest.fn(() => Promise.resolve(true)),
       claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
       workInput: jest.fn(() =>
         Promise.resolve({
@@ -280,7 +365,20 @@ describe('voice transcription worker', () => {
             'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
           sizeBytes: 44,
           contentType: 'audio/wav',
+          contentHash: createHash('sha256')
+            .update(
+              (() => {
+                const b = Buffer.alloc(44);
+                b.write('RIFF');
+                b.write('WAVE', 8);
+                return b;
+              })(),
+            )
+            .digest('hex'),
           locale: 'en',
+          recordedAt: '2026-09-03T08:00:00.000Z',
+          timezoneOffsetMinutes: -180,
+          captureContextLegacy: false,
           operationId: 'request-voice-shutdown',
           aliases: [{ alias: 'ACCOUNT-1', kind: 'account', id: accountId, version: 1, data: {} }],
         }),
@@ -291,6 +389,7 @@ describe('voice transcription worker', () => {
       completeWork: jest.fn(),
       recordFailure: jest.fn(),
       expire: jest.fn(),
+      finalizeVoiceBatches: jest.fn(() => Promise.resolve(0)),
       rollup: jest.fn(),
       claimPurges: jest.fn(() => Promise.resolve([])),
       reconcile: jest.fn(),
@@ -321,7 +420,7 @@ describe('voice transcription worker', () => {
             }) as Record<string, unknown>
           )[name],
       ),
-      get: jest.fn(() => 'voice-worker'),
+      get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
     };
     const worker = new AiWorker(
       repository as never,

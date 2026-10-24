@@ -363,11 +363,23 @@ export const SIMULATED_ACTORS: Record<AdminRole, string> = {
 };
 
 const CANONICAL_CLIENT_PERMISSION: Readonly<Record<string, PermissionKey>> = {
+  "audit.read": "audit.logs.read",
+  "privacy.exports.read": "data_requests.exports.read",
+  "privacy.exports.manage": "data_requests.exports.manage",
+  "privacy.deletions.read": "data_requests.deletions.read",
+  "privacy.deletions.manage": "data_requests.deletions.manage",
+  "retention.read": "data_retention.read",
+  "retention.write": "data_retention.manage",
+  "support.access.request": "support.request_access",
   "access.invites.write": "admin-team.invite",
   "access.roles.read": "roles.read",
   "access.roles.write": "roles.manage",
   "access.assignments.write": "admin-team.roles.assign",
 };
+
+export function toClientPermission(permission: string): string {
+  return CANONICAL_CLIENT_PERMISSION[permission] ?? permission;
+}
 
 const BACKEND_ONLY_OPERATIONS_PERMISSIONS = new Set([
   "operations.health.read",
@@ -388,7 +400,5 @@ const BACKEND_ONLY_OPERATIONS_PERMISSIONS = new Set([
 
 export function hasPermission(role: AdminRole, permission: string): boolean {
   if (BACKEND_ONLY_OPERATIONS_PERMISSIONS.has(permission)) return role === "super-admin";
-  return permissionsByRole[role].includes(
-    CANONICAL_CLIENT_PERMISSION[permission] ?? (permission as PermissionKey),
-  );
+  return permissionsByRole[role].includes(toClientPermission(permission) as PermissionKey);
 }

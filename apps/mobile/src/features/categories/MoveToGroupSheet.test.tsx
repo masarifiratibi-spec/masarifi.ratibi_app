@@ -88,3 +88,21 @@ it('offers only compatible custom groups and keeps the source for a new group', 
   expect(onNewGroup).toHaveBeenCalledTimes(1);
   expect(onClose).not.toHaveBeenCalled();
 });
+
+it('keeps the move decision open until the parent confirms the write', () => {
+  changeLocale('en');
+  const source = { ...fixtureCategories[0], kind: 'custom' as const, id: 'moving' };
+  const group = { ...source, id: 'target', labelEn: 'Target group' };
+  const onClose = jest.fn();
+  const onSelectGroup = jest.fn();
+  renderWithProviders(<MoveToGroupSheet visible category={source} groups={[group]} onSelectGroup={onSelectGroup} onClose={onClose} onNewGroup={jest.fn()} />);
+  fireEvent.press(screen.getByText('Target group'));
+  expect(onSelectGroup).toHaveBeenCalledWith('target');
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('allows detaching a category when its old group is no longer available', () => {
+  changeLocale('en');
+  renderWithProviders(<MoveToGroupSheet visible category={{ ...fixtureCategories[0], parentId: 'archived-parent' }} groups={[]} onSelectGroup={jest.fn()} onClose={jest.fn()} onNewGroup={jest.fn()} />);
+  expect(screen.getByText(translate('coreFinance.categories.removeFromGroup'))).toBeTruthy();
+});

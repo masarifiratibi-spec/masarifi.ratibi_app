@@ -1,6 +1,91 @@
-import { safeError } from '../../../src/platform/http/safe-exception.filter';
+import { ConsoleLogger, HttpException, Logger, type ArgumentsHost } from '@nestjs/common';
+import { safeError, SafeExceptionFilter } from '../../../src/platform/http/safe-exception.filter';
+import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 
 describe('safeError', () => {
+  it('logs Staging ledger rejection correlation without identity or financial contents', () => {
+    const oldUrl = process.env.SUPABASE_URL;
+    const oldFlag = process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED;
+    process.env.SUPABASE_URL = 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
+    process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = 'true';
+    const lines: string[] = [];
+    Logger.overrideLogger(new PlatformLogger((line) => lines.push(line)));
+    const response = { status: () => response, json: () => undefined };
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          path: '/api/v1/transactions',
+          requestId: '22222222-2222-4222-8222-222222222222',
+          headers: {
+            'idempotency-key': '11111111-1111-4111-8111-111111111111',
+            authorization: 'secret bearer',
+          },
+          body: { amountMinor: 5000, notes: 'private words' },
+        }),
+        getResponse: () => response,
+      }),
+    } as unknown as ArgumentsHost;
+    try {
+      new SafeExceptionFilter().catch(
+        new HttpException({ code: 'FORBIDDEN', message: 'private words' }, 403),
+        host,
+      );
+      expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
+        expect.objectContaining({
+          context: 'ManualFinanceDiagnostics',
+          failureStage: 'api-rejection',
+          httpStatus: 403,
+          code: 'FORBIDDEN',
+          requestId: '22222222-2222-4222-8222-222222222222',
+          resourceId: expect.stringMatching(/^[a-f0-9]{16}$/) as unknown,
+        }),
+      ]);
+      expect(JSON.stringify(lines)).not.toMatch(
+        /11111111|private|bearer|amountMinor|notes|authorization|non_string_message/,
+      );
+      lines.length = 0;
+      process.env.SUPABASE_URL = 'https://production.example';
+      new SafeExceptionFilter().catch(new HttpException({ code: 'FORBIDDEN' }, 403), host);
+      expect(lines).toEqual([]);
+    } finally {
+      process.env.SUPABASE_URL = oldUrl;
+      process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED = oldFlag;
+      Logger.overrideLogger(new ConsoleLogger());
+    }
+  });
+  it.each([
+    [503, 'VOICE_AUTOMATIC_UNAVAILABLE', 'Voice is unavailable'],
+    [500, 'INTERNAL_ERROR', 'Internal server error'],
+  ])(
+    'allowlists definitive Voice unavailability only at status %i without SQL details',
+    (status, code, message) => {
+      let envelope: unknown;
+      const response = {
+        status: () => response,
+        json: (value: unknown) => {
+          envelope = value;
+        },
+      };
+      const host = {
+        switchToHttp: () => ({
+          getRequest: () => ({ path: '/api/v1/voice/sessions', requestId: 'voice-request' }),
+          getResponse: () => response,
+        }),
+      } as unknown as ArgumentsHost;
+      new SafeExceptionFilter().catch(
+        new HttpException(
+          {
+            code: 'VOICE_AUTOMATIC_UNAVAILABLE',
+            message: 'SQL private.secret',
+            detail: 'must not leak',
+          },
+          status,
+        ),
+        host,
+      );
+      expect(envelope).toEqual({ code, message, requestId: 'voice-request' });
+    },
+  );
   it('maps internal errors to a stable bounded envelope', () => {
     const result = safeError(500, 'req-123');
 
@@ -140,5 +225,58 @@ describe('safeError', () => {
         resetsAt: 'not-a-time',
       }),
     ).not.toHaveProperty('limit');
+  });
+
+  it.each([15, 30, 50, 1000])('preserves reset metadata for a configured quota of %i', (limit) => {
+    expect(
+      safeError(429, 'voice-quota', [], 'AI_QUOTA_EXCEEDED', {
+        limit,
+        used: limit,
+        resetsAt: '2026-10-14T00:13:10.454Z',
+        provider: 'private-provider',
+        userId: 'private-user',
+      }),
+    ).toEqual({
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'AI request quota is exhausted',
+      requestId: 'voice-quota',
+      limit,
+      used: limit,
+      resetsAt: '2026-10-14T00:13:10.454Z',
+    });
+  });
+
+  it.each([0, -1, 1001, 1.5, '50', NaN, Infinity])('omits invalid quota limit %s', (limit) => {
+    const result = safeError(429, 'voice-quota', [], 'AI_QUOTA_EXCEEDED', {
+      limit,
+      used: 1001,
+      resetsAt: '2026-10-14T00:13:10.454Z',
+    });
+    expect(result).toEqual({
+      code: 'AI_QUOTA_EXCEEDED',
+      message: 'AI request quota is exhausted',
+      requestId: 'voice-quota',
+    });
+  });
+
+  it.each([
+    { limit: 50, used: 49, resetsAt: '2026-10-14T00:13:10.454Z' },
+    { limit: 50, used: 50.5, resetsAt: '2026-10-14T00:13:10.454Z' },
+    { limit: 50, used: 50, resetsAt: 'invalid' },
+  ])('omits incomplete or inconsistent quota metadata %#', (metadata) => {
+    expect(safeError(429, 'voice-quota', [], 'AI_QUOTA_EXCEEDED', metadata)).not.toHaveProperty(
+      'resetsAt',
+    );
+  });
+
+  it.each([
+    ['IMPORT_QUOTA_EXCEEDED', 'Import quota is exhausted'],
+    ['REPORT_QUOTA_EXCEEDED', 'Report generation quota is exhausted'],
+  ])('maps the staging job quota %s without exposing database text', (code, message) => {
+    expect(safeError(429, 'quota-request', [], code)).toEqual({
+      code,
+      message,
+      requestId: 'quota-request',
+    });
   });
 });

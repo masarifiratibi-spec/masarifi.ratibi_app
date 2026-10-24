@@ -455,7 +455,8 @@ export function QueueOverviewView() {
 }
 
 export function JobRunsView() {
-  const runs = useJobRuns();
+  const [page, setPage] = useState(1);
+  const runs = useJobRuns({ page });
   if (runs.isPending) return <LoadingView label="Job Runs" />;
   if (runs.isError) return <ErrorView label="Job Runs" />;
   return (
@@ -466,6 +467,7 @@ export function JobRunsView() {
         description="Safe job run list with status, attempts, versions, platform, and correlation IDs."
       />
       <FreshnessCard state={runs.data.freshness.state} />
+      <JobPagination page={page} pageSize={runs.data.pageSize} total={runs.data.total} onPage={setPage} />
       <section className="section-grid">
         {runs.data.items.map((run) => <JobRunRow key={run.id} run={run} />)}
       </section>
@@ -474,7 +476,8 @@ export function JobRunsView() {
 }
 
 export function ScheduledJobsView() {
-  const schedules = useScheduledJobs();
+  const [page, setPage] = useState(1);
+  const schedules = useScheduledJobs({ page });
   if (schedules.isPending) return <LoadingView label="Scheduled Jobs" />;
   if (schedules.isError) return <ErrorView label="Scheduled Jobs" />;
   return (
@@ -485,9 +488,18 @@ export function ScheduledJobsView() {
         description="Read-only scheduled job summaries with last run, next run, active state, and freshness."
       />
       <FreshnessCard state={schedules.data.freshness.state} />
+      <JobPagination page={page} pageSize={schedules.data.pageSize} total={schedules.data.total} onPage={setPage} />
       <section className="section-grid">
         {schedules.data.items.map((schedule) => <ScheduleCard key={schedule.id} schedule={schedule} />)}
       </section>
     </div>
   );
+}
+
+function JobPagination({ page, pageSize, total, onPage }: { page: number; pageSize: number; total: number; onPage: (page: number) => void }) {
+  return <nav aria-label="Pagination" className="table-pagination">
+    <button className="button secondary" aria-label="Previous page" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
+    <span aria-live="polite">Page {page}</span>
+    <button className="button secondary" aria-label="Next page" disabled={page * pageSize >= total} onClick={() => onPage(page + 1)}>Next</button>
+  </nav>;
 }

@@ -1,15 +1,30 @@
+import {
+  VOICE_BATCH_OUTPUT_SCHEMA,
+  VOICE_BATCH_PROMPT,
+  VOICE_BATCH_POLICY,
+  parseVoiceBatchProviderOutput,
+  decideVoiceBatch,
+  type SkipReason,
+} from './voice-batch';
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { withAiAbort } from './ai.abort';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
-import { recordAiJob } from './ai.observability';
+import { PlatformLogger } from '../platform/observability/platform-logger';
+import { workerErrorFields } from '../platform/observability/worker-error';
+import { isTransientVoiceError } from './voice-transient-error';
+import { recordAiJob, recordAiResult } from './ai.observability';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
 import {
   ASSISTANT_OUTPUT_SCHEMA,
+  ASSISTANT_ADVICE_OUTPUT_SCHEMA,
   VOICE_OUTPUT_SCHEMA,
   assertSafeAiInput,
   parseAssistantOutput,
   parseAssistantWorkerOutput,
+  parseAssistantAdviceWorkerOutput,
   parseVoiceWorkerOutput,
   redactAiContext,
   redactAiText,
@@ -17,12 +32,26 @@ import {
   type VoiceProposalOutput,
 } from './ai.schemas';
 import { AiStorage } from './ai.storage';
+import type { AiWorkerHealthState } from './ai-worker-health';
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('AI_WORK_INPUT_INVALID');
   return value as Record<string, unknown>;
 }
+
+// Database-authored predicate labels only; never log rejected command values.
+const voiceScopeReasons = new Set([
+  'decision_count',
+  'decision_status',
+  'command_validity',
+  'kind',
+  'amount',
+  'currency',
+  'account',
+  'category',
+  'capture_date',
+]);
 
 function audioFormat(contentType: string): string {
   return (
@@ -298,7 +327,13 @@ export function assistantProviderPayload(input: Record<string, unknown>) {
     data: redactAiContext(data),
   }));
   const history = Array.isArray(input.historyPayload) ? input.historyPayload.slice(-4) : [];
+  const context = object(input.contextPayload);
+  const metadata =
+    context.assistantMetadata && typeof context.assistantMetadata === 'object'
+      ? object(context.assistantMetadata)
+      : {};
   return {
+    responseLanguage: context.responseLocale ?? metadata.locale ?? 'ar',
     intent: String(input.intent),
     question: redactAiText(assertSafeAiInput(String(input.content))),
     financialTruth: redactAiContext(object(input.contextPayload)),
@@ -327,6 +362,7 @@ export class AiWorker implements OnModuleDestroy {
   private timer: NodeJS.Timeout | undefined;
   private running = false;
   private abortController: AbortController | undefined;
+  private healthObserver: ((state: AiWorkerHealthState) => void) | undefined;
 
   constructor(
     private readonly repository: AiRepository,
@@ -335,14 +371,32 @@ export class AiWorker implements OnModuleDestroy {
     private readonly config: PlatformConfigService,
   ) {}
 
+  observeHealth(observer: (state: AiWorkerHealthState) => void): void {
+    this.healthObserver = observer;
+    this.reportHealth('starting');
+  }
+
+  private reportHealth(state: AiWorkerHealthState): void {
+    try {
+      this.healthObserver?.(state);
+    } catch {
+      new PlatformLogger().error('AI_WORKER_HEALTH_UNAVAILABLE', { context: 'AiWorker' });
+    }
+  }
+
   start(): void {
     if (this.timer) return;
+    this.reportHealth('starting');
     this.timer = setInterval(() => {
       void this.runOnce().catch(() => {
         recordAiJob('ai.worker', 'failure');
       });
     }, this.config.getRequired('MASARIFI_AI_WORKER_POLL_MS'));
-    this.timer.unref();
+    if (
+      !this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') &&
+      !this.config.get('MASARIFI_AI_ASSISTANT_ONLY')
+    )
+      this.timer.unref();
     void this.runOnce().catch(() => {
       recordAiJob('ai.worker', 'failure');
     });
@@ -353,6 +407,7 @@ export class AiWorker implements OnModuleDestroy {
     this.timer = undefined;
     this.abortController?.abort();
     while (this.running) await new Promise((resolve) => setTimeout(resolve, 10));
+    this.reportHealth('stopped');
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -363,35 +418,73 @@ export class AiWorker implements OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     this.abortController = new AbortController();
+    let stage = 'scope';
+    let healthFailed = false;
     try {
+      if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY')) {
+        if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY'))
+          throw new Error('ASSISTANT_SCOPE_INVALID');
+        stage = 'assistant.respond';
+        await this.runJob('assistant.respond');
+        return;
+      }
+      if (this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')) {
+        stage = 'voice.transcribe_extract';
+        await this.runJob('voice.transcribe_extract');
+        stage = 'voice-media.purge';
+        await this.runJob('voice-media.purge');
+        return;
+      }
       for (const job of [
         'voice.transcribe_extract',
         'assistant.respond',
         'ai.evaluate_route',
+        'voice.finalize',
         'ai.usage_rollup',
         'voice-media.purge',
         'ai.reconcile',
-      ] as const)
+      ] as const) {
+        stage = job;
         await this.runJob(job);
+      }
+    } catch (error) {
+      healthFailed = true;
+      this.reportHealth('failed');
+      new PlatformLogger().error('AI_WORKER_RUNTIME_FAILED', {
+        context: 'AiWorker',
+        failureStage: stage,
+        ...workerErrorFields(error),
+      });
+      throw error;
     } finally {
       this.abortController = undefined;
       this.running = false;
+      if (!healthFailed) this.reportHealth('ready');
     }
   }
 
   async runJob(
     job:
       | AiWorkClaim['kind']
+      | 'voice.finalize'
       | 'ai.usage_rollup'
       | 'voice-media.purge'
       | 'ai.reconcile'
       | 'financial-insights.generate',
   ): Promise<number> {
+    if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY') && job !== 'assistant.respond')
+      throw new Error('ASSISTANT_SCOPE_INVALID');
+    if (
+      this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY') &&
+      !['voice.transcribe_extract', 'voice-media.purge'].includes(job)
+    )
+      throw new Error('VOICE_ANALYSIS_JOB_FORBIDDEN');
     const limit = this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE');
     if (['voice.transcribe_extract', 'assistant.respond', 'ai.evaluate_route'].includes(job))
       return this.config.getRequired('MASARIFI_AI_PROVIDER_ENABLED')
         ? this.processKind(job as AiWorkClaim['kind'])
         : 0;
+    if (job === 'voice.finalize') return this.repository.finalizeVoiceBatches(limit);
     if (job === 'ai.usage_rollup') {
       await this.repository.expire(limit);
       await this.repository.rollup(limit);
@@ -405,13 +498,21 @@ export class AiWorker implements OnModuleDestroy {
   }
 
   private async processKind(kind: AiWorkClaim['kind']): Promise<number> {
-    const claims = await this.repository.claimWork(
-      kind,
-      this.workerId(),
-      this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'),
-      this.config.getRequired('MASARIFI_AI_LEASE_SECONDS'),
-    );
+    if (this.config.get('MASARIFI_AI_ASSISTANT_ONLY') && kind !== 'assistant.respond')
+      throw new Error('ASSISTANT_SCOPE_INVALID');
     const concurrency = this.config.getRequired('MASARIFI_AI_MAX_CONCURRENCY');
+    const limit = Math.min(concurrency, this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'));
+    const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
+    const claims = this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+      ? kind === 'voice.transcribe_extract'
+        ? await this.repository.claimAnalysisWork(this.workerId(), limit, lease)
+        : []
+      : await this.repository.claimWork(kind, this.workerId(), limit, lease);
+    if (
+      this.config.get('MASARIFI_AI_ASSISTANT_ONLY') &&
+      claims.some((claim) => claim.kind !== 'assistant.respond')
+    )
+      throw new Error('ASSISTANT_SCOPE_INVALID');
     for (let offset = 0; offset < claims.length; offset += concurrency)
       await Promise.all(
         claims.slice(offset, offset + concurrency).map((claim) => this.process(claim)),
@@ -419,14 +520,102 @@ export class AiWorker implements OnModuleDestroy {
     return claims.length;
   }
 
-  private async process(claim: AiWorkClaim): Promise<void> {
+  async processVoiceClaim(
+    claim: AiWorkClaim,
+    signal?: AbortSignal,
+    continuous = false,
+  ): Promise<boolean> {
+    if (claim.kind !== 'voice.transcribe_extract') throw new Error('VOICE_SCOPE_INVALID');
+    return this.process(claim, signal, continuous);
+  }
+
+  private async process(
+    claim: AiWorkClaim,
+    externalSignal?: AbortSignal,
+    continuous = false,
+  ): Promise<boolean> {
     const startedAt = performance.now();
+    const controller = new AbortController();
+    const signal = AbortSignal.any([
+      controller.signal,
+      ...(this.abortController ? [this.abortController.signal] : []),
+      ...(externalSignal ? [externalSignal] : []),
+    ]);
+    let renewal: NodeJS.Timeout | undefined;
+    let deadline: NodeJS.Timeout | undefined;
+    let renewing = false;
+    let renewalFailure: unknown;
+    let outcome = 'failure';
     try {
-      if (claim.kind === 'voice.transcribe_extract') await this.voice(claim);
-      else if (claim.kind === 'assistant.respond') await this.assistant(claim);
-      else await this.evaluate(claim);
+      if (claim.kind === 'voice.transcribe_extract') {
+        const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
+        if (!(await this.repository.renewVoiceWork(claim.id, claim.claim_token, lease)))
+          throw new Error('AI_WORK_FENCE_INVALID');
+        renewal = setInterval(
+          () => {
+            if (renewing) return;
+            renewing = true;
+            void this.repository
+              .renewVoiceWork(claim.id, claim.claim_token, lease)
+              .then((valid) => {
+                if (!valid) controller.abort();
+              })
+              .catch((error: unknown) => {
+                renewalFailure = error;
+                controller.abort();
+              })
+              .finally(() => {
+                renewing = false;
+              });
+          },
+          Math.floor((lease * 1_000) / 3),
+        );
+        // Provider remains governed by its original deadline; this bounds the whole job including I/O.
+        deadline = setTimeout(() => {
+          controller.abort();
+        }, 180_000);
+        await withAiAbort(signal, () => this.voice(claim, signal, continuous));
+      } else if (claim.kind === 'assistant.respond') {
+        // No lease extension exists for assistant work. Bound all I/O inside the current fence.
+        const leaseMs = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS') * 1000;
+        deadline = setTimeout(
+          () => {
+            controller.abort();
+          },
+          Math.max(1, leaseMs - Math.min(1000, leaseMs / 3)),
+        );
+        await withAiAbort(signal, () => this.assistant(claim, signal));
+      } else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
+      outcome = 'success';
+      return true;
     } catch (error) {
+      // Keep a transiently interrupted recording available for fenced lease recovery.
+      if (continuous && (externalSignal?.aborted || isTransientVoiceError(renewalFailure)))
+        throw renewalFailure ?? error;
+      if (continuous && isTransientVoiceError(error)) throw error;
+      if (error instanceof AiGatewayError && error.diagnostic)
+        new PlatformLogger().warn('AI_PROVIDER_REQUEST_REJECTED', {
+          ...error.diagnostic,
+          eventName: 'ai.provider.request_rejected',
+        });
+      if (error instanceof Error && error.message === 'VOICE_MEDIA_INVALID')
+        new PlatformLogger().warn('VOICE_MEDIA_INVALID', {
+          eventName: 'voice.media.rejected',
+          state:
+            typeof error.cause === 'string' &&
+            [
+              'magic',
+              'expected_size',
+              'header_missing',
+              'declared_length',
+              'response_body',
+              'stream_overflow',
+              'stream_length',
+            ].includes(error.cause)
+              ? error.cause
+              : 'unknown',
+        });
       const code =
         error instanceof AiGatewayError
           ? error.code
@@ -451,56 +640,213 @@ export class AiWorker implements OnModuleDestroy {
         code,
       );
       recordAiJob(claim.kind, retry ? 'retry' : 'failure');
+      outcome = retry ? 'retry' : 'failure';
+      return false;
+    } finally {
+      if (renewal) clearInterval(renewal);
+      if (deadline) clearTimeout(deadline);
+      if (claim.kind === 'assistant.respond') {
+        const durationMs = Math.round(performance.now() - startedAt);
+        recordAiResult('assistant.respond', outcome, durationMs);
+        new PlatformLogger().log('ASSISTANT_WORK_FINISHED', {
+          eventName: 'assistant.work_finished',
+          jobName: claim.kind,
+          state: outcome,
+          durationMs,
+          requestId: createHash('sha256').update(claim.id).digest('hex').slice(0, 24),
+        });
+      }
     }
   }
 
-  private async voice(claim: AiWorkClaim): Promise<void> {
+  private async voice(claim: AiWorkClaim, signal: AbortSignal, continuous = false): Promise<void> {
     const input = object(await this.repository.workInput(claim.kind, claim.id, claim.claim_token));
     const route = await this.repository.getRoute('voice_transcription');
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
-    const audio = await this.storage.download(String(input.storageRef), Number(input.sizeBytes));
-    const contentType = String(input.contentType);
-    if (!validMagic(audio, contentType)) throw new Error('VOICE_MEDIA_INVALID');
-    const references = aliasReferences(input.aliases);
-    const descriptors = references.map(({ alias, kind, version, data }) => ({
-      alias,
-      kind,
-      version,
-      data,
-    }));
-    const completion = await this.gateway.complete({
-      route,
-      userContent: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            locale: String(input.locale),
-            references: descriptors,
-            instruction:
-              'Use only supplied aliases. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
-          }),
-        },
-        {
-          type: 'input_audio',
-          input_audio: { data: audio.toString('base64'), format: audioFormat(contentType) },
-        },
-      ],
-      schema: VOICE_OUTPUT_SCHEMA,
-      parse: parseVoiceWorkerOutput,
-      requestId: String(input.operationId),
-      signal: this.abortController?.signal,
-    });
-    const output = completion.value;
-    assertConfiguredOutput(route, output.transcript, 'transcript');
-    await this.repository.recordUsage(
-      claim.user_id,
-      'voice_transcription',
-      completion,
-      String(input.operationId),
+    const audio = await this.storage.download(
+      String(input.storageRef),
+      Number(input.sizeBytes),
+      signal,
     );
+    const contentType = String(input.contentType);
+    if (!validMagic(audio, contentType)) throw new Error('VOICE_MEDIA_INVALID', { cause: 'magic' });
+    if (
+      audio.length !== Number(input.sizeBytes) ||
+      typeof input.contentHash !== 'string' ||
+      createHash('sha256').update(audio).digest('hex') !== input.contentHash
+    )
+      throw new Error('VOICE_MEDIA_INVALID', { cause: 'hash_mismatch' });
+    if (signal.aborted) throw new Error('AI_WORK_CANCELLED');
+    const references = aliasReferences(input.aliases);
+    const batch = input.contractVersion === 3;
+    const descriptors = references.map(({ alias, kind, version, data }) => {
+      if (kind === 'account' && typeof data.name === 'string') {
+        data = { ...data };
+        try {
+          data.name = redactAiText(assertSafeAiInput(data.name as string));
+        } catch {
+          delete data.name;
+        }
+      }
+      return { alias, kind, version, data };
+    });
+    let attemptNo = 0;
+    let dispatchFailure: unknown;
+    const completion = await this.gateway
+      .complete<unknown>({
+        route: batch
+          ? {
+              ...route,
+              limits: { ...route.limits, outputTokens: Math.min(1200, route.limits.outputTokens) },
+              prompt: { template: VOICE_BATCH_PROMPT, schemaVersion: 3 },
+            }
+          : route,
+        voiceBatch: batch,
+        userContent: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              locale: String(input.locale),
+              capture: {
+                recordedAt: new Date(String(input.recordedAt)).toISOString(),
+                timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+                referenceLocalDate: new Date(
+                  Date.parse(String(input.recordedAt)) -
+                    Number(input.timezoneOffsetMinutes) * 60_000,
+                )
+                  .toISOString()
+                  .slice(0, 10),
+                legacyContext: input.captureContextLegacy,
+              },
+              references: descriptors,
+              instruction: batch
+                ? VOICE_BATCH_PROMPT
+                : 'Use only supplied aliases. Expenses use positive amountMinor; income uses negative amountMinor. Return unsupported for transfers, multiple operations, obligations, or unclear intent; never downgrade them to one transaction.',
+            }),
+          },
+          {
+            type: 'input_audio',
+            input_audio: { data: audio.toString('base64'), format: audioFormat(contentType) },
+          },
+        ],
+        schema: batch ? VOICE_BATCH_OUTPUT_SCHEMA : VOICE_OUTPUT_SCHEMA,
+        parse: batch ? parseVoiceBatchProviderOutput : parseVoiceWorkerOutput,
+        requestId: String(input.operationId),
+        signal,
+        beforeDispatch: async (candidate) => {
+          const authorized = await this.repository
+            .authorizeVoiceDispatch(
+              claim.id,
+              claim.claim_token,
+              candidate.modelId,
+              candidate.provider,
+              route,
+            )
+            .catch((error: unknown) => {
+              dispatchFailure = error;
+              throw error;
+            });
+          if (
+            authorized.operationId !== input.operationId ||
+            !Number.isInteger(authorized.attemptNo)
+          )
+            throw new Error('AI_DISPATCH_REJECTED');
+          attemptNo = Number(authorized.attemptNo);
+        },
+        onReceipt: (receipt) =>
+          this.repository
+            .recordVoiceAttempt(String(input.operationId), attemptNo, receipt, true)
+            .then(() => undefined),
+        onDispatchFailure: (received) =>
+          this.repository
+            .recordVoiceAttempt(String(input.operationId), attemptNo, null, received)
+            .then(() => undefined),
+      })
+      .catch((error: unknown) => {
+        if (continuous && isTransientVoiceError(dispatchFailure)) throw dispatchFailure;
+        throw error;
+      });
+    if (batch) {
+      const decisions = decideVoiceBatch(completion.value, {
+        recordedAt: String(input.recordedAt),
+        timezoneOffsetMinutes: Number(input.timezoneOffsetMinutes),
+        defaultAccountId:
+          typeof input.defaultAccountId === 'string' ? input.defaultAccountId : null,
+        references,
+      });
+      // Decisions are bounded by the parsed envelope and reasons are server enums.
+      // Never log command bodies or infer silence from a provider's empty array.
+      const skipReasonCounts: Partial<Record<SkipReason, number>> = {};
+      let eligibleEventCount = 0;
+      for (const decision of decisions) {
+        if (decision.status === 'eligible') eligibleEventCount++;
+        else skipReasonCounts[decision.reason] = (skipReasonCounts[decision.reason] ?? 0) + 1;
+      }
+      const diagnosticCounts = {
+        extractedEventCount: decisions.length,
+        eligibleEventCount,
+        skippedEventCount: decisions.length - eligibleEventCount,
+        skipReasonCounts,
+      };
+      const logger = new PlatformLogger();
+      logger.info('VOICE_EXTRACTION_DECIDED', {
+        context: 'AiWorker',
+        eventName: 'voice.extraction_decided',
+        state:
+          decisions.length === 0 ? 'empty' : eligibleEventCount === 0 ? 'all_skipped' : 'eligible',
+        ...diagnosticCounts,
+      });
+      signal.throwIfAborted();
+      const acceptance = await this.repository.acceptVoiceBatch(
+        claim.id,
+        claim.claim_token,
+        decisions,
+        VOICE_BATCH_POLICY,
+      );
+      if (acceptance.accepted !== true) {
+        // Acceptance can reject an otherwise successful extraction. Keep that
+        // boundary visible without logging the decisions or response payload.
+        logger.warn('VOICE_BATCH_REJECTED', {
+          context: 'AiWorker',
+          eventName: 'voice.batch_rejected',
+          failureStage: 'batch_acceptance',
+          code: 'VOICE_SCOPE_INVALID',
+          state: acceptance.scopeMismatch === true ? 'scope_mismatch' : 'acceptance_rejected',
+          ...(acceptance.scopeMismatch === true
+            ? {
+                rejectedFields: [
+                  typeof acceptance.scopeMismatchReason === 'string' &&
+                  voiceScopeReasons.has(acceptance.scopeMismatchReason)
+                    ? acceptance.scopeMismatchReason
+                    : 'unknown',
+                ],
+              }
+            : {}),
+          ...diagnosticCounts,
+        });
+        throw new Error('VOICE_SCOPE_INVALID');
+      }
+      logger.info('VOICE_BATCH_ACCEPTED', {
+        context: 'AiWorker',
+        eventName: 'voice.batch_accepted',
+        state: 'accepted',
+        ...diagnosticCounts,
+      });
+      if (input.retainAcceptanceEvidence !== true) {
+        try {
+          await this.storage.delete(String(input.storageRef));
+        } catch {
+          recordAiJob('voice-media.purge', 'retry');
+        }
+      }
+      return;
+    }
+    const output = parseVoiceWorkerOutput(completion.value);
+    assertConfiguredOutput(route, output.transcript, 'transcript');
     if (output.outcome === 'unsupported')
       throw new Error(`VOICE_INTENT_UNSUPPORTED_${output.unsupportedReason.toUpperCase()}`);
     const proposal = resolveVoiceProposal(output.proposal, references);
+    signal.throwIfAborted();
     await this.repository.saveVoiceResult(claim.id, claim.claim_token, {
       provider: completion.provider,
       model: completion.model,
@@ -516,20 +862,25 @@ export class AiWorker implements OnModuleDestroy {
     }
   }
 
-  private async assistant(claim: AiWorkClaim): Promise<void> {
+  private async assistant(claim: AiWorkClaim, signal: AbortSignal): Promise<void> {
     const input = object(await this.repository.workInput(claim.kind, claim.id, claim.claim_token));
+    signal.throwIfAborted();
     const route = await this.repository.getRoute('financial_assistant');
+    signal.throwIfAborted();
     if (!route) throw new AiGatewayError('AI_UNAVAILABLE');
     const evidence = Array.isArray(input.evidence) ? input.evidence : [];
     const references = aliasReferences(input.aliases);
+    const readOnlyAdvice =
+      input.intent === 'financial_advice' || input.intent === 'general_finance';
     const completion = await this.gateway.complete({
       route,
       userContent: encodeAssistantProviderPayload(input, inputLimit(route)),
-      schema: ASSISTANT_OUTPUT_SCHEMA,
-      parse: parseAssistantWorkerOutput,
+      schema: readOnlyAdvice ? ASSISTANT_ADVICE_OUTPUT_SCHEMA : ASSISTANT_OUTPUT_SCHEMA,
+      parse: readOnlyAdvice ? parseAssistantAdviceWorkerOutput : parseAssistantWorkerOutput,
       requestId: String(input.operationId),
-      signal: this.abortController?.signal,
+      signal,
     });
+    signal.throwIfAborted();
     const allowed = new Set([
       ...evidence.map((item) => String(object(item).alias)),
       ...references.map(({ alias }) => alias),
@@ -541,7 +892,12 @@ export class AiWorker implements OnModuleDestroy {
       throw new AiGatewayError('AI_SCHEMA_INVALID', true);
     const refs = evidence.map((item) => {
       const value = object(item);
-      return { kind: value.kind, alias: value.alias, version: value.version };
+      return {
+        kind: value.kind,
+        alias: value.alias,
+        version: value.version,
+        ...(typeof value.asOf === 'string' ? { asOf: value.asOf } : {}),
+      };
     });
     const output = resolveAssistantOutput(completion.value, references);
     assertConfiguredOutput(route, output, 'answer');
@@ -551,6 +907,7 @@ export class AiWorker implements OnModuleDestroy {
       completion,
       String(input.operationId),
     );
+    signal.throwIfAborted();
     await this.repository.saveAssistantResult(claim.id, claim.claim_token, {
       provider: completion.provider,
       model: completion.model,
@@ -569,11 +926,11 @@ export class AiWorker implements OnModuleDestroy {
   }
 
   private async purge(): Promise<number> {
-    const claims = await this.repository.claimPurges(
-      this.workerId(),
-      this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE'),
-      this.config.getRequired('MASARIFI_AI_LEASE_SECONDS'),
-    );
+    const limit = this.config.getRequired('MASARIFI_AI_JOB_BATCH_SIZE');
+    const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
+    const claims = this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
+      ? await this.repository.claimAnalysisPurges(this.workerId(), limit, lease)
+      : await this.repository.claimPurges(this.workerId(), limit, lease);
     for (const claim of claims) {
       try {
         await this.storage.delete(claim.storage_ref);

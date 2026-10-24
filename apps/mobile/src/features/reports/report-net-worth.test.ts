@@ -3,6 +3,7 @@ import {
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { buildNetWorthTrend } from './report-net-worth';
+import { deriveAccountBalance } from '@/domain/core-finance';
 
 test('2026-08-23 net worth trend projects real account effects at each point', () => {
   const day1 = Date.UTC(2026, 7, 1, 12);
@@ -101,4 +102,160 @@ test('positive credit-card value remains an asset instead of being inferred as d
       transactions: []
     })
   ).toEqual([{ at, minorUnits: 5_000 }]);
+});
+
+test('net worth keeps linked refund and reversal effects, account scope and exchange rates at each historical point', () => {
+  const accounts = ['bank', 'card', 'wallet'].map((id, index) => ({
+    ...fixtureAccounts[0],
+    id,
+    currencyCode: index === 2 ? 'USD' : 'SAR',
+    openingBalanceMinor: index === 1 ? -2_000 : 10_000
+  }));
+  const expense = makeTransaction(100, {
+    id: 'expense',
+    accountId: 'bank',
+    amountMinor: 1_000,
+    occurredAt: 10,
+    type: 'expense'
+  });
+  const transfer = makeTransaction(101, {
+    id: 'transfer',
+    accountId: 'bank',
+    destinationAccountId: 'card',
+    amountMinor: 500,
+    feeMinor: 20,
+    occurredAt: 20,
+    type: 'transfer'
+  });
+  const transactions = [
+    expense,
+    transfer,
+    makeTransaction(102, {
+      id: 'refund',
+      accountId: 'bank',
+      originalTransactionId: expense.id,
+      amountMinor: 200,
+      occurredAt: 30,
+      type: 'refund'
+    }),
+    makeTransaction(103, {
+      id: 'reverse',
+      accountId: 'bank',
+      originalTransactionId: transfer.id,
+      amountMinor: 500,
+      occurredAt: 40,
+      type: 'reversal'
+    }),
+    makeTransaction(104, {
+      id: 'duplicate-reverse',
+      accountId: 'bank',
+      originalTransactionId: transfer.id,
+      amountMinor: 500,
+      occurredAt: 50,
+      type: 'reversal'
+    }),
+    makeTransaction(105, {
+      accountId: 'wallet',
+      currencyCode: 'USD',
+      amountMinor: 100,
+      occurredAt: 60,
+      type: 'income'
+    }),
+    makeTransaction(106, {
+      accountId: 'bank',
+      amountMinor: 300,
+      occurredAt: 70,
+      type: 'income',
+      status: 'pending'
+    })
+  ];
+  const pointInstants = [80, 0, 25, 35, 45, 65, 45];
+  for (const accountIds of [[], ['card', 'wallet']]) {
+    const trend = buildNetWorthTrend({
+      accounts,
+      accountIds,
+      currencyCode: 'SAR',
+      pointInstants,
+      ratesByAccount: new Map([['wallet', 3.75]]),
+      transactions
+    });
+    expect(trend).toEqual(
+      pointInstants.map((at) => ({
+        at,
+        minorUnits: Math.round(
+          accounts
+            .filter((a) => !accountIds.length || accountIds.includes(a.id))
+            .reduce(
+              (total, account) =>
+                total +
+                deriveAccountBalance(
+                  account,
+                  transactions.filter((t) => t.occurredAt <= at)
+                ) *
+                  (account.currencyCode === 'SAR' ? 1 : 3.75),
+              0
+            )
+        )
+      }))
+    );
+  }
+});
+
+test('10,000 transactions across 50 accounts build a ten-point trend within the CPU budget', () => {
+  const accounts = Array.from({ length: 50 }, (_, index) => ({
+    ...fixtureAccounts[0],
+    id: `large-${index}`,
+    currencyCode: 'SAR',
+    openingBalanceMinor: 1_000_000
+  }));
+  const transactions = Array.from({ length: 10_000 }, (_, index) =>
+    makeTransaction(index, {
+      accountId: accounts[index % accounts.length].id,
+      type: 'expense',
+      amountMinor: 1,
+      occurredAt: index,
+      reviewStatus: 'none',
+      syncStatus: 'synced'
+    })
+  );
+  const started = performance.now();
+  const trend = buildNetWorthTrend({
+    accounts,
+    accountIds: [],
+    currencyCode: 'SAR',
+    pointInstants: Array.from(
+      { length: 10 },
+      (_, index) => (index + 1) * 1_000
+    ),
+    ratesByAccount: new Map(),
+    transactions
+  });
+  const elapsed = performance.now() - started;
+  expect(trend.at(-1)).toEqual({ at: 10_000, minorUnits: 49_990_000 });
+  expect(elapsed).toBeLessThan(1_000);
+});
+
+test('an excluded currency cannot overflow a trend without an available conversion rate', () => {
+  const account = {
+    ...fixtureAccounts[0],
+    currencyCode: 'USD',
+    openingBalanceMinor: Number.MAX_SAFE_INTEGER
+  };
+  expect(
+    buildNetWorthTrend({
+      accounts: [account],
+      accountIds: [],
+      currencyCode: 'SAR',
+      pointInstants: [1],
+      ratesByAccount: new Map(),
+      transactions: [
+        makeTransaction(1, {
+          accountId: account.id,
+          type: 'income',
+          amountMinor: 1,
+          occurredAt: 1
+        })
+      ]
+    })
+  ).toEqual([{ at: 1, minorUnits: 0 }]);
 });

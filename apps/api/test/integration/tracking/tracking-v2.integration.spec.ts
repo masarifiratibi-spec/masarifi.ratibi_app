@@ -1,0 +1,1215 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
+import { EngagementRepository } from '../../../src/engagement/engagement.repository';
+import { classifyFinancialMessage, defaultSnapshot } from '@masarifi/transaction-parser';
+import { LedgerRepository } from '../../../src/ledger/ledger.repository';
+import { LedgerService } from '../../../src/ledger/ledger.service';
+import { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
+import { SecurityRepository } from '../../../src/security/security.repository';
+import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
+import { TrackingRepository } from '../../../src/tracking/tracking.repository';
+import { TrackingService } from '../../../src/tracking/tracking.service';
+import { TrackingWorker } from '../../../src/tracking/tracking.worker';
+import { createLivePool, describeLiveDatabase, withFixtureImportWork } from '../../live-database';
+
+describeLiveDatabase('screenshot capture v2 ledger and governance', () => {
+  const pool = createLivePool();
+  const repository = new TrackingRepository(pool);
+  const ledger = new LedgerService(
+    new LedgerRepository(pool),
+    new SecurityRepository(pool),
+    new PlatformConfigService(new ConfigService() as never),
+  );
+  const service = new TrackingService(repository, ledger, {} as never);
+  const worker = new TrackingWorker(repository, ledger, {} as never);
+  const owner = `capture_${randomUUID()}`;
+  const accountId = randomUUID();
+  const principal = { userId: owner, sessionId: 'integration-capture', factorAgeSeconds: 0 };
+  const admin = `${owner}_admin`;
+  const adminPrincipal = { ...principal, userId: admin };
+  let originalChannel: Record<string, unknown>;
+  const hash = (text: string) => createHash('sha256').update(text).digest('hex');
+
+  beforeAll(async () => {
+    const channel = (
+      await pool.query<Record<string, unknown>>('select * from public.tracking_rule_channels')
+    ).rows[0];
+    if (!channel) throw new Error('CHANNEL_EXPECTED');
+    originalChannel = channel;
+    await pool.query("insert into public.profiles(id,status) values($1,'active')", [owner]);
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Capture bank','bank','AED','4242',true)",
+      [accountId, owner],
+    );
+    await repository.getPreferences(principal);
+    await pool.query(
+      'update public.tracking_preferences set enabled=true,review_required=false where user_id=$1',
+      [owner],
+    );
+    await repository.sender(
+      principal,
+      {
+        id: null,
+        senderPattern: 'ADCBAlert',
+        displayLabel: 'ADCB',
+        institutionId: null,
+        trusted: true,
+        enabled: true,
+        expectedVersion: null,
+      },
+      'capture-sender-integration',
+      randomUUID(),
+    );
+    await pool.query("update public.tracking_rule_channels set mode='automatic'");
+  });
+  afterAll(async () => {
+    await worker.stop();
+    await pool.query('update public.tracking_rule_channels set release_id=$1,mode=$2,version=$3', [
+      originalChannel.release_id,
+      originalChannel.mode,
+      originalChannel.version,
+    ]);
+    await pool.onModuleDestroy();
+  });
+  beforeEach(async () => {
+    // Each independent journey gets its own quota window; quota behavior has a dedicated suite.
+    await pool.query('delete from private.user_job_quota_events where user_id=$1', [owner]);
+  });
+  async function capture(
+    text: string,
+    nativeId: string,
+    reference?: string,
+    channel = 'android_sms',
+    provider = 'adcb',
+    patch: Record<string, unknown> = {},
+    nativeIdentity = nativeId,
+  ) {
+    const configuration = await repository.ruleSnapshot(principal);
+    const parsed = classifyFinancialMessage({
+      text,
+      sender: 'ADCBAlert',
+      country: 'AE',
+      receivedAt: Date.parse('2026-09-26T10:00:00Z'),
+    });
+    const { providerReference, originalProviderReference, ...classification } = parsed;
+    expect(providerReference).toBeNull();
+    const command = normalizeNormalizedImport({
+      schemaVersion: 2,
+      sourceType: channel === 'android_sms' ? 'sms' : 'provider',
+      sourceChannel: channel,
+      events: [
+        {
+          sourceItemKey: hash(nativeId),
+          receivedAt: '2026-09-26T10:00:00Z',
+          occurredAt: classification.occurredAt,
+          sender: 'ADCBAlert',
+          amountMinor:
+            classification.direction === 'incoming'
+              ? classification.amountMinor
+              : -(classification.amountMinor ?? 0),
+          currency: classification.currency,
+          kind: ['salary', 'deposit', 'generic_credit'].includes(classification.subtype)
+            ? 'income'
+            : ['refund', 'reversal'].includes(classification.subtype)
+              ? 'refund'
+              : classification.subtype.startsWith('transfer_') ||
+                  classification.subtype === 'withdrawal'
+                ? 'transfer'
+                : 'expense',
+          accountId,
+          merchant: classification.merchant,
+          classification,
+          ...patch,
+          metadata: {
+            ...(originalProviderReference ? { referenceScheme: 'plain-v2' } : {}),
+            sourceProvider: provider,
+            ruleConfigurationRevision: configuration.configurationRevision,
+            ...((patch.metadata as Record<string, unknown> | undefined) ?? {}),
+          },
+          transport: {
+            deviceId: 'integration-device-0001',
+            channel,
+            nativeIdDigest: hash(nativeIdentity),
+            revisionDigest: hash(text),
+          },
+          ...(reference
+            ? {
+                providerReferenceDigest: hash(
+                  (patch.metadata as Record<string, unknown> | undefined)?.referenceScheme ===
+                    'plain-v2'
+                    ? 'v2\n' + reference
+                    : reference,
+                ),
+              }
+            : {}),
+          ...(originalProviderReference
+            ? { originalProviderReferenceDigest: hash('v2\n' + originalProviderReference) }
+            : {}),
+        },
+      ],
+    });
+    const response = await repository.createImport(principal, command, {
+      sourceName: 'Android capture integration',
+      key: `capture-${nativeId}`,
+      requestId: randomUUID(),
+    });
+    const sessionId = String((response.resource as Record<string, unknown>).id);
+    await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
+    const items = await repository.listOwner(principal, 'items', null, 100, null, { sessionId });
+    return { sessionId, items: items as Record<string, unknown>[] };
+  }
+  it('publishes only a validated immutable release and permits a versioned pointer rollback', async () => {
+    await pool.query("insert into public.profiles(id,status) values($1,'active')", [admin]);
+    await pool.query("insert into public.admin_profiles(user_id,status) values($1,'active')", [
+      admin,
+    ]);
+    await pool.query(
+      "insert into public.admin_role_assignments(user_id,role_id,assigned_by,reason) select $1,id,$1,'Isolated capture governance verification' from public.roles where key='import-operator'",
+      [admin],
+    );
+    const input = (body: unknown) => ({
+      principal: adminPrincipal,
+      body,
+      idempotencyKey: 'release-' + randomUUID(),
+      requestId: randomUUID(),
+    });
+    const draft = await service.releaseMutate(
+      null,
+      input({
+        action: 'create',
+        expectedVersion: 1,
+        reason: 'Isolated screenshot release verification',
+        patch: {
+          snapshot: { ...defaultSnapshot, releaseId: 'integration-release-' + randomUUID() },
+        },
+      }),
+    );
+    const release = draft.resource as Record<string, unknown>;
+    await expect(
+      service.releaseMutate(
+        String(release.id),
+        input({
+          action: 'publish',
+          expectedVersion: 1,
+          reason: 'Publish before validation must fail',
+        }),
+      ),
+    ).rejects.toThrow();
+    await service.releaseMutate(
+      String(release.id),
+      input({
+        action: 'validate',
+        expectedVersion: 1,
+        reason: 'Validate complete screenshot safety corpus',
+      }),
+    );
+    await service.releaseMutate(
+      String(release.id),
+      input({
+        action: 'publish',
+        expectedVersion: 2,
+        reason: 'Publish validated screenshot safety corpus',
+      }),
+    );
+    await expect(
+      pool.query("update public.tracking_rule_releases set snapshot='{}' where id=$1", [
+        release.id,
+      ]),
+    ).rejects.toThrow('TRACKING_RELEASE_IMMUTABLE');
+    const config = await repository.ruleSnapshot(principal);
+    await service.releaseMutate(
+      String(originalChannel.release_id),
+      input({
+        action: 'rollback',
+        expectedVersion: config.channelVersion,
+        reason: 'Keep baseline pointer after isolated test',
+        patch: { mode: 'automatic' },
+      }),
+    );
+  });
+  it('posts through the normal ledger, then links cross-channel proven replay to the same transaction', async () => {
+    const first = await capture(
+      'Debit card XX4242 was used for AED12.50 at SAMPLE SHOP',
+      'native-first',
+      'provider-reference',
+    );
+    const firstItem = first.items.find((i) => i.sessionId === first.sessionId);
+    if (!firstItem) throw new Error('ITEM_EXPECTED');
+    expect(firstItem.status).toBe('accepted');
+    const second = await capture(
+      'Debit card XX4242 was used for AED12.50 at SAMPLE SHOP',
+      'native-second',
+      'provider-reference',
+      'android_notification',
+    );
+    const secondItem = second.items.find((i) => i.sessionId === second.sessionId);
+    expect(secondItem).toMatchObject({
+      status: 'accepted',
+      transactionId: firstItem.transactionId,
+    });
+    expect(
+      (
+        await pool.query<{ count: number }>(
+          'select count(*)::int count from public.transactions where user_id=$1',
+          [owner],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+    expect(
+      (
+        await pool.query(
+          'select sum(amount_minor)::bigint amount from public.transaction_postings where account_id=$1',
+          [accountId],
+        )
+      ).rows[0]?.amount,
+    ).toBe('-1250');
+  });
+  it('retains pending refund in review and does not emit a money effect', async () => {
+    const captured = await capture(
+      'AED5.00 has been refunded; amount will be credited within 2-3 working days',
+      'pending-refund',
+    );
+    expect(captured.items.find((i) => i.sessionId === captured.sessionId)).toMatchObject({
+      status: 'review',
+      transactionId: null,
+    });
+  });
+  it('holds a distinct same-amount purchase for similarity review rather than deleting it as a replay', async () => {
+    const captured = await capture(
+      'Debit card XX4242 was used for AED12.50 at SAMPLE SHOP',
+      'native-distinct',
+    );
+    expect(captured.items.find((i) => i.sessionId === captured.sessionId)).toMatchObject({
+      status: 'review',
+      transactionId: null,
+    });
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.import_items where user_id=$1 and session_id=$2',
+          [owner, captured.sessionId],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
+  async function accept(item: Record<string, unknown>, edit: Record<string, unknown>) {
+    const review = (
+      await pool.query<{ id: string; version: string }>(
+        'select id,version from public.review_items where import_item_id=$1',
+        [item.id],
+      )
+    ).rows[0];
+    if (!review) throw new Error('REVIEW_EXPECTED');
+    return service.decideReview(review.id, {
+      principal,
+      body: { decision: 'edit_accept', expectedVersion: Number(review.version), edit },
+      idempotencyKey: 'review-' + randomUUID(),
+      requestId: randomUUID(),
+    });
+  }
+  function itemFor(captured: { sessionId: string; items: Record<string, unknown>[] }) {
+    const item = captured.items.find((i) => i.sessionId === captured.sessionId);
+    if (!item) throw new Error('ITEM_EXPECTED');
+    return item;
+  }
+  it('reconciles an unknown-first review only after a corresponding verified capture commits', async () => {
+    let acceptanceFailure: unknown;
+    const originalAccept = repository.acceptImportItem.bind(repository);
+    const acceptProbe = jest
+      .spyOn(repository, 'acceptImportItem')
+      .mockImplementation(async (...args) => {
+        try {
+          await originalAccept(...args);
+        } catch (error) {
+          acceptanceFailure = error;
+          throw error;
+        }
+      });
+    const text = 'Purchase AED6.23 card XX4242 at UNKNOWN FIRST SHOP';
+    const unknown = itemFor(
+      await capture(
+        text,
+        'unknown-first-observation',
+        'unknown-first-reference',
+        'android_notification',
+        'asserted',
+        {
+          sender: 'com.unregistered.wallet',
+          metadata: { sourcePackage: 'com.unregistered.wallet', referenceScheme: 'plain-v2' },
+        },
+      ),
+    );
+    expect(unknown.status).toBe('review');
+    const known = itemFor(
+      await capture(
+        text,
+        'known-second-observation',
+        'unknown-first-reference',
+        'android_sms',
+        'adcb',
+        { metadata: { referenceScheme: 'plain-v2' } },
+      ),
+    );
+    acceptProbe.mockRestore();
+    if (acceptanceFailure instanceof Error) throw acceptanceFailure;
+    if (acceptanceFailure)
+      throw new Error('CAPTURE_ACCEPTANCE_FAILED', { cause: acceptanceFailure });
+    expect(known.status).toBe('accepted');
+    expect(
+      (
+        await pool.query(
+          'select status,transaction_id,operation_id from public.import_items where id=$1',
+          [unknown.id],
+        )
+      ).rows[0],
+    ).toEqual({ status: 'accepted', transaction_id: known.transactionId, operation_id: null });
+    expect(
+      (
+        await pool.query(
+          "select transaction_id,outcome from public.tracking_history where source_ref=$1 and reason_codes @> array['independently_correlated']",
+          [unknown.id],
+        )
+      ).rows,
+    ).toEqual([{ transaction_id: known.transactionId, outcome: 'duplicate' }]);
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transaction_postings where transaction_id=$1',
+          [known.transactionId],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
+  it.each(['refund', 'reversal'])(
+    'automatically posts an explicitly linked completed %s through the existing compensation ledger',
+    async (subtype) => {
+      await pool.query(
+        `insert into private.tracking_automatic_cohorts(user_id,device_id,release_id,engine_version,expires_at,reason)
+        select $1,'integration-device-0001',release_id,'2.0.0',clock_timestamp()+interval '1 hour','Compensation confirmation verification'
+        from public.tracking_rule_channels on conflict(user_id,device_id) do update set enabled=true,expires_at=excluded.expires_at,release_id=excluded.release_id`,
+        [owner],
+      );
+      const minor = subtype === 'refund' ? 429 : 431;
+      const reference = subtype === 'refund' ? 'BANKREF429000' : 'BANKREF431000';
+      const original = itemFor(
+        await capture(
+          `Purchase AED${String(minor / 100)} card XX4242 at LINKED SHOP`,
+          'linked-original-' + subtype,
+          reference,
+          'android_sms',
+          'adcb',
+          { metadata: { referenceScheme: 'plain-v2' } },
+        ),
+      );
+      expect(original.status).toBe('accepted');
+      const amount = subtype === 'refund' ? 102 : minor;
+      const linked = itemFor(
+        await capture(
+          `${subtype} AED${String(amount / 100)} card XX4242 original reference ${reference}`,
+          'linked-' + subtype,
+        ),
+      );
+      expect(linked.status).toBe('accepted');
+      const transaction = (
+        await pool.query(
+          'select kind,reverses_transaction_id from public.transactions where id=$1',
+          [linked.transactionId],
+        )
+      ).rows[0];
+      expect(transaction).toEqual({
+        kind: subtype,
+        reverses_transaction_id: original.transactionId,
+      });
+      const posting = (
+        await pool.query(
+          'select account_id,amount_minor::text amount from public.transaction_postings where transaction_id=$1',
+          [linked.transactionId],
+        )
+      ).rows;
+      expect(posting).toEqual([{ account_id: accountId, amount: String(amount) }]);
+      const engagement = new EngagementRepository(pool, {} as never);
+      const source = (await engagement.claimTrackingSourceEvents(100)).find(
+        (event) => event.source_id === linked.transactionId,
+      );
+      expect(source).toBeUndefined();
+      const outcome = (
+        await repository.listOwner(principal, 'items', String(linked.id), 1)
+      )[0] as Record<string, unknown>;
+      expect(outcome.notificationId).toBeNull();
+    },
+  );
+  it.each(['partial-refund', 'full-refund', 'reversal'])(
+    'recovers a committed %s after import acknowledgement loss and coalesces reference replay',
+    async (scenario) => {
+      const subtype = scenario === 'reversal' ? 'reversal' : 'refund';
+      const originalReference = 'RECOVERY-' + scenario;
+      const original = itemFor(
+        await capture(
+          'Purchase AED9.71 card XX4242 at RECOVERY SHOP',
+          'recovery-original-' + scenario,
+          originalReference,
+          'android_sms',
+          'adcb',
+          { metadata: { referenceScheme: 'plain-v2' } },
+        ),
+      );
+      expect(original.status).toBe('accepted');
+      const amount = scenario === 'partial-refund' ? 123 : 971;
+      const text = `${subtype} AED${String(amount / 100)} card XX4242 original reference ${originalReference}`;
+      const fault = jest
+        .spyOn(repository, 'acceptImportItem')
+        .mockRejectedValueOnce(new Error('ACK_RESPONSE_LOST'));
+      let lost: Awaited<ReturnType<typeof capture>>;
+      try {
+        lost = await capture(text, 'lost-' + scenario, 'recovery-compensation-' + scenario);
+      } finally {
+        fault.mockRestore();
+      }
+      expect({
+        status: itemFor(lost).status,
+        reasons: (
+          await pool.query('select reason from public.review_items where import_item_id=$1', [
+            itemFor(lost).id,
+          ])
+        ).rows,
+      }).toEqual({ status: 'parsed', reasons: [] });
+      await pool.query(
+        'update public.import_sessions set next_attempt_at=clock_timestamp() where id=$1',
+        [lost.sessionId],
+      );
+      await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
+      const recovered = (
+        await repository.listOwner(principal, 'items', String(itemFor(lost).id), 1)
+      )[0] as Record<string, unknown>;
+      expect(recovered.status).toBe('accepted');
+      const repeated = itemFor(
+        await capture(text, 'replayed-' + scenario, 'recovery-compensation-' + scenario),
+      );
+      expect(repeated).toMatchObject({
+        status: 'accepted',
+        transactionId: recovered.transactionId,
+      });
+      expect(
+        (
+          await pool.query(
+            'select count(*)::int count from public.transactions where user_id=$1 and reverses_transaction_id=$2 and kind=$3',
+            [owner, original.transactionId, subtype],
+          )
+        ).rows[0]?.count,
+      ).toBe(1);
+      expect(
+        (
+          await pool.query(
+            'select count(*)::int count from public.transaction_postings where transaction_id=$1',
+            [recovered.transactionId],
+          )
+        ).rows[0]?.count,
+      ).toBe(1);
+    },
+  );
+  it.each([true, false])(
+    'promotes a matching pending native revision to completion (reference=%s)',
+    async (withReference) => {
+      const key = 'progression-' + String(withReference);
+      const reference = withReference ? key + '-reference' : undefined;
+      const amount = withReference ? '5.87' : '5.89';
+      const pending = itemFor(
+        await capture(
+          `Purchase AED${amount} pending card XX4242 at PROGRESSION SHOP`,
+          key + '-pending',
+          reference,
+          'android_sms',
+          'adcb',
+          {},
+          key,
+        ),
+      );
+      expect(pending.status).toBe('review');
+      const completed = itemFor(
+        await capture(
+          `Purchase AED${amount} card XX4242 at PROGRESSION SHOP`,
+          key + '-complete',
+          reference,
+          'android_sms',
+          'adcb',
+          {},
+          key,
+        ),
+      );
+      expect({
+        status: completed.status,
+        error: (
+          await pool.query<{ last_error_code: string | null }>(
+            'select last_error_code from public.import_sessions where id=$1',
+            [completed.sessionId],
+          )
+        ).rows[0]?.last_error_code,
+      }).toEqual({ status: 'accepted', error: null });
+      expect(
+        (
+          await pool.query('select status from public.review_items where import_item_id=$1', [
+            pending.id,
+          ])
+        ).rows[0]?.status,
+      ).toBe('rejected');
+      expect(
+        (
+          await pool.query(
+            'select count(*)::int count from public.transaction_postings where transaction_id=$1',
+            [completed.transactionId],
+          )
+        ).rows[0]?.count,
+      ).toBe(1);
+    },
+  );
+  it('keeps a completed native revision in review when another unlinked same-amount effect already exists', async () => {
+    const text = 'Purchase AED5.93 card XX4242 at AMBIGUOUS PROGRESSION SHOP';
+    const first = itemFor(
+      await capture(text, 'progression-existing', 'progression-existing-reference'),
+    );
+    expect(first.status).toBe('accepted');
+    const pending = itemFor(
+      await capture(
+        text.replace('card', 'pending card'),
+        'ambiguous-pending',
+        undefined,
+        'android_sms',
+        'adcb',
+        {},
+        'ambiguous-native',
+      ),
+    );
+    expect(pending.status).toBe('review');
+    const completed = itemFor(
+      await capture(
+        text,
+        'ambiguous-completed',
+        undefined,
+        'android_sms',
+        'adcb',
+        {},
+        'ambiguous-native',
+      ),
+    );
+    expect(completed).toMatchObject({ status: 'review', transactionId: null });
+    expect(
+      (
+        await pool.query('select reason from public.review_items where import_item_id=$1', [
+          completed.id,
+        ])
+      ).rows,
+    ).toEqual([{ reason: 'duplicate_candidate' }]);
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=593 and kind=$2',
+          [owner, 'expense'],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
+  it.each([
+    'Deposit request AED10 account XX4242',
+    'Refund request AED1 card XX4242 original reference REQUEST-ORIGINAL',
+  ])('holds uncompleted financial requests without posting: %s', async (text) => {
+    const original = itemFor(
+      await capture(
+        'Purchase AED10 card XX4242 at REQUEST SHOP',
+        'request-original-' + hash(text).slice(0, 8),
+        'REQUEST-ORIGINAL',
+        'android_sms',
+        'adcb',
+        { metadata: { referenceScheme: 'plain-v2' } },
+      ),
+    );
+    expect(original.status).toBe('accepted');
+    const requested = itemFor(await capture(text, 'request-' + hash(text).slice(0, 8)));
+    expect(requested.status).toBe('review');
+    expect(requested.transactionId).toBeNull();
+    expect((requested.normalizedPayload as Record<string, unknown>).classification).toMatchObject({
+      status: 'pending',
+    });
+  });
+  it('posts two independently verified references even when their amount, merchant and time are identical', async () => {
+    const first = itemFor(
+      await capture(
+        'Purchase AED6.12 card XX4242 at INDEPENDENT SHOP',
+        'independent-first',
+        'independent-ref-1',
+      ),
+    );
+    const second = itemFor(
+      await capture(
+        'Purchase AED6.12 card XX4242 at INDEPENDENT SHOP',
+        'independent-second',
+        'independent-ref-2',
+      ),
+    );
+    expect(first.status).toBe('accepted');
+    expect(second.status).toBe('accepted');
+    expect(second.transactionId).not.toBe(first.transactionId);
+  });
+  it.each(['Deposited AED7.71 to account XX4242', 'Account XX4242 credited AED7.72'])(
+    'automatically posts a completed credit into its explicitly identified bank account: %s',
+    async (text) => {
+      const captured = itemFor(
+        await capture(text, 'completed-credit-' + hash(text).slice(0, 8), hash(text)),
+      );
+      expect(captured.status).toBe('accepted');
+      const posted = (
+        await pool.query(
+          'select t.kind,p.account_id,p.amount_minor from public.transactions t join public.transaction_postings p on p.transaction_id=t.id where t.id=$1',
+          [captured.transactionId],
+        )
+      ).rows;
+      expect(posted).toHaveLength(1);
+      expect(posted[0]).toMatchObject({
+        kind: 'income',
+        account_id: accountId,
+        amount_minor: text.includes('7.71') ? '771' : '772',
+      });
+    },
+  );
+  it('links a complete unknown app observation to unique independent verified evidence without another ledger effect', async () => {
+    const text = 'Purchase AED6.19 card XX4242 at CORRELATED SHOP';
+    const known = itemFor(
+      await capture(text, 'correlated-known', 'correlated-ref', 'android_sms', 'adcb', {
+        metadata: { referenceScheme: 'plain-v2' },
+      }),
+    );
+    const unknown = itemFor(
+      await capture(
+        text,
+        'correlated-unknown',
+        'correlated-ref',
+        'android_notification',
+        'asserted-provider',
+        {
+          sender: 'com.unknown.financial',
+          metadata: { sourcePackage: 'com.unknown.financial', referenceScheme: 'plain-v2' },
+        },
+      ),
+    );
+    expect(known.status).toBe('accepted');
+    expect(unknown).toMatchObject({ status: 'accepted', transactionId: known.transactionId });
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=619',
+          [owner],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.user_sender_rules where user_id=$1 and sender_pattern=$2',
+          [owner, 'com.unknown.financial'],
+        )
+      ).rows[0]?.count,
+    ).toBe(0);
+  });
+  it.each(['outgoing', 'incoming'])(
+    'automatically posts an explicitly identified owned %s transfer with two opposite postings',
+    async (direction) => {
+      const other = randomUUID();
+      const suffix = direction === 'outgoing' ? '1111' : '2222';
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Owned transfer endpoint','bank','AED',$3,true)",
+        [other, owner, suffix],
+      );
+      const text =
+        direction === 'outgoing'
+          ? 'Outgoing transfer AED3.41 from account XX4242 to account XX1111'
+          : 'Incoming transfer AED3.42 from account XX2222 to account XX4242';
+      const { providerReference: unused, ...classification } = classifyFinancialMessage({
+        text,
+        country: 'AE',
+        receivedAt: Date.parse('2026-09-26T10:00:00Z'),
+      });
+      void unused;
+      classification.reasonCodes = [];
+      classification.disposition = 'capture_candidate';
+      const result = itemFor(
+        await capture(text, 'owned-' + direction, 'owned-ref-' + direction, 'android_sms', 'adcb', {
+          kind: 'transfer',
+          destinationAccountId: other,
+          classification,
+        }),
+      );
+      expect(result.status).toBe('accepted');
+      const minor = direction === 'outgoing' ? '341' : '342';
+      const entries = (
+        await pool.query(
+          'select account_id,amount_minor::text amount from public.transaction_postings where transaction_id=$1',
+          [result.transactionId],
+        )
+      ).rows;
+      expect(entries).toHaveLength(2);
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          { account_id: direction === 'incoming' ? other : accountId, amount: '-' + minor },
+          { account_id: direction === 'incoming' ? accountId : other, amount: minor },
+        ]),
+      );
+    },
+  );
+  it('reuses the refund saved by a secondary review across settlement progression', async () => {
+    const purchase = itemFor(
+      await capture('Debit card XX4242 was used for AED24.30 at SAMPLE NOVA', 'refund-original'),
+    );
+    const original = (
+      (await ledger.getTransaction(
+        principal,
+        String(purchase.transactionId),
+        randomUUID(),
+      )) as Record<string, unknown>
+    ).transaction as Record<string, unknown>;
+    await capture(
+      'AED4.20 has been refunded; amount will be credited within 2-3 working days',
+      'refund-primary',
+      'settlement-reference',
+    );
+    const secondary = itemFor(
+      await capture(
+        'AED4.20 has been refunded; amount will be credited within 2-3 working days',
+        'refund-secondary',
+        'settlement-reference',
+      ),
+    );
+    await accept(secondary, {
+      settlementConfirmed: true,
+      originalTransactionId: purchase.transactionId,
+      originalTransactionVersion: original.version,
+    });
+    const settled = itemFor(
+      await capture('AED4.20 has been refunded', 'refund-settled', 'settlement-reference'),
+    );
+    const reserved = await repository.captureTransaction(principal, String(settled.id));
+    expect(reserved?.transactionId).toBeTruthy();
+    await accept(settled, {
+      originalTransactionId: purchase.transactionId,
+      originalTransactionVersion: original.version,
+    });
+    expect(
+      (
+        await pool.query(
+          "select count(*)::int count from public.transactions where user_id=$1 and kind='refund' and reverses_transaction_id=$2",
+          [owner, purchase.transactionId],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
+  it('posts the identified incoming transfer account as destination', async () => {
+    const source = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Transfer source','bank','AED')",
+      [source, owner],
+    );
+    const incoming = itemFor(
+      await capture('Incoming transfer from SAMPLE AED7.30', 'incoming-transfer'),
+    );
+    await accept(incoming, { destinationAccountId: source });
+    const entries = (
+      await pool.query(
+        'select p.account_id,p.amount_minor::text amount from public.transaction_postings p join public.import_items i on i.transaction_id=p.transaction_id where i.id=$1',
+        [incoming.id],
+      )
+    ).rows;
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        { account_id: source, amount: '-730' },
+        { account_id: accountId, amount: '730' },
+      ]),
+    );
+  });
+  it('keeps a conflicting same-reference amount unresolved instead of ignoring edits', async () => {
+    const saved = itemFor(
+      await capture(
+        'Debit card XX4242 was used for AED8.90 at CONFLICT SHOP',
+        'conflict-original',
+        'conflict-reference',
+      ),
+    );
+    expect(saved.status).toBe('accepted');
+    const conflict = itemFor(
+      await capture(
+        'Debit card XX4242 was used for AED9.90 at CONFLICT SHOP',
+        'conflict-revision',
+        'conflict-reference',
+      ),
+    );
+    await expect(accept(conflict, { amountMinor: 990 })).rejects.toMatchObject({ status: 409 });
+    expect(
+      (await pool.query('select status from public.import_items where id=$1', [conflict.id]))
+        .rows[0]?.status,
+    ).toBe('review');
+  });
+
+  it('stores masked instrument bindings only when explicitly requested during review', async () => {
+    const review = itemFor(await capture('Purchase AED2.17 pending card XX4242', 'binding-review'));
+    await accept(review, { settlementConfirmed: true, rememberAccountBinding: true });
+    expect(
+      (
+        await pool.query(
+          'select provider,role,suffix,account_id from public.tracking_account_bindings where user_id=$1',
+          [owner],
+        )
+      ).rows,
+    ).toEqual([{ provider: 'adcb', role: 'card', suffix: '4242', account_id: accountId }]);
+  });
+
+  it('remembers the source and destination instruments against their actual reviewed transfer accounts', async () => {
+    const destination = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Binding destination','bank','AED','5678',true)",
+      [destination, owner],
+    );
+    const review = itemFor(
+      await capture(
+        'Pending outgoing transfer AED2.27 from account XX4242 to account XX5678',
+        'transfer-binding-review',
+        undefined,
+        'android_sms',
+        'adcb',
+        { destinationAccountId: destination },
+      ),
+    );
+    await accept(review, { settlementConfirmed: true, rememberAccountBinding: true });
+    expect(
+      (
+        await pool.query(
+          'select suffix,account_id from public.tracking_account_bindings where user_id=$1 and role=$2 order by suffix',
+          [owner, 'account'],
+        )
+      ).rows,
+    ).toEqual([
+      { suffix: '4242', account_id: accountId },
+      { suffix: '5678', account_id: destination },
+    ]);
+  });
+
+  it('rejects swapped transfer replay edits without posting a second transfer', async () => {
+    const source = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Replay source','bank','AED')",
+      [source, owner],
+    );
+    const incoming = itemFor(
+      await capture('Incoming transfer from SAMPLE AED6.30', 'incoming-proof', 'transfer-proof'),
+    );
+    await accept(incoming, { destinationAccountId: source });
+    const replay = itemFor(
+      await capture(
+        'Incoming transfer from SAMPLE AED6.30',
+        'incoming-proof-replay',
+        'transfer-proof',
+      ),
+    );
+    await expect(
+      accept(replay, { accountId: source, destinationAccountId: accountId }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      (await pool.query('select status from public.import_items where id=$1', [replay.id])).rows[0]
+        ?.status,
+    ).toBe('review');
+  });
+  it('rejects an unrecognized provider binding before creating money', async () => {
+    const review = itemFor(
+      await capture(
+        'Purchase AED3.17 pending card XX4242',
+        'unknown-binding',
+        undefined,
+        'android_sms',
+        'unknown-provider',
+      ),
+    );
+    const prior: unknown = (
+      await pool.query('select count(*)::int count from public.transactions where user_id=$1', [
+        owner,
+      ])
+    ).rows[0]?.count;
+    await expect(
+      accept(review, { settlementConfirmed: true, rememberAccountBinding: true }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(
+      (
+        await pool.query('select count(*)::int count from public.transactions where user_id=$1', [
+          owner,
+        ])
+      ).rows[0]?.count,
+    ).toBe(prior);
+  });
+  it('uses the ledger reversal operation for a reviewed reversal', async () => {
+    const original = itemFor(
+      await capture('Debit card XX4242 was used for AED26.40 at SAMPLE NOVA', 'reversal-original'),
+    );
+    const transaction = (
+      (await ledger.getTransaction(
+        principal,
+        String(original.transactionId),
+        randomUUID(),
+      )) as Record<string, unknown>
+    ).transaction as Record<string, unknown>;
+    const reversal = itemFor(await capture('Reversal AED26.40 card XX4242', 'reversal-notice'));
+    await accept(reversal, {
+      originalTransactionId: original.transactionId,
+      originalTransactionVersion: transaction.version,
+    });
+    const reversed = (
+      await pool.query(
+        'select t.kind,t.reverses_transaction_id from public.transactions t join public.import_items i on i.transaction_id=t.id where i.id=$1',
+        [reversal.id],
+      )
+    ).rows[0];
+    expect(reversed).toMatchObject({
+      kind: 'reversal',
+      reverses_transaction_id: original.transactionId,
+    });
+  });
+  it('holds a later settled message similar to an unresolved pending candidate', async () => {
+    await capture('Pending purchase AED4.61 card XX4242 at SAMPLE MARKET', 'unresolved-purchase');
+    const settled = itemFor(
+      await capture('Purchase AED4.61 card XX4242 at SAMPLE MARKET', 'settled-without-proof'),
+    );
+    expect(settled).toMatchObject({ status: 'review', transactionId: null });
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=461',
+          [owner],
+        )
+      ).rows[0]?.count,
+    ).toBe(0);
+  });
+  it('links equivalent spending wording with the same provider reference across channels', async () => {
+    const first = itemFor(
+      await capture(
+        'Debit card XX4242 was used for AED5.91 at SAMPLE ARC',
+        'wording-sms',
+        'wording-proof',
+      ),
+    );
+    const replay = itemFor(
+      await capture(
+        'Paid AED5.91 at SAMPLE ARC',
+        'wording-notification',
+        'wording-proof',
+        'android_notification',
+      ),
+    );
+    expect(first.status).toBe('accepted');
+    expect(replay).toMatchObject({ status: 'accepted', transactionId: first.transactionId });
+    expect(
+      (
+        await pool.query(
+          'select count(*)::int count from public.transactions where user_id=$1 and amount_minor=591',
+          [owner],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
+  it('holds an automatic replay that disagrees with the account actually saved during review', async () => {
+    const correctedAccount = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Corrected account','bank','AED')",
+      [correctedAccount, owner],
+    );
+    const pending = itemFor(
+      await capture(
+        'Pending purchase AED7.81 card XX4242 at SAMPLE EDIT',
+        'edited-account-pending',
+        'edited-account-proof',
+      ),
+    );
+    await accept(pending, { accountId: correctedAccount, settlementConfirmed: true });
+    const replay = itemFor(
+      await capture(
+        'Purchase AED7.81 card XX4242 at SAMPLE EDIT',
+        'edited-account-replay',
+        'edited-account-proof',
+      ),
+    );
+    expect(replay).toMatchObject({ status: 'review', transactionId: null });
+    const postings = (
+      await pool.query(
+        'select p.account_id,p.amount_minor::text amount from public.transaction_postings p join public.transactions t on t.id=p.transaction_id where t.user_id=$1 and t.amount_minor=781',
+        [owner],
+      )
+    ).rows;
+    expect(postings).toEqual([{ account_id: correctedAccount, amount: '-781' }]);
+  });
+  it('posts a separate fee sharing its purchase reference as a distinct ledger effect', async () => {
+    const purchase = itemFor(
+      await capture(
+        'Purchase AED6.82 card XX4242 at SAMPLE FEE',
+        'purchase-with-fee',
+        'purchase-fee-proof',
+      ),
+    );
+    const fee = itemFor(
+      await capture('Service charge AED0.37 card XX4242', 'separate-fee', 'purchase-fee-proof'),
+    );
+    expect(purchase.status).toBe('accepted');
+    expect(fee.status).toBe('accepted');
+    expect(fee.transactionId).not.toBe(purchase.transactionId);
+    const postings = (
+      await pool.query(
+        'select t.amount_minor::text amount from public.transactions t where t.user_id=$1 and t.id=any($2::uuid[]) order by t.amount_minor',
+        [owner, [purchase.transactionId, fee.transactionId]],
+      )
+    ).rows;
+    expect(postings).toEqual([{ amount: '37' }, { amount: '682' }]);
+  });
+  it('automatically withdraws only into the explicitly reviewed cash destination with no net money creation', async () => {
+    const cash = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,automatic_tracking_enabled) values($1,$2,'Verified cash destination','cash','AED',true)",
+      [cash, owner],
+    );
+    const first = itemFor(await capture('Cash withdrawal AED8.19 card XX4242', 'withdrawal-first'));
+    expect(first.status).toBe('review');
+    await accept(first, {
+      kind: 'transfer',
+      destinationAccountId: cash,
+      rememberAccountBinding: true,
+    });
+    const learned = (
+      await pool.query(
+        "select role,account_id from public.tracking_account_bindings where user_id=$1 and role='cash_card' and suffix='4242'",
+        [owner],
+      )
+    ).rows;
+    expect(learned).toEqual([{ role: 'cash_card', account_id: cash }]);
+    const text = 'Cash withdrawal AED8.23 card XX4242';
+    const {
+      providerReference: unused,
+      originalProviderReference: unusedOriginal,
+      ...classification
+    } = classifyFinancialMessage({ text, receivedAt: Date.parse('2026-09-26T10:00:00Z') });
+    void unused;
+    void unusedOriginal;
+    classification.reasonCodes = [];
+    classification.disposition = 'capture_candidate';
+    const second = itemFor(
+      await capture(text, 'withdrawal-mapped', 'withdrawal-reference', 'android_sms', 'adcb', {
+        kind: 'transfer',
+        destinationAccountId: cash,
+        classification,
+      }),
+    );
+    expect(second.status).toBe('accepted');
+    const postings = (
+      await pool.query(
+        'select account_id,amount_minor::text amount from public.transaction_postings where transaction_id=$1 order by amount_minor',
+        [second.transactionId],
+      )
+    ).rows;
+    expect(postings).toEqual([
+      { account_id: accountId, amount: '-823' },
+      { account_id: cash, amount: '823' },
+    ]);
+    await pool.query('update public.accounts set automatic_tracking_enabled=false where id=$1', [
+      cash,
+    ]);
+    const stopped = itemFor(
+      await capture(
+        text.replace('8.23', '8.24'),
+        'withdrawal-disabled',
+        undefined,
+        'android_sms',
+        'adcb',
+        {
+          kind: 'transfer',
+          destinationAccountId: cash,
+          classification: { ...classification, amountMinor: 824 },
+          amountMinor: -824,
+        },
+      ),
+    );
+    expect(stopped).toMatchObject({ status: 'review', transactionId: null });
+  });
+  it.each(['incoming', 'outgoing'])(
+    'posts a complete external %s transfer as ordinary income/expense with one posting and preserves its subtype',
+    async (direction) => {
+      const text =
+        direction === 'incoming'
+          ? 'Incoming transfer AED8.47 to account XX4242'
+          : 'Outgoing transfer AED8.48 from account XX4242 to Ahmed';
+      const {
+        providerReference: unused,
+        originalProviderReference: unusedOriginal,
+        ...classification
+      } = classifyFinancialMessage({ text, receivedAt: Date.parse('2026-09-26T10:00:00Z') });
+      void unused;
+      void unusedOriginal;
+      classification.reasonCodes = [];
+      classification.disposition = 'capture_candidate';
+      const kind = direction === 'incoming' ? 'income' : 'expense';
+      const saved = itemFor(
+        await capture(
+          text,
+          'external-' + direction,
+          'external-ref-' + direction,
+          'android_sms',
+          'adcb',
+          { kind, classification },
+        ),
+      );
+      expect(saved.status).toBe('accepted');
+      expect((saved.normalizedPayload as Record<string, unknown>).classification).toMatchObject({
+        subtype: direction === 'incoming' ? 'transfer_received' : 'transfer_sent',
+        direction,
+      });
+      const postings = (
+        await pool.query(
+          'select t.kind,p.account_id,p.amount_minor::text amount from public.transactions t join public.transaction_postings p on p.transaction_id=t.id where t.id=$1',
+          [saved.transactionId],
+        )
+      ).rows;
+      expect(postings).toEqual([
+        { kind, account_id: accountId, amount: direction === 'incoming' ? '847' : '-848' },
+      ]);
+      const retry = itemFor(
+        await capture(
+          text,
+          'external-retry-' + direction,
+          'external-ref-' + direction,
+          'android_notification',
+          'adcb',
+          { kind, classification },
+        ),
+      );
+      expect(retry).toMatchObject({ status: 'accepted', transactionId: saved.transactionId });
+    },
+  );
+  it('does not turn a transfer between owned accounts into an expense when the counterpart has tracking disabled', async () => {
+    const counterpart = randomUUID();
+    await pool.query(
+      "insert into public.accounts(id,user_id,name,type,currency_code,last_four,automatic_tracking_enabled) values($1,$2,'Disabled owned endpoint','bank','AED','2323',false)",
+      [counterpart, owner],
+    );
+    const text = 'Outgoing transfer AED8.49 from account XX4242 to account XX2323';
+    const {
+      providerReference: unused,
+      originalProviderReference: unusedOriginal,
+      ...classification
+    } = classifyFinancialMessage({ text, receivedAt: Date.parse('2026-09-26T10:00:00Z') });
+    void unused;
+    void unusedOriginal;
+    const held = itemFor(
+      await capture(text, 'external-owned-disabled', undefined, 'android_sms', 'adcb', {
+        kind: 'expense',
+        classification: { ...classification, disposition: 'capture_candidate', reasonCodes: [] },
+      }),
+    );
+    expect(held).toMatchObject({ status: 'review', transactionId: null });
+    const effects = (
+      await pool.query(
+        'select count(*)::int count from public.transactions where user_id=$1 and external_ref=$2',
+        [owner, 'tracking:' + String(held.canonicalHash)],
+      )
+    ).rows[0];
+    expect(effects?.count).toBe(0);
+  });
+});

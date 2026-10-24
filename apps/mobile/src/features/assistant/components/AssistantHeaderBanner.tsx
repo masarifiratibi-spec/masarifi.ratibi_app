@@ -7,8 +7,9 @@ import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
 import { colorTokens } from '@/design-system/tokens';
+import type { AssistantAvailability } from '../AssistantFunctionalStatus';
 
-export function AssistantHeaderBanner() {
+export function AssistantHeaderBanner({availability}: {availability?: AssistantAvailability | null} = {}) {
   const direction = usePreferenceStore((state) => state.direction);
   const largeText = PixelRatio.getFontScale() >= 1.5;
 
@@ -30,7 +31,7 @@ export function AssistantHeaderBanner() {
       {/* Mini Bot Avatar with status dot */}
       <AssistantBotAvatar
         size={44}
-        showStatusDot
+        showStatusDot={availability === undefined ? true : availability?.capabilities?.provider === 'available'}
         testID="assistant-banner-avatar"
       />
 

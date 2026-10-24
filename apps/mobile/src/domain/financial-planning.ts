@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { resolveEffectiveTimeZone } from './effective-time-zone';
 
 import { getCurrencyMinorUnitScale } from './currencies';
 import { localDateInTimeZone } from './financial-period';
@@ -66,7 +67,7 @@ export interface SalaryReceiptLink extends RecordMetadata {
   salaryProfileId: string;
   transactionId: string;
   expectedOccurrenceDate: LocalDate;
-  receivedDate: LocalDate;
+  receivedDate: LocalDate | null;
   status: 'linked' | 'corrected' | 'undone';
   operationId: string;
   replacesReceiptId: string | null;
@@ -139,6 +140,15 @@ export interface Obligation extends RecordMetadata {
     | 'debt'
     | 'custom';
   scheduleKind: 'fixed_term' | 'open_ended' | 'irregular';
+  frequency?:
+    | 'monthly'
+    | 'weekly'
+    | 'biweekly'
+    | 'quarterly'
+    | 'yearly'
+    | 'custom'
+    | 'irregular';
+  customIntervalDays?: number | null;
   title: string;
   provider: string | null;
   currencyCode: string;
@@ -191,7 +201,7 @@ export interface ObligationPayment extends RecordMetadata {
   source: 'manual' | 'automatic' | 'voice' | 'platform_assisted';
   transactionOwnership: 'created' | 'linked_existing';
   status: 'pending' | 'posted' | 'reversed' | 'undone' | 'conflict';
-  operationId: string;
+  operationId: string | null;
   replacesPaymentId: string | null;
 }
 
@@ -436,10 +446,12 @@ export function deriveSalaryCycle(input: {
   const linked = input.receipts
     .filter(
       (receipt) =>
-        receipt.status === 'linked' &&
+        (receipt.status === 'linked' || receipt.status === 'corrected') &&
+        receipt.receivedDate !== null &&
+        receipt.receivedDate <= input.today &&
         receipt.salaryProfileId === input.profile!.id
     )
-    .sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
+    .sort((a, b) => b.receivedDate!.localeCompare(a.receivedDate!));
   if (!linked.length) {
     return {
       ...emptySalaryCycle('late'),
@@ -449,17 +461,18 @@ export function deriveSalaryCycle(input: {
     };
   }
   const current = linked[0];
-  const timeZone = input.timeZone ?? 'UTC';
+  const timeZone = resolveEffectiveTimeZone(input.timeZone);
   const nextDate = nextExpectedAfter(
-    current.receivedDate,
+    current.expectedOccurrenceDate,
     input.profile.salaryDay
   );
   const projections = projectTransactionEffects(input.transactions, null);
   const cycleTransactions = input.transactions.filter(
     (transaction) =>
+      transaction.currencyCode === input.profile!.currencyCode &&
       localDateInTimeZone(transaction.occurredAt, timeZone) >=
-        current.receivedDate &&
-      localDateInTimeZone(transaction.occurredAt, timeZone) < nextDate
+        current.receivedDate! &&
+      localDateInTimeZone(transaction.occurredAt, timeZone) <= input.today
   );
   const cycleTotals = cycleTransactions.reduce(
     (totals, transaction) => {
@@ -475,11 +488,14 @@ export function deriveSalaryCycle(input: {
   const reservedMinor = input.obligationsReservedMinor ?? 0;
   const remainingMinor = incomeMinor - expenseMinor - reservedMinor;
   const daysRemaining = Math.max(0, daysBetween(input.today, nextDate));
-  const salaryState = deriveSalaryState(
-    current.expectedOccurrenceDate,
-    current.receivedDate,
-    input.today
-  );
+  const salaryState =
+    input.today > nextDate
+      ? 'overdue'
+      : deriveSalaryState(
+          current.expectedOccurrenceDate,
+          current.receivedDate!,
+          input.today
+        );
   const dailyReason: CalculationReason | null =
     salaryState === 'overdue'
       ? 'salary_overdue'
@@ -528,8 +544,7 @@ export function calculateBudgetProgress(input: {
   today: LocalDate;
   timeZone?: string;
 }): BudgetProgress {
-  const timeZone =
-    input.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+  const timeZone = resolveEffectiveTimeZone(input.timeZone);
   const categoryIds = input.categoryIds ? new Set(input.categoryIds) : null;
   const periodTransactions = input.transactions.filter(
     (transaction) =>

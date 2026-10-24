@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type {
   AuthenticationSession,
   OnboardingProgress,
+  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -16,16 +17,24 @@ import {
   type StepResult
 } from '@/features/onboarding/onboarding-progress';
 import { isDemoModeEnabled } from '@/config/demo-mode';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
 import {
   createClientDemoSession,
   createCompletedDemoOnboarding
 } from '@/domain/demo-session';
-import { failUnlock, resetLock } from '@/features/security/privacy-lock';
+import { createPinLock, failUnlock } from '@/features/security/privacy-lock';
 import {
   clearAppShellStorageOwner,
   configureAppShellStorageOwner,
   createAppShellStorage
+} from '@/storage/app-shell-storage';
+import {
+  loadLocalOwnerAccess,
+  clearLocalOwnerAccess
 } from '@/storage/app-shell-storage';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 import { usePreferenceStore } from '@/state/preferences';
@@ -37,14 +46,16 @@ import { clearDatabaseOwner, configureDatabaseOwner } from '@/storage/database';
 import { clearLegacySmsImportQueue } from '@/storage/sms-import-queue';
 
 interface AppShellState {
+  bootstrapRevision: number;
+  retryBootstrap: () => void;
   hydrated: boolean;
   session: AuthenticationSession | null;
   onboarding: OnboardingProgress | null;
   pendingDestination: string | null;
   privacyLock: PrivacyLockPreference | null;
+  pinCredential: PinCredential | null;
   profilePromptDismissed: boolean;
   trackingHomeCardDismissed: boolean;
-  pinCredential: string | null;
   profileSetupStatus: ProfileSetupStatus;
   profileSetupSnapshot: ProfileSetupSnapshot | null;
   hydrate: (now?: number) => Promise<void>;
@@ -53,7 +64,9 @@ interface AppShellState {
     isCurrent?: () => boolean
   ) => Promise<void>;
   expireSession: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (localDataRemoved?: boolean) => Promise<void>;
+  releaseDeletedOwner: (ownerId: string) => void;
+  suspendUnavailableRestoration: () => Promise<void>;
   setOnboarding: (progress: OnboardingProgress) => Promise<void>;
   advanceOnboarding: (
     steps: readonly OnboardingStep[],
@@ -62,9 +75,16 @@ interface AppShellState {
   ) => Promise<OnboardingProgress | null>;
   skipOnboarding: (now?: number) => Promise<void>;
   setTrackingPreference: (preference: TrackingPreference) => Promise<void>;
-  setPendingDestination: (destination: string | null) => Promise<void>;
+  setPendingDestination: (
+    destination: string | null,
+    isCurrent?: () => boolean
+  ) => Promise<void>;
   setPrivacyLock: (lock: PrivacyLockPreference) => Promise<void>;
-  configurePrivacyLock: (hash: string, now?: number) => Promise<void>;
+  configurePrivacyLock: (
+    credential: PinCredential,
+    now?: number
+  ) => Promise<void>;
+  updatePinCredential: (credential: PinCredential) => Promise<void>;
   recordFailedUnlock: (now: number) => Promise<void>;
   lockNow: () => Promise<void>;
   resetPrivacyLock: () => Promise<void>;
@@ -96,23 +116,67 @@ const initialState = {
   onboarding: null,
   pendingDestination: null,
   privacyLock: null,
+  pinCredential: null,
   profilePromptDismissed: false,
   trackingHomeCardDismissed: false,
-  pinCredential: null,
   profileSetupStatus: 'unknown' as ProfileSetupStatus,
   profileSetupSnapshot: null as ProfileSetupSnapshot | null
 };
 
 export const useAppShellStore = create<AppShellState>((set, get) => ({
   ...initialState,
+  bootstrapRevision: 0,
+  retryBootstrap: () => {
+    if (get().profileSetupStatus === 'loading') return;
+    set({
+      bootstrapRevision: get().bootstrapRevision + 1,
+      profileSetupStatus: 'loading'
+    });
+  },
 
   hydrate: async (now = Date.now()) => {
     try {
       const demoMode = isDemoModeEnabled();
       if (!demoMode && resolveClientMode() === 'live') {
+        const cached = await loadLocalOwnerAccess();
+        if (
+          cached?.status === 'authenticated' &&
+          cached.userId &&
+          !(await isDeletionOwnerFenced(cached.userId))
+        ) {
+          await configureDatabaseOwner(cached.userId);
+          await configureAppShellStorageOwner(cached.userId);
+          const [privacyLock, pinCredential] = await Promise.all([
+            storage.loadPrivacyLock(),
+            storage.loadPinCredential()
+          ]);
+          const launchLock = lockForLaunch(privacyLock, pinCredential, now);
+          if (
+            launchLock &&
+            (pinCredential || launchLock.biometricStatus === 'enabled')
+          ) {
+            set({
+              ...initialState,
+              hydrated: true,
+              session: { ...cached, restoration: 'local' },
+              privacyLock: launchLock,
+              pinCredential,
+              profileSetupStatus: 'complete'
+            });
+            return;
+          }
+        }
         await clearDatabaseOwner();
         clearAppShellStorageOwner();
-        set({ ...initialState, hydrated: true, session: signedOutSession });
+        set({
+          ...initialState,
+          hydrated: true,
+          session: {
+            ...signedOutSession,
+            status: 'restoring',
+            restoration: 'pending'
+          }
+        });
         return;
       }
       if (demoMode && !usePreferenceStore.getState().hydrated)
@@ -157,7 +221,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
           session: demoSession,
           onboarding: demoOnboarding,
           pendingDestination: null,
-          privacyLock: null,
+          privacyLock: lockForLaunch(privacyLock, pinCredential, now),
           pinCredential,
           profilePromptDismissed,
           trackingHomeCardDismissed,
@@ -171,7 +235,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         session,
         onboarding,
         pendingDestination,
-        privacyLock,
+        privacyLock: lockForLaunch(privacyLock, pinCredential, now),
         pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed,
@@ -193,9 +257,25 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     )
       throw new Error('invalid live session');
     if (session.status === 'authenticated' && liveMode) {
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(session.userId!))
+      ) {
+        if (
+          isCurrent() &&
+          (!get().session?.userId || get().session?.userId === session.userId)
+        )
+          set({ ...initialState, hydrated: true, session: signedOutSession });
+        return;
+      }
       set(initialState);
-      await resetRuntimeIdentityData();
+      await resetRuntimeIdentityData({ restoringOwnerId: session.userId! });
       if (!isCurrent()) return;
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(session.userId!))
+      )
+        return;
       await configureDatabaseOwner(session.userId!);
       if (!isCurrent()) return;
       await configureAppShellStorageOwner(session.userId!);
@@ -221,7 +301,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         session,
         onboarding,
         pendingDestination,
-        privacyLock,
+        privacyLock: lockForLaunch(privacyLock, pinCredential, Date.now()),
         pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed
@@ -236,11 +316,28 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     const session = get().session;
     if (!session || session.status !== 'authenticated') return;
     const expired = { ...session, status: 'expired' as const };
+    await clearLocalOwnerAccess();
     await storage.saveSession(expired);
     set({ session: expired });
   },
 
-  signOut: async () => {
+  suspendUnavailableRestoration: async () => {
+    await clearLocalOwnerAccess();
+    set({ ...initialState, hydrated: true, session: signedOutSession });
+    clearAppShellStorageOwner();
+    await Promise.all([
+      clearDatabaseOwner(),
+      resetRuntimeIdentityData({ kind: 'restore-unavailable' })
+    ]);
+  },
+
+  releaseDeletedOwner: (ownerId) => {
+    if (get().session?.userId !== ownerId) return;
+    clearAppShellStorageOwner();
+    set({ ...initialState, hydrated: true, session: signedOutSession });
+  },
+
+  signOut: async (localDataRemoved = false) => {
     const ownerId = get().session?.userId;
     set({
       hydrated: true,
@@ -248,19 +345,21 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       onboarding: null,
       pendingDestination: null,
       privacyLock: null,
+      pinCredential: null,
       profilePromptDismissed: false,
       trackingHomeCardDismissed: false,
-      pinCredential: null,
       profileSetupStatus: 'unknown',
       profileSetupSnapshot: null
     });
     await Promise.all([
+      clearLocalOwnerAccess(),
       storage.clearSession(),
       (async () => {
         try {
-          await clearDatabaseOwner(
-            ownerId && resolveClientMode() === 'live' ? ownerId : undefined
-          );
+          if (!localDataRemoved)
+            await clearDatabaseOwner(
+              ownerId && resolveClientMode() === 'live' ? ownerId : undefined
+            );
         } finally {
           await clearLegacySmsImportQueue();
         }
@@ -308,9 +407,10 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set({ onboarding: updated });
   },
 
-  setPendingDestination: async (pendingDestination) => {
+  setPendingDestination: async (pendingDestination, isCurrent = () => true) => {
+    if (!isCurrent()) return;
     await storage.savePendingDestination(pendingDestination);
-    set({ pendingDestination });
+    if (isCurrent()) set({ pendingDestination });
   },
 
   setPrivacyLock: async (privacyLock) => {
@@ -318,24 +418,35 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set({ privacyLock });
   },
 
-  configurePrivacyLock: async (hash, now = Date.now()) => {
-    const privacyLock = get().privacyLock ?? resetLock(now);
+  configurePrivacyLock: async (pinCredential, now = Date.now()) => {
+    const existing = get().privacyLock;
+    const privacyLock = existing
+      ? { ...existing, pinConfigured: true }
+      : createPinLock(now);
     await Promise.all([
-      storage.savePinCredential(hash),
+      storage.savePinCredential(pinCredential),
       storage.savePrivacyLock(privacyLock)
     ]);
-    set({ privacyLock, pinCredential: hash });
+    set({ privacyLock, pinCredential });
+  },
+
+  updatePinCredential: async (pinCredential) => {
+    await storage.savePinCredential(pinCredential);
+    set({ pinCredential });
   },
 
   recordFailedUnlock: async (now) => {
-    const privacyLock = failUnlock(get().privacyLock ?? resetLock(now), now);
+    const privacyLock = failUnlock(
+      get().privacyLock ?? createPinLock(now),
+      now
+    );
     await storage.savePrivacyLock(privacyLock);
     set({ privacyLock });
   },
 
   lockNow: async () => {
     const privacyLock = get().privacyLock;
-    if (!privacyLock) return;
+    if (!privacyLock || privacyLock.appLockStatus === 'locked') return;
     const locked = { ...privacyLock, appLockStatus: 'locked' as const };
     await storage.savePrivacyLock(locked);
     set({ privacyLock: locked });
@@ -374,6 +485,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     const unlocked = {
       ...privacyLock,
       invalidAttempts: 0,
+      lockoutStage: 0,
       lockedUntil: null,
       appLockStatus: 'unlocked' as const
     };
@@ -385,6 +497,39 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     set(initialState);
   }
 }));
+
+function lockForLaunch(
+  privacyLock: PrivacyLockPreference | null,
+  pinCredential: PinCredential | null,
+  now: number
+): PrivacyLockPreference | null {
+  if (!privacyLock) return pinCredential ? createPinLock(now) : null;
+  if (
+    !pinCredential &&
+    !privacyLock.pinConfigured &&
+    privacyLock.biometricStatus !== 'enabled'
+  )
+    return null;
+
+  const lockoutExpired =
+    pinCredential !== null &&
+    privacyLock.lockedUntil !== null &&
+    privacyLock.lockedUntil <= now;
+  const lockoutActive =
+    pinCredential !== null &&
+    privacyLock.invalidAttempts >= 5 &&
+    privacyLock.lockedUntil !== null &&
+    privacyLock.lockedUntil > now;
+  return {
+    ...privacyLock,
+    pinConfigured: pinCredential !== null,
+    invalidAttempts:
+      pinCredential && !lockoutExpired ? privacyLock.invalidAttempts : 0,
+    lockedUntil:
+      pinCredential && !lockoutExpired ? privacyLock.lockedUntil : null,
+    appLockStatus: lockoutActive ? 'temporarily_locked' : 'locked'
+  };
+}
 
 registerRuntimeUserDataReset(() => {
   useAppShellStore.setState({

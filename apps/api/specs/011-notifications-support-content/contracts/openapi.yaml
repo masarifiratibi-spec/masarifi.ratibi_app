@@ -14,6 +14,52 @@ tags:
   - name: Content
   - name: AdminEngagement
 paths:
+  /api/v1/tracking/device/notifications:
+    get:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceListNotifications
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/CustomerLimit'
+        - { name: type, in: query, schema: { type: string, maxLength: 96 } }
+        - { name: unread, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Owner-safe notification page, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPage' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tracking/device/notifications/{notificationId}:
+    get:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceGetNotification
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }]
+      responses:
+        '200': { description: Protected owner detail, content: { application/json: { schema: { $ref: '#/components/schemas/Notification' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tracking/device/notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceSetNotificationRead
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ReadRequest' } } } }
+      responses:
+        '200': { description: Updated owner item, content: { application/json: { schema: { $ref: '#/components/schemas/Notification' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tracking/device/notifications/{notificationId}/actions:
+    post:
+      tags: [Notifications]
+      description: Versioned notification surface for supported mobile installations.
+      security: [{ ClerkBearer: [] }]
+      operationId: deviceActOnNotification
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationActionRequest' } } } }
+      responses:
+        '200': { description: Protected action result, content: { application/json: { schema: { $ref: '#/components/schemas/ActionResult' } } } }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/notifications:
     get:
       tags: [Notifications]
@@ -297,13 +343,39 @@ paths:
       responses:
         '202': { description: Retry queued, content: { application/json: { schema: { $ref: '#/components/schemas/ActionResult' } } } }
         default: { $ref: '#/components/responses/Error' }
+  /api/v1/admin/support/overview:
+    get:
+      tags: [AdminEngagement]
+      operationId: adminSupportOverview
+      description: Permission support.overview.read. Actual workload counts across all matching tickets; no customer identities.
+      responses:
+        '200': { description: Current support workload, content: { application/json: { schema: { $ref: '#/components/schemas/SupportWorkload' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/admin/support/tickets/{ticketId}/attachments/{attachmentId}/download:
+    get:
+      tags: [AdminEngagement]
+      operationId: adminDownloadSupportAttachment
+      description: Requires support.tickets.detail.read. Audited short-lived link for a clean attachment linked to a message in this ticket. Unsafe or cross-ticket attachments return 404.
+      parameters: [{ $ref: '#/components/parameters/TicketId' }, { $ref: '#/components/parameters/AttachmentId' }]
+      responses:
+        '200': { description: Clean authorized attachment link, content: { application/json: { schema: { type: object, additionalProperties: false, required: [url,expiresAt], properties: { url: { type: string, format: uri }, expiresAt: { type: string, format: date-time } } } } } }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/admin/support/tickets:
     get:
       tags: [AdminEngagement]
       operationId: adminListSupportTickets
-      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/AdminLimit' }]
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/AdminLimit' }
+        - { name: query, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/TicketStatus' } }
+        - { name: priority, in: query, schema: { $ref: '#/components/schemas/TicketPriority' } }
+        - { name: assignee, in: query, description: Admin ID or unassigned, schema: { type: string, maxLength: 128 } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, description: Inclusive UTC creation date, schema: { type: string, format: date } }
+        - { name: to, in: query, description: Inclusive UTC creation date, schema: { type: string, format: date } }
       responses:
-        '200': { description: Permissioned ticket page, content: { application/json: { schema: { $ref: '#/components/schemas/TicketPage' } } } }
+        '200': { description: Bounded permissioned ticket page and exact matching count, content: { application/json: { schema: { $ref: '#/components/schemas/AdminTicketPage' } } } }
         default: { $ref: '#/components/responses/Error' }
   /api/v1/admin/support/tickets/{ticketId}:
     get:
@@ -582,6 +654,48 @@ components:
         body: { type: string, maxLength: 8192 }
         attachments: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/Attachment' } }
         createdAt: { type: string, format: date-time }
+    AdminTicket:
+      type: object
+      additionalProperties: false
+      required: [id,categoryId,subject,status,priority,lastMessageAt,closedAt,version,createdAt,assignedAdminId,customerReference]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        categoryId: { $ref: '#/components/schemas/Uuid' }
+        subject: { type: string, maxLength: 180 }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        lastMessageAt: { type: string, format: date-time }
+        closedAt: { type: [string,'null'], format: date-time }
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        assignedAdminId: { type: [string,'null'], maxLength: 128 }
+        customerReference: { type: string, pattern: '^CUS-[a-f0-9]{16}$' }
+    AdminTicketPage:
+      type: object
+      additionalProperties: false
+      required: [items,nextCursor,hasMore,totalItems]
+      properties:
+        items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/AdminTicket' } }
+        nextCursor: { type: [string,'null'], maxLength: 512 }
+        hasMore: { type: boolean }
+        totalItems: { type: integer, minimum: 0 }
+    SupportWorkload:
+      type: object
+      additionalProperties: false
+      required: [total,unassigned,byStatus]
+      properties:
+        total: { type: integer, minimum: 0 }
+        unassigned: { type: integer, minimum: 0 }
+        byStatus:
+          type: object
+          additionalProperties: false
+          required: [open,waiting_customer,waiting_support,resolved,closed]
+          properties:
+            open: { type: integer, minimum: 0 }
+            waiting_customer: { type: integer, minimum: 0 }
+            waiting_support: { type: integer, minimum: 0 }
+            resolved: { type: integer, minimum: 0 }
+            closed: { type: integer, minimum: 0 }
     TicketDetail:
       type: object
       additionalProperties: false
@@ -741,8 +855,10 @@ components:
     AdminTicketDetail:
       type: object
       additionalProperties: false
-      required: [id,categoryId,subject,status,priority,lastMessageAt,closedAt,version,createdAt,messages,nextCursor,hasMore,internalNotes]
+      required: [id,categoryId,subject,status,priority,lastMessageAt,closedAt,version,createdAt,messages,nextCursor,hasMore,internalNotes,assignedAdminId,customerReference]
       properties:
+        assignedAdminId: { type: [string,'null'], maxLength: 128 }
+        customerReference: { type: string, pattern: '^CUS-[a-f0-9]{16}$' }
         id: { $ref: '#/components/schemas/Uuid' }
         categoryId: { $ref: '#/components/schemas/Uuid' }
         subject: { type: string, maxLength: 180 }

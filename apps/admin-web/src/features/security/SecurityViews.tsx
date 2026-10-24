@@ -163,7 +163,7 @@ function SimpleList({ resource, title }: { resource: string; title: string }) {
       <div className="card-heading ops-card-heading">
         <div>
           <h2 id={`${resource}-title`}>{title}</h2>
-          <p>{query.data.pagination.totalItems} {copy.records}</p>
+          <p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {copy.records}</p>
         </div>
       </div>
       {items.length === 0 ? <p role="status">{copy.empty}</p> : (
@@ -202,10 +202,10 @@ function AuthenticationTable({ items }: { items: AuthenticationEvent[] }) {
           <thead><tr><th>{copy.event}</th><th>{copy.actor}</th><th>{copy.risk}</th><th>{copy.result}</th><th>{copy.platform}</th><th>{copy.time}</th></tr></thead>
           <tbody>{items.map((event) => (
             <tr key={event.id}>
-              <td><strong>{event.eventType}</strong><small><Id value={event.id} /> · <Id value={event.correlationId} /></small></td>
-              <td>{event.actor.label}<small>{event.actorType} · {event.broadRegion}</small></td>
+              <td><strong>{event.eventType}</strong><small><Id value={event.id} /> · <Id value={event.correlationId ?? "Unavailable"} /></small></td>
+              <td>{(event.actor?.label ?? "Unavailable")}<small>{event.actorType} · {event.broadRegion}</small></td>
               <td><Badge value={getSeverityLabel(locale, event.risk)} tone={riskTone(event.risk)} /></td>
-              <td><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></td>
+              <td><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></td>
               <td><span>{getPlatformLabel(locale, event.platform)}</span></td>
               <td><Id value={event.occurredAt} /></td>
             </tr>
@@ -214,9 +214,9 @@ function AuthenticationTable({ items }: { items: AuthenticationEvent[] }) {
       </div>
       <div className="mobile-cards ops-mobile-cards">{items.map((event) => (
         <article className="mobile-data-card" key={event.id}>
-          <div className="mobile-data-head"><Id value={event.id} /><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></div>
+          <div className="mobile-data-head"><Id value={event.id} /><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></div>
           <strong>{event.eventType}</strong>
-          <p>{event.actor.label} · {event.broadRegion}</p>
+          <p>{(event.actor?.label ?? "Unavailable")} · {event.broadRegion}</p>
           <div className="mobile-data-meta"><div><small>{copy.risk}</small><Badge value={getSeverityLabel(locale, event.risk)} tone={riskTone(event.risk)} /></div><div><small>{copy.time}</small><Id value={event.occurredAt} /></div></div>
         </article>
       ))}</div>
@@ -405,8 +405,8 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
     <article className="mobile-data-card">
       <div className="mobile-data-head"><Id value={grant.id} /><span>{getStatusLabel(locale, grant.state)}</span></div>
       <strong>{grant.agent.label} · {grant.customer.label}</strong>
-      <p>{grant.scopes.join(" · ")} · {copy.expires} <Id value={grant.expiresAt} /></p>
-      {grant.state === "active" && <button className="button" onClick={() => setOpen(true)}>{copy.endAccess}</button>}
+      <p>{grant.scopes.join(" · ")} · {copy.expires} <Id value={grant.expiresAt ?? "Unavailable"} /></p>
+      {(grant.state === "active" || grant.state === "approved") && <button className="button" onClick={() => setOpen(true)}>{copy.endAccess}</button>}
       <ConfirmDialog
         open={open}
         onClose={() => setOpen(false)}
@@ -419,7 +419,7 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
         title={copy.confirmSupport}
         scope={grant.id}
         consequence={copy.supportConsequence}
-        permission="security.support_access.revoke"
+        permission="support.access.revoke"
         auditEvent="security.support_access.revoked"
         pending={mutation.isPending}
         outcomes={{ success: "revoked", failure: "failed", conflict: "conflict" }}

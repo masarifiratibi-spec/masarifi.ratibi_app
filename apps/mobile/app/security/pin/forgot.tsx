@@ -1,15 +1,17 @@
 import React from 'react';
 import { router } from 'expo-router';
 
-import { GoogleAccountSelector } from '@/features/auth/GoogleAccountSelector';
-import { StateView } from '@/design-system/components/feedback/StateView';
-import { authService } from '@/features/auth/auth-flow';
 import { StyledText } from '@/components/StyledText';
+import { StateView } from '@/design-system/components/feedback/StateView';
+import { GoogleAccountSelector } from '@/features/auth/GoogleAccountSelector';
+import { authService } from '@/features/auth/auth-flow';
 import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 
 export default function ForgotPinRoute() {
   const resetPrivacyLock = useAppShellStore((state) => state.resetPrivacyLock);
+  const ownerId = useAppShellStore((state) => state.session?.userId);
+
   if (authService.metadata.availability === 'unavailable') {
     return (
       <StateView
@@ -19,15 +21,23 @@ export default function ForgotPinRoute() {
       />
     );
   }
+
   return (
     <>
       <StyledText variant="title">
         {translate('appShell.security.pin.forgot')}
       </StyledText>
-      <StyledText>{translate('appShell.security.reauthenticate')}</StyledText>
+      <StyledText>
+        {translate('appShell.security.pin.reauthenticate')}
+      </StyledText>
       <GoogleAccountSelector
         onResult={async (result) => {
-          if (result.status !== 'authenticated') return;
+          if (
+            result.status !== 'authenticated' ||
+            !ownerId ||
+            result.session.userId !== ownerId
+          )
+            return;
           await resetPrivacyLock();
           router.replace('/security/pin/create');
         }}

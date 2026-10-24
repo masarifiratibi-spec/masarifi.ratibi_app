@@ -17,11 +17,11 @@ import {
   type TransactionFilterSet,
   type TransactionInput
 } from '@/domain/core-finance';
+import { createDefaultCategories } from '@/domain/default-categories';
 import {
-  createDefaultCategories,
   isLegacyFixtureAccount,
   isLegacyFixtureTransaction
-} from '@/domain/core-finance-seeds';
+} from '@/domain/legacy-fixture-identity';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   CoreFinanceError,
@@ -29,6 +29,9 @@ import {
   type TransactionPage
 } from '@/services/contracts/core-finance-service';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
+import { mergeTransactionDraft } from './core-finance-draft-storage';
+import { withTransactionDraftWrite } from './transaction-draft-snapshots';
+import { SyncRepository } from './sync-repository';
 
 export interface CoreFinanceSeed {
   accounts?: Account[];
@@ -52,6 +55,14 @@ export class CoreFinanceRepository {
   private sequence = 0;
   private cleanupLegacyFixtures: boolean;
   private replaceEmptyDefaultLedger: boolean;
+
+  private expectedUserId?: string;
+
+  bindOwner(userId: string): void {
+    if (this.expectedUserId && this.expectedUserId !== userId)
+      throw new Error('stale repository owner');
+    this.expectedUserId = userId;
+  }
 
   constructor(seed: CoreFinanceSeed = {}) {
     this.seed = copy(seed);
@@ -107,11 +118,13 @@ export class CoreFinanceRepository {
     });
   }
 
-  async hydrate(): Promise<void> {
+  async hydrate({
+    preserveDrafts = false
+  }: { preserveDrafts?: boolean } = {}): Promise<void> {
     const seededAccounts = this.accounts.map(copy);
     const seededCategories = this.categories.map(copy);
     const seededTransactions = this.transactions.map(copy);
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     const [
       accounts,
       categories,
@@ -130,9 +143,11 @@ export class CoreFinanceRepository {
       database.getAllAsync<{ payload: string }>(
         'SELECT payload FROM finance_transactions'
       ),
-      database.getAllAsync<{ payload: string }>(
-        'SELECT payload FROM finance_drafts'
-      ),
+      preserveDrafts
+        ? Promise.resolve([])
+        : database.getAllAsync<{ payload: string }>(
+            'SELECT payload FROM finance_drafts'
+          ),
       database.getAllAsync<{ transaction_id: string; payload: string }>(
         'SELECT transaction_id, payload FROM finance_sync_conflicts'
       ),
@@ -159,7 +174,7 @@ export class CoreFinanceRepository {
       !corrections.length &&
       !operations.length
     ) {
-      await this.persistAll();
+      await this.persistAll({ preserveDrafts });
       return;
     }
     this.accounts = parseRows<Account>(accounts).map(
@@ -167,9 +182,10 @@ export class CoreFinanceRepository {
     );
     this.categories = parseRows<Category>(categories);
     this.transactions = parseRows<Transaction>(transactions);
-    this.drafts = new Map(
-      parseRows<TransactionDraft>(drafts).map((draft) => [draft.id, draft])
-    );
+    if (!preserveDrafts)
+      this.drafts = new Map(
+        parseRows<TransactionDraft>(drafts).map((draft) => [draft.id, draft])
+      );
     this.conflicts = parseRows<SyncConflict>(conflicts);
     this.deletedPriorStatus = new Map(
       corrections
@@ -216,7 +232,7 @@ export class CoreFinanceRepository {
       this.accounts = seededAccounts;
       this.categories = seededCategories;
       this.transactions = seededTransactions;
-      await this.persistAll();
+      await this.persistAll({ preserveDrafts });
       return;
     }
     if (this.cleanupLegacyFixtures) {
@@ -246,27 +262,36 @@ export class CoreFinanceRepository {
     }
   }
 
-  async persistAll(): Promise<void> {
-    const database = await openDatabase();
-    await runExclusiveDatabaseTransaction(database, async (transaction) => {
-      await transaction.execAsync(
-        'PRAGMA defer_foreign_keys = ON; DELETE FROM finance_sync_conflicts; DELETE FROM finance_corrections; DELETE FROM finance_transactions; DELETE FROM finance_drafts; DELETE FROM finance_categories; DELETE FROM finance_accounts;'
-      );
-      for (const account of this.accounts)
-        await persistAccount(transaction, account);
-      for (const category of this.categories)
-        await persistCategory(transaction, category);
-      for (const ledgerEntry of this.transactions)
-        await persistTransaction(transaction, ledgerEntry);
-      for (const draft of this.drafts.values())
-        await persistDraft(transaction, draft);
-      for (const conflict of this.conflicts)
-        await persistConflict(transaction, conflict);
-    });
+  async persistAll({
+    preserveDrafts = false
+  }: { preserveDrafts?: boolean } = {}): Promise<void> {
+    const persist = async () => {
+      const database = await openDatabase(this.expectedUserId);
+      await runExclusiveDatabaseTransaction(database, async (transaction) => {
+        await transaction.execAsync(
+          'PRAGMA defer_foreign_keys = ON; DELETE FROM finance_sync_conflicts; DELETE FROM finance_corrections; DELETE FROM finance_transactions;' +
+            (preserveDrafts ? '' : ' DELETE FROM finance_drafts;') +
+            ' DELETE FROM finance_categories; DELETE FROM finance_accounts;'
+        );
+        for (const account of this.accounts)
+          await persistAccount(transaction, account);
+        for (const category of this.categories)
+          await persistCategory(transaction, category);
+        for (const ledgerEntry of this.transactions)
+          await persistTransaction(transaction, ledgerEntry);
+        if (!preserveDrafts)
+          for (const draft of this.drafts.values())
+            await persistDraft(transaction, draft);
+        for (const conflict of this.conflicts)
+          await persistConflict(transaction, conflict);
+      });
+    };
+    if (preserveDrafts) await persist();
+    else await withTransactionDraftWrite(persist);
   }
 
   async persistAccounts(): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       for (const account of this.accounts)
         await persistAccount(transaction, account);
@@ -278,7 +303,7 @@ export class CoreFinanceRepository {
     database?: SQLiteDatabase
   ): Promise<void> {
     await runExclusiveDatabaseTransaction(
-      database ?? (await openDatabase()),
+      database ?? (await openDatabase(this.expectedUserId)),
       async (transaction) => persistCategory(transaction, category)
     );
   }
@@ -288,7 +313,7 @@ export class CoreFinanceRepository {
   ): Promise<Category[]> {
     let categories: Category[] = [];
     await runExclusiveDatabaseTransaction(
-      database ?? (await openDatabase()),
+      database ?? (await openDatabase(this.expectedUserId)),
       async (transaction) => {
         categories = parseRows<Category>(
           await transaction.getAllAsync<{ payload: string }>(
@@ -305,7 +330,7 @@ export class CoreFinanceRepository {
     database?: SQLiteDatabase
   ): Promise<void> {
     await runExclusiveDatabaseTransaction(
-      database ?? (await openDatabase()),
+      database ?? (await openDatabase(this.expectedUserId)),
       async (transaction) => {
         await transaction.execAsync('PRAGMA defer_foreign_keys = ON;');
         const pending = new Set(
@@ -326,7 +351,7 @@ export class CoreFinanceRepository {
     transaction: Transaction,
     operationId?: string
   ): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     if (!operationId) return persistTransaction(database, transaction);
     await runExclusiveDatabaseTransaction(
       database,
@@ -337,8 +362,81 @@ export class CoreFinanceRepository {
     );
   }
 
+  async queueTransactionEdit(
+    id: string,
+    input: TransactionInput,
+    operationId: string
+  ): Promise<Transaction> {
+    return withTransactionDraftWrite(async () => {
+      const previous = this.requireTransaction(id);
+      const value = transactionInputSchema.parse(input);
+      if (
+        !/^[0-9a-f-]{36}$/i.test(id) ||
+        !['expense', 'income'].includes(previous.type) ||
+        previous.status !== 'posted' ||
+        value.type !== previous.type ||
+        value.accountId !== previous.accountId ||
+        value.currencyCode !== previous.currencyCode ||
+        value.categoryId !== previous.categoryId ||
+        value.destinationAccountId !== previous.destinationAccountId ||
+        value.feeMinor !== previous.feeMinor
+      )
+        throw new CoreFinanceError('offline');
+      const database = await openDatabase(this.expectedUserId);
+      const next = {
+        ...this.saveTransaction(value, id),
+        syncStatus: 'pending' as const
+      };
+      try {
+        await runExclusiveDatabaseTransaction(database, async (transaction) => {
+          const dependency = await transaction.getFirstAsync<{
+            operation_id: string;
+            status: string;
+          }>(
+            "SELECT operation_id,status FROM sync_mutation_queue WHERE domain='transactions' AND resource_id=? AND status!='applied' ORDER BY created_at DESC,rowid DESC LIMIT 1",
+            id
+          );
+          if (
+            dependency &&
+            ['conflict', 'rejected'].includes(dependency.status)
+          )
+            throw new CoreFinanceError('conflict');
+          await persistTransaction(transaction, next);
+          await new SyncRepository(transaction).enqueue({
+            operationId,
+            domain: 'transactions',
+            resourceType: 'transaction',
+            schemaVersion: 1,
+            dependsOn: dependency ? [dependency.operation_id] : [],
+            operation: 'update',
+            resourceId: id,
+            baseVersion: previous.version,
+            payload: {
+              title: value.title,
+              merchant: value.merchant,
+              note: value.notes,
+              occurredAt: new Date(value.occurredAt).toISOString(),
+              amountMinor: value.amountMinor
+            }
+          });
+        });
+        this.transactions = this.transactions.map((item) =>
+          item.id === id ? next : item
+        );
+        return copy(next);
+      } catch (error) {
+        this.transactions = this.transactions.map((item) =>
+          item.id === id ? previous : item
+        );
+        throw error;
+      }
+    });
+  }
+
   async persistDraft(draft: TransactionDraft): Promise<void> {
-    await persistDraft(await openDatabase(), draft);
+    await withTransactionDraftWrite(async () =>
+      persistDraft(await openDatabase(this.expectedUserId), draft)
+    );
   }
 
   batchOperationResult(operationId: string): Transaction[] | null {
@@ -350,7 +448,7 @@ export class CoreFinanceRepository {
     operationId: string,
     transactions: readonly Transaction[]
   ): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       for (const item of transactions)
         await persistTransaction(transaction, item);
@@ -360,13 +458,15 @@ export class CoreFinanceRepository {
   }
 
   async removePersistedDraft(id: string): Promise<void> {
-    await (
-      await openDatabase()
-    ).runAsync('DELETE FROM finance_drafts WHERE id = ?', id);
+    await withTransactionDraftWrite(async () => {
+      await (
+        await openDatabase(this.expectedUserId)
+      ).runAsync('DELETE FROM finance_drafts WHERE id = ?', id);
+    });
   }
 
   async persistCategoryMerge(): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       await transaction.execAsync('PRAGMA defer_foreign_keys = ON;');
       for (const category of this.categories)
@@ -377,7 +477,7 @@ export class CoreFinanceRepository {
   }
 
   async persistConflictResolution(conflictId: string): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     const conflict = this.requireConflict(conflictId);
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       for (const ledgerEntry of this.transactions)
@@ -387,7 +487,7 @@ export class CoreFinanceRepository {
   }
 
   async persistDelete(transaction: Transaction): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(
       database,
       async (sqliteTransaction) => {
@@ -408,7 +508,7 @@ export class CoreFinanceRepository {
   }
 
   async persistUndo(transaction: Transaction): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.expectedUserId);
     await runExclusiveDatabaseTransaction(
       database,
       async (sqliteTransaction) => {
@@ -858,7 +958,7 @@ export class CoreFinanceRepository {
         this.saveTransaction(value, undefined, undefined, source)
       );
       if (persistent) {
-        const database = await openDatabase();
+        const database = await openDatabase(this.expectedUserId);
         await runExclusiveDatabaseTransaction(database, async (transaction) => {
           for (const item of created)
             await persistTransaction(transaction, item);
@@ -899,7 +999,7 @@ export class CoreFinanceRepository {
   }
 
   saveDraft(draft: TransactionDraft): TransactionDraft {
-    const saved = { ...draft, updatedAt: Date.now() };
+    const saved = mergeTransactionDraft(this.drafts.get(draft.id), draft);
     this.drafts.set(saved.id, saved);
     return copy(saved);
   }
@@ -963,7 +1063,7 @@ export class CoreFinanceRepository {
   }
 
   async persistConflictRecord(conflict: SyncConflict): Promise<void> {
-    await persistConflict(await openDatabase(), conflict);
+    await persistConflict(await openDatabase(this.expectedUserId), conflict);
   }
 
   requireConflict(id: string): SyncConflict {

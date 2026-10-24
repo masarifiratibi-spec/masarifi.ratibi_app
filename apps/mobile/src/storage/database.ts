@@ -10,54 +10,204 @@ import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { File } from 'expo-file-system';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { isDeletionOwnerFenced } from './deletion-completion-journal';
+import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 13;
+const CURRENT_SCHEMA_VERSION = 15;
 const LEGACY_OWNER_KEY = 'masarifi.database.legacyOwnerHash';
 const DATABASE_KEY_PREFIX = 'masarifi.database.key.';
 const LEGACY_MIGRATION_TABLE = '_masarifi_migration_state';
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let databaseClosePromise: Promise<void> | null = null;
 let databaseLifecycleQueue: Promise<void> = Promise.resolve();
 let activeDatabase: SQLite.SQLiteDatabase | null = null;
 let databaseName = DATABASE_NAME;
 let databaseOwnerHash: string | null = null;
+let databaseOwnerId: string | null = null;
+let recoveryListener: ((ownerId: string) => void) | undefined;
+
+export function configureDatabaseRecoveryListener(
+  listener?: (ownerId: string) => void
+): void {
+  recoveryListener = listener;
+}
+
+/** Explicit recovery preserves the unreadable encrypted original and its sidecars. */
+export async function quarantineUnrecoverableDatabase(
+  ownerId: string,
+  confirmation: 'PRESERVE_ENCRYPTED_ORIGINAL'
+): Promise<void> {
+  if (confirmation !== 'PRESERVE_ENCRYPTED_ORIGINAL')
+    throw new Error('recovery confirmation required');
+  await withTransactionDraftWrite(() =>
+    enqueueDatabaseLifecycle(async () => {
+      assertDatabaseOwner(ownerId);
+      const hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        ownerId
+      );
+      if (hash !== databaseOwnerHash) throw new Error('stale database owner');
+      await closeActiveDatabase();
+      const metadataKey = `masarifi.database.quarantine.${hash}`;
+      const saved = await SecureStore.getItemAsync(metadataKey);
+      const name = ownerDatabaseName(hash);
+      const backup = saved ?? `${name}.unrecoverable-${Date.now()}`;
+      if (
+        !backup.startsWith(`${name}.unrecoverable-`) ||
+        !/^[a-zA-Z0-9.-]+$/.test(backup)
+      )
+        throw new Error('invalid recovery record');
+      await SecureStore.setItemAsync(metadataKey, backup);
+      for (const suffix of ['', '-wal', '-shm']) {
+        const source = databaseFile(`${name}${suffix}`);
+        if (source.exists) source.move(databaseFile(`${backup}${suffix}`));
+      }
+      if (databaseFilesExist(name))
+        throw new Error('database quarantine incomplete');
+      await SecureStore.deleteItemAsync(`${DATABASE_KEY_PREFIX}${hash}`);
+    })
+  );
+}
+
+async function quarantinedDatabaseName(
+  ownerHash: string
+): Promise<string | null> {
+  const saved = await SecureStore.getItemAsync(
+    `masarifi.database.quarantine.${ownerHash}`
+  );
+  if (
+    saved &&
+    (!saved.startsWith(`${ownerDatabaseName(ownerHash)}.unrecoverable-`) ||
+      !/^[a-zA-Z0-9.-]+$/.test(saved))
+  )
+    throw new Error('invalid recovery record');
+  return saved;
+}
+
+export async function hasQuarantinedOwnerDatabase(
+  ownerId: string
+): Promise<boolean> {
+  assertDatabaseOwner(ownerId);
+  const hash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    ownerId
+  );
+  return (await quarantinedDatabaseName(hash)) !== null;
+}
 
 export async function configureDatabaseOwner(userId: string): Promise<void> {
-  if (!userId || /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(userId))
-    throw new Error('invalid database owner');
-  await enqueueDatabaseLifecycle(async () => {
-    const ownerHash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      userId
-    );
-    if (ownerHash === databaseOwnerHash) return;
-    await closeActiveDatabase();
-    databaseOwnerHash = ownerHash;
-    databaseName = `masarifi-${ownerHash.slice(0, 24)}.db`;
+  return withTransactionDraftWrite(async () => {
+    assertDatabaseOwner(userId);
+    await enqueueDatabaseLifecycle(async () => {
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(userId))
+      )
+        throw new Error('deleted database owner');
+      const ownerHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        userId
+      );
+      if (ownerHash === databaseOwnerHash) return;
+      await closeActiveDatabase();
+      databaseOwnerHash = ownerHash;
+      databaseOwnerId = userId;
+      databaseName = ownerDatabaseName(ownerHash);
+    });
   });
 }
 
-/** Explicit sign-out discards ephemeral imports before releasing the owner. */
-export async function clearDatabaseOwner(discardSmsQueueFor?: string): Promise<void> {
-  await enqueueDatabaseLifecycle(async () => {
-    if (discardSmsQueueFor !== undefined &&
-      (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, discardSmsQueueFor)) !== databaseOwnerHash)
-      throw new Error('stale database owner');
-    try {
-      if (discardSmsQueueFor !== undefined) {
-        databasePromise ??= createAndMigrate();
-        activeDatabase = await databasePromise;
-        await activeDatabase.withExclusiveTransactionAsync(async (transaction) => {
-          await transaction.runAsync('DELETE FROM sms_import_queue');
-        });
+/** Only after confirmed server erasure or sync-first logout with explicit unsynced-data removal. */
+export async function purgeAccountDatabase(ownerId: string): Promise<void> {
+  return withTransactionDraftWrite(async () => {
+    assertDatabaseOwner(ownerId);
+    await enqueueDatabaseLifecycle(async () => {
+      const ownerHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        ownerId
+      );
+      if (databaseOwnerHash === ownerHash) {
+        await closeActiveDatabase();
+        databaseOwnerHash = null;
+        databaseOwnerId = null;
+        databaseName = DATABASE_NAME;
       }
-    } finally {
-      await closeActiveDatabase();
-      databaseOwnerHash = null;
-      databaseName = DATABASE_NAME;
-    }
+      const quarantined = await quarantinedDatabaseName(ownerHash);
+      const ownerFilename = ownerDatabaseName(ownerHash);
+      removeDatabaseFiles(ownerFilename);
+      if (databaseFilesExist(ownerFilename))
+        throw new Error('database files remain');
+      if (quarantined) {
+        removeDatabaseFiles(quarantined);
+        if (databaseFilesExist(quarantined))
+          throw new Error('quarantined database files remain');
+        await SecureStore.deleteItemAsync(
+          `masarifi.database.quarantine.${ownerHash}`
+        );
+      }
+      if ((await SecureStore.getItemAsync(LEGACY_OWNER_KEY)) === ownerHash) {
+        removeDatabaseFiles(DATABASE_NAME);
+        if (databaseFilesExist(DATABASE_NAME))
+          throw new Error('legacy database files remain');
+        await SecureStore.deleteItemAsync(LEGACY_OWNER_KEY);
+      }
+      const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
+      await SecureStore.deleteItemAsync(storageKey);
+      if ((await SecureStore.getItemAsync(storageKey)) !== null)
+        throw new Error('database key remains');
+    });
+  });
+}
+
+function assertDatabaseOwner(ownerId: string): void {
+  if (!ownerId || /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(ownerId))
+    throw new Error('invalid database owner');
+}
+
+function ownerDatabaseName(ownerHash: string): string {
+  return `masarifi-${ownerHash.slice(0, 24)}.db`;
+}
+
+/** Explicit sign-out discards ephemeral imports before releasing the owner. */
+export async function clearDatabaseOwner(
+  discardSmsQueueFor?: string
+): Promise<void> {
+  return withTransactionDraftWrite(async () => {
+    await enqueueDatabaseLifecycle(async () => {
+      if (databaseClosePromise) await databaseClosePromise;
+      if (
+        discardSmsQueueFor !== undefined &&
+        (await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          discardSmsQueueFor
+        )) !== databaseOwnerHash
+      )
+        throw new Error('stale database owner');
+      try {
+        if (discardSmsQueueFor !== undefined) {
+          databasePromise ??= createAndMigrate();
+          activeDatabase = await databasePromise;
+          await withKeyedTransaction(
+            activeDatabase,
+            databaseOwnerHash,
+            async (transaction) => {
+              await transaction.runAsync('DELETE FROM sms_import_queue');
+            }
+          );
+        }
+      } finally {
+        await closeActiveDatabase();
+        databaseOwnerHash = null;
+        databaseOwnerId = null;
+        databaseName = DATABASE_NAME;
+      }
+    });
   });
 }
 
@@ -65,6 +215,7 @@ export async function openDatabase(
   expectedUserId?: string
 ): Promise<SQLite.SQLiteDatabase> {
   return enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (
       expectedUserId !== undefined &&
       (await Crypto.digestStringAsync(
@@ -92,6 +243,7 @@ export async function openDatabase(
  */
 export function resetDatabaseForTests(): void {
   databasePromise = null;
+  databaseClosePromise = null;
   databaseLifecycleQueue = Promise.resolve();
   activeDatabase = null;
 }
@@ -101,9 +253,23 @@ export function runExclusiveDatabaseTransaction(
   operation: (transaction: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   return enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (resolveClientMode() === 'live' && database !== activeDatabase)
       throw new Error('stale database owner');
-    await database.withExclusiveTransactionAsync(operation);
+    await withKeyedTransaction(database, databaseOwnerHash, operation);
+  });
+}
+
+async function withKeyedTransaction(
+  database: SQLite.SQLiteDatabase,
+  ownerHash: string | null,
+  operation: (transaction: SQLite.SQLiteDatabase) => Promise<void>
+): Promise<void> {
+  const key = ownerHash ? await databaseKey(ownerHash) : null;
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    // Expo's exclusive transaction has its own connection and SQLCipher key.
+    if (key) await transaction.execAsync(`PRAGMA key = "x'${key}'";`);
+    await operation(transaction);
   });
 }
 
@@ -111,10 +277,12 @@ async function createAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const ownerHash = databaseOwnerHash;
   const targetExisted = ownerHash ? databaseFile(databaseName).exists : false;
   let removeLegacyAfterMigration = false;
+  const key = ownerHash
+    ? await databaseKey(ownerHash, !databaseFilesExist(databaseName))
+    : null;
   const db = await SQLite.openDatabaseAsync(databaseName);
   try {
     if (ownerHash) {
-      const key = await databaseKey(ownerHash);
       await db.execAsync(`PRAGMA key = "x'${key}'";`);
       const cipher = await db.getFirstAsync<{ cipher_version: string }>(
         'PRAGMA cipher_version'
@@ -125,7 +293,7 @@ async function createAndMigrate(): Promise<SQLite.SQLiteDatabase> {
         : await verifyLegacyMigration(db, ownerHash);
       await db.getFirstAsync('SELECT count(*) AS count FROM sqlite_master');
     }
-    await runMigrations(db);
+    await runMigrations(db, ownerHash);
   } catch (error) {
     await db.closeAsync();
     if (ownerHash && !targetExisted && !removeLegacyAfterMigration)
@@ -168,9 +336,25 @@ async function verifyLegacyMigration(
 
 async function closeActiveDatabase(): Promise<void> {
   const active = databasePromise;
+  if (active) {
+    // Expo evicts native handles before closing; a failed close needs a restart,
+    // because repeating closeAsync can resolve without closing the old handle.
+    let database: SQLite.SQLiteDatabase;
+    try {
+      database = await active;
+    } catch (failure) {
+      if (databasePromise === active) {
+        databasePromise = null;
+        activeDatabase = null;
+      }
+      throw failure;
+    }
+    databaseClosePromise ??= database.closeAsync();
+    await databaseClosePromise;
+  }
   databasePromise = null;
+  databaseClosePromise = null;
   activeDatabase = null;
-  if (active) await (await active).closeAsync();
 }
 
 function enqueueDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
@@ -182,10 +366,17 @@ function enqueueDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
   return result;
 }
 
-async function databaseKey(ownerHash: string): Promise<string> {
+async function databaseKey(
+  ownerHash: string,
+  allowCreate = false
+): Promise<string> {
   const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
   const stored = await SecureStore.getItemAsync(storageKey);
   if (stored && /^[0-9a-f]{64}$/i.test(stored)) return stored.toLowerCase();
+  if (!allowCreate && databaseFilesExist(ownerDatabaseName(ownerHash))) {
+    if (databaseOwnerId) recoveryListener?.(databaseOwnerId);
+    throw new Error('DATABASE_KEY_RECOVERY_REQUIRED');
+  }
   const bytes = await Crypto.getRandomBytesAsync(32);
   const key = Array.from(bytes, (byte) =>
     byte.toString(16).padStart(2, '0')
@@ -216,7 +407,7 @@ async function migrateLegacyDatabase(
   } finally {
     await db.execAsync('DETACH DATABASE legacy;');
   }
-  await db.withExclusiveTransactionAsync(async (transaction) => {
+  await withKeyedTransaction(db, ownerHash, async (transaction) => {
     await transaction.execAsync(`
       CREATE TABLE IF NOT EXISTS ${LEGACY_MIGRATION_TABLE} (
         key TEXT PRIMARY KEY NOT NULL,
@@ -269,15 +460,22 @@ async function tableCounts(
 }
 
 function databaseFile(name: string): File {
-  return new File(SQLite.defaultDatabaseDirectory, name);
+  const directory = SQLite.defaultDatabaseDirectory;
+  return new File(
+    directory.startsWith('/') ? `file://${directory}` : directory,
+    name
+  );
 }
 
-async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+async function runMigrations(
+  db: SQLite.SQLiteDatabase,
+  ownerHash: string | null
+): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
   `);
-  await db.withExclusiveTransactionAsync(async (transaction) => {
+  await withKeyedTransaction(db, ownerHash, async (transaction) => {
     await transaction.execAsync(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
@@ -916,6 +1114,19 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE TABLE IF NOT EXISTS sms_import_queue (
       id TEXT PRIMARY KEY CHECK (id = 'singleton'),
       payload TEXT NOT NULL
+    );
+
+    -- migration:14
+    CREATE TABLE IF NOT EXISTS voice_operation_journal (
+      id TEXT PRIMARY KEY CHECK (id = 'singleton'),
+      attempt_id TEXT NOT NULL,
+      revision INTEGER NOT NULL CHECK (revision >= 0),
+      payload TEXT NOT NULL
+    );
+
+    -- migration:15
+    CREATE TABLE IF NOT EXISTS voice_batch_operations (
+      id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK(revision >= 0), payload TEXT NOT NULL
     );
 
   `);

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { PlanningDraft } from '@/domain/financial-planning';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { useAppShellStore } from '@/state/app-shell';
 
 const draftKey = (id: string) => ['planning', 'draft', id] as const;
 
@@ -17,7 +18,8 @@ export function usePlanningDraft(id: string) {
 export function useSavePlanningDraft() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (draft: PlanningDraft) => financialPlanningService.saveDraft(draft),
+    mutationFn: (draft: PlanningDraft) =>
+      financialPlanningService.saveDraft(draft),
     onSuccess: async (draft) => {
       await client.invalidateQueries({ queryKey: draftKey(draft.id) });
     }
@@ -45,19 +47,43 @@ export function usePlanningFormDraft(input: {
   enabled?: boolean;
 }) {
   const enabled = input.enabled ?? true;
+  const ownerId = useAppShellStore((state) => state.session?.userId);
+  const identity = JSON.stringify([ownerId ?? null, input.id]);
   const [draftReady, setDraftReady] = useState(false);
+  const initializedDraft = useRef<string | null>(null);
   const restore = useRef(input.restore);
   const onError = useRef(input.onError);
+  const payload = JSON.stringify(input.payload) ?? 'null';
+  const latestPayload = useRef(payload);
+  const discarded = useRef<{ id: string; payload: string } | undefined>(
+    undefined
+  );
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  const pendingWrite = useRef<Promise<void>>(Promise.resolve());
   restore.current = input.restore;
   onError.current = input.onError;
+  latestPayload.current = payload;
 
   useEffect(() => {
     let active = true;
     if (!enabled) {
-      setDraftReady(false);
-      return () => { active = false; };
+      if (initializedDraft.current !== identity) setDraftReady(false);
+      return () => {
+        active = false;
+      };
     }
-    void financialPlanningService.loadDraft(input.id)
+    // A transient profile failure must not restore over current unsaved edits.
+    if (initializedDraft.current === identity) {
+      setDraftReady(true);
+      return () => {
+        active = false;
+      };
+    }
+    setDraftReady(false);
+    void financialPlanningService
+      .loadDraft(input.id)
       .then((draft) => {
         if (active && draft) restore.current(draft.payload);
       })
@@ -65,29 +91,64 @@ export function usePlanningFormDraft(input: {
         if (active) onError.current();
       })
       .finally(() => {
-        if (active) setDraftReady(true);
+        if (active) {
+          initializedDraft.current = identity;
+          setDraftReady(true);
+        }
       });
-    return () => { active = false; };
-  }, [enabled, input.id]);
+    return () => {
+      active = false;
+    };
+  }, [enabled, input.id, identity]);
 
   useEffect(() => {
-    if (!enabled || !draftReady || !input.meaningful) return;
+    if (
+      !enabled ||
+      !draftReady ||
+      !input.meaningful ||
+      (discarded.current?.id === input.id &&
+        discarded.current.payload === payload)
+    )
+      return;
+    discarded.current = undefined;
     const timeout = setTimeout(() => {
-      void financialPlanningService.saveDraft({
-        id: input.id,
-        kind: input.kind,
-        entityId: input.entityId,
-        payload: input.payload,
-        status: 'editing',
-        updatedAt: Date.now()
-      }).catch(() => onError.current());
+      pendingWrite.current = pendingWrite.current
+        .then(() => {
+          if (useAppShellStore.getState().session?.userId !== ownerId) return;
+          return financialPlanningService.saveDraft({
+            id: input.id,
+            kind: input.kind,
+            entityId: input.entityId,
+            payload: JSON.parse(payload),
+            status: 'editing',
+            updatedAt: Date.now()
+          });
+        })
+        .then(() => undefined)
+        .catch(() => onError.current());
     }, 250);
+    autosaveTimer.current = timeout;
     return () => clearTimeout(timeout);
-  }, [draftReady, enabled, input.entityId, input.id, input.kind, input.meaningful, input.payload]);
+  }, [
+    draftReady,
+    enabled,
+    input.entityId,
+    input.id,
+    input.kind,
+    input.meaningful,
+    ownerId,
+    payload
+  ]);
 
-  const discardDraft = useCallback(
-    () => financialPlanningService.discardDraft(input.id),
-    [input.id]
-  );
+  const discardDraft = useCallback(() => {
+    discarded.current = { id: input.id, payload: latestPayload.current };
+    clearTimeout(autosaveTimer.current);
+    const deletion = pendingWrite.current.then(() => {
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
+      return financialPlanningService.discardDraft(input.id);
+    });
+    pendingWrite.current = deletion.catch(() => undefined);
+    return deletion;
+  }, [input.id, ownerId]);
   return { draftReady, discardDraft };
 }

@@ -4,9 +4,12 @@ select plan(5);
 grant authenticated, masarifi_api, masarifi_worker, masarifi_migration to current_user with inherit true, set true;
 grant usage on schema extensions to authenticated;
 set local role masarifi_migration;
-insert into public.profiles(id,status) values('event_owner','active'),('event_other','active'),('event_inactive','suspended');
+insert into public.profiles(id,status) values('event_owner','active'),('event_other','active'),('event_inactive','active');
 insert into public.security_events(user_id,event_type,severity,metadata) values
 ('event_owner','security.login','info','{}'),('event_other','security.other_login','high','{}'),('event_inactive','security.inactive_login','medium','{}'),(null,'security.system','critical','{}');
+-- Suspend after seeding: frozen-owner payload writes are intentionally forbidden.
+update public.profiles set status='suspended' where id='event_inactive';
+
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"event_owner","sid":"sess"}',true);
 set local role authenticated;
 select is((select count(*)::int from public.security_events),1,'owner sees only own event');

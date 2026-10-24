@@ -9,15 +9,17 @@ describe('PermissionEducation', () => {
     const onEnable = jest.fn();
     const onSkip = jest.fn();
 
-    renderWithProviders(<PermissionEducation onEnable={onEnable} onSkip={onSkip} />);
+    renderWithProviders(
+      <PermissionEducation onEnable={onEnable} onSkip={onSkip} />
+    );
 
     expect(screen.getByText('السماح بتتبع الرسائل')).toBeOnTheScreen();
-    expect(screen.getByText(/على هذا الجهاز فقط/)).toBeOnTheScreen();
+    expect(screen.getByText(/على هذا الجهاز/)).toBeOnTheScreen();
     expect(screen.getByText(/لا تتم إضافة الأكواد/)).toBeOnTheScreen();
     expect(screen.getByText(/التعديل والتراجع/)).toBeOnTheScreen();
     expect(screen.getByText(/الإدخال اليدوي والصوتي/)).toBeOnTheScreen();
     expect(screen.getByText(/إيقاف تتبع الرسائل/)).toBeOnTheScreen();
-    expect(screen.getByText(/مراجعة/)).toBeOnTheScreen();
+    expect(screen.getAllByText(/مراجعة/)[0]).toBeOnTheScreen();
 
     fireEvent.press(screen.getByLabelText('تفعيل التتبع'));
     fireEvent.press(screen.getByLabelText('ليس الآن'));

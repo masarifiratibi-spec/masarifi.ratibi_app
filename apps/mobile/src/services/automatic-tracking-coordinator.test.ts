@@ -6,9 +6,337 @@ import type {
 import { permissionState } from './mocks/tracking-permission-service';
 import { SmsImportQueue } from '@/storage/sms-import-queue';
 import { createAutomaticTrackingCoordinator } from './automatic-tracking-coordinator';
+import { prepareFinancialMessageImport } from '@/features/tracking/sms-import';
+import { invalidateTrackingConsent } from './tracking-source-preferences';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
+import {
+  defaultSnapshot,
+  discoverFinancialMessage
+} from '@masarifi/transaction-parser';
+jest.mock('expo-crypto', () => ({
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  digestStringAsync: async (_algorithm: string, value: string) =>
+    jest
+      .requireActual<typeof import('node:crypto')>('node:crypto')
+      .createHash('sha256')
+      .update(value)
+      .digest('hex')
+}));
+
+it('continues across filtered-empty pages and durably advances the scanned boundary', async () => {
+  const context = setup({ prepare: prepareFinancialMessageImport });
+  context.setOnline(false);
+  const readPage = jest
+    .fn()
+    .mockResolvedValueOnce({
+      version: 2,
+      messages: [],
+      lastScanned: { receivedAt: 100, id: '1000' },
+      hasMore: true,
+      scanned: 1000
+    })
+    .mockResolvedValueOnce({
+      version: 2,
+      messages: [],
+      lastScanned: { receivedAt: 200, id: '2000' },
+      hasMore: false,
+      scanned: 1000
+    });
+  Object.assign(context.inbox, { readPage });
+  await context.coordinator.sync();
+  expect(readPage).toHaveBeenCalledTimes(2);
+  expect(readPage.mock.calls[1][0]).toMatchObject({
+    since: 100,
+    afterId: '1000'
+  });
+  expect(await context.queue.load('owner-1')).toMatchObject({
+    cursor: 200,
+    cursorId: '2000',
+    pending: []
+  });
+});
+
+it('retains a fee-bearing backlog in submissions within the durable import limit', async () => {
+  const context = setup({ prepare: prepareFinancialMessageImport });
+  context.setOnline(false);
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [
+      { normalizedSender: 'examplebank', enabled: true, trusted: true }
+    ],
+    accountingPolicy: 'default_account_nominal_v1',
+    rolloutMode: 'automatic'
+  });
+  const messages = Array.from({ length: 61 }, (_, i) => ({
+    id: String(i + 1),
+    sender: 'ExampleBank',
+    body: 'Paid SAR50; additional fee SAR2',
+    receivedAt: 100 + i
+  }));
+  context.inbox.readRecent.mockImplementation(
+    async ({ since, limit }: { since: number; limit: number }) =>
+      messages.filter((m) => m.receivedAt > since).slice(0, limit)
+  );
+  expect((await context.coordinator.sync()).status).toBe('queued');
+  const queued = await context.queue.load('owner-1');
+  expect(
+    queued.pending.reduce(
+      (total, item) => total + item.submission.events.length,
+      0
+    )
+  ).toBe(122);
+  expect(
+    queued.pending.every((item) => item.submission.events.length <= 100)
+  ).toBe(true);
+  expect(queued.cursor).toBe(160);
+});
+
+it('applies a persisted keyword change to cached and native policy even if refresh loses network', async () => {
+  const configured = jest.fn(async () => undefined);
+  const runtime = setup({ configureBackground: configured });
+  await runtime.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: []
+  });
+  const rules = [
+    {
+      id: 'purchase-override',
+      origin: 'default' as const,
+      group: 'expense' as const,
+      language: 'en' as const,
+      value: 'purchase',
+      normalizedValue: 'purchase',
+      enabled: false
+    }
+  ];
+  runtime.tracking.getStatus.mockRejectedValueOnce(new Error('offline'));
+  await expect(
+    runtime.coordinator.updateKeywordConfiguration(rules)
+  ).rejects.toThrow('tracking_configuration_refresh_failed');
+  expect((await runtime.queue.load('owner-1')).rules.keywords).toEqual(rules);
+  expect(configured).toHaveBeenCalledWith(
+    'owner-1',
+    expect.objectContaining({ keywords: rules }),
+    expect.any(String),
+    expect.any(Number)
+  );
+});
+it('keeps a removed default tombstone effective if the authoritative refresh fails and after restart', async () => {
+  const configured = jest.fn(async () => undefined),
+    context = setup({ configureBackground: configured });
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [
+      {
+        id: 'default-payment',
+        origin: 'default',
+        group: 'expense',
+        language: 'ar',
+        value: 'دفع',
+        enabled: true
+      }
+    ],
+    senders: []
+  });
+  context.tracking.getStatus.mockRejectedValue(new Error('offline'));
+  await expect(
+    context.coordinator.updateKeywordConfiguration([])
+  ).rejects.toThrow('tracking_configuration_refresh_failed');
+  const persisted = (await context.queue.load('owner-1')).rules;
+  expect(persisted.keywords).toContainEqual(
+    expect.objectContaining({ value: 'دفع', enabled: false })
+  );
+  expect(
+    discoverFinancialMessage(
+      { text: 'تم دفع 50 ريال' },
+      persisted.snapshot,
+      persisted.keywords
+    ).strong
+  ).toBe(false);
+  expect(configured).toHaveBeenCalledWith(
+    'owner-1',
+    expect.objectContaining({
+      keywords: expect.arrayContaining([
+        expect.objectContaining({ value: 'دفع', enabled: false })
+      ])
+    }),
+    expect.any(String),
+    expect.any(Number)
+  );
+});
 
 let mockDatabase: StatefulSqlite;
+it('durably archives old nominal notifications so a later page can reach new captures', async () => {
+  const context = setup({ prepare: prepareFinancialMessageImport });
+  context.setOnline(false);
+  context.bankNotifications.getAccessState.mockResolvedValue('granted');
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [],
+    accountingPolicy: 'default_account_nominal_v1',
+    sourceAdmissionPolicy: 'financial_content_v1',
+    policyActivatedAt: 5000
+  });
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: false,
+    notificationEnabled: true,
+    notificationActivatedAt: 0
+  });
+  let records = Array.from({ length: 51 }, (_, i) => ({
+    key: 'record-' + i,
+    packageName: 'com.synthetic.payment',
+    title: '',
+    text: 'Paid SAR2',
+    postedAt: i === 50 ? 5001 : 1000 + i,
+    captureActivatedAt: 0,
+    capturePolicy: 'default_account_nominal_v1' as const
+  }));
+  context.dependencies.bankNotifications.readRecent.mockImplementation(
+    async (limit: number) => records.slice(0, limit)
+  );
+  context.dependencies.bankNotifications.acknowledge.mockImplementation(
+    async (keys: string[]) => {
+      records = records.filter((record) => !keys.includes(record.key));
+    }
+  );
+  await context.coordinator.sync();
+  expect((await context.queue.load('owner-1')).diagnostics ?? []).toHaveLength(
+    50
+  );
+  await context.coordinator.sync();
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+  expect(records).toHaveLength(0);
+});
+it('starts a fresh SMS queue at activation rather than scanning historical messages', async () => {
+  const context = setup();
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: true,
+    notificationEnabled: false,
+    smsActivatedAt: 500,
+    notificationActivatedAt: 0
+  });
+  await context.coordinator.sync();
+  expect(context.inbox.readRecent).toHaveBeenCalledWith(
+    expect.objectContaining({ since: 500 })
+  );
+  expect((await context.queue.load('owner-1')).activation?.smsActivatedAt).toBe(
+    500
+  );
+});
+it('continues after the activation native ID while retaining later timestamp ties', async () => {
+  const context = setup();
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: true,
+    notificationEnabled: false,
+    smsActivatedAt: 500,
+    smsActivationId: '42',
+    notificationActivatedAt: 0
+  });
+  await context.coordinator.sync();
+  expect(context.inbox.readRecent).toHaveBeenCalledWith(
+    expect.objectContaining({ since: 500, afterId: '42' })
+  );
+});
+it('captures locally from cached rules when the API fails on a connected network', async () => {
+  const context = setup();
+  await context.queue.saveRules('owner-1', {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [],
+    rolloutMode: 'automatic'
+  });
+  context.tracking.getStatus.mockRejectedValue(new Error('API outage'));
+  const result = await context.coordinator.sync();
+  expect(result.status).toBe('queued');
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+  expect(context.tracking.submitImport).not.toHaveBeenCalled();
+});
+it('reports native retention exhaustion while preserving admitted pending captures', async () => {
+  const context = setup();
+  context.dependencies.sources.load.mockResolvedValue({
+    smsEnabled: false,
+    notificationEnabled: true,
+    smsActivatedAt: 0,
+    notificationActivatedAt: 0
+  });
+  Object.assign(context.dependencies.bankNotifications, {
+    getCaptureIssue: async () => 'tracking_notification_queue_full'
+  });
+  await context.queue.enqueue('owner-1', {
+    idempotencyKey: 'retained',
+    submission: {
+      schemaVersion: 1,
+      sourceType: 'provider',
+      sourceChannel: 'android_notification',
+      events: [
+        {
+          sourceItemKey: 'retained',
+          receivedAt: '2026-10-14T00:00:00Z',
+          amountMinor: -100,
+          currency: 'SAR'
+        }
+      ]
+    },
+    cursor: 42,
+    fingerprints: ['retained']
+  });
+  context.tracking.getStatus.mockRejectedValue(new Error('offline'));
+  expect((await context.coordinator.sync()).status).toBe('error');
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+});
+it('never drains legacy retained imports while adopting nominal capture', async () => {
+  const context = setup();
+  await context.queue.enqueue('owner-1', {
+    idempotencyKey: 'legacy',
+    submission: {
+      schemaVersion: 1,
+      sourceType: 'sms',
+      events: [
+        {
+          sourceItemKey: 'legacy',
+          receivedAt: '2026-10-14T00:00:00Z',
+          amountMinor: -100,
+          currency: 'SAR'
+        }
+      ]
+    },
+    cursor: 42,
+    fingerprints: ['legacy']
+  });
+  const configuration = {
+    snapshot: defaultSnapshot,
+    keywords: [],
+    senders: [],
+    accountingPolicy: 'default_account_nominal_v1',
+    rolloutMode: 'automatic'
+  };
+  await context.queue.saveRules('owner-1', configuration as never);
+  Object.assign(context.tracking, {
+    getRuleConfiguration: jest.fn().mockResolvedValue(configuration)
+  });
+  context.inbox.readRecent.mockResolvedValue([]);
+  await context.coordinator.sync();
+  expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  expect((await context.queue.load('owner-1')).pending[0]?.idempotencyKey).toBe(
+    'legacy'
+  );
+});
+it('refreshes accepted effects while another item in the batch is still processing', async () => {
+  const onSaved = jest.fn(async () => true),
+    context = setup({ onSaved });
+  context.tracking.submitImport.mockResolvedValue({
+    ...session('processing'),
+    acceptedCount: 1,
+    itemCount: 2
+  });
+  await context.coordinator.sync();
+  expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+});
 jest.mock('@/storage/database', () => ({
   openDatabase: jest.fn(async () => mockDatabase),
   runExclusiveDatabaseTransaction: jest.fn(
@@ -141,6 +469,14 @@ function setup(overrides: Record<string, unknown> = {}) {
     },
     inbox,
     bankNotifications,
+    sources: {
+      load: jest.fn().mockResolvedValue({
+        smsEnabled: true,
+        notificationEnabled: true,
+        smsActivatedAt: 0,
+        notificationActivatedAt: 0
+      })
+    },
     listAccounts: jest.fn().mockResolvedValue([ownerAccount]),
     listCachedAccounts: jest.fn().mockResolvedValue([ownerAccount]),
     queue,
@@ -163,6 +499,414 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it('rechecks a live import once and reconciles a save before another native follow-up', async () => {
+    const onSaved = jest.fn(async () => true);
+    const scheduleFollowUp = jest.fn(async () => undefined);
+    const context = setup({
+      onSaved,
+      scheduleFollowUp
+    });
+    context.tracking.getImportSession.mockResolvedValue(session('complete'));
+
+    expect((await context.coordinator.sync()).status).toBe('imported');
+    expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(1);
+    expect(context.tracking.getImportSession).toHaveBeenCalledWith(
+      'session-1',
+      'owner-1'
+    );
+    expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+    expect(scheduleFollowUp).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending).toHaveLength(0);
+  });
+
+  it('bounds the live recheck and retains the normal durable follow-up for slow processing', async () => {
+    const scheduleFollowUp = jest.fn(async () => undefined);
+    const context = setup({ scheduleFollowUp });
+    context.tracking.submitImport.mockResolvedValue(session('received'));
+
+    expect((await context.coordinator.sync()).status).toBe('processing');
+    expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(1);
+    expect(scheduleFollowUp).toHaveBeenCalledWith('owner-1');
+    expect((await context.queue.load('owner-1')).pending).toEqual([
+      expect.objectContaining({ sessionId: 'session-1' })
+    ]);
+  });
+
+  it.each(['unavailable', 'different receipt'] as const)(
+    'recovers an unconfirmed live read (%s) by its retained receipt without submitting again',
+    async (failure) => {
+      const onSaved = jest.fn(async () => true);
+      const scheduleFollowUp = jest.fn(async () => undefined);
+      const context = setup({
+        onSaved,
+        scheduleFollowUp
+      });
+      if (failure === 'unavailable')
+        context.tracking.getImportSession.mockRejectedValueOnce(
+          new Error('API unavailable')
+        );
+      else
+        context.tracking.getImportSession.mockResolvedValueOnce({
+          ...session('complete'),
+          id: 'other-session'
+        });
+      expect((await context.coordinator.sync()).status).toBe('processing');
+      expect((await context.queue.load('owner-1')).pending[0]?.sessionId).toBe(
+        'session-1'
+      );
+      expect(scheduleFollowUp).toHaveBeenCalledWith('owner-1');
+      expect(onSaved).not.toHaveBeenCalled();
+      context.inbox.readRecent.mockResolvedValue([]);
+      context.tracking.getImportSession.mockResolvedValue(session('complete'));
+
+      expect((await context.coordinator.sync()).status).toBe('imported');
+      expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+      expect(onSaved).toHaveBeenCalledTimes(1);
+      expect((await context.queue.load('owner-1')).pending).toHaveLength(0);
+    }
+  );
+
+  it.each(['owner', 'consent'] as const)(
+    'fences the live recheck result when the initiating %s changes',
+    async (changed) => {
+      let ownerId = 'owner-1';
+      const onSaved = jest.fn(async () => true);
+      const context = setup({
+        onSaved,
+        session: () => ({ status: 'authenticated', userId: ownerId })
+      });
+      context.tracking.getImportSession.mockImplementationOnce(async () => {
+        if (changed === 'owner') ownerId = 'owner-2';
+        else invalidateTrackingConsent();
+        return session('complete');
+      });
+
+      expect((await context.coordinator.sync()).status).toBe('error');
+      expect(onSaved).not.toHaveBeenCalled();
+      expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+    }
+  );
+
+  it('does not delay an already accepted effect for another import read', async () => {
+    const onSaved = jest.fn(async () => true);
+    const context = setup({ onSaved });
+    context.tracking.submitImport.mockResolvedValue({
+      ...session('processing'),
+      acceptedCount: 1,
+      itemCount: 2
+    });
+
+    await context.coordinator.sync();
+    expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+    expect(context.tracking.getImportSession).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+  });
+
+  it.each([
+    ['complete', 1],
+    ['processing', 1],
+    ['review', 0],
+    ['failed', 0]
+  ] as const)(
+    'does not recheck a %s receipt with %i accepted effects',
+    async (status, acceptedCount) => {
+      const context = setup();
+      context.tracking.submitImport.mockResolvedValue({
+        ...session(status),
+        acceptedCount
+      });
+      await context.coordinator.sync();
+      expect(context.tracking.getImportSession).not.toHaveBeenCalled();
+      expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('schedules durable follow-up for an asynchronously submitted session', async () => {
+    const scheduleFollowUp = jest.fn(async () => undefined);
+    const context = setup({ scheduleFollowUp });
+
+    await expect(context.coordinator.sync()).resolves.toMatchObject({
+      status: 'processing',
+      sessionId: 'session-1'
+    });
+
+    expect(scheduleFollowUp).toHaveBeenCalledTimes(1);
+    expect(scheduleFollowUp).toHaveBeenCalledWith('owner-1');
+    expect((await context.queue.load('owner-1')).pending).toEqual([
+      expect.objectContaining({ sessionId: 'session-1' })
+    ]);
+  });
+
+  it('retains a submitted receipt and reports sync_failed if follow-up scheduling fails', async () => {
+    const context = setup({
+      scheduleFollowUp: async () => {
+        throw new Error('native unavailable');
+      }
+    });
+
+    await expect(context.coordinator.sync()).resolves.toMatchObject({
+      status: 'error',
+      errorCode: 'sync_failed'
+    });
+    expect((await context.queue.load('owner-1')).pending).toEqual([
+      expect.objectContaining({ sessionId: 'session-1' })
+    ]);
+  });
+
+  it.each(['owner', 'consent'] as const)(
+    'does not schedule a receipt after the initiating %s changes during submission',
+    async (changed) => {
+      const scheduleFollowUp = jest.fn(async () => undefined);
+      let ownerId = 'owner-1';
+      const context = setup({
+        scheduleFollowUp,
+        session: () => ({ status: 'authenticated', userId: ownerId })
+      });
+      context.tracking.submitImport.mockImplementation(async () => {
+        if (changed === 'owner') ownerId = 'owner-2';
+        else invalidateTrackingConsent();
+        return session('processing');
+      });
+
+      await context.coordinator.sync();
+
+      expect(scheduleFollowUp).not.toHaveBeenCalled();
+      expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+    }
+  );
+
+  it('schedules a still-pending retained session without resubmitting it', async () => {
+    const scheduleFollowUp = jest.fn(async () => undefined);
+    const context = setup({ scheduleFollowUp });
+    await context.coordinator.sync();
+    scheduleFollowUp.mockClear();
+    context.tracking.submitImport.mockClear();
+    context.inbox.readRecent.mockResolvedValue([]);
+
+    await context.coordinator.sync();
+
+    expect(scheduleFollowUp).toHaveBeenCalledWith('owner-1');
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+
+  it.each(['complete', 'review'] as const)(
+    'does not schedule a follow-up for visible terminal %s work',
+    async (backend) => {
+      const scheduleFollowUp = jest.fn(async () => undefined);
+      const context = setup({ scheduleFollowUp });
+      context.tracking.submitImport.mockResolvedValue(session(backend));
+      context.tracking.listReviewItems.mockResolvedValue({
+        items: [{ id: 'review-1', detectedEventId: 'item-1' }],
+        nextCursor: null,
+        total: 1
+      });
+
+      await context.coordinator.sync();
+
+      expect(scheduleFollowUp).not.toHaveBeenCalled();
+      expect((await context.queue.load('owner-1')).pending).toEqual([]);
+    }
+  );
+
+  it('does not schedule when no receipt is pending', async () => {
+    const scheduleFollowUp = jest.fn(async () => undefined);
+    const context = setup({ scheduleFollowUp });
+    context.inbox.readRecent.mockResolvedValue([]);
+
+    await expect(context.coordinator.sync()).resolves.toMatchObject({
+      status: 'idle'
+    });
+
+    expect(scheduleFollowUp).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [undefined, '42'],
+    ['20', '42'],
+    ['50', '50']
+  ])(
+    'keeps the native SMS ID boundary at a timestamp tie (cursor %s)',
+    async (cursorId, expectedId) => {
+      const context = setup();
+      if (cursorId)
+        await context.queue.checkpoint(
+          'owner-1',
+          5000,
+          [],
+          undefined,
+          cursorId
+        );
+      Object.assign(context.tracking, {
+        getRuleConfiguration: jest.fn().mockResolvedValue({
+          snapshot: defaultSnapshot,
+          keywords: [],
+          senders: [],
+          accountingPolicy: 'default_account_nominal_v1',
+          sourceAdmissionPolicy: 'financial_content_v1',
+          policyActivatedAt: 5000,
+          policySmsActivationId: '42'
+        })
+      });
+      await context.coordinator.sync();
+      expect(context.inbox.readRecent).toHaveBeenCalledWith(
+        expect.objectContaining({ since: 5000, afterId: expectedId })
+      );
+    }
+  );
+  it('does not replay retained work or scan earlier than a new device policy boundary', async () => {
+    const context = setup();
+    await context.queue.enqueue('owner-1', {
+      idempotencyKey: 'retained-old',
+      submission: {
+        schemaVersion: 1,
+        sourceType: 'sms',
+        events: [
+          {
+            sourceItemKey: 'old-source',
+            receivedAt: '1970-01-01T00:00:00.100Z',
+            amountMinor: -200,
+            currency: 'SAR'
+          }
+        ]
+      },
+      cursor: 100,
+      fingerprints: ['old-source']
+    });
+    Object.assign(context.tracking, {
+      getRuleConfiguration: jest.fn().mockResolvedValue({
+        keywords: [],
+        senders: [],
+        sourceAdmissionPolicy: 'financial_content_v1',
+        policyActivatedAt: 5000,
+        accountingPolicy: 'default_account_nominal_v1',
+        snapshot: defaultSnapshot
+      })
+    });
+    context.inbox.readRecent.mockResolvedValue([]);
+    context.bankNotifications.readRecent.mockResolvedValue([]);
+    await context.coordinator.sync();
+    expect(context.inbox.readRecent).toHaveBeenCalledWith(
+      expect.objectContaining({ since: 5000 })
+    );
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect(
+      (await context.queue.load('owner-1')).pending[0]?.idempotencyKey
+    ).toBe('retained-old');
+  });
+  it('replaces obsolete cached safety rules online and resumes with the original intake checkpoint', async () => {
+    const context = setup();
+    await mockDatabase.runAsync(
+      'INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)',
+      'singleton',
+      JSON.stringify({
+        version: 1,
+        ownerId: 'owner-1',
+        pending: [],
+        cursor: 42,
+        cursorId: 'old-sms',
+        fingerprints: ['seen'],
+        mode: 'review_all',
+        rules: {
+          keywords: [],
+          senders: [],
+          snapshot: { ...defaultSnapshot, rules: [] }
+        }
+      })
+    );
+    Object.assign(context.tracking, {
+      getRuleConfiguration: jest.fn().mockResolvedValue({
+        keywords: [],
+        senders: [],
+        snapshot: defaultSnapshot
+      })
+    });
+    context.inbox.readRecent.mockResolvedValue([]);
+    expect(await context.coordinator.sync()).toMatchObject({
+      status: 'idle',
+      errorCode: null
+    });
+    const refreshed = await context.queue.load('owner-1');
+    expect(refreshed).toMatchObject({
+      pending: [],
+      cursor: 42,
+      cursorId: 'old-sms',
+      fingerprints: ['seen'],
+      rules: { snapshot: defaultSnapshot }
+    });
+    expect(refreshed.rules.requiresRefresh).toBeUndefined();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+
+  it('holds stale safety configuration offline without reading either capture channel', async () => {
+    const configureBackground = jest.fn(async () => undefined);
+    const context = setup({ configureBackground });
+    await mockDatabase.runAsync(
+      'INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)',
+      'singleton',
+      JSON.stringify({
+        version: 1,
+        ownerId: 'owner-1',
+        pending: [],
+        cursor: 42,
+        fingerprints: ['seen'],
+        mode: 'review_all',
+        rules: {
+          keywords: [],
+          senders: [],
+          snapshot: { ...defaultSnapshot, rules: [] }
+        }
+      })
+    );
+    context.setOnline(false);
+    expect(await context.coordinator.sync()).toMatchObject({
+      status: 'error',
+      errorCode: 'sync_failed'
+    });
+    expect(context.inbox.readRecent).not.toHaveBeenCalled();
+    expect(context.bankNotifications.readRecent).not.toHaveBeenCalled();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect(await context.queue.load('owner-1')).toMatchObject({
+      cursor: 42,
+      fingerprints: ['seen'],
+      pending: [],
+      rules: { requiresRefresh: true }
+    });
+  });
+
+  it('does not read SMS when only notification tracking is enabled', async () => {
+    const context = setup({
+      sources: {
+        load: jest.fn().mockResolvedValue({
+          smsEnabled: false,
+          notificationEnabled: true
+        })
+      }
+    });
+
+    await context.coordinator.sync();
+
+    expect(context.inbox.readRecent).not.toHaveBeenCalled();
+  });
+
+  it('does not read notifications when only SMS tracking is enabled', async () => {
+    const context = setup({
+      sources: {
+        load: jest.fn().mockResolvedValue({
+          smsEnabled: true,
+          notificationEnabled: false
+        })
+      }
+    });
+    context.bankNotifications.getAccessState.mockResolvedValue('granted');
+
+    await context.coordinator.sync();
+
+    expect(context.bankNotifications.readRecent).not.toHaveBeenCalled();
+    expect(context.inbox.readRecent).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ['not live', { isLive: () => false }],
     ['signed out', { session: () => ({ status: 'signed_out', userId: null }) }],
@@ -217,6 +961,156 @@ describe('automatic tracking coordinator', () => {
         })
       ]
     });
+  });
+
+  it('persists the selected notification destination without changing the queued SMS destination', async () => {
+    const context = setup({ prepare: prepareFinancialMessageImport });
+    context.setOnline(false);
+    const notificationAccountId = '10000000-0000-4000-8000-000000000002';
+    context.dependencies.listCachedAccounts.mockResolvedValue([
+      ownerAccount,
+      {
+        ...ownerAccount,
+        id: notificationAccountId,
+        type: 'wallet',
+        currencyCode: 'EGP'
+      }
+    ]);
+    await context.queue.saveRules('owner-1', {
+      snapshot: defaultSnapshot,
+      keywords: [],
+      senders: [],
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1'
+    });
+    context.dependencies.sources.load.mockResolvedValue({
+      smsEnabled: true,
+      notificationEnabled: true,
+      smsActivatedAt: 0,
+      notificationActivatedAt: 0,
+      notificationAccountId
+    });
+    context.bankNotifications.getAccessState.mockResolvedValue('granted');
+    context.bankNotifications.readRecent.mockResolvedValue([
+      {
+        key: 'destination-test',
+        packageName: 'example.wallet',
+        title: '',
+        text: 'You have received 1 EGP',
+        postedAt: 100,
+        capturePolicy: 'default_account_nominal_v1',
+        captureActivatedAt: 0
+      }
+    ]);
+    await context.coordinator.sync();
+    const submissions = (await context.queue.load('owner-1')).pending.map(
+      (entry) => entry.submission
+    );
+    expect(
+      submissions.find(
+        (submission) => submission.sourceChannel === 'android_sms'
+      )?.events[0]?.metadata
+    ).not.toHaveProperty('notificationAccountId');
+    expect(
+      submissions.find(
+        (submission) => submission.sourceChannel === 'android_notification'
+      )?.events[0]
+    ).toMatchObject({
+      currency: 'EGP',
+      amountMinor: 100,
+      metadata: { notificationAccountId }
+    });
+  });
+
+  it('queues source currency with the current matching UI preference and ignores the legacy notification binding in the opted-in cohort', async () => {
+    const context = setup({ prepare: prepareFinancialMessageImport });
+    context.setOnline(false);
+    const walletId = '10000000-0000-4000-8000-000000000002';
+    context.dependencies.listCachedAccounts.mockResolvedValue([
+      ownerAccount,
+      { ...ownerAccount, id: walletId, type: 'wallet', currencyCode: 'EGP' }
+    ]);
+    await context.queue.saveRules('owner-1', {
+      snapshot: defaultSnapshot,
+      keywords: [],
+      senders: [],
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1',
+      currencyAccountPolicy: 'source_currency_v1'
+    });
+    context.dependencies.sources.load.mockResolvedValue({
+      smsEnabled: true,
+      notificationEnabled: true,
+      smsActivatedAt: 0,
+      notificationActivatedAt: 0,
+      notificationAccountId: ownerAccount.id
+    });
+    context.bankNotifications.getAccessState.mockResolvedValue('granted');
+    const receipt = {
+      key: 'source-policy-one',
+      packageName: 'example.wallet',
+      sourceDisplayName: 'Wallet App',
+      title: '',
+      text: 'You have received 1 EGP',
+      postedAt: 100,
+      capturePolicy: 'default_account_nominal_v1',
+      captureActivatedAt: 0
+    };
+    context.bankNotifications.readRecent.mockResolvedValue([receipt]);
+    useCoreFinanceViewState.getState().selectAccount(walletId);
+    try {
+      expect((await context.coordinator.sync()).status).toBe('queued');
+      const pending = (await context.queue.load('owner-1')).pending;
+      const notification = pending.find(
+        (entry) => entry.submission.sourceChannel === 'android_notification'
+      );
+      expect(notification?.submission.events[0]).toMatchObject({
+        currency: 'EGP',
+        amountMinor: 100,
+        metadata: {
+          preferredAccountId: walletId,
+          sourceDisplayName: 'Wallet App'
+        }
+      });
+      const sms = pending.find(
+        (entry) => entry.submission.sourceChannel === 'android_sms'
+      );
+      expect(sms?.submission.events[0].metadata?.sourceDisplayName).toBe(
+        'BANK'
+      );
+      expect(sms?.submission.events[0].metadata).not.toHaveProperty(
+        'preferredAccountId'
+      );
+      expect(notification?.submission.events[0].metadata).not.toHaveProperty(
+        'notificationAccountId'
+      );
+      expect(context.bankNotifications.acknowledge).toHaveBeenCalledWith([
+        'source-policy-one'
+      ]);
+      useCoreFinanceViewState.getState().selectAccount(ownerAccount.id);
+      context.inbox.readRecent.mockResolvedValue([]);
+      context.bankNotifications.readRecent.mockResolvedValue([
+        { ...receipt, key: 'source-policy-two', postedAt: 101 }
+      ]);
+      await context.coordinator.sync();
+      const saved = (await context.queue.load('owner-1')).pending;
+      expect(saved).toHaveLength(3);
+      expect(saved[2].submission.events[0]).toMatchObject({
+        currency: 'EGP',
+        amountMinor: 100
+      });
+      expect(saved[2].submission.events[0].metadata).not.toHaveProperty(
+        'preferredAccountId'
+      );
+      for (const entry of saved)
+        for (const event of entry.submission.events) {
+          expect(event).not.toHaveProperty('accountId');
+          expect(event).not.toHaveProperty('kind');
+        }
+      expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    } finally {
+      useCoreFinanceViewState.getState().selectAccount(null);
+    }
   });
 
   it('queues bank notifications when SMS permission is denied and acknowledges after persistence', async () => {
@@ -362,7 +1256,7 @@ describe('automatic tracking coordinator', () => {
         status: expected
       });
       await expect(context.queue.load('owner-1')).resolves.toMatchObject({
-        pending: []
+        pending: backend === 'failed' ? expect.any(Array) : []
       });
     }
   );
@@ -444,7 +1338,7 @@ describe('automatic tracking coordinator', () => {
     );
 
     await expect(context.coordinator.sync()).resolves.toMatchObject({
-      status: 'error',
+      status: 'queued',
       errorCode: 'sync_failed'
     });
   });
@@ -464,4 +1358,27 @@ describe('automatic tracking coordinator', () => {
     await first;
     expect(context.inbox.readRecent).toHaveBeenCalledTimes(1);
   });
+});
+
+it('resync waits for the stale pass then installs current source configuration', async () => {
+  let ready!: () => void;
+  const entered = new Promise<void>((r) => {
+    ready = r;
+  });
+  let resume!: () => void;
+  const background = jest.fn(async () => undefined);
+  const context = setup({ configureBackground: background });
+  context.tracking.getStatus.mockImplementationOnce(async () => {
+    ready();
+    await new Promise<void>((r) => {
+      resume = r;
+    });
+    return status();
+  });
+  const first = context.coordinator.sync();
+  await entered;
+  const second = context.coordinator.resync();
+  resume();
+  await Promise.all([first, second]);
+  expect(background).toHaveBeenCalledTimes(2);
 });

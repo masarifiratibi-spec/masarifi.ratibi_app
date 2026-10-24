@@ -124,6 +124,8 @@ describe("Admin live identity boundary", () => {
     expect(userContracts).not.toMatch(/\^USR-|USR-DEMO/);
     expect(shell).toContain("mocksEnabled()");
     expect(shell).toMatch(/demoMode\s*&&\s*<RoleSwitcher/);
+    expect(shell).toMatch(/demoMode\s*&&\s*<GlobalSearch/);
+    expect(shell).toMatch(/demoMode\s*&&\s*<AttentionPanel/);
   });
 
   test("isolates cursors and query state by Clerk actor", () => {
@@ -142,22 +144,35 @@ describe("Admin live identity boundary", () => {
     const request = vi.fn().mockResolvedValue(response(200, { groups: [] }));
     vi.stubGlobal("fetch", request);
 
-    await expect(foundationRepository.getNavigation("super-admin")).rejects.toMatchObject({
-      code: "provider_unavailable",
-    });
+    const navigation = await foundationRepository.getNavigation("super-admin");
+    expect(navigation.groups.flatMap((group) => group.items.map((item) => item.id))).not.toEqual(
+      expect.arrayContaining(["users", "access-requests", "subscriptions", "payments"]),
+    );
+    await expect(foundationRepository.getPlatformOptions()).resolves.toHaveProperty(
+      "options",
+    );
     await expect(usersRepository.getUser({
       userId: "user_target_1",
       role: "super-admin",
       scenario: "forbidden",
-    })).rejects.toMatchObject({ code: "provider_unavailable" });
+    })).rejects.toMatchObject({ code: "contract_mismatch" });
+    expect(request).toHaveBeenCalledTimes(1);
+    const userUrl = new URL(String(request.mock.calls[0][0]), "https://admin.example.test");
+    expect(userUrl.pathname).toBe("/api/v1/admin/users/user_target_1");
+    expect([...userUrl.searchParams.keys()]).toEqual([]);
+    request.mockClear();
     await expect(accessRepository.listRequests(
       { scenario: "forbidden" },
       "super-admin",
     )).rejects.toMatchObject({ code: "provider_unavailable" });
+    expect(request).not.toHaveBeenCalled();
+    request.mockResolvedValue(response(200, { items: [], nextCursor: null }));
     await expect(
       securityRepository.listAuditEvents({ page: 1, pageSize: 25 }),
-    ).rejects.toMatchObject({ code: "provider_unavailable" });
-
-    expect(request).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ items: [] });
+    expect(request).toHaveBeenCalledTimes(1);
+    const auditUrl = new URL(String(request.mock.calls[0][0]), "https://admin.example.test");
+    expect(auditUrl.pathname).toBe("/api/v1/admin/audit/events");
+    expect([...auditUrl.searchParams.keys()]).toEqual(["limit"]);
   });
 });

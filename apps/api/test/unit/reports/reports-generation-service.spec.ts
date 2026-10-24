@@ -106,3 +106,37 @@ describe('ReportsService generation', () => {
     expect(result.downloadUrlExpiresAt).toBe('2026-09-04T00:02:00.000Z');
   });
 });
+
+it('preserves selected accounts, currency and captured timezone through validated report creation', async () => {
+  const repository = {
+    captureSnapshot: jest.fn().mockResolvedValue({ attemptId: 'id', status: 'queued' }),
+  };
+  const service = new ReportsService(repository as never);
+  const id = '11111111-1111-4111-8111-111111111111';
+  const principal = { userId: 'owner', sessionId: 'session', factorAgeSeconds: 1 };
+  const command = {
+    type: 'financial_summary',
+    periodStart: '2026-10-25',
+    periodEnd: '2026-11-24',
+    format: 'pdf',
+    delivery: 'download',
+    accountIds: [id],
+    currency: 'KWD',
+    timezone: 'Asia/Riyadh',
+  };
+  await service.createReport(principal, command, 'scoped-report-operation', 'request');
+  expect(repository.captureSnapshot).toHaveBeenCalledWith(
+    principal,
+    expect.objectContaining({ accountIds: [id], currency: 'KWD', timezone: 'Asia/Riyadh' }),
+    'scoped-report-operation',
+    'request',
+  );
+  await expect(
+    service.createReport(
+      principal,
+      { ...command, accountIds: ['owner-from-another-account'] },
+      'invalid-report-operation',
+      'request',
+    ),
+  ).rejects.toMatchObject({ status: 400 });
+});

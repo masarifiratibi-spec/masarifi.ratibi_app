@@ -1,3 +1,4 @@
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -12,13 +13,7 @@ import Svg, {
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon } from '@/design-system/icons';
-import {
-  colorTokens,
-  elevation,
-  radius,
-  spacing,
-  typography
-} from '@/design-system/tokens';
+import { colorTokens, elevation, spacing } from '@/design-system/tokens';
 import type { Calculation } from '@/domain/financial-planning';
 import type { MoneyValue } from '@/domain/core-finance';
 import { localDateInTimeZone } from '@/domain/financial-period';
@@ -85,11 +80,14 @@ export function SalaryOverviewScreen() {
   const largeText = PixelRatio.getFontScale() >= 1.25;
 
   const data = query.data;
+  const needsSetup = !data?.profileId;
   const money = (calc: Calculation<MoneyValue>) =>
-    formatMoney(calc, hideBalances, revealed);
-  const nextSalaryDate = data?.projectedNextSalaryDate
-    ? formatLocalDate(data.projectedNextSalaryDate, locale)
-    : translate('planning.conflict.valueUnavailable');
+    needsSetup ? '—' : formatMoney(calc, hideBalances, revealed);
+  const nextSalaryDate = needsSetup
+    ? '—'
+    : data?.projectedNextSalaryDate
+      ? formatLocalDate(data.projectedNextSalaryDate, locale)
+      : translate('planning.conflict.valueUnavailable');
 
   return (
     <PlanningScreen
@@ -101,20 +99,37 @@ export function SalaryOverviewScreen() {
         <PlanningState state="loading" />
       ) : query.isError || !data ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
-      ) : data.dataState === 'empty' && !data.profileId ? (
-        <SalaryEmptyState direction={direction} theme={theme} />
       ) : (
         <View style={styles.screenStack}>
+          <FinancialRefreshStatus query={query} />
           <SalaryCycleHeader
             direction={direction}
             income={money(data.income)}
             remaining={money(data.remaining)}
             daily={money(data.suggestedDaily)}
-            daysRemaining={translateDynamic('planning.salary.daysRemaining', {
-              count: data.daysRemaining
-            })}
+            daysRemaining={
+              needsSetup
+                ? '—'
+                : translateDynamic('planning.salary.daysRemaining', {
+                    count: data.daysRemaining
+                  })
+            }
             largeText={largeText}
           />
+
+          {needsSetup ? (
+            <Text
+              style={[
+                styles.setupHint,
+                {
+                  color: theme.colors.content.secondary,
+                  writingDirection: direction
+                }
+              ]}
+            >
+              {translate('planning.salary.emptySubtitle')}
+            </Text>
+          ) : null}
 
           <Text
             style={[
@@ -135,8 +150,31 @@ export function SalaryOverviewScreen() {
             nextSalaryDate={nextSalaryDate}
           />
 
+          {!needsSetup ? (
+            <>
+              <ActionButton
+                label={translate('planning.salary.confirmReceipt')}
+                onPress={() => router.push('/salary/receipt/select')}
+                variant="secondary"
+              />
+              {data.startReceiptId ? (
+                <ActionButton
+                  label={translate('planning.salary.review')}
+                  onPress={() =>
+                    router.push(`/salary/receipt/${data.startReceiptId}`)
+                  }
+                  variant="secondary"
+                />
+              ) : null}
+            </>
+          ) : null}
+
           <ActionButton
-            label={translate('planning.salary.editSettings')}
+            label={translate(
+              needsSetup
+                ? 'planning.salary.setup'
+                : 'planning.salary.editSettings'
+            )}
             onPress={() => router.push('/salary/profile')}
             style={styles.primaryAction}
             labelStyle={styles.primaryActionLabel}
@@ -144,63 +182,6 @@ export function SalaryOverviewScreen() {
         </View>
       )}
     </PlanningScreen>
-  );
-}
-
-function SalaryEmptyState({
-  direction,
-  theme
-}: {
-  direction: 'rtl' | 'ltr';
-  theme: ReturnType<typeof useTheme>;
-}) {
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
-
-  return (
-    <SurfaceCard
-      style={[
-        styles.emptyCard,
-        {
-          backgroundColor: theme.colors.surfaces.brandSubtle,
-          borderColor: theme.colors.borders.subtle
-        }
-      ]}
-    >
-      <View
-        style={[styles.emptyIcon, { backgroundColor: theme.colors.surface }]}
-      >
-        <DesignIcon
-          name="salary"
-          label={translate('planning.salary.emptyTitle')}
-          color={theme.colors.interactions.primary}
-          size="hero"
-          decorative
-        />
-      </View>
-      <View style={styles.emptyCopy}>
-        <Text
-          accessibilityRole="header"
-          style={[
-            styles.emptyTitle,
-            { color: theme.colors.content.primary, textAlign }
-          ]}
-        >
-          {translate('planning.salary.emptyTitle')}
-        </Text>
-        <Text
-          style={[
-            styles.emptySubtitle,
-            { color: theme.colors.content.secondary, textAlign }
-          ]}
-        >
-          {translate('planning.salary.emptySubtitle')}
-        </Text>
-      </View>
-      <ActionButton
-        label={translate('planning.salary.setup')}
-        onPress={() => router.push('/salary/profile')}
-      />
-    </SurfaceCard>
   );
 }
 
@@ -251,20 +232,12 @@ function SalaryCycleHeader({
       <View style={styles.heroContent}>
         <Text
           accessibilityRole="header"
-          style={[
-            styles.heroTitle,
-            { textAlign: 'left' }
-          ]}
+          style={[styles.heroTitle, { textAlign: 'left' }]}
         >
           {translate('planning.salary.yourCycle')}
         </Text>
         <View style={styles.heroAmountBlock}>
-          <Text
-            style={[
-              styles.heroLabel,
-              { textAlign: 'left' }
-            ]}
-          >
+          <Text style={[styles.heroLabel, { textAlign: 'left' }]}>
             {translate('planning.salary.cycleSalary')}
           </Text>
           <Text
@@ -280,12 +253,7 @@ function SalaryCycleHeader({
             {income}
           </Text>
         </View>
-        <View
-          style={[
-            styles.summaryStrip,
-            { flexDirection: 'row' }
-          ]}
-        >
+        <View style={[styles.summaryStrip, { flexDirection: 'row' }]}>
           <SummaryCell
             icon="wallet"
             label={translate('planning.salary.remainingMine')}
@@ -403,6 +371,7 @@ function DetailRow({
   valueDirection?: 'ltr' | 'rtl';
   last?: boolean;
 }) {
+  const theme = useTheme();
   return (
     <View
       style={[
@@ -411,14 +380,15 @@ function DetailRow({
         last ? undefined : styles.detailRowBorder
       ]}
     >
-      <View
-        style={[
-          styles.detailLabelGroup,
-          { flexDirection: 'row' }
-        ]}
-      >
+      <View style={[styles.detailLabelGroup, { flexDirection: 'row' }]}>
         <View style={[styles.detailDot, { backgroundColor: dotColor }]} />
-        <Text numberOfLines={2} style={styles.detailLabel}>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.detailLabel,
+            { color: theme.colors.content.secondary }
+          ]}
+        >
           {label}
         </Text>
       </View>
@@ -429,6 +399,7 @@ function DetailRow({
         style={[
           styles.detailValue,
           {
+            color: theme.colors.content.primary,
             textAlign: direction === 'rtl' ? 'left' : 'right',
             writingDirection: valueDirection
           }
@@ -443,26 +414,7 @@ function DetailRow({
 /* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  emptyCard: {
-    borderRadius: radius.card,
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  emptyIcon: {
-    alignItems: 'center',
-    borderRadius: radius.card,
-    height: 56,
-    justifyContent: 'center',
-    width: 56
-  },
-  emptyCopy: {
-    gap: spacing.xs
-  },
-  emptyTitle: {
-    ...typography.subtitle,
-    fontSize: 20
-  },
-  emptySubtitle: {
+  setupHint: {
     fontSize: 14,
     lineHeight: 22
   },
@@ -590,13 +542,11 @@ const styles = StyleSheet.create({
     width: 10
   },
   detailLabel: {
-    color: colorTokens.ink[900],
     flexShrink: 1,
     fontSize: 18,
     lineHeight: 26
   },
   detailValue: {
-    color: colorTokens.ink[900],
     flexShrink: 0,
     fontSize: 19,
     fontVariant: ['tabular-nums'],

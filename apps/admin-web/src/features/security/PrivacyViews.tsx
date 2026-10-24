@@ -49,17 +49,17 @@ const privacyCopy = {
     confirmDeletion: "تأكيد إجراء سير الحذف",
     deletionConsequence: "يحدّث حالة طلب الحذف في الباك؛ التنفيذ الفعلي يتم بواسطة عامل الحذف بعد انتهاء مهلة التراجع.",
     retentionTitle: "سياسات الاحتفاظ",
-    retentionDescription: "فترات احتفاظ mock محدودة. تنفيذ التنظيف يخص خلفية مستقبلية.",
+    retentionDescription: "سياسات الاحتفاظ المسجلة؛ تنفيذ التنظيف تحكمه مهام الباك والحجوزات القانونية.",
     days: "أيام",
     bounds: "الحدود",
     effectiveCleanup: "التنظيف الفعال",
     legalHoldSuspends: "الحجز القانوني يعلق التنظيف",
     retentionPolicy: "سياسة الاحتفاظ",
-    retentionHelp: "تحديث أيام mock داخل حدود العقد مع إقرار واضح بالأثر.",
+    retentionHelp: "تحديث مدة الاحتفاظ مع إقرار واضح بالأثر؛ يتحقق الباك من الحدود والحجوزات.",
     retentionDays: "أيام الاحتفاظ",
     updatePolicy: "تحديث السياسة",
     confirmRetention: "تأكيد تحديث الاحتفاظ",
-    retentionConsequence: "يحدث سياسة mock حتمية فقط؛ بلا تنظيف أو تعديل تخزين أو قائمة انتظار أو مهام.",
+    retentionConsequence: "يحدّث سياسة الاحتفاظ في الباك وقد يؤثر في أهلية البيانات للتنظيف لاحقاً.",
   },
   en: {
     exportTitle: "Data Export Requests",
@@ -94,17 +94,17 @@ const privacyCopy = {
     confirmDeletion: "Confirm deletion workflow action",
     deletionConsequence: "Updates the backend deletion request; the deletion worker executes it after the cooling-off period.",
     retentionTitle: "Retention Policies",
-    retentionDescription: "Bounded mock retention periods. Cleanup execution belongs to a future backend.",
+    retentionDescription: "Recorded retention policies. Backend jobs and legal holds govern cleanup.",
     days: "days",
     bounds: "bounds",
     effectiveCleanup: "Effective cleanup",
     legalHoldSuspends: "legal hold suspends cleanup",
     retentionPolicy: "Retention Policy",
-    retentionHelp: "Update mock days inside contract bounds with explicit impact acknowledgement.",
+    retentionHelp: "Update retention days with explicit impact acknowledgement. The backend validates bounds and holds.",
     retentionDays: "Retention days",
     updatePolicy: "Update Policy",
     confirmRetention: "Confirm retention update",
-    retentionConsequence: "Updates deterministic mock policy only; no cleanup, storage mutation, queue, or job runs.",
+    retentionConsequence: "Updates the backend retention policy and may affect eligibility for later cleanup.",
   },
 } as const;
 
@@ -128,7 +128,7 @@ function defaultContext(state: string, revision: number) {
   return {
     expectedState: state,
     expectedRevision: revision,
-    reason: "Phase 7 mock privacy review",
+    reason: "Review requested privacy operation",
     confirmationToken: "CONFIRM-SPEC-008" as const,
   };
 }
@@ -146,7 +146,7 @@ export function ExportRequestsRoute() {
       <PageHeader title={copy.exportTitle} description={copy.exportDescription} />
       {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
         <section className="table-card ops-table-card" aria-labelledby="exports-title">
-          <div className="card-heading ops-card-heading"><div><h2 id="exports-title">{copy.exportList}</h2><p>{query.data.pagination.totalItems} {copy.metadataRequests}</p></div></div>
+          <div className="card-heading ops-card-heading"><div><h2 id="exports-title">{copy.exportList}</h2><p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {copy.metadataRequests}</p></div></div>
           <ExportTable requests={query.data.items as ExportRequestDetail[]} />
         </section>
       )}
@@ -166,7 +166,7 @@ function ExportTable({ requests }: { requests: ExportRequestDetail[] }) {
           <tbody>{requests.map((request) => (
             <tr key={request.id}>
               <td><LinkId id={request.id} /></td>
-              <td>{request.customer.label}</td>
+              <td>{(request.customer?.label ?? "Unavailable")}</td>
               <td>{request.scopes.join(", ")}</td>
               <td><Badge value={stateLabel(locale, request.state)} tone={exportTone(request.state)} /></td>
               <td>{request.file ? <Id value={request.file.basename} /> : "-"}</td>
@@ -190,7 +190,7 @@ function ExportCard({ request }: { request: ExportRequestDetail }) {
   return (
     <Card>
       <div className="mobile-data-head"><LinkId id={request.id} /><Badge value={stateLabel(locale, request.state)} tone={exportTone(request.state)} /></div>
-      <strong>{request.customer.label}</strong>
+      <strong>{(request.customer?.label ?? "Unavailable")}</strong>
       <p>{request.scopes.join(" · ")}</p>
       {request.file && <small><Id value={request.file.basename} /> · {stateLabel(locale, request.file.state)} · {copy.noDownloadableUrl}</small>}
     </Card>
@@ -204,7 +204,7 @@ function ExportSummary({ request }: { request: ExportRequestDetail }) {
     <div className="export-detail-grid">
       <div className="export-detail-main">
         <div className="mobile-data-head"><Id value={request.id} /><Badge value={stateLabel(locale, request.state)} tone={exportTone(request.state)} /></div>
-        <strong>{request.customer.label}</strong>
+        <strong>{(request.customer?.label ?? "Unavailable")}</strong>
         <p>{request.scopes.join(" · ")}</p>
       </div>
       <div className="export-detail-file">
@@ -235,7 +235,7 @@ export function ExportDetailRoute({ requestId }: { requestId: string }) {
             {message && <p role="status">{message}</p>}
             <p className="privacy-note">{copy.sensitiveExportNote}</p>
           </div>
-          {data.state === "Ready" && <button className="button primary" onClick={() => mutation.mutate({
+          {data.allowedActions.includes("simulate_download") && <button className="button primary" onClick={() => mutation.mutate({
             resource: "exports",
             id: data.id,
             action: "simulate-download",
@@ -312,7 +312,7 @@ export function DeletionDetailRoute({ requestId }: { requestId: string }) {
         title={copy.confirmDeletion}
         scope={data.id}
         consequence={copy.deletionConsequence}
-        permission="data_requests.deletions.manage"
+        permission="privacy.deletions.manage"
         auditEvent="account_deletion.updated"
         pending={mutation.isPending}
         outcomes={{ success: "updated", failure: "failed", conflict: "conflict" }}
@@ -344,8 +344,8 @@ function RetentionCard({ policy }: { policy: RetentionPolicyDetail }) {
     <Card>
       <div className="mobile-data-head"><a href={`/admin/data-requests/retention?policy=${policy.id}`}><Id value={policy.id} /></a><span>{stateLabel(locale, policy.state)}</span></div>
       <strong>{policy.dataCategory}</strong>
-      <p>{policy.retentionDays} {copy.days} · {copy.bounds} {policy.minimumDays}-{policy.maximumDays}</p>
-      <small>{copy.effectiveCleanup}: {stateLabel(locale, policy.effectiveCleanupState)}{policy.legalHold ? ` · ${copy.legalHoldSuspends}` : ""}</small>
+      <p>{policy.retentionDays} {copy.days} · {copy.bounds} {policy.minimumDays ?? "Unavailable"}-{policy.maximumDays ?? "Unavailable"}</p>
+      <small>{copy.effectiveCleanup}: {stateLabel(locale, policy.effectiveCleanupState ?? "unknown")}{policy.legalHold ? ` · ${copy.legalHoldSuspends}` : ""}</small>
     </Card>
   );
 }
@@ -367,7 +367,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
         <p>{copy.retentionHelp}</p>
       </section>
       <RetentionCard policy={data} />
-      <label>{copy.retentionDays}<input type="number" min={data.minimumDays} max={data.maximumDays} step={1} value={days} onChange={(event) => setDays(Number(event.target.value))} /></label>
+      <label>{copy.retentionDays}<input type="number" min={data.minimumDays ?? 0} max={data.maximumDays ?? undefined} step={1} value={days} onChange={(event) => setDays(Number(event.target.value))} /></label>
       <button className="button primary" onClick={() => setOpen(true)}>{copy.updatePolicy}</button>
       <ConfirmDialog
         open={open}
@@ -378,7 +378,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
           action: "update",
           run: () => securityRepository.updateRetentionPolicy(data.id, {
             retentionDays: days,
-            reason: "Phase 7 retention review",
+            reason: "Review retention policy duration",
             impactAcknowledged: true,
             expectedRevision: data.revision,
             confirmationToken: "CONFIRM-SPEC-008",
@@ -387,7 +387,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
         title={copy.confirmRetention}
         scope={data.id}
         consequence={copy.retentionConsequence}
-        permission="data_retention.manage"
+        permission="retention.write"
         auditEvent="retention_policy.updated"
         pending={mutation.isPending}
         outcomes={{ success: "updated", failure: "failed", conflict: "conflict" }}

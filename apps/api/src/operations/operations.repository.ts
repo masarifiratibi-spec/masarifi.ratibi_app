@@ -12,6 +12,14 @@ export class OperationsRepository {
 
   read(principal: ClerkPrincipal, kind: string, query: unknown): Promise<unknown> {
     return this.asApi(principal, async (client) => {
+      if (kind === 'ai-usage') {
+        const input = query as { userId: string | null };
+        const result = await client.query<{ value: unknown }>(
+          'select private.read_ai_usage_limits($1) value',
+          [input.userId],
+        );
+        return result.rows[0]?.value;
+      }
       const result = await client.query<{ value: unknown }>(
         'select private.read_operations($1,$2::jsonb) value',
         [kind, JSON.stringify(query)],

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 import { PixelRatio } from 'react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
@@ -7,6 +7,14 @@ import { AssistantConversationView } from './AssistantConversationView';
 import type { AssistantResponse } from '@/domain/assistant';
 
 describe('AssistantConversationView', () => {
+  it('uses the existing status area for a submission failure and retains the typed question', async () => {
+    const onSendMessage = jest.fn(async () => false);
+    renderWithProviders(<AssistantConversationView conversationId="conversation-1" responses={[]} onSendMessage={onSendMessage} error="Safe failure" />);
+    expect(screen.getByText('Safe failure')).toBeTruthy();
+    fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'Retained question');
+    await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
+    expect(screen.getByTestId('assistant-composer-input').props.value).toBe('Retained question');
+  });
   beforeEach(() => {
     changeLocale('ar');
   });
@@ -37,8 +45,8 @@ describe('AssistantConversationView', () => {
     createdAt: Date.now()
   };
 
-  it('renders banner, user question bubble, AI response bubble, insight card, and composer', () => {
-    const onSendMessage = jest.fn();
+  it('renders banner, user question bubble, AI response bubble, insight card, and composer', async () => {
+    const onSendMessage = jest.fn(async () => true);
 
     renderWithProviders(
       <AssistantConversationView
@@ -59,7 +67,7 @@ describe('AssistantConversationView', () => {
       screen.getByTestId('assistant-composer-input'),
       'ما هي خطة الادخار؟'
     );
-    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
     expect(onSendMessage).toHaveBeenCalledWith('ما هي خطة الادخار؟');
   });
 

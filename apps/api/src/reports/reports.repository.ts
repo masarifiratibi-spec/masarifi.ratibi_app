@@ -1,3 +1,6 @@
+import type { AdminReportCounts } from './reports.admin-types';
+import { adminObservation } from './reports.admin';
+export type { AdminReportCounts } from './reports.admin-types';
 import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
@@ -108,16 +111,6 @@ interface ScheduleRow extends QueryResultRow {
   version: string;
 }
 
-export interface AdminReportCounts {
-  totalUsers: number;
-  newUsers: number;
-  iosUsers: number;
-  androidUsers: number;
-  bothUsers: number;
-  iosDevices: number;
-  androidDevices: number;
-}
-
 interface AdminActivityRow extends QueryResultRow {
   id: string;
   event_type: string;
@@ -165,6 +158,9 @@ function safeInteger(value: string): number {
 function mapDatabaseError(error: unknown): HttpException {
   if (error instanceof HttpException) return error;
   const code = (error as { code?: string }).code;
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('REPORT_QUOTA_EXCEEDED'))
+    return new HttpException({ code: 'REPORT_QUOTA_EXCEEDED' }, 429);
   if (code === '57014') return new HttpException({ code: 'REPORT_QUERY_TIMEOUT' }, 503);
   if (code === '42501') return new HttpException({ code: 'FORBIDDEN' }, 403);
   if (code === 'P0002') return new HttpException({ code: 'REPORT_NOT_FOUND' }, 404);
@@ -203,12 +199,21 @@ export class ReportsRepository {
     period: ReportPeriodRange,
     currency: string | null,
     requestId: string,
+    accountIds?: string[],
   ): Promise<ReportsSummaryResponse> {
     void requestId;
     try {
-      return await this.withApiSnapshot(principal, (client) =>
-        this.readSummary(client, principal.userId, reportType, period, currency),
-      );
+      return await this.withApiSnapshot(principal, async (client) => {
+        if (accountIds) {
+          const owned = await client.query(
+            'select id from public.accounts where user_id=$1 and id=any($2::uuid[])',
+            [principal.userId, accountIds],
+          );
+          if (owned.rowCount !== new Set(accountIds).size || accountIds.length === 0)
+            throw new HttpException({ code: 'REPORT_ACCOUNT_NOT_FOUND' }, 404);
+        }
+        return this.readSummary(client, principal.userId, reportType, period, currency, accountIds);
+      });
     } catch (error) {
       throw mapDatabaseError(error);
     }
@@ -287,16 +292,32 @@ export class ReportsRepository {
       format: ReportFormat;
       delivery: DeliveryChannel;
       recipient: null;
+      accountIds?: string[];
+      currency?: string;
+      timezone?: string;
     },
     idempotencyKey: string,
     requestId: string,
   ): Promise<Record<string, unknown>> {
     try {
       return await this.pool.withClient(async (client) => {
+        const keyHash = hashIdempotencyKey(idempotencyKey);
+        await client.query('begin');
+        try {
+          await this.setApiContext(client, principal);
+          await client.query('select private.reserve_user_job_quota($1,$2,$3)', [
+            principal.userId,
+            'report_generation',
+            keyHash,
+          ]);
+          await client.query('commit');
+        } catch (error) {
+          await client.query('rollback');
+          throw error;
+        }
         await client.query('begin isolation level repeatable read');
         try {
           await this.setApiContext(client, principal);
-          const keyHash = hashIdempotencyKey(idempotencyKey);
           const requestHash = hashNormalizedCommand(command);
           const claim = (
             await client.query<IdempotencyClaim>(
@@ -323,6 +344,22 @@ export class ReportsRepository {
             )
           ).rows[0];
           if (!context) throw new HttpException({ code: 'NOT_FOUND' }, 404);
+          if (command.timezone && command.timezone !== context.timezone)
+            throw new HttpException({ code: 'REPORT_TIMEZONE_CHANGED' }, 409);
+          if (command.accountIds) {
+            const owned = await client.query(
+              'select id from public.accounts where user_id=$1 and id=any($2::uuid[])',
+              [principal.userId, command.accountIds],
+            );
+            if (owned.rowCount !== new Set(command.accountIds).size)
+              throw new HttpException({ code: 'REPORT_ACCOUNT_NOT_FOUND' }, 404);
+          }
+          const currency = command.currency ?? context.currency.trim();
+          const allowedCurrency = await client.query(
+            'select code from public.currencies where code=$1 and enabled',
+            [currency],
+          );
+          if (!allowedCurrency.rowCount) throw new HttpException({ code: 'INVALID_CURRENCY' }, 400);
           const days =
             Math.floor(
               (Date.parse(`${command.periodEnd}T00:00:00Z`) -
@@ -353,13 +390,15 @@ export class ReportsRepository {
             principal.userId,
             command.type,
             period,
-            context.currency.trim(),
+            currency,
+            command.accountIds,
           );
           const content = await this.reportContent(client, {
             userId: principal.userId,
             reportType: command.type,
             period,
-            currency: context.currency.trim(),
+            currency,
+            accountIds: command.accountIds,
             summary,
           });
           const snapshot = parseReportSnapshot(
@@ -376,10 +415,15 @@ export class ReportsRepository {
               },
               format: command.format,
               delivery: command.delivery,
-              currencyCode: context.currency.trim(),
+              currencyCode: currency,
               dataState: content.dataState,
               evidence: summary.metadata.evidence,
-              summary: content.summary,
+              summary: {
+                ...content.summary,
+                accountScope: command.accountIds
+                  ? `Selected accounts (${String(command.accountIds.length)})`
+                  : 'All accounts',
+              },
               breakdowns: content.breakdowns,
               detailedRows: content.detailedRows,
             },
@@ -460,29 +504,34 @@ export class ReportsRepository {
     platform: string,
     days: number,
   ): Promise<AdminReportCounts> {
-    const rows = await this.withApiSnapshot(principal, async (client) => {
-      const result = await client.query<{
-        total_users: string;
-        new_users: string;
-        ios_users: string;
-        android_users: string;
-        both_users: string;
-        ios_devices: string;
-        android_devices: string;
-      }>('select * from private.read_admin_report_counts($1,$2)', [platform, days]);
-      return result.rows;
+    return this.withApiSnapshot(principal, async (client) => {
+      const row = (
+        await client.query<{ value: AdminReportCounts }>(
+          'select private.read_admin_report_measurements($1,$2) value',
+          [platform, days],
+        )
+      ).rows[0];
+      if (!row) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
+      return row.value;
     });
-    const row = rows[0];
-    if (!row) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
-    return {
-      totalUsers: safeInteger(row.total_users),
-      newUsers: safeInteger(row.new_users),
-      iosUsers: safeInteger(row.ios_users),
-      androidUsers: safeInteger(row.android_users),
-      bothUsers: safeInteger(row.both_users),
-      iosDevices: safeInteger(row.ios_devices),
-      androidDevices: safeInteger(row.android_devices),
-    };
+  }
+
+  async recordMobileActivity(principal: ClerkPrincipal, platform: string): Promise<void> {
+    try {
+      await this.pool.withClient(async (client) => {
+        await client.query('begin');
+        try {
+          await this.setApiContext(client, principal);
+          await client.query('select private.record_mobile_activity($1)', [platform]);
+          await client.query('commit');
+        } catch (error) {
+          await client.query('rollback');
+          throw error;
+        }
+      });
+    } catch (error) {
+      throw mapDatabaseError(error);
+    }
   }
 
   async getAdminOverviewActivity(
@@ -516,18 +565,49 @@ export class ReportsRepository {
   async getSupportedFinancialReport(
     principal: ClerkPrincipal,
     userId: string,
-    start: string,
-    end: string,
+    days: number,
+    observedAt: Date,
   ): Promise<Record<string, unknown>> {
     return this.withApiSnapshot(principal, async (client) => {
       const row = (
-        await client.query<{ read_supported_financial_report: Record<string, unknown> }>(
-          'select private.read_supported_financial_report($1,$2::date,$3::date)',
-          [userId, start, end],
+        await client.query<{ value: Record<string, unknown> }>(
+          'select private.read_supported_financial_report_relative($1,$2,$3::timestamptz) value',
+          [userId, days, observedAt.toISOString()],
         )
       ).rows[0];
       if (!row) throw new HttpException({ code: 'REPORT_NOT_FOUND' }, 404);
-      return row.read_supported_financial_report;
+      return row.value;
+    });
+  }
+
+  async getAdminActivityExport(principal: ClerkPrincipal, platform: string, days: number) {
+    return this.withApiSnapshot(principal, async (client) => {
+      const measurement = (
+        await client.query<{ value: AdminReportCounts }>(
+          'select private.read_admin_report_measurements($1,$2) value',
+          [platform, days],
+        )
+      ).rows[0]?.value;
+      if (!measurement?.observedAt) throw new HttpException({ code: 'REPORT_UNAVAILABLE' }, 503);
+      const rows = (
+        await client.query<AdminActivityRow>(
+          'select * from private.read_admin_overview_activity_at($1,$2,10001,$3::timestamptz)',
+          [platform, days, measurement.observedAt],
+        )
+      ).rows;
+      if (rows.length > 10000) throw new HttpException({ code: 'REPORT_LIMIT_EXCEEDED' }, 413);
+      return {
+        observation: adminObservation(measurement),
+        items: rows.map((row) => ({
+          id: row.id,
+          eventType: row.event_type,
+          summary: row.summary,
+          occurredAt: row.occurred_at.toISOString(),
+          platformScope: row.platform_scope,
+          permission: row.permission,
+          ...(row.destination ? { destination: row.destination } : {}),
+        })),
+      };
     });
   }
 
@@ -698,9 +778,11 @@ export class ReportsRepository {
 
   async listWork(kind: ReportWorkKind, limit: number): Promise<string[]> {
     return this.pool.withClient(async (client) => {
-      await client.query('begin read only');
+      await client.query(kind === 'report.output.expire' ? 'begin' : 'begin read only');
       try {
         await this.setWorkerContext(client);
+        if (kind === 'report.output.expire')
+          await client.query('select private.prune_mobile_activity()');
         const rows = (
           await client.query<{ id: string }>('select * from private.list_report_work($1,$2)', [
             kind,
@@ -1222,7 +1304,7 @@ export class ReportsRepository {
       timezone: row.timezone,
       nextRunAt: row.next_run_at.toISOString(),
       deliveryChannel: row.delivery_channel,
-      ...(recipientMasked ? { recipientMasked } : {}),
+      ...(recipientMasked ? { recipientMasked, recipient: row.recipient } : {}),
       enabled: row.enabled,
       lastRunAt: row.last_run_at?.toISOString() ?? null,
       createdAt: row.created_at.toISOString(),
@@ -1335,7 +1417,7 @@ export class ReportsRepository {
     client: PoolClient,
     userId: string,
     period: ReportPeriodRange,
-    options: { currency: string | null; limit: number },
+    options: { currency: string | null; limit: number; accountIds?: string[] },
   ): Promise<Record<string, unknown>[]> {
     const rows = (
       await client.query<{
@@ -1351,6 +1433,8 @@ export class ReportsRepository {
          where t.user_id=$1 and t.status='confirmed' and t.deleted_at is null
            and t.occurred_at>=$2::timestamptz and t.occurred_at<$3::timestamptz
            and ($4::char(3) is null or t.currency_code=$4)
+           and ($6::uuid[] is null or exists(select 1 from public.transaction_postings p
+             where p.transaction_id=t.id and p.account_id=any($6::uuid[]) and p.clearing_state='confirmed'))
          order by t.occurred_at,t.id limit $5`,
         [
           userId,
@@ -1358,6 +1442,7 @@ export class ReportsRepository {
           period.endExclusiveInstant,
           options.currency,
           options.limit + 1,
+          options.accountIds ?? null,
         ],
       )
     ).rows;
@@ -1379,6 +1464,7 @@ export class ReportsRepository {
       reportType: ReportType;
       period: ReportPeriodRange;
       currency: string;
+      accountIds?: string[];
       summary: ReportsSummaryResponse;
     },
   ): Promise<{
@@ -1387,12 +1473,14 @@ export class ReportsRepository {
     detailedRows: Record<string, unknown>[];
     dataState: 'complete' | 'empty';
   }> {
-    const includePlanning = [
-      'financial_summary',
-      'budget_performance',
-      'obligation_progress',
-      'savings_progress',
-    ].includes(input.reportType);
+    const includePlanning =
+      !input.accountIds?.length &&
+      [
+        'financial_summary',
+        'budget_performance',
+        'obligation_progress',
+        'savings_progress',
+      ].includes(input.reportType);
     const planning = includePlanning
       ? await this.readPlanning(client, input.userId, input.period, input.currency)
       : undefined;
@@ -1400,6 +1488,7 @@ export class ReportsRepository {
       input.reportType === 'account_activity'
         ? await this.readDetailedRows(client, input.userId, input.period, {
             currency: input.currency,
+            accountIds: input.accountIds,
             limit: this.config?.get('MASARIFI_REPORT_MAX_ROWS') ?? 100_000,
           })
         : [];
@@ -1409,8 +1498,20 @@ export class ReportsRepository {
     const hasPlanning = planning && Object.values(planning).some((rows) => rows.length > 0);
     const hasData =
       input.summary.summaries.length > 0 || breakdowns.length > 0 || detailedRows.length > 0;
+    const minorUnit = (
+      await client.query<{ minor_unit: number }>(
+        'select minor_unit from public.currencies where code=$1',
+        [input.currency],
+      )
+    ).rows[0]?.minor_unit;
+    if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
+      throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
     return {
-      summary: { summaries: input.summary.summaries, ...(planning ? { planning } : {}) },
+      summary: {
+        summaries: input.summary.summaries,
+        ...(planning ? { planning } : {}),
+        currencyMinorUnits: { [input.currency]: minorUnit },
+      },
       breakdowns,
       detailedRows,
       dataState: hasData || hasPlanning ? 'complete' : 'empty',
@@ -1423,10 +1524,38 @@ export class ReportsRepository {
     reportType: ReportType,
     period: ReportPeriodRange,
     currency: string | null,
+    accountIds?: string[],
   ): Promise<ReportsSummaryResponse> {
+    // Sum signed postings so account moves cancel and transfer fees stay on their actual account.
+    const reportTransactions = `with report_transactions as (
+      select t.id,t.user_id,t.kind,t.status,t.deleted_at,t.occurred_at,t.currency_code,
+        t.category_id,t.reverses_transaction_id,
+        case when $5::uuid[] is null then t.amount_minor
+          when t.kind='expense' then -p.principal_minor else p.principal_minor end amount_minor,
+        case when $5::uuid[] is null then t.fee_minor else -p.fee_minor end fee_minor
+      from public.transactions t
+      left join lateral (
+        select coalesce(sum(p.amount_minor) filter(where p.posting_role<>'fee'),0)::bigint principal_minor,
+          coalesce(sum(p.amount_minor) filter(where p.posting_role='fee'),0)::bigint fee_minor
+        from public.transaction_postings p
+        where $5::uuid[] is not null and p.transaction_id=t.id
+          and p.account_id=any($5::uuid[]) and p.clearing_state='confirmed'
+      ) p on true
+      where t.user_id=$1 and t.status='confirmed' and t.deleted_at is null
+        and t.occurred_at >= $2::timestamptz and t.occurred_at < $3::timestamptz
+        and ($4::char(3) is null or t.currency_code=$4)
+        and ($5::uuid[] is null or p.principal_minor<>0 or p.fee_minor<>0)
+    )`;
+    const parameters = [
+      userId,
+      period.startInstant,
+      period.endExclusiveInstant,
+      currency,
+      accountIds ?? null,
+    ];
     const summaries = (
       await client.query<SummaryRow>(
-        `with effects as (
+        `${reportTransactions}, effects as (
            select t.currency_code,
              case when t.kind='income' then t.amount_minor else 0 end::bigint income_minor,
              case
@@ -1436,10 +1565,7 @@ export class ReportsRepository {
                else 0
              end::bigint expense_minor,
              case when t.kind in ('income','expense','refund') or t.fee_minor>0 then 1 else 0 end transaction_count
-           from public.transactions t
-           where t.user_id=$1 and t.status='confirmed' and t.deleted_at is null
-             and t.occurred_at >= $2::timestamptz and t.occurred_at < $3::timestamptz
-             and ($4::char(3) is null or t.currency_code=$4)
+           from report_transactions t
          )
          select currency_code,sum(income_minor)::bigint income_minor,
            sum(expense_minor)::bigint expense_minor,
@@ -1447,7 +1573,7 @@ export class ReportsRepository {
            sum(transaction_count)::bigint transaction_count
          from effects where transaction_count>0
          group by currency_code order by currency_code`,
-        [userId, period.startInstant, period.endExclusiveInstant, currency],
+        parameters,
       )
     ).rows.map((row) => {
       const income = safeInteger(row.income_minor);
@@ -1463,21 +1589,15 @@ export class ReportsRepository {
     });
     const breakdowns = (
       await client.query<CategoryRow>(
-        `with category_effects as (
+        `${reportTransactions}, category_effects as (
            select t.currency_code,t.category_id,t.amount_minor::bigint expense_minor
-           from public.transactions t
-           where t.user_id=$1 and t.kind='expense' and t.status='confirmed'
-             and t.deleted_at is null and t.category_id is not null
-             and t.occurred_at >= $2::timestamptz and t.occurred_at < $3::timestamptz
-             and ($4::char(3) is null or t.currency_code=$4)
+           from report_transactions t
+           where t.kind='expense' and t.category_id is not null and t.amount_minor<>0
            union all
            select r.currency_code,o.category_id,-r.amount_minor::bigint
-           from public.transactions r
+           from report_transactions r
            join public.transactions o on o.id=r.reverses_transaction_id and o.user_id=r.user_id
-           where r.user_id=$1 and r.kind='refund' and r.status='confirmed'
-             and r.deleted_at is null and o.category_id is not null
-             and r.occurred_at >= $2::timestamptz and r.occurred_at < $3::timestamptz
-             and ($4::char(3) is null or r.currency_code=$4)
+           where r.kind='refund' and o.category_id is not null
          )
          select e.category_id,c.label_ar category_label_ar,c.label_en category_label_en,e.currency_code,
            sum(e.expense_minor)::bigint expense_minor,count(*)::bigint transaction_count
@@ -1485,7 +1605,7 @@ export class ReportsRepository {
          join public.categories c on c.id=e.category_id
          group by e.category_id,c.label_ar,c.label_en,e.currency_code
          order by currency_code,expense_minor desc,category_id limit 100`,
-        [userId, period.startInstant, period.endExclusiveInstant, currency],
+        parameters,
       )
     ).rows.map((row) => ({
       categoryId: row.category_id,

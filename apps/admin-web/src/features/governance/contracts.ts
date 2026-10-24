@@ -545,6 +545,17 @@ export const be3AssignmentSchema = z.object({
   id: z.uuid(), userId: z.string().min(1).max(128), roleId: z.uuid(),
   startsAt: isoTimestampSchema, endsAt: isoTimestampSchema.nullable(), revokedAt: isoTimestampSchema.nullable(), version: versionSchema,
 }).strict();
+export const revokeAdminRoleRequestSchema = z.object({
+  expectedVersion: versionSchema,
+  reason: reasonSchema,
+}).strict();
+export const acceptAdminInvitationRequestSchema = z.object({
+  token: z.string().min(32).max(512),
+}).strict();
+export const acceptAdminInvitationResultSchema = z.object({
+  id: z.string().min(1).max(128),
+  status: z.literal("active"),
+}).strict();
 export const be3AdminDetailSchema = be3AdminSchema.extend({
   assignments: z.array(be3AssignmentSchema).max(100),
   effectivePermissionKeys: z.array(z.string().min(1).max(128)).max(500),
@@ -577,3 +588,4 @@ export type AccessRole = z.infer<typeof be3RoleSchema>;
 export type AccessPermission = z.infer<typeof be3PermissionSchema>;
 export type AccessAdmin = z.infer<typeof be3AdminSchema>;
 export type AccessAdminDetail = z.infer<typeof be3AdminDetailSchema>;
+export type RevokeAdminRoleRequest = z.input<typeof revokeAdminRoleRequestSchema>;

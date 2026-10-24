@@ -6,6 +6,7 @@ import {
   navigationContextSchema,
   onboardingProgressSchema,
   permissionStateSchema,
+  pinCredentialSchema,
   privacyLockPreferenceSchema,
   profileCompletionStepSchema,
   trackingPreferenceSchema
@@ -116,5 +117,24 @@ describe('app-shell domain', () => {
         dismissed: false
       }).destination
     ).toBe('/accounts');
+  });
+
+  it('accepts only bounded PBKDF2 App PIN credentials', () => {
+    expect(
+      pinCredentialSchema.safeParse(
+        `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(32)}`
+      ).success
+    ).toBe(true);
+
+    for (const credential of [
+      'pin:123456',
+      `pbkdf2-sha256:9999:${'01'.repeat(16)}:${'ab'.repeat(32)}`,
+      `pbkdf2-sha256:500001:${'01'.repeat(16)}:${'ab'.repeat(32)}`,
+      `pbkdf2-sha256:120000:${'01'.repeat(15)}:${'ab'.repeat(32)}`,
+      `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(31)}`,
+      `pbkdf2-sha256:120000:${'GG'.repeat(16)}:${'ab'.repeat(32)}`
+    ]) {
+      expect(pinCredentialSchema.safeParse(credential).success).toBe(false);
+    }
   });
 });

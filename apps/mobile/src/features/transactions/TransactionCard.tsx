@@ -9,7 +9,7 @@ import {
 } from '@/design-system/components/financial/FinancialPrimitives';
 import { resolveCategoryVisual } from '@/design-system/components/financial/category-visuals';
 import { borderWidth, elevation, radius, spacing } from '@/design-system/tokens';
-import type { Transaction } from '@/domain/core-finance';
+import type { Category, Transaction } from '@/domain/core-finance';
 import {
   localizedDemoAccountName,
   localizedDemoTransactionTitle
@@ -23,41 +23,52 @@ import { colorTokens } from '@/design-system/tokens';
 
 export function TransactionCard({
   accountName,
+  category,
+  contained = false,
   groupedPosition,
   hidden,
   largeText,
   testIDPrefix,
-  transaction
+  transaction,
+  financialGroup,
+  sign
 }: {
   accountName?: string;
+  category?: Category;
+  contained?: boolean;
   groupedPosition?: 'first' | 'middle' | 'last' | 'only';
   hidden: boolean;
   largeText: boolean;
   testIDPrefix: 'account' | 'home';
   transaction: Transaction;
+  financialGroup?: 'expense' | 'income';
+  sign?: 'negative' | 'positive';
 }) {
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
-  const presentation = projectTransaction(transaction, locale);
+  const timeZone = usePreferenceStore((state) => state.timeZone);
+  const presentation = projectTransaction(transaction, locale, undefined, category, timeZone);
+  const amountSign = sign ?? (transaction.type === 'reversal'
+    ? transaction.adjustmentSign === 1 ? 'positive' : 'negative'
+    : undefined);
   const localizedAccountName = localizedDemoTransactionTitle(
     transaction.id,
     locale
   )
     ? localizedDemoAccountName(transaction.accountId, locale) ?? accountName
     : accountName;
-  const visualKey =
-    transaction.categoryId ?? (transaction.type === 'income' ? 'salary' : null);
-  const category = resolveCategoryVisual(visualKey, 'category');
-  const categoryLabel = translateDynamic(
-    category?.labelKey ??
+  const visualKey = transaction.categoryId;
+  const categoryVisual = resolveCategoryVisual(visualKey, 'category');
+  const categoryLabel = presentation.categoryName ?? translateDynamic(
+    categoryVisual?.labelKey ??
       (transaction.categoryId
         ? `coreFinance.meaning.${presentation.meaning}`
         : 'coreFinance.ledger.uncategorized'),
     {},
     locale
   );
-  const fixedHomeCard = testIDPrefix === 'home' && !groupedPosition;
+  const fixedHomeCard = testIDPrefix === 'home' && !groupedPosition && !largeText;
 
   return (
     <Pressable
@@ -75,7 +86,8 @@ export function TransactionCard({
       style={({ pressed }) => [
         styles.card,
         fixedHomeCard && styles.fixedHome,
-        !groupedPosition && elevation.card,
+        !groupedPosition && !contained && elevation.card,
+        contained && styles.contained,
         groupedPosition && styles.grouped,
         largeText && !fixedHomeCard
           ? styles.stacked
@@ -164,6 +176,7 @@ export function TransactionCard({
                 numberOfLines={largeText && !fixedHomeCard ? undefined : 1}
                 style={[
                   styles.accountText,
+                  largeText && testIDPrefix === 'home' && styles.wrappingAccountText,
                   { color: theme.colors.content.secondary }
                 ]}
               >
@@ -189,9 +202,13 @@ export function TransactionCard({
         ]}
       >
         <AmountText
+          color={transaction.type === 'reversal'
+            ? theme.colors.financial[amountSign === 'positive' ? 'income' : 'expense']
+            : undefined}
           currency={transaction.currencyCode}
           masked={hidden}
-          meaning={presentation.meaning}
+          meaning={financialGroup && transaction.type !== 'refund' ? financialGroup : presentation.meaning}
+          sign={amountSign}
           minorUnits={transaction.amountMinor}
           size={groupedPosition ? 'compact' : 'home'}
         />
@@ -233,6 +250,7 @@ const styles = StyleSheet.create({
     minHeight: 84,
     paddingVertical: spacing.sm
   },
+  contained: { borderRadius: 0, borderWidth: 0 },
   grouped: {
     borderRadius: 0,
     borderWidth: 0,
@@ -264,6 +282,7 @@ const styles = StyleSheet.create({
     maxWidth: '100%'
   },
   accountText: { fontSize: 11, lineHeight: 15, writingDirection: 'auto' },
+  wrappingAccountText: { flexShrink: 1 },
   accountDot: { borderRadius: radius.pill, height: 6, width: 6 },
   amount: { flexShrink: 0, gap: 2, maxWidth: '45%' },
   amountStacked: { maxWidth: '100%' },

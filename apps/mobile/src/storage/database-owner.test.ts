@@ -1,13 +1,19 @@
 import app from '../../app.json';
+import { createSettingsStorage } from './settings-storage';
+import { createLiveIdentityService } from '@/services/live/auth-service';
+import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 
 const mockExistingFiles = new Set(['file:///databases/masarifi.db']);
 const mockDeletedFiles: string[] = [];
 const mockDeleteFailures = new Map<string, number>();
+const mockMoveFailures = new Map<string, number>();
 const mockSql: string[] = [];
 const mockSecureValues = new Map<string, string>();
 let mismatchCounts = false;
 let migrationMarker: string | null = null;
 let failSchemaMigration = false;
+let mockSeparateTransactionConnections = false;
+let mockDatabaseDirectory = 'file:///databases';
 interface MockDatabase {
   execAsync(sql: string): Promise<void>;
   getFirstAsync(sql: string): Promise<Record<string, unknown> | null>;
@@ -25,6 +31,7 @@ const mockDatabase: MockDatabase = {
       throw new Error('schema migration failed');
   }),
   getFirstAsync: jest.fn(async (sql: string) => {
+    if (sql.includes('settings_profile')) return null;
     if (sql.includes('cipher_version')) return { cipher_version: '4.6.1' };
     if (sql.includes('_masarifi_migration_state'))
       return migrationMarker ? { value: migrationMarker } : null;
@@ -37,20 +44,43 @@ const mockDatabase: MockDatabase = {
   ) as unknown as MockDatabase['getAllAsync'],
   runAsync: jest.fn(async () => undefined),
   withExclusiveTransactionAsync: jest.fn(
-    async (operation: (database: MockDatabase) => Promise<void>) =>
-      operation(mockDatabase)
+    async (operation: (database: MockDatabase) => Promise<void>) => {
+      if (!mockSeparateTransactionConnections) return operation(mockDatabase);
+      let keyed = false;
+      // Expo opens a fresh connection; SQLCipher keys are connection-local.
+      await operation({
+        ...mockDatabase,
+        execAsync: async (sql) => {
+          if (sql.startsWith('PRAGMA key =')) keyed = true;
+          else if (!keyed) throw new Error('file is not a database');
+          await mockDatabase.execAsync(sql);
+        },
+        runAsync: async (...args: Parameters<MockDatabase['runAsync']>) => {
+          if (!keyed) throw new Error('file is not a database');
+          await mockDatabase.runAsync(...args);
+        }
+      });
+    }
   ),
   closeAsync: jest.fn(async () => undefined)
 };
 
 jest.mock('expo-sqlite', () => ({
-  defaultDatabaseDirectory: 'file:///databases',
+  get defaultDatabaseDirectory() {
+    return mockDatabaseDirectory;
+  },
   openDatabaseAsync: jest.fn(async (name: string) => {
-    mockExistingFiles.add(`file:///databases/${name}`);
+    const directory = mockDatabaseDirectory.startsWith('/')
+      ? `file://${mockDatabaseDirectory}`
+      : mockDatabaseDirectory;
+    mockExistingFiles.add(`${directory}/${name}`);
     return mockDatabase;
   })
 }));
 jest.mock('expo-secure-store', () => ({
+  deleteItemAsync: jest.fn(async (key: string) => {
+    mockSecureValues.delete(key);
+  }),
   getItemAsync: jest.fn(
     async (key: string) => mockSecureValues.get(key) ?? null
   ),
@@ -72,6 +102,8 @@ jest.mock('expo-file-system', () => ({
       this.uri = `${directory}/${name}`;
     }
     get exists() {
+      // Android's File(URI) rejects plain paths before any file access.
+      if (this.uri.startsWith('/')) throw new Error('URI is not absolute');
       return mockExistingFiles.has(this.uri);
     }
     delete() {
@@ -83,6 +115,15 @@ jest.mock('expo-file-system', () => ({
       mockDeletedFiles.push(this.uri);
       mockExistingFiles.delete(this.uri);
     }
+    move(destination: { uri: string }) {
+      const failures = mockMoveFailures.get(this.uri) ?? 0;
+      if (failures) {
+        mockMoveFailures.set(this.uri, failures - 1);
+        throw new Error('move failed');
+      }
+      mockExistingFiles.add(destination.uri);
+      mockExistingFiles.delete(this.uri);
+    }
   }
 }));
 
@@ -92,28 +133,128 @@ const SQLite = jest.requireMock('expo-sqlite') as {
 const SecureStore = jest.requireMock('expo-secure-store') as {
   setItemAsync: jest.Mock;
 };
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 const {
   clearDatabaseOwner,
   configureDatabaseOwner,
   openDatabase,
   resetDatabaseForTests,
   runExclusiveDatabaseTransaction
-} = require('./database') as typeof import('./database');
+} = jest.requireActual<typeof import('./database')>('./database');
+
+test('preserves a retained encrypted database after key loss until explicit quarantine', async () => {
+  const file = `file:///databases/masarifi-${'a'.repeat(24)}.db`;
+  mockExistingFiles.add(file);
+  await configureDatabaseOwner('user_owner-a');
+  await expect(openDatabase('user_owner-a')).rejects.toThrow(
+    'DATABASE_KEY_RECOVERY_REQUIRED'
+  );
+  expect(mockExistingFiles.has(file)).toBe(true);
+  expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
+    `masarifi.database.key.${'a'.repeat(64)}`,
+    expect.anything()
+  );
+  const { quarantineUnrecoverableDatabase } =
+    jest.requireActual<typeof import('./database')>('./database');
+  await expect(
+    quarantineUnrecoverableDatabase(
+      'user_owner-b',
+      'PRESERVE_ENCRYPTED_ORIGINAL'
+    )
+  ).rejects.toThrow('stale database owner');
+  await quarantineUnrecoverableDatabase(
+    'user_owner-a',
+    'PRESERVE_ENCRYPTED_ORIGINAL'
+  );
+  expect(
+    [...mockExistingFiles].some((name) => name.includes('.unrecoverable-'))
+  ).toBe(true);
+  expect(mockDeletedFiles).not.toContain(file);
+  await expect(openDatabase('user_owner-a')).resolves.toBe(mockDatabase);
+});
 
 beforeEach(async () => {
+  mockSeparateTransactionConnections = false;
+  mockDatabaseDirectory = 'file:///databases';
   await clearDatabaseOwner();
   resetDatabaseForTests();
   mockExistingFiles.clear();
   mockExistingFiles.add('file:///databases/masarifi.db');
   mockDeletedFiles.length = 0;
   mockDeleteFailures.clear();
+  mockMoveFailures.clear();
   mockSql.length = 0;
   mockSecureValues.clear();
   mismatchCounts = false;
   migrationMarker = null;
   failSchemaMigration = false;
   jest.clearAllMocks();
+});
+
+test('bootstraps encrypted owner storage and persists profile through a fresh transaction connection', async () => {
+  mockDatabaseDirectory = '/data/user/0/com.masarifi.mobile/files/SQLite';
+  mockSeparateTransactionConnections = true;
+  await configureDatabaseOwner('user_owner-a');
+  const storage = createSettingsStorage();
+
+  await expect(openDatabase('user_owner-a')).resolves.toBe(mockDatabase);
+  const service = createLiveIdentityService({
+    getOwnerId: () => 'user_owner-a',
+    loadLocalProfile: storage.loadProfile,
+    saveLocalProfile: storage.saveProfile,
+    request: async (path) =>
+      path === '/api/v1/me'
+        ? {
+            id: 'user_owner-a',
+            displayName: null,
+            primaryEmailMasked: 'a***@example.test',
+            phoneMasked: null,
+            locale: 'ar',
+            timezone: 'Asia/Riyadh',
+            status: 'active',
+            version: 2
+          }
+        : path.endsWith('/preferences')
+          ? {
+              defaultCurrency: 'SAR',
+              language: 'ar',
+              theme: 'system',
+              calendar: 'gregorian',
+              weekStart: 6,
+              privacySettings: {},
+              version: 1
+            }
+          : {
+              step: 'welcome',
+              completedSteps: [],
+              completedAt: null,
+              version: 1
+            }
+  });
+  const snapshot = await service.getProfileSetup();
+  expect(snapshot.complete).toBe(false);
+  expect(
+    resolveEntryRoute({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true,
+      profileSetupStatus: snapshot.complete ? 'complete' : 'incomplete',
+      session: {
+        status: 'authenticated',
+        userId: 'user_owner-a',
+        method: 'google',
+        restoration: 'restored',
+        issuedAt: 1,
+        expiresAt: Date.now() + 60_000
+      },
+      privacyLock: null,
+      onboarding: null,
+      pendingDestination: null
+    })
+  ).toBe('/(onboarding)/profile-setup');
+  expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+    expect.stringContaining('INSERT INTO settings_profile'),
+    expect.any(String),
+    expect.any(Number)
+  );
 });
 
 test('binds the legacy store once, exports it into an encrypted owner namespace, and preserves rows', async () => {
@@ -267,6 +408,7 @@ test('finishes deleting a verified plaintext legacy store after an interrupted c
     `file:///databases/masarifi-${ownerHash.slice(0, 24)}.db`
   );
   mockSecureValues.set('masarifi.database.legacyOwnerHash', ownerHash);
+  mockSecureValues.set(`masarifi.database.key.${ownerHash}`, '07'.repeat(32));
 
   await configureDatabaseOwner('user_owner-a');
   await openDatabase();
@@ -281,6 +423,7 @@ test('preserves plaintext when an existing target has equal counts without an ex
     `file:///databases/masarifi-${ownerHash.slice(0, 24)}.db`
   );
   mockSecureValues.set('masarifi.database.legacyOwnerHash', ownerHash);
+  mockSecureValues.set(`masarifi.database.key.${ownerHash}`, '07'.repeat(32));
 
   await configureDatabaseOwner('user_owner-a');
   await expect(openDatabase()).rejects.toThrow(
@@ -311,6 +454,7 @@ test('retries plaintext sidecar cleanup after deletion is interrupted', async ()
   mockExistingFiles.add(target);
   mockExistingFiles.add(wal);
   mockSecureValues.set('masarifi.database.legacyOwnerHash', ownerHash);
+  mockSecureValues.set(`masarifi.database.key.${ownerHash}`, '07'.repeat(32));
   migrationMarker = ownerHash;
   mockDeleteFailures.set(wal, 1);
 
@@ -334,4 +478,89 @@ test('serializes an owner switch before a concurrent database open', async () =>
   expect(SQLite.openDatabaseAsync).toHaveBeenLastCalledWith(
     `masarifi-${'b'.repeat(24)}.db`
   );
+});
+
+test('can switch owners after sign-out encounters a failed database open without latching a native close failure', async () => {
+  await configureDatabaseOwner('user_owner-a');
+  failSchemaMigration = true;
+  await expect(clearDatabaseOwner('user_owner-a')).rejects.toThrow(
+    'schema migration failed'
+  );
+  failSchemaMigration = false;
+
+  await expect(configureDatabaseOwner('user_owner-b')).resolves.toBeUndefined();
+  await expect(openDatabase('user_owner-b')).resolves.toBe(mockDatabase);
+});
+
+test('retries interrupted key-loss quarantine without overwriting the preserved database', async () => {
+  const file = `file:///databases/masarifi-${'a'.repeat(24)}.db`;
+  const wal = `${file}-wal`;
+  mockExistingFiles.clear();
+  mockExistingFiles.add(file);
+  mockExistingFiles.add(wal);
+  mockMoveFailures.set(wal, 1);
+  await configureDatabaseOwner('user_owner-a');
+  const { quarantineUnrecoverableDatabase } =
+    jest.requireActual<typeof import('./database')>('./database');
+  await expect(
+    quarantineUnrecoverableDatabase(
+      'user_owner-a',
+      'PRESERVE_ENCRYPTED_ORIGINAL'
+    )
+  ).rejects.toThrow('move failed');
+  const backup = mockSecureValues.get(
+    `masarifi.database.quarantine.${'a'.repeat(64)}`
+  )!;
+  expect(mockExistingFiles.has(`file:///databases/${backup}`)).toBe(true);
+  expect(mockExistingFiles.has(wal)).toBe(true);
+  await quarantineUnrecoverableDatabase(
+    'user_owner-a',
+    'PRESERVE_ENCRYPTED_ORIGINAL'
+  );
+  expect(mockExistingFiles.has(`file:///databases/${backup}-wal`)).toBe(true);
+  expect(mockExistingFiles.has(wal)).toBe(false);
+  expect(
+    [...mockExistingFiles].filter((path) => path.includes('.unrecoverable-'))
+  ).toHaveLength(2);
+});
+
+test('retains key-loss backups as unknown pending work until explicit owner purge', async () => {
+  mockExistingFiles.clear();
+  const file = `masarifi-${'a'.repeat(24)}.db.unrecoverable-123`;
+  const unrelated = `file:///databases/masarifi-${'b'.repeat(24)}.db.unrecoverable-123`;
+  mockSecureValues.set(`masarifi.database.quarantine.${'a'.repeat(64)}`, file);
+  mockExistingFiles.add(`file:///databases/${file}`);
+  mockExistingFiles.add(`file:///databases/${file}-wal`);
+  mockExistingFiles.add(unrelated);
+  const { pendingOwnerWork } = jest.requireActual<
+    typeof import('./pending-owner-work')
+  >('./pending-owner-work');
+  await expect(pendingOwnerWork('user_owner-a')).rejects.toThrow(
+    'unrecoverable owner work'
+  );
+  const { purgeAccountDatabase } =
+    jest.requireActual<typeof import('./database')>('./database');
+  await purgeAccountDatabase('user_owner-a');
+  expect(mockExistingFiles.has(`file:///databases/${file}`)).toBe(false);
+  expect(mockExistingFiles.has(`file:///databases/${file}-wal`)).toBe(false);
+  expect(mockExistingFiles.has(unrelated)).toBe(true);
+  expect(
+    mockSecureValues.has(`masarifi.database.quarantine.${'a'.repeat(64)}`)
+  ).toBe(false);
+});
+
+test('rejects a corrupt quarantine path without touching another owner backup', async () => {
+  mockExistingFiles.clear();
+  const foreign = `masarifi-${'b'.repeat(24)}.db.unrecoverable-123`;
+  mockSecureValues.set(
+    `masarifi.database.quarantine.${'a'.repeat(64)}`,
+    foreign
+  );
+  mockExistingFiles.add(`file:///databases/${foreign}`);
+  const { purgeAccountDatabase } =
+    jest.requireActual<typeof import('./database')>('./database');
+  await expect(purgeAccountDatabase('user_owner-a')).rejects.toThrow(
+    'invalid recovery record'
+  );
+  expect(mockExistingFiles.has(`file:///databases/${foreign}`)).toBe(true);
 });

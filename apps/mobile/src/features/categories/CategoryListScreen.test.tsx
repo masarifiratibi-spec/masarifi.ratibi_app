@@ -54,7 +54,7 @@ it('renders system hierarchy, favorites, search, and add action', () => {
 
   fireEvent.press(screen.getByText(fixtureCategories[0].labelAr));
   expect(router.push).toHaveBeenCalledWith(
-    `/categories/${fixtureCategories[0].id}?edit=1`
+    `/categories/${fixtureCategories[0].id}`
   );
 });
 

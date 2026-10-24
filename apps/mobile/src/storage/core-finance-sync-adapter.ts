@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { accountTypes, transactionSources } from '../domain/core-finance';
-import { createDefaultCategories } from '../domain/core-finance-seeds';
+import { createDefaultCategories } from '../domain/default-categories';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 import { SyncRepository, type SyncDomain } from './sync-repository';
 
@@ -663,7 +663,10 @@ export class CoreFinanceSyncAdapter {
     const transactionSource =
       kind === 'opening'
         ? ('adjustment' as const)
-        : this.member(rawSource, transactionSources);
+        : this.member(
+            rawSource === 'tracking-import' ? 'automatic' : rawSource,
+            transactionSources
+          );
     const openingPostingAmount =
       kind === 'opening'
         ? this.safeInteger(

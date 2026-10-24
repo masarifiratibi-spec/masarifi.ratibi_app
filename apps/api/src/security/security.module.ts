@@ -14,14 +14,10 @@ import { AiPrivacyHandler } from '../ai/ai-privacy.handler';
 import { AiStorage } from '../ai/ai.storage';
 import { EngagementPrivacyHandler } from '../engagement/engagement-privacy.handler';
 import { SupportStorage } from '../engagement/support.storage';
-
-@Module({
-  imports: [DatabaseModule, IdentityModule],
-  controllers: [SecurityController],
-  providers: [SecurityRepository, SecurityService, AdminAuthGuard, ExportStorage],
-  exports: [SecurityRepository, SecurityService, AdminAuthGuard],
-})
-export class SecurityModule {}
+import { ReportsStorage } from '../reports/reports.storage';
+import { OwnerDataErasureService } from './owner-data-erasure.service';
+import { ImmediateDeletionService } from './immediate-deletion.service';
+import { DeletionCompletionController } from './deletion-completion.controller';
 
 @Module({
   imports: [DatabaseModule, IdentityWorkerModule],
@@ -35,7 +31,23 @@ export class SecurityModule {}
     SupportStorage,
     EngagementPrivacyHandler,
     SecurityWorkerService,
+    ReportsStorage,
+    OwnerDataErasureService,
   ],
   exports: [SecurityWorkerService],
 })
 export class SecurityWorkerModule {}
+
+@Module({
+  imports: [DatabaseModule, IdentityModule],
+  controllers: [SecurityController, DeletionCompletionController],
+  providers: [
+    SecurityRepository,
+    SecurityService,
+    AdminAuthGuard,
+    ExportStorage,
+    ImmediateDeletionService,
+  ],
+  exports: [SecurityRepository, SecurityService, AdminAuthGuard],
+})
+export class SecurityModule {}

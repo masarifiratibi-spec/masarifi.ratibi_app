@@ -1,3 +1,4 @@
+import { defaultKeywordRules } from '@/domain/default-tracking-keywords';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
@@ -6,8 +7,10 @@ import { z } from 'zod';
 
 import {
   authSessionSchema,
+  type AuthenticationSession,
   keywordRuleSchema,
   onboardingProgressSchema,
+  pinCredentialSchema,
   privacyLockPreferenceSchema,
   trackingPreferenceSchema
 } from '@/domain/app-shell';
@@ -16,7 +19,6 @@ import {
   type AppShellStorage
 } from '@/services/contracts/app-shell-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
-import { defaultKeywordRules } from '@/services/mocks/default-keywords';
 
 const keys = {
   session: 'masarifi.appShell.session',
@@ -46,19 +48,61 @@ const sensitiveUserDataKeys = [
   keys.pinCredential
 ] as const;
 let activeOwnerHash: string | null = null;
+let ownerGeneration = 0;
+
+const localOwnerKey = 'masarifi.appShell.localOwner.v1';
+let localOwnerMutation: Promise<void> = Promise.resolve();
+function serializeLocalOwner(change: () => Promise<void>): Promise<void> {
+  const next = localOwnerMutation.then(change, change);
+  localOwnerMutation = next.catch(() => undefined);
+  return next;
+}
+
+/** Save only after an authenticated server bootstrap confirms profile completion. */
+export async function cacheLocalOwnerAccess(
+  session: AuthenticationSession,
+  isCurrent = () => true
+): Promise<void> {
+  if (
+    session.status !== 'authenticated' ||
+    !session.userId ||
+    /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(session.userId)
+  )
+    throw new Error('invalid cached owner');
+  if (!isCurrent()) return;
+  const generation = ownerGeneration;
+  await serializeLocalOwner(async () => {
+    if (!isCurrent() || generation !== ownerGeneration) return;
+    await writeSensitive(localOwnerKey, authSessionSchema.parse(session));
+    if (!isCurrent() || generation !== ownerGeneration) {
+      const stored = await readSensitive(localOwnerKey, authSessionSchema);
+      if (stored?.userId === session.userId)
+        await removeSensitive(localOwnerKey);
+    }
+  });
+}
+
+export const loadLocalOwnerAccess = () =>
+  readSensitive(localOwnerKey, authSessionSchema);
+export const clearLocalOwnerAccess = () =>
+  serializeLocalOwner(() => removeSensitive(localOwnerKey));
 
 export async function configureAppShellStorageOwner(
   userId: string
 ): Promise<void> {
+  const generation = ++ownerGeneration;
   const ownerHash = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
     userId
   );
+  if (generation !== ownerGeneration) return;
   await migrateLegacyPrivacyLock(ownerHash);
+  if (generation !== ownerGeneration) return;
   activeOwnerHash = ownerHash;
 }
 
 export function clearAppShellStorageOwner(): void {
+  ownerGeneration++;
   activeOwnerHash = null;
 }
 
@@ -67,6 +111,33 @@ export async function clearAppShellUserData(): Promise<void> {
     ...asyncUserDataKeys.map((key) => AsyncStorage.removeItem(ownerKey(key))),
     ...sensitiveUserDataKeys.map((key) => removeSensitive(ownerKey(key)))
   ]);
+}
+
+export async function purgeAppShellOwnerData(ownerId: string): Promise<void> {
+  const ownerHash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    ownerId
+  );
+  const suffix = ownerHash.slice(0, 24);
+  const asyncKeys = [
+    ...asyncUserDataKeys.map((key) => `${key}.${suffix}`),
+    `masarifi.export.${ownerId}`
+  ];
+  const secureKeys = sensitiveUserDataKeys.map((key) => `${key}.${suffix}`);
+  await Promise.all([
+    ...asyncKeys.map((key) => AsyncStorage.removeItem(key)),
+    ...secureKeys.map((key) => removeSensitive(key))
+  ]);
+  const remaining = await Promise.all([
+    ...asyncKeys.map((key) => AsyncStorage.getItem(key)),
+    ...secureKeys.map((key) =>
+      Platform.OS === 'web'
+        ? AsyncStorage.getItem(previewKey(key))
+        : SecureStore.getItemAsync(key)
+    )
+  ]);
+  if (remaining.some((payload) => payload !== null))
+    throw new Error('owner shell data remains');
 }
 
 export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorage> {
@@ -103,10 +174,9 @@ export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorag
       readSensitive(ownerKey(keys.privacyLock), privacyLockPreferenceSchema),
     savePrivacyLock: (lock) => writeSensitive(ownerKey(keys.privacyLock), lock),
     clearPrivacyLock: () => removeSensitive(ownerKey(keys.privacyLock)),
-    loadPinCredential: () =>
-      readSensitive(ownerKey(keys.pinCredential), z.string().min(1)),
-    savePinCredential: (hash) =>
-      writeSensitive(ownerKey(keys.pinCredential), hash),
+    loadPinCredential: () => loadPinCredential(ownerKey(keys.pinCredential)),
+    savePinCredential: (credential) =>
+      writeSensitive(ownerKey(keys.pinCredential), credential),
     clearPinCredential: () => removeSensitive(ownerKey(keys.pinCredential)),
     loadProfilePromptDismissed: async () =>
       (await readJson(ownerKey(keys.profilePromptDismissed), z.boolean())) ??
@@ -130,6 +200,18 @@ async function readSensitive<T>(
       ? await AsyncStorage.getItem(previewKey(nativeKey))
       : await SecureStore.getItemAsync(nativeKey);
   return parse(raw, schema);
+}
+
+async function loadPinCredential(nativeKey: string) {
+  const raw =
+    Platform.OS === 'web'
+      ? await AsyncStorage.getItem(previewKey(nativeKey))
+      : await SecureStore.getItemAsync(nativeKey);
+  if (!raw) return null;
+  const credential = parse(raw, pinCredentialSchema);
+  if (credential) return credential;
+  await removeSensitive(nativeKey);
+  return null;
 }
 
 function writeSensitive<T>(nativeKey: string, value: T): Promise<void> {
@@ -180,12 +262,18 @@ async function migrateLegacyPrivacyLock(ownerHash: string): Promise<void> {
   const suffix = ownerHash.slice(0, 24);
   const ownerPrivacyLockKey = `${keys.privacyLock}.${suffix}`;
   const ownerPinKey = `${keys.pinCredential}.${suffix}`;
-  const [legacyLock, legacyPin, ownerLock, ownerPin] = await Promise.all([
+  const [legacyLock, legacyPinRaw, ownerLock, ownerPinRaw] = await Promise.all([
     readSensitive(keys.privacyLock, privacyLockPreferenceSchema),
-    readSensitive(keys.pinCredential, z.string().min(1)),
+    Platform.OS === 'web'
+      ? AsyncStorage.getItem(previewKey(keys.pinCredential))
+      : SecureStore.getItemAsync(keys.pinCredential),
     readSensitive(ownerPrivacyLockKey, privacyLockPreferenceSchema),
-    readSensitive(ownerPinKey, z.string().min(1))
+    Platform.OS === 'web'
+      ? AsyncStorage.getItem(previewKey(ownerPinKey))
+      : SecureStore.getItemAsync(ownerPinKey)
   ]);
+  const legacyPin = parse(legacyPinRaw, pinCredentialSchema);
+  const ownerPin = parse(ownerPinRaw, pinCredentialSchema);
   const writes: Promise<void>[] = [];
   if (legacyLock && !ownerLock)
     writes.push(writeSensitive(ownerPrivacyLockKey, legacyLock));
@@ -194,6 +282,9 @@ async function migrateLegacyPrivacyLock(ownerHash: string): Promise<void> {
   await Promise.all(writes);
   await Promise.all([
     legacyLock ? removeSensitive(keys.privacyLock) : Promise.resolve(),
-    legacyPin ? removeSensitive(keys.pinCredential) : Promise.resolve()
+    legacyPinRaw ? removeSensitive(keys.pinCredential) : Promise.resolve(),
+    ownerPinRaw && !ownerPin && !legacyPin
+      ? removeSensitive(ownerPinKey)
+      : Promise.resolve()
   ]);
 }

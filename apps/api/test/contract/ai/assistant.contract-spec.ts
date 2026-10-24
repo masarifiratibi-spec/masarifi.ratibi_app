@@ -17,14 +17,29 @@ describe('Phase 09 assistant contract', () => {
   });
   afterAll(() => app.close());
 
-  it('keeps 49 unique documented operations and registers availability, insights, message, and preview routes', () => {
+  it('keeps unique documented operations including automatic Voice batch recovery', () => {
     const operations = Object.values(contract.paths).flatMap((path) =>
       Object.entries(path)
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
         .map(([, value]) => value.operationId),
     );
-    expect(operations).toHaveLength(49);
-    expect(new Set(operations).size).toBe(49);
+    expect(operations).toHaveLength(57);
+    expect(new Set(operations).size).toBe(57);
+    for (const [path, operationId] of [
+      [
+        '/api/v1/assistant/conversations/{conversationId}/messages/acceptance',
+        'getAssistantMessageAcceptance',
+      ],
+      [
+        '/api/v1/assistant/conversations/{conversationId}/messages/{messageId}',
+        'getAssistantMessage',
+      ],
+      [
+        '/api/v1/assistant/conversations/{conversationId}/messages/{messageId}/result',
+        'getAssistantMessageResult',
+      ],
+    ] as const)
+      expect(runtimePath(path)).toBe(operationId);
     const runtime = generateOpenApi(app);
     expect(runtime.paths['/api/v1/assistant/consent']?.put?.operationId).toBe(
       'grantAssistantConsent',
@@ -41,5 +56,25 @@ describe('Phase 09 assistant contract', () => {
     expect(runtime.paths['/api/v1/assistant/previews/{previewId}/confirm']?.post?.operationId).toBe(
       'confirmAssistantPreview',
     );
+  });
+  function runtimePath(path: string) {
+    return generateOpenApi(app).paths[path]?.get?.operationId;
+  }
+  it('uses defined authentication schemes for Voice recovery', () => {
+    const document = contract as typeof contract & {
+      components: { securitySchemes: Record<string, unknown> };
+      security: Record<string, unknown>[];
+    };
+    for (const path of [
+      '/api/v1/voice/batches/recovery',
+      '/api/v1/voice/sessions/{sessionId}/batch',
+    ]) {
+      const operation = document.paths[path]?.get as { security?: Record<string, unknown>[] };
+      const requirements = operation.security ?? document.security;
+      expect(requirements.length).toBeGreaterThan(0);
+      for (const requirement of requirements)
+        for (const scheme of Object.keys(requirement))
+          expect(document.components.securitySchemes).toHaveProperty(scheme);
+    }
   });
 });

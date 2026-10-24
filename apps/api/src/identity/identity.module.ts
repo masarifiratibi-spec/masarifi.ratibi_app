@@ -8,14 +8,17 @@ import { ClerkClientService } from './clerk-client.service';
 import { ClerkWebhookController } from './clerk-webhook.controller';
 import { ClerkWebhookWorker } from './clerk-webhook.worker';
 import { IdentityController } from './identity.controller';
+import { DevDeviceController } from './dev-device.controller';
 import { IdentityRepository } from './identity.repository';
 import { IdentityService } from './identity.service';
 import { IdentityPrivacyHandler } from './identity-privacy.handler';
 import { PushTokenCrypto } from './push-token.crypto';
+import { CustomerAdminRepository } from './customer-admin.repository';
+import { CustomerSessionRevoker } from './customer-session-revoker';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [IdentityController, ClerkWebhookController],
+  controllers: [IdentityController, ClerkWebhookController, DevDeviceController],
   providers: [
     ClerkClientService,
     ClerkAuthGuard,
@@ -57,7 +60,14 @@ export class IdentityModule {}
 
 @Module({
   imports: [DatabaseModule],
-  providers: [ClerkClientService, IdentityRepository, IdentityPrivacyHandler, ClerkWebhookWorker],
+  providers: [
+    ClerkClientService,
+    IdentityRepository,
+    IdentityPrivacyHandler,
+    ClerkWebhookWorker,
+    CustomerAdminRepository,
+    CustomerSessionRevoker,
+  ],
   exports: [ClerkClientService, ClerkWebhookWorker, IdentityPrivacyHandler],
 })
 export class IdentityWorkerModule {}

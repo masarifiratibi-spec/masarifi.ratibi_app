@@ -29,6 +29,8 @@ grant masarifi_migration,masarifi_api to current_user with inherit true,set true
 set local role masarifi_migration;
 insert into public.profiles(id,status) values
   ('tracking_account_owner','active'),('tracking_account_other','active');
+-- Model the verified API caller; do not bypass active-owner command guards.
+select set_config('request.jwt.claims','{"sub":"tracking_account_owner","role":"authenticated"}',true);
 insert into public.tracking_preferences(user_id,enabled,review_required) values
   ('tracking_account_owner',true,true),('tracking_account_other',true,true);
 insert into public.accounts(

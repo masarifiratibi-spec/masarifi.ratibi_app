@@ -27,7 +27,6 @@ export class OperationsWorker {
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => void this.runOnce().catch(() => undefined), 1_000);
-    this.timer.unref();
   }
 
   async stop(): Promise<void> {

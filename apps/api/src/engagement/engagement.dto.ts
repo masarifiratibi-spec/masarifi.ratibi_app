@@ -14,6 +14,8 @@ import { parseAudience } from './campaign.service';
 import { renderNotification } from './notification.renderer';
 
 const READS = new Set([
+  'adminSupportOverview',
+  'adminDownloadSupportAttachment',
   'listNotifications',
   'getNotification',
   'getNotificationPreferences',
@@ -160,7 +162,20 @@ const BODY_SHAPES: Readonly<Record<string, readonly [readonly string[], readonly
 
 export function validateEngagementCommand(command: EngagementCommand): EngagementCommand {
   if (READS.has(command.operation)) {
-    const page = safePageQuery(command.query);
+    const supportList = ['adminListSupportTickets', 'adminSupportOverview'].includes(
+      command.operation,
+    );
+    const query = (command.query ?? {}) as Record<string, unknown>;
+    if (supportList) validateSupportQuery(query);
+    const page = safePageQuery(
+      supportList
+        ? Object.fromEntries(
+            Object.entries(query).filter(
+              ([key]) => !['priority', 'assignee', 'categoryId', 'from', 'to'].includes(key),
+            ),
+          )
+        : command.query,
+    );
     if (!command.operation.startsWith('admin') && page.limit > 100)
       throw new Error('ENGAGEMENT_INPUT_INVALID');
   }
@@ -228,6 +243,47 @@ export function validateEngagementCommand(command: EngagementCommand): Engagemen
   )
     throw new Error('IDEMPOTENCY_KEY_INVALID');
   return command;
+}
+
+function validateSupportQuery(query: Record<string, unknown>): void {
+  exactKeys(query, [
+    'limit',
+    'cursor',
+    'query',
+    'status',
+    'priority',
+    'assignee',
+    'categoryId',
+    'from',
+    'to',
+  ]);
+  if (
+    query.status !== undefined &&
+    (typeof query.status !== 'string' ||
+      !['open', 'waiting_customer', 'waiting_support', 'resolved', 'closed'].includes(query.status))
+  )
+    throw new Error('ENGAGEMENT_INPUT_INVALID');
+  if (
+    query.priority !== undefined &&
+    (typeof query.priority !== 'string' ||
+      !['low', 'normal', 'high', 'urgent'].includes(query.priority))
+  )
+    throw new Error('ENGAGEMENT_INPUT_INVALID');
+  if (query.assignee !== undefined) safeText(query.assignee, 128);
+  if (query.categoryId !== undefined) engagementUuid(query.categoryId);
+  for (const key of ['from', 'to'])
+    if (query[key] !== undefined) {
+      const day = query[key];
+      if (
+        typeof day !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
+        !Number.isFinite(Date.parse(day)) ||
+        new Date(day).toISOString().slice(0, 10) !== day
+      )
+        throw new Error('ENGAGEMENT_INPUT_INVALID');
+    }
+  if (typeof query.from === 'string' && typeof query.to === 'string' && query.from > query.to)
+    throw new Error('ENGAGEMENT_INPUT_INVALID');
 }
 
 function validateOperationBody(operation: string, body: Record<string, unknown>): void {

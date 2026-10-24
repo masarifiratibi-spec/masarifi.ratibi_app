@@ -10,7 +10,204 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
-  'app.title': 'مسارف',
+  'reports.action.more': 'عرض المزيد',
+  'tracking.background.oemGuidance':
+    'في أجهزة سامسونج، تأكد أن مصاريفي خارج التطبيقات في وضع السكون وأن البطارية تسمح بالنشاط في الخلفية. في الأجهزة الأخرى قد تحتاج إلى تفعيل التشغيل التلقائي أو نشاط الخلفية من إعدادات التطبيق. ارجع إلى مصاريفي بعد تعديل الإعدادات.',
+  'reports.schedule.liveSettings':
+    'تُرسل التقارير المجدولة الساعة 08:00 في أول يوم من الفترة التقويمية المختارة، حسب المنطقة الزمنية المعروضة. تستخدم عملة ملفك في الخادم وإعدادات التقرير الافتراضية. أعد إدخال بريد حسابك والتحقق منه عند تعديل المستلم.',
+  'settings.privacy.exportExplanation':
+    'اطلب نسخة من بياناتك المحفوظة في الخادم. تستغرق المعالجة وقتًا وتنتهي صلاحية رابط التنزيل. حذف الحساب إجراء مستقل.',
+  'settings.privacy.exportFailure':
+    'تعذّر إكمال إجراء التصدير. تم الاحتفاظ بطلبك؛ أعد المحاولة أو حدّث حالته.',
+  'settings.privacy.exportDownload': 'تنزيل البيانات',
+  'settings.privacy.exportNew': 'طلب تصدير جديد',
+  'settings.privacy.exportState.requested': 'تم طلب التصدير',
+  'settings.privacy.exportState.verified': 'التصدير بانتظار المعالجة',
+  'settings.privacy.exportState.processing': 'جارٍ تجهيز بياناتك',
+  'settings.privacy.exportState.ready': 'البيانات جاهزة للتنزيل',
+  'settings.privacy.exportState.expired':
+    'انتهت صلاحية التصدير؛ اطلب نسخة جديدة',
+  'settings.privacy.exportState.failed': 'تعذّر التصدير؛ اطلب نسخة جديدة',
+
+  'settings.securityEvent.admin.role_assigned': 'تم تعيين دور إداري',
+  'settings.securityEvent.admin.role_revoked': 'تم إلغاء دور إداري',
+  'settings.securityEvent.support_access.requested': 'طلب الوصول للدعم',
+  'settings.securityEvent.support_access.granted':
+    'تمت الموافقة على وصول الدعم',
+  'settings.securityEvent.support_access.revoked': 'تم إلغاء وصول الدعم',
+  'settings.securityEvent.security.incident_opened': 'تم فتح بلاغ أمني',
+  'settings.securityEvent.privacy.export_ready': 'تصدير البيانات جاهز',
+  'settings.securityEvent.privacy.export_expired':
+    'انتهت صلاحية تصدير البيانات',
+  'settings.securityEvent.privacy.deletion_requested': 'تم طلب حذف الحساب',
+  'settings.securityEvent.privacy.deletion_completed': 'اكتمل حذف الحساب',
+  'settings.securityEvents.empty': 'لا توجد أحداث أمنية حتى الآن',
+
+  'settings.socialMedia.openError': 'تعذر فتح الحساب. حاول مرة أخرى.',
+  'reminders.control.label': 'تفعيل الإشعارات',
+  'reminders.control.description':
+    'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
+  'reminders.guest.label': 'ذكّرني باستكمال الإعداد',
+  'reminders.guest.description':
+    'أرسل تذكيرًا واحدًا غدًا إذا لم أُنشئ حسابًا.',
+  'reminders.onboarding.title': 'أكمل إعداد حسابك',
+  'reminders.onboarding.body': 'خطوة بسيطة وتبدأ متابعة مصاريفك.',
+  'reminders.permission.denied':
+    'الإشعارات غير متاحة. اسمح بها من إعدادات الهاتف ثم حاول مجددًا.',
+  'reminders.permission.allow': 'السماح بالإشعارات',
+  'assistant.report.scope':
+    'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
+  'reports.preview.accountScopeUnavailable':
+    'تصدير الملفات متاح حاليًا لكل الحسابات معًا فقط. ارجع إلى «كل الحسابات» للتصدير. تحليلات الحساب المحدد متاحة.',
+  'settings.deletion.dev.description':
+    'احذف حسابك نهائيًا مع بياناته المالية والتخطيط والتتبع والمساعد المحفوظة. لا يمكن التراجع عن هذا الإجراء.',
+  'settings.deletion.dev.confirmation':
+    'هل تريد حذف حسابك وكل بياناته المحفوظة الآن نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+  'settings.deletion.dev.deleting':
+    'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
+  'settings.deletion.dev.completed': 'تم حذف حسابك وبياناته المحفوظة.',
+  'settings.deletion.dev.loadingTitle': 'جاري التحميل',
+  'settings.deletion.dev.loadingDescription':
+    'جارٍ حذف حسابك بأمان\nيرجى الانتظار حتى اكتمال العملية',
+  'settings.deletion.dev.localRetry':
+    'أكد الخادم الحذف، لكن تنظيف بيانات الجهاز لم يكتمل. أعد المحاولة أو أعد تشغيل التطبيق إذا استمر تعذّر التنظيف.',
+  'settings.deletion.dev.notAllowed':
+    'الحذف غير مفعّل لهذا الحساب في بيئة الاختبار. لم يُحذف الحساب. أعد المحاولة بعد تفعيل الصلاحية.',
+  'settings.deletion.retentionNotice':
+    'يخفي هذا الإجراء هوية ملفك في التطبيق ويزيل بيانات المساعد والتتبع والدعم ويحذف حسابك لدى مزود تسجيل الدخول. تبقى سجلاتك المالية وبيانات التخطيط محفوظة.',
+  'settings.deletion.verificationUnavailable':
+    'التحقق بالرمز غير متاح لهذا الحساب. سجّل الخروج ثم ادخل مجددًا وأعد طلب الحذف.',
+  'settings.deletion.verificationError':
+    'تعذر إكمال التحقق. تحقق من الرمز أو أرسل رمزًا جديدًا وحاول مجددًا.',
+  'settings.deletion.pending': 'جارٍ التواصل مع خدمة الحساب…',
+  'settings.deletion.error':
+    'تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.',
+  'settings.deletion.rateLimited':
+    'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
+  'settings.deletion.sessionExpired':
+    'جلستك غير متاحة. سجّل الدخول مجددًا للتحقق من حالة الحذف.',
+  'settings.deletion.recentAuth':
+    'تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.',
+  'settings.deletion.reverify': 'إرسال رمز التحقق',
+  'settings.deletion.retry': 'إعادة المحاولة',
+  'settings.deletion.dev.sessionRetry':
+    'تعذر إكمال الحذف بالجلسة الحالية. أعد المحاولة؛ لم يُحذف الحساب.',
+  'settings.deletion.code': 'رمز التحقق',
+  'settings.deletion.verify': 'تحقق ومتابعة',
+  'settings.deletion.codeSent': 'أدخل الرمز المرسل إلى {{destination}}.',
+  'settings.deletion.refresh': 'تحديث حالة الحذف',
+  'settings.deletion.cancel': 'إلغاء طلب الحذف',
+  'settings.deletion.cancelConfirmation':
+    'هل تريد الاحتفاظ بحسابك وإلغاء الحذف المجدول؟',
+  'settings.deletion.deadline':
+    'تنتهي مهلة التراجع: {{date}}. يمكنك الإلغاء قبل هذا الموعد.',
+  'settings.deletion.retained':
+    'البيانات المحتفظ بها وفق السياسة المعمول بها: {{categories}}',
+  'settings.deletion.status.requested': 'تم طلب الحذف؛ بانتظار التحقق.',
+  'settings.deletion.status.verified': 'تمت جدولة الحذف. لم يُحذف حسابك بعد.',
+  'settings.deletion.status.processing':
+    'جارٍ تنفيذ الحذف. لم يتم تأكيد الاكتمال بعد.',
+  'settings.deletion.status.completed': 'اكتمل حذف الحساب. جارٍ تسجيل الخروج…',
+  'settings.deletion.status.cancelled': 'أُلغي طلب الحذف. تم الاحتفاظ بحسابك.',
+  'settings.deletion.status.failed': 'تعذر الحذف. حدّث الحالة أو حاول مجددًا.',
+  'assistant.messageStatus.pending': 'قيد المعالجة',
+  'assistant.messageStatus.failed': 'تعذر الإكمال',
+  'assistant.messageStatus.unknown': 'غير مؤكد',
+  'assistant.operation.checkFailed':
+    'تعذر إكمال الطلب. تم الاحتفاظ بالسؤال الأصلي؛ تحقق من حالته قبل إرسال سؤال آخر.',
+  'assistant.history.title': 'سجل المحادثات',
+  'assistant.history.hiddenTitle': 'محادثة مخفية — افتحها للمراجعة',
+  'assistant.history.loadMore': 'تحميل المزيد من المحادثات',
+  'assistant.history.loadOlder': 'تحميل الأسئلة الأقدم',
+  'assistant.action.revealFinancial': 'إظهار التفاصيل المالية',
+  'assistant.feedback.notHelpful': 'غير مفيد',
+  'assistant.operation.title': 'حالة السؤال',
+  'assistant.operation.state.pending': 'تم قبول السؤال. بانتظار النتيجة.',
+  'assistant.operation.state.failed':
+    'تعذر إكمال هذا السؤال. يمكنك إرسال سؤال جديد.',
+  'assistant.operation.state.unknown':
+    'النتيجة غير معروفة. تحقق من السؤال الأصلي قبل إرسال سؤال آخر.',
+  'assistant.operation.state.completed': 'اكتمل السؤال.',
+  'assistant.operation.check': 'التحقق من حالة السؤال',
+  'assistant.operation.open': 'فتح هذه المحادثة',
+  'assistant.operation.retrySame': 'إعادة محاولة العملية الأصلية',
+  'assistant.operation.retryExplanation':
+    'تحتفظ المحاولة بالسؤال الأصلي ومفتاح العملية نفسه، ولا تنشئ سؤالًا بديلًا.',
+  'assistant.capability.title': 'قدرات المساعد',
+  'assistant.capability.directRead': 'قراءة البيانات المالية الموثقة',
+  'assistant.capability.provider': 'نصائح مزود الذكاء الاصطناعي',
+  'assistant.capability.actions': 'الإجراءات المالية',
+  'assistant.capability.state.available': 'متاحة',
+  'assistant.capability.state.disabled': 'غير متاحة',
+  'assistant.capability.state.limit_reached': 'تم الوصول للحد المسموح',
+  'assistant.capability.state.unknown': 'لم يتم التحقق من الجاهزية',
+  'assistant.capability.state.loading': 'جارٍ التحقق من القدرة',
+  'assistant.capability.provider.available': 'نصائح المزود متاحة',
+  'assistant.capability.provider.disabled':
+    'نصائح المزود غير متاحة. قراءة البيانات المالية قدرة مستقلة.',
+  'assistant.capability.provider.limit_reached':
+    'تم الوصول للحد المسموح لنصائح المزود',
+  'assistant.capability.provider.unknown': 'لم يتم التحقق من جاهزية المزود',
+  'assistant.scope.title': 'النطاق المدعوم',
+  'assistant.scope.excluded':
+    'تستخدم القراءات المالية السجلات الموثقة. تقييم القدرة على الشراء وإجمالي جميع الأقساط والتخطيط التاريخي والبحث في العمليات وإجراءات الدفعات الزائدة غير مدعومة في هذا الإصدار.',
+  'assistant.evidence.title': 'أدلة الإجابة',
+  'assistant.evidence.period': 'الفترة المطلوبة',
+  'assistant.evidence.timezone': 'المنطقة الزمنية',
+  'assistant.evidence.currencies': 'العملات',
+  'assistant.evidence.asOf': 'البيانات حتى',
+  'assistant.evidence.source': 'المصدر',
+  'assistant.evidence.version': 'الإصدار',
+  'assistant.evidence.unavailable': 'غير متوفر — لا تفترض اكتمال البيانات',
+  'assistant.evidence.sourceTimeUnavailable': 'وقت المصدر غير متوفر',
+  'assistant.evidence.kind.transaction': 'دليل العملية',
+  'assistant.evidence.kind.budget': 'دليل الميزانية',
+  'assistant.evidence.kind.obligation': 'دليل الالتزام',
+  'assistant.evidence.kind.goal': 'دليل هدف الادخار',
+  'assistant.evidence.kind.report': 'دليل التقرير',
+  'assistant.evidence.kind.ledger': 'دليل السجل المالي',
+  'assistant.limitation.next_installment_only':
+    'تشمل الإجابة القسط التالي فقط، وليست إجمالي جميع الأقساط المستحقة خلال الفترة.',
+  'assistant.limitation.total_outstanding':
+    'هذا إجمالي الالتزامات المتبقية، وليس مجموع الأقساط المستحقة خلال الفترة.',
+  'assistant.limitation.data_incomplete':
+    'البيانات الموثقة غير مكتملة. لا تعتبر المعلومات المفقودة صفرًا.',
+  'assistant.limitation.answer_metadata_unavailable':
+    'لا تتوفر لهذه الإجابة القديمة بيانات موثقة عن الفترة والعملات.',
+  'assistant.limitation.source_time_unavailable':
+    'بعض المصادر دون وقت مسجل. لم يتم التحقق من حداثتها.',
+  'assistant.limitation.liquidity_incomplete':
+    'تقييم القدرة على الشراء غير مدعوم لعدم توفر السيولة المتاحة كاملة.',
+  'assistant.limitation.planning_period_unsupported':
+    'فترة التخطيط هذه غير مدعومة.',
+  'assistant.limitation.historical_state_unavailable':
+    'بيانات التخطيط التاريخية الموثقة غير متوفرة.',
+  'assistant.limitation.transaction_scope_required':
+    'نطاق البحث في العمليات أو العملة هذا غير مدعوم.',
+  'assistant.limitation.comparison_period_required': 'حدد فترة مقارنة مدعومة.',
+  'assistant.limitation.entity_required':
+    'حدد السجل المالي المطلوب بدقة؛ لا يتم اختيار أول سجل تلقائيًا.',
+  'assistant.limitation.no_data': 'لا توجد سجلات موثقة لهذا النطاق.',
+  'assistant.limitation.salary_missing': 'بيانات الراتب الموثقة غير متوفرة.',
+  'assistant.limitation.salary_currency_missing': 'عملة الراتب غير متوفرة.',
+  'assistant.limitation.due_schedule_incomplete': 'جدول الأقساط غير مكتمل.',
+  'assistant.limitation.period_required':
+    'حدد فترة واحدة مدعومة. الفترات اليومية أو المتعارضة غير مدعومة.',
+  'assistant.limitation.currency_required':
+    'حدد عملة واحدة؛ لا يتم جمع العملات المختلفة.',
+  'assistant.limitation.price_required': 'حدد سعر الشراء الدقيق وعملته.',
+  'assistant.limitation.scope_required': 'حدد نطاقًا ماليًا مدعومًا.',
+  'googleAuth.brand': 'مصاريفي وراتبي',
+  'googleAuth.incomplete':
+    'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
+  'googleAuth.welcome': 'مرحبًا بك في مصاريفي وراتبي',
+  'googleAuth.supporting':
+    'أموالك في مكان واحد. تابع باستخدام حساب Google للبدء.',
+  'googleAuth.continue': 'المتابعة باستخدام Google',
+  'googleAuth.footer': 'استخدم حساب Google نفسه للعودة إلى بياناتك المالية.',
+  'appShell.security.stagingDisabled':
+    'قفل التطبيق غير متاح مؤقتًا في هذا الإصدار التجريبي.',
+  'app.title': 'مصاريفي وراتبي',
   'app.foundationTitle': 'شاشة التحقق من الأساس',
   'app.foundationIntro':
     'شاشة تحقق مؤقتة. الشاشات الإنتاجية تُبنى في مواصفات لاحقة.',
@@ -38,7 +235,7 @@ const ar: MessageCatalog = {
   'position.spending': 'المصروفات الأخيرة',
   'position.nextObligation': 'الالتزام القادم',
   'position.reviewItems': 'بحاجة إلى انتباهك',
-  'position.empty.title': 'مرحبًا بك في مسارف',
+  'position.empty.title': 'مرحبًا بك في مصاريفي',
   'position.empty.action': 'أضف أول معاملة',
   'position.partial.title': 'بعض المعلومات غير مكتملة',
   'position.partial.action': 'راجع البيانات الناقصة',
@@ -48,7 +245,8 @@ const ar: MessageCatalog = {
   'capture.title': 'خيارات الإدخال',
   'capture.sms.title': 'تتبع رسائل SMS (أندرويد)',
   'capture.sms.purpose': 'اكتشف المعاملات من رسائل البنك تلقائيًا',
-  'capture.sms.dataUse': 'تُحلَّل الرسائل على جهازك لإضافة المعاملات',
+  'capture.sms.dataUse':
+    'تُحلَّل الرسائل على جهازك، وتُزامَن تفاصيل المعاملات المكتشفة مع خوادم مصاريفي للمراجعة ومزامنة الحساب.',
   'capture.sms.continue': 'متابعة',
   'capture.sms.skip': 'تخطٍ للآن',
   'capture.manual': 'إضافة يدوية',
@@ -214,17 +412,18 @@ const ar: MessageCatalog = {
   'appShell.auth.pending.message':
     'هذه الصفحة مؤقتة وفي انتظار ربط تسجيل الدخول عبر Clerk.',
   'appShell.auth.pending.preview': 'متابعة للتجربة',
-  'profileSetup.title': 'وش ناديلك؟',
-  'profileSetup.supporting': 'نستخدمه لتخصيص تجربتك في مصاريفي.',
+  'profileSetup.title': 'وش نناديك؟',
+  'profileSetup.supporting': 'نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.',
   'profileSetup.nameLabel': 'الاسم',
   'profileSetup.nameHelper': 'من حسابك، ويمكنك تعديله في أي وقت.',
   'profileSetup.nameRequired': 'اكتب اسمك للمتابعة.',
   'profileSetup.currencyLabel': 'العملة الأساسية',
+  'profileSetup.currencyChoose': 'اختر عملتك',
   'profileSetup.currencyHelper': 'اختر العملة اللي تستخدمها غالبًا.',
   'profileSetup.continue': 'متابعة',
   'profileSetup.retry': 'إعادة المحاولة',
   'profileSetup.saveError': 'تعذر حفظ البيانات. حاول مرة ثانية.',
-  'appShell.public.welcome.title': 'مسارفي',
+  'appShell.public.welcome.title': 'مصاريفي وراتبي',
   'appShell.public.welcome.body':
     'تابع أموالك بوضوح من خلال الإدخال اليدوي والتلقائي.',
   'appShell.public.welcome.signIn': 'تسجيل الدخول',
@@ -240,7 +439,7 @@ const ar: MessageCatalog = {
   'appShell.auth.method.google': 'جوجل',
   'appShell.auth.signIn.title': 'تسجيل دخول آمن',
   'appShell.auth.required.message':
-    'سجل الدخول للمتابعة إلى هذا الجزء المحمي من مصاريفي.',
+    'سجل الدخول للمتابعة إلى هذا الجزء المحمي من مصاريفي وراتبي.',
   'appShell.auth.required.saveFailed':
     'تعذر تجهيز تسجيل الدخول. حاول مرة أخرى.',
   'appShell.auth.signUp.title': 'إنشاء حسابك',
@@ -277,9 +476,9 @@ const ar: MessageCatalog = {
     'يمكن لأندرويد مساعدتك في اكتشاف الرسائل المالية الواضحة بعد موافقتك.',
   'appShell.onboarding.permission.title': 'السماح بتتبع الرسائل',
   'appShell.onboarding.permission.purpose':
-    'يفحص مسارفي الرسائل المالية على هذا الجهاز فقط.',
+    'بموافقتك، يقرأ مصاريفي الرسائل النصية على هذا الجهاز لاكتشاف المعاملات المالية.',
   'appShell.onboarding.permission.dataUse':
-    'لا تتم إضافة الأكواد أو الرسائل التسويقية أو غير الواضحة تلقائيًا.',
+    'يتم التحليل على جهازك، وتُرسل التفاصيل المالية المكتشفة، مثل الجهة والتاجر والمبلغ والعملة والتاريخ، إلى خوادم مصاريفي للمراجعة ومزامنة الحساب. لا تتم إضافة الأكواد أو الرسائل التسويقية أو غير الواضحة تلقائيًا.',
   'appShell.onboarding.permission.benefit':
     'يمكن للمعاملات الواضحة أن تظهر مع خيارات التعديل والتراجع.',
   'appShell.onboarding.permission.denial':
@@ -325,31 +524,29 @@ const ar: MessageCatalog = {
   'appShell.more.services': 'الخدمات',
   'appShell.more.accountSettings': 'الحساب والإعدادات',
   'appShell.more.profileSummary': 'ملخص الحساب والملف الشخصي',
-  'appShell.more.defaultUserName': 'مستخدم مصاريفي',
-  'appShell.more.defaultUserEmail': 'user.ar@masarifi.app',
+  'appShell.more.defaultUserName': 'مستخدم مصاريفي وراتبي',
+  'appShell.more.defaultUserEmail': 'حساب مصاريفي وراتبي',
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
-  'appShell.security.pinLabel': 'رمز PIN',
-  'appShell.security.pinError': 'أدخل 6 أرقام',
-  'appShell.security.savePin': 'حفظ PIN',
-  'appShell.security.unlock': 'فتح',
-  'appShell.security.unlockTitle': 'فتح التطبيق',
-  'appShell.security.biometricUnlock': 'فتح بالبصمة',
-  'appShell.security.biometricUnlocked': 'تم الفتح بالبصمة',
-  'appShell.security.biometricUnavailable': 'البصمة غير متاحة',
+  'appShell.security.biometricUnlock': 'فتح بالتحقق الحيوي',
+  'appShell.security.biometricUnavailable': 'التحقق الحيوي غير متاح',
   'appShell.security.biometricCancelled':
-    'تم إلغاء الفتح بالبصمة. استخدم رمز PIN.',
-  'appShell.security.biometricFailed': 'تعذر الفتح بالبصمة. استخدم رمز PIN.',
-  'appShell.security.biometricLocked': 'البصمة مقفلة مؤقتًا. استخدم رمز PIN.',
-  'appShell.security.invalidPin': 'رمز PIN غير صحيح.',
-  'appShell.security.pinMismatch': 'رمزا PIN غير متطابقين. حاول مرة أخرى.',
-  'appShell.security.reauthenticate':
-    'سجل الدخول إلى حسابك قبل إعادة تعيين رمز الجهاز.',
+    'تم إلغاء التحقق الحيوي. يمكنك المحاولة مرة أخرى.',
+  'appShell.security.biometricFailed': 'تعذر التحقق الحيوي. حاول مرة أخرى.',
+  'appShell.security.biometricLocked':
+    'التحقق الحيوي مقفل مؤقتًا من نظام الجهاز.',
+  'appShell.security.pin.create': 'إنشاء رمز PIN',
+  'appShell.security.pin.confirm': 'تأكيد رمز PIN',
+  'appShell.security.pin.current': 'أدخل رمز PIN الحالي',
+  'appShell.security.pin.change': 'تغيير رمز PIN',
+  'appShell.security.pin.forgot': 'نسيت رمز PIN',
+  'appShell.security.pin.invalid': 'رمز PIN غير صحيح.',
+  'appShell.security.pin.mismatch': 'رمزا PIN غير متطابقين.',
+  'appShell.security.pin.reauthenticate':
+    'تحقق من حسابك قبل إعادة تعيين قفل التطبيق.',
   'appShell.security.protectedContent': 'المحتوى محمي',
   'appShell.security.settingsTitle': 'إعدادات الأمان',
-  'appShell.security.changePin': 'تغيير PIN',
-  'appShell.security.forgotPin': 'نسيت PIN',
   'appShell.security.mockSignOutAll': 'تسجيل الخروج من كل الأجهزة',
   'appShell.profile.name': 'الاسم',
   'appShell.profile.firstAccount': 'أول حساب',
@@ -393,23 +590,24 @@ const ar: MessageCatalog = {
   'appShell.navigation.back': 'رجوع',
   'appShell.navigation.close': 'إغلاق',
   'appShell.navigation.authRequired': 'سجل الدخول للمتابعة',
-  'appShell.security.unlock.title': 'افتح مسارفي',
-  'appShell.security.pin.create': 'إنشاء رمز PIN',
-  'appShell.security.pin.confirm': 'تأكيد رمز PIN',
-  'appShell.security.pin.change': 'تغيير رمز PIN',
-  'appShell.security.pin.forgot': 'نسيت رمز PIN',
-  'appShell.security.pin.retryIn': 'حاول مرة أخرى بعد قليل',
-  'appShell.security.biometric.enable': 'تفعيل البصمة',
-  'appShell.security.biometric.disable': 'إيقاف البصمة',
-  'appShell.security.biometric.usePin': 'استخدام رمز PIN بدلًا من ذلك',
-  'appShell.security.biometric.face': 'بصمة الوجه',
+  'appShell.security.biometric.enable': 'تفعيل التحقق الحيوي',
+  'appShell.security.biometric.disable': 'إيقاف التحقق الحيوي',
+  'appShell.security.biometric.authenticated': 'تم تفعيل التحقق الحيوي بنجاح',
+  'appShell.security.biometric.cancelled': 'تم إلغاء التحقق الحيوي',
+  'appShell.security.biometric.failed': 'تعذر التحقق الحيوي',
+  'appShell.security.biometric.locked_out':
+    'التحقق الحيوي مقفل مؤقتًا من نظام الجهاز',
+  'appShell.security.biometric.unavailable': 'التحقق الحيوي غير متاح حاليًا',
+  'appShell.security.biometric.face': 'التعرّف على الوجه',
   'appShell.security.biometric.fingerprint': 'بصمة الإصبع',
-  'appShell.security.biometric.subtitle':
-    'فتح التطبيق بالبصمة بدلًا من رمز PIN',
-  'appShell.security.biometric.requiresPin': 'أنشئ رمز PIN أولًا لتفعيل البصمة',
-  'appShell.security.biometric.notEnrolled': 'سجّل بصمة في إعدادات جهازك أولًا',
+  'appShell.security.biometric.subtitle': 'حماية التطبيق ببصمة الإصبع أو الوجه',
+  'appShell.security.biometric.notEnrolled':
+    'سجّل طريقة تحقق حيوي في إعدادات جهازك أولًا',
+  'appShell.security.biometric.requiresPin':
+    'أنشئ رمز PIN للتطبيق أولًا لتفعيل التحقق الحيوي',
   'appShell.security.sections.appLock': 'قفل التطبيق',
   'appShell.security.sections.privacy': 'الخصوصية',
+  'appShell.security.sections.activity': 'نشاط الحساب',
   'appShell.security.autoLock.title': 'القفل التلقائي',
   'appShell.security.autoLock.immediate': 'القفل فورًا',
   'appShell.security.autoLock.one_minute': 'القفل بعد دقيقة',
@@ -420,6 +618,8 @@ const ar: MessageCatalog = {
   'appShell.security.sessions': 'الجلسات النشطة',
   'appShell.security.events': 'أحداث الأمان',
   'appShell.security.deleteAccount': 'حذف الحساب',
+  'appShell.security.deleteAccount.description':
+    'يؤدي حذف الحساب إلى بدء طلب إزالة بياناتك نهائيًا.',
   'appShell.security.deleteAccount.confirmation': 'هل أنت متأكد من حذف الحساب؟',
   'appShell.progressive.title': 'أكمل الإعداد عندما تكون جاهزًا',
   'appShell.progressive.dismiss': 'إخفاء الآن',
@@ -430,7 +630,18 @@ const ar: MessageCatalog = {
   'appShell.progressive.budget': 'إنشاء ميزانية',
   'appShell.progressive.obligation': 'إضافة التزام',
   'appShell.progressive.savings': 'إنشاء هدف ادخار',
+  'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
+  'appShell.networkNotice.title': 'أنت غير متصل بالإنترنت',
+  'appShell.networkNotice.message':
+    'تحقّق من اتصال Wi-Fi أو بيانات الهاتف، ثم حاول مرة أخرى.',
+  'appShell.networkNotice.stale':
+    'قد تكون الأرصدة والمعاملات المعروضة غير محدثة.',
+  'appShell.networkNotice.retry': 'إعادة المحاولة',
+  'appShell.networkNotice.dismiss': 'إغلاق',
+  'appShell.connectionUnavailable.message':
+    'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
   'appShell.state.loading': 'جار التحميل',
+  'appShell.startup.preparing': 'جارٍ تجهيز بياناتك…',
   'appShell.state.empty': 'لا يوجد شيء بعد',
   'appShell.state.error': 'حدث خطأ ما',
   'appShell.state.offline': 'أنت غير متصل',
@@ -446,7 +657,7 @@ const ar: MessageCatalog = {
   'appShell.error.expired': 'انتهت صلاحية هذه الخطوة.',
   'appShell.error.rateLimited': 'محاولات كثيرة.',
   'appShell.error.permissionDenied': 'لم يتم منح الإذن.',
-  'appShell.error.biometricLocked': 'فتح القفل بالبصمة غير متاح مؤقتًا.',
+  'appShell.error.biometricLocked': 'فتح القفل بالتحقق الحيوي غير متاح مؤقتًا.',
   'appShell.error.persistenceFailed': 'تعذر الحفظ محليًا.',
   'appShell.error.unknown': 'حدث خطأ ما.',
   'appShell.auth.unavailable': 'لم تتم تهيئة مصادقة الحساب لهذا الإصدار.',
@@ -506,8 +717,10 @@ const ar: MessageCatalog = {
   'coreFinance.home.accountScope.title': 'اختر الحساب',
   'coreFinance.home.balance': 'الرصيد',
   'coreFinance.home.accountsNeedAttention': 'حسابات تحتاج الانتباه',
-  'coreFinance.home.recentExpenses': 'المصروفات الأخيرة',
-  'coreFinance.home.recentIncome': 'الدخل الأخير',
+  'coreFinance.home.recentExpenses': 'مصروفات اليوم',
+  'coreFinance.home.recentIncome': 'دخل اليوم',
+  'coreFinance.home.todayEmpty': 'لا توجد معاملات اليوم',
+  'coreFinance.home.firstVoicePrompt': 'سجّل أول معاملة بصوتك.',
   'coreFinance.home.manageAccounts': 'إدارة الحسابات',
   'coreFinance.home.howBalancesWork': 'كيف تعمل الأرصدة',
   'coreFinance.home.balanceExplanation':
@@ -531,11 +744,33 @@ const ar: MessageCatalog = {
   'coreFinance.category.otherIncome': 'دخل آخر',
   'coreFinance.category.transfers': 'التحويلات',
   'coreFinance.category.obligations': 'الالتزامات',
+  'coreFinance.state.refreshingSnapshot':
+    'نعرض آخر بيانات مستلمة. جارٍ التحديث…',
+  'coreFinance.state.refreshFailedSnapshot':
+    'تعذّر التحديث. نعرض آخر بيانات مستلمة.',
   'coreFinance.state.loading': 'جار تحميل البيانات المالية',
   'coreFinance.state.error': 'تعذر تحميل البيانات المالية',
   'coreFinance.action.retry': 'حاول مرة أخرى',
   'coreFinance.action.expense': 'إضافة مصروف',
   'coreFinance.action.income': 'إضافة دخل',
+  'coreFinance.manual.uncertain':
+    'نتيجة الحفظ غير معروفة. أعد المحاولة للتحقق من نفس العملية.',
+  'coreFinance.manual.localSave':
+    'تعذر حفظ المسودة على هذا الجهاز. لم يُرسل طلب مالي. حاول الحفظ مجددًا.',
+  'coreFinance.manual.savedRefresh':
+    'تم الحفظ. أعد المحاولة لتحديث القائمة وإكمال التنظيف.',
+  'coreFinance.manual.reconcile':
+    'تحتاج هذه المسودة إلى التحقق قبل إرسال عملية أخرى.',
+  'coreFinance.manual.category': 'اختر فئة نشطة متوافقة مع المصروف أو الدخل.',
+  'coreFinance.manual.account': 'اختر حسابًا نشطًا بنفس عملة المعاملة.',
+  'coreFinance.manual.auth': 'سجّل الدخول مجددًا قبل الحفظ.',
+  'coreFinance.manual.rateLimit': 'محاولات كثيرة. حاول مرة أخرى لاحقًا.',
+  'coreFinance.validation.amount':
+    'أدخل مبلغًا موجبًا بفواصل ودقة عشرية صحيحة للعملة.',
+  'coreFinance.manual.title':
+    'استخدم وصفًا لا يتجاوز 160 حرفًا دون محارف تحكم.',
+  'coreFinance.manual.note': 'استخدم ملاحظة لا تتجاوز 500 حرف دون محارف تحكم.',
+  'coreFinance.manual.date': 'اختر تاريخًا صحيحًا لا يتجاوز اليوم.',
   'coreFinance.action.transfer': 'تحويل',
   'coreFinance.action.voice': 'إدخال صوتي',
   'coreFinance.action.obligation': 'سداد التزام',
@@ -664,6 +899,8 @@ const ar: MessageCatalog = {
   'coreFinance.form.save': 'حفظ المعاملة',
   'coreFinance.validation.required': 'أدخل بيانات المعاملة المطلوبة',
   'coreFinance.validation.invalid': 'راجع بيانات المعاملة',
+  'coreFinance.validation.refundFloor':
+    'لا يمكن تقليل المصروف عن إجمالي المبالغ المستردة منه',
   'coreFinance.validation.refund':
     'أدخل مبلغًا ضمن الرصيد المتبقي المؤهل للاسترداد',
   'coreFinance.undo': 'تراجع',
@@ -736,7 +973,7 @@ const ar: MessageCatalog = {
   'coreFinance.accounts.setup.lastFour': 'آخر 4 أرقام من البطاقة (اختياري)',
   'coreFinance.accounts.setup.educationTitle': `لماذا نحتاج ${glossary.lastFourDigits}؟`,
   'coreFinance.accounts.setup.educationBody':
-    'قد تحتوي رسائل البنك على آخر أربعة أرقام، ما يساعد مصاريفي على مطابقة المعاملة بهذا الحساب تلقائيًا عند تفعيل التتبع.',
+    'قد تحتوي رسائل البنك على آخر أربعة أرقام، ما يساعد مصاريفي وراتبي على مطابقة المعاملة بهذا الحساب تلقائيًا عند تفعيل التتبع.',
   'coreFinance.accounts.setup.nameExample.bank': `مثال: مصرف الراجحي، حساب ${glossary.salary}`,
   'coreFinance.accounts.setup.nameExample.credit_card':
     'مثال: بطاقة الأهلي الائتمانية، بطاقة المشتريات',
@@ -761,7 +998,7 @@ const ar: MessageCatalog = {
   'coreFinance.accounts.restore': 'استعادة الحساب',
   'coreFinance.accounts.typeSelect.title': `ما نوع ${glossary.account} الذي تريد إضافته؟`,
   'coreFinance.accounts.typeSelect.subtitle':
-    'يحدّد هذا الخيار كيفية متابعة مصاريفي للحساب.',
+    'يحدّد هذا الخيار كيفية متابعة مصاريفي وراتبي للحساب.',
   'coreFinance.accounts.typeSelect.bank': `${glossary.debitCard} / ${glossary.bankAccount}`,
   'coreFinance.accounts.typeSelect.bank.desc':
     'بطاقة بنكية أو حساب تُجري منه التحويلات.',
@@ -881,14 +1118,17 @@ const ar: MessageCatalog = {
   'tracking.home.summary':
     '{{detected}} مكتشفة هذا الشهر، {{review}} تحتاج مراجعة.',
   'tracking.home.onboardingHeading': 'لنبدأ.',
+  'tracking.home.smsBody': 'تتبّع معاملاتك من الرسائل المالية.',
+  'tracking.home.notificationTitle': 'تتبع الإشعارات',
+  'tracking.home.notificationBody':
+    'التقط معاملاتك من إشعارات البنوك والمحافظ.',
   'tracking.home.enableTitle': 'تتبّع مصاريفك تلقائيًا',
   'tracking.home.enableBody':
-    'خلّ مصاريفي يلتقط عملياتك تلقائيًا من الرسائل المدعومة.',
+    'خلّ مصاريفي وراتبي يلتقط عملياتك تلقائيًا من الرسائل المدعومة.',
   'tracking.home.enableAction': 'تفعيل التتبع التلقائي',
   'tracking.home.dismissAction': 'إخفاء اقتراح التتبع التلقائي',
   'notifications.home.enableTitle': 'فعّل الإشعارات',
-  'notifications.home.enableBody':
-    'استلم إشعارات العمليات والتذكيرات من مصاريفي.',
+  'notifications.home.enableBody': 'استلم تنبيهات المعاملات والتذكيرات.',
   'notifications.home.enableAction': 'تفعيل الإشعارات',
   'notifications.home.dismissAction': 'إخفاء اقتراح الإشعارات',
   'notifications.home.enableFailed': 'تعذر تفعيل الإشعارات. حاول مرة أخرى.',
@@ -899,22 +1139,30 @@ const ar: MessageCatalog = {
   'tracking.status.unavailable': 'غير متاح',
   'tracking.source.bankNotifications': 'إشعارات البنوك',
   'tracking.source.financialSms': 'الرسائل المالية',
+  'tracking.source.smsTracking': 'تتبع الرسائل النصية (\u2068SMS\u2069)',
+  'tracking.source.smsTrackingDescription':
+    'قراءة الرسائل على جهازك ومزامنة تفاصيل المعاملات المكتشفة مع خوادم مصاريفي',
+  'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
+  'tracking.source.notificationTrackingDescription':
+    'قراءة الإشعارات المالية على جهازك ومزامنة تفاصيل المعاملات المكتشفة مع خوادم مصاريفي',
+  'tracking.source.enabling': 'جارٍ تفعيل التتبع…',
+  'tracking.source.disabling': 'جارٍ إيقاف التتبع…',
+  'tracking.sync.scanning': 'جارٍ فحص الرسائل الجديدة…',
+  'tracking.sync.processing': 'جارٍ معالجة المعاملات…',
+  'tracking.sync.error': 'تعذّرت المزامنة. حاول مرة أخرى.',
   'tracking.status.demo': 'تتبّع تجريبي — ليست بيانات إنتاج',
   'tracking.permission.warning': 'لم يتم منح أذونات الرسائل. اضغط للتفعيل.',
   'tracking.permission.unavailableMessage':
     'التتبع التلقائي للرسائل غير متاح في هذا الإصدار. يظل الإدخال اليدوي متاحًا.',
   'tracking.howItWorks.title': 'كيف يعمل التتبع التلقائي؟',
   'tracking.howItWorks.detection':
-    'قراءة رسائل البنك تلقائياً التي تحتوي على كلماتك المحددة وحفظ المصروفات في حسابك.',
+    'تُضاف المعاملات الواضحة تلقائيًا، وما يحتاج تأكيدًا يظهر للمراجعة.',
   'tracking.howItWorks.privacy':
-    'رسائلك لا يتم تخزينها أبداً. فقط بيانات المصروفات يتم حفظها.',
-  'tracking.howItWorks.background':
-    'للسماح للتطبيق بالعمل في الخلفية، افتح إعدادات هاتفك، ثم التطبيقات، ثم تطبيق Masarifi، ثم البطارية.',
-  'tracking.howItWorks.deviceWarning':
-    'بعض الهواتف (شاومي، سامسونج، هواوي، إلخ) توقف التطبيقات في الخلفية. اضغط هنا لمعرفة كيفية إصلاح ذلك لجهازك.',
+    'يتم تحليل الرسائل على جهازك ومزامنة التفاصيل المالية المكتشفة مع خوادم مصاريفي للمراجعة ومزامنة الحساب، وفق إعدادات الاحتفاظ بالبيانات.',
+  'tracking.howItWorks.background': 'اسمح بالعمل في الخلفية لاستمرار التتبع.',
   'tracking.keywords.sectionTitle': 'الكلمات المفتاحية',
   'tracking.keywords.explanation':
-    'فقط الرسائل التي تحتوي على هذه الكلمات سيتم معالجتها',
+    'تساعد العبارات المفعّلة في اكتشاف الرسائل النصية وإشعارات التطبيقات المالية. العبارة وحدها لا تحفظ معاملة. تظل قواعد الحالة الآمنة فعّالة دائماً.',
   'tracking.keywords.addTitle': 'إضافة كلمة مفتاحية',
   'tracking.keywords.filterAll': 'الكل',
   'tracking.status.title': 'حالة التتبع',
@@ -998,6 +1246,29 @@ const ar: MessageCatalog = {
   'tracking.reason.duplicate': 'احتمال وجود معاملة مكررة',
   'tracking.reason.rule_conflict': 'يوجد تعارض في قواعد التتبع',
   'tracking.reason.ambiguous_account': 'حساب الدفع غير مؤكد',
+  'tracking.reason.source_proof_required': 'لم يتم التحقق من المصدر',
+  'tracking.reason.source_blocked': 'هذا المصدر متوقف',
+  'tracking.reason.account_proof_required': 'لم يتم تحديد الحساب المتأثر',
+  'tracking.reason.lifecycle_not_completed': 'لم يتم تأكيد اكتمال المعاملة',
+  'tracking.reason.configuration_stale':
+    'تغيرت قواعد التتبع؛ راجع هذه المعاملة',
+  'tracking.reason.cash_destination_required':
+    'يجب تحديد الحساب النقدي المستلم',
+  'tracking.reason.transfer_counterparty_required':
+    'الطرف الآخر للتحويل غير واضح',
+  'tracking.reason.original_transaction_required': 'يجب تحديد المعاملة الأصلية',
+  'tracking.reason.credit_origin_required': 'مصدر المبلغ المضاف غير واضح',
+  'tracking.reason.fee_components_required':
+    'تحتاج الرسوم المنفصلة إلى تفاصيل محاسبية',
+  'tracking.reason.unsupported_accounting_operation':
+    'تحتاج هذه العملية إلى تفاصيل محاسبية',
+  'tracking.reason.amount_missing': 'مبلغ المعاملة غير موجود',
+  'tracking.reason.amount_invalid': 'مبلغ المعاملة غير صالح',
+  'tracking.reason.unsupported_currency': 'هذه العملة غير مدعومة',
+  'tracking.reason.date_ambiguous': 'تاريخ المعاملة غير واضح',
+  'tracking.reason.conflicting_direction':
+    'يوجد تعارض بين بيانات الوارد والصادر',
+  'tracking.reason.action_unknown': 'نوع المعاملة غير واضح',
   'tracking.reason.ambiguous_lifecycle': 'حالة المعاملة غير مؤكدة',
   'tracking.reason.multiple_obligations': 'قد تتطابق عدة التزامات',
   'tracking.reason.invalid_input': 'بعض بيانات المعاملة غير صحيحة',
@@ -1016,12 +1287,16 @@ const ar: MessageCatalog = {
   'tracking.duplicate.merge': 'دمج التفاصيل',
   'tracking.keywords.title': 'كلمات التتبع',
   'tracking.keywords.permissionScope':
-    'الكلمات تساعد المطابقة داخل مصاريفي بعد الإذن، ولا تضيق إذن النظام نفسه.',
+    'الكلمات تساعد المطابقة داخل مصاريفي وراتبي بعد الإذن، ولا تضيق إذن النظام نفسه.',
   'tracking.senders.title': 'قواعد المرسلين',
   'tracking.senders.search': 'بحث في المرسلين',
   'tracking.senders.empty': 'لا يوجد مرسلون',
   'tracking.senders.enabled': 'مفعل',
   'tracking.senders.disabled': 'متوقف',
+  'tracking.saved.expense': 'تم تسجيل مصروف',
+  'tracking.saved.income': 'تم تسجيل إيراد',
+  'tracking.notice.payment': 'دفع',
+  'tracking.notice.deposit': 'إيداع',
   'tracking.ios.title': 'الإدخال على iOS',
   'tracking.ios.limitation': 'تتبع الرسائل المباشر غير متاح على iOS.',
   'tracking.ios.alternatives':
@@ -1034,7 +1309,7 @@ const ar: MessageCatalog = {
   'voice.demoNotice': 'التحليل الصوتي تجريبي في هذه النسخة الأمامية.',
   'voice.permission.title': 'السماح باستخدام الميكروفون',
   'voice.permission.body':
-    'يستخدم مصاريفي الميكروفون فقط أثناء تسجيل هذه المعاملة.',
+    'يستخدم مصاريفي وراتبي الميكروفون فقط أثناء تسجيل هذه المعاملة.',
   'voice.permission.request': 'السماح بالميكروفون',
   'voice.permission.settings': 'فتح الإعدادات',
   'voice.record.start': 'بدء التسجيل',
@@ -1081,7 +1356,43 @@ const ar: MessageCatalog = {
   'voice.recurring.new': 'إنشاء التزام جديد',
   'voice.action.manual': 'استخدام الإدخال اليدوي',
   'voice.action.retry': 'المحاولة مرة أخرى',
+  'voice.action.checkResult': 'التحقق من نتيجة التأكيد',
   'voice.action.cancel': 'إلغاء',
+  'voice.batch.added': 'تمت إضافة {{count}} معاملات.',
+  'voice.batch.event.result': 'الحدث {{number}}: {{result}}',
+  'voice.batch.event.committed': 'تم الحفظ',
+  'voice.batch.event.eligible': 'بانتظار الإكمال',
+  'voice.batch.event.cancelled': 'أُلغي — لم يُضف',
+  'voice.batch.event.execution_failed': 'تعذّر الإكمال — لم يُضف',
+  'voice.batch.event.reason.missing_amount': 'لم يُضف — المبلغ غير واضح.',
+  'voice.batch.event.reason.ambiguous_account': 'لم يُضف — تعذّر تحديد الحساب.',
+  'voice.batch.event.reason.invalid_category': 'لم يُضف — الفئة غير متاحة.',
+  'voice.batch.event.reason.invalid_date': 'لم يُضف — التاريخ غير واضح.',
+  'voice.batch.event.reason.currency_mismatch':
+    'لم يُضف — عملة الحساب غير مطابقة.',
+  'voice.batch.event.reason.unsupported_event':
+    'لم يُضف — نوع الحدث غير مدعوم.',
+  'voice.batch.event.reason.authorization_required':
+    'لم يُضف — كان التفويض مطلوبًا.',
+  'voice.batch.event.reason.invalid_event':
+    'لم يُضف — تعذّر تحديد الحدث بأمان.',
+  'voice.analysis.unsaved': 'تم التحليل — لم يتم الحفظ',
+  'voice.analysis.noPosting':
+    'تحليل تجريبي فقط. لم تُحفظ معاملات ولم تتغير الأرصدة.',
+  'voice.analysis.expense': 'مصروف',
+  'voice.analysis.income': 'دخل',
+  'voice.batch.empty': 'لم تتم إضافة أي معاملات.',
+  'voice.batch.saved': 'تم حفظ {{count}} معاملة.',
+  'voice.batch.partialUnknown':
+    'تم حفظ {{count}} معاملة، وتعذّر حفظ بقية التسجيل.',
+  'voice.batch.partial': 'تم حفظ {{saved}} معاملة، ولم تُحفظ {{failed}}.',
+  'voice.batch.restricted':
+    'اكتمل التسجيل، لكن هذا الحساب غير مُفعّل لخدمة الصوت في نسخة الاختبار. لم تُضَف معاملات.',
+  'voice.batch.failed': 'تعذر إكمال بعض المعالجة.',
+  'voice.batch.rateLimited':
+    'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.',
+  'voice.batch.checking': 'جارٍ التحقق من النتيجة…',
+  'voice.batch.checkResult': 'التحقق من النتيجة',
   'voice.state.processing': 'جاري تحليل التسجيل...',
   'voice.state.saving': 'جارٍ حفظ المعاملات',
   'voice.state.saved': 'تم حفظ المعاملة الصوتية',
@@ -1110,8 +1421,16 @@ const ar: MessageCatalog = {
     'تعذر تحليل التسجيل. حاول مجددًا أو أدخل المعاملة يدويًا.',
   'voice.error.provider_unavailable':
     'التحليل الصوتي غير مهيأ أو غير متاح مؤقتًا.',
+  'voice.error.auth_unavailable':
+    'التحقق من تسجيل الدخول غير متاح مؤقتًا. حاول لاحقًا.',
   'voice.error.quota_exhausted':
     'وصل التحليل الصوتي إلى حد الاستخدام الحالي. حاول لاحقًا.',
+  'voice.error.operation_cancelled':
+    'تم إيقاف العملية مؤقتًا. تحقق من نتيجتها قبل التسجيل مجددًا.',
+  'voice.error.re_record_required':
+    'تعذر استعادة التسجيل المتوقف. يرجى التسجيل مجددًا.',
+  'voice.error.recovery_required':
+    'تحقق من نتيجة العملية الحالية قبل بدء عملية جديدة.',
   'voice.error.processing_timed_out':
     'استغرق التحليل الصوتي وقتًا طويلًا. حاول مجددًا أو أدخل المعاملة يدويًا.',
   'voice.error.session_expired': 'انتهت جلستك. سجّل الدخول مجددًا للمتابعة.',
@@ -1150,6 +1469,11 @@ const ar: MessageCatalog = {
   'planning.salary.editSettings': 'تعديل إعدادات الراتب',
   'planning.salary.setup': 'إعداد الراتب',
   'planning.salary.review': 'مراجعة استلام الراتب',
+  'planning.salary.selectRecordedIncome':
+    'اختَر دخلًا مسجّلًا لتأكيد استلام الراتب.',
+  'planning.salary.loadMoreIncome': 'عرض دخل أقدم',
+  'planning.salary.noExpectedReceipt':
+    'لا يوجد موعد راتب متوقع للمراجعة. راجع إعداد الراتب أولًا.',
   'planning.salary.remaining': 'المتبقي من الراتب',
   'planning.salary.untilNext': '{{count}} يومًا حتى الراتب القادم',
   'planning.salary.details': 'تفاصيل الراتب',
@@ -1166,6 +1490,19 @@ const ar: MessageCatalog = {
   'planning.obligations.payment': 'تسجيل دفعة',
   'planning.obligations.match': 'مراجعة مطابقة الدفعة',
   'planning.savings.title': 'أهداف الادخار',
+  'planning.savings.totalSaved': 'إجمالي المدخر',
+  'planning.savings.remainingAll': 'المتبقي للأهداف',
+  'planning.savings.yourGoals': 'أهدافك',
+  'planning.savings.filterAll': 'الكل',
+  'planning.savings.filterActive': 'نشطة',
+  'planning.savings.filterCompleted': 'مكتملة',
+  'planning.savings.emptyFilter': 'لا توجد أهداف في هذا العرض.',
+  'planning.savings.setupSubtitle': 'حدّد هدفك وابدأ متابعة تقدّمك.',
+  'planning.savings.optionalDetails': 'تفاصيل اختيارية',
+  'planning.savings.saveGoal': 'حفظ الهدف',
+  'planning.savings.savedSoFar': 'المدخر حتى الآن',
+  'planning.savings.progressOf': '{{current}} من {{target}}',
+  'planning.savings.moreActions': 'إجراءات إضافية',
   'planning.savings.activeGoals': 'الأهداف النشطة',
   'planning.savings.new': 'هدف ادخار جديد',
   'planning.savings.edit': 'تعديل هدف الادخار',
@@ -1260,7 +1597,7 @@ const ar: MessageCatalog = {
   'planning.salary.account': 'حساب الاستلام',
   'planning.salary.automaticDetection': 'اكتشاف استلام الراتب تلقائيًا',
   'planning.salary.automaticDetectionSubtitle':
-    'سنكتشف إيداع راتبك تلقائيًا في الحساب المحدد.',
+    'يربط دخلًا مؤكدًا بنفس المبلغ والعملة في حساب الاستلام خلال 3 أيام من الموعد، عند وضوح أنه راتب. لا يضيف معاملة جديدة.',
   'planning.salary.expectedDate': 'التاريخ المتوقع',
   'planning.salary.receivedDate': 'تاريخ الاستلام',
   'planning.salary.transaction': 'المعاملة المرتبطة',
@@ -1331,6 +1668,44 @@ const ar: MessageCatalog = {
   'planning.obligation.schedule.open_ended': 'رصيد مفتوح',
   'planning.obligation.schedule.irregular': 'دفعات غير منتظمة',
   'planning.obligation.title': 'العنوان',
+  'planning.obligation.form.name': 'اسم الالتزام',
+  'planning.obligation.form.title': 'إضافة التزام',
+  'planning.obligation.form.namePlaceholder': 'مثال: إيجار البيت',
+  'planning.obligation.form.subtitle': 'سجّل التزامك وحدّد موعد سداده',
+  'planning.obligation.form.paymentMethod': 'طريقة السداد',
+  'planning.obligation.form.kind.once': 'دفعة واحدة',
+  'planning.obligation.form.kind.installments': 'أقساط',
+  'planning.obligation.form.kind.recurring': 'متكرر',
+  'planning.obligation.form.kind.irregular': 'دفعات غير منتظمة',
+  'planning.obligation.form.amount': 'المبلغ',
+  'planning.obligation.form.amountPlaceholder': 'أدخل المبلغ',
+  'planning.obligation.form.paymentAmount': 'قيمة الدفعة',
+  'planning.obligation.form.monthlyInstallment': 'قيمة القسط الشهري',
+  'planning.obligation.form.installmentHint':
+    'عدد الأقساط يُحسب تلقائيًا، مع توضيح قيمة آخر دفعة.',
+  'planning.obligation.form.calculatedPlan':
+    '{{count}} دفعات · آخر دفعة {{amount}}',
+  'planning.obligation.form.dueDate': 'موعد الدفع',
+  'planning.obligation.form.repeat': 'يتكرر كل',
+  'planning.obligation.form.frequency.monthly': 'شهر',
+  'planning.obligation.form.frequency.yearly': 'سنة',
+  'planning.obligation.form.frequency.weekly': 'أسبوع',
+  'planning.obligation.form.frequency.biweekly': 'أسبوعين',
+  'planning.obligation.form.frequency.quarterly': '٣ أشهر',
+  'planning.obligation.form.frequency.custom': 'الفترة المخصصة الحالية',
+  'planning.obligation.form.frequency.irregular': 'غير منتظم',
+  'planning.obligation.form.optional': 'تفاصيل اختيارية',
+  'planning.obligation.form.noAccount': 'بدون حساب سداد افتراضي',
+  'planning.obligation.form.save': 'حفظ الالتزام',
+  'planning.obligation.form.nameRequired': 'اكتب اسم الالتزام.',
+  'planning.obligation.form.amountRequired': 'أدخل مبلغًا صحيحًا أكبر من صفر.',
+  'planning.obligation.form.amountAlreadyPaid':
+    'الإجمالي لازم يكون أكبر من المبلغ المسدّد بالفعل.',
+  'planning.obligation.form.planTooLong':
+    'خطة السداد لا يمكن أن تتجاوز 1,200 قسط.',
+  'planning.obligation.form.installmentInvalid':
+    'أدخل قسطًا صحيحًا لا يتجاوز المبلغ المتبقي.',
+  'planning.obligation.form.dateRequired': 'حدّد موعد دفع صحيحًا.',
   'planning.obligation.provider': 'الجهة أو الشخص',
   'planning.obligation.total': 'الإجمالي المتعاقد عليه',
   'planning.obligation.installment': 'مبلغ القسط',
@@ -1375,6 +1750,12 @@ const ar: MessageCatalog = {
   'planning.obligation.installmentNumber': 'القسط {{count}}',
   'planning.obligation.showAll': 'عرض الكل',
   'planning.obligation.moreActions': 'إجراءات إضافية',
+  'planning.obligation.detail.details': 'تفاصيل الالتزام',
+  'planning.obligation.detail.installments': 'أقساط كل {{period}}',
+  'planning.obligation.detail.paid': 'تم سداد {{amount}}',
+  'planning.obligation.detail.plan': '{{count}} أقساط × {{amount}}',
+  'planning.obligation.detail.schedulePending': 'جدول الأقساط غير جاهز',
+  'planning.obligation.detail.irregular': 'تُسجَّل الدفعات دون جدول ثابت',
   'planning.obligation.scheduleStatus.upcoming': 'قادم',
   'planning.obligation.scheduleStatus.partial': 'مسدد جزئياً',
   'planning.obligation.scheduleStatus.paid': 'مدفوع',
@@ -1405,17 +1786,24 @@ const ar: MessageCatalog = {
   'planning.obligation.allocations': 'الأقساط المتأثرة',
   'planning.obligation.lastPayment': 'آخر دفعة',
   'planning.obligation.paymentHistory': 'سجل الدفعات',
+  'planning.obligation.paymentStatus.pending': 'قيد الانتظار',
+  'planning.obligation.paymentStatus.reversed': 'تم عكس الدفعة',
+  'planning.obligation.paymentStatus.undone': 'تم التراجع عنها',
+  'planning.obligation.paymentStatus.conflict': 'تحتاج مراجعة',
   'planning.obligation.noPayments': 'لا توجد دفعات بعد',
-  'planning.validation.currencyMismatch': 'يجب أن تتطابق عملة الحساب مع عملة الدفعة.',
+  'planning.validation.currencyMismatch':
+    'يجب أن تتطابق عملة الحساب مع عملة الدفعة.',
   'planning.paymentMatch.transaction': 'المعاملة المكتشفة',
   'planning.paymentMatch.suggestedObligation': 'الالتزام المقترح',
   'planning.paymentMatch.confidenceStrong': 'تطابق قوي',
   'planning.paymentMatch.confidenceReview': 'راجع هذا التطابق',
-  'planning.paymentMatch.reason.amount_match': 'المبلغ قريب من قيمة القسط المتوقع.',
+  'planning.paymentMatch.reason.amount_match':
+    'المبلغ قريب من قيمة القسط المتوقع.',
   'planning.paymentMatch.reason.keyword_match': 'وصف العملية يتطابق مع الجهة.',
   'planning.paymentMatch.remainingBefore': 'المتبقي الآن',
   'planning.paymentMatch.remainingAfter': 'بعد المطابقة',
-  'planning.paymentMatch.refreshRequired': 'تفاصيل المطابقة تغيرت أو غير مكتملة. حدّث البيانات قبل التأكيد.',
+  'planning.paymentMatch.refreshRequired':
+    'تفاصيل المطابقة تغيرت أو غير مكتملة. حدّث البيانات قبل التأكيد.',
   'planning.paymentMatch.confirm': 'مطابقة الدفعة',
   'planning.paymentMatch.ignore': 'تجاهل المطابقة',
   'planning.paymentMatch.status.clear': 'مطابقة واضحة',
@@ -1524,6 +1912,7 @@ const ar: MessageCatalog = {
   'reports.schedule.resume': 'استئناف الجدولة',
   'reports.schedule.disable': 'تعطيل الجدولة',
   'reports.schedule.nextDelivery': 'الإرسال التالي',
+  'reports.schedule.lastRun': 'آخر تنفيذ مجدول',
   'reports.schedule.lastDelivery': 'آخر إرسال ناجح',
   'reports.schedule.noDelivery': 'لا يوجد بعد',
   'reports.schedule.status.verification_required': 'يلزم التحقق من البريد',
@@ -1598,7 +1987,7 @@ const ar: MessageCatalog = {
     'راجع \u2068SAR 25.00\u2069 قبل المتابعة.',
   'notifications.center.unreadLabel': 'الإشعارات غير المقروءة',
   'notifications.fallback.title': 'تحديث مالي',
-  'notifications.fallback.body': 'افتح مصاريفي لمراجعة آخر تحديث.',
+  'notifications.fallback.body': 'افتح مصاريفي وراتبي لمراجعة آخر تحديث.',
   'notifications.center.markAllRead': 'تحديد الكل كمقروء',
   'notifications.center.countSuffix': 'إشعارات',
   'notifications.center.loading': 'جار تحميل الإشعارات',
@@ -1615,6 +2004,8 @@ const ar: MessageCatalog = {
   'notifications.center.deletePrefix': 'حذف',
   'notifications.preferences.loading': 'جار تحميل تفضيلات الإشعارات',
   'notifications.preferences.offline': 'تفضيلات الإشعارات غير متاحة دون اتصال',
+  'notifications.preferences.loadError':
+    'تعذّر تحميل تفضيلات الإشعارات. حاول مرة أخرى.',
   'notifications.preferences.retry': 'إعادة المحاولة',
   'notifications.preferences.saveError': 'تعذر حفظ التفضيلات',
   'notifications.preferences.title': 'تفضيلات الإشعارات',
@@ -1656,7 +2047,7 @@ const ar: MessageCatalog = {
   'notifications.preferences.save': 'حفظ تفضيلات الإشعارات',
   'notifications.preferences.requestTitle': 'طلب إذن الإشعارات',
   'notifications.preferences.requestMessage':
-    'سيطلب مسارفي إذن الإشعارات من الجهاز بعد ذلك.',
+    'سيطلب مصاريفي إذن الإشعارات من الجهاز بعد ذلك.',
   'notifications.preferences.requestConfirm': 'طلب الإذن',
   'notifications.actions.view': 'عرض',
   'notifications.actions.edit': 'تعديل',
@@ -1755,6 +2146,8 @@ const ar: MessageCatalog = {
   'assistant.answer.safe_redirect.estimate':
     'السياق المتاح تقديري؛ راجع القسم المرتبط.',
   'assistant.label.fact': 'حقيقة مؤكدة',
+  'assistant.label.scope': 'تخصص المساعد',
+  'assistant.label.clarification': 'نحتاج تفاصيل',
   'assistant.label.estimate': 'تقدير',
   'assistant.label.suggestion': 'اقتراح',
   'assistant.evidence.report': 'فحص التقرير الداعم',
@@ -1767,13 +2160,128 @@ const ar: MessageCatalog = {
     'تغيرت هذه المعاينة. راجع معاينة جديدة.',
   'assistant.actionPreview.state.expired': 'انتهت صلاحية هذه المعاينة.',
   'assistant.actionPreview.state.failed': 'لم يكتمل الإجراء.',
-  'assistant.actionPreview.state.pending': 'جار تنفيذ الإجراء التمثيلي…',
+  'assistant.actionPreview.state.pending': 'جار تنفيذ الإجراء…',
   'assistant.actionPreview.action.saveEdit': 'حفظ تعديل المعاينة',
   'assistant.actionPreview.action.confirm': 'مراجعة وتأكيد',
   'assistant.actionPreview.action.cancel': 'إلغاء الاقتراح',
   'assistant.actionPreview.action.back': 'رجوع',
   'assistant.actionPreview.action.confirmNow': 'تأكيد الإجراء',
   'assistant.actionPreview.confirm.title': 'تأكيد هذا الإجراء؟',
+  'assistant.actionPreview.state.incomplete':
+    'تفاصيل الأثر المطلوبة غير مكتملة. التأكيد معطّل؛ حدّث المعاينة.',
+  'assistant.actionPreview.state.unknown':
+    'النتيجة غير معروفة. تحقّق من الحالة قبل إعادة المحاولة؛ تستخدم المحاولة نفس العملية الأصلية.',
+  'assistant.actionPreview.state.completed': 'اكتمل الإجراء.',
+  'assistant.actionPreview.state.cancelled': 'تم إلغاء الاقتراح.',
+  'assistant.actionPreview.action.checkStatus':
+    'التحقّق من الحالة / تحديث المعاينة',
+  'assistant.actionPreview.action.revealEffects':
+    'إظهار أثر هذا الإجراء لمراجعته بأمان',
+  'assistant.actionPreview.scope.unavailable':
+    'لا يمكن التحقّق من الأثر الكامل بعد.',
+  'assistant.actionPreview.scope.createTransaction':
+    'يسجّل دخلاً أو مصروفًا في الحساب المحدّد بالتاريخ والوقت المحلي المعروضين.',
+  'assistant.actionPreview.scope.createGoal':
+    'ينشئ هدف ادخار بالتقدّم الافتتاحي المسجّل المعروض. لا يحوّل هذا الإجراء أموالاً.',
+  'assistant.actionPreview.scope.updateTransaction':
+    'يعدّل هذه المعاملة. راجع قيمها الحالية والقيم الناتجة أدناه.',
+  'assistant.actionPreview.scope.updateBudget':
+    'يعدّل هذه الميزانية فقط. راجع جميع القيم الناتجة، بما فيها الحالة أو الحذف.',
+  'assistant.actionPreview.scope.recordPayment':
+    'يوزّع المعاملة المؤكدة الموجودة على الأقساط المحدّدة. لا ينشئ معاملة بنكية أخرى.',
+  'assistant.actionPreview.scope.acceptReview':
+    'يعتمد هذه المراجعة ويسجّل معاملتها المستوردة أو يعيد استخدام الموجودة. تقارن القيم قبل وبعد بين الاقتراح الحالي والقيم المعتمدة.',
+  'assistant.actionPreview.scope.rejectReview':
+    'يرفض هذه المراجعة دون إنشاء معاملة مالية.',
+  'assistant.actionPreview.field.scope': 'نطاق الإجراء',
+  'assistant.actionPreview.field.before': 'قبل',
+  'assistant.actionPreview.field.after': 'بعد',
+  'assistant.actionPreview.field.previewVersion': 'إصدار المعاينة',
+  'assistant.actionPreview.field.expiresAt': 'انتهاء صلاحية المعاينة',
+  'assistant.actionPreview.field.kind': 'نوع المعاملة',
+  'assistant.actionPreview.field.amountMinor': 'المبلغ',
+  'assistant.actionPreview.field.feeMinor': 'الرسوم',
+  'assistant.actionPreview.field.currency': 'العملة',
+  'assistant.actionPreview.field.currencyCode': 'العملة',
+  'assistant.actionPreview.field.accountId': 'سجل الحساب',
+  'assistant.actionPreview.field.destinationAccountId': 'سجل حساب الوجهة',
+  'assistant.actionPreview.field.categoryId': 'سجل الفئة',
+  'assistant.actionPreview.field.date': 'التاريخ',
+  'assistant.actionPreview.field.timezone': 'المنطقة الزمنية الأصلية',
+  'assistant.actionPreview.field.time': 'الوقت المحلي',
+  'assistant.actionPreview.field.merchant': 'التاجر',
+  'assistant.actionPreview.field.note': 'الملاحظة',
+  'assistant.actionPreview.field.title': 'عنوان المعاملة',
+  'assistant.actionPreview.field.paymentMethod': 'طريقة الدفع',
+  'assistant.actionPreview.field.source': 'المصدر',
+  'assistant.actionPreview.field.name': 'الاسم',
+  'assistant.actionPreview.field.targetMinor': 'المبلغ المستهدف',
+  'assistant.actionPreview.field.openingTrackedMinor':
+    'التقدّم الافتتاحي المسجّل',
+  'assistant.actionPreview.field.targetDate': 'التاريخ المستهدف',
+  'assistant.actionPreview.field.linkedAccountId': 'سجل الحساب المرتبط',
+  'assistant.actionPreview.field.iconKey': 'معرّف الأيقونة المحفوظ',
+  'assistant.actionPreview.field.emergencyFund': 'صندوق الطوارئ',
+  'assistant.actionPreview.field.budgetId': 'سجل الميزانية',
+  'assistant.actionPreview.field.transactionId': 'سجل المعاملة',
+  'assistant.actionPreview.field.expectedVersion': 'إصدار السجل الحالي',
+  'assistant.actionPreview.field.reason': 'سبب التعديل',
+  'assistant.actionPreview.field.periodStart': 'بداية الفترة',
+  'assistant.actionPreview.field.periodEnd': 'نهاية الفترة',
+  'assistant.actionPreview.field.totalMinor': 'إجمالي الميزانية',
+  'assistant.actionPreview.field.incomeTargetMinor': 'الدخل المستهدف',
+  'assistant.actionPreview.field.savingsTargetMinor': 'الادخار المستهدف',
+  'assistant.actionPreview.field.rolloverEnabled': 'تفعيل الترحيل',
+  'assistant.actionPreview.field.rolloverMinor': 'المبلغ المرحّل',
+  'assistant.actionPreview.field.status': 'الحالة',
+  'assistant.actionPreview.field.occurredAt': 'تاريخ ووقت المعاملة',
+  'assistant.actionPreview.field.obligationId': 'سجل الالتزام',
+  'assistant.actionPreview.field.direction': 'اتجاه الالتزام',
+  'assistant.actionPreview.field.paymentCase': 'حالة الدفع',
+  'assistant.actionPreview.field.allocationIntent': 'نطاق التوزيع',
+  'assistant.actionPreview.field.scheduleItemId': 'سجل القسط',
+  'assistant.actionPreview.field.dueAt': 'تاريخ استحقاق القسط',
+  'assistant.actionPreview.field.paidMinor': 'المبلغ المدفوع للقسط',
+  'assistant.actionPreview.field.reviewId': 'سجل المراجعة',
+  'assistant.actionPreview.field.decision': 'قرار المراجعة',
+  'assistant.actionPreview.field.transactionEffect': 'أثر المعاملة المالية',
+  'assistant.actionPreview.value.none': 'لا يوجد',
+  'assistant.actionPreview.value.true': 'نعم',
+  'assistant.actionPreview.value.false': 'لا',
+  'assistant.actionPreview.value.income': 'دخل',
+  'assistant.actionPreview.value.expense': 'مصروف',
+  'assistant.actionPreview.value.transfer': 'تحويل',
+  'assistant.actionPreview.value.platform_assisted': 'بمساعدة المساعد',
+  'assistant.actionPreview.value.tracking-import': 'استيراد التتبع',
+  'assistant.actionPreview.value.manual': 'يدوي',
+  'assistant.actionPreview.value.automatic': 'تلقائي',
+  'assistant.actionPreview.value.voice': 'صوتي',
+  'assistant.actionPreview.value.accept': 'اعتماد',
+  'assistant.actionPreview.value.reject': 'رفض',
+  'assistant.actionPreview.value.edit_accept': 'تعديل واعتماد',
+  'assistant.actionPreview.value.current': 'القسط الحالي',
+  'assistant.actionPreview.value.later_installments': 'الأقساط اللاحقة',
+  'assistant.actionPreview.value.principal': 'أصل المبلغ',
+  'assistant.actionPreview.value.correction': 'تصحيح',
+  'assistant.actionPreview.value.settlement': 'تسوية',
+  'assistant.actionPreview.value.prepayment': 'دفع مقدّم',
+  'assistant.actionPreview.value.partial': 'جزئي',
+  'assistant.actionPreview.value.full': 'كامل',
+  'assistant.actionPreview.value.over': 'دفع زائد',
+  'assistant.actionPreview.value.early': 'دفع مبكّر',
+  'assistant.actionPreview.value.active': 'نشط',
+  'assistant.actionPreview.value.draft': 'مسودة',
+  'assistant.actionPreview.value.paused': 'متوقف مؤقتًا',
+  'assistant.actionPreview.value.closed': 'مغلق',
+  'assistant.actionPreview.value.deleted': 'محذوف',
+  'assistant.actionPreview.value.pending': 'قيد الانتظار',
+  'assistant.actionPreview.value.paid': 'مدفوع',
+  'assistant.actionPreview.value.overdue': 'متأخر',
+  'assistant.actionPreview.value.accepted': 'معتمد',
+  'assistant.actionPreview.value.edited': 'معدّل',
+  'assistant.actionPreview.value.rejected': 'مرفوض',
+  'assistant.actionPreview.value.payable': 'مستحق الدفع',
+  'assistant.actionPreview.value.receivable': 'مستحق التحصيل',
   'assistant.actionPreview.confirm.message': 'لن يحدث التغيير إلا بعد التأكيد.',
   'subscriptions.state.loading': 'جار تحميل الاشتراك',
   'subscriptions.title': 'الاشتراك',
@@ -1837,9 +2345,9 @@ const ar: MessageCatalog = {
   'settings.profile.details': 'التفاصيل',
   'settings.profile.planFree': 'الباقة الأساسية',
   'settings.profile.planDesc':
-    'تمتع بكافة ميزات مصاريفي: التتبع التلقائي والتحليل المالي الذكي',
+    'تمتع بكافة ميزات مصاريفي وراتبي: التتبع التلقائي والتحليل المالي الذكي',
   'settings.profile.goPro': 'ترقية للباقة المميزة 💎',
-  'settings.profile.activity': 'تتبع مصاريفك بذكاء مع مصاريفي ✨',
+  'settings.profile.activity': 'تتبع مصاريفك بذكاء مع مصاريفي وراتبي ✨',
   'settings.application.language': 'اللغة',
   'settings.application.title': 'إعدادات التطبيق',
   'settings.application.theme': 'المظهر',
@@ -1880,7 +2388,7 @@ const ar: MessageCatalog = {
   'settings.application.notificationsOwner': 'تفضيلات الإشعارات',
   'settings.application.reportsOwner': 'التقارير',
   'settings.privacy.legalExplanation':
-    'تحكم في التخصيص والطلبات دون كشف التفاصيل المالية.',
+    'التصدير ينشئ نسخة من بيانات الخادم. الحذف المحلي يزيل بيانات هذا الجهاز فقط، وقد تفقد التعديلات غير المتزامنة. حذف الحساب يمر بفترة الانتظار الموضّحة، ويكتمل بعد تأكيد محو البيانات مع الإفصاح عن أي احتفاظ نظامي.',
   'settings.privacy.title': 'الخصوصية',
   'settings.privacy.tracking': 'تخصيص التتبع',
   'settings.privacy.assistantPersonalization': 'تخصيص المساعد',
@@ -1893,6 +2401,8 @@ const ar: MessageCatalog = {
   'settings.privacy.assistantPersonalization.disabled': 'تخصيص المساعد متوقف.',
   'settings.privacy.assistantPersonalization.consequence':
     'لن يستخدم المساعد السياق المالي المخصص.',
+  'settings.privacy.exportRequest': 'طلب تصدير البيانات',
+  'settings.privacy.exportRefresh': 'تحديث حالة التصدير',
   'settings.privacy.exportReview': 'مراجعة طلب تصدير البيانات',
   'settings.privacy.accountDeletionReview': 'مراجعة طلب حذف الحساب',
   'settings.privacy.localDelete': 'حذف البيانات المحلية',
@@ -1923,7 +2433,7 @@ const ar: MessageCatalog = {
   'settings.securityEvents.recover.security': 'مراجعة إعدادات الأمان',
   'settings.securityEvents.recover.settings': 'مراجعة إعدادات الخصوصية',
   'support.home.title': 'المساعدة والدعم',
-  'support.home.version': 'إصدار تطبيق مصاريفي',
+  'support.home.version': 'إصدار تطبيق مصاريفي وراتبي',
   'support.home.articles': 'مقالات المساعدة',
   'support.search.input': 'البحث في المساعدة',
   'support.search.noResultsCreateTicket': 'إنشاء تذكرة دعم',
@@ -1969,6 +2479,8 @@ const ar: MessageCatalog = {
   'support.ticket.reply': 'الرد',
   'support.ticket.sendReply': 'إرسال الرد',
   'support.ticket.replyFailed': 'فشل الرد. تم حفظ النص.',
+  'support.ticket.refresh': 'تحديث التذكرة',
+  'support.ticket.replyUnavailable': 'الرد غير متاح في حالة التذكرة الحالية.',
   'settings.application.weekStart.sunday': 'الأحد',
   'settings.application.transactionDefaults.expense': 'مصروف',
   'settings.application.dashboard.default':
@@ -2156,7 +2668,28 @@ const ar: MessageCatalog = {
   'notifications.validation.view': 'عرض إشعار فتح',
   'notifications.validation.edit': 'عرض إشعار تعديل',
   'notifications.validation.undo': 'عرض إشعار تراجع',
-  'notifications.validation.expired': 'عرض إشعار تراجع منتهي'
+  'notifications.validation.expired': 'عرض إشعار تراجع منتهي',
+  'recentAuth.title': 'تأكيد هويتك',
+  'recentAuth.code': 'أدخل رمز التحقق المرسل إلى جوالك أو بريدك المسجّل.',
+  'recentAuth.password': 'أدخل كلمة مرور حسابك.',
+  'recentAuth.confirm': 'التحقق والمتابعة',
+  'recentAuth.cancel': 'إلغاء العملية',
+  'recentAuth.retry': 'إعادة محاولة التحقق',
+  'recentAuth.failed':
+    'تعذّر إكمال التحقق. تأكد من الرمز أو كلمة المرور والاتصال. يجب أن يدعم حسابك التحقق بالرمز أو كلمة المرور.',
+  'logout.unsyncedTitle': 'يوجد عمل غير متزامن',
+  'logout.unsyncedBody':
+    'بعض التغييرات أو المسودات أو رسائل التتبع أو العمليات الصوتية لم تتزامن، أو تعذّر التحقق من حالتها. ابقَ مسجّلًا لإعادة المحاولة، أو احذف بيانات هذا الجهاز المحلية وسجّل الخروج. لا يمكن استعادة العمل غير المتزامن المحذوف من الخادم.',
+  'logout.wait': 'البقاء وإعادة المزامنة',
+  'logout.remove': 'حذف البيانات المحلية وتسجيل الخروج',
+  'logout.failed': 'تعذّر إكمال تسجيل الخروج. حاول مجددًا قبل تبديل الحساب.',
+  'storageRecovery.title': 'التخزين المشفّر يحتاج إلى استعادة',
+  'storageRecovery.body':
+    'مفتاح التشفير غير متاح. سنحتفظ بالنسخة المشفّرة الأصلية. لا يمكن استعادة التغييرات غير المتزامنة من الخادم. هل تريد إنشاء قاعدة محلية جديدة ثم تسجيل الدخول بالإنترنت لاستعادة البيانات المتزامنة؟',
+  'storageRecovery.cancel': 'الاحتفاظ بالبيانات وإلغاء',
+  'storageRecovery.confirm': 'حفظ الأصل وبدء الاستعادة',
+  'storageRecovery.failed':
+    'تعذّر إكمال الاستعادة. النسخة المشفّرة الأصلية محفوظة. حاول مجددًا.'
 };
 
 export default ar;

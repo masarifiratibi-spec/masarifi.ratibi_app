@@ -1,3 +1,4 @@
+import { useReportAnchorDate } from './useReportAnchorDate';
 import React from 'react';
 import {
   PixelRatio,
@@ -23,6 +24,7 @@ import {
 } from '@/design-system/tokens';
 import { currentLocale, translate, translateDynamic } from '@/localization/i18n';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
+import { useAccounts } from '@/features/core-finance/core-finance-queries';
 import { usePreferenceStore } from '@/state/preferences';
 import { useReportsViewState } from '@/state/reports-view-state';
 import { useTheme } from '@/state/theme-context';
@@ -36,15 +38,19 @@ import {
 } from './report-labels';
 
 export function ReportDrillDownScreen() {
+  const anchorDate = useReportAnchorDate();
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
-  const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const baseCurrencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const selectedAccountId = useCoreFinanceViewState((state) => state.selectedAccountId);
+  const accounts = useAccounts(false);
+  const currencyCode = accounts.data?.find((account) => account.id === selectedAccountId)?.currencyCode ?? baseCurrencyCode;
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
-  const { selectedKind, anchorDate, returnContext, setReturnContext } =
+  const { selectedKind, returnContext, setReturnContext } =
     useReportsViewState();
   const editFilters = useCoreFinanceViewState((state) => state.editFilters);
   const applyFilters = useCoreFinanceViewState((state) => state.applyFilters);
-  const input = useReportInput(selectedKind, anchorDate, currencyCode);
+  const input = useReportInput(selectedKind, anchorDate, currencyCode, selectedAccountId ? [selectedAccountId] : []);
   const report = useReport(input).data;
   const breakdown =
     report?.breakdowns.find(
@@ -177,6 +183,7 @@ function DrillDownRow({
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const label = reportBreakdownItemLabel(breakdownItem);
   const memberLabels = reportBreakdownMemberLabels(breakdownItem);
+  const transactionCount = breakdownItem.transactionCount ?? breakdownItem.transactionIds.length;
   const valueText = hidden
     ? translate('designSystem.privacy.hidden')
     : formatReportMoney(breakdownItem.value.value);
@@ -184,7 +191,7 @@ function DrillDownRow({
     <Pressable
       testID={`report-drill-down-row-${index}`}
       accessibilityRole="button"
-      accessibilityLabel={`${label}, ${valueText}, ${breakdownItem.transactionIds.length} ${translate('reports.drillDown.recordCount')}`}
+      accessibilityLabel={`${label}, ${valueText}, ${transactionCount} ${translate('reports.drillDown.recordCount')}`}
       onPress={onPress}
       style={[
         styles.row,
@@ -236,7 +243,7 @@ function DrillDownRow({
         >
           {memberLabels.length
             ? `${translate('reports.drillDown.otherMembers')}: ${memberLabels.join(', ')}`
-            : `${breakdownItem.transactionIds.length} ${translate('reports.drillDown.recordCount')}`}
+            : `${transactionCount} ${translate('reports.drillDown.recordCount')}`}
         </Text>
       </View>
       <View

@@ -1,3 +1,4 @@
+import type { SyncHandlers } from '../../../src/sync/sync.handlers';
 import { HttpException } from '@nestjs/common';
 
 import { SyncWorker } from '../../../src/sync/sync.worker';
@@ -7,6 +8,7 @@ const claimed = {
   userId: 'owner',
   deviceId: 'device',
   factorAgeSeconds: 700,
+  authenticatedAt: new Date(Date.now() - 700_000).toISOString(),
   mutation: {
     operationId: '74000000-0000-4000-8000-000000000002',
     domain: 'transactions',
@@ -35,16 +37,43 @@ const values: Record<string, number> = {
 const config = { getRequired: jest.fn((key: string) => values[key]) } as never;
 
 describe('SyncWorker', () => {
+  it('ages queued authentication at execution and distrusts legacy timestamps', async () => {
+    const repository = {
+      claimMutations: jest.fn().mockResolvedValue([
+        {
+          ...claimed,
+          factorAgeSeconds: 1,
+          authenticatedAt: new Date(Date.now() - 3_600_000).toISOString(),
+        },
+        { ...claimed, authenticatedAt: null },
+      ]),
+      workerComplete: jest.fn(),
+    };
+    const handlers = {
+      dispatch: jest
+        .fn<ReturnType<SyncHandlers['dispatch']>, Parameters<SyncHandlers['dispatch']>>()
+        .mockResolvedValue({}),
+    };
+    await new SyncWorker(repository as never, handlers as never, config).runJob(
+      'sync-mutations.retry',
+    );
+    expect(handlers.dispatch.mock.calls[0]?.[0].factorAgeSeconds).toBeGreaterThanOrEqual(3600);
+    expect(handlers.dispatch.mock.calls[1]?.[0].factorAgeSeconds).toBeNull();
+  });
   it('claims, dispatches, and completes one mutation with its fence', async () => {
     const repository = {
       claimMutations: jest.fn().mockResolvedValue([claimed]),
       workerComplete: jest.fn(),
     };
-    const handlers = { dispatch: jest.fn().mockResolvedValue({ resourceId: 'server-one' }) };
+    const handlers = {
+      dispatch: jest
+        .fn<ReturnType<SyncHandlers['dispatch']>, Parameters<SyncHandlers['dispatch']>>()
+        .mockResolvedValue({ resourceId: 'server-one' }),
+    };
     const worker = new SyncWorker(repository as never, handlers as never, config);
     await expect(worker.runJob('sync-mutations.retry')).resolves.toBe(1);
     expect(handlers.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'owner', factorAgeSeconds: 700 }),
+      expect.objectContaining({ userId: 'owner' }),
       claimed.mutation,
       claimed.mutation.operationId,
     );

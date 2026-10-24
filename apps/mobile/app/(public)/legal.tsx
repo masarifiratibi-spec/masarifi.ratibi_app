@@ -16,7 +16,10 @@ export default function LegalRoute() {
       <StyledText>{translate('appShell.public.termsBody')}</StyledText>
       <ActionButton
         label={translate('appShell.navigation.back')}
-        onPress={() => router.back()}
+        onPress={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/');
+        }}
         variant="secondary"
       />
     </ScrollView>

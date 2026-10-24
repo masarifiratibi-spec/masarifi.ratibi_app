@@ -18,6 +18,15 @@ import type { TextStyle } from 'react-native';
 // Teal is the primary interaction family. Bronze is a restrained premium accent,
 // never a second primary.
 export const colorTokens = {
+  google: {
+    surface: '#FFFFFF',
+    content: '#1F1F1F',
+    border: '#747775',
+    blue: '#4285F4',
+    green: '#34A853',
+    yellow: '#FBBC05',
+    red: '#EA4335'
+  },
   teal: {
     50: '#F2F8F6',
     100: '#DBECE7',
@@ -95,6 +104,10 @@ export const colorTokens = {
     debt: '#8B5A44',
     positive: '#0D684A',
     negative: '#B3261E'
+  },
+  obligationDetail: {
+    hero: '#007C5B',
+    heroDark: '#184D3B'
   },
   obligationForm: {
     payableSurface: '#FDF3F2',
@@ -675,6 +688,30 @@ export const darkThemeColors: ThemeColors = {
 };
 
 // ─── Spacing / radii / typography ────────────────────────────────────────────
+
+// Startup also renders before the theme provider and local fonts are ready.
+export const startupLoading = {
+  light: {
+    background: colorTokens.neutral.warmSurface,
+    text: colorTokens.ink['900'],
+    message: colorTokens.ink['700'],
+    indicator: colorTokens.teal['700'],
+    track: colorTokens.teal['100']
+  },
+  dark: {
+    background: colorTokens.ink['900'],
+    text: colorTokens.dark.text,
+    message: colorTokens.dark.textMuted,
+    indicator: colorTokens.teal['300'],
+    track: colorTokens.teal['800']
+  },
+  fontFamily: { ar: 'MasarifiArabic-400', en: 'MasarifiLatin-400' },
+  logoSize: 104,
+  logoRadius: 24,
+  indicatorSize: 28,
+  indicatorWidth: 2,
+  rotationDuration: 1150
+} as const;
 
 export const spacing = {
   xs: 4,

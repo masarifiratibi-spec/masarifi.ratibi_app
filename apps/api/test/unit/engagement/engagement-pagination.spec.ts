@@ -35,7 +35,7 @@ test('notification pagination uses the timestamp/id boundary from its opaque cur
   };
   const repository = new EngagementRepository(
     pool as unknown as PoolService,
-    {} as PlatformConfigService,
+    { getRequired: () => false } as unknown as PlatformConfigService,
   );
 
   const first = (await repository.execute(principal, {

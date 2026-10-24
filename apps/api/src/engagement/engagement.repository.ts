@@ -6,6 +6,13 @@ import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency
 import { PoolService } from '../platform/database/pool.service';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import type { ReminderCandidate } from './engagement.reminders';
+import {
+  readSupportWorkload,
+  SUPPORT_ADMIN_REFERENCE,
+  SUPPORT_TICKET_VALUE,
+  supportFilter,
+  supportFilterValues,
+} from './support-admin.reads';
 
 export interface EngagementCommand {
   operation: string;
@@ -94,6 +101,8 @@ export interface PreparedDelivery {
 }
 
 const READS = new Set([
+  'adminSupportOverview',
+  'adminDownloadSupportAttachment',
   'listNotifications',
   'getNotification',
   'getNotificationPreferences',
@@ -156,7 +165,7 @@ function cursorPage(rows: CursorRow[], limit: number): Record<string, unknown> {
     nextCursor: last
       ? Buffer.from(
           JSON.stringify({
-            at: new Date(last.sort_at).toISOString(),
+            at: typeof last.sort_at === 'string' ? last.sort_at : last.sort_at.toISOString(),
             id: last.sort_id,
           } satisfies EngagementCursor),
         ).toString('base64url')
@@ -257,6 +266,26 @@ export class EngagementRepository {
     });
   }
 
+  async claimTrackingSourceEvents(limit: number): Promise<SourceNotificationClaim[]> {
+    return this.worker(async (client) => {
+      const result = await client.query<SourceNotificationClaim>(
+        'select * from private.tracking_confirmation_sources($1)',
+        [limit],
+      );
+      return result.rows;
+    });
+  }
+
+  async claimVoiceSourceEvents(epoch: string, limit: number): Promise<SourceNotificationClaim[]> {
+    return this.worker(async (client) => {
+      const result = await client.query<SourceNotificationClaim>(
+        'select * from private.voice_confirmation_sources($1::uuid,$2)',
+        [epoch, limit],
+      );
+      return result.rows;
+    });
+  }
+
   async listReminderCandidates(limit: number): Promise<ReminderCandidate[]> {
     return this.worker(async (client) => {
       const result = await client.query<{
@@ -301,24 +330,29 @@ export class EngagementRepository {
   ): Promise<boolean> {
     if (!deliveries.some((item) => item.channel === 'in_app')) return false;
     return this.worker(async (client) => {
+      const quiet = await client.query<{ quiet: boolean }>(
+        "select ($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed','balance.changed') and private.is_tracking_notification_capture($1,$2)) quiet",
+        [source.user_id, source.source_id, source.event_type],
+      );
+      if (quiet.rows[0]?.quiet) return false;
       const inApp = deliveries.find((item) => item.channel === 'in_app');
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
-         values($1,$2,$3,$4,$5,jsonb_build_object(
-           'route','notification_detail','sourceEventId',$1::text,'actions',
+         values($1::uuid,$2::text,$3::text,$4::text,$5::text,jsonb_build_object(
+             'route','notification_detail','sourceEventId',$1::uuid::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and private.is_tracking_notification_capture($2::text,$8::text)),'actions',
            case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
              jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
              jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))
            ) else jsonb_build_array(jsonb_build_object('key','view','expiresAt',null)) end,
-           'targetKind',coalesce($9,case
+           'targetKind',coalesce($9::text,case
              when $3 like 'transaction.%' or $3 like 'transfer.%' then 'transaction'
              when $3 like 'planning.obligation_%' then 'obligation'
              when $3='account.credit_card_payment_due' then 'account'
              when $3 like 'planning.savings_%' then 'goal'
              when $3 like 'tracking.review.%' then 'review'
              else 'settings' end),
-           'targetId',case when $9 is null then coalesce($8,'notifications') end,
-           'cycleBaseline',$10
+           'targetId',case when $9::text is null then coalesce($8::text,'notifications') end,
+           'cycleBaseline',$10::text
          ),$6,$7)
          on conflict(source_event_id) do nothing returning id`,
         [
@@ -362,21 +396,49 @@ export class EngagementRepository {
     limit: number,
   ): Promise<NotificationDeliveryClaim[]> {
     return this.worker(async (client) => {
-      const claims = await client.query<NotificationDeliveryClaim>(
-        `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
+      return this.readNotificationDeliveryClaims(
+        client,
+        'private.claim_notification_deliveries($1,$2,60)',
+        [workerId, limit],
+      );
+    });
+  }
+
+  async claimVoiceNotificationDeliveries(
+    epoch: string,
+    workerId: string,
+    limit: number,
+  ): Promise<NotificationDeliveryClaim[]> {
+    return this.worker((client) =>
+      this.readNotificationDeliveryClaims(
+        client,
+        'private.claim_voice_notification_deliveries($1::uuid,$2,$3,60)',
+        [epoch, workerId, limit],
+      ),
+    );
+  }
+
+  private async readNotificationDeliveryClaims(
+    client: PoolClient,
+    claim:
+      | 'private.claim_notification_deliveries($1,$2,60)'
+      | 'private.claim_voice_notification_deliveries($1::uuid,$2,$3,60)',
+    values: readonly unknown[],
+  ): Promise<NotificationDeliveryClaim[]> {
+    const claims = await client.query<NotificationDeliveryClaim>(
+      `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
           coalesce(d.rendered_title,e.title,t.subject,'Masarifi') title,coalesce(d.rendered_body,e.body_safe,t.body) body_safe,
-          coalesce(d.rendered_data,e.data,jsonb_build_object('route','notification_detail')) data,
+           coalesce(e.data,'{}'::jsonb)||coalesce(d.rendered_data,jsonb_build_object('route','notification_detail')) data,
           p.token_ciphertext,p.device_id token_device_id,p.provider token_provider
-         from private.claim_notification_deliveries($1,$2,60) d
+         from ${claim} d
          left join public.notification_events e on e.id=d.event_id
          left join public.notification_campaigns c on c.id=d.campaign_id
          left join public.notification_templates t on t.id=c.template_id and t.status='published'
          left join lateral (select token_ciphertext,device_id,provider from public.push_tokens
            where user_id=d.user_id and revoked_at is null order by updated_at desc limit 1) p on d.channel='push'`,
-        [workerId, limit],
-      );
-      return claims.rows;
-    });
+      [...values],
+    );
+    return claims.rows;
   }
 
   async reminderDeliveryEligible(eventId: string, userId: string): Promise<boolean> {
@@ -561,7 +623,11 @@ export class EngagementRepository {
 
   private async read(principal: ClerkPrincipal, command: EngagementCommand): Promise<unknown> {
     return this.pool.withClient(async (client) => {
-      await client.query('begin isolation level repeatable read read only');
+      await client.query(
+        command.operation === 'adminDownloadSupportAttachment'
+          ? 'begin'
+          : 'begin isolation level repeatable read read only',
+      );
       try {
         await this.setContext(client, principal);
         const value = await this.readOperation(client, principal.userId, command);
@@ -587,6 +653,30 @@ export class EngagementRepository {
     );
     const cursor = decodeCursor(query.cursor);
     switch (command.operation) {
+      case 'adminSupportOverview':
+        return readSupportWorkload(client, query);
+      case 'adminDownloadSupportAttachment':
+        return this.one(
+          client,
+          'select private.support_admin_attachment($1::uuid,$2::uuid,$3) value',
+          [command.params?.ticketId, command.params?.attachmentId, command.requestId],
+        );
+      case 'adminListSupportTickets': {
+        await client.query("select private.assert_admin_permission('support.tickets.read')");
+        const values = supportFilterValues(query);
+        const rows = await client.query<CursorRow>(
+          `select ${SUPPORT_TICKET_VALUE}||${SUPPORT_ADMIN_REFERENCE} value,t.last_message_at::text sort_at,t.id::text sort_id
+           from public.support_tickets t where ${supportFilter}
+           and ($8::timestamptz is null or (t.last_message_at,t.id)<($8::timestamptz,$9::uuid))
+           order by t.last_message_at desc,t.id desc limit $10`,
+          [...values, cursor?.at ?? null, cursor?.id ?? null, limit + 1],
+        );
+        const count = await client.query<{ count: number }>(
+          `select count(*)::int count from public.support_tickets t where ${supportFilter}`,
+          values,
+        );
+        return { ...cursorPage(rows.rows, limit), totalItems: count.rows[0]?.count ?? 0 };
+      }
       case 'listNotifications': {
         const rows = (
           await client.query<CursorRow>(
@@ -639,30 +729,26 @@ export class EngagementRepository {
             )
           ).rows.map((row: ValueRow) => row.value),
         );
-      case 'listSupportTickets':
-      case 'adminListSupportTickets': {
-        const admin = command.operation.startsWith('admin');
+      case 'listSupportTickets': {
         const rows = await client.query<CursorRow>(
-          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value,last_message_at sort_at,id::text sort_id
+          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value,last_message_at::text sort_at,id::text sort_id
            from public.support_tickets where ($1::text is null or user_id=$1)
            and ($2::timestamptz is null or (last_message_at,id)<($2::timestamptz,$3::uuid))
            and ($4::text is null or status=$4) order by last_message_at desc,id desc limit $5`,
-          [
-            admin ? null : userId,
-            cursor?.at ?? null,
-            cursor?.id ?? null,
-            query.status ?? null,
-            limit + 1,
-          ],
+          [userId, cursor?.at ?? null, cursor?.id ?? null, query.status ?? null, limit + 1],
         );
         return cursorPage(rows.rows, limit);
       }
       case 'getSupportTicket':
       case 'adminGetSupportTicket': {
         const admin = command.operation.startsWith('admin');
+        if (admin)
+          await client.query(
+            "select private.assert_admin_permission('support.tickets.detail.read')",
+          );
         const ticket = await this.one(
           client,
-          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value from public.support_tickets where id=$1 ${admin ? '' : 'and user_id=$2'}`,
+          `select ${SUPPORT_TICKET_VALUE}${admin ? `||${SUPPORT_ADMIN_REFERENCE}` : ''} value from public.support_tickets t where t.id=$1 ${admin ? '' : 'and t.user_id=$2'}`,
           admin ? [id] : [id, userId],
         );
         const messageRows = (
@@ -670,7 +756,7 @@ export class EngagementRepository {
             `select jsonb_build_object('id',m.id,'senderType',m.sender_type,'body',m.body,'attachments',coalesce((
                select jsonb_agg(jsonb_build_object('id',a.id,'filename',a.filename_safe,'contentType',a.content_type,'sizeBytes',a.size_bytes,'status',a.scan_status) order by a.id)
                from private.support_attachments a where a.message_id=m.id and ${admin ? "a.scan_status<>'uploading'" : "a.scan_status='clean'"}
-             ),'[]'::jsonb),'createdAt',m.created_at) value,m.created_at sort_at,m.id::text sort_id
+             ),'[]'::jsonb),'createdAt',m.created_at) value,m.created_at::text sort_at,m.id::text sort_id
              from public.support_messages m where m.ticket_id=$1
              and ($2::timestamptz is null or (m.created_at,m.id)>($2::timestamptz,$3::uuid))
              order by m.created_at,m.id limit $4`,
@@ -798,16 +884,16 @@ export class EngagementRepository {
       await client.query('begin');
       try {
         await this.setContext(client, principal);
-        const scope = `engagement.${command.operation}`;
+        const scope = `engagement.${command.operation.toLowerCase()}`;
         const keyHash = hashIdempotencyKey(command.idempotencyKey ?? '');
         const requestHash = hashNormalizedCommand({
           operation: command.operation,
-          body: command.body,
-          params: command.params,
+          body: command.body ?? {},
+          params: { ...command.params },
         });
         const claim = (
           await client.query<Claim>(
-            'select * from private.claim_idempotency_key($1,$2,$3,$4,$5::interval)',
+            'select * from private.claim_engagement_key($1,$2,$3,$4,$5::interval)',
             [principal.userId, scope, keyHash, requestHash, '2 minutes'],
           )
         ).rows[0];
@@ -821,7 +907,7 @@ export class EngagementRepository {
           return claim.response_body;
         }
         const value = await this.mutationOperation(client, principal, command);
-        await client.query('select private.complete_idempotency_key($1,$2,$3,$4,$5,$6::jsonb,$7)', [
+        await client.query('select private.complete_engagement_key($1,$2,$3,$4,$5,$6::jsonb,$7)', [
           principal.userId,
           scope,
           keyHash,
@@ -894,7 +980,7 @@ export class EngagementRepository {
           command.operation,
           id,
           JSON.stringify(databaseInput),
-          principal.mfaAgeSeconds ?? principal.factorAgeSeconds,
+          principal.factorAgeSeconds,
           command.requestId,
           this.config.getRequired('MASARIFI_CAMPAIGN_APPROVAL_THRESHOLD'),
           this.config.getRequired('MASARIFI_SUPPORT_REOPEN_HOURS'),
@@ -961,6 +1047,9 @@ export class EngagementRepository {
   }
 
   private async setContext(client: PoolClient, principal: ClerkPrincipal): Promise<void> {
+    await client.query("select set_config('masarifi.dev_reminders_access',$1,true)", [
+      this.config.getRequired('MASARIFI_MOBILE_AUTOMATION_ENABLED') ? 'on' : 'off',
+    ]);
     await client.query("select set_config('request.jwt.claims',$1,true)", [
       JSON.stringify({ role: 'authenticated', sub: principal.userId, sid: principal.sessionId }),
     ]);

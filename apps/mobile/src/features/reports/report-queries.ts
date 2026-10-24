@@ -1,6 +1,7 @@
 import {
   useMutation,
   useQuery,
+  useInfiniteQuery,
   useQueryClient,
   type QueryClient
 } from '@tanstack/react-query';
@@ -20,6 +21,9 @@ import { reportsService } from '@/services/reports-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { buildNetWorthTrend } from './report-net-worth';
+import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
+import { useAppShellStore } from '@/state/app-shell';
+import { assertReadActive } from '@/services/live/read-context';
 
 export type ReportTimeframe = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
@@ -39,7 +43,8 @@ export const reportKeys = {
     currencyCode: string,
     accountIds: readonly string[],
     timeframe: ReportTimeframe,
-    timeZone: string
+    timeZone: string,
+    monthStartDay = 1
   ) =>
     [
       'reports',
@@ -48,14 +53,15 @@ export const reportKeys = {
       currencyCode,
       accountIds,
       timeframe,
-      timeZone
+      timeZone,
+      monthStartDay
     ] as const
 };
 
 export function useReport(input: ReportQuery) {
   return useQuery({
     queryKey: reportKeys.live(input),
-    queryFn: () => reportsService.getReport(input)
+    queryFn: ({ signal }) => reportsService.getReport(input, { signal })
   });
 }
 
@@ -69,7 +75,8 @@ export function useReportInput(
     kind,
     anchorDate,
     currencyCode,
-    timeZone: usePreferenceStore.getState().timeZone,
+    timeZone: usePreferenceStore((state) => state.timeZone),
+    monthStartDay: usePreferenceStore((state) => state.monthStartDay),
     ...(accountIds?.length ? { accountIds } : {})
   };
 }
@@ -86,29 +93,51 @@ export function useNetWorthTrend({
   timeframe: ReportTimeframe;
 }) {
   const timeZone = usePreferenceStore((state) => state.timeZone);
+  const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
+  const client = useQueryClient();
   return useQuery({
     queryKey: reportKeys.netWorth(
       anchorDate,
       currencyCode,
       accountIds,
       timeframe,
-      timeZone
+      timeZone,
+      monthStartDay
     ),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
+      const filters = { ...emptyTransactionFilters, accountIds };
+      const owner = useAppShellStore.getState().session?.userId;
       const [accounts, home, transactions] = await Promise.all([
-        coreFinanceService.listAccounts(false),
-        coreFinanceService.getHomeSummary(currencyCode, {
-          ...emptyTransactionFilters,
-          accountIds
+        client.fetchQuery({
+          queryKey: coreFinanceKeys.accounts(false),
+          staleTime: Infinity,
+          queryFn: ({ signal: active }) =>
+            coreFinanceService.listAccounts(false, { signal: active })
         }),
-        allTransactions()
+        client.fetchQuery({
+          queryKey: coreFinanceKeys.home(currencyCode, filters),
+          staleTime: Infinity,
+          queryFn: ({ signal: active }) =>
+            coreFinanceService.getHomeSummary(currencyCode, filters, {
+              signal: active
+            })
+        }),
+        client.fetchQuery({
+          queryKey: ['reports', 'history', owner ?? null],
+          staleTime: Infinity,
+          queryFn: ({ signal: active }) => allTransactions(active)
+        })
       ]);
+      assertReadActive(signal);
+      if (owner !== useAppShellStore.getState().session?.userId)
+        throw new Error('Identity changed');
       const pointInstants = trendPointInstants(
         timeframe,
         anchorDate,
         timeZone,
         accounts.map((account) => account.createdAt),
-        transactions.map((transaction) => transaction.occurredAt)
+        transactions.map((transaction) => transaction.occurredAt),
+        monthStartDay
       );
       return buildNetWorthTrend({
         accounts,
@@ -130,22 +159,39 @@ export function useNetWorthTrend({
 export function useReportSchedule() {
   return useQuery({
     queryKey: reportKeys.schedule,
-    queryFn: () => reportsService.getSchedule()
+    queryFn: ({ signal }) => reportsService.getSchedule({ signal })
   });
 }
 
 export function useReportPreview(input: ReportOutputPreviewInput) {
   return useQuery({
     queryKey: reportKeys.preview(input),
-    queryFn: () => reportsService.previewOutput(input)
+    queryFn: ({ signal }) => reportsService.previewOutput(input, { signal })
   });
 }
 
 export function useReportAttempts() {
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: reportKeys.attempts(),
-    queryFn: () => reportsService.listAttempts()
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ signal, pageParam }) =>
+      reportsService.listAttempts({ cursor: pageParam }, { signal }),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) =>
+        page.items.some((item) =>
+          ['scheduled', 'sending'].includes(item.status)
+        )
+      )
+        ? 5000
+        : false
   });
+  return {
+    ...query,
+    data: query.data
+      ? { ...query.data, items: query.data.pages.flatMap((page) => page.items) }
+      : undefined
+  };
 }
 
 export function useReportMutation<TVariables, TResult>(
@@ -186,17 +232,26 @@ export async function invalidateReportScopes(
   );
 }
 
-async function allTransactions() {
+async function allTransactions(signal?: AbortSignal) {
+  const owner = useAppShellStore.getState().session?.userId;
   const transactions: Transaction[] = [];
   let cursor: string | null = null;
+  const seen = new Set<string>();
   do {
     const page = await coreFinanceService.listTransactions(
       emptyTransactionFilters,
       cursor,
-      500
+      100,
+      signal
     );
+    assertReadActive(signal);
+    if (owner !== useAppShellStore.getState().session?.userId)
+      throw new Error('Identity changed');
     transactions.push(...page.items);
     cursor = page.nextCursor;
+    if (cursor && seen.has(cursor))
+      throw new Error('Invalid transaction cursor');
+    if (cursor) seen.add(cursor);
   } while (cursor);
   return transactions;
 }
@@ -206,7 +261,8 @@ function trendPointInstants(
   anchorDate: LocalDate,
   timeZone: string,
   accountDates: readonly number[],
-  transactionDates: readonly number[]
+  transactionDates: readonly number[],
+  monthStartDay = 1
 ): number[] {
   const end = buildFinancialPeriod({
     anchorDate,
@@ -216,7 +272,7 @@ function trendPointInstants(
   }).endInstant;
   const preset =
     timeframe === 'month'
-      ? 'calendar_month'
+      ? 'current_cycle'
       : timeframe === 'quarter'
         ? 'three_months'
         : timeframe === 'year'
@@ -228,7 +284,7 @@ function trendPointInstants(
       : buildFinancialPeriod({
           anchorDate:
             timeframe === 'week' ? addLocalDays(anchorDate, -6) : anchorDate,
-          monthStartDay: 1,
+          monthStartDay,
           preset: timeframe === 'week' ? 'today' : preset!,
           timeZone
         }).startInstant;

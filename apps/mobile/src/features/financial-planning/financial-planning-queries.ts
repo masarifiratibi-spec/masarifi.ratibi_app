@@ -7,6 +7,59 @@ import {
 
 import type { LocalDate, SavingsLifecycle } from '@/domain/financial-planning';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { scopeToKey as coreFinanceScopeToKey } from '@/features/core-finance/core-finance-queries';
+import { available } from '@/domain/financial-planning';
+import { getCurrencyMinorUnitScale } from '@/domain/currencies';
+import { useAppShellStore } from '@/state/app-shell';
+import { assertReadActive } from '@/services/live/read-context';
+
+async function planningSnapshot(
+  client: QueryClient,
+  today: LocalDate,
+  timeZone: string
+) {
+  const owner = useAppShellStore.getState().session?.userId;
+  const read = financialPlanningService.getPlanningSnapshot!;
+  return client.fetchQuery({
+    queryKey: ['planning', 'snapshot', owner ?? null, today, timeZone],
+    staleTime: Infinity,
+    queryFn: async ({ signal }) => {
+      const result = await read({ today, timeZone }, { signal });
+      assertReadActive(signal);
+      if (owner !== useAppShellStore.getState().session?.userId)
+        throw new Error('Identity changed');
+      return result;
+    }
+  });
+}
+
+export async function fetchPlanningOverview(
+  client: QueryClient,
+  input: { currencyCode: string; today: LocalDate; timeZone: string },
+  signal?: AbortSignal
+) {
+  const { currencyCode, today, timeZone } = input;
+  if (!financialPlanningService.getPlanningSnapshot)
+    return financialPlanningService.getPlanningOverview(
+      { currencyCode, today, timeZone },
+      { signal }
+    );
+  const snapshot = await planningSnapshot(client, today, timeZone);
+  assertReadActive(signal);
+  return (
+    snapshot.byCurrency[currencyCode] ?? {
+      dataState: snapshot.dataState,
+      salary: snapshot.salary,
+      budget: null,
+      savings: [],
+      obligationsDueMinor: available({
+        minorUnits: 0,
+        currencyCode,
+        scale: getCurrencyMinorUnitScale(currencyCode)
+      })
+    }
+  );
+}
 
 export const financialPlanningKeys = {
   overview: (currencyCode: string, today: LocalDate, timeZone: string) =>
@@ -14,7 +67,7 @@ export const financialPlanningKeys = {
   salary: (today: LocalDate, timeZone: string) =>
     ['planning', 'salary', today, timeZone] as const,
   salaryProfile: () => ['planning', 'salary', 'profile'] as const,
-  salaryReview: (id: string) => ['planning', 'salary-review', id] as const,
+  salaryReview: (id: string) => ['planning', 'salary', 'review', id] as const,
   budget: (periodKey: string) => ['planning', 'budget', periodKey] as const,
   budgetList: (periodKey: string) =>
     ['planning', 'budgets', periodKey] as const,
@@ -35,29 +88,43 @@ export function usePlanningOverview(
   today: LocalDate,
   timeZone: string
 ) {
+  const client = useQueryClient();
   return useQuery({
     queryKey: financialPlanningKeys.overview(currencyCode, today, timeZone),
-    queryFn: () =>
-      financialPlanningService.getPlanningOverview({
-        currencyCode,
-        today,
-        timeZone
-      })
+    queryFn: ({ signal }) =>
+      fetchPlanningOverview(client, { currencyCode, today, timeZone }, signal)
   });
 }
 
-export function useSalaryOverview(today: LocalDate, timeZone: string) {
-  return useQuery({
+function salaryOverviewOptions(
+  client: QueryClient,
+  today: LocalDate,
+  timeZone: string
+) {
+  return {
     queryKey: financialPlanningKeys.salary(today, timeZone),
-    queryFn: () =>
-      financialPlanningService.getSalaryOverview({ today, timeZone })
-  });
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      if (!financialPlanningService.getPlanningSnapshot)
+        return financialPlanningService.getSalaryOverview(
+          { today, timeZone },
+          { signal }
+        );
+      const snapshot = await planningSnapshot(client, today, timeZone);
+      assertReadActive(signal);
+      return snapshot.salary;
+    }
+  };
+}
+
+export function useSalaryOverview(today: LocalDate, timeZone: string) {
+  return useQuery(salaryOverviewOptions(useQueryClient(), today, timeZone));
 }
 
 export function useSalaryProfile() {
   return useQuery({
     queryKey: financialPlanningKeys.salaryProfile(),
-    queryFn: () => financialPlanningService.getSalaryProfile()
+    queryFn: ({ signal }) =>
+      financialPlanningService.getSalaryProfile({ signal })
   });
 }
 
@@ -66,6 +133,13 @@ export function useSalaryReceiptReview(id: string) {
     queryKey: financialPlanningKeys.salaryReview(id),
     queryFn: () => financialPlanningService.getSalaryReceiptReview(id),
     enabled: Boolean(id)
+  });
+}
+
+export function useSalaryExpectedDates() {
+  return useQuery({
+    queryKey: ['planning', 'salary', 'expected-dates'],
+    queryFn: () => financialPlanningService.listSalaryExpectedDates()
   });
 }
 
@@ -102,36 +176,146 @@ export function useBudgetById(id: string) {
 export function useObligations() {
   return useQuery({
     queryKey: financialPlanningKeys.obligations(),
-    queryFn: () => financialPlanningService.listObligations({})
+    queryFn: ({ signal }) =>
+      financialPlanningService.listObligations({}, { signal })
   });
 }
 
-export function useObligationsOverview() {
-  return useQuery({
+function obligationsOverviewOptions() {
+  return {
     queryKey: [...financialPlanningKeys.obligations(), 'overview'],
-    queryFn: () => financialPlanningService.getObligationsOverview({})
-  });
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      financialPlanningService.getObligationsOverview({}, { signal })
+  };
+}
+
+export function useObligationsOverview() {
+  return useQuery(obligationsOverviewOptions());
+}
+
+export async function prefetchPlanningDestinations(
+  client: QueryClient,
+  today: LocalDate,
+  timeZone: string
+): Promise<void> {
+  await Promise.all([
+    client.prefetchQuery(salaryOverviewOptions(client, today, timeZone)),
+    client.prefetchQuery(obligationsOverviewOptions())
+  ]);
 }
 
 export function useObligation(id: string) {
   return useQuery({
     queryKey: financialPlanningKeys.obligation(id),
-    queryFn: () => financialPlanningService.getObligation(id),
+    queryFn: ({ signal }) =>
+      financialPlanningService.getObligation(id, { signal }),
     enabled: Boolean(id)
   });
+}
+
+/** Header amounts are authoritative; optional history never gates the header. */
+export function useObligationDetail(id: string) {
+  const split = Boolean(financialPlanningService.getObligationHeader);
+  const header = useQuery({
+    queryKey: split
+      ? [...financialPlanningKeys.obligation(id), 'header']
+      : financialPlanningKeys.obligation(id),
+    queryFn: ({ signal }) =>
+      (
+        financialPlanningService.getObligationHeader ??
+        financialPlanningService.getObligation
+      )(id, { signal }),
+    enabled: Boolean(id)
+  });
+  const sectionsEnabled = split && header.data?.sectionsState === 'pending';
+  const schedule = useQuery({
+    queryKey: [
+      ...financialPlanningKeys.obligation(id),
+      'schedule',
+      header.data?.obligation.version
+    ],
+    queryFn: ({ signal }) =>
+      financialPlanningService.getObligationSchedule!(id, { signal }),
+    enabled: sectionsEnabled
+  });
+  const history = useQuery({
+    queryKey: [
+      ...financialPlanningKeys.obligation(id),
+      'payments',
+      header.data?.obligation.currencyCode,
+      header.data?.obligation.version
+    ],
+    queryFn: ({ signal }) =>
+      financialPlanningService.getObligationPayments!(
+        id,
+        header.data!.obligation.currencyCode,
+        { signal }
+      ),
+    enabled: sectionsEnabled
+  });
+  const protectedError = [schedule.error, history.error].find(
+    (error) =>
+      error &&
+      'code' in error &&
+      ['forbidden', 'session_expired'].includes(String(error.code))
+  );
+  const scheduleReady =
+    sectionsEnabled &&
+    !header.isFetching &&
+    schedule.isSuccess &&
+    !schedule.isFetching;
+  const historyReady =
+    sectionsEnabled &&
+    !header.isFetching &&
+    history.isSuccess &&
+    !history.isFetching;
+  return {
+    ...header,
+    isError: header.isError || Boolean(protectedError),
+    error: header.error ?? protectedError,
+    data:
+      header.data && sectionsEnabled
+        ? {
+            ...header.data,
+            schedule: scheduleReady ? schedule.data : [],
+            payments: historyReady ? history.data.items : [],
+            paymentHistoryState: historyReady
+              ? history.data.state
+              : ('unavailable' as const)
+          }
+        : header.data,
+    scheduleLoading:
+      sectionsEnabled &&
+      (header.isFetching || schedule.isPending || schedule.isFetching),
+    historyLoading:
+      sectionsEnabled &&
+      (header.isFetching || history.isPending || history.isFetching),
+    scheduleError: sectionsEnabled && schedule.isError,
+    isRefetching:
+      header.isRefetching || schedule.isRefetching || history.isRefetching,
+    refetch: async () => {
+      const reads = [header.refetch()];
+      if (sectionsEnabled) {
+        void schedule.refetch();
+        void history.refetch();
+      }
+      return (await Promise.all(reads))[0];
+    }
+  };
 }
 
 export function useSavingsGoals(status?: SavingsLifecycle) {
   return useQuery({
     queryKey: financialPlanningKeys.goals(status),
-    queryFn: () => financialPlanningService.listGoals({ status })
+    queryFn: ({ signal }) =>
+      financialPlanningService.listGoals({ status }, { signal })
   });
 }
 
 export function useSavingsGoal(id: string) {
   return useQuery({
     queryKey: financialPlanningKeys.goal(id),
-    queryFn: () => financialPlanningService.getGoal(id),
+    queryFn: ({ signal }) => financialPlanningService.getGoal(id, { signal }),
     enabled: Boolean(id)
   });
 }
@@ -152,8 +336,21 @@ export function usePlanningMutation<TVariables, TResult>(
   const client = useQueryClient();
   return useMutation({
     mutationFn,
+    onMutate: () => useAppShellStore.getState().session?.userId,
     onSuccess: async (result) => {
       await invalidatePlanningScopes(client, result.affectedScopes);
+    },
+    onError: async (_error, _variables, owner) => {
+      if (owner !== useAppShellStore.getState().session?.userId) return;
+      // A failed response can follow a committed write; refresh with reads only.
+      await invalidatePlanningScopes(client, [
+        'planning',
+        'accounts.balances',
+        'transactions.list',
+        'home.summary',
+        'reports.live',
+        'assistant.context'
+      ]);
     }
   });
 }
@@ -189,9 +386,12 @@ export function scopeToKey(scope: string): readonly unknown[] {
   }
   if (scope === 'reports.live') return ['reports', 'live'];
   if (scope === 'assistant.context') return ['assistant', 'context', 'current'];
-  if (scope.startsWith('accounts')) return ['core-finance', 'accounts'];
-  if (scope.startsWith('home')) return ['core-finance', 'home'];
-  if (scope.startsWith('transactions')) return ['core-finance', 'transactions'];
+  if (
+    scope.startsWith('accounts') ||
+    scope.startsWith('home') ||
+    scope.startsWith('transactions')
+  )
+    return coreFinanceScopeToKey(scope);
   return ['planning'];
 }
 
@@ -199,9 +399,34 @@ export async function invalidatePlanningScopes(
   client: QueryClient,
   scopes: readonly string[]
 ): Promise<void> {
+  // Invalidate the shared source before any derived observer can request it.
+  await client.cancelQueries({ queryKey: ['planning', 'snapshot'] });
+  await client.invalidateQueries({
+    queryKey: ['planning', 'snapshot'],
+    refetchType: 'none'
+  });
+  await client.cancelQueries({ queryKey: ['reports', 'history'] });
+  await client.invalidateQueries({
+    queryKey: ['reports', 'history'],
+    refetchType: 'none'
+  });
+  const keys = [
+    ...new Map(
+      scopes
+        .flatMap((scope) =>
+          scope === 'reports.live'
+            ? [
+                ['reports', 'live'],
+                ['reports', 'net-worth'],
+                ['reports', 'history']
+              ]
+            : [scopeToKey(scope)]
+        )
+        .map((key) => [JSON.stringify(key), key])
+    ).values()
+  ];
+  await Promise.all(keys.map((queryKey) => client.cancelQueries({ queryKey })));
   await Promise.all(
-    scopes.map((scope) =>
-      client.invalidateQueries({ queryKey: scopeToKey(scope) })
-    )
+    keys.map((queryKey) => client.invalidateQueries({ queryKey }))
   );
 }

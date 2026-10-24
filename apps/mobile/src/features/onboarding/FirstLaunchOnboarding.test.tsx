@@ -2,7 +2,8 @@ import React from 'react';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import WelcomeRoute from '@app/(public)/welcome';
+import { FirstLaunchOnboardingScreen } from './FirstLaunchOnboardingScreen';
+import { firstLaunchDestination } from './first-launch-navigation';
 import { colorTokens } from '@/design-system/tokens';
 import { buildPreferences } from '@/domain/foundation';
 import { changeLocale } from '@/localization/i18n';
@@ -19,6 +20,17 @@ jest.mock('@/storage/secure-preferences', () => ({
   savePreferences: jest.fn().mockResolvedValue(undefined)
 }));
 const mockSavePreferences = jest.mocked(savePreferences);
+
+function WelcomeRoute() {
+  return (
+    <FirstLaunchOnboardingScreen
+      onStart={async () => {
+        await usePreferenceStore.getState().completeFirstLaunchOnboarding();
+        router.replace(firstLaunchDestination);
+      }}
+    />
+  );
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -108,9 +120,9 @@ it('switches to natural English copy and LTR layout', async () => {
     alignSelf: 'flex-end',
     direction: 'rtl'
   });
-  expect(
-    screen.getByText('Track spending automatically with AI.')
-  ).toHaveStyle({ textAlign: 'left', writingDirection: 'ltr' });
+  expect(screen.getByText('Track spending automatically with AI.')).toHaveStyle(
+    { textAlign: 'left', writingDirection: 'ltr' }
+  );
   expect(
     screen.getByText(
       'Bank SMS, Apple Pay, mada, and STC Pay are saved for you.'
@@ -146,9 +158,7 @@ it('shows a recoverable error when first-launch persistence fails', async () => 
     fireEvent.press(screen.getByRole('button', { name: 'ابدأ الحين' }));
   });
 
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'تعذر الحفظ محليًا.'
-  );
+  expect(screen.getByRole('alert')).toHaveTextContent('تعذر الحفظ محليًا.');
   expect(router.replace).not.toHaveBeenCalled();
 
   await act(async () => {
