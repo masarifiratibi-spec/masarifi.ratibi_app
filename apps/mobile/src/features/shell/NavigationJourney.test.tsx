@@ -367,11 +367,9 @@ describe('navigation journey', () => {
     reports.unmount();
 
     const more = renderWithProviders(<MoreRoute />);
-    expect(
-      screen.queryByLabelText(translate('appShell.shell.security'))
-    ).toBeNull();
     for (const [label, route] of [
       [translate('appShell.shell.profile'), '/profile'],
+      [translate('appShell.shell.security'), '/security/settings'],
       [translate('settings.profile.applicationOwner'), '/profile/application'],
       [translate('tracking.action.openTracking'), '/tracking'],
       [translate('appShell.shell.support'), '/support']
@@ -534,16 +532,19 @@ describe('navigation journey', () => {
   });
 
   it.each(['en', 'ar'] as const)(
-    'hides security and notification entries in More (%s)',
+    'opens Security Settings from More while notification preferences stay hidden (%s)',
     (locale) => {
       changeLocale(locale);
       renderWithProviders(<MoreRoute />);
       expect(
         screen.queryByLabelText(translate('appShell.shell.notifications'))
       ).toBeNull();
-      expect(
-        screen.queryByLabelText(translate('appShell.shell.security'))
-      ).toBeNull();
+      const securityLink = screen.getByRole('link', {
+        name: translate('appShell.shell.security')
+      });
+      expect(securityLink).toBeOnTheScreen();
+      fireEvent.press(securityLink);
+      expect(router.push).toHaveBeenCalledWith('/security/settings');
       expect(
         screen.getByRole('link', {
           name: translate('tracking.action.openTracking')

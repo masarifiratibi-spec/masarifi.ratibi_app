@@ -7,6 +7,7 @@ import { getRandomBytesAsync } from 'expo-crypto';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { MasarifiPinCrypto } from '../../../modules/masarifi-pin-crypto';
 
 const pinCredentialVersion = 'pbkdf2-sha256';
 const pinKdfIterations = 120_000;
@@ -56,6 +57,13 @@ async function derivePinHash(
   salt: Uint8Array,
   iterations: number
 ): Promise<Uint8Array> {
+  const nativeHash = await MasarifiPinCrypto?.derivePinHash(
+    pin,
+    bytesToHex(salt),
+    iterations
+  );
+  if (nativeHash != null) return hexToBytes(nativeHash);
+
   return pbkdf2Async(sha256, pin, salt, {
     c: iterations,
     dkLen: pinHashBytes,

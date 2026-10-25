@@ -29,8 +29,7 @@ import { prefetchPlanningDestinations } from '@/features/financial-planning/fina
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { SocialMediaFooter } from '@/features/settings/SocialMediaLinks';
 
-// Keep these settings and their routes available while hiding their menu entries.
-const SHOW_SECURITY_SETTINGS = false;
+const SHOW_SECURITY_SETTINGS = true;
 const SHOW_NOTIFICATION_PREFERENCES = false;
 
 export default function MoreRoute() {
