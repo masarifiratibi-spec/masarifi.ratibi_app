@@ -10,6 +10,11 @@ const liveEnvironment = {
   EXPO_PUBLIC_API_URL: 'https://api.masarifi.test',
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_bWFzYXJpZmkudGVzdCQ'
 };
+const devAppLockRuntime = {
+  development: true,
+  nodeEnvironment: 'development',
+  applicationId: 'com.masarifi.mobile.dev'
+};
 
 describe('Mobile client runtime policy', () => {
   const privacyEnvironment = {
@@ -23,7 +28,7 @@ describe('Mobile client runtime policy', () => {
       isAppLockEnabled({
         ...privacyEnvironment,
         EXPO_PUBLIC_APP_LOCK_ENABLED: 'false'
-      })
+      }, { ...devAppLockRuntime, applicationId: 'com.masarifi.mobile.dev.privacy' })
     ).toBe(false);
     for (const changes of [
       { EXPO_PUBLIC_APP_VARIANT: undefined },
@@ -36,7 +41,7 @@ describe('Mobile client runtime policy', () => {
           ...privacyEnvironment,
           ...changes,
           EXPO_PUBLIC_APP_LOCK_ENABLED: 'false'
-        })
+        }, { ...devAppLockRuntime, applicationId: 'com.masarifi.mobile.dev.privacy' })
       ).toBe(true);
     }
     expect(isAppLockEnabled(privacyEnvironment)).toBe(true);
@@ -144,7 +149,30 @@ describe('Mobile client runtime policy', () => {
         EXPO_PUBLIC_APP_LOCK_ENABLED: 'false',
         EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com'
       })
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it('suppresses optional App Lock only in the actual identified DEV development runtime', () => {
+    const environment = {
+      ...liveEnvironment,
+      EXPO_PUBLIC_APP_VARIANT: 'staging-development',
+      EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
+      EXPO_PUBLIC_APP_LOCK_ENABLED: 'false'
+    };
+    expect(isAppLockEnabled(environment, devAppLockRuntime)).toBe(false);
+    for (const runtime of [
+      { ...devAppLockRuntime, development: false },
+      { ...devAppLockRuntime, nodeEnvironment: 'production' },
+      { ...devAppLockRuntime, applicationId: 'com.masarifi.mobile' },
+      { ...devAppLockRuntime, applicationId: null }
+    ]) expect(isAppLockEnabled(environment, runtime)).toBe(true);
+    for (const changes of [
+      { EXPO_PUBLIC_APP_VARIANT: undefined },
+      { EXPO_PUBLIC_CLIENT_MODE: 'demo' },
+      { EXPO_PUBLIC_API_URL: environment.EXPO_PUBLIC_API_URL + '/' },
+      { EXPO_PUBLIC_API_URL: environment.EXPO_PUBLIC_API_URL + '?test=1' },
+      { EXPO_PUBLIC_API_URL: 'https://api.masarifiratibi.com' }
+    ]) expect(isAppLockEnabled({ ...environment, ...changes }, devAppLockRuntime)).toBe(true);
   });
   it('starts unconfigured development builds in demo mode', () => {
     expect(resolveClientRuntime({}, 'development').mode).toBe('demo');
@@ -260,4 +288,29 @@ describe('Staging account deletion completion admission', () => {
     if (expected && variant === undefined)
       expect(devPrivacyDeletionApiUrl()).toBe(url + '/account-deletion');
   });
+});
+
+
+describe('identified DEV native App Lock policy', () => {
+  const devEnvironment = { EXPO_PUBLIC_CLIENT_MODE: 'live', EXPO_PUBLIC_APP_VARIANT: 'staging-development', EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com' };
+  it.each([undefined, 'true', 'false'])('suppresses optional DEV prompts without relying on public flag %s', (flag) => {
+    expect(isAppLockEnabled({ ...devEnvironment, EXPO_PUBLIC_APP_LOCK_ENABLED: flag }, devAppLockRuntime)).toBe(false);
+  });
+  it.each([
+    { ...devAppLockRuntime, development: false },
+    { ...devAppLockRuntime, nodeEnvironment: 'production' },
+    { ...devAppLockRuntime, applicationId: 'com.masarifi.mobile' },
+    { ...devAppLockRuntime, applicationId: null }
+  ])('retains the release gate when DEV identity is incomplete: %j', (runtime) => {
+    expect(isAppLockEnabled({ ...devEnvironment, EXPO_PUBLIC_APP_LOCK_ENABLED: 'false' }, runtime)).toBe(true);
+  });
+});
+
+
+it.each([
+  ['com.masarifi.mobile.dev.privacy', 'staging-development-privacy', 'https://api.staging.masarifiratibi.com/dev-privacy', false],
+  ['com.masarifi.mobile.dev', 'staging-development-privacy', 'https://api.staging.masarifiratibi.com/dev-privacy', true],
+  ['com.masarifi.mobile.dev.privacy', 'staging-development', 'https://api.staging.masarifiratibi.com', true]
+])('binds DEV prompt suppression to matching package and API (%s / %s)', (applicationId, variant, apiUrl, expected) => {
+  expect(isAppLockEnabled({ EXPO_PUBLIC_CLIENT_MODE: 'live', EXPO_PUBLIC_APP_VARIANT: String(variant), EXPO_PUBLIC_API_URL: String(apiUrl) }, { development: true, nodeEnvironment: 'development', applicationId: String(applicationId) })).toBe(expected);
 });

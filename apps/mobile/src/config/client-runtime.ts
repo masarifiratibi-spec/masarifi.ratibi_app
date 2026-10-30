@@ -1,3 +1,5 @@
+import { requireOptionalNativeModule } from 'expo';
+
 export type ClientMode = 'live' | 'demo' | 'test';
 
 type RuntimeEnvironment = Record<string, string | undefined>;
@@ -52,15 +54,25 @@ export function devPrivacyDeletionApiUrl(): string | null {
 }
 
 export function isAppLockEnabled(
-  environment: RuntimeEnvironment = bundledEnvironment()
+  environment: RuntimeEnvironment = bundledEnvironment(),
+  runtime = {
+    development: typeof __DEV__ !== 'undefined' && __DEV__,
+    nodeEnvironment: process.env.NODE_ENV,
+    applicationId: requireOptionalNativeModule<{ applicationId: string | null }>('ExpoApplication')?.applicationId ?? null
+  }
 ): boolean {
   return !(
-    environment.EXPO_PUBLIC_APP_LOCK_ENABLED === 'false' &&
-    (validHttpsUrl(environment.EXPO_PUBLIC_API_URL) ===
-      'https://api.staging.masarifiratibi.com' ||
+    runtime.development &&
+    runtime.nodeEnvironment === 'development' &&
+    environment.EXPO_PUBLIC_CLIENT_MODE === 'live' &&
+    ((environment.EXPO_PUBLIC_API_URL ===
+      'https://api.staging.masarifiratibi.com' &&
+      environment.EXPO_PUBLIC_APP_VARIANT === 'staging-development' &&
+      runtime.applicationId === 'com.masarifi.mobile.dev') ||
       (environment.EXPO_PUBLIC_API_URL ===
         'https://api.staging.masarifiratibi.com/dev-privacy' &&
-        environment.EXPO_PUBLIC_APP_VARIANT === 'staging-development-privacy'))
+        environment.EXPO_PUBLIC_APP_VARIANT === 'staging-development-privacy' &&
+        runtime.applicationId === 'com.masarifi.mobile.dev.privacy'))
   );
 }
 

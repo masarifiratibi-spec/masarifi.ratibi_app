@@ -1,4 +1,5 @@
 import { AppState, Platform } from 'react-native';
+import { useAppShellStore } from '@/state/app-shell';
 import {
   usePreferenceStore,
   effectiveReturnRemindersEnabled
@@ -207,13 +208,16 @@ export function createLiveAutomaticTrackingService({
     {
       idempotencyKey,
       expectedOwnerId,
+      assertIntent,
       signal
     }: {
       idempotencyKey?: string;
       expectedOwnerId?: string;
+      assertIntent?: () => void;
       signal?: AbortSignal;
     } = {}
   ): Promise<unknown> => {
+    assertIntent?.();
     const identity =
       expectedOwnerId === undefined
         ? null
@@ -226,6 +230,7 @@ export function createLiveAutomaticTrackingService({
       ? identity.token
       : await token(method === 'GET');
     await identity?.assertCurrent();
+    assertIntent?.();
     assertReadActive(signal);
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
       method,
@@ -243,8 +248,13 @@ export function createLiveAutomaticTrackingService({
     const value: unknown =
       response.status === 204 ? null : await response.json();
     await identity?.assertCurrent();
+    assertIntent?.();
     assertReadActive(signal);
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403)
+        throw new TrackingError('permission_required');
+      if (response.status === 404 || response.status === 410)
+        throw new TrackingError('not_found');
       const error = record(value);
       const code = text(error.code || record(error.error ?? {}).code);
       // Log bounded protocol metadata only, never request bodies, owner IDs or responses.
@@ -268,6 +278,30 @@ export function createLiveAutomaticTrackingService({
       );
     }
     return value;
+  };
+  const captureCommandOwner = () => {
+    const userId = useAppShellStore.getState().session?.userId ?? undefined;
+    return {
+      userId,
+      assertCurrent: () => {
+        if (
+          (useAppShellStore.getState().session?.userId ?? undefined) !== userId
+        )
+          throw new TrackingError('permission_required');
+      }
+    };
+  };
+  const sendCommand = (
+    owner: ReturnType<typeof captureCommandOwner>,
+    method: string,
+    path: string,
+    body?: unknown
+  ) => {
+    owner.assertCurrent();
+    return send(method, path, body, {
+      expectedOwnerId: owner.userId,
+      assertIntent: owner.assertCurrent
+    });
   };
   const get = (path: string) => send('GET', path);
   const allPages = async (path: string): Promise<Json[]> => {
@@ -586,24 +620,28 @@ export function createLiveAutomaticTrackingService({
     getStatus: status,
     refreshStatus: status,
     async setMode(mode) {
+      const owner = captureCommandOwner();
       const current = resource(await get('/api/v1/tracking/preferences'));
-      await send('PUT', '/api/v1/tracking/preferences', {
+      await sendCommand(owner, 'PUT', '/api/v1/tracking/preferences', {
         enabled: mode !== 'paused',
         reviewRequired: mode !== 'automatic_clear',
         sourceRetentionDays: integer(current.sourceRetentionDays),
         historyRetentionDays: integer(current.historyRetentionDays),
         expectedVersion: integer(current.version)
       });
-      return status();
+      const result = await status();
+      owner.assertCurrent();
+      return result;
     },
     clearHistory: async () => {
+      const owner = captureCommandOwner();
       const entries = await allPages('/api/v1/tracking/history');
       const cleared = entries.filter(
         (entry) =>
           entry.transactionId === null &&
           !['accepted', 'duplicate'].includes(text(entry.outcome))
       ).length;
-      await send('DELETE', '/api/v1/tracking/history');
+      await sendCommand(owner, 'DELETE', '/api/v1/tracking/history');
       return { value: cleared, affectedScopes: ['tracking.history'] };
     },
     purgeExpiredSourceText: () => Promise.resolve(0),
@@ -831,6 +869,7 @@ export function createLiveAutomaticTrackingService({
       );
     },
     async saveKeywordRules(rules, previousRules) {
+      const owner = captureCommandOwner();
       const persistedRules = await this.listKeywordRules();
       const persistedById = new Map(
         persistedRules.map((rule) => [rule.id, rule])
@@ -862,14 +901,16 @@ export function createLiveAutomaticTrackingService({
       }
       await Promise.all([
         ...removedRules.map((rule) =>
-          send(
+          sendCommand(
+            owner,
             'DELETE',
             `/api/v1/tracking/keyword-rules/${encodeURIComponent(rule.id)}?expectedVersion=${String(keywordVersions.get(rule.id))}`
           )
         ),
         ...changedRules.map((rule) => {
           const persisted = persistedById.get(rule.id);
-          return send(
+          return sendCommand(
+            owner,
             persisted ? 'PATCH' : 'POST',
             persisted
               ? `/api/v1/tracking/keyword-rules/${encodeURIComponent(rule.id)}`
@@ -886,15 +927,24 @@ export function createLiveAutomaticTrackingService({
           );
         })
       ]);
+      const value = await this.listKeywordRules();
+      owner.assertCurrent();
       return {
-        value: await this.listKeywordRules(),
+        value,
         affectedScopes: ['tracking.keywords']
       };
     },
     async restoreDefaultKeywords() {
-      await send('POST', '/api/v1/tracking/keyword-rules/restore-defaults');
+      const owner = captureCommandOwner();
+      await sendCommand(
+        owner,
+        'POST',
+        '/api/v1/tracking/keyword-rules/restore-defaults'
+      );
+      const value = await this.listKeywordRules();
+      owner.assertCurrent();
       return {
-        value: await this.listKeywordRules(),
+        value,
         affectedScopes: ['tracking.keywords']
       };
     },
@@ -923,9 +973,11 @@ export function createLiveAutomaticTrackingService({
       );
     },
     async saveSenderRule(input: SenderRuleInput) {
+      const owner = captureCommandOwner();
       await this.listSenderRules();
       const value = resource(
-        await send(
+        await sendCommand(
+          owner,
           input.id ? 'PATCH' : 'POST',
           input.id
             ? `/api/v1/tracking/sender-rules/${encodeURIComponent(input.id)}`
@@ -945,6 +997,7 @@ export function createLiveAutomaticTrackingService({
       const saved = (await this.listSenderRules()).find(
         (item) => item.id === text(value.id)
       );
+      owner.assertCurrent();
       if (!saved) throw new TrackingError('unknown');
       return {
         value: saved,
@@ -952,10 +1005,12 @@ export function createLiveAutomaticTrackingService({
       };
     },
     async removeCustomSender(id) {
+      const owner = captureCommandOwner();
       await this.listSenderRules();
       const version = senderVersions.get(id);
       if (version === undefined) throw new TrackingError('not_found');
-      await send(
+      await sendCommand(
+        owner,
         'DELETE',
         `/api/v1/tracking/sender-rules/${encodeURIComponent(id)}?expectedVersion=${String(version)}`
       );

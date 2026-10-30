@@ -1,201 +1,74 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
-import type { PinCredential } from '@/domain/app-shell';
 import { translate } from '@/localization/i18n';
 import type { BiometricService } from '@/services/contracts/app-shell-service';
 import { useTheme } from '@/state/theme-context';
-import { PinForm } from './PinForm';
-import { verifyPin } from './privacy-lock';
 
 interface UnlockScreenProps {
-  biometricEnabled?: boolean;
   biometricService: BiometricService;
-  lockedUntil?: number | null;
-  now?: () => number;
-  onAccountRecovery?: () => void;
-  onInvalidPin?: (now: number) => void | Promise<void>;
   onUnlock?: () => void | Promise<void>;
-  pinConfigured?: boolean;
-  pinCredential?: PinCredential | null;
   sessionExpired?: boolean;
 }
 
-export function UnlockScreen({
-  biometricEnabled = true,
-  biometricService,
-  lockedUntil = null,
-  now = Date.now,
-  onAccountRecovery,
-  onInvalidPin,
-  onUnlock,
-  pinConfigured = false,
-  pinCredential = null,
-  sessionExpired = false
-}: UnlockScreenProps) {
+export function UnlockScreen({ biometricService, onUnlock, sessionExpired = false }: UnlockScreenProps) {
   const theme = useTheme();
-  const canUsePin = pinConfigured && pinCredential !== null;
-  const [mode, setMode] = useState<'biometric' | 'pin'>(
-    biometricEnabled ? 'biometric' : 'pin'
-  );
   const [status, setStatus] = useState<string | null>(null);
-  const [pinError, setPinError] = useState<string | undefined>();
-  const [pending, setPending] = useState(false);
-  const [, refreshClock] = useState(0);
-  const attempt = useRef(0);
+  const [pending, setPending] = useState(true);
+  const mounted = useRef(false);
+  const active = useRef(false);
   const completed = useRef(false);
-  const mounted = useRef(true);
-
-  const lockoutActive = lockedUntil !== null && lockedUntil > now();
+  const attempt = useRef(0);
+  const expired = useRef(sessionExpired);
+  expired.current = sessionExpired;
 
   useEffect(() => {
     mounted.current = true;
-    if (!sessionExpired && biometricEnabled) void unlockWithBiometric();
-    return () => {
-      mounted.current = false;
-      attempt.current += 1;
-    };
-    // Automatic biometrics belong to this mounted unlock attempt only.
+    if (!sessionExpired) void unlockWithDevice();
+    return () => { mounted.current = false; attempt.current += 1; };
+    // A single automatic OS prompt belongs to this mounted owner-scoped screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!lockoutActive || lockedUntil === null) return;
-    const timer = setTimeout(
-      () => refreshClock((version) => version + 1),
-      Math.max(0, lockedUntil - now())
-    );
-    return () => clearTimeout(timer);
-  }, [lockedUntil, lockoutActive, now]);
-
-  async function completeUnlock() {
-    if (completed.current) return;
-    completed.current = true;
-    await onUnlock?.();
-  }
-
-  async function unlockWithBiometric() {
-    if (completed.current || sessionExpired || !biometricEnabled) return;
+  async function unlockWithDevice() {
+    if (completed.current || active.current || expired.current) return;
+    active.current = true;
     const currentAttempt = ++attempt.current;
-    setMode('biometric');
-    setStatus(null);
-    setPinError(undefined);
+    const current = () => mounted.current && currentAttempt === attempt.current && !expired.current;
     setPending(true);
+    setStatus(null);
     try {
       const result = await biometricService.authenticate();
-      if (
-        !mounted.current ||
-        currentAttempt !== attempt.current ||
-        completed.current
-      ) {
-        return;
-      }
+      if (!current()) return;
       if (result.status === 'authenticated') {
-        await completeUnlock();
+        await onUnlock?.();
+        if (current()) completed.current = true;
         return;
       }
-      const messageByStatus = {
+      const messages = {
         cancelled: 'appShell.security.biometricCancelled',
         failed: 'appShell.security.biometricFailed',
         locked_out: 'appShell.security.biometricLocked',
         unavailable: 'appShell.security.biometricUnavailable'
       } as const;
-      setStatus(translate(messageByStatus[result.status]));
-      setMode('pin');
+      setStatus(translate(messages[result.status]));
     } catch {
-      if (mounted.current && currentAttempt === attempt.current) {
-        setStatus(translate('appShell.security.biometricUnavailable'));
-        setMode('pin');
-      }
+      if (current()) setStatus(translate('appShell.security.biometricUnavailable'));
     } finally {
-      if (mounted.current && currentAttempt === attempt.current) {
-        setPending(false);
-      }
+      active.current = false;
+      if (current()) setPending(false);
     }
   }
 
-  async function usePinInstead() {
-    attempt.current += 1;
-    setMode('pin');
-    setPending(false);
-    setStatus(null);
-    try {
-      await biometricService.cancel();
-    } catch {
-      // PIN fallback must remain usable if the native prompt already closed.
-    }
-  }
-
-  async function submitPin(pin: string) {
-    if (!pinCredential || lockoutActive || completed.current) return;
-    setPending(true);
-    setPinError(undefined);
-    try {
-      if (await verifyPin(pin, pinCredential)) {
-        await completeUnlock();
-      } else {
-        await onInvalidPin?.(now());
-        setPinError(translate('appShell.security.pin.invalid'));
-      }
-    } finally {
-      if (mounted.current && !completed.current) setPending(false);
-    }
-  }
-
-  if (sessionExpired) {
-    return (
-      <StyledText>{translate('appShell.navigation.authRequired')}</StyledText>
-    );
-  }
-
+  if (sessionExpired) return <StyledText>{translate('appShell.navigation.authRequired')}</StyledText>;
   return (
-    <View
-      style={[styles.cover, { backgroundColor: theme.colors.surfaces.page }]}
-    >
+    <View style={[styles.cover, { backgroundColor: theme.colors.surfaces.page }]}>
       <View style={styles.recovery}>
-        {status ? (
-          <StyledText accessibilityRole="alert" style={styles.message}>
-            {status}
-          </StyledText>
-        ) : null}
-
-        {mode === 'pin' && canUsePin ? (
-          <PinForm
-            disabled={lockoutActive}
-            errorMessage={
-              lockoutActive
-                ? translate('appShell.error.rateLimited')
-                : pinError
-            }
-            loading={pending}
-            onSubmit={submitPin}
-          />
-        ) : null}
-
-        {mode === 'pin' && !canUsePin && onAccountRecovery ? (
-          <ActionButton
-            label="appShell.recovery.changeMethod"
-            onPress={onAccountRecovery}
-            variant="quiet"
-          />
-        ) : null}
-
-        {biometricEnabled && mode === 'pin' ? (
-          <ActionButton
-            label="appShell.security.biometricUnlock"
-            onPress={unlockWithBiometric}
-            variant="quiet"
-          />
-        ) : null}
-
-        {biometricEnabled && mode === 'biometric' && canUsePin ? (
-          <ActionButton
-            label="appShell.recovery.usePin"
-            onPress={usePinInstead}
-            variant="quiet"
-          />
+        <StyledText>{translate('appShell.security.nativeUnlock')}</StyledText>
+        {status ? <StyledText accessibilityRole="alert" style={styles.message}>{status}</StyledText> : null}
+        {!pending && !completed.current ? (
+          <ActionButton label="appShell.security.biometricUnlock" onPress={() => void unlockWithDevice()} variant="quiet" />
         ) : null}
       </View>
     </View>
@@ -203,16 +76,7 @@ export function UnlockScreen({
 }
 
 const styles = StyleSheet.create({
-  cover: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24
-  },
-  recovery: {
-    gap: 12,
-    justifyContent: 'center'
-  },
-  message: {
-    textAlign: 'center'
-  }
+  cover: { flex: 1, justifyContent: 'center', padding: 24 },
+  recovery: { gap: 12, justifyContent: 'center' },
+  message: { textAlign: 'center' }
 });

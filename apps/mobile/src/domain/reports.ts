@@ -207,6 +207,7 @@ export interface FinancialReport {
   summary: ReportSummary;
   breakdowns: ReportBreakdown[];
   insights: ReportInsight[];
+  localData?: { pendingSyncCount: number; excludedCount: number; empty: boolean };
 }
 
 export interface ReportSummary {

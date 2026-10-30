@@ -39,8 +39,9 @@ export class ExportStorage {
 
   async head(key: string, expectedBytes: number): Promise<{ bytes: number; etag: string | null }> {
     const response = await this.request(key, '', { method: 'HEAD' });
-    const bytes = Number(response.headers.get('content-length'));
-    if (!Number.isSafeInteger(bytes) || bytes !== expectedBytes) {
+    const length = response.headers.get('content-length');
+    const bytes = Number(length);
+    if (!/^[0-9]+$/.test(length ?? '') || !Number.isSafeInteger(bytes) || bytes !== expectedBytes) {
       throw storageError('EXPORT_STORAGE_INTEGRITY_FAILED');
     }
     return { bytes, etag: response.headers.get('etag')?.replace(/^"|"$/g, '') ?? null };
@@ -96,6 +97,7 @@ export class ExportStorage {
         new URL(`/storage/v1/object/${prefix}report-exports/${encoded}`, this.origin),
         {
           ...input,
+          redirect: 'error',
           signal: controller.signal,
           headers,
         },

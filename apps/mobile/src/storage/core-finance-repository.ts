@@ -32,6 +32,10 @@ import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 import { mergeTransactionDraft } from './core-finance-draft-storage';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 import { SyncRepository } from './sync-repository';
+import {
+  assertOrdinaryDraftId,
+  type TransactionEditGuard
+} from './transaction-edit-journal';
 
 export interface CoreFinanceSeed {
   accounts?: Account[];
@@ -62,6 +66,20 @@ export class CoreFinanceRepository {
     if (this.expectedUserId && this.expectedUserId !== userId)
       throw new Error('stale repository owner');
     this.expectedUserId = userId;
+  }
+
+  async hasPendingTransactionEdits(
+    cachedResourceId?: string
+  ): Promise<boolean> {
+    const database = await openDatabase(this.expectedUserId);
+    const pending = await database.getFirstAsync<{ pending: number }>(
+      `SELECT 1 AS pending FROM finance_transactions
+       WHERE sync_status IN ('pending','syncing','failed','conflict')
+         AND (? IS NULL OR EXISTS (SELECT 1 FROM finance_transactions cached WHERE cached.id=?)) LIMIT 1`,
+      cachedResourceId ?? null,
+      cachedResourceId ?? null
+    );
+    return Boolean(pending);
   }
 
   constructor(seed: CoreFinanceSeed = {}) {
@@ -146,7 +164,7 @@ export class CoreFinanceRepository {
       preserveDrafts
         ? Promise.resolve([])
         : database.getAllAsync<{ payload: string }>(
-            'SELECT payload FROM finance_drafts'
+            "SELECT payload FROM finance_drafts WHERE id NOT GLOB '__transaction_edit_v1__:*'"
           ),
       database.getAllAsync<{ transaction_id: string; payload: string }>(
         'SELECT transaction_id, payload FROM finance_sync_conflicts'
@@ -270,7 +288,9 @@ export class CoreFinanceRepository {
       await runExclusiveDatabaseTransaction(database, async (transaction) => {
         await transaction.execAsync(
           'PRAGMA defer_foreign_keys = ON; DELETE FROM finance_sync_conflicts; DELETE FROM finance_corrections; DELETE FROM finance_transactions;' +
-            (preserveDrafts ? '' : ' DELETE FROM finance_drafts;') +
+            (preserveDrafts
+              ? ''
+              : " DELETE FROM finance_drafts WHERE id NOT GLOB '__transaction_edit_v1__:*';") +
             ' DELETE FROM finance_categories; DELETE FROM finance_accounts;'
         );
         for (const account of this.accounts)
@@ -362,12 +382,32 @@ export class CoreFinanceRepository {
     );
   }
 
+  async persistAcknowledgedTransaction(
+    transaction: Transaction,
+    database: SQLiteDatabase
+  ): Promise<void> {
+    const row = await database.getFirstAsync<{ payload: string }>(
+      'SELECT payload FROM finance_transactions WHERE id=?',
+      transaction.id
+    );
+    // Uncached online edits need no local account/category foreign-key graph.
+    if (!row) return;
+    const cached = JSON.parse(row.payload) as Transaction;
+    if (cached.id !== transaction.id || !Number.isSafeInteger(cached.version))
+      throw new Error('invalid cached transaction');
+    // Frozen idempotent replay may return an older receipt than ordinary sync.
+    if (cached.version > transaction.version) return;
+    await persistTransaction(database, transaction);
+  }
+
   async queueTransactionEdit(
     id: string,
     input: TransactionInput,
-    operationId: string
+    operationId: string,
+    assertOwner: TransactionEditGuard = async () => undefined
   ): Promise<Transaction> {
     return withTransactionDraftWrite(async () => {
+      await assertOwner();
       const previous = this.requireTransaction(id);
       const value = transactionInputSchema.parse(input);
       if (
@@ -381,20 +421,25 @@ export class CoreFinanceRepository {
         value.destinationAccountId !== previous.destinationAccountId ||
         value.feeMinor !== previous.feeMinor
       )
-        throw new CoreFinanceError('offline');
+        throw new CoreFinanceError('offline', {
+          domainCode: 'OFFLINE_EDIT_UNSUPPORTED',
+          uncertain: false
+        });
       const database = await openDatabase(this.expectedUserId);
+      await assertOwner(database);
       const next = {
         ...this.saveTransaction(value, id),
         syncStatus: 'pending' as const
       };
       try {
         await runExclusiveDatabaseTransaction(database, async (transaction) => {
+          await assertOwner(transaction);
           const dependency = await transaction.getFirstAsync<{
             operation_id: string;
             status: string;
           }>(
-            "SELECT operation_id,status FROM sync_mutation_queue WHERE domain='transactions' AND resource_id=? AND status!='applied' ORDER BY created_at DESC,rowid DESC LIMIT 1",
-            id
+            "SELECT operation_id,status FROM sync_mutation_queue WHERE domain='transactions' AND (resource_id=? OR resource_id IN (SELECT server_id FROM sync_id_mappings WHERE domain='transactions' AND local_id=?)) AND status!='applied' ORDER BY created_at DESC,rowid DESC LIMIT 1",
+            id, id
           );
           if (
             dependency &&
@@ -402,6 +447,7 @@ export class CoreFinanceRepository {
           )
             throw new CoreFinanceError('conflict');
           await persistTransaction(transaction, next);
+          await assertOwner(transaction);
           await new SyncRepository(transaction).enqueue({
             operationId,
             domain: 'transactions',
@@ -412,6 +458,7 @@ export class CoreFinanceRepository {
             resourceId: id,
             baseVersion: previous.version,
             payload: {
+              reason: 'Mobile edit',
               title: value.title,
               merchant: value.merchant,
               note: value.notes,
@@ -419,6 +466,7 @@ export class CoreFinanceRepository {
               amountMinor: value.amountMinor
             }
           });
+          await assertOwner(transaction);
         });
         this.transactions = this.transactions.map((item) =>
           item.id === id ? next : item
@@ -433,7 +481,157 @@ export class CoreFinanceRepository {
     });
   }
 
+  async queueTransactionCreate(
+    input: TransactionInput,
+    operationId: string,
+    source: Transaction['source'] = 'manual',
+    assertOwner: TransactionEditGuard = async () => undefined
+  ): Promise<Transaction> {
+    const value = transactionInputSchema.parse(input);
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        operationId
+      ) ||
+      !['income', 'expense'].includes(value.type) ||
+      value.feeMinor !== 0 ||
+      value.destinationAccountId ||
+      value.originalTransactionId ||
+      value.obligationId
+    )
+      throw new CoreFinanceError('offline', {
+        domainCode: 'OFFLINE_CREATE_UNSUPPORTED',
+        uncertain: false
+      });
+    return withTransactionDraftWrite(async () => {
+      await assertOwner();
+      let saved!: Transaction;
+      try {
+        const database = await openDatabase(this.expectedUserId);
+        await runExclusiveDatabaseTransaction(database, async (transaction) => {
+          await assertOwner(transaction);
+          const prior = await transaction.getFirstAsync<{
+            payload: string;
+            kind: string;
+            status: string;
+          }>(
+            'SELECT payload,kind,status FROM finance_operations WHERE operation_id = ?',
+            operationId
+          );
+          if (prior) {
+            saved = JSON.parse(prior.payload) as Transaction;
+            if (
+              prior.kind !== 'transaction_create' ||
+              prior.status !== 'succeeded' ||
+              JSON.stringify(transactionInputSchema.parse(saved)) !==
+                JSON.stringify(value) ||
+              saved.source !== source
+            )
+              throw new CoreFinanceError('conflict', { uncertain: false });
+            const queued = await transaction.getFirstAsync<{
+              operation: string;
+              resource_id: string;
+            }>(
+              'SELECT operation,resource_id FROM sync_mutation_queue WHERE operation_id = ?',
+              operationId
+            );
+            if (
+              queued?.operation !== 'create' ||
+              queued.resource_id !== saved.id
+            )
+              throw new CoreFinanceError('conflict', { uncertain: false });
+            await assertOwner(transaction);
+            return;
+          }
+          const collision = await transaction.getFirstAsync<{
+            operation_id: string;
+          }>(
+            'SELECT operation_id FROM sync_mutation_queue WHERE operation_id = ?',
+            operationId
+          );
+          if (collision)
+            throw new CoreFinanceError('conflict', { uncertain: false });
+          this.assertSelectable(
+            value.accountId,
+            value.categoryId,
+            null,
+            value.currencyCode
+          );
+          const category = this.requireCategory(value.categoryId!);
+          if (category.financialType !== value.type)
+            throw new CoreFinanceError('validation', {
+              domainCode: 'CATEGORY_INVALID',
+              uncertain: false
+            });
+          const mapping = await transaction.getFirstAsync<{
+            server_id: string;
+          }>(
+            "SELECT server_id FROM sync_id_mappings WHERE domain='categories' AND local_id=?",
+            value.categoryId
+          );
+          const categoryId = mapping?.server_id ?? value.categoryId;
+          if (!categoryId || !/^[0-9a-f-]{36}$/i.test(categoryId))
+            throw new CoreFinanceError('validation', {
+              domainCode: 'CATEGORY_INVALID',
+              uncertain: false
+            });
+          const now = Date.now();
+          saved = {
+            ...value,
+            id: operationId,
+            source,
+            paymentMethod: null,
+            status: 'posted',
+            reviewStatus: 'none',
+            syncStatus: 'pending',
+            version: 1,
+            adjustmentSign: 1,
+            deletedAt: null,
+            undoExpiresAt: null,
+            createdAt: now,
+            updatedAt: now
+          };
+          await persistTransaction(transaction, saved);
+          await persistOperation(transaction, operationId, saved);
+          await new SyncRepository(transaction).enqueue({
+            operationId,
+            domain: 'transactions',
+            resourceType: 'transaction',
+            schemaVersion: 1,
+            dependsOn: [],
+            operation: 'create',
+            resourceId: saved.id,
+            baseVersion: null,
+            payload: {
+              kind: value.type,
+              amountMinor: value.amountMinor,
+              currency: value.currencyCode,
+              accountId: value.accountId,
+              categoryId,
+              title: value.title,
+              merchant: value.merchant,
+              note: value.notes,
+              occurredAt: new Date(value.occurredAt).toISOString(),
+              source
+            }
+          });
+          await assertOwner(transaction);
+        });
+      } catch (error) {
+        if (error instanceof CoreFinanceError) throw error;
+        throw new CoreFinanceError('offline', {
+          domainCode: 'LOCAL_PERSISTENCE_FAILED',
+          uncertain: false
+        });
+      }
+      const cached = this.transactions.find((row) => row.id === saved.id);
+      if (!cached) this.transactions.push(saved);
+      this.operationResults.set(operationId, saved);
+      return copy(cached ?? saved);
+    });
+  }
+
   async persistDraft(draft: TransactionDraft): Promise<void> {
+    assertOrdinaryDraftId(draft.id);
     await withTransactionDraftWrite(async () =>
       persistDraft(await openDatabase(this.expectedUserId), draft)
     );
@@ -458,6 +656,7 @@ export class CoreFinanceRepository {
   }
 
   async removePersistedDraft(id: string): Promise<void> {
+    assertOrdinaryDraftId(id);
     await withTransactionDraftWrite(async () => {
       await (
         await openDatabase(this.expectedUserId)
@@ -999,17 +1198,20 @@ export class CoreFinanceRepository {
   }
 
   saveDraft(draft: TransactionDraft): TransactionDraft {
+    assertOrdinaryDraftId(draft.id);
     const saved = mergeTransactionDraft(this.drafts.get(draft.id), draft);
     this.drafts.set(saved.id, saved);
     return copy(saved);
   }
 
   loadDraft(id: string): TransactionDraft | null {
+    assertOrdinaryDraftId(id);
     const draft = this.drafts.get(id);
     return draft ? copy(draft) : null;
   }
 
   discardDraft(id: string): void {
+    assertOrdinaryDraftId(id);
     this.drafts.delete(id);
   }
 

@@ -1,0 +1,94 @@
+{
+  "at": "2026-10-26T11:19:19.568Z",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "prior15ManifestPath": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest-legacy-update.json",
+  "prior15ManifestSha256": "9D2878A1BC8E6B1D94DB9FA8DB379FCF0F55B827C298C7B6F5E0292FB46F3483",
+  "sourceFiles": [
+    {
+      "path": "apps/mobile/src/features/shell/NetworkConnectionNotice.test.tsx",
+      "sha256": "A7AA7C54F8A858B73069A0EA6A1B17A17140292B5CB58369A3EC215BAC894CAB"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/NetworkConnectionNotice.tsx",
+      "sha256": "E486DD5D2D329D5CA538AF021EEE9A51546D56835249638344FFA4643497A095"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+      "sha256": "60E608A3BEB458244034BD3B83A9BF40DAFE19773614D900766D8F5CC5E7FC88"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.tsx",
+      "sha256": "79861A82166194118B25085B1AFC96A7A88923486DA639AC34BC115E68FAB5F0"
+    },
+    {
+      "path": "apps/mobile/src/features/voice/useVoiceCapture.test.tsx",
+      "sha256": "D24D507C58E679FA9C80F312E007538141C1691FE34A0D465D8D5945F3C1616A"
+    },
+    {
+      "path": "apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx",
+      "sha256": "4E9994DF86E25C7EE68531F1C210A5302ED33634A53FD844B3C60BD44C4B65DB"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "BFCA73A9BC0E6C4C5D929BC8EF6A5461B37A99B5EAB4BC584EBB4533D0CF3C9F"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "DB67B98338E7F0750C69943B5406A69A177C3A99F633E3FE94D3CB89B5123EDD"
+    },
+    {
+      "path": "apps/mobile/src/services/core-finance-runtime.ts",
+      "sha256": "135D8BA5AB119B30C11DFB836FF1FE9002C80E9BA5B4E58846848ED994AA3FD4"
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.test.ts",
+      "sha256": "408F90C10024C00B4E6AE070070F7051D9EF377CC6F2EF969AFF1163615241D6"
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.ts",
+      "sha256": "8E6A680B86E481A6FD95FD00E01BC69A02C84A197D7AC904C9CC21FDF44480DC"
+    },
+    {
+      "path": "apps/mobile/src/services/mocks/core-finance-selector.test.ts",
+      "sha256": "9ED1D808CF412582CDF4A11ADC63BA44FC02C01C5C2454791E876BD33C1522A5"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-draft-storage.ts",
+      "sha256": "DDC16D32785DDB1D111A770E838B28CFEE9E57331C48D75FF491A51D1A5B6DD8"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-legacy-cleanup.test.ts",
+      "sha256": "8E891C2F2D9B0957705D24382CAB100DF5B3AB7302E0D1AFD97A4FE8BE55D91F"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-persistence.test.ts",
+      "sha256": "DB766AD07C8386BA5B277D59717F586A05E3B698377E6A9343D34445B2F4A3BD"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-repository.ts",
+      "sha256": "32E86F9A80AAD9B5F3841A2DDF68814119031496E0B19C057DF43FCC2ACE8034"
+    },
+    {
+      "path": "apps/mobile/src/storage/transaction-edit-journal.ts",
+      "sha256": "2D57D9E5BE1D304B25A09CB270730F7D3AC882ABC0BB6CA1D39A65779105E564"
+    }
+  ],
+  "intentionalDelta": [
+    {
+      "path": "apps/mobile/src/features/shell/NetworkConnectionNotice.tsx",
+      "previousSha256": "8760BF8F47D99C586CA8E05A4C3D7CCD3D0837A581608430481092F9F7B355F7",
+      "sha256": "E486DD5D2D329D5CA538AF021EEE9A51546D56835249638344FFA4643497A095"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/NetworkConnectionNotice.test.tsx",
+      "previousSha256": "715697FB6C4A424C58DC9D3B2CF1767E48F446FDDDA07B9BAB97DCF5A274CD39",
+      "sha256": "A7AA7C54F8A858B73069A0EA6A1B17A17140292B5CB58369A3EC215BAC894CAB"
+    }
+  ],
+  "baseline21Preserved": true,
+  "backend172ManifestSha256": "ABBA226EAEAD8EE1ABC04269E14350D817A07F56208D10FE6145E08DD8A27F01",
+  "backend172AllPreserved": true,
+  "status": "FROZEN_PENDING_ASTRA_AND_NEW_DEVICE_RECONNECT_QUALIFICATION",
+  "nativeLoadedByteHash": "UNVERIFIED_NOT_REQUIRED_PER_ASTRA_RULING"
+}

@@ -1,0 +1,124 @@
+{
+  "taskId": null,
+  "status": "pending_plan_approval",
+  "model": {
+    "implementer": "gpt-6.1-sol",
+    "effort": "xhigh",
+    "accessVerified": true,
+    "historicalSubstitution": {
+      "original": "gpt-6.1-sol",
+      "approved": "gpt-6.1-terra",
+      "effort": "high",
+      "authorization": "explicit user request,2026-10-27"
+    },
+    "planner": "gpt-6.1-sol",
+    "plannerEffort": "xhigh",
+    "reviewer": "gpt-6.1-sol",
+    "reviewerEffort": "xhigh",
+    "reviewerAccessVerified": true,
+    "soleResponsibleModel": "gpt-6.1-sol",
+    "soleResponsibleEffort": "xhigh",
+    "routingAuthorization": "latest explicit user request, 2026-10-28: Sol-only ownership for all future work; preserve historical attribution",
+    "executionRoute": "current native gpt-6.1-sol/xhigh invocation verified 2026-10-28; no future delegation; CLI availability not verified"
+  },
+  "workspace": {
+    "path": "D:/Masarifi-integration-2026-10-10",
+    "branch": "codex/voice-promoted-operating-2026-10-13",
+    "sourceCommit": null,
+    "dirtyDiffSha256": null,
+    "preservedBaselineVerified": false,
+    "sourceFileHashManifest": {
+      "path": null,
+      "sha256": null,
+      "includesTrackedChanges": true,
+      "includesUntrackedSource": true
+    }
+  },
+  "scope": {
+    "acceptanceIds": [],
+    "approvedQaOwnerReference": null,
+    "approvedFinancialWrites": [],
+    "approvedHostedTarget": null,
+    "implementationFiles": []
+  },
+  "automatedChecks": [],
+  "physicalDevice": {
+    "required": true,
+    "serial": null,
+    "model": null,
+    "androidVersion": null,
+    "pageSizeBytes": null,
+    "adbStateAtExecution": null,
+    "applicability": "Sol personally verifies every mobile-affecting task on the existing Xiaomi",
+    "nonApplicableReason": null,
+    "beforeImplementation": {
+      "status": "unverified",
+      "evidenceReferences": [],
+      "unavailableReason": null
+    },
+    "afterImplementation": {
+      "status": "unverified",
+      "candidateInstalledOrReloaded": false,
+      "evidenceReferences": []
+    }
+  },
+  "appArtifact": {
+    "package": null,
+    "versionName": null,
+    "versionCode": null,
+    "apkSha256": null,
+    "certificateSha256": null,
+    "sourceCommit": null,
+    "metroBundleSource": null,
+    "installedAt": null
+  },
+  "runtime": {
+    "apiRevision": null,
+    "schemaRevision": null,
+    "providerReceiptReferences": [],
+    "publishedPolicyRevision": null,
+    "flags": {}
+  },
+  "userJourneys": [],
+  "evidence": {
+    "screenshots": [],
+    "redactedAdbLogs": [],
+    "redactedApiTraces": [],
+    "reproductionSteps": [],
+    "observedResults": [],
+    "cleanupAndRestoredSettings": []
+  },
+  "selfReview": {
+    "model": "gpt-6.1-sol",
+    "effort": "xhigh",
+    "independent": false,
+    "codeDecision": "not_run",
+    "requirementsDecision": "not_run",
+    "automatedCheckDecision": "not_run",
+    "physicalDeviceEvidenceDecision": "not_run",
+    "regressions": [],
+    "overallDecision": "not_run"
+  },
+  "independentVerificationGate": {
+    "required": null,
+    "riskAndApplicability": null,
+    "requiredEvidence": [],
+    "ciResults": [],
+    "automatedCheckResults": [],
+    "authoritativeDatabaseEvidence": [],
+    "requiredHumanApprovals": [],
+    "candidateIdentityMatched": false,
+    "evidenceProducersAndSources": [],
+    "decision": "not_run",
+    "limitations": []
+  },
+  "blockers": [],
+  "completion": {
+    "automatedChecksPassed": false,
+    "requiredPhysicalUserJourneysPassed": false,
+    "solSelfReviewPassed": false,
+    "requiredIndependentVerificationGatePassed": false,
+    "acceptedAt": null,
+    "notApplicableCriteria": []
+  }
+}

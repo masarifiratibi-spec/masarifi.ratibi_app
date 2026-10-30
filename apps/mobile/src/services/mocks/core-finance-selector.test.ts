@@ -5,15 +5,28 @@ import {
 import { registerLiveClerkBridge } from '@/services/live/auth-service';
 import { emptyTransactionFilters } from '@/domain/core-finance';
 
+import {
+  fixtureAccounts,
+  fixtureCategories,
+  fixtureTransactions
+} from '@/test-utils/core-finance-fixtures';
+import { transactionInputSchema } from '@/domain/core-finance';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+
+import { useAppShellStore } from '@/state/app-shell';
+import * as databaseModule from '@/storage/database';
+
 let mockUuid = 0;
 const mockPersistCategory = jest.fn(async () => undefined);
 jest.mock('@/storage/database', () => ({
+  __esModule: true,
   runExclusiveDatabaseTransaction: async (
     database: unknown,
     action: (database: unknown) => Promise<void>
   ) => action(database),
   openDatabase: async () => ({
     execAsync: async () => undefined,
+    getFirstAsync: async () => null,
     getAllAsync: async () => [],
     runAsync: mockPersistCategory
   })
@@ -640,3 +653,222 @@ it('retains category retry identity when the server succeeds but favorite persis
   const second = request.mock.calls[1]?.[1]?.headers as Record<string, string>;
   expect(second['Idempotency-Key']).toBe(first['Idempotency-Key']);
 });
+
+jest.mock('@/services/platform/read-recovery-network', () => ({
+  readRecoveryNetwork: { available: true, isOnline: jest.fn(async () => true) }
+}));
+
+it.each([false, true])(
+  'D057 warm/cold offline edit uses the exclusive transaction journal guard (late journal=%s)',
+  async (lateJournal) => {
+    const previousSession = useAppShellStore.getState().session;
+    const previousLock = useAppShellStore.getState().privacyLock;
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'user_owner',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'restored'
+      }
+    });
+    const original = {
+      ...fixtureTransactions.find((row) => row.type === 'expense')!,
+      id: '74000000-0000-4000-8000-000000000003',
+      syncStatus: 'synced' as const
+    };
+    const persisted = new Map<string, unknown>([[original.id, original]]);
+    const database = {
+      execAsync: async () => undefined,
+      getFirstAsync: async (sql: string) =>
+        sql.includes('sync_status IN') &&
+        [...persisted.values()].some(
+          (row) => (row as { syncStatus: string }).syncStatus === 'pending'
+        )
+          ? { pending: 1 }
+          : null,
+      getAllAsync: async (sql: string) => {
+        const rows = sql.includes('finance_accounts')
+          ? fixtureAccounts
+          : sql.includes('finance_categories')
+            ? fixtureCategories
+            : sql.includes('finance_transactions')
+              ? [...persisted.values()]
+              : [];
+        return rows.map((row) => ({ payload: JSON.stringify(row) }));
+      },
+      runAsync: jest.fn(async (sql: string, ...parameters: unknown[]) => {
+        if (sql.includes('INSERT INTO finance_transactions'))
+          persisted.set(
+            String(parameters[0]),
+            JSON.parse(String(parameters[1]))
+          );
+      })
+    };
+    let exclusive = false;
+    const transactionDatabase = {
+      ...database,
+      getFirstAsync: async (sql: string) =>
+        lateJournal && sql.includes('finance_drafts')
+          ? {
+              payload: JSON.stringify({
+                version: 1,
+                resourceId: original.id,
+                operationId: '74000000-0000-4000-8000-000000000099',
+                input: transactionInputSchema.parse(original),
+                body: {
+                  expectedVersion: original.version,
+                  reason: 'Mobile edit',
+                  note: 'Prior unknown edit'
+                }
+              })
+            }
+          : null
+    };
+    const open = jest
+      .spyOn(databaseModule, 'openDatabase')
+      .mockImplementation(async () => {
+        if (exclusive)
+          throw new Error(
+            'database lifecycle cannot reopen inside its transaction'
+          );
+        return database as never;
+      });
+    const transaction = jest
+      .spyOn(databaseModule, 'runExclusiveDatabaseTransaction')
+      .mockImplementation(async (_database, action) => {
+        exclusive = true;
+        try {
+          await action(transactionDatabase as never);
+        } finally {
+          exclusive = false;
+        }
+      });
+    const request = jest.fn(async () => {
+      throw new TypeError('network unavailable');
+    });
+    const service = createLiveCoreFinanceService({
+      baseUrl: 'https://inert.invalid',
+      request
+    });
+    jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(false);
+    const input = transactionInputSchema.parse({
+      ...original,
+      notes: 'Warm offline edit'
+    });
+    try {
+      if (lateJournal) {
+        await expect(
+          service.updateTransaction(original.id, input)
+        ).rejects.toMatchObject({
+          metadata: {
+            domainCode: 'TRANSACTION_OUTCOME_UNCERTAIN',
+            uncertain: true
+          }
+        });
+        expect(database.runAsync).not.toHaveBeenCalled();
+        await expect(
+          service.getTransaction(original.id)
+        ).resolves.toMatchObject({
+          notes: original.notes,
+          syncStatus: 'synced'
+        });
+        expect(request).not.toHaveBeenCalled();
+        return;
+      }
+      await expect(
+        service.updateTransaction(original.id, input)
+      ).resolves.toMatchObject({
+        value: { notes: 'Warm offline edit', syncStatus: 'pending' }
+      });
+      expect(request).not.toHaveBeenCalled();
+      expect(
+        database.runAsync.mock.calls.filter(([sql]) =>
+          sql.includes('INSERT OR IGNORE INTO sync_mutation_queue')
+        )
+      ).toHaveLength(1);
+      await expect(service.getTransaction(original.id)).resolves.toMatchObject({
+        notes: 'Warm offline edit',
+        syncStatus: 'pending'
+      });
+      const restarted = createLiveCoreFinanceService({
+        baseUrl: 'https://inert.invalid',
+        request
+      });
+      await expect(
+        restarted.getTransaction(original.id)
+      ).resolves.toMatchObject({
+        notes: 'Warm offline edit',
+        syncStatus: 'pending'
+      });
+      useAppShellStore.setState({
+        session: {
+          status: 'authenticated',
+          userId: 'user_owner',
+          method: 'google',
+          issuedAt: 1,
+          expiresAt: 9999999999999,
+          restoration: 'local'
+        },
+        privacyLock: {
+    enabled: true,
+    autoLockDuration: 'immediate',
+    appLockStatus: 'unlocked'
+}
+      });
+      const cold = createLiveCoreFinanceService({
+        baseUrl: 'https://inert.invalid',
+        request
+      });
+      await expect(
+        cold.updateTransaction(original.id, {
+          ...input,
+          notes: 'Cold local edit'
+        })
+      ).resolves.toMatchObject({
+        value: { notes: 'Cold local edit', syncStatus: 'pending' }
+      });
+      await expect(
+        createLiveCoreFinanceService({
+          baseUrl: 'https://inert.invalid',
+          request
+        }).getTransaction(original.id)
+      ).resolves.toMatchObject({
+        notes: 'Cold local edit',
+        syncStatus: 'pending'
+      });
+      expect(
+        database.runAsync.mock.calls.filter(([sql]) =>
+          sql.includes('INSERT OR IGNORE INTO sync_mutation_queue')
+        )
+      ).toHaveLength(2);
+      expect(request).not.toHaveBeenCalled();
+      useAppShellStore.setState({
+        session: {
+          ...useAppShellStore.getState().session!,
+          restoration: 'restored'
+        }
+      });
+      jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
+      await expect(
+        createLiveCoreFinanceService({
+          baseUrl: 'https://inert.invalid',
+          request
+        }).getTransaction(original.id)
+      ).resolves.toMatchObject({
+        notes: 'Cold local edit',
+        syncStatus: 'pending'
+      });
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      useAppShellStore.setState({
+        session: previousSession,
+        privacyLock: previousLock
+      });
+      open.mockRestore();
+      transaction.mockRestore();
+      jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
+    }
+  }
+);

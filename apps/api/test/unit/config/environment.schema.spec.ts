@@ -30,6 +30,19 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it.each(['MASARIFI_SYNC_COMMAND_DATABASE_URL', 'MASARIFI_OPERATIONS_JOB_KEYS'])(
+    'keeps normal sync worker configuration %s off the API process',
+    (key) => {
+      expect(() =>
+        validateEnvironment({
+          ...valid,
+          [key]: key.endsWith('URL')
+            ? 'postgresql://command@127.0.0.1/inert'
+            : 'sync-mutations.retry',
+        }),
+      ).toThrow(key);
+    },
+  );
   it('requires an independent API cursor key', () => {
     expect(() => validateEnvironment({ ...valid, MASARIFI_SYNC_CURSOR_KEY: undefined })).toThrow(
       'MASARIFI_SYNC_CURSOR_KEY',

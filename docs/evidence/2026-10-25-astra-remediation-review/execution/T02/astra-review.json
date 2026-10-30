@@ -1,0 +1,32 @@
+{
+  "taskId": "T02",
+  "model": "gpt-6-astra",
+  "effort": "high",
+  "specCompliance": "APPROVE under latest user-revised scope",
+  "codeTestQuality": "APPROVE",
+  "blockingFindings": [],
+  "independentTestEvidence": {
+    "suites": 3,
+    "testsPassed": 53,
+    "durationSeconds": 7.041,
+    "exitCode": 0,
+    "limits": "Existing Expo/React warnings; focused checks only"
+  },
+  "nativeXml": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "inheritedHashesPreserved": "12/12",
+  "actualPhoneCases": "Existing PIN, relock, lower-stage persistence/expiry/reset, real enrolled biometrics/cancel->PIN, normal Security menu",
+  "acceptedTestingException": {
+    "30minuteExpiry": "UNVERIFIED",
+    "60minuteStage": "NOT_RUN",
+    "postHighStageReset": "NOT_RUN",
+    "notClaimedPassed": true
+  },
+  "accessHandoff": "Temporary lock expected to expire14:28:52 Riyadh; no bypass; normal unlock before future device testing",
+  "releaseHostedAccepted": false,
+  "reviewedAtUtc": "2026-10-25T11:10:27.702827+00:00"
+}

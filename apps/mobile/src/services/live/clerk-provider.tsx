@@ -388,14 +388,17 @@ function ClerkBridgeInstaller({
       }
     },
     reverifyConflict: async () => null,
-    signOut: ({ scope, sessionId }) =>
-      latest.current.auth.signOut(
+    signOut: ({ scope, sessionId }) => {
+      if (sessionId && (!latest.current.auth.isLoaded || latest.current.auth.sessionId !== sessionId))
+        return Promise.reject(new Error('LOGOUT_SESSION_UNVERIFIED'));
+      return latest.current.auth.signOut(
         scope === 'current'
           ? {
               sessionId: sessionId ?? latest.current.auth.sessionId ?? undefined
             }
           : undefined
-      )
+      );
+    }
   };
   useEffect(() => {
     if (!auth.isLoaded) return;

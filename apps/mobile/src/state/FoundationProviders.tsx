@@ -37,6 +37,14 @@ import { SensitiveVisibilityProvider } from './SensitiveVisibilityProvider';
 import { subscribeTrackingSaves } from '@/services/tracking-save-events';
 import { useAppShellStore } from './app-shell';
 import type { UserProfile } from '@/domain/settings';
+import {
+  bindLocalReadCache,
+  offlineReadPrefixes,
+  type ReadCacheScope
+} from '@/services/local-read-cache';
+import { createQueryReadCache } from '@/storage/query-read-cache';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { isAppLockEnabled } from '@/config/client-runtime';
 
 initI18n();
 
@@ -72,6 +80,56 @@ export function FoundationProviders({
       void hydrate();
     }
   }, [hydrate, hydrated]);
+
+  useEffect(() => {
+    if (isFixtureModeEnabled()) return;
+    const current = (): ReadCacheScope | null => {
+      const shell = useAppShellStore.getState();
+      return shell.hydrated &&
+        shell.session?.status === 'authenticated' &&
+        shell.session.userId &&
+        !shell.logoutQuiescingOwnerId &&
+        (!isAppLockEnabled() ||
+          (shell.privacyLock?.enabled &&
+            shell.privacyLock.appLockStatus === 'unlocked'))
+        ? {
+            ownerId: shell.session.userId,
+            locale: usePreferenceStore.getState().locale
+          }
+        : null;
+    };
+    let stop = () => {};
+    let identity = '';
+    let previousOwner = '';
+    const bind = () => {
+      const scope = current();
+      const session = useAppShellStore.getState().session;
+      const ownerId =
+        session?.status === 'authenticated' ? (session.userId ?? '') : '';
+      const next = JSON.stringify({ ownerId, scope });
+      if (next === identity) return;
+      stop();
+      if (previousOwner && previousOwner !== ownerId) client.clear();
+      // Closing a privacy/read gate withdraws only reads, not an in-flight mutation's state.
+      if (!scope)
+        for (const prefix of offlineReadPrefixes)
+          client.removeQueries({ queryKey: prefix });
+      previousOwner = ownerId;
+      identity = next;
+      stop = bindLocalReadCache(client, createQueryReadCache(current));
+    };
+    // Cache is only a read projection; retain existing explicit write/sync admission.
+    for (const prefix of offlineReadPrefixes)
+      client.setQueryDefaults(prefix, { staleTime: 60_000 });
+    bind();
+    const unsubscribeOwner = useAppShellStore.subscribe(bind);
+    const unsubscribeLocale = usePreferenceStore.subscribe(bind);
+    return () => {
+      stop();
+      unsubscribeOwner();
+      unsubscribeLocale();
+    };
+  }, [client]);
 
   useEffect(() => {
     const clear = () => client.clear();

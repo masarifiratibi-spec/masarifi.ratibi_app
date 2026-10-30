@@ -1,4 +1,5 @@
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -97,7 +98,7 @@ export function SalaryOverviewScreen() {
     >
       {query.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError || !data ? (
+      ) : !data || !hasReadableSnapshot(query) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <View style={styles.screenStack}>

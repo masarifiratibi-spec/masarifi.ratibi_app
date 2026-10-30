@@ -10,6 +10,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { PrivacyExportPanel } from './PrivacyExportPanel';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { LegalDocumentLinks } from '@/features/legal/LegalDocumentLinks';
 
 export function PrivacySettingsScreen() {
   const request = usePrivacyRequest();
@@ -30,6 +31,7 @@ export function PrivacySettingsScreen() {
     <ScrollView contentContainerStyle={styles.stack}>
       <StyledText variant="title">settings.privacy.title</StyledText>
       <StyledText>settings.privacy.legalExplanation</StyledText>
+      <LegalDocumentLinks />
       <SurfaceCard style={styles.section}>
         <SwitchRow
           label="settings.privacy.tracking"

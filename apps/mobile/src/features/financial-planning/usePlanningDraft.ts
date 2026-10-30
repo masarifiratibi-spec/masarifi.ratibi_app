@@ -15,6 +15,15 @@ export function usePlanningDraft(id: string) {
   });
 }
 
+export function usePlanningDrafts(kind: PlanningDraft['kind']) {
+  const ownerId = useAppShellStore((state) => state.session?.userId);
+  return useQuery({
+    queryKey: ['planning', 'draft', 'list', ownerId, kind],
+    queryFn: () => financialPlanningService.listDrafts(kind),
+    staleTime: 0
+  });
+}
+
 export function useSavePlanningDraft() {
   const client = useQueryClient();
   return useMutation({
@@ -50,7 +59,13 @@ export function usePlanningFormDraft(input: {
   const ownerId = useAppShellStore((state) => state.session?.userId);
   const identity = JSON.stringify([ownerId ?? null, input.id]);
   const [draftReady, setDraftReady] = useState(false);
+  const [restoredDraftIdentity, setRestoredDraftIdentity] = useState<
+    string | null
+  >(null);
   const initializedDraft = useRef<string | null>(null);
+  const persistedPayload = useRef<{ identity: string; payload: string } | null>(
+    null
+  );
   const restore = useRef(input.restore);
   const onError = useRef(input.onError);
   const payload = JSON.stringify(input.payload) ?? 'null';
@@ -85,7 +100,14 @@ export function usePlanningFormDraft(input: {
     void financialPlanningService
       .loadDraft(input.id)
       .then((draft) => {
-        if (active && draft) restore.current(draft.payload);
+        if (active && draft) {
+          persistedPayload.current = {
+            identity,
+            payload: JSON.stringify(draft.payload)
+          };
+          setRestoredDraftIdentity(identity);
+          restore.current(draft.payload);
+        }
       })
       .catch(() => {
         if (active) onError.current();
@@ -106,6 +128,8 @@ export function usePlanningFormDraft(input: {
       !enabled ||
       !draftReady ||
       !input.meaningful ||
+      (persistedPayload.current?.identity === identity &&
+        persistedPayload.current.payload === payload) ||
       (discarded.current?.id === input.id &&
         discarded.current.payload === payload)
     )
@@ -113,9 +137,9 @@ export function usePlanningFormDraft(input: {
     discarded.current = undefined;
     const timeout = setTimeout(() => {
       pendingWrite.current = pendingWrite.current
-        .then(() => {
+        .then(async () => {
           if (useAppShellStore.getState().session?.userId !== ownerId) return;
-          return financialPlanningService.saveDraft({
+          await financialPlanningService.saveDraft({
             id: input.id,
             kind: input.kind,
             entityId: input.entityId,
@@ -123,6 +147,11 @@ export function usePlanningFormDraft(input: {
             status: 'editing',
             updatedAt: Date.now()
           });
+          if (
+            useAppShellStore.getState().session?.userId === ownerId &&
+            initializedDraft.current === identity
+          )
+            persistedPayload.current = { identity, payload };
         })
         .then(() => undefined)
         .catch(() => onError.current());
@@ -136,6 +165,7 @@ export function usePlanningFormDraft(input: {
     input.id,
     input.kind,
     input.meaningful,
+    identity,
     ownerId,
     payload
   ]);
@@ -143,12 +173,21 @@ export function usePlanningFormDraft(input: {
   const discardDraft = useCallback(() => {
     discarded.current = { id: input.id, payload: latestPayload.current };
     clearTimeout(autosaveTimer.current);
-    const deletion = pendingWrite.current.then(() => {
+    const deletion = pendingWrite.current.then(async () => {
       if (useAppShellStore.getState().session?.userId !== ownerId) return;
-      return financialPlanningService.discardDraft(input.id);
+      await financialPlanningService.discardDraft(input.id);
+      if (persistedPayload.current?.identity === identity)
+        persistedPayload.current = null;
     });
     pendingWrite.current = deletion.catch(() => undefined);
+    setRestoredDraftIdentity((current) =>
+      current === identity ? null : current
+    );
     return deletion;
-  }, [input.id, ownerId]);
-  return { draftReady, discardDraft };
+  }, [input.id, ownerId, identity]);
+  return {
+    draftReady,
+    discardDraft,
+    hasRestoredDraft: restoredDraftIdentity === identity
+  };
 }

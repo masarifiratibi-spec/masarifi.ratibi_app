@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,7 +39,7 @@ export function CategoryDetailScreen({ id }: { id: string }) {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError && !query.data)
+  if (query.isError && !hasReadableSnapshot(query))
     return (
       <StateView
         state="error"
@@ -188,11 +189,13 @@ export function CategoryDetailScreen({ id }: { id: string }) {
   return (
     <ScrollView contentContainerStyle={styles.stack}>
       <CategoryRow presentation={presentation} groupedPosition="only" />
-      {category.kind === 'custom' ? <ActionButton
-        label={translate('coreFinance.categories.edit')}
-        variant="secondary"
-        onPress={() => router.push(`/categories/${id}?edit=1`)}
-      /> : null}
+      {category.kind === 'custom' ? (
+        <ActionButton
+          label={translate('coreFinance.categories.edit')}
+          variant="secondary"
+          onPress={() => router.push(`/categories/${id}?edit=1`)}
+        />
+      ) : null}
       {category.kind === 'custom' ? (
         <ActionButton
           label={lifecycleLabel}

@@ -10,9 +10,13 @@ import { cacheLocalOwnerAccess } from '@/storage/app-shell-storage';
 import type {
   AuthenticationSession,
   OnboardingProgress,
-  PinCredential,
   PrivacyLockPreference
 } from '@/domain/app-shell';
+
+jest.mock('expo', () => {
+  const actual = jest.requireActual('expo');
+  return { ...actual, requireOptionalNativeModule: (name: string) => name === 'ExpoApplication' ? { applicationId: 'com.masarifi.mobile.dev' } : actual.requireOptionalNativeModule(name) };
+});
 
 jest.mock('@/storage/local-data-reset', () => ({
   resetLocalUserData: jest.fn(async () => ({
@@ -51,14 +55,11 @@ const onboarding: OnboardingProgress = {
   updatedAt: 1_000
 };
 const credential =
-  `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(32)}` as PinCredential;
+  `pbkdf2-sha256:120000:${'01'.repeat(16)}:${'ab'.repeat(32)}`;
 const pinLock: PrivacyLockPreference = {
-  pinConfigured: true,
-  biometricStatus: 'enabled',
-  autoLockDuration: 'immediate',
-  invalidAttempts: 0,
-  lockedUntil: null,
-  appLockStatus: 'unlocked'
+    enabled: true,
+    autoLockDuration: 'immediate',
+    appLockStatus: 'unlocked'
 };
 
 beforeEach(() => {
@@ -83,7 +84,7 @@ test('rejects a synthetic authenticated session outside demo mode', async () => 
   expect(useAppShellStore.getState().session).toBeNull();
 });
 
-test('restores only a completed cached real owner behind its local PIN, retaining lockout stage', async () => {
+test('restores only a completed cached real owner behind its configured native App Lock', async () => {
   const values = new Map<string, string>();
   secureGet.mockImplementation(async (key) => values.get(key) ?? null);
   jest
@@ -99,13 +100,13 @@ test('restores only a completed cached real owner behind its local PIN, retainin
   );
   values.set(
     `masarifi.appShell.privacyLock.${'a'.repeat(24)}`,
-    JSON.stringify({ ...pinLock, lockoutStage: 2 })
+    JSON.stringify(pinLock)
   );
   await useAppShellStore.getState().hydrate(100_000);
   expect(useAppShellStore.getState()).toMatchObject({
     hydrated: true,
     session: { userId: liveSession.userId, restoration: 'local' },
-    privacyLock: { appLockStatus: 'locked', lockoutStage: 2 },
+    privacyLock: { enabled: true, appLockStatus: 'locked' },
     profileSetupStatus: 'complete'
   });
 });
@@ -169,13 +170,10 @@ test('hides the previous owner before switching the live database owner', async 
     session: liveSession,
     onboarding,
     privacyLock: {
-      pinConfigured: false,
-      biometricStatus: 'enabled',
-      autoLockDuration: 'immediate',
-      invalidAttempts: 0,
-      lockedUntil: null,
-      appLockStatus: 'unlocked'
-    }
+    enabled: true,
+    autoLockDuration: 'immediate',
+    appLockStatus: 'unlocked'
+}
   });
 
   const switching = useAppShellStore.getState().authenticate({
@@ -196,7 +194,7 @@ test('hides the previous owner before switching the live database owner', async 
   configureOwner.mockRestore();
 });
 
-test('restores the owner-scoped PIN when authenticating a live session', async () => {
+test('restores the owner-scoped native lock when authenticating a live session', async () => {
   const ownerSuffix = 'a'.repeat(24);
   secureGet.mockImplementation(async (key) => {
     if (key === `masarifi.appShell.privacyLock.${ownerSuffix}`)
@@ -217,10 +215,35 @@ test('restores the owner-scoped PIN when authenticating a live session', async (
 
   expect(useAppShellStore.getState()).toMatchObject({
     session: liveSession,
-    pinCredential: credential,
     privacyLock: {
-      pinConfigured: true,
-      appLockStatus: 'locked'
-    }
+    enabled: true,
+    appLockStatus: 'locked'
+}
   });
+});
+
+
+test.each([{ stored: true, wantEnabled: true }, { stored: false, wantEnabled: false }])('identified DEV hydration opens cached encrypted owner data without persisting a lock change (preference=$stored)', async ({ stored, wantEnabled }) => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { NODE_ENV: 'development', EXPO_PUBLIC_CLIENT_MODE: 'live', EXPO_PUBLIC_APP_VARIANT: 'staging-development', EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com' });
+  const values = new Map<string, string>();
+  secureGet.mockImplementation(async key => values.get(key) ?? null);
+  jest.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => { values.set(key, value); });
+  const configure = jest.spyOn(database, 'configureDatabaseOwner').mockResolvedValue(undefined);
+  try {
+    await cacheLocalOwnerAccess(liveSession);
+    if (stored) values.set('masarifi.appShell.nativePrivacyLock.v1.' + 'a'.repeat(24), JSON.stringify({ enabled: true, autoLockDuration: 'immediate', appLockStatus: 'locked' }));
+    const before = new Map(values);
+    expect(jest.requireActual<typeof import('@/config/demo-mode')>('@/config/demo-mode').isDemoModeEnabled()).toBe(false);
+    await useAppShellStore.getState().hydrate(100_000);
+    expect(useAppShellStore.getState()).toMatchObject({ session: { userId: liveSession.userId, restoration: 'local' }, privacyLock: { enabled: wantEnabled, appLockStatus: 'unlocked' } });
+    expect(values).toEqual(before);
+    const { captureLiveClerkOwner } = jest.requireActual<typeof import('@/services/live/auth-service')>('@/services/live/auth-service');
+    await expect(captureLiveClerkOwner()).resolves.toMatchObject({ userId: liveSession.userId });
+  } finally {
+    for (const key of ['NODE_ENV', 'EXPO_PUBLIC_CLIENT_MODE', 'EXPO_PUBLIC_APP_VARIANT', 'EXPO_PUBLIC_API_URL']) {
+      if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key];
+    }
+    configure.mockRestore();
+  }
 });

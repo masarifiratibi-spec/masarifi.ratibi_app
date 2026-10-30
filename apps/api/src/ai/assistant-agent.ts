@@ -344,6 +344,22 @@ function formatFact(
   }
   if (
     typeof value === 'string' &&
+    (key === 'startDate' || key === 'endDate') &&
+    /^\d{4}-\d{2}-\d{2}$/u.test(value)
+  ) {
+    const calendarDate = new Date(`${value}T00:00:00Z`);
+    if (Number.isFinite(calendarDate.valueOf()) && calendarDate.toISOString().slice(0, 10) === value) {
+      // Calendar dates identify a day, so converting them through an instant timezone would shift it.
+      return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', {
+        timeZone: 'UTC',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(calendarDate);
+    }
+  }
+  if (
+    typeof value === 'string' &&
     /^\d{4}-\d{2}-\d{2}T/u.test(value) &&
     Number.isFinite(Date.parse(value))
   ) {

@@ -8,17 +8,23 @@ import {
   applyScreensFabricFix,
   verifyScreensFabricFix
 } from './screens-fabric-fix.mjs';
+import {
+  applySymbolFontScaleFix,
+  verifySymbolFontScaleFix
+} from './symbol-font-scale-fix.mjs';
 
 const mobileRoot = fileURLToPath(new URL('..', import.meta.url));
 
 export function prepareNativeStabilityFixes(root = mobileRoot) {
   applySqliteCleanupFix(resolve(root, 'node_modules/expo-sqlite'));
   applyScreensFabricFix(resolve(root, 'node_modules/react-native-screens'));
+  applySymbolFontScaleFix(resolve(root, 'node_modules/expo-symbols'));
 }
 
 export function verifyNativeStabilityFixes(root = mobileRoot) {
   verifySqliteCleanupFix(resolve(root, 'node_modules/expo-sqlite'));
   verifyScreensFabricFix(resolve(root, 'node_modules/react-native-screens'));
+  verifySymbolFontScaleFix(resolve(root, 'node_modules/expo-symbols'));
 }
 
 if (
@@ -30,5 +36,5 @@ if (
     throw new Error('EXPECTED_APPLY_OR_CHECK');
   if (operation === '--apply') prepareNativeStabilityFixes();
   else verifyNativeStabilityFixes();
-  console.log('Pinned SQLite and Screens native stability fixes verified.');
+  console.log('Pinned SQLite, Screens and symbol stability fixes verified.');
 }

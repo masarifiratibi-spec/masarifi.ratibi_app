@@ -3,6 +3,11 @@ import { registerLiveClerkBridge } from './auth-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { salaryProfileWireFixture } from '@/test-utils/financial-planning-api-fixtures';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+
+
 beforeAll(() =>
   registerLiveClerkBridge({
     getSession: async () => ({

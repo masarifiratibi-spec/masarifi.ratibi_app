@@ -634,8 +634,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colorTokens.raw['10231F']
+    fontWeight: '600'
   },
   subtext: {
     fontSize: 12,
@@ -806,8 +805,7 @@ const styles = StyleSheet.create({
   },
   navRowTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: colorTokens.raw['10231F']
+    fontWeight: '700'
   },
   navRowRight: {
     alignItems: 'center',

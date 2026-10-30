@@ -26,6 +26,7 @@ import { AccountPicker } from '@/features/transactions/AccountPicker';
 import { TransactionDateField } from '@/features/transactions/TransactionDateField';
 import { translate } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { DesignIcon } from '@/design-system/icons';
@@ -166,7 +167,10 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
     );
   };
 
-  if (existing.isError || accounts.isError)
+  if (
+    (existing.isError && !hasReadableSnapshot(existing)) ||
+    (accounts.isError && !hasReadableSnapshot(accounts))
+  )
     return (
       <PlanningScreen
         titleKey={goalId ? 'planning.savings.edit' : 'planning.savings.new'}

@@ -8,6 +8,9 @@ import {
 } from './navigation-context';
 
 describe('navigation context', () => {
+  it.each(['/categories', '/salary', '/obligations'])('retains the active More destination %s across a lock', route => {
+    expect(sanitizeReturnRoute(route)).toBe(route);
+  });
   it('accepts approved Accounts and assistant origins and rejects sensitive query data', () => {
     for (const origin of ['/(tabs)/home', '/(tabs)/more', '/(tabs)/transactions', '/(tabs)/reports']) {
       expect(createReturnContext('/accounts', origin)).toEqual({

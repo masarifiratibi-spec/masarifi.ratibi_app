@@ -91,6 +91,30 @@ describe('operations job registry', () => {
 });
 
 describe('OperationsWorker', () => {
+  it('passes an explicit validated job scope to the claim boundary before polling', async () => {
+    const repository = {
+      claim: jest.fn(() => Promise.resolve([])),
+      complete: jest.fn(),
+      heartbeat: jest.fn(),
+    };
+    const worker = Reflect.construct(OperationsWorker, [
+      repository,
+      { run: jest.fn() },
+      { get: () => 'sync-mutations.retry' },
+    ]) as OperationsWorker;
+    await worker.runOnce();
+    expect(repository.claim).toHaveBeenCalledWith(expect.any(String), 1, ['sync-mutations.retry']);
+  });
+  it.each(['', ' ', 'sync-mutations.retry,sync-mutations.retry', 'unknown.job'])(
+    'rejects invalid claim scope %j before any poll',
+    (scope) => {
+      const claim = jest.fn();
+      expect(() => {
+        Reflect.construct(OperationsWorker, [{ claim }, {}, { get: () => scope }]);
+      }).toThrow('OPERATIONS_JOB_SCOPE_INVALID');
+      expect(claim).not.toHaveBeenCalled();
+    },
+  );
   it('keeps the 2026-09-27 staging worker process alive while polling is active', async () => {
     const child = spawn(
       process.execPath,

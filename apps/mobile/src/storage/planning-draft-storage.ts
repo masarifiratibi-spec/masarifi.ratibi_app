@@ -64,3 +64,24 @@ export async function deletePlanningDraft(
   });
   await owner.assertCurrent();
 }
+
+export async function listPlanningDrafts(
+  owner: DraftOwner,
+  kind: PlanningDraft['kind']
+): Promise<PlanningDraft[]> {
+  if (kind === 'report_schedule')
+    throw new FinancialPlanningError('validation');
+  const db = await openDatabase(owner.userId);
+  await owner.assertCurrent();
+  const rows = await db.getAllAsync<{ id: string; payload: string }>(
+    "SELECT id,payload FROM planning_drafts WHERE kind = ? AND status IN ('editing','valid') ORDER BY updated_at DESC,id ASC LIMIT 64",
+    kind
+  );
+  await owner.assertCurrent();
+  return rows.map((row) => {
+    const draft = JSON.parse(row.payload) as PlanningDraft;
+    if (draft.id !== row.id || draft.kind !== kind)
+      throw new FinancialPlanningError('validation');
+    return draft;
+  });
+}

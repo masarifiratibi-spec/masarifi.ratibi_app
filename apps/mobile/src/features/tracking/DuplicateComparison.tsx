@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAppShellStore } from '@/state/app-shell';
 
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
@@ -20,16 +23,21 @@ import {
 } from './useAutomaticTracking';
 
 export function DuplicateComparison({ id }: { id: string }) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <DuplicateComparisonContent key={`${ownerId}:${id}`} id={id} />;
+}
+
+function DuplicateComparisonContent({ id }: { id: string }) {
   const client = useQueryClient();
   const query = useDuplicateCandidate(id);
   const existing = useTransaction(query.data?.existingTransactionId ?? '');
   const [resolving, setResolving] = useState(false);
   const [resolutionError, setResolutionError] = useState(false);
-  if (query.isLoading)
+  if (query.isLoading && !hasReadableSnapshot(query))
     return (
       <StateView state="loading" title={translate('tracking.state.loading')} />
     );
-  if (query.isError || !query.data)
+  if (!hasReadableSnapshot(query) || !query.data)
     return (
       <StateView
         state="error"
@@ -40,6 +48,7 @@ export function DuplicateComparison({ id }: { id: string }) {
     );
   const duplicate = query.data;
   async function resolve(resolution: DuplicateResolution) {
+    if (resolving || query.isError || query.isFetching) return;
     setResolving(true);
     setResolutionError(false);
     try {
@@ -61,10 +70,12 @@ export function DuplicateComparison({ id }: { id: string }) {
         {translate('tracking.duplicate.title')}
       </StyledText>
       <TrackingDemoNotice />
+      <FinancialRefreshStatus query={query} />
+      <FinancialRefreshStatus query={existing} />
       <SurfaceCard>
         <View style={styles.stack}>
           <StyledText>{translate('tracking.duplicate.existing')}</StyledText>
-          {existing.data ? (
+          {hasReadableSnapshot(existing) && existing.data ? (
             <>
               <StyledText variant="subtitle">{existing.data.title}</StyledText>
               <AmountText
@@ -100,23 +111,24 @@ export function DuplicateComparison({ id }: { id: string }) {
       <ActionButton
         label={translate('tracking.duplicate.keepExisting')}
         loading={resolving}
+        disabled={query.isError || query.isFetching}
         onPress={() => void resolve('keep_existing')}
       />
       <ActionButton
         label={translate('tracking.duplicate.keepNew')}
-        disabled={resolving}
+        disabled={resolving || query.isError || query.isFetching}
         onPress={() => void resolve('keep_new')}
         variant="secondary"
       />
       <ActionButton
         label={translate('tracking.duplicate.keepBoth')}
-        disabled={resolving}
+        disabled={resolving || query.isError || query.isFetching}
         onPress={() => void resolve('keep_both')}
         variant="secondary"
       />
       <ActionButton
         label={translate('tracking.duplicate.merge')}
-        disabled={resolving}
+        disabled={resolving || query.isError || query.isFetching}
         onPress={() => void resolve('merge_details')}
         variant="secondary"
       />

@@ -3,14 +3,17 @@ import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuar
 
 export function useTransactionDraftGuard({
   meaningful,
-  discard
+  discard,
+  close
 }: {
   meaningful: boolean;
   discard: () => Promise<void>;
+  close?: () => void;
 }) {
   return useDraftNavigationGuard({
     dirty: meaningful,
     discard,
+    close,
     copy: {
       title: translate('coreFinance.draft.leaveTitle'),
       message: translate('coreFinance.draft.leaveMessage'),

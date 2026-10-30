@@ -1,0 +1,185 @@
+{
+  "task": "T06",
+  "status": "BLOCKED",
+  "at": "2026-10-29T06:12:59.023Z",
+  "dependencies": {
+    "T04": "PASS",
+    "T05": "PASS"
+  },
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "eventsGate": {
+    "decision": "KEEP_GATE",
+    "liveCriterion": "DEFERRED_BY_USER; not PASS",
+    "sourceSha256": "0d893db5005d20d9d6a2307b6cf2f52248696b61e76e6c337ba5f10030b4f9ac",
+    "inactivePacketSha256": "4c3d81d3fe3d374ed5bf944f07341b838eb03df3862f2c5b61161bc41ca6cbf2",
+    "currentProductDisposition": "INTENTIONALLY_HIDDEN_DEFERRED_BY_USER_2026_10_29"
+  },
+  "refundReview": {
+    "preFixDevice": "AR/EN review opens; cancellation returns Home; separate temporary drafts cleaned; original draft/12operations preserved",
+    "repair": "IMPLEMENTED_AUTOMATED_PASS_ACTUAL_XIAOMI_AR_EN_CLOSE_BACK_PASS",
+    "tests": {
+      "suites": 2,
+      "passed": 120,
+      "failed": 0,
+      "skipped": 0
+    },
+    "typecheck": 0,
+    "lint": {
+      "exit": 0,
+      "errors": 0,
+      "warnings": 4,
+      "inheritedWarnings": 3,
+      "additionalTestTypeStyleWarning": 1
+    },
+    "codeChanges": [
+      {
+        "file": "apps/mobile/src/features/transactions/TransactionForm.tsx",
+        "beforeSha256": "65e7713cc1a66b957d8d6b53a49493083cb65fbda1ab2524ec6e70d5cb33d59f",
+        "afterSha256": "7d24fa789fe11b4e96ba8536a1380782307381a72e8a69dd9f77bf106ab417f6"
+      },
+      {
+        "file": "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+        "beforeSha256": "d4e95ba6b861fc0036fd29c49a81ad29e56d2efd78554ede403bb5beead0f506",
+        "afterSha256": "d36da0de6afa246d81195d0db0065efe0ee638dd6ea98e9711de250291b82510"
+      },
+      {
+        "file": "apps/mobile/src/features/transactions/useTransactionDraftGuard.ts",
+        "beforeSha256": "a62f5838d63aa261770fc10a79112d8ec6af02b7aacdd5c69f6295b7f7f757ee",
+        "afterSha256": "6a409b88f99250c3d244294c4e0266af2e084bad2b98102a73a79c9f720e1bec"
+      }
+    ],
+    "postChangeFirstDeviceAttempt": "Home; loaded candidate unconfirmed; not PASS",
+    "normalDevelopmentReload": 2,
+    "pendingHuman": null,
+    "firstLoadedCorrection": {
+      "result": "FAILED: guard intercepted cross-navigator dismissTo; form stayed mounted; preserved original draft exact",
+      "receipt": "guard-release-diagnosis.json"
+    },
+    "guardReleaseRegression": {
+      "red": {
+        "suitesPassed": 0,
+        "suitesFailed": 1,
+        "testsPassed": 0,
+        "testsFailed": 2,
+        "skipped": 115,
+        "success": false
+      },
+      "green": {
+        "suitesPassed": 1,
+        "suitesFailed": 0,
+        "testsPassed": 2,
+        "testsFailed": 0,
+        "skipped": 115,
+        "success": true
+      },
+      "verified": {
+        "suitesPassed": 2,
+        "suitesFailed": 0,
+        "testsPassed": 120,
+        "testsFailed": 0,
+        "skipped": 0,
+        "success": true
+      }
+    },
+    "actualDevice": {
+      "status": "PASS within refund-cancellation slice",
+      "receipt": "after-private-unlock-2026-10-28T21-30-31-729Z/refund-return-final-self-review.json",
+      "loadedSourceSha256": "b7931e62e632d3b5f0a8e29eeb3cb4ad3c653fce6583d23ecd41cc0430ee4a64",
+      "localeActions": [
+        "en Close",
+        "en Android Back",
+        "ar Close",
+        "ar Android Back"
+      ],
+      "returnsOriginalDetails": true,
+      "detailsBackReturnsTransactions": true
+    }
+  },
+  "device": {
+    "serial": "f66a40694eca",
+    "package": "com.masarifi.mobile.dev",
+    "lastPid": 24113,
+    "wifi": "0",
+    "data": "0",
+    "locale": "ar",
+    "lastOperationSetSha256": "e1800b313d30d84783a80abf6c298669d3a89d1d627730322a263ad4c126c6d5",
+    "lastOriginalDraftFingerprintSha256": "cfcbf7b9a5564853400a2704d86a67f589edcde445ac54da54ef4d77d1600d20",
+    "temporaryRefundDraftsRemaining": 0,
+    "observerClosedBeforeReload": true,
+    "metroParents": [
+      25284,
+      32992
+    ],
+    "reverse": "UsbFfs tcp:8081 tcp:8081",
+    "view": "Home / All Accounts / October 2026",
+    "airplane": "0",
+    "observerClosed": true,
+    "debuggerClosed": true,
+    "originalProcessPreserved": true,
+    "at": "2026-10-28T23:25:25.803Z",
+    "pid": "24113",
+    "homeSelected": true,
+    "allAccounts": true,
+    "october2026": true,
+    "originalDraftSha256": "cfcbf7b9a5564853400a2704d86a67f589edcde445ac54da54ef4d77d1600d20",
+    "operationSetSha256": "e1800b313d30d84783a80abf6c298669d3a89d1d627730322a263ad4c126c6d5",
+    "allTwelveApplied": true,
+    "counts": {
+      "drafts": 1,
+      "pending": 0,
+      "voice_journal": 0,
+      "unfinished_or_audio": 0,
+      "sms": 0
+    },
+    "nativeSafe": true,
+    "noFinancialSubmission": true
+  },
+  "financialOperationPerformed": false,
+  "serverOrHostedChanges": false,
+  "T07MayStart": true,
+  "report": "native-app-lock-continuation-2026-10-29.md",
+  "privateRoot": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-10-25-astra-readiness-remediation/T06/continuation-after-t05-2026-10-28",
+  "originalDenominators": {
+    "client": 62,
+    "references": 69,
+    "acceptanceUnits": 88,
+    "tasks": 29
+  },
+  "remainingAcceptance": "Full T06 remains unaccepted; Events explicitly hidden/deferred and other conditional/native gates remain pending. User-approved exact execution-only packet permits independent T07–T19a work; original task acceptance and T20–T22 gates remain.",
+  "previousReport": "refund-return-continuation-2026-10-29.md",
+  "appLock": {
+    "authorityAttachmentSha256": "9f734842b32247434626f8aaef3eb1fdf19db357c8ebcea432f981b52bb2d355",
+    "implementation": "CUSTOM_PIN_SOURCE_REMOVED_NATIVE_OPTIONAL_LOCK_IMPLEMENTED",
+    "automation": {
+      "mainSuites": 22,
+      "mainPassed": 372,
+      "followupSuites": 2,
+      "followupPassed": 11,
+      "uniqueSuites": 23,
+      "uniqueCases": 374,
+      "distinctFullNames": 370,
+      "countingMethod": "Retain latest successful result per suite; count every parameterized case, including identical names. Nine follow-up cases are reruns.",
+      "allCasesPassed": true
+    },
+    "devXiaomi": "AR_EN_SETTINGS_NAVIGATION_BACKGROUND_RETURN_LOCAL_DATA_PASS",
+    "release": "PREPACKAGING_PASS_SIGNED_APK_AND_NATIVE_HUMAN_VERIFICATION_PENDING",
+    "loadedDevBundleHash": "UNVERIFIED_CDP_UNRESPONSIVE",
+    "preservedLegacySecrets": true,
+    "financialAuthenticationProductionSourceUnchanged": true,
+    "nativeDeviceHardware": "NOT_RUN",
+    "freshSigninActualLogout": "NOT_RUN",
+    "pendingPrivatePrompt": false,
+    "privateRoot": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-10-29-native-app-lock",
+    "plan": "docs/superpowers/plans/2026-10-29-native-app-lock.md"
+  },
+  "currentHandoff": "docs/handoffs/T06-native-app-lock-checkpoint-2026-10-29.md",
+  "dependencyProposal": {
+    "path": "docs/superpowers/plans/2026-10-29-t07-batched-execution-dependency-proposal.md",
+    "sha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+    "status": "APPROVED_EXECUTION_ONLY_BY_HUMAN",
+    "T07ExecutionActivated": true,
+    "authorityAttachmentSha256": "7c19d863c66921acdc0ad53790a849cd59adf706a73c63b8b21f28b91f72b98e"
+  },
+  "T07ExecutionOnly": true
+}

@@ -1,0 +1,147 @@
+{
+  "at": "2026-10-28T10:36:11.827824+00:00",
+  "model": "gpt-6.1-sol/xhigh",
+  "sourceUnchangedFrom241TestCandidate": true,
+  "newProductEdits": false,
+  "automatedTestsRepeated": false,
+  "observations": {
+    "arabicExplainAllAccountsToolbarAndAndroidBack": "PASS offline on Xiaomi",
+    "arabicQaAccountContextAndReturn": "PASS offline on Xiaomi",
+    "englishExplainAllAccountsAndQaAccountToolbarReturn": "PASS offline on Xiaomi",
+    "englishFiveReportActionEntries": "PASS editable unsent questions; account/date/currency retained",
+    "englishAndroidBack": "PASS returning to same scoped Analytics",
+    "onlineDeviceRecovery": "BLOCKED; unknown local queue/reconnect excluded",
+    "hostLiveness": {
+      "at": "2026-10-28T10:26:06.7062927Z",
+      "status": 200,
+      "endpoint": "https://api.staging.masarifiratibi.com/health/live",
+      "version": "a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7",
+      "deviceCoverage": false
+    }
+  },
+  "noNewConfirmedDefect": true,
+  "cleanup": {
+    "appStoppedOffline": true,
+    "ownedMetroStopped": true,
+    "ownReverseRemoved": true,
+    "localeRestored": "ar",
+    "accountScopeRestored": "All Accounts",
+    "wifiRestored": 1,
+    "data": 0,
+    "airplane": 0
+  },
+  "evidence": [
+    {
+      "file": "report-account-picker-ar.xml",
+      "sha256": "730aa642b0f011265b1f869084ffd57a9f87412ab73bf5b4a4a780d301e77b07"
+    },
+    {
+      "file": "report-all-accounts-en.xml",
+      "sha256": "8161ac4facf2214b6a90a7d4d478105fbbf7543d354bfb4e8f88406dd690225a"
+    },
+    {
+      "file": "report-all-back-en.xml",
+      "sha256": "8161ac4facf2214b6a90a7d4d478105fbbf7543d354bfb4e8f88406dd690225a"
+    },
+    {
+      "file": "report-all-question-en.xml",
+      "sha256": "c0f6e8a5f5904219de07ed03047cfa03709e70e67f858460b7f97b67d21bf703"
+    },
+    {
+      "file": "report-analytics-before-ar.xml",
+      "sha256": "bad93ec0e4fd38ca512e2b480f8791868a8360b0246de3e0114ed56d0289bdaa"
+    },
+    {
+      "file": "report-analytics-en.xml",
+      "sha256": "701408e2987be17eccf8b9cea198bdb2da3badd7badfdee6433aba1dad4556bb"
+    },
+    {
+      "file": "report-android-back-ar.xml",
+      "sha256": "bad93ec0e4fd38ca512e2b480f8791868a8360b0246de3e0114ed56d0289bdaa"
+    },
+    {
+      "file": "report-android-entry-ar.xml",
+      "sha256": "a3a774bcef6e6742166d3e364f8e3cd157b4f9a422307894181016d84ffaa4d4"
+    },
+    {
+      "file": "report-assistant-before-ar.xml",
+      "sha256": "a3a774bcef6e6742166d3e364f8e3cd157b4f9a422307894181016d84ffaa4d4"
+    },
+    {
+      "file": "report-back-before-ar.xml",
+      "sha256": "bad93ec0e4fd38ca512e2b480f8791868a8360b0246de3e0114ed56d0289bdaa"
+    },
+    {
+      "file": "report-compare-en.xml",
+      "sha256": "609e7cf0e897027101007374d10de80b6e5e2b31db4e8d5517cf3c2fc49459e7"
+    },
+    {
+      "file": "report-create-plan-back-en.xml",
+      "sha256": "701408e2987be17eccf8b9cea198bdb2da3badd7badfdee6433aba1dad4556bb"
+    },
+    {
+      "file": "report-create-plan-entry-en.xml",
+      "sha256": "2845b6e07c2e968c308e7035473973ccae8967089ef9fb3d0ddb1cbe7ecf2294"
+    },
+    {
+      "file": "report-final-picker-en.xml",
+      "sha256": "02f411f7633989ad1cbcd8b7f083cb6834f64e2828ed537ad0d24aef3cb20e50"
+    },
+    {
+      "file": "report-find-savings-en.xml",
+      "sha256": "4555e4fa7c8065112d09e90601ace763d2cec635f679e7d83e0fd7abd91d3b35"
+    },
+    {
+      "file": "report-hardware-back-en.xml",
+      "sha256": "701408e2987be17eccf8b9cea198bdb2da3badd7badfdee6433aba1dad4556bb"
+    },
+    {
+      "file": "report-home-before-ar.xml",
+      "sha256": "954a38eb2d3b891d063052ca4a1fbad3a5d44385600d0e736d663aae0d957bc7"
+    },
+    {
+      "file": "report-locale-settings-ar.xml",
+      "sha256": "000ecf4df8a35a6efb420ee26706854a95819f14f6b4e6409c6ae96295a95f96"
+    },
+    {
+      "file": "report-qa-back-ar.xml",
+      "sha256": "51927a8e015f627143a2395ef57a6fc645e746c1e10e095294c9b36bd525af79"
+    },
+    {
+      "file": "report-qa-question-ar.xml",
+      "sha256": "f8f54f2c8493f508ea27773797dc8f43fbdac5759ee112df9845cf4ebd641835"
+    },
+    {
+      "file": "report-qa-question-en.xml",
+      "sha256": "d22cf1a0b6da487210c468eb1bbe673798383f2d722cb9a049dc6528f69cf995"
+    },
+    {
+      "file": "report-qa-scope-ar.xml",
+      "sha256": "51927a8e015f627143a2395ef57a6fc645e746c1e10e095294c9b36bd525af79"
+    },
+    {
+      "file": "report-restore-settings-en.xml",
+      "sha256": "cd6ddb82412869847a0188ba56009a742f3acff4c7e1256c6e31fb5dbf3d084f"
+    },
+    {
+      "file": "report-restored-settings-ar.xml",
+      "sha256": "828dca2ab89ecd8776e42cf4758734e09141606f598f56d0c2789b44595cf773"
+    },
+    {
+      "file": "report-settings-en.xml",
+      "sha256": "cd6ddb82412869847a0188ba56009a742f3acff4c7e1256c6e31fb5dbf3d084f"
+    },
+    {
+      "file": "report-spending-back-en.xml",
+      "sha256": "701408e2987be17eccf8b9cea198bdb2da3badd7badfdee6433aba1dad4556bb"
+    },
+    {
+      "file": "report-spending-increase-en.xml",
+      "sha256": "f4123821794cfd77b8b3362e1b057e9b974b07e55b7bbc5dad128c977fda008a"
+    },
+    {
+      "file": "report-toolbar-back-en.xml",
+      "sha256": "701408e2987be17eccf8b9cea198bdb2da3badd7badfdee6433aba1dad4556bb"
+    }
+  ]
+}

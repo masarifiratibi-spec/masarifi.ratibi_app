@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import type {
   AuthenticationSession,
   OnboardingProgress,
-  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -18,6 +17,7 @@ import {
 } from '@/features/onboarding/onboarding-progress';
 import { isDemoModeEnabled } from '@/config/demo-mode';
 import {
+  isAppLockEnabled,
   isDevPrivacyDeletionEnabled,
   resolveClientMode
 } from '@/config/client-runtime';
@@ -26,7 +26,6 @@ import {
   createClientDemoSession,
   createCompletedDemoOnboarding
 } from '@/domain/demo-session';
-import { createPinLock, failUnlock } from '@/features/security/privacy-lock';
 import {
   clearAppShellStorageOwner,
   configureAppShellStorageOwner,
@@ -34,7 +33,10 @@ import {
 } from '@/storage/app-shell-storage';
 import {
   loadLocalOwnerAccess,
-  clearLocalOwnerAccess
+  clearLocalOwnerAccess,
+  loadCachedLogoutDisposition,
+  isLogoutOwnerFenced,
+  currentLogoutAdmissionRevision
 } from '@/storage/app-shell-storage';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 import { usePreferenceStore } from '@/state/preferences';
@@ -46,6 +48,9 @@ import { clearDatabaseOwner, configureDatabaseOwner } from '@/storage/database';
 import { clearLegacySmsImportQueue } from '@/storage/sms-import-queue';
 
 interface AppShellState {
+  logoutQuiescingOwnerId: string | null;
+  logoutRecoveryOwnerId: string | null;
+  fenceLogoutOwner: (ownerId: string) => void;
   bootstrapRevision: number;
   retryBootstrap: () => void;
   hydrated: boolean;
@@ -53,7 +58,6 @@ interface AppShellState {
   onboarding: OnboardingProgress | null;
   pendingDestination: string | null;
   privacyLock: PrivacyLockPreference | null;
-  pinCredential: PinCredential | null;
   profilePromptDismissed: boolean;
   trackingHomeCardDismissed: boolean;
   profileSetupStatus: ProfileSetupStatus;
@@ -80,14 +84,7 @@ interface AppShellState {
     isCurrent?: () => boolean
   ) => Promise<void>;
   setPrivacyLock: (lock: PrivacyLockPreference) => Promise<void>;
-  configurePrivacyLock: (
-    credential: PinCredential,
-    now?: number
-  ) => Promise<void>;
-  updatePinCredential: (credential: PinCredential) => Promise<void>;
-  recordFailedUnlock: (now: number) => Promise<void>;
   lockNow: () => Promise<void>;
-  resetPrivacyLock: () => Promise<void>;
   setProfileSetup: (
     status: ProfileSetupStatus,
     snapshot?: ProfileSetupSnapshot | null
@@ -111,12 +108,13 @@ const signedOutSession: AuthenticationSession = {
 };
 
 const initialState = {
+  logoutQuiescingOwnerId: null,
+  logoutRecoveryOwnerId: null,
   hydrated: false,
   session: null,
   onboarding: null,
   pendingDestination: null,
   privacyLock: null,
-  pinCredential: null,
   profilePromptDismissed: false,
   trackingHomeCardDismissed: false,
   profileSetupStatus: 'unknown' as ProfileSetupStatus,
@@ -126,6 +124,11 @@ const initialState = {
 export const useAppShellStore = create<AppShellState>((set, get) => ({
   ...initialState,
   bootstrapRevision: 0,
+  fenceLogoutOwner: (ownerId) => {
+    const current = get().session?.userId;
+    if (current && current !== ownerId) return;
+    set({ ...initialState, hydrated: true, session: signedOutSession, logoutRecoveryOwnerId: ownerId });
+  },
   retryBootstrap: () => {
     if (get().profileSetupStatus === 'loading') return;
     set({
@@ -135,38 +138,48 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   hydrate: async (now = Date.now()) => {
+    let hydrationOwnerId = get().session?.userId;
+    const ownerIsCurrent = () => !get().session?.userId || get().session?.userId === hydrationOwnerId;
     try {
       const demoMode = isDemoModeEnabled();
       if (!demoMode && resolveClientMode() === 'live') {
+        const admissionRevision = currentLogoutAdmissionRevision();
+        const disposition = await loadCachedLogoutDisposition();
+        if (!ownerIsCurrent()) return;
+        if (disposition) { get().fenceLogoutOwner(disposition.ownerId); return; }
         const cached = await loadLocalOwnerAccess();
+        if (!ownerIsCurrent()) return;
+        hydrationOwnerId = cached?.userId ?? hydrationOwnerId;
         if (
           cached?.status === 'authenticated' &&
           cached.userId &&
           !(await isDeletionOwnerFenced(cached.userId))
         ) {
           await configureDatabaseOwner(cached.userId);
+          if (!ownerIsCurrent()) return;
           await configureAppShellStorageOwner(cached.userId);
-          const [privacyLock, pinCredential] = await Promise.all([
-            storage.loadPrivacyLock(),
-            storage.loadPinCredential()
-          ]);
-          const launchLock = lockForLaunch(privacyLock, pinCredential, now);
-          if (
-            launchLock &&
-            (pinCredential || launchLock.biometricStatus === 'enabled')
-          ) {
+          if (!ownerIsCurrent()) return;
+          const privacyLock = await storage.loadPrivacyLock();
+          const launchLock = lockForLaunch(privacyLock);
+          if (!ownerIsCurrent() || admissionRevision !== currentLogoutAdmissionRevision()) return;
+          if (await isLogoutOwnerFenced(cached.userId)) {
+            get().fenceLogoutOwner(cached.userId); return;
+          }
+          if (!ownerIsCurrent() || admissionRevision !== currentLogoutAdmissionRevision()) return;
+          if (launchLock?.enabled || !isAppLockEnabled()) {
             set({
               ...initialState,
               hydrated: true,
               session: { ...cached, restoration: 'local' },
               privacyLock: launchLock,
-              pinCredential,
               profileSetupStatus: 'complete'
             });
             return;
           }
         }
+        if (!ownerIsCurrent()) return;
         await clearDatabaseOwner();
+        if (!ownerIsCurrent()) return;
         clearAppShellStorageOwner();
         set({
           ...initialState,
@@ -187,7 +200,6 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         onboarding,
         pendingDestination,
         privacyLock,
-        pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed
       ] = await Promise.all([
@@ -195,7 +207,6 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         storage.loadOnboarding(),
         storage.loadPendingDestination(),
         storage.loadPrivacyLock(),
-        storage.loadPinCredential(),
         storage.loadProfilePromptDismissed(),
         storage.loadTrackingHomeCardDismissed(),
         demoMode
@@ -221,8 +232,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
           session: demoSession,
           onboarding: demoOnboarding,
           pendingDestination: null,
-          privacyLock: lockForLaunch(privacyLock, pinCredential, now),
-          pinCredential,
+          privacyLock: lockForLaunch(privacyLock),
           profilePromptDismissed,
           trackingHomeCardDismissed,
           profileSetupStatus: 'complete',
@@ -235,20 +245,23 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         session,
         onboarding,
         pendingDestination,
-        privacyLock: lockForLaunch(privacyLock, pinCredential, now),
-        pinCredential,
+        privacyLock: lockForLaunch(privacyLock),
         profilePromptDismissed,
         trackingHomeCardDismissed,
         profileSetupStatus: 'complete',
         profileSetupSnapshot: null
       });
     } catch {
+      if (!ownerIsCurrent()) return;
       set({ ...initialState, hydrated: true, session: signedOutSession });
     }
   },
 
   authenticate: async (session, isCurrent = () => true) => {
     if (!isCurrent()) return;
+    const admissionRevision = currentLogoutAdmissionRevision();
+    if (session.userId && (get().logoutQuiescingOwnerId === session.userId || await isLogoutOwnerFenced(session.userId))) return;
+    if (!isCurrent() || admissionRevision !== currentLogoutAdmissionRevision()) return;
     const liveMode = resolveClientMode() === 'live';
     if (
       liveMode &&
@@ -284,25 +297,23 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         onboarding,
         pendingDestination,
         privacyLock,
-        pinCredential,
         profilePromptDismissed,
         trackingHomeCardDismissed
       ] = await Promise.all([
         storage.loadOnboarding(),
         storage.loadPendingDestination(),
         storage.loadPrivacyLock(),
-        storage.loadPinCredential(),
         storage.loadProfilePromptDismissed(),
         storage.loadTrackingHomeCardDismissed()
       ]);
-      if (!isCurrent()) return;
+      if (!isCurrent() || admissionRevision !== currentLogoutAdmissionRevision() || get().logoutQuiescingOwnerId === session.userId || await isLogoutOwnerFenced(session.userId!)) return;
+      if (admissionRevision !== currentLogoutAdmissionRevision()) return;
       set({
         hydrated: true,
         session,
         onboarding,
         pendingDestination,
-        privacyLock: lockForLaunch(privacyLock, pinCredential, Date.now()),
-        pinCredential,
+        privacyLock: lockForLaunch(privacyLock),
         profilePromptDismissed,
         trackingHomeCardDismissed
       });
@@ -345,8 +356,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       onboarding: null,
       pendingDestination: null,
       privacyLock: null,
-      pinCredential: null,
-      profilePromptDismissed: false,
+          profilePromptDismissed: false,
       trackingHomeCardDismissed: false,
       profileSetupStatus: 'unknown',
       profileSetupSnapshot: null
@@ -414,50 +424,18 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   setPrivacyLock: async (privacyLock) => {
+    const expectedSession = get().session;
     await storage.savePrivacyLock(privacyLock);
-    set({ privacyLock });
-  },
-
-  configurePrivacyLock: async (pinCredential, now = Date.now()) => {
-    const existing = get().privacyLock;
-    const privacyLock = existing
-      ? { ...existing, pinConfigured: true }
-      : createPinLock(now);
-    await Promise.all([
-      storage.savePinCredential(pinCredential),
-      storage.savePrivacyLock(privacyLock)
-    ]);
-    set({ privacyLock, pinCredential });
-  },
-
-  updatePinCredential: async (pinCredential) => {
-    await storage.savePinCredential(pinCredential);
-    set({ pinCredential });
-  },
-
-  recordFailedUnlock: async (now) => {
-    const privacyLock = failUnlock(
-      get().privacyLock ?? createPinLock(now),
-      now
-    );
-    await storage.savePrivacyLock(privacyLock);
-    set({ privacyLock });
+    if (get().session === expectedSession) set({ privacyLock });
   },
 
   lockNow: async () => {
     const privacyLock = get().privacyLock;
-    if (!privacyLock || privacyLock.appLockStatus === 'locked') return;
+    if (!isAppLockEnabled() || !privacyLock?.enabled || privacyLock.appLockStatus === 'locked') return;
+    const expectedSession = get().session;
     const locked = { ...privacyLock, appLockStatus: 'locked' as const };
     await storage.savePrivacyLock(locked);
-    set({ privacyLock: locked });
-  },
-
-  resetPrivacyLock: async () => {
-    await Promise.all([
-      storage.clearPrivacyLock(),
-      storage.clearPinCredential()
-    ]);
-    set({ privacyLock: null, pinCredential: null });
+    if (get().session === expectedSession) set({ privacyLock: locked });
   },
 
   setProfileSetup: (profileSetupStatus, profileSetupSnapshot = null) => {
@@ -481,16 +459,16 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 
   unlock: async () => {
     const privacyLock = get().privacyLock;
-    if (!privacyLock) return;
+    if (!privacyLock?.enabled || !isAppLockEnabled()) return;
+    const expectedSession = get().session;
+    const admissionRevision = currentLogoutAdmissionRevision();
     const unlocked = {
       ...privacyLock,
-      invalidAttempts: 0,
-      lockoutStage: 0,
-      lockedUntil: null,
       appLockStatus: 'unlocked' as const
     };
     await storage.savePrivacyLock(unlocked);
-    set({ privacyLock: unlocked });
+    if (get().session === expectedSession && admissionRevision === currentLogoutAdmissionRevision())
+      set({ privacyLock: unlocked });
   },
 
   reset: () => {
@@ -498,37 +476,12 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   }
 }));
 
-function lockForLaunch(
-  privacyLock: PrivacyLockPreference | null,
-  pinCredential: PinCredential | null,
-  now: number
-): PrivacyLockPreference | null {
-  if (!privacyLock) return pinCredential ? createPinLock(now) : null;
-  if (
-    !pinCredential &&
-    !privacyLock.pinConfigured &&
-    privacyLock.biometricStatus !== 'enabled'
-  )
-    return null;
-
-  const lockoutExpired =
-    pinCredential !== null &&
-    privacyLock.lockedUntil !== null &&
-    privacyLock.lockedUntil <= now;
-  const lockoutActive =
-    pinCredential !== null &&
-    privacyLock.invalidAttempts >= 5 &&
-    privacyLock.lockedUntil !== null &&
-    privacyLock.lockedUntil > now;
-  return {
-    ...privacyLock,
-    pinConfigured: pinCredential !== null,
-    invalidAttempts:
-      pinCredential && !lockoutExpired ? privacyLock.invalidAttempts : 0,
-    lockedUntil:
-      pinCredential && !lockoutExpired ? privacyLock.lockedUntil : null,
-    appLockStatus: lockoutActive ? 'temporarily_locked' : 'locked'
+function lockForLaunch(privacyLock: PrivacyLockPreference | null): PrivacyLockPreference | null {
+  const enabledInBuild = isAppLockEnabled();
+  if (!privacyLock) return enabledInBuild ? null : {
+    enabled: false, autoLockDuration: 'immediate', appLockStatus: 'unlocked'
   };
+  return { ...privacyLock, appLockStatus: privacyLock.enabled && enabledInBuild ? 'locked' : 'unlocked' };
 }
 
 registerRuntimeUserDataReset(() => {

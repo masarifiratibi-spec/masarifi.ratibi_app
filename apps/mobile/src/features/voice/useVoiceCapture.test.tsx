@@ -27,6 +27,7 @@ import { useVoiceCapture } from './useVoiceCapture';
 import { VoiceCaptureProvider } from './VoiceCaptureRuntime';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
+import { createLiveVoiceApiService } from '@/services/live/voice-api-service';
 
 const mockCreateFromSource = jest.fn();
 
@@ -1736,3 +1737,99 @@ function confirmedObligationGroup(
     )
   };
 }
+
+it('keeps an admitted locked local owner while automatic Voice recovery waits for online identity', async () => {
+  const localSession = {
+    ...authenticatedSession,
+    restoration: 'local' as const
+  };
+  const lock = {
+    enabled: true,
+    autoLockDuration: 'immediate' as const,
+    appLockStatus: 'locked' as const
+};
+  useAppShellStore.setState({
+    hydrated: true,
+    session: localSession,
+    privacyLock: lock,
+    profileSetupStatus: 'complete'
+  });
+  let sdkOwner: string | null = null;
+  const owner = jest.fn(async () => {
+    if (!sdkOwner) throw new VoiceCaptureError('session_expired');
+    return sdkOwner;
+  });
+  const request = jest.fn();
+  const live = createLiveVoiceApiService({
+    baseUrl: 'https://inert.invalid',
+    owner,
+    token: async () => 'fixture-token',
+    request
+  });
+  const prior = voiceAnalyzerService.recoverPending;
+  voiceAnalyzerService.recoverPending = live.recoverPending;
+  const { unmount, client } = renderVoiceHook('on-demand');
+  try {
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(useAppShellStore.getState().session).toEqual(localSession);
+    expect(useAppShellStore.getState().privacyLock).toEqual(lock);
+    expect(owner).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+    sdkOwner = authenticatedSession.userId;
+    act(() =>
+      useAppShellStore.setState({
+        session: { ...authenticatedSession, restoration: 'restored' }
+      })
+    );
+    await waitFor(() => expect(owner).toHaveBeenCalled());
+    expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+    expect(useAppShellStore.getState().privacyLock).toEqual(lock);
+  } finally {
+    unmount();
+    client.clear();
+    voiceAnalyzerService.recoverPending = prior;
+  }
+});
+it.each(['local demotion', 'owner change'] as const)(
+  'fences stale automatic Voice auth failure after %s',
+  async (change) => {
+    useAppShellStore.setState({ session: authenticatedSession });
+    let rejectFirst!: (error: unknown) => void;
+    const firstOwner = new Promise<string>((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    const owner = jest
+      .fn()
+      .mockReturnValueOnce(firstOwner)
+      .mockResolvedValue('new-owner');
+    const live = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      owner,
+      token: async () => 'fixture-token',
+      request: jest.fn()
+    });
+    const prior = voiceAnalyzerService.recoverPending;
+    voiceAnalyzerService.recoverPending = live.recoverPending;
+    const { unmount, client } = renderVoiceHook('on-demand');
+    try {
+      await waitFor(() => expect(owner).toHaveBeenCalledTimes(1));
+      const retained =
+        change === 'local demotion'
+          ? { ...authenticatedSession, restoration: 'local' as const }
+          : { ...authenticatedSession, userId: 'new-owner' };
+      act(() => useAppShellStore.setState({ session: retained }));
+      await act(async () => {
+        rejectFirst(new VoiceCaptureError('session_expired'));
+        await Promise.resolve();
+      });
+      expect(useAppShellStore.getState().session).toEqual(retained);
+      expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+    } finally {
+      unmount();
+      client.clear();
+      voiceAnalyzerService.recoverPending = prior;
+    }
+  }
+);

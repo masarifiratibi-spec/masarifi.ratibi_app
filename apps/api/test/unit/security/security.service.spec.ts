@@ -1,4 +1,7 @@
 import { HttpException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
+import type { PlatformEnvironment } from '../../../src/platform/config/environment.types';
 
 import { SecurityService } from '../../../src/security/security.service';
 
@@ -15,7 +18,9 @@ describe('SecurityService boundaries', () => {
     getReadyExportReference: jest.fn(() => Promise.resolve('private/export.zip')),
   };
   const config = {
-    get: jest.fn(() => undefined),
+    get: jest.fn((key: string) =>
+      key === 'MASARIFI_PRIVACY_HANDLER_MANIFEST' ? ['identity@1'] : undefined,
+    ),
     getRequired: jest.fn((key: string) =>
       key.includes('IP_HASH')
         ? `active:${Buffer.alloc(32, 7).toString('base64url')}`
@@ -192,6 +197,79 @@ describe('SecurityService boundaries', () => {
       expect.stringMatching(/^h1:active:[0-9a-f]{64}$/),
     );
     expect(JSON.stringify(repository.consumeRateLimit.mock.calls)).not.toContain('192.0.2.10');
+  });
+
+  it('returns a retryable service error without creating an export when its manifest is unavailable', async () => {
+    const isolatedEnvironment = { ...process.env };
+    delete isolatedEnvironment.MASARIFI_PRIVACY_HANDLER_MANIFEST;
+    const environment = jest.replaceProperty(process, 'env', isolatedEnvironment);
+    try {
+      const missingManifest = new PlatformConfigService(
+        new ConfigService<PlatformEnvironment, true>({
+          MASARIFI_SECURITY_IP_HASH_KEYS: `active:${Buffer.alloc(32, 7).toString('base64url')}`,
+          MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: 600,
+        }),
+      );
+      const unconfiguredService = new SecurityService(
+        repository as never,
+        missingManifest,
+        clerk as never,
+        storage as never,
+        {} as never,
+      );
+      await expect(
+        unconfiguredService.execute({
+          operation: 'createMyPrivacyExport',
+          principal,
+          body: {},
+          query: {},
+          params: {},
+          requestId: 'request-export-config',
+          idempotencyKey: 'export-config-operation',
+        }),
+      ).rejects.toMatchObject({ status: 503, response: { code: 'SECURITY_OPERATION_FAILED' } });
+      expect(repository.execute).not.toHaveBeenCalled();
+      expect(storage.sign).not.toHaveBeenCalled();
+    } finally {
+      environment.restore();
+    }
+  });
+
+  it('uses the configured privacy export scope without inventing a fallback domain', async () => {
+    const configuredService = new SecurityService(
+      repository as never,
+      new PlatformConfigService(
+        new ConfigService<PlatformEnvironment, true>({
+          MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: 600,
+          MASARIFI_PRIVACY_HANDLER_MANIFEST: ['identity@1', 'tracking@1', 'ai@1', 'engagement@1'],
+        }),
+      ),
+      clerk as never,
+      storage as never,
+      {} as never,
+    );
+    repository.execute.mockResolvedValueOnce({
+      id: '69c11da7-26c7-43d1-8f46-78182cbb849b',
+      status: 'verified',
+    } as never);
+    await expect(
+      configuredService.execute({
+        operation: 'createMyPrivacyExport',
+        principal,
+        body: {},
+        query: {},
+        params: {},
+        requestId: 'request-export-configured',
+        idempotencyKey: 'export-configured-operation',
+      }),
+    ).resolves.toMatchObject({ id: '69c11da7-26c7-43d1-8f46-78182cbb849b', status: 'verified' });
+    expect(repository.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal,
+        idempotencyKey: 'export-configured-operation',
+        body: { scope: ['identity@1', 'tracking@1', 'ai@1', 'engagement@1'] },
+      }),
+    );
   });
 
   it('requires recent authentication before returning a ready export download URL', async () => {

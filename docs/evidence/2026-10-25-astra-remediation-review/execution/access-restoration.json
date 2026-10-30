@@ -1,0 +1,18 @@
+{
+  "outcome": "restored",
+  "method": "Natural expiry followed by ordinary existing-PIN unlock",
+  "observedApproximately": "2026-10-25 14:32 Asia/Riyadh",
+  "accountPreserved": true,
+  "existingPinPreserved": true,
+  "biometricPreference": "OFF, unchanged",
+  "autoLock": "immediate, unchanged",
+  "authenticationSessionPreserved": true,
+  "appDataCleared": false,
+  "uninstalled": false,
+  "databaseReset": false,
+  "securityBypass": false,
+  "clockChanged": false,
+  "officialRecoveryResetUsed": false,
+  "t02LongStageTests": "Accepted exception retained; observed access is not a formal30/60-minute timing pass",
+  "laterColdAccess": "Ordinary offline PIN and exact pending QA note reopening observed15:51–15:52 on DEV/Metro; see T03 evidence"
+}

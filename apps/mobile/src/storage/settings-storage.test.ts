@@ -1,6 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { createBiometricLock } from '@/features/security/privacy-lock';
 import { currentLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { savePreferences } from '@/storage/secure-preferences';
@@ -68,14 +67,6 @@ describe('protected settings storage', () => {
   });
 
   it('keeps lock controls while hideBalances stays in the global preference store', () => {
-    expect(createBiometricLock()).toEqual({
-      pinConfigured: false,
-      biometricStatus: 'enabled',
-      autoLockDuration: 'immediate',
-      invalidAttempts: 0,
-      lockedUntil: null,
-      appLockStatus: 'unlocked'
-    });
 
     usePreferenceStore.getState().toggleHideBalances();
     expect(usePreferenceStore.getState().hideBalances).toBe(false);

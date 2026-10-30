@@ -46,6 +46,7 @@ import type { CapabilityProviderHandle } from '@/services/contracts/capability-c
 import { FinancialPlanningRepository } from '@/storage/financial-planning-repository';
 import {
   readPlanningDraft,
+  listPlanningDrafts,
   writePlanningDraft,
   deletePlanningDraft
 } from '@/storage/planning-draft-storage';
@@ -2605,6 +2606,11 @@ export function createLiveFinancialPlanningService({
       return measurePerformance('storage.draft.read', () =>
         readPlanningDraft(owner, id)
       );
+    },
+
+    async listDrafts(kind) {
+      if (!persistent) return repository.listDrafts(kind);
+      return listPlanningDrafts(await captureLiveClerkOwner(), kind);
     },
 
     async discardDraft(id) {

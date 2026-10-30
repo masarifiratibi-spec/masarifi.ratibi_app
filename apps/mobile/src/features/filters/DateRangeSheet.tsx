@@ -12,7 +12,10 @@ import {
   radius,
   spacing
 } from '@/design-system/tokens';
-import { localDateInTimeZone } from '@/domain/financial-period';
+import {
+  buildFinancialPeriod,
+  localDateInTimeZone
+} from '@/domain/financial-period';
 import { daysBetween, type LocalDate } from '@/domain/financial-planning';
 import { TransactionDateField } from '@/features/transactions/TransactionDateField';
 import { translate, translateDynamic } from '@/localization/i18n';
@@ -20,6 +23,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import {
   customPeriodFromDates,
+  currentFinancialCyclePeriod,
   formatDaySpan,
   lastMonthPeriod,
   lastWeekPeriod,
@@ -35,11 +39,13 @@ type Step = 'choose' | 'custom';
 export function DateRangeSheet({
   visible,
   period,
+  monthlyOnly = false,
   onApply,
   onDismiss
 }: {
   visible: boolean;
   period: DatePeriod;
+  monthlyOnly?: boolean;
   onApply: (period: DatePeriod) => void;
   onDismiss: () => void;
 }) {
@@ -86,13 +92,32 @@ export function DateRangeSheet({
     [now, periodContext]
   );
   const thisMonth = useMemo(
-    () => thisMonthPeriod(now, periodContext),
-    [now, periodContext]
+    () =>
+      monthlyOnly
+        ? currentFinancialCyclePeriod(now, periodContext)
+        : thisMonthPeriod(now, periodContext),
+    [monthlyOnly, now, periodContext]
   );
   const lastMonth = useMemo(
-    () => lastMonthPeriod(now, periodContext),
-    [now, periodContext]
+    () =>
+      monthlyOnly
+        ? currentFinancialCyclePeriod(thisMonth.periodStart - 1, periodContext)
+        : lastMonthPeriod(now, periodContext),
+    [monthlyOnly, now, periodContext, thisMonth.periodStart]
   );
+  const selectedMonthlyPeriod = useMemo<DatePeriod | null>(() => {
+    if (!monthlyOnly) return null;
+    const boundary = buildFinancialPeriod({
+      ...periodContext,
+      preset: 'current_cycle',
+      anchorDate: startDate
+    });
+    return {
+      kind: 'month',
+      periodStart: boundary.startInstant,
+      periodEnd: boundary.endInstant
+    };
+  }, [monthlyOnly, periodContext, startDate]);
 
   // Android removes hidden modals immediately; iOS retains dismissal animation.
   if (Platform.OS === 'android' && !visible) return null;
@@ -124,8 +149,9 @@ export function DateRangeSheet({
     !isThisMonthSelected &&
     !isLastMonthSelected;
 
-  const title =
-    step === 'custom'
+  const title = monthlyOnly
+    ? translate('reports.period.chooseMonth')
+    : step === 'custom'
       ? translate('coreFinance.home.period.custom')
       : translate('coreFinance.home.period.choose');
 
@@ -144,15 +170,27 @@ export function DateRangeSheet({
               }
             ]}
           >
-            {translate('coreFinance.home.period.instruction')}
+            {translate(
+              monthlyOnly
+                ? 'reports.period.monthlyHint'
+                : 'coreFinance.home.period.instruction'
+            )}
           </Text>
 
           {/* 1. Custom Range (نطاق مخصص) */}
           <DateRangeOptionRow
             appearance="featured"
             testID="date-period-option-custom"
-            title={translate('coreFinance.home.period.custom')}
-            subtitle={translate('coreFinance.home.period.customSubtitle')}
+            title={translate(
+              monthlyOnly
+                ? 'reports.period.otherMonth'
+                : 'coreFinance.home.period.custom'
+            )}
+            subtitle={translate(
+              monthlyOnly
+                ? 'reports.period.month'
+                : 'coreFinance.home.period.customSubtitle'
+            )}
             selected={isCustomSelected}
             direction={direction}
             onPress={() => setStep('custom')}
@@ -168,74 +206,78 @@ export function DateRangeSheet({
               }
             ]}
           >
-            <DateRangeOptionRow
-              appearance="grouped"
-              testID="date-period-option-today"
-              title={translate('coreFinance.home.period.today')}
-              subtitle={formatDaySpan(
-                today.periodStart,
-                today.periodEnd,
-                locale,
-                timeZone
-              )}
-              selected={isTodaySelected}
-              direction={direction}
-              onPress={() => {
-                onApply(today);
-                onDismiss();
-              }}
-            />
-            <DateRangeOptionRow
-              appearance="grouped"
-              testID="date-period-option-yesterday"
-              title={translate('coreFinance.home.period.yesterday')}
-              subtitle={formatDaySpan(
-                yesterday.periodStart,
-                yesterday.periodEnd,
-                locale,
-                timeZone
-              )}
-              selected={isYesterdaySelected}
-              direction={direction}
-              onPress={() => {
-                onApply(yesterday);
-                onDismiss();
-              }}
-            />
-            <DateRangeOptionRow
-              appearance="grouped"
-              testID="date-period-option-thisWeek"
-              title={translate('coreFinance.home.period.thisWeek')}
-              subtitle={formatDaySpan(
-                thisWeek.periodStart,
-                thisWeek.periodEnd,
-                locale,
-                timeZone
-              )}
-              selected={isThisWeekSelected}
-              direction={direction}
-              onPress={() => {
-                onApply(thisWeek);
-                onDismiss();
-              }}
-            />
-            <DateRangeOptionRow
-              appearance="grouped"
-              testID="date-period-option-lastWeek"
-              title={translate('coreFinance.home.period.lastWeek')}
-              subtitle={formatDaySpan(
-                lastWeek.periodStart,
-                lastWeek.periodEnd,
-                locale,
-                timeZone
-              )}
-              selected={isLastWeekSelected}
-              direction={direction}
-              onPress={() => {
-                onApply(lastWeek);
-                onDismiss();
-              }}
-            />
+            {!monthlyOnly && (
+              <>
+                <DateRangeOptionRow
+                  appearance="grouped"
+                  testID="date-period-option-today"
+                  title={translate('coreFinance.home.period.today')}
+                  subtitle={formatDaySpan(
+                    today.periodStart,
+                    today.periodEnd,
+                    locale,
+                    timeZone
+                  )}
+                  selected={isTodaySelected}
+                  direction={direction}
+                  onPress={() => {
+                    onApply(today);
+                    onDismiss();
+                  }}
+                />
+                <DateRangeOptionRow
+                  appearance="grouped"
+                  testID="date-period-option-yesterday"
+                  title={translate('coreFinance.home.period.yesterday')}
+                  subtitle={formatDaySpan(
+                    yesterday.periodStart,
+                    yesterday.periodEnd,
+                    locale,
+                    timeZone
+                  )}
+                  selected={isYesterdaySelected}
+                  direction={direction}
+                  onPress={() => {
+                    onApply(yesterday);
+                    onDismiss();
+                  }}
+                />
+                <DateRangeOptionRow
+                  appearance="grouped"
+                  testID="date-period-option-thisWeek"
+                  title={translate('coreFinance.home.period.thisWeek')}
+                  subtitle={formatDaySpan(
+                    thisWeek.periodStart,
+                    thisWeek.periodEnd,
+                    locale,
+                    timeZone
+                  )}
+                  selected={isThisWeekSelected}
+                  direction={direction}
+                  onPress={() => {
+                    onApply(thisWeek);
+                    onDismiss();
+                  }}
+                />
+                <DateRangeOptionRow
+                  appearance="grouped"
+                  testID="date-period-option-lastWeek"
+                  title={translate('coreFinance.home.period.lastWeek')}
+                  subtitle={formatDaySpan(
+                    lastWeek.periodStart,
+                    lastWeek.periodEnd,
+                    locale,
+                    timeZone
+                  )}
+                  selected={isLastWeekSelected}
+                  direction={direction}
+                  onPress={() => {
+                    onApply(lastWeek);
+                    onDismiss();
+                  }}
+                />
+              </>
+            )}
             <DateRangeOptionRow
               appearance="grouped"
               testID="date-period-option-thisMonth"
@@ -276,16 +318,40 @@ export function DateRangeSheet({
         <View style={styles.stack}>
           <BackAction direction={direction} onPress={() => setStep('choose')} />
           <TransactionDateField
-            label={translate('coreFinance.filters.periodStart')}
+            label={translate(
+              monthlyOnly
+                ? 'reports.period.month'
+                : 'coreFinance.filters.periodStart'
+            )}
             value={pickerDateValue(startDate)}
             onChange={(value) => setStartDate(localDateFromPicker(value))}
           />
-          <TransactionDateField
-            label={translate('coreFinance.filters.periodEnd')}
-            value={pickerDateValue(endDate)}
-            onChange={(value) => setEndDate(localDateFromPicker(value))}
-          />
-          {startDate <= endDate ? (
+          {!monthlyOnly && (
+            <TransactionDateField
+              label={translate('coreFinance.filters.periodEnd')}
+              value={pickerDateValue(endDate)}
+              onChange={(value) => setEndDate(localDateFromPicker(value))}
+            />
+          )}
+          {selectedMonthlyPeriod ? (
+            <Text
+              style={[
+                styles.duration,
+                {
+                  color: theme.colors.content.secondary,
+                  textAlign: direction === 'rtl' ? 'right' : 'left',
+                  writingDirection: direction
+                }
+              ]}
+            >
+              {formatDaySpan(
+                selectedMonthlyPeriod.periodStart,
+                selectedMonthlyPeriod.periodEnd,
+                locale,
+                timeZone
+              )}
+            </Text>
+          ) : startDate <= endDate ? (
             <Text
               style={[
                 styles.duration,
@@ -316,9 +382,12 @@ export function DateRangeSheet({
           )}
           <ActionButton
             label={translate('coreFinance.home.period.apply')}
-            disabled={startDate > endDate}
+            disabled={!monthlyOnly && startDate > endDate}
             onPress={() => {
-              onApply(customPeriodFromDates(startDate, endDate, periodContext));
+              onApply(
+                selectedMonthlyPeriod ??
+                  customPeriodFromDates(startDate, endDate, periodContext)
+              );
               onDismiss();
             }}
           />

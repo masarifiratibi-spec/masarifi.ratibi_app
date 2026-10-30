@@ -2,6 +2,8 @@ import React from 'react';
 import { FlatList, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { StyledText } from '@/components/StyledText';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import {
@@ -11,20 +13,17 @@ import {
 import { currentLocale, translate } from '@/localization/i18n';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { trackingReasonSummary } from './tracking-display';
-import {
-  useDuplicateCandidates,
-  useReviewItems
-} from './useAutomaticTracking';
+import { useDuplicateCandidates, useReviewItems } from './useAutomaticTracking';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 
 export function ReviewQueue() {
   const query = useReviewItems();
   const duplicates = useDuplicateCandidates();
-  if (query.isLoading)
+  if (query.isLoading && !hasReadableSnapshot(query))
     return (
       <StateView state="loading" title={translate('tracking.state.loading')} />
     );
-  if (query.isError)
+  if (!hasReadableSnapshot(query))
     return (
       <StateView
         state="error"
@@ -44,6 +43,8 @@ export function ReviewQueue() {
             {translate('tracking.review.title')}
           </StyledText>
           <TrackingDemoNotice />
+          <FinancialRefreshStatus query={query} />
+          <FinancialRefreshStatus query={duplicates} />
         </>
       }
       ListEmptyComponent={
@@ -52,7 +53,9 @@ export function ReviewQueue() {
       renderItem={({ item }) => {
         const reason = trackingReasonSummary(item.reasonCodes);
         const proposed = item.proposedValues;
-        const duplicate = duplicates.data?.find(
+        const duplicate = (
+          hasReadableSnapshot(duplicates) ? duplicates.data : undefined
+        )?.find(
           (candidate) => candidate.detectedEventId === item.detectedEventId
         );
         const merchant =

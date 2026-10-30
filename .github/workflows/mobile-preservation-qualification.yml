@@ -104,7 +104,7 @@ jobs:
       - run: node ../../scripts/integration/verify-android-identity.cjs
       - run: npm run check:client-runtime
       - run: npx expo prebuild --platform android --no-install
-      - name: Verify native Tracking storage preservation
+      - name: Verify native Tracking preservation
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew

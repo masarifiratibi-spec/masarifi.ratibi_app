@@ -1,4 +1,10 @@
 import { formatMonthPeriod } from '@/utils/format-month-period';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
+import { usePlanningDrafts } from '@/features/financial-planning/usePlanningDraft';
 import React from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
@@ -36,6 +42,7 @@ export function BudgetOverviewScreen({
 }) {
   const query = useBudgets(periodKey);
   const budgets = query.data ?? [];
+  const drafts = usePlanningDrafts('budget');
 
   return (
     <PlanningScreen
@@ -50,10 +57,30 @@ export function BudgetOverviewScreen({
           : undefined
       }
     >
+      <FinancialRefreshStatus query={query} />
       {query.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError ? (
-        <PlanningState state="error" onRetry={() => void query.refetch()} />
+      ) : query.isError && !hasReadableSnapshot(query) ? (
+        <>
+          <PlanningState state="error" onRetry={() => void query.refetch()} />
+          {!isAuthoritativeReadDenial(query.error) &&
+          !isAuthoritativeReadDenial(drafts.error)
+            ? drafts.data?.map((draft) => (
+                <ActionButton
+                  key={draft.id}
+                  label={savedDraftLabel(draft.payload)}
+                  variant="secondary"
+                  onPress={() =>
+                    router.push(
+                      draft.entityId
+                        ? `/budgets/edit/${draft.entityId}`
+                        : '/budgets/new'
+                    )
+                  }
+                />
+              ))
+            : null}
+        </>
       ) : budgets.length === 0 ? (
         <BudgetForm
           embedded
@@ -241,3 +268,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   }
 });
+
+function savedDraftLabel(payload: unknown) {
+  const name = (payload as { name?: unknown } | null)?.name;
+  const label = translate('planning.action.resumeDraft');
+  return typeof name === 'string' && name.trim()
+    ? `${label}: ${name.trim()}`
+    : label;
+}

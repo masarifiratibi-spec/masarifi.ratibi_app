@@ -10,6 +10,10 @@ import { AppState } from 'react-native';
 
 import { assistantService } from '@/services/assistant-service';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
+import { useAppShellStore } from '@/state/app-shell';
+
+const ownedReadKey = (key: readonly unknown[], ownerId?: string | null) =>
+  ownerId ? ([...key, { ownerId }] as const) : key;
 
 export type AssistantConversationQuery = {
   cursor?: string;
@@ -21,13 +25,19 @@ export const assistantKeys = {
   consent: () => ['assistant', 'consent'] as const,
   availability: () => ['assistant', 'availability'] as const,
   insights: () => ['assistant', 'insights'] as const,
-  conversations: (input: AssistantConversationQuery = {}) =>
-    ['assistant', 'conversations', input] as const,
-  conversation: (id: string, cursor?: string) =>
-    cursor
-      ? (['assistant', 'conversation', id, cursor] as const)
-      : (['assistant', 'conversation', id] as const),
-  response: (id: string) => ['assistant', 'response', id] as const,
+  conversations: (
+    input: AssistantConversationQuery = {},
+    ownerId?: string | null
+  ) => ownedReadKey(['assistant', 'conversations', input], ownerId),
+  conversation: (id: string, cursor?: string, ownerId?: string | null) =>
+    ownedReadKey(
+      cursor
+        ? (['assistant', 'conversation', id, cursor] as const)
+        : (['assistant', 'conversation', id] as const),
+      ownerId
+    ),
+  response: (id: string, ownerId?: string | null) =>
+    ownedReadKey(['assistant', 'response', id], ownerId),
   actionPreview: (id: string) => ['assistant', 'actionPreview', id] as const,
   context: () => ['assistant', 'context', 'current'] as const,
   questionOperation: () => ['assistant', 'questionOperation'] as const
@@ -61,6 +71,7 @@ function useAssistantForeground() {
 }
 
 export function useAssistantQuestionOperation() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const client = useQueryClient();
   const foreground = useAssistantForeground();
   const polling = useRef({ operationId: '', updateCount: 0 });
@@ -77,7 +88,11 @@ export function useAssistantQuestionOperation() {
       const conversationId = operation.conversationId;
       // Reconcile accepted work through reads; unknown acceptance still requires explicit recovery.
       await client.fetchQuery({
-        queryKey: assistantKeys.conversation(conversationId),
+        queryKey: assistantKeys.conversation(
+          conversationId,
+          undefined,
+          ownerId
+        ),
         queryFn: () => assistantService.getConversation(conversationId),
         staleTime: 0,
         retry: false
@@ -132,9 +147,10 @@ export function useRetryAssistantQuestion() {
 export function useAssistantConversations(
   input: AssistantConversationQuery = {}
 ) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const { cursor: _cursor, ...query } = input;
   return useInfiniteQuery({
-    queryKey: assistantKeys.conversations(query),
+    queryKey: assistantKeys.conversations(query, ownerId),
     initialPageParam: input.cursor,
     queryFn: ({ pageParam }) =>
       assistantService.listConversations({ ...query, cursor: pageParam }),
@@ -143,10 +159,11 @@ export function useAssistantConversations(
 }
 
 export function useAssistantConversation(id: string, cursor?: string) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const foreground = useAssistantForeground();
   const polling = useRef({ key: '', startedAt: 0, updateCount: 0 });
   return useQuery({
-    queryKey: assistantKeys.conversation(id, cursor),
+    queryKey: assistantKeys.conversation(id, cursor, ownerId),
     queryFn: () => assistantService.getConversation(id, cursor),
     enabled: Boolean(id) && foreground,
     retry: false,
@@ -182,8 +199,9 @@ export function useAssistantConversation(id: string, cursor?: string) {
 }
 
 export function useAssistantResponse(id: string) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   return useQuery({
-    queryKey: assistantKeys.response(id),
+    queryKey: assistantKeys.response(id, ownerId),
     queryFn: () => assistantService.getResponse(id),
     enabled: Boolean(id),
     staleTime: Infinity

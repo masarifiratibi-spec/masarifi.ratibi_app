@@ -17,6 +17,7 @@ import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningD
 import { currentLocale, translate } from '@/localization/i18n';
 import type { BudgetMovePreview } from '@/services/contracts/financial-planning-service';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
 import { formatMinorAmount } from '@/utils/format-financial-value';
@@ -130,7 +131,11 @@ export function BudgetAllocationEditor({
         <PlanningState state="loading" />
       </PlanningScreen>
     );
-  if (budget.isError || categories.isError || !budget.data)
+  if (
+    (budget.isError && !hasReadableSnapshot(budget)) ||
+    (categories.isError && !hasReadableSnapshot(categories)) ||
+    !budget.data
+  )
     return (
       <PlanningScreen titleKey="planning.budgets.allocation">
         <PlanningState

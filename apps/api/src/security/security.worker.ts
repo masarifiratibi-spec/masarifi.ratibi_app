@@ -206,6 +206,7 @@ export class SecurityWorkerService {
     });
     if (!claim) return;
     const key = `exports/${claim.id}/privacy.zip`;
+    const uploadOutcome = { succeeded: false };
     const evidence = {
       requestId: claim.id,
       userId: claim.user_id,
@@ -226,7 +227,9 @@ export class SecurityWorkerService {
         for await (const entry of handler.export(evidence)) entries.push(entry);
       }
       const stream = new PassThrough();
-      const upload = this.storage.upload(key, stream);
+      const upload = this.storage.upload(key, stream).then(() => {
+        uploadOutcome.succeeded = true;
+      });
       const [packaged] = await Promise.all([
         writeExportPackage(entries, stream, {
           maxBytes: this.config.getRequired('MASARIFI_EXPORT_MAX_BYTES'),
@@ -266,9 +269,10 @@ export class SecurityWorkerService {
           [claim.id],
         );
       });
-      await this.storage.delete(key).catch(() => {
-        /* an absent partial object is already safe */
-      });
+      if (uploadOutcome.succeeded)
+        await this.storage.delete(key).catch(() => {
+          /* Only a confirmed new upload can authorize compensation. */
+        });
     }
   }
 

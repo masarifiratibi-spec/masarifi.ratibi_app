@@ -390,7 +390,7 @@ it('opens a recent transaction directly in edit mode', () => {
   expect(screen.getByText('Al Nakheel Restaurant')).toBeTruthy();
 
   fireEvent.press(screen.getByText('Al Nakheel Restaurant'));
-  expect(router.push).toHaveBeenCalledWith('/transactions/transaction-2/edit');
+  expect(router.push).toHaveBeenCalledWith('/transactions/transaction-2');
 });
 
 it('shows recent expenses before income and excludes transfers from both sections', () => {
@@ -462,7 +462,7 @@ it('shares one surface between recent rows without removing their individual act
       minHeight: 84
     });
     fireEvent.press(screen.getByTestId(`home-transaction-row-${id}`));
-    expect(router.push).toHaveBeenLastCalledWith(`/transactions/${id}/edit`);
+    expect(router.push).toHaveBeenLastCalledWith(`/transactions/${id}`);
   }
 });
 
@@ -523,7 +523,7 @@ it.each([
     );
     fireEvent.press(screen.getByText('Daily expense 120'));
     expect(router.push).toHaveBeenLastCalledWith(
-      '/transactions/transaction-1119/edit'
+      '/transactions/transaction-1119'
     );
     expect(screen.getByTestId('home-transaction-list-expense')).toHaveStyle({
       borderRadius: radius.group,

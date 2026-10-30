@@ -1,9 +1,13 @@
+import { useAppShellStore } from '@/state/app-shell';
+import { prepareLogoutDisposition, markLogoutCleanupReady, completeLogoutDisposition, type LogoutDisposition } from '@/storage/app-shell-storage';
+
 interface LogoutDependencies {
+  logout: Pick<LogoutDisposition, 'ownerId' | 'sessionId' | 'scope'>;
   synchronize(): Promise<void>;
   pending(): Promise<number>;
   confirmRemoval(count: number | null): Promise<boolean>;
-  signOut(): Promise<void>;
-  purge(): Promise<void>;
+  signOut(record: LogoutDisposition): Promise<void>;
+  purge(record: LogoutDisposition): Promise<void>;
   assertCurrent(): void;
   quiesce?(): Promise<void>;
   resume?(): Promise<void>;
@@ -14,20 +18,26 @@ export async function syncFirstLogout(
 ): Promise<boolean> {
   await dependencies.synchronize().catch(() => undefined);
   dependencies.assertCurrent();
-  await dependencies.quiesce?.();
-  let signedOut = false;
+  let prepared = false;
   try {
+    await dependencies.quiesce?.();
     const pending = await dependencies.pending().catch(() => null);
     if (pending !== 0 && !(await dependencies.confirmRemoval(pending)))
       return false;
     dependencies.assertCurrent();
-    await dependencies.signOut();
-    signedOut = true;
+    const disposition = await prepareLogoutDisposition(dependencies.logout);
+    prepared = true;
+    useAppShellStore.getState().fenceLogoutOwner(disposition.ownerId);
+    await dependencies.signOut(disposition);
+    const ready = await markLogoutCleanupReady(disposition);
     dependencies.assertCurrent();
-    await dependencies.purge();
+    await dependencies.purge(ready);
+    await completeLogoutDisposition(ready);
+    if (useAppShellStore.getState().logoutRecoveryOwnerId === ready.ownerId)
+      useAppShellStore.setState({ logoutRecoveryOwnerId: null });
     return true;
   } finally {
-    if (!signedOut) {
+    if (!prepared) {
       dependencies.assertCurrent();
       await dependencies.resume?.();
     }

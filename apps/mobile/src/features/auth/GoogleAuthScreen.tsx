@@ -11,6 +11,8 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { useLiveIdentityStatus } from '@/services/live/clerk-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { LogoutRecoveryPanel } from './LogoutRecoveryPanel';
+import { RegistrationLegalPreview } from '@/features/legal/RegistrationLegalPreview';
 
 export function GoogleAuthScreen() {
   const identity = useLiveIdentityStatus();
@@ -27,6 +29,7 @@ export function GoogleAuthScreen() {
           { padding: theme.spacing.lg, direction }
         ]}
       >
+        <LogoutRecoveryPanel />
         <View style={[styles.languages, { gap: theme.spacing.sm }]}>
           {(['ar', 'en'] as const).map((option) => (
             <Pressable
@@ -88,6 +91,7 @@ export function GoogleAuthScreen() {
         <View
           style={{ gap: theme.spacing.md, paddingBottom: theme.spacing.xl }}
         >
+          <RegistrationLegalPreview />
           <GoogleAccountSelector
             label={translate('googleAuth.continue')}
             signIn={() => authService.signInWithGoogle()}

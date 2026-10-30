@@ -85,6 +85,7 @@ it('durably queues an offline edit with the prior server version and restores me
     original.version
   ]);
   expect(JSON.parse(String(queued[9]))).toMatchObject({
+    reason: 'Mobile edit',
     title: 'Offline edit',
     amountMinor: original.amountMinor
   });
@@ -98,6 +99,42 @@ it('durably queues an offline edit with the prior server version and restores me
     )
   ).rejects.toThrow('disk full');
   expect(repo.requireTransaction(original.id).title).toBe('Offline edit');
+});
+
+it('adds the ordinary reason only to a new queued operation without replacing an older pending payload', async () => {
+  const original = {
+    ...fixtureTransactions.find((item) => item.type === 'expense')!,
+    id: '74000000-0000-4000-8000-000000000003',
+    syncStatus: 'synced' as const
+  };
+  const priorOperation = '74000000-0000-4000-8000-000000000004';
+  const operation = '74000000-0000-4000-8000-000000000005';
+  mockDatabase.getFirstAsync.mockResolvedValueOnce({
+    operation_id: priorOperation,
+    status: 'pending'
+  });
+  const repo = new CoreFinanceRepository({
+    accounts: fixtureAccounts,
+    categories: fixtureCategories,
+    transactions: [original]
+  });
+  await repo.queueTransactionEdit(
+    original.id,
+    { ...toInput(original), notes: 'New queued note' },
+    operation
+  );
+  const writes = mockRunAsync.mock.calls.filter((call) =>
+    String(call[0]).includes('sync_mutation_queue')
+  );
+  expect(writes).toHaveLength(1);
+  expect(String(writes[0][0])).toContain('INSERT OR IGNORE');
+  expect(writes[0][1]).toBe(operation);
+  expect(writes[0][5]).toBe(JSON.stringify([priorOperation]));
+  expect(JSON.parse(String(writes[0][9]))).toMatchObject({
+    reason: 'Mobile edit',
+    note: 'New queued note'
+  });
+  expect(writes.some((call) => String(call[0]).includes('UPDATE'))).toBe(false);
 });
 
 it('restores ledger, draft, conflict metadata, and undo state after restart', async () => {
@@ -667,3 +704,35 @@ function toInput(
     type: transaction.type
   };
 }
+it('rejects an offline edit if the initiating owner changes while SQLite opens', async () => {
+  const original = {
+    ...fixtureTransactions.find((row) => row.type === 'expense')!,
+    id: '74000000-0000-4000-8000-000000000003',
+    syncStatus: 'synced' as const
+  };
+  const repo = new CoreFinanceRepository({
+    accounts: fixtureAccounts,
+    categories: fixtureCategories,
+    transactions: [original]
+  });
+  repo.bindOwner('owner-a');
+  let activeOwner = 'owner-a';
+  const open = jest.mocked(require('./database').openDatabase);
+  open.mockImplementationOnce(async () => {
+    activeOwner = 'owner-b';
+    return mockDatabase;
+  });
+  const assertOwner = async () => {
+    if (activeOwner !== 'owner-a') throw new Error('owner changed');
+  };
+  await expect(
+    repo.queueTransactionEdit(
+      original.id,
+      { ...toInput(original), notes: 'Owner A edit' },
+      '74000000-0000-4000-8000-000000000004',
+      assertOwner
+    )
+  ).rejects.toThrow('owner changed');
+  expect(repo.requireTransaction(original.id)).toEqual(original);
+  expect(mockRunAsync).not.toHaveBeenCalled();
+});

@@ -32,9 +32,11 @@ import {
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import {
   captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity,
   captureLiveClerkOwner,
   getLiveClerkToken
 } from './auth-service';
+import { assertReadActive, withReadContext } from './read-context';
 import {
   getPushDeviceRegistration,
   phoneNotificationService,
@@ -88,21 +90,30 @@ export function createEngagementApi({
   token?: TokenProvider;
   request?: typeof fetch;
 } = {}) {
-  const send = async (
+  const sendRequest = async (
     method: string,
     path: string,
     body?: unknown,
     idempotencyKey?: string,
-    isCurrent: () => boolean | Promise<boolean> = () => true
+    isCurrent: () => boolean | Promise<boolean> = () => true,
+    signal?: AbortSignal
   ): Promise<Json> => {
     if (!baseUrl || !path.startsWith('/api/v1/'))
       throw new EngagementApiError('unavailable');
+    const identity =
+      method === 'GET' && token === getLiveClerkToken
+        ? await captureLiveReadClerkIdentity()
+        : undefined;
+    assertReadActive(signal);
     let response: Response;
     try {
-      const accessToken = await token();
+      const accessToken = identity?.token ?? (await token());
+      await identity?.assertCurrent();
+      assertReadActive(signal);
       if (!(await isCurrent())) throw new EngagementApiError('forbidden');
       response = await request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
         method,
+        ...(signal ? { signal } : {}),
         headers: {
           Authorization: `Bearer ${accessToken}`,
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -115,9 +126,11 @@ export function createEngagementApi({
       throw new EngagementApiError('offline');
     }
     const payload: unknown = await response.json().catch(() => ({}));
+    await identity?.assertCurrent();
+    assertReadActive(signal);
     if (!response.ok) {
       throw new EngagementApiError(
-        response.status === 403
+        response.status === 401 || response.status === 403
           ? 'forbidden'
           : response.status === 404
             ? 'not_found'
@@ -130,6 +143,18 @@ export function createEngagementApi({
     }
     return record(payload);
   };
+  const send = (
+    method: string,
+    path: string,
+    body?: unknown,
+    idempotencyKey?: string,
+    isCurrent: () => boolean | Promise<boolean> = () => true
+  ): Promise<Json> =>
+    method === 'GET'
+      ? withReadContext(undefined, (signal) =>
+          sendRequest(method, path, body, idempotencyKey, isCurrent, signal)
+        )
+      : sendRequest(method, path, body, idempotencyKey, isCurrent);
 
   const notificationPath = () =>
     isMobileAutomationEnabled()

@@ -3,7 +3,9 @@ import { StyleSheet } from 'react-native';
 import { screen, within } from '@testing-library/react-native';
 import { ApplicationSettingsScreen } from './ApplicationSettingsScreen';
 import { renderWithProviders } from '@/test-utils/render';
-import { changeLocale } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
+import { ThemeContext } from '@/state/theme-context';
+import { resolveTheme } from '@/design-system/theme';
 import { useAppShellStore } from '@/state/app-shell';
 import { radius, spacing } from '@/design-system/tokens';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
@@ -20,6 +22,17 @@ jest.mock('@/features/notifications/ReminderConsentControl', () => {
 });
 
 beforeEach(() => jest.mocked(isMobileAutomationEnabled).mockReturnValue(true));
+
+it.each(['ar', 'en'] as const)('keeps regional labels readable in the dark theme in %s', (locale) => {
+  changeLocale(locale);
+  const theme = resolveTheme('dark');
+  renderWithProviders(<ThemeContext.Provider value={{theme}}><ApplicationSettingsScreen /></ThemeContext.Provider>);
+  const regional = within(screen.getByTestId('application-settings-regional-group'));
+  for (const key of ['language', 'weekStart', 'currency', 'monthStart'] as const) {
+    expect(regional.getByText(translate(`settings.application.${key}`)))
+      .toHaveStyle({color: theme.colors.textPrimary});
+  }
+});
 
 it.each(['en', 'ar'] as const)('puts the notifications card before regional preferences and language in %s', (locale) => {
   changeLocale(locale);

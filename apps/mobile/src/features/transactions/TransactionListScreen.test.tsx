@@ -23,7 +23,7 @@ import {
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
-import { lightThemeColors } from '@/design-system/tokens';
+import { lightThemeColors, spacing } from '@/design-system/tokens';
 import { TransactionListScreen } from './TransactionListScreen';
 import * as presentation from './transaction-presentation';
 import * as periods from '@/features/filters/date-period';
@@ -80,6 +80,43 @@ beforeEach(() => {
 });
 
 afterEach(() => jest.restoreAllMocks());
+
+it('lets a full cross-year period grow at normal font scale instead of clipping its years', () => {
+  const filters = {...emptyTransactionFilters, periodStart: Date.UTC(2025, 11, 1), periodEnd: Date.UTC(2026, 1, 1) - 1};
+  useCoreFinanceViewState.setState({filters});
+  const view = renderWithQueryData(<TransactionListScreen />, [
+    [coreFinanceKeys.transactionPages(filters), {pages: [{items: [], nextCursor: null, total: 0}], pageParams: [null]}],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    [coreFinanceKeys.home('SAR', filters), homeSummary]
+  ]);
+  const period = view.getByTestId('transaction-period-control');
+  expect(period.props.accessibilityLabel).toMatch(/2025.*2026/);
+  expect(period).toHaveStyle({height: 'auto', minHeight: 52, paddingVertical: spacing.sm});
+});
+
+it('refreshes retained section and filter labels when the locale changes without new ledger data', async () => {
+  changeLocale('ar');
+  const filters = {...emptyTransactionFilters, periodStart: Date.UTC(2025, 11, 1), periodEnd: Date.UTC(2027, 1, 1) - 1};
+  useCoreFinanceViewState.setState({filters});
+  const transaction = makeTransaction(912, {id: 'locale-retained', title: 'عنوان يخص المستخدم', occurredAt: Date.UTC(2026, 7, 16, 12)});
+  const view = renderWithQueryData(<TransactionListScreen />, [
+    [coreFinanceKeys.transactionPages(filters), {pages: [{items: [transaction], nextCursor: null, total: 1}], pageParams: [null]}],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    [coreFinanceKeys.home('SAR', filters), homeSummary]
+  ]);
+  expect(await view.findByText('اليوم')).toBeTruthy();
+  expect(view.getByRole('button', {name: 'إزالة تاريخ البداية'})).toBeTruthy();
+  act(() => {
+    changeLocale('en');
+    usePreferenceStore.setState({locale: 'en', direction: 'ltr'});
+  });
+  expect(view.getByText('Today')).toBeTruthy();
+  expect(view.getByRole('button', {name: 'Remove Start date'})).toBeTruthy();
+  expect(view.getByRole('button', {name: 'Remove End date'})).toBeTruthy();
+  expect(view.getByText('عنوان يخص المستخدم')).toBeTruthy();
+});
 
 it.each([
   [1, '+'],
@@ -249,7 +286,7 @@ it('renders populated ledger rows from the service query', () => {
 
   fireEvent.press(screen.getByText(transaction.title));
   expect(router.push).toHaveBeenCalledWith(
-    `/transactions/${transaction.id}/edit`
+    `/transactions/${transaction.id}`
   );
 });
 

@@ -191,49 +191,29 @@ export const keywordRuleSchema = z
 
 export type KeywordRule = z.infer<typeof keywordRuleSchema>;
 
-export const pinCredentialSchema = z.string().superRefine((credential, ctx) => {
-  const [version, iterationsText, saltHex, hashHex, extra] =
-    credential.split(':');
-  const iterations = Number(iterationsText);
-  if (
-    extra !== undefined ||
-    version !== 'pbkdf2-sha256' ||
-    !Number.isInteger(iterations) ||
-    iterations < 10_000 ||
-    iterations > 500_000 ||
-    !/^[a-f0-9]{32}$/.test(saltHex ?? '') ||
-    !/^[a-f0-9]{64}$/.test(hashHex ?? '')
-  ) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'invalid App PIN credential'
-    });
-  }
+const autoLockDurationSchema = z.enum(['immediate', 'one_minute', 'five_minutes', 'fifteen_minutes']);
+const nativePrivacyLockSchema = z.object({
+  enabled: z.boolean(),
+  autoLockDuration: autoLockDurationSchema,
+  appLockStatus: z.enum(['unlocked', 'locked'])
 });
 
-export type PinCredential = z.infer<typeof pinCredentialSchema>;
-
-export const privacyLockPreferenceSchema = z.object({
+// Compatibility reads only preference metadata; legacy credential bytes remain untouched.
+const legacyPrivacyLockSchema = z.object({
   pinConfigured: z.boolean(),
-  biometricStatus: z.enum([
-    'unsupported',
-    'not_enrolled',
-    'disabled',
-    'enabled',
-    'locked_out'
-  ]),
-  autoLockDuration: z.enum([
-    'immediate',
-    'one_minute',
-    'five_minutes',
-    'fifteen_minutes'
-  ]),
+  biometricStatus: z.enum(['unsupported', 'not_enrolled', 'disabled', 'enabled', 'locked_out']),
+  autoLockDuration: autoLockDurationSchema,
   invalidAttempts: z.number().int().min(0).max(5),
   lockoutStage: z.number().int().min(0).max(4).optional(),
   lockedUntil: z.number().int().nonnegative().nullable(),
   appLockStatus: z.enum(['unlocked', 'locked', 'temporarily_locked'])
-});
+}).transform((legacy) => ({
+  enabled: legacy.pinConfigured || legacy.biometricStatus === 'enabled' || legacy.biometricStatus === 'locked_out',
+  autoLockDuration: legacy.autoLockDuration,
+  appLockStatus: legacy.appLockStatus === 'unlocked' ? 'unlocked' as const : 'locked' as const
+}));
 
+export const privacyLockPreferenceSchema = z.union([nativePrivacyLockSchema, legacyPrivacyLockSchema]);
 export type PrivacyLockPreference = z.infer<typeof privacyLockPreferenceSchema>;
 
 export const profileCompletionStepSchema = z.object({

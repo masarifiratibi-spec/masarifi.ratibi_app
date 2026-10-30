@@ -21,6 +21,7 @@ import type { AssistantFinancialInsight } from '@/services/contracts/assistant-n
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 import { useAssistantFinancialVisibility } from './useAssistantFinancialVisibility';
 
 export interface AssistantLandingProps {
@@ -49,6 +50,7 @@ export function AssistantLanding({
   onBack
 }: AssistantLandingProps) {
   const direction = usePreferenceStore((state) => state.direction);
+  const [hasUnsentQuestion, setHasUnsentQuestion] = React.useState(Boolean(initialQuestion?.trim()));
   const { hidden, reveal } = useAssistantFinancialVisibility(insight?.id ?? 'no-insight');
 
   const handleBack = () => {
@@ -61,12 +63,24 @@ export function AssistantLanding({
     }
   };
 
+  const { requestClose } = useDraftNavigationGuard({
+    dirty: hasUnsentQuestion,
+    discard: () => undefined,
+    close: handleBack,
+    copy: {
+      title: translate('assistant.unsent.title'),
+      message: translate('assistant.unsent.message'),
+      keep: translate('assistant.unsent.keep'),
+      discard: translate('assistant.unsent.discard')
+    }
+  });
+
   return (
     <View testID="assistant-landing" style={styles.root}>
       {/* 1. Header with back navigation and title */}
       <AppBar
         title={translate('assistant.hero.title')}
-        onBack={handleBack}
+        onBack={requestClose}
         direction={direction}
       />
 
@@ -81,7 +95,7 @@ export function AssistantLanding({
           <AssistantHero />
 
           {/* 3. Main Question Input Card */}
-          <AssistantAskCard key={initialQuestion ?? 'general'} initialQuestion={initialQuestion} onAskQuestion={onAskQuestion} loading={loading} />
+          <AssistantAskCard key={initialQuestion ?? 'general'} initialQuestion={initialQuestion} onAskQuestion={onAskQuestion} onDraftDirtyChange={setHasUnsentQuestion} loading={loading} />
 
           {/* 4. Personalization Card */}
           <AssistantConsentCard

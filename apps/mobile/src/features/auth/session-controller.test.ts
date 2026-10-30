@@ -18,7 +18,7 @@ import { HttpError } from '@/services/live/http-client';
 
 jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(),
-  getItemAsync: jest.fn(),
+  getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn()
 }));
 jest.mock('@/config/mobile-automation', () => ({
@@ -94,6 +94,82 @@ afterAll(() => {
 });
 
 describe('session-controller', () => {
+  it('keeps the already authorized same-owner local shell readable while profile revalidation is pending', async () => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    const remote = await auth.restoreSession();
+    useAppShellStore.setState({
+      session: { ...remote, restoration: 'local' },
+      profileSetupStatus: 'complete',
+      profileSetupSnapshot: aedProfileSetup
+    });
+    let requested!: () => void;
+    const started = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    let finish!: (value: ProfileSetupSnapshot) => void;
+    const restoration = restoreAppShellSession(auth, () => true, {
+      getProfileSetup: () => {
+        requested();
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      }
+    });
+    try {
+      await started;
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+      expect(useAppShellStore.getState().profileSetupSnapshot).toBe(
+        aedProfileSetup
+      );
+    } finally {
+      finish(aedProfileSetup);
+      await restoration;
+    }
+  });
+  it.each(['server', 'network'] as const)(
+    'keeps a complete local shell after a %s refresh failure without treating it as freshly synchronized',
+    async (kind) => {
+      const auth = createMockAuthService();
+      await auth.signInWithGoogle();
+      const remote = await auth.restoreSession();
+      const local = { ...remote, restoration: 'local' as const };
+      useAppShellStore.setState({
+        session: local,
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: aedProfileSetup
+      });
+      const failure = new HttpError('provider_unavailable', 503);
+      if (kind === 'network')
+        Object.assign(failure, { failureSource: 'network' });
+      await restoreAppShellSession(auth, () => true, {
+        getProfileSetup: async () => {
+          throw failure;
+        }
+      });
+      expect(useAppShellStore.getState()).toMatchObject({
+        session: local,
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: aedProfileSetup
+      });
+      expect(useAppShellStore.getState().session?.restoration).toBe('local');
+    }
+  );
+  it('withdraws local-shell access when revalidation authoritatively denies the owner', async () => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    useAppShellStore.setState({
+      session: { ...(await auth.restoreSession()), restoration: 'local' },
+      profileSetupStatus: 'complete',
+      profileSetupSnapshot: aedProfileSetup
+    });
+    await restoreAppShellSession(auth, () => true, {
+      getProfileSetup: async () => {
+        throw new HttpError('forbidden', 403);
+      }
+    });
+    expect(useAppShellStore.getState().profileSetupStatus).toBe('error');
+  });
   it.each(['network', 'timeout', 'server'] as const)(
     'keeps a recoverable %s profile failure separate from expired authentication',
     async (kind) => {

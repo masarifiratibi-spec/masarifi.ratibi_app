@@ -1,6 +1,6 @@
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react-native';
-import { PixelRatio } from 'react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
+import { Alert, PixelRatio } from 'react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import { AssistantLanding } from './AssistantLanding';
@@ -11,6 +11,43 @@ describe('AssistantLanding', () => {
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    ['ar', 'تجاهل السؤال غير المرسل؟', 'متابعة الكتابة', 'تجاهل السؤال'],
+    ['en', 'Discard this question?', 'Keep editing', 'Discard question']
+  ] as const)('keeps an unsent question until explicit discard in %s', async (locale, title, keepLabel, discardLabel) => {
+    changeLocale(locale);
+    const onBack = jest.fn();
+    const onAskQuestion = jest.fn();
+    const alert = jest.spyOn(Alert, 'alert');
+    renderWithProviders(
+      <AssistantLanding onBack={onBack} onAskQuestion={onAskQuestion} onEnableConsent={jest.fn()} />
+    );
+    fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'QA unsent question');
+    fireEvent.press(screen.getByRole('button', {name: translate('appShell.navigation.back')}));
+    expect(alert).toHaveBeenCalledWith(title, expect.any(String), expect.any(Array));
+    expect(onBack).not.toHaveBeenCalled();
+    const buttons = alert.mock.calls.at(-1)?.[2];
+    const keep = buttons?.find(button => button.text === keepLabel);
+    const discard = buttons?.find(button => button.text === discardLabel);
+    expect(keep?.style).toBe('cancel');
+    expect(screen.getByTestId('assistant-ask-input').props.value).toBe('QA unsent question');
+    if (!discard?.onPress) throw new Error('Expected explicit discard action');
+    await act(async () => { discard.onPress?.(); });
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onAskQuestion).not.toHaveBeenCalled();
+  });
+
+  it('leaves a blank question without a discard prompt', () => {
+    const onBack = jest.fn();
+    const alert = jest.spyOn(Alert, 'alert');
+    renderWithProviders(
+      <AssistantLanding onBack={onBack} onAskQuestion={jest.fn()} onEnableConsent={jest.fn()} />
+    );
+    fireEvent.press(screen.getByRole('button', {name: translate('appShell.navigation.back')}));
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(alert).not.toHaveBeenCalled();
+  });
 
   it('renders header, compact identity, ask card, consent card, 4 suggestions, and privacy footer', () => {
     const onAskQuestion = jest.fn();

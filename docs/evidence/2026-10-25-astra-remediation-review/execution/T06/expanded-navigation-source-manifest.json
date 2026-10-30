@@ -1,0 +1,429 @@
+{
+  "at": "2026-10-28T10:21:14.348072+00:00",
+  "model": "gpt-6.1-sol/xhigh",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "files": [
+    {
+      "path": "apps/mobile/app/(tabs)/transactions.tsx",
+      "sha256": "f4e259527684f54337faf6d30b8ef612fb9db6319d01bb6961a679eefbee1484"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.tsx",
+      "sha256": "e90072aa42bfdbabadb70b30643d2b326ffc42cdf1a3be7e58c55d7027becf35"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionCard.tsx",
+      "sha256": "6fdd7e1b05a668e3659aae67e67bce4a6e84e6fe413a2664d17e259701a3d6d7"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/navigation-context.ts",
+      "sha256": "37c2ccf10e39de05d9bc6cebcb70210b5744bac46091d7647fc5b45055497fc4"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.test.tsx",
+      "sha256": "5bbbe088329f025410ffdc93e552957b162d3e8c6e69b5462e7d8572897af230"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionsRoute.test.tsx",
+      "sha256": "8a74f1e62229255b3d3eac97a8e6acf6869226f4d1511c7c791acba09423af3f"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeScreen.test.tsx",
+      "sha256": "db57f41ec62d64178256a64b8a8e72b221b0a871324bb38d919a0587ece9dc71"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/navigation-context.test.ts",
+      "sha256": "2e7d182d951712921fe0f1779f8fdea3e519fb651f178de38be5d2ea7d54adc6"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/NavigationJourney.test.tsx",
+      "sha256": "48f0317bc81a2fadd67caa269247645026a021849757f110bafe04c707c6efa1"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/ProtectedNavigation.test.tsx",
+      "sha256": "45e807010d4d1a7ef2e8c07fd693a87ec978b166105a668cca5e425441fa3b86"
+    }
+  ],
+  "deviceEvidence": [
+    {
+      "file": "expanded-account-detail-ar.xml",
+      "sha256": "0e0fbd706ee06477018a04447b4dac735ce17ac286dfeff69c96911497018c7c"
+    },
+    {
+      "file": "expanded-account-detail-en.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-account-detail-ret.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-account-edit-ar.xml",
+      "sha256": "0af2d73f0486edd7a24c1c7d0ae36ea04a7810a813a380ad66e92fe3caac7570"
+    },
+    {
+      "file": "expanded-account-expense-detail-ar.xml",
+      "sha256": "b13c37a5158394bba3e92167eec3e5ee6b1e06de4affbf5915d2a23f8231581a"
+    },
+    {
+      "file": "expanded-account-list-ar.xml",
+      "sha256": "c5358357a463c2868f7dfc6421521a6db9a584d501e0bf80ba7ab212cc8aba1b"
+    },
+    {
+      "file": "expanded-account-list-en.xml",
+      "sha256": "c7004f8c306f8b233c11c31e4f5a5e54faf6bd745325f2a6e667a068d8dbac31"
+    },
+    {
+      "file": "expanded-account-list-ret.xml",
+      "sha256": "c7004f8c306f8b233c11c31e4f5a5e54faf6bd745325f2a6e667a068d8dbac31"
+    },
+    {
+      "file": "expanded-account-view-all-en.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-account-view-all-en2.xml",
+      "sha256": "3d5d9337bfcb954bdf01221bab3fe3e1077c59623fec1711930b20eadc8a9d88"
+    },
+    {
+      "file": "expanded-accounts-ar.xml",
+      "sha256": "730aa642b0f011265b1f869084ffd57a9f87412ab73bf5b4a4a780d301e77b07"
+    },
+    {
+      "file": "expanded-accounts-picker-en.xml",
+      "sha256": "0885358f2ec14ca9d2982fc52e465b180c9a61516c067500251441feee655b95"
+    },
+    {
+      "file": "expanded-add-cancel-en.xml",
+      "sha256": "425db55f2484ca87e6c739da7d09bc34f88967212f7043ae01488352410d9660"
+    },
+    {
+      "file": "expanded-add-en.xml",
+      "sha256": "aee534e60c72b5c2842604f399a5914a8286a3a2e4064a8edb5800d6a9977979"
+    },
+    {
+      "file": "expanded-assistant-back-en.xml",
+      "sha256": "aea055bc6b7a0bc59d7cb376c7b0171cc503c081da214460fdc5b197e47fe859"
+    },
+    {
+      "file": "expanded-assistant-en.xml",
+      "sha256": "c6a571f3cba4554d070e88506aa44ab557b2624d0e86cc85f9b989d9ef93bb84"
+    },
+    {
+      "file": "expanded-assistant-keyboard-en.xml",
+      "sha256": "db8403e7b02eb6504ca2d4ad43cca13f90abce99d9f7213a5dc98689a528a575"
+    },
+    {
+      "file": "expanded-back-home-ar.xml",
+      "sha256": "954a38eb2d3b891d063052ca4a1fbad3a5d44385600d0e736d663aae0d957bc7"
+    },
+    {
+      "file": "expanded-before-locale-restore.xml",
+      "sha256": "cd6ddb82412869847a0188ba56009a742f3acff4c7e1256c6e31fb5dbf3d084f"
+    },
+    {
+      "file": "expanded-before-reset-scope.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-before-retest-lock.xml",
+      "sha256": "59966485b50d07c6b138dbb400b397fda06fc6c11fdce573a308b4cfaf60afec"
+    },
+    {
+      "file": "expanded-categories-ar.xml",
+      "sha256": "2381dc6f778889a3a8a12a3f0a0070bd375183cefb43aa971a749a9defa7e3e4"
+    },
+    {
+      "file": "expanded-categories-en.xml",
+      "sha256": "59966485b50d07c6b138dbb400b397fda06fc6c11fdce573a308b4cfaf60afec"
+    },
+    {
+      "file": "expanded-category-detail-en.xml",
+      "sha256": "7737e6b9af07d19fffc9154be6e7278cbab10a833a2022a880f57746913b93be"
+    },
+    {
+      "file": "expanded-category-picker-en.xml",
+      "sha256": "ef2601d4f3ea291295210764419d6bdca174658275c1fea41e3fe6f67c62d22d"
+    },
+    {
+      "file": "expanded-clean-accountdetail-ar.xml",
+      "sha256": "0e0fbd706ee06477018a04447b4dac735ce17ac286dfeff69c96911497018c7c"
+    },
+    {
+      "file": "expanded-clean-accountlist-ar.xml",
+      "sha256": "c5358357a463c2868f7dfc6421521a6db9a584d501e0bf80ba7ab212cc8aba1b"
+    },
+    {
+      "file": "expanded-clean-back1-ar.xml",
+      "sha256": "0e0fbd706ee06477018a04447b4dac735ce17ac286dfeff69c96911497018c7c"
+    },
+    {
+      "file": "expanded-clean-back2-ar.xml",
+      "sha256": "c5358357a463c2868f7dfc6421521a6db9a584d501e0bf80ba7ab212cc8aba1b"
+    },
+    {
+      "file": "expanded-clean-picker-ar.xml",
+      "sha256": "730aa642b0f011265b1f869084ffd57a9f87412ab73bf5b4a4a780d301e77b07"
+    },
+    {
+      "file": "expanded-clean-restart-ar.xml",
+      "sha256": "954a38eb2d3b891d063052ca4a1fbad3a5d44385600d0e736d663aae0d957bc7"
+    },
+    {
+      "file": "expanded-clean-viewall-ar.xml",
+      "sha256": "f7402af31cedd3f858a7bf14e6297c6c52d6cd1b7e37466ced4d12c912aaa3cf"
+    },
+    {
+      "file": "expanded-context-toolbar-before.xml",
+      "sha256": "9e2939eb5864d979eee584858550f9c5dc3d144ac1a1af2da6eb5f90c192f028"
+    },
+    {
+      "file": "expanded-currency-en.xml",
+      "sha256": "a01baf9c9a9cdf4457f37b603b019f84634f3a93b9d3896705eb90ceb28a0b81"
+    },
+    {
+      "file": "expanded-draft-preserved-en.xml",
+      "sha256": "c4cb6886d6a5922578d4311598953e9c1ecef6a1c668804ad96a4521a50ad70c"
+    },
+    {
+      "file": "expanded-final-details-ar.xml",
+      "sha256": "fa4ea079c81eacecd7d9f813f4466bff813e310722ac28d957a95be2ec2f1d0f"
+    },
+    {
+      "file": "expanded-final-home-ar.xml",
+      "sha256": "d96f97f58c99a289edcd2398dfc1a39569355a1b5d942f6a547babfddab9e198"
+    },
+    {
+      "file": "expanded-final-scope-picker-ar.xml",
+      "sha256": "840a4c5ac7609aed42d6f9e34f8841693d0f6685953e662d8ec7182f0ef7b0cd"
+    },
+    {
+      "file": "expanded-final-unwind-account.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-final-unwind-next.xml",
+      "sha256": "9e2939eb5864d979eee584858550f9c5dc3d144ac1a1af2da6eb5f90c192f028"
+    },
+    {
+      "file": "expanded-fixed-account-transaction-en.xml",
+      "sha256": "b867c163f3174a6fd3fa03917b227a11a277c161b128eca27261298a6a2d21e0"
+    },
+    {
+      "file": "expanded-fixed-context-back-en.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-fixed-lock-return-en.xml",
+      "sha256": "59966485b50d07c6b138dbb400b397fda06fc6c11fdce573a308b4cfaf60afec"
+    },
+    {
+      "file": "expanded-fixed-toolbar-back.xml",
+      "sha256": "3f7ae68dc44e2f823535edc5170efc1e6413a80d4a298e3163ce377c4ffaea04"
+    },
+    {
+      "file": "expanded-fixed-view-all-en.xml",
+      "sha256": "b9f71809e73e1391dea50751acd7e105ec36b3fe7acb3b88b58a3fb719d4e257"
+    },
+    {
+      "file": "expanded-fixed-view-all-journey-en.xml",
+      "sha256": "9e2939eb5864d979eee584858550f9c5dc3d144ac1a1af2da6eb5f90c192f028"
+    },
+    {
+      "file": "expanded-home-ar.xml",
+      "sha256": "954a38eb2d3b891d063052ca4a1fbad3a5d44385600d0e736d663aae0d957bc7"
+    },
+    {
+      "file": "expanded-home-clean.xml",
+      "sha256": "79f51f29eb26995f4a8130dd0e388fe05d86d90d8e9456033619d8ce558b0f2e"
+    },
+    {
+      "file": "expanded-home-en.xml",
+      "sha256": "aea055bc6b7a0bc59d7cb376c7b0171cc503c081da214460fdc5b197e47fe859"
+    },
+    {
+      "file": "expanded-launch.xml",
+      "sha256": "5027db7d0d046fdc6c342192394dcf86e5cb698d10fad6a9e1c84fd478a4a5b1"
+    },
+    {
+      "file": "expanded-locale-restored-ar.xml",
+      "sha256": "828dca2ab89ecd8776e42cf4758734e09141606f598f56d0c2789b44595cf773"
+    },
+    {
+      "file": "expanded-more-before-account-retest.xml",
+      "sha256": "5762bc9b454481fbcab9536c52f0ef30128985a6579a7fb7b3bddd2297690638"
+    },
+    {
+      "file": "expanded-more-en.xml",
+      "sha256": "9b802606076e278be3dbd53c0e780ce628b5219539b36386eb31532e3e336e28"
+    },
+    {
+      "file": "expanded-more-en2.xml",
+      "sha256": "9b802606076e278be3dbd53c0e780ce628b5219539b36386eb31532e3e336e28"
+    },
+    {
+      "file": "expanded-more-final.xml",
+      "sha256": "9b802606076e278be3dbd53c0e780ce628b5219539b36386eb31532e3e336e28"
+    },
+    {
+      "file": "expanded-more-lower-en.xml",
+      "sha256": "a299e621c8f15ae266b0668261556b211ccc44ebf81c56588f827b7cd02410c9"
+    },
+    {
+      "file": "expanded-more-retop-en.xml",
+      "sha256": "9b802606076e278be3dbd53c0e780ce628b5219539b36386eb31532e3e336e28"
+    },
+    {
+      "file": "expanded-notice.xml",
+      "sha256": "64b68e74f28b5c96be6be5fe2d04707ef3a22335b9a25bdf845e2b03d276f670"
+    },
+    {
+      "file": "expanded-obligations-en.xml",
+      "sha256": "0bf692f56727469450d9a58ecda2d11709fcce85e848b8a87c731aa1a77340f6"
+    },
+    {
+      "file": "expanded-picker-before-retest.xml",
+      "sha256": "02f411f7633989ad1cbcd8b7f083cb6834f64e2828ed537ad0d24aef3cb20e50"
+    },
+    {
+      "file": "expanded-picker-return-en.xml",
+      "sha256": "aee534e60c72b5c2842604f399a5914a8286a3a2e4064a8edb5800d6a9977979"
+    },
+    {
+      "file": "expanded-profile-error-en.xml",
+      "sha256": "60b0064c3eb77b0672b9d6c1c6082421f003cae6b259cd4877321d2f7244bf91"
+    },
+    {
+      "file": "expanded-reports-en.xml",
+      "sha256": "8161ac4facf2214b6a90a7d4d478105fbbf7543d354bfb4e8f88406dd690225a"
+    },
+    {
+      "file": "expanded-reset-scope-picker.xml",
+      "sha256": "02f411f7633989ad1cbcd8b7f083cb6834f64e2828ed537ad0d24aef3cb20e50"
+    },
+    {
+      "file": "expanded-restored-baseline-ar.xml",
+      "sha256": "954a38eb2d3b891d063052ca4a1fbad3a5d44385600d0e736d663aae0d957bc7"
+    },
+    {
+      "file": "expanded-restored-scope-home.xml",
+      "sha256": "72bccb719457e4c40a046d789c867b8edcd9cfff812289e8855c6f27f15acc60"
+    },
+    {
+      "file": "expanded-return-before.xml",
+      "sha256": "aea055bc6b7a0bc59d7cb376c7b0171cc503c081da214460fdc5b197e47fe859"
+    },
+    {
+      "file": "expanded-salary-en.xml",
+      "sha256": "bf78303b3701ac3099c06ebde3f0b238bb4d6ebc352c8952b6eaa92372b7ee25"
+    },
+    {
+      "file": "expanded-security-en.xml",
+      "sha256": "93506094b8d613fa349be47a98743c041c300c82792423e1cd61bb70fd33fedc"
+    },
+    {
+      "file": "expanded-sessions-en.xml",
+      "sha256": "b22a13fe3b8793b3ef555a8474fc64ed7c6e335321e85adbeadf98cad03b4453"
+    },
+    {
+      "file": "expanded-settings-en.xml",
+      "sha256": "ae9d48e3c87e0bf0c381aba20edbf77ea61db0717ac613e8f6bffd8deb3ee2b0"
+    },
+    {
+      "file": "expanded-support-en.xml",
+      "sha256": "b1980f12bb71a91a0bca29c9c34b6c67ed3c0416c7a4ee26e573c71260a3e00e"
+    },
+    {
+      "file": "expanded-tracking-en.xml",
+      "sha256": "a209e0500dd45c5fde612455ab71e1ab2a2ca1096268a118be0d6c899016d489"
+    },
+    {
+      "file": "expanded-unwind-entry.xml",
+      "sha256": "9e2939eb5864d979eee584858550f9c5dc3d144ac1a1af2da6eb5f90c192f028"
+    },
+    {
+      "file": "expanded-view-all-back-en.xml",
+      "sha256": "5c1940bcf93881eff52fa03fe8e7dbc9f6c624660a421cb6cc60051932927247"
+    },
+    {
+      "file": "expanded-voice-en.xml",
+      "sha256": "c0f6e8a5f5904219de07ed03047cfa03709e70e67f858460b7f97b67d21bf703"
+    },
+    {
+      "file": "expanded-voice-entry-en.xml",
+      "sha256": "aea055bc6b7a0bc59d7cb376c7b0171cc503c081da214460fdc5b197e47fe859"
+    },
+    {
+      "file": "final-accounts-ar.xml",
+      "sha256": "c5358357a463c2868f7dfc6421521a6db9a584d501e0bf80ba7ab212cc8aba1b"
+    },
+    {
+      "file": "final-category-cancel-ar.xml",
+      "sha256": "d69f225020739c7e3ac5d2df8e9834f9362c005140ebc6761ad06c7287a1179d"
+    },
+    {
+      "file": "final-category-group-ar.xml",
+      "sha256": "b95a192a2451ccd79864c4631f8d927abf4725efa19a5a09170d934966fe96b0"
+    },
+    {
+      "file": "final-category-keyboard-ar.xml",
+      "sha256": "86c1c952771a4d96c98eec59ab5fb1a57af29323cf30c8bdfc8b96213e1174ec"
+    },
+    {
+      "file": "final-category-new-ar.xml",
+      "sha256": "1fffc9b5ec6543cb9ae8766b53582ceb24837ed7cb8dbf72c940126a439dc2bf"
+    },
+    {
+      "file": "final-categorylist-ar.xml",
+      "sha256": "d69f225020739c7e3ac5d2df8e9834f9362c005140ebc6761ad06c7287a1179d"
+    },
+    {
+      "file": "final-credit-back-ar.xml",
+      "sha256": "3e1c8ab4a41d464261db259bbd83d8541eb978ad71f40a5e3d35a5ea196dd46b"
+    },
+    {
+      "file": "final-credit-form-ar.xml",
+      "sha256": "3e1c8ab4a41d464261db259bbd83d8541eb978ad71f40a5e3d35a5ea196dd46b"
+    },
+    {
+      "file": "final-credit-visible-back-ar.xml",
+      "sha256": "999cec811707216fe27271c23a3877e7fdd56b5b2e5015d991af3993a9267a5d"
+    },
+    {
+      "file": "final-home-ar.xml",
+      "sha256": "954a38eb2d3b891d063052ca4a1fbad3a5d44385600d0e736d663aae0d957bc7"
+    },
+    {
+      "file": "final-monthstart-ar.xml",
+      "sha256": "40c8b35df6bc0f8b9290ef6c6d14c403235191f2b4b22c3a4ee01034a157341e"
+    },
+    {
+      "file": "final-more-ar.xml",
+      "sha256": "1f5f3c56ed28a8a060772676694157afcc1a26808302aa7a65e1aa60324af247"
+    },
+    {
+      "file": "final-new-account-ar.xml",
+      "sha256": "999cec811707216fe27271c23a3877e7fdd56b5b2e5015d991af3993a9267a5d"
+    },
+    {
+      "file": "final-newaccount-cancel-ar.xml",
+      "sha256": "c5358357a463c2868f7dfc6421521a6db9a584d501e0bf80ba7ab212cc8aba1b"
+    },
+    {
+      "file": "final-period-picker-ar.xml",
+      "sha256": "dc8d4eac4433f8e8805051e93d98f495b6da41ed3e8051df2b0edcfa188d147d"
+    },
+    {
+      "file": "final-settings-ar.xml",
+      "sha256": "000ecf4df8a35a6efb420ee26706854a95819f14f6b4e6409c6ae96295a95f96"
+    },
+    {
+      "file": "final-transactions-ar.xml",
+      "sha256": "ae45ad55a46c7ffe58ec95d7518d43ccb7d04c9b3bc181b78cb4417f32655f39"
+    },
+    {
+      "file": "final-transactions-options-ar.xml",
+      "sha256": "c5ee18ddae729f90c3b2b4540986c1ac831c4478404bec68ed17da274d1d4147"
+    }
+  ]
+}

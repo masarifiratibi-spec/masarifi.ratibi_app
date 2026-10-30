@@ -24,6 +24,12 @@ const screenPaths = [
   'cpp/RNSScreenRemovalListener.cpp',
   'cpp/RNSScreenRemovalListener.h'
 ];
+const symbolPaths = ['build/SymbolView.js', 'src/SymbolView.tsx'];
+
+function pristineSymbol(path) {
+  return readFileSync(join(mobile, 'node_modules/expo-symbols', path), 'utf8')
+    .replace(' allowFontScaling={false}', '');
+}
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'masarifi-native-stability-'));
@@ -34,6 +40,12 @@ function fixture(t) {
   });
   const sqlite = join(root, 'node_modules/expo-sqlite');
   const screens = join(root, 'node_modules/react-native-screens');
+  const symbols = join(root, 'node_modules/expo-symbols');
+  for (const path of symbolPaths) {
+    mkdirSync(dirname(join(symbols, path)), { recursive: true });
+    writeFileSync(join(symbols, path), pristineSymbol(path));
+  }
+  writeFileSync(join(symbols, 'package.json'), '{"version":"55.0.9"}');
   mkdirSync(dirname(join(sqlite, sqlitePath)), { recursive: true });
   cpSync(
     join(mobile, 'vendor/expo-sqlite-cleanup-fix/pristine/SQLiteModule.kt'),
@@ -51,7 +63,8 @@ function fixture(t) {
   for (const name of [
     'native-stability-fixes.mjs',
     'sqlite-cleanup-fix.mjs',
-    'screens-fabric-fix.mjs'
+    'screens-fabric-fix.mjs',
+    'symbol-font-scale-fix.mjs'
   ]) {
     if (existsSync(join(mobile, 'scripts', name)))
       cpSync(join(mobile, 'scripts', name), join(root, 'scripts', name));
@@ -62,7 +75,7 @@ function fixture(t) {
     join(root, 'android/build.gradle'),
     '// disposable Gradle fixture\n'
   );
-  return { root, sqlite, screens };
+  return { root, sqlite, screens, symbols };
 }
 
 function cli(root, operation) {
@@ -83,7 +96,10 @@ function cli(root, operation) {
     }
   );
 }
-function assertPatched({ sqlite, screens }) {
+function assertPatched({ sqlite, screens, symbols }) {
+  for (const path of symbolPaths) {
+    assert.match(readFileSync(join(symbols, path), 'utf8'), /<Text allowFontScaling=\{false\}/);
+  }
   assert.match(
     readFileSync(join(sqlite, sqlitePath), 'utf8'),
     /cachedDatabases\.toList\(\)/
@@ -97,6 +113,29 @@ function assertPatched({ sqlite, screens }) {
       ).replace(/\r\n/g, '\n')
     );
 }
+
+test('the build check refuses unpatched icon glyphs without rewriting them', (t) => {
+  const f = fixture(t);
+  assert.equal(cli(f.root, '--apply').status, 0);
+  const path = join(f.symbols, symbolPaths[0]);
+  const before = pristineSymbol(symbolPaths[0]);
+  writeFileSync(path, before);
+  const checked = cli(f.root, '--check');
+  assert.notEqual(checked.status, 0);
+  assert.match(checked.stderr, /SYMBOL_FONT_SCALE_FIX_NOT_APPLIED/);
+  assert.equal(readFileSync(path, 'utf8'), before);
+});
+
+test('icon preparation refuses changed upstream source before changing either symbol file', (t) => {
+  const f = fixture(t);
+  const path = join(f.symbols, symbolPaths[1]);
+  writeFileSync(path, pristineSymbol(symbolPaths[1]) + '\n// upstream change\n');
+  const before = symbolPaths.map(path => readFileSync(join(f.symbols, path), 'utf8'));
+  const applied = cli(f.root, '--apply');
+  assert.notEqual(applied.status, 0);
+  assert.match(applied.stderr, /SYMBOL_SOURCE_MISMATCH/);
+  assert.deepEqual(symbolPaths.map(path => readFileSync(join(f.symbols, path), 'utf8')), before);
+});
 
 test('ordinary postinstall patches a clean dependency tree and repeated preparation preserves it', (t) => {
   const f = fixture(t);

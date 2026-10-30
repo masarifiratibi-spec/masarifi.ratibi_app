@@ -16,6 +16,11 @@ import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { createLiveFinancialPlanningService } from './financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+
+
 const session = {
   id: 'planning-session',
   userId: 'planning-owner',

@@ -52,6 +52,11 @@ function renderStatus(
   ]);
 }
 
+async function readyControl(testID: string) {
+  await waitFor(() => expect(screen.getByTestId(testID)).toBeEnabled());
+  return screen.getByTestId(testID);
+}
+
 describe('TrackingStatusScreen', () => {
   it('waits for the keyword list before allowing edits', async () => {
     let finishLoad!: (
@@ -241,8 +246,8 @@ describe('TrackingStatusScreen', () => {
     expect(
       screen.getByTestId('tracking-notification-switch')
     ).toBeOnTheScreen();
-    expect(screen.getByTestId('tracking-sms-switch')).toBeEnabled();
-    expect(screen.getByTestId('tracking-notification-switch')).toBeEnabled();
+    expect(await readyControl('tracking-sms-switch')).toBeEnabled();
+    expect(await readyControl('tracking-notification-switch')).toBeEnabled();
   });
 
   it.each(['denied', 'revoked', 'permanently_denied'] as const)(
@@ -270,7 +275,7 @@ describe('TrackingStatusScreen', () => {
         },
         'granted'
       );
-      fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
+      fireEvent.press(await readyControl('tracking-sms-switch'));
       await waitFor(() =>
         expect(push).toHaveBeenCalledWith({
           pathname: '/tracking/permission',
@@ -307,7 +312,7 @@ describe('TrackingStatusScreen', () => {
       lastUpdatedAt: 1
     });
 
-    fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
+    fireEvent.press(await readyControl('tracking-sms-switch'));
 
     await waitFor(() => expect(saveSource).toHaveBeenCalledWith('sms', false));
     expect(setMode).not.toHaveBeenCalledWith('paused');
@@ -344,13 +349,13 @@ describe('TrackingStatusScreen', () => {
       lastUpdatedAt: 1
     });
     try {
-      fireEvent.press(await screen.findByTestId('tracking-sms-switch'));
+      fireEvent.press(await readyControl('tracking-sms-switch'));
       await waitFor(() => expect(resync).toHaveBeenCalled());
       expect(
         screen.getByTestId('tracking-sms-switch')
       ).toHaveAccessibilityState({ checked: false });
-      expect(screen.getByTestId('tracking-sms-switch')).toBeEnabled();
-      expect(screen.getByTestId('tracking-notification-switch')).toBeEnabled();
+      expect(await readyControl('tracking-sms-switch')).toBeEnabled();
+      expect(await readyControl('tracking-notification-switch')).toBeEnabled();
     } finally {
       await act(async () =>
         finishSync({
@@ -393,7 +398,7 @@ describe('TrackingStatusScreen', () => {
       lastUpdatedAt: 1
     });
 
-    fireEvent.press(await screen.findByTestId('tracking-notification-switch'));
+    fireEvent.press(await readyControl('tracking-notification-switch'));
 
     await waitFor(() =>
       expect(saveSource).toHaveBeenCalledWith('notification', true)
@@ -429,7 +434,7 @@ describe('TrackingStatusScreen', () => {
       lastUpdatedAt: 1
     });
 
-    fireEvent.press(await screen.findByTestId('tracking-notification-switch'));
+    fireEvent.press(await readyControl('tracking-notification-switch'));
 
     await waitFor(() =>
       expect(saveSource).toHaveBeenCalledWith('notification', false)
@@ -476,7 +481,7 @@ describe('TrackingStatusScreen', () => {
       lastUpdatedAt: 1
     });
 
-    fireEvent.press(await screen.findByTestId('tracking-notification-switch'));
+    fireEvent.press(await readyControl('tracking-notification-switch'));
     await waitFor(() => expect(openSettings).toHaveBeenCalledTimes(1));
     jest
       .mocked(bankNotificationService.getAccessState)
@@ -510,7 +515,7 @@ describe('TrackingStatusScreen', () => {
       padding: 18
     });
     expect(
-      screen.getByTestId('tracking-keyword-chip-expense-en-default')
+      await screen.findByTestId('tracking-keyword-chip-expense-en-default')
     ).toHaveStyle({ minHeight: 40 });
   });
 
@@ -571,7 +576,7 @@ describe('TrackingStatusScreen', () => {
 
     const setMode = jest.spyOn(automaticTrackingService, 'setMode');
     const push = jest.spyOn(router, 'push').mockImplementation(jest.fn());
-    fireEvent.press(screen.getByTestId('tracking-permission-warning-banner'));
+    fireEvent.press(await readyControl('tracking-permission-warning-banner'));
 
     expect(push).toHaveBeenCalledWith({
       pathname: '/tracking/permission',
@@ -602,7 +607,9 @@ describe('TrackingStatusScreen', () => {
         await screen.findByText(translate('tracking.status.unavailable'))
       ).toBeOnTheScreen();
       expect(screen.getByTestId('tracking-mode-switch')).toBeDisabled();
-      expect(screen.getByTestId('tracking-add-keyword-toggle')).toBeDisabled();
+      expect(
+        await screen.findByTestId('tracking-add-keyword-toggle')
+      ).toBeDisabled();
       const warning = screen.getByTestId('tracking-permission-warning-banner');
       expect(warning).toBeDisabled();
       expect(warning).toHaveProp(
@@ -705,6 +712,7 @@ describe('TrackingStatusScreen', () => {
   );
 
   it('allows adding and removing custom keywords', async () => {
+    const saveRules = jest.spyOn(automaticTrackingService, 'saveKeywordRules');
     renderStatus({
       platform: 'android',
       mode: 'automatic_clear',
@@ -743,8 +751,14 @@ describe('TrackingStatusScreen', () => {
       expect(screen.getByText('StarbucksCoffee')).toBeOnTheScreen();
     });
     fireEvent.press(
-      screen.getByTestId('tracking-keyword-remove-financial-ar-starbuckscoffee')
+      await readyControl('tracking-keyword-remove-financial-ar-starbuckscoffee')
     );
+    await waitFor(() => expect(saveRules).toHaveBeenCalledTimes(2));
+    expect(
+      saveRules.mock.calls[1][0].some(
+        (rule) => rule.value === 'StarbucksCoffee'
+      )
+    ).toBe(false);
     await waitFor(() =>
       expect(screen.queryByText('StarbucksCoffee')).toBeNull()
     );

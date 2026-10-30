@@ -216,19 +216,21 @@ describeLiveDatabase('nominal default-account tracking', () => {
     await capture('Paid EGP50', { native: 'one-source' });
     expect(await finances()).toHaveLength(1);
   });
-  it('holds an updated notification with the same slot without a second financial effect', async () => {
+  it('moves an uncorrelatable reference-free notification to owner review without a second financial effect', async () => {
     const timestamp = Date.now();
     await capture('Paid EGP50', {
       channel: 'android_notification',
       native: 'stable-slot',
       receivedAt: new Date(timestamp).toISOString(),
     });
+    const originalEffects = await finances();
     const second = await capture('Payment EGP50', {
       channel: 'android_notification',
       native: 'stable-slot',
       receivedAt: new Date(timestamp + 1000).toISOString(),
     });
-    expect(await finances()).toHaveLength(1);
+    expect(await finances()).toEqual(originalEffects);
+    expect(originalEffects).toHaveLength(1);
     expect(
       (
         await pool.query(
@@ -237,6 +239,16 @@ describeLiveDatabase('nominal default-account tracking', () => {
         )
       ).rows[0]?.reason,
     ).toBe('correlation_unresolved');
+    expect(
+      (
+        await pool.query(
+          'select s.status,r.reason,r.status review_status from public.import_sessions s join public.import_items i on i.session_id=s.id join public.review_items r on r.import_item_id=i.id where s.id=$1',
+          [second.id],
+        )
+      ).rows,
+    ).toEqual([
+      { status: 'review', reason: 'duplicate_candidate', review_status: 'pending' },
+    ]);
   });
   it('keeps later independent movements using the same notification slot separate', async () => {
     const timestamp = Date.now();

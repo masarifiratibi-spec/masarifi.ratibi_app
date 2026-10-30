@@ -17,6 +17,16 @@ import {
   ensureLivePushDeviceRegistration
 } from './engagement-service';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn()
+}));
+
+beforeEach(() => {
+  jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
+});
+
 const id = (suffix: number) =>
   `11000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
 const at = '2026-09-10T08:00:00.000Z';

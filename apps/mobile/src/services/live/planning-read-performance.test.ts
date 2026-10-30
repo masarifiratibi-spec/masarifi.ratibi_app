@@ -1,6 +1,12 @@
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { createLiveFinancialPlanningService } from './financial-planning-service';
 import { savingsGoalWireFixture } from '@/test-utils/financial-planning-api-fixtures';
+import { waitFor } from '@testing-library/react-native';
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined)
+}));
 
 const session = {
   id: 'read-session',
@@ -94,8 +100,11 @@ it('starts obligation summaries before the independent list completes', async ()
   });
   const read = service.getObligationsOverview({});
   try {
-    for (let i = 0; i < 30; i++) await Promise.resolve();
-    expect(paths.some((path) => path.includes('/planning/summary'))).toBe(true);
+    await waitFor(() =>
+      expect(paths.some((path) => path.includes('/planning/summary'))).toBe(
+        true
+      )
+    );
   } finally {
     release();
     await read;

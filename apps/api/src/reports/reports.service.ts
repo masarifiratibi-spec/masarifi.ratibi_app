@@ -108,10 +108,11 @@ export class ReportsService {
     idempotencyKey: string,
     requestId: string,
   ): Promise<unknown> {
-    this.requireRecent(principal);
     try {
       hashIdempotencyKey(idempotencyKey);
       const command = normalizeCreateReport(body);
+      // Ordinary owner PDF downloads use the authenticated session; other deliveries retain step-up.
+      if (command.format !== 'pdf' || command.delivery !== 'download') this.requireRecent(principal);
       if (command.delivery === 'email') {
         const identity = await this.identity?.getIdentityUser(principal.userId);
         if (!identity?.primaryEmail || identity.primaryEmail.toLowerCase() !== command.recipient)
@@ -147,9 +148,9 @@ export class ReportsService {
     requestId: string,
     now = new Date(),
   ): Promise<unknown> {
-    this.requireRecent(principal);
     if (!isReportUuid(attemptId)) throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
     const attempt = await this.repository.getAttempt(principal, attemptId, requestId);
+    if (attempt.format !== 'pdf' || attempt.delivery !== 'download') this.requireRecent(principal);
     const remainingSeconds = Math.floor(
       (new Date(String(attempt.expiresAt)).getTime() - now.getTime()) / 1_000,
     );
@@ -368,6 +369,7 @@ export class ReportsService {
     attemptId: string,
     requestId: string,
   ): Promise<unknown> {
+    this.requireRecent(principal);
     return this.getReportAttempt(principal, attemptId, requestId);
   }
 
@@ -589,7 +591,7 @@ export class ReportsService {
     const key = ReportsCache.key(
       principal.userId,
       namespace,
-      `${normalized.type}:${normalized.period}:${normalized.anchorDate ?? 'current'}:${String(normalized.monthStartDay ?? 1)}:${normalized.accountIds?.join(',') ?? 'all'}`,
+      `${normalized.type}:${normalized.period}:${period.timezone}:${period.startDate}:${period.endDate}:${String(normalized.monthStartDay ?? 1)}:${normalized.accountIds?.join(',') ?? 'all'}`,
       normalized.currency ?? 'all',
       context.ledgerVersion,
     );

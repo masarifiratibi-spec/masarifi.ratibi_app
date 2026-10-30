@@ -1,3 +1,6 @@
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useState } from 'react';
 import {
@@ -70,7 +73,10 @@ export function AccountDetailScreen({ id }: { id: string }) {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (account.isError || balances.isError)
+  if (
+    (account.isError && !hasReadableSnapshot(account)) ||
+    (balances.isError && !hasReadableSnapshot(balances))
+  )
     return (
       <StateView
         state="error"
@@ -150,10 +156,11 @@ export function AccountDetailScreen({ id }: { id: string }) {
       ]
     );
   };
-  const calculatePayoff = async () => {
+  const calculatePayoff = () => {
     const balanceMinor = parseAmountToMinor(payoffBalance, value.currencyCode);
     const paymentMinor = parseAmountToMinor(payoffPayment, value.currencyCode);
-    const rate = /^\d+$/.test(payoffRate.trim()) ? Number(payoffRate) : NaN;
+    const normalizedRate = normalizeLocalizedNumber(payoffRate).trim();
+    const rate = /^\d+$/.test(normalizedRate) ? Number(normalizedRate) : NaN;
     if (
       balanceMinor === null ||
       balanceMinor < 0 ||
@@ -172,9 +179,7 @@ export function AccountDetailScreen({ id }: { id: string }) {
       paymentMinor: BigInt(paymentMinor)
     };
     try {
-      const result = coreFinanceService.calculateCreditCardPayoff
-        ? await coreFinanceService.calculateCreditCardPayoff(input)
-        : calculateCreditCardPayoff(input);
+      const result = calculateCreditCardPayoff(input);
       setPayoffResult(
         result.status === 'payoff'
           ? translateDynamic('coreFinance.accounts.payoff.months', {
@@ -218,6 +223,16 @@ export function AccountDetailScreen({ id }: { id: string }) {
         titleTestID="account-detail-masthead-title"
       />
       <View style={styles.content}>
+        <FinancialRefreshStatus
+          query={{
+            dataUpdatedAt: Math.min(
+              account.dataUpdatedAt,
+              balances.dataUpdatedAt
+            ),
+            isFetching: account.isFetching || balances.isFetching,
+            isError: account.isError || balances.isError
+          }}
+        />
         <View
           testID="account-detail-hero"
           accessibilityLabel={[balanceDisplay.accessibilityLabel, trackingLabel]
@@ -326,7 +341,7 @@ export function AccountDetailScreen({ id }: { id: string }) {
             <ActionButton
               label={translate('coreFinance.accounts.payoff.calculate')}
               variant="secondary"
-              onPress={() => void calculatePayoff()}
+              onPress={calculatePayoff}
             />
             {payoffResult ? <StyledText>{payoffResult}</StyledText> : null}
           </View>
@@ -350,7 +365,12 @@ export function AccountDetailScreen({ id }: { id: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={translate('coreFinance.home.viewAll')}
-            onPress={() => router.push(`/(tabs)/transactions?accountId=${id}`)}
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/transactions',
+                params: { accountId: id, returnTo: `/accounts/${id}` }
+              })
+            }
             style={styles.viewAll}
           >
             <StyledText

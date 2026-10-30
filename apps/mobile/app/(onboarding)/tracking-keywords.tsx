@@ -1,78 +1,75 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { router } from 'expo-router';
 
-import type { KeywordRule } from '@/domain/app-shell';
+import { useTrackingKeywordDraft } from '@/features/tracking/useTrackingKeywordDraft';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { StyledText } from '@/components/StyledText';
 import { KeywordEditor } from '@/features/onboarding/KeywordEditor';
 import { OnboardingScaffold } from '@/features/onboarding/OnboardingScaffold';
 import { translate } from '@/localization/i18n';
-import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { routeForOnboardingProgress } from '@/features/onboarding/onboarding-progress';
 import { useAppShellStore } from '@/state/app-shell';
 import { StateView } from '@/design-system/components/feedback/StateView';
 
-const storage = {
-  loadKeywords: trackingKeywordConfiguration.load,
-  saveKeywords: trackingKeywordConfiguration.save
-};
-
 export default function TrackingKeywordsRoute() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <TrackingKeywordsContent key={ownerId} />;
+}
+
+function TrackingKeywordsContent() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const advanceOnboarding = useAppShellStore(
     (state) => state.advanceOnboarding
   );
-  const [rules, setRules] = useState<KeywordRule[]>([]);
-  const [previousRules, setPreviousRules] = useState<KeywordRule[] | null>(
-    null
-  );
-  const [error, setError] = useState(false);
-
-  const loadKeywords = useCallback(async () => {
-    setError(false);
-    try {
-      const loaded = await storage.loadKeywords();
-      setRules(loaded);
-      setPreviousRules(loaded);
-    } catch {
-      setError(true);
-    }
-  }, []);
-  useEffect(() => {
-    void loadKeywords();
-  }, [loadKeywords]);
-
+  const { query, rules, readable, blocked, saving, error, save, setRules } =
+    useTrackingKeywordDraft();
+  const [progressError, setProgressError] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   async function next() {
-    if (!previousRules) return;
-    setError(false);
+    if (blocked || advancing) return;
+    setAdvancing(true);
     try {
-      await storage.saveKeywords(rules, previousRules, (saved) => {
-        setRules(saved);
-        setPreviousRules(saved);
-      });
+      if (
+        !(await save()) ||
+        (useAppShellStore.getState().session?.userId ?? null) !== ownerId
+      )
+        return;
+      setProgressError(false);
       const progress = await advanceOnboarding(['keywords'], 'completed');
-      if (progress) router.replace(routeForOnboardingProgress(progress));
+      if (
+        progress &&
+        (useAppShellStore.getState().session?.userId ?? null) === ownerId
+      )
+        router.replace(routeForOnboardingProgress(progress));
     } catch {
-      setError(true);
+      setProgressError(true);
+    } finally {
+      setAdvancing(false);
     }
   }
-
-  if (!previousRules)
+  if (!readable)
     return (
       <StateView
-        state={error ? 'error' : 'loading'}
+        state={query.isLoading ? 'loading' : 'error'}
         title={translate(
-          error ? 'tracking.state.error' : 'tracking.state.loading'
+          query.isLoading ? 'tracking.state.loading' : 'tracking.state.error'
         )}
-        actionLabel={error ? translate('coreFinance.action.retry') : undefined}
-        onAction={error ? () => void loadKeywords() : undefined}
+        actionLabel={
+          query.isError ? translate('coreFinance.action.retry') : undefined
+        }
+        onAction={query.isError ? () => void query.refetch() : undefined}
       />
     );
 
   return (
     <OnboardingScaffold
-      onPrimary={next}
+      onPrimary={() => void next()}
+      primaryDisabled={blocked || advancing}
+      primaryLoading={saving || advancing}
       title={translate('appShell.tracking.keywords.title')}
     >
-      {error ? (
+      <FinancialRefreshStatus query={query} />
+      {error || progressError ? (
         <StyledText accessibilityRole="alert">
           {translate('appShell.error.persistenceFailed')}
         </StyledText>

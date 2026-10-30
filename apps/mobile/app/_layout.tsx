@@ -67,7 +67,8 @@ function StartupDestinationReady() {
 }
 
 function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
-  const appLockEnabled = isAppLockEnabled();
+  const preferenceEnabled = useAppShellStore((state) => state.privacyLock?.enabled === true);
+  const appLockEnabled = isAppLockEnabled() && preferenceEnabled;
   const pathname = usePathname();
   const autoLockDuration = useAppShellStore(
     (state) => state.privacyLock?.autoLockDuration

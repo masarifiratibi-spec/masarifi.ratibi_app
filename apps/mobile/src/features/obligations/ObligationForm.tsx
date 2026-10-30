@@ -42,6 +42,7 @@ import {
   type MessageKey
 } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
 import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useTheme } from '@/state/theme-context';
@@ -433,7 +434,10 @@ export function ObligationForm({
     );
   };
 
-  if (existing.isError || accounts.isError)
+  if (
+    (existing.isError && !hasReadableSnapshot(existing)) ||
+    (accounts.isError && !hasReadableSnapshot(accounts))
+  )
     return (
       <PlanningScreen titleKey="planning.obligations.new">
         <PlanningState

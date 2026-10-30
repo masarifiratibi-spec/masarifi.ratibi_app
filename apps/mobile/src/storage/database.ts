@@ -18,7 +18,7 @@ import { isDeletionOwnerFenced } from './deletion-completion-journal';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 15;
+const CURRENT_SCHEMA_VERSION = 16;
 const LEGACY_OWNER_KEY = 'masarifi.database.legacyOwnerHash';
 const DATABASE_KEY_PREFIX = 'masarifi.database.key.';
 const LEGACY_MIGRATION_TABLE = '_masarifi_migration_state';
@@ -484,6 +484,16 @@ async function runMigrations(
     `);
 
     const migrations = parseMigrations(`
+    -- migration:16
+    CREATE TABLE IF NOT EXISTS query_read_cache (
+      query_key TEXT NOT NULL,
+      locale TEXT NOT NULL,
+      schema_version INTEGER NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(query_key, locale)
+    );
+
     -- migration:10
     CREATE TABLE IF NOT EXISTS sync_state (
       domain TEXT PRIMARY KEY,

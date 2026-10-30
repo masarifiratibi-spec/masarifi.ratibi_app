@@ -18,6 +18,8 @@ export const trackingKeywordConfiguration = {
   ): Promise<KeywordRule[]> {
     const owner = useAppShellStore.getState().session?.userId;
     await suspendAutomaticTrackingConfiguration(owner);
+    if (useAppShellStore.getState().session?.userId !== owner)
+      throw new Error('tracking_owner_changed');
     let savedRules: KeywordRule[];
     try {
       savedRules = (
@@ -46,6 +48,8 @@ export const trackingKeywordConfiguration = {
   ): Promise<KeywordRule[]> {
     const owner = useAppShellStore.getState().session?.userId;
     await suspendAutomaticTrackingConfiguration(owner);
+    if (useAppShellStore.getState().session?.userId !== owner)
+      throw new Error('tracking_owner_changed');
     const result = await automaticTrackingService.restoreDefaultKeywords();
     if (useAppShellStore.getState().session?.userId !== owner)
       throw new Error('tracking_owner_changed');

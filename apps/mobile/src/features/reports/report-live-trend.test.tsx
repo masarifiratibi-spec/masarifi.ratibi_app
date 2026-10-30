@@ -9,6 +9,12 @@ import {
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { useNetWorthTrend, type ReportTimeframe } from './report-queries';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn()
+}));
+
 jest.mock('@/services/mocks/core-finance-service', () => ({
   coreFinanceService: {
     listAccounts: jest.fn(async () => []),
@@ -71,7 +77,10 @@ it('loads a trend through the live ledger page contract', async () => {
     { wrapper, initialProps: { timeframe: 'month' as ReportTimeframe } }
   );
   try {
-    await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+    await waitFor(() => {
+      expect(view.result.current.error).toBeNull();
+      expect(view.result.current.isSuccess).toBe(true);
+    });
     expect(view.result.current.data).toHaveLength(10);
     expect(request).toHaveBeenCalledTimes(1);
     view.rerender({ timeframe: 'week' });

@@ -15,6 +15,7 @@ const applicationKeys = new Set([
   'MASARIFI_SHUTDOWN_TIMEOUT_MS',
   'MASARIFI_OUTBOX_BATCH_SIZE',
   'MASARIFI_WORKER_ID',
+  'MASARIFI_OPERATIONS_JOB_KEYS',
   'MASARIFI_OUTBOX_LEASE_SECONDS',
   'MASARIFI_OUTBOX_POLL_MS',
   'MASARIFI_OUTBOX_MAX_ATTEMPTS',
@@ -57,6 +58,7 @@ const applicationKeys = new Set([
   'MASARIFI_SECURITY_JOB_BATCH_SIZE',
   'MASARIFI_PRIVACY_HANDLER_MANIFEST',
   'MASARIFI_PRIVACY_DATABASE_URL',
+  'MASARIFI_SYNC_COMMAND_DATABASE_URL',
   'OPENROUTER_API_KEY',
   'MASARIFI_AI_PROVIDER_ENABLED',
   'MASARIFI_AI_ASSISTANT_ONLY',
@@ -218,6 +220,9 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_PRIVACY_DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .optional(),
+  MASARIFI_SYNC_COMMAND_DATABASE_URL: Joi.string()
+    .uri({ scheme: ['postgres', 'postgresql'] })
+    .optional(),
   MASARIFI_HTTP_PORT: Joi.number().integer().min(1024).max(65535).default(3000),
   MASARIFI_CORS_ORIGINS: Joi.string().allow('').default(''),
   MASARIFI_HTTP_BODY_LIMIT_BYTES: Joi.number().integer().min(1024).max(1_048_576).default(262_144),
@@ -229,6 +234,10 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_OUTBOX_BATCH_SIZE: Joi.number().integer().min(1).max(100).default(50),
   MASARIFI_WORKER_ID: Joi.string()
     .pattern(/^[A-Za-z0-9._:-]{1,128}$/)
+    .optional(),
+  MASARIFI_OPERATIONS_JOB_KEYS: Joi.string()
+    .max(4096)
+    .pattern(/^[a-z][a-z0-9_.-]*(,[a-z][a-z0-9_.-]*)*$/u)
     .optional(),
   MASARIFI_OUTBOX_LEASE_SECONDS: Joi.number().integer().min(1).max(300).default(30),
   MASARIFI_OUTBOX_POLL_MS: Joi.number().integer().min(100).max(10_000).default(500),
@@ -568,6 +577,10 @@ function validateIdentityEnvironment(environment: PlatformEnvironment): void {
 
 export function validateEnvironment(input: Record<string, unknown>): PlatformEnvironment {
   const processKind = input.MASARIFI_PROCESS_KIND;
+  if (input.MASARIFI_SYNC_COMMAND_DATABASE_URL !== undefined && processKind !== 'worker')
+    invalidEnvironment(['MASARIFI_SYNC_COMMAND_DATABASE_URL']);
+  if (input.MASARIFI_OPERATIONS_JOB_KEYS !== undefined && processKind !== 'worker')
+    invalidEnvironment(['MASARIFI_OPERATIONS_JOB_KEYS']);
   if (processKind === 'migration' && input.SUPABASE_SERVICE_ROLE_KEY !== undefined) {
     invalidEnvironment(['SUPABASE_SERVICE_ROLE_KEY']);
   }

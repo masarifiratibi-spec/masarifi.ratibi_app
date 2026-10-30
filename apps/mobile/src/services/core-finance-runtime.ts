@@ -51,6 +51,10 @@ import { createLiveLedgerService } from '@/services/live/core-finance-service';
 import { ZodError } from 'zod';
 import { readHomeTodayActivity } from '@/services/home-today-activity';
 import { useAppShellStore } from '@/state/app-shell';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+import type { DraftOwner } from '@/storage/transaction-draft-snapshots';
+import { withTransactionDraftWrite } from '@/storage/transaction-draft-snapshots';
+import type { TransactionEditGuard } from '@/storage/transaction-edit-journal';
 
 const scopes = {
   account: (id: string) => [
@@ -486,8 +490,19 @@ export function createLiveCoreFinanceService(
     'loadDraft',
     'discardDraft'
   ]);
-  const localCall = async (property: PropertyKey, args: unknown[]) => {
-    const owner = await captureLiveClerkOwner();
+  const queuedReadMethods = new Set([
+    'getTransaction',
+    'listTransactions',
+    'getHomeSummary',
+    'getHomeTodayActivity',
+    'listAccountBalances'
+  ]);
+  const localCall = async (
+    property: PropertyKey,
+    args: unknown[],
+    owner: DraftOwner,
+    assertSafe: TransactionEditGuard = owner.assertCurrent
+  ) => {
     let local = localOwners.get(owner.userId);
     if (!local) {
       const repository = new CoreFinanceRepository();
@@ -499,14 +514,31 @@ export function createLiveCoreFinanceService(
       };
       localOwners.set(owner.userId, local);
     }
-    await local.ready;
+    try {
+      await local.ready;
+    } catch (error) {
+      if (localOwners.get(owner.userId) === local)
+        localOwners.delete(owner.userId);
+      throw error;
+    }
+    await owner.assertCurrent();
+    await local.repository.hydrate({ preserveDrafts: true });
     await owner.assertCurrent();
     let value: unknown;
-    if (property === 'updateTransaction') {
+    if (property === 'createTransaction') {
+      const transaction = await local.repository.queueTransactionCreate(
+        args[0] as TransactionInput,
+        (args[1] as string | undefined) ?? randomUUID(),
+        (args[2] as Transaction['source'] | undefined) ?? 'manual',
+        assertSafe
+      );
+      value = result(transaction, scopes.transaction(transaction.id));
+    } else if (property === 'updateTransaction') {
       const transaction = await local.repository.queueTransactionEdit(
         args[0] as string,
         args[1] as TransactionInput,
-        randomUUID()
+        randomUUID(),
+        assertSafe
       );
       value = result(transaction, scopes.transaction(transaction.id));
     } else if (typeof property === 'string' && localMethods.has(property)) {
@@ -804,6 +836,25 @@ export function createLiveCoreFinanceService(
   };
   const ledger = createLiveLedgerService({
     ...options,
+    offlineUpdate: async (id, input, owner, assertSafe) => {
+      if (!(await confirmedOffline())) return null;
+      await assertSafe();
+      try {
+        return (await localCall(
+          'updateTransaction',
+          [id, input],
+          owner,
+          assertSafe
+        )) as MutationResult<Transaction>;
+      } catch (error) {
+        if (error instanceof CoreFinanceError || error instanceof HttpError)
+          throw error;
+        throw new CoreFinanceError('unknown', {
+          domainCode: 'LOCAL_PERSISTENCE_FAILED',
+          uncertain: false
+        });
+      }
+    },
     categoryIds: {
       prepare: categories.prepareCategoryIds,
       toServer: categories.serverCategoryId,
@@ -955,15 +1006,53 @@ export function createLiveCoreFinanceService(
         if (property in provider) {
           const value = Reflect.get(provider, property);
           if (typeof value !== 'function') return value;
-          return async (...args: unknown[]) => {
+          const invoke = async (...args: unknown[]) => {
             try {
-              if (useAppShellStore.getState().session?.restoration === 'local')
-                return await localCall(property, args);
+              if (
+                property !== 'updateTransaction' &&
+                (property === 'createTransaction' ||
+                  localMethods.has(String(property)) ||
+                  useAppShellStore.getState().session?.restoration === 'local')
+              ) {
+                const owner = await captureLiveClerkOwner();
+                if (await confirmedOffline()) {
+                  try {
+                    return await localCall(property, args, owner);
+                  } catch (error) {
+                    if (
+                      property === 'createTransaction' &&
+                      !(error instanceof CoreFinanceError) &&
+                      !(error instanceof HttpError) &&
+                      !(error instanceof ZodError)
+                    )
+                      throw new CoreFinanceError('offline', {
+                        domainCode: 'LOCAL_PERSISTENCE_FAILED',
+                        uncertain: false
+                      });
+                    throw error;
+                  }
+                }
+                await owner.assertCurrent();
+                if (queuedReadMethods.has(String(property))) {
+                  const repository = new CoreFinanceRepository();
+                  repository.bindOwner(owner.userId);
+                  const pending = await repository.hasPendingTransactionEdits(
+                    property === 'getTransaction'
+                      ? (args[0] as string)
+                      : undefined
+                  );
+                  await owner.assertCurrent();
+                  if (pending) return await localCall(property, args, owner);
+                }
+              }
               return await Reflect.apply(value, provider, args);
             } catch (error) {
               throw coreFinanceError(error);
             }
           };
+          return !localMethods.has(String(property)) || property === 'saveDraft' || property === 'discardDraft'
+            ? (...args: unknown[]) => withTransactionDraftWrite(() => invoke(...args))
+            : invoke;
         }
         return async () => {
           throw new CoreFinanceError('offline');
@@ -971,6 +1060,16 @@ export function createLiveCoreFinanceService(
       }
     }
   );
+}
+
+async function confirmedOffline(): Promise<boolean> {
+  if (useAppShellStore.getState().session?.restoration === 'local') return true;
+  if (!readRecoveryNetwork.available) return false;
+  try {
+    return (await readRecoveryNetwork.isOnline()) === false;
+  } catch {
+    return false;
+  }
 }
 
 function coreFinanceError(error: unknown): CoreFinanceError {

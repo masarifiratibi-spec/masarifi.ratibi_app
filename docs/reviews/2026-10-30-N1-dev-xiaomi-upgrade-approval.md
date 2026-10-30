@@ -1,0 +1,24 @@
+# N1 — existing Xiaomi DEV upgrade and source qualification
+
+Prepared from the qualified local checkpoint. **Not approved or executed.** This technical approval does not approve the1.0-draft legal documents or registration enforcement.
+
+The concrete unsigned input is `.superpowers/sdd/n10/Masarifi_Ratibi_Dev_app/outputs/apk/debug/app-debug-unsigned.apk`,95,014,306bytes, SHA-256 **a0447b7556c7029d59ee0956412ccc0d1dc1ef78bba6b41612fd641651ac24b7**. Static qualification and16KiB ZIP alignment passed. The four required native module classes are defined; permission additions/removals versus the installed APK are both empty.
+
+The separately qualified current Hermes bundle is **f21c64065e7fc8b8ac315181e23146a862d43dd61dbf3fd24aa44dc81d663c14**. Its source binding manifest is **0acb85ed34748f96d62b154d0e3e021e42b0f4b635779c2895243e8843eaeb98**:300 broader bound files,108 current mobile delta files afterE9,118 exact production source-map matches and272 compiled legal string leaves. These are source/static qualifications, not Xiaomi acceptance.
+
+Approval would authorize this bounded sequence:
+
+1. Recheck the exact source/unsigned bytes, existing Xiaomi **f66a40694eca /23076RN8DY**, installed `com.masarifi.mobile.dev` identity and existing installed certificate. Abort on drift, another owner/device, unsupported artifact or unresolved protection.
+2. Sign only this DEV APK with the existing `android/app/debug.keystore`, alias `androiddebugkey`, using the existing development certificate SHA-256 **fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c**. Record the signed digest and verify certificate/package/version/permissions/alignment plus every original unsigned ZIP entry before installation. This is a development build. The tracked release-safety policy stays in force.
+3. Perform one in-place `adb install -r` of that verified derived APK to the existing package/device. No uninstall, data clear, account reset, new keystore, release/debug substitution or financial fixture creation. Preserve the old APK **5aa443428e94789d870b3d9514459091a6c94071529bd00c61da5dbfbfd011bf**.
+4. Activate the bound current client through the existing DEV workflow: an owned loopback-only Metro8081 if free, temporary USB reverse8081 only, validated existing Staging environment and app-lock flag true. This activates the existing owner SQLite's additive schema16 read cache. No second database, cursor key, sync engine or auth bypass. Do not kill/rebind an unrelated listener. The approval-bound launcher refuses missing approval, source drift or a used startup marker.
+5. Start with Wi-Fi/data offline. Use normal UI and existing guarded read-only observations to establish current owner, lock/session, draft, financial fingerprints, operation identities and pending/capture state. Historical8rows/12applied/zero pending/captureOFF are expectations to recheck, not current observations. Stop on unexpected financial/ownership/queue state. No financial submission, AI processing, support send, source/permission activation, deletion, hidden feature or legal acceptance.
+6. Qualify enabled AR/RTL and EN/LTR reads/navigation/cache/error states and native prerequisites. Online/read-recovery tests may temporarily restore connectivity only after fresh client/server preservation and no-pending/no-inflight/captureOFF gates pass; restore observed settings/routing after the batch. No protected Staging service or worker change is included here. Real registration/logout/other identities retain their existing human/security and disposition gates.
+
+Measure actual screen readiness using consistent start/data-visible boundaries. A genuine before baseline must be observed; the earlier2328ms Expo DevLauncher start is excluded from app performance. This DEV APK has **no embedded JS bundle** and cannot establish standalone offline cold-start/release acceptance. That requirement remains open for a compatible approved standalone signing/build path. Do not claim a performance gain or completed T06/T20–T22 from DEV source loading.
+
+PDF testing must identify the destination before any sensitive file handoff. Available readers were queried read-only; no file was opened. Share chooser display is not delivery. Android folder permissions and any authentication challenge stay in the normal human UI flow.
+
+On failure, keep the device offline, record the exact state and preserve app data/artifacts. An old native binary alone does not authorize a schema downgrade or incompatible old JS. Do not wipe/drop data to force rollback.
+
+Authority: the saved continuation handoff, line23, reserves **“native signing/install”** for **“specific approval”**. Original62/69/88/29 gates and task acceptance order remain unchanged. N1 approval is separate from the later exact consolidated Staging image/config/finite-consumer packet.

@@ -23,6 +23,12 @@ import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 jest.mock('@/services/financial-planning-service', () => ({
   financialPlanningService: {}
 }));
+// An empty native secure store returns null; Expo's automatic mock returns undefined.
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined)
+}));
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), back: jest.fn() },
   useLocalSearchParams: () => ({}),

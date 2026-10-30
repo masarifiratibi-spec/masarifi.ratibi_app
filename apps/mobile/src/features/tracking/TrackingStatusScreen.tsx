@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -26,7 +20,8 @@ import { Toggle } from '@/design-system/components/forms/SelectionControls';
 import { DesignIcon } from '@/design-system/icons';
 import {
   useAutomaticTrackingSyncState,
-  useTrackingStatus
+  useTrackingStatus,
+  useKeywordRules
 } from './useAutomaticTracking';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -37,7 +32,13 @@ import {
   trackingSourcePreferences,
   type TrackingSourceState
 } from '@/services/tracking-source-preferences';
-import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
+import {
+  automaticTrackingKeys,
+  automaticTrackingReadKey
+} from '@/state/automatic-tracking-view-state';
+import { useAppShellStore } from '@/state/app-shell';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import type { KeywordRule } from '@/domain/app-shell';
 import type {
@@ -54,40 +55,56 @@ import {
 } from '@/services/automatic-tracking-coordinator';
 
 export function TrackingStatusScreen() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <TrackingStatusContent key={ownerId} />;
+}
+
+function TrackingStatusContent() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const statusKey = automaticTrackingReadKey(
+    automaticTrackingKeys.status,
+    ownerId
+  );
+  const keywordsKey = automaticTrackingReadKey(
+    automaticTrackingKeys.keywords(),
+    ownerId
+  );
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
   const query = useTrackingStatus();
+  const keywords = useKeywordRules();
   const queryClient = useQueryClient();
   const syncState = useAutomaticTrackingSyncState();
   const refetchTrackingStatus = query.refetch;
   const permissionService = useMemo(createTrackingPermissionService, []);
 
-  const [updating, setUpdating] = useState(false);
+  const [isUpdating, setUpdating] = useState(false);
+  const updating = isUpdating || query.isError || query.isFetching;
   const [sourceChange, setSourceChange] = useState<{
     source: 'sms' | 'notification';
     enabled: boolean;
   } | null>(null);
   const [actionFailed, setActionFailed] = useState(false);
-  const [keywordRules, setKeywordRules] = useState<KeywordRule[]>([]);
-  const [keywordLoadState, setKeywordLoadState] = useState<
-    'loading' | 'ready' | 'error'
-  >('loading');
+  const keywordRules = keywords.data ?? [];
+  const keywordLoadState = hasReadableSnapshot(keywords)
+    ? 'ready'
+    : keywords.isLoading
+      ? 'loading'
+      : 'error';
   const awaitingNotificationAccess = useRef(false);
+  const loadKeywords = keywords.refetch;
 
-  const loadKeywords = useCallback(async () => {
-    setKeywordLoadState('loading');
-    try {
-      setKeywordRules(await automaticTrackingService.listKeywordRules());
-      setKeywordLoadState('ready');
-    } catch {
-      setKeywordLoadState('error');
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadKeywords();
-  }, [loadKeywords]);
+  function setKeywordRules(rules: KeywordRule[]) {
+    // The callback only publishes a server-confirmed save/conflict result. Manual
+    // updates are not persisted as reads; evict the superseded disk projection.
+    queryClient.setQueryData(keywordsKey, rules);
+    void queryClient.invalidateQueries({
+      queryKey: keywordsKey,
+      exact: true,
+      refetchType: 'none'
+    });
+  }
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -112,23 +129,25 @@ export function TrackingStatusScreen() {
   }, [refetchTrackingStatus, loadKeywords]);
 
   async function handleKeywordsChange(newRules: KeywordRule[]) {
-    if (updating || keywordLoadState !== 'ready') return;
+    if (
+      updating ||
+      keywords.isError ||
+      keywords.isFetching ||
+      keywordLoadState !== 'ready'
+    )
+      return;
     const previousRules = keywordRules;
-    let persisted = false;
     setActionFailed(false);
     setUpdating(true);
-    setKeywordRules(newRules);
     try {
       await trackingKeywordConfiguration.save(
         newRules,
         previousRules,
         (rules) => {
           setKeywordRules(rules);
-          persisted = true;
         }
       );
     } catch {
-      if (!persisted) setKeywordRules(previousRules);
       setActionFailed(true);
     } finally {
       setUpdating(false);
@@ -136,6 +155,7 @@ export function TrackingStatusScreen() {
   }
 
   async function restoreKeywords() {
+    if (updating || keywords.isError || keywords.isFetching) return;
     setActionFailed(false);
     setUpdating(true);
     try {
@@ -148,6 +168,7 @@ export function TrackingStatusScreen() {
   }
 
   async function recoverPermission() {
+    if (updating) return;
     setActionFailed(false);
     try {
       router.push({
@@ -200,9 +221,9 @@ export function TrackingStatusScreen() {
     mode: TrackingMode | undefined
   ) {
     // A previous status request must not overwrite the preference just saved.
-    await queryClient.cancelQueries({ queryKey: automaticTrackingKeys.status });
+    await queryClient.cancelQueries({ queryKey: statusKey, exact: true });
     queryClient.setQueryData<TrackingStatusSnapshot>(
-      automaticTrackingKeys.status,
+      statusKey,
       (current) =>
         current && {
           ...current,
@@ -276,13 +297,13 @@ export function TrackingStatusScreen() {
     }
   };
 
-  if (query.isLoading) {
+  if (query.isLoading && !hasReadableSnapshot(query)) {
     return (
       <StateView state="loading" title={translate('tracking.state.loading')} />
     );
   }
 
-  if (query.isError || !query.data) {
+  if (!hasReadableSnapshot(query) || !query.data) {
     return (
       <StateView
         state="error"
@@ -329,6 +350,7 @@ export function TrackingStatusScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <FinancialRefreshStatus query={query} />
         {/* 2. Tracking Status Card */}
         <SurfaceCard style={styles.card}>
           {!isAndroid ? (
@@ -438,14 +460,16 @@ export function TrackingStatusScreen() {
           <TrackingDemoNotice />
           <TrackingSyncPanel
             state={syncState}
-            onRetry={() => void syncAutomaticTracking()}
+            onRetry={() => {
+              if (!updating) void syncAutomaticTracking();
+            }}
           />
 
           {/* Actionable Permission Warning: START = Warning Icon, MIDDLE = Warning Text, END = Chevron */}
           {!hasPermission && (
             <Pressable
               testID="tracking-permission-warning-banner"
-              disabled={permissionUnavailable}
+              disabled={updating || permissionUnavailable}
               onPress={
                 permissionUnavailable
                   ? undefined
@@ -459,7 +483,9 @@ export function TrackingStatusScreen() {
               ]}
               accessibilityRole="button"
               accessibilityLabel={permissionMessage}
-              accessibilityState={{ disabled: permissionUnavailable }}
+              accessibilityState={{
+                disabled: updating || permissionUnavailable
+              }}
             >
               {/* START: Warning Icon */}
               <View style={styles.warningIconBadge}>
@@ -602,12 +628,18 @@ export function TrackingStatusScreen() {
           testID="tracking-keywords-card"
           style={[styles.card, styles.keywordCard]}
         >
+          <FinancialRefreshStatus query={keywords} />
           {keywordLoadState === 'ready' ? (
             <TrackingKeywordChips
               rules={keywordRules}
               onChange={(rules) => void handleKeywordsChange(rules)}
               onRestore={() => void restoreKeywords()}
-              disabled={updating || permissionUnavailable}
+              disabled={
+                updating ||
+                keywords.isError ||
+                keywords.isFetching ||
+                permissionUnavailable
+              }
             />
           ) : (
             <StateView

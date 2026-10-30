@@ -27,9 +27,7 @@ export function resolveEntryRoute(input: EntryRouteInput): string {
     input.session.restoration === 'local' &&
     input.session.userId &&
     input.profileSetupStatus === 'complete' &&
-    input.privacyLock &&
-    (input.privacyLock.pinConfigured ||
-      input.privacyLock.biometricStatus === 'enabled');
+    (input.privacyLock?.enabled || !isAppLockEnabled());
   if (
     input.session?.restoration === 'local'
       ? !localAccess
@@ -40,8 +38,8 @@ export function resolveEntryRoute(input: EntryRouteInput): string {
       : '/welcome';
   }
   if (
-    (localAccess || isAppLockEnabled()) &&
-    input.privacyLock &&
+    isAppLockEnabled() &&
+    input.privacyLock?.enabled &&
     input.privacyLock.appLockStatus !== 'unlocked'
   ) {
     return '/security/unlock';

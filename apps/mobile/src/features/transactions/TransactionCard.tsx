@@ -82,7 +82,7 @@ export function TransactionCard({
         .filter(Boolean)
         .join(', ')}
       accessibilityRole="button"
-      onPress={() => router.push(`/transactions/${transaction.id}/edit`)}
+      onPress={() => router.push(`/transactions/${transaction.id}`)}
       style={({ pressed }) => [
         styles.card,
         fixedHomeCard && styles.fixedHome,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Share, View } from 'react-native';
 import { createPrivacyExportSession } from '@/services/privacy-export-session';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StyledText } from '@/components/StyledText';
@@ -9,7 +9,11 @@ import { useAppShellStore } from '@/state/app-shell';
 
 export function PrivacyExportPanel() {
   const owner = useAppShellStore((state) => state.session?.userId);
-  return owner ? <OwnedExportPanel key={owner} owner={owner} /> : null;
+  return owner ? (
+    <OwnedExportPanel key={owner} owner={owner} />
+  ) : (
+    <StyledText>reports.export.signIn</StyledText>
+  );
 }
 
 function OwnedExportPanel({ owner }: { owner: string }) {
@@ -17,6 +21,8 @@ function OwnedExportPanel({ owner }: { owner: string }) {
   const [value, setValue] = useState<PrivacyExportStatus | null>(null);
   const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [opened, setOpened] = useState<'download' | 'share' | null>(null);
+  const inFlight = useRef(true);
   const active = useRef(true);
   const current = () =>
     active.current && useAppShellStore.getState().session?.userId === owner;
@@ -40,7 +46,10 @@ function OwnedExportPanel({ owner }: { owner: string }) {
       } catch {
         if (current()) setFailed(true);
       } finally {
-        if (current()) setBusy(false);
+        if (current()) {
+          inFlight.current = false;
+          setBusy(false);
+        }
       }
     })();
     return () => {
@@ -49,10 +58,12 @@ function OwnedExportPanel({ owner }: { owner: string }) {
     // Owner-keyed component remounts rather than sharing an export between owners.
   }, [owner]);
 
-  const perform = async (download = false, newRequest = false) => {
-    if (busy) return;
+  const perform = async (output?: 'download' | 'share', newRequest = false) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setFailed(false);
+    setOpened(null);
     try {
       assertCurrent();
       const requestId = await session.current.request(
@@ -61,26 +72,46 @@ function OwnedExportPanel({ owner }: { owner: string }) {
         newRequest
       );
       const next = await refresh(requestId);
-      if (download) {
+      if (output) {
         if (
           next.status !== 'ready' ||
           !next.downloadUrl ||
           !next.downloadUrlExpiresAt ||
-          Date.parse(next.downloadUrlExpiresAt) <= Date.now()
+          !Number.isFinite(Date.parse(next.downloadUrlExpiresAt)) ||
+          Date.parse(next.downloadUrlExpiresAt) <= Date.now() ||
+          new URL(next.downloadUrl).protocol !== 'https:'
         )
           throw new Error('EXPORT_NOT_READY');
         assertCurrent();
-        await Linking.openURL(next.downloadUrl);
+        if (output === 'share')
+          await Share.share({
+            message: next.downloadUrl,
+            url: next.downloadUrl
+          });
+        else await Linking.openURL(next.downloadUrl);
+        assertCurrent();
+        setOpened(output);
       }
     } catch {
       if (current()) setFailed(true);
     } finally {
-      if (current()) setBusy(false);
+      if (current()) {
+        inFlight.current = false;
+        setBusy(false);
+      }
     }
   };
   return (
     <View style={{ gap: 12 }}>
       <StyledText>settings.privacy.exportExplanation</StyledText>
+      <StyledText variant="caption">reports.export.format</StyledText>
+      {busy ? (
+        <StyledText accessibilityLiveRegion="polite">
+          reports.export.loading
+        </StyledText>
+      ) : !value && !failed ? (
+        <StyledText>reports.export.empty</StyledText>
+      ) : null}
       {value ? (
         <StyledText accessibilityRole="alert">{`settings.privacy.exportState.${value.status}`}</StyledText>
       ) : null}
@@ -88,6 +119,9 @@ function OwnedExportPanel({ owner }: { owner: string }) {
         <StyledText accessibilityRole="alert">
           settings.privacy.exportFailure
         </StyledText>
+      ) : null}
+      {opened ? (
+        <StyledText accessibilityLiveRegion="polite">{`reports.export.opened.${opened}`}</StyledText>
       ) : null}
       <ActionButton
         label={
@@ -99,17 +133,26 @@ function OwnedExportPanel({ owner }: { owner: string }) {
         onPress={() => void perform()}
       />
       {value?.status === 'ready' ? (
-        <ActionButton
-          label="settings.privacy.exportDownload"
-          loading={busy}
-          onPress={() => void perform(true)}
-        />
+        <>
+          <ActionButton
+            label="settings.privacy.exportDownload"
+            loading={busy}
+            onPress={() => void perform('download')}
+          />
+          <ActionButton
+            label="reports.export.share"
+            variant="secondary"
+            loading={busy}
+            onPress={() => void perform('share')}
+          />
+          <StyledText variant="caption">reports.export.sharePrivacy</StyledText>
+        </>
       ) : null}
       {value && ['expired', 'failed'].includes(value.status) ? (
         <ActionButton
           label="settings.privacy.exportNew"
           loading={busy}
-          onPress={() => void perform(false, true)}
+          onPress={() => void perform(undefined, true)}
         />
       ) : null}
     </View>

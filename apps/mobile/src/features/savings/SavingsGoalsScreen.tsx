@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { StyledText } from '@/components/StyledText';
@@ -88,10 +90,10 @@ export function SavingsGoalsScreen() {
         <View style={styles.detailsRow}>
           <StyledText
             style={{ color: theme.colors.textInverse }}
-            accessibilityLabel={`${translate('planning.savings.activeGoals')}, ${query.isSuccess ? active.length : '—'}`}
+            accessibilityLabel={`${translate('planning.savings.activeGoals')}, ${query.data ? active.length : '—'}`}
           >
             {translate('planning.savings.activeGoals')} ·{' '}
-            {query.isSuccess ? active.length : '—'}
+            {query.data ? active.length : '—'}
           </StyledText>
           <StyledText style={{ color: theme.colors.textInverse }}>
             {translate('planning.savings.remainingAll')} ·{' '}
@@ -99,9 +101,10 @@ export function SavingsGoalsScreen() {
           </StyledText>
         </View>
       </SavingsHeader>
+      <FinancialRefreshStatus query={query} />
       {query.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError ? (
+      ) : query.isError && !hasReadableSnapshot(query) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : !goals.length ? (
         <PlanningState state="empty" />

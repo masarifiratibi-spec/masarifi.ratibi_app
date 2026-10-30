@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   Alert,
   FlatList,
@@ -198,7 +199,7 @@ export function CategoryListScreen() {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError && !query.data)
+  if (query.isError && !hasReadableSnapshot(query))
     return (
       <StateView
         state="error"

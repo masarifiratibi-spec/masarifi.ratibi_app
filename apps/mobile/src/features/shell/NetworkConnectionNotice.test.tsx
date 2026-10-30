@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppState, Text } from 'react-native';
+import { AppState, Modal, Pressable, Text } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import {
   QueryClient,
@@ -12,11 +12,21 @@ import { LiveIdentityStatusContext } from '@/services/live/clerk-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { useAppShellStore } from '@/state/app-shell';
 import { StartupLoadingBoundary } from '@/design-system/components/feedback/StartupLoadingBoundary';
+import {
+  synchronizeLiveCoreFinance,
+  hasPendingLiveCoreFinanceMutations
+} from '@/services/live/core-finance-service';
 
 jest.mock('@/services/platform/read-recovery-network', () => ({
   readRecoveryNetwork: { available: true, isOnline: jest.fn() }
 }));
+jest.mock('@/services/live/core-finance-service', () => ({
+  synchronizeLiveCoreFinance: jest.fn(),
+  hasPendingLiveCoreFinanceMutations: jest.fn()
+}));
 const probe = jest.mocked(readRecoveryNetwork.isOnline);
+const synchronizeReceipts = jest.mocked(synchronizeLiveCoreFinance);
+const pendingReceipts = jest.mocked(hasPendingLiveCoreFinanceMutations);
 let changeState: (state: 'active' | 'background') => void;
 let client: QueryClient;
 const retryIdentity = jest.fn();
@@ -57,6 +67,8 @@ beforeEach(() => {
     bootstrapRevision: 0
   });
   retryIdentity.mockClear();
+  synchronizeReceipts.mockReset().mockResolvedValue(undefined);
+  pendingReceipts.mockReset().mockResolvedValue(false);
   probe.mockReset().mockResolvedValue(false);
   readRecoveryNetwork.available = true;
   Object.defineProperty(AppState, 'currentState', {
@@ -70,13 +82,91 @@ beforeEach(() => {
       return { remove: jest.fn() };
     });
 });
+
+it('automatically observes application after the first four-submission invocation ends before a worker tick', async () => {
+  let applied = false;
+  pendingReceipts.mockImplementation(async () => !applied);
+  synchronizeReceipts
+    .mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 7000));
+    })
+    .mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      applied = true;
+    });
+  function Transactions() {
+    const query = useQuery({
+      queryKey: ['core-finance', 'transactions'],
+      queryFn: async () => (applied ? 'Applied row' : 'Pending row')
+    });
+    return <Text>{query.data}</Text>;
+  }
+  render(
+    <LiveIdentityStatusContext.Provider
+      value={{ status: 'ready', retry: retryIdentity }}
+    >
+      <QueryClientProvider client={client}>
+        <Transactions />
+        <NetworkConnectionNotice />
+      </QueryClientProvider>
+    </LiveIdentityStatusContext.Provider>
+  );
+  await settle();
+  expect(screen.getByText('Pending row')).toBeTruthy();
+  probe.mockResolvedValue(true);
+  await poll();
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(12000);
+  });
+  expect(synchronizeReceipts).toHaveBeenCalledTimes(2);
+  expect(screen.getByText('Applied row')).toBeTruthy();
+  await poll();
+  expect(synchronizeReceipts).toHaveBeenCalledTimes(2);
+});
+
+it.each(['background', 'owner change', 'unmount'] as const)(
+  'does not admit a new receipt invocation after %s during its final network probe',
+  async (boundary) => {
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'owner-A',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'restored'
+      }
+    });
+    pendingReceipts.mockResolvedValue(true);
+    let finishProbe!: (online: boolean) => void;
+    probe
+      .mockResolvedValueOnce(true)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishProbe = resolve;
+          })
+      )
+      .mockResolvedValue(true);
+    const view = mount();
+    await settle();
+    if (boundary === 'background') act(() => changeState('background'));
+    else if (boundary === 'owner change')
+      useAppShellStore.setState({
+        session: { ...useAppShellStore.getState().session!, userId: 'owner-B' }
+      });
+    else view.unmount();
+    await act(async () => finishProbe(true));
+    expect(synchronizeReceipts).not.toHaveBeenCalled();
+  }
+);
 afterEach(() => {
   client.clear();
   jest.restoreAllMocks();
   jest.useRealTimers();
 });
 
-it('shows an accessible Arabic dialog even while the cold-start cover is visible', async () => {
+it('shows an accessible Arabic notice even while the cold-start cover is visible', async () => {
   mount(<Text>Protected content</Text>);
   await settle();
   expect(screen.getByTestId('startup-loading')).toBeTruthy();
@@ -84,6 +174,35 @@ it('shows an accessible Arabic dialog even while the cold-start cover is visible
   expect(screen.getByRole('alert')).toHaveTextContent(/أنت غير متصل بالإنترنت/);
   expect(screen.getByRole('button', { name: 'إعادة المحاولة' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'إغلاق' })).toBeTruthy();
+});
+
+it('keeps an offline notice non-modal so cached navigation remains accessible', async () => {
+  const navigate = jest.fn();
+  render(
+    <LiveIdentityStatusContext.Provider
+      value={{ status: 'ready', retry: retryIdentity }}
+    >
+      <QueryClientProvider client={client}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cached accounts"
+          onPress={navigate}
+        >
+          <Text>Cached accounts</Text>
+        </Pressable>
+        <NetworkConnectionNotice />
+      </QueryClientProvider>
+    </LiveIdentityStatusContext.Provider>
+  );
+  await settle();
+  expect(screen.getByRole('alert')).toBeTruthy();
+  expect(screen.UNSAFE_queryAllByType(Modal)).toHaveLength(0);
+  expect(screen.getByTestId('offline-connection-notice')).toHaveProp(
+    'pointerEvents',
+    'box-none'
+  );
+  fireEvent.press(screen.getByRole('button', { name: 'Cached accounts' }));
+  expect(navigate).toHaveBeenCalledTimes(1);
 });
 
 it('dismisses once per outage and opens again only for a new outage', async () => {
@@ -149,6 +268,26 @@ it('recovers failed active reads without replaying a paused financial mutation o
   expect(client.getQueryData(['owned-draft'])).toEqual({ amount: 4 });
   expect(postExpense).not.toHaveBeenCalled();
   expect(mutation.state.isPaused).toBe(true);
+  expect(synchronizeReceipts).toHaveBeenCalledTimes(1);
+  await poll();
+  expect(synchronizeReceipts).toHaveBeenCalledTimes(1);
+});
+
+it('does not start durable receipt synchronization on an initially online mount', async () => {
+  probe.mockResolvedValue(true);
+  mount();
+  await settle();
+  await poll();
+  expect(synchronizeReceipts).not.toHaveBeenCalled();
+});
+
+it('does not dispatch durable sync through an unavailable identity on reconnect', async () => {
+  mount(undefined, 'unavailable');
+  await settle();
+  probe.mockResolvedValue(true);
+  await poll();
+  expect(retryIdentity).toHaveBeenCalledTimes(1);
+  expect(synchronizeReceipts).not.toHaveBeenCalled();
 });
 
 it('retries unavailable authentication and bootstrap once when connectivity returns', async () => {

@@ -3,6 +3,7 @@ import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { z } from 'zod';
 import { measurePerformance } from '@/services/platform/performance-timing';
 import { useAppShellStore } from '@/state/app-shell';
+import { isLogoutOwnerFenced, loadLogoutDisposition, type LogoutDisposition } from '@/storage/app-shell-storage';
 
 import {
   onboardingSteps,
@@ -172,6 +173,151 @@ const emptySchema = z.null();
 const syntheticId = /^(?:mock|demo|fixture|test)(?:[-_]|$)/i;
 let registeredBridge: LiveClerkBridge | null = null;
 
+export async function readLogoutSessionAnchor(ownerId: string): Promise<string | null> {
+  const session = await registeredBridge?.getSession();
+  if (session && session.userId !== ownerId) throw new HttpError('session_expired', 401);
+  return session?.id ?? null;
+}
+
+export async function terminatePinnedLogout(
+  record: LogoutDisposition,
+  retry = false
+): Promise<void> {
+  const bridge = registeredBridge;
+  if (!bridge)
+    throw new HttpError('session_expired', 401, 'LOGOUT_SESSION_UNVERIFIED');
+  await assertPreparedLogout(bridge, record);
+  if (retry && record.scope === 'all')
+    throw new HttpError(
+      'provider_unavailable',
+      503,
+      'LOGOUT_RETRY_UNAVAILABLE'
+    );
+  await signOutClerkSession(
+    bridge,
+    record.scope,
+    defaultIdentityRequest,
+    record
+  );
+}
+
+async function assertPreparedLogout(
+  bridge: LiveClerkBridge,
+  record: LogoutDisposition
+): Promise<void> {
+  const stored = await loadLogoutDisposition(record.ownerId);
+  const session = await bridge.getSession();
+  const shellOwner = useAppShellStore.getState().session?.userId;
+  if (
+    registeredBridge !== bridge ||
+    !record.sessionId ||
+    stored?.id !== record.id ||
+    stored.phase !== 'prepared' ||
+    stored.sessionId !== record.sessionId ||
+    stored.scope !== record.scope ||
+    session?.userId !== record.ownerId ||
+    session.id !== record.sessionId ||
+    (shellOwner && shellOwner !== record.ownerId)
+  )
+    throw new HttpError('session_expired', 401, 'LOGOUT_SESSION_UNVERIFIED');
+}
+
+async function signOutClerkSession(
+  bridge: LiveClerkBridge,
+  scope: 'local' | 'all',
+  request: IdentityRequest,
+  cleanup?: LogoutDisposition
+): Promise<void> {
+  const expectedOwner = useAppShellStore.getState().session?.userId;
+  const currentSession = await bridge.getSession();
+  if (
+    expectedOwner &&
+    currentSession &&
+    expectedOwner !== currentSession.userId
+  )
+    throw new HttpError('session_expired', 401);
+  const automation = isMobileAutomationEnabled();
+  if (!automation && !cleanup) {
+    await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' });
+    return;
+  }
+  const session = cleanup ? currentSession : await bridge.getSession();
+  const assertSession = async () => {
+    if (cleanup) return assertPreparedLogout(bridge, cleanup);
+    const current = await bridge.getSession();
+    const owner = useAppShellStore.getState().session?.userId;
+    if (
+      current?.userId !== session?.userId ||
+      current?.id !== session?.id ||
+      (owner && owner !== session?.userId)
+    )
+      throw new HttpError('session_expired', 401);
+  };
+  if (cleanup) await assertSession();
+  if (automation && session) {
+    const deviceRegistration = await getDeviceRegistration();
+    if (!deviceRegistration) throw new HttpError('provider_unavailable', 503);
+    await assertSession();
+    await usePreferenceStore
+      .getState()
+      .withdrawReturnRemindersForSession(session.userId);
+    await assertSession();
+    const path = '/api/v1/tracking/device/installations/sign-out';
+    const options = { method: 'POST', body: { deviceRegistration } };
+    if (request === defaultIdentityRequest) {
+      let actor: {
+        userId: string;
+        token: string;
+        assertCurrent(): Promise<void>;
+      };
+      if (cleanup) {
+        const token = await requestClerkToken(
+          bridge,
+          { skipCache: true },
+          cleanup
+        );
+        if (!token) throw new HttpError('session_expired', 401);
+        actor = {
+          userId: cleanup.ownerId,
+          token,
+          assertCurrent: assertSession
+        };
+      } else actor = await captureLiveClerkIdentity();
+      if (actor.userId !== session.userId)
+        throw new HttpError('session_expired', 401);
+      await assertSession();
+      await requestJson(path, z.unknown(), {
+        ...options,
+        token: actor.token,
+        ...(cleanup
+          ? {
+              request: async (
+                url: Parameters<typeof fetch>[0],
+                init?: RequestInit
+              ) => {
+                await assertSession();
+                const response = await fetch(url, init);
+                await assertSession();
+                return response;
+              }
+            }
+          : {})
+      });
+      await actor.assertCurrent();
+    } else await request(path, options);
+    await assertSession();
+  }
+  if (cleanup) await assertSession();
+  await bridge.signOut({
+    scope: scope === 'all' ? 'all' : 'current',
+    ...(session ? { sessionId: session.id } : {})
+  });
+}
+
+async function assertLogoutAdmission(ownerId: string, admitted = false): Promise<void> {
+  if ((!admitted && useAppShellStore.getState().logoutQuiescingOwnerId === ownerId) || await isLogoutOwnerFenced(ownerId)) throw new HttpError('session_expired', 401, 'LOGOUT_PENDING');
+}
+
 export function registerLiveClerkBridge(bridge: LiveClerkBridge): void {
   registeredBridge = bridge;
   configureMobileApiTokenProvider(getLiveClerkToken);
@@ -197,8 +343,12 @@ export function registerLiveClerkBridge(bridge: LiveClerkBridge): void {
 
 async function requestClerkToken(
   bridge: LiveClerkBridge,
-  options: { skipCache: boolean }
+  options: { skipCache: boolean },
+  logoutCleanup?: LogoutDisposition
 ) {
+  const logoutOwner = await bridge.getSession();
+  if (logoutCleanup) await assertPreparedLogout(bridge, logoutCleanup);
+  else if (logoutOwner) await assertLogoutAdmission(logoutOwner.userId);
   if (useAppShellStore.getState().session?.restoration === 'local')
     throw new HttpError(
       'provider_unavailable',
@@ -209,7 +359,7 @@ async function requestClerkToken(
     );
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await measurePerformance(
+    const token = await measurePerformance(
       options.skipCache ? 'identity.token.fresh' : 'identity.token.read',
       () =>
         Promise.race([
@@ -231,6 +381,13 @@ async function requestClerkToken(
           })
         ])
     );
+    if (logoutCleanup) await assertPreparedLogout(bridge, logoutCleanup);
+    else if (logoutOwner) {
+      await assertLogoutAdmission(logoutOwner.userId);
+      const current = await bridge.getSession();
+      if (current?.id !== logoutOwner.id || current.userId !== logoutOwner.userId) throw new HttpError('session_expired', 401);
+    }
+    return token;
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -273,7 +430,9 @@ export async function captureLiveClerkOwner() {
   const local = useAppShellStore.getState();
   if (local.session?.restoration === 'local') {
     const session = local.session;
+    if (session.userId) await assertLogoutAdmission(session.userId);
     const assertCurrent = async () => {
+      if (session.userId) await assertLogoutAdmission(session.userId, true);
       const current = useAppShellStore.getState();
       if (
         current.session !== session ||
@@ -288,7 +447,9 @@ export async function captureLiveClerkOwner() {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (!bridge || !session) throw new HttpError('session_expired', 401);
+  await assertLogoutAdmission(session.userId);
   const assertCurrent = async () => {
+    await assertLogoutAdmission(session.userId, true);
     const currentBridge = registeredBridge;
     const current = await currentBridge?.getSession();
     if (
@@ -306,7 +467,9 @@ export async function captureLiveClerkIdentity() {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (!bridge || !session) throw new HttpError('session_expired', 401);
+  await assertLogoutAdmission(session.userId);
   const assertCurrent = async () => {
+    await assertLogoutAdmission(session.userId, true);
     const currentBridge = registeredBridge;
     const current = await currentBridge?.getSession();
     if (
@@ -334,17 +497,20 @@ let assistantTokenFlight:
   | undefined;
 
 async function captureCachedClerkIdentity(
-  allowSameSessionBridgeRefresh: boolean
+  allowSameSessionBridgeRefresh: boolean,
+  expectedOwnerId?: string
 ) {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (
     !bridge ||
     !session ||
+    (expectedOwnerId !== undefined && session.userId !== expectedOwnerId) ||
     (!allowSameSessionBridgeRefresh && registeredBridge !== bridge)
   )
     throw new HttpError('session_expired', 401);
   const assertCurrent = async () => {
+    await assertLogoutAdmission(session.userId, true);
     const currentBridge = allowSameSessionBridgeRefresh
       ? registeredBridge
       : bridge;
@@ -382,11 +548,48 @@ async function captureCachedClerkIdentity(
 }
 
 export async function captureLiveAssistantClerkIdentity() {
-  return captureCachedClerkIdentity(false);
+  return captureShellBoundReadIdentity(false);
 }
 
 export async function captureLiveReadClerkIdentity() {
-  return captureCachedClerkIdentity(true);
+  return captureShellBoundReadIdentity(true);
+}
+
+async function captureShellBoundReadIdentity(
+  allowSameSessionBridgeRefresh: boolean
+) {
+  const shell = useAppShellStore.getState();
+  if (shell.session?.restoration === 'local') {
+    // The existing local-owner admission is valid for saved reads, never remote credentials.
+    const owner = await captureLiveClerkOwner();
+    await owner.assertCurrent();
+    throw new HttpError('provider_unavailable', 503);
+  }
+  const expectedOwnerId =
+    shell.session?.status === 'authenticated'
+      ? (shell.session.userId ?? undefined)
+      : undefined;
+  const identity = await captureCachedClerkIdentity(
+    allowSameSessionBridgeRefresh,
+    expectedOwnerId
+  );
+  const assertOwner = () => {
+    const current = useAppShellStore.getState().session;
+    if (
+      expectedOwnerId !== undefined &&
+      (current?.status !== 'authenticated' ||
+        current.userId !== expectedOwnerId)
+    )
+      throw new HttpError('session_expired', 401);
+  };
+  assertOwner();
+  return {
+    ...identity,
+    assertCurrent: async () => {
+      await identity.assertCurrent();
+      assertOwner();
+    }
+  };
 }
 
 export function registeredLiveAuthService(): CapabilityProviderHandle<AuthService> | null {
@@ -434,60 +637,7 @@ export function createLiveAuthService(
       await parsedRequest(request, '/api/v1/me', profileSchema);
     },
     async signOut(scope) {
-      const expectedOwner = useAppShellStore.getState().session?.userId;
-      const currentSession = await bridge.getSession();
-      if (
-        expectedOwner &&
-        currentSession &&
-        expectedOwner !== currentSession.userId
-      )
-        throw new HttpError('session_expired', 401);
-      if (!isMobileAutomationEnabled()) {
-        await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' });
-        return;
-      }
-      const session = await bridge.getSession();
-      if (session) {
-        const assertSession = async () => {
-          const current = await bridge.getSession();
-          if (current?.userId !== session.userId || current.id !== session.id)
-            throw new HttpError('session_expired', 401);
-        };
-        const deviceRegistration = await getDeviceRegistration();
-        if (!deviceRegistration)
-          throw new HttpError('provider_unavailable', 503);
-        await assertSession();
-        await usePreferenceStore
-          .getState()
-          .withdrawReturnRemindersForSession(session.userId);
-        await assertSession();
-        const options = {
-          method: 'POST',
-          body: { deviceRegistration }
-        };
-        // Keep the old credential until its server installation has been revoked.
-        if (request === defaultIdentityRequest) {
-          const actor = await captureLiveClerkIdentity();
-          if (actor.userId !== session.userId)
-            throw new HttpError('session_expired', 401);
-          await assertSession();
-          await requestJson(
-            '/api/v1/tracking/device/installations/sign-out',
-            z.unknown(),
-            { ...options, token: actor.token }
-          );
-          await actor.assertCurrent();
-        } else
-          await request(
-            '/api/v1/tracking/device/installations/sign-out',
-            options
-          );
-        await assertSession();
-      }
-      await bridge.signOut({
-        scope: scope === 'all' ? 'all' : 'current',
-        ...(session ? { sessionId: session.id } : {})
-      });
+      await signOutClerkSession(bridge, scope, request);
     }
   };
 }

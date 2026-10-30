@@ -6,6 +6,9 @@ import {
   type QueryClient
 } from '@tanstack/react-query';
 
+import { useAppShellStore } from '@/state/app-shell';
+import { withReadContext } from '@/services/live/read-context';
+import { HttpError } from '@/services/live/http-client';
 import type { PrivacyRequest, UserProfileInput } from '@/domain/settings';
 import { invalidateAssistantScopes } from '@/features/assistant/assistant-queries';
 import { invalidateNotificationScopes } from '@/features/notifications/notification-queries';
@@ -34,9 +37,20 @@ export function useSettingsProfile(enabled = true) {
 }
 
 export function useSettingsSessions() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   return useQuery({
-    queryKey: settingsKeys.sessions(),
-    queryFn: () => settingsService.listSessions()
+    queryKey: [...settingsKeys.sessions(), { ownerId }],
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        const assertOwner = () => {
+          if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+            throw new HttpError('session_expired', 401);
+        };
+        assertOwner();
+        const result = await settingsService.listSessions();
+        assertOwner();
+        return result;
+      })
   });
 }
 

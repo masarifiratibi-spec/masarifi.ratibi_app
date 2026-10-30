@@ -12,21 +12,73 @@ import { translateDynamic } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { useSupportTickets } from './support-queries';
+import { useAppShellStore } from '@/state/app-shell';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 
 export function TicketListScreen() {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
-  const [cursor, setCursor] = React.useState<string | undefined>(undefined);
-  const [items, setItems] = React.useState<SupportTicket[]>([]);
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const [paging, setPaging] = React.useState<{
+    ownerId: string | null;
+    cursor?: string;
+  }>({ ownerId });
+  const [pages, setPages] = React.useState<{
+    ownerId: string | null;
+    items: SupportTicket[];
+    updatedAt: number;
+  }>({ ownerId, items: [], updatedAt: 0 });
+  const cursor = paging.ownerId === ownerId ? paging.cursor : undefined;
   const tickets = useSupportTickets(cursor);
+  const incoming = tickets.data?.items;
+  const updatedAt = tickets.dataUpdatedAt ?? 0;
+  const items =
+    !cursor && incoming
+      ? incoming
+      : pages.ownerId === ownerId
+        ? pages.items
+        : [];
   React.useEffect(() => {
-    if (!tickets.data?.items) return;
-    setItems((current) => cursor ? mergeTickets(current, tickets.data.items) : tickets.data.items);
-  }, [cursor, tickets.data?.items]);
+    if (!incoming) return;
+    setPages((current) => ({
+      ownerId,
+      items:
+        cursor && current.ownerId === ownerId
+          ? mergeTickets(current.items, incoming)
+          : incoming,
+      updatedAt
+    }));
+  }, [cursor, incoming, ownerId, updatedAt]);
 
-  if (tickets.isLoading) return <StateView state="loading" title={translateDynamic('support.ticket.loading')} />;
-  if (tickets.isError) return <StateView state="error" title={translateDynamic('support.ticket.error')} />;
-  if (!items.length) return <StateView state="empty" title={translateDynamic('support.ticket.empty')} />;
+  if (tickets.isLoading && !items.length)
+    return (
+      <StateView
+        state="loading"
+        title={translateDynamic('support.ticket.loading')}
+      />
+    );
+  if (
+    tickets.isError &&
+    (isAuthoritativeReadDenial(tickets.error) ||
+      (!items.length && !hasReadableSnapshot(tickets)))
+  )
+    return (
+      <StateView
+        state="error"
+        title={translateDynamic('support.ticket.error')}
+      />
+    );
+  if (!items.length)
+    return (
+      <StateView
+        state="empty"
+        title={translateDynamic('support.ticket.empty')}
+      />
+    );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}>
@@ -39,15 +91,44 @@ export function TicketListScreen() {
         data={items}
         contentContainerStyle={styles.stack}
         keyExtractor={(ticket: SupportTicket) => ticket.id}
-        ListHeaderComponent={<StyledText variant="title">{translateDynamic('support.ticket.listTitle')}</StyledText>}
-        onEndReached={() => tickets.data?.nextCursor && setCursor(tickets.data.nextCursor)}
+        ListHeaderComponent={
+          <>
+            <StyledText variant="title">
+              {translateDynamic('support.ticket.listTitle')}
+            </StyledText>
+            <FinancialRefreshStatus
+              query={{
+                ...tickets,
+                dataUpdatedAt: Math.max(
+                  updatedAt,
+                  pages.ownerId === ownerId ? pages.updatedAt : 0
+                )
+              }}
+            />
+          </>
+        }
+        onEndReached={() => {
+          const next = tickets.data?.nextCursor;
+          if (!tickets.isFetching && next)
+            setPaging((current) =>
+              current.ownerId === ownerId && current.cursor === next
+                ? current
+                : { ownerId, cursor: next }
+            );
+        }}
         renderItem={({ item: ticket }: { item: SupportTicket }) => (
           <SurfaceCard key={ticket.id} style={styles.ticket}>
             <StyledText variant="subtitle">{ticket.reference}</StyledText>
             <StyledText>{ticket.subject}</StyledText>
-            <StyledText>{translateDynamic(`support.ticket.status.${ticket.status}`)}</StyledText>
+            <StyledText>
+              {translateDynamic(`support.ticket.status.${ticket.status}`)}
+            </StyledText>
             <StyledText>{String(ticket.updatedAt)}</StyledText>
-            <ActionButton label="support.ticket.open" variant="secondary" onPress={() => router.push(`/support/tickets/${ticket.id}`)} />
+            <ActionButton
+              label="support.ticket.open"
+              variant="secondary"
+              onPress={() => router.push(`/support/tickets/${ticket.id}`)}
+            />
           </SurfaceCard>
         )}
       />
@@ -68,5 +149,7 @@ const styles = StyleSheet.create({
 function mergeTickets(current: SupportTicket[], next: SupportTicket[]) {
   const byId = new Map(current.map((ticket) => [ticket.id, ticket]));
   next.forEach((ticket) => byId.set(ticket.id, ticket));
-  return [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id));
+  return [...byId.values()].sort(
+    (a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id)
+  );
 }

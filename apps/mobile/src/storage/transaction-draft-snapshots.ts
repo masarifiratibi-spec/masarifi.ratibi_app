@@ -15,6 +15,11 @@ const snapshots = new Map<
 >();
 let generation = 0;
 let activeWrites = 0;
+const settledWrites = new Set<() => void>();
+export async function settleTransactionDraftWrites(): Promise<void> {
+  if (activeWrites === 0) return;
+  await new Promise<void>(resolve => settledWrites.add(resolve));
+}
 const clearSnapshots = () => {
   generation++;
   snapshots.clear();
@@ -35,6 +40,10 @@ export async function withTransactionDraftWrite<T>(
     return await write();
   } finally {
     activeWrites--;
+    if (activeWrites === 0) {
+      for (const resolve of settledWrites) resolve();
+      settledWrites.clear();
+    }
     clearSnapshots();
   }
 }

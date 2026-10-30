@@ -1,17 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  AppState,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import Svg, { Path } from 'react-native-svg';
+import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
 import { useLiveIdentityStatus } from '@/services/live/clerk-context';
+import {
+  synchronizeLiveCoreFinance,
+  hasPendingLiveCoreFinanceMutations
+} from '@/services/live/core-finance-service';
 import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
@@ -21,7 +18,6 @@ import { useTheme } from '@/state/theme-context';
 export function NetworkConnectionNotice() {
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
-  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const client = useQueryClient();
   const identity = useLiveIdentityStatus();
   const latestIdentity = useRef(identity);
@@ -36,16 +32,57 @@ export function NetworkConnectionNotice() {
     let active = AppState.currentState === 'active';
     let revision = 0;
     let inFlight = false;
+    let receiptInFlight = false;
     let online: boolean | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       clearTimeout(timer);
       if (!disposed && active && !inFlight) timer = setTimeout(check, 3000);
     };
+    const synchronizeReceipts = (
+      admission = {
+        revision,
+        ownerId: useAppShellStore.getState().session?.userId
+      }
+    ) => {
+      if (
+        disposed ||
+        !active ||
+        admission.revision !== revision ||
+        admission.ownerId !== useAppShellStore.getState().session?.userId ||
+        receiptInFlight ||
+        latestIdentity.current.status !== 'ready'
+      )
+        return;
+      const ownerId = admission.ownerId;
+      receiptInFlight = true;
+      void synchronizeLiveCoreFinance()
+        .then(async () => {
+          if (
+            disposed ||
+            !active ||
+            ownerId !== useAppShellStore.getState().session?.userId
+          )
+            return;
+          await Promise.all(
+            [
+              ['core-finance'],
+              ['reports'],
+              ['planning'],
+              ['assistant', 'context', 'current']
+            ].map((queryKey) => client.invalidateQueries({ queryKey }))
+          );
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          receiptInFlight = false;
+        });
+    };
     const recoverReads = () => {
       const currentIdentity = latestIdentity.current;
       if (['unavailable', 'loading'].includes(currentIdentity.status))
         currentIdentity.retry();
+      if (currentIdentity.status === 'ready') synchronizeReceipts();
       const shell = useAppShellStore.getState();
       if (shell.profileSetupStatus === 'unavailable') shell.retryBootstrap();
       // Never resume paused mutations: a lost response does not imply a failed write.
@@ -74,6 +111,22 @@ export function NetworkConnectionNotice() {
         if (connected) {
           setVisible(false);
           if (online === false) recoverReads();
+          else if (
+            !receiptInFlight &&
+            latestIdentity.current.status === 'ready'
+          ) {
+            const ownerId = useAppShellStore.getState().session?.userId;
+            const pending = await hasPendingLiveCoreFinanceMutations();
+            if (
+              disposed ||
+              !active ||
+              startedAt !== revision ||
+              ownerId !== useAppShellStore.getState().session?.userId
+            )
+              return;
+            if (pending && (await readRecoveryNetwork.isOnline()))
+              synchronizeReceipts({ revision: startedAt, ownerId });
+          }
         }
         online = connected;
       } catch {
@@ -107,122 +160,53 @@ export function NetworkConnectionNotice() {
 
   const t = (key: Parameters<typeof translate>[0]) => translate(key, locale);
   const title = t('appShell.networkNotice.title');
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType={reducedMotion ? 'none' : 'fade'}
-      onRequestClose={() => setVisible(false)}
-      statusBarTranslucent
+    <View
+      testID="offline-connection-notice"
+      pointerEvents="box-none"
+      style={[
+        styles.notice,
+        {
+          backgroundColor: theme.colors.surfaces.card,
+          borderColor: theme.colors.border,
+          direction: locale === 'ar' ? 'rtl' : 'ltr'
+        }
+      ]}
     >
       <View
-        style={[
-          styles.backdrop,
-          { backgroundColor: theme.colors.horizon.scrim }
-        ]}
+        accessibilityRole="alert"
+        accessible
+        accessibilityLiveRegion="polite"
+        style={styles.copy}
       >
-        <ScrollView contentContainerStyle={styles.viewport} bounces={false}>
-          <View
-            accessibilityViewIsModal
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.colors.surfaces.card,
-                direction: locale === 'ar' ? 'rtl' : 'ltr'
-              }
-            ]}
-          >
-            <View
-              accessible={false}
-              style={[
-                styles.icon,
-                { backgroundColor: theme.colors.surfaceMuted }
-              ]}
-            >
-              <Svg
-                width={32}
-                height={32}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={theme.colors.primary}
-                strokeWidth={1.8}
-                strokeLinecap="round"
-              >
-                <Path d="M3 3l18 18M2 8a16 16 0 0 1 3-2m4-1a16 16 0 0 1 13 3M5 12a11 11 0 0 1 4-2m5 0a11 11 0 0 1 5 2M8 16a6 6 0 0 1 7-1m-3 5h.01" />
-              </Svg>
-            </View>
-            <View
-              accessible
-              accessibilityRole="alert"
-              accessibilityLiveRegion="polite"
-              style={styles.copy}
-            >
-              <Text
-                style={[styles.title, { color: theme.colors.content.primary }]}
-              >
-                {title}
-              </Text>
-              <Text
-                style={[
-                  styles.message,
-                  { color: theme.colors.content.secondary }
-                ]}
-              >
-                {t('appShell.networkNotice.message')}
-              </Text>
-              <Text
-                style={[
-                  styles.detail,
-                  { color: theme.colors.content.secondary }
-                ]}
-              >
-                {t('appShell.networkNotice.stale')}
-              </Text>
-            </View>
-            <ActionButton
-              label={t('appShell.networkNotice.retry')}
-              loading={checking}
-              onPress={() => checkNow.current()}
-            />
-            <ActionButton
-              label={t('appShell.networkNotice.dismiss')}
-              variant="quiet"
-              onPress={() => setVisible(false)}
-            />
-          </View>
-        </ScrollView>
+        <StyledText variant="subtitle">{title}</StyledText>
+        <StyledText variant="caption">
+          {t('appShell.networkNotice.message')}
+        </StyledText>
+        <StyledText variant="caption">
+          {t('appShell.networkNotice.stale')}
+        </StyledText>
       </View>
-    </Modal>
+      <View style={styles.actions}>
+        <ActionButton
+          label={t('appShell.networkNotice.retry')}
+          variant="quiet"
+          loading={checking}
+          onPress={() => checkNow.current()}
+        />
+        <ActionButton
+          label={t('appShell.networkNotice.dismiss')}
+          variant="quiet"
+          onPress={() => setVisible(false)}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1 },
-  viewport: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 48
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: 24,
-    gap: 12
-  },
-  icon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 8
-  },
-  copy: { gap: 12, marginBottom: 12 },
-  title: { fontSize: 23, fontWeight: '700', textAlign: 'center' },
-  message: { fontSize: 16, lineHeight: 26, textAlign: 'center' },
-  detail: { fontSize: 14, lineHeight: 23, textAlign: 'center' }
+  notice: { paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1 },
+  copy: { gap: 4 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
 });

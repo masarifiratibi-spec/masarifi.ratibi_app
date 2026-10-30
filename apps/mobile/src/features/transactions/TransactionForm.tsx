@@ -2,6 +2,7 @@ import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amou
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  BackHandler,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,10 +55,17 @@ import {
   translate,
   translateDynamic
 } from '@/localization/i18n';
-import { CoreFinanceError } from '@/services/contracts/core-finance-service';
+import {
+  CoreFinanceError,
+  type MutationResult
+} from '@/services/contracts/core-finance-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { useAppShellStore } from '@/state/app-shell';
+import {
+  sanitizeReturnRoute,
+  type ShellDestination
+} from '@/features/shell/navigation-context';
 import { useTheme } from '@/state/theme-context';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useTransactionDraftGuard } from './useTransactionDraftGuard';
@@ -193,6 +201,16 @@ function TransactionFormContent({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const submission = useRef<ManualSubmission | null>(null);
+  const savedEdit = useRef<MutationResult<Transaction> | null>(null);
+  const transactionRef = useRef(transaction?.id);
+  transactionRef.current = transaction?.id;
+  useEffect(() => {
+    savedEdit.current = null;
+    setOperationPending(false);
+    savingRef.current = false;
+    setSaving(false);
+    setError(undefined);
+  }, [transaction?.id]);
   const [operationPending, setOperationPending] = useState(false);
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
   const draftWrites = useRef<Promise<unknown>>(Promise.resolve());
@@ -208,6 +226,8 @@ function TransactionFormContent({
   }, []);
   const [deleted, setDeleted] = useState(transaction?.status === 'deleted');
   const [draftReady, setDraftReady] = useState(Boolean(transaction));
+  const [refundCloseTarget, setRefundCloseTarget] =
+    useState<ShellDestination | null>(null);
   const [restoredDraft, setRestoredDraft] = useState<{
     owner: string | null;
     id: string;
@@ -286,15 +306,57 @@ function TransactionFormContent({
   const discard = useCallback(() => {
     return coreFinanceService.discardDraft(draftId);
   }, [draftId]);
+  const refundReturnTo = refundDraft
+    ? sanitizeReturnRoute(`/transactions/${refundOriginalId}`)
+    : null;
+  const closeRefund = useCallback(() => {
+    if (refundReturnTo) setRefundCloseTarget(refundReturnTo);
+  }, [refundReturnTo]);
   const { requestClose, leaveAfterSave } = useTransactionDraftGuard({
     meaningful:
       (draftReady || showRestoredDraft) &&
       !transaction &&
       meaningful &&
       !operationPending &&
-      !recoveryBlocked,
-    discard
+      !recoveryBlocked &&
+      !refundCloseTarget,
+    discard,
+    close: refundReturnTo ? closeRefund : undefined
   });
+  // Release the draft guard before returning across the tab/root navigator boundary.
+  useEffect(() => {
+    if (refundCloseTarget) router.dismissTo(refundCloseTarget);
+  }, [refundCloseTarget]);
+  useFocusEffect(
+    useCallback(() => {
+      setRefundCloseTarget(null);
+    }, [])
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (!refundReturnTo) return;
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (
+          !savingRef.current &&
+          !operationPending &&
+          !recoveryBlocked &&
+          !refundCloseTarget &&
+          draftReady
+        ) {
+          requestClose();
+        }
+        return true;
+      });
+      return () => subscription.remove();
+    }, [
+      refundReturnTo,
+      requestClose,
+      operationPending,
+      recoveryBlocked,
+      refundCloseTarget,
+      draftReady
+    ])
+  );
   const sourceAccountId =
     lockedAccountId || accountId || accounts.data?.[0]?.id;
   const resolvedCategoryId =
@@ -333,6 +395,7 @@ function TransactionFormContent({
     if (formOwner.current === owner) return;
     formOwner.current = owner;
     submission.current = null;
+    savedEdit.current = null;
     setOperationPending(false);
     setRecoveryBlocked(false);
     setSaving(false);
@@ -499,14 +562,21 @@ function TransactionFormContent({
     if (savingRef.current || deleted || recoveryBlocked || !draftReady) return;
     savingRef.current = true;
     const expectedOwner = ownerRef.current;
+    const expectedTransaction = transactionRef.current;
     const stillCurrent = () =>
       mounted.current &&
+      expectedTransaction === transactionRef.current &&
       expectedOwner === ownerRef.current &&
       expectedOwner === (useAppShellStore.getState().session?.userId ?? null);
     const finishSaved = async (scopes: readonly string[]) => {
       if (submission.current) await persistManualDraft();
       if (!stillCurrent()) return;
-      await invalidateCoreFinanceScopes(client, scopes, true);
+      await invalidateCoreFinanceScopes(
+        client,
+        scopes,
+        savedEdit.current?.value.syncStatus !== 'pending' &&
+          !submission.current?.pendingSync
+      );
       if (!stillCurrent()) return;
       if (!transaction) {
         await draftWrites.current;
@@ -528,16 +598,17 @@ function TransactionFormContent({
       else if (transaction) router.replace('/(tabs)/transactions');
       else leaveAfterSave(() => router.replace('/(tabs)/transactions'));
     };
-    if (submission.current?.phase === 'saved') {
+    if (submission.current?.phase === 'saved' || savedEdit.current) {
       setSaving(true);
       try {
         await finishSaved(
-          submission.current.affectedScopes ?? [
-            'home.summary',
-            'accounts.balances',
-            'transactions.list',
-            'reports.live'
-          ]
+          savedEdit.current?.affectedScopes ??
+            submission.current?.affectedScopes ?? [
+              'home.summary',
+              'accounts.balances',
+              'transactions.list',
+              'reports.live'
+            ]
         );
       } catch {
         if (stillCurrent())
@@ -743,6 +814,10 @@ function TransactionFormContent({
               submission.current!.operationId
             );
       if (!stillCurrent()) return;
+      if (transaction) {
+        savedEdit.current = mutation;
+        setOperationPending(true);
+      }
       diagnosticStage = 'receipt';
       recordManualDiagnostic(diagnosticStage, {
         operationId: submission.current?.operationId
@@ -752,6 +827,7 @@ function TransactionFormContent({
           ...submission.current,
           phase: 'saved',
           transactionId: mutation.value.id,
+          pendingSync: mutation.value.syncStatus === 'pending',
           affectedScopes: [...mutation.affectedScopes]
         };
       diagnosticStage = 'refresh';
@@ -775,11 +851,11 @@ function TransactionFormContent({
         setError(translate('coreFinance.manual.reconcile'));
         return;
       }
-      if (submission.current?.phase === 'saved')
+      if (submission.current?.phase === 'saved' || savedEdit.current)
         setError(translate('coreFinance.manual.savedRefresh'));
       else {
         const uncertain =
-          Boolean(submission.current) &&
+          (Boolean(submission.current) || Boolean(transaction)) &&
           (submission.current?.phase === 'unknown' ||
             (financialDispatched &&
               (!(caught instanceof CoreFinanceError) ||
@@ -805,21 +881,29 @@ function TransactionFormContent({
           translate(
             uncertain
               ? 'coreFinance.manual.uncertain'
-              : preparationPending
-                ? 'coreFinance.manual.localSave'
-                : domain === 'AMOUNT_BELOW_REFUNDED'
-                  ? 'coreFinance.validation.refundFloor'
-                  : domain === 'CATEGORY_INVALID'
-                    ? 'coreFinance.manual.category'
-                    : domain?.startsWith('ACCOUNT_')
-                      ? 'coreFinance.manual.account'
-                      : caught instanceof CoreFinanceError &&
-                          caught.metadata?.status === 401
-                        ? 'coreFinance.manual.auth'
-                        : caught instanceof CoreFinanceError &&
-                            caught.metadata?.status === 429
-                          ? 'coreFinance.manual.rateLimit'
-                          : 'coreFinance.validation.invalid'
+              : domain === 'OFFLINE_CREATE_UNSUPPORTED'
+                ? 'coreFinance.manual.offlineCreate'
+                : domain === 'LOCAL_CREATE_EDIT_UNSUPPORTED'
+                  ? 'coreFinance.manual.localCreateEdit'
+                  : domain === 'OFFLINE_EDIT_UNSUPPORTED'
+                    ? 'coreFinance.manual.offlineEdit'
+                    : domain === 'LOCAL_PERSISTENCE_FAILED'
+                      ? 'coreFinance.manual.editLocalSave'
+                      : preparationPending
+                        ? 'coreFinance.manual.localSave'
+                        : domain === 'AMOUNT_BELOW_REFUNDED'
+                          ? 'coreFinance.validation.refundFloor'
+                          : domain === 'CATEGORY_INVALID'
+                            ? 'coreFinance.manual.category'
+                            : domain?.startsWith('ACCOUNT_')
+                              ? 'coreFinance.manual.account'
+                              : caught instanceof CoreFinanceError &&
+                                  caught.metadata?.status === 401
+                                ? 'coreFinance.manual.auth'
+                                : caught instanceof CoreFinanceError &&
+                                    caught.metadata?.status === 429
+                                  ? 'coreFinance.manual.rateLimit'
+                                  : 'coreFinance.validation.invalid'
           )
         );
       }
@@ -862,12 +946,16 @@ function TransactionFormContent({
       <StateView
         state="error"
         title={translate(
-          submission.current?.phase === 'saved'
+          submission.current?.phase === 'saved' || savedEdit.current
             ? 'coreFinance.manual.savedRefresh'
             : 'coreFinance.state.error'
         )}
         actionLabel={translate('coreFinance.action.retry')}
         onAction={() => {
+          if (savedEdit.current) {
+            void save();
+            return;
+          }
           void accounts.refetch();
           void categories.refetch();
           if (refundLocked) {

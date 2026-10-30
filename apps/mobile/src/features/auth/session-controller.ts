@@ -18,6 +18,10 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { measurePerformance } from '@/services/platform/performance-timing';
 import { rememberAuthenticatedOwner } from '@/services/owner-lifecycle';
+import {
+  isLogoutOwnerFenced,
+  currentLogoutAdmissionRevision
+} from '@/storage/app-shell-storage';
 export { signOutAppShellSession } from '@/services/owner-lifecycle';
 
 interface CompleteSessionOptions {
@@ -31,11 +35,18 @@ export async function restoreAppShellSession(
   identityService: Pick<SettingsService, 'getProfileSetup'> = settingsService
 ): Promise<void> {
   let active = true;
+  let restorationOwnerId = useAppShellStore.getState().session?.userId;
+  const ownerIsCurrent = () => {
+    const currentOwnerId = useAppShellStore.getState().session?.userId;
+    return !currentOwnerId || currentOwnerId === restorationOwnerId;
+  };
   let unavailableSuspension: Promise<void> | undefined;
   const suspendUnavailable = () =>
-    (unavailableSuspension ??= useAppShellStore
-      .getState()
-      .suspendUnavailableRestoration());
+    !ownerIsCurrent() || useAppShellStore.getState().logoutRecoveryOwnerId
+      ? Promise.resolve()
+      : (unavailableSuspension ??= useAppShellStore
+          .getState()
+          .suspendUnavailableRestoration());
   let timer: ReturnType<typeof setTimeout>;
   const deadline = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
@@ -55,9 +66,17 @@ export async function restoreAppShellSession(
     await Promise.race([
       restoreCurrentSession(
         authService,
-        () => active && isCurrent(),
+        () => active && isCurrent() && ownerIsCurrent(),
         identityService,
-        suspendUnavailable
+        suspendUnavailable,
+        (ownerId) => {
+          if (
+            active &&
+            isCurrent() &&
+            useAppShellStore.getState().session?.userId === ownerId
+          )
+            restorationOwnerId = ownerId;
+        }
       ),
       deadline
     ]);
@@ -65,6 +84,7 @@ export async function restoreAppShellSession(
     if (
       resolveClientMode() === 'live' &&
       isCurrent() &&
+      ownerIsCurrent() &&
       !(
         error instanceof HttpError &&
         error.failureSource &&
@@ -83,11 +103,32 @@ async function restoreCurrentSession(
   authService: AuthService,
   isCurrent: () => boolean,
   identityService: Pick<SettingsService, 'getProfileSetup'>,
-  suspendUnavailable: () => Promise<void>
+  suspendUnavailable: () => Promise<void>,
+  bindOwner: (ownerId: string) => void
 ): Promise<void> {
+  const admissionRevision = currentLogoutAdmissionRevision();
   const session = await authService.restoreSession();
   if (!isCurrent()) return;
   if (session.status === 'authenticated') {
+    const admitted = async (initialAdmission = false) => {
+      if (!isCurrent()) return false;
+      const fenced = await isLogoutOwnerFenced(session.userId!);
+      if (!isCurrent()) return false;
+      if (fenced) {
+        if (
+          initialAdmission &&
+          useAppShellStore.getState().session?.userId !== session.userId
+        )
+          useAppShellStore.setState({ session: null });
+        useAppShellStore.getState().fenceLogoutOwner(session.userId!);
+        return false;
+      }
+      return (
+        admissionRevision === currentLogoutAdmissionRevision() &&
+        useAppShellStore.getState().logoutQuiescingOwnerId !== session.userId
+      );
+    };
+    if (!(await admitted(true))) return;
     const currentSession = useAppShellStore.getState().session;
     if (
       currentSession?.status !== 'authenticated' ||
@@ -95,20 +136,28 @@ async function restoreCurrentSession(
     )
       await useAppShellStore.getState().authenticate(session, isCurrent);
     else useAppShellStore.setState({ session });
-    if (!isCurrent()) return;
-    useAppShellStore.getState().setProfileSetup('loading');
+    bindOwner(session.userId!);
+    if (!(await admitted())) return;
+    // Revalidate an already admitted local owner without withdrawing their
+    // complete saved shell. New owners still wait for authoritative bootstrap.
+    const canReadSavedShell =
+      currentSession?.status === 'authenticated' &&
+      currentSession.restoration === 'local' &&
+      currentSession.userId === session.userId &&
+      useAppShellStore.getState().profileSetupStatus === 'complete';
+    if (!canReadSavedShell)
+      useAppShellStore.getState().setProfileSetup('loading');
     let snapshot: ProfileSetupSnapshot;
     try {
       snapshot = await measurePerformance('startup.profile', () =>
         identityService.getProfileSetup()
       );
     } catch (error) {
-      if (!isCurrent()) return;
+      if (!(await admitted())) return;
       if (
-        currentSession?.restoration === 'local' &&
-        currentSession.userId === session.userId &&
+        canReadSavedShell &&
         error instanceof HttpError &&
-        error.failureSource
+        error.code === 'provider_unavailable'
       ) {
         useAppShellStore.setState({
           session: currentSession,
@@ -129,15 +178,15 @@ async function restoreCurrentSession(
           );
       return;
     }
-    if (!isCurrent()) return;
+    if (!(await admitted())) return;
     if (snapshot.complete && resolveClientMode() === 'live') {
       await rememberAuthenticatedOwner(session, isCurrent);
-      if (!isCurrent()) return;
+      if (!(await admitted())) return;
     }
     const preferences = usePreferenceStore.getState();
     // Optional local persistence must not invalidate the server profile.
     await preferences.hydrate().catch(() => undefined);
-    if (!isCurrent()) return;
+    if (!(await admitted())) return;
     if (snapshot.profile?.currency) {
       usePreferenceStore
         .getState()

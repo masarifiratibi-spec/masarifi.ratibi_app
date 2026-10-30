@@ -1,6 +1,7 @@
 import { draftInputSchema, type TransactionDraft } from '@/domain/core-finance';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
+import { assertOrdinaryDraftId } from './transaction-edit-journal';
 import {
   type DraftOwner,
   readTransactionDraftSnapshot,
@@ -43,6 +44,7 @@ export async function readTransactionDraft(
   owner: DraftOwner,
   id: string
 ): Promise<TransactionDraft | null> {
+  assertOrdinaryDraftId(id);
   return readTransactionDraftSnapshot(owner, id, async () => {
     const db = await openDatabase(owner.userId);
     await owner.assertCurrent();
@@ -56,6 +58,7 @@ export async function writeTransactionDraft(
   owner: DraftOwner,
   draft: TransactionDraft
 ): Promise<TransactionDraft> {
+  assertOrdinaryDraftId(draft.id);
   return withTransactionDraftWrite(async () => {
     const input = draftInputSchema.parse(draft);
     const db = await openDatabase(owner.userId);
@@ -84,6 +87,7 @@ export async function deleteTransactionDraft(
   owner: DraftOwner,
   id: string
 ): Promise<void> {
+  assertOrdinaryDraftId(id);
   return withTransactionDraftWrite(async () => {
     const db = await openDatabase(owner.userId);
     await runExclusiveDatabaseTransaction(db, async (transaction) => {

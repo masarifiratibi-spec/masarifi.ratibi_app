@@ -8,6 +8,8 @@ jest.mock('expo-local-authentication', () => ({
   authenticateAsync: jest.fn(),
   cancelAuthenticate: jest.fn(),
   hasHardwareAsync: jest.fn(),
+  getEnrolledLevelAsync: jest.fn(),
+  SecurityLevel: { NONE: 0, SECRET: 1, BIOMETRIC_WEAK: 2, BIOMETRIC_STRONG: 3 },
   isEnrolledAsync: jest.fn(),
   supportedAuthenticationTypesAsync: jest.fn()
 }));
@@ -24,6 +26,7 @@ const supportedTypes = jest.mocked(
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(0);
 });
 
 describe('biometric service', () => {
@@ -82,7 +85,7 @@ describe('biometric service', () => {
     });
   });
 
-  it('cancels explicitly and keeps device credentials out of biometric authentication', async () => {
+  it('cancels explicitly while retaining OS-managed device credential fallback', async () => {
     const platform = jest.replaceProperty(Platform, 'OS', 'android');
     const service = createBiometricService();
     cancelAuthentication.mockResolvedValue();
@@ -94,9 +97,7 @@ describe('biometric service', () => {
     expect(cancelAuthentication).not.toHaveBeenCalled();
     await service.cancel();
     expect(cancelAuthentication).toHaveBeenCalledTimes(1);
-    expect(authenticate).toHaveBeenCalledWith({
-      disableDeviceFallback: true
-    });
+    expect(authenticate).toHaveBeenCalledWith(expect.objectContaining({ disableDeviceFallback: false, biometricsSecurityLevel: 'strong' }));
     platform.restore();
   });
 
@@ -145,19 +146,22 @@ describe('biometric service', () => {
     supportedTypes.mockResolvedValue([1, 2]);
     await expect(service.getAvailability()).resolves.toEqual({
       status: 'supported',
-      kinds: ['fingerprint', 'face']
+      kinds: ['fingerprint', 'face'],
+      deviceCredential: true
     });
 
     supportedTypes.mockResolvedValue([2]);
     await expect(service.getAvailability()).resolves.toEqual({
       status: 'supported',
-      kinds: ['face']
+      kinds: ['face'],
+      deviceCredential: true
     });
 
     supportedTypes.mockResolvedValue([1]);
     await expect(service.getAvailability()).resolves.toEqual({
       status: 'supported',
-      kinds: ['fingerprint']
+      kinds: ['fingerprint'],
+      deviceCredential: true
     });
   });
 
@@ -176,4 +180,41 @@ describe('biometric service', () => {
       status: 'not_enrolled'
     });
   });
+});
+
+
+describe('OS-managed App Lock authentication', () => {
+  it('permits device credentials in the native system prompt', async () => {
+    authenticate.mockResolvedValue({ success: true });
+    await expect(createBiometricService().authenticate()).resolves.toEqual({ status: 'authenticated' });
+    expect(authenticate).toHaveBeenCalledWith(expect.objectContaining({ disableDeviceFallback: false, biometricsSecurityLevel: 'strong' }));
+  });
+  it('supports an Android device credential without enrolled biometrics', async () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
+    try {
+      hasHardware.mockResolvedValue(false);
+      isEnrolled.mockResolvedValue(false);
+      jest.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(1);
+      supportedTypes.mockResolvedValue([]);
+      await expect(createBiometricService().getAvailability()).resolves.toEqual({ status: 'supported', kinds: [], deviceCredential: true });
+    } finally { platform.restore(); }
+  });
+  it('keeps missing OS credentials unavailable', async () => {
+    authenticate.mockResolvedValue({ success: false, error: 'passcode_not_set' });
+    await expect(createBiometricService().authenticate()).resolves.toEqual({ status: 'unavailable' });
+  });
+});
+
+
+test('a native prompt started for another owner cannot unlock the next owner', async () => {
+  let finish!: (value: { success: true }) => void;
+  authenticate.mockReturnValueOnce(new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce({ success: true });
+  const first = createBiometricService('owner-a').authenticate();
+  const nextOwner = createBiometricService('owner-b');
+  const stale = nextOwner.authenticate();
+  finish({ success: true });
+  await expect(first).resolves.toEqual({ status: 'authenticated' });
+  await expect(stale).resolves.toEqual({ status: 'cancelled' });
+  await expect(nextOwner.authenticate()).resolves.toEqual({ status: 'authenticated' });
+  expect(authenticate).toHaveBeenCalledTimes(2);
 });

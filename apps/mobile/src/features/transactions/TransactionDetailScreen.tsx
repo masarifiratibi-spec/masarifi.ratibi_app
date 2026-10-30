@@ -1,4 +1,6 @@
 import React from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -46,7 +48,7 @@ export function TransactionDetailScreen({ id }: { id: string }) {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError)
+  if (query.isError && !hasReadableSnapshot(query))
     return (
       <StateView
         state="error"
@@ -85,6 +87,7 @@ export function TransactionDetailScreen({ id }: { id: string }) {
           : 'expense';
   return (
     <ScrollView contentContainerStyle={styles.stack}>
+      <FinancialRefreshStatus query={query} />
       <SurfaceCard>
         <View style={styles.stack}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>

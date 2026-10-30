@@ -515,6 +515,8 @@ test('preserves the form after save failure and succeeds on retry', async () => 
 
   fireEvent.press(screen.getByLabelText('متابعة'));
   await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(1));
+  expect(saveProfileSetup).toHaveBeenCalledTimes(2);
+  expect(saveProfileSetup.mock.calls[1][2]).toBe(saveProfileSetup.mock.calls[0][2]);
 });
 
 test('recovers a failed initial server check without inventing local completion', async () => {

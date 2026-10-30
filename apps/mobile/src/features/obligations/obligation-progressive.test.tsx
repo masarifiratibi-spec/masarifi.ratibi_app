@@ -9,10 +9,80 @@ import {
   registerLiveClerkBridge,
   type LiveClerkBridge
 } from '@/services/live/auth-service';
+import { createSeededFinancialPlanningService } from '@/services/mocks/financial-planning-service';
+import { fixtureObligation } from '@/test-utils/financial-planning-fixtures';
+import { financialPlanningKeys } from '@/features/financial-planning/financial-planning-queries';
 
 jest.mock('@/services/financial-planning-service', () => ({
   financialPlanningService: {}
 }));
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined)
+}));
+
+it('retains saved schedule and payment history while refreshing the same obligation version', async () => {
+  const detail = await createSeededFinancialPlanningService().getObligation(
+    fixtureObligation.id
+  );
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  Object.assign(financialPlanningService, {
+    getObligationHeader: async () => ({ ...detail, sectionsState: 'pending' }),
+    getObligationSchedule: async () => {
+      await pending;
+      throw Error('offline');
+    },
+    getObligationPayments: async () => {
+      await pending;
+      throw Error('offline');
+    }
+  });
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: Infinity }
+    }
+  });
+  const base = financialPlanningKeys.obligation(fixtureObligation.id);
+  client.setQueryData(
+    [...base, 'schedule', detail.obligation.version],
+    detail.schedule
+  );
+  client.setQueryData(
+    [
+      ...base,
+      'payments',
+      detail.obligation.currencyCode,
+      detail.obligation.version
+    ],
+    { state: 'available', items: detail.payments }
+  );
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const view = renderHook(() => useObligationDetail(fixtureObligation.id), {
+    wrapper
+  });
+  try {
+    await waitFor(() =>
+      expect(view.result.current.data?.obligation.id).toBe(fixtureObligation.id)
+    );
+    expect(detail.schedule.length).toBeGreaterThan(0);
+    expect(view.result.current.data?.schedule).toEqual(detail.schedule);
+    expect(view.result.current.data?.payments).toEqual(detail.payments);
+    expect(view.result.current.scheduleLoading).toBe(false);
+    await act(async () => release());
+    await waitFor(() => expect(view.result.current.isRefetching).toBe(false));
+    expect(view.result.current.data?.schedule).toEqual(detail.schedule);
+  } finally {
+    release();
+    view.unmount();
+    client.clear();
+  }
+});
 
 it('displays authoritative obligation details while schedule and history are still pending', async () => {
   registerLiveClerkBridge({
@@ -113,9 +183,11 @@ it('displays authoritative obligation details while schedule and history are sti
   );
   const view = renderHook(() => useObligationDetail(id), { wrapper });
   try {
-    await waitFor(() =>
-      expect(view.result.current.data?.obligation.title).toBe('Car')
-    );
+    await waitFor(() => {
+      if (view.result.current.error)
+        throw new Error(view.result.current.error.stack);
+      expect(view.result.current.data?.obligation.title).toBe('Car');
+    });
     expect(view.result.current.isLoading).toBe(false);
     expect(view.result.current.scheduleLoading).toBe(true);
     expect(view.result.current.historyLoading).toBe(true);

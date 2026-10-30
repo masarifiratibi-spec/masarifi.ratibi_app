@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
-import { OperationsJobRegistry } from './job-registry';
+import { GOVERNED_JOB_KEYS, OperationsJobRegistry } from './job-registry';
 import { OperationsRepository } from './operations.repository';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
 import {
   OPERATIONS_METRICS,
   recordPlatformMetric,
@@ -18,11 +19,24 @@ export class OperationsWorker {
   private readonly workerId = `operations-${String(process.pid)}-${randomUUID()}`;
   private timer: NodeJS.Timeout | undefined;
   private inFlight: Promise<void> | undefined;
+  private readonly jobKeys?: string[];
 
   constructor(
     @Inject(OperationsRepository) private readonly repository: Store,
     @Inject(OperationsJobRegistry) private readonly registry: Registry,
-  ) {}
+    @Optional() config?: PlatformConfigService,
+  ) {
+    const scope = config?.get('MASARIFI_OPERATIONS_JOB_KEYS');
+    if (scope === undefined) return;
+    const keys = scope.split(',');
+    if (
+      !scope ||
+      keys.length !== new Set(keys).size ||
+      keys.some((key) => !(GOVERNED_JOB_KEYS as readonly string[]).includes(key))
+    )
+      throw new Error('OPERATIONS_JOB_SCOPE_INVALID');
+    this.jobKeys = keys;
+  }
 
   start(): void {
     if (this.timer) return;
@@ -44,7 +58,9 @@ export class OperationsWorker {
   }
 
   private async poll(): Promise<void> {
-    const claims = await this.repository.claim(this.workerId, 1);
+    const claims = this.jobKeys
+      ? await this.repository.claim(this.workerId, 1, this.jobKeys)
+      : await this.repository.claim(this.workerId, 1);
     recordPlatformMetric(OPERATIONS_METRICS.jobBacklog, claims.length, { status: 'claimed' });
     for (const claim of claims) await this.execute(claim);
   }

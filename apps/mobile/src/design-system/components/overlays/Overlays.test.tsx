@@ -8,8 +8,17 @@ import { usePreferenceStore } from '@/state/preferences';
 import { AppSheet, shouldDismissMenuSheet } from './AppSheet';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import { PickerOverlay, VoiceRecordingOverlay } from './PickerOverlays';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { spacing } from '@/design-system/tokens';
 
 describe('overlays', () => {
+  it('keeps sheet footer content above the Android navigation inset', () => {
+    const view = renderWithProviders(<SafeAreaInsetsContext.Provider value={{top: 0, bottom: 47, left: 0, right: 0}}>
+      <AppSheet appearance="menu" title="Footer inset" visible onDismiss={jest.fn()}><View /></AppSheet>
+    </SafeAreaInsetsContext.Provider>);
+    expect(StyleSheet.flatten(view.getByTestId('app-sheet-menu').props.style).paddingBottom)
+      .toBeGreaterThanOrEqual(47 + spacing.md);
+  });
   beforeEach(() => {
     changeLocale('en');
     usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });

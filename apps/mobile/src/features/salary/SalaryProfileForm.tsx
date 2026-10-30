@@ -26,6 +26,7 @@ import {
 import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningDraft';
 import { currentLocale, translate } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { formatMinorAmount } from '@/utils/format-financial-value';
@@ -37,6 +38,7 @@ export function SalaryProfileForm() {
   const router = useRouter();
   const accounts = useAccounts();
   const profile = useSalaryProfile();
+  const profileSnapshotReadable = hasReadableSnapshot(profile);
   const theme = useTheme();
   const storedDirection = usePreferenceStore((state) => state.direction);
   const direction = currentLocale() === 'ar' ? 'rtl' : storedDirection;
@@ -88,7 +90,12 @@ export function SalaryProfileForm() {
   );
 
   useEffect(() => {
-    if (profileLoaded.current || profile.isLoading || profile.isError) return;
+    if (
+      profileLoaded.current ||
+      profile.isLoading ||
+      (profile.isError && !profileSnapshotReadable)
+    )
+      return;
     profileLoaded.current = true;
     if (!profile.data) return;
     setAmount(
@@ -101,7 +108,12 @@ export function SalaryProfileForm() {
     setSourceName(profile.data.sourceName);
     setAccountId(profile.data.receivingAccountId ?? '');
     setAutomaticDetectionEnabled(profile.data.automaticDetectionEnabled);
-  }, [profile.data, profile.isLoading, profile.isError]);
+  }, [
+    profile.data,
+    profile.isLoading,
+    profile.isError,
+    profileSnapshotReadable
+  ]);
 
   const { draftReady, discardDraft } = usePlanningFormDraft({
     id: 'planning-form-salary',
@@ -109,7 +121,8 @@ export function SalaryProfileForm() {
     entityId: null,
     payload,
     meaningful: !saved && Boolean(amount || sourceName || accountId),
-    enabled: !profile.isLoading && !profile.isError,
+    enabled:
+      !profile.isLoading && (!profile.isError || hasReadableSnapshot(profile)),
     restore: (payload) => {
       const draft = payload as Partial<{
         amount: string;
@@ -188,7 +201,8 @@ export function SalaryProfileForm() {
       hideHeader
       titleKey="planning.salary.setup"
     >
-      {accounts.isError || profile.isError ? (
+      {(accounts.isError && !hasReadableSnapshot(accounts)) ||
+      (profile.isError && !hasReadableSnapshot(profile)) ? (
         <PlanningState
           state="error"
           onRetry={() => {

@@ -168,3 +168,36 @@ it('waits for an in-flight draft write before deleting it', async () => {
     spy.mockRestore();
   }
 });
+
+
+it('does not rewrite a restored draft until its values change, including a change back to the original value', async () => {
+  const original = await financialPlanningService.saveDraft({
+    id: 'audit-draft',
+    kind: 'salary',
+    entityId: null,
+    payload: { amount: '1000' },
+    status: 'editing',
+    updatedAt: 1
+  });
+  await act(async () => jest.advanceTimersByTimeAsync(1000));
+  const view = render(<DraftForm />);
+  try {
+    await screen.findByText('Ready');
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    expect(await financialPlanningService.loadDraft('audit-draft')).toEqual(
+      original
+    );
+    fireEvent.changeText(screen.getByLabelText('Amount'), '2000');
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    expect(
+      (await financialPlanningService.loadDraft('audit-draft'))?.payload
+    ).toEqual({ amount: '2000' });
+    fireEvent.changeText(screen.getByLabelText('Amount'), '1000');
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    expect(
+      (await financialPlanningService.loadDraft('audit-draft'))?.payload
+    ).toEqual({ amount: '1000' });
+  } finally {
+    view.unmount();
+  }
+});

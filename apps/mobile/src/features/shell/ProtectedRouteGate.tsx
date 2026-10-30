@@ -91,7 +91,7 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   if (
     !gate &&
     !isAppLockEnabled() &&
-    (pathname === '/security/unlock' || pathname.startsWith('/security/pin/'))
+    pathname === '/security/unlock'
   ) {
     return <Redirect href="/security/settings" />;
   }
@@ -122,10 +122,10 @@ export function NotificationResponseRuntime() {
       resolvePendingUnlocks(pendingUnlocks.current, false);
     } else if (
       !isAppLockEnabled() ||
-      privacyLock?.appLockStatus === 'unlocked'
+      (privacyLock?.enabled && privacyLock.appLockStatus === 'unlocked')
     ) {
       resolvePendingUnlocks(pendingUnlocks.current, true);
-    } else if (privacyLock === null) {
+    } else if (!privacyLock?.enabled) {
       resolvePendingUnlocks(pendingUnlocks.current, false);
     }
   }, [hydrated, privacyLock, session]);
@@ -154,7 +154,7 @@ export function NotificationResponseRuntime() {
         const state = useAppShellStore.getState();
         if (!isCurrentAuthenticatedSession(state)) return false;
         if (!isAppLockEnabled()) return true;
-        if (!state.privacyLock) return true;
+        if (!state.privacyLock?.enabled) return true;
         if (state.privacyLock.appLockStatus === 'unlocked') return true;
         const waitForVerifiedUnlock = new Promise<boolean>((resolve) => {
           unlocks.add(resolve);

@@ -4,7 +4,6 @@ import { screen } from '@testing-library/react-native';
 import HomeRoute from '@app/(tabs)/home';
 import MoreRoute from '@app/(tabs)/more';
 import { PermissionEducation } from '@/features/onboarding/PermissionEducation';
-import { PinForm } from '@/features/security/PinForm';
 import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 
@@ -46,11 +45,5 @@ describe('app shell accessibility', () => {
     });
     permission.unmount();
 
-    changeLocale('en');
-    renderWithProviders(<PinForm onSubmit={jest.fn()} />);
-    expect(screen.getByLabelText('Six digit code')).toHaveStyle({
-      minHeight: 48,
-      writingDirection: 'ltr'
-    });
   });
 });

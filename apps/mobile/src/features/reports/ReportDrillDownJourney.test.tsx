@@ -3,6 +3,7 @@ import { PixelRatio } from 'react-native';
 import { fireEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { changeLocale } from '@/localization/i18n';
+import { translate } from '@/localization/i18n';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useReportsViewState } from '@/state/reports-view-state';
 import { renderWithProviders } from '@/test-utils/render';
@@ -24,6 +25,15 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+});
+
+test.each(['ar', 'en'] as const)('shows a retryable drill-down failure rather than endless loading in %s', async (locale) => {
+  changeLocale(locale);
+  jest.spyOn(reportsService, 'getReport').mockRejectedValue(new Error('service unavailable'));
+  const view = renderWithProviders(<ReportDrillDownScreen />);
+  expect(await view.findByText(translate('reports.state.error'))).toBeTruthy();
+  expect(view.getByRole('button', { name: translate('reports.action.retry') })).toBeTruthy();
+  expect(view.queryByText(translate('reports.state.loading'))).toBeNull();
 });
 
 test('drill-down applies visible report filters before opening transactions', async () => {

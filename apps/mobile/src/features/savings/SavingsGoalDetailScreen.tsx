@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { StyledText } from '@/components/StyledText';
@@ -64,11 +66,12 @@ export function SavingsGoalDetailScreen({ goalId = '' }: { goalId?: string }) {
       hideHeader
       backgroundColor={theme.colors.surfaces.page}
     >
+      <FinancialRefreshStatus query={query} />
       {!goalId ? (
         <PlanningState state="empty" />
       ) : query.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError || !query.data || !item ? (
+      ) : !query.data || !item || !hasReadableSnapshot(query) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <>

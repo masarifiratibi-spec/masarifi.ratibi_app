@@ -1,4 +1,9 @@
 import { requestRecentAuthentication } from './http-client';
+import { captureLiveClerkOwner } from './auth-service';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+import { useAppShellStore } from '@/state/app-shell';
+import { readLocalFinancialReport, type LocalReportFinance } from '@/services/local-financial-report';
 import { usePreferenceStore } from '@/state/preferences';
 import { currentLocale } from '@/localization/i18n';
 import {
@@ -74,6 +79,7 @@ export function createLiveReportsService(
     request?: typeof fetch;
     repository?: ReportsRepository;
     requestTimeoutMs?: number;
+    finance?: LocalReportFinance;
   } = {}
 ): CapabilityProviderHandle<ReportsService> {
   const baseUrl = options.baseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -153,9 +159,12 @@ export function createLiveReportsService(
     if (
       !response.ok &&
       response.status === 403 &&
-      method !== 'GET' &&
       object(value).code === 'RECENT_AUTH_REQUIRED'
     ) {
+      const pdfDownload = method === 'POST' && path === '/api/v1/reports' && body !== undefined && object(body).format === 'pdf' && object(body).delivery === 'download';
+      const reportStatus = method === 'GET' && /^\/api\/v1\/reports\/[^/?]+$/.test(path);
+      // A deployed policy mismatch needs the approved backend update, never a client bypass or prompt.
+      if (pdfDownload || reportStatus) throw new ReportsApiError('report_pdf_policy_pending');
       if (!requestContext.reverified) {
         const freshToken = await requestRecentAuthentication();
         await identity?.assertCurrent();
@@ -171,7 +180,9 @@ export function createLiveReportsService(
     }
     if (!response.ok)
       throw new ReportsApiError(
-        response.status === 403
+        response.status === 401
+          ? 'session_expired'
+          : response.status === 403
           ? 'permission_required'
           : response.status === 404
             ? 'not_found'
@@ -238,7 +249,7 @@ export function createLiveReportsService(
           type: 'financial_summary',
           period: input.kind,
           anchorDate: input.anchorDate,
-          ...(input.monthStartDay === undefined
+          ...(input.monthStartDay === undefined || input.monthStartDay === 1
             ? {}
             : { monthStartDay: String(input.monthStartDay) }),
           currency: input.currencyCode,
@@ -565,7 +576,17 @@ export function createLiveReportsService(
       kind: 'live',
       availability: baseUrl ? 'available' : 'unavailable'
     },
-    getReport: report,
+    async getReport(input, context) {
+      let offline = useAppShellStore.getState().session?.restoration === 'local';
+      if (!offline && readRecoveryNetwork.available) {
+        try { offline = !await readRecoveryNetwork.isOnline(); } catch { /* Unknown connectivity still uses the authorized API. */ }
+      }
+      if (offline) {
+        const owner = await captureLiveClerkOwner();
+        return readLocalFinancialReport(input, options.finance ?? coreFinanceService, owner, context?.signal);
+      }
+      return report(input, context);
+    },
     async getBreakdown(input, context) {
       if (input.dimension !== 'category')
         throw new ReportsApiError('report_dimension_unavailable');

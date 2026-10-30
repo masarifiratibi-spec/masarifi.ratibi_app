@@ -882,6 +882,12 @@ export class FinancialPlanningRepository {
     return draft ? copy(draft) : null;
   }
 
+  listDrafts(kind: PlanningDraft['kind']): PlanningDraft[] {
+    if (kind === 'report_schedule') throw new FinancialPlanningError('validation');
+    return copy(this.drafts.filter(draft => draft.kind === kind && ['editing', 'valid'].includes(draft.status))
+      .sort((a, b) => b.updatedAt - a.updatedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).slice(0, 64));
+  }
+
   discardDraft(id: string): void {
     this.drafts = this.drafts.filter((item) => item.id !== id);
   }

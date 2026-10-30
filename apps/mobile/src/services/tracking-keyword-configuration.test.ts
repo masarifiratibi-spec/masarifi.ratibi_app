@@ -2,6 +2,7 @@ import { trackingKeywordConfiguration } from './tracking-keyword-configuration';
 import { automaticTrackingService } from './automatic-tracking-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { TrackingError } from './contracts/automatic-tracking-service';
+import * as coordinator from './automatic-tracking-coordinator';
 jest.mock('./automatic-tracking-service', () => ({
   automaticTrackingService: {
     listKeywordRules: jest.fn(),
@@ -31,6 +32,37 @@ beforeEach(() => {
     }
   });
 });
+afterEach(() => jest.restoreAllMocks());
+it.each(['save', 'restore'] as const)(
+  'refuses %s before any server command when the owner changed during native configuration suspension',
+  async (action) => {
+    jest
+      .spyOn(coordinator, 'suspendAutomaticTrackingConfiguration')
+      .mockImplementationOnce(async () => {
+        useAppShellStore.setState({
+          session: {
+            ...useAppShellStore.getState().session!,
+            userId: 'replacement'
+          }
+        });
+      });
+    jest
+      .mocked(automaticTrackingService.saveKeywordRules)
+      .mockResolvedValue({ value: [], affectedScopes: [] });
+    jest
+      .mocked(automaticTrackingService.restoreDefaultKeywords)
+      .mockResolvedValue({ value: [], affectedScopes: [] });
+    await expect(
+      action === 'save'
+        ? trackingKeywordConfiguration.save([rule], [])
+        : trackingKeywordConfiguration.restore()
+    ).rejects.toThrow('tracking_owner_changed');
+    expect(automaticTrackingService.saveKeywordRules).not.toHaveBeenCalled();
+    expect(
+      automaticTrackingService.restoreDefaultKeywords
+    ).not.toHaveBeenCalled();
+  }
+);
 it('presents canonical persisted server identities after saving temporary editor rows', async () => {
   jest.mocked(automaticTrackingService.saveKeywordRules).mockResolvedValue({
     value: [{ ...rule, recentUseCount: 0, lastUsedAt: null }],

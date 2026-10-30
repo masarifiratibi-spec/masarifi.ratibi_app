@@ -22,6 +22,7 @@ import {
 import type { Category } from '@/domain/core-finance';
 import { useCategories } from '@/features/core-finance/core-finance-queries';
 import { currentLocale, translate } from '@/localization/i18n';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import {
@@ -154,7 +155,7 @@ export function CategorySelectionScreen({
         />
       </View>
 
-      {categories.isError ? (
+      {categories.isError && !hasReadableSnapshot(categories) ? (
         <StateView
           actionLabel={translate('coreFinance.action.retry')}
           onAction={() => void categories.refetch()}

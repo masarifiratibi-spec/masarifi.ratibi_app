@@ -18,42 +18,78 @@ import {
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
-import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
+import {
+  automaticTrackingKeys,
+  automaticTrackingReadKey
+} from '@/state/automatic-tracking-view-state';
+import { useAppShellStore } from '@/state/app-shell';
+import { TrackingError } from '@/services/contracts/automatic-tracking-service';
 import { withReadContext } from '@/services/live/read-context';
 
-export function useTrackingStatus() {
+function useTrackingRead<T>({
+  queryKey,
+  queryFn,
+  enabled = true,
+  refetchOnMount
+}: {
+  queryKey: readonly unknown[];
+  queryFn: () => Promise<T>;
+  enabled?: boolean;
+  refetchOnMount?: 'always';
+}) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const assertOwner = () => {
+    if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+      throw new TrackingError('permission_required');
+  };
   return useQuery({
+    queryKey: automaticTrackingReadKey(queryKey, ownerId),
+    enabled,
+    refetchOnMount,
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        assertOwner();
+        const data = await queryFn();
+        assertOwner();
+        return data;
+      })
+  });
+}
+
+export function useTrackingStatus() {
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.status,
-    queryFn: () => withReadContext(undefined, async () => {
-      const [status, permission, notificationAccess, sources] =
-        await Promise.all([
-          automaticTrackingService.getStatus(),
-          createTrackingPermissionService().getState(),
-          bankNotificationService.getAccessState(),
-          trackingSourcePreferences.load()
-        ]);
-      if (status.platform !== 'android') return status;
-      const sourceGranted =
-        permission.status === 'granted' || notificationAccess === 'granted';
-      const sourcesUnavailable =
-        permission.status === 'unavailable' &&
-        notificationAccess === 'unavailable';
-      return {
-        ...status,
-        permissionStatus: sourceGranted
-          ? ('granted' as const)
-          : permission.status === 'unavailable'
-            ? notificationAccess
-            : permission.status,
-        smsPermissionStatus: permission.status,
-        notificationAccessStatus: notificationAccess,
-        smsTrackingEnabled: sources.smsEnabled,
-        notificationTrackingEnabled: sources.notificationEnabled,
-        serviceState: sourcesUnavailable
-          ? ('unavailable' as const)
-          : status.serviceState
-      };
-    }),
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        const [status, permission, notificationAccess, sources] =
+          await Promise.all([
+            automaticTrackingService.getStatus(),
+            createTrackingPermissionService().getState(),
+            bankNotificationService.getAccessState(),
+            trackingSourcePreferences.load()
+          ]);
+        if (status.platform !== 'android') return status;
+        const sourceGranted =
+          permission.status === 'granted' || notificationAccess === 'granted';
+        const sourcesUnavailable =
+          permission.status === 'unavailable' &&
+          notificationAccess === 'unavailable';
+        return {
+          ...status,
+          permissionStatus: sourceGranted
+            ? ('granted' as const)
+            : permission.status === 'unavailable'
+              ? notificationAccess
+              : permission.status,
+          smsPermissionStatus: permission.status,
+          notificationAccessStatus: notificationAccess,
+          smsTrackingEnabled: sources.smsEnabled,
+          notificationTrackingEnabled: sources.notificationEnabled,
+          serviceState: sourcesUnavailable
+            ? ('unavailable' as const)
+            : status.serviceState
+        };
+      }),
     refetchOnMount: 'always'
   });
 }
@@ -67,21 +103,21 @@ export function useAutomaticTrackingSyncState() {
 }
 
 export function useTrackingHistory() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.history(),
     queryFn: () => automaticTrackingService.listHistory()
   });
 }
 
 export function useReviewItems() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.review(),
     queryFn: () => automaticTrackingService.listReviewItems()
   });
 }
 
 export function useReviewItem(id: string) {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.reviewItem(id),
     queryFn: () => automaticTrackingService.getReviewItem(id),
     enabled: Boolean(id)
@@ -89,7 +125,7 @@ export function useReviewItem(id: string) {
 }
 
 export function useDuplicateCandidate(id: string) {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.duplicate(id),
     queryFn: () => automaticTrackingService.getDuplicate(id),
     enabled: Boolean(id)
@@ -97,21 +133,21 @@ export function useDuplicateCandidate(id: string) {
 }
 
 export function useDuplicateCandidates() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.duplicates(),
     queryFn: () => automaticTrackingService.listDuplicates()
   });
 }
 
 export function useKeywordRules() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.keywords(),
     queryFn: () => automaticTrackingService.listKeywordRules()
   });
 }
 
 export function useSenderRules(search = '') {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.senders({ search }),
     queryFn: () => automaticTrackingService.listSenderRules({ search })
   });

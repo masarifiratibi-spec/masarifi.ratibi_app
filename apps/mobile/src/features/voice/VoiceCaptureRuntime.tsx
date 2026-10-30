@@ -95,6 +95,7 @@ function useOwnedVoiceCapture() {
   const authenticatedOwner = useAppShellStore((state) =>
     state.session?.status === 'authenticated' ? state.session.userId : null
   );
+  const restoration = useAppShellStore((state) => state.session?.restoration);
   const client = useQueryClient();
   const batches = useVoiceBatches(authenticatedOwner);
   const mounted = useRef(true);
@@ -112,8 +113,10 @@ function useOwnedVoiceCapture() {
     [ownerId]
   );
   const valid = useCallback(
-    (attempt: ReturnType<typeof snapshot>) =>
+    (attempt: ReturnType<typeof snapshot> & { remoteRecovery?: true }) =>
       mounted.current &&
+      (!attempt.remoteRecovery ||
+        useAppShellStore.getState().session?.restoration !== 'local') &&
       attempt.ownerId === ownerId() &&
       attempt.revision === revision.current &&
       attempt.id === useVoiceCaptureStore.getState().id,
@@ -480,6 +483,7 @@ function useOwnedVoiceCapture() {
 
   useEffect(() => {
     if (
+      restoration === 'local' ||
       recoveryAttempted.current ||
       !['idle', 'ready', 'permission_required'].includes(session.state) ||
       !authenticatedOwner ||
@@ -487,7 +491,7 @@ function useOwnedVoiceCapture() {
     )
       return;
     recoveryAttempted.current = true;
-    const attempt = snapshot();
+    const attempt = { ...snapshot(), remoteRecovery: true as const };
     if (voiceAnalyzerService.queueBatch) {
       void batches.recover();
     }
@@ -537,7 +541,7 @@ function useOwnedVoiceCapture() {
     });
     // Recovery is intentionally one-shot for this mounted authenticated session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fail, session.state, authenticatedOwner]);
+  }, [fail, session.state, authenticatedOwner, restoration]);
 
   const stop = async (
     recordingId = useVoiceCaptureStore.getState().recordingId

@@ -2,6 +2,11 @@ import { createLiveCategoryLifecycleService } from './category-lifecycle-service
 import { createDefaultCategories } from '@/domain/core-finance-seeds';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+
+
 const mockCategoryPayloads = new Map<string, string>();
 const mockOtherOwnerPayloads = new Map<string, string>();
 const mockDatabaseFor = (payloads: Map<string, string>) => ({

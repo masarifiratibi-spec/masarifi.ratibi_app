@@ -37,6 +37,10 @@ import {
   translateDynamic
 } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   useBudgetById,
@@ -100,38 +104,7 @@ export function BudgetForm({
       )
   );
 
-  useEffect(() => {
-    if (!existing.data) return;
-    setName(
-      existing.data.budget.name ?? translate('planning.budget.defaultName')
-    );
-    setPeriodKey(existing.data.budget.periodKey);
-    setExpenseLimit(
-      minorToMajorAmountText(
-        existing.data.budget.configuredExpenseLimitMinor,
-        existing.data.budget.currencyCode
-      )
-    );
-    setRolloverEnabled(existing.data.budget.rolloverEnabled);
-    setCopiedFromBudgetId(existing.data.budget.copiedFromBudgetId);
-    setCategoryLimits(
-      Object.fromEntries(
-        existing.data.categories.map((item: CategoryBudget) => [
-          item.categoryId,
-          minorToMajorAmountText(
-            item.limitMinor,
-            existing.data.budget.currencyCode
-          )
-        ])
-      )
-    );
-    setSelectedCategoryIds(
-      existing.data.categories.map((category) => category.categoryId)
-    );
-  }, [existing.data]);
-
-  const draftEnabled = !budgetId || Boolean(existing.data);
-  const { draftReady, discardDraft } = usePlanningFormDraft({
+  const { draftReady, discardDraft, hasRestoredDraft } = usePlanningFormDraft({
     id: `planning-form-budget:${budgetId || 'new'}`,
     kind: 'budget',
     entityId: budgetId || null,
@@ -145,7 +118,6 @@ export function BudgetForm({
       copiedFromBudgetId
     },
     meaningful: Boolean(name || expenseLimit || selectedCategoryIds.length),
-    enabled: draftEnabled,
     restore: (payload) => {
       const draft = payload as Partial<{
         name: string;
@@ -174,6 +146,36 @@ export function BudgetForm({
     },
     onError: () => setError(translate('planning.state.error'))
   });
+
+  useEffect(() => {
+    if (!existing.data || hasRestoredDraft) return;
+    setName(
+      existing.data.budget.name ?? translate('planning.budget.defaultName')
+    );
+    setPeriodKey(existing.data.budget.periodKey);
+    setExpenseLimit(
+      minorToMajorAmountText(
+        existing.data.budget.configuredExpenseLimitMinor,
+        existing.data.budget.currencyCode
+      )
+    );
+    setRolloverEnabled(existing.data.budget.rolloverEnabled);
+    setCopiedFromBudgetId(existing.data.budget.copiedFromBudgetId);
+    setCategoryLimits(
+      Object.fromEntries(
+        existing.data.categories.map((item: CategoryBudget) => [
+          item.categoryId,
+          minorToMajorAmountText(
+            item.limitMinor,
+            existing.data.budget.currencyCode
+          )
+        ])
+      )
+    );
+    setSelectedCategoryIds(
+      existing.data.categories.map((category) => category.categoryId)
+    );
+  }, [existing.data, hasRestoredDraft]);
 
   const categoryOwners = useMemo(
     () =>
@@ -257,7 +259,7 @@ export function BudgetForm({
   };
 
   const submit = () => {
-    if (save.isPending) return;
+    if (save.isPending || draftOnly) return;
     setErrorField(null);
     const configuredExpenseLimitMinor = parseAmountToMinor(
       expenseLimit,
@@ -364,7 +366,24 @@ export function BudgetForm({
     );
   };
 
-  if (existing.isError || categories.isError || monthBudgets.isError)
+  const validPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey);
+  const draftOnly =
+    hasRestoredDraft &&
+    ![existing, categories, monthBudgets].some((query) =>
+      isAuthoritativeReadDenial(query.error)
+    ) &&
+    ((Boolean(budgetId) && !hasReadableSnapshot(existing)) ||
+      !hasReadableSnapshot(categories) ||
+      (validPeriod && !hasReadableSnapshot(monthBudgets)));
+
+  if (
+    !draftOnly &&
+    ((existing.isError && !hasReadableSnapshot(existing)) ||
+      (categories.isError && !hasReadableSnapshot(categories)) ||
+      (validPeriod &&
+        monthBudgets.isError &&
+        !hasReadableSnapshot(monthBudgets)))
+  )
     return (
       <PlanningScreen
         backgroundColor={colorTokens.neutral.warmSurface}
@@ -381,9 +400,9 @@ export function BudgetForm({
       </PlanningScreen>
     );
   if (
-    (budgetId && existing.isLoading) ||
-    categories.isLoading ||
-    (draftEnabled && !draftReady)
+    (!draftOnly &&
+      ((budgetId && existing.isLoading) || categories.isLoading)) ||
+    !draftReady
   )
     return embedded ? (
       <PlanningState state="loading" />
@@ -398,6 +417,11 @@ export function BudgetForm({
 
   const fields = (
     <View style={{ gap: spacing.md }}>
+      {draftOnly ? (
+        <StyledText variant="caption">
+          {translate('planning.budget.savedDraftOnly')}
+        </StyledText>
+      ) : null}
       {embedded ? (
         <StyledText variant="subtitle">
           {translate('planning.budgets.new')}
@@ -521,7 +545,7 @@ export function BudgetForm({
       </SurfaceCard>
 
       <ActionButton
-        disabled={save.isPending}
+        disabled={save.isPending || draftOnly}
         label={translate('planning.action.save')}
         loading={save.isPending}
         onPress={submit}

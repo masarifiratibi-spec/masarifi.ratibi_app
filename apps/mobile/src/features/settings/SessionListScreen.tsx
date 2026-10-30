@@ -1,6 +1,9 @@
 import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
+import { useAppShellStore } from '@/state/app-shell';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { StateView } from '@/design-system/components/feedback/StateView';
@@ -13,18 +16,23 @@ import { usePreferenceStore } from '@/state/preferences';
 import { router } from 'expo-router';
 
 export function SessionListScreen() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <SessionListContent key={ownerId} />;
+}
+
+function SessionListContent() {
   const sessions = useSettingsSessions();
   const revoke = useRevokeSession();
   const direction = usePreferenceStore((state) => state.direction);
 
-  if (sessions.isLoading)
+  if (sessions.isLoading && !hasReadableSnapshot(sessions))
     return (
       <StateView
         state="loading"
         title={translateDynamic('settings.sessions.loading')}
       />
     );
-  if (sessions.isError || !sessions.data)
+  if (!hasReadableSnapshot(sessions) || !sessions.data)
     return (
       <StateView
         state="error"
@@ -39,6 +47,7 @@ export function SessionListScreen() {
         onBack={() => router.back()}
         title={translateDynamic('settings.sessions.title')}
       />
+      <FinancialRefreshStatus query={sessions} />
       {revoke.isPending ? (
         <StyledText>settings.sessions.pending</StyledText>
       ) : null}
@@ -64,12 +73,17 @@ export function SessionListScreen() {
               label={translateDynamic('settings.sessions.revoke', {
                 device: session.deviceLabel
               })}
-              onPress={() =>
+              disabled={
+                revoke.isPending || sessions.isError || sessions.isFetching
+              }
+              onPress={() => {
+                if (revoke.isPending || sessions.isError || sessions.isFetching)
+                  return;
                 revoke.mutate({
                   sessionId: session.id,
                   operationId: `settings-revoke-session-${Date.now()}`
-                })
-              }
+                });
+              }}
             />
           ) : null}
         </SurfaceCard>

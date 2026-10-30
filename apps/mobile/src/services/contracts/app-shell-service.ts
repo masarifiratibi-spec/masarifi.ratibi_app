@@ -3,7 +3,6 @@ import type {
   KeywordRule,
   OnboardingProgress,
   PermissionState,
-  PinCredential,
   PrivacyLockPreference,
   TrackingPreference
 } from '@/domain/app-shell';
@@ -125,6 +124,8 @@ export interface BiometricAvailability {
   status: 'supported' | 'unsupported' | 'not_enrolled' | 'locked_out';
   /** Present only when hardware is supported and enrolled. */
   kinds?: readonly BiometricKind[];
+  /** The operating system can verify its own device PIN, password or pattern. */
+  deviceCredential?: boolean;
 }
 
 export interface BiometricResult {
@@ -152,10 +153,6 @@ export interface AppShellStorage {
   savePendingDestination(destination: string | null): Promise<void>;
   loadPrivacyLock(): Promise<PrivacyLockPreference | null>;
   savePrivacyLock(lock: PrivacyLockPreference): Promise<void>;
-  clearPrivacyLock(): Promise<void>;
-  loadPinCredential(): Promise<PinCredential | null>;
-  savePinCredential(credential: PinCredential): Promise<void>;
-  clearPinCredential(): Promise<void>;
   loadProfilePromptDismissed(): Promise<boolean>;
   saveProfilePromptDismissed(dismissed: boolean): Promise<void>;
   loadTrackingHomeCardDismissed(): Promise<boolean>;

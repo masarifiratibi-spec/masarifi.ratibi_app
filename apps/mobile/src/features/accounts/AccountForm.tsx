@@ -688,9 +688,10 @@ function parseOptionalInteger(
   minimum: number,
   maximum: number
 ): number | null | undefined {
-  if (!text.trim()) return null;
-  if (!/^\d+$/.test(text.trim())) return undefined;
-  const value = Number(text);
+  const normalized = normalizeLocalizedNumber(text).trim();
+  if (!normalized) return null;
+  if (!/^\d+$/.test(normalized)) return undefined;
+  const value = Number(normalized);
   return Number.isSafeInteger(value) && value >= minimum && value <= maximum
     ? value
     : undefined;

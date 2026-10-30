@@ -1,0 +1,44 @@
+{
+  "state": "FROZEN_FOR_INDEPENDENT_STATIC_REVIEW_NOT_EXECUTED",
+  "reviewRound": 4,
+  "files": [
+    {
+      "path": "scripts/qa/t03-exact-sync/fixture-start.ps1",
+      "sha256": "B0887D7701748A56AE01F70AAA0A2A01EA1F1554AD563E307228FCFD0BC8B6DC"
+    },
+    {
+      "path": "scripts/qa/t03-exact-sync/fixture-stop.ps1",
+      "sha256": "B8D2FECB67F84454C566905889012889A42331A7F620911D1898FA43C0AFE6B1"
+    },
+    {
+      "path": "scripts/qa/t03-exact-sync/fixture-common.ps1",
+      "sha256": "30C4298030D267AEAFD873AC3D315D620EC0D42260D27E0E253B176BC85B19C7"
+    },
+    {
+      "path": "scripts/qa/t03-exact-sync/fixture-manifest.ps1",
+      "sha256": "02DC191EA9CEAD2CC7C77170856A28ACDB9A6D0DD6B6CF8EFDE4D8B5AAAD6422"
+    },
+    {
+      "path": "scripts/qa/t03-exact-sync/fixture-preflight.test.ps1",
+      "sha256": "8E1EBEE07BF64B0D5161D0A48F1258869377A51F4912DAD3E4ADF57493BD49CB"
+    },
+    {
+      "path": ".superpowers\\sdd\\2026-10-25-astra-readiness-remediation\\T03\\runner-prep\\pg17\\runtime-manifest.json",
+      "sha256": "43B7BE5C2367B5AA1F85D65CFA40F6FAF2F22DB13F7F0623BA23BEF288DB0757"
+    },
+    {
+      "path": ".superpowers\\sdd\\2026-10-25-astra-readiness-remediation\\T03\\runner-prep\\pg17\\fixture-bundle.json",
+      "sha256": "9227C7BF66C34112D8E63958450F8E206EBE39EC462CEE767F0C108B71D8D77D"
+    }
+  ],
+  "runtimeFileCount": 20489,
+  "runtimeBytes": 1002085601,
+  "zipSha256": "80379B2C04D51C30225532E0AE04509899141E9957ED096FE749D7FD9DF8F82F",
+  "nativeLaunchRetried": false,
+  "clusterInitialized": false,
+  "staticPreflight": "PASS exit0 v4; full pinned runtime, script closure, safe new paths and free port; zero native execution",
+  "nonexecutingTests": "PASS exit0 v4, with red-before-green: Record-present provisional receipt failure plus absent/incomplete PIDfile resolves exact own-launch retained handle before disposal; normal stop remains strict, reused handle rejected; all previous identity/receipt boundary doubles retained",
+  "ownership": "Direct own-launch native SafeHandle retained. Normal stop uses exact saved record, never adopts process by old intent; verified systemID checked, PID file fenced; pg_ctl kill INT exact recorded PID under live retained handle; normal timeout reports unresolved, no process-tree kill",
+  "realPostgreSQLTests": "NOT_RUN",
+  "initialAutomaticRejection": "blocked by policy; no additional reason supplied"
+}

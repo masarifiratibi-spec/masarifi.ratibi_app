@@ -407,7 +407,8 @@ export const manualSubmissionSchema = z
     firstAttemptAt: z.number().int().nonnegative(),
     phase: z.enum(['submitting', 'unknown', 'saved']),
     transactionId: z.string().min(1).max(128).optional(),
-    affectedScopes: z.array(z.string().max(160)).max(20).optional()
+    affectedScopes: z.array(z.string().max(160)).max(20).optional(),
+    pendingSync: z.boolean().optional()
   })
   .strict()
   .superRefine((value, context) => {

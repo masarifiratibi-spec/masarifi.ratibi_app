@@ -10,6 +10,47 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'reports.local.basedOn':
+    'دون اتصال · استنادًا إلى البيانات المالية المحفوظة على هذا الجهاز',
+  'reports.local.empty': 'لا توجد حركة مالية محفوظة محليًا لهذه الفترة.',
+  'reports.local.pending': 'سجلات محفوظة محليًا بانتظار المزامنة',
+  'reports.local.excluded': 'سجلات مستبعدة تحتاج إلى مراجعة أو تأكيد',
+  'reports.local.missingRates':
+    'لا تُعرض الإجماليات التي تتطلب أسعار صرف غير متوفرة.',
+  'reports.pdf.internet': 'تعمل التقارير دون اتصال. اتصل بالإنترنت لتنزيل PDF.',
+  'reports.pdf.policyPending':
+    'يتطلب تنزيل PDF تحديث الخادم المعتمد. لم يُطلب تحقق إضافي من الهوية.',
+  'reports.pdf.download': 'تنزيل التقرير بصيغة PDF',
+  'reports.pdf.generating': 'جارٍ إعداد ملف PDF…',
+  'reports.pdf.saving': 'جارٍ تنزيل PDF. اختر مجلدًا لحفظه.',
+  'reports.pdf.success': 'تم حفظ ملف PDF',
+  'reports.pdf.open': 'فتح PDF',
+  'reports.pdf.share': 'مشاركة PDF',
+  'reports.pdf.retry': 'إعادة المحاولة',
+  'reports.pdf.failure':
+    'تعذّر تنزيل PDF. تم الاحتفاظ بفلاتر التقرير. أعد المحاولة للمتابعة.',
+  'reports.pdf.accountUnsupported':
+    'لا يمكن تصدير هذا التقرير بفلتر الحساب المحدد. تم الاحتفاظ بفلاترك.',
+  'reports.pdf.periodUnsupported':
+    'لم تتمكن الخدمة من تطبيق فترة التقرير أو المنطقة الزمنية المحددة. تم الاحتفاظ باختيارك.',
+  'reports.pdf.authentication':
+    'تحقّق من جلستك لتنزيل هذا التقرير الخاص، ثم أعد المحاولة.',
+  'reports.pdf.cancelled': 'لم يُحفظ PDF بسبب إلغاء اختيار المجلد.',
+  'reports.pdf.nativeUpdate':
+    'يحتاج هذا الإصدار من التطبيق إلى تحديث لفتح ملفات PDF أو مشاركتها. يبقى ملف PDF المحفوظ في المجلد الذي اخترته.',
+  'reports.pdf.processing':
+    'ما زال التقرير قيد المعالجة. أعد المحاولة للتحقق من الطلب نفسه.',
+  'reports.export.title': 'تصدير البيانات',
+  'reports.export.format':
+    'ملف ZIP · بيانات الحساب. لا تنطبق فلاتر التقارير على هذا التصدير.',
+  'reports.export.empty': 'لم يُطلب تصدير بعد',
+  'reports.export.loading': 'جارٍ التحقق من التصدير…',
+  'reports.export.signIn': 'سجّل الدخول لتصدير بيانات حسابك.',
+  'reports.export.share': 'مشاركة رابط التنزيل',
+  'reports.export.sharePrivacy':
+    'شارك الرابط فقط مع من تثق بهم. يمكن لأي شخص لديه هذا الرابط تنزيل بيانات التصدير حتى انتهاء صلاحيته.',
+  'reports.export.opened.download': 'تم فتح التنزيل',
+  'reports.export.opened.share': 'تم فتح خيارات المشاركة',
   'reports.action.more': 'عرض المزيد',
   'tracking.background.oemGuidance':
     'في أجهزة سامسونج، تأكد أن مصاريفي خارج التطبيقات في وضع السكون وأن البطارية تسمح بالنشاط في الخلفية. في الأجهزة الأخرى قد تحتاج إلى تفعيل التشغيل التلقائي أو نشاط الخلفية من إعدادات التطبيق. ارجع إلى مصاريفي بعد تعديل الإعدادات.',
@@ -206,7 +247,7 @@ const ar: MessageCatalog = {
   'googleAuth.continue': 'المتابعة باستخدام Google',
   'googleAuth.footer': 'استخدم حساب Google نفسه للعودة إلى بياناتك المالية.',
   'appShell.security.stagingDisabled':
-    'قفل التطبيق غير متاح مؤقتًا في هذا الإصدار التجريبي.',
+    '\u0645\u0637\u0627\u0644\u0628\u0627\u062A \u0642\u0641\u0644 \u0627\u0644\u062A\u0637\u0628\u064A\u0642 \u0645\u0639\u0637\u0644\u0629 \u0641\u064A \u0646\u0633\u062E\u0629 \u0627\u0644\u062A\u0637\u0648\u064A\u0631 \u0647\u0630\u0647.',
   'app.title': 'مصاريفي وراتبي',
   'app.foundationTitle': 'شاشة التحقق من الأساس',
   'app.foundationIntro':
@@ -529,23 +570,21 @@ const ar: MessageCatalog = {
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
-  'appShell.security.biometricUnlock': 'فتح بالتحقق الحيوي',
-  'appShell.security.biometricUnavailable': 'التحقق الحيوي غير متاح',
+  'appShell.security.biometricUnlock':
+    '\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0628\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632',
+  'appShell.security.biometricUnavailable':
+    '\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629',
   'appShell.security.biometricCancelled':
-    'تم إلغاء التحقق الحيوي. يمكنك المحاولة مرة أخرى.',
-  'appShell.security.biometricFailed': 'تعذر التحقق الحيوي. حاول مرة أخرى.',
+    '\u062A\u0645 \u0625\u0644\u063A\u0627\u0621 \u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632. \u064A\u0645\u0643\u0646\u0643 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.',
+  'appShell.security.biometricFailed':
+    '\u062A\u0639\u0630\u0631\u062A \u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632. \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.',
   'appShell.security.biometricLocked':
-    'التحقق الحيوي مقفل مؤقتًا من نظام الجهاز.',
-  'appShell.security.pin.create': 'إنشاء رمز PIN',
-  'appShell.security.pin.confirm': 'تأكيد رمز PIN',
-  'appShell.security.pin.current': 'أدخل رمز PIN الحالي',
-  'appShell.security.pin.change': 'تغيير رمز PIN',
-  'appShell.security.pin.forgot': 'نسيت رمز PIN',
-  'appShell.security.pin.invalid': 'رمز PIN غير صحيح.',
-  'appShell.security.pin.mismatch': 'رمزا PIN غير متطابقين.',
-  'appShell.security.pin.reauthenticate':
-    'تحقق من حسابك قبل إعادة تعيين قفل التطبيق.',
+    '\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u0645\u0642\u0641\u0644\u0629 \u0645\u0624\u0642\u062A\u064B\u0627 \u0645\u0646 \u0646\u0638\u0627\u0645 \u0627\u0644\u062C\u0647\u0627\u0632.',
   'appShell.security.protectedContent': 'المحتوى محمي',
+  'appShell.security.nativeUnlock': 'افتح مصاريفي باستخدام مصادقة الجهاز',
+  'appShell.security.nativeLock': 'استخدام مصادقة الجهاز',
+  'appShell.security.nativeLockSubtitle':
+    'بصمة الإصبع أو الوجه أو رمز الجهاز أو كلمة المرور أو النمط. يديرها نظام الجهاز.',
   'appShell.security.settingsTitle': 'إعدادات الأمان',
   'appShell.security.mockSignOutAll': 'تسجيل الخروج من كل الأجهزة',
   'appShell.profile.name': 'الاسم',
@@ -602,9 +641,7 @@ const ar: MessageCatalog = {
   'appShell.security.biometric.fingerprint': 'بصمة الإصبع',
   'appShell.security.biometric.subtitle': 'حماية التطبيق ببصمة الإصبع أو الوجه',
   'appShell.security.biometric.notEnrolled':
-    'سجّل طريقة تحقق حيوي في إعدادات جهازك أولًا',
-  'appShell.security.biometric.requiresPin':
-    'أنشئ رمز PIN للتطبيق أولًا لتفعيل التحقق الحيوي',
+    '\u0641\u0639\u0651\u0644 \u0642\u0641\u0644 \u0627\u0644\u0634\u0627\u0634\u0629 \u0623\u0648 \u0627\u0644\u0628\u0635\u0645\u0629 \u0645\u0646 \u0625\u0639\u062F\u0627\u062F\u0627\u062A \u062C\u0647\u0627\u0632\u0643 \u0623\u0648\u0644\u064B\u0627',
   'appShell.security.sections.appLock': 'قفل التطبيق',
   'appShell.security.sections.privacy': 'الخصوصية',
   'appShell.security.sections.activity': 'نشاط الحساب',
@@ -633,7 +670,7 @@ const ar: MessageCatalog = {
   'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
   'appShell.networkNotice.title': 'أنت غير متصل بالإنترنت',
   'appShell.networkNotice.message':
-    'تحقّق من اتصال Wi-Fi أو بيانات الهاتف، ثم حاول مرة أخرى.',
+    'يمكنك تصفح المعلومات المحفوظة. تتطلب العمليات عبر الخادم اتصالًا.',
   'appShell.networkNotice.stale':
     'قد تكون الأرصدة والمعاملات المعروضة غير محدثة.',
   'appShell.networkNotice.retry': 'إعادة المحاولة',
@@ -651,7 +688,6 @@ const ar: MessageCatalog = {
   'appShell.recovery.restart': 'ابدأ من جديد',
   'appShell.recovery.wait': 'انتظر ثم أعد المحاولة',
   'appShell.recovery.changeMethod': 'استخدم طريقة أخرى',
-  'appShell.recovery.usePin': 'استخدم رمز PIN',
   'appShell.error.offline': 'الاتصال غير متاح.',
   'appShell.error.cancelled': 'تم إلغاء الإجراء.',
   'appShell.error.expired': 'انتهت صلاحية هذه الخطوة.',
@@ -757,6 +793,14 @@ const ar: MessageCatalog = {
     'نتيجة الحفظ غير معروفة. أعد المحاولة للتحقق من نفس العملية.',
   'coreFinance.manual.localSave':
     'تعذر حفظ المسودة على هذا الجهاز. لم يُرسل طلب مالي. حاول الحفظ مجددًا.',
+  'coreFinance.manual.editLocalSave':
+    'تعذر حفظ التعديل على هذا الجهاز. ما أدخلته محفوظ في النموذج ولم يُرسل طلب مالي. حاول مجددًا.',
+  'coreFinance.manual.offlineEdit':
+    'يمكن دون اتصال تعديل المبلغ والوصف والتاجر والملاحظة والتاريخ للمصروفات والإيرادات المسجلة. أبقِ النوع والحساب والعملة والتصنيف والوجهة والرسوم كما هي، أو اتصل لتعديلها.',
+  'coreFinance.manual.offlineCreate':
+    'يمكن دون اتصال إضافة المصروفات والإيرادات. اتصل بالإنترنت لحفظ هذا النوع من المعاملات.',
+  'coreFinance.manual.localCreateEdit':
+    'تعديل المعاملات التي أُضيفت دون اتصال غير مدعوم حاليًا. معاملتك المحفوظة باقية على الجهاز.',
   'coreFinance.manual.savedRefresh':
     'تم الحفظ. أعد المحاولة لتحديث القائمة وإكمال التنظيف.',
   'coreFinance.manual.reconcile':
@@ -1561,6 +1605,8 @@ const ar: MessageCatalog = {
   'planning.action.edit': 'تعديل',
   'planning.action.save': 'حفظ',
   'planning.action.next': 'التالي',
+  'planning.budget.savedDraftOnly': 'مسودة محفوظة. اتصل بالإنترنت للتحقق من الميزانية قبل حفظها.',
+  'planning.action.resumeDraft': 'متابعة المسودة المحفوظة',
   'planning.action.retry': 'إعادة المحاولة',
   'planning.action.undo': 'تراجع',
   'planning.action.keepLocal': 'الاحتفاظ بنسخة هذا الجهاز',
@@ -1811,6 +1857,11 @@ const ar: MessageCatalog = {
   'planning.paymentMatch.status.resolved': 'تم الحل',
   'planning.paymentMatch.status.ignored': 'تم التجاهل',
   'reports.title': 'التقارير',
+  'reports.period.chooseMonth': 'اختر الفترة الشهرية',
+  'reports.period.otherMonth': 'فترة شهرية أخرى',
+  'reports.period.monthlyHint':
+    'التقارير متاحة لفترات شهرية كاملة. اختر تاريخًا داخل الفترة المطلوبة.',
+  'reports.period.month': 'تاريخ داخل الفترة الشهرية',
   'reports.analytics.title': 'التحليلات',
   'reports.analytics.netWorth': 'صافي الثروة',
   'reports.analytics.cashFlow': 'التدفق المالي',
@@ -1992,6 +2043,8 @@ const ar: MessageCatalog = {
   'notifications.center.countSuffix': 'إشعارات',
   'notifications.center.loading': 'جار تحميل الإشعارات',
   'notifications.center.offline': 'الإشعارات غير متاحة دون اتصال',
+  'notifications.center.actionUnavailable':
+    'تعذر تأكيد هذا الإجراء. أعد الاتصال وحدّث الإشعارات قبل المحاولة مجددًا.',
   'notifications.center.retry': 'إعادة المحاولة',
   'notifications.center.empty': 'لا توجد إشعارات',
   'notifications.center.deleteTitle': 'حذف الإشعار',
@@ -2088,6 +2141,10 @@ const ar: MessageCatalog = {
   'assistant.ask.placeholder': 'اكتب سؤالك هنا...',
   'assistant.chat.placeholder': 'اكتب رسالتك هنا...',
   'assistant.suggestions.header': 'اقتراحات سريعة',
+  'assistant.unsent.title': 'تجاهل السؤال غير المرسل؟',
+  'assistant.unsent.message': 'سيتم حذف نص السؤال إذا غادرت هذه الشاشة.',
+  'assistant.unsent.keep': 'متابعة الكتابة',
+  'assistant.unsent.discard': 'تجاهل السؤال',
   'assistant.privacy.note':
     'خصوصيتك أولوية. بياناتك آمنة ولا تُستخدم إلا بموافقتك.',
   'assistant.suggestions.spending': 'كم أنفقت هذا الشهر؟',
@@ -2652,6 +2709,9 @@ const ar: MessageCatalog = {
   'subscriptions.operation.cancelled': 'ملغاة',
   'support.report.transaction': 'إبلاغ الدعم عن معاملة',
   'support.ticket.status.open': 'مفتوحة',
+  'support.ticket.status.submitted': 'تم الإرسال',
+  'support.ticket.status.waiting_user': 'بانتظار ردك',
+  'support.ticket.status.waiting_support': 'بانتظار رد الدعم',
   'support.ticket.status.in_progress': 'قيد المعالجة',
   'support.ticket.status.resolved': 'تم حلها',
   'support.ticket.status.closed': 'مغلقة',
@@ -2677,6 +2737,14 @@ const ar: MessageCatalog = {
   'recentAuth.retry': 'إعادة محاولة التحقق',
   'recentAuth.failed':
     'تعذّر إكمال التحقق. تأكد من الرمز أو كلمة المرور والاتصال. يجب أن يدعم حسابك التحقق بالرمز أو كلمة المرور.',
+  'logout.pendingTitle': 'إكمال تسجيل الخروج',
+  'logout.pendingBody':
+    'لم يكتمل تسجيل الخروج. يظل الوصول المحلي متوقفًا حتى يكتمل حذف البيانات بأمان.',
+  'logout.originalSessionUnavailable':
+    'تعذّر التحقق من الجلسة الأصلية. حُفظت بياناتك. أعد المحاولة عندما تكون الجلسة متاحة.',
+  'logout.retry': 'إعادة محاولة تسجيل الخروج',
+  'logout.retrying': 'جارٍ التحقق من تسجيل الخروج…',
+  'logout.retryFailed': 'لا يزال تسجيل الخروج معلقًا. حُفظت بياناتك المحلية.',
   'logout.unsyncedTitle': 'يوجد عمل غير متزامن',
   'logout.unsyncedBody':
     'بعض التغييرات أو المسودات أو رسائل التتبع أو العمليات الصوتية لم تتزامن، أو تعذّر التحقق من حالتها. ابقَ مسجّلًا لإعادة المحاولة، أو احذف بيانات هذا الجهاز المحلية وسجّل الخروج. لا يمكن استعادة العمل غير المتزامن المحذوف من الخادم.',

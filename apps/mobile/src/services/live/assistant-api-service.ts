@@ -520,20 +520,22 @@ export function createLiveAssistantApiService(
           : ownerCode === 'AI_CONSENT_REQUIRED' ||
               ownerCode === 'AI_CONSENT_POLICY_STALE'
             ? 'consent_required'
-            : ownerCode === 'AI_QUOTA_EXCEEDED' ||
-                ownerCode === 'AI_BUDGET_EXHAUSTED'
-              ? 'limit_reached'
-              : ownerCode === 'AI_ACTION_CONFLICT' ||
-                  ownerCode === 'AI_CONVERSATION_CONFLICT' ||
-                  response.status === 409
-                ? 'conflict'
-                : ownerCode === 'AI_UNAVAILABLE' ||
-                    ownerCode === 'AI_TEMPORARILY_UNAVAILABLE' ||
-                    response.status === 503
-                  ? 'assistant_disabled'
-                  : response.status === 404
-                    ? 'not_found'
-                    : 'representative_failure';
+            : response.status === 403
+              ? 'forbidden'
+              : ownerCode === 'AI_QUOTA_EXCEEDED' ||
+                  ownerCode === 'AI_BUDGET_EXHAUSTED'
+                ? 'limit_reached'
+                : ownerCode === 'AI_ACTION_CONFLICT' ||
+                    ownerCode === 'AI_CONVERSATION_CONFLICT' ||
+                    response.status === 409
+                  ? 'conflict'
+                  : ownerCode === 'AI_UNAVAILABLE' ||
+                      ownerCode === 'AI_TEMPORARILY_UNAVAILABLE' ||
+                      response.status === 503
+                    ? 'assistant_disabled'
+                    : response.status === 404
+                      ? 'not_found'
+                      : 'representative_failure';
       throw new AssistantApiError(
         mapped,
         [],

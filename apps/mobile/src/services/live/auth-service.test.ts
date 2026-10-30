@@ -1,6 +1,33 @@
+import { useAppShellStore } from '@/state/app-shell';
+import { z } from 'zod';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { OnboardingProgress } from '@/domain/app-shell';
+import { userProfileSchema, type UserProfile } from '@/domain/settings';
+import { createAuthService } from '@/features/auth/auth-flow';
+import { HttpError, requestJson } from './http-client';
+import * as httpClient from './http-client';
+import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
+import { createLiveAssistantApiService } from './assistant-api-service';
+import { createLiveVoiceApiService } from './voice-api-service';
+import * as phoneNotifications from '@/services/platform/phone-notification-service';
+import { usePreferenceStore } from '@/state/preferences';
+import {
+  captureLiveAssistantClerkIdentity,
+  captureLiveClerkIdentity,
+  captureLiveClerkOwner,
+  captureLiveReadClerkIdentity,
+  getLiveClerkToken,
+  createLiveAuthService,
+  createLiveIdentityService,
+  registerLiveClerkBridge
+} from './auth-service';
 const mockDatabases = new Map<string, ReturnType<typeof mockMakeDatabase>>();
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
 function mockMakeDatabase() {
-  const { DatabaseSync } = require('node:sqlite');
+  const { DatabaseSync } = jest.requireActual('node:sqlite');
   const native = new DatabaseSync(':memory:');
   native.exec(
     'CREATE TABLE voice_operation_journal(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
@@ -42,35 +69,13 @@ jest.mock('@/storage/database', () => ({
 afterAll(() => {
   for (const db of mockDatabases.values()) db.native.close();
 });
-import { z } from 'zod';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
-import type { OnboardingProgress } from '@/domain/app-shell';
-import { userProfileSchema, type UserProfile } from '@/domain/settings';
-import { createAuthService } from '@/features/auth/auth-flow';
-import { HttpError, requestJson } from './http-client';
-import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
-import { createLiveAssistantApiService } from './assistant-api-service';
-import { createLiveVoiceApiService } from './voice-api-service';
-import * as phoneNotifications from '@/services/platform/phone-notification-service';
-import { usePreferenceStore } from '@/state/preferences';
 jest.mock('expo-crypto', () => ({
-  randomUUID: () => require('node:crypto').randomUUID()
+  randomUUID: () => jest.requireActual<typeof import('node:crypto')>('node:crypto').randomUUID()
 }));
 jest.mock('@/config/mobile-automation', () => ({
   isMobileAutomationEnabled: jest.fn(() => false)
 }));
-import {
-  captureLiveAssistantClerkIdentity,
-  captureLiveClerkIdentity,
-  captureLiveClerkOwner,
-  captureLiveReadClerkIdentity,
-  getLiveClerkToken,
-  createLiveAuthService,
-  createLiveIdentityService,
-  registerLiveClerkBridge
-} from './auth-service';
 
 const liveSession = {
   id: 'sess_live_123456',
@@ -326,17 +331,20 @@ test('hydrates owner-bound local work without contacting the token service', asy
 
 test('preserves cached reads across a bridge refresh for the same active session', async () => {
   let release!: (token: string) => void;
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
   const bridge = clerkBridge({
     getToken: jest.fn(
       () =>
         new Promise<string>((resolve) => {
           release = resolve;
+          entered();
         })
     )
   });
   registerLiveClerkBridge(bridge);
   const pending = captureLiveReadClerkIdentity();
-  await Promise.resolve();
+  await started;
   registerLiveClerkBridge(clerkBridge());
   release('original-token');
   await expect(pending).resolves.toMatchObject({
@@ -396,19 +404,22 @@ test.each([
 
 test('shares pending cached read authentication while keeping mutations freshly authenticated', async () => {
   let release!: (token: string) => void;
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
   const getToken = jest
     .fn()
     .mockImplementationOnce(
       () =>
         new Promise<string>((resolve) => {
           release = resolve;
+          entered();
         })
     )
     .mockResolvedValue('fresh-mutation-token');
   registerLiveClerkBridge(clerkBridge({ getToken }));
   const first = captureLiveReadClerkIdentity();
   const second = captureLiveReadClerkIdentity();
-  await Promise.resolve();
+  await started;
   release('cached-read-token');
   await expect(first).resolves.toMatchObject({
     token: 'cached-read-token',
@@ -465,7 +476,7 @@ test('reads the startup profile with valid cached tokens instead of forcing netw
   const bridge = clerkBridge();
   registerLiveClerkBridge(bridge);
   jest
-    .spyOn(require('./http-client'), 'requestJson')
+    .spyOn(httpClient, 'requestJson')
     .mockResolvedValueOnce({
       id: liveSession.userId,
       displayName: 'Network name',
@@ -1887,4 +1898,159 @@ it('reads a ready export with a validated HTTPS signed download link', async () 
   await expect(service.getPrivacyExport(value.id)).rejects.toMatchObject({
     code: 'contract_mismatch'
   });
+});
+
+
+test.each([
+  ['read', captureLiveReadClerkIdentity],
+  ['assistant', captureLiveAssistantClerkIdentity]
+] as const)(
+  '%s cached-only reads stay offline while Clerk has not restored its session, without losing local authorization',
+  async (_kind, capture) => {
+    const previousSession = useAppShellStore.getState().session;
+    const previousLock = useAppShellStore.getState().privacyLock;
+    const bridge = clerkBridge({ getSession: jest.fn(async () => null) });
+    registerLiveClerkBridge(bridge);
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: liveSession.userId,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'local'
+      },
+      privacyLock: {
+        enabled: true,
+        autoLockDuration: 'immediate',
+        appLockStatus: 'unlocked'
+      }
+    });
+    try {
+      await expect(capture()).rejects.toMatchObject({
+        code: 'provider_unavailable',
+        status: 503
+      });
+      expect(bridge.getToken).not.toHaveBeenCalled();
+    } finally {
+      useAppShellStore.setState({
+        session: previousSession,
+        privacyLock: previousLock
+      });
+    }
+  }
+);
+
+test.each([
+  ['read', captureLiveReadClerkIdentity],
+  ['assistant', captureLiveAssistantClerkIdentity]
+] as const)(
+  '%s cached-only read fallback cannot pass a locked privacy gate',
+  async (_kind, capture) => {
+    const previousSession = useAppShellStore.getState().session;
+    const previousLock = useAppShellStore.getState().privacyLock;
+    registerLiveClerkBridge(
+      clerkBridge({ getSession: jest.fn(async () => null) })
+    );
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: liveSession.userId,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'local'
+      },
+      privacyLock: {
+        enabled: true,
+        autoLockDuration: 'immediate',
+        appLockStatus: 'locked'
+      }
+    });
+    try {
+      await expect(capture()).rejects.toMatchObject({
+        code: 'session_expired',
+        status: 401
+      });
+    } finally {
+      useAppShellStore.setState({
+        session: previousSession,
+        privacyLock: previousLock
+      });
+    }
+  }
+);
+
+test.each([
+  ['read', captureLiveReadClerkIdentity],
+  ['assistant', captureLiveAssistantClerkIdentity]
+] as const)(
+  '%s credentials cannot cross from a different Clerk owner into the displayed owner scope',
+  async (_kind, capture) => {
+    const previousSession = useAppShellStore.getState().session;
+    const bridge = clerkBridge({
+      getSession: jest.fn(async () => ({ ...liveSession, userId: 'owner-b' }))
+    });
+    registerLiveClerkBridge(bridge);
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: liveSession.userId,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'restored'
+      }
+    });
+    try {
+      await expect(capture()).rejects.toMatchObject({
+        code: 'session_expired',
+        status: 401
+      });
+      expect(bridge.getToken).not.toHaveBeenCalled();
+    } finally {
+      useAppShellStore.setState({ session: previousSession });
+    }
+  }
+);
+
+test('cached-only DEV access cannot provide a remote financial credential', async () => {
+  const previousSession = useAppShellStore.getState().session;
+  const previousLock = useAppShellStore.getState().privacyLock;
+  const bridge = clerkBridge();
+  registerLiveClerkBridge(bridge);
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: liveSession.userId,
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 9999999999999,
+      restoration: 'local'
+    },
+    privacyLock: {
+      enabled: true,
+      autoLockDuration: 'immediate',
+      appLockStatus: 'unlocked'
+    }
+  });
+  try {
+    await expect(captureLiveClerkOwner()).resolves.toMatchObject({
+      userId: liveSession.userId
+    });
+    await expect(getLiveClerkToken()).rejects.toMatchObject({
+      code: 'provider_unavailable',
+      status: 503
+    });
+    await expect(captureLiveClerkIdentity()).rejects.toMatchObject({
+      code: 'provider_unavailable',
+      status: 503
+    });
+    expect(bridge.getToken).not.toHaveBeenCalled();
+  } finally {
+    useAppShellStore.setState({
+      session: previousSession,
+      privacyLock: previousLock
+    });
+  }
 });

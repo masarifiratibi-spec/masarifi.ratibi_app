@@ -406,6 +406,7 @@ export interface FinancialPlanningService {
   ): Promise<MutationResult<GoalMovementOutcome>>;
   saveDraft(draft: PlanningDraft): Promise<PlanningDraft>;
   loadDraft(id: string): Promise<PlanningDraft | null>;
+  listDrafts(kind: PlanningDraft['kind']): Promise<PlanningDraft[]>;
   discardDraft(id: string): Promise<void>;
   getConflict(id: string): Promise<PlanningConflict>;
   resolveConflict(

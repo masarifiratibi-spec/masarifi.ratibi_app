@@ -15,6 +15,15 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { useSaveSettingsProfile, useSettingsProfile } from './settings-queries';
 import { colorTokens } from '@/design-system/tokens';
+import { useAppShellStore } from '@/state/app-shell';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+
+type ProfileEdits = {
+  name?: string;
+  email?: string;
+  gender?: 'male' | 'female' | null;
+};
 
 export function ProfileScreen() {
   const theme = useTheme();
@@ -23,23 +32,29 @@ export function ProfileScreen() {
 
   const profile = useSettingsProfile();
   const save = useSaveSettingsProfile();
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const [draft, setDraft] = useState<{
+    ownerId: string | null;
+    edits: ProfileEdits;
+    error: string | null;
+  }>({ ownerId, edits: {}, error: null });
+  const edits = draft.ownerId === ownerId ? draft.edits : {};
+  const name = edits.name ?? profile.data?.name ?? '';
+  const email = edits.email ?? profile.data?.email ?? '';
+  const selectedGender =
+    edits.gender === undefined ? (profile.data?.gender ?? null) : edits.gender;
+  const error = draft.ownerId === ownerId ? draft.error : null;
+  const updateDraft = (fields: ProfileEdits, nextError: string | null = null) =>
+    setDraft((current) => ({
+      ownerId,
+      edits: {
+        ...(current.ownerId === ownerId ? current.edits : {}),
+        ...fields
+      },
+      error: nextError
+    }));
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [selectedGender, setSelectedGender] = useState<
-    'male' | 'female' | null
-  >(null);
-
-  React.useEffect(() => {
-    if (profile.data) {
-      setName(profile.data.name ?? '');
-      setEmail(profile.data.email ?? '');
-      setSelectedGender(profile.data.gender ?? 'male');
-    }
-  }, [profile.data]);
-
-  if (profile.isLoading) {
+  if (profile.isLoading && !profile.data) {
     return (
       <StateView
         state="loading"
@@ -48,7 +63,7 @@ export function ProfileScreen() {
     );
   }
 
-  if (profile.isError || !profile.data) {
+  if (!hasReadableSnapshot(profile) || !profile.data) {
     return (
       <StateView
         state="error"
@@ -69,11 +84,11 @@ export function ProfileScreen() {
   const handleSave = () => {
     const trimmedEmail = email.trim();
     if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('settings.profile.validation.email');
+      updateDraft({}, 'settings.profile.validation.email');
       return;
     }
 
-    setError(null);
+    updateDraft({});
     save.mutate({
       input: {
         ...profile.data,
@@ -87,7 +102,7 @@ export function ProfileScreen() {
   };
 
   const handleGenderSelect = (gender: 'male' | 'female') => {
-    setSelectedGender(gender);
+    updateDraft({ gender });
     save.mutate({
       input: { ...profile.data, name, email: email.trim() || null, gender },
       expectedVersion: profile.data.version,
@@ -107,6 +122,7 @@ export function ProfileScreen() {
         onBack={() => router.back()}
         direction={direction}
       />
+      <FinancialRefreshStatus query={profile} />
 
       {/* Profile Hero Presentation */}
       <View style={styles.heroSection}>
@@ -141,12 +157,12 @@ export function ProfileScreen() {
         <FormField
           label={translateDynamic('settings.profile.name')}
           value={name}
-          onChangeText={setName}
+          onChangeText={(value) => updateDraft({ name: value })}
         />
         <FormField
           label={translateDynamic('settings.profile.email')}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(value) => updateDraft({ email: value })}
           errorText={error ? translateDynamic(error) : undefined}
         />
         <ActionButton
@@ -244,6 +260,7 @@ export function ProfileScreen() {
             >
               <Pressable
                 accessibilityRole="button"
+                accessibilityState={{ selected: selectedGender === 'male' }}
                 accessibilityLabel={translateDynamic(
                   'settings.profile.gender.male'
                 )}
@@ -264,6 +281,7 @@ export function ProfileScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
+                accessibilityState={{ selected: selectedGender === 'female' }}
                 accessibilityLabel={translateDynamic(
                   'settings.profile.gender.female'
                 )}

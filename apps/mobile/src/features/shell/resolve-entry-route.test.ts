@@ -7,6 +7,8 @@ import type {
   PrivacyLockPreference
 } from '@/domain/app-shell';
 
+jest.mock('expo', () => ({ ...jest.requireActual('expo'), requireOptionalNativeModule: () => ({ applicationId: 'com.masarifi.mobile.dev' }) }));
+
 const authenticatedSession: AuthenticationSession = {
   status: 'authenticated',
   userId: 'user-live-1',
@@ -17,12 +19,9 @@ const authenticatedSession: AuthenticationSession = {
 };
 
 const unlocked: PrivacyLockPreference = {
-  pinConfigured: true,
-  biometricStatus: 'disabled',
-  autoLockDuration: 'immediate',
-  invalidAttempts: 0,
-  lockedUntil: null,
-  appLockStatus: 'unlocked'
+    enabled: true,
+    autoLockDuration: 'immediate',
+    appLockStatus: 'unlocked'
 };
 
 const base = {
@@ -75,6 +74,10 @@ describe('resolveEntryRoute', () => {
     ).toBe('/(public)/auth-pending');
   });
   test('disabled Staging lock permits only a valid authenticated session without changing stored lock state', () => {
+    const previousEnvironment = { ...process.env };
+    process.env.NODE_ENV = 'development';
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    process.env.EXPO_PUBLIC_APP_VARIANT = 'staging-development';
     process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
     process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
     const locked = { ...unlocked, appLockStatus: 'locked' as const };
@@ -89,9 +92,9 @@ describe('resolveEntryRoute', () => {
         '/(public)/auth-pending'
       );
       expect(locked.appLockStatus).toBe('locked');
+      expect(resolveEntryRoute({ ...base, privacyLock: locked, session: { ...authenticatedSession, restoration: 'local' }, now: 100 })).toBe('/(tabs)/home');
     } finally {
-      delete process.env.EXPO_PUBLIC_APP_LOCK_ENABLED;
-      delete process.env.EXPO_PUBLIC_API_URL;
+      process.env = previousEnvironment;
     }
   });
   test('waits for hydration before evaluating any account state', () => {
@@ -199,4 +202,15 @@ describe('resolveEntryRoute', () => {
     ).toBe('/(onboarding)/profile-setup');
     expect(resolveProtectedAccessGate({ ...base, hydrated: false })).toBe('/');
   });
+});
+
+
+test('identified DEV cached owner opens its preserved local data without an App Lock prompt', () => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { NODE_ENV: 'development', EXPO_PUBLIC_CLIENT_MODE: 'live', EXPO_PUBLIC_APP_VARIANT: 'staging-development', EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com' });
+  try {
+    expect(resolveEntryRoute({ ...base, privacyLock: { enabled: true, autoLockDuration: 'immediate', appLockStatus: 'locked' }, session: { ...authenticatedSession, restoration: 'local' }, now: 100 })).toBe('/(tabs)/home');
+    expect(resolveEntryRoute({ ...base, session: null })).toBe('/(public)/auth-pending');
+    expect(resolveEntryRoute({ ...base, now: 100 })).toBe('/(public)/auth-pending');
+  } finally { process.env = previous; }
 });

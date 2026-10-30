@@ -128,6 +128,9 @@ describe('TrackingStatusJourney', () => {
     expect(
       screen.getByText('Transaction notification tracking')
     ).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(screen.getByTestId('tracking-notification-switch')).toBeEnabled()
+    );
     fireEvent.press(screen.getByTestId('tracking-notification-switch'));
 
     await waitFor(() =>
@@ -163,34 +166,69 @@ describe('TrackingStatusJourney', () => {
     expect(screen.queryByText('Transaction notification tracking')).toBeNull();
   });
 
-  it.each(['sms', 'notification'] as const)('DEF-020 enables only the selected %s source when resuming from both switches off', async source => {
-    mockPermission('granted');
-    jest.spyOn(bankNotificationService, 'getAccessState').mockResolvedValue('granted');
-    jest.spyOn(bankNotificationService, 'setCaptureEnabled').mockResolvedValue();
-    await trackingSourcePreferences.set('sms', true);
-    await trackingSourcePreferences.set('notification', true);
-    const status: TrackingStatusSnapshot = {
-      platform: 'android', mode: 'paused', permissionStatus: 'granted',
-      smsPermissionStatus: 'granted', notificationAccessStatus: 'granted',
-      smsTrackingEnabled: true, notificationTrackingEnabled: true,
-      serviceState: 'healthy', lastDetectedAt: null, lastSuccessfulTransactionId: null,
-      detectedThisMonth: 0, reviewCount: 0, activeKeywordCount: 0, activeSenderCount: 0, lastUpdatedAt: 1
-    };
-    jest.spyOn(automaticTrackingService, 'getStatus').mockImplementation(async () => ({...status}));
-    jest.spyOn(automaticTrackingService, 'setMode').mockImplementation(async mode => {
-      status.mode = mode;
-      return {...status};
-    });
-    renderWithQueryData(<TrackingStatusScreen />, [[automaticTrackingKeys.status, status]]);
-    expect(await screen.findByTestId('tracking-sms-switch')).toHaveProp('accessibilityState', expect.objectContaining({checked: false}));
-    expect(screen.getByTestId('tracking-notification-switch')).toHaveProp('accessibilityState', expect.objectContaining({checked: false}));
-    fireEvent.press(screen.getByTestId(`tracking-${source}-switch`));
-    await waitFor(async () => {
-      expect(await trackingSourcePreferences.load()).toEqual(expect.objectContaining({
-        smsEnabled: source === 'sms', notificationEnabled: source === 'notification'
-      }));
-      expect(status.mode).toBe('automatic_clear');
-    });
-    await trackingSourcePreferences.clear();
-  });
+  it.each(['sms', 'notification'] as const)(
+    'DEF-020 enables only the selected %s source when resuming from both switches off',
+    async (source) => {
+      mockPermission('granted');
+      jest
+        .spyOn(bankNotificationService, 'getAccessState')
+        .mockResolvedValue('granted');
+      jest
+        .spyOn(bankNotificationService, 'setCaptureEnabled')
+        .mockResolvedValue();
+      await trackingSourcePreferences.set('sms', true);
+      await trackingSourcePreferences.set('notification', true);
+      const status: TrackingStatusSnapshot = {
+        platform: 'android',
+        mode: 'paused',
+        permissionStatus: 'granted',
+        smsPermissionStatus: 'granted',
+        notificationAccessStatus: 'granted',
+        smsTrackingEnabled: true,
+        notificationTrackingEnabled: true,
+        serviceState: 'healthy',
+        lastDetectedAt: null,
+        lastSuccessfulTransactionId: null,
+        detectedThisMonth: 0,
+        reviewCount: 0,
+        activeKeywordCount: 0,
+        activeSenderCount: 0,
+        lastUpdatedAt: 1
+      };
+      jest
+        .spyOn(automaticTrackingService, 'getStatus')
+        .mockImplementation(async () => ({ ...status }));
+      jest
+        .spyOn(automaticTrackingService, 'setMode')
+        .mockImplementation(async (mode) => {
+          status.mode = mode;
+          return { ...status };
+        });
+      renderWithQueryData(<TrackingStatusScreen />, [
+        [automaticTrackingKeys.status, status]
+      ]);
+      expect(await screen.findByTestId('tracking-sms-switch')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ checked: false })
+      );
+      expect(screen.getByTestId('tracking-notification-switch')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ checked: false })
+      );
+      await waitFor(() =>
+        expect(screen.getByTestId(`tracking-${source}-switch`)).toBeEnabled()
+      );
+      fireEvent.press(screen.getByTestId(`tracking-${source}-switch`));
+      await waitFor(async () => {
+        expect(await trackingSourcePreferences.load()).toEqual(
+          expect.objectContaining({
+            smsEnabled: source === 'sms',
+            notificationEnabled: source === 'notification'
+          })
+        );
+        expect(status.mode).toBe('automatic_clear');
+      });
+      await trackingSourcePreferences.clear();
+    }
+  );
 });

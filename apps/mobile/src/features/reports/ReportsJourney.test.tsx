@@ -14,6 +14,7 @@ import { renderWithProviders } from '@/test-utils/render';
 import { ReportsScreen } from './ReportsScreen';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { reportsService } from '@/services/reports-service';
+import { usePreferenceStore } from '@/state/preferences';
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn() }
@@ -25,6 +26,61 @@ beforeAll(() => {
 
 afterAll(() => {
   notifyManager.setNotifyFunction((callback) => callback());
+});
+
+test.each(['ar', 'en'] as const)('keeps a right-side PDF action available during report failure without an Export settings route in %s', async (locale) => {
+  changeLocale(locale);
+  const summary = jest.spyOn(reportsService, 'getReport').mockRejectedValue(new Error('offline'));
+  try {
+    const view = renderWithProviders(<ReportsScreen />);
+    const button = await view.findByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' });
+    expect(button).toHaveStyle({ position: 'absolute', right: 16 });
+    expect(within(view.UNSAFE_getByType(ScrollView)).queryByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' })).toBeNull();
+    expect(view.getByTestId('reports-pdf-dock')).toBeTruthy();
+    expect(view.queryByRole('button', { name: locale === 'ar' ? 'تصدير البيانات' : 'Export Data' })).toBeNull();
+    expect(view.queryByText(translate('settings.privacy.localDelete'))).toBeNull();
+  } finally {
+    summary.mockRestore();
+  }
+});
+
+test('reports restricts the picker to monthly periods and refreshes its selection after a cycle preference change', async () => {
+  const previous = usePreferenceStore.getState().monthStartDay;
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 9, 12));
+  changeLocale('en');
+  usePreferenceStore.setState({ monthStartDay: 1, timeZone: 'Asia/Riyadh' });
+  useReportsViewState.setState({ followToday: false, anchorDate: '2026-08-09', selectedKind: 'monthly' });
+  const view = renderWithProviders(<ReportsScreen />);
+  try {
+    fireEvent.press(await view.findByRole('button', { name: 'August 2026' }));
+    expect(view.queryByTestId('date-period-option-today')).toBeNull();
+    expect(view.getByTestId('date-period-option-thisMonth')).toHaveAccessibilityState({ selected: true });
+    act(() => usePreferenceStore.setState({ monthStartDay: 25 }));
+    expect(view.getByTestId('date-period-option-thisMonth')).toHaveAccessibilityState({ selected: true });
+  } finally {
+    view.unmount();
+    usePreferenceStore.setState({ monthStartDay: previous });
+    clock.mockRestore();
+  }
+});
+
+test('keeps the complete cycle heading stable when the same non-calendar month is selected again', async () => {
+  const previous = usePreferenceStore.getState().monthStartDay;
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 29, 12));
+  changeLocale('en');
+  usePreferenceStore.setState({monthStartDay: 25, timeZone: 'Asia/Riyadh'});
+  useReportsViewState.setState({followToday: false, anchorDate: '2026-08-29', selectedKind: 'monthly'});
+  const view = renderWithProviders(<ReportsScreen />);
+  const heading = '25 August – 24 September 2026';
+  try {
+    fireEvent.press(await view.findByRole('button', {name: heading}));
+    fireEvent.press(view.getByTestId('date-period-option-thisMonth'));
+    expect(view.getByRole('button', {name: heading})).toBeTruthy();
+  } finally {
+    view.unmount();
+    usePreferenceStore.setState({monthStartDay: previous});
+    clock.mockRestore();
+  }
 });
 
 test.each(['ar', 'en'] as const)(

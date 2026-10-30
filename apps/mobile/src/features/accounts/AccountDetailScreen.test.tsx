@@ -24,8 +24,8 @@ jest.mock('expo-router', () => ({
 
 afterEach(() => jest.restoreAllMocks());
 
-it('shows a safe error when the live payoff request is offline', async () => {
-  jest
+it('calculates entered payoff values immediately without a network request', async () => {
+  const remote = jest
     .spyOn(coreFinanceService, 'calculateCreditCardPayoff')
     .mockRejectedValue(new CoreFinanceError('offline'));
   const account = fixtureAccounts[3];
@@ -52,8 +52,11 @@ it('shows a safe error when the live payoff request is offline', async () => {
   );
 
   expect(
-    await screen.findByText(translate('coreFinance.state.error'))
+    await screen.findByText(
+      translateDynamic('coreFinance.accounts.payoff.months', { months: 4 })
+    )
   ).toBeTruthy();
+  expect(remote).not.toHaveBeenCalled();
 });
 
 it('hides the saved minimum payment when financial privacy is enabled', () => {
@@ -168,7 +171,7 @@ it('keeps closed accounts read-only', () => {
   ).toBeNull();
 });
 
-it('opens account activity directly in edit mode', () => {
+it('opens account activity in transaction details', () => {
   const account = fixtureAccounts[0];
   const transaction = fixtureTransactions[0];
   renderWithQueryData(<AccountDetailScreen id={account.id} />, [
@@ -194,9 +197,7 @@ it('opens account activity directly in edit mode', () => {
   ]);
 
   fireEvent.press(screen.getByText(transaction.title));
-  expect(router.push).toHaveBeenCalledWith(
-    `/transactions/${transaction.id}/edit`
-  );
+  expect(router.push).toHaveBeenCalledWith(`/transactions/${transaction.id}`);
 });
 
 it('reuses the RTL transaction card for recent account activity', () => {
@@ -286,3 +287,40 @@ it('shows card terms and calculates an integer-safe payoff', async () => {
     translateDynamic('coreFinance.accounts.payoff.months', { months: 4 })
   );
 });
+
+it.each(['١٠٠', '۱۰۰'])(
+  'calculates the payoff from a localized basis-point rate: %s',
+  async (rate) => {
+    const calculate = jest
+      .spyOn(coreFinanceService, 'calculateCreditCardPayoff')
+      .mockRejectedValue(new CoreFinanceError('offline'));
+    const account = fixtureAccounts[3];
+    renderWithQueryData(<AccountDetailScreen id={account.id} />, [
+      [coreFinanceKeys.account(account.id), account],
+      [coreFinanceKeys.accountBalances(true), []]
+    ]);
+    fireEvent.changeText(
+      screen.getByLabelText(translate('coreFinance.accounts.payoff.balance')),
+      '100'
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(
+        translate('coreFinance.accounts.payoff.rateBasisPoints')
+      ),
+      rate
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(translate('coreFinance.accounts.payoff.payment')),
+      '30'
+    );
+    fireEvent.press(
+      screen.getByText(translate('coreFinance.accounts.payoff.calculate'))
+    );
+    expect(
+      await screen.findByText(
+        translateDynamic('coreFinance.accounts.payoff.months', { months: 4 })
+      )
+    ).toBeTruthy();
+    expect(calculate).not.toHaveBeenCalled();
+  }
+);

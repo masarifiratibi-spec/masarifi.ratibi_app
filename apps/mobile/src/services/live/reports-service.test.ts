@@ -3,6 +3,12 @@ import { createLiveReportsService, ReportsApiError } from './reports-service';
 import { ReportsRepository } from '@/storage/reports-repository';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn()
+}));
+
 const generatedAt = '2026-09-04T00:00:00.000Z';
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), {
@@ -100,6 +106,52 @@ function service(request: jest.Mock) {
 }
 
 describe('live reports strict mapping', () => {
+  it.each([undefined, ['99000000-0000-4000-8000-000000000001']])(
+    'loads the default calendar report with account scope %p from the deployed strict contract',
+    async (accountIds) => {
+      const request = jest.fn(async (url: RequestInfo | URL) => {
+        const allowed = new Set([
+          'type',
+          'period',
+          'anchorDate',
+          'currency',
+          'accountIds'
+        ]);
+        const query = new URL(String(url)).searchParams;
+        return [...query.keys()].every((key) => allowed.has(key))
+          ? json(summary())
+          : json({ code: 'validation_error' }, 400);
+      });
+
+      await expect(
+        service(request).getReport({ ...input, monthStartDay: 1, accountIds })
+      ).resolves.toMatchObject({
+        summary: { expense: { value: { minorUnits: 4_000 } } }
+      });
+      expect(
+        new URL(String(request.mock.calls[0][0])).searchParams.get('accountIds')
+      ).toBe(accountIds?.join(',') ?? null);
+    }
+  );
+
+  it('preserves custom cycle and account scope when the server rejects unsupported parameters', async () => {
+    const request = jest.fn(async (_url: RequestInfo | URL) =>
+      json({ code: 'validation_error' }, 400)
+    );
+
+    await expect(
+      service(request).getReport({
+        ...input,
+        monthStartDay: 15,
+        accountIds: ['account-1']
+      })
+    ).rejects.toBeInstanceOf(ReportsApiError);
+    expect(request).toHaveBeenCalledTimes(1);
+    const query = new URL(String(request.mock.calls[0][0])).searchParams;
+    expect(query.get('monthStartDay')).toBe('15');
+    expect(query.get('accountIds')).toBe('account-1');
+  });
+
   it('cancels a report during authentication without sending a late request', async () => {
     let release!: (token: string) => void;
     const token = new Promise<string>((resolve) => {
@@ -473,6 +525,21 @@ it('creates and pauses a live schedule using server fields and optimistic versio
     expectedVersion: 1,
     enabled: false
   });
+});
+
+it.each(['status', 'download'] as const)('never bypasses or opens a fresh-auth prompt for an old PDF backend policy: %s', async (kind) => {
+  const stepUp = jest.spyOn(recentAuthentication, 'requestRecentAuthentication').mockResolvedValue('must-not-be-requested');
+  const request = jest.fn();
+  if (kind === 'download') request.mockResolvedValueOnce(json(summary()));
+  request.mockResolvedValueOnce(json({ code: 'RECENT_AUTH_REQUIRED' }, 403));
+  try {
+    const service = createLiveReportsService({ baseUrl: 'https://inert.invalid', token: async () => 'old-token', request });
+    const preview = kind === 'download' ? await service.previewOutput({ ...input, language: 'en', detailLevel: 'summary' }) : null;
+    const pending = preview ? service.requestOutput({ kind: 'download', previewId: preview.previewId }, 'stable-pdf-operation') : service.getAttempt('00000000-0000-4000-8000-000000000011');
+    await expect(pending).rejects.toMatchObject({ code: 'report_pdf_policy_pending' });
+    expect(stepUp).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledTimes(kind === 'download' ? 2 : 1);
+  } finally { stepUp.mockRestore(); }
 });
 
 it.each([true, false])(

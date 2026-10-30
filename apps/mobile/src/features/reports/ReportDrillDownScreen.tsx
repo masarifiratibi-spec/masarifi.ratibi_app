@@ -13,6 +13,8 @@ import { router } from 'expo-router';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { StateView } from '@/design-system/components/feedback/StateView';
+import { ReportLocalStatus } from './ReportLocalStatus';
 import { AppIcon, IconBadge } from '@/design-system/icons';
 import {
   borderWidth,
@@ -51,7 +53,8 @@ export function ReportDrillDownScreen() {
   const editFilters = useCoreFinanceViewState((state) => state.editFilters);
   const applyFilters = useCoreFinanceViewState((state) => state.applyFilters);
   const input = useReportInput(selectedKind, anchorDate, currencyCode, selectedAccountId ? [selectedAccountId] : []);
-  const report = useReport(input).data;
+  const reportQuery = useReport(input);
+  const report = reportQuery.data;
   const breakdown =
     report?.breakdowns.find(
       (candidate: ReportBreakdown) =>
@@ -135,6 +138,7 @@ export function ReportDrillDownScreen() {
         </View>
       </SurfaceCard>
 
+      <ReportLocalStatus report={report} />
       {breakdown ? (
         <SurfaceCard style={styles.listCard}>
           <Text
@@ -148,6 +152,7 @@ export function ReportDrillDownScreen() {
           >
             {translateDynamic(breakdown.questionKey)}
           </Text>
+          {breakdown.items.length === 0 ? <StateView state="empty" title={translate('reports.state.empty')} /> : null}
           {breakdown.items.map((item: ReportBreakdownItem, index) => (
             <DrillDownRow
               key={item.id}
@@ -160,7 +165,12 @@ export function ReportDrillDownScreen() {
           ))}
         </SurfaceCard>
       ) : (
-        <StyledText>{translate('reports.state.loading')}</StyledText>
+        <StateView
+          state={reportQuery.isError ? 'error' : reportQuery.isPending ? 'loading' : 'empty'}
+          title={translate(reportQuery.isError ? 'reports.state.error' : reportQuery.isPending ? 'reports.state.loading' : 'reports.state.empty')}
+          actionLabel={reportQuery.isError ? translate('reports.action.retry') : undefined}
+          onAction={() => void reportQuery.refetch()}
+        />
       )}
     </ScrollView>
   );

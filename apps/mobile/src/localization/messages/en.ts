@@ -8,6 +8,50 @@
  */
 
 const en = {
+  'reports.local.basedOn':
+    'Offline · Based on financial data saved on this device',
+  'reports.local.empty':
+    'No financial activity is saved locally for this period.',
+  'reports.local.pending': 'Locally saved records awaiting sync',
+  'reports.local.excluded': 'Excluded records needing review or confirmation',
+  'reports.local.missingRates':
+    'Totals requiring unavailable exchange rates are not shown.',
+  'reports.pdf.internet':
+    'Reports work offline. Connect to the internet to download a PDF.',
+  'reports.pdf.policyPending':
+    'PDF downloading needs the approved server update. No additional identity verification was requested.',
+  'reports.pdf.download': 'Download report PDF',
+  'reports.pdf.generating': 'Preparing your PDF…',
+  'reports.pdf.saving': 'Downloading PDF. Choose a folder to save it.',
+  'reports.pdf.success': 'PDF saved',
+  'reports.pdf.open': 'Open PDF',
+  'reports.pdf.share': 'Share PDF',
+  'reports.pdf.retry': 'Retry',
+  'reports.pdf.failure':
+    'Could not download the PDF. Your report filters were kept. Retry to continue.',
+  'reports.pdf.accountUnsupported':
+    'This account filter cannot be exported. Your filters were kept.',
+  'reports.pdf.periodUnsupported':
+    'The service could not honor this report period or timezone. Your selection was kept.',
+  'reports.pdf.authentication':
+    'Verify your session to download this private report, then retry.',
+  'reports.pdf.cancelled':
+    'PDF was not saved because folder selection was cancelled.',
+  'reports.pdf.nativeUpdate':
+    'This app build needs an update to open or share PDF files. Your saved PDF is still in the folder you selected.',
+  'reports.pdf.processing':
+    'The report is still processing. Retry to check the same request.',
+  'reports.export.title': 'Export Data',
+  'reports.export.format':
+    'ZIP archive · Account data. Report filters do not limit this export.',
+  'reports.export.empty': 'No export requested yet',
+  'reports.export.loading': 'Checking your export…',
+  'reports.export.signIn': 'Sign in to export your account data.',
+  'reports.export.share': 'Share download link',
+  'reports.export.sharePrivacy':
+    'Share only with people you trust. Anyone with this link can download your export until the link expires.',
+  'reports.export.opened.download': 'Download opened',
+  'reports.export.opened.share': 'Sharing options opened',
   'reports.action.more': 'Load more',
   'tracking.background.oemGuidance':
     'On Samsung, check that Masarifi is outside Sleeping apps and battery use allows background activity. Other phones may need Auto-start or background activity enabled in app settings. Reopen Masarifi after changing settings.',
@@ -42,7 +86,7 @@ const en = {
 
   'appShell.networkNotice.title': "You're offline",
   'appShell.networkNotice.message':
-    'Check your Wi-Fi or mobile data connection, then try again.',
+    'You can browse saved information. Online actions need a connection.',
   'appShell.networkNotice.stale':
     'Displayed balances and transactions may be out of date.',
   'appShell.networkNotice.retry': 'Try again',
@@ -230,7 +274,7 @@ const en = {
   'googleAuth.footer':
     'Use the same Google account to return to your finances.',
   'appShell.security.stagingDisabled':
-    'App Lock is temporarily unavailable in this Staging version.',
+    'App Lock prompts are disabled in this development build.',
   // App shell
   'app.title': 'Masarifi & Ratibi',
   'app.foundationTitle': 'Foundation Validation Harness',
@@ -565,23 +609,20 @@ const en = {
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
     'This section is not available in the current build.',
-  'appShell.security.biometricUnlock': 'Unlock with biometrics',
-  'appShell.security.biometricUnavailable': 'Biometrics unavailable',
+  'appShell.security.biometricUnlock': 'Try device authentication again',
+  'appShell.security.biometricUnavailable': 'Device authentication unavailable',
   'appShell.security.biometricCancelled':
-    'Biometric unlock was cancelled. You can try again.',
-  'appShell.security.biometricFailed': 'Biometric unlock failed. Try again.',
+    'Device authentication was cancelled. You can try again.',
+  'appShell.security.biometricFailed':
+    'Device authentication failed. Try again.',
   'appShell.security.biometricLocked':
-    'Biometrics are temporarily locked by your device.',
-  'appShell.security.pin.create': 'Create App PIN',
-  'appShell.security.pin.confirm': 'Confirm App PIN',
-  'appShell.security.pin.current': 'Enter current App PIN',
-  'appShell.security.pin.change': 'Change App PIN',
-  'appShell.security.pin.forgot': 'Forgot App PIN',
-  'appShell.security.pin.invalid': 'The App PIN is not correct.',
-  'appShell.security.pin.mismatch': 'The App PINs do not match.',
-  'appShell.security.pin.reauthenticate':
-    'Verify your account before resetting App Lock.',
+    'Device authentication is temporarily locked by your device.',
   'appShell.security.protectedContent': 'Content protected',
+  'appShell.security.nativeUnlock':
+    'Unlock Masarifi with your device authentication',
+  'appShell.security.nativeLock': 'Use device authentication',
+  'appShell.security.nativeLockSubtitle':
+    'Fingerprint, face or your device PIN, password or pattern. Managed by your device.',
   'appShell.security.settingsTitle': 'Security settings',
   'appShell.security.mockSignOutAll': 'Sign out everywhere',
   'appShell.profile.name': 'Name',
@@ -644,9 +685,7 @@ const en = {
   'appShell.security.biometric.subtitle':
     'Protect the app with your fingerprint or face',
   'appShell.security.biometric.notEnrolled':
-    'Enroll a biometric in your device settings first',
-  'appShell.security.biometric.requiresPin':
-    'Create an App PIN before enabling biometrics',
+    'Set up a device screen lock or biometrics in your device settings first',
   'appShell.security.sections.appLock': 'App Lock',
   'appShell.security.sections.privacy': 'Privacy',
   'appShell.security.sections.activity': 'Account activity',
@@ -684,7 +723,6 @@ const en = {
   'appShell.recovery.restart': 'Start again',
   'appShell.recovery.wait': 'Wait and retry',
   'appShell.recovery.changeMethod': 'Use another method',
-  'appShell.recovery.usePin': 'Use PIN',
   'appShell.error.offline': 'Connection is unavailable.',
   'appShell.error.cancelled': 'The action was cancelled.',
   'appShell.error.expired': 'This step expired.',
@@ -789,6 +827,14 @@ const en = {
     'The save outcome is unknown. Retry to check the same submission.',
   'coreFinance.manual.localSave':
     'Could not save the draft on this device. No financial request was sent. Try saving again.',
+  'coreFinance.manual.editLocalSave':
+    'Could not save the edit on this device. Your input is retained. No financial request was sent. Try again.',
+  'coreFinance.manual.offlineEdit':
+    'Offline edits support the amount, description, merchant, note and date of posted expenses and income. Keep the type, account, currency, category, destination and fee unchanged, or reconnect to edit them.',
+  'coreFinance.manual.offlineCreate':
+    'Offline creation supports expenses and income. Reconnect to save this transaction type.',
+  'coreFinance.manual.localCreateEdit':
+    'Editing transactions created offline is not supported yet. Your saved transaction is retained.',
   'coreFinance.manual.savedRefresh':
     'Saved. Retry to refresh the list and finish cleanup.',
   'coreFinance.manual.reconcile':
@@ -1615,6 +1661,8 @@ const en = {
   'planning.action.edit': 'Edit',
   'planning.action.save': 'Save',
   'planning.action.next': 'Next',
+  'planning.budget.savedDraftOnly': 'Saved draft. Connect to verify this budget before saving.',
+  'planning.action.resumeDraft': 'Resume saved draft',
   'planning.action.retry': 'Retry',
   'planning.action.undo': 'Undo',
   'planning.action.keepLocal': 'Keep this device version',
@@ -1877,6 +1925,11 @@ const en = {
 
   // Reports
   'reports.title': 'Reports',
+  'reports.period.chooseMonth': 'Choose monthly period',
+  'reports.period.otherMonth': 'Another monthly period',
+  'reports.period.monthlyHint':
+    'Reports use complete monthly periods. Choose a date within the period you want.',
+  'reports.period.month': 'Date within monthly period',
   'reports.analytics.title': 'Analytics',
   'reports.analytics.netWorth': 'Net worth',
   'reports.analytics.cashFlow': 'Cash flow',
@@ -2071,6 +2124,8 @@ const en = {
   'notifications.center.countSuffix': 'notifications',
   'notifications.center.loading': 'Loading notifications',
   'notifications.center.offline': 'Notifications are unavailable offline',
+  'notifications.center.actionUnavailable':
+    'This action could not be confirmed. Reconnect and refresh before trying again.',
   'notifications.center.retry': 'Retry',
   'notifications.center.empty': 'No notifications',
   'notifications.center.deleteTitle': 'Delete notification',
@@ -2184,6 +2239,10 @@ const en = {
   'assistant.ask.placeholder': 'Type your question here...',
   'assistant.chat.placeholder': 'Ask about your money...',
   'assistant.suggestions.header': 'Quick Suggestions',
+  'assistant.unsent.title': 'Discard this question?',
+  'assistant.unsent.message': 'Your unsent question will be lost if you leave.',
+  'assistant.unsent.keep': 'Keep editing',
+  'assistant.unsent.discard': 'Discard question',
   'assistant.privacy.note':
     'Your privacy is a priority. Your data is secure and only used with your consent.',
   'assistant.suggestions.spending': 'How much did I spend this month?',
@@ -2647,6 +2706,9 @@ const en = {
   'support.ticket.replyUnavailable':
     'Replies are unavailable for this ticket status.',
   'support.ticket.status.open': 'Open',
+  'support.ticket.status.submitted': 'Submitted',
+  'support.ticket.status.waiting_user': 'Waiting for your reply',
+  'support.ticket.status.waiting_support': 'Waiting for support',
   'support.ticket.status.in_progress': 'In progress',
   'support.ticket.status.resolved': 'Resolved',
   'support.ticket.status.closed': 'Closed',
@@ -2785,6 +2847,15 @@ const en = {
   'recentAuth.retry': 'Try verification again',
   'recentAuth.failed':
     'Verification could not finish. Check your code or password and connection. Your account must support code or password verification.',
+  'logout.pendingTitle': 'Finish signing out',
+  'logout.pendingBody':
+    'Sign-out is incomplete. Local access stays paused until safe cleanup finishes.',
+  'logout.originalSessionUnavailable':
+    'The original session could not be verified. Your data has been kept. Retry when that session is available.',
+  'logout.retry': 'Retry sign-out',
+  'logout.retrying': 'Checking sign-out…',
+  'logout.retryFailed':
+    'Sign-out is still pending. Your local data has been kept.',
   'logout.unsyncedTitle': 'Unsynced work remains',
   'logout.unsyncedBody':
     'Some changes, drafts, tracking messages or voice work have not synced, or their status could not be checked. Stay signed in to retry, or explicitly remove this device’s local data and sign out. Removed unsynced work cannot be restored from the server.',

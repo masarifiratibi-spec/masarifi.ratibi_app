@@ -1,0 +1,276 @@
+{
+  "taskId": "T04",
+  "status": "PASS",
+  "model": {
+    "implementer": "gpt-6.1-sol",
+    "effort": "xhigh",
+    "accessVerified": true,
+    "historicalSubstitution": {
+      "original": "gpt-6.1-sol",
+      "approved": "gpt-6.1-terra",
+      "effort": "high",
+      "authorization": "explicit user request,2026-10-27"
+    },
+    "planner": "gpt-6.1-sol",
+    "plannerEffort": "xhigh",
+    "reviewer": "gpt-6.1-sol",
+    "reviewerEffort": "xhigh",
+    "reviewerAccessVerified": true,
+    "soleResponsibleModel": "gpt-6.1-sol",
+    "soleResponsibleEffort": "xhigh",
+    "routingAuthorization": "latest explicit user request, 2026-10-28: Sol-only ownership for all future work; preserve historical attribution",
+    "executionRoute": "current native gpt-6.1-sol/xhigh invocation verified 2026-10-28; no future delegation; CLI availability not verified"
+  },
+  "workspace": {
+    "path": "D:/Masarifi-integration-2026-10-10",
+    "branch": "codex/voice-promoted-operating-2026-10-13",
+    "sourceCommit": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+    "dirtyDiffSha256": "95f5577da3315a392ff357c1310d5bace6637ea360d537ef346ceb00adcce633",
+    "preservedBaselineVerified": true,
+    "sourceFileHashManifest": {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-t04-final-source-preservation.json",
+      "sha256": "6ebc5d0a8cae3f472c650bcedea19ecce616261808779d6bbe874c315b9a83b9",
+      "includesTrackedChanges": true,
+      "includesUntrackedSource": true
+    }
+  },
+  "scope": {
+    "acceptanceIds": [
+      "2.1",
+      "R5",
+      "R10",
+      "R17",
+      "R18",
+      "R19"
+    ],
+    "approvedQaOwnerReference": "existing user-confirmed QA20 account; private receipts retain identity",
+    "approvedFinancialWrites": [
+      "two exact QA20 note revisions approved by v8 and focused metadata recovery"
+    ],
+    "approvedHostedTarget": "existing Staging qcffvfbpzvpwcwxwjyro",
+    "implementationFiles": []
+  },
+  "automatedChecks": [
+    {
+      "status": "REUSED_NOT_REPEATED",
+      "reference": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/astra-T04-final-review.md",
+      "countsNotAdditive": true
+    },
+    {
+      "status": "PASS",
+      "producer": "Python unittest against exact v4 runner",
+      "tests": 22,
+      "source": "rollout-packet-v4/focused-tests.log",
+      "scope": "Changed runner/lifecycle guards only; existing app/image/financial suites reused without repetition"
+    }
+  ],
+  "physicalDevice": {
+    "required": true,
+    "serial": "f66a40694eca",
+    "model": "23076RN8DY",
+    "androidVersion": "15",
+    "pageSizeBytes": null,
+    "adbStateAtExecution": "connected",
+    "applicability": "Sol personally verifies every mobile-affecting task on the existing Xiaomi",
+    "nonApplicableReason": null,
+    "beforeImplementation": {
+      "status": "PASS_RECORDED_SCOPE",
+      "evidenceReferences": [
+        "sol-t04-v8-approved-device-state.xml",
+        "sol-t04-v8-approved-local-queues.json"
+      ]
+    },
+    "afterImplementation": {
+      "status": "PASS_REQUIRED_SAFE_T04_JOURNEYS_RECORDED_SCOPE",
+      "candidateInstalledOrReloaded": true,
+      "evidenceReferences": [
+        "sol-t04-v8-post-recovery-current-screen.xml",
+        "sol-t04-v8-local-final-settlement.json"
+      ],
+      "destructiveCurrentOwner": "NOT_RUN_PROHIBITED; isolated fixture evidence only",
+      "currentR18": {
+        "device": "existing Xiaomi f66a40694eca",
+        "allThreeOriginalCursorsTypedInvalid": true,
+        "allThreeAutomaticallyBootstrapped": true,
+        "allThreeReplacementDeltaAndAck200": true,
+        "arAndEnAffectedReportReads200": true,
+        "appliedOperations": 12,
+        "retainedDrafts": 1,
+        "financialSubmissionObserved": false,
+        "localeAndNetworkRestored": true,
+        "sameRegisteredOwnerDatabase": true,
+        "oneExistingUnrevokedSessionBoundDevice": true,
+        "noNewDevices": true,
+        "mobileCodeOrInstallationChanged": false
+      }
+    }
+  },
+  "appArtifact": {
+    "package": "com.masarifi.mobile.dev",
+    "versionName": "0.0.1",
+    "versionCode": 1,
+    "apkSha256": null,
+    "certificateSha256": null,
+    "sourceCommit": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+    "metroBundleSource": "existing normal owned Metro; AppLock=true and bound public projection; loaded native-byte hash not newly claimed",
+    "installedAt": null,
+    "nativeLoadedByteProof": "UNVERIFIED; bounded DEV provenance retained; matching standalone qualification belongs to T20-T22"
+  },
+  "runtime": {
+    "apiRevision": "T04-R18-v4 exact two qualified Staging APIs",
+    "schemaRevision": "169 recorded Staging migrations",
+    "providerReceiptReferences": [
+      "sol-t04-v8-final-authoritative-settlement.json"
+    ],
+    "publishedPolicyRevision": "temporary threshold removed; original six-file normal configuration restored",
+    "flags": {
+      "hiddenDeferredFlagsChanged": false
+    },
+    "apiImageIds": {
+      "sync-readiness": "sha256:6569dd9087ab58bed5a3c8dc7ca1d65fcd6354547642f63786af0438939351e0",
+      "reports-ledger": "sha256:a4456b3dc7fc8e883e50879f1f6291aae5140700b0cf1136e2190cc70f5da721"
+    },
+    "syncServiceModuleSha256": "e544771b20c4f6eb7999997708518dfcba84215c71b524ec440bc3852a39acbf",
+    "existingDedicatedKeyActiveOnBoth": true,
+    "workerPolicyUnchanged": true
+  },
+  "userJourneys": [
+    {
+      "journey": "original queued operation through actual human verification",
+      "status": "PASS",
+      "scope": "same hosted row/UUID/body/base, new auth instant, one idempotency/revision"
+    },
+    {
+      "journey": "one distinct NULL-note restoration",
+      "status": "PASS",
+      "scope": "normal private verification, base6, version7, exactly one further effect/revision"
+    },
+    {
+      "journey": "deployed dedicated sync cursor signing key R18",
+      "status": "PASS",
+      "scope": "Exact v4 Staging two-API activation, real typed old-cursor retirement, automatic recovery/delta/ACK and AR/EN reads, preservation verified"
+    }
+  ],
+  "evidence": {
+    "screenshots": [],
+    "redactedAdbLogs": [],
+    "redactedApiTraces": [],
+    "reproductionSteps": [],
+    "observedResults": [],
+    "cleanupAndRestoredSettings": []
+  },
+  "selfReview": {
+    "model": "gpt-6.1-sol",
+    "effort": "xhigh",
+    "independent": false,
+    "codeDecision": "PASS_RUNNER_SELF_REVIEW_PLUS_HISTORICAL_PRODUCT_SOURCE_APPROVAL",
+    "requirementsDecision": "PASS_ALL_SIX_IDS_WITH_PREEXISTING_APPROVED_TEST_BOUNDARIES",
+    "automatedCheckDecision": "PASS_REUSED_QUALIFICATION_PLUS_22_CHANGED_RUNNER_TESTS",
+    "physicalDeviceEvidenceDecision": "PASS_REQUIRED_NONDESTRUCTIVE_REAL_XIAOMI_SCOPE",
+    "regressions": [],
+    "overallDecision": "PASS_RECORDED_SCOPE",
+    "taskDecision": "ACCEPTED_T04",
+    "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/T04/r18-v4-acceptance-2026-10-28.md"
+  },
+  "independentVerificationGate": {
+    "required": true,
+    "riskAndApplicability": "Protected Staging API/key activation and real cursor recovery; Sol review is self-review",
+    "requiredEvidence": [
+      "Exact approved packet",
+      "Image/module/config/scan qualification",
+      "Actual serving runtime/security/key separation",
+      "Actual Xiaomi typed retirement/automatic bootstrap/delta/ACK",
+      "Authoritative financial integrity and protocol metadata reconciliation",
+      "Required specific human approvals"
+    ],
+    "ciResults": [
+      "Historical unchanged applicable CI/native/source tests reused within recorded limits; final standalone/CI tasks T20-T22 remain separate"
+    ],
+    "automatedCheckResults": [
+      "22 changed-runner tests PASS",
+      "Existing qualified-image/runtime/scans and mobile cursor fixtures reused; counts not additive"
+    ],
+    "authoritativeDatabaseEvidence": [
+      {
+        "at": "2026-10-28T19:41:44.834308+00:00",
+        "allSevenCompleteFinancialFingerprintsUnchanged": true,
+        "onlyThreeAckRowsForOneExistingDeviceChanged": true,
+        "qa20AndBalancePreserved": true
+      }
+    ],
+    "requiredHumanApprovals": [
+      {
+        "kind": "v4 exact protected deployment and bounded recovery",
+        "packetSha256": "5c9a1e2833471a5ab66c70c92c44e1e9775dbfc8babcf22f5eba84c2b96a1fcd",
+        "answer": "Approve exact v4 packet; other testing clients remain inactive"
+      },
+      {
+        "kind": "SSH IP refresh only",
+        "source": "176.225.13.117/32",
+        "answer": "Approve this single SSH /32 rule",
+        "allPriorRulesAndPoliciesPreserved": true
+      }
+    ],
+    "candidateIdentityMatched": true,
+    "evidenceProducersAndSources": [
+      "Exact qualified image/runtime/Trivy receipts",
+      "Python unittest changed runner",
+      "Actual Docker/compiled module/loopback HTTP/immutable journal",
+      "Official Hostinger console reconciliation then strict SSH",
+      "Passive real Xiaomi native-network protocol and UI XML",
+      "Supported owner-scoped SQLite SELECT/native preference metadata",
+      "Connected Supabase BEGIN READ ONLY",
+      "Historical independent Astra product-source review retained"
+    ],
+    "decision": "PASS",
+    "limitations": [
+      "No new independent model review claimed",
+      "Current-owner destructive logout/owner-switch/key-loss NOT_RUN_PROHIBITED; approved isolated fixtures retained",
+      "Native loaded-byte hash/standalone release qualification UNVERIFIED and remains T20-T22 scope",
+      "Observed read/auth/session scope only; other clients not reconnected or newly qualified"
+    ]
+  },
+  "blockers": [],
+  "completion": {
+    "automatedChecksPassed": true,
+    "requiredPhysicalUserJourneysPassed": true,
+    "solSelfReviewPassed": true,
+    "requiredIndependentVerificationGatePassed": true,
+    "acceptedAt": "2026-10-28T19:50:59.770Z",
+    "notApplicableCriteria": [],
+    "scopeDispositions": [
+      "All six original acceptance IDs retained",
+      "Destructive current-owner physical cases remain prohibited under original user instruction; fixtures not relabeled device proof",
+      "Final standalone privacy/release proof remains in later tasks"
+    ]
+  },
+  "currentContinuation": {
+    "next": "T05 database compatibility/financial-invariant qualification on existing verified disposable targets; then full T06 and original dependency chain",
+    "notAuthorized": [
+      "Production",
+      "billing",
+      "unreviewed API/secret/worker-policy changes",
+      "Staging schema changes without specific approval",
+      "financial replay/destructive current-owner tests",
+      "new branch/worktree/environment/account",
+      "commit/push/merge without required approval"
+    ],
+    "acceptedPacketSha256": "5c9a1e2833471a5ab66c70c92c44e1e9775dbfc8babcf22f5eba84c2b96a1fcd",
+    "servingCandidateIds": [
+      "5ba09a5b36366ec707726f5e23d73e93b3b36ec0f50147100d4ab51beb3d9747",
+      "e778fb2f00a396b9c570584f8baf50ae6e679d396e9000be342880fd64da3e5a"
+    ],
+    "evidenceDirectory": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/r18-cursor-api-artifact-prep/approved-v4-execution-2026-10-28",
+    "acceptanceDenominators": {
+      "client": 62,
+      "references": 69,
+      "units": 88
+    },
+    "historicalSourceApprovalPreserved": true
+  },
+  "historicalBlockedRecord": {
+    "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/r18-cursor-api-artifact-prep/approved-v4-execution-2026-10-28/T04-evidence-before-acceptance.json",
+    "sha256": "eaa96e295c1da821a6ae84ea7d4b8f25d54403a2c2d657a3ad683e6aa3c3fbdf",
+    "preserved": true
+  }
+}

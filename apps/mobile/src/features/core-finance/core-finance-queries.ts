@@ -63,7 +63,10 @@ export function useHomeSummary(
   });
 }
 
-export function useHomeBalanceSummary(currency: string, accountId: string | null) {
+export function useHomeBalanceSummary(
+  currency: string,
+  accountId: string | null
+) {
   const select = useCallback(
     ({
       accounts,
@@ -154,12 +157,14 @@ export function useAccount(id: string) {
 }
 
 export function useTransactions(
-  filters: TransactionFilterSet = emptyTransactionFilters
+  filters: TransactionFilterSet = emptyTransactionFilters,
+  enabled = true
 ) {
   return useQuery({
     queryKey: coreFinanceKeys.transactions(filters),
     queryFn: ({ signal }) =>
-      coreFinanceService.listTransactions(filters, null, undefined, signal)
+      coreFinanceService.listTransactions(filters, null, undefined, signal),
+    enabled
   });
 }
 
@@ -196,7 +201,8 @@ function* cachedTransactionRows(
   snapshot: unknown
 ): Iterable<Transaction> {
   const [, resource, variant] = key;
-  if (resource === 'home') yield* ((snapshot as Partial<HomeSummary>).recentTransactions ?? []);
+  if (resource === 'home')
+    yield* (snapshot as Partial<HomeSummary>).recentTransactions ?? [];
   else if (resource === 'transactions' && variant === 'home-today') {
     for (const row of snapshot as HomeTodayActivity[]) yield row.transaction;
   } else if (resource === 'transactions' && variant === 'pages') {

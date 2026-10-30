@@ -28,7 +28,7 @@ import { assertReadActive } from '@/services/live/read-context';
 export type ReportTimeframe = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
 export const reportKeys = {
-  live: (input: ReportQuery) => ['reports', 'live', input] as const,
+  live: (input: ReportQuery, owner = useAppShellStore.getState().session?.userId) => ['reports', 'live', owner ?? null, input] as const,
   breakdown: (input: ReportQuery, dimension: string) =>
     ['reports', 'breakdown', input, dimension] as const,
   schedule: ['reports', 'schedule'] as const,
@@ -59,9 +59,13 @@ export const reportKeys = {
 };
 
 export function useReport(input: ReportQuery) {
+  const owner = useAppShellStore(state => state.session?.userId);
   return useQuery({
-    queryKey: reportKeys.live(input),
-    queryFn: ({ signal }) => reportsService.getReport(input, { signal })
+    queryKey: reportKeys.live(input, owner),
+    queryFn: ({ signal }) => reportsService.getReport(input, { signal }),
+    // Read-only recovery replaces the local projection; it never submits or resumes mutations.
+    refetchInterval: query => query.state.data?.dataState === 'offline' ? query.state.error ? 30_000 : 10_000 : false,
+    refetchIntervalInBackground: false
   });
 }
 

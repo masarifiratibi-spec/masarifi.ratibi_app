@@ -22,6 +22,7 @@ export const directionalIconNames = [
 ] as const;
 
 const appIconMap = {
+  pdf: { ios: 'arrow.down.document', android: 'picture_as_pdf', web: 'picture_as_pdf' },
   back: { ios: 'chevron.backward', android: 'arrow_back', web: 'arrow_back' },
   forward: {
     ios: 'chevron.forward',

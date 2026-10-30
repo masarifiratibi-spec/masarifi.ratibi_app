@@ -1,4 +1,5 @@
 import { randomUUID } from 'expo-crypto';
+import { AppState } from 'react-native';
 import { z } from 'zod';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -20,6 +21,18 @@ import type {
 } from '@/services/contracts/core-finance-service';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
+import { useAppShellStore } from '@/state/app-shell';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+import {
+  assertNoQueuedTransactionMutation,
+  readTransactionEditJournal,
+  writeTransactionEditJournal,
+  deleteTransactionEditJournal,
+  uncertainEdit,
+  type TransactionEditJournal,
+  type TransactionEditGuard
+} from '@/storage/transaction-edit-journal';
+import type { DraftOwner } from '@/storage/transaction-draft-snapshots';
 import {
   readTransactionDraft,
   writeTransactionDraft,
@@ -28,7 +41,7 @@ import {
 import { CoreFinanceSyncAdapter } from '@/storage/core-finance-sync-adapter';
 import { openDatabase } from '@/storage/database';
 import { SyncRepository } from '@/storage/sync-repository';
-import { SyncHttpService } from '@/services/contracts/sync-service';
+import { SyncHttpService, SyncServiceError } from '@/services/contracts/sync-service';
 import {
   captureLiveClerkIdentity,
   captureLiveClerkOwner,
@@ -243,7 +256,8 @@ export function createLiveLedgerService({
   baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '',
   request = fetch,
   drafts = new CoreFinanceRepository(),
-  categoryIds
+  categoryIds,
+  offlineUpdate
 }: {
   baseUrl?: string;
   request?: typeof fetch;
@@ -253,6 +267,12 @@ export function createLiveLedgerService({
     toServer(id: string): string;
     toLocal(id: string): string;
   };
+  offlineUpdate?: (
+    id: string,
+    input: TransactionInput,
+    owner: DraftOwner,
+    assertSafe: TransactionEditGuard
+  ) => Promise<MutationResult<Transaction> | null>;
 } = {}): LedgerService {
   const ownerRepositories = new Map<
     string,
@@ -407,12 +427,36 @@ export function createLiveLedgerService({
   });
   const detailTransaction = (value: unknown) =>
     localTransaction(transactionFromDetail(value));
-  const current = (id: string) =>
-    send(
+  const transactionIds = async (id: string, owner: DraftOwner) => {
+    const queue = new SyncRepository(await openDatabase(owner.userId));
+    const serverId = await queue.serverId('transactions', id);
+    const localId = await queue.localId('transactions', serverId);
+    await owner.assertCurrent();
+    return { serverId, localId };
+  };
+  const mappedTransaction = async (transaction: Transaction, owner: DraftOwner) => {
+    const ids = await transactionIds(transaction.id, owner);
+    return { ...transaction, id: ids.localId };
+  };
+  const current = async (
+    id: string,
+    identity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>
+  ) => {
+    const owner = identity ?? (await captureLiveClerkOwner());
+    const ids = await transactionIds(id, owner);
+    const detail = await send(
       'GET',
-      `/api/v1/transactions/${encodeURIComponent(id)}`,
-      detailSchema
-    ).then(detailTransaction);
+      `/api/v1/transactions/${encodeURIComponent(ids.serverId)}`,
+      detailSchema,
+      undefined,
+      undefined,
+      undefined,
+      identity
+    );
+    await owner.assertCurrent();
+    if (detail.transaction.id !== ids.serverId) throw new HttpError('contract_mismatch', 502);
+    return { ...detailTransaction(detail), id: ids.localId };
+  };
   const mutationResult = (value: Transaction): MutationResult<Transaction> => ({
     value,
     affectedScopes: transactionScopes(value.id)
@@ -517,7 +561,8 @@ export function createLiveLedgerService({
         (id) => categoryIds?.toLocal(id) ?? id
       )
     };
-    const items = projected.filter((item) =>
+    const stable = await Promise.all(projected.map(transaction => mappedTransaction(transaction, owner)));
+    const items = stable.filter((item) =>
       matchesFilters(item, localFilters)
     );
     return { items, nextCursor: page.nextCursor };
@@ -532,9 +577,10 @@ export function createLiveLedgerService({
           signal,
           listTransactions,
           readSignedEffect: async (transaction) => {
+            const ids = await transactionIds(transaction.id, owner);
             const detail = await send(
               'GET',
-              `/api/v1/transactions/${transaction.id}`,
+              `/api/v1/transactions/${ids.serverId}`,
               detailSchema,
               undefined,
               undefined,
@@ -542,7 +588,7 @@ export function createLiveLedgerService({
             );
             if (
               detail.transaction.version !== transaction.version ||
-              detail.transaction.id !== transaction.id ||
+              detail.transaction.id !== ids.serverId ||
               detail.transaction.currency !== transaction.currencyCode ||
               detail.postings.some(
                 (posting) => posting.clearingState !== 'confirmed'
@@ -583,6 +629,9 @@ export function createLiveLedgerService({
     },
     getTransaction: current,
     async getRemainingRefundableMinor(originalTransactionId, excludedRefundId) {
+      const owner = await captureLiveClerkOwner();
+      const originalIds = await transactionIds(originalTransactionId, owner);
+      const excludedIds = excludedRefundId ? await transactionIds(excludedRefundId, owner) : null;
       const original = await current(originalTransactionId);
       if (original.type !== 'expense') throw new CoreFinanceError('validation');
       let refunded = 0;
@@ -598,8 +647,8 @@ export function createLiveLedgerService({
         );
         for (const item of page.items)
           if (
-            item.id !== excludedRefundId &&
-            item.originalTransactionId === originalTransactionId &&
+            item.id !== excludedIds?.serverId &&
+            item.originalTransactionId === originalIds.serverId &&
             item.status !== 'deleted'
           ) {
             refunded += item.amountMinor;
@@ -625,7 +674,8 @@ export function createLiveLedgerService({
         return mutationResult(result);
       }
       if (value.type === 'refund' || value.type === 'reversal') {
-        const originalId = value.originalTransactionId!;
+        const owner = await captureLiveClerkOwner();
+        const { serverId: originalId } = await transactionIds(value.originalTransactionId!, owner);
         const result = await mutate(
           `${value.type}:${originalId}:${JSON.stringify(value)}:${preparedVersion ?? ''}`,
           async () => preparedVersion ?? (await current(originalId)).version,
@@ -655,6 +705,7 @@ export function createLiveLedgerService({
       }
       if (value.type !== 'income' && value.type !== 'expense')
         throw new CoreFinanceError('validation');
+      const creatingOwner = await captureLiveClerkOwner();
       const body = {
         kind: value.type,
         amountMinor: value.amountMinor,
@@ -671,6 +722,8 @@ export function createLiveLedgerService({
         `transaction:create:${JSON.stringify(body)}`,
         async () => undefined,
         async ({ operationId: key }, identity) => {
+          await creatingOwner.assertCurrent();
+          if (identity.userId !== creatingOwner.userId) throw new HttpError('session_expired', 401);
           await categoryIds?.prepare();
           return send(
             'POST',
@@ -684,7 +737,8 @@ export function createLiveLedgerService({
         },
         operationId
       );
-      return mutationResult(detailTransaction(result.transaction));
+      await creatingOwner.assertCurrent();
+      return mutationResult(await mappedTransaction(detailTransaction(result.transaction), creatingOwner));
     },
     async createCardPayoff(input, operationId) {
       const transfer: TransactionInput = {
@@ -789,11 +843,56 @@ export function createLiveLedgerService({
     },
     async updateTransaction(id, input) {
       const next = transactionInputSchema.parse(input);
-      const result = await mutate(
-        `transaction:update:${id}:${JSON.stringify(next)}`,
-        async () => (await current(id)).version,
-        async ({ operationId, expectedVersion }) => {
-          const prior = await current(id);
+      const initiatingUserId = useAppShellStore.getState().session?.userId;
+      const owner = await captureLiveClerkOwner();
+      if (initiatingUserId && initiatingUserId !== owner.userId)
+        throw new HttpError('session_expired', 401);
+      let ids: Awaited<ReturnType<typeof transactionIds>>;
+      try { ids = await transactionIds(id, owner); }
+      catch { throw uncertainEdit(); }
+      id = ids.localId;
+      const resourceKey = `${owner.userId}:transaction:update:${id}`;
+      if (inFlight.has(resourceKey)) throw uncertainEdit();
+      const operation = (async () => {
+        let journal: TransactionEditJournal | null;
+        try {
+          journal = await readTransactionEditJournal(owner, id);
+        } catch {
+          throw uncertainEdit();
+        }
+        const replaying = journal !== null;
+        const assertSafe: TransactionEditGuard = async (database) => {
+          await owner.assertCurrent();
+          if (
+            journal ||
+            pending.has(resourceKey) ||
+            (await readTransactionEditJournal(owner, id, database))
+          )
+            throw uncertainEdit();
+        };
+        const queued = await offlineUpdate?.(id, next, owner, assertSafe);
+        await owner.assertCurrent();
+        if (queued) return queued;
+        try {
+          await assertNoQueuedTransactionMutation(owner, id);
+        } catch {
+          throw uncertainEdit();
+        }
+        if (journal && JSON.stringify(journal.input) !== JSON.stringify(next))
+          throw uncertainEdit();
+        let identity: Awaited<ReturnType<typeof captureLiveClerkIdentity>>;
+        try {
+          identity = await captureLiveClerkIdentity();
+        } catch (error) {
+          if (journal) throw uncertainEdit();
+          throw error;
+        }
+        await owner.assertCurrent();
+        if (identity.userId !== owner.userId) throw uncertainEdit();
+        if (!journal) {
+          await categoryIds?.prepare();
+          await owner.assertCurrent();
+          const prior = await current(id, identity);
           if (
             (prior.type !== next.type &&
               (prior.source !== 'manual' ||
@@ -806,7 +905,7 @@ export function createLiveLedgerService({
           )
             throw new CoreFinanceError('validation');
           const body: Record<string, unknown> = {
-            expectedVersion,
+            expectedVersion: prior.version,
             reason: 'Mobile edit'
           };
           if (prior.type !== next.type) body.kind = next.type;
@@ -821,16 +920,93 @@ export function createLiveLedgerService({
           ] as const)
             if (value !== prior[field === 'note' ? 'notes' : field])
               body[field] = value;
-          return send(
-            'PATCH',
-            `/api/v1/transactions/${encodeURIComponent(id)}`,
-            mutationSchema,
-            body,
-            operationId
-          );
+          if (typeof body.categoryId === 'string')
+            body.categoryId =
+              categoryIds?.toServer(body.categoryId) ?? body.categoryId;
+          journal = {
+            version: 1,
+            resourceId: id,
+            serverResourceId: ids.serverId,
+            operationId: randomUUID(),
+            input: next,
+            body: body as TransactionEditJournal['body']
+          };
+          try {
+            await writeTransactionEditJournal(owner, journal);
+          } catch (error) {
+            if (error instanceof CoreFinanceError || error instanceof HttpError)
+              throw error;
+            throw new CoreFinanceError('unknown', {
+              domainCode: 'LOCAL_PERSISTENCE_FAILED',
+              uncertain: false
+            });
+          }
         }
-      );
-      return mutationResult(detailTransaction(result.transaction));
+        pending.set(resourceKey, {
+          operationId: journal.operationId,
+          expectedVersion: journal.body.expectedVersion,
+          prepared: true
+        });
+        try {
+          await owner.assertCurrent();
+          const receipt = await requestJson(
+            `/api/v1/transactions/${encodeURIComponent(journal.serverResourceId ?? ids.serverId)}`,
+            mutationSchema,
+            {
+              baseUrl,
+              request,
+              method: 'PATCH',
+              body: journal.body,
+              token: identity.token,
+              headers: { 'Idempotency-Key': journal.operationId }
+            }
+          );
+          const serverTransaction = detailTransaction(receipt.transaction);
+          if (serverTransaction.id !== (journal.serverResourceId ?? ids.serverId)) throw new HttpError('contract_mismatch', 502);
+          const updated = { ...serverTransaction, id };
+          await owner.assertCurrent();
+          await deleteTransactionEditJournal(owner, journal, (transaction) =>
+            drafts.persistAcknowledgedTransaction(updated, transaction)
+          );
+          pending.delete(resourceKey);
+          return mutationResult(updated);
+        } catch (error) {
+          if (
+            error instanceof HttpError &&
+            !replaying &&
+            ![
+              'provider_unavailable',
+              'internal_error',
+              'contract_mismatch'
+            ].includes(error.code) &&
+            !['IDEMPOTENCY_IN_PROGRESS', 'LEDGER_BUSY'].includes(
+              error.domainCode ?? ''
+            )
+          ) {
+            try {
+              await deleteTransactionEditJournal(owner, journal);
+            } catch {
+              throw uncertainEdit();
+            }
+            pending.delete(resourceKey);
+            throw error;
+          }
+          if (error instanceof HttpError)
+            throw new CoreFinanceError('offline', {
+              domainCode: error.domainCode ?? 'TRANSACTION_OUTCOME_UNCERTAIN',
+              status: error.status,
+              requestId: error.requestId,
+              uncertain: true
+            });
+          throw uncertainEdit();
+        }
+      })();
+      inFlight.set(resourceKey, operation);
+      try {
+        return await operation;
+      } finally {
+        inFlight.delete(resourceKey);
+      }
     },
     async saveDraft(draft: TransactionDraft) {
       return writeTransactionDraft(await captureLiveClerkOwner(), draft);
@@ -842,6 +1018,9 @@ export function createLiveLedgerService({
       return deleteTransactionDraft(await captureLiveClerkOwner(), id);
     },
     async deleteTransaction(id): Promise<DeleteResult> {
+      const owner = await captureLiveClerkOwner();
+      const ids = await transactionIds(id, owner);
+      id = ids.localId;
       const prior = await current(id);
       const deleted = await mutate(
         `transaction:delete:${id}`,
@@ -849,13 +1028,13 @@ export function createLiveLedgerService({
         ({ operationId, expectedVersion }) =>
           send(
             'DELETE',
-            `/api/v1/transactions/${encodeURIComponent(id)}`,
+            `/api/v1/transactions/${encodeURIComponent(ids.serverId)}`,
             deleteSchema,
             { expectedVersion, reason: 'Mobile delete' },
             operationId
           )
       );
-      if (deleted.transactionId !== id)
+      if (deleted.transactionId !== ids.serverId)
         throw new HttpError('contract_mismatch', 502);
       const value: Transaction = {
         ...prior,
@@ -868,19 +1047,21 @@ export function createLiveLedgerService({
       return { ...mutationResult(value), undoExpiresAt: value.undoExpiresAt! };
     },
     async undoDelete(id) {
+      const owner = await captureLiveClerkOwner();
+      const ids = await transactionIds(id, owner);
       const result = await mutate(
         `transaction:restore:${id}`,
         async () => (await current(id)).version,
         ({ operationId, expectedVersion }) =>
           send(
             'POST',
-            `/api/v1/transactions/${encodeURIComponent(id)}/restore`,
+            `/api/v1/transactions/${encodeURIComponent(ids.serverId)}/restore`,
             mutationSchema,
             { expectedVersion },
             operationId
           )
       );
-      return mutationResult(detailTransaction(result.transaction));
+      return mutationResult({ ...detailTransaction(result.transaction), id: ids.localId });
     },
     async getConflict(id) {
       try {
@@ -985,6 +1166,8 @@ export function createLiveCoreFinanceSync({
       const queue = repository ?? new SyncRepository(ownerDatabase!);
       const apply =
         adapter ?? new CoreFinanceSyncAdapter(ownerDatabase!, queue);
+      let receiptFollowup:
+        ReturnType<typeof observeSyncReceiptLifecycle> | undefined;
       const client =
         sync ??
         new SyncHttpService(
@@ -998,111 +1181,153 @@ export function createLiveCoreFinanceSync({
             await owner.assertCurrent();
             return deviceId;
           },
-          request
+          (input, init) => {
+            if (
+              receiptFollowup &&
+              init?.method === 'POST' &&
+              String(input).endsWith('/api/v1/sync/mutations')
+            )
+              assertSyncReceiptActive(receiptFollowup.signal);
+            return request(input, init);
+          }
         );
       let uploaded = 0;
+      let receiptRetries = 0;
       let bootstrapped = 0;
       let deltas = 0;
       await queue.recoverSending();
-      for (;;) {
-        const ready = await queue.ready(Date.now(), 100);
-        if (!ready.length) break;
-        const mutations = ready.map((entry) => ({
-          operationId: uuid.parse(entry.operationId),
-          domain: entry.domain,
-          resourceType: entry.resourceType,
-          schemaVersion: 1 as const,
-          dependsOn: z.array(uuid).max(100).parse(entry.dependsOn),
-          operation: z
-            .enum(['create', 'update', 'archive', 'restore', 'delete'])
-            .parse(entry.operation),
-          ...(entry.resourceId ? { resourceId: entry.resourceId } : {}),
-          ...(entry.baseVersion === null
-            ? {}
-            : { baseVersion: entry.baseVersion }),
-          payload: entry.payload
-        }));
-        const operationIds = mutations.map((entry) => entry.operationId);
-        await queue.markSending(operationIds);
-        let batch: z.output<typeof mutationBatchSchema>;
-        try {
-          batch = mutationBatchSchema.parse(
-            await client.mutations(mutations, randomUUID())
-          );
-        } catch (error) {
-          await queue.recoverSending();
-          throw error;
-        }
-        const receipts = new Map(
-          batch.data.receipts.map((receipt) => [receipt.operationId, receipt])
-        );
-        if (
-          receipts.size !== operationIds.length ||
-          operationIds.some((operationId) => !receipts.has(operationId))
-        ) {
-          await queue.recoverSending();
-          throw new HttpError('contract_mismatch', 502);
-        }
-        let needsRecentAuth = false;
-        for (const entry of ready) {
-          const receipt = receipts.get(entry.operationId)!;
-          if (receipt.status === 'applied') {
-            await queue.complete(entry.operationId, 'applied', null);
-            if (entry.resourceId && receipt.resourceId)
-              await queue.mapId(
-                entry.domain,
-                entry.resourceId,
-                receipt.resourceId
-              );
-          } else if (receipt.status === 'conflict')
-            await queue.complete(
-              entry.operationId,
-              'conflict',
-              receipt.error?.code ?? 'SYNC_CONFLICT'
-            );
-          else if (
-            receipt.status === 'rejected' &&
-            receipt.error?.code === 'RECENT_AUTH_REQUIRED'
-          ) {
-            await queue.retry(
-              entry.operationId,
-              Date.now(),
-              'RECENT_AUTH_REQUIRED'
-            );
-            needsRecentAuth = true;
-          } else if (receipt.status === 'rejected')
-            await queue.complete(
-              entry.operationId,
-              'rejected',
-              receipt.error?.code ?? 'SYNC_REJECTED'
-            );
-          else
-            await queue.retry(
-              entry.operationId,
-              Date.now() + 1_000,
-              `SYNC_${receipt.status.toUpperCase()}`
-            );
-          uploaded += 1;
-        }
-        if (needsRecentAuth) {
-          if (verificationAttempted)
-            throw new HttpError(
-              'recent_auth_required',
-              403,
-              'RECENT_AUTH_REQUIRED'
-            );
-          verificationAttempted = true;
-          reverifiedToken = await requestRecentAuthentication();
+      try {
+        for (;;) {
+          const available = await queue.ready(Date.now(), 100);
+          if (!available.length) break;
+          const batchEntries = available.some(entry => entry.dependsOn.length > 0)
+            ? await queue.submissionBatch(available) : available;
+          const selected = new Set(batchEntries.map(entry => entry.operationId));
+          const ready = available.filter(entry => selected.has(entry.operationId));
+          const operationIds = ready.map(entry => entry.operationId);
           await owner.assertCurrent();
-          if (!reverifiedToken)
-            throw new HttpError(
-              'recent_auth_required',
-              403,
-              'RECENT_AUTH_REQUIRED'
+          const targets = await queue.markSending(operationIds);
+          await owner.assertCurrent();
+          const mutations = batchEntries.map((entry) => ({
+            operationId: uuid.parse(entry.operationId),
+            domain: entry.domain,
+            resourceType: entry.resourceType,
+            schemaVersion: 1 as const,
+            dependsOn: z.array(uuid).max(100).parse(entry.dependsOn),
+            operation: z
+              .enum(['create', 'update', 'archive', 'restore', 'delete'])
+              .parse(entry.operation),
+            ...(entry.resourceId ? { resourceId: targets?.[entry.operationId] ?? entry.resourceId } : {}),
+            ...(entry.baseVersion === null
+              ? {}
+              : { baseVersion: entry.baseVersion }),
+            payload: entry.payload
+          }));
+          let batch: z.output<typeof mutationBatchSchema>;
+          try {
+            if (receiptFollowup)
+              assertSyncReceiptActive(receiptFollowup.signal);
+            batch = mutationBatchSchema.parse(
+              await client.mutations(mutations, randomUUID())
             );
+          } catch (error) {
+            await queue.recoverSending();
+            throw error;
+          }
+          const receipts = new Map(
+            batch.data.receipts.map((receipt) => [receipt.operationId, receipt])
+          );
+          if (
+            receipts.size !== batchEntries.length ||
+            batchEntries.some(entry => !receipts.has(entry.operationId)) ||
+            batchEntries.some(entry => entry.status === 'applied' && receipts.get(entry.operationId)?.status !== 'applied')
+          ) {
+            await queue.recoverSending();
+            throw new HttpError('contract_mismatch', 502);
+          }
+          let needsRecentAuth = false;
+          let pendingReceipt = false;
+          for (const entry of ready) {
+            const receipt = receipts.get(entry.operationId)!;
+            if (receipt.status === 'applied') {
+              const created = entry.operation === 'create' && entry.domain === 'transactions'
+                ? mutationSchema.parse(receipt.result).transaction.transaction : null;
+              const canonicalId = created?.id ?? receipt.resourceId;
+              if (entry.operation === 'create' && entry.resourceId && canonicalId)
+                await queue.complete(entry.operationId, 'applied', null,
+                  { domain: entry.domain, localId: entry.resourceId, serverId: canonicalId });
+              else await queue.complete(entry.operationId, 'applied', null);
+            } else if (receipt.status === 'conflict')
+              await queue.complete(
+                entry.operationId,
+                'conflict',
+                receipt.error?.code ?? 'SYNC_CONFLICT'
+              );
+            else if (
+              receipt.status === 'rejected' &&
+              receipt.error?.code === 'RECENT_AUTH_REQUIRED'
+            ) {
+              await queue.retry(
+                entry.operationId,
+                Date.now(),
+                'RECENT_AUTH_REQUIRED'
+              );
+              needsRecentAuth = true;
+            } else if (receipt.status === 'rejected')
+              await queue.complete(
+                entry.operationId,
+                'rejected',
+                receipt.error?.code ?? 'SYNC_REJECTED'
+              );
+            else {
+              pendingReceipt = true;
+              await queue.retry(
+                entry.operationId,
+                Date.now() + 1_000,
+                `SYNC_${receipt.status.toUpperCase()}`
+              );
+            }
+            uploaded += 1;
+          }
+          if (needsRecentAuth) {
+            if (verificationAttempted)
+              throw new HttpError(
+                'recent_auth_required',
+                403,
+                'RECENT_AUTH_REQUIRED'
+              );
+            verificationAttempted = true;
+            reverifiedToken = await requestRecentAuthentication();
+            await owner.assertCurrent();
+            if (!reverifiedToken)
+              throw new HttpError(
+                'recent_auth_required',
+                403,
+                'RECENT_AUTH_REQUIRED'
+              );
+          }
+          if (pendingReceipt) {
+            if (receiptRetries >= 3) break;
+            receiptFollowup ??= observeSyncReceiptLifecycle();
+            await waitForSyncReceipt(
+              owner,
+              1_000 * 2 ** receiptRetries,
+              receiptFollowup.signal
+            );
+            receiptRetries += 1;
+          }
         }
+      } finally {
+        receiptFollowup?.remove();
       }
       for (const domain of syncDomain.options) {
+        if (domain === 'transactions') {
+          const pending = await queue.hasPending(domain);
+          await owner.assertCurrent();
+          // Receipts establish aliases and settle local edits before server
+          // projections can replace them or acknowledge their cursor.
+          if (pending) continue;
+        }
         const cursor = await queue.cursor(domain);
         const bootstrap = async () => {
           let after: string | undefined;
@@ -1115,12 +1340,13 @@ export function createLiveCoreFinanceSync({
             );
             if (!page || value.data.domains.length !== 1)
               throw new HttpError('contract_mismatch', 502);
-            await apply.applyBootstrap(
+            const applied = await apply.applyBootstrap(
               domain,
               page.items,
               page.cursor,
               page.hasMore
             );
+            if (applied === false) return;
             bootstrapped += 1;
             if (!page.hasMore) break;
             if (!page.nextPage || page.nextPage === after)
@@ -1138,10 +1364,12 @@ export function createLiveCoreFinanceSync({
           try {
             value = deltaSchema.parse(await client.delta(domain, next, 500));
           } catch (error) {
+            const cursorCode = error instanceof SyncServiceError
+              ? error.code
+              : error instanceof HttpError ? error.domainCode : undefined;
             if (
-              !(error instanceof HttpError) ||
               !['SYNC_CURSOR_INVALID', 'SYNC_CURSOR_EXPIRED'].includes(
-                error.domainCode ?? ''
+                cursorCode ?? ''
               )
             )
               throw error;
@@ -1152,7 +1380,7 @@ export function createLiveCoreFinanceSync({
           }
           if (value.data.domain !== domain)
             throw new HttpError('contract_mismatch', 502);
-          await apply.applyDelta(
+          const applied = await apply.applyDelta(
             domain,
             value.data.changes.map((change) => ({
               resourceId: change.resourceId,
@@ -1164,6 +1392,7 @@ export function createLiveCoreFinanceSync({
             value.data.nextCursor,
             null
           );
+          if (applied === false) break;
           await client.acknowledge(domain, value.data.nextCursor);
           deltas += 1;
           if (!value.data.hasMore) break;
@@ -1188,6 +1417,78 @@ export function createLiveCoreFinanceSync({
       return { uploaded, bootstrapped, deltas };
     }
   };
+}
+
+const pausedSyncReceipt = () =>
+  new HttpError('provider_unavailable', 503, 'SYNC_RECEIPT_PAUSED');
+
+function assertSyncReceiptActive(signal: AbortSignal): void {
+  if (
+    signal.aborted ||
+    ['background', 'inactive'].includes(AppState.currentState)
+  )
+    throw pausedSyncReceipt();
+}
+
+function observeSyncReceiptLifecycle() {
+  const controller = new AbortController();
+  const subscription = AppState.addEventListener('change', (state) => {
+    if (state !== 'active') controller.abort();
+  });
+  return { signal: controller.signal, remove: () => subscription.remove() };
+}
+
+async function waitForSyncReceipt(
+  owner: DraftOwner,
+  delay: number,
+  signal: AbortSignal
+): Promise<void> {
+  await owner.assertCurrent();
+  assertSyncReceiptActive(signal);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let unregister = () => {};
+  let cancel = () => {};
+  try {
+    await Promise.race([
+      (async () => {
+        await new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, delay);
+        });
+        await owner.assertCurrent();
+        assertSyncReceiptActive(signal);
+        let online = true;
+        if (readRecoveryNetwork.available) {
+          try {
+            online = await readRecoveryNetwork.isOnline();
+          } catch {
+            /* An unavailable probe does not establish offline state. */
+          }
+        }
+        if (!online)
+          throw new HttpError(
+            'provider_unavailable',
+            503,
+            undefined,
+            undefined,
+            'network'
+          );
+        await owner.assertCurrent();
+        assertSyncReceiptActive(signal);
+      })(),
+      new Promise<void>((_resolve, reject) => {
+        cancel = () => reject(pausedSyncReceipt());
+        signal.addEventListener('abort', cancel);
+        unregister = registerRuntimeIdentityReset(() =>
+          reject(new HttpError('session_expired', 401))
+        );
+        if (signal.aborted) cancel();
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+    unregister();
+    signal.removeEventListener('abort', cancel);
+  }
 }
 
 async function currentDeviceId(
@@ -1494,6 +1795,14 @@ function derivedOperationId(operationId: string, index: number): string {
 }
 
 let liveCoreFinanceSync: Promise<unknown> | null = null;
+
+export async function hasPendingLiveCoreFinanceMutations(): Promise<boolean> {
+  const owner = await captureLiveClerkOwner();
+  const database = await openDatabase(owner.userId);
+  const pending = await new SyncRepository(database).hasPending();
+  await owner.assertCurrent();
+  return pending;
+}
 
 export function synchronizeLiveCoreFinance(): Promise<unknown> {
   return (liveCoreFinanceSync ??= measurePerformance('sync.core', () =>

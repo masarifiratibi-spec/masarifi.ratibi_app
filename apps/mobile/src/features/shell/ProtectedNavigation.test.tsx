@@ -106,7 +106,7 @@ describe('protected navigation', () => {
     [signedOutSession, false],
     [expiredSession, false]
   ])(
-    'disabled lock notification actions still require an authenticated session (%s)',
+    'incomplete lock opt-out cannot admit notification actions (%s)',
     async (session, allowed) => {
       process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
       process.env.EXPO_PUBLIC_API_URL =
@@ -123,8 +123,10 @@ describe('protected navigation', () => {
       });
       try {
         render(<RootLayout />);
-        if (allowed)
-          await waitFor(() => expect(mockExecuteAction).toHaveBeenCalled());
+        if (allowed) {
+          await waitFor(() => expect(mockRedirect).toHaveBeenCalledWith({ href: '/security/unlock' }));
+          expect(mockExecuteAction).not.toHaveBeenCalled();
+        }
         else {
           await waitFor(() =>
             expect(mockGetLastResponse).toHaveBeenCalled()
@@ -133,25 +135,26 @@ describe('protected navigation', () => {
           expect(mockResolveTarget).not.toHaveBeenCalled();
           expect(mockExecuteAction).not.toHaveBeenCalled();
         }
-        expect(mockRouterPush).not.toHaveBeenCalledWith('/security/unlock');
+        if (allowed) expect(mockRouterPush).toHaveBeenCalledWith('/security/unlock');
+        else expect(mockRouterPush).not.toHaveBeenCalledWith('/security/unlock');
       } finally {
         delete process.env.EXPO_PUBLIC_APP_LOCK_ENABLED;
         delete process.env.EXPO_PUBLIC_API_URL;
       }
     }
   );
-  it('does not mount PIN enforcement or keep the stored lock mask active when Staging enforcement is disabled', () => {
+  it('retains native lock enforcement when the opt-out lacks the required DEV runtime identity', () => {
     process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
     process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
-    mockPathname = '/security/pin/create';
+    mockPathname = '/security/settings';
     useAppShellStore.setState({ privacyLock: lockedPrivacy });
     try {
       render(<RootLayout />);
-      expect(mockRedirect).toHaveBeenCalledWith({ href: '/security/settings' });
+      expect(mockRedirect).toHaveBeenCalledWith({ href: '/security/unlock' });
       expect(mockPrivacyGate).toHaveBeenCalledWith(
         expect.objectContaining({
-          immediate: false,
-          locked: false,
+          immediate: true,
+          locked: true,
           lockAfterMs: null
         })
       );
@@ -474,7 +477,7 @@ describe('protected navigation', () => {
 
   it('does not execute protected responses while temporarily locked', async () => {
     useAppShellStore.setState({
-      privacyLock: { ...lockedPrivacy, appLockStatus: 'temporarily_locked' },
+      privacyLock: { ...lockedPrivacy, appLockStatus: 'locked' },
       setPendingDestination: jest.fn(async () => undefined)
     });
     mockGetLastResponse.mockResolvedValueOnce({

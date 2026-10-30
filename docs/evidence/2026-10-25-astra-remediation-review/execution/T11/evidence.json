@@ -1,0 +1,41 @@
+{
+  "task": "T11",
+  "batch": "B5",
+  "at": "2026-10-29T09:32:54.119Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B5-export-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B5-export-2026-10-29/B5-REVIEWED-RESULT.json",
+    "sha256": "36916cde44ad772717ed797bcd3e732b8093edf752da4730c975221012d31d9b"
+  },
+  "currentSupplements": [
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B5-export-2026-10-29/BOUNDED-SERVER-CORRELATION-SUPPLEMENT.json",
+      "sha256": "a016c8dff73410b75d2d4986c4c1b5ecd2723a1a23043bacbcccf9dc7acda167"
+    }
+  ],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T11/evidence.json",
+    "sha256": "dcec665770880bff619d840b7145c5306e1692df64eea5b6870d36a80dc847ac"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Historical500 cause unconfirmed: no retainedrequestID in bounded4000line/3MiB windows from10relevant API/workerlogs; controlledcurrent correlation/privateauth/storage evidence stillneeded",
+    "Actual private Clerk re-verification",
+    "Specifically approved actual export/download and bounded content/expiry check",
+    "Predecessor/task acceptance",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": [],
+  "latestSupplement": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B5-export-2026-10-29/BOUNDED-SERVER-CORRELATION-SUPPLEMENT.json",
+    "sha256": "a016c8dff73410b75d2d4986c4c1b5ecd2723a1a23043bacbcccf9dc7acda167"
+  }
+}

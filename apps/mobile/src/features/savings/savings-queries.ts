@@ -1,7 +1,10 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import type { SavingsGoal, SavingsProgress } from '@/domain/financial-planning';
 import { localDateInTimeZone } from '@/domain/financial-period';
-import { financialPlanningKeys, fetchPlanningOverview } from '@/features/financial-planning/financial-planning-queries';
+import {
+  financialPlanningKeys,
+  fetchPlanningOverview
+} from '@/features/financial-planning/financial-planning-queries';
 import { usePreferenceStore } from '@/state/preferences';
 
 export {
@@ -18,12 +21,13 @@ export function useSavingsListProgress(goals: SavingsGoal[]) {
   const queries = useQueries({
     queries: currencies.map((currencyCode) => ({
       queryKey: financialPlanningKeys.overview(currencyCode, today, timeZone),
-      queryFn: ({ signal }: { signal: AbortSignal }) => fetchPlanningOverview(client, { currencyCode, today, timeZone }, signal)
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        fetchPlanningOverview(client, { currencyCode, today, timeZone }, signal)
     }))
   });
   const progress = new Map<string, SavingsProgress>();
   queries.forEach((query, index) => {
-    if (!query.isSuccess) return;
+    if (!query.data) return;
     const ids = new Set(
       goals
         .filter((goal) => goal.currencyCode === currencies[index])

@@ -12,6 +12,7 @@ import { available } from '@/domain/financial-planning';
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useAppShellStore } from '@/state/app-shell';
 import { assertReadActive } from '@/services/live/read-context';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 
 async function planningSnapshot(
   client: QueryClient,
@@ -161,7 +162,8 @@ export function useBudget(periodKey: string) {
 export function useBudgets(periodKey: string) {
   return useQuery({
     queryKey: financialPlanningKeys.budgetList(periodKey),
-    queryFn: () => financialPlanningService.listBudgets(periodKey)
+    queryFn: () => financialPlanningService.listBudgets(periodKey),
+    enabled: /^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey)
   });
 }
 
@@ -260,15 +262,9 @@ export function useObligationDetail(id: string) {
       ['forbidden', 'session_expired'].includes(String(error.code))
   );
   const scheduleReady =
-    sectionsEnabled &&
-    !header.isFetching &&
-    schedule.isSuccess &&
-    !schedule.isFetching;
+    sectionsEnabled && !protectedError && hasReadableSnapshot(schedule);
   const historyReady =
-    sectionsEnabled &&
-    !header.isFetching &&
-    history.isSuccess &&
-    !history.isFetching;
+    sectionsEnabled && !protectedError && hasReadableSnapshot(history);
   return {
     ...header,
     isError: header.isError || Boolean(protectedError),
@@ -277,18 +273,20 @@ export function useObligationDetail(id: string) {
       header.data && sectionsEnabled
         ? {
             ...header.data,
-            schedule: scheduleReady ? schedule.data : [],
-            payments: historyReady ? history.data.items : [],
+            schedule: scheduleReady ? (schedule.data ?? []) : [],
+            payments: historyReady ? (history.data?.items ?? []) : [],
             paymentHistoryState: historyReady
-              ? history.data.state
+              ? (history.data?.state ?? 'unavailable')
               : ('unavailable' as const)
           }
         : header.data,
     scheduleLoading:
       sectionsEnabled &&
+      !scheduleReady &&
       (header.isFetching || schedule.isPending || schedule.isFetching),
     historyLoading:
       sectionsEnabled &&
+      !historyReady &&
       (header.isFetching || history.isPending || history.isFetching),
     scheduleError: sectionsEnabled && schedule.isError,
     isRefetching:

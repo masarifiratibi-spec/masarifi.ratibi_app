@@ -109,6 +109,7 @@ describe('RootLayout navigation chrome', () => {
   it('updates route privacy without rerendering the global shell', () => {
     useAppShellStore.setState({
       privacyLock: {
+        enabled: true,
         autoLockDuration: 'immediate',
         appLockStatus: 'locked'
       } as never

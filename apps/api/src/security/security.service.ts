@@ -345,7 +345,9 @@ export class SecurityService {
       }
     }
     if (input.operation === 'createMyPrivacyExport') {
-      const manifest = this.config.getRequired('MASARIFI_PRIVACY_HANDLER_MANIFEST');
+      const manifest = this.config.get('MASARIFI_PRIVACY_HANDLER_MANIFEST');
+      if (!Array.isArray(manifest) || manifest.length === 0)
+        throw new HttpException({ code: 'SECURITY_OPERATION_FAILED' }, 503);
       const scope = body.scope ?? manifest;
       if (
         !Array.isArray(scope) ||

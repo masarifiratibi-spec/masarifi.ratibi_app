@@ -1,0 +1,9 @@
+# B7 — T13/T14 presentation and draft lifecycle
+
+Inline sole Sol/xhigh under approved execution exception c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b. Preserve approved design, owner/authentication/financial state, original draft, hidden features and current settings. No financial save/send, native install or protected operation.
+
+Reproduce three recorded presentation defects in existing suites before source changes: settings labels override active theme with fixed ink; normal-size transaction range fixes its height despite a wrapping cross-year label; assistant timestamps ignore the native hour-cycle preference. Reuse semantic text tokens, allow the existing range card to grow, and inspect the installed expo-localization calendar hook/lifecycle instead of adding another settings store. Also reproduce the actual Xiaomi sheet footer/navigation-inset observation in the existing overlay suite, then use existing safe-area context without redesigning the sheet.
+
+Run affected settings/list/conversation/overlay suites and applicable keyboard/draft/obligation tests, retaining separate T13/T14 evidence. Review promised persistence against current requirements before adding storage; do not treat a source-only gap as authorization for new financial behavior. Test mobile repairs through ordinary Xiaomi AR/EN controls and restore locale/theme/cycle/font settings when available. Keep font/hardware/hosted gaps explicit; no hidden-route bypass or acceptance by aggregation.
+
+Actual-device follow-up: after AR→EN with the same mounted transaction screen, date chips and period-group headings retain Arabic while controls become English. The memoized localized labels omit locale. Add one retained-query/locale-switch regression, then pass locale explicitly to translations and include it in both memo dependencies. User-entered titles/account names stay untouched.

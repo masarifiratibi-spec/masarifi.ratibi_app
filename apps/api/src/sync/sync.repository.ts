@@ -91,7 +91,7 @@ export interface ConflictRecord {
   resolvedAt: string | null;
 }
 
-interface ClaimedMutationRow extends QueryResultRow {
+export interface ClaimedMutationRow extends QueryResultRow {
   created_at: Date | string;
   authenticated_at?: Date | string | null;
   id: string;
@@ -128,6 +128,36 @@ export interface MutationReceipt {
   status: MutationReceiptRow['status'];
   result: Record<string, unknown> | null;
   error: Record<string, unknown> | null;
+}
+
+export function toClaimedMutation(row: ClaimedMutationRow): ClaimedMutation {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    deviceId: row.device_id,
+    factorAgeSeconds: row.factor_age_seconds,
+    authenticatedAt:
+      row.authenticated_at != null
+        ? new Date(row.authenticated_at).toISOString()
+        : row.factor_age_seconds !== null && Number.isFinite(new Date(row.created_at).getTime())
+          ? new Date(
+              new Date(row.created_at).getTime() - row.factor_age_seconds * 1000,
+            ).toISOString()
+          : null,
+    mutation: {
+      operationId: row.operation_id,
+      domain: row.domain,
+      resourceType: row.resource_type,
+      schemaVersion: row.schema_version,
+      dependsOn: row.depends_on,
+      operation: row.operation,
+      resourceId: row.resource_id,
+      baseVersion: row.base_version === null ? null : Number(row.base_version),
+      payload: row.payload,
+    },
+    attemptCount: row.attempt_count,
+    leaseToken: row.lease_token,
+  };
 }
 
 @Injectable()
@@ -561,33 +591,7 @@ export class SyncRepository {
         throw error;
       }
     });
-    return rows.map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      deviceId: row.device_id,
-      factorAgeSeconds: row.factor_age_seconds,
-      authenticatedAt:
-        row.authenticated_at != null
-          ? new Date(row.authenticated_at).toISOString()
-          : row.factor_age_seconds !== null && Number.isFinite(new Date(row.created_at).getTime())
-            ? new Date(
-                new Date(row.created_at).getTime() - row.factor_age_seconds * 1000,
-              ).toISOString()
-            : null,
-      mutation: {
-        operationId: row.operation_id,
-        domain: row.domain,
-        resourceType: row.resource_type,
-        schemaVersion: row.schema_version,
-        dependsOn: row.depends_on,
-        operation: row.operation,
-        resourceId: row.resource_id,
-        baseVersion: row.base_version === null ? null : Number(row.base_version),
-        payload: row.payload,
-      },
-      attemptCount: row.attempt_count,
-      leaseToken: row.lease_token,
-    }));
+    return rows.map(toClaimedMutation);
   }
 
   workerComplete(

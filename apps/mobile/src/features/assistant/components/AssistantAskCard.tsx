@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   TextInput,
@@ -14,14 +14,19 @@ export interface AssistantAskCardProps {
   initialQuestion?: string;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
+  onDraftDirtyChange?: (dirty: boolean) => void;
 }
 
 export function AssistantAskCard({
   initialQuestion,
   onAskQuestion,
+  onDraftDirtyChange,
   loading = false
 }: AssistantAskCardProps) {
   const [text, setText] = useState(initialQuestion ?? '');
+  useEffect(() => {
+    onDraftDirtyChange?.(text.trim().length > 0);
+  }, [onDraftDirtyChange, text]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 

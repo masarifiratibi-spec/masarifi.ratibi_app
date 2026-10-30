@@ -859,6 +859,10 @@ export function createMockFinancialPlanningService(
       await ensureReady();
       return repository.loadDraft(id);
     },
+    async listDrafts(kind: PlanningDraft['kind']) {
+      await ensureReady();
+      return repository.listDrafts(kind);
+    },
     async discardDraft(id: string) {
       await ensureReady();
       repository.discardDraft(id);

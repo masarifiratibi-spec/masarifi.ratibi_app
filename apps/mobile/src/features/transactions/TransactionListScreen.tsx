@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   FlatList,
   Modal,
@@ -187,7 +188,10 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
         {
           kind: 'header' as const,
           key: `header-${group.key}`,
-          label: translate(`coreFinance.ledger.period.${group.key}` as never)
+          label: translate(
+            `coreFinance.ledger.period.${group.key}` as never,
+            locale
+          )
         },
         ...group.items.map(({ item, groupedPosition }) => ({
           kind: 'transaction' as const,
@@ -197,7 +201,7 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
         }))
       ]
     );
-  }, [firstDayOfWeek, now, transactions]);
+  }, [firstDayOfWeek, locale, now, transactions]);
   const activeFilters = useMemo(() => {
     const values: { key: keyof TransactionFilterSet; label: string }[] = [];
     const addCount = (
@@ -208,23 +212,23 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
       if (count)
         values.push({
           key,
-          label: `${translate(labelKey as never)}: ${count}`
+          label: `${translate(labelKey as never, locale)}: ${count}`
         });
     };
     if (filters.search)
       values.push({
         key: 'search',
-        label: `${translate('coreFinance.ledger.search')}: ${filters.search}`
+        label: `${translate('coreFinance.ledger.search', locale)}: ${filters.search}`
       });
     if (filters.periodStart)
       values.push({
         key: 'periodStart',
-        label: translate('coreFinance.filters.periodStart')
+        label: translate('coreFinance.filters.periodStart', locale)
       });
     if (filters.periodEnd)
       values.push({
         key: 'periodEnd',
-        label: translate('coreFinance.filters.periodEnd')
+        label: translate('coreFinance.filters.periodEnd', locale)
       });
     addCount(
       'accountIds',
@@ -254,26 +258,30 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
         label: translate(
           filters.reviewRequired
             ? 'coreFinance.filters.reviewRequired'
-            : 'coreFinance.filters.reviewNotRequired'
+            : 'coreFinance.filters.reviewNotRequired',
+          locale
         )
       });
     if (filters.minMinor !== null)
       values.push({
         key: 'minMinor',
-        label: translate('coreFinance.filters.minimum')
+        label: translate('coreFinance.filters.minimum', locale)
       });
     if (filters.maxMinor !== null)
       values.push({
         key: 'maxMinor',
-        label: translate('coreFinance.filters.maximum')
+        label: translate('coreFinance.filters.maximum', locale)
       });
     if (filters.sort !== 'newest')
       values.push({
         key: 'sort',
-        label: translate(`coreFinance.filters.sort.${filters.sort}` as never)
+        label: translate(
+          `coreFinance.filters.sort.${filters.sort}` as never,
+          locale
+        )
       });
     return values;
-  }, [filters]);
+  }, [filters, locale]);
   const applyQuickFilter = (patch: Partial<TransactionFilterSet>) => {
     beginFilterSession();
     editFilters(patch);
@@ -496,9 +504,9 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
                   {
                     alignSelf: 'center',
                     flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
-                    height: largeText ? 'auto' : 52,
+                    height: 'auto',
                     minHeight: 52,
-                    paddingVertical: largeText ? spacing.sm : 0,
+                    paddingVertical: spacing.sm,
                     width: largeText ? '100%' : undefined
                   },
                   pressed && styles.filterCardPressed
@@ -750,7 +758,7 @@ function MonthlySummary({
     );
   }
 
-  if (summary.isError) {
+  if (summary.isError && !hasReadableSnapshot(summary)) {
     return (
       <View testID="transaction-month-summary" style={styles.monthSummary}>
         <View style={styles.summaryError}>
@@ -966,7 +974,7 @@ const TransactionItem = React.memo(function TransactionItem({
       amountMinor={item.amountMinor}
       currency={item.currencyCode}
       groupedPosition={groupedPosition}
-      onPress={() => router.push(`/transactions/${item.id}/edit`)}
+      onPress={() => router.push(`/transactions/${item.id}`)}
     />
   );
 });

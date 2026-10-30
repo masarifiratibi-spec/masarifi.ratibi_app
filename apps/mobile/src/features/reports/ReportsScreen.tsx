@@ -2,6 +2,7 @@ import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useReportAnchorDate } from './useReportAnchorDate';
 import React, { useMemo, useState } from 'react';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   Pressable,
   ScrollView,
@@ -43,7 +44,7 @@ import {
   useHomeSummary
 } from '@/features/core-finance/core-finance-queries';
 import { DateRangeSheet } from '@/features/filters/DateRangeSheet';
-import type { DatePeriod } from '@/features/filters/date-period';
+import { formatDaySpan, type DatePeriod } from '@/features/filters/date-period';
 import { translate, translateDynamic } from '@/localization/i18n';
 import {
   applyAccountScope,
@@ -59,6 +60,8 @@ import {
   useReport,
   useReportInput
 } from './report-queries';
+import { ReportPdfExport } from './ReportPdfExport';
+import { ReportLocalStatus } from './ReportLocalStatus';
 
 const timeframeOptions: readonly [ReportTimeframe, string][] = [
   ['week', '1W'],
@@ -74,6 +77,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
+  const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
   const baseCurrencyCode = usePreferenceStore(
     (state) => state.baseCurrencyCode
   );
@@ -97,9 +101,13 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     currencyCode,
     applyAccountScope(emptyTransactionFilters, selectedAccountId)
   );
-  const reportQuery = useReport(
-    useReportInput('monthly', anchorDate, currencyCode, accountIds)
+  const reportInput = useReportInput(
+    'monthly',
+    anchorDate,
+    currencyCode,
+    accountIds
   );
+  const reportQuery = useReport(reportInput);
   const trendQuery = useNetWorthTrend({
     accountIds,
     anchorDate,
@@ -107,129 +115,150 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     timeframe
   });
   const period = useMemo(
-    () => monthDatePeriod(anchorDate, timeZone),
-    [anchorDate, timeZone]
+    () => monthDatePeriod(anchorDate, timeZone, monthStartDay),
+    [anchorDate, timeZone, monthStartDay]
   );
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.colors.surfaces.page }}
-      contentOffset={{ x: 0, y: scrollOffset }}
-      contentContainerStyle={styles.page}
-      onMomentumScrollEnd={(event) =>
-        setScrollOffset(event.nativeEvent.contentOffset.y)
-      }
-      onScrollEndDrag={(event) =>
-        setScrollOffset(event.nativeEvent.contentOffset.y)
-      }
-    >
-      <View style={styles.ltrCanvas}>
-        <AnalyticsHeader direction={direction} onBack={onBack} />
-        <FinancialRefreshStatus query={reportQuery} />
-        <View
-          style={[
-            styles.selectorRow,
-            {
-              direction: 'ltr',
-              flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
-            }
-          ]}
-        >
-          <Selector
+    <View style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}>
+      <ScrollView
+        style={{ backgroundColor: theme.colors.surfaces.page }}
+        contentOffset={{ x: 0, y: scrollOffset }}
+        contentContainerStyle={styles.page}
+        onMomentumScrollEnd={(event) =>
+          setScrollOffset(event.nativeEvent.contentOffset.y)
+        }
+        onScrollEndDrag={(event) =>
+          setScrollOffset(event.nativeEvent.contentOffset.y)
+        }
+      >
+        <View style={styles.ltrCanvas}>
+          <AnalyticsHeader direction={direction} onBack={onBack} />
+          <FinancialRefreshStatus query={reportQuery} />
+          <ReportLocalStatus report={reportQuery.data} />
+          <View
+            style={[
+              styles.selectorRow,
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+              }
+            ]}
+          >
+            <Selector
+              direction={direction}
+              label={
+                selectedAccount?.name ??
+                translate('coreFinance.home.allAccounts')
+              }
+              onPress={() => setAccountSheetOpen(true)}
+            />
+            <Selector
+              accent
+              direction={direction}
+              label={
+                monthStartDay === 1
+                  ? formatMonthLabel(anchorDate, locale, timeZone)
+                  : formatDaySpan(
+                      period.periodStart,
+                      period.periodEnd,
+                      locale,
+                      timeZone
+                    )
+              }
+              onPress={() => setDateSheetOpen(true)}
+            />
+          </View>
+
+          {!reportQuery.data && reportQuery.isPending ? (
+            <StateView
+              state="loading"
+              title={translate('reports.state.loading')}
+            />
+          ) : !reportQuery.data ? (
+            <StateView
+              state="error"
+              title={translate('reports.state.error')}
+              actionLabel={translate('reports.action.retry')}
+              onAction={() => {
+                void reportQuery.refetch();
+                void home.refetch();
+                void trendQuery.refetch();
+              }}
+            />
+          ) : (
+            <AnalyticsContent
+              direction={direction}
+              hidden={hideBalances}
+              report={reportQuery.data}
+              netWorthMinor={
+                trendQuery.data?.at(-1)?.minorUnits ??
+                home.data?.totalBalanceMinor ??
+                null
+              }
+              stackMetrics={stackMetrics}
+              timeframe={timeframe}
+              trend={trendQuery.data ?? []}
+              trendFeedback={
+                trendQuery.isError && hasReadableSnapshot(trendQuery) ? (
+                  <FinancialRefreshStatus query={trendQuery} />
+                ) : trendQuery.isError ? (
+                  <StateView
+                    state="error"
+                    title={translate('reports.state.error')}
+                    actionLabel={translate('reports.action.retry')}
+                    onAction={() => void trendQuery.refetch()}
+                  />
+                ) : trendQuery.isPending ? (
+                  <StateView
+                    state="loading"
+                    title={translate('reports.state.loading')}
+                  />
+                ) : undefined
+              }
+              onTimeframeChange={setTimeframe}
+            />
+          )}
+          <AssistantActions
+            accountName={selectedAccountId ? selectedAccount?.name : null}
             direction={direction}
-            label={
-              selectedAccount?.name ?? translate('coreFinance.home.allAccounts')
+            report={
+              reportQuery.data ?? {
+                key: `monthly:${anchorDate}:${currencyCode}:${timeZone}${selectedAccountId ? `:${selectedAccountId}` : ''}`,
+                period: {
+                  startDate: localDateInTimeZone(period.periodStart, timeZone),
+                  endDate: localDateInTimeZone(period.periodEnd, timeZone)
+                },
+                currencyCode
+              }
             }
-            onPress={() => setAccountSheetOpen(true)}
-          />
-          <Selector
-            accent
-            direction={direction}
-            label={formatMonthLabel(anchorDate, locale, timeZone)}
-            onPress={() => setDateSheetOpen(true)}
+            stacked={stackMetrics}
           />
         </View>
 
-        {!reportQuery.data && reportQuery.isPending ? (
-          <StateView
-            state="loading"
-            title={translate('reports.state.loading')}
-          />
-        ) : !reportQuery.data ? (
-          <StateView
-            state="error"
-            title={translate('reports.state.error')}
-            actionLabel={translate('reports.action.retry')}
-            onAction={() => {
-              void reportQuery.refetch();
-              void home.refetch();
-              void trendQuery.refetch();
-            }}
-          />
-        ) : (
-          <AnalyticsContent
-            direction={direction}
-            hidden={hideBalances}
-            report={reportQuery.data}
-            netWorthMinor={
-              trendQuery.data?.at(-1)?.minorUnits ??
-              home.data?.totalBalanceMinor ??
-              null
-            }
-            stackMetrics={stackMetrics}
-            timeframe={timeframe}
-            trend={trendQuery.data ?? []}
-            trendFeedback={
-              trendQuery.isError ? (
-                <StateView
-                  state="error"
-                  title={translate('reports.state.error')}
-                  actionLabel={translate('reports.action.retry')}
-                  onAction={() => void trendQuery.refetch()}
-                />
-              ) : trendQuery.isPending ? (
-                <StateView
-                  state="loading"
-                  title={translate('reports.state.loading')}
-                />
-              ) : undefined
-            }
-            onTimeframeChange={setTimeframe}
-          />
-        )}
-        <AssistantActions
-          accountName={selectedAccountId ? selectedAccount?.name : null}
-          direction={direction}
-          report={
-            reportQuery.data ?? {
-              key: `monthly:${anchorDate}:${currencyCode}:${timeZone}${selectedAccountId ? `:${selectedAccountId}` : ''}`,
-              period: {
-                startDate: localDateInTimeZone(period.periodStart, timeZone),
-                endDate: localDateInTimeZone(period.periodEnd, timeZone)
-              },
-              currencyCode
-            }
-          }
-          stacked={stackMetrics}
+        <AccountScopeSheet
+          visible={accountSheetOpen}
+          onDismiss={() => setAccountSheetOpen(false)}
         />
-      </View>
-
-      <AccountScopeSheet
-        visible={accountSheetOpen}
-        onDismiss={() => setAccountSheetOpen(false)}
+        <DateRangeSheet
+          visible={dateSheetOpen}
+          period={period}
+          monthlyOnly
+          onApply={(next) => {
+            if (next.kind !== 'month') return;
+            setPeriod(
+              'monthly',
+              localDateInTimeZone(next.periodEnd, timeZone) as LocalDate
+            );
+          }}
+          onDismiss={() => setDateSheetOpen(false)}
+        />
+      </ScrollView>
+      <ReportPdfExport
+        input={reportInput}
+        offline={reportQuery.data?.dataState === 'offline'}
       />
-      <DateRangeSheet
-        visible={dateSheetOpen}
-        period={period}
-        onApply={(next) =>
-          setPeriod(
-            'monthly',
-            localDateInTimeZone(next.periodEnd, timeZone) as LocalDate
-          )
-        }
-        onDismiss={() => setDateSheetOpen(false)}
-      />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -1142,10 +1171,14 @@ function ReportAmount({
   );
 }
 
-function monthDatePeriod(anchorDate: LocalDate, timeZone: string): DatePeriod {
+function monthDatePeriod(
+  anchorDate: LocalDate,
+  timeZone: string,
+  monthStartDay: number
+): DatePeriod {
   const boundary = buildFinancialPeriod({
     anchorDate,
-    monthStartDay: usePreferenceStore.getState().monthStartDay,
+    monthStartDay,
     preset: 'current_cycle',
     timeZone
   });

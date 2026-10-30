@@ -7,8 +7,10 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  BackHandler
+  BackHandler,
+  AppState
 } from 'react-native';
+import { getCalendars } from 'expo-localization';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { AssistantHeaderBanner } from './components/AssistantHeaderBanner';
 import { UserMessageBubble } from './components/UserMessageBubble';
@@ -68,6 +70,18 @@ export function AssistantConversationView({
   testID = 'assistant-conversation-view'
 }: AssistantConversationViewProps) {
   const insets = React.useContext(SafeAreaInsetsContext);
+  const [uses24HourClock, setUses24HourClock] = React.useState(
+    () => getCalendars()[0]?.uses24hourClock
+  );
+  const hour12 = uses24HourClock == null ? undefined : !uses24HourClock;
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setUses24HourClock(getCalendars()[0]?.uses24hourClock);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
   const [keyboardVisible, setKeyboardVisible] = React.useState(() =>
     Keyboard.isVisible()
   );
@@ -146,7 +160,8 @@ export function AssistantConversationView({
             item.createdAt > 0
               ? new Date(item.createdAt).toLocaleTimeString(currentLocale(), {
                   hour: '2-digit',
-                  minute: '2-digit'
+                  minute: '2-digit',
+                  hour12
                 })
               : undefined
           }
@@ -165,7 +180,8 @@ export function AssistantConversationView({
             currentLocale(),
             {
               hour: '2-digit',
-              minute: '2-digit'
+              minute: '2-digit',
+              hour12
             }
           )}
         />

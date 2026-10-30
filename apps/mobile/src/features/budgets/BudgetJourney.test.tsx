@@ -1,6 +1,6 @@
 import React from 'react';
-import { act, fireEvent, waitFor } from '@testing-library/react-native';
-import { notifyManager } from '@tanstack/react-query';
+import { act, fireEvent, waitFor, render } from '@testing-library/react-native';
+import { notifyManager, QueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
 import {
@@ -13,7 +13,9 @@ import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 import { BudgetAllocationEditor } from './BudgetAllocationEditor';
 import { BudgetForm } from './BudgetForm';
+import { FoundationProviders } from '@/state/FoundationProviders';
 import { BudgetOverviewScreen } from './BudgetOverviewScreen';
+import { HttpError } from '@/services/live/http-client';
 import { BudgetTransactionsScreen } from './BudgetTransactionsScreen';
 
 jest.mock('expo-router', () => ({
@@ -373,3 +375,230 @@ async function saveBudget(
     operationId
   );
 }
+
+
+it.each(['2026-13', '2026-', ''])('keeps editable draft fields when the month is invalid: %s', async (invalidPeriod) => {
+  changeLocale('en');
+  const listOriginal = financialPlanningService.listBudgets.bind(financialPlanningService);
+  const list = jest.spyOn(financialPlanningService, 'listBudgets').mockImplementation(async period => {
+    if (['2026-13', '2026-', ''].includes(period)) throw new Error('Live budget endpoint rejects invalid month');
+    return listOriginal(period);
+  });
+  let mountedForm: ReturnType<typeof renderWithProviders> | undefined;
+  try {
+    await financialPlanningService.discardDraft('planning-form-budget:new');
+    const form = renderWithProviders(<BudgetForm initialPeriodKey="2038-04" />);
+    mountedForm = form;
+    fireEvent.changeText(await form.findByLabelText('Budget name'), 'Retained correction');
+    fireEvent.changeText(form.getByLabelText('Expense limit'), '1000');
+    fireEvent.changeText(form.getByLabelText('Category limit'), '125');
+    fireEvent.changeText(form.getByLabelText('Budget month'), invalidPeriod);
+    await waitFor(() => {
+      expect(list).not.toHaveBeenCalledWith(invalidPeriod);
+      expect(form.getByLabelText('Budget month')).toHaveProp('value', invalidPeriod);
+      expect(form.getByLabelText('Budget name')).toHaveProp('value', 'Retained correction');
+      expect(form.getByLabelText('Expense limit')).toHaveProp('value', '1000');
+      expect(form.getByLabelText('Category limit')).toHaveProp('value', '125');
+    });
+    fireEvent.press(form.getByText('Save'));
+    expect(await form.findAllByText('Complete the required fields with valid values.')).not.toHaveLength(0);
+    fireEvent.changeText(form.getByLabelText('Budget month'), '2038-05');
+    await waitFor(() => expect(list).toHaveBeenCalledWith('2038-05'));
+    expect(form.getByLabelText('Budget name')).toHaveProp('value', 'Retained correction');
+    expect(form.getByLabelText('Category limit')).toHaveProp('value', '125');
+  } finally {
+    mountedForm?.unmount();
+    await financialPlanningService.discardDraft('planning-form-budget:new');
+    list.mockRestore();
+  }
+});
+
+
+it('recovers an invalid retained month even when a prior query failure is cached', async () => {
+  changeLocale('en');
+  await financialPlanningService.discardDraft('planning-form-budget:new');
+  usePreferenceStore.setState({ locale: 'en', direction: 'ltr', hydrated: true });
+  await financialPlanningService.saveDraft({ id: 'planning-form-budget:new', kind: 'budget', entityId: null, payload: { name: 'Retained invalid month', periodKey: '2026-13', expenseLimit: '1000', categoryLimits: { housing: '125' }, selectedCategoryIds: ['housing'], rolloverEnabled: true, copiedFromBudgetId: null }, status: 'editing', updatedAt: 1 });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } });
+  await expect(client.fetchQuery({
+    queryKey: ['planning', 'budgets', '2026-13'],
+    queryFn: async () => { throw new Error('Previous invalid month request'); }
+  })).rejects.toThrow('Previous invalid month request');
+  const form = render(<FoundationProviders client={client}><BudgetForm initialPeriodKey="2026-13" /></FoundationProviders>);
+  try {
+    expect(await form.findByLabelText('Budget name')).toHaveProp('value', 'Retained invalid month');
+    expect(form.getByLabelText('Budget month')).toHaveProp('value', '2026-13');
+    expect(form.getByLabelText('Expense limit')).toHaveProp('value', '1000');
+    expect(form.getByLabelText('Category limit')).toHaveProp('value', '125');
+    fireEvent.changeText(form.getByLabelText('Budget month'), '2038-06');
+    await waitFor(() => expect(form.getByLabelText('Budget name')).toHaveProp('value', 'Retained invalid month'));
+    expect(form.getByLabelText('Expense limit')).toHaveProp('value', '1000');
+  } finally {
+    form.unmount();
+    client.clear();
+    await financialPlanningService.discardDraft('planning-form-budget:new');
+  }
+});
+
+
+it.each([
+  ['en', 'Resume saved draft', null, '/budgets/new'],
+  ['ar', 'متابعة المسودة المحفوظة', null, '/budgets/new'],
+  ['en', 'Resume saved draft', 'retained-edit', '/budgets/edit/retained-edit'],
+  [
+    'ar',
+    'متابعة المسودة المحفوظة',
+    'retained-edit',
+    '/budgets/edit/retained-edit'
+  ]
+] as const)(
+  'recovers an existing draft from an unavailable budget list in %s without claiming the list is empty',
+  async (locale, label, entityId, destination) => {
+    changeLocale(locale);
+    const id = `planning-form-budget:${entityId ?? 'new'}`;
+    await financialPlanningService.saveDraft({
+      id,
+      kind: 'budget',
+      entityId,
+      payload: {
+        name: 'Saved draft',
+        periodKey: '2026-13',
+        expenseLimit: '1000'
+      },
+      status: 'editing',
+      updatedAt: 1
+    });
+    const original = await financialPlanningService.loadDraft(id);
+    const list = jest
+      .spyOn(financialPlanningService, 'listBudgets')
+      .mockRejectedValue(new HttpError('provider_unavailable', 503));
+    const view = renderWithProviders(<BudgetOverviewScreen />);
+    try {
+      const button = await view.findByRole('button', {
+        name: `${label}: Saved draft`
+      });
+      expect(
+        view.getByText(
+          locale === 'ar' ? 'التخطيط غير متاح' : 'Planning is unavailable'
+        )
+      ).toBeTruthy();
+      expect(
+        view.queryByLabelText(locale === 'ar' ? 'اسم الميزانية' : 'Budget name')
+      ).toBeNull();
+      fireEvent.press(button);
+      expect(router.push).toHaveBeenCalledWith(destination);
+      expect(await financialPlanningService.loadDraft(id)).toEqual(original);
+    } finally {
+      view.unmount();
+      list.mockRestore();
+      await financialPlanningService.discardDraft(id);
+    }
+  }
+);
+
+it.each([
+  ['forbidden', 403],
+  ['session_expired', 401]
+] as const)(
+  'withholds saved-draft recovery when the budget list denies access: %s',
+  async (code, status) => {
+    changeLocale('en');
+    await financialPlanningService.saveDraft({
+      id: 'planning-form-budget:new',
+      kind: 'budget',
+      entityId: null,
+      payload: { name: 'Private draft', periodKey: '2026-13' },
+      status: 'editing',
+      updatedAt: 1
+    });
+    const list = jest
+      .spyOn(financialPlanningService, 'listBudgets')
+      .mockRejectedValue(new HttpError(code, status));
+    const view = renderWithProviders(<BudgetOverviewScreen />);
+    try {
+      await view.findByText('Planning is unavailable');
+      expect(
+        view.queryByRole('button', { name: /^Resume saved draft/ })
+      ).toBeNull();
+    } finally {
+      view.unmount();
+      list.mockRestore();
+      await financialPlanningService.discardDraft('planning-form-budget:new');
+    }
+  }
+);
+
+it('recovers an existing-budget edit draft while its canonical record is unavailable, without saving or rewriting it', async () => {
+  changeLocale('en');
+  const id = 'planning-form-budget:missing-live-budget';
+  const original = await financialPlanningService.saveDraft({
+    id,
+    kind: 'budget',
+    entityId: 'missing-live-budget',
+    payload: {
+      name: 'Retained edit',
+      periodKey: '2026-13',
+      expenseLimit: '1234',
+      categoryLimits: { housing: '125' },
+      selectedCategoryIds: ['housing'],
+      rolloverEnabled: true,
+      copiedFromBudgetId: null
+    },
+    status: 'editing',
+    updatedAt: 1
+  });
+  const get = jest
+    .spyOn(financialPlanningService, 'getBudgetById')
+    .mockRejectedValue(new HttpError('provider_unavailable', 503));
+  const view = renderWithProviders(
+    <BudgetForm budgetId="missing-live-budget" />
+  );
+  try {
+    expect(await view.findByLabelText('Budget name')).toHaveProp(
+      'value',
+      'Retained edit'
+    );
+    expect(view.getByLabelText('Budget month')).toHaveProp('value', '2026-13');
+    expect(view.getByLabelText('Expense limit')).toHaveProp('value', '1234');
+    expect(view.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(await financialPlanningService.loadDraft(id)).toEqual(original);
+  } finally {
+    view.unmount();
+    get.mockRestore();
+    await financialPlanningService.discardDraft(id);
+  }
+});
+
+it('withdraws a visible local edit draft when its canonical budget denies access', async () => {
+  changeLocale('en');
+  const id = 'planning-form-budget:denied-budget';
+  await financialPlanningService.saveDraft({
+    id,
+    kind: 'budget',
+    entityId: 'denied-budget',
+    payload: { name: 'Private edit', periodKey: '2026-13' },
+    status: 'editing',
+    updatedAt: 1
+  });
+  let deny!: (error: Error) => void;
+  const pending = new Promise<never>((_, reject) => {
+    deny = reject;
+  });
+  const get = jest
+    .spyOn(financialPlanningService, 'getBudgetById')
+    .mockReturnValue(pending);
+  const view = renderWithProviders(<BudgetForm budgetId="denied-budget" />);
+  try {
+    expect(await view.findByLabelText('Budget name')).toHaveProp(
+      'value',
+      'Private edit'
+    );
+    await act(async () => deny(new HttpError('forbidden', 403)));
+    await view.findByText('Planning is unavailable');
+    expect(view.queryByLabelText('Budget name')).toBeNull();
+  } finally {
+    view.unmount();
+    get.mockRestore();
+    await financialPlanningService.discardDraft(id);
+  }
+});

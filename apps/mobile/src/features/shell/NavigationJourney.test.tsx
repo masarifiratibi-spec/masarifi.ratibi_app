@@ -50,7 +50,8 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     replace: jest.fn(),
     back: jest.fn(),
-    navigate: jest.fn()
+    navigate: jest.fn(),
+    dismissTo: jest.fn()
   },
   useLocalSearchParams: () => mockSearchParams,
   useFocusEffect: (callback: () => void) =>
@@ -508,7 +509,7 @@ describe('navigation journey', () => {
     fireEvent.press(
       await screen.findByLabelText(translate('appShell.navigation.back'))
     );
-    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/reports');
+    expect(router.dismissTo).toHaveBeenCalledWith('/(tabs)/reports');
   });
 
   it('returns from Reports to its sanitized primary origin', () => {

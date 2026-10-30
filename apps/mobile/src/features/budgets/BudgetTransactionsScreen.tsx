@@ -1,4 +1,6 @@
 import { buildFinancialPeriod } from '@/domain/financial-period';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import type { LocalDate } from '@/domain/financial-planning';
 import { formatMonthPeriod } from '@/utils/format-month-period';
 import React from 'react';
@@ -40,15 +42,18 @@ export function BudgetTransactionsScreen({
     monthStartDay: 1,
     timeZone
   });
-  const transactions = useTransactions({
-    ...emptyTransactionFilters,
-    periodStart: period.startInstant,
-    periodEnd: period.endInstant,
-    categoryIds:
-      query.data?.categories.map(
-        (item: { categoryId: string }) => item.categoryId
-      ) ?? []
-  });
+  const transactions = useTransactions(
+    {
+      ...emptyTransactionFilters,
+      periodStart: period.startInstant,
+      periodEnd: period.endInstant,
+      categoryIds:
+        query.data?.categories.map(
+          (item: { categoryId: string }) => item.categoryId
+        ) ?? []
+    },
+    Boolean(query.data) && hasReadableSnapshot(query)
+  );
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const amount = (minor: number) =>
@@ -68,13 +73,27 @@ export function BudgetTransactionsScreen({
 
   return (
     <PlanningScreen titleKey="planning.budgets.transactions">
+      <FinancialRefreshStatus
+        query={{
+          dataUpdatedAt: Math.min(
+            query.dataUpdatedAt,
+            transactions.dataUpdatedAt,
+            categories.dataUpdatedAt
+          ),
+          isFetching:
+            query.isFetching ||
+            transactions.isFetching ||
+            categories.isFetching,
+          isError: query.isError || transactions.isError || categories.isError
+        }}
+      />
       {!budgetId ? (
         <PlanningState state="empty" />
       ) : query.isLoading || transactions.isLoading || categories.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError ||
-        transactions.isError ||
-        categories.isError ||
+      ) : (query.isError && !hasReadableSnapshot(query)) ||
+        (transactions.isError && !hasReadableSnapshot(transactions)) ||
+        (categories.isError && !hasReadableSnapshot(categories)) ||
         !query.data ? (
         <PlanningState
           state="error"
