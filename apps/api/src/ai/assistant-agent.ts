@@ -348,7 +348,10 @@ function formatFact(
     /^\d{4}-\d{2}-\d{2}$/u.test(value)
   ) {
     const calendarDate = new Date(`${value}T00:00:00Z`);
-    if (Number.isFinite(calendarDate.valueOf()) && calendarDate.toISOString().slice(0, 10) === value) {
+    if (
+      Number.isFinite(calendarDate.valueOf()) &&
+      calendarDate.toISOString().slice(0, 10) === value
+    ) {
       // Calendar dates identify a day, so converting them through an instant timezone would shift it.
       return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', {
         timeZone: 'UTC',

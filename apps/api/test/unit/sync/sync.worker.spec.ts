@@ -37,22 +37,42 @@ const values: Record<string, number> = {
 const config = { getRequired: jest.fn((key: string) => values[key]) } as never;
 
 describe('SyncWorker', () => {
-  it.each([1, 10])('preserves direct recent-auth rejection at attempt %s without refreshing or exhausting the immutable claim', async attemptCount => {
-    const item = { ...claimed, attemptCount };
-    const before = JSON.stringify(item);
-    const repository = {
-      claimMutations: jest.fn().mockResolvedValue([item]),
-      workerComplete: jest.fn(), retryMutation: jest.fn()
-    };
-    const handlers = { dispatch: jest.fn<ReturnType<SyncHandlers['dispatch']>, Parameters<SyncHandlers['dispatch']>>().mockRejectedValue(new HttpException({ code: 'RECENT_AUTH_REQUIRED' }, 403)) };
-    await new SyncWorker(repository as never, handlers as never, config).runJob('sync-mutations.retry');
-    expect(repository.workerComplete).toHaveBeenCalledWith(item.id, item.leaseToken, 'rejected', null, { code: 'RECENT_AUTH_REQUIRED' });
-    expect(repository.retryMutation).not.toHaveBeenCalled();
-    expect(JSON.stringify(item)).toBe(before);
-    expect(handlers.dispatch).toHaveBeenCalledTimes(1);
-    expect(handlers.dispatch).toHaveBeenCalledWith(expect.objectContaining({ userId: item.userId }), item.mutation, item.mutation.operationId);
-    expect(handlers.dispatch.mock.calls[0]?.[0].factorAgeSeconds).toBeGreaterThanOrEqual(700);
-  });
+  it.each([1, 10])(
+    'preserves direct recent-auth rejection at attempt %s without refreshing or exhausting the immutable claim',
+    async (attemptCount) => {
+      const item = { ...claimed, attemptCount };
+      const before = JSON.stringify(item);
+      const repository = {
+        claimMutations: jest.fn().mockResolvedValue([item]),
+        workerComplete: jest.fn(),
+        retryMutation: jest.fn(),
+      };
+      const handlers = {
+        dispatch: jest
+          .fn<ReturnType<SyncHandlers['dispatch']>, Parameters<SyncHandlers['dispatch']>>()
+          .mockRejectedValue(new HttpException({ code: 'RECENT_AUTH_REQUIRED' }, 403)),
+      };
+      await new SyncWorker(repository as never, handlers as never, config).runJob(
+        'sync-mutations.retry',
+      );
+      expect(repository.workerComplete).toHaveBeenCalledWith(
+        item.id,
+        item.leaseToken,
+        'rejected',
+        null,
+        { code: 'RECENT_AUTH_REQUIRED' },
+      );
+      expect(repository.retryMutation).not.toHaveBeenCalled();
+      expect(JSON.stringify(item)).toBe(before);
+      expect(handlers.dispatch).toHaveBeenCalledTimes(1);
+      expect(handlers.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: item.userId }),
+        item.mutation,
+        item.mutation.operationId,
+      );
+      expect(handlers.dispatch.mock.calls[0]?.[0].factorAgeSeconds).toBeGreaterThanOrEqual(700);
+    },
+  );
   it('ages queued authentication at execution and distrusts legacy timestamps', async () => {
     const repository = {
       claimMutations: jest.fn().mockResolvedValue([

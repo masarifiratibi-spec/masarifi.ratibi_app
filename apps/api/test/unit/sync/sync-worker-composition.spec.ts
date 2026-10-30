@@ -71,7 +71,8 @@ it('uses separate least-privilege connections for normal sync claims and ledger 
         observed.push({ connection, sql });
         if (connection === workerUrl && sql === 'set local role masarifi_api')
           return Promise.reject(new Error('42501 api role denied'));
-        if (/^select \* from private\.claim_client_mutations/.test(sql)) return Promise.resolve({ rows: [] });
+        if (/^select \* from private\.claim_client_mutations/.test(sql))
+          return Promise.resolve({ rows: [] });
         if (/^select/.test(sql) && !sql.includes('set_config'))
           return Promise.reject(new Error('SYNTHETIC_COMMAND_BOUNDARY'));
         return Promise.resolve({ rows: [] });
@@ -84,34 +85,32 @@ it('uses separate least-privilege connections for normal sync claims and ledger 
   try {
     await module.get(SyncWorker).runJob('sync-mutations.retry');
     await expect(
-      module
-        .get(SyncHandlers)
-        .dispatch(
-          { userId: 'user_owner', sessionId: 'session', factorAgeSeconds: 0 },
-          {
-            operationId: '21000000-0000-4000-8000-000000000002',
-            domain: 'transactions',
-            resourceType: 'transaction',
-            schemaVersion: 1,
-            dependsOn: [],
-            operation: 'create',
-            resourceId: '21000000-0000-4000-8000-000000000002',
-            baseVersion: null,
-            payload: {
-              kind: 'expense',
-              amountMinor: 100,
-              currency: 'SAR',
-              accountId: '21000000-0000-4000-8000-000000000001',
-              categoryId: '21000000-0000-4000-8000-000000000003',
-              title: 'Inert composition probe',
-              merchant: null,
-              note: null,
-              occurredAt: '2026-10-26T00:00:00.000Z',
-              source: 'manual',
-            },
+      module.get(SyncHandlers).dispatch(
+        { userId: 'user_owner', sessionId: 'session', factorAgeSeconds: 0 },
+        {
+          operationId: '21000000-0000-4000-8000-000000000002',
+          domain: 'transactions',
+          resourceType: 'transaction',
+          schemaVersion: 1,
+          dependsOn: [],
+          operation: 'create',
+          resourceId: '21000000-0000-4000-8000-000000000002',
+          baseVersion: null,
+          payload: {
+            kind: 'expense',
+            amountMinor: 100,
+            currency: 'SAR',
+            accountId: '21000000-0000-4000-8000-000000000001',
+            categoryId: '21000000-0000-4000-8000-000000000003',
+            title: 'Inert composition probe',
+            merchant: null,
+            note: null,
+            occurredAt: '2026-10-26T00:00:00.000Z',
+            source: 'manual',
           },
-          'composition-probe',
-        ),
+        },
+        'composition-probe',
+      ),
     ).rejects.toBeDefined();
     expect(observed).toContainEqual({ connection: workerUrl, sql: 'set role masarifi_worker' });
     expect(observed).toContainEqual({ connection: apiUrl, sql: 'set role masarifi_api' });

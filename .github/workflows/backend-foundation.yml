@@ -123,6 +123,8 @@ jobs:
       - name: Select validated npm version
         run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
+      # Offline creation checks the actual API sync DTO, including its Nest dependency.
+      - run: npm --prefix ../api ci --ignore-scripts
       - run: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs
       - run: node --test --test-concurrency=1 ../../packages/transaction-parser/*.test.js
       - run: npm run typecheck
@@ -374,11 +376,11 @@ jobs:
       - run: npm run test:database:integration
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"
+      - name: Prepare disposable API-only role verification on the fresh database
+        run: node ../../scripts/integration/prepare-restricted-api-role.cjs
       - run: npm run test:foundation:e2e
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"
-      - name: Prepare disposable API-only role verification on the fresh database
-        run: node ../../scripts/integration/prepare-restricted-api-role.cjs
       - run: npm run test:integration -- --json --outputFile=/tmp/masarifi-fresh-integration.json
         env:
           MASARIFI_LIVE_DATABASE_TESTS: "1"

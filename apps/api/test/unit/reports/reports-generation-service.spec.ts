@@ -14,7 +14,12 @@ describe('ReportsService generation', () => {
     const repository = { captureSnapshot: jest.fn() };
     const service = new ReportsService(repository as never);
     await expect(
-      service.createReport({ ...principal, factorAgeSeconds: 999 }, { ...command, delivery: 'email', recipient: 'owner@example.test' }, 'request-key', 'r'),
+      service.createReport(
+        { ...principal, factorAgeSeconds: 999 },
+        { ...command, delivery: 'email', recipient: 'owner@example.test' },
+        'request-key',
+        'r',
+      ),
     ).rejects.toMatchObject({ status: 403 });
     await expect(service.createReport(principal, command, 'short', 'r')).rejects.toMatchObject({
       status: 400,
@@ -23,23 +28,61 @@ describe('ReportsService generation', () => {
   });
 
   it('accepts owner PDF downloads with a valid session regardless of factor age', async () => {
-    const repository = { captureSnapshot: jest.fn().mockResolvedValue({ attemptId: 'id', status: 'queued' }) };
+    const repository = {
+      captureSnapshot: jest.fn().mockResolvedValue({ attemptId: 'id', status: 'queued' }),
+    };
     const service = new ReportsService(repository as never);
     const signedIn = { ...principal, factorAgeSeconds: 86_400 };
-    await expect(service.createReport(signedIn, command, 'download-operation', 'r')).resolves.toMatchObject({ status: 'queued' });
-    expect(repository.captureSnapshot).toHaveBeenCalledWith(signedIn, expect.objectContaining({ format: 'pdf', delivery: 'download' }), 'download-operation', 'r');
+    await expect(
+      service.createReport(signedIn, command, 'download-operation', 'r'),
+    ).resolves.toMatchObject({ status: 'queued' });
+    expect(repository.captureSnapshot).toHaveBeenCalledWith(
+      signedIn,
+      expect.objectContaining({ format: 'pdf', delivery: 'download' }),
+      'download-operation',
+      'r',
+    );
   });
 
   it('polls and signs only owner-scoped PDF downloads without an extra identity challenge, keeping admin and other output protections', async () => {
-    const repository = { getAttempt: jest.fn().mockResolvedValue({ status: 'ready', format: 'pdf', delivery: 'download', storageRef: 'private-key', expiresAt: '2026-10-30T00:00:00Z' }) };
+    const repository = {
+      getAttempt: jest.fn().mockResolvedValue({
+        status: 'ready',
+        format: 'pdf',
+        delivery: 'download',
+        storageRef: 'private-key',
+        expiresAt: '2026-10-30T00:00:00Z',
+      }),
+    };
     const storage = { sign: jest.fn().mockResolvedValue('https://storage.test/private') };
     const service = new ReportsService(repository as never, storage as never);
     const signedIn = { ...principal, factorAgeSeconds: 86_400 };
-    await expect(service.getReportAttempt(signedIn, '99000000-0000-4000-8000-000000000001', 'r', new Date('2026-10-29T00:00:00Z'))).resolves.toMatchObject({ downloadUrl: 'https://storage.test/private' });
-    expect(repository.getAttempt).toHaveBeenCalledWith(signedIn, '99000000-0000-4000-8000-000000000001', 'r');
-    expect(() => service.getAdminExport(signedIn, '99000000-0000-4000-8000-000000000001', 'r')).toThrow();
-    repository.getAttempt.mockResolvedValue({ status: 'ready', format: 'pdf', delivery: 'email', storageRef: 'private-key', expiresAt: '2026-10-30T00:00:00Z' });
-    await expect(service.getReportAttempt(signedIn, '99000000-0000-4000-8000-000000000001', 'r')).rejects.toMatchObject({ status: 403 });
+    await expect(
+      service.getReportAttempt(
+        signedIn,
+        '99000000-0000-4000-8000-000000000001',
+        'r',
+        new Date('2026-10-29T00:00:00Z'),
+      ),
+    ).resolves.toMatchObject({ downloadUrl: 'https://storage.test/private' });
+    expect(repository.getAttempt).toHaveBeenCalledWith(
+      signedIn,
+      '99000000-0000-4000-8000-000000000001',
+      'r',
+    );
+    expect(() =>
+      service.getAdminExport(signedIn, '99000000-0000-4000-8000-000000000001', 'r'),
+    ).toThrow();
+    repository.getAttempt.mockResolvedValue({
+      status: 'ready',
+      format: 'pdf',
+      delivery: 'email',
+      storageRef: 'private-key',
+      expiresAt: '2026-10-30T00:00:00Z',
+    });
+    await expect(
+      service.getReportAttempt(signedIn, '99000000-0000-4000-8000-000000000001', 'r'),
+    ).rejects.toMatchObject({ status: 403 });
     expect(storage.sign).toHaveBeenCalledTimes(1);
   });
 

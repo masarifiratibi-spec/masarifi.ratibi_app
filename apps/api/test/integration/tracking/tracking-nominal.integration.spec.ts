@@ -246,9 +246,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
           [second.id],
         )
       ).rows,
-    ).toEqual([
-      { status: 'review', reason: 'duplicate_candidate', review_status: 'pending' },
-    ]);
+    ).toEqual([{ status: 'review', reason: 'duplicate_candidate', review_status: 'pending' }]);
   });
   it('keeps later independent movements using the same notification slot separate', async () => {
     const timestamp = Date.now();

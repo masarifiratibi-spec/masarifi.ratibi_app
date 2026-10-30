@@ -59,36 +59,81 @@ const route: EffectiveAiRoute = {
   ],
 };
 
-it.each(['Asia/Riyadh', 'Pacific/Honolulu'].flatMap(timezone => [
-  { timezone, locale: 'ar', question: 'اعرض تواريخ فترة التقرير', expected: 'الفترة من 1 أكتوبر 2026 إلى 31 أكتوبر 2026.' },
-  { timezone, locale: 'en', question: 'Show the report period dates', expected: 'Period from 1 October 2026 to 31 October 2026.' },
-]))('localizes typed calendar-only report dates in $locale without timezone shifts ($timezone)', async ({timezone, locale, question, expected}) => {
-  let referenceValue: string | undefined;
-  const model = {
-    complete: (input: {parse: (value: unknown) => unknown; userContent: string}) => {
-      const payload = JSON.parse(input.userContent) as {
-        dataAlreadyRead: Array<{data: {period: {startDate: {ref: string}; endDate: {ref: string}}; reference: {value: string}}}>;
-      };
-      const data = payload.dataAlreadyRead[0]?.data;
-      if (!data) throw new Error('Expected calendar facts');
-      referenceValue = data.reference.value;
-      return Promise.resolve({
-        value: input.parse({status: 'answer', responseType: 'fact', scope: 'selected_period', queries: [],
-          answer: locale === 'ar'
-            ? `الفترة من ${data.period.startDate.ref} إلى ${data.period.endDate.ref}.`
-            : `Period from ${data.period.startDate.ref} to ${data.period.endDate.ref}.`}),
-        model: 'model', provider: 'provider', generationId: 'calendar-facts',
-        usage: {inputTokens: 1, outputTokens: 1, cost: 0}, latencyMs: 1, fallbackUsed: false
-      });
-    }
-  };
-  const agent = new AssistantAgent({read: () => Promise.resolve({...sample,
-    data: {period: {startDate: '2026-10-01', endDate: '2026-10-31'}, reference: '2026-10-16'}
-  })} as never, model as never, () => Promise.resolve());
-  const answer = await agent.run({...claim, timezone, content: question}, route, new AbortController().signal);
-  expect(answer.content).toBe(expected);
-  expect(referenceValue).toBe('2026-10-16');
-});
+it.each(
+  ['Asia/Riyadh', 'Pacific/Honolulu'].flatMap((timezone) => [
+    {
+      timezone,
+      locale: 'ar',
+      question: 'اعرض تواريخ فترة التقرير',
+      expected: 'الفترة من 1 أكتوبر 2026 إلى 31 أكتوبر 2026.',
+    },
+    {
+      timezone,
+      locale: 'en',
+      question: 'Show the report period dates',
+      expected: 'Period from 1 October 2026 to 31 October 2026.',
+    },
+  ]),
+)(
+  'localizes typed calendar-only report dates in $locale without timezone shifts ($timezone)',
+  async ({ timezone, locale, question, expected }) => {
+    let referenceValue: string | undefined;
+    const model = {
+      complete: (input: { parse: (value: unknown) => unknown; userContent: string }) => {
+        const payload = JSON.parse(input.userContent) as {
+          dataAlreadyRead: Array<{
+            data: {
+              period: { startDate: { ref: string }; endDate: { ref: string } };
+              reference: { value: string };
+            };
+          }>;
+        };
+        const data = payload.dataAlreadyRead[0]?.data;
+        if (!data) throw new Error('Expected calendar facts');
+        referenceValue = data.reference.value;
+        return Promise.resolve({
+          value: input.parse({
+            status: 'answer',
+            responseType: 'fact',
+            scope: 'selected_period',
+            queries: [],
+            answer:
+              locale === 'ar'
+                ? `الفترة من ${data.period.startDate.ref} إلى ${data.period.endDate.ref}.`
+                : `Period from ${data.period.startDate.ref} to ${data.period.endDate.ref}.`,
+          }),
+          model: 'model',
+          provider: 'provider',
+          generationId: 'calendar-facts',
+          usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+          latencyMs: 1,
+          fallbackUsed: false,
+        });
+      },
+    };
+    const agent = new AssistantAgent(
+      {
+        read: () =>
+          Promise.resolve({
+            ...sample,
+            data: {
+              period: { startDate: '2026-10-01', endDate: '2026-10-31' },
+              reference: '2026-10-16',
+            },
+          }),
+      } as never,
+      model as never,
+      () => Promise.resolve(),
+    );
+    const answer = await agent.run(
+      { ...claim, timezone, content: question },
+      route,
+      new AbortController().signal,
+    );
+    expect(answer.content).toBe(expected);
+    expect(referenceValue).toBe('2026-10-16');
+  },
+);
 
 it.each([
   ['PRIVATE ACCOUNT-', 'internal_selector'],
