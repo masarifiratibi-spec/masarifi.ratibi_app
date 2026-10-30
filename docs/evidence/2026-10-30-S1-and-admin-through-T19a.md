@@ -16,7 +16,7 @@ This records bounded qualification, not acceptance of every task or a release. T
 
 ## Remaining gates
 
-Verification for this delta: 20 mobile cases and 35 distinct affected Admin cases passed, with exact-file lint. The final four Admin UI cases use real query/repository/components with HTTP interception; they fail against the original production preimages and pass against the corrected source. Full mobile typechecking passed. Final Admin typechecking is waiting for the required desktop memory admission; it is not represented as passing. GitHub's automatic Staging Client Regression does not replace that Admin compiler check.
+Verification for this delta: 20 mobile cases and 35 distinct affected Admin cases passed, with exact-file lint. The final four Admin UI cases use real query/repository/components with HTTP interception; they fail against the original production preimages and pass against the corrected source. Full mobile and Admin typechecking passed. The final Admin compiler run started at 13:56:23 UTC after available memory reached 2,028,344 KiB, above the 1,400,000 KiB admission threshold, and exited zero. No unrelated process or Metro was stopped to obtain memory. GitHub's automatic Staging Client Regression does not replace that Admin compiler check.
 
 | Task | Current limit |
 | --- | --- |
