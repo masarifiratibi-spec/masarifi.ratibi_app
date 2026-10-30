@@ -10,7 +10,15 @@ const VERSION = 1;
 const MAX_BYTES = 512 * 1024;
 // A known profile denial must survive LRU eviction while its canonical local
 // copy still exists. This is an unavailable display marker, not financial data.
-const PROFILE_DENIAL_PRIORITY = `CASE WHEN query_key = '["settings","profile"]' AND payload = 'null' THEN 1 ELSE 0 END`;
+const PROFILE_DENIAL_PRIORITY = `CASE WHEN (query_key = '["settings","profile"]' AND payload = 'null') OR (json_extract(query_key, '$[0]') = 'planning' AND json_extract(query_key, '$[2]') = 'denied') THEN 1 ELSE 0 END`;
+function planningFamily(
+  key: readonly unknown[]
+): 'salary' | 'obligations' | null {
+  if (key[0] !== 'planning') return null;
+  if (['salary', 'snapshot', 'overview'].includes(String(key[1])))
+    return 'salary';
+  return key[1] === 'obligations' ? 'obligations' : null;
+}
 interface Row {
   query_key: string;
   payload: string;
@@ -26,6 +34,37 @@ export function createQueryReadCache(current: () => ReadCacheScope | null) {
   };
   return {
     current,
+    // These display models contain dates, amounts and user-entered names, not
+    // translated labels. Reuse them across language/day changes in this owner DB.
+    async loadPlanning(scope: ReadCacheScope): Promise<StoredRead[]> {
+      assertCurrent(scope);
+      const database = await openDatabase(scope.ownerId);
+      assertCurrent(scope);
+      const rows = await database.getAllAsync<Row>(
+        `SELECT query_key, payload, updated_at FROM query_read_cache WHERE schema_version = ? AND json_extract(query_key, '$[0]') = 'planning' ORDER BY ${PROFILE_DENIAL_PRIORITY} DESC, updated_at DESC LIMIT 64`,
+        VERSION
+      );
+      assertCurrent(scope);
+      return rows.flatMap((row) => {
+        try {
+          if (
+            row.payload.length * 2 > MAX_BYTES ||
+            row.query_key.length > 8192 ||
+            !Number.isFinite(row.updated_at) ||
+            row.updated_at <= 0 ||
+            row.updated_at > Date.now()
+          )
+            return [];
+          const key: unknown = JSON.parse(row.query_key);
+          if (!Array.isArray(key) || !readBelongsToScope(key, scope)) return [];
+          return [
+            { key, data: JSON.parse(row.payload), updatedAt: row.updated_at }
+          ];
+        } catch {
+          return [];
+        }
+      });
+    },
     async load(scope: ReadCacheScope): Promise<StoredRead[]> {
       assertCurrent(scope);
       const database = await openDatabase(scope.ownerId);
@@ -115,6 +154,23 @@ export function createQueryReadCache(current: () => ReadCacheScope | null) {
           payload,
           read.updatedAt
         );
+        const family = planningFamily(read.key);
+        if (
+          family &&
+          read.key[2] !== 'denied' &&
+          !(
+            read.data &&
+            typeof read.data === 'object' &&
+            'dataState' in read.data &&
+            read.data.dataState === 'offline'
+          )
+        ) {
+          await transaction.runAsync(
+            'DELETE FROM query_read_cache WHERE query_key = ? AND updated_at <= ?',
+            JSON.stringify(['planning', family, 'denied']),
+            read.updatedAt
+          );
+        }
         assertCurrent(scope);
         await transaction.runAsync(
           `DELETE FROM query_read_cache WHERE rowid NOT IN (SELECT rowid FROM query_read_cache ORDER BY ${PROFILE_DENIAL_PRIORITY} DESC, updated_at DESC, rowid DESC LIMIT 64)`
@@ -122,7 +178,19 @@ export function createQueryReadCache(current: () => ReadCacheScope | null) {
       });
     },
     async deny(scope: ReadCacheScope, key: readonly unknown[]): Promise<void> {
-      if (key.length === 2 && key[0] === 'settings' && key[1] === 'profile')
+      const family = planningFamily(key);
+      if (family) {
+        await this.save(scope, {
+          key: ['planning', family, 'denied'],
+          data: null,
+          updatedAt: Date.now()
+        });
+        await this.remove(scope, key);
+      } else if (
+        key.length === 2 &&
+        key[0] === 'settings' &&
+        key[1] === 'profile'
+      )
         await this.save(scope, { key, data: null, updatedAt: Date.now() });
       else await this.remove(scope, key);
     },

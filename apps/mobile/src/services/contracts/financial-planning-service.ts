@@ -143,6 +143,7 @@ export interface ObligationPage {
 }
 
 export interface ObligationsOverview {
+  dataState?: PlanningOverview['dataState'];
   payablesByCurrency: Record<string, number | null>;
   receivablesByCurrency: Record<string, number | null>;
   remainingByObligationId: Record<string, number | null>;

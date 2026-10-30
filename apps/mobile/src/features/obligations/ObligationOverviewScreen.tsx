@@ -54,7 +54,8 @@ export function ObligationOverviewScreen() {
   const totals = (values: Record<string, number | null>) => {
     if (hidden) return translate('planning.state.hidden');
     const entries = Object.entries(values);
-    if (!entries.length) return amount(0);
+    if (!entries.length)
+      return amount(query.data?.dataState === 'offline' ? null : 0);
     return entries
       .map(([currency, minor]) => amount(minor, currency))
       .join('\n');
@@ -144,6 +145,12 @@ export function ObligationOverviewScreen() {
               variant="overview"
             />
           </ObligationHeroHeader>
+
+          {query.data?.dataState === 'offline' ? (
+            <StyledText variant="caption" accessibilityLiveRegion="polite">
+              {translate('planning.state.offlineRead')}
+            </StyledText>
+          ) : null}
 
           <ObligationSegmentedControl
             value={filter}

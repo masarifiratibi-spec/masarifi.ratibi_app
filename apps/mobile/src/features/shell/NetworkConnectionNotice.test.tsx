@@ -176,7 +176,7 @@ it('shows an accessible Arabic notice even while the cold-start cover is visible
   expect(screen.getByRole('button', { name: 'إغلاق' })).toBeTruthy();
 });
 
-it('keeps an offline notice non-modal so cached navigation remains accessible', async () => {
+it('dismisses the styled offline popup before returning to cached navigation without a bottom strip', async () => {
   const navigate = jest.fn();
   render(
     <LiveIdentityStatusContext.Provider
@@ -196,11 +196,10 @@ it('keeps an offline notice non-modal so cached navigation remains accessible', 
   );
   await settle();
   expect(screen.getByRole('alert')).toBeTruthy();
+  expect(screen.UNSAFE_queryAllByType(Modal)).toHaveLength(1);
+  fireEvent.press(screen.getByRole('button', { name: 'إغلاق' }));
+  await poll();
   expect(screen.UNSAFE_queryAllByType(Modal)).toHaveLength(0);
-  expect(screen.getByTestId('offline-connection-notice')).toHaveProp(
-    'pointerEvents',
-    'box-none'
-  );
   fireEvent.press(screen.getByRole('button', { name: 'Cached accounts' }));
   expect(navigate).toHaveBeenCalledTimes(1);
 });

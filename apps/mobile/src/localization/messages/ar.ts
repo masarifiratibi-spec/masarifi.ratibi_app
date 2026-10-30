@@ -1592,6 +1592,7 @@ const ar: MessageCatalog = {
   'planning.state.empty': 'لا توجد سجلات تخطيط بعد',
   'planning.state.partial': 'بعض بيانات التخطيط غير مكتملة',
   'planning.state.offline': 'تبقى التغييرات على هذا الجهاز دون اتصال',
+  'planning.state.offlineRead': 'دون اتصال · نعرض البيانات المحفوظة على هذا الجهاز. قد تكون بعض القيم غير متاحة أو غير محدثة.',
   'planning.state.error': 'التخطيط غير متاح',
   'planning.state.hidden': 'القيم مخفية',
   'planning.reason.missing_data': 'غير متاح حتى إضافة بيانات أكثر',

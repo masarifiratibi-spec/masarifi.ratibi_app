@@ -12,6 +12,7 @@ import {
   available,
   daysBetween,
   deriveObligationStatus,
+  deriveSalaryCycle,
   FinancialPlanningError,
   money,
   unavailable,
@@ -38,12 +39,19 @@ import {
   type GoalMovementInput,
   type ObligationDetail,
   type ObligationInput,
+  type ObligationsOverview,
   type ObligationPaymentPreview,
   type SavingsGoalDetail,
   type SavingsGoalInput
 } from '@/services/contracts/financial-planning-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
 import { FinancialPlanningRepository } from '@/storage/financial-planning-repository';
+import { createQueryReadCache } from '@/storage/query-read-cache';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+import {
+  assertPlanningCacheReadable, isPlanningOffline, offlineSalary,
+  offlineSalarySchema, offlineProfileSchema, offlineObligationsSchema
+} from './planning-offline-read';
 import {
   readPlanningDraft,
   listPlanningDrafts,
@@ -1112,6 +1120,65 @@ export function createLiveFinancialPlanningService({
   registerRuntimeIdentityReset(resetRuntime);
   registerRuntimeUserDataReset(resetRuntime);
 
+  const offlineOwner = async (context?: ReadContext) => {
+    assertReadActive(context?.signal);
+    // A native, explicit disconnection permits local reads without requesting a token.
+    // Probe failure remains unknown and takes the regular authenticated API path.
+    if (!readRecoveryNetwork.available) return null;
+    const owner = await captureLiveClerkOwner();
+    const offline = await isPlanningOffline();
+    await owner.assertCurrent();
+    assertReadActive(context?.signal);
+    return offline ? owner : null;
+  };
+  const savedPlanningReads = async (
+    owner: Awaited<ReturnType<typeof captureLiveClerkOwner>>,
+    context?: ReadContext
+  ) => {
+    const scope = { ownerId: owner.userId, locale: usePreferenceStore.getState().locale };
+    const reads = persistent
+      ? await createQueryReadCache(() => ({ ...scope, locale: usePreferenceStore.getState().locale })).loadPlanning(scope)
+      : [];
+    await owner.assertCurrent();
+    assertReadActive(context?.signal);
+    await ensureLocal();
+    await owner.assertCurrent();
+    assertReadActive(context?.signal);
+    return reads.sort((a, b) => b.updatedAt - a.updatedAt);
+  };
+  const localObligations = (status?: Obligation['status']): ObligationsOverview => {
+    const items = repository.listObligations(status);
+    const result: ObligationsOverview = {
+      dataState: 'offline', items,
+      payablesByCurrency: {}, receivablesByCurrency: {}, remainingByObligationId: {},
+      nextDueDate: null, nextDueAmountMinor: null, nextDueObligationId: null
+    };
+    for (const obligation of items) {
+      const derived = deriveObligationStatus({
+        obligation, schedule: repository.listSchedule(obligation.id),
+        payments: repository.listPayments(obligation.id),
+        today: localDateInTimeZone(now(), usePreferenceStore.getState().timeZone)
+      });
+      const remaining = derived.remainingMinor.status === 'available' ? derived.remainingMinor.value : null;
+      result.remainingByObligationId[obligation.id] = remaining;
+      if (obligation.status !== 'active') continue;
+      const totals = obligation.direction === 'payable' ? result.payablesByCurrency : result.receivablesByCurrency;
+      if (remaining === null) totals[obligation.currencyCode] = null;
+      else if (totals[obligation.currencyCode] !== null)
+        totals[obligation.currencyCode] = requireSafeMinorSum([totals[obligation.currencyCode] ?? 0, remaining]);
+      if (derived.nextDueDate && (!result.nextDueDate || derived.nextDueDate < result.nextDueDate)) {
+        result.nextDueDate = derived.nextDueDate;
+        result.nextDueObligationId = obligation.id;
+        // A partial installment's outstanding allocation may be unknown offline.
+        result.nextDueAmountMinor = null;
+      }
+    }
+    const currency = usePreferenceStore.getState().baseCurrencyCode;
+    if (!Object.keys(result.payablesByCurrency).length) result.payablesByCurrency[currency] = null;
+    if (!Object.keys(result.receivablesByCurrency).length) result.receivablesByCurrency[currency] = null;
+    return result;
+  };
+
   const send = async <T>(
     method: string,
     path: string,
@@ -1452,6 +1519,20 @@ export function createLiveFinancialPlanningService({
     },
 
     async getSalaryOverview(input, context) {
+      const owner = await offlineOwner(context);
+      if (owner) {
+        const reads = await savedPlanningReads(owner, context);
+        assertPlanningCacheReadable(reads, 'salary');
+        for (const read of reads) {
+          const candidate = read.key[1] === 'snapshot'
+            ? (read.data as { salary?: unknown } | null)?.salary
+            : read.key[1] === 'salary' && read.key.length === 4 ? read.data : undefined;
+          const parsed = offlineSalarySchema.safeParse(candidate);
+          if (parsed.success) return offlineSalary(parsed.data, input.today, read.updatedAt);
+        }
+        // Canonical profile metadata is useful even without a verified cycle history.
+        return { ...deriveSalaryCycle({ profile: repository.activeSalaryProfile(), receipts: [], transactions: [], ...input }), dataState: 'offline' };
+      }
       return salaryCycle(
         await readSummary(input.today.slice(0, 7), input.today, context),
         input.today,
@@ -1460,6 +1541,17 @@ export function createLiveFinancialPlanningService({
     },
 
     async getSalaryProfile(context) {
+      const owner = await offlineOwner(context);
+      if (owner) {
+        const reads = await savedPlanningReads(owner, context);
+        assertPlanningCacheReadable(reads, 'salary');
+        for (const read of reads.filter((row) => row.key[1] === 'salary' && row.key[2] === 'profile')) {
+          const parsed = offlineProfileSchema.safeParse(read.data);
+          if (parsed.success) return parsed.data;
+        }
+        const profile = repository.activeSalaryProfile();
+        return profile ? { ...profile } : null;
+      }
       const profiles = await allPages(
         '/api/v1/salary-profiles',
         salarySchema,
@@ -1884,6 +1976,18 @@ export function createLiveFinancialPlanningService({
     },
 
     async getObligationsOverview(input, context) {
+      const owner = await offlineOwner(context);
+      if (owner) {
+        const reads = await savedPlanningReads(owner, context);
+        assertPlanningCacheReadable(reads, 'obligations');
+        if (!input.status) {
+          for (const read of reads.filter((row) => row.key[1] === 'obligations' && row.key[3] === 'overview')) {
+            const parsed = offlineObligationsSchema.safeParse(read.data);
+            if (parsed.success) return { ...parsed.data, dataState: 'offline' };
+          }
+        }
+        return localObligations(input.status);
+      }
       const [list, summary] = await Promise.all([
         service.listObligations(input, context),
         !input.status || input.status === 'active'

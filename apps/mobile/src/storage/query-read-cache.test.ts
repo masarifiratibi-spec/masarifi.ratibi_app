@@ -271,3 +271,59 @@ it('removes only the invalidated read model and leaves other periods intact', as
     { key: retained, data: { amountMinor: 1 }, updatedAt: 100 }
   ]);
 });
+
+it('restores planning display models across language changes only from the current owner database', async () => {
+  let scope: ReadCacheScope = { ownerId: mockOwner, locale: 'ar' };
+  const store = createQueryReadCache(() => scope);
+  const key = ['planning', 'salary', '2026-10-29', 'Asia/Riyadh'];
+  await store.save(scope, {
+    key,
+    data: { profileId: 'saved-profile' },
+    updatedAt: 100
+  });
+  await store.save(scope, {
+    key: ['settings', 'profile'],
+    data: { name: 'private-profile' },
+    updatedAt: 100
+  });
+  scope = { ...scope, locale: 'en' };
+  expect(await store.loadPlanning(scope)).toEqual([
+    { key, data: { profileId: 'saved-profile' }, updatedAt: 100 }
+  ]);
+  mockAfterOpen = () => {
+    scope = { ownerId: 'owner-b', locale: 'en' };
+  };
+  await expect(
+    store.loadPlanning({ ownerId: mockOwner, locale: 'en' })
+  ).rejects.toThrow('stale read-cache owner');
+});
+
+it('retains a salary denial across locales and old day keys until a fresh successful live read', async () => {
+  let scope: ReadCacheScope = { ownerId: mockOwner, locale: 'ar' };
+  const store = createQueryReadCache(() => scope);
+  await store.save(scope, {
+    key: ['planning', 'snapshot', mockOwner, '2026-10-29', 'Asia/Riyadh'],
+    data: { salary: {} },
+    updatedAt: 100
+  });
+  await store.deny(scope, ['planning', 'salary', '2026-10-30', 'Asia/Riyadh']);
+  scope = { ...scope, locale: 'en' };
+  const blocked = await store.loadPlanning(scope);
+  expect(blocked.some((read) => read.key[2] === 'denied')).toBe(true);
+  await store.save(scope, {
+    key: ['planning', 'salary', '2026-10-30', 'Asia/Riyadh'],
+    data: { dataState: 'offline' },
+    updatedAt: Date.now()
+  });
+  expect(
+    (await store.loadPlanning(scope)).some((read) => read.key[2] === 'denied')
+  ).toBe(true);
+  await store.save(scope, {
+    key: ['planning', 'salary', '2026-10-30', 'Asia/Riyadh'],
+    data: { dataState: 'ready' },
+    updatedAt: Date.now() + 1
+  });
+  expect(
+    (await store.loadPlanning(scope)).some((read) => read.key[2] === 'denied')
+  ).toBe(false);
+});

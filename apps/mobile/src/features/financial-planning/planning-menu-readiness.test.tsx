@@ -19,9 +19,13 @@ import { SalaryOverviewScreen } from '@/features/salary/SalaryOverviewScreen';
 import { ObligationOverviewScreen } from '@/features/obligations/ObligationOverviewScreen';
 import { financialPlanningKeys } from './financial-planning-queries';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
 
 jest.mock('@/services/financial-planning-service', () => ({
   financialPlanningService: {}
+}));
+jest.mock('@/services/platform/read-recovery-network', () => ({
+  readRecoveryNetwork: { available: true, isOnline: jest.fn(async () => true) }
 }));
 // An empty native secure store returns null; Expo's automatic mock returns undefined.
 jest.mock('expo-secure-store', () => ({
@@ -39,6 +43,7 @@ jest.mock('expo-router', () => ({
 }));
 
 beforeEach(() => {
+  jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
   useAppShellStore.setState({ session: authenticatedSession });
   usePreferenceStore.setState({ timeZone: 'Asia/Riyadh', hydrated: true });
   registerLiveClerkBridge({
@@ -57,6 +62,36 @@ beforeEach(() => {
     reverifyConflict: jest.fn(),
     signOut: jest.fn()
   });
+});
+
+it('opens both planning destinations offline on a first visit without requiring a server summary', async () => {
+  jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(false);
+  const h = fixture();
+  const view = render(h.wrap(<MoreRoute />));
+  const today = localDateInTimeZone(Date.now(), 'Asia/Riyadh');
+  try {
+    await waitFor(() =>
+      expect(
+        h.client.getQueryState(
+          financialPlanningKeys.salary(today, 'Asia/Riyadh')
+        )?.status
+      ).toBe('success')
+    );
+    view.rerender(h.wrap(<SalaryOverviewScreen />));
+    expect(
+      await screen.findByText(translate('planning.state.offlineRead'))
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(translate('planning.state.error'))).toBeNull();
+    view.rerender(h.wrap(<ObligationOverviewScreen />));
+    expect(await screen.findByTestId('obligations-hero')).toBeOnTheScreen();
+    expect(
+      screen.getByText(translate('planning.state.offlineRead'))
+    ).toBeOnTheScreen();
+    expect(h.request).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+    h.client.clear();
+  }
 });
 
 function fixture() {

@@ -1648,6 +1648,7 @@ const en = {
   'planning.state.empty': 'No planning records yet',
   'planning.state.partial': 'Some planning data is incomplete',
   'planning.state.offline': 'Offline changes stay on this device',
+  'planning.state.offlineRead': 'Offline · Showing data saved on this device. Some values may be unavailable or out of date.',
   'planning.state.error': 'Planning is unavailable',
   'planning.state.hidden': 'Values are hidden',
   'planning.reason.missing_data': 'Unavailable until more data is added',

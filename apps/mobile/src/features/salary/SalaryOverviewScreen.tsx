@@ -1,4 +1,5 @@
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { StyledText } from '@/components/StyledText';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
@@ -103,6 +104,11 @@ export function SalaryOverviewScreen() {
       ) : (
         <View style={styles.screenStack}>
           <FinancialRefreshStatus query={query} />
+          {data.dataState === 'offline' ? (
+            <StyledText variant="caption" accessibilityLiveRegion="polite">
+              {translate('planning.state.offlineRead')}
+            </StyledText>
+          ) : null}
           <SalaryCycleHeader
             direction={direction}
             income={money(data.income)}

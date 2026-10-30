@@ -15,6 +15,11 @@ import {
 jest.mock('@/services/financial-planning-service', () => ({
   financialPlanningService: {}
 }));
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn()
+}));
 
 it('shares one summary across salary and two currency projections', async () => {
   registerLiveClerkBridge({
@@ -74,11 +79,17 @@ it('shares one summary across salary and two currency projections', async () => 
   );
   try {
     await waitFor(() =>
-      expect(
-        view.result.current.usd.isSuccess &&
-          view.result.current.sar.isSuccess &&
-          view.result.current.salary.isSuccess
-      ).toBe(true)
+      expect({
+        usd: view.result.current.usd.status,
+        sar: view.result.current.sar.status,
+        salary: view.result.current.salary.status,
+        salaryError: view.result.current.salary.error
+      }).toEqual({
+        usd: 'success',
+        sar: 'success',
+        salary: 'success',
+        salaryError: null
+      })
     );
     expect(view.result.current.usd.data?.obligationsDueMinor).toMatchObject({
       status: 'available',

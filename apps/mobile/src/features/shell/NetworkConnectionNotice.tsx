@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import {
+  AppState,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useQueryClient } from '@tanstack/react-query';
-import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
 import { useLiveIdentityStatus } from '@/services/live/clerk-context';
@@ -18,6 +25,7 @@ import { useTheme } from '@/state/theme-context';
 export function NetworkConnectionNotice() {
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const client = useQueryClient();
   const identity = useLiveIdentityStatus();
   const latestIdentity = useRef(identity);
@@ -91,7 +99,11 @@ export function NetworkConnectionNotice() {
           {
             type: 'active',
             predicate: (query) =>
-              query.state.status === 'error' &&
+              (query.state.status === 'error' ||
+                (query.state.data !== null &&
+                  typeof query.state.data === 'object' &&
+                  'dataState' in query.state.data &&
+                  query.state.data.dataState === 'offline')) &&
               query.state.fetchStatus === 'idle'
           },
           { cancelRefetch: false }
@@ -162,51 +174,121 @@ export function NetworkConnectionNotice() {
   const title = t('appShell.networkNotice.title');
   if (!visible) return null;
   return (
-    <View
-      testID="offline-connection-notice"
-      pointerEvents="box-none"
-      style={[
-        styles.notice,
-        {
-          backgroundColor: theme.colors.surfaces.card,
-          borderColor: theme.colors.border,
-          direction: locale === 'ar' ? 'rtl' : 'ltr'
-        }
-      ]}
+    <Modal
+      visible={visible}
+      transparent
+      animationType={reducedMotion ? 'none' : 'fade'}
+      onRequestClose={() => setVisible(false)}
+      statusBarTranslucent
     >
       <View
-        accessibilityRole="alert"
-        accessible
-        accessibilityLiveRegion="polite"
-        style={styles.copy}
+        style={[
+          styles.backdrop,
+          { backgroundColor: theme.colors.horizon.scrim }
+        ]}
       >
-        <StyledText variant="subtitle">{title}</StyledText>
-        <StyledText variant="caption">
-          {t('appShell.networkNotice.message')}
-        </StyledText>
-        <StyledText variant="caption">
-          {t('appShell.networkNotice.stale')}
-        </StyledText>
+        <ScrollView contentContainerStyle={styles.viewport} bounces={false}>
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme.colors.surfaces.card,
+                direction: locale === 'ar' ? 'rtl' : 'ltr'
+              }
+            ]}
+          >
+            <View
+              accessible={false}
+              style={[
+                styles.icon,
+                { backgroundColor: theme.colors.surfaceMuted }
+              ]}
+            >
+              <Svg
+                width={32}
+                height={32}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={theme.colors.primary}
+                strokeWidth={1.8}
+                strokeLinecap="round"
+              >
+                <Path d="M3 3l18 18M2 8a16 16 0 0 1 3-2m4-1a16 16 0 0 1 13 3M5 12a11 11 0 0 1 4-2m5 0a11 11 0 0 1 5 2M8 16a6 6 0 0 1 7-1m-3 5h.01" />
+              </Svg>
+            </View>
+            <View
+              accessible
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={styles.copy}
+            >
+              <Text
+                style={[styles.title, { color: theme.colors.content.primary }]}
+              >
+                {title}
+              </Text>
+              <Text
+                style={[
+                  styles.message,
+                  { color: theme.colors.content.secondary }
+                ]}
+              >
+                {t('appShell.networkNotice.message')}
+              </Text>
+              <Text
+                style={[
+                  styles.detail,
+                  { color: theme.colors.content.secondary }
+                ]}
+              >
+                {t('appShell.networkNotice.stale')}
+              </Text>
+            </View>
+            <ActionButton
+              label={t('appShell.networkNotice.retry')}
+              loading={checking}
+              onPress={() => checkNow.current()}
+            />
+            <ActionButton
+              label={t('appShell.networkNotice.dismiss')}
+              variant="quiet"
+              onPress={() => setVisible(false)}
+            />
+          </View>
+        </ScrollView>
       </View>
-      <View style={styles.actions}>
-        <ActionButton
-          label={t('appShell.networkNotice.retry')}
-          variant="quiet"
-          loading={checking}
-          onPress={() => checkNow.current()}
-        />
-        <ActionButton
-          label={t('appShell.networkNotice.dismiss')}
-          variant="quiet"
-          onPress={() => setVisible(false)}
-        />
-      </View>
-    </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  notice: { paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1 },
-  copy: { gap: 4 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
+  backdrop: { flex: 1 },
+  viewport: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 48
+  },
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    gap: 12
+  },
+  icon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 8
+  },
+  copy: { gap: 12, marginBottom: 12 },
+  title: { fontSize: 23, fontWeight: '700', textAlign: 'center' },
+  message: { fontSize: 16, lineHeight: 26, textAlign: 'center' },
+  detail: { fontSize: 14, lineHeight: 23, textAlign: 'center' }
 });

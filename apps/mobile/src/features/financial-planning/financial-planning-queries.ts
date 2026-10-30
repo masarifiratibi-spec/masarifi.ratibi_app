@@ -13,6 +13,7 @@ import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useAppShellStore } from '@/state/app-shell';
 import { assertReadActive } from '@/services/live/read-context';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { isPlanningOffline } from '@/services/live/planning-offline-read';
 
 async function planningSnapshot(
   client: QueryClient,
@@ -105,7 +106,10 @@ function salaryOverviewOptions(
   return {
     queryKey: financialPlanningKeys.salary(today, timeZone),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      if (!financialPlanningService.getPlanningSnapshot)
+      if (
+        !financialPlanningService.getPlanningSnapshot ||
+        (await isPlanningOffline())
+      )
         return financialPlanningService.getSalaryOverview(
           { today, timeZone },
           { signal }
