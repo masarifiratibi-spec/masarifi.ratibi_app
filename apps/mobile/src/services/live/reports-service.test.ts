@@ -105,6 +105,24 @@ function service(request: jest.Mock) {
   });
 }
 
+it.each(['queued', 'ready'] as const)('reads a %s PDF attempt with the deployed requestId metadata', async (status) => {
+  const id = '99000000-0000-4000-8000-000000000071';
+  const row = {
+    id, reportType: 'financial_summary', format: 'pdf', delivery: 'download', status,
+    metadata: {}, requestedAt: generatedAt, expiresAt: '2026-09-05T00:00:00.000Z',
+    requestId: '99000000-0000-4000-8000-000000000072',
+    ...(status === 'ready' ? { downloadUrl: 'https://storage.example.test/fresh.pdf', downloadUrlExpiresAt: '2026-09-04T00:05:00.000Z' } : {})
+  };
+  const reports = service(jest.fn().mockResolvedValue(json(row)));
+  await expect(reports.getAttempt(id)).resolves.toMatchObject({ id, status: status === 'ready' ? 'ready' : 'scheduled' });
+});
+
+it('continues rejecting unknown PDF attempt fields beside requestId', async () => {
+  const id = '99000000-0000-4000-8000-000000000073';
+  const reports = service(jest.fn().mockResolvedValue(json({ id, status: 'queued', requestId: 'known-correlation', unexpectedOwnershipGrant: true })));
+  await expect(reports.getAttempt(id)).rejects.toMatchObject({ code: 'contract_mismatch' });
+});
+
 describe('live reports strict mapping', () => {
   it.each([undefined, ['99000000-0000-4000-8000-000000000001']])(
     'loads the default calendar report with account scope %p from the deployed strict contract',

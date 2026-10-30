@@ -442,7 +442,8 @@ export function createLiveReportsService(
         'expiresAt',
         'errorCode',
         'downloadUrl',
-        'downloadUrlExpiresAt'
+        'downloadUrlExpiresAt',
+        'requestId'
       ]),
       status = String(row.status);
     if (
