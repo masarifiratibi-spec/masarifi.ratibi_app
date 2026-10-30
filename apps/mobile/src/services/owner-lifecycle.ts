@@ -30,6 +30,10 @@ import { syncAutomaticTracking } from '@/services/automatic-tracking-coordinator
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import { syncFirstLogout } from '@/services/sync-first-logout';
 import { settleTransactionDraftWrites } from '@/storage/transaction-draft-snapshots';
+export {
+  isLogoutOwnerFenced,
+  currentLogoutAdmissionRevision
+} from '@/storage/app-shell-storage';
 let activeLogout: { ownerId: string; promise: Promise<boolean | void> } | null = null;
 function runLogoutOperation(ownerId: string, action: () => Promise<boolean | void>): Promise<boolean | void> {
   if (activeLogout) {

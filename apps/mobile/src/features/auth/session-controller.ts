@@ -17,11 +17,11 @@ import { settingsService } from '@/services/mocks/subscription-settings-service'
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { measurePerformance } from '@/services/platform/performance-timing';
-import { rememberAuthenticatedOwner } from '@/services/owner-lifecycle';
 import {
+  rememberAuthenticatedOwner,
   isLogoutOwnerFenced,
   currentLogoutAdmissionRevision
-} from '@/storage/app-shell-storage';
+} from '@/services/owner-lifecycle';
 export { signOutAppShellSession } from '@/services/owner-lifecycle';
 
 interface CompleteSessionOptions {

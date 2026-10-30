@@ -2,11 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
 import { useAppShellStore } from '@/state/app-shell';
 import {
-  loadAssistantDraft,
-  saveAssistantDraft,
-  discardAssistantDraft,
+  assistantDraftService,
   type AssistantDraft
-} from '@/storage/app-shell-storage';
+} from '@/services/assistant-draft-service';
 
 type DraftState = AssistantDraft & {
   owner: string | null;
@@ -56,7 +54,7 @@ export function useAssistantDraft(scope: string, initialText = '') {
     active.current = next;
     setState(next);
     if (owner)
-      void loadAssistantDraft(owner, scope)
+      void assistantDraftService.load(owner, scope)
         .then((saved) => {
           if (!cancelled)
             setState({ ...next, ...(saved ?? {}), loading: false });
@@ -74,7 +72,7 @@ export function useAssistantDraft(scope: string, initialText = '') {
   const persist = async (next: DraftState) => {
     if (!owner) return;
     try {
-      await saveAssistantDraft(owner, scope, {
+      await assistantDraftService.save(owner, scope, {
         text: next.text,
         revision: next.revision
       });
@@ -94,7 +92,7 @@ export function useAssistantDraft(scope: string, initialText = '') {
   };
   const discard = async (expectedRevision?: string) => {
     try {
-      if (owner) await discardAssistantDraft(owner, scope, expectedRevision);
+      if (owner) await assistantDraftService.discard(owner, scope, expectedRevision);
       if (
         current() &&
         (expectedRevision === undefined ||
