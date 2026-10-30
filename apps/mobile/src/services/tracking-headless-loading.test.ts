@@ -58,7 +58,9 @@ const interactive = async (): Promise<never> => {
 };
 beforeEach(async () => {
   jest.clearAllMocks();
-  jest.mocked(SecureStore.getItemAsync).mockResolvedValue(context);
+  jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+    key === 'masarifi.tracking.background-context.v2' ? context : null
+  );
   await resetRuntimeIdentityData({ restoringOwnerId: owner });
   mockSync.mockResolvedValue({ status: 'idle' });
   getToken.mockResolvedValue('isolated-token');
@@ -135,8 +137,10 @@ it('rechecks retained consent after authentication before entering the coordinat
   getToken.mockImplementationOnce(async () => {
     jest
       .mocked(SecureStore.getItemAsync)
-      .mockResolvedValue(
-        JSON.stringify({ ownerId: owner, generation: 'replaced-generation' })
+      .mockImplementation(async (key) =>
+        key === 'masarifi.tracking.background-context.v2'
+          ? JSON.stringify({ ownerId: owner, generation: 'replaced-generation' })
+          : null
       );
     return 'isolated-token';
   });

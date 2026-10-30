@@ -70,6 +70,7 @@ describe('AppShellProvider', () => {
     useAppShellStore.getState().reset();
     usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
     jest.clearAllMocks();
+    jest.mocked(SecureStore.getItemAsync).mockReset().mockResolvedValue(null);
     mockRestoreAppShellSession.mockImplementation(async () => undefined);
   });
 
@@ -274,11 +275,14 @@ describe('AppShellProvider', () => {
       restoration: 'restored'
     });
     let finishStorage!: (value: null) => void;
-    jest.mocked(SecureStore.getItemAsync).mockImplementationOnce(
-      () =>
-        new Promise<null>((resolve) => {
-          finishStorage = resolve;
-        })
+    const storage = new Promise<null>((resolve) => {
+      finishStorage = resolve;
+    });
+    jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+      key === 'masarifi.appShell.nativePrivacyLock.v1' ||
+      key.startsWith('masarifi.appShell.nativePrivacyLock.v1.')
+        ? storage
+        : null
     );
     let finishProfile!: (value: unknown) => void;
     const profile = new Promise((resolve) => {

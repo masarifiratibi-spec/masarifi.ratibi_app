@@ -3,6 +3,14 @@ import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/asy
 import { changeLocale } from '@/localization/i18n';
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+// Native reads return null for an absent key. The preset's undefined return
+// incorrectly looks like corrupt persisted data to the logout admission fence.
+jest.mock('expo-secure-store', () => ({
+  ...jest.requireActual('expo-secure-store'),
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined)
+}));
 // The native Clerk SDK opens MessagePorts at import time. Offline UI tests use
 // an inert SDK boundary; provider tests supply their own explicit auth responses.
 jest.mock('@clerk/expo', () => {

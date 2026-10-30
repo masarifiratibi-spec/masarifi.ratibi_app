@@ -67,7 +67,7 @@ test("Phase 11 detail actions are keyboard operable and send only versioned reas
   });
   for (const [route, label, action] of [
     ["/admin/support/tickets/TKT-1001", "تنفيذ الإجراء", "resolve"],
-    ["/admin/feedback/FDB-1001", "مراجعة الملاحظة", "review"],
+    ["/admin/feedback/FDB-1001", "تطبيق الإجراء", "review"],
     ["/admin/content/categories/CAT-1001", "نشر", "publish"],
     ["/admin/notifications/campaigns/CMP-1001", "اعتماد", "approve"],
   ] as const) {
@@ -75,6 +75,10 @@ test("Phase 11 detail actions are keyboard operable and send only versioned reas
     if (action === "resolve") {
       await page.getByRole("combobox", { name: "الإجراء", exact: true }).selectOption("resolve");
       await page.getByLabel("سبب الإجراء لسجل التدقيق").fill("Resolved after reviewing the conversation");
+    }
+    if (action === "review") {
+      await page.getByRole("combobox", { name: "الحالة", exact: true }).selectOption("review");
+      await page.getByLabel("سبب الإجراء لسجل التدقيق").fill("Reviewed synthetic feedback using the keyboard");
     }
     const button = page.getByRole("button", { name: label });
     await button.focus();

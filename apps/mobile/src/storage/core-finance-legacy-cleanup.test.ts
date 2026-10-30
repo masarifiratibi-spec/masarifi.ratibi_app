@@ -64,6 +64,7 @@ class ForeignKeySqlite {
       );
       CREATE TABLE finance_drafts (id TEXT PRIMARY KEY, payload TEXT NOT NULL, status TEXT, updated_at INTEGER);
       CREATE TABLE sync_mutation_queue (operation_id TEXT PRIMARY KEY, domain TEXT, resource_type TEXT, resource_id TEXT, status TEXT);
+      CREATE TABLE sync_id_mappings (domain TEXT, local_id TEXT, server_id TEXT, updated_at INTEGER, PRIMARY KEY(domain, local_id));
       CREATE TABLE finance_sync_conflicts (
         id TEXT PRIMARY KEY,
         transaction_id TEXT NOT NULL REFERENCES finance_transactions(id),
