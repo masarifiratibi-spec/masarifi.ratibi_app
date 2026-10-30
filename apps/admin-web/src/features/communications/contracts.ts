@@ -3,7 +3,10 @@ import { z } from "zod";
 export const sharedIdSchema = z
   .string()
   .regex(/^[A-Z]{2,4}-\d{4,6}-[A-Z0-9]+$/);
-export const routeRecordIdSchema = z.string().regex(/^[A-Z]{3}-\d{4}$/);
+export const routeRecordIdSchema = z.union([
+  z.uuid(),
+  z.string().regex(/^[A-Z]{3}-\d{4}$/),
+]);
 
 export type SharedId = z.infer<typeof sharedIdSchema>;
 export type RouteRecordId = z.infer<typeof routeRecordIdSchema>;
