@@ -36,10 +36,10 @@ Files: `src/features/shell/NetworkConnectionNotice.tsx`, its existing tests, its
 ## S1 and completion boundary
 
 - [x] Recover existing strict SSH or official Hostinger console access without changing credentials/firewall/security. Refresh exact host/client/database/storage/resources/image/config/queue gates.
-- [ ] Execute only the already approved exact API/assistant replacement and sequential finite consumer windows, with new journals and existing rollback rules. Human private authentication remains a human step.
+- [x] Execute the approved exact S1 API/assistant replacement and finite PDF scope with new journals and existing rollback rules. The later human cancellation supersedes the original ZIP leg; do not start or renew it.
 - [x] Reconcile every remaining T07–T19a criterion using its own source/device/hosted evidence. Reuse unchanged completed results; run checks for changed or unresolved boundaries only.
 - [x] Audit changed imports/routes, archive/source references and runtime behavior; fix confirmed regressions, publish verified final changes to the same branch, and verify remote identity.
-- [ ] Stop at T19a. Report any genuinely blocked private-human/external boundary explicitly; do not claim universal correctness, full acceptance, or T20–T22 completion.
+- [x] Stop at T19a. Report held private-human/external boundaries explicitly; do not claim universal correctness, full acceptance, or T20–T22 completion.
 
 Review focus: owner changes during hydration; absence versus authoritative empty state; date/locale-dependent cache misses; missing/partial financial summaries; popup persistence and content obstruction after navigation.
 
@@ -47,4 +47,4 @@ Review focus: owner changes during hydration; absence versus authoritative empty
 
 The human has now resumed eligible work through T19a, while keeping ZIP cancelled. The combined finite-consumer item above is superseded and does not authorize starting ZIP. S1 activation and the earlier PDF window had already completed. The unchanged offline repair is recorded in [offline evidence](../../evidence/2026-10-30-offline-planning-repair.md).
 
-[The PDF verification](../../evidence/2026-10-30-pdf-only-download-verification.md) remains complete and is not replayed. [The current continuation](../../evidence/2026-10-30-T19a-remaining-continuation.md) records the fresh popup/Reports check and newly reproduced feedback defects, qualified client/Admin repairs and the separate API proposal. Reuse [the remaining-criteria audit](../../evidence/2026-10-30-reports-history-and-remaining-through-T19a.md) for unchanged task boundaries. Continue eligible work only through T19a; do not resume ZIP, renew consumer windows or infer blanket acceptance.
+[The PDF verification](../../evidence/2026-10-30-pdf-only-download-verification.md) remains complete and was not replayed. [The final continuation](../../evidence/2026-10-30-T19a-remaining-continuation.md) records the fresh popup/Reports check, qualified client/API/Admin/UUID repairs, exact approved deployments and successful single-feedback lifecycle through Closed/version5 on Admin and the phone. All five original client projections, the2026-13 draft, APK, Metro and native settings were preserved. Reuse [the remaining-criteria audit](../../evidence/2026-10-30-reports-history-and-remaining-through-T19a.md) for held criteria. Eligible work is finished and stopped atT19a; do not resume ZIP, renew consumer windows, proceed toT20 or infer blanket acceptance.

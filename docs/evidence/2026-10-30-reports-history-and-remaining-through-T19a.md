@@ -2,6 +2,8 @@
 
 This continuation reuses the installed APK, Metro31240, the current branch, and unchanged prior evidence. It does not accept every task or extend work into T20–T22. Historical62/69/88/29 denominators and original approval packets remain unchanged. Private device, authentication, financial and operational receipts are excluded from this public repository.
 
+The observations below retain the earlier checkpoint history. The final30October disposition is recorded in [the completed continuation](2026-10-30-T19a-remaining-continuation.md) and updates the affected rows below. Its exact approvals supersede the old ZIP-first order.
+
 ## Qualified changes and device observations
 
 - The styled offline popup was physically shown and dismissed on the existing Redmi. Reports was scrolled to its stable bottom while offline: content ended above the dedicated PDF dock, with no persistent network strip over the data. Earlier unchanged English/large-text popup evidence was retained.
@@ -29,18 +31,18 @@ API report unit suites passed120 cases, including the maximum-page regression an
 | T07a | Offline Salary/Obligations repair and empty-owner screens qualified previously. Actual salary/obligation records and ordinary Savings qualification remain unavailable on this owner. |
 | T07b | Existing read slices retained; no card account or financial account creation was manufactured for acceptance. |
 | T07c | No approved unused QA category record was supplied for a write/delete lifecycle. Existing used records were preserved. |
-| T08 | Actual history500 cause correlated and repaired in source; ordinary50-row read works live.100-row API fix awaits the new candidate's eligible promotion. Earlier timezone/cache evidence is retained. |
-| T09 | Ordinary owner PDF history works; two existing server PDFs are ready. Native saved-file delivery is blocked by the old server signing code until the reviewed API candidate is promoted. The full filter/locale/email/schedule matrix is not accepted; external sends require their original explicit scope. |
+| T08 | History500 cause repaired and API read fix actually deployed under the exact approval. Ordinary owner history works live. Earlier timezone/cache evidence is retained. |
+| T09 | Existing owner PDF saved through ordinary native delivery and its complete data/page verified against the report snapshot. No new generation or download was replayed duringT19a. The full filter/locale/email/schedule matrix is not accepted; external sends retain their original explicit scope. |
 | T10 | Source statuses, ordinary history entry and existing QA-ticket read qualified. Additional mobile/Admin messages remain unauthorized. |
-| T11 | Original ZIP preparation remains qualified and unstarted. The old uncertain local operation requires the separately reviewed journal exception, then human recent authentication and actual finite export/content/expiry verification. |
+| T11 | ZIP cancelled by the human. No export request/window was started; recoverable archived local metadata is retained. No ZIP completion is claimed. |
 | T12 | Actual erasure requires a dedicated authorized disposable identity; real-owner deletion and public publication remain excluded. |
-| T13 | Retained theme/font/glyph work plus bounded new-history layout observations; full untouched matrix not replayed or newly accepted. |
+| T13 | Styled offline popup and unobstructed Reports bottom freshly confirmed on the same device; retained theme/font/glyph and Arabic/English/large-text evidence. Full untouched matrix not replayed or newly accepted. |
 | T14 | Keyboard/background and keep/discard navigation slices qualified. Full promised durable-draft/owner/lock/restart matrix remains partial. |
 | T15 / T15a | Native capture remains off; no inbox read, new SMS, merchant-rule financial effect or permission expansion was performed. |
 | T16 / T16a | No authorized actual notification grant/delivery/action lifecycle was introduced. |
 | T17 / T17a | No finite new provider/question or financial-confirmation scope; no assistant mutation was performed. |
 | T18 | No new recording/upload/native-permission scope; no actual recording. |
-| T19 | Prior actual Super Admin reads and30 viewport observations retained. Corrected Admin source has not been deployed. Ordinary-role qualification remains blocked by absent assignments/eligible credentials. |
-| T19a | Feedback filter source repair qualified previously. Hosted feedback is empty; actual moderation/lifecycle needs an authorized synthetic record. No customer record or rating was changed. |
+| T19 | Prior actual Super Admin reads and30 viewport observations retained. Qualified native Admin and UUID-route repairs deployed under their exact approvals. Ordinary-role hosted qualification remains held by absent assignments/eligible credentials. |
+| T19a | Exactly one explicitly approved synthetic feedback was created by the owner, read in actual Admin/mobile, and progressed through Reviewing2 → Planned3 → Resolved4 → Closed5. Closed state and unchanged body confirmed on phone and read-only database. Manage/read-only source tests pass; other-role hosted evidence remains held. No genuine customer record, edit/delete or rating workflow was introduced. |
 
-The original ZIP launcher pins the current API image. Complete its separately gated original window before promoting the read-fix API candidate; neither approval silently amends the other. No window replay, production change, merge, release signing, excluded CI repair, or universal-completion claim is included.
+The human's later PDF-only instruction cancelled the ZIP-first requirement, and the subsequent throughT19a instruction resumed only eligible non-ZIP work. The read-fix API promotion and actual PDF save are complete; their windows are not renewed. Work stopped atT19a after the approved synthetic lifecycle and final preservation checks. No window replay, Production change, merge, release signing, excluded CI repair, or universal-completion claim is included.
