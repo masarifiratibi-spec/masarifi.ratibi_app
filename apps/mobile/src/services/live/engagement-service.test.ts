@@ -30,6 +30,33 @@ beforeEach(() => {
 const id = (suffix: number) =>
   `11000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
 const at = '2026-09-10T08:00:00.000Z';
+
+it('reads owner feedback with its own states and an encoded cursor, without a customer selector', async () => {
+  const request = jest.fn(async () => response({
+    items: [{ id: id(91), type: 'other', subject: 'My feedback', body: 'My original note', status: 'planned', version: 3, createdAt: at }],
+    nextCursor: 'next-page', hasMore: true
+  })) as unknown as jest.MockedFunction<typeof fetch>;
+  const service = createLiveSupportService({ baseUrl: 'https://api.example.test', token: async () => 'owner-token', request });
+  const page = await service.listFeedback('page+a/2');
+  expect(request).toHaveBeenCalledWith('https://api.example.test/api/v1/feedback?limit=50&cursor=page%2Ba%2F2', expect.objectContaining({ method: 'GET', headers: { Authorization: 'Bearer owner-token' } }));
+  expect(page).toEqual({ items: [{ id: id(91), type: 'other', subject: 'My feedback', body: 'My original note', status: 'planned', version: 3, createdAt: Date.parse(at) }], nextCursor: 'next-page', total: 1 });
+});
+
+it('rejects a ticket status in a feedback response instead of translating it into a feedback lifecycle', async () => {
+  const request = jest.fn(async () => response({
+    items: [{ id: id(91), type: 'other', subject: 'Note', body: 'Text', status: 'waiting_support', version: 1, createdAt: at }], nextCursor: null, hasMore: false
+  })) as unknown as jest.MockedFunction<typeof fetch>;
+  const service = createLiveSupportService({ baseUrl: 'https://api.example.test', token: async () => 'owner-token', request });
+  await expect(service.listFeedback()).rejects.toThrow();
+});
+
+it('does not start a feedback read after its screen was cancelled', async () => {
+  const request = jest.fn() as unknown as jest.MockedFunction<typeof fetch>;
+  const service = createLiveSupportService({ baseUrl: 'https://api.example.test', token: async () => 'owner-token', request });
+  const controller = new AbortController(); controller.abort();
+  await expect(service.listFeedback(undefined, { signal: controller.signal })).rejects.toThrow();
+  expect(request).not.toHaveBeenCalled();
+});
 jest.mock('@/config/mobile-automation', () => ({
   isMobileAutomationEnabled: jest.fn(() => false)
 }));

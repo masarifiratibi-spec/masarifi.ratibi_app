@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useInfiniteQuery,
   useQuery,
   useQueryClient,
   type QueryClient
@@ -13,6 +14,7 @@ export const supportKeys = {
   articles: (query: string, category?: string) =>
     ['support', 'articles', query, category ?? 'all'] as const,
   tickets: () => ['support', 'tickets'] as const,
+  feedback: () => ['support', 'feedback'] as const,
   ticket: (id: string) => ['support', 'ticket', id] as const,
   draft: (id: string) => ['support', 'draft', id] as const
 };
@@ -30,6 +32,19 @@ export function useSupportTickets(cursor?: string) {
   return useQuery({
     queryKey: [...supportKeys.tickets(), owner, cursor ?? ''] as const,
     queryFn: () => supportService.listTickets(cursor)
+  });
+}
+
+export function useSupportFeedback() {
+  const owner = useAppShellStore((state) => state.session?.userId ?? null);
+  return useInfiniteQuery({
+    queryKey: [...supportKeys.feedback(), owner],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam, signal }) =>
+      supportService.listFeedback(pageParam, { signal }),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: Boolean(owner),
+    staleTime: 0
   });
 }
 
@@ -137,6 +152,7 @@ export async function invalidateSupportScopes(
 }
 
 export function supportScopeToKey(scope: string): readonly unknown[] | null {
+  if (scope === 'support.feedback') return supportKeys.feedback();
   if (scope === 'support.tickets') return supportKeys.tickets();
   if (
     scope.startsWith('support.ticket.') &&

@@ -1,6 +1,19 @@
 import { z } from 'zod';
 import { safeFailureSchema } from './notifications';
 
+export const supportFeedbackSchema = z
+  .object({
+    id: z.string().uuid(),
+    type: z.enum(['bug', 'idea', 'experience', 'other']),
+    subject: z.string().min(1).max(180),
+    body: z.string().min(1).max(8192),
+    status: z.enum(['new', 'reviewing', 'planned', 'resolved', 'closed']),
+    version: z.number().int().positive(),
+    createdAt: z.number().int().nonnegative()
+  })
+  .strict();
+export type SupportFeedback = z.infer<typeof supportFeedbackSchema>;
+
 export const supportContextSchema = z
   .object({
     itemId: z.string().min(1),

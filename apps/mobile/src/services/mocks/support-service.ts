@@ -89,6 +89,7 @@ export function createMockSupportService({
       return articles.filter((article) => (!category || article.category === category) && article.searchTerms.some((item) => normalize(item).includes(term)));
     },
     listTickets: (cursor?: string) => repository.listTickets(cursor),
+    async listFeedback() { throw new Error('support.state.unavailable'); },
     getTicket: (id: string) => repository.getTicket(id),
     saveDraft,
     loadDraft: (id: string) => repository.loadDraft(id),

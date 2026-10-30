@@ -23,3 +23,15 @@ test.each(['ar', 'en'] as const)(
     expect(router.replace).not.toHaveBeenCalled();
   }
 );
+
+test.each(['ar', 'en'] as const)(
+  'opens a separate feedback history from Support in %s',
+  async (locale) => {
+    changeLocale(locale);
+    renderWithProviders(<SupportHomeScreen />);
+    fireEvent.press(await screen.findByRole('button', {
+      name: locale === 'ar' ? 'سجل الملاحظات' : 'Feedback history'
+    }));
+    expect(router.push).toHaveBeenCalledWith('/support/feedback');
+  }
+);

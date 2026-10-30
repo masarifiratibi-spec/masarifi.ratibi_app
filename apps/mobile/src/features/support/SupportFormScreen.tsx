@@ -93,6 +93,8 @@ export function SupportFormScreen({
       draft.markSubmitted();
       if (result.value.ticketId)
         router.replace(`/support/tickets/${result.value.ticketId}`);
+      else if (result.value.kind === 'feedback')
+        router.replace('/support/feedback');
       else router.back();
     } catch {
       setSubmitFailure(true);
@@ -134,11 +136,18 @@ export function SupportFormScreen({
       </View>
 
       {mode === 'ticket' ? (
-        <ActionButton
-          label="support.home.ticketHistory"
-          variant="secondary"
-          onPress={() => router.push('/support/tickets')}
-        />
+        <>
+          <ActionButton
+            label="support.home.ticketHistory"
+            variant="secondary"
+            onPress={() => router.push('/support/tickets')}
+          />
+          <ActionButton
+            label="support.feedback.history"
+            variant="secondary"
+            onPress={() => router.push('/support/feedback')}
+          />
+        </>
       ) : null}
 
       {/* Screen Title & Subtitle */}

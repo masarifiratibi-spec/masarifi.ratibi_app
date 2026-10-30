@@ -9,6 +9,7 @@ import {
 } from '@/domain/notifications';
 import {
   supportDraftSchema,
+  supportFeedbackSchema,
   supportOperationSchema,
   supportTicketSchema,
   type SupportArticle,
@@ -36,7 +37,11 @@ import {
   captureLiveClerkOwner,
   getLiveClerkToken
 } from './auth-service';
-import { assertReadActive, withReadContext } from './read-context';
+import {
+  assertReadActive,
+  withReadContext,
+  type ReadContext
+} from './read-context';
 import {
   getPushDeviceRegistration,
   phoneNotificationService,
@@ -283,6 +288,17 @@ export function createEngagementApi({
         'GET',
         `/api/v1/content/${encodeURIComponent(key)}?locale=${locale}`
       ),
+    listFeedback: (cursor?: string, context?: ReadContext) =>
+      withReadContext(context, (signal) =>
+        sendRequest(
+          'GET',
+          `/api/v1/feedback?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+          undefined,
+          undefined,
+          () => true,
+          signal
+        )
+      ),
     createFeedback: (input: Json, key: string) =>
       send('POST', '/api/v1/feedback', input, key),
     createAbuseReport: (input: Json, key: string) =>
@@ -401,6 +417,19 @@ async function capturePushRegistrationOwner(token?: TokenProvider) {
 
 const isoDateSchema = z.string().datetime({ offset: true });
 const nullableIsoDateSchema = isoDateSchema.nullable();
+const feedbackPageApiSchema = z
+  .object({
+    items: z
+      .array(supportFeedbackSchema.extend({ createdAt: isoDateSchema }))
+      .max(100),
+    nextCursor: z.string().min(1).max(512).nullable(),
+    hasMore: z.boolean()
+  })
+  .strict()
+  .refine(
+    (page) => page.hasMore === Boolean(page.nextCursor),
+    'Feedback cursor must match hasMore'
+  );
 const scalarSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const notificationActionApiSchema = z
   .object({
@@ -1022,6 +1051,18 @@ export function createLiveSupportService(
       const items = raw.items.map(supportTicketFromApi);
       return { items, nextCursor: raw.nextCursor, total: items.length };
     },
+    async listFeedback(cursor, context) {
+      const raw = feedbackPageApiSchema.parse(
+        await api.listFeedback(cursor, context)
+      );
+      if (raw.nextCursor && raw.nextCursor === cursor)
+        throw new EngagementApiError('unavailable');
+      const items = raw.items.map((item) => ({
+        ...item,
+        createdAt: dateValue(item.createdAt)
+      }));
+      return { items, nextCursor: raw.nextCursor, total: items.length };
+    },
     async getTicket(id) {
       let cursor: string | undefined;
       let first: z.infer<typeof ticketDetailApiSchema> | null = null;
@@ -1129,7 +1170,11 @@ export function createLiveSupportService(
       const value = supportOperation(operationId, kind, ticketId, id);
       return {
         value,
-        affectedScopes: ['support.tickets', `support.draft.${id}`]
+        affectedScopes: [
+          'support.tickets',
+          `support.draft.${id}`,
+          ...(kind === 'feedback' ? ['support.feedback'] : [])
+        ]
       };
     },
     async reply(

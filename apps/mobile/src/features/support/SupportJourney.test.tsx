@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
@@ -77,6 +78,18 @@ test('support home directly renders contact support form in Arabic and English',
   expect(screen.getByText(t('support.form.title'))).toBeTruthy();
   expect(screen.getByText(t('support.form.category'))).toBeTruthy();
   expect(screen.getByText(t('support.form.submit'))).toBeTruthy();
+});
+
+test('opens feedback history after a confirmed feedback submission without creating a ticket conversation', async () => {
+  const original = mockDraft.useSupportDraft.getMockImplementation()!();
+  mockDraft.useSupportDraft.mockReturnValue({ ...original, values: { ...original.values, category: 'feedback', subject: 'My feedback', description: 'Original feedback text' } });
+  const submit = jest.fn(async () => ({ value: { ticketId: null, kind: 'feedback' } }));
+  mockQueries.useSubmitSupportDraft.mockReturnValue({ mutateAsync: submit, isPending: false });
+  renderWithProviders(<SupportHomeScreen />);
+  fireEvent.press(screen.getByRole('button', { name: t('support.form.submit') }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/support/feedback'));
+  expect(submit).toHaveBeenCalledTimes(1);
+  expect(router.back).not.toHaveBeenCalled();
 });
 
 test('support form validates, flushes latest draft before submit, reviews/removes optional context, and excludes attachments', async () => {

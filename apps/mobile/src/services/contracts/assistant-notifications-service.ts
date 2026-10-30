@@ -38,11 +38,13 @@ import type {
   SupportArticle,
   SupportDraft,
   SupportDraftInput,
+  SupportFeedback,
   SupportOperation,
   SupportReplyInput,
   SupportTicket
 } from '@/domain/support';
 import type { MutationResult } from './core-finance-service';
+import type { ReadContext } from './read-context';
 import type { CapabilityContractMetadata } from './capability-contract';
 
 export const notificationServiceCapability: CapabilityContractMetadata = {
@@ -356,6 +358,10 @@ export interface SupportService {
     category?: string;
   }): Promise<SupportArticle[]>;
   listTickets(cursor?: string): Promise<Page<SupportTicket>>;
+  listFeedback(
+    cursor?: string,
+    context?: ReadContext
+  ): Promise<Page<SupportFeedback>>;
   getTicket(id: string): Promise<SupportTicket>;
   saveDraft(input: SupportDraftInput): Promise<SupportDraft>;
   loadDraft(id: string): Promise<SupportDraft | null>;
