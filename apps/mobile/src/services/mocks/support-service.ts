@@ -2,6 +2,7 @@ import {
   canRateTicket,
   supportArticleSchema,
   supportDraftSchema,
+  supportSubmissionContentSchema,
   supportOperationSchema,
   supportTicketSchema,
   type SupportArticle,
@@ -173,6 +174,7 @@ function kindFor(mode: SupportDraft['mode']): SupportOperation['kind'] {
 async function requireDraft(repository: Repository, id: string): Promise<SupportDraft> {
   const draft = await repository.loadDraft(id);
   if (!draft) throw new SupportServiceError('not_found');
+  supportSubmissionContentSchema.parse(draft);
   return draft;
 }
 

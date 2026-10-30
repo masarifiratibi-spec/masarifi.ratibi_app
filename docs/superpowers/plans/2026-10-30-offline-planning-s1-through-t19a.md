@@ -45,7 +45,7 @@ Review focus: owner changes during hydration; absence versus authoritative empty
 
 ## Same-owner resumption on 31 October
 
-The human explicitly resumed the remaining eligible tests on the same device and owner. This supersedes the historical stopping disposition below; it does not repeat its completed operations or authorize ZIP. [The new continuation](../../evidence/2026-10-31-same-owner-through-T19a.md) records qualified durable Assistant drafts, same-owner startup-read recovery, preservation checks and the newly observed custom-cycle API range mismatch. That live mismatch remains open. Keep the original draft/data/APK/Metro and existing permission, financial, provider and deployment boundaries.
+The human explicitly resumed the remaining eligible tests on the same device and owner. This supersedes the historical stopping disposition below; it does not repeat its completed operations or authorize ZIP. [The new continuation](../../evidence/2026-10-31-same-owner-through-T19a.md) records qualified durable Assistant drafts, partial Support drafts, same-owner startup-read recovery and the custom-cycle API repair. The exact newly approved API image was activated and actual cycle25 all/selected-account reads matched the original ledger. Keep the original draft/data/APK/Metro and existing permission, financial, provider and deployment boundaries. The private native schema-pin CI failure remains explicit; do not widen its gates or enter T20 to obtain a pass.
 
 ## Current bounded disposition
 

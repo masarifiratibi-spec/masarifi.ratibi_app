@@ -39,8 +39,8 @@ const draftFields = {
   submissionOperationId: z.string().uuid().optional(),
   id: z.string().min(1),
   category: z.string().min(1).max(64),
-  subject: z.string().min(1).max(160),
-  description: z.string().min(1).max(4000),
+  subject: z.string().max(160),
+  description: z.string().max(4000),
   status: z.enum(['draft', 'validating', 'failed']),
   updatedAt: z.number().int().nonnegative()
 };
@@ -93,6 +93,10 @@ export const supportDraftSchema = z.discriminatedUnion('mode', [
     })
     .strict()
 ]);
+export const supportSubmissionContentSchema = z.object({
+  subject: draftFields.subject.refine((text) => text.trim().length > 0),
+  description: draftFields.description.refine((text) => text.trim().length > 0)
+});
 export type SupportDraft = z.infer<typeof supportDraftSchema>;
 export type SupportDraftInput = Omit<SupportDraft, 'status' | 'updatedAt'>;
 export const supportMessageSchema = z

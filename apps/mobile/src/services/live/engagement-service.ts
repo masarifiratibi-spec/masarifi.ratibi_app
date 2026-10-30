@@ -9,6 +9,7 @@ import {
 } from '@/domain/notifications';
 import {
   supportDraftSchema,
+  supportSubmissionContentSchema,
   supportFeedbackSchema,
   supportOperationSchema,
   supportTicketSchema,
@@ -1110,6 +1111,7 @@ export function createLiveSupportService(
     async submitDraft(id, operationId) {
       const draft = await drafts.loadDraft(id);
       if (!draft) throw new EngagementApiError('not_found');
+      supportSubmissionContentSchema.parse(draft);
       operationId = draft.submissionOperationId ?? operationId;
       let ticketId: string | null = null;
       let kind: SupportOperation['kind'] = 'submit_ticket';
