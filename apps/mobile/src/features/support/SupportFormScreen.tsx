@@ -462,7 +462,7 @@ export function SupportFormScreen({
 
       {submitFailure ? (
         <StyledText accessibilityRole="alert">
-          support.form.failure.representative_failure
+          support.form.submitFailure
         </StyledText>
       ) : null}
       {/* Submit Button */}

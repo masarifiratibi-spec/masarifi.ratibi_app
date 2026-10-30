@@ -1046,6 +1046,52 @@ it('sends reply attachment IDs unchanged', async () => {
   });
 });
 
+it.each(['ticket', 'feedback'] as const)(
+  'sends the ordinary feedback selection as feedback from a %s draft and retains its replay identity',
+  async (mode) => {
+    const operationId = '77777777-7777-4777-8777-777777777777';
+    const draft: SupportDraft = {
+      id: 'support-draft-ticket',
+      mode,
+      category: 'feedback',
+      subject: 'Product feedback',
+      description: 'A suggestion from the ordinary contact form.',
+      ticketId: null,
+      context: null,
+      status: 'draft',
+      updatedAt: 1,
+      submissionOperationId: operationId
+    };
+    const drafts = {
+      saveDraft: jest.fn(),
+      loadDraft: jest.fn().mockResolvedValue(draft),
+      discardDraft: jest.fn()
+    };
+    const request = jest.fn().mockResolvedValue(response({ id: id(20) }));
+    const service = createLiveSupportService({
+      baseUrl: 'https://api.example.test',
+      token: async () => 'token',
+      request,
+      drafts
+    });
+
+    await expect(service.submitDraft(draft.id, 'different-caller-id')).resolves.toMatchObject({
+      value: { kind: 'feedback', operationId, ticketId: null }
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+    const [url, options] = request.mock.calls[0];
+    expect(url).toBe('https://api.example.test/api/v1/feedback');
+    expect(options.method).toBe('POST');
+    expect(new Headers(options.headers).get('Idempotency-Key')).toBe(operationId);
+    expect(JSON.parse(String(options.body))).toEqual({
+      type: 'other',
+      subject: draft.subject,
+      body: draft.description
+    });
+    expect(drafts.discardDraft).toHaveBeenCalledWith(draft.id);
+  }
+);
+
 it('keeps the draft and refuses ticket submission when its category is unavailable', async () => {
   const draft = {
     id: 'draft-1',

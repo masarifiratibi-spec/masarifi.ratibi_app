@@ -148,6 +148,21 @@ test('support form validates, flushes latest draft before submit, reviews/remove
   expect(screen.getByText(t('support.form.failure.offline'))).toBeTruthy();
 });
 
+test('a rejected submission keeps its text and distinguishes sending from draft saving', async () => {
+  const submit = jest.fn().mockRejectedValue(Object.assign(new Error('unavailable'), { code: 'unavailable' }));
+  mockQueries.useSubmitSupportDraft.mockReturnValue({ mutateAsync: submit, isPending: false });
+  renderWithProviders(<SupportFormScreen />);
+  fireEvent.changeText(screen.getByLabelText(t('support.form.subject')), 'Feedback stays');
+  fireEvent.changeText(screen.getByLabelText(t('support.form.description')), 'Keep this text for the same submission.');
+  fireEvent.press(screen.getByText(t('support.form.submit')));
+
+  await waitFor(() => expect(screen.getByText(t('support.form.submitFailure'))).toBeTruthy());
+  expect(screen.queryByText(t('support.form.failure.representative_failure'))).toBeNull();
+  expect(screen.getByDisplayValue('Feedback stays')).toBeTruthy();
+  expect(screen.getByDisplayValue('Keep this text for the same submission.')).toBeTruthy();
+  expect(submit).toHaveBeenCalledTimes(1);
+});
+
 function articles() {
   return [
     {

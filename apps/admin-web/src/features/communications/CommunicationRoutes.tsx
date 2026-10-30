@@ -5,6 +5,7 @@ import { useState } from "react";
 import { MetricCard, PageHeader, RegionState } from "@/components/admin/ui";
 import { getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import type {
   CommunicationDetail,
   CommunicationOverview,
@@ -253,9 +254,11 @@ function RecordTable({
 function Detail({
   item,
   action,
+  children,
 }: {
   item: CommunicationDetail;
   action?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const { locale } = useLocale();
   const c = copy[locale];
@@ -306,6 +309,7 @@ function Detail({
           </p>
         ))}
       </section>
+      {children}
     </div>
   );
 }
@@ -466,7 +470,9 @@ export function FeedbackRoute() {
   return (
     <div className="page">
       <PageHeader
-        title={locale === "ar" ? "نظرة عامة على الملاحظات" : "Feedback overview"}
+        title={
+          locale === "ar" ? "نظرة عامة على الملاحظات" : "Feedback overview"
+        }
         description={
           locale === "ar"
             ? "تصنيف الملاحظات وربطها بسجلات تشغيلية آمنة."
@@ -483,40 +489,129 @@ export function FeedbackRoute() {
         onChange={setFilters}
       />
       <PageState query={query} permission="feedback.read">
-        {(page) => <RecordTable items={page.items} detailBase="/admin/feedback" />}
+        {(page) => (
+          <RecordTable items={page.items} detailBase="/admin/feedback" />
+        )}
       </PageState>
     </div>
   );
 }
 
+const feedbackActions = [
+  { value: "review", state: "reviewing" },
+  { value: "plan", state: "planned" },
+  { value: "resolve", state: "resolved" },
+  { value: "close", state: "closed" },
+] as const;
+
 export function FeedbackDetailRoute({ feedbackId }: { feedbackId: string }) {
   const query = useFeedbackDetail(feedbackId);
   const mutation = useFeedbackAction();
   const { locale } = useLocale();
+  const can = useCurrentPermission();
+  const [action, setAction] =
+    useState<(typeof feedbackActions)[number]["value"]>("review");
+  const [reason, setReason] = useState("");
+  const pending = mutation.isPending || query.isFetching;
+  const failed =
+    mutation.isError ||
+    (mutation.data && !["success", "accepted"].includes(mutation.data.outcome));
   return (
     <PageState query={query} permission="feedback.read">
       {(item) => (
-        <Detail
-          item={item}
-          action={
-            <button
-              className="button primary"
-              disabled={mutation.isPending}
-              onClick={() =>
+        <Detail item={item}>
+          {can("feedback.manage") ? (
+            <form
+              className="table-card support-action"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (
+                  pending ||
+                  !can("feedback.manage") ||
+                  reason.trim().length < 10 ||
+                  reason.trim().length > 500
+                )
+                  return;
                 mutation.mutate({
                   resourceId: feedbackId,
                   action: {
-                    action: "review",
+                    action,
                     expectedVersion: item.revision,
-                    reason: "Accepted for product review",
+                    reason: reason.trim(),
                   },
-                })
-              }
+                });
+              }}
             >
-              {locale === "ar" ? "مراجعة الملاحظة" : "Review feedback"}
-            </button>
-          }
-        />
+              <label>
+                {copy[locale].state}
+                <select
+                  value={action}
+                  disabled={pending}
+                  onChange={(event) => {
+                    const selected = feedbackActions.find(
+                      (option) => option.value === event.target.value,
+                    );
+                    if (selected) setAction(selected.value);
+                    mutation.reset();
+                  }}
+                >
+                  {feedbackActions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {getStatusLabel(locale, option.state)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {locale === "ar"
+                  ? "سبب الإجراء لسجل التدقيق"
+                  : "Reason for the audit log"}
+                <textarea
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  minLength={10}
+                  maxLength={500}
+                  required
+                  disabled={pending}
+                />
+              </label>
+              <button
+                className="button primary"
+                type="submit"
+                disabled={
+                  pending ||
+                  reason.trim().length < 10 ||
+                  reason.trim().length > 500
+                }
+              >
+                {locale === "ar" ? "تطبيق الإجراء" : "Apply action"}
+              </button>
+              {failed ? (
+                <div role="alert">
+                  <p>
+                    {locale === "ar"
+                      ? "تعذر تطبيق الإجراء. حدّث الملاحظة ثم حاول مجددًا."
+                      : "Unable to apply the action. Refresh the feedback before retrying."}
+                  </p>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => {
+                      mutation.reset();
+                      void query.refetch();
+                    }}
+                  >
+                    {locale === "ar" ? "تحديث الملاحظة" : "Refresh feedback"}
+                  </button>
+                </div>
+              ) : mutation.isSuccess ? (
+                <p role="status">
+                  {locale === "ar" ? "تم تطبيق الإجراء." : "Action applied."}
+                </p>
+              ) : null}
+            </form>
+          ) : null}
+        </Detail>
       )}
     </PageState>
   );

@@ -2514,6 +2514,7 @@ const ar: MessageCatalog = {
   'support.form.context.assistant': 'تم إرفاق سياق رد المساعد',
   'support.form.failure.offline': 'تم الحفظ محليًا. أرسل الطلب عند الاتصال.',
   'support.form.failure.representative_failure': 'تعذر حفظ المسودة مؤقتًا.',
+  'support.form.submitFailure': 'تعذر إرسال الطلب. النص باقٍ لإعادة المحاولة.',
   'support.report.assistant': 'إبلاغ الدعم عن رد المساعد',
   'support.form.title': 'التواصل مع الدعم',
   'support.form.subtitle': 'نحن هنا لمساعدتك',

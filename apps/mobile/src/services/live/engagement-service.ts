@@ -1072,7 +1072,10 @@ export function createLiveSupportService(
       operationId = draft.submissionOperationId ?? operationId;
       let ticketId: string | null = null;
       let kind: SupportOperation['kind'] = 'submit_ticket';
-      if (draft.mode === 'feedback') {
+      if (
+        draft.mode === 'feedback' ||
+        (draft.mode === 'ticket' && draft.category === 'feedback')
+      ) {
         kind = 'feedback';
         await api.createFeedback(
           { type: 'other', subject: draft.subject, body: draft.description },

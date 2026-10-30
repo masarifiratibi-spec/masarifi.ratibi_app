@@ -2677,6 +2677,7 @@ const en = {
   'support.form.failure.offline': 'Saved locally. Submit when you are online.',
   'support.form.failure.representative_failure':
     'Unable to save draft temporarily.',
+  'support.form.submitFailure': 'Unable to submit. Your text is kept for retry.',
   'support.report.assistant': 'Report assistant response to support',
   'support.report.transaction': 'Report transaction to support',
   'support.form.title': 'Contact support',
