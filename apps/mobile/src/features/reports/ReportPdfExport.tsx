@@ -111,12 +111,10 @@ function OwnedReportPdfExport({
     setFeedback('generating');
     try {
       assertCurrent();
-      if (
-        offline ||
-        (readRecoveryNetwork.available &&
-          !(await readRecoveryNetwork.isOnline()))
-      )
-        throw Error('REPORT_PDF_REQUIRES_INTERNET');
+      const currentlyOffline = readRecoveryNetwork.available
+        ? !(await readRecoveryNetwork.isOnline())
+        : offline;
+      if (currentlyOffline) throw Error('REPORT_PDF_REQUIRES_INTERNET');
       assertCurrent();
       if (saved.current) await removeReportPdfCache(saved.current);
       saved.current = null;

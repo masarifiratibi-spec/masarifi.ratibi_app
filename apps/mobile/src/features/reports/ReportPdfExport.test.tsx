@@ -12,6 +12,7 @@ import { renderWithProviders } from '@/test-utils/render';
 import { useAppShellStore } from '@/state/app-shell';
 import { reportsService } from '@/services/reports-service';
 import * as files from '@/services/platform/report-pdf-file';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
 import { ReportPdfExport } from './ReportPdfExport';
 
 jest.mock('@/services/reports-service', () => ({
@@ -26,6 +27,9 @@ jest.mock('@/services/platform/report-pdf-file', () => ({
   openReportPdf: jest.fn(),
   shareReportPdf: jest.fn(),
   removeReportPdfCache: jest.fn()
+}));
+jest.mock('@/services/platform/read-recovery-network', () => ({
+  readRecoveryNetwork: { available: false, isOnline: jest.fn() }
 }));
 const input = {
   kind: 'monthly' as const,
@@ -44,6 +48,8 @@ const ready = {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+  readRecoveryNetwork.available = false;
+  jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
   jest.mocked(reportsService.previewOutput).mockReset();
   jest.mocked(reportsService.requestOutput).mockReset();
   jest.mocked(reportsService.getAttempt).mockReset();
@@ -64,21 +70,17 @@ beforeEach(() => {
   jest
     .mocked(reportsService.previewOutput)
     .mockResolvedValue({ previewId: 'current-preview' } as never);
-  jest
-    .mocked(reportsService.requestOutput)
-    .mockResolvedValue({
-      value: { id: ready.id },
-      affectedScopes: []
-    } as never);
+  jest.mocked(reportsService.requestOutput).mockResolvedValue({
+    value: { id: ready.id },
+    affectedScopes: []
+  } as never);
   jest.mocked(reportsService.getAttempt).mockResolvedValue(ready as never);
-  jest
-    .mocked(files.saveReportPdf)
-    .mockResolvedValue({
-      uri: 'content://documents/saved.pdf',
-      cacheUri: 'file:///cache/saved.pdf',
-      name: 'Masarifi.pdf',
-      bytes: 100
-    });
+  jest.mocked(files.saveReportPdf).mockResolvedValue({
+    uri: 'content://documents/saved.pdf',
+    cacheUri: 'file:///cache/saved.pdf',
+    name: 'Masarifi.pdf',
+    bytes: 100
+  });
   jest.mocked(files.removeReportPdfCache).mockResolvedValue(undefined);
   jest.mocked(files.openReportPdf).mockResolvedValue(undefined);
   jest.mocked(files.shareReportPdf).mockResolvedValue(undefined);
@@ -214,6 +216,26 @@ test('explains the internet requirement offline without creating a request or le
   expect(reportsService.previewOutput).not.toHaveBeenCalled();
   expect(reportsService.requestOutput).not.toHaveBeenCalled();
   expect(files.saveReportPdf).not.toHaveBeenCalled();
+});
+
+test('downloads from a saved offline report after current connectivity is restored', async () => {
+  readRecoveryNetwork.available = true;
+  renderWithProviders(<ReportPdfExport input={input} offline />);
+  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
+  await screen.findByText('PDF saved');
+  expect(reportsService.requestOutput).toHaveBeenCalledTimes(1);
+});
+
+test('blocks a fresh report download when the current native connection is offline', async () => {
+  readRecoveryNetwork.available = true;
+  jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(false);
+  renderWithProviders(<ReportPdfExport input={input} />);
+  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
+  await screen.findByText(
+    'Reports work offline. Connect to the internet to download a PDF.'
+  );
+  expect(reportsService.previewOutput).not.toHaveBeenCalled();
+  expect(reportsService.requestOutput).not.toHaveBeenCalled();
 });
 
 test('keeps the saved file actions after an opener failure instead of downloading another copy', async () => {
