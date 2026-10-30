@@ -38,6 +38,7 @@ const labels = {
     recovered: { ar: "متعاف", en: "Recovered" },
     open: { ar: "مفتوح", en: "Open" },
     reviewing: { ar: "قيد المراجعة", en: "Reviewing" },
+    planned: { ar: "مخطط لها", en: "Planned" },
     resolved: { ar: "محلول", en: "Resolved" },
     blocked: { ar: "محظور", en: "Blocked" },
     fresh: { ar: "حديث", en: "Fresh" },

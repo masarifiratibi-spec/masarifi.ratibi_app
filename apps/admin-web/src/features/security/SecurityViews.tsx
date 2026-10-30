@@ -39,7 +39,7 @@ const securityCopy = {
     incident: "الحادث",
     action: "الإجراء",
     overviewTitle: "مركز الأمن",
-    overviewDescription: "مراقبة أمنية عربية أولا باستخدام أدلة mock مقنعة فقط.",
+    overviewDescription: "متابعة أحداث الأمن وحالات الوصول من السجلات المتاحة.",
     authenticationTitle: "أحداث المصادقة",
     authenticationDescription: "أدلة مصادقة مفلترة دون IP خام أو رموز أو معرفات أجهزة.",
     suspiciousTitle: "النشاط المشبوه",
@@ -85,7 +85,7 @@ const securityCopy = {
     incident: "Incident",
     action: "Action",
     overviewTitle: "Security Center",
-    overviewDescription: "Arabic-first security monitoring with sanitized mock evidence only.",
+    overviewDescription: "Monitor security events and access states from available records.",
     authenticationTitle: "Authentication Events",
     authenticationDescription: "Filtered authentication evidence without raw IP, token, or device identifiers.",
     suspiciousTitle: "Suspicious Activity",
@@ -257,7 +257,7 @@ export function SecurityOverviewRoute() {
   const overview = useSecurityOverview({ platform: "all", period: "30d" });
   return (
     <div className="page">
-      <PageHeader title={copy.overviewTitle} eyebrow="Spec 008" description={copy.overviewDescription} />
+      <PageHeader title={copy.overviewTitle} description={copy.overviewDescription} />
       {overview.isPending ? <LoadingState /> : overview.isError ? <ErrorState /> : (
         <section className="metrics-grid security-metrics-grid">
           {overview.data.metrics.map((metric) => (

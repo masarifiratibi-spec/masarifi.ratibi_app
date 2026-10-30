@@ -72,6 +72,12 @@ beforeEach(() => {
 });
 
 describe('security journey', () => {
+  it('opens the existing Privacy screen without starting an export or deletion', () => {
+    renderWithProviders(<SecuritySettingsRoute />);
+    fireEvent.press(screen.getByRole('button', { name: translate('settings.privacy.title') }));
+    expect(router.push).toHaveBeenCalledWith('/profile/privacy');
+    expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
+  });
   it('opens Security Events from settings outside fixture mode', () => {
     const fixtureMode = jest.spyOn(demoMode, 'isFixtureModeEnabled').mockReturnValue(false);
     try {

@@ -11,6 +11,7 @@ import type {
   CommunicationPage,
   CommunicationRecord,
 } from "./contracts";
+import { feedbackStateSchema } from "./contracts";
 import {
   useAbuseReports,
   useCampaignAction,
@@ -457,18 +458,34 @@ export function SupportCategoriesRoute() {
 
 export function FeedbackRoute() {
   const { locale } = useLocale();
+  const [filters, setFilters] = useState<OperationalFilterState>({
+    search: "",
+    status: "",
+  });
+  const query = useFeedback({ search: filters.search, status: filters.status });
   return (
-    <ListShell
-      title={locale === "ar" ? "نظرة عامة على الملاحظات" : "Feedback overview"}
-      description={
-        locale === "ar"
-          ? "تصنيف الملاحظات وربطها بسجلات تشغيلية آمنة."
-          : "Classify feedback and link it to safe operational records."
-      }
-      query={useFeedback({})}
-      permission="feedback.read"
-      detailBase="/admin/feedback"
-    />
+    <div className="page">
+      <PageHeader
+        title={locale === "ar" ? "نظرة عامة على الملاحظات" : "Feedback overview"}
+        description={
+          locale === "ar"
+            ? "تصنيف الملاحظات وربطها بسجلات تشغيلية آمنة."
+            : "Classify feedback and link it to safe operational records."
+        }
+      />
+      <OperationalFilters
+        filters={filters}
+        labels={{
+          search: locale === "ar" ? "بحث" : "Search",
+          status: copy[locale].state,
+        }}
+        statusOptions={["", ...feedbackStateSchema.options]}
+        onChange={setFilters}
+      />
+      <PageState query={query} permission="feedback.read">
+        {(page) => <RecordTable items={page.items} detailBase="/admin/feedback" />}
+      </PageState>
+    </div>
   );
 }
 

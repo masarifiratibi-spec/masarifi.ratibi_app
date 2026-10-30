@@ -149,6 +149,10 @@ export default function SecuritySettingsRoute() {
       )}
 
       <GroupedList label={translate('appShell.security.sections.privacy')}>
+        <NavigationRow
+          label={translate('settings.privacy.title')}
+          onPress={() => router.push('/profile/privacy')}
+        />
         <View style={styles.insetRow}>
           <SwitchRow
             icon="eyeSlash"
