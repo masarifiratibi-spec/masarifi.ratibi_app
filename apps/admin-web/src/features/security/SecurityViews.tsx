@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from "@/components/admin/ui";
+import { ConfirmDialog, ErrorState, LoadingState, PageHeader, UnavailableState } from "@/components/admin/ui";
+import { ApiError } from "@/core/api/errors";
 import { getActionLabel, getPlatformLabel, getSeverityLabel, getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
 import {
@@ -156,7 +157,14 @@ function SimpleList({ resource, title }: { resource: string; title: string }) {
   const copy = securityCopy[locale];
   const query = useSecurityList(resource, { page: 1, pageSize: 25 });
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState />;
+  if (query.isError) return (
+    <section className="table-card ops-table-card" aria-labelledby={`${resource}-title`}>
+      <h2 id={`${resource}-title`}>{title}</h2>
+      {query.error instanceof ApiError && query.error.code === "provider_unavailable"
+        ? <UnavailableState />
+        : <ErrorState error={query.error} />}
+    </section>
+  );
   const items = query.data.items;
   return (
     <section className="table-card ops-table-card" aria-labelledby={`${resource}-title`}>
