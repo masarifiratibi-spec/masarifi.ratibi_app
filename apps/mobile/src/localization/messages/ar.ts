@@ -790,6 +790,8 @@ const ar: MessageCatalog = {
     'تعذّر التحديث. نعرض آخر بيانات مستلمة.',
   'coreFinance.state.loading': 'جار تحميل البيانات المالية',
   'coreFinance.state.error': 'تعذر تحميل البيانات المالية',
+  'assistant.draft.restoreFailed': 'تعذّر استعادة المسودة. حاول مرة أخرى.',
+  'assistant.draft.saveFailed': 'تعذّر حفظ المسودة. حاول مرة أخرى قبل الخروج.',
   'coreFinance.action.retry': 'حاول مرة أخرى',
   'coreFinance.action.expense': 'إضافة مصروف',
   'coreFinance.action.income': 'إضافة دخل',

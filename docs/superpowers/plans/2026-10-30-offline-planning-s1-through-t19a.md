@@ -43,6 +43,10 @@ Files: `src/features/shell/NetworkConnectionNotice.tsx`, its existing tests, its
 
 Review focus: owner changes during hydration; absence versus authoritative empty state; date/locale-dependent cache misses; missing/partial financial summaries; popup persistence and content obstruction after navigation.
 
+## Same-owner resumption on 31 October
+
+The human explicitly resumed the remaining eligible tests on the same device and owner. This supersedes the historical stopping disposition below; it does not repeat its completed operations or authorize ZIP. [The new continuation](../../evidence/2026-10-31-same-owner-through-T19a.md) records qualified durable Assistant drafts, same-owner startup-read recovery, preservation checks and the newly observed custom-cycle API range mismatch. That live mismatch remains open. Keep the original draft/data/APK/Metro and existing permission, financial, provider and deployment boundaries.
+
 ## Current bounded disposition
 
 The human has now resumed eligible work through T19a, while keeping ZIP cancelled. The combined finite-consumer item above is superseded and does not authorize starting ZIP. S1 activation and the earlier PDF window had already completed. The unchanged offline repair is recorded in [offline evidence](../../evidence/2026-10-30-offline-planning-repair.md).

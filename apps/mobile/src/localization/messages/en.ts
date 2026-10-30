@@ -824,6 +824,8 @@ const en = {
     'Could not refresh. Showing last received data.',
   'coreFinance.state.loading': 'Loading financial data',
   'coreFinance.state.error': 'Could not load financial data',
+  'assistant.draft.restoreFailed': 'Could not restore your draft. Try again.',
+  'assistant.draft.saveFailed': 'Could not save your draft. Try again before leaving.',
   'coreFinance.action.retry': 'Try again',
   'coreFinance.action.expense': 'Add expense',
   'coreFinance.action.income': 'Add income',

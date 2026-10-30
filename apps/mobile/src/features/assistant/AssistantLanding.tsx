@@ -23,10 +23,14 @@ import { formatMinorAmount } from '@/utils/format-financial-value';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 import { useAssistantFinancialVisibility } from './useAssistantFinancialVisibility';
+import { useAssistantDraft } from './useAssistantDraft';
+import { AssistantDraftStatus } from './AssistantDraftStatus';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 
 export interface AssistantLandingProps {
   initialQuestion?: string;
-  onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void;
+  onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void | Promise<boolean>;
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
   insight?: AssistantFinancialInsight;
@@ -50,7 +54,9 @@ export function AssistantLanding({
   onBack
 }: AssistantLandingProps) {
   const direction = usePreferenceStore((state) => state.direction);
-  const [hasUnsentQuestion, setHasUnsentQuestion] = React.useState(Boolean(initialQuestion?.trim()));
+  const scope = initialQuestion ? `report:${bytesToHex(sha256(utf8ToBytes(initialQuestion)))}` : 'landing';
+  const draft = useAssistantDraft(scope, initialQuestion);
+  const hasUnsentQuestion = Boolean(draft.text.trim());
   const { hidden, reveal } = useAssistantFinancialVisibility(insight?.id ?? 'no-insight');
 
   const handleBack = () => {
@@ -65,7 +71,7 @@ export function AssistantLanding({
 
   const { requestClose } = useDraftNavigationGuard({
     dirty: hasUnsentQuestion,
-    discard: () => undefined,
+    discard: () => draft.discard(),
     close: handleBack,
     copy: {
       title: translate('assistant.unsent.title'),
@@ -74,6 +80,12 @@ export function AssistantLanding({
       discard: translate('assistant.unsent.discard')
     }
   });
+
+  const handleAskQuestion = async (question: string, intent?: AssistantQuestionIntent) => {
+    const revision = question === draft.text.trim() ? draft.revision : null;
+    const accepted = intent === undefined ? await onAskQuestion(question) : await onAskQuestion(question, intent);
+    if (accepted === true && revision) await draft.discard(revision);
+  };
 
   return (
     <View testID="assistant-landing" style={styles.root}>
@@ -95,7 +107,10 @@ export function AssistantLanding({
           <AssistantHero />
 
           {/* 3. Main Question Input Card */}
-          <AssistantAskCard key={initialQuestion ?? 'general'} initialQuestion={initialQuestion} onAskQuestion={onAskQuestion} onDraftDirtyChange={setHasUnsentQuestion} loading={loading} />
+          <AssistantAskCard text={draft.text} onChangeText={draft.change}
+            onAskQuestion={question => { void handleAskQuestion(question).catch(() => undefined); }}
+            loading={loading || draft.loading} />
+          <AssistantDraftStatus draft={draft} />
 
           {/* 4. Personalization Card */}
           <AssistantConsentCard
@@ -113,8 +128,8 @@ export function AssistantLanding({
 
           {/* 5. Quick Suggestions 2x2 Grid */}
           <AssistantSuggestedQuestions
-            onSelectQuestion={onAskQuestion}
-            disabled={loading}
+            onSelectQuestion={(question, intent) => { void handleAskQuestion(question, intent).catch(() => undefined); }}
+            disabled={loading || draft.loading}
           />
 
           {insight ? (

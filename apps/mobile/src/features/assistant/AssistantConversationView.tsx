@@ -246,7 +246,7 @@ export function AssistantConversationView({
       )}
 
       {/* 4. Bottom Sticky Composer */}
-      <AssistantComposer onSendMessage={onSendMessage} loading={isSending} />
+      <AssistantComposer conversationId={conversationId} onSendMessage={onSendMessage} loading={isSending} />
     </KeyboardAvoidingView>
   );
 }

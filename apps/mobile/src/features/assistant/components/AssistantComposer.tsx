@@ -12,34 +12,41 @@ import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
 import { colorTokens } from '@/design-system/tokens';
+import { useAssistantDraft } from '../useAssistantDraft';
+import { AssistantDraftStatus } from '../AssistantDraftStatus';
 
 export interface AssistantComposerProps {
   /** True acknowledges a successful send; false preserves the question for recovery. */
   onSendMessage: (message: string) => Promise<boolean>;
   loading?: boolean;
+  conversationId?: string;
 }
 
 export function AssistantComposer({
   onSendMessage,
+  conversationId,
   loading = false
 }: AssistantComposerProps) {
-  const [text, setText] = useState('');
+  const draft = useAssistantDraft(conversationId ? `conversation:${conversationId}` : 'landing');
+  const text = draft.text;
   const [submitting, setSubmitting] = useState(false);
   const sending = useRef(false);
   const draftRevision = useRef(0);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
-  const disabled = !text.trim() || loading || submitting;
+  const disabled = !text.trim() || loading || submitting || draft.loading;
 
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || loading || sending.current) return;
-    const sentRevision = draftRevision.current;
+    if (!trimmed || loading || draft.loading || sending.current) return;
+    const sentRevision = draft.revision;
+    const sentEdit = draftRevision.current;
     sending.current = true;
     setSubmitting(true);
     try {
       const accepted = await onSendMessage(trimmed);
-      if (accepted && draftRevision.current === sentRevision) setText('');
+      if (accepted && draftRevision.current === sentEdit)
+        await draft.discard(sentRevision).catch(() => undefined);
     } finally {
       sending.current = false;
       setSubmitting(false);
@@ -47,6 +54,8 @@ export function AssistantComposer({
   };
 
   return (
+    <>
+    <AssistantDraftStatus draft={draft} />
     <View
       testID="assistant-composer"
       style={[
@@ -68,7 +77,8 @@ export function AssistantComposer({
         <TextInput
           testID="assistant-composer-input"
           value={text}
-          onChangeText={(value) => { draftRevision.current += 1; setText(value); }}
+          onChangeText={value => { draftRevision.current += 1; draft.change(value); }}
+          maxLength={1000}
           placeholder={translate('assistant.chat.placeholder')}
           placeholderTextColor={colorTokens.raw["7C8B85"]}
           multiline
@@ -79,7 +89,7 @@ export function AssistantComposer({
               writingDirection: direction
             }
           ]}
-          editable={!loading}
+          editable={!loading && !draft.loading}
         />
       </View>
 
@@ -101,6 +111,7 @@ export function AssistantComposer({
         </Text>
       </Pressable>
     </View>
+    </>
   );
 }
 

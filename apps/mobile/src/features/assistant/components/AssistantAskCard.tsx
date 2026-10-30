@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   TextInput,
@@ -11,22 +11,18 @@ import { usePreferenceStore } from '@/state/preferences';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 
 export interface AssistantAskCardProps {
-  initialQuestion?: string;
+  text: string;
+  onChangeText: (text: string) => void;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
-  onDraftDirtyChange?: (dirty: boolean) => void;
 }
 
 export function AssistantAskCard({
-  initialQuestion,
+  text,
+  onChangeText,
   onAskQuestion,
-  onDraftDirtyChange,
   loading = false
 }: AssistantAskCardProps) {
-  const [text, setText] = useState(initialQuestion ?? '');
-  useEffect(() => {
-    onDraftDirtyChange?.(text.trim().length > 0);
-  }, [onDraftDirtyChange, text]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
@@ -61,7 +57,8 @@ export function AssistantAskCard({
             <TextInput
               testID="assistant-ask-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={onChangeText}
+              maxLength={1000}
               placeholder={translate('assistant.ask.placeholder')}
               placeholderTextColor={colorTokens.ink['500']}
               style={[styles.input, styles.inputRtl]}
@@ -77,7 +74,8 @@ export function AssistantAskCard({
             <TextInput
               testID="assistant-ask-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={onChangeText}
+              maxLength={1000}
               placeholder={translate('assistant.ask.placeholder')}
               placeholderTextColor={colorTokens.ink['500']}
               style={[styles.input, styles.inputLtr]}

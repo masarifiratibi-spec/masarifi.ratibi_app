@@ -30,6 +30,7 @@ const keys = {
   pendingDestination: 'masarifi.appShell.pendingDestination',
   privacyLock: 'masarifi.appShell.privacyLock',
   nativePrivacyLock: 'masarifi.appShell.nativePrivacyLock.v1',
+  assistantDrafts: 'masarifi.appShell.assistantDrafts.v1',
   previewPrivacyLock: 'masarifi.appShell.preview.privacyLock',
   pinCredential: 'masarifi.appShell.pinCredential',
   profilePromptDismissed: 'masarifi.appShell.profilePromptDismissed',
@@ -48,6 +49,7 @@ const sensitiveUserDataKeys = [
   keys.session,
   keys.privacyLock,
   keys.nativePrivacyLock,
+  keys.assistantDrafts,
   keys.pinCredential
 ] as const;
 let activeOwnerHash: string | null = null;
@@ -176,11 +178,91 @@ export function clearAppShellStorageOwner(): void {
   activeOwnerHash = null;
 }
 
+const assistantDraftSchema = z.object({
+  text: z.string().max(1000),
+  revision: z.string().min(1).max(128)
+}).strict();
+const assistantDraftScopeSchema = z.string().regex(
+  /^(landing|conversation:[A-Za-z0-9_-]{1,128}|report:[a-f0-9]{64})$/
+);
+const assistantDraftsSchema = z.record(assistantDraftScopeSchema, assistantDraftSchema);
+export type AssistantDraft = z.infer<typeof assistantDraftSchema>;
+
+function assistantDraftOwner(ownerId: string) {
+  const hash = bytesToHex(sha256(utf8ToBytes(ownerId)));
+  const generation = ownerGeneration;
+  const assertCurrent = () => {
+    if (activeOwnerHash !== hash || ownerGeneration !== generation)
+      throw new Error('ASSISTANT_DRAFT_OWNER_CHANGED');
+  };
+  assertCurrent();
+  return { key: `${keys.assistantDrafts}.${hash.slice(0, 24)}`, assertCurrent };
+}
+
+async function readAssistantDrafts(key: string) {
+  const raw = Platform.OS === 'web'
+    ? await AsyncStorage.getItem(previewKey(key))
+    : await SecureStore.getItemAsync(key);
+  // A failed restore must not silently replace a protected draft with empty text.
+  return raw === null ? {} : assistantDraftsSchema.parse(JSON.parse(raw));
+}
+
+export async function loadAssistantDraft(ownerId: string, scope: string): Promise<AssistantDraft | null> {
+  assistantDraftScopeSchema.parse(scope);
+  const owner = assistantDraftOwner(ownerId);
+  let value: AssistantDraft | null = null;
+  await serializeLocalOwner(async () => {
+    owner.assertCurrent();
+    if (await isLogoutOwnerFenced(ownerId)) throw new Error('LOGOUT_PENDING');
+    const drafts = await readAssistantDrafts(owner.key);
+    owner.assertCurrent();
+    value = drafts[scope] ?? null;
+  });
+  return value;
+}
+
+export async function saveAssistantDraft(ownerId: string, scope: string, input: AssistantDraft): Promise<void> {
+  assistantDraftScopeSchema.parse(scope);
+  const value = assistantDraftSchema.parse(input);
+  const owner = assistantDraftOwner(ownerId);
+  await serializeLocalOwner(async () => {
+    owner.assertCurrent();
+    if (await isLogoutOwnerFenced(ownerId)) throw new Error('LOGOUT_PENDING');
+    const drafts = await readAssistantDrafts(owner.key);
+    owner.assertCurrent();
+    if (value.text) drafts[scope] = value;
+    else delete drafts[scope];
+    if (Object.keys(drafts).length) await writeSensitive(owner.key, drafts);
+    else await removeSensitive(owner.key);
+    owner.assertCurrent();
+  });
+}
+
+export async function discardAssistantDraft(ownerId: string, scope: string, expectedRevision?: string): Promise<void> {
+  assistantDraftScopeSchema.parse(scope);
+  const owner = assistantDraftOwner(ownerId);
+  await serializeLocalOwner(async () => {
+    owner.assertCurrent();
+    if (await isLogoutOwnerFenced(ownerId)) throw new Error('LOGOUT_PENDING');
+    const drafts = await readAssistantDrafts(owner.key);
+    owner.assertCurrent();
+    if (expectedRevision !== undefined && drafts[scope]?.revision !== expectedRevision) return;
+    delete drafts[scope];
+    if (Object.keys(drafts).length) await writeSensitive(owner.key, drafts);
+    else await removeSensitive(owner.key);
+    owner.assertCurrent();
+  });
+}
+
 export async function clearAppShellUserData(): Promise<void> {
-  await Promise.all([
-    ...asyncUserDataKeys.map((key) => AsyncStorage.removeItem(ownerKey(key))),
-    ...sensitiveUserDataKeys.map((key) => removeSensitive(ownerKey(key)))
-  ]);
+  const asyncKeys = asyncUserDataKeys.map(ownerKey);
+  const secureKeys = sensitiveUserDataKeys.map(ownerKey);
+  await serializeLocalOwner(async () => {
+    await Promise.all([
+      ...asyncKeys.map(key => AsyncStorage.removeItem(key)),
+      ...secureKeys.map(key => removeSensitive(key))
+    ]);
+  });
 }
 
 export async function purgeAppShellOwnerData(ownerId: string): Promise<void> {
@@ -194,20 +276,22 @@ export async function purgeAppShellOwnerData(ownerId: string): Promise<void> {
     `masarifi.export.${ownerId}`
   ];
   const secureKeys = sensitiveUserDataKeys.map((key) => `${key}.${suffix}`);
-  await Promise.all([
-    ...asyncKeys.map((key) => AsyncStorage.removeItem(key)),
-    ...secureKeys.map((key) => removeSensitive(key))
-  ]);
-  const remaining = await Promise.all([
-    ...asyncKeys.map((key) => AsyncStorage.getItem(key)),
-    ...secureKeys.map((key) =>
-      Platform.OS === 'web'
-        ? AsyncStorage.getItem(previewKey(key))
-        : SecureStore.getItemAsync(key)
-    )
-  ]);
-  if (remaining.some((payload) => payload !== null))
-    throw new Error('owner shell data remains');
+  await serializeLocalOwner(async () => {
+    await Promise.all([
+      ...asyncKeys.map((key) => AsyncStorage.removeItem(key)),
+      ...secureKeys.map((key) => removeSensitive(key))
+    ]);
+    const remaining = await Promise.all([
+      ...asyncKeys.map((key) => AsyncStorage.getItem(key)),
+      ...secureKeys.map((key) =>
+        Platform.OS === 'web'
+          ? AsyncStorage.getItem(previewKey(key))
+          : SecureStore.getItemAsync(key)
+      )
+    ]);
+    if (remaining.some((payload) => payload !== null))
+      throw new Error('owner shell data remains');
+  });
 }
 
 export function createAppShellStorage(): CapabilityProviderHandle<AppShellStorage> {

@@ -101,13 +101,19 @@ export function FoundationProviders({
     let stop = () => {};
     let identity = '';
     let previousOwner = '';
+    let locallyAdmittedOwner = '';
     const bind = () => {
       const scope = current();
       const session = useAppShellStore.getState().session;
       const ownerId =
         session?.status === 'authenticated' ? (session.userId ?? '') : '';
-      const next = JSON.stringify({ ownerId, scope });
+      const next = JSON.stringify({ ownerId, scope, restoration: session?.restoration });
       if (next === identity) return;
+      if (previousOwner !== ownerId) locallyAdmittedOwner = '';
+      if (session?.restoration === 'local') locallyAdmittedOwner = ownerId;
+      const remotelyRestored = scope && locallyAdmittedOwner === ownerId &&
+        session?.restoration === 'restored';
+      if (remotelyRestored) locallyAdmittedOwner = '';
       stop();
       if (previousOwner && previousOwner !== ownerId) client.clear();
       // Closing a privacy/read gate withdraws only reads, not an in-flight mutation's state.
@@ -117,6 +123,16 @@ export function FoundationProviders({
       previousOwner = ownerId;
       identity = next;
       stop = bindLocalReadCache(client, createQueryReadCache(current));
+      if (remotelyRestored) {
+        // Retire reads from the old auth context; never resume or clear commands.
+        void Promise.all(offlineReadPrefixes.map(queryKey => client.cancelQueries({ queryKey })))
+          .then(() => {
+            if (identity !== next) return;
+            return Promise.all(offlineReadPrefixes.map(queryKey =>
+              client.invalidateQueries({ queryKey, refetchType: 'active' })
+            ));
+          });
+      }
     };
     // Cache is only a read projection; retain existing explicit write/sync admission.
     for (const prefix of offlineReadPrefixes)
