@@ -24,6 +24,13 @@ beforeAll(() => {
   notifyManager.setNotifyFunction((callback) => act(callback));
 });
 
+test.each(['ar', 'en'] as const)('opens PDF history without requesting another export in %s', async (locale) => {
+  changeLocale(locale);
+  const view = renderWithProviders(<ReportsScreen />);
+  fireEvent.press(await view.findByRole('button', { name: locale === 'ar' ? 'سجل تقارير PDF' : 'PDF report history' }));
+  expect(router.push).toHaveBeenCalledWith('/reports/history');
+});
+
 afterAll(() => {
   notifyManager.setNotifyFunction((callback) => callback());
 });

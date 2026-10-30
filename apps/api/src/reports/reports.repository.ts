@@ -685,23 +685,28 @@ export class ReportsRepository {
     requestId: string,
   ): Promise<Record<string, unknown>> {
     const cursor = this.decodeCursor(query.cursor);
-    const rows = await this.withApiSnapshot(
-      principal,
-      async (client) =>
+    const rows = await this.withApiSnapshot(principal, async (client) => {
+      const read = async (after: typeof cursor, limit: number) =>
         (
           await client.query<AttemptRow>(
             'select * from private.list_report_outputs($1,$2::timestamptz,$3::uuid,$4,$5::uuid,$6)',
             [
               principal.userId,
-              cursor?.createdAt ?? null,
-              cursor?.id ?? null,
-              query.limit + 1,
+              after?.createdAt ?? null,
+              after?.id ?? null,
+              limit,
               query.scheduleId,
               query.status,
             ],
           )
-        ).rows,
-    );
+        ).rows;
+      const page = await read(cursor, Math.min(query.limit + 1, 100));
+      const last = page.at(-1);
+      // The owner-scoped RPC caps each read at 100, including lookahead.
+      if (query.limit === 100 && page.length === 100 && last)
+        page.push(...(await read({ createdAt: last.requested_at.toISOString(), id: last.id }, 1)));
+      return page;
+    });
     const more = rows.length > query.limit;
     const items = rows.slice(0, query.limit);
     const last = items.at(-1);

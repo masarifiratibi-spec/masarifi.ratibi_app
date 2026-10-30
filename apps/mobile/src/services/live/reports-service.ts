@@ -459,6 +459,9 @@ export function createLiveReportsService(
     )
       throw new ReportsApiError('contract_mismatch');
     const saved = attempts.get(String(row.id ?? row.attemptId));
+    const format = row.format;
+    if (format !== undefined && format !== 'pdf' && format !== 'csv' && format !== 'json')
+      throw new ReportsApiError('contract_mismatch');
     const outputSnapshot = fallback ?? saved?.snapshot ?? null;
     if (
       row.downloadUrl !== undefined &&
@@ -469,6 +472,7 @@ export function createLiveReportsService(
     return {
       id: String(row.id ?? row.attemptId),
       operationId,
+      ...(format === 'pdf' || format === 'csv' || format === 'json' ? { format } : {}),
       scheduleId: typeof row.scheduleId === 'string' ? row.scheduleId : null,
       kind:
         typeof row.scheduleId === 'string'
@@ -735,7 +739,7 @@ export function createLiveReportsService(
     },
     async listAttempts(input, context) {
       const query = new URLSearchParams({
-        limit: '100',
+        limit: '50',
         ...(input?.cursor ? { cursor: input.cursor } : {}),
         ...(input?.scheduleId ? { scheduleId: input.scheduleId } : {}),
         ...(input?.status

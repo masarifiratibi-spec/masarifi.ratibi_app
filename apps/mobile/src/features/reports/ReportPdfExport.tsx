@@ -21,6 +21,7 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+import { pdfFailureMessage } from './report-state';
 
 type Pending = { operationId: string; previewId?: string; attemptId?: string };
 type Feedback =
@@ -300,32 +301,6 @@ function pauseForPdf(signal: AbortSignal) {
   });
 }
 
-function pdfFailureMessage(error: unknown): MessageKey {
-  const code =
-    (error as { code?: string; message?: string })?.code ??
-    (error as Error)?.message;
-  if (code === 'report_account_scope_unavailable' || code === 'not_found')
-    return 'reports.pdf.accountUnsupported';
-  if (
-    code === 'recent_auth_required' ||
-    code === 'permission_required' ||
-    code === 'session_expired'
-  )
-    return 'reports.pdf.authentication';
-  if (
-    code === 'report_range_mismatch' ||
-    code === 'report_timezone_unavailable'
-  )
-    return 'reports.pdf.periodUnsupported';
-  if (code === 'REPORT_PDF_REQUIRES_INTERNET' || code === 'offline')
-    return 'reports.pdf.internet';
-  if (code === 'report_pdf_policy_pending') return 'reports.pdf.policyPending';
-  if (code === 'REPORT_SAVE_CANCELLED') return 'reports.pdf.cancelled';
-  if (code === 'REPORT_FILE_NATIVE_UPDATE_REQUIRED')
-    return 'reports.pdf.nativeUpdate';
-  if (code === 'REPORT_STILL_PROCESSING') return 'reports.pdf.processing';
-  return 'reports.pdf.failure';
-}
 
 const styles = StyleSheet.create({
   fab: {

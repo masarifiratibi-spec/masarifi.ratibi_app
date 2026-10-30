@@ -12,33 +12,39 @@
 
 ## Checkpoint publication
 
-- [ ] Inventory the exact changed/deleted/new source, tests, dependencies and documentation; preserve the intended PIN removals and local vendor dependencies.
-- [ ] Scan the public-repository payload for credentials and private artifacts. Keep encrypted/device evidence local. Check whitespace and actual push-triggered workflows.
-- [ ] Commit the reviewed checkpoint as work in progress, push without force, and verify the remote SHA. Record known offline gaps rather than declaring acceptance.
+- [x] Inventory the exact changed/deleted/new source, tests, dependencies and documentation; preserve the intended PIN removals and local vendor dependencies.
+- [x] Scan the public-repository payload for credentials and private artifacts. Keep encrypted/device evidence local. Check whitespace and actual push-triggered workflows.
+- [x] Commit the reviewed checkpoint as work in progress, push without force, and verify the remote SHA. Record known offline gaps rather than declaring acceptance.
 
 ## Offline Salary and Obligations
 
 Files: `src/services/live/financial-planning-service.ts`, existing planning repository/domain helpers, `financial-planning-queries.ts`, Salary/Obligation screens and their existing tests under `apps/mobile`.
 
-- [ ] Add failing cases for no network/no prior query snapshot, saved local entities after restart, day/locale changes, partial data, and owner/authoritative-denial boundaries.
-- [ ] Reuse local read/calculation paths. Render useful screens when no saved records exist, with unknown amounts labelled honestly; retain drafts and write admission.
-- [ ] Run the affected complete suites, planning boundary, exact-file lint and mobile typecheck under the existing memory budget.
-- [ ] Verify ordinary More → Salary and More → Obligations on the current offline Xiaomi; verify draft/financial fingerprints before and after. Do not manufacture phone records to obtain a pass.
+- [x] Add failing cases for no network/no prior query snapshot, saved local entities after restart, day/locale changes, partial data, and owner/authoritative-denial boundaries.
+- [x] Reuse local read/calculation paths. Render useful screens when no saved records exist, with unknown amounts labelled honestly; retain drafts and write admission.
+- [x] Run the affected complete suites, planning boundary, exact-file lint and mobile typecheck under the existing memory budget.
+- [x] Verify ordinary More → Salary and More → Obligations on the current offline Xiaomi; verify draft/financial fingerprints before and after. Do not manufacture phone records to obtain a pass.
 
 ## Offline popup and Reports obstruction
 
 Files: `src/features/shell/NetworkConnectionNotice.tsx`, its existing tests, its existing layout caller, and affected Reports layout only if the obstruction originates there.
 
-- [ ] Compare the retained original styled popup and current actual layout; reproduce the Reports obstruction before changing it.
-- [ ] Restore the original visual treatment with explicit dismissal and correct foreground/owner fences. No permanent bottom strip over data and no automatic mutation replay.
-- [ ] Verify offline startup, dismissal/navigation, reconnect/unknown probe, Arabic/English and larger text; preserve existing recovery tests and check actual Reports scrolling.
+- [x] Compare the retained original styled popup and current actual layout; reproduce the Reports obstruction before changing it.
+- [x] Restore the original visual treatment with explicit dismissal and correct foreground/owner fences. No permanent bottom strip over data and no automatic mutation replay.
+- [x] Verify offline startup, dismissal/navigation, reconnect/unknown probe, Arabic/English and larger text; preserve existing recovery tests and check actual Reports scrolling.
 
 ## S1 and completion boundary
 
-- [ ] Recover existing strict SSH or official Hostinger console access without changing credentials/firewall/security. Refresh exact host/client/database/storage/resources/image/config/queue gates.
+- [x] Recover existing strict SSH or official Hostinger console access without changing credentials/firewall/security. Refresh exact host/client/database/storage/resources/image/config/queue gates.
 - [ ] Execute only the already approved exact API/assistant replacement and sequential finite consumer windows, with new journals and existing rollback rules. Human private authentication remains a human step.
-- [ ] Reconcile every remaining T07–T19a criterion using its own source/device/hosted evidence. Reuse unchanged completed results; run checks for changed or unresolved boundaries only.
-- [ ] Audit changed imports/routes, archive/source references and runtime behavior; fix confirmed regressions, publish verified final changes to the same branch, and verify remote identity.
+- [x] Reconcile every remaining T07–T19a criterion using its own source/device/hosted evidence. Reuse unchanged completed results; run checks for changed or unresolved boundaries only.
+- [x] Audit changed imports/routes, archive/source references and runtime behavior; fix confirmed regressions, publish verified final changes to the same branch, and verify remote identity.
 - [ ] Stop at T19a. Report any genuinely blocked private-human/external boundary explicitly; do not claim universal correctness, full acceptance, or T20–T22 completion.
 
 Review focus: owner changes during hydration; absence versus authoritative empty state; date/locale-dependent cache misses; missing/partial financial summaries; popup persistence and content obstruction after navigation.
+
+## Current bounded disposition
+
+Checkpoint publication and the offline repair are recorded in [offline evidence](../../evidence/2026-10-30-offline-planning-repair.md). S1 runtime activation and the separately approved replacement PDF window are complete; the original ZIP window remains unstarted behind its specific local-journal exception and human authentication gate. Therefore the combined finite-consumer item above remains open.
+
+[The remaining-criteria audit](../../evidence/2026-10-30-reports-history-and-remaining-through-T19a.md) records each partial or blocked task throughT19a, including the new ordinary PDF/ticket histories and actual server read failures. [The API read-fix candidate](../../reviews/2026-10-30-reports-readfix-api-addendum.md) is built and unpromoted. Its new approval is separate from S1 and must follow the original ZIP terminal state. No consumer window is renewed, and no blanket task acceptance is claimed.

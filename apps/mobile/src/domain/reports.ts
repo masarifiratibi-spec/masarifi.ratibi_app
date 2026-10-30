@@ -309,6 +309,7 @@ export interface ReportOutputAttempt {
   operationId: string;
   scheduleId: string | null;
   kind: ReportOutputKind;
+  format?: 'json' | 'csv' | 'pdf';
   status: 'ready' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'simulated';
   snapshot: ReportSnapshot | null;
   downloadUrl?: string;

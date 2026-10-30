@@ -133,6 +133,14 @@ export function SupportFormScreen({
         <View style={styles.backButton} />
       </View>
 
+      {mode === 'ticket' ? (
+        <ActionButton
+          label="support.home.ticketHistory"
+          variant="secondary"
+          onPress={() => router.push('/support/tickets')}
+        />
+      ) : null}
+
       {/* Screen Title & Subtitle */}
       <View
         style={[

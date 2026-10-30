@@ -7,6 +7,7 @@ export const shellDestinations = [
   '/transactions',
   '/add',
   '/reports',
+  '/reports/history',
   '/more',
   '/accounts',
   '/categories',

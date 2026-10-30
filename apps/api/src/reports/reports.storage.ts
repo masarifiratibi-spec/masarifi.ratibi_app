@@ -120,7 +120,10 @@ export class ReportsStorage {
         ? (payload as { signedURL?: unknown }).signedURL
         : undefined;
     if (typeof candidate !== 'string') throw failure();
-    const signed = new URL(candidate, this.origin);
+    const signed = new URL(
+      candidate.startsWith('/object/sign/') ? `/storage/v1${candidate}` : candidate,
+      this.origin,
+    );
     const expected = `/storage/v1/object/sign/report-exports/${this.encoded(this.valid(key))}`;
     if (
       signed.origin !== this.origin.origin ||

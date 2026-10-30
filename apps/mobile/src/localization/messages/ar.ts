@@ -21,6 +21,10 @@ const ar: MessageCatalog = {
   'reports.pdf.policyPending':
     'يتطلب تنزيل PDF تحديث الخادم المعتمد. لم يُطلب تحقق إضافي من الهوية.',
   'reports.pdf.download': 'تنزيل التقرير بصيغة PDF',
+  'reports.pdf.history': 'سجل تقارير PDF',
+  'reports.pdf.historyScope': 'تقاريرك السابقة تحتفظ بنطاق الحساب والفترة المحددين عند طلبها.',
+  'reports.pdf.historyEmpty': 'لا توجد تقارير PDF سابقة.',
+  'reports.pdf.historyUnavailable': 'هذا التقرير لم يعد متاحًا. حدّث السجل للاطلاع على حالته الحالية.',
   'reports.pdf.generating': 'جارٍ إعداد ملف PDF…',
   'reports.pdf.saving': 'جارٍ تنزيل PDF. اختر مجلدًا لحفظه.',
   'reports.pdf.success': 'تم حفظ ملف PDF',

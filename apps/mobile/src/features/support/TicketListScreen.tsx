@@ -18,10 +18,12 @@ import {
   isAuthoritativeReadDenial
 } from '@/services/read-snapshot';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { formatDateTime } from '@/utils/format-financial-value';
 
 export function TicketListScreen() {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
+  const locale = usePreferenceStore((state) => state.locale);
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const [paging, setPaging] = React.useState<{
     ownerId: string | null;
@@ -123,7 +125,7 @@ export function TicketListScreen() {
             <StyledText>
               {translateDynamic(`support.ticket.status.${ticket.status}`)}
             </StyledText>
-            <StyledText>{String(ticket.updatedAt)}</StyledText>
+            <StyledText>{formatDateTime(ticket.updatedAt, locale)}</StyledText>
             <ActionButton
               label="support.ticket.open"
               variant="secondary"

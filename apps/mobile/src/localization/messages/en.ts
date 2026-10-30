@@ -21,6 +21,10 @@ const en = {
   'reports.pdf.policyPending':
     'PDF downloading needs the approved server update. No additional identity verification was requested.',
   'reports.pdf.download': 'Download report PDF',
+  'reports.pdf.history': 'PDF report history',
+  'reports.pdf.historyScope': 'Your previous reports keep the account scope and period selected when requested.',
+  'reports.pdf.historyEmpty': 'No previous PDF reports.',
+  'reports.pdf.historyUnavailable': 'This report is no longer available. Refresh the history for its current status.',
   'reports.pdf.generating': 'Preparing your PDF…',
   'reports.pdf.saving': 'Downloading PDF. Choose a folder to save it.',
   'reports.pdf.success': 'PDF saved',

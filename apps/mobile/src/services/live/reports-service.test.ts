@@ -22,6 +22,30 @@ const input = {
   timeZone: 'Asia/Riyadh'
 };
 
+it('reads history within the deployed RPC lookahead ceiling and retains pagination', async () => {
+  const seen: URL[] = [];
+  const request = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.method).toBe('GET');
+    const parsed = new URL(String(url));
+    seen.push(parsed);
+    if (Number(parsed.searchParams.get('limit')) + 1 > 100)
+      return json({ code: 'INTERNAL_ERROR' }, 500);
+    return json({ items: [{
+      id: parsed.searchParams.has('cursor') ? 'history-b' : 'history-a',
+      reportType: 'financial_summary', format: 'pdf', delivery: 'download', status: 'ready',
+      requestedAt: generatedAt, expiresAt: '2030-01-01T00:00:00Z'
+    }], nextCursor: parsed.searchParams.has('cursor') ? null : 'next-page' });
+  });
+  const live = createLiveReportsService({ baseUrl: 'https://inert.invalid', token: async () => 'fixture-token', request });
+  const first = await live.listAttempts({});
+  const second = await live.listAttempts({ cursor: first.nextCursor ?? undefined });
+  expect(first.items[0].id).toBe('history-a');
+  expect(first.items[0].format).toBe('pdf');
+  expect(second.items[0].id).toBe('history-b');
+  expect(second.nextCursor).toBeNull();
+  expect(seen).toHaveLength(2);
+});
+
 it('uses owner-checked cached read authentication for live reports', async () => {
   const getToken = jest.fn(async ({ skipCache }: { skipCache: boolean }) =>
     skipCache ? 'write' : 'read'

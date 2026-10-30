@@ -35,8 +35,8 @@ export const reportKeys = {
   draft: ['reports', 'schedule-draft'] as const,
   preview: (input: ReportOutputPreviewInput) =>
     ['reports', 'preview', input] as const,
-  attempts: (filters: unknown = {}) =>
-    ['reports', 'attempts', filters] as const,
+  attempts: (filters: unknown = {}, owner = useAppShellStore.getState().session?.userId) =>
+    ['reports', 'attempts', owner ?? null, filters] as const,
   attempt: (id: string) => ['reports', 'attempt', id] as const,
   netWorth: (
     anchorDate: LocalDate,
@@ -175,8 +175,9 @@ export function useReportPreview(input: ReportOutputPreviewInput) {
 }
 
 export function useReportAttempts() {
+  const owner = useAppShellStore(state => state.session?.userId);
   const query = useInfiniteQuery({
-    queryKey: reportKeys.attempts(),
+    queryKey: reportKeys.attempts({}, owner),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ signal, pageParam }) =>
       reportsService.listAttempts({ cursor: pageParam }, { signal }),

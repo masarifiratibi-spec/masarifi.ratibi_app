@@ -234,6 +234,11 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             }
             stacked={stackMetrics}
           />
+          <ActionButton
+            label="reports.pdf.history"
+            variant="secondary"
+            onPress={() => router.push('/reports/history')}
+          />
         </View>
 
         <AccountScopeSheet
