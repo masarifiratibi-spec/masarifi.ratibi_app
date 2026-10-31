@@ -22,6 +22,10 @@
 - Preserve screenshots being allowed, existing Savings, approved typography/layout/brand, non-billing capabilities and existing signing/service infrastructure.
 - A blocked task stays blocked. Do not advance the sequence without its acceptance or the user's explicit scope/sequence revision.
 
+## User scope amendment —31 October2026
+
+The user cancelled Android TalkBack manual testing from this plan. Exclude it from remaining work and acceptance/release gates; record it as cancelled by the user, never passed. Other accessibility requirements and existing implementation/tests remain in scope. This amendment supersedes historical references that list TalkBack as pending.
+
 ## Current user-approved execution scope (supersedes original gates)
 
 The user explicitly approved these revisions on25October2026:

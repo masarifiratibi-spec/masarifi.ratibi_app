@@ -1,5 +1,7 @@
 # Masarifi Client Feedback Remediation Implementation Plan
 
+> **User scope amendment —31 October2026:** Android TalkBack manual testing is cancelled by the user and is no longer a remaining task or acceptance/release gate. Historical screen-reader references below do not reintroduce that cancelled test. Existing accessibility labels/tests and other accessibility requirements remain unchanged; cancellation is not a passing result.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Reconcile all 62 fixed client-feedback IDs with the current Masarifi codebase and deliver the remaining work without replacing correct code, duplicating the active backend roadmap, or redesigning the approved Mobile UI.

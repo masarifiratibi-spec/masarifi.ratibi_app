@@ -1,5 +1,12 @@
 {
   "date": "2026-10-31",
+  "scopeExclusions": [
+    {
+      "item": "Android TalkBack manual acceptance",
+      "status": "cancelled_by_user",
+      "date": "2026-10-31"
+    }
+  ],
   "branch": "codex/voice-promoted-operating-2026-10-13",
   "counts": {
     "clientItems": 62,
@@ -158,7 +165,7 @@
       "clientId": 25,
       "originalTitle": "Mixed Arabic/Latin bidi reversal",
       "acceptanceTasks": ["T13"],
-      "currentQualificationAr": "العربية/الإنجليزية والاتجاه والمبالغ اختُبرت؛ iOS وTalkBack الكاملان غير مقبولين بعد."
+      "currentQualificationAr": "العربية/الإنجليزية والاتجاه والمبالغ اختُبرت؛ قبول iOS الكامل باقٍ، وTalkBack ملغى بطلب المستخدم."
     },
     {
       "clientId": 26,
@@ -478,7 +485,7 @@
       "id": "T13",
       "partAr": "واجهة ولغة وإتاحة",
       "statusAr": "تعديلات فعلية على الهاتف والإدارة، AR/EN والثيمان والنص200% والتباين والأحجام المرصودة.",
-      "nextAr": "iOS وTalkBack الشامل وكل الشاشات/الأجهزة بوابات لاحقة."
+      "nextAr": "iOS وبقية الشاشات/الأجهزة بوابات لاحقة؛ TalkBack ملغى بطلب المستخدم."
     },
     {
       "id": "T14",
