@@ -34,3 +34,4 @@ revoke all on function private.list_requested_pdf_email_work(text,integer,timest
 grant execute on function private.list_requested_pdf_email_work(text,integer,timestamptz) to masarifi_worker;
 
 reset role;
+revoke masarifi_migration from current_user granted by current_user;

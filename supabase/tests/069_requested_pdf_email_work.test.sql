@@ -16,9 +16,9 @@ grant select on requested_email_cutoff to masarifi_worker;
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('requested-email-worker-fixture','active');
 insert into public.profiles(id,status,deleted_at) values
-('requested-email-suspended','suspended',null),
-('requested-email-deletion-pending','deletion_pending',null),
-('requested-email-deleted','deleted',clock_timestamp());
+('requested-email-suspended','active',null),
+('requested-email-deletion-pending','active',null),
+('requested-email-deleted','active',null);
 insert into public.report_schedules(id,user_id,report_type,frequency,timezone,next_run_at,delivery_channel,recipient,enabled)
 values('99100000-0000-4000-8000-000000000099','requested-email-worker-fixture','financial_summary','monthly','Asia/Riyadh',clock_timestamp()+interval '1 day','email','synthetic@example.test',false);
 -- More than one ordinary RPC page of legacy downloads must not starve a new email.
@@ -37,6 +37,10 @@ values
 ('99100000-0000-4000-8000-000000000004','requested-email-worker-fixture','financial_summary','2026-10-01','2026-10-31',0,'{"format":"csv","delivery":"email"}','queued',clock_timestamp()+interval '1 hour',clock_timestamp(),null),
 ('99100000-0000-4000-8000-000000000005','requested-email-worker-fixture','financial_summary','2026-10-01','2026-10-31',0,'{"format":"pdf","delivery":"email"}','queued',clock_timestamp()+interval '1 hour',clock_timestamp(),'99100000-0000-4000-8000-000000000099'),
 ('99100000-0000-4000-8000-000000000006','requested-email-worker-fixture','financial_summary','2026-10-01','2026-10-31',0,'{"format":"pdf","delivery":"email"}','queued',clock_timestamp()-interval '1 minute',clock_timestamp()-interval '5 minutes',null);
+-- Seed through normal active-owner triggers before freezing the fixture owners.
+update public.profiles set status='suspended' where id='requested-email-suspended';
+update public.profiles set status='deletion_pending' where id='requested-email-deletion-pending';
+update public.profiles set status='deleted',deleted_at=clock_timestamp() where id='requested-email-deleted';
 reset role;
 select set_config('request.jwt.claims','{"role":"worker"}',true);
 set local role masarifi_worker;
