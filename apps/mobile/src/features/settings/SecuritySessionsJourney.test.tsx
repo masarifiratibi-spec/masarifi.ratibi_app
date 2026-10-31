@@ -1,5 +1,7 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
+import { FlatList } from 'react-native';
+import { router } from 'expo-router';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
@@ -126,6 +128,62 @@ test('security events show masked context and recovery destinations without raw 
     screen.getByText(t('settings.securityEvents.recover.security'))
   ).toBeTruthy();
   expect(screen.queryByText(/token|ip address|credential|secret/i)).toBeNull();
+});
+
+test('live security event pages retain their rows during a page failure and expose retry and recovery', () => {
+  const push = jest.spyOn(router, 'push').mockImplementation(() => undefined);
+  const fetchNextPage = jest.fn();
+  const refetch = jest.fn();
+  const [first, second] = events().items;
+  mockQueries.useSecurityEvents.mockReturnValue({
+    data: { pages: [{ items: [first] }, { items: [second] }] },
+    isLoading: false,
+    isError: true,
+    hasNextPage: true,
+    isFetchingNextPage: false,
+    fetchNextPage,
+    refetch
+  });
+  renderWithProviders(<SecurityEventScreen />);
+  expect(
+    screen.getByText(t('settings.securityEvents.new_session'))
+  ).toBeTruthy();
+  expect(
+    screen.getByText(t('settings.securityEvents.access_protection_change'))
+  ).toBeTruthy();
+  fireEvent(screen.UNSAFE_getByType(FlatList), 'endReached');
+  expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  fireEvent.press(
+    screen.getByRole('button', { name: t('coreFinance.action.retry') })
+  );
+  expect(refetch).toHaveBeenCalledTimes(1);
+  fireEvent.press(
+    screen.getByText(t('settings.securityEvents.recover.security'))
+  );
+  expect(push).toHaveBeenCalledWith('/security/settings');
+  push.mockRestore();
+});
+
+test('security events distinguish loading, failed reads with retry, and a successful empty page', () => {
+  const refetch = jest.fn();
+  mockQueries.useSecurityEvents.mockReturnValue({ isLoading: true });
+  const view = renderWithProviders(<SecurityEventScreen />);
+  expect(screen.getByText(t('settings.securityEvents.loading'))).toBeTruthy();
+  view.unmount();
+  mockQueries.useSecurityEvents.mockReturnValue({ isLoading: false, refetch });
+  const failed = renderWithProviders(<SecurityEventScreen />);
+  expect(screen.getByText(t('settings.securityEvents.error'))).toBeTruthy();
+  fireEvent.press(
+    screen.getByRole('button', { name: t('coreFinance.action.retry') })
+  );
+  expect(refetch).toHaveBeenCalledTimes(1);
+  failed.unmount();
+  mockQueries.useSecurityEvents.mockReturnValue({
+    data: { pages: [{ items: [] }] }
+  });
+  renderWithProviders(<SecurityEventScreen />);
+  expect(screen.getByText(t('settings.securityEvents.empty'))).toBeTruthy();
+  expect(screen.queryByText(t('settings.securityEvents.error'))).toBeNull();
 });
 
 function sessions() {

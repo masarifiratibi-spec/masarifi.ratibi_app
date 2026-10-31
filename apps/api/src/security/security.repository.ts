@@ -519,7 +519,7 @@ export class SecurityRepository {
             optionalEnum(input.query.severity, ['info', 'low', 'medium', 'high', 'critical']),
             input.operation === 'listAdminSecurityEvents'
               ? optionalText(input.query.userId, 128)
-              : null,
+              : input.principal.userId,
             cursor?.occurredAt ?? null,
             cursor?.id ?? null,
           ],

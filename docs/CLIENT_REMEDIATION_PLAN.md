@@ -1,5 +1,7 @@
 # Masarifi Client Feedback Remediation Implementation Plan
 
+> **Current batch amendment —31 October2026:** The user cancelled budget/savings from this batch and requested only basic salary/obligation/card/category acceptance, followed by security events. Reuse the existing salary/obligation; do not repeat their creation or payments. [Current evidence and remaining blockers](evidence/2026-10-31-financial-basics-security-events.md). This amendment does not mark cancelled acceptance as passed.
+
 > **User scope amendment —31 October2026:** Android TalkBack manual testing is cancelled by the user and is no longer a remaining task or acceptance/release gate. Historical screen-reader references below do not reintroduce that cancelled test. Existing accessibility labels/tests and other accessibility requirements remain unchanged; cancellation is not a passing result.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.

@@ -55,10 +55,21 @@ export function useSettingsSessions() {
 }
 
 export function useSecurityEvents(cursor?: string) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   return useInfiniteQuery({
-    queryKey: settingsKeys.securityEvents(),
+    queryKey: [...settingsKeys.securityEvents(), { ownerId }],
     initialPageParam: cursor,
-    queryFn: ({ pageParam }) => settingsService.listSecurityEvents(pageParam),
+    queryFn: ({ pageParam, signal }) =>
+      withReadContext({ signal }, async () => {
+        const assertOwner = () => {
+          if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+            throw new HttpError('session_expired', 401);
+        };
+        assertOwner();
+        const result = await settingsService.listSecurityEvents(pageParam);
+        assertOwner();
+        return result;
+      }),
     getNextPageParam: (page) => page.nextCursor ?? undefined
   });
 }
