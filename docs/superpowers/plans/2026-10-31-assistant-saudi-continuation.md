@@ -43,3 +43,12 @@
 - [x] Prepare a bounded, read-only acceptance proposal and affected-consumer requirements in the evidence. Runtime bindings were subsequently qualified and the specifically authorized rollout committed; provider acceptance remains prepared and unapproved.
 - [x] Run existing isolated acceptance tests for remaining pre-T20 domains as appropriate; retain completed evidence and name held live criteria explicitly.
 - [x] Review the diff, record verification and residual blockers, and check current GitHub HEAD checks without status-only commits. Deployment and same-device preservation are verified; provider acceptance remains incomplete.
+
+### Task 4: Approved live continuation and filled account data
+
+- [x] Consume the newly approved eight-question scope once; identify legacy DEV routing without claiming provider quality.
+- [x] After the user's explicit follow-up, create three labeled manual test transactions on the existing two accounts across two months, and verify server confirmation/local sync without changing original financial rows or2026-13.
+- [x] Correct only the DEV assistant upstream3013→3001, preserving all37 container configurations/bindings and Admin; retain rollback evidence.
+- [x] Verify the ordinary DEV client reaches the existing public semantic admission path in four focused local cases.
+- [x] Capture the user's separate four-question approval; stop after the first real job fails with provider HTTP401, close the window, and preserve all new-baseline projections/APK/Metro.
+- [ ] Restore a valid OpenRouter credential for the same account, then qualify a new bounded acceptance. No replay under either consumed/closed scope, and no claim of successful generated Saudi output yet.

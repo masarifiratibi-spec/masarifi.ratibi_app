@@ -89,6 +89,27 @@ it('keeps explicit action previews outside the read-only semantic agent', async 
   expect(notices).toHaveLength(1);
 });
 
+it.each([
+  'اعرض آخر ثلاث معاملات مؤكدة فقط.',
+  'قارن مصروفاتي هالشهر بالشهر اللي قبله.',
+  'طيب وأغسطس؟',
+  'Show my largest single expense and highest spending category in English.',
+])('admits the ordinary DEV client through the existing public agent for %s', async (content) => {
+  // 2026-10-31: DEV routing reached an API bound to another development owner.
+  const { instance, writes, notices } = service(true, true);
+  const actor = { ...owner, userId: 'ordinary-owner' };
+  const result = await instance.createDevelopmentMessage(
+    actor,
+    conversation,
+    { content, responseMode: 'async' },
+    'ordinary-dev-public-semantic-test-001',
+  );
+  expect(result.status).toBe('queued');
+  expect(notices).toEqual([]);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({ content, context: { assistantAgent: 1 } });
+});
+
 it('does not let an intent hint replace semantic understanding of a financial read', async () => {
   const { instance, writes, notices } = service(false, true);
   await instance.createMessage(
