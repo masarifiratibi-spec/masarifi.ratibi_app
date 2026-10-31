@@ -113,8 +113,7 @@ export class ReportsService {
       const command = normalizeCreateReport(body);
       // Owner PDF downloads and verified account mail use the current authenticated session.
       const sessionPdf =
-        command.format === 'pdf' &&
-        (command.delivery === 'download' || command.recipient === null);
+        command.format === 'pdf' && (command.delivery === 'download' || command.recipient === null);
       if (!sessionPdf) this.requireRecent(principal);
       if (command.delivery === 'email') {
         const identity = await this.identity?.getIdentityUser(principal.userId);
