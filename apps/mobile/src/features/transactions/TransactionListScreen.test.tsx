@@ -1163,7 +1163,7 @@ it('keeps the ledger available when the monthly summary fails', async () => {
     screen.getByRole('button', {
       name: translate('coreFinance.action.retry')
     })
-  ).toHaveStyle({ minHeight: 44, minWidth: 44 });
+  ).toHaveStyle({ minHeight: 48, minWidth: 48 });
   expect(screen.getByText(translate('coreFinance.ledger.empty'))).toBeTruthy();
 });
 

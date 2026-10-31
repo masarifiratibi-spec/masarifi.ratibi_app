@@ -1,13 +1,12 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { AppIcon } from '@/design-system/icons';
 import { elevation, radius, spacing } from '@/design-system/tokens';
-import { translate, type MessageKey } from '@/localization/i18n';
+import { type MessageKey } from '@/localization/i18n';
 import { reportsService } from '@/services/reports-service';
 import type { ReportQuery } from '@/services/contracts/reports-service';
 import {
@@ -55,7 +54,6 @@ function OwnedReportPdfExport({
   offline: boolean;
 }) {
   const theme = useTheme();
-  const insets = useContext(SafeAreaInsetsContext);
   const locale = usePreferenceStore((state) => state.locale);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -204,9 +202,17 @@ function OwnedReportPdfExport({
       }
     }
   };
-  const bottom = Math.max(insets?.bottom ?? 0, spacing.lg) + spacing.lg;
   return (
-    <View testID="reports-pdf-dock" style={{ paddingBottom: bottom + 72 }}>
+    <View style={styles.export}>
+      <ActionButton
+        testID="reports-pdf-download"
+        label="reports.pdf.download"
+        variant="secondary"
+        loading={busy}
+        disabled={!owner}
+        onPress={() => void start()}
+        icon={<AppIcon name="pdf" decorative color={theme.colors.primary} size="md" />}
+      />
       {feedback ? (
         <View
           accessibilityLiveRegion="polite"
@@ -256,29 +262,6 @@ function OwnedReportPdfExport({
           ) : null}
         </View>
       ) : null}
-      <Pressable
-        testID="reports-pdf-fab"
-        accessibilityRole="button"
-        accessibilityLabel={translate('reports.pdf.download')}
-        accessibilityState={{ busy, disabled: busy || !owner }}
-        disabled={busy || !owner}
-        onPress={() => void start()}
-        style={[styles.fab, { bottom, backgroundColor: theme.colors.primary }]}
-      >
-        {busy ? (
-          <ActivityIndicator
-            accessible={false}
-            color={theme.colors.textInverse}
-          />
-        ) : (
-          <AppIcon
-            name="pdf"
-            decorative
-            color={theme.colors.textInverse}
-            size="md"
-          />
-        )}
-      </Pressable>
     </View>
   );
 }
@@ -303,19 +286,8 @@ function pauseForPdf(signal: AbortSignal) {
 
 
 const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...elevation.raised
-  },
+  export: { gap: spacing.md },
   feedback: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
     borderWidth: 1,
     borderRadius: radius.card,
     padding: spacing.lg,

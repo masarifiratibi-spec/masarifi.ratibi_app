@@ -1,8 +1,18 @@
 import { describe, expect, test } from "vitest";
-import { getLiveNavigation } from "./navigation";
+import { getLiveNavigation, permittedNavigation } from "./navigation";
 import { buildSidebarSections, resolveRoutePermission, strongestActiveRoute } from "@/components/admin/shell-state";
 
 describe("live Admin navigation", () => {
+  test("makes existing feedback discoverable only with its read permission", () => {
+    const permitted = permittedNavigation(getLiveNavigation(), new Set(["feedback.read"]));
+    const sections = buildSidebarSections(permitted, "/admin/feedback");
+    const feedback = sections.flatMap(section => section.items).find(item => item.id === "feedback-overview");
+    expect(feedback?.kind).toBe("item");
+    if (feedback?.kind !== "item") throw new Error("Missing permitted feedback link");
+    expect(feedback.item).toMatchObject({ route: "/admin/feedback", permission: "feedback.read", iconKey: "message-square" });
+    expect(permittedNavigation(getLiveNavigation(), new Set(["support.overview.read"]))
+      .flatMap(group => group.items).some(item => item.route === "/admin/feedback")).toBe(false);
+  });
   test("exposes completed customer, support and governance capabilities with their exact read permissions", () => {
     const items = getLiveNavigation().flatMap((group) => group.items);
     for (const [route,permission] of [["/admin/users","users.read"],["/admin/support","support.overview.read"],

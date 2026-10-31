@@ -180,6 +180,7 @@ const navigationLabels: Record<string, Record<Locale, string>> = {
   communications: { ar: "التواصل والمحتوى", en: "Communications" },
   "communications-support": { ar: "الدعم", en: "Support" },
   "communications-feedback": { ar: "الملاحظات", en: "Feedback" },
+  "feedback-overview": { ar: "الملاحظات", en: "Feedback" },
   "communications-content": { ar: "المحتوى", en: "Content" },
   "communications-notifications": { ar: "الإشعارات", en: "Notifications" },
   governance: { ar: "الحوكمة", en: "Governance" },

@@ -144,13 +144,13 @@ export function AccountListScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.colors.surfaces.page }]}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.account.id}
         contentContainerStyle={[
           styles.content,
-          { backgroundColor: colorTokens.raw.F3F5F3 }
+          { backgroundColor: theme.colors.surfaces.page }
         ]}
         ListHeaderComponent={
           <>

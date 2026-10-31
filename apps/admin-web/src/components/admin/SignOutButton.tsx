@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { LogOut } from "lucide-react";
 import { useAdminIdentity } from "@/app/providers";
 import { useT } from "@/core/localization/provider";
 
@@ -28,8 +29,9 @@ export function SignOutButton() {
   };
 
   return <>
-    <button type="button" className="button" disabled={pending} onClick={() => void signOut()}>
-      {translate(pending ? "shell.signingOut" : "shell.signOut")}
+    <button type="button" className="button sign-out-button" title={translate("shell.signOut")} disabled={pending} onClick={() => void signOut()}>
+      <LogOut size={18} aria-hidden="true" />
+      <span>{translate(pending ? "shell.signingOut" : "shell.signOut")}</span>
     </button>
     {failed && <span role="alert">{translate("shell.signOutFailed")}</span>}
   </>;

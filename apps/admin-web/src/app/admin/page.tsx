@@ -517,6 +517,7 @@ export default function OverviewPage() {
               onChange={setRange}
               allowedPresets={PERIOD_PRESETS}
             />
+            <div className="overview-commands">
             {hasPermission(role, "data_requests.exports.manage") &&
               (reportExport &&
               reportExport !== "pending" &&
@@ -527,7 +528,7 @@ export default function OverviewPage() {
                   href={reportExport.downloadUrl}
                   rel="noreferrer"
                 >
-                  <Download size={16} />
+                  <Download size={16} aria-hidden="true" />
                   <span>
                     {locale === "ar" ? "تنزيل التقرير" : "Download report"}
                   </span>
@@ -554,7 +555,7 @@ export default function OverviewPage() {
                     }
                   }}
                 >
-                  <Download size={16} />
+                  <Download size={16} aria-hidden="true" />
                   <span>{locale === "ar" ? "تصدير CSV" : "Export CSV"}</span>
                 </button>
               ))}
@@ -567,9 +568,10 @@ export default function OverviewPage() {
                 activity.refetch();
               }}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} aria-hidden="true" />
               <span>{t("overview.refresh")}</span>
             </button>
+            </div>
           </>
         }
       />

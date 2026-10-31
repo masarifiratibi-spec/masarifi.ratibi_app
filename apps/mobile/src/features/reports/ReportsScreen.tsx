@@ -25,7 +25,6 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { AppIcon, IconBadge } from '@/design-system/icons';
 import {
-  colorTokens,
   elevation,
   minTouchTarget,
   radius,
@@ -170,6 +169,10 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             />
           </View>
 
+          <ReportPdfExport
+            input={reportInput}
+            offline={reportQuery.data?.dataState === 'offline'}
+          />
           {!reportQuery.data && reportQuery.isPending ? (
             <StateView
               state="loading"
@@ -259,10 +262,6 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
           onDismiss={() => setDateSheetOpen(false)}
         />
       </ScrollView>
-      <ReportPdfExport
-        input={reportInput}
-        offline={reportQuery.data?.dataState === 'offline'}
-      />
     </View>
   );
 }
@@ -274,6 +273,7 @@ function AnalyticsHeader({
   direction: 'ltr' | 'rtl';
   onBack?: () => void;
 }) {
+  const theme = useTheme();
   return (
     <View
       style={[
@@ -294,10 +294,10 @@ function AnalyticsHeader({
         >
           <AppIcon
             name="back"
-            direction="ltr"
+            direction={direction}
             label={translate('appShell.navigation.back')}
             size="md"
-            color={colorTokens.ink['900']}
+            color={theme.colors.content.primary}
             decorative
           />
         </Pressable>
@@ -307,6 +307,7 @@ function AnalyticsHeader({
         style={[
           styles.screenTitle,
           {
+            color: theme.colors.content.primary,
             textAlign: direction === 'rtl' ? 'right' : 'left',
             writingDirection: direction
           }
@@ -347,7 +348,7 @@ function Selector({
         name="chevronDown"
         label={label}
         size="sm"
-        color={accent ? theme.colors.status.sync : theme.colors.content.muted}
+        color={accent ? theme.colors.content.link : theme.colors.content.muted}
         decorative
       />
       <Text
@@ -355,7 +356,7 @@ function Selector({
           styles.selectorText,
           {
             color: accent
-              ? theme.colors.status.sync
+              ? theme.colors.content.link
               : theme.colors.content.primary,
             writingDirection: direction
           }
@@ -365,6 +366,14 @@ function Selector({
       </Text>
     </Pressable>
   );
+}
+
+function ReportCard({ style, ...props }: React.ComponentProps<typeof View>) {
+  const theme = useTheme();
+  return <View {...props} style={[styles.card, {
+    backgroundColor: theme.colors.surfaces.card,
+    borderColor: theme.colors.borders.default
+  }, style]} />;
 }
 
 function AnalyticsContent({
@@ -508,7 +517,7 @@ function NetWorthCard({
       ? Math.round((change * 10_000) / Math.abs(first)) / 100
       : null;
   return (
-    <View style={[styles.card, styles.netWorthCard]}>
+    <ReportCard testID="reports-net-worth" style={styles.netWorthCard}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
         {translate('reports.analytics.netWorth')}
       </DirectionalText>
@@ -576,7 +585,7 @@ function NetWorthCard({
               onPress={() => onTimeframeChange(value)}
               style={[
                 styles.timeframeButton,
-                selected && { backgroundColor: theme.colors.status.sync }
+                selected && { backgroundColor: theme.colors.interactions.primary }
               ]}
             >
               <Text
@@ -595,7 +604,7 @@ function NetWorthCard({
           );
         })}
       </View>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -640,7 +649,7 @@ function NetWorthLine({
       <Path
         d={linePath}
         fill="none"
-        stroke={theme.colors.horizon.heroEnd}
+        stroke={theme.colors.financial.income}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={3}
@@ -648,7 +657,7 @@ function NetWorthLine({
       <Circle
         cx={lastPoint.x}
         cy={lastPoint.y}
-        fill={theme.colors.horizon.heroEnd}
+        fill={theme.colors.financial.income}
         r={4.5}
         stroke={theme.colors.surface}
         strokeWidth={2}
@@ -662,6 +671,7 @@ function ChartDateLabels({
 }: {
   trend: readonly { at: number; minorUnits: number }[];
 }) {
+  const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const formatter = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
@@ -675,7 +685,7 @@ function ChartDateLabels({
   return (
     <View testID="reports-trend-dates" style={styles.chartDateRow}>
       {labels.map((value, index) => (
-        <Text key={`${value}-${index}`} style={styles.chartDateText}>
+        <Text key={`${value}-${index}`} style={[styles.chartDateText, { color: theme.colors.content.muted }]}>
           {value ? formatter.format(value) : '—'}
         </Text>
       ))}
@@ -697,7 +707,7 @@ function ExpenseCard({
   value: number | null;
 }) {
   return (
-    <View style={[styles.card, styles.expenseCard]}>
+    <ReportCard style={styles.expenseCard}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
         {translate('reports.metric.expense')}
       </DirectionalText>
@@ -709,7 +719,7 @@ function ExpenseCard({
         value={value}
       />
       <MiniBars breakdownItems={breakdownItems} />
-    </View>
+    </ReportCard>
   );
 }
 
@@ -726,7 +736,7 @@ function MiniBars({
     .map((item) => item.value.value!.minorUnits);
   const max = Math.max(...categoryValues, 1);
   if (!categoryValues.length)
-    return <Text>{translate('reports.state.empty')}</Text>;
+    return <Text style={{ color: theme.colors.content.muted }}>{translate('reports.state.empty')}</Text>;
   const bars = categoryValues;
   return (
     <View style={styles.miniBars}>
@@ -738,8 +748,8 @@ function MiniBars({
             {
               backgroundColor:
                 index === 0
-                  ? theme.colors.horizon.heroEnd
-                  : theme.colors.borders.subtle,
+                  ? theme.colors.financial.income
+                  : theme.colors.content.muted,
               height: 4 + (48 * value) / max
             }
           ]}
@@ -767,7 +777,7 @@ function SmallMetricCard({
   const theme = useTheme();
   const color = theme.colors.financial[tone];
   return (
-    <View style={[styles.card, styles.smallMetricCard]}>
+    <ReportCard style={styles.smallMetricCard}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
         {label}
       </DirectionalText>
@@ -787,10 +797,10 @@ function SmallMetricCard({
           {translate('reports.analytics.negative')}
         </DirectionalText>
       ) : null}
-      <View style={styles.metricTrack}>
+      <View style={[styles.metricTrack, { backgroundColor: theme.colors.surfaces.inset }]}>
         <View style={[styles.metricProgress, { backgroundColor: color }]} />
       </View>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -816,7 +826,7 @@ function SavingsRateCard({
       : Math.round(savingsRateBasisPoints / 100);
   const progress = Math.min(100, Math.abs(percentage ?? 0));
   return (
-    <View style={[styles.card, styles.savingsCard]}>
+    <ReportCard style={styles.savingsCard}>
       <View
         style={[
           styles.savingsTop,
@@ -839,7 +849,7 @@ function SavingsRateCard({
               }
             ]}
           >
-            <Text style={styles.savingsPercent}>
+            <Text style={[styles.savingsPercent, { color: theme.colors.content.primary }]}>
               {hidden
                 ? '••••'
                 : percentage === null
@@ -864,7 +874,7 @@ function SavingsRateCard({
           decorative
         />
       </View>
-      <View style={styles.savingsTrack}>
+      <View style={[styles.savingsTrack, { backgroundColor: theme.colors.surfaces.inset }]}>
         <View
           style={[
             styles.savingsProgress,
@@ -888,7 +898,7 @@ function SavingsRateCard({
                 income: moneyInline(income, currency)
               })}
       </DirectionalText>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -917,17 +927,19 @@ function BudgetCard({
         styles.card,
         styles.navigationCard,
         {
+          backgroundColor: theme.colors.surfaces.card,
+          borderColor: theme.colors.borders.default,
           direction: 'ltr',
           flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
         }
       ]}
     >
-      <View style={styles.addCircle}>
+      <View style={[styles.addCircle, { backgroundColor: theme.colors.surfaces.inset }]}>
         <AppIcon
           name="add"
           label={label}
           size="md"
-          color={theme.colors.status.sync}
+          color={theme.colors.content.link}
           decorative
         />
       </View>
@@ -1001,9 +1013,9 @@ function AssistantActions({
     });
 
   return (
-    <View
+    <ReportCard
       testID="reports-assistant-card"
-      style={[styles.card, styles.assistantCard]}
+      style={styles.assistantCard}
     >
       <Pressable
         accessibilityRole="button"
@@ -1072,7 +1084,7 @@ function AssistantActions({
           />
         ))}
       </View>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -1126,7 +1138,7 @@ function DirectionalText({
 
 function ReportAmount({
   align,
-  color = colorTokens.ink['900'],
+  color,
   currency,
   hidden,
   size,
@@ -1139,6 +1151,8 @@ function ReportAmount({
   size: 'hero' | 'large';
   value: number | null;
 }) {
+  const theme = useTheme();
+  const amountColor = color ?? theme.colors.content.primary;
   const locale = usePreferenceStore((state) => state.locale);
   const formatted = hidden
     ? '••••'
@@ -1160,14 +1174,14 @@ function ReportAmount({
         { alignSelf: align === 'right' ? 'flex-end' : 'flex-start' }
       ]}
     >
-      <Text style={[styles.currencyCode, { color }]}>{currency}</Text>
+      <Text style={[styles.currencyCode, { color: amountColor }]}>{currency}</Text>
       <Text
         adjustsFontSizeToFit
         minimumFontScale={0.62}
         numberOfLines={1}
         style={[
           size === 'hero' ? styles.heroAmount : styles.largeAmount,
-          { color }
+          { color: amountColor }
         ]}
       >
         {formatted}
@@ -1236,7 +1250,6 @@ const styles = StyleSheet.create({
     width: minTouchTarget
   },
   screenTitle: {
-    color: colorTokens.ink['900'],
     flexShrink: 1,
     fontSize: 30,
     fontWeight: '800',
@@ -1263,8 +1276,6 @@ const styles = StyleSheet.create({
   },
   card: {
     ...elevation.card,
-    backgroundColor: colorTokens.surface.white,
-    borderColor: colorTokens.sand['400'],
     borderRadius: radius.card,
     borderWidth: 1
   },
@@ -1325,13 +1336,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   chartDateText: {
-    color: colorTokens.ink['500'],
     fontSize: 12,
     lineHeight: 18,
     writingDirection: 'ltr'
   },
   timeframeRow: {
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.xs,
     justifyContent: 'space-between',
     marginTop: spacing.sm
@@ -1389,7 +1400,6 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   metricTrack: {
-    backgroundColor: colorTokens.raw.E0E0E0,
     borderRadius: radius.pill,
     height: 9,
     justifyContent: 'center',
@@ -1417,10 +1427,10 @@ const styles = StyleSheet.create({
   },
   savingsValueRow: {
     alignItems: 'baseline',
+    flexWrap: 'wrap',
     gap: spacing.sm
   },
   savingsPercent: {
-    color: colorTokens.ink['900'],
     fontSize: 34,
     fontVariant: ['tabular-nums'],
     fontWeight: '900',
@@ -1433,7 +1443,6 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   savingsTrack: {
-    backgroundColor: colorTokens.raw.E0E0E0,
     borderRadius: radius.pill,
     height: 8,
     overflow: 'hidden'
@@ -1454,7 +1463,6 @@ const styles = StyleSheet.create({
   },
   addCircle: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw.EAF4F4,
     borderRadius: radius.pill,
     height: 56,
     justifyContent: 'center',

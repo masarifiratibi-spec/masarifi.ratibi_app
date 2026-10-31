@@ -1,10 +1,10 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { notifyManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
-import { lightThemeColors } from '@/design-system/tokens';
+import { darkThemeColors, lightThemeColors } from '@/design-system/tokens';
 import { changeLocale } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -35,19 +35,35 @@ afterAll(() => {
   notifyManager.setNotifyFunction((callback) => callback());
 });
 
-test.each(['ar', 'en'] as const)('keeps a right-side PDF action available during report failure without an Export settings route in %s', async (locale) => {
+test.each(['ar', 'en'] as const)('keeps a labelled PDF action inside the report scroll during report failure in %s', async (locale) => {
   changeLocale(locale);
   const summary = jest.spyOn(reportsService, 'getReport').mockRejectedValue(new Error('offline'));
   try {
     const view = renderWithProviders(<ReportsScreen />);
     const button = await view.findByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' });
-    expect(button).toHaveStyle({ position: 'absolute', right: 16 });
-    expect(within(view.UNSAFE_getByType(ScrollView)).queryByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' })).toBeNull();
-    expect(view.getByTestId('reports-pdf-dock')).toBeTruthy();
+    expect(within(view.UNSAFE_getByType(ScrollView)).getByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' })).toBe(button);
+    expect(StyleSheet.flatten(button.props.style)?.position).not.toBe('absolute');
+    expect(view.queryByTestId('reports-pdf-dock')).toBeNull();
+    expect(view.getByText(translate('reports.pdf.download'))).toBeTruthy();
     expect(view.queryByRole('button', { name: locale === 'ar' ? 'تصدير البيانات' : 'Export Data' })).toBeNull();
     expect(view.queryByText(translate('settings.privacy.localDelete'))).toBeNull();
   } finally {
     summary.mockRestore();
+  }
+});
+
+test('keeps report cards, headings and financial values readable in the dark theme', async () => {
+  changeLocale('en');
+  usePreferenceStore.setState({ theme: 'dark' });
+  const view = renderWithProviders(<ReportsScreen onBack={jest.fn()} />);
+  try {
+    await view.findByText('Net worth');
+    expect(view.getByTestId('reports-net-worth')).toHaveStyle({ backgroundColor: darkThemeColors.surfaces.card });
+    expect(view.getByText(translate('reports.analytics.title'))).toHaveStyle({ color: darkThemeColors.content.primary });
+    expect(view.getAllByText('SAR')[0]).toHaveStyle({ color: darkThemeColors.content.primary });
+  } finally {
+    view.unmount();
+    usePreferenceStore.setState({ theme: 'system' });
   }
 });
 
