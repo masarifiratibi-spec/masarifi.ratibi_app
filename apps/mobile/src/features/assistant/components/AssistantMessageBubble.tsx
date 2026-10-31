@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
 import { FinancialInsightCard } from './FinancialInsightCard';
+import { AssistantSpendingSummary } from './AssistantSpendingSummary';
+import { useTheme } from '@/state/theme-context';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
-import { currentLocale, translate, translateDynamic } from '@/localization/i18n';
+import {
+  currentLocale,
+  translate,
+  translateDynamic
+} from '@/localization/i18n';
 import { fontFamilyForLocale } from '@/design-system/typography';
 import { usePreferenceStore } from '@/state/preferences';
 import { spacing } from '@/design-system/tokens';
@@ -36,13 +42,65 @@ export function AssistantMessageBubble({
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const { hidden, reveal } = useAssistantFinancialVisibility(response.id);
+  const { colors } = useTheme();
+  const [detailsVisible, setDetailsVisible] = useState(false);
 
   // Check if snapshot contains financial values for structured card
   const snapshotValues = response.snapshot?.values ?? [];
   const incomeValue = snapshotValues.find((v) => v.key.includes('income'));
-  const expenseValue = snapshotValues.find((v) => v.key.includes('expense') || v.key.includes('budget'));
+  const expenseValue = snapshotValues.find(
+    (v) => v.key.includes('expense') || v.key.includes('budget')
+  );
 
-  const hasFinancialData = Boolean(incomeValue || expenseValue || response.snapshot?.reportReference);
+  const hasFinancialData = Boolean(
+    incomeValue || expenseValue || response.snapshot?.reportReference
+  );
+
+  const textBlocks = (response.blocks ?? []).map((block, index) => (
+    <View
+      key={block.key ?? `${response.id}-block-${index}`}
+      style={styles.block}
+    >
+      {block.label && (
+        <StyledText
+          style={[styles.blockLabel, { color: colors.content.secondary }]}
+        >
+          {translate(`assistant.label.${block.label}`)}
+        </StyledText>
+      )}
+      <StyledText
+        style={[
+          styles.blockText,
+          { color: colors.content.primary },
+          {
+            textAlign: isRtl ? 'right' : 'left',
+            writingDirection: direction
+          }
+        ]}
+      >
+        {hidden
+          ? '••••'
+          : translateDynamic(block.key, block.values)
+              .replace(/\uFFFC/gu, '')
+              .split(/(\*\*[^*\r\n]+\*\*)/g)
+              .map((part, partIndex) =>
+                partIndex % 2 === 1 ? (
+                  <Text
+                    key={partIndex}
+                    style={{
+                      fontWeight: '700',
+                      fontFamily: fontFamilyForLocale(currentLocale(), 700)
+                    }}
+                  >
+                    {part.slice(2, -2)}
+                  </Text>
+                ) : (
+                  part
+                )
+              )}
+      </StyledText>
+    </View>
+  ));
 
   return (
     <View
@@ -65,54 +123,48 @@ export function AssistantMessageBubble({
       <View
         style={[
           styles.bubble,
+          {
+            backgroundColor: colors.surfaces.card,
+            borderColor: colors.borders.default
+          },
           isRtl ? styles.bubbleRtl : styles.bubbleLtr
         ]}
       >
         {/* Response Blocks */}
-        {(response.blocks ?? []).map((block, index) => (
-          <View
-            key={block.key ?? `${response.id}-block-${index}`}
-            style={styles.block}
-          >
-            {block.label && (
-              <StyledText style={styles.blockLabel}>
-                {translate(`assistant.label.${block.label}`)}
-              </StyledText>
-            )}
-            <StyledText
-              style={[
-                styles.blockText,
-                {
-                  textAlign: isRtl ? 'right' : 'left',
-                  writingDirection: direction
-                }
-              ]}
-            >
-              {hidden ? '••••' : translateDynamic(block.key, block.values)
-                .replace(/\uFFFC/gu, '')
-                .split(/(\*\*[^*\r\n]+\*\*)/g)
-                .map((part, partIndex) => partIndex % 2 === 1 ? (
-                  <Text key={partIndex} style={{fontWeight: '700', fontFamily: fontFamilyForLocale(currentLocale(), 700)}}>
-                    {part.slice(2, -2)}
-                  </Text>
-                ) : part)}
-            </StyledText>
-          </View>
-        ))}
+        {response.spendingSummary && !hidden ? (
+          <>
+            <AssistantSpendingSummary presentation={response.spendingSummary} />
+            <ActionButton
+              variant="secondary"
+              label={translate(
+                detailsVisible
+                  ? 'assistant.response.less'
+                  : 'assistant.response.details',
+                response.spendingSummary.locale
+              )}
+              onPress={() => setDetailsVisible((v) => !v)}
+            />
+            {detailsVisible ? textBlocks : null}
+          </>
+        ) : (
+          textBlocks
+        )}
 
         {/* Embedded Financial Insight Card */}
-        {isFixtureModeEnabled() && hasFinancialData && (
-          <FinancialInsightCard
-            title={response.period ? `ملخص الفترة` : 'ملخص الإنفاق'}
-            totalMinor={expenseValue?.minor ?? 425000}
-            totalCurrency={expenseValue?.currency ?? 'SAR'}
-            categoryName="التسوق"
-            categoryMinor={187000}
-            trendPercentage={8}
-            trendDirection="down"
-            onPressDetails={onViewReport}
-          />
-        )}
+        {isFixtureModeEnabled() &&
+          hasFinancialData &&
+          !response.spendingSummary && (
+            <FinancialInsightCard
+              title={response.period ? `ملخص الفترة` : 'ملخص الإنفاق'}
+              totalMinor={expenseValue?.minor ?? 425000}
+              totalCurrency={expenseValue?.currency ?? 'SAR'}
+              categoryName="التسوق"
+              categoryMinor={187000}
+              trendPercentage={8}
+              trendDirection="down"
+              onPressDetails={onViewReport}
+            />
+          )}
 
         {/* Evidence Report Link */}
         {response.snapshot?.reportReference && onViewReport && !hidden && (
@@ -123,7 +175,13 @@ export function AssistantMessageBubble({
           />
         )}
 
-        {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
+        {hidden ? (
+          <ActionButton
+            label="assistant.action.revealFinancial"
+            variant="secondary"
+            onPress={reveal}
+          />
+        ) : null}
 
         {/* Proposed Actions */}
         {(response.proposedActionIds ?? []).map((previewId) => (
@@ -140,7 +198,10 @@ export function AssistantMessageBubble({
           <StyledText key={item} style={styles.limitationText}>
             {item === 'review_required_excluded'
               ? translate('assistant.limitation.reviewExcluded')
-              : translateDynamic(`assistant.limitation.${item}`) === `assistant.limitation.${item}` ? translateDynamic('assistant.limitation.data_incomplete') : translateDynamic(`assistant.limitation.${item}`)}
+              : translateDynamic(`assistant.limitation.${item}`) ===
+                  `assistant.limitation.${item}`
+                ? translateDynamic('assistant.limitation.data_incomplete')
+                : translateDynamic(`assistant.limitation.${item}`)}
           </StyledText>
         ))}
 
@@ -172,7 +233,9 @@ export function AssistantMessageBubble({
               <Pressable
                 onPress={() => onFeedback('not_helpful')}
                 style={styles.feedbackBtn}
-                accessibilityLabel={translateDynamic('assistant.feedback.notHelpful')}
+                accessibilityLabel={translateDynamic(
+                  'assistant.feedback.notHelpful'
+                )}
               >
                 <Text style={styles.feedbackEmoji}>👎</Text>
               </Pressable>
@@ -197,8 +260,8 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   bubble: {
-    backgroundColor: colorTokens.raw["FFFFFF"],
-    borderColor: colorTokens.raw["D7E1DC"],
+    backgroundColor: colorTokens.raw['FFFFFF'],
+    borderColor: colorTokens.raw['D7E1DC'],
     borderRadius: 22,
     borderWidth: 1,
     flex: 1,
@@ -206,7 +269,7 @@ const styles = StyleSheet.create({
     maxWidth: '85%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    shadowColor: colorTokens.raw["103F37"],
+    shadowColor: colorTokens.raw['103F37'],
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
@@ -222,17 +285,17 @@ const styles = StyleSheet.create({
     gap: 2
   },
   blockLabel: {
-    color: colorTokens.raw["0D684A"],
+    color: colorTokens.raw['0D684A'],
     fontSize: 11,
     fontWeight: '700'
   },
   blockText: {
-    color: colorTokens.raw["10231F"],
+    color: colorTokens.raw['10231F'],
     fontSize: 14.5,
     lineHeight: 20
   },
   limitationText: {
-    color: colorTokens.raw["657872"],
+    color: colorTokens.raw['657872'],
     fontSize: 11.5,
     fontStyle: 'italic'
   },
@@ -243,7 +306,7 @@ const styles = StyleSheet.create({
     paddingTop: 4
   },
   timestamp: {
-    color: colorTokens.raw["7C8B85"],
+    color: colorTokens.raw['7C8B85'],
     fontSize: 11
   },
   feedbackRow: {

@@ -8,6 +8,15 @@
  */
 
 const en = {
+  'assistant.response.up': 'increase',
+  'assistant.response.down': 'decrease',
+  'assistant.response.flat': 'unchanged',
+  'assistant.response.previous': 'Previous period',
+  'assistant.response.explanation': 'What changed?',
+  'assistant.response.saving': 'A saving step',
+  'assistant.response.target': 'Conditional saving target',
+  'assistant.response.details': 'More details',
+  'assistant.response.less': 'Hide details',
   'reports.local.basedOn':
     'Offline · Based on financial data saved on this device',
   'reports.local.empty':
@@ -22,11 +31,15 @@ const en = {
     'PDF email delivery needs the approved server update.',
   'reports.pdf.download': 'Email report PDF',
   'reports.pdf.emailWaitTitle': 'This may take some time',
-  'reports.pdf.emailPreparing': 'Requesting your report as a PDF attachment to your account email.',
-  'reports.pdf.emailQueued': 'Your request was accepted. The PDF will be emailed to your account when it is ready.',
+  'reports.pdf.emailPreparing':
+    'Requesting your report as a PDF attachment to your account email.',
+  'reports.pdf.emailQueued':
+    'Your request was accepted. The PDF will be emailed to your account when it is ready.',
   'reports.pdf.emailFailure': 'Report request failed',
-  'reports.pdf.emailMissing': 'A verified primary account email is required to send the report.',
-  'reports.pdf.emailUnavailable': 'Report email delivery is unavailable. Try again later.',
+  'reports.pdf.emailMissing':
+    'A verified primary account email is required to send the report.',
+  'reports.pdf.emailUnavailable':
+    'Report email delivery is unavailable. Try again later.',
   'reports.pdf.generating': 'Preparing your PDF…',
   'reports.pdf.saving': 'Downloading PDF. Choose a folder to save it.',
   'reports.pdf.success': 'PDF saved',
@@ -827,7 +840,8 @@ const en = {
   'coreFinance.state.loading': 'Loading financial data',
   'coreFinance.state.error': 'Could not load financial data',
   'assistant.draft.restoreFailed': 'Could not restore your draft. Try again.',
-  'assistant.draft.saveFailed': 'Could not save your draft. Try again before leaving.',
+  'assistant.draft.saveFailed':
+    'Could not save your draft. Try again before leaving.',
   'coreFinance.action.retry': 'Try again',
   'coreFinance.action.expense': 'Add expense',
   'coreFinance.action.income': 'Add income',
@@ -1656,7 +1670,8 @@ const en = {
   'planning.state.empty': 'No planning records yet',
   'planning.state.partial': 'Some planning data is incomplete',
   'planning.state.offline': 'Offline changes stay on this device',
-  'planning.state.offlineRead': 'Offline · Showing data saved on this device. Some values may be unavailable or out of date.',
+  'planning.state.offlineRead':
+    'Offline · Showing data saved on this device. Some values may be unavailable or out of date.',
   'planning.state.error': 'Planning is unavailable',
   'planning.state.hidden': 'Values are hidden',
   'planning.reason.missing_data': 'Unavailable until more data is added',
@@ -1670,7 +1685,8 @@ const en = {
   'planning.action.edit': 'Edit',
   'planning.action.save': 'Save',
   'planning.action.next': 'Next',
-  'planning.budget.savedDraftOnly': 'Saved draft. Connect to verify this budget before saving.',
+  'planning.budget.savedDraftOnly':
+    'Saved draft. Connect to verify this budget before saving.',
   'planning.action.resumeDraft': 'Resume saved draft',
   'planning.action.retry': 'Retry',
   'planning.action.undo': 'Undo',
@@ -2688,7 +2704,8 @@ const en = {
   'support.form.failure.offline': 'Saved locally. Submit when you are online.',
   'support.form.failure.representative_failure':
     'Unable to save draft temporarily.',
-  'support.form.submitFailure': 'Unable to submit. Your text is kept for retry.',
+  'support.form.submitFailure':
+    'Unable to submit. Your text is kept for retry.',
   'support.report.assistant': 'Report assistant response to support',
   'support.report.transaction': 'Report transaction to support',
   'support.form.title': 'Contact support',

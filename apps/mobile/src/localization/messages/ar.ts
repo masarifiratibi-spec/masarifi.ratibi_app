@@ -10,6 +10,15 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'assistant.response.up': 'زيادة',
+  'assistant.response.down': 'انخفاض',
+  'assistant.response.flat': 'بدون تغيّر',
+  'assistant.response.previous': 'الفترة السابقة',
+  'assistant.response.explanation': 'وش نلاحظ؟',
+  'assistant.response.saving': 'خطوة للتوفير',
+  'assistant.response.target': 'هدف توفير مشروط',
+  'assistant.response.details': 'تفاصيل أكثر',
+  'assistant.response.less': 'إخفاء التفاصيل',
   'reports.local.basedOn':
     'دون اتصال · استنادًا إلى البيانات المالية المحفوظة على هذا الجهاز',
   'reports.local.empty': 'لا توجد حركة مالية محفوظة محليًا لهذه الفترة.',

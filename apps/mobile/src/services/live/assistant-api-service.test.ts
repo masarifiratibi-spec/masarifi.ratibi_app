@@ -6,6 +6,7 @@ import {
 import { createMemoryAssistantJournal } from '@/storage/assistant-operation-journal';
 import { samples } from '@/test-utils/assistant-action-preview-fixtures';
 import { assistantResponseSchema } from '@/domain/assistant';
+import { spendingPresentationFixture } from '@/test-utils/assistant-spending-presentation-fixture';
 
 jest.mock('expo-constants', () => ({
   expoConfig: { android: { package: 'com.masarifi.mobile.dev' } }
@@ -1448,6 +1449,32 @@ const backendAgentMetadataFixture = {
   values: [],
   reasons: []
 };
+
+it.each([1, 2])(
+  'maps a supported spending presentation and safely retains text for unknown version %s',
+  async (version) => {
+    const rows = messages();
+    Object.assign(rows.items[1]!, {
+      metadata: {
+        ...backendAgentMetadataFixture,
+        spendingSummary: { ...spendingPresentationFixture, version }
+      }
+    });
+    const request = jest
+      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(json(conversations))
+      .mockResolvedValueOnce(json(rows));
+    const response = await createLiveAssistantApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request
+    }).getResponse(id(3));
+    expect(response.blocks[0]?.key).toBe('Safe answer');
+    expect(
+      Reflect.get(assistantResponseSchema.parse(response), 'spendingSummary')
+    ).toEqual(version === 1 ? spendingPresentationFixture : undefined);
+  }
+);
 
 it('maps a scope refusal as a notice without a financial period or confirmed-fact label', async () => {
   const rows = messages();

@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { z } from 'zod';
+import { optionalSpendingPresentationSchema } from '@/domain/assistant-presentation';
 import { hasCompleteAssistantEffect } from '@/domain/assistant-action-effect';
 import {
   buildAssistantActionDisclosure,
@@ -172,7 +173,8 @@ const messageSchema = z
               .strict()
           )
           .optional(),
-        reasons: z.array(z.string()).optional()
+        reasons: z.array(z.string()).optional(),
+        spendingSummary: optionalSpendingPresentationSchema
       })
       .strict()
       .nullable()
@@ -635,6 +637,9 @@ export function createLiveAssistantApiService(
       id: row.id,
       conversationId: row.conversationId,
       question: question.content,
+      ...(question.metadata?.spendingSummary
+        ? { spendingSummary: question.metadata.spendingSummary }
+        : {}),
       responseType:
         question.metadata?.responseType === 'redirect'
           ? 'safe_redirect'

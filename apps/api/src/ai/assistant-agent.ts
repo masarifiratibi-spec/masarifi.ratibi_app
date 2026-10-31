@@ -4,6 +4,12 @@ import { AiGateway, AiGatewayError } from './ai.gateway';
 import { redactAiContext, redactAiText } from './ai.schemas';
 import { localDateAt } from '../reports/reports.period';
 import { assistantComparisons, assistantPeriodTotals } from './assistant-agent-comparisons';
+import {
+  buildSpendingPresentation,
+  previousSpendingPeriod,
+  selectSpendingSummaryRead,
+  assistantPresentationLocale,
+} from './assistant-spending-presentation';
 import { assistantScopeNotice, isProgrammingAnswer } from './assistant-domain-policy';
 import {
   AssistantAgentData,
@@ -175,6 +181,7 @@ Your exclusive job is analyzing the owner's personal financial records, expenses
 Brief greetings and thanks belong to this financial-assistant conversation: respond warmly and briefly, offer relevant financial help, and preserve the last financial topic for follow-ups. A greeting alone is not out_of_scope; a greeting does not make an accompanying unrelated request in scope.
 Understand semantics, not keywords. Latest ONE transaction means ONE movement with amount, direction, date, merchant/category when available, not a count. Latest N means that list. Distinguish the largest individual expense, highest spending categories, and merchants. For ambiguous 'biggest expenses', show both the largest movement and leading categories if available. Compound questions require every part answered.
 Use ownerToday and timezone for النهارده/today, امبارح/yesterday, الشهر اللي فات/last month, and previous-week/month/year dates. Last transaction without a date means latest over all history, not just this month. Unspecified spending summaries default to the current month and must disclose the period. Compare month-to-date with the comparable elapsed period unless full periods were requested. Resolve 'طيب واللي قبله؟', 'ليه؟' and pronouns from conversation context; ask one specific clarification only when genuinely ambiguous.
+For expense-total questions, lead with the exact confirmed amount for each requested currency and period. Do not add unrequested transaction counts or lists; include them when the user asks. Keep explanations brief and supported by recorded category or transaction changes. Do not invent causal explanations, numerical saving targets or guaranteed savings.
 First inspect overview and dataAlreadyRead. If insufficient, status=query, answerParts=[], request up to four independent typed reads. Use transactions sort=latest limit=1 for the latest movement; sort=largest for biggest individual movements separately per currency; never compare raw minor-unit values across currencies; filter kind=expense for largest expenses; summary for exact totals and category rankings. You can request multiple periods for comparisons. Names/aliases must come from data; search matches literal merchant/note. Use account=null/category=null for no filter. Every query must include all schema properties. Never silently treat a capped list as complete: inspect total/hasMore/offset. Planning is current state unless data explicitly says otherwise.
 Use collection=null for overview/accounts/transactions/summary/profile. For planning you may select salary, budget, budget_category, obligation, goal, obligation_schedule, salary_receipt, report_schedule, savings_movement, obligation_payment or report_delivery; for tracking select tracking_review, tracking_history, voice_session or voice_preference. A null collection is a combined bounded page; choose one collection to paginate it independently. Search and filters apply only where the returned coverage says they apply. Report-compatible spending/income/net cashflow are exact financialEffects values; summaries are gross movements by kind/status, not net spending. For total spending use kind=null so refunds and fees on other movements are included. Category rankings subtract linked refunds and exclude fees, while merchant rankings are gross expense amounts; disclose this distinction when it matters. Individual transaction amountMinor excludes its separately shown feeMinor. Use account balanceTotals and planning totals for exact combined balances, goal shortfalls and debts; never add currencies together, ignore missing projections or invent your own totals. Saved Voice preferences and session status are distinct from live recording on the device; never infer microphone state or local pending records from server data. If the required source is unavailable, say exactly which part cannot be verified.
 Numeric facts, dates and names containing digits appear as cells {value,ref}; value is the exact server-formatted display and ref identifies its F-key. Structural status, tool, currency and other text remain ordinary values. Use a cell's value when selecting a tool filter. When sufficient return status=answer, queries=[], and answerParts. Each part is exactly {text:string,fact:string|null}. For prose use fact=null and ordinary text WITHOUT numeric digits in any script or placeholders. For each amount, date, count, year or other numeric fact set text='' and fact=the supplied F-key, e.g. F12 without braces. The server inserts its exact value into the sentence. Never spell out unsupported amounts. Do not append facts as citations: place the fact part where its value belongs in the sentence. Example: [{"text":"Confirmed expenses: ","fact":null},{"text":"","fact":"F12"},{"text":".","fact":null}]. Use plain readable text without Markdown or decorative brackets. For a default current-month total, 'this month to date' is a sufficient period label. Do not add a calendar range unless both complete supplied date fact parts are present; never leave blank or unfinished date fragments. For query and out_of_scope, answerParts=[]. Do not change a fact's currency, sign, period or meaning. A collection's modelCoverage explicitly reports rows omitted from this bounded model view and the nextOffset for requesting the next page; original count is the total matching records, never the number shown. dataUnavailableInThisView means request that query again if needed; it is not empty or zero. conversationCoverage reports omitted old turns. Do not infer available cash from income minus expenses. Keep currencies separate and distinguish expenses, income, transfers, pending/review/local-unsynced from confirmed ledger data. No-data is not proof of zero unless a complete aggregate says zero. Missing data must be stated specifically; do not fabricate.
@@ -495,7 +502,7 @@ export class AssistantAgent {
         throw error;
       }
     };
-    const locale = /[\u0600-\u06ff]/u.test(claim.content) ? 'ar' : 'en';
+    const locale = assistantPresentationLocale(claim.content);
     const reads: Array<{ query: AssistantDataQuery; snapshot: AssistantDataResult }> = [];
     const read = async (query: AssistantDataQuery) => {
       signal.throwIfAborted();
@@ -681,6 +688,95 @@ export class AssistantAgent {
             ? 'multiple_periods'
             : 'current_state'
           : completion.value.scope;
+      const summaryRead =
+        completion.value.responseType === 'fact'
+          ? selectSpendingSummaryRead(reads, boundAnswer, facts)
+          : undefined;
+      const summaryPeriod = summaryRead?.snapshot.data.period as
+        { startDate: string; endDate: string } | undefined;
+      const priorPeriod = summaryPeriod ? previousSpendingPeriod(summaryPeriod) : undefined;
+      let priorRead: Awaited<ReturnType<typeof read>> | undefined;
+      const needsPriorRead =
+        summaryRead &&
+        priorPeriod &&
+        !reads.some(
+          (r) =>
+            r.snapshot.data.status === 'ok' &&
+            (r.snapshot.data.period as { startDate?: string; endDate?: string } | undefined)
+              ?.startDate === priorPeriod.startDate &&
+            (r.snapshot.data.period as { startDate?: string; endDate?: string } | undefined)
+              ?.endDate === priorPeriod.endDate &&
+            [
+              'currency',
+              'account',
+              'category',
+              'kind',
+              'search',
+              'minAmountMinor',
+              'maxAmountMinor',
+            ].every(
+              (k) =>
+                (Reflect.get(r.query, k) ?? null) === (Reflect.get(summaryRead.query, k) ?? null),
+            ),
+        );
+      if (needsPriorRead) {
+        const query: AssistantDataQuery = { ...summaryRead.query, tool: 'summary', ...priorPeriod };
+        try {
+          priorRead = await measure({ stage: 'data_reads', round: round + 1, readCount: 1 }, () =>
+            read(query),
+          );
+        } catch (error: unknown) {
+          signal.throwIfAborted();
+          const code =
+            error && typeof error === 'object' ? (Reflect.get(error, 'code') as unknown) : null;
+          if (
+            typeof code !== 'string' ||
+            ![
+              'ECONNRESET',
+              'ETIMEDOUT',
+              'ECONNREFUSED',
+              '08000',
+              '08001',
+              '08003',
+              '08006',
+              '57P01',
+              '57P02',
+              '57P03',
+              '53300',
+              '57014',
+            ].includes(code)
+          )
+            throw error;
+          priorRead = {
+            query,
+            snapshot: {
+              observedAt: new Date().toISOString(),
+              ledgerVersion: 0,
+              aliases: [],
+              data: { status: 'unavailable', period: priorPeriod },
+            },
+          };
+        }
+      }
+      const spendingSummary = summaryRead
+        ? buildSpendingPresentation({
+            reads: reads,
+            answer: boundAnswer,
+            facts: facts,
+            locale: locale,
+            format: (value, key, parent) => formatFact(value, key, parent, claim.timezone, locale),
+            additionalPrevious: priorRead,
+          })
+        : undefined;
+      if (spendingSummary) {
+        if (priorRead?.snapshot.data.status === 'ok')
+          evidence.push({
+            kind: 'ledger',
+            alias: `LEDGER-${(reads.length + 1).toString()}`,
+            version: priorRead.snapshot.ledgerVersion,
+            asOf: priorRead.snapshot.observedAt,
+          });
+      }
       return {
         content,
         model: completion.model,
@@ -704,6 +800,7 @@ export class AssistantAgent {
           responseType: completion.value.responseType,
           generatedAt: new Date().toISOString(),
           values: [],
+          ...(spendingSummary ? { spendingSummary } : {}),
           reasons: [],
         },
       };

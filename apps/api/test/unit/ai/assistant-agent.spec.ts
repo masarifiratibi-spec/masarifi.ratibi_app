@@ -59,6 +59,225 @@ const route: EffectiveAiRoute = {
   ],
 };
 
+it.each(['كم صرفت هالشهر؟', 'جاوب بالإنجليزي: كم صرفت هالشهر؟'])(
+  'presents real summary facts and a prior baseline without another model dispatch: %s',
+  async (question) => {
+    const read = jest.fn((_job, _token, query: AssistantDataQuery) =>
+      Promise.resolve({
+        observedAt: '2026-10-31T12:00:00Z',
+        ledgerVersion: 22,
+        aliases: [],
+        data: {
+          status: 'ok',
+          period:
+            query.tool === 'overview'
+              ? { startDate: '2026-10-01', endDate: '2026-10-31' }
+              : { startDate: query.startDate, endDate: query.endDate },
+          summaries: [
+            {
+              kind: 'expense',
+              status: 'confirmed',
+              currency: 'SAR',
+              amountMinor: query.tool === 'overview' ? '240000' : '210000',
+              count: 3,
+            },
+          ],
+          topExpenseCategories: [
+            {
+              category: 'CATEGORY-1',
+              labelAr: 'المطاعم',
+              labelEn: 'Restaurants',
+              currency: 'SAR',
+              amountMinor: query.tool === 'overview' ? '60000' : '40000',
+            },
+          ],
+        },
+      }),
+    );
+    const complete = jest.fn((input: { userContent: string; parse: (v: unknown) => unknown }) => {
+      const payload = JSON.parse(input.userContent) as {
+        dataAlreadyRead: Array<{ data: { summaries: Array<{ amountMinor: { ref: string } }> } }>;
+      };
+      const amountCell = payload.dataAlreadyRead[0]?.data.summaries[0]?.amountMinor;
+      if (!amountCell) throw Error('Expected model fact');
+      return Promise.resolve({
+        value: input.parse({
+          status: 'answer',
+          answerParts: [
+            {
+              text: '',
+              fact: amountCell.ref.replace(/[{}]/gu, ''),
+            },
+          ],
+          queries: [],
+          responseType: 'fact',
+          scope: 'selected_period',
+        }),
+        model: 'model',
+        provider: 'provider',
+      });
+    });
+    const result = await new AssistantAgent({ read } as never, { complete } as never, () =>
+      Promise.resolve(),
+    ).run({ ...claim, content: question }, route, new AbortController().signal);
+    expect(result.metadata.spendingSummary).toMatchObject({
+      version: 1,
+      cards: [
+        {
+          amount: question.includes('بالإنجليزي') ? '2,400 SAR' : '2,400 ريال',
+          comparison: { difference: question.includes('بالإنجليزي') ? '300 SAR' : '300 ريال' },
+          saving: { target: question.includes('بالإنجليزي') ? '200 SAR' : '200 ريال' },
+        },
+      ],
+    });
+    expect(result.content).toBe(question.includes('بالإنجليزي') ? '2,400 SAR' : '2,400 ريال');
+    expect(read.mock.calls[1]?.[2]).toMatchObject({
+      tool: 'summary',
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    });
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.evidence).toHaveLength(2);
+  },
+);
+
+it.each(['ECONNRESET', '42501', '40001'])(
+  'keeps only recoverable optional baseline failures partial: %s',
+  async (code) => {
+    const read = jest.fn((_job, _token, query: AssistantDataQuery) =>
+      query.tool === 'summary'
+        ? Promise.reject(Object.assign(new Error('source failure'), { code }))
+        : Promise.resolve({
+            observedAt: '2026-10-31T12:00:00Z',
+            ledgerVersion: 1,
+            aliases: [],
+            data: {
+              status: 'ok',
+              period: { startDate: '2026-10-01', endDate: '2026-10-31', timezone: 'Asia/Riyadh' },
+              summaries: [
+                {
+                  currency: 'SAR',
+                  kind: 'expense',
+                  status: 'confirmed',
+                  amountMinor: '10000',
+                  count: 1,
+                },
+              ],
+              topExpenseCategories: { items: [], count: 0, limit: 10, offset: 0, hasMore: false },
+            },
+          }),
+    );
+    const complete = jest.fn((input: { parse: (v: unknown) => unknown; userContent: string }) => {
+      const payload = JSON.parse(input.userContent) as {
+        dataAlreadyRead: Array<{ data: { summaries: Array<{ amountMinor: { ref: string } }> } }>;
+      };
+      const cell = payload.dataAlreadyRead[0]?.data.summaries[0]?.amountMinor;
+      if (!cell) throw Error('Missing test fact');
+      return Promise.resolve({
+        value: input.parse({
+          status: 'answer',
+          answerParts: [{ text: '', fact: cell.ref.replace(/[{}]/gu, '') }],
+          queries: [],
+          responseType: 'fact',
+          scope: 'selected_period',
+        }),
+        model: 'model',
+        provider: 'provider',
+      });
+    });
+    const operation = new AssistantAgent({ read } as never, { complete } as never, () =>
+      Promise.resolve(),
+    ).run({ ...claim, content: 'كم صرفت هالشهر؟' }, route, new AbortController().signal);
+    if (code === 'ECONNRESET') {
+      const result = await operation;
+      expect(result.content).toBe('100 ريال');
+      const presentation = result.metadata.spendingSummary as {
+        cards: Array<{ comparison: null; comparisonNotice: string }>;
+      };
+      expect(presentation.cards[0]?.comparison).toBeNull();
+      expect(presentation.cards[0]?.comparisonNotice).toContain('مو متاحة');
+      expect(result.evidence).toHaveLength(1);
+    } else await expect(operation).rejects.toMatchObject({ code });
+  },
+);
+
+it('reuses a successful baseline with timezone instead of querying it again', async () => {
+  const read = jest.fn((_job, _token, query: AssistantDataQuery) =>
+    Promise.resolve({
+      observedAt: '2026-10-31T12:00:00Z',
+      ledgerVersion: 1,
+      aliases: [],
+      data: {
+        status: 'ok',
+        period: {
+          startDate: query.startDate ?? '2026-10-01',
+          endDate: query.endDate ?? '2026-10-31',
+          timezone: 'Asia/Riyadh',
+        },
+        summaries: [
+          {
+            currency: 'SAR',
+            kind: 'expense',
+            status: 'confirmed',
+            amountMinor: query.tool === 'overview' ? '240000' : '210000',
+            count: 3,
+          },
+        ],
+        topExpenseCategories: {
+          items: [
+            {
+              currency: 'SAR',
+              category: 'CATEGORY-1',
+              labelAr: 'المطاعم',
+              amountMinor: query.tool === 'overview' ? '60000' : '40000',
+            },
+          ],
+          count: 1,
+          limit: 10,
+          offset: 0,
+          hasMore: false,
+        },
+      },
+    }),
+  );
+  let calls = 0;
+  const complete = jest.fn((input: { parse: (v: unknown) => unknown; userContent: string }) => {
+    const payload = JSON.parse(input.userContent) as {
+      dataAlreadyRead: Array<{ data: { summaries: Array<{ amountMinor: { ref: string } }> } }>;
+    };
+    const cell = payload.dataAlreadyRead[0]?.data.summaries[0]?.amountMinor;
+    if (!cell) throw Error('Missing test fact');
+    return Promise.resolve({
+      value: input.parse(
+        calls++ === 0
+          ? {
+              status: 'query',
+              answerParts: [],
+              queries: [{ tool: 'summary', startDate: '2026-09-01', endDate: '2026-09-30' }],
+              responseType: 'fact',
+              scope: 'multiple_periods',
+            }
+          : {
+              status: 'answer',
+              answerParts: [{ text: '', fact: cell.ref.replace(/[{}]/gu, '') }],
+              queries: [],
+              responseType: 'fact',
+              scope: 'selected_period',
+            },
+      ),
+      model: 'model',
+      provider: 'provider',
+    });
+  });
+  const result = await new AssistantAgent({ read } as never, { complete } as never, () =>
+    Promise.resolve(),
+  ).run({ ...claim, content: 'قارن مصاريفي' }, route, new AbortController().signal);
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(result.metadata.spendingSummary).toMatchObject({
+    cards: [{ comparison: { difference: '300 ريال' }, saving: { target: '200 ريال' } }],
+  });
+});
+
 it.each(['وش آخر معاملة؟', 'صرفت كام النهارده؟', 'Show my latest transaction in English'])(
   'sends the Saudi style policy at the provider boundary for %s without rewriting facts',
   async (content) => {
@@ -75,6 +294,9 @@ it.each(['وش آخر معاملة؟', 'صرفت كام النهارده؟', 'Sh
             'Use neutral, natural Saudi/Gulf Arabic for all Arabic conversational prose',
           );
           expect(input.route.prompt.template).toContain('Understand Arabic input in any dialect');
+          expect(input.route.prompt.template).toContain(
+            'Do not add unrequested transaction counts',
+          );
           expect(input.route.prompt.template).toContain(
             'Keep English when selected or explicitly requested',
           );
@@ -1950,6 +2172,7 @@ it('labels a current-period comparison fact with its originating period', async 
     () => Promise.resolve(),
   );
   const answer = await agent.run(claim, route, new AbortController().signal);
+  expect(answer.metadata.spendingSummary).toMatchObject({ cards: [{ amount: '82 ريال' }] });
   expect(answer.content).toBe('مصروفات الشهر الحالي 82 ريال.');
   expect(answer.metadata).toMatchObject({ scope: 'selected_period', ...current });
 });
