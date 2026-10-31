@@ -29,21 +29,24 @@
 
 Files: create `apps/api/src/ai/assistant-spending-presentation.ts` and its unit spec; modify `assistant-agent.ts` and agent unit tests.
 
-- [ ] Write and run failing tests for exact multi-currency summary/comparison/category targets, failed/capped data, mixed questions and calendar interval matching.
+- [x] Write and run failing tests for exact multi-currency summary/comparison/category targets, failed/capped data, mixed questions and calendar interval matching.
 - [x] Implement `selectSpendingSummaryRead`, `previousSpendingPeriod` and `buildSpendingPresentation`, retaining the canonical grounded answer unchanged. Reuse `assistantPeriodTotals`/`assistantComparisons`; only successful matched records establish an explanation or numeric target.
-- [ ] Attach optional metadata after grounding; optionally perform one fixed prior-interval read, recording its evidence without changing provider dispatch bounds. Verify focused API suites and typecheck/build.
+- [x] Attach optional metadata after grounding; optionally perform one fixed prior-interval read, recording its evidence without changing provider dispatch bounds. Verify focused API suites and typecheck/build.
 
 ### Task 2: Validated mobile presentation
 
 Files: domain `assistant-presentation.ts`, `assistant.ts`, live `assistant-api-service.ts`, bubble and new `AssistantSpendingSummary.tsx`, localization keys and targeted tests.
 
-- [ ] Write and run failing adapter/UI tests for the approved hierarchy, exact values, privacy reveal, incomplete baselines, legacy and unknown versions, and both languages/themes.
-- [ ] Validate optional presentation metadata and map it to responses. Render prominent amounts, comparison and short sections using semantic tokens, preserving existing actions and fallback prose.
-- [ ] Run focused mobile suites, typecheck/lint and one device inspection with the preserved app state.
+- [x] Write and run failing adapter/UI tests for the approved hierarchy, exact values, privacy reveal, incomplete baselines, legacy and unknown versions, and both languages/themes.
+- [x] Validate optional presentation metadata and map it to responses. Render prominent amounts, comparison and short sections using semantic tokens, preserving existing actions and fallback prose.
+- [x] Run focused mobile suites, typecheck/lint and one device inspection with the preserved app state.
 
 ### Task 3: Runtime and evidence
 
-- [ ] Review final changes independently and fix material findings.
-- [ ] Verify before/after phone preservation, then deploy only the qualified assistant worker overlay and use the existing Metro. Preserve the annual key and all other consumers/configuration.
-- [ ] Prepare any necessary new bounded live acceptance separately from closed scopes; do not claim provider quality from mocks.
-- [ ] Record evidence and remaining limits, update handoff and push the same branch; inspect current HEAD checks.
+- [x] Review final changes independently and fix material findings.
+- [x] Verify before/after phone preservation, then deploy only the qualified assistant worker overlay and use the existing Metro. Preserve the annual key and all other consumers/configuration.
+- [x] Prepare any necessary new bounded live acceptance separately from closed scopes; do not claim provider quality from mocks.
+- [x] Record evidence and remaining limits, update handoff and push the same branch; inspect current HEAD checks.
+
+
+Completed31 October2026: source tests/review, qualified worker deployment, actual Arabic card and canonical details on the same Redmi, exact preservation gate, and same-branch publication. Scope04/05/06 are closed; see docs/evidence/2026-10-31-assistant-grounded-response-layout.md for actual acceptance and the separate English/CI limits.

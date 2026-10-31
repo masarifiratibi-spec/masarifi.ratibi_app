@@ -59,9 +59,13 @@ const route: EffectiveAiRoute = {
   ],
 };
 
-it.each(['كم صرفت هالشهر؟', 'جاوب بالإنجليزي: كم صرفت هالشهر؟'])(
-  'presents real summary facts and a prior baseline without another model dispatch: %s',
-  async (question) => {
+it.each(
+  ['كم صرفت هالشهر؟', 'جاوب بالإنجليزي: كم صرفت هالشهر؟'].flatMap((question) =>
+    ['fact', 'suggestion'].map((responseType) => ({ question, responseType })),
+  ),
+)(
+  'presents grounded spending with $responseType without another model dispatch: $question',
+  async ({ question, responseType }) => {
     const read = jest.fn((_job, _token, query: AssistantDataQuery) =>
       Promise.resolve({
         observedAt: '2026-10-31T12:00:00Z',
@@ -110,7 +114,7 @@ it.each(['كم صرفت هالشهر؟', 'جاوب بالإنجليزي: كم ص
             },
           ],
           queries: [],
-          responseType: 'fact',
+          responseType,
           scope: 'selected_period',
         }),
         model: 'model',
@@ -131,6 +135,7 @@ it.each(['كم صرفت هالشهر؟', 'جاوب بالإنجليزي: كم ص
       ],
     });
     expect(result.content).toBe(question.includes('بالإنجليزي') ? '2,400 SAR' : '2,400 ريال');
+    expect(result.metadata.responseType).toBe(responseType);
     expect(read.mock.calls[1]?.[2]).toMatchObject({
       tool: 'summary',
       startDate: '2026-09-01',

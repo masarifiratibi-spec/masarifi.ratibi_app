@@ -51,9 +51,15 @@ const period = (v: unknown): Period | undefined => {
 const samePeriod = (a: unknown, b: unknown) =>
   JSON.stringify(period(a)) === JSON.stringify(period(b));
 const sameScope = (a: Read, b: Read) =>
-  ['currency', 'account', 'category', 'kind', 'search', 'minAmountMinor', 'maxAmountMinor'].every(
-    (k) => (Reflect.get(a.query, k) ?? null) === (Reflect.get(b.query, k) ?? null),
+  (!a.query.currency || !b.query.currency || a.query.currency === b.query.currency) &&
+  ['account', 'category', 'kind', 'search', 'minAmountMinor', 'maxAmountMinor'].every(
+    (k) =>
+      (Reflect.get(a.query, k) ?? (k === 'kind' ? 'expense' : null)) ===
+      (Reflect.get(b.query, k) ?? (k === 'kind' ? 'expense' : null)),
   );
+const sameBasis = (a: Read, b: Read) =>
+  (a.query.kind ?? null) === (b.query.kind ?? null) &&
+  (a.query.currency ?? null) === (b.query.currency ?? null);
 
 export function assistantPresentationLocale(question: string): 'ar' | 'en' {
   const normalized = question
@@ -219,7 +225,63 @@ export function buildSpendingPresentation({
   const all = additionalPrevious ? [...reads, additionalPrevious] : reads;
   const currentPeriod = period(selected.snapshot.data.period);
   if (!currentPeriod) return undefined;
-  const comparisons = assistantComparisons(all);
+  // An overview and an expense-only query can agree, but refunds/fees may make
+  // their bases differ. Verify every differently filtered kind/currency reference
+  // against an actual same-basis read before displaying a compact card.
+  for (const f of refs.filter((f) => /Minor$/u.test(f.path))) {
+    const category =
+      /^reads\[(\d+)\]\.data\.topExpenseCategories(?:\.items)?\[(\d+)\]\.amountMinor$/u.exec(
+        f.path,
+      );
+    const index = target(reads, f) ?? (category ? Number(category[1]) : undefined);
+    const source = index === undefined ? undefined : reads[index];
+    if (!source || sameBasis(source, selected)) continue;
+    const canonical = all.find(
+      (r) =>
+        r.snapshot.data.status === 'ok' &&
+        sameScope(r, selected) &&
+        sameBasis(r, selected) &&
+        samePeriod(r.snapshot.data.period, source.snapshot.data.period),
+    );
+    if (!canonical) return undefined;
+    const expense = (r: Read) =>
+      assistantPeriodTotals([r]).find((t) => t.kind === 'expense' && t.currency === f.currency)
+        ?.confirmedMinor;
+    if (expense(source) === undefined || expense(source) !== expense(canonical)) return undefined;
+    if (category) {
+      const row = rows(source.snapshot.data.topExpenseCategories)[Number(category[2])];
+      const counterpart = rows(canonical.snapshot.data.topExpenseCategories).find(
+        (r) => r.currency === row?.currency && r.category === row?.category,
+      );
+      if (!row || !counterpart || row.amountMinor !== counterpart.amountMinor) return undefined;
+    }
+  }
+  const comparisons = assistantComparisons(
+    all.filter((r) => sameScope(r, selected) && sameBasis(r, selected)),
+  );
+  const originalComparisons = assistantComparisons(reads);
+  for (const f of refs) {
+    const derived =
+      /^reads\[(\d+)\]\.data\.items\[(\d+)\]\.(currentMinor|previousMinor|differenceMinor|percentageBasisPoints)$/u.exec(
+        f.path,
+      );
+    if (!derived || Number(derived[1]) !== reads.length) continue;
+    const original = originalComparisons[Number(derived[2])];
+    const field = derived[3];
+    if (
+      !original ||
+      !field ||
+      !comparisons.some(
+        (c) =>
+          c.currency === original.currency &&
+          c.kind === original.kind &&
+          samePeriod(c.currentPeriod, original.currentPeriod) &&
+          samePeriod(c.previousPeriod, original.previousPeriod) &&
+          Reflect.get(c, field) === Reflect.get(original, field),
+      )
+    )
+      return undefined;
+  }
   const currencies = new Set(refs.flatMap((f) => (f.currency ? [f.currency] : [])));
   const totals = assistantPeriodTotals([selected]).filter(
     (t) => t.kind === 'expense' && currencies.has(t.currency),
@@ -260,6 +322,7 @@ export function buildSpendingPresentation({
           (r) =>
             samePeriod(r.snapshot.data.period, c.previousPeriod) &&
             sameScope(r, selected) &&
+            sameBasis(r, selected) &&
             r.snapshot.data.status === 'ok',
         )
       : undefined;

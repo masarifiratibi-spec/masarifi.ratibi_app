@@ -51,6 +51,100 @@ const fact: AssistantFact = {
 const format = (value: string, _key: string, parent: Record<string, unknown>) =>
   typeof parent.currency === 'string' ? `${value} ${parent.currency}` : value;
 
+it('accepts mixed overview/expense reads only after verifying the same expense basis', () => {
+  const current = read('2026-10', '240000', '60000');
+  delete current.query.kind;
+  const previous = read('2026-09', '210000', '40000');
+  const canonical = read('2026-09', '210000', '40000');
+  delete canonical.query.kind;
+  const facts = [fact, { ...fact, key: 'F2', path: 'reads[1].data.summaries[0].amountMinor' }];
+  const input = {
+    reads: [current, previous],
+    answer: '{{F1}} {{F2}}',
+    facts,
+    locale: 'ar' as const,
+    format,
+  };
+  expect(selectSpendingSummaryRead(input.reads, input.answer, facts)).toBe(current);
+  expect(buildSpendingPresentation(input)).toBeUndefined();
+  expect(
+    buildSpendingPresentation({ ...input, additionalPrevious: canonical })?.cards[0],
+  ).toMatchObject({
+    amount: '240000 SAR',
+    comparison: { difference: '30000 SAR' },
+    saving: { target: '20000 SAR' },
+  });
+  present(canonical.snapshot.data.summaries[0]).amountMinor = '200000';
+  expect(buildSpendingPresentation({ ...input, additionalPrevious: canonical })).toBeUndefined();
+});
+
+it('verifies an explicit currency filter against a canonical unfiltered currency read', () => {
+  const current = read('2026-10', '240000', '60000');
+  delete current.query.currency;
+  const previous = read('2026-09', '210000', '40000');
+  const canonical = read('2026-09', '210000', '40000');
+  delete canonical.query.currency;
+  const facts = [fact, { ...fact, key: 'F2', path: 'reads[1].data.summaries[0].amountMinor' }];
+  const input = {
+    reads: [current, previous],
+    answer: '{{F1}} {{F2}}',
+    facts,
+    locale: 'ar' as const,
+    format,
+  };
+  expect(selectSpendingSummaryRead(input.reads, input.answer, facts)).toBe(current);
+  expect(buildSpendingPresentation(input)).toBeUndefined();
+  expect(
+    buildSpendingPresentation({ ...input, additionalPrevious: canonical })?.cards[0]?.comparison
+      ?.difference,
+  ).toBe('30000 SAR');
+});
+
+it('keeps mixed-basis category advice as prose when refunds change the referenced category', () => {
+  const current = read('2026-10', '240000', '60000');
+  delete current.query.kind;
+  const previous = read('2026-09', '210000', '40000');
+  const canonical = read('2026-09', '210000', '30000');
+  delete canonical.query.kind;
+  const facts = [
+    fact,
+    { ...fact, key: 'F2', path: 'reads[1].data.topExpenseCategories.items[0].amountMinor' },
+  ];
+  expect(
+    buildSpendingPresentation({
+      reads: [current, previous],
+      answer: '{{F1}} {{F2}}',
+      facts,
+      additionalPrevious: canonical,
+      locale: 'ar',
+      format,
+    }),
+  ).toBeUndefined();
+});
+
+it.each(['previousMinor', 'differenceMinor', 'percentageBasisPoints'])(
+  'preserves prose when a synthetic %s reference disagrees with the canonical comparison',
+  (field) => {
+    const overview = read('2026-10', '10000', '6000');
+    delete overview.query.kind;
+    const current = read('2026-10', '10000', '6000');
+    const previous = read('2026-09', '9000', '4000');
+    const canonical = read('2026-09', '8000', '3000');
+    delete canonical.query.kind;
+    const facts = [fact, { ...fact, key: 'F2', path: `reads[3].data.items[0].${field}` }];
+    expect(
+      buildSpendingPresentation({
+        reads: [overview, current, previous],
+        answer: '{{F1}} {{F2}}',
+        facts,
+        additionalPrevious: canonical,
+        locale: 'ar',
+        format,
+      }),
+    ).toBeUndefined();
+  },
+);
+
 it.each([
   ['جاوب بالإنجليزي: كم صرفت هالشهر؟', 'en'],
   ['كم صرفت هالشهر؟ رد باللغة الإنجليزية', 'en'],

@@ -688,10 +688,9 @@ export class AssistantAgent {
             ? 'multiple_periods'
             : 'current_state'
           : completion.value.scope;
-      const summaryRead =
-        completion.value.responseType === 'fact'
-          ? selectSpendingSummaryRead(reads, boundAnswer, facts)
-          : undefined;
+      const summaryRead = ['fact', 'suggestion'].includes(completion.value.responseType)
+        ? selectSpendingSummaryRead(reads, boundAnswer, facts)
+        : undefined;
       const summaryPeriod = summaryRead?.snapshot.data.period as
         { startDate: string; endDate: string } | undefined;
       const priorPeriod = summaryPeriod ? previousSpendingPeriod(summaryPeriod) : undefined;
