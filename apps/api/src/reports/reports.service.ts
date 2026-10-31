@@ -156,12 +156,14 @@ export class ReportsService {
   ): Promise<unknown> {
     if (!isReportUuid(attemptId)) throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
     const attempt = await this.repository.getAttempt(principal, attemptId, requestId);
+    const { storageRef, ...safe } = attempt;
+    // Email completion remains observable after file expiry, without exposing a download link.
+    if (attempt.format === 'pdf' && attempt.delivery === 'email') return safe;
     if (attempt.format !== 'pdf' || attempt.delivery !== 'download') this.requireRecent(principal);
     const remainingSeconds = Math.floor(
       (new Date(String(attempt.expiresAt)).getTime() - now.getTime()) / 1_000,
     );
     if (remainingSeconds <= 0) throw new HttpException({ code: 'REPORT_EXPIRED' }, 410);
-    const { storageRef, ...safe } = attempt;
     if (
       (attempt.status === 'ready' || attempt.status === 'delivered') &&
       typeof storageRef === 'string'

@@ -75,7 +75,7 @@ describe('ReportsService generation', () => {
     ).toThrow();
     repository.getAttempt.mockResolvedValue({
       status: 'ready',
-      format: 'pdf',
+      format: 'csv',
       delivery: 'email',
       storageRef: 'private-key',
       expiresAt: '2026-10-30T00:00:00Z',
@@ -85,6 +85,34 @@ describe('ReportsService generation', () => {
     ).rejects.toMatchObject({ status: 403 });
     expect(storage.sign).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['queued', 'ready', 'delivered', 'failed', 'expired'])(
+    'reads the owner PDF email status %s without a fresh identity challenge or download link',
+    async (status) => {
+      const repository = {
+        getAttempt: jest.fn().mockResolvedValue({
+          id: '99000000-0000-4000-8000-000000000001',
+          status,
+          format: 'pdf',
+          delivery: 'email',
+          storageRef: 'private-key',
+          expiresAt: '2026-10-30T00:00:00Z',
+        }),
+      };
+      const storage = { sign: jest.fn() };
+      const service = new ReportsService(repository as never, storage as never);
+      const result = await service.getReportAttempt(
+        { ...principal, factorAgeSeconds: 86_400 },
+        '99000000-0000-4000-8000-000000000001',
+        'r',
+        new Date('2026-10-31T00:00:00Z'),
+      );
+      expect(result).toMatchObject({ status, format: 'pdf', delivery: 'email' });
+      expect(result).not.toHaveProperty('storageRef');
+      expect(result).not.toHaveProperty('downloadUrl');
+      expect(storage.sign).not.toHaveBeenCalled();
+    },
+  );
 
   it('verifies an email recipient against the authenticated identity without persisting it', async () => {
     const repository = {

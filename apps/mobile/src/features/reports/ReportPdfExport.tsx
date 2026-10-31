@@ -101,11 +101,6 @@ function OwnedReportPdfExport({
 
   const start = async () => {
     if (flight.current) return;
-    if (pending.current?.attemptId) {
-      setFeedback('queued');
-      setVisible(true);
-      return;
-    }
     const token = Symbol('report-email');
     flight.current = token;
     const abort = new AbortController();
@@ -120,6 +115,19 @@ function OwnedReportPdfExport({
         : offline;
       if (currentlyOffline) throw Error('REPORT_PDF_REQUIRES_INTERNET');
       assertCurrent();
+      if (pending.current?.attemptId) {
+        const attemptId = pending.current.attemptId;
+        const previous = await reportsService.getAttempt(attemptId, {
+          signal: abort.signal
+        });
+        assertCurrent();
+        if (previous.id !== attemptId) throw Error('REPORT_GENERATION_FAILED');
+        if (!['sent', 'failed'].includes(previous.status)) {
+          setFeedback('queued');
+          return;
+        }
+        pending.current = null;
+      }
       const operation = (pending.current ??= { operationId: randomUUID() });
       if (!operation.previewId) {
         const preview = await reportsService.previewOutput(

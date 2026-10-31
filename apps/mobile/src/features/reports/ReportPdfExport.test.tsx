@@ -127,21 +127,93 @@ test.each(['ar', 'en'] as const)(
   }
 );
 
-test('does not send another email on repeated taps or after dismissing the accepted request', async () => {
+test.each(['scheduled', 'ready', 'sending'] as const)(
+  'does not duplicate an accepted email while its server status is %s',
+  async (status) => {
+    jest.mocked(reportsService.getAttempt).mockResolvedValue({
+      id: 'attempt-1',
+      status
+    } as never);
+    renderWithProviders(<ReportPdfExport input={input} />);
+    act(() => {
+      press();
+      press();
+    });
+    await screen.findByText(translate('reports.pdf.emailQueued'));
+    fireEvent.press(
+      screen.getByRole('button', { name: translate('common.close') })
+    );
+    press();
+    expect(
+      await screen.findByText(translate('reports.pdf.emailQueued'))
+    ).toBeTruthy();
+    expect(reportsService.requestOutput).toHaveBeenCalledTimes(1);
+  }
+);
+
+test.each(['sent', 'failed'] as const)(
+  'allows a new email request with a fresh operation after the previous request is %s',
+  async (status) => {
+    jest
+      .mocked(Crypto.randomUUID)
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000011')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000012');
+    jest.mocked(reportsService.getAttempt).mockResolvedValue({
+      id: 'attempt-1',
+      status
+    } as never);
+    renderWithProviders(<ReportPdfExport input={input} />);
+    press();
+    await screen.findByText(translate('reports.pdf.emailQueued'));
+    fireEvent.press(
+      screen.getByRole('button', { name: translate('common.close') })
+    );
+    press();
+    await waitFor(() =>
+      expect(reportsService.requestOutput).toHaveBeenCalledTimes(2)
+    );
+    expect(reportsService.previewOutput).toHaveBeenCalledTimes(2);
+    const calls = jest.mocked(reportsService.requestOutput).mock.calls;
+    expect(calls[1][1]).not.toBe(calls[0][1]);
+  }
+);
+
+test('blocks repeated taps while checking the prior request, then permits a fresh request after a failed check is retried', async () => {
+  let rejectCheck!: (reason: Error) => void;
+  jest
+    .mocked(reportsService.getAttempt)
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCheck = reject;
+        })
+    )
+    .mockResolvedValue({ id: 'attempt-1', status: 'sent' } as never);
   renderWithProviders(<ReportPdfExport input={input} />);
-  act(() => {
-    press();
-    press();
-  });
+  press();
   await screen.findByText(translate('reports.pdf.emailQueued'));
   fireEvent.press(
     screen.getByRole('button', { name: translate('common.close') })
   );
-  press();
-  expect(
-    await screen.findByText(translate('reports.pdf.emailQueued'))
-  ).toBeTruthy();
+  act(() => {
+    press();
+    press();
+  });
+  await waitFor(() =>
+    expect(reportsService.getAttempt).toHaveBeenCalledTimes(1)
+  );
   expect(reportsService.requestOutput).toHaveBeenCalledTimes(1);
+  await act(async () => rejectCheck(new Error('network uncertainty')));
+  expect(
+    await screen.findByText(translate('reports.pdf.failure'))
+  ).toBeTruthy();
+  fireEvent.press(
+    screen.getByRole('button', { name: translate('reports.pdf.retry') })
+  );
+  await waitFor(() =>
+    expect(reportsService.requestOutput).toHaveBeenCalledTimes(2)
+  );
+  expect(reportsService.getAttempt).toHaveBeenCalledTimes(2);
 });
 
 test('retries an uncertain email POST with its original operation identity', async () => {
