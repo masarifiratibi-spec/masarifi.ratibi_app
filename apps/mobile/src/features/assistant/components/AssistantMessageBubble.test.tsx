@@ -41,43 +41,40 @@ beforeEach(() => {
   usePreferenceStore.setState({ hideBalances: false });
 });
 
-it('shows the grounded amount first with dated comparison, explanation and a conditional saving goal', () => {
-  const response = Object.assign(answer('Compatible plain text'), {
+it('answers directly without automatic sections even when legacy card metadata is present', () => {
+  const response = Object.assign(answer('صرفت 133.50 ريال في أكتوبر.'), {
     spendingSummary: spendingPresentationFixture
   });
   renderWithProviders(<AssistantMessageBubble response={response} />);
-  expect(screen.getByTestId('assistant-summary-amount-0')).toHaveTextContent(
-    '2,400.00 SAR'
-  );
-  expect(screen.getByText(/300.00 SAR/)).toBeTruthy();
-  expect(screen.getByText('وش نلاحظ؟')).toBeTruthy();
-  expect(screen.getByText('خطوة للتوفير')).toBeTruthy();
-  expect(screen.getByText('هدف توفير مشروط: 200.00 SAR')).toBeTruthy();
-  expect(screen.queryByText('Compatible plain text')).toBeNull();
-  fireEvent.press(screen.getByText('تفاصيل أكثر'));
-  expect(screen.getByText('Compatible plain text')).toBeTruthy();
+  expect(screen.getByText('صرفت 133.50 ريال في أكتوبر.')).toHaveStyle({
+    fontSize: 15
+  });
+  expect(screen.getByText('133.50')).toHaveStyle({ fontSize: 17 });
+  expect(screen.queryByTestId('assistant-summary-amount-0')).toBeNull();
+  expect(
+    screen.queryByText(/2,400|300.00|وش نلاحظ|خطوة للتوفير|هدف توفير/)
+  ).toBeNull();
+  expect(screen.queryByText('تفاصيل أكثر')).toBeNull();
 });
 
-it('masks all structured financial information and restores it only after local reveal', () => {
+it('masks the complete direct answer and restores it only after local reveal', () => {
   usePreferenceStore.setState({ hideBalances: true });
   renderWithProviders(
     <AssistantMessageBubble
-      response={Object.assign(answer('private fallback'), {
+      response={Object.assign(answer('صرفت 133.50 ريال.'), {
         spendingSummary: spendingPresentationFixture
       })}
     />
   );
-  expect(screen.queryByText(/2,400|300.00|المطاعم|200.00/)).toBeNull();
+  expect(screen.queryByText(/133.50|2,400|300.00|المطاعم|200.00/)).toBeNull();
   fireEvent.press(
     screen.getByText(translateDynamic('assistant.action.revealFinancial'))
   );
-  expect(screen.getByTestId('assistant-summary-amount-0')).toHaveTextContent(
-    '2,400.00 SAR'
-  );
+  expect(screen.getByText('صرفت 133.50 ريال.')).toBeTruthy();
   expect(usePreferenceStore.getState().hideBalances).toBe(true);
 });
 
-it('keeps exact huge values readable and uses the response language without forcing a comparison or saving goal', () => {
+it('keeps huge signed amounts exact without adding comparisons or saving advice', () => {
   const amount = '-900,719,925,474,099,312.345 KWD';
   const summary = {
     ...spendingPresentationFixture,
@@ -94,14 +91,17 @@ it('keeps exact huge values readable and uses the response language without forc
   };
   renderWithProviders(
     <AssistantMessageBubble
-      response={Object.assign(answer('fallback'), { spendingSummary: summary })}
+      response={Object.assign(answer(`Spending: ${amount}.`), {
+        spendingSummary: summary
+      })}
     />
   );
-  const value = screen.getByTestId('assistant-summary-amount-0');
-  expect(value).toHaveTextContent(amount);
+  const value = screen.getByText('-900,719,925,474,099,312.345');
+  expect(screen.getByText(`Spending: ${amount}.`)).toBeTruthy();
+  expect(value).toHaveStyle({ fontSize: 17 });
   expect(value.props.numberOfLines).toBeUndefined();
   expect(value.props.adjustsFontSizeToFit).toBeUndefined();
-  expect(screen.getByText('A saving step')).toBeTruthy();
+  expect(screen.queryByText('A saving step')).toBeNull();
   expect(screen.queryByText(/Conditional saving target/)).toBeNull();
 });
 
@@ -112,17 +112,25 @@ it.each(['light', 'dark'] as const)(
     renderWithProviders(
       <ThemeContext.Provider value={{ theme }}>
         <AssistantMessageBubble
-          response={Object.assign(answer('complete answer'), {
+          response={Object.assign(answer('Spending: 133.50 SAR.'), {
             spendingSummary: spendingPresentationFixture
           })}
         />
       </ThemeContext.Provider>
     );
-    expect(screen.getByTestId('assistant-summary-amount-0')).toHaveStyle({
+    expect(screen.getByText('Spending: 133.50 SAR.')).toHaveStyle({
       color: theme.colors.content.primary
     });
   }
 );
+
+it('preserves requested comparison lines and Arabic digits without appending extra advice', () => {
+  const text = 'أكتوبر: ١٣٣٫٥٠ ريال\nسبتمبر: ٣٫٧٥ ريال\nالزيادة: ١٢٩٫٧٥ ريال';
+  renderWithProviders(<AssistantMessageBubble response={answer(text)} />);
+  expect(screen.getByText(text)).toBeTruthy();
+  expect(screen.getByText('١٣٣٫٥٠')).toHaveStyle({ fontSize: 17 });
+  expect(screen.queryByText(/خطوة للتوفير|وش نلاحظ/)).toBeNull();
+});
 
 it('renders the 19 October model object markers as plain financial text', () => {
   renderWithProviders(

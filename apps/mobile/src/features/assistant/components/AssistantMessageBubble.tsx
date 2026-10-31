@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
-import { FinancialInsightCard } from './FinancialInsightCard';
-import { AssistantSpendingSummary } from './AssistantSpendingSummary';
 import { useTheme } from '@/state/theme-context';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
@@ -17,7 +15,6 @@ import { usePreferenceStore } from '@/state/preferences';
 import { spacing } from '@/design-system/tokens';
 import type { AssistantResponse } from '@/domain/assistant';
 import { colorTokens } from '@/design-system/tokens';
-import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { useAssistantFinancialVisibility } from '../useAssistantFinancialVisibility';
 
 export interface AssistantMessageBubbleProps {
@@ -42,26 +39,34 @@ export function AssistantMessageBubble({
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const { hidden, reveal } = useAssistantFinancialVisibility(response.id);
-  const { colors } = useTheme();
-  const [detailsVisible, setDetailsVisible] = useState(false);
-
-  // Check if snapshot contains financial values for structured card
-  const snapshotValues = response.snapshot?.values ?? [];
-  const incomeValue = snapshotValues.find((v) => v.key.includes('income'));
-  const expenseValue = snapshotValues.find(
-    (v) => v.key.includes('expense') || v.key.includes('budget')
-  );
-
-  const hasFinancialData = Boolean(
-    incomeValue || expenseValue || response.snapshot?.reportReference
-  );
+  const { colors, typography } = useTheme();
+  const numberParts = (text: string, prefix: string) =>
+    text
+      .split(/([+\-−]?\p{N}+(?:[.,٫٬]\p{N}+)*(?:[%٪])?)/gu)
+      .map((part, index) =>
+        index % 2 === 1 ? (
+          <Text
+            key={`${prefix}-${index}`}
+            style={{
+              fontSize: typography.subtitle.fontSize,
+              fontWeight: '600',
+              fontFamily: fontFamilyForLocale(currentLocale(), 600),
+              fontVariant: ['tabular-nums']
+            }}
+          >
+            {part}
+          </Text>
+        ) : (
+          part
+        )
+      );
 
   const textBlocks = (response.blocks ?? []).map((block, index) => (
     <View
       key={block.key ?? `${response.id}-block-${index}`}
       style={styles.block}
     >
-      {block.label && (
+      {block.label && response.blocks.length > 1 && (
         <StyledText
           style={[styles.blockLabel, { color: colors.content.secondary }]}
         >
@@ -92,10 +97,10 @@ export function AssistantMessageBubble({
                       fontFamily: fontFamilyForLocale(currentLocale(), 700)
                     }}
                   >
-                    {part.slice(2, -2)}
+                    {numberParts(part.slice(2, -2), `${index}-${partIndex}`)}
                   </Text>
                 ) : (
-                  part
+                  numberParts(part, `${index}-${partIndex}`)
                 )
               )}
       </StyledText>
@@ -131,40 +136,7 @@ export function AssistantMessageBubble({
         ]}
       >
         {/* Response Blocks */}
-        {response.spendingSummary && !hidden ? (
-          <>
-            <AssistantSpendingSummary presentation={response.spendingSummary} />
-            <ActionButton
-              variant="secondary"
-              label={translate(
-                detailsVisible
-                  ? 'assistant.response.less'
-                  : 'assistant.response.details',
-                response.spendingSummary.locale
-              )}
-              onPress={() => setDetailsVisible((v) => !v)}
-            />
-            {detailsVisible ? textBlocks : null}
-          </>
-        ) : (
-          textBlocks
-        )}
-
-        {/* Embedded Financial Insight Card */}
-        {isFixtureModeEnabled() &&
-          hasFinancialData &&
-          !response.spendingSummary && (
-            <FinancialInsightCard
-              title={response.period ? `ملخص الفترة` : 'ملخص الإنفاق'}
-              totalMinor={expenseValue?.minor ?? 425000}
-              totalCurrency={expenseValue?.currency ?? 'SAR'}
-              categoryName="التسوق"
-              categoryMinor={187000}
-              trendPercentage={8}
-              trendDirection="down"
-              onPressDetails={onViewReport}
-            />
-          )}
+        {textBlocks}
 
         {/* Evidence Report Link */}
         {response.snapshot?.reportReference && onViewReport && !hidden && (
@@ -290,9 +262,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   blockText: {
-    color: colorTokens.raw['10231F'],
-    fontSize: 14.5,
-    lineHeight: 20
+    color: colorTokens.raw['10231F']
   },
   limitationText: {
     color: colorTokens.raw['657872'],

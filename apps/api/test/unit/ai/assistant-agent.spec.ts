@@ -59,6 +59,31 @@ const route: EffectiveAiRoute = {
   ],
 };
 
+it('preserves organized requested comparison lines without changing grounded monetary values', () => {
+  expect(
+    renderAssistantAnswer('أكتوبر: {{F1}}\nسبتمبر: {{F2}}\nالزيادة: {{F3}}', [
+      {
+        key: 'F1',
+        value: '133.50 ريال',
+        path: 'reads[0].data.summaries[0].amountMinor',
+        currency: 'SAR',
+      },
+      {
+        key: 'F2',
+        value: '3.75 ريال',
+        path: 'reads[1].data.summaries[0].amountMinor',
+        currency: 'SAR',
+      },
+      {
+        key: 'F3',
+        value: '129.75 ريال',
+        path: 'reads[2].data.items[0].differenceMinor',
+        currency: 'SAR',
+      },
+    ]),
+  ).toBe('أكتوبر: 133.50 ريال\nسبتمبر: 3.75 ريال\nالزيادة: 129.75 ريال');
+});
+
 it.each(
   ['كم صرفت هالشهر؟', 'جاوب بالإنجليزي: كم صرفت هالشهر؟'].flatMap((question) =>
     ['fact', 'suggestion'].map((responseType) => ({ question, responseType })),
@@ -300,7 +325,7 @@ it.each(['وش آخر معاملة؟', 'صرفت كام النهارده؟', 'Sh
           );
           expect(input.route.prompt.template).toContain('Understand Arabic input in any dialect');
           expect(input.route.prompt.template).toContain(
-            'Do not add unrequested transaction counts',
+            'Do not append transaction counts, category breakdowns, explanations, percentages or saving advice unless the user explicitly asks',
           );
           expect(input.route.prompt.template).toContain(
             'Keep English when selected or explicitly requested',

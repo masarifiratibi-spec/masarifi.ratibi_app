@@ -65,7 +65,7 @@ describe('AssistantConversationView', () => {
     expect(screen.getAllByText('03:05 PM')).toHaveLength(2);
   });
 
-  it('renders banner, user question bubble, AI response bubble, insight card, and composer', async () => {
+  it('renders the question and direct answer without an automatic insight card', async () => {
     const onSendMessage = jest.fn(async () => true);
 
     renderWithProviders(
@@ -79,7 +79,7 @@ describe('AssistantConversationView', () => {
     expect(screen.getByTestId('assistant-header-banner')).toBeTruthy();
     expect(screen.getAllByText('كم أنفقت هذا الشهر؟').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(translate('assistant.answer.direct'))).toBeTruthy();
-    expect(screen.getByTestId('financial-insight-card')).toBeTruthy();
+    expect(screen.queryByTestId('financial-insight-card')).toBeNull();
     expect(screen.getByTestId('assistant-composer')).toBeTruthy();
 
     // Type in composer and send
