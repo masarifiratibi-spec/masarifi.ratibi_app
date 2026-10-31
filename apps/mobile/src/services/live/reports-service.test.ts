@@ -532,18 +532,18 @@ it('creates and pauses a live schedule using server fields and optimistic versio
   });
 });
 
-it.each(['status', 'download'] as const)('never bypasses or opens a fresh-auth prompt for an old PDF backend policy: %s', async (kind) => {
+it.each(['status', 'download', 'email'] as const)('never bypasses or opens a fresh-auth prompt for an old PDF backend policy: %s', async (kind) => {
   const stepUp = jest.spyOn(recentAuthentication, 'requestRecentAuthentication').mockResolvedValue('must-not-be-requested');
   const request = jest.fn();
-  if (kind === 'download') request.mockResolvedValueOnce(json(summary()));
+  if (kind !== 'status') request.mockResolvedValueOnce(json(summary()));
   request.mockResolvedValueOnce(json({ code: 'RECENT_AUTH_REQUIRED' }, 403));
   try {
     const service = createLiveReportsService({ baseUrl: 'https://inert.invalid', token: async () => 'old-token', request });
-    const preview = kind === 'download' ? await service.previewOutput({ ...input, language: 'en', detailLevel: 'summary' }) : null;
-    const pending = preview ? service.requestOutput({ kind: 'download', previewId: preview.previewId }, 'stable-pdf-operation') : service.getAttempt('00000000-0000-4000-8000-000000000011');
+    const preview = kind !== 'status' ? await service.previewOutput({ ...input, language: 'en', detailLevel: 'summary' }) : null;
+    const pending = preview ? service.requestOutput({ kind: kind === 'email' ? 'send_now' : 'download', previewId: preview.previewId }, 'stable-pdf-operation') : service.getAttempt('00000000-0000-4000-8000-000000000011');
     await expect(pending).rejects.toMatchObject({ code: 'report_pdf_policy_pending' });
     expect(stepUp).not.toHaveBeenCalled();
-    expect(request).toHaveBeenCalledTimes(kind === 'download' ? 2 : 1);
+    expect(request).toHaveBeenCalledTimes(kind !== 'status' ? 2 : 1);
   } finally { stepUp.mockRestore(); }
 });
 

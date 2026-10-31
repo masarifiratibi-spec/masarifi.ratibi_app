@@ -156,3 +156,39 @@ test('admits self-addressed email only from the verified authenticated owner ide
   ).rejects.toMatchObject({ status: 403 });
   expect(repository.captureSnapshot).toHaveBeenCalledTimes(1);
 });
+
+test.each([null, 86_400])(
+  'requests self-addressed PDF email without another identity challenge at factor age %s',
+  async (factorAgeSeconds) => {
+    const repository = { captureSnapshot: jest.fn().mockResolvedValue({ id, status: 'queued' }) };
+    const identity = {
+      getIdentityUser: jest
+        .fn()
+        .mockResolvedValue({ primaryEmail: 'owner@example.test', primaryEmailVerified: true }),
+    };
+    const service = new ReportsService(
+      repository as never,
+      undefined,
+      undefined,
+      identity as never,
+    );
+    const principal = { userId: 'owner', sessionId: 's', factorAgeSeconds };
+    const body = {
+      type: 'financial_summary',
+      periodStart: '2026-10-01',
+      periodEnd: '2026-10-31',
+      format: 'pdf',
+      delivery: 'email',
+      recipient: null,
+    };
+    await expect(
+      service.createReport(principal, body, 'self-email-operation', 'r'),
+    ).resolves.toMatchObject({ status: 'queued' });
+    expect(repository.captureSnapshot).toHaveBeenCalledWith(
+      principal,
+      expect.objectContaining({ recipient: null }),
+      'self-email-operation',
+      'r',
+    );
+  },
+);

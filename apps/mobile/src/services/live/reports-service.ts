@@ -162,9 +162,10 @@ export function createLiveReportsService(
       object(value).code === 'RECENT_AUTH_REQUIRED'
     ) {
       const pdfDownload = method === 'POST' && path === '/api/v1/reports' && body !== undefined && object(body).format === 'pdf' && object(body).delivery === 'download';
+      const accountPdfEmail = method === 'POST' && path === '/api/v1/reports' && body !== undefined && object(body).format === 'pdf' && object(body).delivery === 'email' && object(body).recipient === null;
       const reportStatus = method === 'GET' && /^\/api\/v1\/reports\/[^/?]+$/.test(path);
       // A deployed policy mismatch needs the approved backend update, never a client bypass or prompt.
-      if (pdfDownload || reportStatus) throw new ReportsApiError('report_pdf_policy_pending');
+      if (pdfDownload || accountPdfEmail || reportStatus) throw new ReportsApiError('report_pdf_policy_pending');
       if (!requestContext.reverified) {
         const freshToken = await requestRecentAuthentication();
         await identity?.assertCurrent();

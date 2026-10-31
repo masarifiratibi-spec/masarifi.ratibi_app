@@ -16,9 +16,9 @@
       "name": "reports.service.js",
       "kind": "replace",
       "before": "async createReport(principal, body, idempotencyKey, requestId) {\n        try {\n            (0, idempotency_1.hashIdempotencyKey)(idempotencyKey);\n            const command = (0, reports_dto_1.normalizeCreateReport)(body);\n            if (command.format !== 'pdf' || command.delivery !== 'download')\n                this.requireRecent(principal);\n            if (command.delivery === 'email') {\n                const identity = await this.identity?.getIdentityUser(principal.userId);\n                if (!identity?.primaryEmail || identity.primaryEmail.toLowerCase() !== command.recipient)\n                    throw new common_1.HttpException({ code: 'REPORT_RECIPIENT_UNVERIFIED' }, 403);\n            }\n            return await this.repository.captureSnapshot(principal, { ...command, recipient: null }, idempotencyKey, requestId);\n        }\n        catch (error) {\n            if (error instanceof common_1.HttpException)\n                throw error;\n            throw new common_1.HttpException({ code: 'VALIDATION_FAILED' }, 400);\n        }\n    }",
-      "after": "async createReport(principal, body, idempotencyKey, requestId) {\n        try {\n            (0, idempotency_1.hashIdempotencyKey)(idempotencyKey);\n            const command = (0, reports_dto_1.normalizeCreateReport)(body);\n            if (command.format !== 'pdf' || command.delivery !== 'download')\n                this.requireRecent(principal);\n            if (command.delivery === 'email') {\n                const identity = await this.identity?.getIdentityUser(principal.userId);\n                if (!identity?.primaryEmail ||\n                    (command.recipient === null && !identity.primaryEmailVerified) ||\n                    (command.recipient !== null && identity.primaryEmail.toLowerCase() !== command.recipient))\n                    throw new common_1.HttpException({ code: 'REPORT_RECIPIENT_UNVERIFIED' }, 403);\n            }\n            return await this.repository.captureSnapshot(principal, { ...command, recipient: null }, idempotencyKey, requestId);\n        }\n        catch (error) {\n            if (error instanceof common_1.HttpException)\n                throw error;\n            throw new common_1.HttpException({ code: 'VALIDATION_FAILED' }, 400);\n        }\n    }",
+      "after": "async createReport(principal, body, idempotencyKey, requestId) {\n        try {\n            (0, idempotency_1.hashIdempotencyKey)(idempotencyKey);\n            const command = (0, reports_dto_1.normalizeCreateReport)(body);\n            const sessionPdf = command.format === 'pdf' &&\n                (command.delivery === 'download' || command.recipient === null);\n            if (!sessionPdf)\n                this.requireRecent(principal);\n            if (command.delivery === 'email') {\n                const identity = await this.identity?.getIdentityUser(principal.userId);\n                if (!identity?.primaryEmail ||\n                    (command.recipient === null && !identity.primaryEmailVerified) ||\n                    (command.recipient !== null && identity.primaryEmail.toLowerCase() !== command.recipient))\n                    throw new common_1.HttpException({ code: 'REPORT_RECIPIENT_UNVERIFIED' }, 403);\n            }\n            return await this.repository.captureSnapshot(principal, { ...command, recipient: null }, idempotencyKey, requestId);\n        }\n        catch (error) {\n            if (error instanceof common_1.HttpException)\n                throw error;\n            throw new common_1.HttpException({ code: 'VALIDATION_FAILED' }, 400);\n        }\n    }",
       "beforeSha256": "2bf9f6ca0c863edff040ec95cdfe5d34d817a811b0ab4d503c1f58683ee260b9",
-      "afterSha256": "184bedcca6cf003cfe98452d612523ac5147cd6e8b6950c35d422508dc8ccd7d",
+      "afterSha256": "d0bedc30ad6c76b2ed9d9bb98668a9a515b0a7e29818685d693632da38ba6ab8",
       "member": "createReport"
     },
     {
@@ -106,7 +106,7 @@
   },
   "sourceFiles": {
     "apps/api/src/reports/reports.dto.ts": "91d258056b959cb8be808722aaddedcb28327e07b6e49ad651529576f65ee71a",
-    "apps/api/src/reports/reports.service.ts": "9eaff862ebd99093a4968593d6771a86dcaa44e707fff1897e21f8c9e287d505",
+    "apps/api/src/reports/reports.service.ts": "1d03c9ddb2649fd236db123b2c7a2e54f9d54c43ac8e2e8d0c89a3b2507655ac",
     "apps/api/src/reports/reports.smtp.ts": "58ac0c924c443825660c785cbd97e1e5884b2db9e1eb849e59b2521be3911e1a",
     "apps/api/src/reports/reports.storage.ts": "1142d4e0a039b5f7040b6a93186b34da193c4c7bd071828efb1af807343784e9",
     "apps/api/src/reports/reports.worker.ts": "86842d31fb4f154f3ca41d8c7d9f40670d53500b0e06c003687e421e96fcc2a0",
@@ -114,5 +114,5 @@
     "apps/api/src/reports-email-worker.ts": "94fc153fda51ab1bec4a290dc20d3ac2755d36fe1a77c25989d5d945cf92c137"
   },
   "sourceHashNormalization": "LF",
-  "authority": "Human requested PDF attachment to customer account email, then prioritized testing actual report requests. Preparation only; no runtime activation, old S1 renewal, ZIP or SMTP send."
+  "authority": "Human requested PDF attachment to customer account email, then prioritized testing actual report requests. Preparation only; no runtime activation, old S1 renewal, ZIP or SMTP send. Human subsequently explicitly rejected identity reconfirmation for this report flow; self-addressed verified PDF email uses the current session."
 }

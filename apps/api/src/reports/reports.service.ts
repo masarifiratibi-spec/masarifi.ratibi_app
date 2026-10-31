@@ -111,9 +111,11 @@ export class ReportsService {
     try {
       hashIdempotencyKey(idempotencyKey);
       const command = normalizeCreateReport(body);
-      // Ordinary owner PDF downloads use the authenticated session; other deliveries retain step-up.
-      if (command.format !== 'pdf' || command.delivery !== 'download')
-        this.requireRecent(principal);
+      // Owner PDF downloads and verified account mail use the current authenticated session.
+      const sessionPdf =
+        command.format === 'pdf' &&
+        (command.delivery === 'download' || command.recipient === null);
+      if (!sessionPdf) this.requireRecent(principal);
       if (command.delivery === 'email') {
         const identity = await this.identity?.getIdentityUser(principal.userId);
         if (
