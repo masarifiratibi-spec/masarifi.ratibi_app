@@ -1,7 +1,6 @@
 import {
   useMutation,
   useQuery,
-  useInfiniteQuery,
   useQueryClient,
   type QueryClient
 } from '@tanstack/react-query';
@@ -28,16 +27,18 @@ import { assertReadActive } from '@/services/live/read-context';
 export type ReportTimeframe = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
 export const reportKeys = {
-  live: (input: ReportQuery, owner = useAppShellStore.getState().session?.userId) => ['reports', 'live', owner ?? null, input] as const,
+  live: (
+    input: ReportQuery,
+    owner = useAppShellStore.getState().session?.userId
+  ) => ['reports', 'live', owner ?? null, input] as const,
   breakdown: (input: ReportQuery, dimension: string) =>
     ['reports', 'breakdown', input, dimension] as const,
   schedule: ['reports', 'schedule'] as const,
   draft: ['reports', 'schedule-draft'] as const,
   preview: (input: ReportOutputPreviewInput) =>
     ['reports', 'preview', input] as const,
-  attempts: (filters: unknown = {}, owner = useAppShellStore.getState().session?.userId) =>
-    ['reports', 'attempts', owner ?? null, filters] as const,
-  attempt: (id: string) => ['reports', 'attempt', id] as const,
+  attempt: (id: string, owner = useAppShellStore.getState().session?.userId) =>
+    ['reports', 'attempt', owner ?? null, id] as const,
   netWorth: (
     anchorDate: LocalDate,
     currencyCode: string,
@@ -59,12 +60,17 @@ export const reportKeys = {
 };
 
 export function useReport(input: ReportQuery) {
-  const owner = useAppShellStore(state => state.session?.userId);
+  const owner = useAppShellStore((state) => state.session?.userId);
   return useQuery({
     queryKey: reportKeys.live(input, owner),
     queryFn: ({ signal }) => reportsService.getReport(input, { signal }),
     // Read-only recovery replaces the local projection; it never submits or resumes mutations.
-    refetchInterval: query => query.state.data?.dataState === 'offline' ? query.state.error ? 30_000 : 10_000 : false,
+    refetchInterval: (query) =>
+      query.state.data?.dataState === 'offline'
+        ? query.state.error
+          ? 30_000
+          : 10_000
+        : false,
     refetchIntervalInBackground: false
   });
 }
@@ -174,29 +180,18 @@ export function useReportPreview(input: ReportOutputPreviewInput) {
   });
 }
 
-export function useReportAttempts() {
-  const owner = useAppShellStore(state => state.session?.userId);
-  const query = useInfiniteQuery({
-    queryKey: reportKeys.attempts({}, owner),
-    initialPageParam: undefined as string | undefined,
-    queryFn: ({ signal, pageParam }) =>
-      reportsService.listAttempts({ cursor: pageParam }, { signal }),
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+export function useReportAttempt(id?: string) {
+  const owner = useAppShellStore((state) => state.session?.userId);
+  return useQuery({
+    queryKey: reportKeys.attempt(id ?? '', owner),
+    enabled: Boolean(id),
+    queryFn: ({ signal }) => reportsService.getAttempt(id!, { signal }),
     refetchInterval: (query) =>
-      query.state.data?.pages.some((page) =>
-        page.items.some((item) =>
-          ['scheduled', 'sending'].includes(item.status)
-        )
-      )
+      query.state.data &&
+      ['scheduled', 'sending'].includes(query.state.data.status)
         ? 5000
         : false
   });
-  return {
-    ...query,
-    data: query.data
-      ? { ...query.data, items: query.data.pages.flatMap((page) => page.items) }
-      : undefined
-  };
 }
 
 export function useReportMutation<TVariables, TResult>(
@@ -224,7 +219,7 @@ export async function invalidateReportScopes(
         });
       }
       if (scope.startsWith('reports.attempts')) {
-        return client.invalidateQueries({ queryKey: ['reports', 'attempts'] });
+        return client.invalidateQueries({ queryKey: ['reports', 'attempt'] });
       }
       if (scope.startsWith('reports.schedule')) {
         return client.invalidateQueries({ queryKey: reportKeys.schedule });

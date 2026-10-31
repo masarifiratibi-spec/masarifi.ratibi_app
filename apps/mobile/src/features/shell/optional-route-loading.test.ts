@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 
 const optionalRoutes = [
-  ['@app/reports/history', '@/features/reports/ReportHistoryScreen'],
   ['@app/support/tickets/[id]', '@/features/support/TicketDetailScreen'],
   ['@app/support/tickets/index', '@/features/support/TicketListScreen'],
   ['@app/support/new', '@/features/support/SupportFormScreen'],

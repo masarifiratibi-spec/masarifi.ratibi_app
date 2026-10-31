@@ -127,7 +127,10 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
         contentOffset={{ x: 0, y: scrollOffset }}
         contentContainerStyle={[
           styles.page,
-          { paddingBottom: Math.max(insets?.bottom ?? 0, spacing.lg) + spacing.lg + 56 + spacing.lg }
+          {
+            paddingBottom:
+              Math.max(insets?.bottom ?? 0, spacing.sm) + 56 + spacing.sm
+          }
         ]}
         onMomentumScrollEnd={(event) =>
           setScrollOffset(event.nativeEvent.contentOffset.y)
@@ -237,11 +240,6 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
               }
             }
             stacked={stackMetrics}
-          />
-          <ActionButton
-            label="reports.pdf.history"
-            variant="secondary"
-            onPress={() => router.push('/reports/history')}
           />
         </View>
 
@@ -375,10 +373,19 @@ function Selector({
 
 function ReportCard({ style, ...props }: React.ComponentProps<typeof View>) {
   const theme = useTheme();
-  return <View {...props} style={[styles.card, {
-    backgroundColor: theme.colors.surfaces.card,
-    borderColor: theme.colors.borders.default
-  }, style]} />;
+  return (
+    <View
+      {...props}
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surfaces.card,
+          borderColor: theme.colors.borders.default
+        },
+        style
+      ]}
+    />
+  );
 }
 
 function AnalyticsContent({
@@ -590,7 +597,9 @@ function NetWorthCard({
               onPress={() => onTimeframeChange(value)}
               style={[
                 styles.timeframeButton,
-                selected && { backgroundColor: theme.colors.interactions.primary }
+                selected && {
+                  backgroundColor: theme.colors.interactions.primary
+                }
               ]}
             >
               <Text
@@ -690,7 +699,10 @@ function ChartDateLabels({
   return (
     <View testID="reports-trend-dates" style={styles.chartDateRow}>
       {labels.map((value, index) => (
-        <Text key={`${value}-${index}`} style={[styles.chartDateText, { color: theme.colors.content.muted }]}>
+        <Text
+          key={`${value}-${index}`}
+          style={[styles.chartDateText, { color: theme.colors.content.muted }]}
+        >
           {value ? formatter.format(value) : '—'}
         </Text>
       ))}
@@ -741,7 +753,11 @@ function MiniBars({
     .map((item) => item.value.value!.minorUnits);
   const max = Math.max(...categoryValues, 1);
   if (!categoryValues.length)
-    return <Text style={{ color: theme.colors.content.muted }}>{translate('reports.state.empty')}</Text>;
+    return (
+      <Text style={{ color: theme.colors.content.muted }}>
+        {translate('reports.state.empty')}
+      </Text>
+    );
   const bars = categoryValues;
   return (
     <View style={styles.miniBars}>
@@ -802,7 +818,12 @@ function SmallMetricCard({
           {translate('reports.analytics.negative')}
         </DirectionalText>
       ) : null}
-      <View style={[styles.metricTrack, { backgroundColor: theme.colors.surfaces.inset }]}>
+      <View
+        style={[
+          styles.metricTrack,
+          { backgroundColor: theme.colors.surfaces.inset }
+        ]}
+      >
         <View style={[styles.metricProgress, { backgroundColor: color }]} />
       </View>
     </ReportCard>
@@ -854,7 +875,12 @@ function SavingsRateCard({
               }
             ]}
           >
-            <Text style={[styles.savingsPercent, { color: theme.colors.content.primary }]}>
+            <Text
+              style={[
+                styles.savingsPercent,
+                { color: theme.colors.content.primary }
+              ]}
+            >
               {hidden
                 ? '••••'
                 : percentage === null
@@ -879,7 +905,12 @@ function SavingsRateCard({
           decorative
         />
       </View>
-      <View style={[styles.savingsTrack, { backgroundColor: theme.colors.surfaces.inset }]}>
+      <View
+        style={[
+          styles.savingsTrack,
+          { backgroundColor: theme.colors.surfaces.inset }
+        ]}
+      >
         <View
           style={[
             styles.savingsProgress,
@@ -939,7 +970,12 @@ function BudgetCard({
         }
       ]}
     >
-      <View style={[styles.addCircle, { backgroundColor: theme.colors.surfaces.inset }]}>
+      <View
+        style={[
+          styles.addCircle,
+          { backgroundColor: theme.colors.surfaces.inset }
+        ]}
+      >
         <AppIcon
           name="add"
           label={label}
@@ -1018,10 +1054,7 @@ function AssistantActions({
     });
 
   return (
-    <ReportCard
-      testID="reports-assistant-card"
-      style={styles.assistantCard}
-    >
+    <ReportCard testID="reports-assistant-card" style={styles.assistantCard}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={translate('assistant.hero.title')}
@@ -1179,7 +1212,9 @@ function ReportAmount({
         { alignSelf: align === 'right' ? 'flex-end' : 'flex-start' }
       ]}
     >
-      <Text style={[styles.currencyCode, { color: amountColor }]}>{currency}</Text>
+      <Text style={[styles.currencyCode, { color: amountColor }]}>
+        {currency}
+      </Text>
       <Text
         adjustsFontSizeToFit
         minimumFontScale={0.62}

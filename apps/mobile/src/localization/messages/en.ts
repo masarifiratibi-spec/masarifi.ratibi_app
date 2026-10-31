@@ -17,14 +17,16 @@ const en = {
   'reports.local.missingRates':
     'Totals requiring unavailable exchange rates are not shown.',
   'reports.pdf.internet':
-    'Reports work offline. Connect to the internet to download a PDF.',
+    'Reports work offline. Connect to the internet to email a PDF.',
   'reports.pdf.policyPending':
-    'PDF downloading needs the approved server update. No additional identity verification was requested.',
-  'reports.pdf.download': 'Download report PDF',
-  'reports.pdf.history': 'PDF report history',
-  'reports.pdf.historyScope': 'Your previous reports keep the account scope and period selected when requested.',
-  'reports.pdf.historyEmpty': 'No previous PDF reports.',
-  'reports.pdf.historyUnavailable': 'This report is no longer available. Refresh the history for its current status.',
+    'PDF email delivery needs the approved server update.',
+  'reports.pdf.download': 'Email report PDF',
+  'reports.pdf.emailWaitTitle': 'This may take some time',
+  'reports.pdf.emailPreparing': 'Requesting your report as a PDF attachment to your account email.',
+  'reports.pdf.emailQueued': 'Your request was accepted. The PDF will be emailed to your account when it is ready.',
+  'reports.pdf.emailFailure': 'Report request failed',
+  'reports.pdf.emailMissing': 'A verified primary account email is required to send the report.',
+  'reports.pdf.emailUnavailable': 'Report email delivery is unavailable. Try again later.',
   'reports.pdf.generating': 'Preparing your PDF…',
   'reports.pdf.saving': 'Downloading PDF. Choose a folder to save it.',
   'reports.pdf.success': 'PDF saved',
@@ -32,13 +34,13 @@ const en = {
   'reports.pdf.share': 'Share PDF',
   'reports.pdf.retry': 'Retry',
   'reports.pdf.failure':
-    'Could not download the PDF. Your report filters were kept. Retry to continue.',
+    'Could not request the report email. Your filters were kept. Retry to continue.',
   'reports.pdf.accountUnsupported':
     'This account filter cannot be exported. Your filters were kept.',
   'reports.pdf.periodUnsupported':
     'The service could not honor this report period or timezone. Your selection was kept.',
   'reports.pdf.authentication':
-    'Verify your session to download this private report, then retry.',
+    'Verify your session to email this private report, then retry.',
   'reports.pdf.cancelled':
     'PDF was not saved because folder selection was cancelled.',
   'reports.pdf.nativeUpdate':
@@ -2040,8 +2042,6 @@ const en = {
   'reports.schedule.resume': 'Resume schedule',
   'reports.schedule.disable': 'Disable schedule',
   'reports.schedule.nextDelivery': 'Next delivery',
-  'reports.schedule.lastRun': 'Last scheduled execution',
-  'reports.schedule.lastDelivery': 'Last successful delivery',
   'reports.schedule.noDelivery': 'None yet',
   'reports.schedule.status.verification_required':
     'Email verification required',
@@ -2065,8 +2065,6 @@ const en = {
   'reports.preview.privacyWarning': 'Privacy warning',
   'reports.preview.emailWarning':
     'Report content leaves the app for email delivery.',
-  'reports.preview.history': 'Output history',
-  'reports.preview.noHistory': 'No output attempts yet',
   'reports.preview.mockNotice':
     'Send, download, and share actions are deterministic simulations.',
   'reports.dimension.category': 'Categories',

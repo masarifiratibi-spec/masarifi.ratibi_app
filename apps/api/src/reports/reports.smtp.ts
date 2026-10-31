@@ -46,6 +46,7 @@ export class ReportsSmtp {
   private readonly transport: MailTransport;
   private readonly from: string;
   private readonly allowedOrigin: string;
+  private readonly maximumAttachmentBytes: number;
 
   constructor(
     config: PlatformConfigService,
@@ -53,13 +54,14 @@ export class ReportsSmtp {
   ) {
     this.from = config.getRequired('EMAIL_FROM');
     this.allowedOrigin = new URL(config.getRequired('SUPABASE_URL')).origin;
+    this.maximumAttachmentBytes = config.getRequired('MASARIFI_REPORT_MAX_BYTES');
     this.transport = supplied ?? createTlsMailTransport(config);
   }
 
   async send(
     attemptId: string,
     recipient: string,
-    downloadUrl: string,
+    content: string | Buffer,
     now = new Date(),
   ): Promise<{ providerMessageId: string; acceptedByServerAt: string }> {
     if (
@@ -68,18 +70,29 @@ export class ReportsSmtp {
       recipient.length > 320
     )
       throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
-    let link: URL;
-    try {
-      link = new URL(downloadUrl);
-    } catch {
-      throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
+    const attachment = Buffer.isBuffer(content) ? content : null;
+    let link: URL | null = null;
+    if (attachment) {
+      if (
+        !Number.isSafeInteger(this.maximumAttachmentBytes) ||
+        attachment.length > this.maximumAttachmentBytes ||
+        attachment.subarray(0, 5).toString() !== '%PDF-' ||
+        !attachment.subarray(-1024).toString('latin1').trimEnd().endsWith('%%EOF')
+      )
+        throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
+    } else {
+      try {
+        link = new URL(content as string);
+      } catch {
+        throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
+      }
+      if (
+        link.protocol !== 'https:' ||
+        link.origin !== this.allowedOrigin ||
+        !link.pathname.startsWith('/storage/v1/object/sign/report-exports/')
+      )
+        throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
     }
-    if (
-      link.protocol !== 'https:' ||
-      link.origin !== this.allowedOrigin ||
-      !link.pathname.startsWith('/storage/v1/object/sign/report-exports/')
-    )
-      throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
     const domain = this.from.slice(this.from.lastIndexOf('@') + 1);
     const messageId = `<report-${attemptId}@${domain}>`;
     try {
@@ -88,9 +101,19 @@ export class ReportsSmtp {
         to: recipient,
         envelope: { from: this.from, to: recipient },
         subject: 'Your Masarifi report is ready',
-        text: `Your requested report is ready. This private link expires shortly:\n${link.toString()}`,
+        text: attachment
+          ? 'Your requested PDF report is attached.'
+          : `Your requested report is ready. This private link expires shortly:\n${link?.toString() ?? ''}`,
         messageId,
-        attachments: undefined,
+        attachments: attachment
+          ? [
+              {
+                filename: `Masarifi-report-${attemptId}.pdf`,
+                content: attachment,
+                contentType: 'application/pdf',
+              },
+            ]
+          : undefined,
       });
       const accepted = (result.accepted ?? []).some(
         (value) => String(value).toLowerCase() === recipient.toLowerCase(),

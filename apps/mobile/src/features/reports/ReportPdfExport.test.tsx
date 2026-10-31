@@ -7,7 +7,7 @@ import {
   screen,
   waitFor
 } from '@testing-library/react-native';
-import { changeLocale } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 import { useAppShellStore } from '@/state/app-shell';
 import { reportsService } from '@/services/reports-service';
@@ -36,22 +36,30 @@ const input = {
   anchorDate: '2026-10-29' as const,
   monthStartDay: 25,
   timeZone: 'Asia/Riyadh',
-  currencyCode: 'EGP',
+  currencyCode: 'SAR',
   accountIds: ['selected-account']
 };
 const owner = 'pdf_owner';
-const ready = {
-  id: 'attempt-1',
-  status: 'ready',
-  downloadUrl: 'https://storage.example.test/fresh.pdf',
-  downloadUrlExpiresAt: 9999999999999
+const accepted = {
+  value: { id: 'attempt-1', status: 'scheduled' },
+  affectedScopes: []
 };
+const press = () =>
+  fireEvent.press(
+    screen.getByRole('button', { name: translate('reports.pdf.download') })
+  );
 beforeEach(() => {
   jest.clearAllMocks();
   readRecoveryNetwork.available = false;
   jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
-  jest.mocked(reportsService.previewOutput).mockReset();
-  jest.mocked(reportsService.requestOutput).mockReset();
+  jest
+    .mocked(reportsService.previewOutput)
+    .mockReset()
+    .mockResolvedValue({ previewId: 'current-preview' } as never);
+  jest
+    .mocked(reportsService.requestOutput)
+    .mockReset()
+    .mockResolvedValue(accepted as never);
   jest.mocked(reportsService.getAttempt).mockReset();
   jest
     .spyOn(Crypto, 'randomUUID')
@@ -67,23 +75,6 @@ beforeEach(() => {
       expiresAt: 9999999999999
     }
   });
-  jest
-    .mocked(reportsService.previewOutput)
-    .mockResolvedValue({ previewId: 'current-preview' } as never);
-  jest.mocked(reportsService.requestOutput).mockResolvedValue({
-    value: { id: ready.id },
-    affectedScopes: []
-  } as never);
-  jest.mocked(reportsService.getAttempt).mockResolvedValue(ready as never);
-  jest.mocked(files.saveReportPdf).mockResolvedValue({
-    uri: 'content://documents/saved.pdf',
-    cacheUri: 'file:///cache/saved.pdf',
-    name: 'Masarifi.pdf',
-    bytes: 100
-  });
-  jest.mocked(files.removeReportPdfCache).mockResolvedValue(undefined);
-  jest.mocked(files.openReportPdf).mockResolvedValue(undefined);
-  jest.mocked(files.shareReportPdf).mockResolvedValue(undefined);
 });
 afterEach(() => {
   cleanup();
@@ -91,17 +82,27 @@ afterEach(() => {
 });
 
 test.each(['ar', 'en'] as const)(
-  'starts the existing PDF flow in one tap, keeps every filter, and saves before announcing success in %s',
+  'shows the waiting popup immediately and requests an owner-email PDF with every filter in %s',
   async (locale) => {
     changeLocale(locale);
-    renderWithProviders(<ReportPdfExport input={input} />);
-    fireEvent.press(
-      screen.getByRole('button', {
-        name:
-          locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF'
-      })
+    let finish!: (value: never) => void;
+    jest.mocked(reportsService.requestOutput).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
     );
-    await waitFor(() => expect(files.saveReportPdf).toHaveBeenCalledTimes(1));
+    renderWithProviders(<ReportPdfExport input={input} />);
+    press();
+    expect(
+      screen.getByText(
+        locale === 'ar' ? 'قد يستغرق هذا بعض الوقت' : 'This may take some time'
+      )
+    ).toBeTruthy();
+    expect(screen.getByTestId('report-email-popup')).toBeTruthy();
+    await waitFor(() =>
+      expect(reportsService.requestOutput).toHaveBeenCalledTimes(1)
+    );
     expect(reportsService.previewOutput).toHaveBeenCalledWith(
       {
         ...input,
@@ -112,143 +113,100 @@ test.each(['ar', 'en'] as const)(
       expect.objectContaining({ signal: expect.anything() })
     );
     expect(reportsService.requestOutput).toHaveBeenCalledWith(
-      { kind: 'download', previewId: 'current-preview' },
+      { kind: 'send_now', previewId: 'current-preview' },
       expect.any(String)
     );
+    await act(async () => finish(accepted as never));
     expect(
-      await screen.findByText(locale === 'ar' ? 'تم حفظ ملف PDF' : 'PDF saved')
+      await screen.findByText(translate('reports.pdf.emailQueued'))
     ).toBeTruthy();
+    expect(files.saveReportPdf).not.toHaveBeenCalled();
     expect(files.openReportPdf).not.toHaveBeenCalled();
     expect(files.shareReportPdf).not.toHaveBeenCalled();
+    expect(reportsService.getAttempt).not.toHaveBeenCalled();
   }
 );
 
-test('blocks repeated taps while generating, then opens or shares only after an explicit action', async () => {
-  let finish!: (value: never) => void;
-  jest.mocked(reportsService.requestOutput).mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      })
-  );
+test('does not send another email on repeated taps or after dismissing the accepted request', async () => {
   renderWithProviders(<ReportPdfExport input={input} />);
-  const button = screen.getByRole('button', { name: 'Download report PDF' });
   act(() => {
-    fireEvent.press(button);
-    fireEvent.press(button);
+    press();
+    press();
   });
-  await waitFor(() =>
-    expect(reportsService.requestOutput).toHaveBeenCalledTimes(1)
+  await screen.findByText(translate('reports.pdf.emailQueued'));
+  fireEvent.press(
+    screen.getByRole('button', { name: translate('common.close') })
   );
-  expect(button).toHaveAccessibilityState({ disabled: true, busy: true });
-  await act(async () =>
-    finish({ value: { id: ready.id }, affectedScopes: [] } as never)
-  );
-  fireEvent.press(await screen.findByRole('button', { name: 'Open PDF' }));
-  await waitFor(() => expect(files.openReportPdf).toHaveBeenCalledTimes(1));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Share PDF' })).toBeEnabled()
-  );
-  fireEvent.press(screen.getByRole('button', { name: 'Share PDF' }));
-  await waitFor(() => expect(files.shareReportPdf).toHaveBeenCalledTimes(1));
+  press();
+  expect(
+    await screen.findByText(translate('reports.pdf.emailQueued'))
+  ).toBeTruthy();
+  expect(reportsService.requestOutput).toHaveBeenCalledTimes(1);
 });
 
-test('retries an uncertain POST with the same operation identity', async () => {
+test('retries an uncertain email POST with its original operation identity', async () => {
   jest
     .mocked(reportsService.requestOutput)
     .mockRejectedValueOnce(new Error('network uncertainty'))
-    .mockResolvedValueOnce({
-      value: { id: ready.id },
-      affectedScopes: []
-    } as never);
+    .mockResolvedValueOnce(accepted as never);
   renderWithProviders(<ReportPdfExport input={input} />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
-  fireEvent.press(await screen.findByRole('button', { name: 'Retry' }));
-  await screen.findByText('PDF saved');
-  expect(
-    jest.mocked(reportsService.requestOutput).mock.calls.map(([, key]) => key)
-  ).toEqual([expect.any(String), expect.any(String)]);
-  expect(jest.mocked(reportsService.requestOutput).mock.calls[0][1]).toBe(
-    jest.mocked(reportsService.requestOutput).mock.calls[1][1]
+  press();
+  fireEvent.press(
+    await screen.findByRole('button', { name: translate('reports.pdf.retry') })
   );
+  await screen.findByText(translate('reports.pdf.emailQueued'));
+  const calls = jest.mocked(reportsService.requestOutput).mock.calls;
+  expect(calls).toHaveLength(2);
+  expect(calls[0][1]).toBe(calls[1][1]);
 });
 
-test('does not save or share when the owner changes during generation', async () => {
+test('does not submit the email if the owner changes during preview', async () => {
   let finish!: (value: never) => void;
-  jest.mocked(reportsService.getAttempt).mockImplementationOnce(
+  jest.mocked(reportsService.previewOutput).mockImplementationOnce(
     () =>
       new Promise((resolve) => {
         finish = resolve;
       })
   );
   renderWithProviders(<ReportPdfExport input={input} />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
+  press();
   await waitFor(() =>
-    expect(reportsService.getAttempt).toHaveBeenCalledTimes(1)
+    expect(reportsService.previewOutput).toHaveBeenCalledTimes(1)
   );
   await act(async () => {
     useAppShellStore.setState({ session: null });
-    finish(ready as never);
+    finish({ previewId: 'old-owner-preview' } as never);
   });
-  expect(files.saveReportPdf).not.toHaveBeenCalled();
-  expect(screen.queryByText('PDF saved')).toBeNull();
+  expect(reportsService.requestOutput).not.toHaveBeenCalled();
 });
 
-test('keeps an unsupported account-filter error visible and never retries without the filter', async () => {
+test('keeps unsupported account filters instead of retrying an unscoped report', async () => {
   jest
     .mocked(reportsService.previewOutput)
     .mockRejectedValue({ code: 'report_account_scope_unavailable' });
   renderWithProviders(<ReportPdfExport input={input} />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
-  await screen.findByText(
-    'This account filter cannot be exported. Your filters were kept.'
-  );
+  press();
+  await screen.findByText(translate('reports.pdf.accountUnsupported'));
   expect(reportsService.requestOutput).not.toHaveBeenCalled();
-  expect(files.saveReportPdf).not.toHaveBeenCalled();
 });
 
-test('explains the internet requirement offline without creating a request or leaving Reports', async () => {
-  renderWithProviders(<ReportPdfExport input={input} offline />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
-  await screen.findByText(
-    'Reports work offline. Connect to the internet to download a PDF.'
-  );
-  expect(reportsService.previewOutput).not.toHaveBeenCalled();
-  expect(reportsService.requestOutput).not.toHaveBeenCalled();
-  expect(files.saveReportPdf).not.toHaveBeenCalled();
-});
+test.each([false, true])(
+  'refuses offline email without leaving Reports (native network available=%s)',
+  async (nativeAvailable) => {
+    readRecoveryNetwork.available = nativeAvailable;
+    jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(false);
+    renderWithProviders(<ReportPdfExport input={input} offline />);
+    press();
+    await screen.findByText(translate('reports.pdf.internet'));
+    expect(reportsService.previewOutput).not.toHaveBeenCalled();
+    expect(reportsService.requestOutput).not.toHaveBeenCalled();
+  }
+);
 
-test('downloads from a saved offline report after current connectivity is restored', async () => {
+test('uses current connectivity when the visible report was read offline', async () => {
   readRecoveryNetwork.available = true;
   renderWithProviders(<ReportPdfExport input={input} offline />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
-  await screen.findByText('PDF saved');
+  press();
+  await screen.findByText(translate('reports.pdf.emailQueued'));
   expect(reportsService.requestOutput).toHaveBeenCalledTimes(1);
-});
-
-test('blocks a fresh report download when the current native connection is offline', async () => {
-  readRecoveryNetwork.available = true;
-  jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(false);
-  renderWithProviders(<ReportPdfExport input={input} />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
-  await screen.findByText(
-    'Reports work offline. Connect to the internet to download a PDF.'
-  );
-  expect(reportsService.previewOutput).not.toHaveBeenCalled();
-  expect(reportsService.requestOutput).not.toHaveBeenCalled();
-});
-
-test('keeps the saved file actions after an opener failure instead of downloading another copy', async () => {
-  jest
-    .mocked(files.openReportPdf)
-    .mockRejectedValueOnce(Error('REPORT_FILE_NATIVE_UPDATE_REQUIRED'));
-  renderWithProviders(<ReportPdfExport input={input} />);
-  fireEvent.press(screen.getByRole('button', { name: 'Download report PDF' }));
-  fireEvent.press(await screen.findByRole('button', { name: 'Open PDF' }));
-  await screen.findByText(
-    'This app build needs an update to open or share PDF files. Your saved PDF is still in the folder you selected.'
-  );
-  expect(screen.getByRole('button', { name: 'Share PDF' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
-  expect(files.saveReportPdf).toHaveBeenCalledTimes(1);
 });

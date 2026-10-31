@@ -26,6 +26,10 @@ export function pdfFailureMessage(error: unknown): MessageKey {
   const code =
     (error as { code?: string; message?: string })?.code ??
     (error as Error)?.message;
+  if (code === 'REPORT_RECIPIENT_UNVERIFIED' || code === 'report_recipient_unverified')
+    return 'reports.pdf.emailMissing';
+  if (code === 'REPORT_EMAIL_UNAVAILABLE' || code === 'report_email_unavailable')
+    return 'reports.pdf.emailUnavailable';
   if (code === 'report_account_scope_unavailable' || code === 'not_found')
     return 'reports.pdf.accountUnsupported';
   if (

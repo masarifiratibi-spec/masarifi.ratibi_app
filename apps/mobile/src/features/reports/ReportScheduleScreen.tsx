@@ -9,19 +9,14 @@ import { FormField } from '@/design-system/components/forms/FormField';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import type {
   RecipientVerification,
-  ReportOutputAttempt,
   ReportSchedule,
   ReportScheduleInput
 } from '@/domain/reports';
 import { currentLocale, translate } from '@/localization/i18n';
 import { reportsService } from '@/services/reports-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { formatDateTime, formatDate } from '@/utils/format-financial-value';
-import {
-  useReportAttempts,
-  useReportMutation,
-  useReportSchedule
-} from './report-queries';
+import { formatDate } from '@/utils/format-financial-value';
+import { useReportMutation, useReportSchedule } from './report-queries';
 import { scheduleStateTitle } from './report-state';
 import { makeReportScheduleDraft, reportDraftStore } from './useReportDraft';
 
@@ -31,7 +26,6 @@ export function ReportScheduleScreen() {
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const locale = usePreferenceStore((state) => state.locale);
   const schedule = useReportSchedule();
-  const attempts = useReportAttempts();
   const [input, setInput] = useState<ReportScheduleInput>(() =>
     defaultInput(locale, currencyCode)
   );
@@ -88,10 +82,6 @@ export function ReportScheduleScreen() {
   const verified =
     verification?.status === 'verified' &&
     verification.normalizedEmail === input.recipientEmail.trim().toLowerCase();
-  const lastAttempt = attempts.data?.items.find(
-    (attempt: ReportOutputAttempt) =>
-      attempt.id === schedule.data?.lastSuccessfulAttemptId
-  );
   const frequencyLabels = frequencies.map((frequency) =>
     translate(`reports.period.${frequency}`)
   );
@@ -256,7 +246,6 @@ export function ReportScheduleScreen() {
         onChange={(status) => changeStatus.mutate(status)}
       />
 
-      <StyledText>{`${translate(lastAttempt?.completedAt ? 'reports.schedule.lastDelivery' : 'reports.schedule.lastRun')}: ${lastAttempt?.completedAt ? formatDateTime(lastAttempt.completedAt, currentLocale()) : schedule.data?.lastRunAt ? formatDateTime(schedule.data.lastRunAt, currentLocale()) : translate('reports.schedule.noDelivery')}`}</StyledText>
       <StyledText>{`${translate('reports.schedule.nextDelivery')}: ${schedule.data?.nextDeliveryAt ? formatDate(schedule.data.nextDeliveryAt, currentLocale()) : translate('reports.schedule.noDelivery')}`}</StyledText>
     </ScrollView>
   );

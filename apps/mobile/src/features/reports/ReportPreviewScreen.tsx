@@ -19,18 +19,20 @@ import {
   formatMinorAmount
 } from '@/utils/format-financial-value';
 import {
-  useReportAttempts,
+  useReportAttempt,
   useReportInput,
   useReportMutation,
   useReportPreview,
   useReportSchedule
 } from './report-queries';
 import { outputStateTitle, reportStateTitle } from './report-state';
+import { ReportPdfExport } from './ReportPdfExport';
 
 type OutputRequest = Parameters<typeof reportsService.requestOutput>[0];
 let outputOperationSequence = 0;
 
 export function ReportPreviewScreen() {
+  const fixtureMode = isFixtureModeEnabled();
   const anchorDate = useReportAnchorDate();
   const baseCurrencyCode = usePreferenceStore(
     (state) => state.baseCurrencyCode
@@ -45,14 +47,21 @@ export function ReportPreviewScreen() {
   const locale = usePreferenceStore((state) => state.locale);
   const { selectedKind } = useReportsViewState();
   const schedule = useReportSchedule();
-  const attempts = useReportAttempts();
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const downloadFlight = useRef(false);
   const [pendingOutput, setPendingOutput] = useState<{
     id: string;
-    kind: 'download' | 'share';
+    kind: 'send_test' | 'send_now' | 'download' | 'share';
     owner: string | null | undefined;
   } | null>(null);
+  const [currentOutput, setCurrentOutput] = useState<{
+    owner: string | null | undefined;
+    value: ReportOutputAttempt;
+  } | null>(null);
+  const owner = useAppShellStore((state) => state.session?.userId);
+  const pendingAttempt = useReportAttempt(
+    pendingOutput?.owner === owner ? pendingOutput?.id : undefined
+  );
   const [downloadFailed, setDownloadFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [detailLevel, setDetailLevel] = useState<'summary' | 'detailed'>(
@@ -89,21 +98,17 @@ export function ReportPreviewScreen() {
         { kind, previewId: preview.data.previewId },
         {
           onSuccess: (result) => {
-            if (
-              !isFixtureModeEnabled() &&
-              (kind === 'download' || kind === 'share')
-            )
-              setPendingOutput({
-                id: result.value.id,
-                kind,
-                owner: useAppShellStore.getState().session?.userId
-              });
+            if (owner !== useAppShellStore.getState().session?.userId) return;
+            setCurrentOutput({ owner, value: result.value });
+            setPendingOutput({
+              id: result.value.id,
+              kind,
+              owner: useAppShellStore.getState().session?.userId
+            });
           }
         }
       );
   };
-  const retry = (attempt: ReportOutputAttempt) =>
-    output.mutate({ kind: 'retry', previousAttemptId: attempt.id });
   const download = useCallback(
     async (
       attempt: ReportOutputAttempt,
@@ -142,194 +147,184 @@ export function ReportPreviewScreen() {
   );
   useEffect(() => {
     if (!pendingOutput) return;
-    const attempt = attempts.data?.items.find(
-      (item) => item.id === pendingOutput.id
-    );
-    if (!attempt || !['ready', 'failed'].includes(attempt.status)) return;
+    const attempt = pendingAttempt.data;
+    if (attempt && attempt.id !== pendingOutput.id) {
+      setPendingOutput(null);
+      setDownloadFailed(true);
+      return;
+    }
+    if (!attempt || ['scheduled', 'sending'].includes(attempt.status)) return;
     setPendingOutput(null);
     if (pendingOutput.owner !== useAppShellStore.getState().session?.userId)
       return;
+    setCurrentOutput({ owner: pendingOutput.owner, value: attempt });
     if (attempt.status === 'failed') setDownloadFailed(true);
-    else void download(attempt, pendingOutput.kind);
-  }, [attempts.data, pendingOutput, download]);
+    else if (
+      !isFixtureModeEnabled() &&
+      attempt.status === 'ready' &&
+      (pendingOutput.kind === 'download' || pendingOutput.kind === 'share')
+    )
+      void download(attempt, pendingOutput.kind);
+  }, [pendingAttempt.data, pendingOutput, download]);
   const snapshot = preview.data?.snapshot;
 
   return (
-    <ScrollView contentContainerStyle={styles.stack}>
-      <StyledText variant="title">
-        {translate('reports.preview.title')}
-      </StyledText>
-      {snapshot ? (
-        <View style={styles.stack}>
-          <StyledText>{`${translate('reports.preview.period')}: ${formatDate(snapshot.period.startInstant, currentLocale(), snapshot.period.timeZone)} – ${formatDate(snapshot.period.endExclusiveInstant - 1, currentLocale(), snapshot.period.timeZone)}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.generated')}: ${formatDateTime(snapshot.generatedAt, currentLocale())}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.dataAsOf')}: ${formatDateTime(snapshot.dataAsOf, currentLocale())}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.language')}: ${translate(snapshot.language === 'ar' ? 'common.arabic' : 'common.english')}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.currency')}: ${snapshot.currencyCode}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.sections')}: ${snapshot.breakdowns.map((item: ReportBreakdown) => translate(`reports.dimension.${item.dimension}` as MessageKey)).join(', ')}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.detail')}: ${translate(`reports.schedule.${snapshot.detailLevel}` as MessageKey)}`}</StyledText>
-          <StyledText>{`${translate('reports.preview.recipient')}: ${recipientEmail ?? translate('reports.preview.notSet')}`}</StyledText>
-          <StyledText>{reportStateTitle(snapshot.dataState)}</StyledText>
-          {(['income', 'expense', 'netCashFlow'] as const).map((metric) => (
-            <StyledText key={metric}>
-              {translate(`reports.metric.${metric}`)}:{' '}
-              {hideBalances
-                ? '••••'
-                : snapshot.summary[metric].value
-                  ? formatMinorAmount(
-                      snapshot.summary[metric].value.minorUnits,
-                      snapshot.currencyCode,
-                      currentLocale()
-                    )
-                  : '—'}
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={[styles.stack, !fixtureMode && styles.liveStack]}
+      >
+        <StyledText variant="title">
+          {translate('reports.preview.title')}
+        </StyledText>
+        {snapshot ? (
+          <View style={styles.stack}>
+            <StyledText>{`${translate('reports.preview.period')}: ${formatDate(snapshot.period.startInstant, currentLocale(), snapshot.period.timeZone)} – ${formatDate(snapshot.period.endExclusiveInstant - 1, currentLocale(), snapshot.period.timeZone)}`}</StyledText>
+            <StyledText>{`${translate('reports.preview.generated')}: ${formatDateTime(snapshot.generatedAt, currentLocale())}`}</StyledText>
+            <StyledText>{`${translate('reports.preview.dataAsOf')}: ${formatDateTime(snapshot.dataAsOf, currentLocale())}`}</StyledText>
+            <StyledText>{`${translate('reports.preview.language')}: ${translate(snapshot.language === 'ar' ? 'common.arabic' : 'common.english')}`}</StyledText>
+            <StyledText>{`${translate('reports.preview.currency')}: ${snapshot.currencyCode}`}</StyledText>
+            <StyledText>{`${translate('reports.preview.sections')}: ${snapshot.breakdowns.map((item: ReportBreakdown) => translate(`reports.dimension.${item.dimension}` as MessageKey)).join(', ')}`}</StyledText>
+            <StyledText>{`${translate('reports.preview.detail')}: ${translate(`reports.schedule.${snapshot.detailLevel}` as MessageKey)}`}</StyledText>
+            <StyledText>
+              {fixtureMode
+                ? `${translate('reports.preview.recipient')}: ${recipientEmail ?? translate('reports.preview.notSet')}`
+                : translate('reports.pdf.emailPreparing')}
             </StyledText>
-          ))}
-          {snapshot.breakdowns
-            .flatMap((group) => group.items)
-            .map((item) => (
-              <StyledText key={item.id}>
-                {item.label}:{' '}
+            <StyledText>{reportStateTitle(snapshot.dataState)}</StyledText>
+            {(['income', 'expense', 'netCashFlow'] as const).map((metric) => (
+              <StyledText key={metric}>
+                {translate(`reports.metric.${metric}`)}:{' '}
                 {hideBalances
                   ? '••••'
-                  : item.value.value
+                  : snapshot.summary[metric].value
                     ? formatMinorAmount(
-                        item.value.value.minorUnits,
+                        snapshot.summary[metric].value.minorUnits,
                         snapshot.currencyCode,
                         currentLocale()
                       )
                     : '—'}
               </StyledText>
             ))}
-        </View>
-      ) : (
-        <StyledText>
-          {translate(
-            (preview.error as { code?: string } | null)?.code ===
-              'report_account_scope_unavailable'
-              ? 'reports.preview.accountScopeUnavailable'
-              : preview.isError
-                ? 'reports.state.error'
-                : 'reports.state.loading'
-          )}
-        </StyledText>
-      )}
-
-      <StyledText variant="subtitle">
-        {translate('reports.preview.privacy')}
-      </StyledText>
-      {isFixtureModeEnabled() ? (
-        <View style={styles.actions}>
-          <ActionButton
-            label={translate('reports.schedule.summary')}
-            onPress={() => setDetailLevel('summary')}
-            variant="secondary"
-          />
-          <ActionButton
-            label={translate('reports.schedule.detailed')}
-            onPress={() => setDetailLevel('detailed')}
-            variant="secondary"
-          />
-        </View>
-      ) : null}
-      <StyledText>{`${translate('reports.preview.privacyWarning')}: ${translate('reports.preview.emailWarning')}`}</StyledText>
-      {isFixtureModeEnabled() ? (
-        <StyledText>{translate('reports.preview.mockNotice')}</StyledText>
-      ) : null}
-
-      <View style={styles.actions}>
-        <ActionButton
-          disabled={!preview.data || !recipientEmail || output.isPending}
-          label={translate('reports.action.sendTest')}
-          onPress={() => submit('send_test')}
-        />
-        <ActionButton
-          disabled={!preview.data || !recipientEmail || output.isPending}
-          label={translate('reports.action.sendNow')}
-          onPress={() => submit('send_now')}
-        />
-        <ActionButton
-          disabled={!preview.data || output.isPending}
-          label={translate('reports.action.download')}
-          onPress={() => submit('download')}
-          variant="secondary"
-        />
-        <ActionButton
-          disabled={!preview.data || output.isPending}
-          label={translate('reports.action.share')}
-          onPress={() => submit('share')}
-          variant="secondary"
-        />
-      </View>
-
-      <StyledText variant="subtitle">
-        {translate('reports.preview.history')}
-      </StyledText>
-      {attempts.data?.items.length ? (
-        attempts.data.items.map((attempt: ReportOutputAttempt) => (
-          <View key={attempt.id} style={styles.historyItem}>
-            <StyledText>
-              {translate(`reports.output.kind.${attempt.kind}` as MessageKey)}
-            </StyledText>
-            <StyledText>{outputStateTitle(attempt.status)}</StyledText>
-            <StyledText>
-              {formatDateTime(attempt.requestedAt, currentLocale())}
-            </StyledText>
-            {attempt.failureCategory ? (
-              <StyledText>
-                {translate(
-                  `reports.output.failure.${attempt.failureCategory}` as MessageKey
-                )}
-              </StyledText>
-            ) : null}
-            {attempt.status === 'ready' ? (
-              <ActionButton
-                label={translate('reports.action.download')}
-                loading={downloading}
-                onPress={() => void download(attempt)}
-              />
-            ) : null}
-            {attempt.status === 'failed' ? (
-              <ActionButton
-                disabled={output.isPending}
-                label={translate('reports.action.retry')}
-                onPress={() => retry(attempt)}
-                variant="secondary"
-              />
-            ) : null}
+            {snapshot.breakdowns
+              .flatMap((group) => group.items)
+              .map((item) => (
+                <StyledText key={item.id}>
+                  {item.label}:{' '}
+                  {hideBalances
+                    ? '••••'
+                    : item.value.value
+                      ? formatMinorAmount(
+                          item.value.value.minorUnits,
+                          snapshot.currencyCode,
+                          currentLocale()
+                        )
+                      : '—'}
+                </StyledText>
+              ))}
           </View>
-        ))
-      ) : (
-        <StyledText>{translate('reports.preview.noHistory')}</StyledText>
-      )}
-      {output.isError || downloadFailed ? (
-        <StyledText accessibilityRole="alert">
-          {translate('reports.state.error')}
+        ) : (
+          <StyledText>
+            {translate(
+              (preview.error as { code?: string } | null)?.code ===
+                'report_account_scope_unavailable'
+                ? 'reports.preview.accountScopeUnavailable'
+                : preview.isError
+                  ? 'reports.state.error'
+                  : 'reports.state.loading'
+            )}
+          </StyledText>
+        )}
+
+        <StyledText variant="subtitle">
+          {translate('reports.preview.privacy')}
         </StyledText>
-      ) : null}
-      <ActionButton
-        label={translate('reports.action.retry')}
-        loading={attempts.isFetching}
-        onPress={() => void attempts.refetch()}
-      />
-      {attempts.hasNextPage ? (
-        <ActionButton
-          label={translate('reports.action.more')}
-          loading={attempts.isFetchingNextPage}
-          onPress={() => void attempts.fetchNextPage()}
+        {isFixtureModeEnabled() ? (
+          <View style={styles.actions}>
+            <ActionButton
+              label={translate('reports.schedule.summary')}
+              onPress={() => setDetailLevel('summary')}
+              variant="secondary"
+            />
+            <ActionButton
+              label={translate('reports.schedule.detailed')}
+              onPress={() => setDetailLevel('detailed')}
+              variant="secondary"
+            />
+          </View>
+        ) : null}
+        <StyledText>{`${translate('reports.preview.privacyWarning')}: ${translate('reports.preview.emailWarning')}`}</StyledText>
+        {isFixtureModeEnabled() ? (
+          <StyledText>{translate('reports.preview.mockNotice')}</StyledText>
+        ) : null}
+
+        {fixtureMode ? (
+          <View style={styles.actions}>
+            <ActionButton
+              disabled={
+                !preview.data ||
+                !recipientEmail ||
+                output.isPending ||
+                downloading
+              }
+              label={translate('reports.action.sendTest')}
+              onPress={() => submit('send_test')}
+            />
+            <ActionButton
+              disabled={
+                !preview.data ||
+                !recipientEmail ||
+                output.isPending ||
+                downloading
+              }
+              label={translate('reports.action.sendNow')}
+              onPress={() => submit('send_now')}
+            />
+            <ActionButton
+              disabled={!preview.data || output.isPending || downloading}
+              label={translate('reports.action.download')}
+              onPress={() => submit('download')}
+              variant="secondary"
+            />
+            <ActionButton
+              disabled={!preview.data || output.isPending || downloading}
+              label={translate('reports.action.share')}
+              onPress={() => submit('share')}
+              variant="secondary"
+            />
+          </View>
+        ) : null}
+
+        {currentOutput && currentOutput.owner === owner ? (
+          <StyledText accessibilityLiveRegion="polite">
+            {outputStateTitle(currentOutput.value.status)}
+          </StyledText>
+        ) : null}
+        {output.isError || downloadFailed ? (
+          <StyledText accessibilityRole="alert">
+            {translate('reports.state.error')}
+          </StyledText>
+        ) : null}
+        {pendingAttempt.isError ? (
+          <ActionButton
+            label={translate('reports.action.retry')}
+            loading={pendingAttempt.isFetching}
+            onPress={() => void pendingAttempt.refetch()}
+          />
+        ) : null}
+      </ScrollView>
+      {!fixtureMode ? (
+        <ReportPdfExport
+          input={input}
+          offline={!preview.data && preview.isError}
         />
       ) : null}
-      {attempts.isError ? (
-        <ActionButton
-          label={translate('reports.action.retry')}
-          onPress={() => void attempts.refetch()}
-        />
-      ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   stack: { gap: 12, padding: 16 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  historyItem: { borderWidth: 1, gap: 4, padding: 12 }
+  liveStack: { paddingBottom: 88 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
 });

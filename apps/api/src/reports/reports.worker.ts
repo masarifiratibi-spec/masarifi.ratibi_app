@@ -17,6 +17,12 @@ import { ReportsStorage } from './reports.storage';
 import { ReportsSmtp, ReportsSmtpError } from './reports.smtp';
 import { recordReportBacklog, recordReportBytes, recordReportJob } from './reports.observability';
 
+export function validateRequestedPdfEmailScope(acceptedAfter: string): void {
+  const instant = Date.parse(acceptedAfter);
+  if (!Number.isFinite(instant) || new Date(instant).toISOString() !== acceptedAfter)
+    throw new Error('REPORT_EMAIL_SCOPE_INVALID');
+}
+
 @Injectable()
 export class ReportsWorker implements OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -62,6 +68,25 @@ export class ReportsWorker implements OnModuleDestroy {
         'report.output.expire',
       ] as const) {
         await this.runJob(kind);
+      }
+    } finally {
+      this.running = false;
+    }
+  }
+
+  async runRequestedPdfEmailsOnce(acceptedAfter: string): Promise<void> {
+    validateRequestedPdfEmailScope(acceptedAfter);
+    if (this.running) return;
+    this.running = true;
+    try {
+      const limit = this.config.getRequired('MASARIFI_REPORT_BATCH_SIZE');
+      for (const kind of ['report.generate', 'report.email.deliver'] as const) {
+        const ids = await this.repository.listRequestedPdfEmailWork(kind, limit, acceptedAfter);
+        recordReportBacklog(kind, ids.length);
+        for (const id of ids)
+          await this.repository.withWorkLock(kind, id, (claim) =>
+            kind === 'report.generate' ? this.generate(claim) : this.deliver(claim),
+          );
       }
     } finally {
       this.running = false;
@@ -200,14 +225,23 @@ export class ReportsWorker implements OnModuleDestroy {
         this.config.getRequired('MASARIFI_REPORT_MAX_BYTES'),
       );
       if (snapshot.delivery !== 'email') throw new ReportsSmtpError('REPORT_EMAIL_INVALID');
+      const identity = claim.recipient ? null : await this.identity?.getIdentityUser(claim.userId);
       const recipient =
-        claim.recipient ?? (await this.identity?.getIdentityUser(claim.userId))?.primaryEmail;
+        claim.recipient ?? (identity?.primaryEmailVerified ? identity.primaryEmail : null);
       if (!recipient) throw new ReportsSmtpError('REPORT_RECIPIENT_UNVERIFIED');
-      const link = await this.storage.sign(
-        claim.storageRef,
-        this.config.getRequired('MASARIFI_REPORT_SIGNED_URL_SECONDS'),
-      );
-      const accepted = await this.smtp.send(claim.id, recipient, link);
+      const content =
+        snapshot.format === 'pdf'
+          ? await this.storage.readPdf(
+              claim.id,
+              claim.userId,
+              claim.storageRef,
+              this.config.getRequired('MASARIFI_REPORT_MAX_BYTES'),
+            )
+          : await this.storage.sign(
+              claim.storageRef,
+              this.config.getRequired('MASARIFI_REPORT_SIGNED_URL_SECONDS'),
+            );
+      const accepted = await this.smtp.send(claim.id, recipient, content);
       recordReportJob('report.email.deliver', 'success');
       return {
         status: 'delivered',

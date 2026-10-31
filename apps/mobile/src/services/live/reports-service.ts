@@ -737,38 +737,6 @@ export function createLiveReportsService(
       await local.saveAttempt(value);
       return { value, affectedScopes: ['reports.attempts'] };
     },
-    async listAttempts(input, context) {
-      const query = new URLSearchParams({
-        limit: '50',
-        ...(input?.cursor ? { cursor: input.cursor } : {}),
-        ...(input?.scheduleId ? { scheduleId: input.scheduleId } : {}),
-        ...(input?.status
-          ? { status: input.status === 'sent' ? 'delivered' : input.status }
-          : {})
-      });
-      const page = exact(
-        await read(`/api/v1/reports?${query.toString()}`, context),
-        ['items', 'nextCursor', 'requestId']
-      );
-      const persisted = new Map(
-        (await local.listAttempts()).map((item) => [item.id, item])
-      );
-      const items = Array.isArray(page.items)
-        ? page.items.map((item) => {
-            const row = object(item),
-              saved = persisted.get(String(row.id));
-            const mapped = attempt(row, saved?.snapshot, saved?.operationId);
-            attempts.set(mapped.id, mapped);
-            return mapped;
-          })
-        : [];
-      return {
-        items,
-        nextCursor:
-          typeof page.nextCursor === 'string' ? page.nextCursor : null,
-        total: items.length
-      };
-    },
     async getAttempt(id, context) {
       const saved = (await local.listAttempts()).find(
         (attempt) => attempt.id === id

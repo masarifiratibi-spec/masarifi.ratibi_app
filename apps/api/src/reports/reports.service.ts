@@ -116,7 +116,11 @@ export class ReportsService {
         this.requireRecent(principal);
       if (command.delivery === 'email') {
         const identity = await this.identity?.getIdentityUser(principal.userId);
-        if (!identity?.primaryEmail || identity.primaryEmail.toLowerCase() !== command.recipient)
+        if (
+          !identity?.primaryEmail ||
+          (command.recipient === null && !identity.primaryEmailVerified) ||
+          (command.recipient !== null && identity.primaryEmail.toLowerCase() !== command.recipient)
+        )
           throw new HttpException({ code: 'REPORT_RECIPIENT_UNVERIFIED' }, 403);
       }
       return await this.repository.captureSnapshot(

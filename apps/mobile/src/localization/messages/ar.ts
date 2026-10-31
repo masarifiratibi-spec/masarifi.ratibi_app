@@ -17,14 +17,16 @@ const ar: MessageCatalog = {
   'reports.local.excluded': 'سجلات مستبعدة تحتاج إلى مراجعة أو تأكيد',
   'reports.local.missingRates':
     'لا تُعرض الإجماليات التي تتطلب أسعار صرف غير متوفرة.',
-  'reports.pdf.internet': 'تعمل التقارير دون اتصال. اتصل بالإنترنت لتنزيل PDF.',
+  'reports.pdf.internet': 'تعمل التقارير دون اتصال. اتصل بالإنترنت لإرسال تقرير PDF إلى بريدك.',
   'reports.pdf.policyPending':
-    'يتطلب تنزيل PDF تحديث الخادم المعتمد. لم يُطلب تحقق إضافي من الهوية.',
-  'reports.pdf.download': 'تنزيل التقرير بصيغة PDF',
-  'reports.pdf.history': 'سجل تقارير PDF',
-  'reports.pdf.historyScope': 'تقاريرك السابقة تحتفظ بنطاق الحساب والفترة المحددين عند طلبها.',
-  'reports.pdf.historyEmpty': 'لا توجد تقارير PDF سابقة.',
-  'reports.pdf.historyUnavailable': 'هذا التقرير لم يعد متاحًا. حدّث السجل للاطلاع على حالته الحالية.',
+    'يتطلب إرسال تقرير PDF تحديث الخادم المعتمد.',
+  'reports.pdf.download': 'إرسال تقرير PDF إلى بريدي',
+  'reports.pdf.emailWaitTitle': 'قد يستغرق هذا بعض الوقت',
+  'reports.pdf.emailPreparing': 'جارٍ طلب تجهيز التقرير وإرساله إلى بريد حسابك بصيغة PDF مرفق.',
+  'reports.pdf.emailQueued': 'تم قبول طلبك. سيُرسل ملف PDF إلى بريد حسابك بعد اكتمال تجهيزه.',
+  'reports.pdf.emailFailure': 'تعذّر طلب التقرير',
+  'reports.pdf.emailMissing': 'يلزم بريد أساسي موثّق لحسابك لإرسال التقرير.',
+  'reports.pdf.emailUnavailable': 'إرسال التقارير إلى البريد غير متاح الآن. حاول لاحقًا.',
   'reports.pdf.generating': 'جارٍ إعداد ملف PDF…',
   'reports.pdf.saving': 'جارٍ تنزيل PDF. اختر مجلدًا لحفظه.',
   'reports.pdf.success': 'تم حفظ ملف PDF',
@@ -32,13 +34,13 @@ const ar: MessageCatalog = {
   'reports.pdf.share': 'مشاركة PDF',
   'reports.pdf.retry': 'إعادة المحاولة',
   'reports.pdf.failure':
-    'تعذّر تنزيل PDF. تم الاحتفاظ بفلاتر التقرير. أعد المحاولة للمتابعة.',
+    'تعذّر طلب التقرير بالبريد. تم الاحتفاظ بفلاترك. أعد المحاولة للمتابعة.',
   'reports.pdf.accountUnsupported':
     'لا يمكن تصدير هذا التقرير بفلتر الحساب المحدد. تم الاحتفاظ بفلاترك.',
   'reports.pdf.periodUnsupported':
     'لم تتمكن الخدمة من تطبيق فترة التقرير أو المنطقة الزمنية المحددة. تم الاحتفاظ باختيارك.',
   'reports.pdf.authentication':
-    'تحقّق من جلستك لتنزيل هذا التقرير الخاص، ثم أعد المحاولة.',
+    'تحقّق من جلستك لإرسال هذا التقرير الخاص، ثم أعد المحاولة.',
   'reports.pdf.cancelled': 'لم يُحفظ PDF بسبب إلغاء اختيار المجلد.',
   'reports.pdf.nativeUpdate':
     'يحتاج هذا الإصدار من التطبيق إلى تحديث لفتح ملفات PDF أو مشاركتها. يبقى ملف PDF المحفوظ في المجلد الذي اخترته.',
@@ -1970,8 +1972,6 @@ const ar: MessageCatalog = {
   'reports.schedule.resume': 'استئناف الجدولة',
   'reports.schedule.disable': 'تعطيل الجدولة',
   'reports.schedule.nextDelivery': 'الإرسال التالي',
-  'reports.schedule.lastRun': 'آخر تنفيذ مجدول',
-  'reports.schedule.lastDelivery': 'آخر إرسال ناجح',
   'reports.schedule.noDelivery': 'لا يوجد بعد',
   'reports.schedule.status.verification_required': 'يلزم التحقق من البريد',
   'reports.schedule.status.active': 'الجدولة نشطة',
@@ -1993,8 +1993,6 @@ const ar: MessageCatalog = {
   'reports.preview.privacyWarning': 'تنبيه الخصوصية',
   'reports.preview.emailWarning':
     'يغادر محتوى التقرير التطبيق عند إرساله بالبريد.',
-  'reports.preview.history': 'سجل الإرسال',
-  'reports.preview.noHistory': 'لا توجد محاولات إرسال بعد',
   'reports.preview.mockNotice':
     'الإرسال والتنزيل والمشاركة عمليات محاكاة حتمية.',
   'reports.dimension.category': 'الفئات',

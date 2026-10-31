@@ -1,31 +1,31 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { randomUUID } from 'expo-crypto';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { layoutDirectionStyle } from '@/design-system/direction';
 import { AppIcon } from '@/design-system/icons';
-import { elevation, radius, spacing } from '@/design-system/tokens';
+import { elevation, spacing } from '@/design-system/tokens';
 import { translate, type MessageKey } from '@/localization/i18n';
 import { reportsService } from '@/services/reports-service';
 import type { ReportQuery } from '@/services/contracts/reports-service';
-import {
-  saveReportPdf,
-  openReportPdf,
-  shareReportPdf,
-  removeReportPdfCache,
-  type SavedReportPdf
-} from '@/services/platform/report-pdf-file';
+import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
-import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
 import { pdfFailureMessage } from './report-state';
 
 type Pending = { operationId: string; previewId?: string; attemptId?: string };
-type Feedback =
-  'generating' | 'saving' | 'success' | { error: MessageKey } | null;
+type Feedback = 'requesting' | 'queued' | { error: MessageKey } | null;
 
 export function ReportPdfExport({
   input,
@@ -57,13 +57,14 @@ function OwnedReportPdfExport({
   const theme = useTheme();
   const insets = useContext(SafeAreaInsetsContext);
   const locale = usePreferenceStore((state) => state.locale);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const [busy, setBusy] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const mounted = useRef(true);
   const flight = useRef<symbol | null>(null);
   const controller = useRef<AbortController | null>(null);
   const pending = useRef<Pending | null>(null);
-  const saved = useRef<SavedReportPdf | null>(null);
   const scope = JSON.stringify([
     input.kind,
     input.anchorDate,
@@ -87,29 +88,31 @@ function OwnedReportPdfExport({
     return () => {
       mounted.current = false;
       controller.current?.abort();
-      if (saved.current)
-        void removeReportPdfCache(saved.current).catch(() => undefined);
     };
   }, []);
   useEffect(() => {
     controller.current?.abort();
     flight.current = null;
     pending.current = null;
-    if (saved.current)
-      void removeReportPdfCache(saved.current).catch(() => undefined);
-    saved.current = null;
     setBusy(false);
     setFeedback(null);
+    setVisible(false);
   }, [scope]);
 
   const start = async () => {
     if (flight.current) return;
-    const token = Symbol('pdf');
+    if (pending.current?.attemptId) {
+      setFeedback('queued');
+      setVisible(true);
+      return;
+    }
+    const token = Symbol('report-email');
     flight.current = token;
     const abort = new AbortController();
     controller.current = abort;
     setBusy(true);
-    setFeedback('generating');
+    setFeedback('requesting');
+    setVisible(true);
     try {
       assertCurrent();
       const currentlyOffline = readRecoveryNetwork.available
@@ -117,8 +120,6 @@ function OwnedReportPdfExport({
         : offline;
       if (currentlyOffline) throw Error('REPORT_PDF_REQUIRES_INTERNET');
       assertCurrent();
-      if (saved.current) await removeReportPdfCache(saved.current);
-      saved.current = null;
       const operation = (pending.current ??= { operationId: randomUUID() });
       if (!operation.previewId) {
         const preview = await reportsService.previewOutput(
@@ -133,68 +134,17 @@ function OwnedReportPdfExport({
         assertCurrent();
         operation.previewId = preview.previewId;
       }
-      if (!operation.attemptId) {
-        const result = await reportsService.requestOutput(
-          { kind: 'download', previewId: operation.previewId },
-          operation.operationId
-        );
-        assertCurrent();
-        operation.attemptId = result.value.id;
-      }
-      for (let poll = 0; poll < 30; poll++) {
-        const attempt = await reportsService.getAttempt(operation.attemptId, {
-          signal: abort.signal
-        });
-        assertCurrent();
-        if (attempt.id !== operation.attemptId)
-          throw Error('REPORT_ID_MISMATCH');
-        if (attempt.status === 'failed') {
-          pending.current = null;
-          throw Error('REPORT_GENERATION_FAILED');
-        }
-        if (attempt.status === 'ready') {
-          setFeedback('saving');
-          const result = await saveReportPdf(
-            attempt,
-            assertCurrent,
-            abort.signal
-          );
-          if (!current()) {
-            await removeReportPdfCache(result);
-            return;
-          }
-          saved.current = result;
-          setFeedback('success');
-          return;
-        }
-        await pauseForPdf(abort.signal);
-      }
-      throw Error('REPORT_STILL_PROCESSING');
-    } catch (error) {
-      if (current()) {
-        if ((error as { code?: string })?.code === 'expired')
-          pending.current = null;
-        setFeedback({ error: pdfFailureMessage(error) });
-      }
-    } finally {
-      if (flight.current === token) {
-        flight.current = null;
-        if (current()) setBusy(false);
-      }
-    }
-  };
-
-  const openOrShare = async (kind: 'open' | 'share') => {
-    if (!saved.current || flight.current) return;
-    const token = Symbol(kind);
-    flight.current = token;
-    setBusy(true);
-    try {
-      assertCurrent();
-      await (kind === 'open' ? openReportPdf : shareReportPdf)(
-        saved.current,
-        assertCurrent
+      const result = await reportsService.requestOutput(
+        { kind: 'send_now', previewId: operation.previewId },
+        operation.operationId
       );
+      assertCurrent();
+      if (
+        !['scheduled', 'sending', 'ready', 'sent'].includes(result.value.status)
+      )
+        throw Error('REPORT_GENERATION_FAILED');
+      operation.attemptId = result.value.id;
+      setFeedback('queued');
     } catch (error) {
       if (current()) setFeedback({ error: pdfFailureMessage(error) });
     } finally {
@@ -204,106 +154,121 @@ function OwnedReportPdfExport({
       }
     }
   };
+  const error =
+    feedback && typeof feedback === 'object' ? feedback.error : null;
+  const title = translate(
+    error ? 'reports.pdf.emailFailure' : 'reports.pdf.emailWaitTitle'
+  );
   return (
-    <View
-      testID="reports-pdf-overlay"
-      pointerEvents="box-none"
-      style={[styles.export, { bottom: Math.max(insets?.bottom ?? 0, spacing.lg) + spacing.lg }]}
-    >
-      {feedback ? (
+    <>
+      <View
+        testID="reports-pdf-overlay"
+        pointerEvents="box-none"
+        style={[
+          styles.export,
+          { bottom: Math.max(insets?.bottom ?? 0, spacing.sm) }
+        ]}
+      >
+        <Pressable
+          testID="reports-pdf-fab"
+          accessibilityRole="button"
+          accessibilityLabel={translate('reports.pdf.download')}
+          accessibilityState={{ busy, disabled: busy || !owner }}
+          disabled={busy || !owner}
+          onPress={() => void start()}
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        >
+          {busy ? (
+            <ActivityIndicator
+              accessible={false}
+              color={theme.colors.textInverse}
+            />
+          ) : (
+            <AppIcon
+              name="pdf"
+              decorative
+              color={theme.colors.textInverse}
+              size="md"
+            />
+          )}
+        </Pressable>
+      </View>
+      <Modal
+        visible={visible}
+        transparent
+        animationType={reducedMotion ? 'none' : 'fade'}
+        onRequestClose={() => setVisible(false)}
+        statusBarTranslucent
+      >
         <View
-          accessibilityLiveRegion="polite"
           style={[
-            styles.feedback,
-            {
-              backgroundColor: theme.colors.surfaces.card,
-              borderColor: theme.colors.border
-            }
+            styles.backdrop,
+            { backgroundColor: theme.colors.horizon.scrim }
           ]}
         >
-          <StyledText
-            accessibilityRole={typeof feedback === 'object' ? 'alert' : 'text'}
-          >
-            {typeof feedback === 'object'
-              ? feedback.error
-              : `reports.pdf.${feedback}`}
-          </StyledText>
-          {feedback === 'success' || saved.current ? (
-            <View style={styles.actions}>
+          <ScrollView contentContainerStyle={styles.viewport} bounces={false}>
+            <View
+              testID="report-email-popup"
+              accessibilityViewIsModal
+              accessibilityRole="alert"
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.colors.surfaces.card,
+                  direction: locale === 'ar' ? 'rtl' : 'ltr'
+                }
+              ]}
+            >
+              <View
+                accessible={false}
+                style={[
+                  styles.icon,
+                  { backgroundColor: theme.colors.surfaceMuted }
+                ]}
+              >
+                <AppIcon
+                  name="pdf"
+                  decorative
+                  color={theme.colors.primary}
+                  size="lg"
+                />
+              </View>
+              <StyledText variant="title" style={styles.copy}>
+                {title}
+              </StyledText>
+              <StyledText style={styles.copy}>
+                {error ??
+                  (feedback === 'queued'
+                    ? 'reports.pdf.emailQueued'
+                    : 'reports.pdf.emailPreparing')}
+              </StyledText>
+              {error ? (
+                <ActionButton
+                  label="reports.pdf.retry"
+                  disabled={busy}
+                  onPress={() => void start()}
+                />
+              ) : null}
               <ActionButton
-                label="reports.pdf.open"
-                disabled={busy}
+                label="common.close"
                 variant="secondary"
-                onPress={() => void openOrShare('open')}
-              />
-              <ActionButton
-                label="reports.pdf.share"
-                disabled={busy}
-                variant="secondary"
-                onPress={() => void openOrShare('share')}
+                onPress={() => setVisible(false)}
               />
             </View>
-          ) : typeof feedback === 'object' ? (
-            <ActionButton
-              label="reports.pdf.retry"
-              disabled={busy}
-              onPress={() => void start()}
-            />
-          ) : null}
-          {!busy ? (
-            <ActionButton
-              label="common.close"
-              variant="quiet"
-              onPress={() => setFeedback(null)}
-            />
-          ) : null}
+          </ScrollView>
         </View>
-      ) : null}
-      <Pressable
-        testID="reports-pdf-fab"
-        accessibilityRole="button"
-        accessibilityLabel={translate('reports.pdf.download')}
-        accessibilityState={{ busy, disabled: busy || !owner }}
-        disabled={busy || !owner}
-        onPress={() => void start()}
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-      >
-        {busy ? (
-          <ActivityIndicator accessible={false} color={theme.colors.textInverse} />
-        ) : (
-          <AppIcon name="pdf" decorative color={theme.colors.textInverse} size="md" />
-        )}
-      </Pressable>
-    </View>
+      </Modal>
+    </>
   );
 }
 
-function pauseForPdf(signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal.aborted) {
-      reject(Error('REPORT_CONTEXT_CHANGED'));
-      return;
-    }
-    const stop = () => {
-      clearTimeout(timer);
-      reject(Error('REPORT_CONTEXT_CHANGED'));
-    };
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', stop);
-      resolve();
-    }, 2000);
-    signal.addEventListener('abort', stop, { once: true });
-  });
-}
-
-
 const styles = StyleSheet.create({
   export: {
+    ...layoutDirectionStyle('ltr'),
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
-    alignItems: 'flex-end',
-    gap: spacing.md
+    alignItems: 'flex-end'
   },
   fab: {
     width: 56,
@@ -313,13 +278,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...elevation.raised
   },
-  feedback: {
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-    gap: spacing.md,
-    ...elevation.card
+  backdrop: { flex: 1 },
+  viewport: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl
   },
-  actions: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: spacing.xl,
+    gap: spacing.md
+  },
+  icon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center'
+  },
+  copy: { textAlign: 'center' }
 });

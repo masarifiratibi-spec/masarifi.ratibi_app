@@ -184,7 +184,12 @@ export function normalizeCreateReport(value: unknown): {
   const delivery = oneOf(input.delivery, DELIVERY_CHANNELS);
   const recipient =
     input.recipient === undefined || input.recipient === null ? null : email(input.recipient);
-  if ((delivery === 'email') !== Boolean(recipient)) invalid();
+  const format = oneOf(input.format, REPORT_FORMATS);
+  if (
+    (delivery !== 'email' && recipient) ||
+    (delivery === 'email' && !recipient && format !== 'pdf')
+  )
+    invalid();
   let accountIds: string[] | undefined;
   if (input.accountIds !== undefined) {
     if (
@@ -205,7 +210,7 @@ export function normalizeCreateReport(value: unknown): {
     type: oneOf(input.type, REPORT_TYPES),
     periodStart,
     periodEnd,
-    format: oneOf(input.format, REPORT_FORMATS),
+    format,
     delivery,
     recipient,
   };

@@ -42,18 +42,6 @@ export interface ReportOutputPreviewInput extends ReportQuery {
   recipientEmail?: string | null;
 }
 
-export interface AttemptQuery {
-  cursor?: string;
-  scheduleId?: string;
-  status?: ReportOutputAttempt['status'];
-}
-
-export interface AttemptPage {
-  items: ReportOutputAttempt[];
-  nextCursor: string | null;
-  total: number;
-}
-
 export interface ReportsService {
   getReport(
     input: ReportQuery,
@@ -95,9 +83,5 @@ export interface ReportsService {
       | { kind: 'retry'; previousAttemptId: string },
     operationId: string
   ): Promise<MutationResult<ReportOutputAttempt>>;
-  listAttempts(
-    input?: AttemptQuery,
-    context?: ReadContext
-  ): Promise<AttemptPage>;
   getAttempt(id: string, context?: ReadContext): Promise<ReportOutputAttempt>;
 }

@@ -803,6 +803,30 @@ export class ReportsRepository {
     });
   }
 
+  async listRequestedPdfEmailWork(
+    kind: 'report.generate' | 'report.email.deliver',
+    limit: number,
+    acceptedAfter: string,
+  ): Promise<string[]> {
+    return this.pool.withClient(async (client) => {
+      await client.query('begin read only');
+      try {
+        await this.setWorkerContext(client);
+        const rows = (
+          await client.query<{ id: string }>(
+            'select * from private.list_requested_pdf_email_work($1,$2,$3::timestamptz)',
+            [kind, limit, acceptedAfter],
+          )
+        ).rows;
+        await client.query('commit');
+        return rows.map(({ id }) => id);
+      } catch (error) {
+        await client.query('rollback');
+        throw mapDatabaseError(error);
+      }
+    });
+  }
+
   async captureDeliveryWebhook(
     eventKeyHash: string,
     payloadHash: string,

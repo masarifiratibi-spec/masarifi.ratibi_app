@@ -59,6 +59,7 @@ describe('navigation context', () => {
   it('rejects raw URLs, queries, unsafe parameters, and sensitive destinations', () => {
     for (const route of [
       'https://example.com/assistant',
+      '/reports/history',
       '/assistant/conversation-1?token=secret',
       '/assistant/conversation/1',
       '/assistant/otp-123',
