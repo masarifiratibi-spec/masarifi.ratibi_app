@@ -23,7 +23,7 @@
 - [x] Restore host access without security changes; capture current serving hashes, health, resources and unrelated services.
 - [x] Prepare a distinct release containing only the reviewed UI/navigation delta on the actually serving source. Run production build/type/targeted contract checks and record artifact/runtime hashes.
 - [x] Execute the authorized bounded Staging handover with rollback, then inspect actual responsive/light/dark/AR/EN UI and read-only routes using the existing account.
-- [ ] Recheck protected device/hosted state and retain deployment receipt. Do not replay completed feedback/export work.
+- [x] Recheck protected device/hosted state and retain deployment receipt. Do not replay completed feedback/export work.
 
 ## Task2 — Close eligible CI failures
 
@@ -47,7 +47,9 @@ Authority: the subsequent explicit31October requests and attachment selection, r
 - [x] Reduce footer clearance while keeping the last content accessible.
 - [x] Test and implement owner-primary-email queue admission, immediate styled waiting popup and same-operation retry, preserving filters/owner/recent-authentication checks.
 - [x] Test and implement bounded owner/attempt PDF reads and in-memory SMTP attachments; retain TLS, injection refusal, stable message identity and ambiguous-acceptance protection.
-- [ ] Qualify a dedicated new-request-only PDF email worker and additive read-only selection RPC, including missing-function/startup/shutdown and actual disposable database refusal/filter/starvation tests. Preserve legacy consumers and old jobs.
-- [ ] Prepare exact inert hosted candidate images/SQL and a concrete runtime review, then activate only within the resulting authorized scope. Prioritize the human-requested actual report test over final report delivery; distinguish admission, rendered data, SMTP acceptance and inbox receipt.
-- [ ] Verify automated and same-APK presentation results, inspect hosted delivery readiness and record any separately gated runtime work accurately. Do not renew consumed S1 windows or send unsolicited test mail.
+- [x] Qualify a dedicated new-request-only PDF email worker and additive read-only selection RPC, including missing-function/startup/shutdown and actual disposable database refusal/filter/starvation tests. Preserve legacy consumers and old jobs.
+- [x] Prepare exact inert hosted candidate images/SQL and a concrete runtime review, then activate only within the resulting authorized scope. Prioritize the human-requested actual report test over final report delivery; distinguish admission, rendered data, SMTP acceptance and inbox receipt.
+- [x] Verify automated and same-APK presentation results, inspect hosted delivery readiness and record any separately gated runtime work accurately. Do not renew consumed S1 windows or send unsolicited test mail.
 - [ ] Publish the revision and reconcile both reports with cancellation of history/direct file saving.
+
+Latest steering explicitly removes another identity confirmation for the current-session self PDF email flow. Runtime01 and API-only follow-up02 were activated; exactly one owner request was accepted without challenge, its actual PDF data/render checked, and SMTP acceptance recorded. Inbox receipt remains unobserved. The source177 migration follows standard temporary executor grant/revoke cleanup; operational Staging backport omits membership changes and preserves169 tracked migrations. Final code publication is34b00804; complete the current GitHub publication checks and deliver both revised reports. Do not replay this successful email or old S1 work.
