@@ -658,7 +658,7 @@ export function createLiveAssistantApiService(
                   : question.metadata?.responseType === 'suggestion'
                     ? 'suggestion'
                     : 'fact',
-          key: row.content,
+          key: row.content.replace(/\u2028/gu, '\n'),
           values: {}
         }
       ],

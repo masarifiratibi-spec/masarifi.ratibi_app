@@ -1450,6 +1450,26 @@ const backendAgentMetadataFixture = {
   reasons: []
 };
 
+it('restores stored line separators to organized prose without changing amounts (QA08)', async () => {
+  const rows = messages();
+  const reply = rows.items[0];
+  if (!reply) throw Error('Expected response fixture');
+  reply.content =
+    'مصروف — متجر 24 — 2.5 ريال\u2028مصروف — متجر — -12.345 KWD\u2028مصروف — كتب — 1,000 JPY';
+  const request = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(conversations))
+    .mockResolvedValueOnce(json(rows));
+  const response = await createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request
+  }).getResponse(id(3));
+  expect(response.blocks[0]?.key).toBe(
+    'مصروف — متجر 24 — 2.5 ريال\nمصروف — متجر — -12.345 KWD\nمصروف — كتب — 1,000 JPY'
+  );
+});
+
 it.each([1, 2])(
   'maps a supported spending presentation and safely retains text for unknown version %s',
   async (version) => {

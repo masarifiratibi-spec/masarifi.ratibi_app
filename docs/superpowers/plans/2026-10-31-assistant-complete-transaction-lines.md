@@ -20,4 +20,7 @@ Preserve the account, five data projections, draft2026-13, APK and Metro33696. N
 - [x] Add one atomic server display fact per complete confirmed movement; guide full-record answers to select it and keep field-specific queries compatible.
 - [x] Run AI unit/contract/security suites, typecheck/lint/build and review the final diff.
 - [x] Qualify/deploy only the actual assistant worker using preserved configuration and fresh zero-job gates, if available; prepare a fresh paid acceptance packet without sending it.
+- [x] Diagnose the newly observedQA08 SQL23514 at the finish boundary, reproduce serialization/adapter failures, preserve the existing constraint using Unicode line separators, and validate expanded byte bounds/controls.
+- [x] Verify879AI and4395mobile tests, typecheck/lint/build and independent review; qualify/deploy the narrow repository patch, refreshJavaScript through the existing Metro after empty-composer checks, preserve all data.
+- [x] With the user's separateQA09 approval, verify one completed saved response with all three records natively and against owner data, close09, restore the originalADB reverse state.
 - [ ] Update evidence/handoff, commit/push the same branch, inspect actual new HEAD checks and record remaining acceptance limits.

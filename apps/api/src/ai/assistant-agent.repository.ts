@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PoolService } from '../platform/database/pool.service';
-import type { AiCompletion, EffectiveAiRoute } from './ai.gateway';
+import { AiGatewayError, type AiCompletion, type EffectiveAiRoute } from './ai.gateway';
 import type { AssistantAgentClaim, GroundedAssistantAnswer } from './assistant-agent';
 
 @Injectable()
@@ -24,9 +24,18 @@ export class AssistantAgentRepository {
   }
 
   finish(claim: AssistantAgentClaim, answer: GroundedAssistantAnswer) {
+    // Keep readable line breaks within the existing SQL ban on control characters.
+    const content = answer.content.replace(/\n/gu, '\u2028');
+    if (
+      Buffer.byteLength(content) > 16384 ||
+      Array.from(content).some(
+        (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      )
+    )
+      throw new AiGatewayError('AI_SCHEMA_INVALID');
     return this.call(
       'select private.finish_assistant_agent_job($1::uuid,$2::uuid,$3::jsonb) result',
-      [claim.id, claim.claimToken, JSON.stringify({ ...answer, preview: null })],
+      [claim.id, claim.claimToken, JSON.stringify({ ...answer, content, preview: null })],
     );
   }
 
