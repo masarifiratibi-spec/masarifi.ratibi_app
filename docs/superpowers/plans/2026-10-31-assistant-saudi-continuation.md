@@ -39,7 +39,7 @@
 
 ### Task 3: Runtime and remaining acceptance
 
-- [ ] Read actual assistant container command/image/prompt hash and routing without dispatching a provider request or changing services.
-- [x] Prepare a bounded, read-only acceptance proposal and affected-consumer requirements in the evidence. Exact immutable rollout bindings remain blocked on current host/device access; no executable approval packet is claimed.
+- [x] Read actual container commands/images/prompt and stored routing without provider dispatch; subsequently deploy only the qualified API/public-worker language overlay under the user’s explicit continuation authorization.
+- [x] Prepare a bounded, read-only acceptance proposal and affected-consumer requirements in the evidence. Runtime bindings were subsequently qualified and the specifically authorized rollout committed; provider acceptance remains prepared and unapproved.
 - [x] Run existing isolated acceptance tests for remaining pre-T20 domains as appropriate; retain completed evidence and name held live criteria explicitly.
-- [x] Review the diff, record verification and residual blockers, and check current GitHub HEAD checks without status-only commits. Deployment/device/provider acceptance remains incomplete.
+- [x] Review the diff, record verification and residual blockers, and check current GitHub HEAD checks without status-only commits. Deployment and same-device preservation are verified; provider acceptance remains incomplete.
