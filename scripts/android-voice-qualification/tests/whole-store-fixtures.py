@@ -98,6 +98,8 @@ def main():
     # A recognized older schema is still valid Voice evidence, but cannot be
     # called current for launch admission. Keep both stores genuinely empty.
     root, want = case("empty-two-owners", owners=(A, B)); database(root); database(root, B, version=14)
+    root, want = case("unsupported-current-schema16", "INDETERMINATE"); database(root, version=16)
+    want["qualificationStage"] = "MOBILE_SCHEMA"
     for phase in ("captured", "created", "uploaded", "processing", "cancel_requested", "completed", "cancelled", "failed"):
         terminal = phase in ("completed", "cancelled", "failed")
         root, want = case("batch-" + phase, "CLEAR" if terminal else "BLOCKED", pending=int(not terminal), terminal=int(terminal))

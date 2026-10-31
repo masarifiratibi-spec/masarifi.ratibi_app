@@ -31,6 +31,11 @@ public final class VoiceDatabaseSchemaTest {
                 reject(missing,versions);
             }
         }
+        // A reviewed fixture source is not permission to widen the private reader.
+        for (String prefix : new String[]{"prefix-","marked-","metadata-"}) {
+            reject(rows(root.resolve(prefix+"16.rows")),versions(16));
+            reject(rows(root.resolve(prefix+"16.rows")),versions(15));
+        }
         List<Object> latest = rows(root.resolve("prefix-15.rows"));
         // Null/type/identity/SQL bounds and partial optional objects must fail closed.
         for (Object malformed : new Object[]{

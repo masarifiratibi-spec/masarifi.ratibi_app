@@ -9,8 +9,8 @@ import sqlite3
 import struct
 import subprocess
 
-# Lifecycle/key recovery changed; the migration and history templates remain byte-identical to C0.
-SOURCE_SHA = "610d28845f0ef634392d341f48228e27425dd352751b1577331aa5398fcdc09b"
+# Prefixes1–15 remain exact; schema16 is retained as an unsupported-reader negative.
+SOURCE_SHA = "efc06762b0ff45e7e1b20cd1ca27dcd951e106229b4563c8003271d285ec4ef4"
 SOURCE_PATH = "apps/mobile/src/storage/database.ts"
 
 def pinned_source():
@@ -24,7 +24,7 @@ def migration_sql(source):
     if not match: raise AssertionError("MIGRATION_TEMPLATE_MISSING")
     parts = re.split(r"-- migration:(\d+)",match.group(1))
     migrations = {int(parts[index]):parts[index+1].strip() for index in range(1,len(parts),2)}
-    if set(migrations) != set(range(1,16)): raise AssertionError("MIGRATION_PREFIX_CHANGED")
+    if set(migrations) != set(range(1,17)): raise AssertionError("MIGRATION_PREFIX_CHANGED")
     return migrations
 
 def signature(rows):
@@ -59,7 +59,7 @@ def main():
     migrations = migration_sql(source)
     history,marker = schema_parts(source)
     catalog = {"sourceSha256":SOURCE_SHA,"prefixes":{}}
-    for version in range(1,16):
+    for version in range(1,17):
         path = arguments.output / ("prefix-"+str(version)+".db")
         with sqlite3.connect(path) as connection:
             connection.executescript(history)
@@ -91,6 +91,6 @@ def main():
     if arguments.classes:
         subprocess.run([arguments.java,"-cp",arguments.classes,
                         "com.masarifi.voicequalification.VoiceDatabaseSchemaTest",str(arguments.output)],check=True)
-    print(json.dumps({"result":"SYNTHETIC_SCHEMAS_RETAINED","directory":str(arguments.output),"prefixes":15}))
+    print(json.dumps({"result":"SYNTHETIC_SCHEMAS_RETAINED","directory":str(arguments.output),"prefixes":16,"readerSupportedThrough":15,"unsupportedCurrentSchema":16}))
 
 if __name__ == "__main__": main()

@@ -301,8 +301,8 @@ def encrypted_journals(emulator, receipt, replacement=True):
         receipt["encryptedJournals"].setdefault(destination, []).append(observed)
         if observed.get("packageState") != str(state) or observed.get("applicationEnabled") != str(state != 3).lower():
             raise RuntimeError("SYNTHETIC_PACKAGE_STATE_CHANGED")
-        if observed.get("launchAdmissionCases") != "38" or observed.get("launchAdmissionVersion") != "3" or observed.get("admissionCases") != "38" or observed.get("readerStageCases") != "25" or observed.get("qualificationStageCases") != "19" or observed.get("workSummaryCases") != "38": raise RuntimeError("READER_STAGE_REPORTING_FAILED")
-        if observed.get("verdict") != "PASS_DISPOSABLE_ENCRYPTED_JOURNALS" or observed.get("cases") != "57":
+        if observed.get("launchAdmissionCases") != "38" or observed.get("launchAdmissionVersion") != "3" or observed.get("admissionCases") != "38" or observed.get("readerStageCases") != "25" or observed.get("qualificationStageCases") != "20" or observed.get("workSummaryCases") != "38": raise RuntimeError("READER_STAGE_REPORTING_FAILED")
+        if observed.get("verdict") != "PASS_DISPOSABLE_ENCRYPTED_JOURNALS" or observed.get("cases") != "58":
             raise RuntimeError("ENCRYPTED_JOURNAL_QUALIFICATION_FAILED")
         if not re.fullmatch("[0-9a-f]{64}", observed.get("fixtureFingerprint", "")):
             raise RuntimeError("SYNTHETIC_FINGERPRINT_MISSING")

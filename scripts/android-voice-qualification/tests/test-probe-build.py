@@ -62,7 +62,7 @@ class ProbeBuildGates(unittest.TestCase):
 
     def test_missing_incomplete_or_false_runtime_evidence_cannot_qualify_packaging(self):
         seed={"androidRollbackJournalCases":"4","verdict":"SEEDED_PUBLIC_SYNTHETIC_FIXTURES","missingExistingAliasesFailClosed":"true"}
-        run={"verdict":"PASS_DISPOSABLE_ENCRYPTED_JOURNALS","cases":"57","readerStageCases":"25","qualificationStageCases":"19","workSummaryCases":"38","admissionCases":"38","launchAdmissionCases":"38","launchAdmissionVersion":"3","fixtureFingerprint":"a"*64}
+        run={"verdict":"PASS_DISPOSABLE_ENCRYPTED_JOURNALS","cases":"58","readerStageCases":"25","qualificationStageCases":"20","workSummaryCases":"38","admissionCases":"38","launchAdmissionCases":"38","launchAdmissionVersion":"3","fixtureFingerprint":"a"*64}
         runtime={"result":"PASS_DISPOSABLE_ANDROID15_BOOTSTRAP","fixtureOnly":True,"realRedmiQualification":False,
                  "positiveControl":{"componentWrites":6,"localRequests":6,"nonDebuggableTarget":True},
                  "runs":[{"verdict":"PASS_DISPOSABLE_BOOTSTRAP","newNetworkRequests":0,
@@ -79,6 +79,8 @@ class ProbeBuildGates(unittest.TestCase):
         for key,value in (("launchAdmissionCases","0"),("launchAdmissionVersion","2"),("admissionCases","0"),("workSummaryCases","0"),("qualificationStageCases","0"),("readerStageCases","0"),("cases","42"),("qualificationStageCases","16"),("verdict","INDETERMINATE_SYNTHETIC_JOURNALS"),("fixtureFingerprint","unknown")):
             case=copy.deepcopy(runtime);case["encryptedJournals"]["runs"][0][key]=value;bad.append(case)
         for phase in ("runs","disabledRuns","restoredRuns","preReplacementRuns","postReplacementRuns"):
+            for field,value in (("cases","57"),("qualificationStageCases","19")):
+                case=copy.deepcopy(runtime);case["encryptedJournals"][phase][0][field]=value;bad.append(case)
             for field in ("launchAdmissionCases","launchAdmissionVersion"):
                 case=copy.deepcopy(runtime);del case["encryptedJournals"][phase][0][field];bad.append(case)
         case=copy.deepcopy(runtime);case["encryptedJournals"]["runs"][0]["fixtureFingerprint"]="b"*64;bad.append(case)

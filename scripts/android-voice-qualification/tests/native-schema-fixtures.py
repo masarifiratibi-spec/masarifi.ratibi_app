@@ -101,7 +101,7 @@ def main():
             schemas.retain_rows(root / name, rows, versions)
 
         # Same real migrations, all prefixes and optional Android/legacy objects.
-        for version in range(1, 16):
+        for version in range(1, 17):
             path = root / ("prefix-" + str(version) + ".db")
             statements = [history]
             for applied in range(1, version + 1):

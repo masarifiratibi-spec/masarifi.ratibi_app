@@ -78,6 +78,7 @@ jobs:
           cat "$build_dir/synthetic-root-test.log"
           if grep -q 'UNEXECUTED_ROOT_CASE' "$build_dir/synthetic-root-test.log"; then exit 1; fi
           "$JAVA_HOME_17_X64/bin/java" -cp "$build_dir" com.masarifi.voicequalification.SyntheticFixtureMetadataTest
+          python3 scripts/android-voice-qualification/tests/test-schema-fixtures.py
           python3 scripts/android-voice-qualification/tests/schema-fixtures.py --output "$build_dir/schema-fixtures" --classes "$build_dir" --java "$JAVA_HOME_17_X64/bin/java"
           "$JAVA_HOME_17_X64/bin/java" -cp "$build_dir" com.masarifi.voicequalification.VoiceStoreQualificationTest "$build_dir/schema-fixtures"
           python3 scripts/android-voice-qualification/tests/real-wal-fixtures.py --classes "$build_dir" --java "$JAVA_HOME_17_X64/bin/java"
