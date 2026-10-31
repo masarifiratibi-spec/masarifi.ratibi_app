@@ -3,7 +3,7 @@ set local role masarifi_migration;
 
 -- A separate read-only selector keeps the customer-requested email worker away
 -- from legacy download jobs, schedules, other formats and pre-activation work.
-create function private.list_requested_pdf_email_work(
+create or replace function private.list_requested_pdf_email_work(
   p_kind text, p_limit integer, p_created_after timestamptz
 ) returns table(id uuid)
 language plpgsql security definer set search_path='' as $$

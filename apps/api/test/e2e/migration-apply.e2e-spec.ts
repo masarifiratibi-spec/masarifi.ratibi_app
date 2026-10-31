@@ -400,6 +400,7 @@ describeLiveDatabase('migration application', () => {
       'list_reminder_candidates',
       'list_report_outputs',
       'list_report_work',
+      'list_requested_pdf_email_work',
       'list_voice_batch_event_recovery',
       'list_voice_batch_recovery',
       'list_voice_category_preferences',
