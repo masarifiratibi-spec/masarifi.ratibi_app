@@ -35,16 +35,20 @@ afterAll(() => {
   notifyManager.setNotifyFunction((callback) => callback());
 });
 
-test.each(['ar', 'en'] as const)('keeps a labelled PDF action inside the report scroll during report failure in %s', async (locale) => {
+test.each(['ar', 'en'] as const)('keeps the original circular PDF action above clear scroll space during report failure in %s', async (locale) => {
   changeLocale(locale);
   const summary = jest.spyOn(reportsService, 'getReport').mockRejectedValue(new Error('offline'));
   try {
     const view = renderWithProviders(<ReportsScreen />);
     const button = await view.findByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' });
-    expect(within(view.UNSAFE_getByType(ScrollView)).getByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' })).toBe(button);
-    expect(StyleSheet.flatten(button.props.style)?.position).not.toBe('absolute');
+    const scroll = view.UNSAFE_getByType(ScrollView);
+    expect(within(scroll).queryByRole('button', { name: locale === 'ar' ? 'تنزيل التقرير بصيغة PDF' : 'Download report PDF' })).toBeNull();
+    expect(button).toHaveStyle({ width: 56, height: 56, borderRadius: 28 });
+    expect(view.getByTestId('reports-pdf-overlay')).toHaveProp('pointerEvents', 'box-none');
+    expect(StyleSheet.flatten(view.getByTestId('reports-pdf-overlay').props.style)).toMatchObject({ position: 'absolute', right: 16 });
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom).toBeGreaterThanOrEqual(104);
     expect(view.queryByTestId('reports-pdf-dock')).toBeNull();
-    expect(view.getByText(translate('reports.pdf.download'))).toBeTruthy();
+    expect(view.queryByText(translate('reports.pdf.download'))).toBeNull();
     expect(view.queryByRole('button', { name: locale === 'ar' ? 'تصدير البيانات' : 'Export Data' })).toBeNull();
     expect(view.queryByText(translate('settings.privacy.localDelete'))).toBeNull();
   } finally {

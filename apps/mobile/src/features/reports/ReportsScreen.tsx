@@ -1,6 +1,7 @@
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useReportAnchorDate } from './useReportAnchorDate';
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
@@ -71,6 +72,7 @@ const timeframeOptions: readonly [ReportTimeframe, string][] = [
 ];
 
 export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
+  const insets = useContext(SafeAreaInsetsContext);
   const anchorDate = useReportAnchorDate();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
@@ -123,7 +125,10 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
       <ScrollView
         style={{ backgroundColor: theme.colors.surfaces.page }}
         contentOffset={{ x: 0, y: scrollOffset }}
-        contentContainerStyle={styles.page}
+        contentContainerStyle={[
+          styles.page,
+          { paddingBottom: Math.max(insets?.bottom ?? 0, spacing.lg) + spacing.lg + 56 + spacing.lg }
+        ]}
         onMomentumScrollEnd={(event) =>
           setScrollOffset(event.nativeEvent.contentOffset.y)
         }
@@ -169,10 +174,6 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             />
           </View>
 
-          <ReportPdfExport
-            input={reportInput}
-            offline={reportQuery.data?.dataState === 'offline'}
-          />
           {!reportQuery.data && reportQuery.isPending ? (
             <StateView
               state="loading"
@@ -262,6 +263,10 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
           onDismiss={() => setDateSheetOpen(false)}
         />
       </ScrollView>
+      <ReportPdfExport
+        input={reportInput}
+        offline={reportQuery.data?.dataState === 'offline'}
+      />
     </View>
   );
 }
