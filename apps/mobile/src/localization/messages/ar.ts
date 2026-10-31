@@ -2503,6 +2503,8 @@ const ar: MessageCatalog = {
   'settings.securityEvents.title': 'أحداث الأمان',
   'settings.securityEvents.error': 'أحداث الأمان غير متاحة.',
   'settings.securityEvents.new_session': 'جلسة جديدة',
+  'settings.securityEvents.session_revocation': 'تم إلغاء الجلسة',
+  'settings.securityEvents.other': 'نشاط الحساب',
   'settings.securityEvents.access_protection_change': 'تغيرت حماية الوصول',
   'settings.securityEvents.recover.security': 'مراجعة إعدادات الأمان',
   'settings.securityEvents.recover.settings': 'مراجعة إعدادات الخصوصية',

@@ -2667,6 +2667,8 @@ const en = {
   'settings.securityEvents.title': 'Security events',
   'settings.securityEvents.error': 'Security events are unavailable.',
   'settings.securityEvents.new_session': 'New session',
+  'settings.securityEvents.session_revocation': 'Session revoked',
+  'settings.securityEvents.other': 'Account activity',
   'settings.securityEvents.access_protection_change':
     'Access protection changed',
   'settings.securityEvents.recover.security': 'Review security settings',

@@ -3,10 +3,10 @@ import React from 'react';
 jest.mock('@/config/demo-mode', () => ({ isFixtureModeEnabled: () => false }));
 jest.mock('./SecurityEventScreen', () => ({ SecurityEventScreen: () => null }));
 
-test('keeps live events gated until the owner-filtered endpoint is deployed', () => {
+test('opens live events after the owner-filtered endpoint deployment', () => {
   const Route = jest.requireActual<{ default: () => React.ReactElement }>(
     '@app/security/events'
   ).default;
-  const { BackendUnavailableState } = jest.requireActual('@/features/shell/BackendUnavailableState');
-  expect(Route().type).toBe(BackendUnavailableState);
+  const { SecurityEventScreen } = jest.requireMock('./SecurityEventScreen');
+  expect(Route().type).toBe(SecurityEventScreen);
 });

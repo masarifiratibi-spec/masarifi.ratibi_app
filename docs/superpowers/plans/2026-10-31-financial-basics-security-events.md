@@ -21,3 +21,9 @@ Reuse the existing salary, obligation, credit-card and category modules; first i
 ## Completion
 
 One independent review of the complete patch, preservation comparison, and updated handoff/evidence. Continue on the same branch; no merge or Production work.
+
+## User continuation —1 November2026
+
+The user authorized resuming deployment with verified English terminal input and completing the remaining assistant actions/states, capture and owner/privacy tasks without stalling on routine implementation choices. Do not recreate the accepted card/categories. Finish the current deployment first; preserve the original account/data/draft/APK/Metro and all completed acceptance. Work on safe independent source gaps while external access is unavailable. A live provider window is distinct from completed01–09 and must never reuse them; no destructive account/role/security operation or original financial-record change follows from routine implementation discretion.
+
+Additional demonstrated task: action-preview reads must isolate cached disclosure and late responses by owner. Add failing hook tests, reuse the existing owner-key/read-context pattern, verify preview confirmation/rejection/unknown-outcome regression coverage, and review the narrow patch. Do not build a new assistant tool system or relax existing gates.

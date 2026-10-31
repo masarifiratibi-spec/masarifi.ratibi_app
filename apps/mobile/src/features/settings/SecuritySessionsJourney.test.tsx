@@ -130,6 +130,22 @@ test('security events show masked context and recovery destinations without raw 
   expect(screen.queryByText(/token|ip address|credential|secret/i)).toBeNull();
 });
 
+test.each([
+  ['en', 'other', 'Account activity'],
+  ['ar', 'other', 'نشاط الحساب'],
+  ['en', 'session_revocation', 'Session revoked'],
+  ['ar', 'session_revocation', 'تم إلغاء الجلسة']
+] as const)('localizes %s %s events without exposing the event code', (locale, type, label) => {
+  changeLocale(locale);
+  mockQueries.useSecurityEvents.mockReturnValue({
+    data: { pages: [{ items: [{ ...events().items[0], type, eventType: 'unmapped.private_event' }] }] }
+  });
+  renderWithProviders(<SecurityEventScreen />);
+  expect(screen.getByText(label)).toBeTruthy();
+  expect(screen.queryByText('settings.securityEvents.other')).toBeNull();
+  expect(screen.queryByText('unmapped.private_event')).toBeNull();
+});
+
 test('live security event pages retain their rows during a page failure and expose retry and recovery', () => {
   const push = jest.spyOn(router, 'push').mockImplementation(() => undefined);
   const fetchNextPage = jest.fn();

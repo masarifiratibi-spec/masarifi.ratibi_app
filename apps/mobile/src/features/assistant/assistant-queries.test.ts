@@ -5,6 +5,8 @@ import {
   QueryClient,
   QueryClientProvider
 } from '@tanstack/react-query';
+import { useAppShellStore } from '@/state/app-shell';
+import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 
 const queries = require('./assistant-queries') as Record<string, any>;
 const { assistantService } =
@@ -22,8 +24,40 @@ afterAll(() => {
   });
 });
 
+const previousSession = useAppShellStore.getState().session;
 afterEach(() => {
   jest.restoreAllMocks();
+  useAppShellStore.setState({ session: previousSession });
+});
+
+test('a reused action preview cannot show another owner cached financial disclosure', async () => {
+  const { wrapper } = queryHarness();
+  const oldPreview = { id: 'preview-1', input: { amountMinor: 1250, currency: 'SAR' } };
+  let finish!: (value: unknown) => void;
+  jest.spyOn(assistantService, 'getActionPreview')
+    .mockResolvedValueOnce(oldPreview)
+    .mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  useAppShellStore.setState({ session: { ...authenticatedSession, userId: 'preview-owner-a' } });
+  const hook = renderHook(() => queries.useAssistantActionPreview('preview-1'), { wrapper });
+  await waitFor(() => expect(hook.result.current.data).toEqual(oldPreview));
+  act(() => useAppShellStore.setState({ session: { ...authenticatedSession, userId: 'preview-owner-b' } }));
+  expect(hook.result.current.data).toBeUndefined();
+  await act(async () => { finish(null); });
+});
+
+test('a late action preview read cannot publish a disclosure after its owner changes', async () => {
+  const { client, wrapper } = queryHarness();
+  let finish!: (value: unknown) => void;
+  const read = jest.spyOn(assistantService, 'getActionPreview')
+    .mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+    .mockResolvedValue(null);
+  useAppShellStore.setState({ session: { ...authenticatedSession, userId: 'preview-owner-a' } });
+  const hook = renderHook(() => queries.useAssistantActionPreview('preview-1'), { wrapper });
+  await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+  act(() => useAppShellStore.setState({ session: { ...authenticatedSession, userId: 'preview-owner-b' } }));
+  await act(async () => { finish({ id: 'private-owner-a-preview' }); });
+  await waitFor(() => expect(hook.result.current.data).toBeNull());
+  expect(JSON.stringify(client.getQueriesData({ queryKey: ['assistant', 'actionPreview'] }))).not.toContain('private-owner-a-preview');
 });
 
 test('acknowledges an accepted first question without waiting for background availability refresh', async () => {

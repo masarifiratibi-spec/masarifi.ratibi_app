@@ -11,6 +11,8 @@ import { AppState } from 'react-native';
 import { assistantService } from '@/services/assistant-service';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 import { useAppShellStore } from '@/state/app-shell';
+import { withReadContext } from '@/services/live/read-context';
+import { HttpError } from '@/services/live/http-client';
 
 const ownedReadKey = (key: readonly unknown[], ownerId?: string | null) =>
   ownerId ? ([...key, { ownerId }] as const) : key;
@@ -38,7 +40,8 @@ export const assistantKeys = {
     ),
   response: (id: string, ownerId?: string | null) =>
     ownedReadKey(['assistant', 'response', id], ownerId),
-  actionPreview: (id: string) => ['assistant', 'actionPreview', id] as const,
+  actionPreview: (id: string, ownerId?: string | null) =>
+    ownedReadKey(['assistant', 'actionPreview', id], ownerId),
   context: () => ['assistant', 'context', 'current'] as const,
   questionOperation: () => ['assistant', 'questionOperation'] as const
 };
@@ -209,9 +212,20 @@ export function useAssistantResponse(id: string) {
 }
 
 export function useAssistantActionPreview(id: string) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   return useQuery({
-    queryKey: assistantKeys.actionPreview(id),
-    queryFn: () => assistantService.getActionPreview(id),
+    queryKey: assistantKeys.actionPreview(id, ownerId),
+    queryFn: ({ signal }) =>
+      withReadContext({ signal }, async () => {
+        const assertOwner = () => {
+          if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+            throw new HttpError('session_expired', 401);
+        };
+        assertOwner();
+        const preview = await assistantService.getActionPreview(id);
+        assertOwner();
+        return preview;
+      }),
     enabled: Boolean(id)
   });
 }

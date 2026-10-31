@@ -377,9 +377,7 @@ export function CategoryListScreen() {
                 : undefined
             }
             onPress={() =>
-              router.push(
-                `/categories/${item.category.id}${item.category.kind === 'custom' ? '?edit=1' : ''}`
-              )
+              router.push(`/categories/${item.category.id}`)
             }
             onDelete={
               item.category.kind === 'custom' &&

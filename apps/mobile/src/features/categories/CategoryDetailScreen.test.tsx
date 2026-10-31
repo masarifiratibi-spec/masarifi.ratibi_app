@@ -84,6 +84,16 @@ it('fetches and shows canonical usage before changing category lifecycle', async
   expect(setStatus).not.toHaveBeenCalled();
 });
 
+it('keeps editing available from custom category details', () => {
+  renderWithQueryData(<CategoryDetailScreen id={customCategory.id} />, [
+    [coreFinanceKeys.categories(true), categories]
+  ]);
+  fireEvent.press(screen.getByRole('button', {
+    name: translate('coreFinance.categories.edit')
+  }));
+  expect(router.push).toHaveBeenCalledWith(`/categories/${customCategory.id}?edit=1`);
+});
+
 it('does not preselect the first merge target', () => {
   renderWithQueryData(<CategoryDetailScreen id={customCategory.id} />, [
     [coreFinanceKeys.categories(true), categories]

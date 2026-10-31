@@ -58,6 +58,15 @@ it('renders system hierarchy, favorites, search, and add action', () => {
   );
 });
 
+it('opens custom category details so merge and archive remain reachable', () => {
+  renderWithQueryData(<CategoryListScreen />, [
+    [coreFinanceKeys.categories(true), [customCategory]],
+    [coreFinanceKeys.transactions(), { items: [], nextCursor: null, total: 0 }]
+  ]);
+  fireEvent.press(screen.getByText(customCategory.labelAr));
+  expect(router.push).toHaveBeenCalledWith(`/categories/${customCategory.id}`);
+});
+
 it('makes the category form a modal region', () => {
   renderWithQueryData(<CategoryListScreen />, categoryListQuerySeeds);
 
