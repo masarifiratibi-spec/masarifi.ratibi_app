@@ -51,4 +51,6 @@
 - [x] Correct only the DEV assistant upstream3013→3001, preserving all37 container configurations/bindings and Admin; retain rollback evidence.
 - [x] Verify the ordinary DEV client reaches the existing public semantic admission path in four focused local cases.
 - [x] Capture the user's separate four-question approval; stop after the first real job fails with provider HTTP401, close the window, and preserve all new-baseline projections/APK/Metro.
-- [ ] Restore a valid OpenRouter credential for the same account, then qualify a new bounded acceptance. No replay under either consumed/closed scope, and no claim of successful generated Saudi output yet.
+- [x] Restore a valid OpenRouter credential for the same account after the user's direct one-year replacement authorization; bind the same paid ZDR key to the four current assistant/voice consumers, preserving images/config apart from the key.
+- [x] Execute newly bounded scope03 under the user's current test instruction: four completed jobs, seven GPT6Luna/Azure receipts, USD0.007403450; scopes01/02 stay closed. Comparison, financial followup and English pass; latest-three detail is incomplete. Preserve baseline data/2026-13/APK/Metro and restore the pre-test composer draft.
+- [ ] Diagnose incomplete third item in latest-three response and qualify remaining T17/T17a criteria. Do not claim full acceptance or replay scope03.
