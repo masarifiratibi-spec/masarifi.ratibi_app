@@ -41,7 +41,7 @@ The API-only follow-up committed in6.21722674369812seconds and preserved all36 o
 
 | Current report runtime           | Qualified binding                                                         |
 | -------------------------------- | ------------------------------------------------------------------------- |
-| API image                        | `sha256:f3d17bde045cb52d2ee4ec972d0309c0fe7863f9c408547aa77fcbbbd8a60b6b` |
+| API image                        | `sha256:f3d17bed045cb52d2ee4ec972d0309c0fe7863f9c408547aa77fcbbbd8a60b6b` |
 | Dedicated email worker image     | `sha256:6cfb97248a949f0278304b358e584006657b60612d0a141a97eea477f9794b4e` |
 | Latest deployed admission source | `34b008046f52142fdfec13e792eec4fb88ba2fc9`                                |
 | Worker acceptance floor          | `2026-10-31T08:47:59.367Z`                                                |
