@@ -59,6 +59,143 @@ const route: EffectiveAiRoute = {
   ],
 };
 
+it.each([
+  {
+    question: 'اعرض آخر ثلاث عمليات مؤكدة فقط.',
+    kind: 'مصروف',
+    currency: 'ريال',
+    date: '٠١‏/١١‏/٢٠٢٦، ١:٣٠ ص',
+  },
+  {
+    question: 'Show my latest three confirmed transactions in English.',
+    kind: 'Expense',
+    currency: 'SAR',
+    date: '1 Nov 2026, 01:30',
+  },
+])(
+  'grounds three complete transaction lines in the requested language: $question',
+  async ({ question, kind, currency, date }) => {
+    const rows = [
+      { title: 'متجر النهارده 24', amountMinor: '250', currency: 'SAR' },
+      { title: 'ACCOUNT-متجر 24', amountMinor: '-12345', currency: 'KWD' },
+      { title: 'المكتبة', amountMinor: '1000', currency: 'JPY' },
+    ].map((row) => ({
+      ...row,
+      kind: 'expense',
+      status: 'confirmed',
+      occurredAt: '2026-10-31T22:30:00Z',
+    }));
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-complete-record-key',
+      fetcher: (_url, init) => {
+        if (typeof init?.body !== 'string') throw Error('Expected request JSON');
+        const body = JSON.parse(init.body) as { messages: Array<{ content: string }> };
+        const view = JSON.parse(body.messages[1]?.content ?? '{}') as {
+          dataAlreadyRead: Array<{
+            data: {
+              transactions: { items: Array<{ display?: ModelCell; amountMinor: ModelCell }> };
+            };
+          }>;
+        };
+        const items = view.dataAlreadyRead[0]?.data.transactions.items;
+        if (!items) throw Error('Expected transaction evidence');
+        expect(items).toHaveLength(3);
+        const parts = items.flatMap((row, index) => {
+          expect(row.amountMinor.ref).toMatch(/^\{\{F\d+\}\}$/u);
+          return [
+            ...(index ? [{ text: '\n', fact: null }] : []),
+            { text: '', fact: (row.display ?? row.amountMinor).ref.replace(/[{}]/gu, '') },
+          ];
+        });
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-complete-record',
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      answerParts: parts,
+                      queries: [],
+                      responseType: 'fact',
+                      scope: 'all_history',
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const result = await new AssistantAgent(
+      {
+        read: () =>
+          Promise.resolve({
+            ...sample,
+            data: { transactions: { items: rows, count: 3, offset: 0, hasMore: false } },
+          }),
+      } as never,
+      gateway,
+      async () => {},
+    ).run({ ...claim, content: question }, route, new AbortController().signal);
+    expect(result.content).toBe(
+      [
+        `${kind} — متجر النهارده 24 — 2.5 ${currency} — ${date}`,
+        `${kind} — ACCOUNT-متجر 24 — -12.345 KWD — ${date}`,
+        `${kind} — المكتبة — 1,000 JPY — ${date}`,
+      ].join('\n'),
+    );
+  },
+);
+
+it.each([
+  { amountMinor: null },
+  { currency: null },
+  { occurredAt: 'unavailable' },
+  { status: 'pending' },
+])('does not invent a complete confirmed line with unavailable fields: %j', async (missing) => {
+  const complete = (input: { userContent: string; parse: (value: unknown) => unknown }) => {
+    const view = JSON.parse(input.userContent) as {
+      dataAlreadyRead: Array<{ data: { transactions: { items: Array<{ display?: ModelCell }> } } }>;
+    };
+    expect(view.dataAlreadyRead[0]?.data.transactions.items[0]?.display).toBeUndefined();
+    return Promise.resolve({
+      value: input.parse({
+        status: 'answer',
+        answerParts: [{ text: 'ما أقدر أؤكد تفاصيل العملية من البيانات المتاحة.', fact: null }],
+        queries: [],
+        responseType: 'missing',
+        scope: 'all_history',
+      }),
+      model: 'model',
+      provider: 'provider',
+    });
+  };
+  const row = {
+    kind: 'expense',
+    status: 'confirmed',
+    title: 'متجر',
+    amountMinor: '250',
+    currency: 'SAR',
+    occurredAt: '2026-10-31T22:30:00Z',
+    ...missing,
+  };
+  const result = await new AssistantAgent(
+    {
+      read: () => Promise.resolve({ ...sample, data: { transactions: { items: [row] } } }),
+    } as never,
+    { complete } as never,
+    async () => {},
+  ).run(claim, route, new AbortController().signal);
+  expect(result.metadata.responseType).toBe('missing');
+});
+
 it('preserves organized requested comparison lines without changing grounded monetary values', () => {
   expect(
     renderAssistantAnswer('أكتوبر: {{F1}}\nسبتمبر: {{F2}}\nالزيادة: {{F3}}', [

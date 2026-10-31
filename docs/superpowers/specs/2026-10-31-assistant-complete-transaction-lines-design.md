@@ -1,0 +1,9 @@
+# Complete assistant transaction lines
+
+The existing handoff requires latest-N answers to contain each selected movement's amount, direction and date. QA03 returned two complete rows and a third name only. The stored canonical answer was already incomplete; neither mobile truncation nor the provider token ceiling explains it. Grounding validates referenced facts, but does not require the model to assemble every field of a record.
+
+Keep the approved direct, concise Saudi/English response and 17/15 typography. Add a server-formatted display fact to complete confirmed transaction records, using the existing exact money/date formatter, real title/merchant when present and localized movement kind. A full-record answer selects one atomic fact per movement; individual fields remain available for field-specific questions. This avoids a new output schema, question keyword classifier, financial calculation or fixed fallback reply. A prompt-only reminder would still require assembling separate fields; rebuilding lists in the phone would duplicate financial presentation and owner scope.
+
+Synthetic provider-boundary tests must prove three complete lines, different currencies, timezone rollover and names containing digits/internal-looking prefixes, plus no complete-row fact for missing required fields. This verifies formatting and grounding, not live model quality. Preserve the original record fields and page coverage. No new dependencies, migrations, financial writes, credentials, quota changes, APK/Metro changes, PDF, ZIP or T20–T22. Closed scopes01–07 cannot be reused; prepare a new bounded acceptance scope only after the candidate is ready.
+
+Also update the single obsolete mobile privacy journey assertion identified by GitHub: test hiding and explicit per-answer reveal of canonical prose, rather than the removed automatic insight card.

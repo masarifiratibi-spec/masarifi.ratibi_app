@@ -272,15 +272,28 @@ describe('Assistant Transition & Chat Journey', () => {
     keyboard.mockRestore();
   });
 
-  it('masks financial insight amounts when hideBalances is enabled', () => {
+  it('hides the direct financial answer until explicitly revealed', () => {
+    const conversation = mockAssistantQueries.useAssistantConversation().data;
+    const response = conversation.responses.items[0];
+    response.blocks = [
+      {
+        label: 'fact',
+        key: 'مصروفاتك المؤكدة هالشهر 4,250 ريال.',
+        values: {}
+      }
+    ];
     usePreferenceStore.setState({ hideBalances: true });
 
     renderWithProviders(
       <AssistantHomeScreen initialConversationId="conv-101" />
     );
 
-    expect(screen.getByTestId('financial-insight-card')).toBeTruthy();
-    expect(screen.getAllByText(/•••• SAR/).length).toBeGreaterThanOrEqual(1);
+    const answer = within(screen.getByTestId('assistant-message-bubble'));
+    expect(answer.queryByText(/4,250/)).toBeNull();
+    expect(answer.getByText('••••')).toBeTruthy();
+    fireEvent.press(answer.getByText('إظهار التفاصيل المالية'));
+    expect(answer.getByText(/مصروفاتك المؤكدة هالشهر 4,250 ريال/)).toBeTruthy();
+    expect(usePreferenceStore.getState().hideBalances).toBe(true);
   });
 
   it.each(['success', 'error'] as const)(
