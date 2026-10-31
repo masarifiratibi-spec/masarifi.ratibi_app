@@ -1,4 +1,5 @@
 import { formatMonthPeriod } from '@/utils/format-month-period';
+import { localDateInTimeZone } from '@/domain/financial-period';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import {
   hasReadableSnapshot,
@@ -35,11 +36,9 @@ import { formatMinorAmount } from '@/utils/format-financial-value';
 import { BudgetForm } from './BudgetForm';
 import { useBudgets, usePlanningMutation } from './budget-queries';
 
-export function BudgetOverviewScreen({
-  periodKey = new Date().toISOString().slice(0, 7)
-}: {
-  periodKey?: string;
-}) {
+export function BudgetOverviewScreen({ periodKey }: { periodKey?: string }) {
+  const timeZone = usePreferenceStore((state) => state.timeZone);
+  periodKey ??= localDateInTimeZone(Date.now(), timeZone).slice(0, 7);
   const query = useBudgets(periodKey);
   const budgets = query.data ?? [];
   const drafts = usePlanningDrafts('budget');

@@ -9,6 +9,7 @@ import {
   type BatchContext,
 } from '../../../src/ai/voice-batch';
 import { ReportsRepository } from '../../../src/reports/reports.repository';
+import { localDateAt, resolveReportPeriod } from '../../../src/reports/reports.period';
 import {
   createLivePool,
   describeLiveDatabase,
@@ -521,14 +522,11 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     const report = await new ReportsRepository(pool).getSummary(
       { userId: f.user, sessionId: 'local-fixture', factorAgeSeconds: 0 },
       'financial_summary',
-      {
-        kind: 'monthly',
-        timezone: 'Asia/Riyadh',
-        startDate: '2026-10-01',
-        endDate: '2026-10-31',
-        startInstant: new Date('2026-09-30T21:00:00Z'),
-        endExclusiveInstant: new Date('2026-10-31T21:00:00Z'),
-      },
+      resolveReportPeriod(
+        'monthly',
+        localDateAt(new Date(f.context.recordedAt), 'Asia/Riyadh'),
+        'Asia/Riyadh',
+      ),
       'SAR',
       'multi-test',
     );

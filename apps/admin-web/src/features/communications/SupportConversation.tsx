@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocale } from "@/core/localization/provider";
 import { getStatusLabel } from "@/core/localization/display-labels";
+import { ApiError } from "@/core/api/errors";
 import type { PermissionKey } from "@/core/permissions/permissions";
 import type { CommunicationDetail } from "./contracts";
 import type { TicketActionRequest } from "./repository";
@@ -43,6 +44,8 @@ const labels = {
     download: "Download",
     error:
       "Action failed. Your draft is retained. Refresh the ticket before retrying a conflict.",
+    recentAuth:
+      "A recent login is required. Copy your draft, then sign in again with the same account.",
     refresh: "Refresh ticket",
     saved: "Action saved",
     empty: "No messages",
@@ -77,6 +80,8 @@ const labels = {
     download: "تنزيل",
     error:
       "تعذر تنفيذ الإجراء. تم الاحتفاظ بالمسودة. حدّث التذكرة قبل إعادة المحاولة عند تعارض النسخة.",
+    recentAuth:
+      "يلزم تسجيل دخول حديث. انسخ المسودة ثم سجّل الدخول مجددًا بالحساب نفسه.",
     refresh: "تحديث التذكرة",
     saved: "تم حفظ الإجراء",
     empty: "لا توجد رسائل",
@@ -115,7 +120,9 @@ export function SupportConversation({
   const [priority, setPriority] = useState<
     "low" | "normal" | "high" | "urgent"
   >("normal");
-  const [outcome, setOutcome] = useState<"saved" | "error" | null>(null);
+  const [outcome, setOutcome] = useState<
+    "saved" | "error" | "recentAuth" | null
+  >(null);
   const allowed = (Object.keys(permissions) as Action[]).filter(
     (value) =>
       canAct(permissions[value]) &&
@@ -220,8 +227,13 @@ export function SupportConversation({
               setMessage("");
               setReason("");
               setOutcome("saved");
-            } catch {
-              setOutcome("error");
+            } catch (error) {
+              setOutcome(
+                error instanceof ApiError &&
+                  error.code === "recent_auth_required"
+                  ? "recentAuth"
+                  : "error",
+              );
             }
           }}
         >
@@ -304,9 +316,9 @@ export function SupportConversation({
             {c.apply}
           </button>
           {outcome === "saved" && <p role="status">{c.saved}</p>}
-          {outcome === "error" && (
+          {(outcome === "error" || outcome === "recentAuth") && (
             <div role="alert">
-              <p>{c.error}</p>
+              <p>{outcome === "recentAuth" ? c.recentAuth : c.error}</p>
               <button className="button" type="button" onClick={onRefresh}>
                 {c.refresh}
               </button>

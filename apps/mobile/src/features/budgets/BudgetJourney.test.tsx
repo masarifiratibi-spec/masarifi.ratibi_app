@@ -72,6 +72,37 @@ it('renders budget overview, form, allocation, and transaction states', async ()
   transactions.unmount();
 });
 
+it('uses the account month after midnight in Riyadh while UTC is still in October', async () => {
+  const previousTimeZone = usePreferenceStore.getState().timeZone;
+  jest.useFakeTimers({
+    now: new Date('2026-10-31T22:00:00Z'),
+    doNotFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'setImmediate',
+      'clearImmediate',
+      'nextTick',
+      'queueMicrotask',
+      'performance'
+    ]
+  });
+  usePreferenceStore.setState({ timeZone: 'Asia/Riyadh' });
+  const list = jest
+    .spyOn(financialPlanningService, 'listBudgets')
+    .mockResolvedValue([]);
+  const view = renderWithProviders(<BudgetOverviewScreen />);
+  try {
+    await waitFor(() => expect(list).toHaveBeenCalledWith('2026-11'));
+  } finally {
+    view.unmount();
+    list.mockRestore();
+    usePreferenceStore.setState({ timeZone: previousTimeZone });
+    jest.useRealTimers();
+  }
+});
+
 it('opens the creation form directly when the selected month is empty', async () => {
   changeLocale('en');
   const screen = renderWithProviders(
