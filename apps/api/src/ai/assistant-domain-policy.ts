@@ -1,5 +1,5 @@
 const ARABIC_SCOPE_NOTICE =
-  'آسف، أنا متخصص في تحليل مصروفاتك ودخلك وميزانيتك داخل مصاريفي. اسألني عن بياناتك المالية.';
+  'أنا متخصص في مصاريفك ودخلك وميزانيتك داخل مصاريفي. وش ودّك تعرف عن بياناتك المالية؟';
 const ENGLISH_SCOPE_NOTICE =
   'Sorry, I specialize in your spending, income, budgets and financial data in Masarifi. Ask me about your personal finances.';
 
@@ -9,7 +9,7 @@ export function assistantScopeNotice(question: string, greeting = false) {
   return {
     content: greeting
       ? arabic
-        ? 'حيّاك الله! أنا مساعدك لتحليل مصروفاتك ودخلك وبياناتك المالية. وش تحب تعرف عنها؟'
+        ? 'حيّاك! وش ودّك نراجع في مصاريفك؟'
         : 'Hello! I help analyze your spending, income and financial data. What would you like to know about them?'
       : arabic
         ? ARABIC_SCOPE_NOTICE
@@ -41,7 +41,7 @@ export function directAssistantScopeNotice(question: string) {
     .trim()
     .toLowerCase();
   const greeting =
-    /^(?:ازيك|إزيك|اهلا|أهلا|السلام عليكم|وعليكم السلام|مرحبا|صباح الخير|مساء الخير|hi|hello|hey|good morning|good evening)[\s!?.،؟]*$/iu.test(
+    /^(?:ازيك|إزيك|اهلا|أهلا|هلا(?: والله)?|حياك(?: الله)?|كيف الحال|السلام عليكم|وعليكم السلام|مرحبا|صباح الخير|مساء الخير|hi|hello|hey|good morning|good evening)[\s!?.،؟]*$/iu.test(
       normalized,
     );
   if (greeting) return assistantScopeNotice(question, true);

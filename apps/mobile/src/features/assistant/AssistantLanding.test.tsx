@@ -13,7 +13,7 @@ describe('AssistantLanding', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it.each([
-    ['ar', 'تجاهل السؤال غير المرسل؟', 'متابعة الكتابة', 'تجاهل السؤال'],
+    ['ar', 'تبي تتجاهل السؤال اللي ما أرسلته؟', 'متابعة الكتابة', 'تجاهل السؤال'],
     ['en', 'Discard this question?', 'Keep editing', 'Discard question']
   ] as const)('keeps an unsent question until explicit discard in %s', async (locale, title, keepLabel, discardLabel) => {
     changeLocale(locale);

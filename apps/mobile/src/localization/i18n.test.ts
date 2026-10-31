@@ -10,6 +10,33 @@ import {
 import { requiredScenarioCoverage } from '@/test-utils/frontend-quality-scenarios';
 
 describe('message catalog parity', () => {
+  it('uses Saudi conversational assistant copy while preserving financial labels', () => {
+    expect(ar).toMatchObject({
+      'assistant.suggestions.spending': 'كم صرفت هالشهر؟',
+      'assistant.suggestions.restaurants': 'كم صرفت على المطاعم هالشهر؟',
+      'assistant.suggestions.highest': 'وش أكثر شي صرفت عليه؟',
+      'assistant.state.error': 'المساعد مو متاح الحين. جرّب مرّة ثانية.',
+      'assistant.state.offline':
+        'المساعد يحتاج اتصال بالإنترنت. تقدر ترجع لمحادثاتك المحفوظة.',
+      'assistant.state.limit': 'وصلت لحد استخدام المساعد. جرّب لاحقًا.',
+      'assistant.operation.state.unknown':
+        'ما تأكدت نتيجة السؤال. تحقّق من حالته قبل ترسل سؤال ثاني.',
+      'assistant.actionPreview.state.unknown':
+        'ما تأكدت نتيجة الإجراء. تحقّق من حالته قبل تعيد المحاولة؛ المحاولة تستخدم نفس العملية الأصلية.',
+      'assistant.actionPreview.field.amountMinor': 'المبلغ',
+      'assistant.actionPreview.field.currency': 'العملة',
+      'assistant.actionPreview.confirm.message':
+        'ما راح يتغيّر شي إلا بعد تأكيدك.'
+    });
+    const assistantCopy = Object.entries(ar)
+      .filter(([key]) => key.startsWith('assistant.'))
+      .map(([, value]) => value)
+      .join('\n');
+    expect(assistantCopy).not.toMatch(/النهارده|أمبارح|مفيش|عايز|إزاي/u);
+    expect(en['assistant.suggestions.spending']).toBe(
+      'How much did I spend this month?'
+    );
+  });
   it('every English key exists in Arabic with a non-empty value', () => {
     const missingInArabic = Object.keys(en).filter(
       (key) => !(key in ar) || !ar[key as keyof typeof ar]

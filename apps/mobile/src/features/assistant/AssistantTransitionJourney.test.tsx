@@ -105,7 +105,7 @@ describe('Assistant Transition & Chat Journey', () => {
             {
               id: 'resp-101',
               conversationId: 'conv-101',
-              question: 'كم أنفقت هذا الشهر؟',
+              question: 'كم صرفت هالشهر؟',
               responseType: 'direct',
               blocks: [
                 { label: 'fact', key: 'assistant.answer.direct', values: {} }
@@ -181,12 +181,12 @@ describe('Assistant Transition & Chat Journey', () => {
     // User types question and submits
     fireEvent.changeText(
       screen.getByTestId('assistant-ask-input'),
-      'كم أنفقت هذا الشهر؟'
+      'كم صرفت هالشهر؟'
     );
     fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
 
     expect(createConversationMock).toHaveBeenCalledWith(
-      expect.objectContaining({ question: 'كم أنفقت هذا الشهر؟' }),
+      expect.objectContaining({ question: 'كم صرفت هالشهر؟' }),
       expect.anything()
     );
 
@@ -232,7 +232,7 @@ describe('Assistant Transition & Chat Journey', () => {
     fireEvent.press(screen.getByTestId('suggestion-card-spending'));
     expect(
       within(screen.getByTestId('user-message-bubble')).getByText(
-        'كم أنفقت هذا الشهر؟'
+        'كم صرفت هالشهر؟'
       )
     ).toBeTruthy();
     await act(async () => {
@@ -240,7 +240,7 @@ describe('Assistant Transition & Chat Journey', () => {
     });
     expect(router.push).not.toHaveBeenCalled();
     expect(screen.queryByTestId('assistant-landing')).toBeNull();
-    expect(screen.getByText('كم أنفقت هذا الشهر؟')).toBeTruthy();
+    expect(screen.getByText('كم صرفت هالشهر؟')).toBeTruthy();
     expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
       'editable',
       false
@@ -256,7 +256,7 @@ describe('Assistant Transition & Chat Journey', () => {
     });
     expect(
       within(screen.getByTestId('user-message-bubble')).getByText(
-        'كم أنفقت هذا الشهر؟'
+        'كم صرفت هالشهر؟'
       )
     ).toBeTruthy();
     expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
@@ -478,8 +478,8 @@ describe('Assistant Transition & Chat Journey', () => {
       }
     });
     renderWithProviders(<AssistantHomeScreen />);
-    fireEvent.press(screen.getByText('كم أنفقت هذا الشهر؟'));
-    fireEvent.press(screen.getByText('كم أنفقت هذا الشهر؟'));
+    fireEvent.press(screen.getByText('كم صرفت هالشهر؟'));
+    fireEvent.press(screen.getByText('كم صرفت هالشهر؟'));
     expect(router.navigate).toHaveBeenCalledWith(
       '/assistant/sample-original-conversation'
     );

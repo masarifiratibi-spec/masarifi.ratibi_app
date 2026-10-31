@@ -249,7 +249,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   expect(screen.getByTestId('reports-assistant-card')).toBeTruthy();
   expect(screen.getByText('المساعد الذكي')).toBeTruthy();
   expect(
-    screen.getByText('مساعدك المالي الذكي للإجابة على أسئلتك المالية بسرعة.')
+    screen.getByText('مساعدك المالي، يراجع معك مصاريفك ويجاوب على أسئلتك.')
   ).toBeTruthy();
   expect(
     screen.getByTestId('reports-assistant-icon', {

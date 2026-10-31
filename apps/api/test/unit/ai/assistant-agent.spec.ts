@@ -59,6 +59,53 @@ const route: EffectiveAiRoute = {
   ],
 };
 
+it.each(['وش آخر معاملة؟', 'صرفت كام النهارده؟', 'Show my latest transaction in English'])(
+  'sends the Saudi style policy at the provider boundary for %s without rewriting facts',
+  async (content) => {
+    const agent = new AssistantAgent(
+      { read: () => Promise.resolve(sample) } as never,
+      {
+        complete: (input: {
+          route: EffectiveAiRoute;
+          currentQuestion: string;
+          parse: (value: unknown) => unknown;
+        }) => {
+          expect(input.currentQuestion).toBe(content);
+          expect(input.route.prompt.template).toContain(
+            'Use neutral, natural Saudi/Gulf Arabic for all Arabic conversational prose',
+          );
+          expect(input.route.prompt.template).toContain('Understand Arabic input in any dialect');
+          expect(input.route.prompt.template).toContain(
+            'Keep English when selected or explicitly requested',
+          );
+          expect(input.route.prompt.template).toContain(
+            'Never rewrite supplied fact values, merchant names or quoted text to change dialect',
+          );
+          return Promise.resolve({
+            value: input.parse({
+              status: 'answer',
+              answerParts: [{ text: 'خلّنا نراجع الفترة اللي تقصدها.', fact: null }],
+              queries: [],
+              responseType: 'missing',
+              scope: 'current_state',
+            }),
+            model: 'model',
+            provider: 'provider',
+          });
+        },
+      } as never,
+      () => Promise.resolve(),
+    );
+    await agent.run({ ...claim, content }, route, new AbortController().signal);
+    expect(
+      renderAssistantAnswer('المتجر {{F1}}، والمبلغ {{F2}}.', [
+        { key: 'F1', value: 'متجر النهارده 24', path: 'latest.merchant' },
+        { key: 'F2', value: '-12.50 USD', path: 'latest.amountMinor' },
+      ]),
+    ).toBe('المتجر متجر النهارده 24، والمبلغ -12.50 USD.');
+  },
+);
+
 it.each(
   ['Asia/Riyadh', 'Pacific/Honolulu'].flatMap((timezone) => [
     {
