@@ -16,6 +16,11 @@ import {
 } from './onboarding-progress';
 import { ConservativeCaptureDemo } from './ConservativeCaptureDemo';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+
+
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   Stack: () => null

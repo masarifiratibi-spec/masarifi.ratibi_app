@@ -1,19 +1,33 @@
-import React, { useEffect, useRef, type ReactNode } from 'react';
+import { recordMobileForeground } from '@/services/live/mobile-activity';
+import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { router } from 'expo-router';
-import { AppState, Linking, type AppStateStatus } from 'react-native';
+import { Alert, AppState, Linking, type AppStateStatus } from 'react-native';
+import {
+  configureDatabaseRecoveryListener,
+  quarantineUnrecoverableDatabase
+} from '@/storage/database';
+import { translate } from '@/localization/i18n';
 
 import { parseDeepLinkDestination } from '@/features/shell/deep-link-controller';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  isBenchmarkReadOnly,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { prepareDevDeletionBootstrap } from '@/services/dev-account-deletion';
 import { authService } from '@/features/auth/auth-flow';
 import { restoreAppShellSession } from '@/features/auth/session-controller';
+import { HttpError } from '@/services/live/http-client';
 import { useLiveClerkSessionKey } from '@/services/live/clerk-provider';
 import { synchronizeLiveCoreFinance } from '@/services/live/core-finance-service';
 import { refreshPlatformOperations } from '@/services/platform-operations-service';
 import { syncAutomaticTracking } from '@/services/automatic-tracking-coordinator';
 import { ensureLivePushDeviceRegistration } from '@/services/live/engagement-service';
+import { getLiveClerkToken } from '@/services/live/auth-service';
+import { measurePerformance } from '@/services/platform/performance-timing';
 
 interface AppShellProviderProps {
   children: ReactNode;
@@ -39,82 +53,230 @@ export function AppShellProvider({
     (state) => state.setPendingDestination
   );
   const liveClerkSessionKey = useLiveClerkSessionKey();
-  const restoredLiveSession = useRef<string | null | undefined>(undefined);
+  const bootstrapRevision = useAppShellStore(
+    (state) => state.bootstrapRevision
+  );
+  const mode = resolveClientMode();
   const restoreQueue = useRef(Promise.resolve());
+  const localHydration = useRef<Promise<void> | null>(null);
   const registeredPushSession = useRef<string | null>(null);
+  const pushRegistrationFlight = useRef<{ sessionKey: string } | null>(null);
+  const initialLink = useRef<string | null>(null);
+  const linkRevision = useRef(0);
+  const linksMounted = useRef(false);
+  const recoveryOwner = useRef<string | null>(null);
+  useEffect(() => {
+    configureDatabaseRecoveryListener((ownerId) => {
+      if (recoveryOwner.current === ownerId) return;
+      recoveryOwner.current = ownerId;
+      Alert.alert(
+        translate('storageRecovery.title'),
+        translate('storageRecovery.body'),
+        [
+          {
+            text: translate('storageRecovery.cancel'),
+            style: 'cancel',
+            onPress: () => {
+              recoveryOwner.current = null;
+            }
+          },
+          {
+            text: translate('storageRecovery.confirm'),
+            onPress: () => {
+              void quarantineUnrecoverableDatabase(
+                ownerId,
+                'PRESERVE_ENCRYPTED_ORIGINAL'
+              )
+                .then(() => {
+                  recoveryOwner.current = null;
+                  useAppShellStore.getState().retryBootstrap();
+                })
+                .catch(() => {
+                  recoveryOwner.current = null;
+                  Alert.alert(translate('storageRecovery.failed'));
+                });
+            }
+          }
+        ]
+      );
+    });
+    return () => configureDatabaseRecoveryListener();
+  }, []);
+  const session = useAppShellStore((state) => state.session);
+  const onboarding = useAppShellStore((state) => state.onboarding);
+  const privacyLock = useAppShellStore((state) => state.privacyLock);
+  const profileSetupStatus = useAppShellStore(
+    (state) => state.profileSetupStatus
+  );
+  const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
+  const firstLaunchCompleted = usePreferenceStore(
+    (state) => state.firstLaunchOnboardingCompleted
+  );
+
+  const registerPushDevice = useCallback(
+    (refresh = false) => {
+      if (isBenchmarkReadOnly()) return;
+      if (!liveClerkSessionKey || mode !== 'live') return;
+      if (pushRegistrationFlight.current?.sessionKey === liveClerkSessionKey)
+        return;
+      if (!refresh && registeredPushSession.current === liveClerkSessionKey)
+        return;
+      const flight = { sessionKey: liveClerkSessionKey };
+      pushRegistrationFlight.current = flight;
+      void ensureLivePushDeviceRegistration({ token: getLiveClerkToken })
+        .then((permission) => {
+          if (
+            pushRegistrationFlight.current === flight &&
+            permission === 'granted'
+          )
+            registeredPushSession.current = flight.sessionKey;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (pushRegistrationFlight.current === flight)
+            pushRegistrationFlight.current = null;
+        });
+    },
+    [liveClerkSessionKey, mode]
+  );
+
+  useEffect(() => {
+    if (!hydrated) localHydration.current ??= hydrate();
+  }, [hydrate, hydrated, mode]);
 
   useEffect(() => {
     let current = true;
-    if (resolveClientMode() !== 'live') {
-      if (!hydrated) void hydrate();
+    if (mode !== 'live' || liveClerkSessionKey === undefined)
       return () => {
         current = false;
       };
-    }
-    if (
-      liveClerkSessionKey === undefined ||
-      restoredLiveSession.current === liveClerkSessionKey
-    )
-      return () => {
-        current = false;
-      };
-    restoredLiveSession.current = liveClerkSessionKey;
     restoreQueue.current = restoreQueue.current
       .catch(() => undefined)
-      .then(() =>
-        current ? restoreAppShellSession(authService, () => current) : undefined
-      )
       .then(async () => {
-        if (current && liveClerkSessionKey) {
-          void authService.touchActivity().catch(() => undefined);
-          if (registeredPushSession.current !== liveClerkSessionKey) {
-            registeredPushSession.current = liveClerkSessionKey;
-            void ensureLivePushDeviceRegistration().catch(() => undefined);
+        await localHydration.current;
+        if (
+          current &&
+          isDevPrivacyDeletionEnabled() &&
+          !(await prepareDevDeletionBootstrap())
+        )
+          return;
+        if (current)
+          await measurePerformance('startup.restore', () =>
+            restoreAppShellSession(authService, () => current)
+          );
+      })
+      .then(async () => {
+        if (
+          current &&
+          liveClerkSessionKey &&
+          (!isDevPrivacyDeletionEnabled() ||
+            useAppShellStore.getState().session?.status === 'authenticated')
+        ) {
+          const restored = useAppShellStore.getState();
+          // A successful live profile bootstrap has just read /me as well.
+          if (
+            !restored.profileSetupSnapshot ||
+            !['complete', 'incomplete'].includes(restored.profileSetupStatus)
+          )
+            void authService.touchActivity().catch(() => undefined);
+          registerPushDevice();
+          if (isBenchmarkReadOnly()) {
+            void refreshPlatformOperations().catch(() => undefined);
+            return;
           }
+          void recordMobileForeground().catch(() => undefined);
           void synchronizeLiveCoreFinance().catch(() => undefined);
           void refreshPlatformOperations().catch(() => undefined);
           void syncAutomaticTracking().catch(() => undefined);
         }
       })
-      .catch(() =>
-        current ? useAppShellStore.getState().signOut() : undefined
+      .catch((error: unknown) =>
+        current
+          ? useAppShellStore.setState({
+              hydrated: true,
+              profileSetupStatus:
+                error instanceof HttpError && error.failureSource
+                  ? 'unavailable'
+                  : 'error'
+            })
+          : undefined
       );
     return () => {
       current = false;
     };
-  }, [hydrate, hydrated, liveClerkSessionKey]);
+  }, [liveClerkSessionKey, mode, bootstrapRevision, registerPushDevice]);
 
-  useEffect(() => {
-    async function retainSafeDestination(url: string | null, navigate = false) {
+  const retainSafeDestination = useCallback(
+    async (url: string | null, expectedRevision: number) => {
       if (!url) return;
       const destination = parseDeepLinkDestination(url);
       if (!destination) return;
-      await setPendingDestination(destination);
-      if (!navigate) return;
+      const owner = useAppShellStore.getState().session?.userId;
+      const isCurrent = () =>
+        linksMounted.current &&
+        expectedRevision === linkRevision.current &&
+        owner === useAppShellStore.getState().session?.userId;
+      await setPendingDestination(destination, isCurrent);
+      if (!isCurrent()) return;
       const { hydrated, session, onboarding, privacyLock, profileSetupStatus } =
         useAppShellStore.getState();
       const { firstLaunchOnboardingCompleted } = usePreferenceStore.getState();
-      router.replace(
-        resolveEntryRoute({
-          hydrated,
-          firstLaunchOnboardingCompleted,
-          profileSetupStatus,
-          session,
-          onboarding,
-          pendingDestination: destination,
-          privacyLock
-        })
-      );
-    }
+      const route = resolveEntryRoute({
+        hydrated: hydrated && usePreferenceStore.getState().hydrated,
+        firstLaunchOnboardingCompleted,
+        profileSetupStatus,
+        session,
+        onboarding,
+        pendingDestination: destination,
+        privacyLock
+      });
+      // Hydration owns the entry route. Do not race its mounted loading gate.
+      if (route !== '/index') router.replace(route);
+      if (route === destination) initialLink.current = null;
+    },
+    [setPendingDestination]
+  );
 
+  useEffect(() => {
+    linksMounted.current = true;
+    const expected = linkRevision.current;
     void Linking.getInitialURL()
-      .then((url) => retainSafeDestination(url))
+      .then((url) => {
+        if (!linksMounted.current || expected !== linkRevision.current) return;
+        initialLink.current = url && parseDeepLinkDestination(url) ? url : null;
+        return retainSafeDestination(initialLink.current, expected);
+      })
       .catch(() => undefined);
     const linkSubscription = Linking.addEventListener('url', ({ url }) => {
-      void retainSafeDestination(url, true);
+      if (!parseDeepLinkDestination(url)) return;
+      initialLink.current = url;
+      const expected = ++linkRevision.current;
+      void retainSafeDestination(url, expected).catch(() => undefined);
     });
-    return () => linkSubscription?.remove?.();
-  }, [setPendingDestination]);
+    return () => {
+      linksMounted.current = false;
+      linkRevision.current++;
+      linkSubscription?.remove?.();
+    };
+  }, [retainSafeDestination]);
+
+  useEffect(() => {
+    if (hydrated && initialLink.current)
+      void retainSafeDestination(
+        initialLink.current,
+        linkRevision.current
+      ).catch(() => undefined);
+  }, [
+    hydrated,
+    session?.userId,
+    session?.status,
+    onboarding,
+    privacyLock,
+    profileSetupStatus,
+    preferencesHydrated,
+    firstLaunchCompleted,
+    retainSafeDestination
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -122,16 +284,24 @@ export function AppShellProvider({
       if (
         state === 'active' &&
         resolveClientMode() === 'live' &&
-        liveClerkSessionKey
+        liveClerkSessionKey &&
+        (!isDevPrivacyDeletionEnabled() ||
+          useAppShellStore.getState().session?.status === 'authenticated')
       ) {
         void authService.touchActivity().catch(() => undefined);
+        registerPushDevice(true);
+        if (isBenchmarkReadOnly()) {
+          void refreshPlatformOperations().catch(() => undefined);
+          return;
+        }
+        void recordMobileForeground().catch(() => undefined);
         void synchronizeLiveCoreFinance().catch(() => undefined);
         void refreshPlatformOperations().catch(() => undefined);
         void syncAutomaticTracking().catch(() => undefined);
       }
     });
     return () => subscription.remove();
-  }, [liveClerkSessionKey, onAppStateChange]);
+  }, [liveClerkSessionKey, onAppStateChange, registerPushDevice]);
 
   return <>{children}</>;
 }

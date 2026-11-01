@@ -23,13 +23,17 @@ import { useSimulatedRole } from "@/core/auth/use-simulated-role";
 import type { Locale } from "@/core/localization/direction";
 import {
   getPeriodLabel,
-  getPlanLabel,
   getPlatformLabel,
   getStatusLabel,
 } from "@/core/localization/display-labels";
 import { useLocale, useT } from "@/core/localization/provider";
 import { hasPermission } from "@/core/permissions/role-map";
-import { useAttention, usePlatformOptions } from "@/features/foundation/hooks";
+import {
+  useAdminSession,
+  useAttention,
+  usePlatformOptions,
+} from "@/features/foundation/hooks";
+import { useAdminIdentity } from "@/app/providers";
 import {
   useOverviewActivity,
   useOverviewSummary,
@@ -46,7 +50,14 @@ import {
 import type { ChartPoint, Metric, SystemStatus } from "@/types/admin";
 import type { DateRangeInput } from "@/features/foundation/contracts";
 import { ApiError } from "@/core/api/errors";
+import { mocksEnabled } from "@/core/config/runtime";
 import { formatDate } from "@/lib/admin-utils";
+
+import {
+  formatOverviewMetric,
+  planLabel,
+  paidCustomerNote,
+} from "@/features/overview/presentation";
 
 const PERIOD_PRESETS = ["7d", "30d", "90d"] as const;
 const METRIC_KIND_LABELS: Record<string, Record<Locale, string>> = {
@@ -65,20 +76,20 @@ const OVERVIEW_METRIC_COPY: Record<
   Record<Locale, { label: string; note?: string }>
 > = {
   "unique-customers": {
-    ar: { label: "إجمالي العملاء", note: "مقابل الفترة السابقة" },
-    en: { label: "Total customers", note: "Compared with the previous period" },
+    ar: { label: "إجمالي العملاء", note: "العملاء المسجلون" },
+    en: { label: "Total customers", note: "Registered customers" },
   },
   "active-customers": {
-    ar: { label: "العملاء النشطون", note: "جلسة أو استخدام ميزة" },
-    en: { label: "Active customers", note: "Session or feature use" },
+    ar: { label: "العملاء النشطون", note: "فتح تطبيق الهاتف خلال الفترة" },
+    en: { label: "Active customers", note: "Mobile foreground observations in period" },
   },
   "new-customers": {
     ar: { label: "العملاء الجدد", note: "إكمال التسجيل" },
     en: { label: "New customers", note: "Registration completed" },
   },
   "paid-customers": {
-    ar: { label: "العملاء المدفوعون", note: "24.8% من الإجمالي" },
-    en: { label: "Paid customers", note: "24.8% of total" },
+    ar: { label: "العملاء المدفوعون", note: undefined },
+    en: { label: "Paid customers", note: undefined },
   },
   mrr: {
     ar: { label: "الإيراد الشهري المتكرر", note: "تقدير تشغيلي" },
@@ -93,8 +104,8 @@ const OVERVIEW_METRIC_COPY: Record<
     en: { label: "AI operations" },
   },
   "support-tickets": {
-    ar: { label: "تذاكر الدعم المفتوحة" },
-    en: { label: "Open support tickets" },
+    ar: { label: "تذاكر الدعم الجديدة" },
+    en: { label: "New support tickets" },
   },
   "critical-incidents": {
     ar: { label: "الحوادث الحرجة", note: "تحتاج مراجعة" },
@@ -113,6 +124,26 @@ const ACTIVITY_COPY: Record<string, Record<Locale, string>> = {
   "parser-rule-update": { ar: "تحديث محلل", en: "Parser update" },
   "admin-role-change": { ar: "تغيير دور", en: "Role change" },
   "support-access-approval": { ar: "اعتماد وصول", en: "Access approval" },
+  "account-deletion-requested": {
+    ar: "طلب حذف الحساب",
+    en: "Account deletion requested",
+  },
+  "account-deletion-cancelled": {
+    ar: "إلغاء حذف الحساب",
+    en: "Account deletion cancelled",
+  },
+  "support-access-requested": {
+    ar: "طلب وصول الدعم",
+    en: "Support access requested",
+  },
+  "support-access-decision": {
+    ar: "قرار وصول الدعم",
+    en: "Support access decision",
+  },
+  "support-access-revoked": {
+    ar: "إنهاء وصول الدعم",
+    en: "Support access ended",
+  },
   "account-deletion-completed": { ar: "اكتمال حذف", en: "Deletion completed" },
 };
 
@@ -270,12 +301,14 @@ const DEVICE_CATEGORY_LABELS: Record<string, Record<Locale, string>> = {
 };
 
 function trendToChartPoints(series: TrendSeries): ChartPoint[] {
-  return series.points.map((point) => ({
-    name: formatDate(point.timestamp).slice(0, 5),
-    current: point.value,
-    previous: point.comparisonValue,
-    secondary: undefined,
-  }));
+  return series.points
+    .filter((point) => point.value !== null)
+    .map((point) => ({
+      name: formatDate(point.timestamp).slice(0, 5),
+      current: point.value!,
+      previous: point.comparisonValue,
+      secondary: undefined,
+    }));
 }
 
 function labelFor(
@@ -286,14 +319,11 @@ function labelFor(
   return map[key]?.[locale] ?? key;
 }
 
-function metricValue(metric: OverviewMetric, locale: Locale): string {
-  if (metric.id === "mrr")
-    return locale === "ar" ? "2.48 مليون SAR" : "2.48M SAR";
-  if (metric.id === "imports") return locale === "ar" ? "1.92 مليون" : "1.92M";
-  return metric.formattedValue;
-}
-
-function metricToCard(metric: OverviewMetric, locale: Locale): Metric {
+function metricToCard(
+  metric: OverviewMetric,
+  locale: Locale,
+  totalCustomers = 0,
+): Metric {
   const tone: Metric["tone"] =
     metric.tone === "premium"
       ? "premium"
@@ -303,9 +333,12 @@ function metricToCard(metric: OverviewMetric, locale: Locale): Metric {
   const copy = OVERVIEW_METRIC_COPY[metric.id]?.[locale];
   return {
     label: copy?.label ?? metric.id,
-    value: metricValue(metric, locale),
+    value: formatOverviewMetric(metric, locale),
     change: metric.change,
-    note: copy?.note,
+    note:
+      metric.id === "paid-customers"
+        ? paidCustomerNote(metric.numericValue, totalCustomers, locale)
+        : (metric.note ?? copy?.note),
     tone,
     context: `${labelFor(METRIC_KIND_LABELS, locale, metric.kind)} · ${getPlatformLabel(locale, metric.platformScope)} · ${getPeriodLabel(locale, metric.period)} · ${getStatusLabel(locale, metric.freshness.state)}`,
   };
@@ -343,15 +376,6 @@ function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function subscriptionPlanLabel(
-  plan: string,
-  index: number,
-  locale: Locale,
-): string {
-  const plans = ["Free", "Basic", "Premium"];
-  return getPlanLabel(locale, plans[index] ?? plan);
-}
-
 function versionLabel(version: string, locale: Locale): string {
   if (version === "غير معروف")
     return labelFor(VERSION_STATE_LABELS, locale, "unknown");
@@ -359,6 +383,9 @@ function versionLabel(version: string, locale: Locale): string {
 }
 
 export default function OverviewPage() {
+  const demoMode = mocksEnabled();
+  const identity = useAdminIdentity();
+  const session = useAdminSession(identity.actorId);
   const role = useSimulatedRole();
   const { direction, locale } = useLocale();
   const t = useT();
@@ -387,12 +414,16 @@ export default function OverviewPage() {
   const platformOptions = usePlatformOptions();
   const summary = useOverviewSummary({ platform, period, locale });
   const analytics = usePlatformAnalytics({ platform, period, locale });
-  const attention = useAttention(role, {
-    platform,
-    period,
-    page: 1,
-    pageSize: 5,
-  });
+  const attention = useAttention(
+    role,
+    {
+      platform,
+      period,
+      page: 1,
+      pageSize: 5,
+    },
+    demoMode,
+  );
   const activity = useOverviewActivity({
     platform,
     period,
@@ -466,8 +497,12 @@ export default function OverviewPage() {
     <div className="page overview-page" dir={direction}>
       <PageHeader
         eyebrow={t("overview.eyebrow")}
-        title={t("overview.greeting")}
-        description={t("overview.description")}
+        title={t("overview.greeting", {
+          name: demoMode
+            ? "Waleed"
+            : (session.data?.displayName ?? t("common.loading")),
+        })}
+        description={t(demoMode ? "overview.description" : "overview.liveDescription")}
         actions={
           <>
             {platformOptions.data && (
@@ -482,6 +517,7 @@ export default function OverviewPage() {
               onChange={setRange}
               allowedPresets={PERIOD_PRESETS}
             />
+            <div className="overview-commands">
             {hasPermission(role, "data_requests.exports.manage") &&
               (reportExport &&
               reportExport !== "pending" &&
@@ -492,7 +528,7 @@ export default function OverviewPage() {
                   href={reportExport.downloadUrl}
                   rel="noreferrer"
                 >
-                  <Download size={16} />
+                  <Download size={16} aria-hidden="true" />
                   <span>
                     {locale === "ar" ? "تنزيل التقرير" : "Download report"}
                   </span>
@@ -519,7 +555,7 @@ export default function OverviewPage() {
                     }
                   }}
                 >
-                  <Download size={16} />
+                  <Download size={16} aria-hidden="true" />
                   <span>{locale === "ar" ? "تصدير CSV" : "Export CSV"}</span>
                 </button>
               ))}
@@ -528,13 +564,14 @@ export default function OverviewPage() {
               onClick={() => {
                 summary.refetch();
                 analytics.refetch();
-                attention.refetch();
+                if (demoMode) attention.refetch();
                 activity.refetch();
               }}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} aria-hidden="true" />
               <span>{t("overview.refresh")}</span>
             </button>
+            </div>
           </>
         }
       />
@@ -559,14 +596,27 @@ export default function OverviewPage() {
                     }
                     key={metric.id}
                   >
-                    <MetricCard metric={metricToCard(metric, locale)} primary />
+                    <MetricCard
+                      metric={metricToCard(
+                        metric,
+                        locale,
+                        customers?.uniqueCustomersTotal ?? 0,
+                      )}
+                      primary
+                    />
                   </div>
                 ))}
               </div>
               <div className="metrics-grid" style={{ marginTop: 14 }}>
                 {metrics.slice(4).map((metric) => (
                   <div key={metric.id}>
-                    <MetricCard metric={metricToCard(metric, locale)} />
+                    <MetricCard
+                      metric={metricToCard(
+                        metric,
+                        locale,
+                        customers?.uniqueCustomersTotal ?? 0,
+                      )}
+                    />
                   </div>
                 ))}
               </div>
@@ -590,7 +640,7 @@ export default function OverviewPage() {
             {analytics.data && (
               <ChartCard
                 title={t("overview.userGrowthTitle")}
-                subtitle={t("overview.userGrowthSubtitle")}
+                subtitle={t(demoMode ? "overview.userGrowthSubtitle" : "overview.liveUserGrowthSubtitle")}
                 summary={t("overview.userGrowthTitle")}
               >
                 <TrendChart
@@ -610,61 +660,64 @@ export default function OverviewPage() {
             )}
           </RegionState>
         </div>
-        <article className="card attention-card">
-          <div className="card-heading">
-            <div>
-              <h2>{t("overview.attentionTitle")}</h2>
-              <p>
-                {t("overview.attentionOpenCases", {
-                  count: attention.data?.totalItems ?? 0,
-                })}
-              </p>
-            </div>
-          </div>
-          <RegionState
-            isPending={attention.isPending}
-            isError={attention.isError}
-            region={attentionRegion}
-            error={attentionError}
-            onRetry={() => attention.refetch()}
-            emptyLabel={t("overview.attentionEmpty")}
-          >
-            {attention.data && attention.data.items.length > 0 && (
-              <div className="attention-list">
-                {attention.data.items.map((item) => {
-                  const permitted = hasPermission(role, item.permission);
-                  const destination =
-                    item.destination && permitted
-                      ? item.destination
-                      : undefined;
-                  const body = (
-                    <>
-                      <div className="attention-title">
-                        <h3>
-                          {ATTENTION_SUMMARIES[item.id]?.[locale] ?? item.type}
-                        </h3>
-                        <SeverityBadge severity={item.severity} />
-                      </div>
-                      <div className="attention-meta">
-                        <span className="ltr">{item.id}</span>
-                        <span>{formatTime(item.occurredAt)}</span>
-                      </div>
-                    </>
-                  );
-                  return (
-                    <div className="attention-item" key={item.id}>
-                      {destination ? (
-                        <Link href={destination}>{body}</Link>
-                      ) : (
-                        body
-                      )}
-                    </div>
-                  );
-                })}
+        {demoMode && (
+          <article className="card attention-card">
+            <div className="card-heading">
+              <div>
+                <h2>{t("overview.attentionTitle")}</h2>
+                <p>
+                  {t("overview.attentionOpenCases", {
+                    count: attention.data?.totalItems ?? 0,
+                  })}
+                </p>
               </div>
-            )}
-          </RegionState>
-        </article>
+            </div>
+            <RegionState
+              isPending={attention.isPending}
+              isError={attention.isError}
+              region={attentionRegion}
+              error={attentionError}
+              onRetry={() => attention.refetch()}
+              emptyLabel={t("overview.attentionEmpty")}
+            >
+              {attention.data && attention.data.items.length > 0 && (
+                <div className="attention-list">
+                  {attention.data.items.map((item) => {
+                    const permitted = hasPermission(role, item.permission);
+                    const destination =
+                      item.destination && permitted
+                        ? item.destination
+                        : undefined;
+                    const body = (
+                      <>
+                        <div className="attention-title">
+                          <h3>
+                            {ATTENTION_SUMMARIES[item.id]?.[locale] ??
+                              item.type}
+                          </h3>
+                          <SeverityBadge severity={item.severity} />
+                        </div>
+                        <div className="attention-meta">
+                          <span className="ltr">{item.id}</span>
+                          <span>{formatTime(item.occurredAt)}</span>
+                        </div>
+                      </>
+                    );
+                    return (
+                      <div className="attention-item" key={item.id}>
+                        {destination ? (
+                          <Link href={destination}>{body}</Link>
+                        ) : (
+                          body
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </RegionState>
+          </article>
+        )}
       </section>
 
       <section
@@ -674,14 +727,33 @@ export default function OverviewPage() {
         <RegionState
           isPending={analytics.isPending}
           isError={analytics.isError}
-          region={customersRegion}
+          region={
+            importVolumePoints.length
+              ? customersRegion
+              : {
+                  availability: "unavailable",
+                  retryable: false,
+                  message:
+                    locale === "ar"
+                      ? "لا يتوفر سجل حسب المنصة. إجمالي الواردات معروض أعلاه."
+                      : "Platform volume history is unavailable. Import totals are shown above.",
+                }
+          }
           error={analyticsError}
           onRetry={() => analytics.refetch()}
         >
           <ChartCard
             title={t("overview.importVolumeTitle")}
-            subtitle={t("overview.importVolumeSubtitle")}
-            summary={t("overview.importVolumeSummary")}
+            subtitle={
+              importVolumeSeries?.platformScope === "global"
+                ? locale === "ar"
+                  ? "كل المنصات · مصدر الحدث غير محدد"
+                  : "Global · originating platform unattributed"
+                : t("overview.importVolumeSubtitle")
+            }
+            summary={
+              importVolumeSeries?.summary ?? t("overview.importVolumeSummary")
+            }
           >
             <VolumeChart data={importVolumePoints} stacked />
           </ChartCard>
@@ -690,7 +762,10 @@ export default function OverviewPage() {
           <RegionState
             isPending={summary.isPending}
             isError={summary.isError}
-            region={summaryRegion}
+            region={
+              findRegion(summary.data?.regions, "revenue") ?? summaryRegion
+            }
+            unavailableMessage={!demoMode ? t("overview.billingUnavailable") : undefined}
             error={summaryError}
             onRetry={() => summary.refetch()}
           >
@@ -700,8 +775,8 @@ export default function OverviewPage() {
                 subscription
                   ? subscription.distribution
                       .map(
-                        (d, index) =>
-                          `${subscriptionPlanLabel(d.plan, index, locale)} ${Math.round(d.share * 100)}%`,
+                        (d) =>
+                          `${planLabel(d.plan, locale)} ${Math.round(d.share * 100)}%`,
                       )
                       .join(listSeparator)
                   : t("overview.subscriptionDistributionUnavailable")
@@ -710,8 +785,8 @@ export default function OverviewPage() {
               <DonutChart
                 data={
                   subscription
-                    ? subscription.distribution.map((d, index) => ({
-                        name: subscriptionPlanLabel(d.plan, index, locale),
+                    ? subscription.distribution.map((d) => ({
+                        name: planLabel(d.plan, locale),
                         value: Math.round(d.share * 100),
                       }))
                     : []
@@ -725,8 +800,7 @@ export default function OverviewPage() {
                         background: `var(--chart-series-${(index % 4) + 1})`,
                       }}
                     />
-                    {subscriptionPlanLabel(d.plan, index, locale)}{" "}
-                    {Math.round(d.share * 100)}%
+                    {planLabel(d.plan, locale)} {Math.round(d.share * 100)}%
                   </span>
                 ))}
               </div>
@@ -763,11 +837,24 @@ export default function OverviewPage() {
                           name: t("overview.multiPlatform"),
                           value: customers.multiPlatformCustomers,
                         },
+                        {
+                          name:
+                            locale === "ar"
+                              ? "منصة غير معروفة"
+                              : "Unknown platform",
+                          value: customers.unknownPlatformCustomers ?? 0,
+                        },
                       ]
                     : []
                 }
               />
               <div className="legend">
+                {!!customers?.unknownPlatformCustomers && (
+                  <span>
+                    {locale === "ar" ? "منصة غير معروفة" : "Unknown platform"}{" "}
+                    {customers.unknownPlatformCustomers}
+                  </span>
+                )}
                 <span>
                   <i style={{ background: "var(--chart-series-1)" }} />
                   {t("overview.iosOnly")} {customers?.iosOnlyCustomers ?? 0}
@@ -940,12 +1027,25 @@ export default function OverviewPage() {
                 {t("overview.platformUnaffected")}
               </p>
             </div>
-            <StatusBadge status="degraded" />
+            {summary.data?.serviceHealth.length ? (
+              <StatusBadge
+                status={
+                  summary.data.serviceHealth.every(
+                    (item) => item.status === "operational",
+                  )
+                    ? "operational"
+                    : "degraded"
+                }
+              />
+            ) : null}
           </div>
           <RegionState
             isPending={summary.isPending}
             isError={summary.isError}
-            region={summaryRegion}
+            region={
+              findRegion(summary.data?.regions, "health") ?? summaryRegion
+            }
+            unavailableMessage={!demoMode ? t("overview.healthUnavailable") : undefined}
             error={summaryError}
             onRetry={() => summary.refetch()}
           >
@@ -1024,13 +1124,17 @@ export default function OverviewPage() {
                             <Link href={destination}>
                               <strong>
                                 {ACTIVITY_SUMMARIES[item.id]?.[locale] ??
-                                  item.eventType}
+                                  labelFor(
+                                    ACTIVITY_COPY,
+                                    locale,
+                                    item.eventType,
+                                  )}
                               </strong>
                             </Link>
                           ) : (
                             <strong>
                               {ACTIVITY_SUMMARIES[item.id]?.[locale] ??
-                                item.eventType}
+                                labelFor(ACTIVITY_COPY, locale, item.eventType)}
                             </strong>
                           )}
                           <small>{meta}</small>
@@ -1067,7 +1171,7 @@ export default function OverviewPage() {
                   }}
                 >
                   <Clock3 size={14} />{" "}
-                  {t("overview.activityFooter", {
+                  {t(demoMode ? "overview.activityFooter" : "overview.liveActivityFooter", {
                     period: getPeriodLabel(locale, period),
                   })}{" "}
                   ·{" "}

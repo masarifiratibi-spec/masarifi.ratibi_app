@@ -1,8 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
+import {
+  validateClassification,
+  validateRuleSnapshot,
+  type RuleSnapshot
+} from '@masarifi/transaction-parser';
+import type { KeywordRule } from '@/domain/app-shell';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 
 import type {
+  TrackingDiagnostic,
   TrackingImportEvent,
   TrackingImportSubmission,
   TrackingMode
@@ -22,12 +29,32 @@ export interface SmsImportQueueEntry {
 }
 
 export interface SmsRuleSnapshot {
-  keywords: { value: string; enabled: boolean }[];
+  sourceAdmissionPolicy?: 'financial_content_v1';
+  currencyAccountPolicy?: 'source_currency_v1';
+  policyActivatedAt?: number;
+  policySmsActivationId?: string;
+  activation?: {
+    smsActivatedAt: number;
+    smsActivationId?: string;
+    notificationActivatedAt: number;
+  };
+  accountingPolicy?: 'default_account_nominal_v1';
+  keywords: ({ value: string; enabled: boolean } & Partial<KeywordRule>)[];
   senders: {
     normalizedSender: string;
     enabled: boolean;
     trusted: boolean;
   }[];
+  snapshot?: RuleSnapshot;
+  configurationRevision?: string;
+  bindings?: {
+    provider: string;
+    role: 'card' | 'account' | 'cash_card' | 'cash_account';
+    suffix: string;
+    accountId: string;
+  }[];
+  rolloutMode?: 'shadow' | 'review' | 'automatic';
+  requiresRefresh?: boolean;
 }
 
 export interface SmsImportQueueState {
@@ -35,10 +62,19 @@ export interface SmsImportQueueState {
   ownerId: string;
   pending: SmsImportQueueEntry[];
   cursor: number | null;
+  cursorId?: string;
   fingerprints: string[];
   mode: TrackingMode | null;
   rules: SmsRuleSnapshot;
+  activation?: {
+    smsActivatedAt: number;
+    smsActivationId?: string;
+    notificationActivatedAt: number;
+  };
+  diagnostics?: TrackingDiagnostic[];
 }
+
+export type { TrackingDiagnostic } from '@/domain/automatic-tracking';
 
 export class SmsImportQueue {
   constructor(private readonly storage: StorageLike = AsyncStorage) {}
@@ -53,6 +89,7 @@ export class SmsImportQueue {
       idempotencyKey: string;
       submission: TrackingImportSubmission;
       cursor: number;
+      cursorId?: string;
       fingerprints: readonly string[];
       mode?: TrackingMode;
     }
@@ -71,6 +108,7 @@ export class SmsImportQueue {
         });
       }
       state.cursor = Math.max(state.cursor ?? 0, input.cursor);
+      if (input.cursorId) state.cursorId = input.cursorId;
       state.fingerprints = [
         ...new Set([...state.fingerprints, ...input.fingerprints])
       ].slice(-500);
@@ -82,10 +120,12 @@ export class SmsImportQueue {
     ownerId: string,
     cursor: number,
     fingerprints: readonly string[],
-    mode?: TrackingMode
+    mode?: TrackingMode,
+    cursorId?: string
   ): Promise<SmsImportQueueState> {
     return this.update(ownerId, (state) => {
       state.cursor = Math.max(state.cursor ?? 0, cursor);
+      if (cursorId) state.cursorId = cursorId;
       state.fingerprints = [
         ...new Set([...state.fingerprints, ...fingerprints])
       ].slice(-500);
@@ -123,19 +163,31 @@ export class SmsImportQueue {
     rules: SmsRuleSnapshot
   ): Promise<SmsImportQueueState> {
     return this.update(ownerId, (state) => {
-      state.rules = {
-        keywords: rules.keywords.map(({ value, enabled }) => ({
-          value,
-          enabled
-        })),
-        senders: rules.senders.map(
-          ({ normalizedSender, enabled, trusted }) => ({
-            normalizedSender,
-            enabled,
-            trusted
-          })
-        )
-      };
+      if (rules.snapshot) validateRuleSnapshot(rules.snapshot);
+      state.rules = rules;
+    });
+  }
+
+  setActivation(
+    ownerId: string,
+    activation: NonNullable<SmsImportQueueState['activation']>
+  ): Promise<SmsImportQueueState> {
+    return this.update(ownerId, (state) => {
+      state.activation = activation;
+    });
+  }
+
+  retainDiagnostics(
+    ownerId: string,
+    records: readonly TrackingDiagnostic[]
+  ): Promise<SmsImportQueueState> {
+    return this.update(ownerId, (state) => {
+      const saved = new Map(
+        (state.diagnostics ?? []).map((item) => [item.sourceItemKey, item])
+      );
+      for (const item of records) saved.set(item.sourceItemKey, item);
+      if (saved.size > 1000) throw new Error('tracking_diagnostics_full');
+      state.diagnostics = [...saved.values()];
     });
   }
 
@@ -163,10 +215,13 @@ export class SmsImportQueue {
         'singleton'
       );
       legacy = await this.storage.getItem(storageKey);
-      const stored = parseState(row?.payload ?? legacy, ownerId);
+      const encrypted = row ? parseState(row.payload, ownerId) : null;
+      const legacyState = parseLegacyState(legacy, ownerId);
+      if (row && !encrypted && legacyState) throw new Error('encrypted queue unavailable');
+      const stored = mergePreservedQueue(encrypted, legacyState);
       state = stored ?? empty(ownerId);
       if (mutate) mutate(state);
-      if (mutate || (!row && stored)) {
+      if (mutate || (!row && stored) || (stored && legacyState)) {
         state = queueSchema.parse(state);
         state.pending = state.pending.map((entry) => ({
           ...entry,
@@ -182,7 +237,8 @@ export class SmsImportQueue {
       }
     });
     // Only remove a valid legacy copy after the encrypted transaction commits.
-    if (legacy !== null) await this.storage.removeItem(storageKey);
+    if (legacy !== null && await this.storage.getItem(storageKey) === legacy)
+      await this.storage.removeItem(storageKey);
     return state;
   }
 }
@@ -191,10 +247,40 @@ export function clearLegacySmsImportQueue(): Promise<void> {
   return AsyncStorage.removeItem(storageKey);
 }
 
+export async function preserveLegacySmsImportQueue(ownerId: string): Promise<void> {
+  const raw = await AsyncStorage.getItem(storageKey);
+  if (raw !== null && parseLegacyState(raw, ownerId))
+    await new SmsImportQueue().load(ownerId);
+}
+
+function mergePreservedQueue(current: SmsImportQueueState | null, legacy: SmsImportQueueState | null): SmsImportQueueState | null {
+  if (!current) return legacy;
+  if (!legacy) return current;
+  const pending = new Map(current.pending.map(entry => [entry.idempotencyKey,entry]));
+  const known = new Set(current.fingerprints);
+  for (const entry of legacy.pending) {
+    const existing = pending.get(entry.idempotencyKey);
+    if (existing) {
+      if (JSON.stringify(minimize(existing.submission)) !== JSON.stringify(minimize(entry.submission)))
+        throw new Error('legacy queue conflict');
+      continue;
+    }
+    if (entry.submission.events.length > 0 && entry.submission.events.every(event => known.has(event.sourceItemKey))) continue;
+    pending.set(entry.idempotencyKey,entry);
+  }
+  return {...current,pending:[...pending.values()],fingerprints:[...new Set([...current.fingerprints,...legacy.fingerprints])]};
+}
+
 const boundedText = z.string().min(1).max(200);
 const timestamp = z.string().max(40).datetime({ offset: true });
 const eventSchema = z
   .object({
+    accountingPolicy: z.literal('default_account_nominal_v1').optional(),
+    sourceAmountDecimal: z
+      .string()
+      .regex(/^(?:0|[1-9]\d{0,15})(?:\.\d{1,3})?$/)
+      .optional(),
+    activatedAt: timestamp.optional(),
     sourceItemKey: z.string().min(1).max(160),
     sender: boundedText.optional(),
     body: z.string().min(1).max(2000).optional(),
@@ -225,11 +311,33 @@ const eventSchema = z
       .optional(),
     kind: z.enum(['income', 'expense', 'transfer', 'refund', 'fee']).optional(),
     accountId: z.string().uuid().optional(),
-    categoryId: z.string().uuid().optional()
+    destinationAccountId: z.string().uuid().optional(),
+    categoryId: z.string().uuid().optional(),
+    classification: z
+      .unknown()
+      .transform((value) => validateClassification(value))
+      .optional(),
+    transport: z
+      .object({
+        deviceId: boundedText,
+        channel: z.enum(['android_sms', 'android_notification']),
+        nativeIdDigest: boundedText,
+        revisionDigest: boundedText
+      })
+      .strict()
+      .optional(),
+    providerReferenceDigest: boundedText.optional(),
+    originalProviderReferenceDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional()
   })
   .strict()
   .refine(
-    (value) => value.body !== undefined || value.amountMinor !== undefined
+    (value) =>
+      value.body !== undefined ||
+      value.amountMinor !== undefined ||
+      value.classification !== undefined
   );
 const queueSchema = z
   .object({
@@ -243,7 +351,11 @@ const queueSchema = z
             sessionId: boundedText.nullable(),
             submission: z
               .object({
-                schemaVersion: z.literal(1),
+                schemaVersion: z.union([
+                  z.literal(1),
+                  z.literal(2),
+                  z.literal(3)
+                ]),
                 sourceType: z.enum(['sms', 'provider', 'manual']),
                 sourceChannel: z
                   .enum([
@@ -268,13 +380,55 @@ const queueSchema = z
           items.length
       ),
     cursor: z.number().int().safe().nonnegative().nullable(),
+    cursorId: z.string().max(80).optional(),
     fingerprints: z.array(boundedText).max(500),
     mode: z.enum(['automatic_clear', 'review_all', 'paused']).nullable(),
     rules: z
       .object({
+        accountingPolicy: z.literal('default_account_nominal_v1').optional(),
+        sourceAdmissionPolicy: z.literal('financial_content_v1').optional(),
+        currencyAccountPolicy: z.literal('source_currency_v1').optional(),
+        policyActivatedAt: z.number().int().safe().nonnegative().optional(),
+        policySmsActivationId: z
+          .string()
+          .regex(/^\d{1,19}$/)
+          .optional(),
+        activation: z
+          .object({
+            smsActivatedAt: z.number().int().safe().nonnegative(),
+            smsActivationId: z.string().regex(/^\d+$/).optional(),
+            notificationActivatedAt: z.number().int().safe().nonnegative()
+          })
+          .strict()
+          .optional(),
         keywords: z
           .array(
-            z.object({ value: boundedText, enabled: z.boolean() }).strict()
+            z
+              .object({
+                value: boundedText,
+                enabled: z.boolean(),
+                id: boundedText.optional(),
+                group: z
+                  .enum([
+                    'expense',
+                    'income',
+                    'transfer',
+                    'withdrawal',
+                    'deposit',
+                    'refund',
+                    'subscription',
+                    'installment',
+                    'fee',
+                    'financial',
+                    'failed_transaction',
+                    'reversal'
+                  ])
+                  .optional(),
+                language: z.enum(['ar', 'en']).optional(),
+                normalizedValue: z.string().optional(),
+                origin: z.enum(['default', 'custom']).optional()
+              })
+              .passthrough()
           )
           .max(1000),
         senders: z
@@ -285,11 +439,54 @@ const queueSchema = z
                 enabled: z.boolean(),
                 trusted: z.boolean()
               })
-              .strict()
+              .passthrough()
+          )
+          .max(1000),
+        snapshot: z
+          .unknown()
+          .transform((value) => validateRuleSnapshot(value))
+          .optional(),
+        bindings: z
+          .array(
+            z.object({
+              provider: boundedText,
+              role: z.enum(['card', 'account', 'cash_card', 'cash_account']),
+              suffix: boundedText,
+              accountId: z.string().uuid()
+            })
           )
           .max(1000)
+          .optional(),
+        rolloutMode: z.enum(['shadow', 'review', 'automatic']).optional(),
+        configurationRevision: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+        requiresRefresh: z.boolean().optional()
+      })
+      .strict(),
+    activation: z
+      .object({
+        smsActivatedAt: z.number().int().safe().nonnegative(),
+        smsActivationId: z.string().regex(/^\d+$/).optional(),
+        notificationActivatedAt: z.number().int().safe().nonnegative()
       })
       .strict()
+      .optional(),
+    diagnostics: z
+      .array(
+        z
+          .object({
+            sourceItemKey: boundedText,
+            sourceChannel: z.enum(['android_sms', 'android_notification']),
+            receivedAt: z.number().int().safe().nonnegative(),
+            sourceText: z.string().max(8000),
+            reasonCodes: z.array(z.string().max(100)).max(32)
+          })
+          .strict()
+      )
+      .max(1000)
+      .optional()
   })
   .strict();
 
@@ -299,10 +496,38 @@ function parseState(
 ): SmsImportQueueState | null {
   if (!raw || raw.length > 64 * 1024 * 1024) return null;
   try {
-    const state = queueSchema.parse(JSON.parse(raw));
+    const decoded = JSON.parse(raw) as SmsImportQueueState;
+    if (
+      decoded?.rules &&
+      Object.prototype.hasOwnProperty.call(decoded.rules, 'snapshot')
+    ) {
+      try {
+        validateRuleSnapshot(decoded.rules.snapshot);
+      } catch {
+        // A cached release can become obsolete when mandatory lifecycle safety
+        // wording changes. Keep financial events and checkpoints intact; hold
+        // capture until a current server configuration replaces this cache.
+        delete decoded.rules.snapshot;
+        decoded.rules.requiresRefresh = true;
+      }
+    }
+    const state = queueSchema.parse(decoded);
     return state.ownerId === ownerId ? state : null;
   } catch {
-    return null;
+    throw new Error('sms_queue_corrupt');
+  }
+}
+// Legacy AsyncStorage is unencrypted and has no reliable owner fence; invalid legacy data is purged.
+function parseLegacyState(
+  raw: string | null,
+  ownerId: string
+): SmsImportQueueState | null {
+  try {
+    return parseState(raw, ownerId);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'sms_queue_corrupt')
+      return null;
+    throw error;
   }
 }
 
@@ -320,7 +545,7 @@ function empty(ownerId: string): SmsImportQueueState {
 
 function minimize(input: TrackingImportSubmission): TrackingImportSubmission {
   return {
-    schemaVersion: 1,
+    schemaVersion: input.schemaVersion,
     sourceType: input.sourceType,
     ...(input.sourceChannel ? { sourceChannel: input.sourceChannel } : {}),
     events: input.events.map(minimizeEvent)
@@ -329,6 +554,13 @@ function minimize(input: TrackingImportSubmission): TrackingImportSubmission {
 
 function minimizeEvent(event: TrackingImportEvent): TrackingImportEvent {
   return {
+    ...(event.accountingPolicy
+      ? { accountingPolicy: event.accountingPolicy }
+      : {}),
+    ...(event.sourceAmountDecimal
+      ? { sourceAmountDecimal: event.sourceAmountDecimal }
+      : {}),
+    ...(event.activatedAt ? { activatedAt: event.activatedAt } : {}),
     sourceItemKey: event.sourceItemKey,
     ...(event.sender ? { sender: event.sender } : {}),
     ...(event.amountMinor === undefined
@@ -343,6 +575,19 @@ function minimizeEvent(event: TrackingImportEvent): TrackingImportEvent {
     ...(event.metadata ? { metadata: event.metadata } : {}),
     ...(event.kind ? { kind: event.kind } : {}),
     ...(event.accountId ? { accountId: event.accountId } : {}),
-    ...(event.categoryId ? { categoryId: event.categoryId } : {})
+    ...(event.destinationAccountId
+      ? { destinationAccountId: event.destinationAccountId }
+      : {}),
+    ...(event.categoryId ? { categoryId: event.categoryId } : {}),
+    ...(event.classification ? { classification: event.classification } : {}),
+    ...(event.transport ? { transport: event.transport } : {}),
+    ...(event.providerReferenceDigest
+      ? { providerReferenceDigest: event.providerReferenceDigest }
+      : {}),
+    ...(event.originalProviderReferenceDigest
+      ? {
+          originalProviderReferenceDigest: event.originalProviderReferenceDigest
+        }
+      : {})
   };
 }

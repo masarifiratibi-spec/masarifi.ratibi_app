@@ -56,6 +56,14 @@ const account = {
 const response = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status });
 
+it('lets Clerk reuse its valid cached token for account reads', async () => {
+  const request = jest.fn(async () => response({ items: [account], nextCursor: null }));
+  const service = createLiveAccountService({ baseUrl: 'https://api.test', request });
+  await service.listAccounts();
+  expect(bridge.getToken).toHaveBeenCalledTimes(1);
+  expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+});
+
 describe.each([
   'list',
   'paginated-list',

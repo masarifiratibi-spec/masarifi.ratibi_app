@@ -7,21 +7,27 @@ const findings = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
+  // Policy TODO comments are documentation, not provider dependencies. Preserve line offsets.
+  const executableSource = source.replace(/^[ \t]*\/\/[^\r\n]*/gm, (comment) =>
+    ' '.repeat(comment.length)
+  );
   const normalized = file.replaceAll('\\', '/');
   const isTest = /\.(test|spec)\.(ts|tsx)$/.test(normalized);
-  const isAppShellUi = /^(app\/\((public|onboarding|tabs)\)|app\/(accounts|assistant|modals|security)\/|src\/features\/(auth|onboarding|shell|security)\/)/.test(
-    normalized
-  );
+  const isAppShellUi =
+    /^(app\/\((public|onboarding|tabs)\)|app\/(accounts|assistant|modals|security)\/|src\/features\/(auth|onboarding|shell|security)\/)/.test(
+      normalized
+    );
   const isAndroidSmsBoundary =
     normalized === 'app/(onboarding)/android-sms-permission.tsx' ||
     normalized === 'src/features/tracking/sms-import.ts' ||
     normalized === 'src/services/automatic-tracking-coordinator.ts' ||
+    normalized === 'src/services/tracking-source-preferences.ts' ||
     /^src\/services\/platform\/.*\.android\.ts$/.test(normalized);
 
   if (!isTest) {
     reportMatches(
       file,
-      source,
+      executableSource,
       /(?:openai|stripe|supabase|firebase|@react-native-google-signin|expo-auth-session)/gi,
       'provider SDK or production-provider import'
     );
@@ -40,7 +46,12 @@ for (const file of files) {
   );
 
   if (isAppShellUi && !isTest) {
-    reportMatches(file, source, /#[0-9a-f]{3,8}\b/gi, 'feature-local raw color');
+    reportMatches(
+      file,
+      source,
+      /#[0-9a-f]{3,8}\b/gi,
+      'feature-local raw color'
+    );
   }
 
   if (!isTest && !isAndroidSmsBoundary) {

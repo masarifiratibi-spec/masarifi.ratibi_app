@@ -34,7 +34,7 @@ describe('sync bootstrap HTTP boundary', () => {
           provide: PlatformConfigService,
           useValue: {
             getRequired: (name: string) =>
-              name === 'MASARIFI_PUSH_TOKEN_HASH_KEY'
+              name === 'MASARIFI_SYNC_CURSOR_KEY'
                 ? Buffer.alloc(32, 1).toString('base64url')
                 : 524_288,
           },

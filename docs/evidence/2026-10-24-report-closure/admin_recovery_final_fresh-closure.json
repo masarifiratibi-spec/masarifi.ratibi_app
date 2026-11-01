@@ -1,0 +1,46 @@
+{
+  "database": "admin_recovery_final_fresh",
+  "host": "127.0.0.1",
+  "port": 55442,
+  "sourceFiles": [
+    {
+      "name": "20261023232159_report_closure_sync_reauthentication.sql",
+      "sha256": "8320632ba903f414c6dcd3de6d17364caee7cd97d5e37f0849f5f2724edb27e0"
+    },
+    {
+      "name": "20261023232451_report_closure_financial_semantics.sql",
+      "sha256": "28b10e647df6a48e50d943c385ec007090e393fe26fc0310cd6a11770bdf5690"
+    },
+    {
+      "name": "20261023233237_report_closure_tracking_policy.sql",
+      "sha256": "1e380df7842ec9b22cc8555053ee195fb30353df39ba0b05ba90f89ba88eea8d"
+    },
+    {
+      "name": "20261024003511_report_closure_upload_cleanup.sql",
+      "sha256": "d791262ce18357e4a84bf7fb41a104bdcb549db1c2073ac64ed8e764d02ed7e7"
+    },
+    {
+      "name": "20261024080700_report_closure_tracking_worker_context.sql",
+      "sha256": "19ba73b52d93ce931a91bad62a3b8c344bbc1237dbf9accae06234aff9d53b1d"
+    },
+    {
+      "name": "20261024081800_report_closure_tracking_claim_context.sql",
+      "sha256": "c7d754794c5f8c885ad421c2b4019c96225e4a3f3372fe49a1be9aec12f16294"
+    },
+    {
+      "name": "20261024083200_report_closure_transfer_provenance.sql",
+      "sha256": "e6fc6aaac534b1869e10f2cc7212c3f7365818aad416aeaab2ec1a1bd0827b1d"
+    },
+    {
+      "name": "20261024105000_report_closure_compensation_lookup.sql",
+      "sha256": "9d4064f1005e6d8d959e5665a44c596a603b0c61394b76fdb952d1623aba6187"
+    },
+    {
+      "name": "20261024110500_report_closure_planning_sync_receipts.sql",
+      "sha256": "83a843a6252ed9ae503e9e326bdbabcd0efe154b1e925c7d533d535bc3c1db1b"
+    }
+  ],
+  "assertions": 64,
+  "failures": [],
+  "rolledBack": true
+}

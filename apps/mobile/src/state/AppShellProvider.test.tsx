@@ -1,11 +1,19 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import React from 'react';
-import { AppState, Linking, Text } from 'react-native';
-import { act, render, screen } from '@testing-library/react-native';
+import { AppState, Linking, Text, type AppStateStatus } from 'react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
+import { clearAppShellStorageOwner } from '@/storage/app-shell-storage';
 
 import { AppShellProvider } from './AppShellProvider';
 import { useAppShellStore } from './app-shell';
 import { usePreferenceStore } from './preferences';
+import { HttpError } from '@/services/live/http-client';
+import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
+jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
 
 const mockRestoreAppShellSession = jest.fn(
   async (..._args: unknown[]) => undefined
@@ -14,7 +22,12 @@ const mockSynchronizeLiveCoreFinance = jest.fn(async () => undefined);
 const mockRefreshPlatformOperations = jest.fn(async () => undefined);
 const mockSyncAutomaticTracking = jest.fn(async () => undefined);
 const mockTouchActivity = jest.fn(async () => undefined);
-const mockEnsureLivePushDeviceRegistration = jest.fn(async () => 'granted');
+const mockRecordMobileForeground = jest.fn(async () => undefined);
+jest.mock('@/services/live/mobile-activity', () => ({ recordMobileForeground: () => mockRecordMobileForeground() }));
+const mockRestoreSession = jest.fn();
+const mockEnsureLivePushDeviceRegistration = jest.fn(
+  async (..._args: unknown[]) => 'granted'
+);
 let mockLiveClerkSessionKey: string | null | undefined;
 
 jest.mock('@/features/auth/session-controller', () => ({
@@ -22,7 +35,10 @@ jest.mock('@/features/auth/session-controller', () => ({
     mockRestoreAppShellSession(...args)
 }));
 jest.mock('@/features/auth/auth-flow', () => ({
-  authService: { touchActivity: () => mockTouchActivity() }
+  authService: {
+    touchActivity: () => mockTouchActivity(),
+    restoreSession: () => mockRestoreSession()
+  }
 }));
 jest.mock('@/services/live/clerk-provider', () => ({
   useLiveClerkSessionKey: () => mockLiveClerkSessionKey
@@ -37,7 +53,8 @@ jest.mock('@/services/automatic-tracking-coordinator', () => ({
   syncAutomaticTracking: () => mockSyncAutomaticTracking()
 }));
 jest.mock('@/services/live/engagement-service', () => ({
-  ensureLivePushDeviceRegistration: () => mockEnsureLivePushDeviceRegistration()
+  ensureLivePushDeviceRegistration: (...args: unknown[]) =>
+    mockEnsureLivePushDeviceRegistration(...args)
 }));
 
 jest.mock('expo-secure-store', () => ({
@@ -51,16 +68,91 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('AppShellProvider', () => {
+  it('restores benchmark profile and platform reads without startup or foreground writers', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const restoreEnvironment = installBenchmarkEnvironment();
+    mockLiveClerkSessionKey = 'benchmark-owner';
+    let receiveState!: (state: AppStateStatus) => void;
+    const previousListener = jest.mocked(AppState.addEventListener).getMockImplementation()!;
+    const listener = jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, handler) => {
+      receiveState = handler;
+      return { remove: jest.fn() };
+    });
+    try {
+      render(<AppShellProvider><Text>benchmark read</Text></AppShellProvider>);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      await act(async () => { receiveState('active'); });
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
+      expect(mockRefreshPlatformOperations).toHaveBeenCalledTimes(2);
+      expect(mockSynchronizeLiveCoreFinance).not.toHaveBeenCalled();
+      expect(mockSyncAutomaticTracking).not.toHaveBeenCalled();
+      expect(mockEnsureLivePushDeviceRegistration).not.toHaveBeenCalled();
+      expect(mockRecordMobileForeground).not.toHaveBeenCalled();
+    } finally { restoreEnvironment(); listener.mockImplementation(previousListener); }
+  });
   beforeEach(() => {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
     mockLiveClerkSessionKey = undefined;
     useAppShellStore.getState().reset();
     usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
     jest.clearAllMocks();
+    jest.mocked(SecureStore.getItemAsync).mockReset().mockResolvedValue(null);
+    mockRestoreAppShellSession.mockImplementation(async () => undefined);
   });
 
   afterEach(() => {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
+  });
+
+  it('bootstraps the same Clerk session after a 401 and successful Google reauthentication', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'same-clerk-session';
+    const controller = jest.requireActual<
+      typeof import('@/features/auth/session-controller')
+    >('@/features/auth/session-controller');
+    const session = {
+      ...authenticatedSession,
+      userId: 'user_live_google',
+      expiresAt: Date.now() + 60_000
+    };
+    mockRestoreSession.mockResolvedValue(session);
+    const getProfileSetup = jest
+      .fn()
+      .mockRejectedValueOnce(new HttpError('session_expired', 401))
+      .mockResolvedValue({
+        complete: true,
+        profile: { currency: 'SAR' },
+        preferences: {},
+        onboarding: {}
+      });
+    mockRestoreAppShellSession.mockImplementation(async (auth, isCurrent) => {
+      await controller.restoreAppShellSession(
+        auth as never,
+        isCurrent as never,
+        { getProfileSetup }
+      );
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(useAppShellStore.getState().session?.status).toBe('expired')
+    );
+    await act(async () => {
+      await controller.completeAuthenticatedSession(session);
+    });
+    await waitFor(() =>
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete')
+    );
+    expect(getProfileSetup).toHaveBeenCalledTimes(2);
+    expect(
+      resolveEntryRoute({
+        ...useAppShellStore.getState(),
+        firstLaunchOnboardingCompleted: true
+      })
+    ).toBe('/(tabs)/home');
   });
 
   it('always renders children on first render so the navigator mounts immediately', () => {
@@ -120,7 +212,7 @@ describe('AppShellProvider', () => {
     expect(mockSyncAutomaticTracking).toHaveBeenCalledTimes(1);
     expect(mockTouchActivity).toHaveBeenCalledTimes(1);
     expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
-    expect(hydrate).not.toHaveBeenCalled();
+    expect(hydrate).toHaveBeenCalledTimes(1);
     hydrate.mockRestore();
   });
 
@@ -164,6 +256,135 @@ describe('AppShellProvider', () => {
 
     expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(2);
     expect(useAppShellStore.getState().pendingDestination).toBe('/current');
+  });
+
+  it('does not repeat the activity read after validated profile bootstrap, but refreshes on resume', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-profile-validated';
+    let receiveState!: (state: AppStateStatus) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receiveState = listener;
+        return { remove: jest.fn() };
+      });
+    mockRestoreAppShellSession.mockImplementation(async () => {
+      useAppShellStore.setState({
+        session: authenticatedSession,
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: { complete: true } as never
+      });
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(mockSynchronizeLiveCoreFinance).toHaveBeenCalledTimes(1)
+    );
+    expect(mockTouchActivity).not.toHaveBeenCalled();
+    act(() => receiveState('active'));
+    expect(mockTouchActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishes profile bootstrap after its own owner hydration changes (September 30 Loading regression)', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-hydration-test';
+    useAppShellStore.setState({ hydrated: true });
+    mockRestoreSession.mockResolvedValue({
+      status: 'authenticated',
+      userId: 'user_live_hydration',
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 4_000_000_000_000,
+      restoration: 'restored'
+    });
+    let finishStorage!: (value: null) => void;
+    const storage = new Promise<null>((resolve) => {
+      finishStorage = resolve;
+    });
+    jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+      key === 'masarifi.appShell.nativePrivacyLock.v1' ||
+      key.startsWith('masarifi.appShell.nativePrivacyLock.v1.')
+        ? storage
+        : null
+    );
+    let finishProfile!: (value: unknown) => void;
+    const profile = new Promise((resolve) => {
+      finishProfile = resolve;
+    });
+    const { restoreAppShellSession } = jest.requireActual(
+      '@/features/auth/session-controller'
+    );
+    mockRestoreAppShellSession.mockImplementation((service, isCurrent) =>
+      restoreAppShellSession(service, isCurrent, {
+        getProfileSetup: () => profile
+      })
+    );
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(useAppShellStore.getState().hydrated).toBe(false)
+    );
+    await act(async () => {
+      finishStorage(null);
+      finishProfile({ complete: true });
+    });
+    await waitFor(() =>
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete')
+    );
+    expect(useAppShellStore.getState().session?.userId).toBe(
+      'user_live_hydration'
+    );
+  });
+
+  it('retries a failed profile bootstrap without discarding the current authenticated owner', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-retry-test';
+    const session = {
+      status: 'authenticated' as const,
+      userId: 'user_live_retry',
+      method: 'google' as const,
+      issuedAt: 1,
+      expiresAt: 4_000_000_000_000,
+      restoration: 'restored' as const
+    };
+    useAppShellStore.setState({
+      hydrated: true,
+      session,
+      profilePromptDismissed: true
+    });
+    mockRestoreSession.mockResolvedValue(session);
+    const getProfileSetup = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ complete: true });
+    const { restoreAppShellSession } = jest.requireActual(
+      '@/features/auth/session-controller'
+    );
+    mockRestoreAppShellSession.mockImplementation((service, isCurrent) =>
+      restoreAppShellSession(service, isCurrent, { getProfileSetup })
+    );
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('error')
+    );
+    act(() => useAppShellStore.getState().retryBootstrap());
+    await waitFor(() =>
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete')
+    );
+    expect(useAppShellStore.getState()).toMatchObject({
+      session,
+      profilePromptDismissed: true
+    });
   });
 
   it('forwards app state changes and preserves locale preferences', async () => {
@@ -222,7 +443,78 @@ describe('AppShellProvider', () => {
     expect(mockSynchronizeLiveCoreFinance).toHaveBeenCalledTimes(1);
     expect(mockSyncAutomaticTracking).toHaveBeenCalledTimes(1);
     expect(mockTouchActivity).toHaveBeenCalledTimes(1);
-    expect(mockEnsureLivePushDeviceRegistration).not.toHaveBeenCalled();
+    expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries failed push registration on foreground with an authenticated token source', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-push-retry';
+    let receiveState!: (state: AppStateStatus) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receiveState = listener;
+        return { remove: jest.fn() };
+      });
+    mockEnsureLivePushDeviceRegistration.mockRejectedValueOnce(
+      new Error('offline')
+    );
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1)
+    );
+    await act(async () => {
+      receiveState('active');
+    });
+    await waitFor(() =>
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(2)
+    );
+    expect(mockEnsureLivePushDeviceRegistration.mock.calls[1]?.[0]).toEqual({
+      token: expect.any(Function)
+    });
+  });
+
+  it('does not start concurrent push registrations during repeated foreground events', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-push-flight';
+    let receiveState!: (state: AppStateStatus) => void;
+    let finish!: (value: string) => void;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receiveState = listener;
+        return { remove: jest.fn() };
+      });
+    mockEnsureLivePushDeviceRegistration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await waitFor(() =>
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1)
+    );
+    act(() => {
+      receiveState('active');
+      receiveState('active');
+    });
+    expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish('granted');
+    });
+    await act(async () => {
+      receiveState('active');
+    });
+    expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(2);
   });
 
   it('retains only a safe initial deep-link destination across authentication gates', async () => {
@@ -243,6 +535,124 @@ describe('AppShellProvider', () => {
     expect(useAppShellStore.getState().pendingDestination).toBe(
       '/(tabs)/reports'
     );
+  });
+
+  it('opens a cold Reports link that resolves after authenticated Home hydration', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    let releaseUrl!: (url: string) => void;
+    jest.spyOn(Linking, 'getInitialURL').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseUrl = resolve as typeof releaseUrl;
+        })
+    );
+    useAppShellStore.setState({
+      hydrated: true,
+      session: authenticatedSession,
+      onboarding: null,
+      privacyLock: null,
+      profileSetupStatus: 'complete'
+    });
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await act(async () => {
+      releaseUrl('masarifi://reports');
+    });
+    expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/reports');
+  });
+
+  it('retains an early cold Reports link across actual owner authentication/storage hydration', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    clearAppShellStorageOwner();
+    const digest = jest
+      .spyOn(Crypto, 'digestStringAsync')
+      .mockResolvedValue('a'.repeat(64));
+    jest
+      .spyOn(Linking, 'getInitialURL')
+      .mockResolvedValueOnce('masarifi://reports');
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    await act(async () => {});
+    expect(useAppShellStore.getState().pendingDestination).toBe(
+      '/(tabs)/reports'
+    );
+    try {
+      await act(async () => {
+        await useAppShellStore.getState().authenticate({
+          ...authenticatedSession,
+          userId: 'user_live_reports'
+        });
+        useAppShellStore.getState().setProfileSetup('complete');
+      });
+    } finally {
+      digest.mockRestore();
+    }
+    expect(useAppShellStore.getState().pendingDestination).toBe(
+      '/(tabs)/reports'
+    );
+    expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/reports');
+  });
+
+  it('retains a newer runtime Reports link through owner hydration and ignores late initial URL', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    clearAppShellStorageOwner();
+    const digest = jest
+      .spyOn(Crypto, 'digestStringAsync')
+      .mockResolvedValue('b'.repeat(64));
+    let releaseInitial!: (url: string) => void;
+    let receive!: (event: { url: string }) => void;
+    jest.spyOn(Linking, 'getInitialURL').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseInitial = resolve as typeof releaseInitial;
+        })
+    );
+    jest
+      .spyOn(Linking, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        receive = listener;
+        return { remove: jest.fn() } as never;
+      });
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    render(
+      <AppShellProvider>
+        <ProtectedContent />
+      </AppShellProvider>
+    );
+    try {
+      await act(async () => receive({ url: 'masarifi://reports' }));
+      await act(async () => releaseInitial('masarifi://tracking'));
+      await act(async () => {
+        await useAppShellStore.getState().authenticate({
+          ...authenticatedSession,
+          userId: 'user_runtime_reports'
+        });
+        useAppShellStore.getState().setProfileSetup('complete');
+      });
+      expect(useAppShellStore.getState().pendingDestination).toBe(
+        '/(tabs)/reports'
+      );
+      expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/reports');
+    } finally {
+      digest.mockRestore();
+    }
   });
 
   it('opens a safe runtime deep link through the current access gate', async () => {

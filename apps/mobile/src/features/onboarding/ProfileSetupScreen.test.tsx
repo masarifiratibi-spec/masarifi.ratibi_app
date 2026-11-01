@@ -13,6 +13,96 @@ const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockBack = jest.fn();
 
+jest.mock('@/services/live/clerk-provider', () => ({
+  getLiveClerkDisplayName: () => null
+}));
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => false)
+}));
+
+test('does not switch a usable profile form to global Loading while refreshing after a failed save', async () => {
+  let finish!: (value: ProfileSetupSnapshot) => void;
+  let started!: () => void;
+  const refreshStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const refresh = new Promise<ProfileSetupSnapshot>((resolve) => {
+    finish = resolve;
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => null}
+      navigateHome={mockReplace}
+      service={service({
+        saveProfileSetup: async () => {
+          throw new Error('offline');
+        },
+        getProfileSetup: () => {
+          started();
+          return refresh;
+        }
+      })}
+    />
+  );
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  await act(async () => {
+    await refreshStarted;
+  });
+  const status = useAppShellStore.getState().profileSetupStatus;
+  await act(async () => {
+    finish(snapshot);
+  });
+  expect(status).toBe('incomplete');
+});
+
+test('does not complete or navigate the replacement owner after an old profile save resolves', async () => {
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'user_live_old',
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 4_000_000_000_000,
+      restoration: 'restored'
+    }
+  });
+  let finish!: (value: unknown) => void;
+  const pending = new Promise((resolve) => {
+    finish = resolve;
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => null}
+      navigateHome={mockReplace}
+      service={service({ saveProfileSetup: () => pending })}
+    />
+  );
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  act(() =>
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'user_live_new',
+        method: 'google',
+        issuedAt: 2,
+        expiresAt: 4_000_000_000_000,
+        restoration: 'restored'
+      },
+      profileSetupSnapshot: {
+        ...snapshot,
+        profile: { ...snapshot.profile, name: 'New owner' }
+      }
+    })
+  );
+  await act(async () => {
+    finish({ value: { ...snapshot, complete: true } });
+  });
+  expect(useAppShellStore.getState().profileSetupSnapshot?.profile.name).toBe(
+    'New owner'
+  );
+  expect(mockReplace).not.toHaveBeenCalled();
+});
+
 jest.mock('expo-router', () => ({
   router: {
     replace: (...args: unknown[]) => mockReplace(...args),
@@ -37,6 +127,7 @@ const snapshot: ProfileSetupSnapshot = {
   },
   preferences: {
     defaultCurrency: 'SAR',
+    currencySelectionRequired: false,
     language: 'ar',
     theme: 'system',
     calendar: 'gregorian',
@@ -54,6 +145,9 @@ const snapshot: ProfileSetupSnapshot = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest
+    .requireMock('@/config/mobile-automation')
+    .isMobileAutomationEnabled.mockReturnValue(false);
   changeLocale('ar');
   usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   useAppShellStore.getState().reset();
@@ -64,7 +158,100 @@ beforeEach(() => {
   });
 });
 
-test('matches the Arabic reference and prefills from Clerk before backend name', () => {
+test('keeps notification activation out of profile setup even when automation is enabled', () => {
+  jest
+    .requireMock('@/config/mobile-automation')
+    .isMobileAutomationEnabled.mockReturnValue(true);
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'owner-a',
+      issuedAt: 1,
+      expiresAt: 4_000_000_000_000,
+      method: 'google',
+      restoration: 'restored'
+    }
+  });
+  renderWithProviders(<ProfileSetupScreen service={service({})} />);
+  expect(screen.queryByRole('switch', { name: /تفعيل الإشعارات/ })).toBeNull();
+});
+
+test('requires an explicit currency choice for a new customer before onboarding can save', async () => {
+  useAppShellStore.setState({
+    profileSetupSnapshot: {
+      ...snapshot,
+      preferences: {
+        ...snapshot.preferences,
+        version: 3,
+        currencySelectionRequired: true
+      },
+      onboarding: {
+        ...snapshot.onboarding,
+        completedSteps: ['welcome'],
+        step: 'tracking_intro'
+      }
+    }
+  });
+  const saveProfileSetup = jest.fn();
+  renderWithProviders(
+    <ProfileSetupScreen service={service({ saveProfileSetup })} />
+  );
+  expect(screen.queryByText('SAR')).not.toBeOnTheScreen();
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  expect(saveProfileSetup).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByRole('button', { name: /العملة الأساسية/ }));
+  const sessionId = mockPush.mock.calls[0]?.[0]?.params?.sessionId as string;
+  act(() => completeSelectionSession(sessionId, 'AED'));
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  await waitFor(() =>
+    expect(saveProfileSetup).toHaveBeenCalledWith(
+      { name: 'Backend Name', currency: 'AED' },
+      expect.anything(),
+      expect.any(String)
+    )
+  );
+});
+
+test('requires a picker choice when an older API omits currency provenance despite completed welcome', () => {
+  useAppShellStore.setState({
+    profileSetupSnapshot: {
+      ...snapshot,
+      preferences: {
+        ...snapshot.preferences,
+        currencySelectionRequired: undefined
+      },
+      onboarding: {
+        ...snapshot.onboarding,
+        step: 'tracking_intro',
+        completedSteps: ['welcome']
+      }
+    }
+  });
+  const saveProfileSetup = jest.fn();
+  renderWithProviders(
+    <ProfileSetupScreen service={service({ saveProfileSetup })} />
+  );
+  expect(screen.queryByText('SAR')).not.toBeOnTheScreen();
+  fireEvent.press(screen.getByLabelText('متابعة'));
+  expect(saveProfileSetup).not.toHaveBeenCalled();
+});
+
+test('does not preselect a fallback when the confirmed backend currency is unsupported', () => {
+  useAppShellStore.setState({
+    profileSetupSnapshot: {
+      ...snapshot,
+      preferences: {
+        ...snapshot.preferences,
+        defaultCurrency: 'XXX',
+        currencySelectionRequired: false
+      }
+    }
+  });
+  renderWithProviders(<ProfileSetupScreen service={service()} />);
+  expect(screen.queryByText('SAR')).not.toBeOnTheScreen();
+});
+
+test('matches the Arabic reference and keeps the saved name ahead of Clerk prefill', () => {
   renderWithProviders(
     <ProfileSetupScreen
       getClerkName={() => 'Adel Mohamed'}
@@ -76,17 +263,19 @@ test('matches the Arabic reference and prefills from Clerk before backend name',
   expect(screen.getByTestId('profile-setup-content')).toHaveStyle({
     direction: 'rtl'
   });
-  expect(screen.getByText('وش ناديلك؟')).toHaveStyle({
+  expect(screen.getByText('وش نناديك؟')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'rtl',
     width: '100%'
   });
-  expect(screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي.')).toHaveStyle({
+  expect(
+    screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.')
+  ).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'rtl',
     width: '100%'
   });
-  expect(screen.getByDisplayValue('Adel Mohamed')).toHaveStyle({
+  expect(screen.getByDisplayValue('Backend Name')).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'auto'
   });
@@ -106,6 +295,52 @@ test('matches the Arabic reference and prefills from Clerk before backend name',
     writingDirection: 'rtl',
     width: '100%'
   });
+});
+
+test.each(['Typed Person', ''])(
+  'preserves active typing %s when a delayed saved profile arrives',
+  (typedName) => {
+    useAppShellStore.setState({
+      profileSetupSnapshot: null,
+      profileSetupStatus: 'loading'
+    });
+    renderWithProviders(
+      <ProfileSetupScreen
+        getClerkName={() => 'Provider Person'}
+        service={service()}
+      />
+    );
+    fireEvent.changeText(screen.getByLabelText('الاسم'), 'Typed Person');
+    fireEvent.changeText(screen.getByLabelText('الاسم'), typedName);
+    act(() =>
+      useAppShellStore.setState({
+        profileSetupSnapshot: snapshot,
+        profileSetupStatus: 'incomplete'
+      })
+    );
+    expect(screen.getByLabelText('الاسم')).toHaveDisplayValue(typedName);
+  }
+);
+
+test('replaces only the provider prefill when a delayed saved name arrives', () => {
+  useAppShellStore.setState({
+    profileSetupSnapshot: null,
+    profileSetupStatus: 'loading'
+  });
+  renderWithProviders(
+    <ProfileSetupScreen
+      getClerkName={() => 'Provider Person'}
+      service={service()}
+    />
+  );
+  expect(screen.getByLabelText('الاسم')).toHaveDisplayValue('Provider Person');
+  act(() =>
+    useAppShellStore.setState({
+      profileSetupSnapshot: snapshot,
+      profileSetupStatus: 'incomplete'
+    })
+  );
+  expect(screen.getByLabelText('الاسم')).toHaveDisplayValue('Backend Name');
 });
 
 test('keeps Arabic currency code and label in separate deterministic runs', () => {
@@ -167,7 +402,9 @@ test('keeps edits while switching to English and uses concise LTR copy', async (
     writingDirection: 'ltr',
     width: '100%'
   });
-  expect(screen.getByText('We use it to personalize Masarifi.')).toHaveStyle({
+  expect(
+    screen.getByText('We use it to personalize Masarifi & Ratibi.')
+  ).toHaveStyle({
     textAlign: 'auto',
     writingDirection: 'ltr',
     width: '100%'
@@ -278,6 +515,8 @@ test('preserves the form after save failure and succeeds on retry', async () => 
 
   fireEvent.press(screen.getByLabelText('متابعة'));
   await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(1));
+  expect(saveProfileSetup).toHaveBeenCalledTimes(2);
+  expect(saveProfileSetup.mock.calls[1][2]).toBe(saveProfileSetup.mock.calls[0][2]);
 });
 
 test('recovers a failed initial server check without inventing local completion', async () => {

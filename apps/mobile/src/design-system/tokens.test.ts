@@ -13,6 +13,18 @@ import {
 import { darkThemeColors, lightThemeColors } from './tokens';
 
 describe('SPEC-002 design tokens', () => {
+  it('provides 48dp native targets and readable text on page, card and financial surfaces', () => {
+    expect(minTouchTarget).toBeGreaterThanOrEqual(48);
+    for (const colors of [lightThemeColors, darkThemeColors]) {
+      for (const surface of [colors.surfaces.page, colors.surfaces.card]) {
+        expect(contrast(colors.content.muted, surface)).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(colors.financial.income, surface)).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(colors.financial.expense, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contrast(colors.financial.income, colors.financial.incomeSurface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(colors.financial.expense, colors.financial.expenseSurface)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
   it('owns approved reference color families centrally', () => {
     expect(colorTokens.teal['900']).toBe(hex('103F37'));
     expect(colorTokens.teal['600']).toBe(hex('1D7464'));
@@ -48,7 +60,7 @@ describe('SPEC-002 design tokens', () => {
       },
       financial: {
         incomeSurface: hex('BFEBD9'),
-        expenseSurface: hex('FBC8C3')
+        expenseSurface: hex('FBCCC7')
       },
       horizon: {
         heroStart: hex('103F37'),
@@ -187,4 +199,16 @@ describe('SPEC-002 design tokens', () => {
 
 function hex(value: string) {
   return `#${value}`;
+}
+
+function contrast(first: string, second: string) {
+  const luminance = (hexColor: string) => {
+    const channels = hexColor.slice(1).match(/../g)!.map((value) => {
+      const component = parseInt(value, 16) / 255;
+      return component <= 0.04045 ? component / 12.92 : ((component + 0.055) / 1.055) ** 2.4;
+    });
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  };
+  const values = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (values[0] + 0.05) / (values[1] + 0.05);
 }

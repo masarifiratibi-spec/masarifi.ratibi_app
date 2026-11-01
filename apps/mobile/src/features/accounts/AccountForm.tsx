@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -19,12 +20,12 @@ import { FormField } from '@/design-system/components/forms/FormField';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
 import {
-  parseAmountToMinor,
   supportsAutomaticTrackingAccountType,
   type Account,
   type AccountType
 } from '@/domain/core-finance';
 import { minorToMajorAmountText } from '@/domain/currencies';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { translate, translateDynamic } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
@@ -66,14 +67,10 @@ export function AccountForm({
   const [currency, setCurrency] = useState(
     account?.currencyCode ?? baseCurrencyCode
   );
-  const [balance, setBalance] = useState(
-    account
-      ? minorToMajorAmountText(
-          account.openingBalanceMinor,
-          account.currencyCode
-        )
-      : '0'
-  );
+  const initialBalance = account
+    ? minorToMajorAmountText(account.openingBalanceMinor, account.currencyCode)
+    : '';
+  const [balance, setBalance] = useState(initialBalance);
   const [creditLimit, setCreditLimit] = useState(
     account?.creditLimitMinor
       ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
@@ -127,13 +124,7 @@ export function AccountForm({
     name !== (account?.name ?? '') ||
     type !== (account?.type ?? initialType ?? 'bank') ||
     currency !== (account?.currencyCode ?? baseCurrencyCode) ||
-    balance !==
-      (account
-        ? minorToMajorAmountText(
-            account.openingBalanceMinor,
-            account.currencyCode
-          )
-        : '0') ||
+    balance !== initialBalance ||
     creditLimit !==
       (account?.creditLimitMinor
         ? minorToMajorAmountText(account.creditLimitMinor, account.currencyCode)
@@ -215,7 +206,12 @@ export function AccountForm({
 
   const handleSave = async () => {
     if (saving || account?.status === 'closed') return;
-    const openingBalanceMinor = parseAmountToMinor(balance, currency);
+    let openingBalanceMinor = account
+      ? account.openingBalanceMinor
+      : parseAmountToMinor(
+          balance.trim() || (isCreditCard ? '' : '0'),
+          currency
+        );
     if (!name.trim()) {
       setError(translate('coreFinance.validation.required'));
       setErrorField('name');
@@ -228,12 +224,25 @@ export function AccountForm({
     }
 
     let creditLimitMinor: number | null = null;
-    if (isCreditCard && creditLimit.trim()) {
-      creditLimitMinor = parseAmountToMinor(creditLimit, currency);
-      if (creditLimitMinor === null) {
-        setError(translate('coreFinance.validation.invalid'));
+    if (isCreditCard && (!isEditing || creditLimit.trim())) {
+      creditLimitMinor = parseAmountToMinor(
+        normalizeLocalizedNumber(creditLimit),
+        currency
+      );
+      if (creditLimitMinor === null || creditLimitMinor <= 0) {
+        setError(
+          translate(
+            creditLimit.trim()
+              ? 'coreFinance.validation.invalid'
+              : 'coreFinance.validation.required'
+          )
+        );
         setErrorField('creditLimit');
         return;
+      }
+      if (!isEditing) {
+        // Available credit includes the unused limit; only the signed balance is owned.
+        openingBalanceMinor -= creditLimitMinor;
       }
     }
 
@@ -456,6 +465,7 @@ export function AccountForm({
                   ? t('coreFinance.accounts.setup.availableBalance')
                   : t('coreFinance.accounts.openingBalance')
               }
+              placeholder={t('common.zeroPlaceholder')}
               value={balance}
               onChangeText={setBalance}
               variant="amount"
@@ -678,9 +688,10 @@ function parseOptionalInteger(
   minimum: number,
   maximum: number
 ): number | null | undefined {
-  if (!text.trim()) return null;
-  if (!/^\d+$/.test(text.trim())) return undefined;
-  const value = Number(text);
+  const normalized = normalizeLocalizedNumber(text).trim();
+  if (!normalized) return null;
+  if (!/^\d+$/.test(normalized)) return undefined;
+  const value = Number(normalized);
   return Number.isSafeInteger(value) && value >= minimum && value <= maximum
     ? value
     : undefined;

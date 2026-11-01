@@ -42,7 +42,7 @@ describe('AccessibilityStateGallery', () => {
     expect(radios.length).toBeGreaterThan(0);
     radios.forEach((node) => {
       expect(node.props.accessibilityLabel).toBeTruthy();
-      expect(node).toHaveStyle({ minHeight: 44 });
+      expect(node).toHaveStyle({ minHeight: 48 });
     });
   });
 
@@ -54,7 +54,7 @@ describe('AccessibilityStateGallery', () => {
     expect(getByLabelText('Loading')).toHaveProp('accessibilityRole', 'text');
     expect(getByLabelText('Error')).toHaveProp('accessibilityRole', 'text');
     expect(getByRole('button', { name: 'Retry' })).toHaveStyle({
-      minHeight: 44
+      minHeight: 48
     });
   });
 

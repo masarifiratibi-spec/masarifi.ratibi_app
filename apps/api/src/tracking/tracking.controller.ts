@@ -14,7 +14,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 import {
   ClerkAuthGuard,
@@ -37,6 +37,24 @@ type Input = {
 @UseGuards(ClerkAuthGuard)
 export class TrackingController {
   constructor(readonly tracking: TrackingService) {}
+  @Post('api/v1/tracking/device/rule-snapshot')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'enrollTrackingInstallation' })
+  deviceRuleSnapshot(@Req() request: Request, @Body() body: unknown) {
+    return this.tracking.deviceRuleSnapshot(this.principal(request), body);
+  }
+  @Get('api/v1/tracking/confirmations/:notificationId')
+  @ApiOperation({ operationId: 'getTrackingConfirmation' })
+  confirmation(@Req() request: Request, @Param('notificationId') id: string) {
+    return this.tracking.confirmation(this.principal(request), id);
+  }
+
+  @Get('api/v1/tracking/rule-snapshot')
+  @ApiOperation({ operationId: 'getTrackingRuleSnapshot' })
+  @ApiQuery({ name: 'deviceId', required: false, type: String, format: 'uuid' })
+  ruleSnapshot(@Req() request: Request, @Query('deviceId') deviceId?: string) {
+    return this.tracking.ruleSnapshot(this.principal(request), deviceId);
+  }
 
   @Get('api/v1/tracking/preferences')
   @ApiOperation({ operationId: 'getTrackingPreferences' })

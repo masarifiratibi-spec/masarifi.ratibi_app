@@ -79,7 +79,9 @@ describeLiveDatabase('AI prompt evaluation and publication', () => {
             }) as Record<string, unknown>
           )[name],
       ),
-      get: jest.fn(() => 'evaluation-worker'),
+      get: jest.fn((key: string) =>
+        key === 'MASARIFI_WORKER_ID' ? 'evaluation-worker' : undefined,
+      ),
     };
     await new AiWorker(
       repository,

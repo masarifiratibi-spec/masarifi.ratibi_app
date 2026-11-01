@@ -9,10 +9,18 @@ import { StateView } from '@/design-system/components/feedback/StateView';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import { StyledText } from '@/components/StyledText';
 import { canRateTicket, type SupportTicket } from '@/domain/support';
-import { useRateTicket, useReplyToTicket, useSupportTicket } from './support-queries';
+import {
+  useRateTicket,
+  useReplyToTicket,
+  useSupportTicket
+} from './support-queries';
 import { translateDynamic } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
+import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { useAppShellStore } from '@/state/app-shell';
 
 export function TicketDetailScreen({ ticketId }: { ticketId: string }) {
   const theme = useTheme();
@@ -20,28 +28,116 @@ export function TicketDetailScreen({ ticketId }: { ticketId: string }) {
   const ticket = useSupportTicket(ticketId);
   const reply = useReplyToTicket();
   const rate = useRateTicket();
-  const [body, setBody] = useState('');
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const draftScope = JSON.stringify([ownerId, ticketId]);
+  const [draft, setDraft] = useState(() => ({ scope: draftScope, body: '' }));
+  const body = draft.scope === draftScope ? draft.body : '';
 
-  if (ticket.isLoading) return <StateView state="loading" title={translateDynamic('support.ticket.loading')} />;
-  if (ticket.isError || !ticket.data) return <StateView state="error" title={translateDynamic('support.ticket.error')} />;
+  if (ticket.isLoading)
+    return (
+      <StateView
+        state="loading"
+        title={translateDynamic('support.ticket.loading')}
+      />
+    );
+  if (!ticket.data || !hasReadableSnapshot(ticket))
+    return (
+      <StateView
+        state="error"
+        title={translateDynamic('support.ticket.error')}
+      />
+    );
+  const canReply = ['open', 'waiting_user', 'waiting_support'].includes(
+    ticket.data.status
+  );
 
   return (
-    <ScrollView contentContainerStyle={[styles.stack, { backgroundColor: theme.colors.surfaces.page }]}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.stack,
+        { backgroundColor: theme.colors.surfaces.page }
+      ]}
+    >
       <AppBar
-        title={translateDynamic('support.ticket.detailTitle', { reference: ticket.data.reference })}
+        title={translateDynamic('support.ticket.detailTitle', {
+          reference: ticket.data.reference
+        })}
         onBack={() => router.back()}
         direction={direction}
       />
       <SurfaceCard style={styles.card}>
+        <FinancialRefreshStatus query={ticket} />
         <StyledText variant="subtitle">{ticket.data.reference}</StyledText>
         <StyledText>{ticket.data.subject}</StyledText>
-        <StyledText>{translateDynamic(`support.ticket.status.${ticket.data.status}`)}</StyledText>
+        <StyledText>
+          {translateDynamic(`support.ticket.status.${ticket.data.status}`)}
+        </StyledText>
       </SurfaceCard>
-      {ticket.data.messages.map((message: SupportTicket['messages'][number]) => <SurfaceCard key={message.id}><StyledText>{message.body}</StyledText></SurfaceCard>)}
-      <FormField label="support.ticket.reply" value={body} onChangeText={setBody} />
-      <ActionButton label="support.ticket.sendReply" loading={reply.isPending} onPress={() => reply.mutate({ ticketId, input: { description: body }, expectedVersion: ticket.data.version, operationId: `support-reply-${Date.now()}` })} />
-      {reply.isError ? <StyledText>{translateDynamic('support.ticket.replyFailed')}</StyledText> : null}
-      {canRateTicket(ticket.data.status) ? <ActionButton label="support.ticket.rate.5" loading={rate.isPending} onPress={() => rate.mutate({ ticketId, rating: 5, expectedVersion: ticket.data.version, operationId: `support-rate-${Date.now()}` })} /> : null}
+      {ticket.data.messages.map(
+        (message: SupportTicket['messages'][number]) => (
+          <SurfaceCard key={message.id}>
+            <StyledText>{message.body}</StyledText>
+          </SurfaceCard>
+        )
+      )}
+      {canReply ? (
+        <>
+          <FormField
+            label="support.ticket.reply"
+            value={body}
+            onChangeText={(value) =>
+              setDraft({ scope: draftScope, body: value })
+            }
+          />
+          <ActionButton
+            label="support.ticket.sendReply"
+            loading={reply.isPending}
+            disabled={!body.trim()}
+            onPress={() =>
+              reply.mutate({
+                ticketId,
+                input: { description: body },
+                expectedVersion: ticket.data.version,
+                operationId: `support-reply-${Date.now()}`
+              })
+            }
+          />
+        </>
+      ) : (
+        <StyledText>
+          {translateDynamic('support.ticket.replyUnavailable')}
+        </StyledText>
+      )}
+      {reply.isError || ticket.isError ? (
+        <>
+          {reply.isError ? (
+            <StyledText>
+              {translateDynamic('support.ticket.replyFailed')}
+            </StyledText>
+          ) : null}
+          <ActionButton
+            label="support.ticket.refresh"
+            variant="secondary"
+            onPress={() => {
+              void ticket.refetch();
+            }}
+          />
+        </>
+      ) : null}
+      {isFixtureModeEnabled() && canRateTicket(ticket.data.status) ? (
+        <ActionButton
+          label="support.ticket.rate.5"
+          loading={rate.isPending}
+          onPress={() =>
+            rate.mutate({
+              ticketId,
+              rating: 5,
+              expectedVersion: ticket.data.version,
+              operationId: `support-rate-${Date.now()}`
+            })
+          }
+        />
+      ) : null}
     </ScrollView>
   );
 }

@@ -1,0 +1,11 @@
+# Expo SQLite Android teardown backport
+
+This Android backport pins Expo SQLite 55.0.20 and the complete canonical SHA-256 of `SQLiteModule.kt`. It snapshots cached connections before clearing the cache and attempts each close independently. Transaction, schema, encryption, owner and SharedRef behavior are unchanged.
+
+Ordinary and DEV Android builds share automatic preparation through postinstall and the Android prebuild plugin. `npm run prepare:android` applies both pinned repairs; `npm run check:android-native-fixes` checks them without rewriting sources. Generated Gradle configuration refuses a build if either patch is absent or unrecognized. The older single-patch command remains a DEV-only manual entry point. A JavaScript reload cannot activate this Kotlin change; rebuild the intended native artifact. These steps do not access app data and must not prebuild over an unrelated Android project.
+
+`node --test scripts/sqlite-cleanup-fix.test.mjs` checks version/source rejection, idempotence, Windows line endings and the DEV command guard. With JDK 17 and the cached Kotlin 2.1.20 compiler, `node scripts/sqlite-cleanup-regression.mjs <expo-sqlite-root> <external-output-directory>` compiles the real extracted lifecycle methods against native-call test boundaries.
+
+The optional `--real-sqlite` fixture requires a test-only Xerial SQLite JDBC classpath in `MASARIFI_TEST_SQLITE_JDBC_CLASSPATH`. It uses new temporary file-backed databases, preserves a committed Arabic draft, rolls back uncommitted fixture rows and reacquires the writer lock for 20 teardown cycles. It does not access app data, authenticate, or call an API. This host fixture does not replace Android/SQLCipher acceptance after an approved native update.
+
+The pristine source is from the installed `expo-sqlite` package, upstream [Expo SDK 55](https://github.com/expo/expo/tree/sdk-55/packages/expo-sqlite), copyright 650 Industries, Inc., MIT license. The exact upstream copyright and permission notice is retained in [LICENSE](./LICENSE), copied from [Expo SDK 55 LICENSE](https://github.com/expo/expo/blob/sdk-55/LICENSE). Patch and artifact evidence must distinguish build verification from on-device verification. Dependency preparation never installs an APK or clears application data.

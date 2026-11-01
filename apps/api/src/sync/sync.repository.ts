@@ -91,7 +91,9 @@ export interface ConflictRecord {
   resolvedAt: string | null;
 }
 
-interface ClaimedMutationRow extends QueryResultRow {
+export interface ClaimedMutationRow extends QueryResultRow {
+  created_at: Date | string;
+  authenticated_at?: Date | string | null;
   id: string;
   user_id: string;
   device_id: string;
@@ -114,6 +116,7 @@ export interface ClaimedMutation {
   userId: string;
   deviceId: string;
   factorAgeSeconds: number | null;
+  authenticatedAt: string | null;
   mutation: SyncMutation;
   attemptCount: number;
   leaseToken: string;
@@ -127,6 +130,36 @@ export interface MutationReceipt {
   error: Record<string, unknown> | null;
 }
 
+export function toClaimedMutation(row: ClaimedMutationRow): ClaimedMutation {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    deviceId: row.device_id,
+    factorAgeSeconds: row.factor_age_seconds,
+    authenticatedAt:
+      row.authenticated_at != null
+        ? new Date(row.authenticated_at).toISOString()
+        : row.factor_age_seconds !== null && Number.isFinite(new Date(row.created_at).getTime())
+          ? new Date(
+              new Date(row.created_at).getTime() - row.factor_age_seconds * 1000,
+            ).toISOString()
+          : null,
+    mutation: {
+      operationId: row.operation_id,
+      domain: row.domain,
+      resourceType: row.resource_type,
+      schemaVersion: row.schema_version,
+      dependsOn: row.depends_on,
+      operation: row.operation,
+      resourceId: row.resource_id,
+      baseVersion: row.base_version === null ? null : Number(row.base_version),
+      payload: row.payload,
+    },
+    attemptCount: row.attempt_count,
+    leaseToken: row.lease_token,
+  };
+}
+
 @Injectable()
 export class SyncRepository {
   constructor(private readonly pool: PoolService) {}
@@ -134,11 +167,13 @@ export class SyncRepository {
   private transaction<T>(
     principal: ClerkPrincipal,
     action: (client: PoolClient) => Promise<T>,
-    readOnlyRepeatable = false,
+    repeatableSnapshot = false,
   ): Promise<T> {
     return this.pool.withClient(async (client) => {
       await client.query(
-        readOnlyRepeatable ? 'begin isolation level repeatable read read only' : 'begin',
+        // Active-profile checks take FOR SHARE locks to fence account freezing.
+        // Keep the stable snapshot while permitting those protection locks.
+        repeatableSnapshot ? 'begin isolation level repeatable read' : 'begin',
       );
       try {
         await client.query("select set_config('request.jwt.claims',$1,true)", [
@@ -556,25 +591,7 @@ export class SyncRepository {
         throw error;
       }
     });
-    return rows.map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      deviceId: row.device_id,
-      factorAgeSeconds: row.factor_age_seconds,
-      mutation: {
-        operationId: row.operation_id,
-        domain: row.domain,
-        resourceType: row.resource_type,
-        schemaVersion: row.schema_version,
-        dependsOn: row.depends_on,
-        operation: row.operation,
-        resourceId: row.resource_id,
-        baseVersion: row.base_version === null ? null : Number(row.base_version),
-        payload: row.payload,
-      },
-      attemptCount: row.attempt_count,
-      leaseToken: row.lease_token,
-    }));
+    return rows.map(toClaimedMutation);
   }
 
   workerComplete(

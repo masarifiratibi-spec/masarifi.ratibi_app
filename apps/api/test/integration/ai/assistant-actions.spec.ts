@@ -9,6 +9,7 @@ const referencedId = '99000000-0000-4000-8000-000000000003';
 describe('assistant action command bridge', () => {
   const repository = {
     operationId: jest.fn(() => '99000000-0000-4000-8000-000000000004'),
+    getPreviewTimezone: jest.fn(() => Promise.resolve('Asia/Riyadh')),
     claimAction: jest.fn(),
     completeAction: jest.fn(),
   };
@@ -87,6 +88,15 @@ describe('assistant action command bridge', () => {
       service.confirmPreview(owner, previewId, { expectedVersion: 1 }, 'assistant-action-key-0001'),
     ).resolves.toMatchObject({ actionType, resourceId, status: 'executed' });
     expect(command).toHaveBeenCalledTimes(1);
+    if (actionType === 'transaction.create')
+      expect(command).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            source: 'platform_assisted',
+            occurredAt: '2026-09-03T09:00:00.000Z',
+          }) as unknown,
+        }),
+      );
     expect(repository.completeAction).toHaveBeenCalledWith(
       owner,
       previewId,

@@ -161,6 +161,23 @@ describe('Phase 10 report schemas', () => {
     ).toThrow('VALIDATION_FAILED');
   });
 
+  it('validates and canonicalizes an explicit account scope without accepting empty scopes', () => {
+    const first = '99000000-0000-4000-8000-000000000001';
+    const second = '99000000-0000-4000-8000-000000000002';
+    const query = { type: 'financial_summary', period: 'monthly' };
+    expect(
+      normalizeSummaryQuery({ ...query, accountIds: `${second},${first},${first}` }, true),
+    ).toMatchObject({ accountIds: [first, second] });
+    for (const accountIds of ['', 'invalid', `${first},`, [first], null]) {
+      expect(() => normalizeSummaryQuery({ ...query, accountIds }, true)).toThrow(
+        'VALIDATION_FAILED',
+      );
+    }
+    expect(() => normalizeSummaryQuery({ period: 'monthly', accountIds: first }, false)).toThrow(
+      'VALIDATION_FAILED',
+    );
+  });
+
   it('normalizes recipient and versioned schedule mutations without extra fields', () => {
     expect(normalizeVerifyRecipient({ email: ' Reports@Example.Test ' })).toEqual({
       email: 'reports@example.test',

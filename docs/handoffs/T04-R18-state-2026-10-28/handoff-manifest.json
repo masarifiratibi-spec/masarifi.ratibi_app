@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-28T15:19:38.182302+00:00",
+  "handoff": "D:\\Masarifi-integration-2026-10-10\\docs\\handoffs\\T04-R18-continuation-handoff-2026-10-28.md",
+  "files": {
+    "docs/handoffs/T04-R18-continuation-handoff-2026-10-28.md": {
+      "sha256": "ecdae681715f26f61299c967ea7418d7cc9e645c40f022fe63d528d5f6803a42",
+      "bytes": 58701
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/continuation-prompt.txt": {
+      "sha256": "caf3784e9878e71a5cb6130891c7449d9f7343650e0f1a28c66156ae4d0d1329",
+      "bytes": 2340
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/existing-isolated-cursor-key-metadata.json": {
+      "sha256": "d054c96651e154e2a7650c234fab11f82b56513571c1519d614a08b50856f078",
+      "bytes": 637
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/git-snapshot.json": {
+      "sha256": "f683cecd1590a50b8c46ed4c2662b752f013467cf52778c9a3a9d7d37711743f",
+      "bytes": 49414
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/git-status.txt": {
+      "sha256": "e91be323e6ad510b98767e968eb93309dc9cc9a784e9126bcee41268b1413abd",
+      "bytes": 13983
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/hosted-database.json": {
+      "sha256": "d28f0bc70ea51a9c40784f082e6bf635557bf3a11a4abedaf39f8c3de00a8197",
+      "bytes": 1165
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/hosted-financial-metadata.json": {
+      "sha256": "3cfc2f17383e56ac7841e5f591309f613c20db356703e1f194244f83494f1b8e",
+      "bytes": 304
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/local-runtime-device.json": {
+      "sha256": "02f037a30e2fa99ca8ec76103f3c6ebcf0b769e6e251b3644c26ab446f67f60a",
+      "bytes": 6201
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/r18-artifact-inventory.json": {
+      "sha256": "43260669d1cc6010656210ca05af8d947a4b79256c6a57bd39f99c2a3c6b245b",
+      "bytes": 73911
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/source-preservation.json": {
+      "sha256": "6ea8c7bcb0089e1415a21920f7fc86b4c9f2fffc1cbd8236e68d3b90a84b9f75",
+      "bytes": 303
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/staging-runtime.json": {
+      "sha256": "34b2a86a6a83314f574bba180201468648e8678cd180223dec98344b3f198fc6",
+      "bytes": 81434
+    },
+    "docs/handoffs/T04-R18-state-2026-10-28/xiaomi-queue-cursors.json": {
+      "sha256": "ace024bc55b8d458f9054e543281bc549947f88f4024f364da2e54f1a10052e0",
+      "bytes": 729
+    }
+  },
+  "checks": {
+    "all29TasksMapped": true,
+    "localLinksExist": true,
+    "privateReceiptReferencesExist": true,
+    "savedPromptExact": true,
+    "originalPlanUnchanged": true,
+    "trackedDiffUnchanged": true,
+    "stagedPathsEmpty": true,
+    "source43HashesUnchanged": true
+  },
+  "runtimeSnapshotTimesRemainExplicit": true,
+  "selfHashExcluded": true,
+  "remediationStoppedAtHandoff": true
+}

@@ -101,7 +101,9 @@ test("prompt activation is gated by required fictional tests", async ({ page }, 
   let dialog = page.getByRole("dialog");
   await dialog.getByLabel("سبب القرار").fill("محاولة تفعيل مع اختبار مطلوب فاشل");
   await dialog.getByRole("button", { name: "تأكيد" }).click();
-  await expect(page.getByText(/تعذر تسجيل القرار.*تحقق من الأهلية/)).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "تعذر تحميل البيانات" })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("tr:visible, .mobile-data-card:visible").filter({ hasText: "AIPR-VOICE-AR-V4" }).first()).toContainText("testing");
   await dialog.getByRole("button", { name: "إلغاء" }).click();
 
   await activate.first().click();

@@ -7,10 +7,12 @@ import { RequestIdMiddleware } from '../../src/platform/http/request-id.middlewa
 import { META_TOKEN_VERIFIER, MetaAuthGuard } from '../../src/platform/meta/meta-auth.guard';
 import { MetaController } from '../../src/platform/meta/meta.controller';
 import { MetaService } from '../../src/platform/meta/meta.service';
+import { PoolService } from '../../src/platform/database/pool.service';
 
 describe('meta contract', () => {
   async function createApp(
     verifier?: (token: string) => Promise<boolean>,
+    socialLinks?: Record<'instagram' | 'tiktok' | 'snapchat', string>,
   ): Promise<INestApplication> {
     const config = {
       get: jest.fn(
@@ -28,6 +30,19 @@ describe('meta contract', () => {
       { provide: PlatformConfigService, useValue: config },
     ];
     if (verifier) providers.push({ provide: META_TOKEN_VERIFIER, useValue: verifier });
+    if (socialLinks)
+      providers.push({
+        provide: PoolService,
+        useValue: {
+          withClient: (run: (client: { query: (sql: string) => Promise<unknown> }) => unknown) =>
+            run({
+              query: (sql: string) =>
+                Promise.resolve({
+                  rows: sql.includes('read_social_media_links') ? [{ value: socialLinks }] : [],
+                }),
+            }),
+        },
+      });
     const module = await Test.createTestingModule({
       controllers: [MetaController],
       providers,
@@ -44,6 +59,27 @@ describe('meta contract', () => {
       .get('/api/v1/meta')
       .expect(401);
     await app.close();
+  });
+
+  it('authenticates social media reads and returns only the configured accounts without caching', async () => {
+    const links = { instagram: 'https://instagram.com/masarifi', tiktok: '', snapchat: '' };
+    const app = await createApp(
+      (token) => Promise.resolve(token === 'signed.fixture.token'),
+      links,
+    );
+    try {
+      await request(app.getHttpServer() as Parameters<typeof request>[0])
+        .get('/api/v1/meta/social-media')
+        .expect(401);
+      const response = await request(app.getHttpServer() as Parameters<typeof request>[0])
+        .get('/api/v1/meta/social-media')
+        .set('Authorization', 'Bearer signed.fixture.token')
+        .expect(200);
+      expect(response.body).toEqual(links);
+      expect(response.headers['cache-control']).toBe('private, no-store');
+    } finally {
+      await app.close();
+    }
   });
 
   it('fails closed when the production verifier is unavailable', async () => {

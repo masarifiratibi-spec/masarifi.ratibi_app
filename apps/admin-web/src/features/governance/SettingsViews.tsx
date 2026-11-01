@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AiUsageLimitsSection } from "./AiUsageLimitsSection";
 import { AccessDeniedState, ErrorState, LoadingState, PageHeader, SuccessState } from "@/components/admin/ui";
 import { mocksAllowed } from "@/core/api/client";
 import { useLocale } from "@/core/localization/provider";
@@ -229,6 +230,8 @@ export function ImportSettingsView() {
 
 export function AiSettingsView() {
   const { locale } = useLocale();
+  if (!(mocksAllowed() && process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true"))
+    return <section className="admin-page"><PageHeader title={copy[locale].titles.ai} description={copy[locale].description} /><AiUsageLimitsSection /></section>;
   return <SettingsForm group="ai" title={copy[locale].titles.ai} changeKey="dailyLimit" changeValue={6000} />;
 }
 
@@ -311,7 +314,6 @@ function FeatureFlagCard({ flag }: { flag: FeatureFlag }) {
       <p>{flag.platform} · {flag.audience} · {flag.status}</p>
       <p>{c.rollout} <span className="numbers">{flag.rolloutPercent}%</span> · {c.version} <span className="numbers">{flag.version}</span></p>
       <button className="button" disabled={flag.status === "ended" || update.isPending} onClick={() => update.mutate({
-        audience: "all_customers",
         rolloutPercent: flag.rolloutPercent === 100 ? 0 : 100,
         expectedVersion: flag.version,
         reason: "Update fixed audience rollout after governance review.",

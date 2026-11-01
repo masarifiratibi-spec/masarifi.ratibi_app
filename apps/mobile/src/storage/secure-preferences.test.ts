@@ -4,9 +4,15 @@ import { Platform } from 'react-native';
 
 import {
   clearPersistedPreferences,
-  loadPreferences
+  loadPreferences,
+  savePreferences
 } from './secure-preferences';
 import { buildPreferences } from '@/domain/foundation';
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
+
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
 
 jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(),
@@ -32,6 +38,18 @@ afterEach(() => {
 });
 
 describe('loadPreferences', () => {
+  it('restores reminder consent only with its persisted owner association', async () => {
+    getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        returnRemindersEnabled: true,
+        returnRemindersOwnerId: 'owner-a'
+      })
+    );
+    await expect(loadPreferences()).resolves.toMatchObject({
+      returnRemindersEnabled: true,
+      returnRemindersOwnerId: 'owner-a'
+    });
+  });
   it('clears native persisted preferences', async () => {
     await clearPersistedPreferences();
 
@@ -66,7 +84,7 @@ describe('loadPreferences', () => {
       buildPreferences({
         locale: 'ar',
         direction: 'rtl',
-        theme: 'light',
+        theme: 'system',
         hideBalances: false,
         baseCurrencyCode: 'SAR',
         timeZone: 'Asia/Riyadh',
@@ -155,4 +173,159 @@ describe('loadPreferences', () => {
     expect(getAsyncStorageItem).toHaveBeenCalledWith('masarifi.preferences');
     expect(getItemAsync).not.toHaveBeenCalled();
   });
+});
+
+describe('benchmark preference storage diagnostics', () => {
+  let log: jest.SpyInstance;
+  let restore: () => void;
+  const events = () =>
+    log.mock.calls
+      .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+      .map(([, value]) => JSON.parse(value));
+  beforeEach(() => {
+    log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    restore = installBenchmarkEnvironment();
+  });
+  afterEach(() => restore());
+
+  it('reports native write success without exposing the serialized preferences', async () => {
+    jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
+    await savePreferences(buildPreferences({ timeZone: 'PRIVATE_VALUE' }));
+    expect(events()).toEqual([
+      {
+        kind: 'preferences',
+        operation: 'write',
+        outcome: 'success',
+        errorClass: 'none',
+        atMs: expect.any(Number)
+      }
+    ]);
+    expect(jest.mocked(SecureStore.setItemAsync).mock.calls[0]).toEqual([
+      'masarifi.preferences',
+      expect.stringContaining('PRIVATE_VALUE')
+    ]);
+    expect(JSON.stringify(events())).not.toMatch(
+      /PRIVATE_VALUE|masarifi.preferences/
+    );
+  });
+
+  it.each(['read', 'write'] as const)(
+    'reports %s failure and rethrows the identical rejection',
+    async (operation) => {
+      const error = Object.assign(new Error('PRIVATE_MESSAGE'), {
+        code: 'ERR_ENCRYPT',
+        name: 'PRIVATE_NAME',
+        stack: 'PRIVATE_STACK'
+      });
+      if (operation === 'read') getItemAsync.mockRejectedValueOnce(error);
+      else jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(error);
+      const result =
+        operation === 'read'
+          ? loadPreferences()
+          : savePreferences(buildPreferences({}));
+      await expect(result).rejects.toBe(error);
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation,
+          outcome: 'failure',
+          errorClass: 'encrypt',
+          rejectionShape: 'code_message',
+          boundary: 'unrecognized',
+          argumentOrdinal: 'none',
+          atMs: expect.any(Number)
+        }
+      ]);
+      expect(JSON.stringify(events())).not.toMatch(
+        /PRIVATE|ERR_ENCRYPT|masarifi.preferences/
+      );
+    }
+  );
+
+  it('reports a missing native function through its known code without changing rejection', async () => {
+    const error = { code: 'ERR_METHOD_NOT_FOUND', message: 'PRIVATE' };
+    jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(error);
+    await expect(savePreferences(buildPreferences({}))).rejects.toBe(error);
+    expect(events()[0]).toMatchObject({
+      errorClass: 'native_function_missing'
+    });
+  });
+
+  it('keeps normal profiles silent while preserving storage failures', async () => {
+    restore();
+    const error = new TypeError('PRIVATE');
+    jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(error);
+    await expect(savePreferences(buildPreferences({}))).rejects.toBe(error);
+    expect(events()).toEqual([]);
+  });
+
+  it('does not let a failed diagnostic sink replace the storage rejection', async () => {
+    log.mockImplementation(() => {
+      throw Error('PRIVATE_SINK');
+    });
+    const error = { code: 'ERR_WRITE', message: 'PRIVATE_STORAGE' };
+    getItemAsync.mockRejectedValueOnce(error);
+    await expect(loadPreferences()).rejects.toBe(error);
+  });
+
+  it.each(['read', 'write'] as const)(
+    'preserves %s rejection identity while exposing only its conversion stage',
+    async (operation) => {
+      const method =
+        operation === 'read' ? 'getValueWithKeyAsync' : 'setValueWithKeyAsync';
+      const error = {
+        code: 'ERR_UNEXPECTED',
+        message: `Call to function 'ExpoSecureStore.${method}' has been rejected. The 2nd argument cannot be cast to type PRIVATE_VALUE PRIVATE_KEY https://PRIVATE_URL.invalid`
+      };
+      if (operation === 'read') getItemAsync.mockRejectedValueOnce(error);
+      else jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(error);
+      await expect(
+        operation === 'read'
+          ? loadPreferences()
+          : savePreferences(buildPreferences({}))
+      ).rejects.toBe(error);
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation,
+          outcome: 'failure',
+          errorClass: 'kotlin_argument_conversion',
+          rejectionShape: 'code_message',
+          boundary:
+            operation === 'read'
+              ? 'kotlin_read_wrapper'
+              : 'kotlin_write_wrapper',
+          argumentOrdinal: 'second',
+          atMs: expect.any(Number)
+        }
+      ]);
+      expect(JSON.stringify(events())).not.toMatch(
+        /PRIVATE|ERR_UNEXPECTED|ExpoSecureStore|cannot be cast/
+      );
+    }
+  );
+
+  it.each([
+    [null, 'primitive'],
+    ['PRIVATE', 'primitive'],
+    [
+      Object.defineProperty({}, 'message', {
+        get: () => {
+          throw Error('PRIVATE_GETTER');
+        }
+      }),
+      'unreadable'
+    ]
+  ])(
+    'preserves a nonstandard native rejection by identity %#',
+    async (error, rejectionShape) => {
+      getItemAsync.mockRejectedValueOnce(error);
+      await expect(loadPreferences()).rejects.toBe(error);
+      expect(events()[0]).toMatchObject({
+        errorClass: 'unknown',
+        rejectionShape
+      });
+      expect(JSON.stringify(events())).not.toContain('PRIVATE');
+    }
+  );
 });

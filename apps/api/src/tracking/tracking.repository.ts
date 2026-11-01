@@ -64,6 +64,7 @@ function mappedError(error: unknown): HttpException | Error {
   if (/CONFLICT|STALE|IN_PROGRESS|REUSED/.test(message))
     return new HttpException({ code: message }, 409);
   if (/NOT_FOUND/.test(message)) return new HttpException({ code: message }, 404);
+  if (/QUOTA_EXCEEDED/.test(message)) return new HttpException({ code: message }, 429);
   if (/INVALID|LIMIT|REQUIRED/.test(message)) return new HttpException({ code: message }, 400);
   return error instanceof Error ? error : new Error('TRACKING_DATABASE_UNAVAILABLE');
 }
@@ -71,6 +72,132 @@ function mappedError(error: unknown): HttpException | Error {
 @Injectable()
 export class TrackingRepository {
   constructor(private readonly pool: PoolService) {}
+
+  enrollInstallation(
+    principal: ClerkPrincipal,
+    input: {
+      deviceId: string;
+      notificationDeviceId: string;
+      smsActivationId: string;
+      remindersEnabled: boolean;
+      foreground: boolean;
+      reminderLocale: 'ar' | 'en';
+      reminderTimeZone: string;
+    },
+  ): Promise<Record<string, unknown>> {
+    return this.ownerJson(
+      principal,
+      'select private.enroll_dev_mobile_installation($1,$2,$3::uuid,$4,$5,$6,$7,$8) result',
+      [
+        principal.userId,
+        input.deviceId,
+        input.notificationDeviceId,
+        input.smsActivationId,
+        input.remindersEnabled,
+        input.foreground,
+        input.reminderLocale,
+        input.reminderTimeZone,
+      ],
+    );
+  }
+
+  ruleSnapshot(principal: ClerkPrincipal, deviceId?: string): Promise<Record<string, unknown>> {
+    return deviceId === undefined
+      ? this.ownerJson(principal, 'select private.get_tracking_rule_snapshot($1) result', [
+          principal.userId,
+        ])
+      : this.ownerJson(
+          principal,
+          'select private.get_tracking_device_rule_snapshot($1,$2) result',
+          [principal.userId, deviceId],
+        );
+  }
+  confirmation(principal: ClerkPrincipal, id: string) {
+    return this.ownerJson(
+      principal,
+      'select private.get_tracking_confirmation($1,$2::uuid) result',
+      [principal.userId, id],
+    );
+  }
+  captureTransaction(
+    principal: ClerkPrincipal,
+    itemId: string,
+  ): Promise<{ transactionId: string | null; operationId: string | null } | null> {
+    return this.owner(
+      principal,
+      async (client) =>
+        (
+          await client.query<{
+            capture: { transactionId: string | null; operationId: string | null } | null;
+          }>('select private.read_tracking_capture_transaction($1,$2::uuid) capture', [
+            principal.userId,
+            itemId,
+          ])
+        ).rows[0]?.capture ?? null,
+    );
+  }
+  releaseRead(principal: ClerkPrincipal, id: string | null): Promise<Record<string, unknown>> {
+    return this.ownerJson(
+      principal,
+      "select jsonb_build_object('items',private.read_tracking_releases($1::uuid)) result",
+      [id],
+    );
+  }
+  releaseMutate(
+    principal: ClerkPrincipal,
+    id: string | null,
+    action: string,
+    patch: Record<string, unknown>,
+    version: number,
+    reason: string,
+    key: string,
+    requestId: string,
+  ) {
+    return this.idempotent(
+      principal,
+      'tracking.admin.release.' + action,
+      key,
+      { id, action, patch, version, reason },
+      200,
+      requestId,
+      (client) =>
+        this.queryJson(
+          client,
+          'select private.mutate_tracking_release($1::uuid,$2,$3::jsonb,$4,$5,$6) result',
+          [id, action, JSON.stringify(patch), version, reason, principal.userId],
+        ),
+      true,
+    );
+  }
+  accountType(principal: ClerkPrincipal, id: string): Promise<string | null> {
+    return this.owner(
+      principal,
+      async (client) =>
+        (
+          await client.query<{ type: string }>(
+            "select type from public.accounts where id=$1::uuid and user_id=$2 and status='active'",
+            [id, principal.userId],
+          )
+        ).rows[0]?.type ?? null,
+    );
+  }
+  reserveCapture(itemId: string, fence: string): Promise<Record<string, unknown>> {
+    return this.claimedWorker('item', itemId, fence, (client) =>
+      this.queryJson(client, 'select private.reserve_tracking_capture($1::uuid,$2::uuid) result', [
+        itemId,
+        fence,
+      ]),
+    );
+  }
+  commitNominalCapture(itemId: string, fence: string): Promise<Record<string, unknown>> {
+    return this.claimedWorker('item', itemId, fence, (client) =>
+      this.queryJson(
+        client,
+        'select private.commit_tracking_nominal_capture($1::uuid,$2::uuid) result',
+        [itemId, fence],
+      ),
+    );
+  }
 
   getPreferences(principal: ClerkPrincipal): Promise<Record<string, unknown>> {
     return this.ownerJson(principal, 'select private.get_tracking_preferences($1) result', [
@@ -154,17 +281,18 @@ export class TrackingRepository {
       name === 'import_sessions'
         ? "-'request_hash'-'claim_token'-'claimed_by'-'lease_until'-'last_error_code'"
         : name === 'user_keyword_rules'
-          ? "||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)))"
+          ? "-'deleted_at'||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and x.id=any(i.applied_rule_ids)))"
           : name === 'user_sender_rules'
             ? "||jsonb_build_object('recent_use_count',(select count(*) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)),'last_used_at',(select max(i.occurred_at) from public.import_items i where i.user_id=x.user_id and lower(i.normalized_payload->>'sender')=lower(x.sender_pattern)))"
             : name === 'import_items'
-              ? "-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',x.normalized_payload-'body'-'sender'-'metadata'-'sourceText')"
+              ? "-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',x.normalized_payload-'body'-'sender'-'metadata'-'sourceText','notification_id',(select n.id from public.notification_events n where n.user_id=x.user_id and n.data->>'targetId'=x.transaction_id::text and n.type in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') order by n.created_at limit 1))"
               : name === 'review_items'
                 ? "-'decision_token'-'decision_lease_until'"
                 : name === 'duplicate_candidates'
                   ? "-'decision_token'-'decision_lease_until'"
                   : '';
     const predicates: Record<string, string> = {
+      keywords: 'and deleted_at is null',
       sessions: 'and ($6::text is null or status=$6) and ($7::text is null or source_type=$7)',
       reviews: 'and ($6::text is null or status=$6)',
       duplicates:
@@ -206,7 +334,7 @@ export class TrackingRepository {
   ): Promise<unknown[]> {
     return this.owner(principal, async (client) => {
       const rows = await client.query<{ value: unknown } & QueryResultRow>(
-        `select to_jsonb(i)-'user_id'-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',i.normalized_payload-'body'-'sender'-'metadata'-'sourceText') value from public.import_items i
+        `select to_jsonb(i)-'user_id'-'source_hash'-'normalized_hash'||jsonb_build_object('normalized_payload',i.normalized_payload-'body'-'sender'-'metadata'-'sourceText','notification_id',(select n.id from public.notification_events n where n.user_id=i.user_id and n.data->>'targetId'=i.transaction_id::text and n.type in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') order by n.created_at,n.id limit 1)) value from public.import_items i
          where user_id=$1 and session_id=$2::uuid and ($3::uuid is null or id=$3)
            and ($5::timestamptz is null or (coalesce(occurred_at,created_at),id)<($5::timestamptz,$6::uuid))
            and ($7::text is null or status=$7)
@@ -228,14 +356,21 @@ export class TrackingRepository {
   getImportSourceIdentityHash(principal: ClerkPrincipal, itemId: string): Promise<string> {
     return this.owner(principal, async (client) => {
       const row = (
-        await client.query<{ source_type: string; source_item_key: string } & QueryResultRow>(
-          `select s.source_type,i.source_item_key from public.import_items i
+        await client.query<
+          {
+            source_type: string;
+            source_item_key: string;
+            canonical_identity_hash: string | null;
+          } & QueryResultRow
+        >(
+          `select s.source_type,i.source_item_key,i.canonical_identity_hash from public.import_items i
            join public.import_sessions s on s.id=i.session_id and s.user_id=i.user_id
            where i.id=$1::uuid and i.user_id=$2`,
           [itemId, principal.userId],
         )
       ).rows[0];
       if (!row) throw new HttpException({ code: 'IMPORT_ITEM_NOT_FOUND' }, 404);
+      if (row.canonical_identity_hash) return row.canonical_identity_hash;
       return createHash('sha256')
         .update(`${row.source_type}\0${row.source_item_key}`)
         .digest('hex');
@@ -303,17 +438,23 @@ export class TrackingRepository {
       201,
       request.requestId,
       async (client) => {
+        await this.queryJson(client, 'select private.reserve_user_job_quota($1,$2,$3) result', [
+          principal.userId,
+          'import',
+          hashIdempotencyKey(request.key),
+        ]);
         const requestHash = hashNormalizedCommand(input).replace('sha256:', '');
         const sourceType = input.sourceType;
         const row = await this.queryJson(
           client,
-          'select private.create_import_session($1,$2,$3,1,$4,$5::jsonb) result',
+          'select private.create_import_session($1,$2,$3,$6,$4,$5::jsonb) result',
           [
             principal.userId,
             sourceType,
             request.sourceName,
             requestHash,
             JSON.stringify(input.events),
+            input.schemaVersion,
           ],
         );
         if (request.raw)
@@ -778,7 +919,7 @@ export class TrackingRepository {
     status: 'succeeded' | 'failed',
     code: string | null,
   ): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('session', id, token, async (client) => {
       await client.query('select private.complete_import_attempt($1::uuid,$2::uuid,$3,$4)', [
         id,
         token,
@@ -789,7 +930,10 @@ export class TrackingRepository {
   }
 
   prepareImport(id: string, token: string): Promise<Record<string, unknown>> {
-    return this.worker(
+    return this.claimedWorker(
+      'session',
+      id,
+      token,
       async (client) =>
         publicValue(
           await this.queryJson(
@@ -802,7 +946,7 @@ export class TrackingRepository {
   }
 
   applyParserResult(id: string, token: string, result: Record<string, unknown>): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('item', id, token, async (client) => {
       await client.query('select private.apply_parser_result($1::uuid,$2::uuid,$3::jsonb)', [
         id,
         token,
@@ -812,7 +956,7 @@ export class TrackingRepository {
   }
 
   finalizeImport(id: string, token: string): Promise<Record<string, unknown>> {
-    return this.worker((client) =>
+    return this.claimedWorker('session', id, token, (client) =>
       this.queryJson(client, 'select private.finalize_import_session($1::uuid,$2::uuid) result', [
         id,
         token,
@@ -823,10 +967,10 @@ export class TrackingRepository {
   acceptImportItem(
     id: string,
     token: string,
-    operationId: string,
+    operationId: string | null,
     transactionId: string,
   ): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('item', id, token, async (client) => {
       await client.query('select private.accept_import_item($1::uuid,$2::uuid,$3::uuid,$4::uuid)', [
         id,
         token,
@@ -837,7 +981,7 @@ export class TrackingRepository {
   }
 
   deferImportItem(id: string, token: string, reason: string): Promise<void> {
-    return this.worker(async (client) => {
+    return this.claimedWorker('item', id, token, async (client) => {
       await client.query('select private.defer_import_item($1::uuid,$2::uuid,$3)', [
         id,
         token,
@@ -967,6 +1111,22 @@ export class TrackingRepository {
     action: (client: PoolClient) => Promise<T>,
   ): Promise<T> {
     return this.transaction('masarifi_api', principal, action);
+  }
+
+  private claimedWorker<T>(
+    kind: 'session' | 'item',
+    id: string,
+    token: string,
+    action: (client: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    return this.worker(async (client) => {
+      await client.query('select private.set_tracking_worker_context($1,$2::uuid,$3::uuid)', [
+        kind,
+        id,
+        token,
+      ]);
+      return action(client);
+    });
   }
 
   private worker<T>(action: (client: PoolClient) => Promise<T>): Promise<T> {

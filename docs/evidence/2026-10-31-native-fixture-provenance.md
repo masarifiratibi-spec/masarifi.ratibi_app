@@ -1,0 +1,15 @@
+# Private-journal CI fixture provenance repair
+
+The8678c586 preparation workflow failed at `APPLICATION_SCHEMA_SOURCE_PIN_CHANGED`. Backend Foundation331 and Staging Client Regression81 completed successfully, including the backend image and all five browser viewport jobs. The independent preparation failure was investigated separately.
+
+The pinned current `database.ts` SHA256 is `efc06762b0ff45e7e1b20cd1ca27dcd951e106229b4563c8003271d285ec4ef4`. Every migration body1–15 matches the previously pinned source atedc4942f, and every materialized legacy schema signature still matches the unmodified Java recognizer. Migration16 adds only `query_read_cache`; it is not a new Voice/financial mutation journal.
+
+The fixture generator now pins that reviewed complete source, requires the exact migration set1–16 and materializes16 as a negative. The production recognizer and admission policy remain capped at15. Java regression checks reject16 with ordinary/marker/Android metadata objects, including a spoofed15-row history. The encrypted whole-store negative must terminate at `MOBILE_SCHEMA` with `INDETERMINATE`. This is fixture repair and proof of refusal, not schema16 private-probe qualification.
+
+All historical encrypted cases remain. Their strict disposable receipt contract increases from57/19 to58 total/20 qualification-stage cases. The25 reader-stage and38 admission/work-summary cases remain exact. Both rehearsal and packaging gates reject an old incomplete57/19 receipt in every runtime phase. Actual probe permissions, identity, wrappers, native reader, target APK and real-device admission are unchanged.
+
+RED reproduced the stale source pin in two new provenance cases. GREEN passed all three cases, including refusal of future migration/source drift. The complete Windows portable host run passed221 schema checks,925 whole-store checks and real SQLite committed-WAL reconstruction. Its Windows-only unavailable POSIX/inode cases remain explicitly unexecuted and are required by Linux CI. A second RED exposed the incomplete older packaging receipt contract; all three affected receipt/bootstrap/disabled-upgrade suites then passed after its exact update.
+
+Independent Astra High review found the missing new-case failure stage and downstream exact count bindings; both were corrected before publication. Linux SQLCipher/JNI and disposable Android workflow results must be observed on the new commit before claiming remote preparation success. No physical probe, app installation, real key read, APK/Metro replacement, financial write, ZIP or provider request is included. A green preparation workflow still leaves the preserved schema16 phone unsupported by this private reader.
+
+Remote follow-up: [preparation89 on893de551](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41180506220) completed successfully, including its Linux/encrypted/JNI/disposable Android qualification. The portable results and this remote result are now both observed; the earlier pending statement above records the original publication point. Real-phone/schema16-reader and release acceptance remain unchanged and unsupported.

@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
 import { PoolService } from '../platform/database/pool.service';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isStagingPlanningOwner } from '../planning/staging-planning-scope';
 import { LEDGER_METRICS, recordPlatformMetric } from '../platform/observability/platform-metrics';
+import { PlatformLogger } from '../platform/observability/platform-logger';
 import { buildLedgerEvent } from './ledger.events';
 import {
   decodeLedgerCursor,
@@ -112,7 +115,7 @@ function transactionAccountRoles(
   sourceAccountId: string | null | undefined,
   destinationAccountId: string | null | undefined,
 ): { sourceAccountId: string; destinationAccountId: string | null } {
-  const source = kind === 'income' ? destinationAccountId : sourceAccountId;
+  const source = kind === 'income' ? (destinationAccountId ?? sourceAccountId) : sourceAccountId;
   if (!source) throw new Error('LEDGER_RESULT_MISSING');
   return {
     sourceAccountId: source,
@@ -127,7 +130,10 @@ function domainError(code: string, status: number, currentVersion?: number): Htt
   );
 }
 
-function mapDatabaseError(error: unknown): HttpException {
+function mapDatabaseError(
+  error: unknown,
+  diagnostic?: { operation: string; stage: string },
+): HttpException {
   if (error instanceof HttpException) return error;
   const pg = error as { code?: string; message?: string; detail?: string; constraint?: string };
   const message = pg.message ?? '';
@@ -155,6 +161,7 @@ function mapDatabaseError(error: unknown): HttpException {
   if (message.includes('REVERSAL_EXISTS')) return domainError('REVERSAL_EXISTS', 409);
   if (message.includes('REFUND_EXCEEDS_AVAILABLE'))
     return domainError('REFUND_EXCEEDS_AVAILABLE', 409);
+  if (message.includes('AMOUNT_BELOW_REFUNDED')) return domainError('AMOUNT_BELOW_REFUNDED', 409);
   if (message.includes('UNDO_EXPIRED')) return domainError('UNDO_EXPIRED', 409);
   if (message.includes('VERSION_CONFLICT')) {
     const currentVersion = Number(pg.detail);
@@ -173,6 +180,13 @@ function mapDatabaseError(error: unknown): HttpException {
     message === 'DATABASE_QUERY_TIMEOUT'
   )
     return domainError('LEDGER_BUSY', 409);
+  if (diagnostic)
+    new PlatformLogger().error('LEDGER_UNAVAILABLE', {
+      eventName: 'ledger.database.failure',
+      context: diagnostic.operation,
+      state: diagnostic.stage,
+      code: typeof pg.code === 'string' && /^[0-9A-Z]{5}$/.test(pg.code) ? pg.code : 'UNKNOWN',
+    });
   return domainError('LEDGER_UNAVAILABLE', 503);
 }
 
@@ -191,7 +205,10 @@ function conflictReason(error: unknown, mapped: HttpException): string {
 
 @Injectable()
 export class LedgerRepository {
-  constructor(private readonly pool: PoolService) {}
+  constructor(
+    private readonly pool: PoolService,
+    @Optional() private readonly config?: PlatformConfigService,
+  ) {}
 
   async replayCompleted(input: LedgerMutation): Promise<Record<string, unknown> | undefined> {
     const startedAt = performance.now();
@@ -243,7 +260,7 @@ export class LedgerRepository {
       });
     } catch (error) {
       observed = true;
-      const mapped = mapDatabaseError(error);
+      const mapped = mapDatabaseError(error, { operation: input.operation, stage: 'lookup' });
       if (mapped.getStatus() === 409) {
         recordPlatformMetric(LEDGER_METRICS.conflict, 1, {
           operation: input.operation,
@@ -404,7 +421,7 @@ export class LedgerRepository {
     } catch (error) {
       if (appendStage !== 'command')
         recordPlatformMetric(LEDGER_METRICS.appendFailure, 1, { dependency: appendStage });
-      const mapped = mapDatabaseError(error);
+      const mapped = mapDatabaseError(error, { operation, stage: appendStage });
       if (mapped.getStatus() === 409) {
         recordPlatformMetric(LEDGER_METRICS.conflict, 1, {
           operation,
@@ -446,7 +463,7 @@ export class LedgerRepository {
         const rows = (
           await client.query<ListRow>(
             `select t.id,t.kind,t.status,t.amount_minor,t.fee_minor,
-          btrim(t.currency_code::text) currency,t.category_id,t.title,t.merchant,t.payment_method,
+          btrim(t.currency_code::text) currency,coalesce(t.category_id,original.category_id) category_id,t.title,t.merchant,t.payment_method,
           t.note,t.occurred_at,t.source,t.reverses_transaction_id,t.version,t.deleted_at,
           t.undo_expires_at,
           private.ledger_account_ids(t.id) account_ids,
@@ -458,10 +475,11 @@ export class LedgerRepository {
           coalesce((select max(b.ledger_version) from public.account_balances b
             join public.accounts a on a.id=b.account_id where a.user_id=$1),0)::text ledger_version
         from public.transactions t
+        left join public.transactions original on t.kind='refund'
+          and original.id=t.reverses_transaction_id and original.user_id=t.user_id
         where t.user_id=$1
-          and ($2::uuid is null or exists(select 1 from public.transaction_postings p
-            where p.transaction_id=t.id and p.account_id=$2))
-          and ($3::uuid is null or t.category_id=$3)
+          and ($2::uuid is null or $2=any(private.ledger_account_ids(t.id)))
+          and ($3::uuid is null or coalesce(t.category_id,original.category_id)=$3)
           and ($4::text is null or t.kind=$4)
           and ($5::text is null or t.status=$5)
           and ($6::text is null or t.source=$6)
@@ -469,8 +487,9 @@ export class LedgerRepository {
           and ($8::timestamptz is null or t.occurred_at <= $8)
           and ($9::text is null or to_tsvector('simple',coalesce(t.title,'')||' '||coalesce(t.merchant,''))
             @@ to_tsquery('simple',$9))
-          and ($10::timestamptz is null or (t.occurred_at,t.id)<($10,$11::uuid))
-        order by t.occurred_at desc,t.id desc limit $12`,
+          and ($10::timestamptz is null or (t.occurred_at,t.created_at,t.id)<
+            ($10,(select c.created_at from public.transactions c where c.id=$11::uuid and c.user_id=$1),$11::uuid))
+        order by t.occurred_at desc,t.created_at desc,t.id desc limit $12`,
             [
               principal.userId,
               normalized.accountId,
@@ -593,9 +612,9 @@ export class LedgerRepository {
             and ($3::timestamptz is null or t.occurred_at >= $3)
             and ($4::timestamptz is null or t.occurred_at <= $4)
           order by t.occurred_at desc,t.id desc limit 25)
-        select s.account_id,btrim(s.currency_code::text) currency,s.account_status,
+        select r.*,s.account_id,btrim(s.currency_code::text) currency,s.account_status,
           s.confirmed_minor::text,s.pending_minor::text,s.available_minor::text,
-          s.ledger_version::text,s.reconciled_at,s.updated_at,r.*
+          s.ledger_version::text,s.reconciled_at,s.updated_at
         from public.v_account_balance_summary s left join recent r on true
         where s.account_id=$2 order by r.occurred_at desc,r.id desc`,
             [principal.userId, id, normalized.from, normalized.to],
@@ -984,6 +1003,19 @@ export class LedgerRepository {
       return row.result;
     }
     if (input.operation === 'refundTransaction' || input.operation === 'reverseTransaction') {
+      if (input.command.trackingCaptureId !== undefined) {
+        const row = (
+          await client.query<CommandResult>(
+            'select private.create_tracking_compensation($1,$2::jsonb) result',
+            [
+              input.principal.userId,
+              JSON.stringify({ ...input.command, trackingOperation: input.operation }),
+            ],
+          )
+        ).rows[0];
+        if (!row) throw new Error('LEDGER_RESULT_MISSING');
+        return row.result;
+      }
       const refund = input.operation === 'refundTransaction';
       const sql = refund
         ? 'select private.refund_transaction($1,$2::uuid,$3::bigint,$4::bigint,$5::uuid,$6::timestamptz,$7) result'
@@ -1023,6 +1055,15 @@ export class LedgerRepository {
         )
       ).rows[0];
       if (!row) throw new Error('LEDGER_RESULT_MISSING');
+      if (isStagingPlanningOwner(this.config, input.principal.userId)) {
+        await client.query("select set_config('masarifi.staging_planning_owner',$1,true)", [
+          input.principal.userId,
+        ]);
+        await client.query('select private.staging_dev_reconcile_salary_receipts($1,$2::uuid)', [
+          input.principal.userId,
+          input.command.transactionId,
+        ]);
+      }
       return row.result;
     }
     const sql =
@@ -1203,8 +1244,10 @@ export class LedgerRepository {
       accountIds,
       ...transactionAccountRoles(
         transaction.kind,
-        transaction.source_account_id,
-        transaction.destination_account_id,
+        ['income', 'expense'].includes(transaction.kind)
+          ? (accountIds[0] ?? transaction.source_account_id)
+          : transaction.source_account_id,
+        transaction.kind === 'income' ? null : transaction.destination_account_id,
       ),
       feeMinor: Number(transaction.fee_minor),
       categoryId: transaction.category_id,

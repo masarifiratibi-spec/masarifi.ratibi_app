@@ -81,6 +81,25 @@ export class MetaService {
     });
   }
 
+  async getSocialMediaLinks(): Promise<Record<'instagram' | 'tiktok' | 'snapchat', string>> {
+    if (!this.pool) throw new Error('DATABASE_UNAVAILABLE');
+    return this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query('set local role masarifi_api');
+        const result = await client.query<{
+          value: Record<'instagram' | 'tiktok' | 'snapchat', string>;
+        }>('select private.read_social_media_links() value');
+        if (!result.rows[0]) throw new Error('SOCIAL_MEDIA_UNAVAILABLE');
+        await client.query('commit');
+        return result.rows[0].value;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
+  }
+
   private async load(context: MetaContext): Promise<SafeDynamicMeta> {
     const fallback: SafeDynamicMeta = {
       maintenance: { active: false, scopes: [], message: null },

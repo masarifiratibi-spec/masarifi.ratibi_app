@@ -1,4 +1,9 @@
-import type { Account, Category, Transaction } from './core-finance';
+import { defaultCategorySeeds } from './default-categories';
+export {
+  createDefaultCategories,
+  defaultCategorySeeds
+} from './default-categories';
+import type { Account, Transaction } from './core-finance';
 import type { Locale } from './foundation';
 
 const FIXTURE_NOW = Date.UTC(2026, 7, 8, 12);
@@ -71,7 +76,7 @@ export function localizedDemoTransactionTitle(
   locale: Locale
 ): string | null {
   const match = /^demo-transaction-(\d+)$/.exec(transactionId);
-  return match ? demoCopy[locale].titles[Number(match[1]) - 1] ?? null : null;
+  return match ? (demoCopy[locale].titles[Number(match[1]) - 1] ?? null) : null;
 }
 
 export function localizedDemoAccountName(
@@ -82,53 +87,6 @@ export function localizedDemoAccountName(
   if (accountId === 'demo-account-cash') return demoCopy[locale].cashAccount;
   if (accountId === 'demo-account-card') return demoCopy[locale].cardAccount;
   return null;
-}
-
-export const defaultCategorySeeds = [
-  ['housing', 'السكن', 'Housing', 'expense'],
-  ['food', 'الطعام', 'Food', 'expense'],
-  ['restaurants', 'المطاعم', 'Restaurants', 'expense'],
-  ['transportation', 'المواصلات', 'Transportation', 'expense'],
-  ['fuel', 'الوقود', 'Fuel', 'expense'],
-  ['shopping', 'التسوق', 'Shopping', 'expense'],
-  ['health', 'الصحة', 'Health', 'expense'],
-  ['education', 'التعليم', 'Education', 'expense'],
-  ['entertainment', 'الترفيه', 'Entertainment', 'expense'],
-  ['subscriptions', 'الاشتراكات الرقمية', 'Digital subscriptions', 'expense'],
-  ['utilities', 'الخدمات', 'Utilities', 'expense'],
-  [
-    'communication',
-    'الاتصالات والإنترنت',
-    'Communication and internet',
-    'expense'
-  ],
-  ['travel', 'السفر', 'Travel', 'expense'],
-  ['charity', 'الصدقة', 'Charity', 'expense'],
-  ['fees', 'الرسوم', 'Fees', 'expense'],
-  ['salary', 'الراتب', 'Salary', 'income'],
-  ['other-income', 'دخل آخر', 'Other income', 'income'],
-  ['remittance', 'الحوالات المالية', 'Remittances', 'expense'],
-  ['obligations', 'الالتزامات', 'Obligations', 'expense']
-] as const;
-
-export function createDefaultCategories(): Category[] {
-  return defaultCategorySeeds.map(
-    ([id, labelAr, labelEn, financialType], index) => ({
-      id,
-      kind: 'system',
-      financialType,
-      parentId: null,
-      labelAr,
-      labelEn,
-      iconKey: id === 'remittance' ? 'transfers' : id,
-      colorKey: `category-${index % 8}`,
-      isFavorite: index < 4,
-      status: 'active',
-      mergedIntoId: null,
-      createdAt: FIXTURE_NOW,
-      updatedAt: FIXTURE_NOW
-    })
-  );
 }
 
 export function createDefaultAccount(now = Date.now()): Account {
@@ -472,20 +430,24 @@ export const legacyFixtureTransactions = Array.from(
 const legacyAccountFingerprints = new Set(
   legacyFixtureAccounts.map(fingerprint)
 );
-const legacyTransactionFingerprints = new Set(
-  legacyFixtureTransactions.map(fingerprint)
-);
 
 export function isLegacyFixtureAccount(account: Account): boolean {
   return legacyAccountFingerprints.has(fingerprint(account));
 }
 
 export function isLegacyFixtureTransaction(transaction: Transaction): boolean {
-  return legacyTransactionFingerprints.has(fingerprint(transaction));
+  const match = /^transaction-(0|[1-9]\d{0,2})$/.exec(transaction.id);
+  if (!match || Number(match[1]) >= 500) return false;
+  return (
+    fingerprint(transaction) ===
+    fingerprint(makeLegacyFixtureTransaction(Number(match[1])))
+  );
 }
 
 function fingerprint(value: object): string {
   return JSON.stringify(
-    Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+    Object.entries(value).sort(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0
+    )
   );
 }

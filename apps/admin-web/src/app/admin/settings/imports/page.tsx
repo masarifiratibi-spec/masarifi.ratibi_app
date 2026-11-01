@@ -1,5 +1,4 @@
-import { ImportSettingsView } from "@/features/governance/SettingsViews";
-
+import { ImportDeploymentSettings } from "@/features/imports/ImportDeploymentSettings";
 export default function ImportSettingsPage() {
-  return <ImportSettingsView />;
+  return <ImportDeploymentSettings />;
 }

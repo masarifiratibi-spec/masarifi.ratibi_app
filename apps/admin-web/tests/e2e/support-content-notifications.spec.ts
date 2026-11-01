@@ -37,13 +37,19 @@ test("Phase 11 routes are available at five viewports and remain privacy-safe", 
   }
 });
 
-test("Phase 11 notification campaign preview is aggregate-only and supports RTL/LTR", async ({ page }) => {
+test("deferred campaign creation stays unavailable and privacy-safe in RTL/LTR", async ({ page }) => {
+  const mutations: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/admin\/notifications\/(?:audience-preview|campaigns)(?:$|\?)/.test(request.url())) mutations.push(request.url());
+  });
   await page.goto("/admin/notifications/campaigns/new");
-  await expect(page.getByText(/مؤهل: 1280|Eligible: 1280/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "غير متاح بعد" })).toBeDisabled();
   await expect(page.locator("body")).not.toContainText(/recipient|deviceToken|emailAddress|providerPayload/i);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await page.getByRole("button", { name: "تغيير اللغة" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+  await expect(page.getByRole("button", { name: "Not available yet" })).toBeDisabled();
+  expect(mutations).toEqual([]);
 });
 
 test("Phase 11 detail actions are keyboard operable and send only versioned reasoned payloads", async ({ page }, testInfo) => {
@@ -60,12 +66,20 @@ test("Phase 11 detail actions are keyboard operable and send only versioned reas
     };
   });
   for (const [route, label, action] of [
-    ["/admin/support/tickets/TKT-1001", "حل التذكرة", "resolve"],
-    ["/admin/feedback/FDB-1001", "مراجعة الملاحظة", "review"],
+    ["/admin/support/tickets/TKT-1001", "تنفيذ الإجراء", "resolve"],
+    ["/admin/feedback/FDB-1001", "تطبيق الإجراء", "review"],
     ["/admin/content/categories/CAT-1001", "نشر", "publish"],
     ["/admin/notifications/campaigns/CMP-1001", "اعتماد", "approve"],
   ] as const) {
     await page.goto(route);
+    if (action === "resolve") {
+      await page.getByRole("combobox", { name: "الإجراء", exact: true }).selectOption("resolve");
+      await page.getByLabel("سبب الإجراء لسجل التدقيق").fill("Resolved after reviewing the conversation");
+    }
+    if (action === "review") {
+      await page.getByRole("combobox", { name: "الحالة", exact: true }).selectOption("review");
+      await page.getByLabel("سبب الإجراء لسجل التدقيق").fill("Reviewed synthetic feedback using the keyboard");
+    }
     const button = page.getByRole("button", { name: label });
     await button.focus();
     await expect(button).toBeFocused();

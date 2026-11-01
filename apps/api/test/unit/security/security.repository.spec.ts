@@ -1,6 +1,6 @@
 import { SecurityRepository } from '../../../src/security/security.repository';
 
-describe('SecurityRepository cursor boundary', () => {
+describe('SecurityRepository', () => {
   const principal = { userId: 'admin-1', sessionId: 'session-1', factorAgeSeconds: 0 };
 
   function repositoryWith(query: jest.Mock) {
@@ -87,7 +87,63 @@ describe('SecurityRepository cursor boundary', () => {
     ).resolves.toEqual({ items: [rows[0]], nextCursor: cursor });
     expect(query).toHaveBeenCalledWith(
       expect.stringMatching(/\(occurred_at,id\)<\(\$4::timestamptz,\$5::uuid\)/),
-      [null, null, null, occurredAt, rows[0]?.id, 2],
+      [null, null, principal.userId, occurredAt, rows[0]?.id, 2],
+    );
+  });
+
+  it('keeps the owner endpoint owner-scoped even for a principal with admin access', async () => {
+    const query = jest.fn(() => Promise.resolve({ rows: [] }));
+    const repository = repositoryWith(query);
+    await repository.execute({
+      operation: 'listMySecurityEvents',
+      principal,
+      body: {},
+      query: { userId: 'another-owner' },
+      params: {},
+      requestId: 'owner-events',
+    });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('from public.security_events'), [
+      null,
+      null,
+      principal.userId,
+      null,
+      null,
+      51,
+    ]);
+  });
+
+  it('preserves the separate admin event filter', async () => {
+    const query = jest.fn(() => Promise.resolve({ rows: [] }));
+    const repository = repositoryWith(query);
+    await repository.execute({
+      operation: 'listAdminSecurityEvents',
+      principal,
+      permission: 'security.events.read',
+      body: {},
+      query: { userId: 'another-owner' },
+      params: {},
+      requestId: 'admin-events',
+    });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('from public.security_events'), [
+      null,
+      null,
+      'another-owner',
+      null,
+      null,
+      51,
+    ]);
+  });
+
+  it('types the rate-limit category passed to jsonb_build_object (Staging 2026-09-28)', async () => {
+    const query = jest.fn((sql: string) =>
+      Promise.resolve({ rows: sql.includes('select count(*)') ? [{ count: '0' }] : [] }),
+    );
+    const repository = repositoryWith(query);
+
+    await expect(repository.consumeRateLimit(principal, 'rbac', 60, 60, null)).resolves.toBe(true);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("jsonb_build_object('category',$2::text)"),
+      ['admin-1', 'rbac', null],
     );
   });
 });

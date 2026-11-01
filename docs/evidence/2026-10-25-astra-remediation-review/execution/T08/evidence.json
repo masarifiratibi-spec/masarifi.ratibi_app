@@ -1,0 +1,43 @@
+{
+  "task": "T08",
+  "batch": "B3",
+  "at": "2026-10-29T09:32:54.075Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B3-reports-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B3-reports-2026-10-29/B3-REVIEWED-RESULT.json",
+    "sha256": "55a0ef0eb53b952b73f51b640ca8835c24f45470d51adde9becef0cd183d72b0"
+  },
+  "currentSupplements": [
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B3-reports-2026-10-29/FINAL-PICKER-AND-HEADING-SUPPLEMENT.json",
+      "sha256": "488904312873373bd0d0b40b7a1059034224d7e97251bc317e3cf3f09e0b205f"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B3-reports-2026-10-29/XIAOMI-AND-HEADING-SUPPLEMENT.json",
+      "sha256": "a021a46cfb1e965897b44023d87818a204a1653b9dc6e0fa61865265cdc59e42"
+    }
+  ],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T08/evidence.json",
+    "sha256": "74c315ff80f33717a1f1dba30301d65e1f92419af983ff1ede190a5e66af3a00"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Current hostedISSUE006 correlation/rootcause andmatchingresponse",
+    "Newqualifiedimage/protectedrollout approval; no oldR18approvalreuse",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": [],
+  "latestSupplement": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B3-reports-2026-10-29/FINAL-PICKER-AND-HEADING-SUPPLEMENT.json",
+    "sha256": "488904312873373bd0d0b40b7a1059034224d7e97251bc317e3cf3f09e0b205f"
+  }
+}

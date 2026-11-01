@@ -1,0 +1,32 @@
+{
+  "task": "T15",
+  "batch": "B8",
+  "at": "2026-10-29T09:32:54.206Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B8-sms-merchant-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B8-sms-merchant-2026-10-29/B8-REVIEWED-RESULT.json",
+    "sha256": "8e0d5e80398e5d12857d093d67b4b798c850abedda800a04ce9acff79a5c623d"
+  },
+  "currentSupplements": [],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T15/evidence.json",
+    "sha256": "a10d05960922bd3a1fe1b20f4fb40e546f75260b0297e10a5fafd685ac2feda5"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Controlled specifically authorized actualSMS/permissions/merchant/account opt-out path",
+    "Native exact candidate/device qualification; retained unchanged CI/native results supporting only",
+    "Initial concurrent parser corpus hit unchanged25ms wall budget; isolated17case suite passed, loaded-host performance not accepted",
+    "Original predecessor/full acceptance",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": []
+}

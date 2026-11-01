@@ -55,11 +55,10 @@ test("US2 role governance reviews matrix and custom roles safely", async ({ page
   }
 });
 
-test("US3 settings groups save changed fields safely", async ({ page }, testInfo) => {
+test("US3 editable settings save while import deployment controls remain read-only", async ({ page }, testInfo) => {
   for (const route of [
     "/admin/settings",
     "/admin/settings/mobile",
-    "/admin/settings/imports",
     "/admin/settings/ai",
     "/admin/settings/subscriptions",
     "/admin/settings/security",
@@ -71,6 +70,9 @@ test("US3 settings groups save changed fields safely", async ({ page }, testInfo
     await expect(page.locator("main")).toContainText("Settings saved atomically");
     await expect(page.locator("body")).not.toContainText(/secret|api key|credential|token/i);
   }
+  await openInEnglish(page, "/admin/settings/imports");
+  await expect(page.locator("main")).toContainText("read-only");
+  await expect(page.getByRole("button", { name: "Save changed fields" })).toHaveCount(0);
   if (testInfo.project.name === "mobile-390") {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }

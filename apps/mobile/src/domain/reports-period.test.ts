@@ -1,5 +1,31 @@
 import { resolveReportPeriod } from './reports';
 
+test('monthly financial reports follow the configured salary cycle across month and year boundaries', () => {
+  const period = resolveReportPeriod({
+    kind: 'monthly',
+    anchorDate: '2026-11-03',
+    monthStartDay: 25,
+    timeZone: 'Asia/Riyadh',
+    now: Date.parse('2026-11-03T09:00:00Z')
+  });
+  expect([period.startDate, period.endDate]).toEqual([
+    '2026-10-25',
+    '2026-11-24'
+  ]);
+  expect(period.comparisonStartDate).toBe('2026-09-25');
+  expect(period.comparisonEndDate).toBe('2026-10-04');
+  const january = resolveReportPeriod({
+    kind: 'monthly',
+    anchorDate: '2027-01-03',
+    monthStartDay: 25,
+    timeZone: 'Asia/Dubai'
+  });
+  expect([january.startDate, january.endDate]).toEqual([
+    '2026-12-25',
+    '2027-01-24'
+  ]);
+});
+
 test('monthly periods use inclusive dates and half-open instants', () => {
   const period = resolveReportPeriod({
     kind: 'monthly',

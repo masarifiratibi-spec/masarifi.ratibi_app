@@ -14,6 +14,9 @@ it('creates, pauses, and records progress for savings goals', async () => {
   changeLocale('en');
   usePreferenceStore.setState({ hideBalances: false });
   const form = renderWithProviders(<SavingsGoalForm />);
+  fireEvent.press(
+    await form.findByRole('button', { name: 'Optional details' })
+  );
   await waitFor(
     () =>
       expect(form.getByLabelText(/Linked account Unavailable/)).toBeTruthy(),
@@ -21,7 +24,7 @@ it('creates, pauses, and records progress for savings goals', async () => {
   );
   fireEvent.changeText(await form.findByLabelText('Goal name'), 'Travel fund');
   fireEvent.changeText(form.getByLabelText('Target amount'), '5000');
-  fireEvent.press(form.getByText('Save'));
+  fireEvent.press(form.getByText('Save goal'));
   expect(await form.findByText('Saved')).toBeTruthy();
   form.unmount();
 
@@ -35,6 +38,7 @@ it('creates, pauses, and records progress for savings goals', async () => {
   );
   expect(await detail.findByText('Emergency fund')).toBeTruthy();
   expect(await detail.findByLabelText(/Emergency fund/)).toBeTruthy();
+  fireEvent.press(detail.getByRole('button', { name: 'More actions' }));
   fireEvent.press(detail.getByText('Pause goal'));
   expect(await detail.findByText('Paused')).toBeTruthy();
   detail.unmount();
@@ -86,6 +90,9 @@ it.each([
     const createForm = renderWithProviders(<SavingsGoalForm />);
 
     fireEvent.changeText(await createForm.findByLabelText('Goal name'), title);
+    fireEvent.press(
+      createForm.getByRole('button', { name: 'Optional details' })
+    );
     fireEvent.changeText(
       createForm.getByLabelText('Target amount'),
       majorAmount
@@ -94,7 +101,7 @@ it.each([
       createForm.getByLabelText('Already saved'),
       majorAmount
     );
-    fireEvent.press(createForm.getByText('Save'));
+    fireEvent.press(createForm.getByText('Save goal'));
     expect(await createForm.findByText('Saved')).toBeTruthy();
     createForm.unmount();
 
@@ -113,7 +120,7 @@ it.each([
     await waitFor(() =>
       expect(editForm.getAllByDisplayValue(majorAmount)).toHaveLength(2)
     );
-    fireEvent.press(editForm.getByText('Save'));
+    fireEvent.press(editForm.getByText('Save goal'));
     expect(await editForm.findByText('Saved')).toBeTruthy();
 
     const updated = await financialPlanningService.getGoal(created!.id);

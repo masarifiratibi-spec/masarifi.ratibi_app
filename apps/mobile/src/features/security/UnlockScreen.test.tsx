@@ -1,129 +1,55 @@
 import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-
-import { createMockBiometricService } from '@/services/mocks/biometric-service';
+import { translate } from '@/localization/i18n';
+import type { BiometricResult, BiometricService } from '@/services/contracts/app-shell-service';
 import { renderWithProviders } from '@/test-utils/render';
 import { UnlockScreen } from './UnlockScreen';
 
-describe('UnlockScreen', () => {
-  it('blocks protected content, supports PIN fallback, and reports biometric results', async () => {
-    const onUnlock = jest.fn();
-    renderWithProviders(
-      <UnlockScreen
-        biometricService={createMockBiometricService(
-          'supported',
-          'authenticated'
-        )}
-        expectedHash="pin:123456"
-        onUnlock={onUnlock}
-      />
-    );
+const serviceWith = (authenticate: BiometricService['authenticate']): BiometricService => ({
+  getAvailability: async () => ({ status: 'supported', kinds: ['fingerprint'], deviceCredential: true }),
+  authenticate,
+  cancel: async () => undefined
+});
 
-    expect(screen.queryByText('Protected')).toBeNull();
-    fireEvent.changeText(screen.getByLabelText('رمز PIN'), '123456');
-    fireEvent.press(screen.getByLabelText('فتح'));
-    await waitFor(() => expect(onUnlock).toHaveBeenCalled());
+test('completes exactly once after native authentication succeeds', async () => {
+  const unlock = jest.fn(async () => undefined);
+  renderWithProviders(<UnlockScreen biometricService={serviceWith(async () => ({ status: 'authenticated' }))} onUnlock={unlock} />);
+  await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
+});
 
-    fireEvent.press(screen.getByLabelText('فتح بالبصمة'));
-    expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
-  });
+test.each(['cancelled', 'failed', 'locked_out', 'unavailable'] as const)('native %s keeps protected access locked and allows a new OS attempt', async status => {
+  const unlock = jest.fn(async () => undefined);
+  const authenticate = jest.fn().mockResolvedValueOnce({ status }).mockResolvedValueOnce({ status: 'authenticated' });
+  renderWithProviders(<UnlockScreen biometricService={serviceWith(authenticate)} onUnlock={unlock} />);
+  const retry = await screen.findByRole('button', { name: translate('appShell.security.biometricUnlock') });
+  expect(unlock).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText(translate('appShell.auth.otp.code'))).toBeNull();
+  fireEvent.press(retry);
+  await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
+});
 
-  it('prompts biometric automatically when enabled and unlocks on success', async () => {
-    const onUnlock = jest.fn();
-    renderWithProviders(
-      <UnlockScreen
-        biometricEnabled
-        biometricService={createMockBiometricService(
-          'supported',
-          'authenticated'
-        )}
-        expectedHash="pin:123456"
-        onUnlock={onUnlock}
-      />
-    );
+test('retries safely after successful native verification cannot persist the unlock', async () => {
+  const unlock = jest.fn().mockRejectedValueOnce(new Error('storage unavailable')).mockResolvedValueOnce(undefined);
+  renderWithProviders(<UnlockScreen biometricService={serviceWith(async () => ({ status: 'authenticated' }))} onUnlock={unlock} />);
+  const retry = await screen.findByRole('button', { name: translate('appShell.security.biometricUnlock') });
+  fireEvent.press(retry);
+  await waitFor(() => expect(unlock).toHaveBeenCalledTimes(2));
+});
 
-    expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
-    expect(onUnlock).toHaveBeenCalledTimes(1);
-  });
+test('ignores native success after the screen has unmounted', async () => {
+  let finish!: (result: BiometricResult) => void;
+  const unlock = jest.fn();
+  const screenView = renderWithProviders(<UnlockScreen biometricService={serviceWith(() => new Promise(resolve => { finish = resolve; }))} onUnlock={unlock} />);
+  screenView.unmount();
+  await act(async () => finish({ status: 'authenticated' }));
+  expect(unlock).not.toHaveBeenCalled();
+});
 
-  it('keeps the PIN usable when the automatic biometric prompt is cancelled', async () => {
-    const onUnlock = jest.fn();
-    renderWithProviders(
-      <UnlockScreen
-        biometricEnabled
-        biometricService={createMockBiometricService('supported', 'cancelled')}
-        expectedHash="pin:123456"
-        onUnlock={onUnlock}
-      />
-    );
-
-    expect(await screen.findByText(/تم إلغاء الفتح بالبصمة/)).toBeOnTheScreen();
-    expect(onUnlock).not.toHaveBeenCalled();
-
-    fireEvent.changeText(screen.getByLabelText('رمز PIN'), '123456');
-    fireEvent.press(screen.getByLabelText('فتح'));
-    await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
-  });
-
-  it('does not prompt biometric automatically when it is not enabled', async () => {
-    const onUnlock = jest.fn();
-    renderWithProviders(
-      <UnlockScreen
-        biometricService={createMockBiometricService(
-          'supported',
-          'authenticated'
-        )}
-        expectedHash="pin:123456"
-        onUnlock={onUnlock}
-      />
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(screen.queryByText('تم الفتح بالبصمة')).toBeNull();
-    expect(onUnlock).not.toHaveBeenCalled();
-  });
-
-  it('prioritizes expired account sessions over local unlock', () => {
-    renderWithProviders(
-      <UnlockScreen expectedHash="pin:123456" sessionExpired />
-    );
-    expect(screen.getByText('سجل الدخول للمتابعة')).toBeOnTheScreen();
-  });
-
-  it('blocks PIN attempts during the temporary lock', () => {
-    const onInvalidPin = jest.fn();
-    renderWithProviders(
-      <UnlockScreen
-        expectedHash="pin:123456"
-        lockedUntil={200}
-        now={() => 100}
-        onInvalidPin={onInvalidPin}
-      />
-    );
-
-    expect(screen.getByLabelText('فتح')).toBeDisabled();
-    expect(onInvalidPin).not.toHaveBeenCalled();
-  });
-
-  it('reenables PIN entry when the temporary lock expires', () => {
-    jest.useFakeTimers();
-    const clock = jest.fn(() => 1_000);
-    renderWithProviders(
-      <UnlockScreen
-        expectedHash="pin:123456"
-        lockedUntil={31_000}
-        now={clock}
-      />
-    );
-
-    expect(screen.getByLabelText('رمز PIN')).toBeDisabled();
-    clock.mockReturnValue(31_000);
-    act(() => {
-      jest.advanceTimersByTime(30_000);
-    });
-    expect(screen.getByLabelText('رمز PIN')).toBeEnabled();
-    jest.useRealTimers();
-  });
+test('does not use local device authentication to admit an expired remote session', async () => {
+  const authenticate = jest.fn();
+  const unlock = jest.fn();
+  renderWithProviders(<UnlockScreen sessionExpired biometricService={serviceWith(authenticate)} onUnlock={unlock} />);
+  expect(screen.getByText(translate('appShell.navigation.authRequired'))).toBeOnTheScreen();
+  expect(authenticate).not.toHaveBeenCalled();
+  expect(unlock).not.toHaveBeenCalled();
 });

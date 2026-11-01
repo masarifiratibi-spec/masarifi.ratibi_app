@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 import type { KeywordRule, TrackingPreference } from './app-shell';
 import type { TransactionInput } from './core-finance';
+import type { Classification } from '@masarifi/transaction-parser';
+
+export interface TrackingDiagnostic {
+  sourceItemKey: string;
+  sourceChannel: 'android_sms' | 'android_notification';
+  receivedAt: number;
+  sourceText: string;
+  reasonCodes: string[];
+}
 
 export const trackingPlatforms = ['android', 'ios', 'conservative'] as const;
 export const trackingServiceStates = [
@@ -51,7 +60,24 @@ export const trackingReasonCodes = [
   'ambiguous_lifecycle',
   'multiple_obligations',
   'invalid_input',
-  'source_expired'
+  'source_expired',
+  'source_proof_required',
+  'source_blocked',
+  'account_proof_required',
+  'lifecycle_not_completed',
+  'configuration_stale',
+  'cash_destination_required',
+  'transfer_counterparty_required',
+  'original_transaction_required',
+  'credit_origin_required',
+  'fee_components_required',
+  'unsupported_accounting_operation',
+  'amount_missing',
+  'amount_invalid',
+  'unsupported_currency',
+  'date_ambiguous',
+  'conflicting_direction',
+  'action_unknown'
 ] as const;
 
 export type TrackingPlatform = (typeof trackingPlatforms)[number];
@@ -62,6 +88,9 @@ export type TrackingReasonCode = (typeof trackingReasonCodes)[number];
 export type TrackingMode = TrackingPreference['mode'];
 
 export interface TrackingImportEvent {
+  accountingPolicy?: 'default_account_nominal_v1';
+  sourceAmountDecimal?: string;
+  activatedAt?: string;
   sourceItemKey: string;
   sender?: string;
   body?: string;
@@ -73,11 +102,21 @@ export interface TrackingImportEvent {
   metadata?: Record<string, string | number | boolean | null>;
   kind?: 'income' | 'expense' | 'transfer' | 'refund' | 'fee';
   accountId?: string;
+  destinationAccountId?: string;
   categoryId?: string;
+  classification?: Omit<Classification, 'providerReference'>;
+  transport?: {
+    deviceId: string;
+    channel: 'android_sms' | 'android_notification';
+    nativeIdDigest: string;
+    revisionDigest: string;
+  };
+  providerReferenceDigest?: string;
+  originalProviderReferenceDigest?: string;
 }
 
 export interface TrackingImportSubmission {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2 | 3;
   sourceType: 'sms' | 'provider' | 'manual';
   sourceChannel?:
     | 'android_sms'
@@ -92,12 +131,7 @@ export interface TrackingImportSubmission {
 export interface TrackingImportSession {
   id: string;
   status:
-    | 'received'
-    | 'processing'
-    | 'review'
-    | 'complete'
-    | 'failed'
-    | 'cancelled';
+    'received' | 'processing' | 'review' | 'complete' | 'failed' | 'cancelled';
   itemCount: number;
   acceptedCount: number;
   rejectedCount: number;
@@ -274,6 +308,8 @@ export interface TrackingStatusSnapshot {
     | null;
   smsPermissionStatus?: TrackingStatusSnapshot['permissionStatus'];
   notificationAccessStatus?: 'granted' | 'denied' | 'unavailable' | null;
+  smsTrackingEnabled?: boolean;
+  notificationTrackingEnabled?: boolean;
   serviceState: TrackingServiceState;
   lastDetectedAt: number | null;
   lastSuccessfulTransactionId: string | null;

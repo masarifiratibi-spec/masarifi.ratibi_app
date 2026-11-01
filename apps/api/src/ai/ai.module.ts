@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PlatformLogger } from '../platform/observability/platform-logger';
 
 import { IdentityModule, IdentityWorkerModule } from '../identity/identity.module';
 import { LedgerModule } from '../ledger/ledger.module';
@@ -41,11 +42,18 @@ export class AiModule {}
     {
       provide: 'AI_GATEWAY',
       inject: [PlatformConfigService],
-      useFactory: (config: PlatformConfigService) =>
-        new AiGateway({ apiKey: config.get('OPENROUTER_API_KEY') }),
+      useFactory: (config: PlatformConfigService) => {
+        const logger = new PlatformLogger();
+        return new AiGateway({
+          apiKey: config.get('OPENROUTER_API_KEY'),
+          onAttempt: (fields) => {
+            logger.info('AI_PROVIDER_ATTEMPT', fields);
+          },
+        });
+      },
     },
     AiWorker,
   ],
-  exports: [AiWorker],
+  exports: [AiWorker, AiRepository, AiStorage],
 })
 export class AiWorkerModule {}

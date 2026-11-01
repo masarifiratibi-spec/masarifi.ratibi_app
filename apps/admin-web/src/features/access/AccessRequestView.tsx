@@ -6,7 +6,9 @@ import { useForm } from "react-hook-form";
 import { ApiError } from "@/core/api/errors";
 import { useSimulatedRole } from "@/core/auth/use-simulated-role";
 import { useLocale } from "@/core/localization/provider";
-import { hasPermission, SIMULATED_ACTORS } from "@/core/permissions/role-map";
+import { SIMULATED_ACTORS } from "@/core/permissions/role-map";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
+import { apiActorCacheKey, mocksEnabled } from "@/core/api/client";
 import { formatDate } from "@/lib/admin-utils";
 import {
   AccessDeniedState,
@@ -187,15 +189,16 @@ export function AccessRequestRows({ requests }: { requests: AccessRequestSummary
 
 function CreateAccessForm() {
   const role = useSimulatedRole();
+  const can = useCurrentPermission();
   const { locale } = useLocale();
   const copy = accessCopy[locale];
   const mutation = useCreateAccessRequest(role);
   const [pendingConfirmation, setPendingConfirmation] = useState<CreateAccessRequest | null>(null);
   const form = useForm<CreateAccessRequest>({
     defaultValues: {
-      userId: "USR-10461",
-      supportTicketId: "TKT-12002",
-      assignee: SIMULATED_ACTORS["support-agent"],
+      userId: mocksEnabled() ? "USR-10461" : "",
+      supportTicketId: mocksEnabled() ? "TKT-12002" : "",
+      assignee: mocksEnabled() ? SIMULATED_ACTORS["support-agent"] : (apiActorCacheKey() === "anonymous" ? "" : apiActorCacheKey()),
       reason: "",
       requestedScope: ["profile-contact"],
       maskingRequired: true,
@@ -203,7 +206,7 @@ function CreateAccessForm() {
       customerApprovalRequired: false,
     },
   });
-  if (!hasPermission(role, "support.request_access")) return null;
+  if (!can("support.request_access")) return null;
   const validateRequest = (values: CreateAccessRequest) => {
     const parsed = createAccessRequestSchema.safeParse({ ...values, maskingRequired: true });
     if (parsed.success) setPendingConfirmation(parsed.data);
@@ -334,7 +337,8 @@ export function AccessRequestCards({ requests }: { requests: AccessRequestSummar
 
 function AccessDetail({ requestId }: { requestId: string }) {
   const role = useSimulatedRole();
-  const actor = SIMULATED_ACTORS[role];
+  const can = useCurrentPermission();
+  const actor = mocksEnabled() ? SIMULATED_ACTORS[role] : apiActorCacheKey();
   const query = useAccessRequest(requestId, role);
   const decision = useDecideAccessRequest(requestId, role);
   const revoke = useRevokeAccessRequest(requestId, role);
@@ -353,7 +357,7 @@ function AccessDetail({ requestId }: { requestId: string }) {
   const actionError = decision.error ?? revoke.error;
   const canApprove = request.status === "pending"
     && request.requestedBy !== actor
-    && hasPermission(role, "support.access.approve");
+    && can("support.access.approve");
   const openAction = (nextAction: "approve" | "reject" | "revoke") => {
     setAction(nextAction);
     setReason("");
@@ -411,7 +415,7 @@ function AccessDetail({ requestId }: { requestId: string }) {
         {request.requestedBy === actor && request.status === "pending" && <p className="access-detail-note" role="note">لا يمكن لمقدم الطلب اعتماد طلبه حفاظاً على فصل المهام.</p>}
         <div className="dialog-actions access-detail-actions">
           {canApprove && <><button className="button primary" onClick={() => openAction("approve")}>اعتماد مخفض</button><button className="button" onClick={() => openAction("reject")}>رفض</button></>}
-          {["approved", "active"].includes(request.status) && hasPermission(role, "support.access.revoke") && <button className="button" onClick={() => openAction("revoke")}>إلغاء الوصول</button>}
+          {["approved", "active"].includes(request.status) && can("support.access.revoke") && <button className="button" onClick={() => openAction("revoke")}>إلغاء الوصول</button>}
           {request.status === "active" && request.assignee === actor && <Link className="button primary" href={`/admin/access-requests/${request.id}/workspace`}>فتح مساحة العمل</Link>}
         </div>
         {action && (

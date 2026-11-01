@@ -62,6 +62,7 @@ it('keeps system category lifecycle read-only', () => {
   expect(
     screen.queryByText(translate('coreFinance.categories.merge'))
   ).toBeNull();
+  expect(screen.queryByRole('button', { name: translate('coreFinance.categories.edit') })).toBeNull();
 });
 
 it('fetches and shows canonical usage before changing category lifecycle', async () => {
@@ -81,6 +82,16 @@ it('fetches and shows canonical usage before changing category lifecycle', async
   await waitFor(() => expect(alert).toHaveBeenCalled());
   expect(alert.mock.calls[0]?.[1]).toContain('3');
   expect(setStatus).not.toHaveBeenCalled();
+});
+
+it('keeps editing available from custom category details', () => {
+  renderWithQueryData(<CategoryDetailScreen id={customCategory.id} />, [
+    [coreFinanceKeys.categories(true), categories]
+  ]);
+  fireEvent.press(screen.getByRole('button', {
+    name: translate('coreFinance.categories.edit')
+  }));
+  expect(router.push).toHaveBeenCalledWith(`/categories/${customCategory.id}?edit=1`);
 });
 
 it('does not preselect the first merge target', () => {

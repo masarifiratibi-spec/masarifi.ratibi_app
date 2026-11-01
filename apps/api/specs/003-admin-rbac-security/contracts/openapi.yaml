@@ -15,6 +15,320 @@ tags:
   - name: Privacy
   - name: Retention
 paths:
+  /api/v1/admin/users:
+    get:
+      operationId: listCustomerAdminUsers
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: registeredFrom
+          in: query
+          schema:
+            type: string
+        - name: registeredTo
+          in: query
+          schema:
+            type: string
+        - name: lastActiveFrom
+          in: query
+          schema:
+            type: string
+        - name: lastActiveTo
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: order
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      x-permission: users.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}:
+    get:
+      operationId: getCustomerAdminUser
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      x-permission: users.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}/devices:
+    get:
+      operationId: listCustomerAdminDevices
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      x-permission: devices.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}/sessions:
+    get:
+      operationId: listCustomerAdminSessions
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      x-permission: sessions.read
+      responses:
+        '200':
+          description: >-
+            Permission-checked masked projection; unavailable diagnostics are null. Session references are opaque and
+            active-session counts have provider scope.
+  /api/v1/admin/users/{userId}/suspend:
+    post:
+      operationId: suspendCustomerAdminUser
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: users.status.manage
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+      x-recent-auth-required: true
+  /api/v1/admin/users/{userId}/reactivate:
+    post:
+      operationId: reactivateCustomerAdminUser
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: users.status.manage
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+      x-recent-auth-required: true
+  /api/v1/admin/users/{userId}/devices/{deviceId}/revoke:
+    post:
+      operationId: revokeCustomerAdminDevice
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 36
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: devices.revoke
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+      x-recent-auth-required: true
+  /api/v1/admin/users/{userId}/sessions/revoke:
+    post:
+      operationId: revokeCustomerAdminSessions
+      security:
+        - ClerkBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      x-permission: sessions.revoke
+      responses:
+        '201':
+          description: >-
+            Local command persisted with audited durable provider outcome. Pending/failed is partial and retryable; no
+            false provider success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+                - scope
+                - sessionIds
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                internalNote:
+                  type: string
+                  maxLength: 500
+                scope:
+                  type: string
+                  enum:
+                    - all
+                    - selected
+                sessionIds:
+                  type: array
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+                    pattern: ^sess_[a-f0-9]{64}$
+      x-recent-auth-required: true
   /api/v1/admin/access/me:
     get:
       operationId: getAdminSelf
@@ -66,7 +380,7 @@ paths:
       operationId: disableAdmin
       tags: [Admin Access]
       x-permission: admin-team.disable
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -98,7 +412,7 @@ paths:
       operationId: revokeAdminSessions
       tags: [Admin Access]
       x-permission: admin-team.sessions.revoke
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -149,7 +463,7 @@ paths:
       operationId: createAdminInvitation
       tags: [Admin Access]
       x-permission: access.invites.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -170,7 +484,7 @@ paths:
       operationId: acceptAdminInvitation
       tags: [Admin Access]
       description: Uses authenticated Clerk identity and verified primary email; no Admin permission is required before acceptance.
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -214,7 +528,7 @@ paths:
       operationId: createRole
       tags: [Admin Access]
       x-permission: access.roles.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -249,7 +563,7 @@ paths:
       operationId: updateRole
       tags: [Admin Access]
       x-permission: access.roles.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/RoleId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -270,7 +584,7 @@ paths:
       operationId: assignAdminRole
       tags: [Admin Access]
       x-permission: access.assignments.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -290,7 +604,7 @@ paths:
       operationId: revokeAdminRole
       tags: [Admin Access]
       x-permission: access.assignments.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/AssignmentId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -377,7 +691,7 @@ paths:
       operationId: decideSupportAccessRequest
       tags: [Support Access]
       x-permission: support.access.approve
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/RequestResourceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -399,7 +713,7 @@ paths:
       operationId: revokeSupportAccess
       tags: [Support Access]
       x-permission: support.access.revoke
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/RequestResourceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -558,7 +872,7 @@ paths:
       operationId: createSecurityIncident
       tags: [Security]
       x-permission: security.incidents.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -592,7 +906,7 @@ paths:
       operationId: updateSecurityIncident
       tags: [Security]
       x-permission: security.incidents.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IncidentId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -702,6 +1016,27 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/privacy/deletion-completions/{operationId}:
+    get:
+      operationId: getDeletionCompletion
+      tags: [Privacy]
+      security: [{ DeletionCompletionReceipt: [] }]
+      description: Read-only receipt recovery after account/session deletion; expires after 24 hours.
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Actual durable deletion status. No account data is returned.
+          headers:
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/DeletionCompletion' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/v1/me/deletion-requests/{deletionId}:
     get:
       operationId: getMyDeletionRequest
@@ -733,8 +1068,9 @@ paths:
       operationId: listPrivacyExports
       tags: [Privacy]
       x-permission: privacy.exports.read
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
+        - { name: id, in: query, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
         - { name: status, in: query, schema: { $ref: '#/components/schemas/ExportStatus' } }
@@ -747,7 +1083,7 @@ paths:
       operationId: actOnPrivacyExport
       tags: [Privacy]
       x-permission: privacy.exports.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/ExportId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -769,8 +1105,9 @@ paths:
       operationId: listDeletionRequests
       tags: [Privacy]
       x-permission: privacy.deletions.read
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
+        - { name: id, in: query, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
         - { name: status, in: query, schema: { $ref: '#/components/schemas/DeletionStatus' } }
@@ -784,7 +1121,7 @@ paths:
       operationId: actOnDeletionRequest
       tags: [Privacy]
       x-permission: privacy.deletions.manage
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/DeletionId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -807,8 +1144,9 @@ paths:
       operationId: listRetentionPolicies
       tags: [Retention]
       x-permission: retention.read
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
+        - { name: id, in: query, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/AdminLimit'
         - { name: resource, in: query, schema: { type: string, minLength: 1, maxLength: 80 } }
@@ -822,7 +1160,7 @@ paths:
       operationId: updateRetentionPolicy
       tags: [Retention]
       x-permission: retention.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/PolicyId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -844,7 +1182,7 @@ paths:
       operationId: createRetentionHold
       tags: [Retention]
       x-permission: retention.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -865,7 +1203,7 @@ paths:
       operationId: releaseRetentionHold
       tags: [Retention]
       x-permission: retention.write
-      x-recent-mfa: true
+      x-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/HoldId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -881,6 +1219,7 @@ paths:
 components:
   securitySchemes:
     ClerkBearer: { type: http, scheme: bearer, bearerFormat: JWT }
+    DeletionCompletionReceipt: { type: http, scheme: bearer, bearerFormat: 256-bit random hexadecimal receipt }
   parameters:
     Cursor:
       {
@@ -1426,6 +1765,21 @@ components:
       properties:
         confirmation: { type: string, const: DELETE_MY_ACCOUNT }
         reason: { type: string, maxLength: 500 }
+        completionToken:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          writeOnly: true
+          description: Required with a UUID Idempotency-Key when the server deletion policy has zero cooling hours. Generated and saved before submission.
+    DeletionCompletion:
+      type: object
+      additionalProperties: false
+      required: [id, status, completedAt, errorCode, version]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        status: { $ref: '#/components/schemas/DeletionStatus' }
+        completedAt: { type: [string, 'null'], format: date-time }
+        errorCode: { type: [string, 'null'], maxLength: 64 }
+        version: { $ref: '#/components/schemas/Version' }
     DeletionRequest:
       type: object
       additionalProperties: false
@@ -1438,6 +1792,7 @@ components:
         coolingOffEndsAt: { $ref: '#/components/schemas/Timestamp' }
         completedAt: { type: [string, 'null'], format: date-time }
         retainedCategories: { type: array, maxItems: 100, items: { type: string, maxLength: 80 } }
+        errorCode: { type: [string, 'null'], maxLength: 64 }
         safeError: { type: string, maxLength: 160 }
         version: { $ref: '#/components/schemas/Version' }
     PrivacyAction:

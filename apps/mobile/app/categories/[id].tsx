@@ -10,7 +10,8 @@ export default function CategoryDetailRoute() {
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const query = useCategories(true);
   const category = query.data?.find((item: Category) => item.id === id);
-  if (!edit) return <CategoryDetailScreen id={id ?? ''} />;
+  if (!edit || category?.kind === 'system')
+    return <CategoryDetailScreen id={id ?? ''} />;
   if (query.isLoading)
     return (
       <StateView
@@ -18,7 +19,7 @@ export default function CategoryDetailRoute() {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError)
+  if (query.isError && !query.data)
     return (
       <StateView
         state="error"

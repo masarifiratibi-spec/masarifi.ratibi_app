@@ -1,3 +1,6 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
+import Constants from 'expo-constants';
+
 export type SyncDomain = 'accounts' | 'categories' | 'transactions';
 
 export interface SyncMutation {
@@ -25,7 +28,7 @@ export class SyncServiceError extends Error {
 export class SyncHttpService {
   constructor(
     private readonly baseUrl: string,
-    private readonly token: () => Promise<string>,
+    private readonly token: (readOnly?: boolean) => Promise<string>,
     private readonly deviceId: () => Promise<string>,
     private readonly request: typeof fetch = fetch
   ) {}
@@ -93,6 +96,7 @@ export class SyncHttpService {
     body?: Record<string, unknown>,
     idempotencyKey?: string
   ): Promise<Record<string, unknown>> {
+    assertBenchmarkRead(method);
     const encoded = body ? JSON.stringify(body) : undefined;
     if (encoded && new TextEncoder().encode(encoded).byteLength > 524_288)
       throw new SyncServiceError('SYNC_PAYLOAD_TOO_LARGE', 413);
@@ -101,8 +105,12 @@ export class SyncHttpService {
       {
         method,
         headers: {
-          Authorization: `Bearer ${await this.token()}`,
+          Authorization: `Bearer ${await this.token(method === 'GET')}`,
           'X-Device-Id': await this.deviceId(),
+          ...(Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+          this.baseUrl.replace(/\/$/u, '') === 'https://api.staging.masarifiratibi.com'
+            ? { 'X-Masarifi-Client-Variant': 'staging-development' }
+            : {}),
           ...(encoded ? { 'Content-Type': 'application/json' } : {}),
           ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {})
         },

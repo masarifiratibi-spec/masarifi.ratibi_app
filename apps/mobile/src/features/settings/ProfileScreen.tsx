@@ -15,6 +15,15 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { useSaveSettingsProfile, useSettingsProfile } from './settings-queries';
 import { colorTokens } from '@/design-system/tokens';
+import { useAppShellStore } from '@/state/app-shell';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+
+type ProfileEdits = {
+  name?: string;
+  email?: string;
+  gender?: 'male' | 'female' | null;
+};
 
 export function ProfileScreen() {
   const theme = useTheme();
@@ -23,21 +32,29 @@ export function ProfileScreen() {
 
   const profile = useSettingsProfile();
   const save = useSaveSettingsProfile();
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const [draft, setDraft] = useState<{
+    ownerId: string | null;
+    edits: ProfileEdits;
+    error: string | null;
+  }>({ ownerId, edits: {}, error: null });
+  const edits = draft.ownerId === ownerId ? draft.edits : {};
+  const name = edits.name ?? profile.data?.name ?? '';
+  const email = edits.email ?? profile.data?.email ?? '';
+  const selectedGender =
+    edits.gender === undefined ? (profile.data?.gender ?? null) : edits.gender;
+  const error = draft.ownerId === ownerId ? draft.error : null;
+  const updateDraft = (fields: ProfileEdits, nextError: string | null = null) =>
+    setDraft((current) => ({
+      ownerId,
+      edits: {
+        ...(current.ownerId === ownerId ? current.edits : {}),
+        ...fields
+      },
+      error: nextError
+    }));
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [selectedGender, setSelectedGender] = useState<'male' | 'female' | null>(null);
-
-  React.useEffect(() => {
-    if (profile.data) {
-      setName(profile.data.name ?? '');
-      setEmail(profile.data.email ?? '');
-      setSelectedGender(profile.data.gender ?? 'male');
-    }
-  }, [profile.data]);
-
-  if (profile.isLoading) {
+  if (profile.isLoading && !profile.data) {
     return (
       <StateView
         state="loading"
@@ -46,7 +63,7 @@ export function ProfileScreen() {
     );
   }
 
-  if (profile.isError || !profile.data) {
+  if (!hasReadableSnapshot(profile) || !profile.data) {
     return (
       <StateView
         state="error"
@@ -67,11 +84,11 @@ export function ProfileScreen() {
   const handleSave = () => {
     const trimmedEmail = email.trim();
     if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('settings.profile.validation.email');
+      updateDraft({}, 'settings.profile.validation.email');
       return;
     }
 
-    setError(null);
+    updateDraft({});
     save.mutate({
       input: {
         ...profile.data,
@@ -85,7 +102,7 @@ export function ProfileScreen() {
   };
 
   const handleGenderSelect = (gender: 'male' | 'female') => {
-    setSelectedGender(gender);
+    updateDraft({ gender });
     save.mutate({
       input: { ...profile.data, name, email: email.trim() || null, gender },
       expectedVersion: profile.data.version,
@@ -105,6 +122,7 @@ export function ProfileScreen() {
         onBack={() => router.back()}
         direction={direction}
       />
+      <FinancialRefreshStatus query={profile} />
 
       {/* Profile Hero Presentation */}
       <View style={styles.heroSection}>
@@ -139,12 +157,12 @@ export function ProfileScreen() {
         <FormField
           label={translateDynamic('settings.profile.name')}
           value={name}
-          onChangeText={setName}
+          onChangeText={(value) => updateDraft({ name: value })}
         />
         <FormField
           label={translateDynamic('settings.profile.email')}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(value) => updateDraft({ email: value })}
           errorText={error ? translateDynamic(error) : undefined}
         />
         <ActionButton
@@ -152,41 +170,6 @@ export function ProfileScreen() {
           loading={save.isPending}
           onPress={handleSave}
         />
-      </View>
-
-      {/* Account Plan Card */}
-      <View
-        style={[
-          styles.planCard,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border
-          }
-        ]}
-      >
-        <View style={styles.planHeader}>
-          <View style={styles.planBadge}>
-            <StyledText style={styles.planBadgeText}>
-              {translateDynamic('settings.profile.planFree')}
-            </StyledText>
-          </View>
-        </View>
-        <StyledText style={styles.planDesc}>
-          {translateDynamic('settings.profile.planDesc')}
-        </StyledText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={translateDynamic('settings.profile.goPro')}
-          onPress={() => router.push('/subscriptions')}
-          style={({ pressed }) => [
-            styles.proButton,
-            pressed && { opacity: 0.85 }
-          ]}
-        >
-          <StyledText style={styles.proButtonText}>
-            {translateDynamic('settings.profile.goPro')}
-          </StyledText>
-        </Pressable>
       </View>
 
       {/* Grouped Account Details Card */}
@@ -206,8 +189,8 @@ export function ProfileScreen() {
           {/* 1. Phone Number */}
           <ProfileRow
             icon="phone"
-            iconBg={colorTokens.raw["EBF5EC"]}
-            iconFg={colorTokens.raw["1F7A5A"]}
+            iconBg={colorTokens.raw['EBF5EC']}
+            iconFg={colorTokens.raw['1F7A5A']}
             label={translateDynamic('settings.profile.phone')}
             value={
               profile.data.phone ??
@@ -222,8 +205,8 @@ export function ProfileScreen() {
           {/* 2. Birthday */}
           <ProfileRow
             icon="gift"
-            iconBg={colorTokens.raw["FFF8E7"]}
-            iconFg={colorTokens.raw["D48B17"]}
+            iconBg={colorTokens.raw['FFF8E7']}
+            iconFg={colorTokens.raw['D48B17']}
             label={translateDynamic('settings.profile.birthday')}
             value={
               profile.data.birthday ??
@@ -248,11 +231,16 @@ export function ProfileScreen() {
                 { flexDirection: isRtl ? 'row-reverse' : 'row' }
               ]}
             >
-              <View style={[styles.iconBadge, { backgroundColor: colorTokens.raw["EAF2FB"] }]}>
+              <View
+                style={[
+                  styles.iconBadge,
+                  { backgroundColor: colorTokens.raw['EAF2FB'] }
+                ]}
+              >
                 <DesignIcon
                   name="profile"
                   label={translateDynamic('settings.profile.gender')}
-                  color={colorTokens.raw["2E7087"]}
+                  color={colorTokens.raw['2E7087']}
                   size="control"
                   direction={direction}
                   decorative
@@ -272,7 +260,10 @@ export function ProfileScreen() {
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={translateDynamic('settings.profile.gender.male')}
+                accessibilityState={{ selected: selectedGender === 'male' }}
+                accessibilityLabel={translateDynamic(
+                  'settings.profile.gender.male'
+                )}
                 onPress={() => handleGenderSelect('male')}
                 style={[
                   styles.genderPill,
@@ -290,7 +281,10 @@ export function ProfileScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={translateDynamic('settings.profile.gender.female')}
+                accessibilityState={{ selected: selectedGender === 'female' }}
+                accessibilityLabel={translateDynamic(
+                  'settings.profile.gender.female'
+                )}
                 onPress={() => handleGenderSelect('female')}
                 style={[
                   styles.genderPill,
@@ -423,29 +417,29 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colorTokens.raw["103F37"],
+    backgroundColor: colorTokens.raw['103F37'],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs
   },
   avatarInitial: {
-    color: colorTokens.raw["FFFFFF"],
+    color: colorTokens.raw['FFFFFF'],
     fontSize: 32,
     fontWeight: '700'
   },
   avatarSubText: {
-    color: colorTokens.raw["707870"],
+    color: colorTokens.raw['707870'],
     fontSize: 13
   },
   activityPill: {
-    backgroundColor: colorTokens.raw["EBF5EC"],
+    backgroundColor: colorTokens.raw['EBF5EC'],
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: 20,
     marginTop: spacing.xs
   },
   activityPillText: {
-    color: colorTokens.raw["103F37"],
+    color: colorTokens.raw['103F37'],
     fontSize: 12,
     fontWeight: '600'
   },
@@ -458,53 +452,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md
   },
-  planCard: {
-    borderRadius: radius.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: spacing.md,
-    gap: spacing.sm
-  },
-  planHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  planBadge: {
-    backgroundColor: colorTokens.raw["E0F2EB"],
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6
-  },
-  planBadgeText: {
-    color: colorTokens.raw["0D523F"],
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  planDesc: {
-    color: colorTokens.raw["4B534E"],
-    fontSize: 13,
-    lineHeight: 18
-  },
-  proButton: {
-    backgroundColor: colorTokens.raw["F1F5F3"],
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colorTokens.raw["D4E2DC"],
-    marginTop: spacing.xs
-  },
-  proButtonText: {
-    color: colorTokens.raw["103F37"],
-    fontSize: 13,
-    fontWeight: '700'
-  },
   section: {
     gap: spacing.xs
   },
   sectionHeading: {
-    color: colorTokens.raw["707870"],
+    color: colorTokens.raw['707870'],
     fontSize: 14,
     fontWeight: '600',
     paddingHorizontal: 4
@@ -536,17 +488,17 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colorTokens.raw["10231F"]
+    color: colorTokens.raw['10231F']
   },
   rowValue: {
     fontSize: 13,
-    color: colorTokens.raw["707870"]
+    color: colorTokens.raw['707870']
   },
   divider: {
     height: StyleSheet.hairlineWidth
   },
   genderPillsGroup: {
-    backgroundColor: colorTokens.raw["F1F5F3"],
+    backgroundColor: colorTokens.raw['F1F5F3'],
     borderRadius: 20,
     padding: 3,
     gap: 4
@@ -557,8 +509,8 @@ const styles = StyleSheet.create({
     borderRadius: 16
   },
   genderPillActive: {
-    backgroundColor: colorTokens.raw["FFFFFF"],
-    shadowColor: colorTokens.raw["000"],
+    backgroundColor: colorTokens.raw['FFFFFF'],
+    shadowColor: colorTokens.raw['000'],
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -567,10 +519,10 @@ const styles = StyleSheet.create({
   genderPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colorTokens.raw["707870"]
+    color: colorTokens.raw['707870']
   },
   genderPillTextActive: {
-    color: colorTokens.raw["103F37"],
+    color: colorTokens.raw['103F37'],
     fontWeight: '700'
   }
 });

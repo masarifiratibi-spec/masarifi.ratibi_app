@@ -227,8 +227,10 @@ describe('SettingsService lifecycle', () => {
     const exportRequest = await service.requestPrivacyAction('data_export', 'export-1');
     const deletionRequest = await service.requestPrivacyAction('account_deletion', 'delete-account-1');
     expect(exportRequest.value).toMatchObject({ status: 'accepted', kind: 'data_export' });
-    expect(deletionRequest.value).toMatchObject({ status: 'accepted', kind: 'account_deletion' });
-    expect(JSON.stringify([exportRequest, deletionRequest])).not.toMatch(/file|completed|deleted account/i);
+    expect(deletionRequest.value).toMatchObject({ status: 'review', kind: 'account_deletion', serverStatus: 'verified', coolingOffEndsAt: now + 72 * 60 * 60 * 1000, completedAt: null, version: 1 });
+    await service.cancelAccountDeletion(deletionRequest.value.id, 'cancel-deletion-1');
+    expect(await service.getAccountDeletion(deletionRequest.value.id)).toMatchObject({ serverStatus: 'cancelled', version: 2 });
+    expect(exportRequest.value.safeFailure).toBeNull();
 
     const local = await service.deleteLocalData('local-delete-1');
     expect(local).toMatchObject({ value: { deletedRows: 3 }, affectedScopes: expect.arrayContaining(['settings.local-data', 'notifications.list', 'assistant.conversations']) });

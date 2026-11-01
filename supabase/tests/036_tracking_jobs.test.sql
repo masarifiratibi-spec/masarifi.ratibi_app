@@ -15,6 +15,8 @@ select has_function('private','complete_parser_corpus',array['uuid','uuid','json
 grant masarifi_migration to current_user with inherit true,set true;
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('tracking-job-owner','active');
+-- Model the verified API caller; do not bypass active-owner command guards.
+select set_config('request.jwt.claims','{"sub":"tracking-job-owner","role":"authenticated"}',true);
 select private.create_import_session(
   'tracking-job-owner','manual',null,1,repeat('b',64),
   '[{"sourceItemKey":"fixture-job","receivedAt":"2026-09-02T08:00:00Z","body":"fictional paid 12"}]'::jsonb

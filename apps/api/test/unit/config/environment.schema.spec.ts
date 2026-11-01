@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { load } from 'js-yaml';
 import { validateEnvironment } from '../../../src/platform/config/environment.schema';
 
 const pushKey = (byte: number): string => Buffer.alloc(32, byte).toString('base64url');
@@ -15,6 +18,7 @@ const valid = {
   CLERK_AUTHORIZED_PARTIES: 'https://admin.example.test,http://localhost:3000',
   CLERK_WEBHOOK_SIGNING_SECRET: ['whsec', 'nonfunctionalfixture'].join('_'),
   MASARIFI_PUSH_TOKEN_HASH_KEY: pushKey(1),
+  MASARIFI_SYNC_CURSOR_KEY: pushKey(4),
   MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS: `active:${pushKey(2)}`,
   MASARIFI_ADMIN_INVITATION_REDIRECT_URL: 'https://admin.example.test/invitations/accept',
   MASARIFI_SECURITY_IP_HASH_KEYS: `active:${pushKey(3)}`,
@@ -26,12 +30,249 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it.each(['MASARIFI_SYNC_COMMAND_DATABASE_URL', 'MASARIFI_OPERATIONS_JOB_KEYS'])(
+    'keeps normal sync worker configuration %s off the API process',
+    (key) => {
+      expect(() =>
+        validateEnvironment({
+          ...valid,
+          [key]: key.endsWith('URL')
+            ? 'postgresql://command@127.0.0.1/inert'
+            : 'sync-mutations.retry',
+        }),
+      ).toThrow(key);
+    },
+  );
+  it('requires an independent API cursor key', () => {
+    expect(() => validateEnvironment({ ...valid, MASARIFI_SYNC_CURSOR_KEY: undefined })).toThrow(
+      'MASARIFI_SYNC_CURSOR_KEY',
+    );
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        MASARIFI_SYNC_CURSOR_KEY: valid.MASARIFI_PUSH_TOKEN_HASH_KEY,
+      }),
+    ).toThrow('MASARIFI_SYNC_CURSOR_KEY');
+    expect(
+      validateEnvironment({ ...valid, MASARIFI_SYNC_CURSOR_KEY: pushKey(4) })
+        .MASARIFI_SYNC_CURSOR_KEY,
+    ).toBe(pushKey(4));
+  });
+  it('allows the staged ordinary semantic assistant without a developer owner', () => {
+    const result = validateEnvironment({
+      ...valid,
+      SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+      MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: 'true',
+    });
+    expect(result.MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED).toBe(true);
+    expect(result.MASARIFI_ASSISTANT_AGENT_OWNER_ID).toBeUndefined();
+  });
+
+  it('rejects ordinary semantic rollout on a different project', () => {
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        SUPABASE_URL: 'https://another-project.supabase.co',
+        MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: 'true',
+      }),
+    ).toThrow();
+  });
+  it('accepts generic mobile automation on a non-Staging production API and keeps the existing API disabled by default', () => {
+    const production = {
+      ...valid,
+      NODE_ENV: 'production',
+      CLERK_PUBLISHABLE_KEY: clerkKey('pk', 'live'),
+      CLERK_SECRET_KEY: clerkKey('sk', 'live'),
+      CLERK_AUTHORIZED_PARTIES: 'https://app.example.test',
+      SUPABASE_URL: 'https://release-project.supabase.co',
+      MASARIFI_CORS_ORIGINS: 'https://app.example.test',
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: true,
+    };
+    expect(validateEnvironment(production)).toMatchObject({
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: true,
+      MASARIFI_RETURN_REMINDERS_ENABLED: false,
+    });
+    expect(validateEnvironment(valid)).toMatchObject({
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: false,
+      MASARIFI_RETURN_REMINDERS_ENABLED: false,
+    });
+  });
+  it('accepts generic return reminders on a non-Staging production worker without an Expo bearer token', () => {
+    const worker: Record<string, unknown> = {
+      ...valid,
+      NODE_ENV: 'production',
+      MASARIFI_PROCESS_KIND: 'worker',
+      CLERK_SECRET_KEY: clerkKey('sk', 'live'),
+      SUPABASE_URL: 'https://release-project.supabase.co',
+      MASARIFI_CORS_ORIGINS: 'https://app.example.test',
+      MASARIFI_RETURN_REMINDERS_ENABLED: true,
+      MASARIFI_ENGAGEMENT_PROVIDER_MODE: 'live',
+      MASARIFI_EXPORT_MAX_BYTES: 16777216,
+      MASARIFI_EXPORT_MAX_ENTRIES: 100,
+      MASARIFI_PRIVACY_HANDLER_MANIFEST: 'identity@1',
+      MASARIFI_SECURITY_WORKER_POLL_MS: 500,
+      MASARIFI_SECURITY_JOB_BATCH_SIZE: 25,
+      EMAIL_SMTP_HOST: 'smtp.example.test',
+      EMAIL_SMTP_PORT: 465,
+      EMAIL_SMTP_USERNAME: 'fixture',
+      EMAIL_SMTP_PASSWORD: 'fixture',
+      EMAIL_FROM: 'test@example.test',
+    };
+    for (const key of [
+      'CLERK_PUBLISHABLE_KEY',
+      'CLERK_INSTANCE_DOMAIN',
+      'CLERK_AUTHORIZED_PARTIES',
+      'CLERK_WEBHOOK_SIGNING_SECRET',
+      'MASARIFI_ADMIN_INVITATION_REDIRECT_URL',
+      'MASARIFI_EXPORT_SIGNED_URL_SECONDS',
+    ])
+      Reflect.deleteProperty(worker, key);
+    expect(validateEnvironment(worker)).toMatchObject({
+      MASARIFI_MOBILE_AUTOMATION_ENABLED: false,
+      MASARIFI_RETURN_REMINDERS_ENABLED: true,
+    });
+  });
+  it('allows the planning compatibility owner only on the explicit Staging API', () => {
+    const key = 'MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID';
+    const staging = {
+      ...valid,
+      SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+      [key]: 'user_DevPlanning123',
+    };
+    expect((validateEnvironment(staging) as unknown as Record<string, unknown>)[key]).toBe(
+      'user_DevPlanning123',
+    );
+    for (const patch of [
+      { SUPABASE_URL: 'https://other.supabase.co' },
+      { MASARIFI_PROCESS_KIND: 'worker' },
+      { [key]: 'bad owner' },
+    ])
+      expect(() => validateEnvironment({ ...staging, ...patch })).toThrow(key);
+    expect((validateEnvironment(valid) as unknown as Record<string, unknown>)[key]).toBeUndefined();
+  });
+  it('requires a valid explicit Clerk owner on the Staging worker for scoped privacy', () => {
+    const scoped = {
+      ...valid,
+      EMAIL_SMTP_HOST: 'smtp.example.test',
+      EMAIL_SMTP_PORT: 587,
+      EMAIL_SMTP_USERNAME: 'fixture',
+      EMAIL_SMTP_PASSWORD: 'fixture',
+      EMAIL_FROM: 'test@example.test',
+      MASARIFI_EXPORT_MAX_BYTES: 16777216,
+      MASARIFI_EXPORT_MAX_ENTRIES: 100,
+      MASARIFI_PRIVACY_HANDLER_MANIFEST: 'ai@1,engagement@1,identity@1,tracking@1',
+      MASARIFI_SECURITY_JOB_BATCH_SIZE: 1,
+      MASARIFI_SECURITY_WORKER_POLL_MS: 500,
+      MASARIFI_PROCESS_KIND: 'worker',
+      SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+      MASARIFI_STAGING_PRIVACY_OWNER_ID: 'user_Disposable123',
+    };
+    expect(
+      (validateEnvironment(scoped) as unknown as Record<string, unknown>)[
+        'MASARIFI_STAGING_PRIVACY_OWNER_ID'
+      ],
+    ).toBe('user_Disposable123');
+    for (const patch of [
+      { MASARIFI_PROCESS_KIND: 'api' },
+      { SUPABASE_URL: 'https://other.supabase.co' },
+      { MASARIFI_STAGING_PRIVACY_OWNER_ID: 'bad owner' },
+    ])
+      expect(() => validateEnvironment({ ...scoped, ...patch })).toThrow();
+  });
+  it('limits continuous Voice and DEV admission configuration to their Staging processes', () => {
+    const staging = { ...valid, SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co' };
+    expect(
+      validateEnvironment({
+        ...staging,
+        MASARIFI_VOICE_ANALYSIS_ONLY: true,
+        MASARIFI_STAGING_VOICE_DEV_OWNER_ID: 'owner',
+      }).MASARIFI_STAGING_VOICE_DEV_OWNER_ID,
+    ).toBe('owner');
+    for (const patch of [
+      { SUPABASE_URL: 'https://other.supabase.co' },
+      { MASARIFI_PROCESS_KIND: 'worker' },
+      { MASARIFI_VOICE_ANALYSIS_ONLY: false },
+    ]) {
+      expect(() =>
+        validateEnvironment({
+          ...staging,
+          MASARIFI_VOICE_ANALYSIS_ONLY: true,
+          MASARIFI_STAGING_VOICE_DEV_OWNER_ID: 'owner',
+          ...patch,
+        }),
+      ).toThrow('MASARIFI_STAGING_VOICE_DEV_OWNER_ID');
+    }
+    expect(() =>
+      validateEnvironment({ ...staging, MASARIFI_STAGING_VOICE_CONTINUOUS: true }),
+    ).toThrow('MASARIFI_STAGING_VOICE_CONTINUOUS');
+  });
+  it('accepts the actual CI migration environment without collector-only settings', () => {
+    const workflow = load(
+      readFileSync(
+        resolve(__dirname, '../../../../../.github/workflows/backend-foundation.yml'),
+        'utf8',
+      ),
+    ) as {
+      jobs: {
+        database: {
+          env: Record<string, unknown>;
+          steps: Array<{
+            run?: string;
+            env?: Record<string, unknown>;
+          }>;
+        };
+      };
+    };
+    const job = workflow.jobs.database;
+    const migration = job.steps.find((step) => step.run === 'npm run start:migration');
+    expect(migration).toBeDefined();
+    expect(validateEnvironment({ ...job.env, ...migration?.env })).toMatchObject({
+      MASARIFI_PROCESS_KIND: 'migration',
+      NODE_ENV: 'test',
+    });
+  });
+  it('rejects a financial Voice epoch outside the Staging worker configuration', () => {
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        MASARIFI_STAGING_VOICE_EPOCH_ID: '11111111-1111-4111-8111-111111111111',
+      }),
+    ).toThrow('MASARIFI_STAGING_VOICE_EPOCH_ID');
+  });
+  it('allows analysis-only exclusively on the pinned Staging Supabase origin', () => {
+    expect(
+      validateEnvironment({
+        ...valid,
+        SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+        MASARIFI_VOICE_ANALYSIS_ONLY: true,
+      }),
+    ).toMatchObject({ MASARIFI_VOICE_ANALYSIS_ONLY: true });
+    expect(() => validateEnvironment({ ...valid, MASARIFI_VOICE_ANALYSIS_ONLY: true })).toThrow(
+      'MASARIFI_VOICE_ANALYSIS_ONLY',
+    );
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        SUPABASE_URL: 'https://production.supabase.co',
+        MASARIFI_VOICE_ANALYSIS_ONLY: true,
+      }),
+    ).toThrow('MASARIFI_VOICE_ANALYSIS_ONLY');
+  });
   it('accepts the minimum valid API environment', () => {
     expect(validateEnvironment(valid)).toMatchObject({
       NODE_ENV: 'test',
       MASARIFI_PROCESS_KIND: 'api',
       MASARIFI_RELEASE_VERSION: 'test-release',
     });
+  });
+
+  it('accepts Clerk webhook signing secrets encoded with standard Base64', () => {
+    expect(
+      validateEnvironment({
+        ...valid,
+        CLERK_WEBHOOK_SIGNING_SECRET: ['whsec', 'nonfunctional+fixture/value='].join('_'),
+      }),
+    ).toMatchObject({ MASARIFI_PROCESS_KIND: 'api' });
   });
 
   it.each(['NODE_ENV', 'MASARIFI_PROCESS_KIND', 'MASARIFI_RELEASE_VERSION', 'DATABASE_URL'])(
@@ -274,5 +515,49 @@ describe('validateEnvironment', () => {
       expect(String(error)).toContain('CLERK_SECRET_KEY');
       expect(String(error)).not.toContain(sentinel);
     }
+  });
+});
+
+describe('isolated Staging session-authorized self deletion', () => {
+  const key = 'MASARIFI_STAGING_SELF_DELETION_OWNER_ID';
+  const scoped = {
+    ...valid,
+    SUPABASE_URL: 'https://qcffvfbpzvpwcwxwjyro.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'nonfunctional-fixture',
+    MASARIFI_EXPORT_RETENTION_HOURS: 24,
+    MASARIFI_EXPORT_SIGNED_URL_SECONDS: 300,
+    MASARIFI_DELETION_COOLING_OFF_HOURS: 0,
+    MASARIFI_PRIVACY_DATABASE_URL: 'postgresql://worker:fixture@127.0.0.1:15918/disposable',
+    MASARIFI_PRIVACY_HANDLER_MANIFEST: 'ai@1,engagement@1,identity@1,tracking@1',
+    [key]: 'user_DevDeletion123',
+  };
+  it('accepts an explicit owner only on the immediate-deletion Staging API', () => {
+    expect((validateEnvironment(scoped) as unknown as Record<string, unknown>)[key]).toBe(
+      scoped[key],
+    );
+  });
+  it.each([
+    { SUPABASE_URL: 'https://other.supabase.co' },
+    { MASARIFI_PROCESS_KIND: 'worker' },
+    { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
+    { [key]: 'bad owner' },
+  ])('rejects an unsafe activation scope %j', (patch) => {
+    expect(() => validateEnvironment({ ...scoped, ...patch })).toThrow(key);
+  });
+  const enabledKey = 'MASARIFI_STAGING_SELF_DELETION_ENABLED';
+  const allOwners = { ...scoped, [key]: undefined, [enabledKey]: 'true' };
+  it('accepts session-authorized deletion for every owner on the immediate Staging API', () => {
+    expect((validateEnvironment(allOwners) as unknown as Record<string, unknown>)[enabledKey]).toBe(
+      true,
+    );
+  });
+  it.each([
+    { SUPABASE_URL: 'https://other.supabase.co' },
+    { MASARIFI_PROCESS_KIND: 'worker' },
+    { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
+    { [key]: 'user_ConflictingAllowlist' },
+    { [enabledKey]: 'yes-please' },
+  ])('rejects unsafe all-owner activation %j', (patch) => {
+    expect(() => validateEnvironment({ ...allOwners, ...patch })).toThrow(enabledKey);
   });
 });

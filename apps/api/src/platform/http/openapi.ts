@@ -32,6 +32,8 @@ const schemaNames = [
   'DevicePage',
   'DeviceRegistration',
   'DeviceRegistrationResult',
+  'DevPushRegistration',
+  'DevInstallationSignOut',
 ];
 
 const operationMethods = new Set(['get', 'put', 'post', 'delete', 'patch', 'options', 'head']);

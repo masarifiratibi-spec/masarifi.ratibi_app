@@ -8,6 +8,110 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/tracking/device/rule-snapshot:
+    post:
+      operationId: enrollTrackingInstallation
+      tags: [Tracking Rules]
+      description: Enrolls the authenticated owner's supported Android installation; preserves tracking consent and routes financial capture by source currency.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                [
+                  deviceId,
+                  smsActivationId,
+                  deviceRegistration,
+                  remindersEnabled,
+                  foreground,
+                  reminderLocale,
+                  reminderTimeZone,
+                ]
+              properties:
+                deviceId: { type: string, format: uuid }
+                smsActivationId: { type: string, pattern: '^[0-9]{1,19}$' }
+                deviceRegistration:
+                  type: object
+                  additionalProperties: false
+                  required: [deviceFingerprint, platform, appVersion]
+                  properties:
+                    deviceFingerprint: { type: string, minLength: 16, maxLength: 512 }
+                    platform: { type: string, const: android }
+                    appVersion: { type: string, minLength: 1, maxLength: 32 }
+                remindersEnabled: { type: boolean }
+                foreground: { type: boolean }
+                reminderLocale: { type: string, enum: [ar, en] }
+                reminderTimeZone: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200': { $ref: '#/components/responses/TrackingResource' }
+  /api/v1/tracking/rule-snapshot:
+    get:
+      operationId: getTrackingRuleSnapshot
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: deviceId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/tracking/confirmations/{notificationId}:
+    get:
+      operationId: getTrackingConfirmation
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TrackingUuid' }
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/admin/tracking/rule-releases:
+    get:
+      operationId: listTrackingRuleReleases
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      x-admin-permission: parsers.coverage.read
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+    post:
+      operationId: createTrackingRuleRelease
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      x-admin-permission: parsers.versions.manage
+      x-requires-recent-auth: true
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
+      responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/admin/tracking/rule-releases/{releaseId}:
+    get:
+      operationId: getTrackingRuleRelease
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: releaseId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TrackingUuid' }
+      x-admin-permission: parsers.coverage.read
+      responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
+  /api/v1/admin/tracking/rule-releases/{releaseId}/action:
+    post:
+      operationId: actOnTrackingRuleRelease
+      tags: [Tracking Rules]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: releaseId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TrackingUuid' }
+      x-admin-permission: parsers.versions.manage
+      x-requires-recent-auth: true
+      requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
+      responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
   /api/v1/tracking/preferences:
     get:
       operationId: getTrackingPreferences
@@ -264,6 +368,12 @@ paths:
       tags: [Admin Imports]
       x-admin-permission: imports.read
       parameters:
+        - {
+            name: severity,
+            in: query,
+            schema: { type: string, enum: [info, low, medium, high, critical] },
+            description: Failed sessions/items are high; other sessions are info.,
+          }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Search'
@@ -286,7 +396,7 @@ paths:
       operationId: retryAdminImportSession
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - $ref: '#/components/parameters/SessionId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -298,6 +408,12 @@ paths:
       tags: [Admin Imports]
       x-admin-permission: imports.read
       parameters:
+        - {
+            name: severity,
+            in: query,
+            schema: { type: string, enum: [info, low, medium, high, critical] },
+            description: Failed sessions/items are high; other sessions are info.,
+          }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Search'
@@ -309,7 +425,7 @@ paths:
       operationId: actOnAdminImportFailure
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/ItemId' },
@@ -336,7 +452,7 @@ paths:
       operationId: reviewAdminLowConfidence
       tags: [Admin Imports]
       x-admin-permission: imports.confidence.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/ReviewId' },
@@ -361,7 +477,7 @@ paths:
       operationId: resolveAdminDuplicate
       tags: [Admin Imports]
       x-admin-permission: imports.duplicates.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/CandidateId' },
@@ -387,7 +503,7 @@ paths:
       operationId: actOnUnsupportedFormat
       tags: [Admin Imports]
       x-admin-permission: imports.unsupported.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: formatId
           in: path
@@ -411,7 +527,7 @@ paths:
       operationId: createParserInstitution
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -426,7 +542,7 @@ paths:
       operationId: updateParserInstitution
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/InstitutionId' },
@@ -449,7 +565,7 @@ paths:
       operationId: createParserSender
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -458,7 +574,7 @@ paths:
       operationId: mutateInstitutionSender
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: senderId
           in: path
@@ -484,7 +600,7 @@ paths:
       operationId: createParserRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.rules.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -499,7 +615,7 @@ paths:
       operationId: updateParserRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.rules.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -538,7 +654,7 @@ paths:
       operationId: createParserTestCase
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminCreate' }
       responses: { '201': { $ref: '#/components/responses/TrackingResource' } }
@@ -547,7 +663,7 @@ paths:
       operationId: runParserCorpus
       tags: [Admin Parsers]
       x-admin-permission: parsers.tests.run
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '202': { $ref: '#/components/responses/TrackingResource' } }
@@ -567,7 +683,7 @@ paths:
       operationId: mutateParserVersion
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: versionId
           in: path
@@ -591,7 +707,7 @@ paths:
       operationId: mutateMerchantRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.merchants.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
@@ -610,7 +726,7 @@ paths:
       operationId: mutateCategoryRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.categories.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
@@ -619,7 +735,7 @@ paths:
       operationId: retryImportSession
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/SessionId' },
@@ -632,7 +748,7 @@ paths:
       operationId: cancelImportSession
       tags: [Admin Imports]
       x-admin-permission: imports.failures.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/SessionId' },
@@ -658,7 +774,7 @@ paths:
       operationId: updateUnsupportedFormat
       tags: [Admin Imports]
       x-admin-permission: imports.unsupported.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: formatId
           in: path
@@ -672,7 +788,7 @@ paths:
       operationId: updateParserSender
       tags: [Admin Parsers]
       x-admin-permission: parsers.senders.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: senderId
           in: path
@@ -686,7 +802,7 @@ paths:
       operationId: createParserVersion
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -699,7 +815,7 @@ paths:
       operationId: runParserVersionCorpus
       tags: [Admin Parsers]
       x-admin-permission: parsers.tests.run
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: versionId
           in: path
@@ -712,7 +828,7 @@ paths:
       operationId: publishParserVersion
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: versionId
           in: path
@@ -726,7 +842,7 @@ paths:
       operationId: updateParserTestCase
       tags: [Admin Parsers]
       x-admin-permission: parsers.versions.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         - name: caseId
           in: path
@@ -740,7 +856,7 @@ paths:
       operationId: updateMerchantRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.merchants.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -753,7 +869,7 @@ paths:
       operationId: updateCategoryRule
       tags: [Admin Parsers]
       x-admin-permission: parsers.categories.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters:
         [
           { $ref: '#/components/parameters/RuleId' },
@@ -771,7 +887,7 @@ paths:
       operationId: updateImportSettings
       tags: [Admin Imports]
       x-admin-permission: settings.imports.manage
-      x-requires-recent-mfa: true
+      x-requires-recent-auth: true
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { $ref: '#/components/requestBodies/AdminMutation' }
       responses: { '200': { $ref: '#/components/responses/TrackingResource' } }
@@ -1004,14 +1120,71 @@ components:
               expectedVersion: { type: integer, minimum: 1 }
               patch: { type: object, maxProperties: 12 }
   schemas:
+    TrackingMessageTransport:
+      type: object
+      additionalProperties: false
+      required: [deviceId, channel, nativeIdDigest, revisionDigest]
+      properties:
+        deviceId: { type: string, minLength: 8, maxLength: 200 }
+        channel: { type: string, enum: [android_sms, android_notification] }
+        nativeIdDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        revisionDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+    TrackingMessageClassification:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          direction,
+          subtype,
+          status,
+          disposition,
+          amountMinor,
+          currency,
+          merchant,
+          instruments,
+          occurredAt,
+          timeProvenance,
+          reasonCodes,
+          appliedRuleKeys,
+          releaseId,
+          engineVersion,
+        ]
+      properties:
+        direction: { type: string, enum: [outgoing, incoming, internal, unknown] }
+        subtype: { type: string, maxLength: 64 }
+        status:
+          {
+            type: string,
+            enum: [completed, pending, failed, declined, cancelled, administrative, unknown],
+          }
+        disposition: { type: string, enum: [capture_candidate, review, ignore] }
+        amountMinor: { type: [integer, 'null'], minimum: 1, maximum: 9007199254740991 }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        merchant: { type: [string, 'null'], maxLength: 200 }
+        instruments:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, suffix]
+            properties:
+              role: { type: string, enum: [card, account] }
+              suffix: { type: string, pattern: '^[0-9]{4,12}$' }
+        occurredAt: { type: [string, 'null'], format: date-time }
+        timeProvenance: { type: string, enum: [embedded, received, ambiguous] }
+        reasonCodes: { type: array, maxItems: 32, items: { type: string, maxLength: 100 } }
+        appliedRuleKeys: { type: array, maxItems: 100, items: { type: string, maxLength: 100 } }
+        releaseId: { type: string, minLength: 1, maxLength: 200 }
+        engineVersion: { type: string, const: '2.0.0' }
     TrackingUuid: { type: string, format: uuid }
     TrackingNormalizedImportRequest:
       type: object
       additionalProperties: false
       required: [schemaVersion, sourceType, events]
       properties:
-        schemaVersion: { type: integer, const: 1 }
-        sourceType: { type: string, enum: [sms, manual] }
+        schemaVersion: { type: integer, enum: [1, 2, 3] }
+        sourceType: { type: string, enum: [sms, provider, manual] }
         sourceChannel:
           {
             type: string,
@@ -1034,6 +1207,10 @@ components:
             additionalProperties: false
             required: [sourceItemKey, receivedAt]
             properties:
+              accountingPolicy: { type: string, enum: [default_account_nominal_v1] }
+              sourceAmountDecimal:
+                { type: string, pattern: '^(0|[1-9][0-9]{0,15})(\.[0-9]{1,3})?$', maxLength: 20 }
+              activatedAt: { type: string, format: date-time }
               sourceItemKey: { type: string, minLength: 1, maxLength: 200 }
               sender: { type: string, maxLength: 200 }
               body: { type: string, minLength: 1, maxLength: 2000 }
@@ -1042,6 +1219,12 @@ components:
               merchant: { type: string, minLength: 1, maxLength: 200 }
               receivedAt: { type: string, format: date-time }
               occurredAt: { type: string, format: date-time }
+              kind: { type: string, enum: [income, expense, transfer, refund, fee] }
+              accountId: { $ref: '#/components/schemas/TrackingUuid' }
+              categoryId: { $ref: '#/components/schemas/TrackingUuid' }
+              classification: { $ref: '#/components/schemas/TrackingMessageClassification' }
+              transport: { $ref: '#/components/schemas/TrackingMessageTransport' }
+              providerReferenceDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
               metadata:
                 type: object
                 maxProperties: 12
@@ -1089,7 +1272,18 @@ components:
     TrackingPreferenceResource:
       type: object
       additionalProperties: false
-      required: [id, enabled, reviewRequired, duplicateWindowSeconds, sourceRetentionDays, historyRetentionDays, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          enabled,
+          reviewRequired,
+          duplicateWindowSeconds,
+          sourceRetentionDays,
+          historyRetentionDays,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         enabled: { type: boolean }
@@ -1103,7 +1297,18 @@ components:
     TrackingStatusResource:
       type: object
       additionalProperties: false
-      required: [available, mode, lastDetectedAt, lastSuccessfulTransactionId, detectedThisMonth, reviewCount, activeKeywordCount, activeSenderCount, lastUpdatedAt]
+      required:
+        [
+          available,
+          mode,
+          lastDetectedAt,
+          lastSuccessfulTransactionId,
+          detectedThisMonth,
+          reviewCount,
+          activeKeywordCount,
+          activeSenderCount,
+          lastUpdatedAt,
+        ]
       properties:
         available: { type: boolean }
         mode: { type: string, enum: [automatic_clear, review_all, paused] }
@@ -1117,11 +1322,42 @@ components:
     TrackingKeywordRuleResource:
       type: object
       additionalProperties: false
-      required: [id, keyword, groupKey, languageCode, origin, matchType, categoryId, priority, enabled, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          keyword,
+          groupKey,
+          languageCode,
+          origin,
+          matchType,
+          categoryId,
+          priority,
+          enabled,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         keyword: { type: string, minLength: 1, maxLength: 120 }
-        groupKey: { type: string, enum: [expense, income, transfer, withdrawal, deposit, refund, subscription, installment, fee, failed_transaction, reversal] }
+        groupKey:
+          {
+            type: string,
+            enum:
+              [
+                expense,
+                income,
+                transfer,
+                withdrawal,
+                deposit,
+                refund,
+                subscription,
+                installment,
+                fee,
+                failed_transaction,
+                reversal,
+              ],
+          }
         languageCode: { type: string, enum: [ar, en] }
         origin: { type: string, enum: [default, custom] }
         matchType: { type: string, enum: [exact, contains, safe_pattern] }
@@ -1134,7 +1370,18 @@ components:
     TrackingSenderRuleResource:
       type: object
       additionalProperties: false
-      required: [id, senderPattern, displayLabel, institutionId, trusted, enabled, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          senderPattern,
+          displayLabel,
+          institutionId,
+          trusted,
+          enabled,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         senderPattern: { type: string, minLength: 1, maxLength: 256 }
@@ -1148,7 +1395,22 @@ components:
     TrackingReviewResource:
       type: object
       additionalProperties: false
-      required: [id, importItemId, reason, proposedValues, originalValues, acceptedValues, status, decisionAction, reviewedAt, reviewedBy, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          importItemId,
+          reason,
+          proposedValues,
+          originalValues,
+          acceptedValues,
+          status,
+          decisionAction,
+          reviewedAt,
+          reviewedBy,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         importItemId: { $ref: '#/components/schemas/TrackingUuid' }
@@ -1166,17 +1428,40 @@ components:
     TrackingImportSessionResource:
       type: object
       additionalProperties: false
-      required: [id, sourceType, sourceName, schemaVersion, status, itemCount, acceptedCount, rejectedCount, attemptCount, nextAttemptAt, startedAt, completedAt, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          sourceType,
+          sourceName,
+          schemaVersion,
+          status,
+          itemCount,
+          acceptedCount,
+          rejectedCount,
+          attemptCount,
+          nextAttemptAt,
+          startedAt,
+          completedAt,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         sourceType: { type: string, enum: [sms, file, manual, provider] }
         sourceName: { type: [string, 'null'], maxLength: 120 }
-        schemaVersion: { const: 1 }
+        schemaVersion: { type: integer, enum: [1, 2, 3] }
         status: { type: string, enum: [received, processing, review, complete, failed, cancelled] }
         itemCount: { type: integer, minimum: 0, maximum: 10000 }
         acceptedCount: { type: integer, minimum: 0 }
         rejectedCount: { type: integer, minimum: 0 }
-        attemptCount: { type: integer, minimum: 0, maximum: 20 }
+        attemptCount:
+          {
+            type: integer,
+            minimum: 0,
+            maximum: 2147483647,
+            description: 'Legacy imports stop at 20 attempts; nominal Tracking remains retryable.',
+          }
         nextAttemptAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time }
         completedAt: { type: [string, 'null'], format: date-time }
@@ -1186,7 +1471,15 @@ components:
     TrackingAdminImportOverviewResource:
       type: object
       additionalProperties: false
-      required: [totalSessions, uniqueCustomers, totalItems, failedSessions, reviewSessions, highestFailureSource]
+      required:
+        [
+          totalSessions,
+          uniqueCustomers,
+          totalItems,
+          failedSessions,
+          reviewSessions,
+          highestFailureSource,
+        ]
       properties:
         totalSessions: { type: integer, minimum: 0 }
         uniqueCustomers: { type: integer, minimum: 0 }
@@ -1210,7 +1503,18 @@ components:
     TrackingParserRuleResource:
       type: object
       additionalProperties: false
-      required: [id, institutionId, name, sourceType, activeVersionId, status, createdAt, updatedAt, version]
+      required:
+        [
+          id,
+          institutionId,
+          name,
+          sourceType,
+          activeVersionId,
+          status,
+          createdAt,
+          updatedAt,
+          version,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         institutionId: { type: [string, 'null'], format: uuid }
@@ -1224,10 +1528,31 @@ components:
     TrackingParserVersionResource:
       type: object
       additionalProperties: false
-      required: [id, parserRuleId, versionNo, definitionHash, createdBy, publishedAt, corpusStatus, corpusRequestedAt, corpusAttemptCount, corpusNextAttemptAt, corpusLastErrorCode, createdAt]
+      required:
+        [
+          id,
+          parserRuleId,
+          versionNo,
+          definitionHash,
+          createdBy,
+          publishedAt,
+          corpusStatus,
+          corpusRequestedAt,
+          corpusAttemptCount,
+          corpusNextAttemptAt,
+          corpusLastErrorCode,
+          createdAt,
+        ]
       properties:
         id: { $ref: '#/components/schemas/TrackingUuid' }
         parserRuleId: { $ref: '#/components/schemas/TrackingUuid' }
+        parentRuleVersion:
+          {
+            type: integer,
+            minimum: 1,
+            description: Current parent rule revision required for publish retire and rollback.,
+          }
+        status: { type: string, enum: [draft, published, retired] }
         versionNo: { type: integer, minimum: 1 }
         definitionHash: { type: string, pattern: '^[0-9a-f]{64}$' }
         createdBy: { type: string, minLength: 1, maxLength: 128 }

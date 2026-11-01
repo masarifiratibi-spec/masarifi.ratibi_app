@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "scopeId": "ASSISTANT-DIRECT-RESPONSE-QA-20261031-07",
+  "status": "prepared_unapproved",
+  "requiresNewHumanApproval": true,
+  "supersedesConsumedScope": "ASSISTANT-RESPONSE-LAYOUT-QA-20261031-06",
+  "owner": "same preserved Redmi account only",
+  "environment": "existing Staging and existing APK/Metro33696",
+  "apiImage": "sha256:e8951af2412b51454cd4045cfa646be788fe8dd979665c64f6ebd0e22298b723",
+  "runtimePromptSha256": "cce2ff764bb55b7adc1f0b77ccb0b41e9d222ef2b2d87a8a147563fa776e5c5a",
+  "nginxConfigSha256": "f4da6759b5a8d97cff9ff24a92b58c566415fa4ec180ddd595bb38ee3f9dea69",
+  "routeVersion": 4,
+  "primary": {
+    "model": "openai/gpt-6-luna",
+    "provider": "azure"
+  },
+  "fallback": {
+    "model": "google/gemini-3.1-flash-lite",
+    "provider": "google-vertex"
+  },
+  "gateway": "https://openrouter.ai/api/v1/chat/completions",
+  "dataShared": "Same owner's necessary financial context, including the three explicitly authorized new transactions; no raw client data in Git.",
+  "maxQuestions": 2,
+  "maxProviderDispatchesPerQuestion": 6,
+  "maxWindowSeconds": 1200,
+  "maxCostUsd": "0.20",
+  "maxPrice": {
+    "prompt": "0.000000275",
+    "completion": "0.00000165"
+  },
+  "reservationInputTokens": 32000,
+  "reservationOutputTokens": 4096,
+  "maximumReservationUsd": "0.18670080",
+  "quotaChanges": 0,
+  "financialWrites": 0,
+  "otherAccountOrDevice": false,
+  "additionalPdfZipSupportFeedbackOrNativeCapture": false,
+  "questions": [
+    "أنا صرفت كام في أكتوبر 2026؟",
+    "قارن مصروفاتي في أكتوبر 2026 بسبتمبر 2026."
+  ],
+  "stopConditions": [
+    "Unknown or failed admission consumes the slot; no replay, restart or renewal.",
+    "Stop on timeout,429,provider or source unavailability,financial action proposal,owner or runtime or route drift.",
+    "Refresh route/budget/runtime/preservation before first admission and configured route before each question.",
+    "Preserve all existing financial rows and planning draft2026-13, including the three authorized transactions. Only approved assistant conversation/message/usage records may be added.",
+    "Do not execute financial action, permission change, migration, quota increase, native capture or additional delivery."
+  ],
+  "evidence": "Two read-only questions: simple amount without unrequested explanation/saving; requested comparison as short organized lines. Verify canonical actual provider replies and native inline numbers17/body15. Same-owner confirmed amounts, no financial mutation; old scopes01–06 closed. Current request authorizes implementation/deployment only; new explicit provider approval required.",
+  "authority": "New bounded human approval required for scope07; no replay or renewal of01–06.",
+  "baseWorkerImage": "sha256:a53ff1ddad614670a44cdc1c26bf52f2f87be282e2294c1c2d56e552f06b7f6c",
+  "runtimeModuleSha256": "2dec96af2f1f985021dea188e462c5eb5cb1c80b1abc0e9724e560d1ae30e9cf",
+  "runtimeHelperSha256": "2168e3289939ca18afeda3d4c07cb79e51cab7b8a911b05a7771ba02525a17b8",
+  "qualifiedWorkerImageRequiredBeforeFirstAdmission": true,
+  "qualifiedWorkerImage": "sha256:67168ee0ea4babee42e93b76fe4cf1c0e24032d6ce04d37c1ec6093dd35a3f2e"
+}

@@ -3,17 +3,21 @@ import { PixelRatio } from 'react-native';
 import { fireEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { changeLocale } from '@/localization/i18n';
+import { translate } from '@/localization/i18n';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useReportsViewState } from '@/state/reports-view-state';
 import { renderWithProviders } from '@/test-utils/render';
 import { ReportDrillDownScreen } from './ReportDrillDownScreen';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
+import { reportsService } from '@/services/reports-service';
+import { createLiveReportsService } from '@/services/live/reports-service';
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn() }
 }));
 
 beforeEach(() => {
-  useReportsViewState.setState({
+  useReportsViewState.setState({ followToday: false,
     anchorDate: '2026-08-08',
     selectedKind: 'monthly'
   });
@@ -21,6 +25,15 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+});
+
+test.each(['ar', 'en'] as const)('shows a retryable drill-down failure rather than endless loading in %s', async (locale) => {
+  changeLocale(locale);
+  jest.spyOn(reportsService, 'getReport').mockRejectedValue(new Error('service unavailable'));
+  const view = renderWithProviders(<ReportDrillDownScreen />);
+  expect(await view.findByText(translate('reports.state.error'))).toBeTruthy();
+  expect(view.getByRole('button', { name: translate('reports.action.retry') })).toBeTruthy();
+  expect(view.queryByText(translate('reports.state.loading'))).toBeNull();
 });
 
 test('drill-down applies visible report filters before opening transactions', async () => {
@@ -49,6 +62,37 @@ test('drill-down localizes Arabic category rows', async () => {
   expect(await screen.findByText('الصدقة')).toBeTruthy();
   expect(screen.queryByText('Charity')).toBeNull();
   expect(screen.getAllByText(/سجلًا مساهمًا/).length).toBeGreaterThan(0);
+});
+
+test('drill-down retains the selected account and native currency when opening transactions', async () => {
+  changeLocale('en');
+  const accounts = await coreFinanceService.listAccounts(false);
+  const account = { ...accounts[0], currencyCode: 'EGP' };
+  const before = useCoreFinanceViewState.getState().selectedAccountId;
+  useCoreFinanceViewState.setState({ selectedAccountId: account.id });
+  jest.spyOn(coreFinanceService, 'listAccounts').mockResolvedValue([account]);
+  const live = createLiveReportsService({
+    baseUrl: 'https://inert.invalid', token: async () => 'fixture',
+    request: async () => new Response(JSON.stringify({
+      metadata: { schemaVersion: 1, generatedAt: '2026-09-04T00:00:00Z', ledgerVersion: 1, reportType: 'financial_summary', period: 'monthly',
+        range: { startDate: '2026-08-01', endDate: '2026-08-31', timezone: 'Asia/Riyadh' }, dataState: 'complete', evidence: [] },
+      summaries: [{ income: { amountMinor: 10000, currency: 'EGP' }, expense: { amountMinor: 4000, currency: 'EGP' }, netCashFlow: { amountMinor: 6000, currency: 'EGP' }, savingsRateBasisPoints: 6000, transactionCount: 2 }],
+      breakdowns: [{ categoryId: 'charity', labelAr: 'Charity', labelEn: 'Charity', currencyCode: 'EGP', expenseMinor: 4000, transactionCount: 1 }]
+    })),
+  });
+  jest.spyOn(reportsService, 'getReport').mockImplementation(live.getReport);
+  const screen = renderWithProviders(<ReportDrillDownScreen />);
+  try {
+    const row = await screen.findByLabelText(/Charity/);
+    expect(row.props.accessibilityLabel).toContain('1 contributing records');
+    expect(screen.getByText('1 contributing records')).toBeTruthy();
+    fireEvent.press(row);
+    expect(useCoreFinanceViewState.getState().filters).toMatchObject({ accountIds: [account.id], categoryIds: ['charity'] });
+    expect(screen.getAllByText(/EGP/).length).toBeGreaterThan(0);
+  } finally {
+    screen.unmount();
+    useCoreFinanceViewState.setState({ selectedAccountId: before });
+  }
 });
 
 test.each(['ar', 'en'] as const)(

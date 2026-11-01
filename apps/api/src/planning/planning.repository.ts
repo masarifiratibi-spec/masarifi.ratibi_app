@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import { PoolService } from '../platform/database/pool.service';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isStagingPlanningOwner } from './staging-planning-scope';
 import { decodePlanningCursor, encodePlanningCursor } from './planning.dto';
 
 interface PlanningMutation {
@@ -225,6 +227,8 @@ interface PlanningSalarySummaryRow extends QueryResultRow {
   actual_expense_minor: string;
   reserved_obligation_minor: string;
   next_expected_at: Date | null;
+  start_receipt_id: string | null;
+  start_at: Date | null;
 }
 interface PlanningBudgetSummaryRow extends QueryResultRow {
   id: string;
@@ -348,7 +352,10 @@ function planningCommandSql(operation: string): string {
 
 @Injectable()
 export class PlanningRepository {
-  constructor(private readonly pool: PoolService) {}
+  constructor(
+    private readonly pool: PoolService,
+    @Optional() private readonly config?: PlatformConfigService,
+  ) {}
 
   async mutate(input: PlanningMutation): Promise<Record<string, unknown>> {
     try {
@@ -452,10 +459,27 @@ export class PlanningRepository {
           }),
         ],
       );
+    const devPayment =
+      ['allocateObligationPayment', 'reverseObligationPayment'].includes(input.operation) &&
+      isStagingPlanningOwner(this.config, input.principal.userId);
+    if (devPayment)
+      await client.query("select set_config('masarifi.staging_planning_owner',$1,true)", [
+        input.principal.userId,
+      ]);
+    if (input.operation === 'allocateObligationPayment' && command.transaction)
+      return this.queryJson(
+        client,
+        devPayment
+          ? 'select private.staging_dev_create_obligation_payment($1,$2::jsonb) result'
+          : 'select private.create_obligation_payment($1,$2::jsonb) result',
+        [input.principal.userId, JSON.stringify(command)],
+      );
     if (['allocateObligationPayment', 'reverseObligationPayment'].includes(input.operation))
       return this.queryJson(
         client,
-        'select private.allocate_obligation_payment($1,$2::jsonb) result',
+        devPayment
+          ? 'select private.staging_dev_allocate_obligation_payment($1,$2::jsonb) result'
+          : 'select private.allocate_obligation_payment($1,$2::jsonb) result',
         [input.principal.userId, JSON.stringify(command)],
       );
     if (input.operation === 'decidePaymentMatch')
@@ -770,6 +794,54 @@ export class PlanningRepository {
     };
   }
 
+  async listObligationPayments(
+    principal: ClerkPrincipal,
+    obligationId: string,
+    query: { cursor: string | null; limit: number },
+    requestId: string,
+  ): Promise<Record<string, unknown>> {
+    return this.withApiTransaction(principal, async (client) => {
+      const exists = await client.query(
+        'select id from public.obligations where id=$1 and user_id=$2',
+        [obligationId, principal.userId],
+      );
+      if (!exists.rows.length) throw domainError('NOT_FOUND', 404);
+      const cursor = query.cursor ? decodePlanningCursor(query.cursor) : null;
+      const rows = (
+        await client.query<{ result: Record<string, unknown>; paid_at: Date; id: string }>(
+          `select p.id,p.paid_at,jsonb_build_object(
+          'id',p.id,'obligationId',p.obligation_id,'transactionId',p.transaction_id,
+          'amountMinor',p.amount_minor::text,'currencyCode',btrim(o.currency_code),
+          'paidAt',p.paid_at,'paymentMethod',p.payment_method,'paymentCase',p.payment_case,
+          'allocationIntent',p.allocation_intent,'source',p.source,'status',p.status,
+          'operationId',p.operation_id,'replacesPaymentId',p.replaces_payment_id,
+          'transactionOwnership',p.transaction_ownership,
+          'principalReductionMinor',p.principal_reduction_minor::text,
+          'settlementAdjustmentMinor',p.settlement_adjustment_minor::text,
+          'version',p.version,'createdAt',p.created_at,'updatedAt',p.updated_at,
+          'allocations',coalesce((select jsonb_agg(jsonb_build_object(
+            'scheduleItemId',a.schedule_item_id,'amountMinor',a.amount_minor::text)
+            order by a.schedule_item_id) from public.obligation_payment_allocations a
+            where a.payment_id=p.id and a.user_id=p.user_id),'[]'::jsonb)
+        ) result from public.obligation_payments p
+        join public.obligations o on o.id=p.obligation_id and o.user_id=p.user_id
+        where p.obligation_id=$1 and p.user_id=$2
+          and ($3::timestamptz is null or (p.paid_at,p.id)<($3,$4::uuid))
+        order by p.paid_at desc,p.id desc limit $5`,
+          [obligationId, principal.userId, cursor?.at ?? null, cursor?.id ?? null, query.limit + 1],
+        )
+      ).rows;
+      const last = rows.length > query.limit ? rows[query.limit - 1] : undefined;
+      return {
+        items: rows.slice(0, query.limit).map((row) => row.result),
+        nextCursor: last
+          ? encodePlanningCursor({ at: last.paid_at.toISOString(), id: last.id })
+          : null,
+        requestId,
+      };
+    });
+  }
+
   async listPaymentMatches(
     principal: ClerkPrincipal,
     query: { cursor: string | null; limit: number; status: string | null },
@@ -931,7 +1003,7 @@ export class PlanningRepository {
 
   async getPlanningSummary(
     principal: ClerkPrincipal,
-    period: { key: string; start: string; end: string },
+    period: { key: string; start: string; end: string; asOf?: string },
     requestId: string,
   ): Promise<Record<string, unknown>> {
     return this.withApiTransaction(principal, async (client) => {
@@ -939,20 +1011,45 @@ export class PlanningRepository {
         (
           await client.query<PlanningSalarySummaryRow>(
             `select p.id,p.name,p.currency_code,p.amount_minor expected_minor,
-          coalesce(sum(t.amount_minor) filter(where t.kind='income'),0)::bigint actual_income_minor,
-          coalesce(sum(case when t.kind='expense' then t.amount_minor when t.kind='refund' then -t.amount_minor else 0 end),0)::bigint actual_expense_minor,
+          anchor.id start_receipt_id,anchor.received_at start_at,projection.expected_at next_expected_at,
+          coalesce(totals.income_minor,0)::bigint actual_income_minor,
+          coalesce(totals.expense_minor,0)::bigint actual_expense_minor,
           coalesce((select sum(greatest(i.amount_minor-i.paid_minor,0)) from public.obligation_schedule_items i
             join public.obligations o on o.id=i.obligation_id where i.user_id=p.user_id
             and o.currency_code=p.currency_code and o.direction='payable' and o.status='active'
-            and i.status in ('due','partial','overdue')
-            and i.due_at>=$2::date and i.due_at<($3::date+1)),0)::bigint reserved_obligation_minor,
-          (select min(r.expected_at) from public.salary_receipts r where r.salary_profile_id=p.id
-            and r.status='expected' and r.expected_at>=$2::date) next_expected_at
-         from public.salary_profiles p left join public.transactions t on t.user_id=p.user_id
-          and t.currency_code=p.currency_code and t.status='confirmed'
-          and t.kind in ('income','expense','refund') and t.occurred_at>=$2::date and t.occurred_at<($3::date+1)
-         where p.user_id=$1 and p.status='active' group by p.id order by p.updated_at desc,p.id limit 1`,
-            [principal.userId, period.start, period.end],
+            and i.status in ('due','partial','overdue') and i.due_at>=anchor.received_at
+            and i.due_at<greatest(projection.expected_at,scope.through_at)),0)::bigint reserved_obligation_minor
+         from public.salary_profiles p join public.profiles u on u.id=p.user_id
+         cross join lateral (select ($2::date+1)::timestamp at time zone u.timezone through_at) scope
+         left join lateral (
+           select r.id,r.received_at,r.expected_at from public.salary_receipts r
+           join public.transactions income on income.id=r.transaction_id and income.user_id=r.user_id
+             and income.kind='income' and income.status='confirmed' and income.deleted_at is null
+           where r.salary_profile_id=p.id and r.user_id=p.user_id and r.status in ('received','corrected')
+             and r.received_at<scope.through_at and income.currency_code=p.currency_code
+           order by r.received_at desc,r.created_at desc,r.id desc limit 1
+         ) anchor on true
+         left join lateral (
+           select coalesce((select min(r.expected_at) from public.salary_receipts r
+             where r.salary_profile_id=p.id and r.user_id=p.user_id and r.status in ('expected','missed')
+             and r.expected_at>coalesce(anchor.expected_at,'-infinity'::timestamptz)),
+             case when p.frequency='monthly' then (
+               date_trunc('month',coalesce(anchor.expected_at at time zone u.timezone,$2::date::timestamp))
+               + case when anchor.id is null then interval '0 months' else interval '1 month' end
+               + (least(p.expected_day,extract(day from date_trunc('month',
+                 coalesce(anchor.expected_at at time zone u.timezone,$2::date::timestamp))
+                 + case when anchor.id is null then interval '1 month - 1 day' else interval '2 months - 1 day' end)::integer)-1)*interval '1 day'
+             ) at time zone u.timezone else null end) expected_at
+         ) projection on true
+         left join lateral (
+           select sum(t.amount_minor) filter(where t.kind='income') income_minor,
+             sum(case when t.kind='expense' then t.amount_minor when t.kind='refund' then -t.amount_minor else 0 end) expense_minor
+           from public.transactions t where t.user_id=p.user_id and t.currency_code=p.currency_code
+             and t.status='confirmed' and t.deleted_at is null and t.kind in ('income','expense','refund')
+             and t.occurred_at>=anchor.received_at and t.occurred_at<scope.through_at
+         ) totals on true
+         where p.user_id=$1 and p.status='active' order by p.updated_at desc,p.id limit 1`,
+            [principal.userId, period.asOf ?? period.end],
           )
         ).rows[0] ?? null;
       const budgets = (
@@ -1040,6 +1137,8 @@ export class PlanningRepository {
               actualExpenseMinor: salary.actual_expense_minor,
               reservedObligationMinor: salary.reserved_obligation_minor,
               nextExpectedAt: salary.next_expected_at?.toISOString() ?? null,
+              startReceiptId: salary.start_receipt_id ?? null,
+              startAt: salary.start_at?.toISOString() ?? null,
             }
           : null,
         budgets: budgets.slice(0, 100).map((budget) => ({

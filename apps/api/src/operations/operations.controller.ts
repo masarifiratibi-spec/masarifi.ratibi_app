@@ -26,6 +26,7 @@ import type { OperationCommand } from './operations.schemas';
 import { OperationsService } from './operations.service';
 
 type Operation =
+  | 'getAiUsageLimits'
   | 'getOperationsHealthOverview'
   | 'listProviderHealth'
   | 'getQueueWorkerHealth'
@@ -56,17 +57,25 @@ export type OperationsRoute = Readonly<{
   operation: Operation;
   status: 200 | 201 | 202;
   permission: string;
-  recentMfa: boolean;
+  recentAuth: boolean;
 }>;
 
 export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
+  {
+    method: 'GET',
+    path: 'api/v1/admin/ai/usage-limits',
+    operation: 'getAiUsageLimits',
+    status: 200,
+    permission: 'operations.settings.read',
+    recentAuth: false,
+  },
   {
     method: 'GET',
     path: 'api/v1/admin/system-health/overview',
     operation: 'getOperationsHealthOverview',
     status: 200,
     permission: 'operations.health.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -74,7 +83,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listProviderHealth',
     status: 200,
     permission: 'operations.providers.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -82,7 +91,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'getQueueWorkerHealth',
     status: 200,
     permission: 'operations.jobs.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -90,7 +99,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listScheduledJobs',
     status: 200,
     permission: 'operations.jobs.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -98,7 +107,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listJobRuns',
     status: 200,
     permission: 'operations.jobs.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -106,7 +115,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'getJobRun',
     status: 200,
     permission: 'operations.jobs.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -114,7 +123,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'retryJobRun',
     status: 202,
     permission: 'operations.jobs.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -122,7 +131,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'cancelJobRun',
     status: 202,
     permission: 'operations.jobs.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -130,7 +139,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listSystemIncidents',
     status: 200,
     permission: 'operations.incidents.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -138,7 +147,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'createSystemIncident',
     status: 201,
     permission: 'operations.incidents.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'PATCH',
@@ -146,7 +155,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'updateSystemIncident',
     status: 200,
     permission: 'operations.incidents.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -154,7 +163,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listSystemSettings',
     status: 200,
     permission: 'operations.settings.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -162,7 +171,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'getSystemSetting',
     status: 200,
     permission: 'operations.settings.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'PATCH',
@@ -170,7 +179,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'updateSystemSetting',
     status: 200,
     permission: 'operations.settings.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -178,7 +187,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listFeatureFlags',
     status: 200,
     permission: 'operations.flags.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -186,7 +195,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'createFeatureFlag',
     status: 201,
     permission: 'operations.flags.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'PATCH',
@@ -194,7 +203,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'updateFeatureFlag',
     status: 200,
     permission: 'operations.flags.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'POST',
@@ -202,7 +211,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'previewFeatureFlag',
     status: 200,
     permission: 'operations.flags.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -210,7 +219,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'listMaintenanceWindows',
     status: 200,
     permission: 'operations.maintenance.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'POST',
@@ -218,7 +227,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'createMaintenanceWindow',
     status: 201,
     permission: 'operations.maintenance.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'PATCH',
@@ -226,7 +235,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'updateMaintenanceWindow',
     status: 200,
     permission: 'operations.maintenance.manage',
-    recentMfa: true,
+    recentAuth: true,
   },
   {
     method: 'GET',
@@ -234,7 +243,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'getPerformanceStatus',
     status: 200,
     permission: 'operations.performance.read',
-    recentMfa: false,
+    recentAuth: false,
   },
   {
     method: 'GET',
@@ -242,7 +251,7 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'getRecoveryEvidence',
     status: 200,
     permission: 'operations.recovery.read',
-    recentMfa: false,
+    recentAuth: false,
   },
 ]);
 
@@ -254,6 +263,7 @@ function principal(request: Request): ClerkPrincipal {
 }
 
 const READ_KIND: Partial<Record<Operation, string>> = {
+  getAiUsageLimits: 'ai-usage',
   getOperationsHealthOverview: 'health',
   listProviderHealth: 'providers',
   getQueueWorkerHealth: 'queues',
@@ -358,7 +368,7 @@ for (const route of OPERATIONS_ROUTES) {
     route.operation,
     descriptor,
   );
-  adminPermission(route.permission, { recentMfa: route.recentMfa })(
+  adminPermission(route.permission, { recentAuth: route.recentAuth })(
     OperationsController.prototype,
     route.operation,
     descriptor,

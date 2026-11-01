@@ -1,0 +1,148 @@
+{
+  "recordedAtUtc": "2026-10-25 13:14:39 UTC",
+  "author": "Root coordinator read-only observations; not implementer phone acceptance",
+  "project": {
+    "name": "Masarifi Staging",
+    "ref": "qcffvfbpzvpwcwxwjyro",
+    "identity": "Connected project matched repository staging metadata and exact approved QA operation"
+  },
+  "database": {
+    "access": "Connected Supabase execute_sql; BEGIN READ ONLY; SELECT metadata; COMMIT",
+    "diagnostics": [
+      {
+        "diagnostics": {
+          "mutation": [
+            {
+              "status": "received",
+              "created_at": "2026-10-25T12:03:13.190548+00:00",
+              "error_code": null,
+              "updated_at": "2026-10-25T12:03:13.190548+00:00",
+              "operation_id": "10de16e6-a966-41b4-a583-1716314b285b",
+              "processed_at": null,
+              "attempt_count": 0,
+              "next_attempt_at": null,
+              "dependency_count": 0,
+              "has_worker_lease": false
+            }
+          ],
+          "observed_at": "2026-10-25T13:02:26.963582+00:00",
+          "recent_runs": [
+            {
+              "status": "succeeded",
+              "queued_at": "2026-10-04T11:16:51.152106+00:00",
+              "attempt_no": 1,
+              "started_at": "2026-10-04T11:16:51.152106+00:00",
+              "completed_at": "2026-10-04T11:16:51.210805+00:00",
+              "heartbeat_at": "2026-10-04T11:16:51.152106+00:00",
+              "attempt_status": "succeeded",
+              "next_attempt_at": null,
+              "safe_error_code": null
+            },
+            {
+              "status": "succeeded",
+              "queued_at": "2026-10-04T11:16:35.135423+00:00",
+              "attempt_no": 1,
+              "started_at": "2026-10-04T11:16:35.135423+00:00",
+              "completed_at": "2026-10-04T11:16:35.186616+00:00",
+              "heartbeat_at": "2026-10-04T11:16:35.135423+00:00",
+              "attempt_status": "succeeded",
+              "next_attempt_at": null,
+              "safe_error_code": null
+            },
+            {
+              "status": "succeeded",
+              "queued_at": "2026-10-04T11:16:20.122104+00:00",
+              "attempt_no": 1,
+              "started_at": "2026-10-04T11:16:20.122104+00:00",
+              "completed_at": "2026-10-04T11:16:20.18279+00:00",
+              "heartbeat_at": "2026-10-04T11:16:20.122104+00:00",
+              "attempt_status": "succeeded",
+              "next_attempt_at": null,
+              "safe_error_code": null
+            },
+            {
+              "status": "succeeded",
+              "queued_at": "2026-10-04T11:16:06.150455+00:00",
+              "attempt_no": 1,
+              "started_at": "2026-10-04T11:16:06.150455+00:00",
+              "completed_at": "2026-10-04T11:16:06.237038+00:00",
+              "heartbeat_at": "2026-10-04T11:16:06.150455+00:00",
+              "attempt_status": "succeeded",
+              "next_attempt_at": null,
+              "safe_error_code": null
+            }
+          ],
+          "scheduled_job": [
+            {
+              "enabled": true,
+              "job_key": "sync-mutations.retry",
+              "job_type": "sync-mutations.retry",
+              "next_run_at": "2026-10-04T11:17:01.152106+00:00",
+              "last_registered_at": "2026-09-22T20:32:55.074904+00:00"
+            }
+          ]
+        }
+      }
+    ],
+    "pendingMutationAggregate": [
+      {
+        "status": "received",
+        "domain": "transactions",
+        "queued_count": 1,
+        "other_operation_count": 0,
+        "oldest_created_at": "2026-10-25 12:03:13.190548+00"
+      }
+    ],
+    "excluded": [
+      "payload",
+      "result",
+      "user_id",
+      "device_id",
+      "tokens",
+      "credentials"
+    ],
+    "mutationsPerformed": false
+  },
+  "hosting": {
+    "source": "Existing authenticated Chrome masarifi.ratibi profile; Hostinger Docker Manager",
+    "vpsId": 2006836,
+    "application": "masarifi-staging",
+    "applicationStatus": "Partially running",
+    "containers": 10,
+    "generalWorker": {
+      "name": "masarifi-staging-worker-1",
+      "status": "Created"
+    },
+    "api": {
+      "name": "masarifi-staging-api-1",
+      "status": "Running"
+    },
+    "analysisWorker": {
+      "name": "masarifi-staging-analysis-worker-1",
+      "status": "Running"
+    },
+    "actions": "Read navigation and row expansion only. Manage opened composer and immediately returned without edits. Actions menu inspected and dismissed; no Update/Stop/Delete, terminal, credentials/environment reads or deployment."
+  },
+  "api": {
+    "source": "Documented public GET /health/live",
+    "origin": "https://api.staging.masarifiratibi.com",
+    "status": "ok",
+    "release": "a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7",
+    "startedAt": "2026-10-23T00:06:51.320Z",
+    "limitation": "API metadata only; not worker image/configuration/schema proof"
+  },
+  "hostCommandAccess": {
+    "method": "SSH existing defaults; BatchMode=yes, StrictHostKeyChecking=yes, ConnectTimeout=8; no-op true",
+    "result": "TCP connection timed out on port22",
+    "authenticationReached": false,
+    "hostCommandExecuted": false
+  },
+  "acceptance": {
+    "serverApplication": "UNVERIFIED; received with zero attempts",
+    "originalNoteRestoration": "PENDING; original empty server value is not cleanup while queued edit remains executable",
+    "secondColdEdit": "NOT_RUN",
+    "t02Exception": "Preserved; no resumed long-stage PIN tests",
+    "production": "untouched",
+    "workerActivation": "not performed"
+  }
+}

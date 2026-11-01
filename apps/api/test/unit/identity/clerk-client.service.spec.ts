@@ -6,13 +6,14 @@ import {
 
 const revokeSession = jest.fn();
 const getUser = jest.fn();
+const deleteUser = jest.fn();
 const getUserList = jest.fn();
 const getSessionList = jest.fn();
 
 jest.mock('@clerk/backend', () => ({
   createClerkClient: () => ({
     sessions: { revokeSession, getSessionList },
-    users: { getUser, getUserList },
+    users: { getUser, getUserList, deleteUser },
   }),
 }));
 
@@ -28,6 +29,63 @@ const config = {
 } as unknown as PlatformConfigService;
 
 describe('Clerk Admin client adapter', () => {
+  it('lists only target-bound sessions and exposes no provider object', async () => {
+    const adapter = new ClerkClientService(config) as ClerkClientService & {
+      listCustomerSessions(userId: string): Promise<unknown[]>;
+    };
+    getSessionList.mockResolvedValueOnce({
+      totalCount: 1,
+      data: [
+        {
+          id: 'sess_private',
+          userId: 'user_target',
+          status: 'active',
+          createdAt: 1000,
+          lastActiveAt: 2000,
+          expireAt: 3000,
+          clientId: 'private_client',
+        },
+      ],
+    });
+    await expect(adapter.listCustomerSessions('user_target')).resolves.toEqual([
+      {
+        id: 'sess_private',
+        createdAt: new Date(1000),
+        lastActiveAt: new Date(2000),
+        expiresAt: new Date(3000),
+      },
+    ]);
+    getSessionList.mockResolvedValueOnce({
+      totalCount: 1,
+      data: [
+        {
+          id: 'sess_other',
+          userId: 'user_other',
+          status: 'active',
+          createdAt: 1000,
+          lastActiveAt: 2000,
+          expireAt: 3000,
+        },
+      ],
+    });
+    await expect(adapter.listCustomerSessions('user_target')).rejects.toBeInstanceOf(
+      ClerkProviderUnavailableError,
+    );
+  });
+  it('deletes external identity with repeatable confirmed-absence semantics and no false success on provider failure', async () => {
+    const adapter = new ClerkClientService(config) as ClerkClientService & {
+      deleteIdentityUser(owner: string): Promise<'deleted' | 'not_found'>;
+    };
+    deleteUser
+      .mockResolvedValueOnce({ id: 'user_fixture_a' })
+      .mockRejectedValueOnce({ status: 404 })
+      .mockRejectedValueOnce({ status: 503 });
+    await expect(adapter.deleteIdentityUser('user_fixture_a')).resolves.toBe('deleted');
+    await expect(adapter.deleteIdentityUser('user_fixture_a')).resolves.toBe('not_found');
+    await expect(adapter.deleteIdentityUser('user_fixture_a')).rejects.toBeInstanceOf(
+      ClerkProviderUnavailableError,
+    );
+  });
   let service: ClerkClientService;
 
   beforeEach(() => {
@@ -45,16 +103,27 @@ describe('Clerk Admin client adapter', () => {
       id: 'user_fixture_a',
       primaryEmailAddressId: 'email_a',
       primaryPhoneNumberId: 'phone_a',
-      emailAddresses: [{ id: 'email_a', emailAddress: ' OWNER@EXAMPLE.TEST ' }],
+      emailAddresses: [
+        {
+          id: 'email_a',
+          emailAddress: ' OWNER@EXAMPLE.TEST ',
+          verification: { status: 'verified' },
+        },
+      ],
       phoneNumbers: [{ id: 'phone_a', phoneNumber: '+966500000012' }],
       firstName: ' First ',
       lastName: ' Last ',
+      banned: false,
+      locked: false,
     });
     await expect(service.getIdentityUser('user_fixture_a')).resolves.toEqual({
       id: 'user_fixture_a',
       primaryEmail: 'owner@example.test',
+      primaryEmailVerified: true,
       primaryPhone: '+966500000012',
       displayName: 'First Last',
+      banned: false,
+      locked: false,
     });
   });
 
@@ -79,12 +148,24 @@ describe('Clerk Admin client adapter', () => {
           phoneNumbers: [],
           firstName: null,
           lastName: null,
+          banned: false,
+          locked: false,
         },
       ],
       totalCount: 3,
     });
     await expect(service.listIdentityUsers(0, 1)).resolves.toEqual({
-      users: [{ id: 'user_fixture_a', primaryEmail: null, primaryPhone: null, displayName: null }],
+      users: [
+        {
+          id: 'user_fixture_a',
+          primaryEmail: null,
+          primaryEmailVerified: false,
+          primaryPhone: null,
+          displayName: null,
+          banned: false,
+          locked: false,
+        },
+      ],
       nextOffset: 1,
     });
     expect(getUserList).toHaveBeenCalledWith({ offset: 0, limit: 1, orderBy: '+created_at' });

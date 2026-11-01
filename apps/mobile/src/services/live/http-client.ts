@@ -1,4 +1,6 @@
+import { benchmarkFetch } from '../platform/benchmark-observability';
 import type { z } from 'zod';
+import { assertBenchmarkRead } from '@/config/client-runtime';
 
 export type HttpErrorCode =
   | 'validation_error'
@@ -6,6 +8,7 @@ export type HttpErrorCode =
   | 'not_found'
   | 'conflict'
   | 'session_expired'
+  | 'recent_auth_required'
   | 'gone'
   | 'rate_limited'
   | 'provider_unavailable'
@@ -15,7 +18,10 @@ export type HttpErrorCode =
 export class HttpError extends Error {
   constructor(
     readonly code: HttpErrorCode,
-    readonly status: number
+    readonly status: number,
+    readonly domainCode?: string,
+    readonly requestId?: string,
+    readonly failureSource?: 'network' | 'timeout'
   ) {
     super(SAFE_MESSAGES[code]);
     this.name = 'HttpError';
@@ -39,6 +45,7 @@ const SAFE_MESSAGES: Record<HttpErrorCode, string> = {
   not_found: 'The requested item was not found.',
   conflict: 'The request conflicts with the current state.',
   session_expired: 'The session has expired. Sign in again.',
+  recent_auth_required: 'Verify your identity to complete this action.',
   gone: 'This item is no longer available.',
   rate_limited: 'Too many attempts. Try again later.',
   provider_unavailable: 'The service is temporarily unavailable.',
@@ -47,6 +54,8 @@ const SAFE_MESSAGES: Record<HttpErrorCode, string> = {
 };
 const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   VALIDATION_FAILED: 'validation_error',
+  AMOUNT_OUT_OF_RANGE: 'validation_error',
+  TRACKING_ACCOUNT_BLOCKED: 'conflict',
   IDEMPOTENCY_KEY_REQUIRED: 'validation_error',
   IDEMPOTENCY_KEY_REUSED: 'conflict',
   IDEMPOTENCY_IN_PROGRESS: 'conflict',
@@ -61,17 +70,43 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   CATEGORY_CYCLE: 'conflict',
   ACCOUNT_CURRENCY_LOCKED: 'conflict',
   ACCOUNT_CLOSED: 'conflict',
+  ACCOUNT_NOT_POSTABLE: 'conflict',
+  CURRENCY_MISMATCH: 'conflict',
+  TRANSACTION_NOT_EDITABLE: 'conflict',
+  TRANSACTION_HAS_DEPENDENTS: 'conflict',
+  REVERSAL_EXISTS: 'conflict',
+  REFUND_EXCEEDS_AVAILABLE: 'conflict',
+  AMOUNT_BELOW_REFUNDED: 'conflict',
+  UNDO_EXPIRED: 'conflict',
+  FINANCIAL_ACCESS_DENIED: 'forbidden',
+  RECENT_AUTH_REQUIRED: 'recent_auth_required',
+  LEDGER_BUSY: 'conflict',
+  LEDGER_UNAVAILABLE: 'provider_unavailable',
   DUPLICATE_RESOURCE: 'conflict',
   LEDGER_NOT_AVAILABLE: 'conflict',
   AUTH_TOKEN_INVALID: 'session_expired',
+  UNAUTHORIZED: 'session_expired',
   GONE: 'gone',
   RATE_LIMITED: 'rate_limited',
   SERVICE_UNAVAILABLE: 'provider_unavailable',
+  PROVIDER_UNAVAILABLE: 'provider_unavailable',
+  PROFILE_SYNC_UNAVAILABLE: 'provider_unavailable',
   REFERENCE_UNAVAILABLE: 'provider_unavailable'
 };
 const PRIVATE_KEYS =
   /token|secret|password|authorization|cookie|path|payload|error/i;
 let tokenProvider: TokenProvider | null = null;
+let recentAuthHandler: (() => Promise<string | null>) | undefined;
+
+export function configureRecentAuthHandler(
+  handler?: () => Promise<string | null>
+): void {
+  recentAuthHandler = handler;
+}
+
+export async function requestRecentAuthentication(): Promise<string | null> {
+  return (await recentAuthHandler?.()) ?? null;
+}
 
 export function configureMobileApiTokenProvider(provider: TokenProvider): void {
   tokenProvider = provider;
@@ -94,64 +129,171 @@ export async function requestJson<T>(
   schema: z.ZodType<T>,
   options: RequestOptions<T> = {}
 ): Promise<T> {
+  assertBenchmarkRead(options.method);
+  try {
+    return await performRequestJson(path, schema, options);
+  } catch (error) {
+    if (
+      !(error instanceof HttpError) ||
+      error.code !== 'recent_auth_required' ||
+      !recentAuthHandler ||
+      options.signal?.aborted
+    )
+      throw error;
+    const token = await recentAuthHandler();
+    if (!token || options.signal?.aborted) throw error;
+    // Keep the original body and idempotency key; retry at most once.
+    return performRequestJson(path, schema, { ...options, token });
+  }
+}
+
+async function performRequestJson<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  options: RequestOptions<T> = {}
+): Promise<T> {
+  const startedAt = Date.now();
+  let httpStatus: number | null = null;
+  let abortSource: 'cancelled' | 'timeout' | null = null;
+  const diagnostic: { stage: 'auth' | 'transport' | 'decode' } = {
+    stage: 'auth'
+  };
   const controller = new AbortController();
-  const abort = () => controller.abort();
+  const abort = () => {
+    abortSource ??= 'cancelled';
+    controller.abort();
+  };
   if (options.signal?.aborted) abort();
   else options.signal?.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(abort, options.timeoutMs ?? 15_000);
+  const timer = setTimeout(() => {
+    abortSource ??= 'timeout';
+    controller.abort();
+  }, options.timeoutMs ?? 15_000);
+  let rejectAborted!: () => void;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    rejectAborted = () => reject(new HttpError('provider_unavailable', 503));
+    controller.signal.addEventListener('abort', rejectAborted, { once: true });
+  });
 
   try {
-    const token = options.token ?? (await tokenProvider?.());
-    if (!token) throw new HttpError('session_expired', 401);
-    const headers = headerRecord(options.headers);
-    setHeader(headers, 'accept', 'application/json');
-    if (options.body !== undefined)
-      setHeader(headers, 'content-type', 'application/json');
-    setHeader(headers, 'Authorization', `Bearer ${token}`);
+    if (controller.signal.aborted)
+      throw new HttpError('provider_unavailable', 503);
+    const operation = (async () => {
+      const token = options.token ?? (await tokenProvider?.());
+      if (controller.signal.aborted)
+        throw new HttpError('provider_unavailable', 503);
+      if (!token) throw new HttpError('session_expired', 401);
+      const headers = headerRecord(options.headers);
+      if (!Object.keys(headers).some((name) => name.toLowerCase() === 'accept'))
+        setHeader(headers, 'accept', 'application/json');
+      if (options.body !== undefined)
+        setHeader(headers, 'content-type', 'application/json');
+      setHeader(headers, 'Authorization', `Bearer ${token}`);
 
-    const request = options.request ?? fetch;
-    const baseUrl = (
-      options.baseUrl ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      ''
-    ).replace(/\/+$/u, '');
-    if (!baseUrl || !path.startsWith('/'))
-      throw new HttpError('contract_mismatch', 500);
-    const response = await request(`${baseUrl}${path}`, {
-      method: options.method,
-      headers,
-      body:
-        options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: controller.signal
-    });
+      const request = options.request ?? fetch;
+      const baseUrl = (
+        options.baseUrl ??
+        process.env.EXPO_PUBLIC_API_URL ??
+        ''
+      ).replace(/\/+$/u, '');
+      if (!baseUrl || !path.startsWith('/'))
+        throw new HttpError('contract_mismatch', 500);
+      diagnostic.stage = 'transport';
+      const response = await benchmarkFetch(request, `${baseUrl}${path}`, {
+        method: options.method,
+        headers,
+        body:
+          options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: controller.signal
+      });
+      httpStatus = response.status;
+      diagnostic.stage = 'decode';
 
-    if (response.status === 204)
-      return parseKnownValue(schema, options, 'emptyValue');
-    if (response.status === 304)
-      return parseKnownValue(schema, options, 'notModifiedValue');
-    if (!response.ok) throw await parseError(response);
+      if (response.status === 204)
+        return parseKnownValue(schema, options, 'emptyValue');
+      if (response.status === 304)
+        return parseKnownValue(schema, options, 'notModifiedValue');
+      if (!response.ok) throw await parseError(response);
 
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      throw new HttpError('contract_mismatch', 502);
-    }
-    const parsed = schema.safeParse(payload);
-    if (!parsed.success) throw new HttpError('contract_mismatch', 502);
-    return parsed.data;
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new HttpError('contract_mismatch', 502);
+      }
+      const parsed = schema.safeParse(payload);
+      if (!parsed.success) throw new HttpError('contract_mismatch', 502);
+      return parsed.data;
+    })();
+    return await Promise.race([operation, aborted]);
   } catch (error) {
     const failure = normalizeFailure(error, controller.signal.aborted);
-    if (typeof __DEV__ !== 'undefined' && __DEV__)
-      console.info(
-        '[mobile:http-failure]',
-        sanitizeHttpLog({ path, error: failure, status: failure.status })
-      );
-    throw failure;
+    const recoverableConnectionFailure =
+      httpStatus === null &&
+      (abortSource === 'timeout' ||
+        (abortSource === null &&
+          diagnostic.stage === 'transport' &&
+          failure.code === 'provider_unavailable'));
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      try {
+        console.info(
+          '[mobile:http-failure]',
+          sanitizeHttpLog({
+            path,
+            error: failure,
+            status: failure.status,
+            httpStatus,
+            failureSource:
+              abortSource ??
+              (httpStatus !== null
+                ? 'http_response'
+                : diagnostic.stage === 'transport'
+                  ? 'network'
+                  : 'client'),
+            stage: diagnostic.stage,
+            endpointGroup: httpEndpointGroup(path),
+            method: /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/u.test(
+              options.method ?? 'GET'
+            )
+              ? (options.method ?? 'GET')
+              : 'OTHER',
+            elapsedMs: Math.max(0, Date.now() - startedAt),
+            ...(failure.domainCode &&
+            /^[A-Z][A-Z0-9_]{0,79}$/u.test(failure.domainCode)
+              ? { domainCode: failure.domainCode }
+              : {}),
+            ...(failure.requestId &&
+            /^[a-zA-Z0-9_-]{1,128}$/u.test(failure.requestId)
+              ? { requestId: failure.requestId }
+              : {})
+          })
+        );
+      } catch {
+        // Preserve the actual HTTP outcome when the Dev log sink is unavailable.
+      }
+    }
+    throw recoverableConnectionFailure
+      ? new HttpError(
+          failure.code,
+          failure.status,
+          failure.domainCode,
+          failure.requestId,
+          abortSource === 'timeout' ? 'timeout' : 'network'
+        )
+      : failure;
   } finally {
     clearTimeout(timer);
+    controller.signal.removeEventListener('abort', rejectAborted);
     options.signal?.removeEventListener('abort', abort);
   }
+}
+
+function httpEndpointGroup(path: string): string {
+  if (/^\/api\/v1\/(transactions|transfers|accounts)(?:[/?]|$)/u.test(path))
+    return 'ledger';
+  if (/^\/api\/v1\/reports(?:[/?]|$)/u.test(path)) return 'reports';
+  if (/^\/api\/v1\/ai(?:[/?]|$)/u.test(path)) return 'ai';
+  return 'other';
 }
 
 async function parseError(response: Response): Promise<HttpError> {
@@ -164,9 +306,19 @@ async function parseError(response: Response): Promise<HttpError> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload))
     return new HttpError('contract_mismatch', response.status);
   const code = Reflect.get(payload, 'code');
-  if (typeof code !== 'string' || !SERVER_CODES[code])
-    return new HttpError('contract_mismatch', response.status);
-  return new HttpError(SERVER_CODES[code], response.status);
+  const requestId = Reflect.get(payload, 'requestId');
+  return new HttpError(
+    typeof code === 'string'
+      ? (SERVER_CODES[code] ?? 'contract_mismatch')
+      : 'contract_mismatch',
+    response.status,
+    typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(code)
+      ? code
+      : undefined,
+    typeof requestId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/u.test(requestId)
+      ? requestId
+      : undefined
+  );
 }
 
 function parseKnownValue<T>(

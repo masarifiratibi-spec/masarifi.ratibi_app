@@ -10,6 +10,7 @@ export const importsQuerySchema = z
   .object({
     query: z.string().trim().max(100).optional(),
     source: z.string().max(100).optional(),
+    status: z.string().trim().max(40).optional(),
     platform: z.enum(["ios", "android"]).optional(),
     severity: z.enum(["info", "low", "medium", "high", "critical"]).optional(),
     page: z.coerce.number().int().min(1).max(100).default(1),
@@ -103,10 +104,11 @@ export const paginationSchema = z
       .default(25),
     totalItems: z.number().int().nonnegative().default(0),
     totalPages: z.number().int().nonnegative().default(0),
+    totalIsLowerBound: z.boolean().optional(),
   })
   .strict();
 
-export const searchNameValidator = utf8Bytes(120);
+export const searchNameValidator = z.string().trim().pipe(utf8Bytes(120));
 export const reasonNoteValidator = utf8Bytes(500);
 export const patternValidator = utf8Bytes(256);
 export const sanitizedSampleValidator = utf8Bytes(4096);
@@ -137,7 +139,8 @@ export const listQuerySchema = z
     search: searchNameValidator.optional(),
     platform: platformScopeSchema.optional(),
     source: importSourceSchema.optional(),
-    status: z.string().max(40).optional(),
+    status: z.string().trim().max(40).optional(),
+    severity: z.enum(["info", "low", "medium", "high", "critical"]).optional(),
     bankId: safeIdSchema.optional(),
     parserVersionId: safeIdSchema.optional(),
     appVersion: z.string().max(48).optional(),
@@ -338,7 +341,7 @@ export const operationalRecordSchema = z
     kind: phase4ResourceSchema,
     title: z.string().max(120),
     secondary: z.string().max(160),
-    status: z.string().max(40),
+    status: z.string().trim().max(40),
     platform: platformScopeSchema.optional(),
     source: importSourceSchema.optional(),
     bank: z.string().max(120).optional(),
@@ -350,6 +353,7 @@ export const operationalRecordSchema = z
     updatedAt: z.iso.datetime({ offset: true }),
     accessLevel: accessLevelSchema,
     revision: z.number().int().positive(),
+    parentRuleVersion: z.number().int().positive().optional(),
     actions: z.array(z.string().max(60)).max(12),
     warnings: z.array(z.string().max(160)).max(10).optional(),
     preview: sanitizedExtractionPreviewSchema.optional(),
@@ -423,6 +427,7 @@ export const operationalListSchema = z
     page: z.number().int().min(1).max(100),
     pageSize: z.union([z.literal(25), z.literal(50), z.literal(100)]),
     totalItems: z.number().int().nonnegative(),
+    totalIsLowerBound: z.boolean().optional(),
     totalPages: z.number().int().nonnegative(),
     region: regionStateSchema,
   })
@@ -444,7 +449,7 @@ export const operationalListSchema = z
       response.totalItems === 0
         ? 0
         : Math.ceil(response.totalItems / response.pageSize);
-    if (response.totalPages !== expectedPages) {
+    if (!response.totalIsLowerBound && response.totalPages !== expectedPages) {
       context.addIssue({ code: "custom", message: "invalid totalPages" });
     }
   });

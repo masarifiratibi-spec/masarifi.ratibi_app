@@ -69,6 +69,23 @@ horizon.
 **Retry result**: existing row counted, no duplicate event.
 **Metrics**: claimed, generated, existing, failed, duration, oldest due age.
 
+Opted-in salary profiles also run receipt detection after generation. Profile
+changes and income transaction revisions enqueue versioned salary jobs, so a
+completed daily generation does not suppress later deposits. Detection requires
+confirmed income, an equal positive posting in the configured active account,
+equal currency and amount, clear salary/employer text, and an occurrence within
+three owner-local calendar days of the expected receipt. Multiple candidate
+incomes, cycles or salary profiles require manual confirmation. Receipt history
+prevents rediscovery after owner undo. Only receipt state, audit and existing
+planning outbox events change; no transaction or balance is created or adjusted.
+
+`private.run_salary_detection_jobs(25)` is a bounded, lease-fenced entry point
+for the same job queue. The Staging-only one-minute pg_cron registration is
+environment configuration, separate from the schema migration. It does not
+start other planning jobs or restart API/Voice workers. The receipt generator
+includes the preceding three local dates only for activated automatic profiles,
+covering late deposits without changing ordinary manual generation.
+
 ## `planning.obligation-schedule.generate`
 
 **Selection**: active scheduled obligations whose generated horizon is below

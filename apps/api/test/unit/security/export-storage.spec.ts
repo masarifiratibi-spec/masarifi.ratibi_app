@@ -12,6 +12,31 @@ describe('ExportStorage', () => {
 
   beforeEach(() => fetcher.mockReset());
 
+  it('fails closed on redirects without forwarding the private storage credential', async () => {
+    fetcher.mockResolvedValueOnce(
+      new Response(null, { status: 302, headers: { location: 'https://other.example/object' } }),
+    );
+    const storage = new ExportStorage(config as never, fetcher);
+    await expect(storage.delete('exports/id/file.zip')).rejects.toThrow(
+      'EXPORT_STORAGE_UNAVAILABLE',
+    );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.any(URL),
+      expect.objectContaining({ redirect: 'error' }),
+    );
+  });
+
+  it.each(['0x3', '3e0', '3.0'])('refuses a non-decimal HEAD byte count: %s', async (value) => {
+    fetcher.mockResolvedValueOnce(
+      new Response(null, { status: 200, headers: { 'content-length': value } }),
+    );
+    const storage = new ExportStorage(config as never, fetcher);
+    await expect(storage.head('exports/id/file.zip', 3)).rejects.toThrow(
+      'EXPORT_STORAGE_INTEGRITY_FAILED',
+    );
+  });
+
   it('uploads privately, validates metadata, signs briefly, and deletes', async () => {
     fetcher
       .mockResolvedValueOnce(new Response(null, { status: 200 }))

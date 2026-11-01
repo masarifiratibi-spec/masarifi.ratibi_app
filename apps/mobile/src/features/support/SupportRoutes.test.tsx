@@ -1,6 +1,11 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import FeedbackHistoryRoute from '@app/support/feedback';
+import { FeedbackHistoryScreen } from './FeedbackHistoryScreen';
+
+jest.mock('@/config/demo-mode', () => ({ isFixtureModeEnabled: () => false }));
+jest.mock('@/services/engagement-service', () => ({ supportService: { metadata: { availability: 'available' } } }));
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SupportLayout = require('@app/support/_layout')
@@ -71,6 +76,7 @@ test('support routes are thin render-only modules with typed report-mode paramet
     />
   );
   expect(TicketsRoute()).toEqual(<TicketListScreen />);
+  expect(FeedbackHistoryRoute()).toEqual(<FeedbackHistoryScreen />);
   expect(TicketDetailRoute()).toEqual(
     <TicketDetailScreen ticketId="ticket-1" />
   );
@@ -80,6 +86,7 @@ test('support routes are thin render-only modules with typed report-mode paramet
     'app/support/index.tsx',
     'app/support/new.tsx',
     'app/support/tickets/index.tsx',
+    'app/support/feedback.tsx',
     'app/support/tickets/[id].tsx'
   ]) {
     const source = readFileSync(resolve(process.cwd(), path), 'utf8');

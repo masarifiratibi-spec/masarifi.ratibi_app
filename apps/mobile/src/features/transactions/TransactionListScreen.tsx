@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   FlatList,
   Modal,
@@ -6,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { router } from 'expo-router';
@@ -35,6 +37,7 @@ import type {
   Transaction,
   TransactionFilterSet
 } from '@/domain/core-finance';
+import type { Locale } from '@/domain/foundation';
 import {
   useAccounts,
   useCategories,
@@ -66,6 +69,7 @@ import {
   type TransactionGroupedPosition
 } from './transaction-sections';
 import { CategoryFilterPicker } from './CategoryFilterPicker';
+import { VoiceAnalysisResults } from '@/features/voice/VoiceAnalysisResults';
 
 type LedgerRow =
   | { kind: 'header'; key: string; label: string }
@@ -84,7 +88,13 @@ const quickSortValues = [
 ] as const;
 const quickTypeValues = ['expense', 'income', 'transfer'] as const;
 
-export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
+export const TransactionListScreen = React.memo(function TransactionListScreen({
+  onBack
+}: {
+  onBack?: () => void;
+}) {
+  // Native layout changes must still reach PixelRatio-based child layouts.
+  useWindowDimensions();
   const theme = useTheme();
   const filters = useCoreFinanceViewState((state) => state.filters);
   const draft = useCoreFinanceViewState((state) => state.draftFilters);
@@ -104,6 +114,9 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
     (state) => state.reconcileSelectedAccount
   );
   const direction = usePreferenceStore((state) => state.direction);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const firstDayOfWeek = usePreferenceStore((state) => state.firstDayOfWeek);
   const timeZone = usePreferenceStore((state) => state.timeZone);
@@ -147,6 +160,9 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       ),
     [categories.data]
   );
+  const summaryCurrencyCode = selectedAccountId
+    ? accountById.get(selectedAccountId)?.currencyCode
+    : baseCurrencyCode;
   const locale = currentLocale();
   const appliedPeriod = periodFromRange(
     filters.periodStart,
@@ -172,7 +188,10 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
         {
           kind: 'header' as const,
           key: `header-${group.key}`,
-          label: translate(`coreFinance.ledger.period.${group.key}` as never)
+          label: translate(
+            `coreFinance.ledger.period.${group.key}` as never,
+            locale
+          )
         },
         ...group.items.map(({ item, groupedPosition }) => ({
           kind: 'transaction' as const,
@@ -182,7 +201,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
         }))
       ]
     );
-  }, [firstDayOfWeek, now, transactions]);
+  }, [firstDayOfWeek, locale, now, transactions]);
   const activeFilters = useMemo(() => {
     const values: { key: keyof TransactionFilterSet; label: string }[] = [];
     const addCount = (
@@ -193,23 +212,23 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       if (count)
         values.push({
           key,
-          label: `${translate(labelKey as never)}: ${count}`
+          label: `${translate(labelKey as never, locale)}: ${count}`
         });
     };
     if (filters.search)
       values.push({
         key: 'search',
-        label: `${translate('coreFinance.ledger.search')}: ${filters.search}`
+        label: `${translate('coreFinance.ledger.search', locale)}: ${filters.search}`
       });
     if (filters.periodStart)
       values.push({
         key: 'periodStart',
-        label: translate('coreFinance.filters.periodStart')
+        label: translate('coreFinance.filters.periodStart', locale)
       });
     if (filters.periodEnd)
       values.push({
         key: 'periodEnd',
-        label: translate('coreFinance.filters.periodEnd')
+        label: translate('coreFinance.filters.periodEnd', locale)
       });
     addCount(
       'accountIds',
@@ -239,26 +258,30 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
         label: translate(
           filters.reviewRequired
             ? 'coreFinance.filters.reviewRequired'
-            : 'coreFinance.filters.reviewNotRequired'
+            : 'coreFinance.filters.reviewNotRequired',
+          locale
         )
       });
     if (filters.minMinor !== null)
       values.push({
         key: 'minMinor',
-        label: translate('coreFinance.filters.minimum')
+        label: translate('coreFinance.filters.minimum', locale)
       });
     if (filters.maxMinor !== null)
       values.push({
         key: 'maxMinor',
-        label: translate('coreFinance.filters.maximum')
+        label: translate('coreFinance.filters.maximum', locale)
       });
     if (filters.sort !== 'newest')
       values.push({
         key: 'sort',
-        label: translate(`coreFinance.filters.sort.${filters.sort}` as never)
+        label: translate(
+          `coreFinance.filters.sort.${filters.sort}` as never,
+          locale
+        )
       });
     return values;
-  }, [filters]);
+  }, [filters, locale]);
   const applyQuickFilter = (patch: Partial<TransactionFilterSet>) => {
     beginFilterSession();
     editFilters(patch);
@@ -324,6 +347,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       contentContainerStyle={styles.content}
       ListHeaderComponent={
         <View style={styles.header}>
+          <VoiceAnalysisResults />
           <View
             testID="transactions-page-header"
             style={[
@@ -446,7 +470,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                   {/* Account label */}
                   <StyledText
                     variant="subtitle"
-                    numberOfLines={largeText ? undefined : 1}
+                    numberOfLines={undefined}
                     style={styles.filterBarText}
                   >
                     {(selectedAccountId &&
@@ -480,9 +504,9 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                   {
                     alignSelf: 'center',
                     flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
-                    height: largeText ? 'auto' : 52,
+                    height: 'auto',
                     minHeight: 52,
-                    paddingVertical: largeText ? spacing.sm : 0,
+                    paddingVertical: spacing.sm,
                     width: largeText ? '100%' : undefined
                   },
                   pressed && styles.filterCardPressed
@@ -502,7 +526,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
                 {/* Period label */}
                 <StyledText
                   variant="subtitle"
-                  numberOfLines={largeText ? undefined : 1}
+                  numberOfLines={undefined}
                   style={styles.filterBarText}
                 >
                   {periodLabel}
@@ -523,10 +547,13 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
               visible={accountScopeOpen}
               onDismiss={() => setAccountScopeOpen(false)}
             />
-            <MonthlySummary
-              period={appliedPeriod}
-              selectedAccountId={selectedAccountId}
-            />
+            {summaryCurrencyCode ? (
+              <MonthlySummary
+                period={appliedPeriod}
+                selectedAccountId={selectedAccountId}
+                currencyCode={summaryCurrencyCode}
+              />
+            ) : null}
             <DateRangeSheet
               visible={periodOpen}
               period={draftPeriod}
@@ -666,6 +693,7 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
         ) : (
           <TransactionItem
             item={item.item}
+            locale={locale}
             now={now}
             timeZone={timeZone}
             groupedPosition={item.groupedPosition}
@@ -680,28 +708,27 @@ export function TransactionListScreen({ onBack }: { onBack?: () => void }) {
       }
     />
   );
-}
+});
 
 function MonthlySummary({
   period,
-  selectedAccountId
+  selectedAccountId,
+  currencyCode
 }: {
   period: ReturnType<typeof periodFromRange>;
   selectedAccountId: string | null;
+  currencyCode: string;
 }) {
   const theme = useTheme();
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const direction = usePreferenceStore((state) => state.direction);
-  const baseCurrencyCode = usePreferenceStore(
-    (state) => state.baseCurrencyCode
-  );
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const summaryFilters = useMemo(
     () => applyAccountScope(periodFilters(period), selectedAccountId),
     [period, selectedAccountId]
   );
-  const summary = useHomeSummary(baseCurrencyCode, summaryFilters);
+  const summary = useHomeSummary(currencyCode, summaryFilters);
   const locale = currentLocale();
   const masked = hideBalances && !revealed;
   const summaryData = summary.data;
@@ -731,7 +758,7 @@ function MonthlySummary({
     );
   }
 
-  if (summary.isError) {
+  if (summary.isError && !hasReadableSnapshot(summary)) {
     return (
       <View testID="transaction-month-summary" style={styles.monthSummary}>
         <View style={styles.summaryError}>
@@ -788,6 +815,11 @@ function MonthlySummary({
             masked={masked}
           />
         </View>
+        {summary.data.excludedAccountIds.length > 0 ? (
+          <StyledText style={{ color: theme.colors.content.secondary }}>
+            {translate('coreFinance.accounts.otherCurrenciesExcluded')}
+          </StyledText>
+        ) : null}
       </View>
     );
   }
@@ -889,8 +921,9 @@ function ProtectedFooter() {
   );
 }
 
-function TransactionItem({
+const TransactionItem = React.memo(function TransactionItem({
   item,
+  locale,
   account,
   category,
   now,
@@ -898,19 +931,25 @@ function TransactionItem({
   groupedPosition
 }: {
   item: Transaction;
+  locale: Locale;
   account?: Account;
   category?: Category;
   now: number;
   timeZone: string;
   groupedPosition: TransactionGroupedPosition;
 }) {
-  const locale = currentLocale();
-  const presentation = projectTransaction(item, locale, account, category);
+  const presentation = projectTransaction(
+    item,
+    locale,
+    account,
+    category,
+    timeZone
+  );
   const categoryVisualKey =
     category?.iconKey ??
     (presentation.meaning === 'transfer'
       ? 'transfers'
-      : presentation.meaning === 'income'
+      : item.type === 'income'
         ? 'salary'
         : null);
   return (
@@ -935,10 +974,10 @@ function TransactionItem({
       amountMinor={item.amountMinor}
       currency={item.currencyCode}
       groupedPosition={groupedPosition}
-      onPress={() => router.push(`/transactions/${item.id}/edit`)}
+      onPress={() => router.push(`/transactions/${item.id}`)}
     />
   );
-}
+});
 
 function ToolbarButton({
   testID,

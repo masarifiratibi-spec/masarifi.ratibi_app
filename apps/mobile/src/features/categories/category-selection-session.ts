@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 export interface CategorySelectionOptions {
+  financialType?: 'expense' | 'income';
   selectedId?: string;
   excludedIds?: readonly string[];
   allowClear?: boolean;

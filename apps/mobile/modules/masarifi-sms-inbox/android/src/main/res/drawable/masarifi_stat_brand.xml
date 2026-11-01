@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+  <!-- Monochrome money bag, growth arrow and supporting hand from the app mark. -->
+  <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
+      android:strokeWidth="1.6" android:strokeLineCap="round" android:strokeLineJoin="round"
+      android:pathData="M8,6L6.5,2.5L9,3.2L11.5,2.5L10,6 M7.5,6H10.5 M7.8,7.5C5.5,9.5 4,12 4,14.5C4,15.5 4.5,16 5.5,16H14 M8,13L12,9L15,11L21,5 M16.5,5H21V9.5 M2,19L6,17H11C13,17 13,19 11,19H8 M12,19L18.5,15.5C20.5,14.5 22,16.5 20,18L14,22H7L2,21" />
+</vector>

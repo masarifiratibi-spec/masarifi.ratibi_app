@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   TextInput,
@@ -11,15 +11,18 @@ import { usePreferenceStore } from '@/state/preferences';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 
 export interface AssistantAskCardProps {
+  text: string;
+  onChangeText: (text: string) => void;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
 }
 
 export function AssistantAskCard({
+  text,
+  onChangeText,
   onAskQuestion,
   loading = false
 }: AssistantAskCardProps) {
-  const [text, setText] = useState('');
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
@@ -27,7 +30,6 @@ export function AssistantAskCard({
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     onAskQuestion(trimmed);
-    setText('');
   };
 
   return (
@@ -55,7 +57,8 @@ export function AssistantAskCard({
             <TextInput
               testID="assistant-ask-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={onChangeText}
+              maxLength={1000}
               placeholder={translate('assistant.ask.placeholder')}
               placeholderTextColor={colorTokens.ink['500']}
               style={[styles.input, styles.inputRtl]}
@@ -71,7 +74,8 @@ export function AssistantAskCard({
             <TextInput
               testID="assistant-ask-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={onChangeText}
+              maxLength={1000}
               placeholder={translate('assistant.ask.placeholder')}
               placeholderTextColor={colorTokens.ink['500']}
               style={[styles.input, styles.inputLtr]}
@@ -135,7 +139,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     maxHeight: 90,
     minHeight: 48,
-    paddingVertical: 8
+    paddingVertical: 0,
+    textAlignVertical: 'top'
   },
   inputRtl: {
     textAlign: 'right',

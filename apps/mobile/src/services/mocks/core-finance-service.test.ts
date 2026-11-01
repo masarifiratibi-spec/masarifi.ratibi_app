@@ -103,6 +103,37 @@ it('derives Home from accounts and eligible ledger records', async () => {
   expect(summary.periodExpenseMinor).toBeGreaterThan(0);
 });
 
+it('keeps two recent expenses visible when five newer incomes precede them', async () => {
+  const transactions = Array.from({ length: 7 }, (_, index) =>
+    makeTransaction(index + 1, {
+      id: `home-${index}`,
+      type: index < 5 ? 'income' : 'expense',
+      occurredAt: Date.UTC(2040, 0, 8) - index * 60_000,
+      reviewStatus: 'none'
+    })
+  );
+  const sut = createMockCoreFinanceService(
+    new CoreFinanceRepository({
+      accounts: fixtureAccounts,
+      categories: fixtureCategories,
+      transactions
+    })
+  );
+  const summary = await sut.getHomeSummary('SAR');
+  expect(
+    summary.recentTransactions
+      .filter((item) => item.type === 'expense')
+      .map((item) => item.id)
+  ).toEqual(['home-5', 'home-6']);
+  expect(
+    summary.recentTransactions
+      .filter((item) => item.type === 'income')
+      .slice(0, 2)
+      .map((item) => item.id)
+  ).toEqual(['home-0', 'home-1']);
+  expect(summary.recentTransactions).toHaveLength(5);
+});
+
 it('converts account balances toward the profile currency and excludes incomparable period totals', async () => {
   const usdAccount = {
     ...fixtureAccounts[2],

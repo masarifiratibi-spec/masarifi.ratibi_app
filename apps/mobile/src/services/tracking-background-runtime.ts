@@ -1,0 +1,424 @@
+import Constants from 'expo-constants';
+import { AppRegistry, Platform } from 'react-native';
+import { registerTrackingNotificationTask } from './platform/tracking-notification-task';
+import type { TokenCache } from '@clerk/expo';
+import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
+import { resolveClientRuntime, isBenchmarkReadOnly } from '@/config/client-runtime';
+import { configureDatabaseOwner } from '@/storage/database';
+import {
+  registerRuntimeIdentityReset,
+  registerRuntimeUserDataReset
+} from '@/storage/runtime-user-data-reset';
+import {
+  captureLiveClerkIdentity,
+  registerLiveClerkBridge
+} from './live/auth-service';
+import { useAppShellStore } from '@/state/app-shell';
+import {
+  trackingSourcePreferences,
+  invalidateTrackingConsent,
+  trackingConsentEpoch
+} from './tracking-source-preferences';
+import type { SmsRuleSnapshot } from '@/storage/sms-import-queue';
+import { compileFinancialDiscoveryPolicy } from '@masarifi/transaction-parser';
+
+const contextKey = 'masarifi.tracking.background-context.v2';
+const clerkSessionCache: TokenCache = {
+  getToken: (key) => SecureStore.getItemAsync(`masarifi.clerk.${key}`),
+  saveToken: (key, value) =>
+    SecureStore.setItemAsync(`masarifi.clerk.${key}`, value),
+  clearToken: (key) => SecureStore.deleteItemAsync(`masarifi.clerk.${key}`)
+};
+let nativeMutation: Promise<void> = Promise.resolve();
+let nativeGeneration = 0;
+let restorationBlocked = false;
+function serializeNative(change: () => Promise<void>): Promise<void> {
+  const operation = nativeMutation.then(change, change);
+  nativeMutation = operation.catch(() => undefined);
+  return operation;
+}
+export async function scheduleTrackingFollowUp(ownerId: string): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
+  const runtime = resolveClientRuntime();
+  const native = trackingNativeRuntime;
+  if (
+    Platform.OS !== 'android' ||
+    runtime.mode !== 'live' ||
+    (runtime.apiUrl !== 'https://api.staging.masarifiratibi.com' &&
+      !(
+        process.env.EXPO_PUBLIC_RELEASE_CHANNEL === 'production' &&
+        runtime.apiUrl
+      )) ||
+    !native?.scheduleTrackingFollowUp
+  )
+    return;
+  const expectedEpoch = trackingConsentEpoch();
+  const expectedGeneration = nativeGeneration;
+  return serializeNative(async () => {
+    const current = () =>
+      !restorationBlocked &&
+      expectedGeneration === nativeGeneration &&
+      expectedEpoch === trackingConsentEpoch() &&
+      useAppShellStore.getState().session?.status === 'authenticated' &&
+      useAppShellStore.getState().session?.userId === ownerId;
+    if (!current()) return;
+    const raw = await SecureStore.getItemAsync(contextKey);
+    if (!raw || !current()) return;
+    const context = JSON.parse(raw) as {
+      ownerId?: unknown;
+      generation?: unknown;
+    } | null;
+    if (
+      context?.ownerId !== ownerId ||
+      typeof context.generation !== 'string' ||
+      context.generation.length < 16 ||
+      context.generation.length > 80
+    )
+      return;
+    const ownerDigest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      ownerId
+    );
+    if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
+      return;
+    await native.scheduleTrackingFollowUp!(ownerDigest, context.generation);
+  });
+}
+export async function configureTrackingBackground(
+  ownerId: string,
+  rules: SmsRuleSnapshot,
+  mode?: string,
+  expectedEpoch = trackingConsentEpoch()
+): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
+  const expectedGeneration = nativeGeneration;
+  return serializeNative(async () => {
+    const current = () =>
+      !restorationBlocked &&
+      expectedGeneration === nativeGeneration &&
+      expectedEpoch === trackingConsentEpoch() &&
+      useAppShellStore.getState().session?.userId === ownerId;
+    if (!current()) return;
+    if (
+      Platform.OS !== 'android' ||
+      !trackingNativeRuntime?.configureTrackingOwner
+    )
+      return;
+    if (
+      rules.sourceAdmissionPolicy &&
+      (!trackingNativeRuntime.financialContentAdmissionSupported ||
+        !(await trackingNativeRuntime.financialContentAdmissionSupported()))
+    ) {
+      if (current()) await trackingNativeRuntime.suspendTrackingOwner();
+      throw new Error('tracking_native_upgrade_required');
+    }
+    if (!current()) return;
+    const sources = await trackingSourcePreferences.load();
+    const raw = await SecureStore.getItemAsync(contextKey);
+    const stored = raw
+      ? (JSON.parse(raw) as { ownerId: string; generation: string })
+      : null;
+    const generation =
+      stored?.ownerId === ownerId ? stored.generation : Crypto.randomUUID();
+    const ownerDigest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      ownerId
+    );
+    const packages = rules.senders
+      .filter(
+        (s) =>
+          s.enabled &&
+          s.trusted &&
+          /^[a-zA-Z][\w]*(?:\.[\w]+)+$/.test(s.normalizedSender)
+      )
+      .map((s) => s.normalizedSender);
+    if (!current()) return;
+    await SecureStore.setItemAsync(
+      contextKey,
+      JSON.stringify({ ownerId, generation })
+    );
+    if (
+      rules.accountingPolicy &&
+      !trackingNativeRuntime.configureTrackingOwnerV3
+    ) {
+      await trackingNativeRuntime.suspendTrackingOwner();
+      throw new Error('tracking_native_upgrade_required');
+    }
+    const args = [
+      ownerDigest,
+      generation,
+      !rules.requiresRefresh && mode !== 'paused' && sources.smsEnabled,
+      !rules.requiresRefresh &&
+        mode !== 'paused' &&
+        sources.notificationEnabled,
+      packages,
+      rules.senders
+        .filter(
+          (s) =>
+            !s.enabled && /^[a-zA-Z][\w]*(?:\.[\w]+)+$/.test(s.normalizedSender)
+        )
+        .map((s) => s.normalizedSender),
+      rules.snapshot
+        ? JSON.stringify({
+            ...compileFinancialDiscoveryPolicy(rules.snapshot, rules.keywords),
+            ...(rules.accountingPolicy ? { nominal: true } : {}),
+            ...(rules.sourceAdmissionPolicy
+              ? { sourceAdmissionPolicy: rules.sourceAdmissionPolicy }
+              : {})
+          })
+        : null
+    ] as const;
+    if (rules.accountingPolicy)
+      await trackingNativeRuntime.configureTrackingOwnerV3!(
+        ...args,
+        JSON.stringify({
+          smsActivatedAt:
+            rules.activation?.smsActivatedAt ??
+            sources.smsActivatedAt ??
+            Date.now(),
+          notificationActivatedAt:
+            rules.activation?.notificationActivatedAt ??
+            sources.notificationActivatedAt ??
+            Date.now()
+        })
+      );
+    else await trackingNativeRuntime.configureTrackingOwner(...args);
+    if (!current()) {
+      await trackingNativeRuntime.suspendTrackingOwner();
+      return;
+    }
+    // DEV bank-message intake and follow-ups use native WorkManager.
+    // Visible return-reminder pushes do not require a background tracking task.
+    const localOnlyDev =
+      Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
+      resolveClientRuntime().mode === 'live' &&
+      resolveClientRuntime().apiUrl ===
+        'https://api.staging.masarifiratibi.com';
+    if (!localOnlyDev)
+      await registerTrackingNotificationTask(
+        'masarifi-tracking-confirmation-v2'
+      );
+  });
+}
+export async function disableTrackingBackground(
+  preserveNotifications = false
+): Promise<void> {
+  nativeGeneration++;
+  return serializeNative(async () => {
+    if (preserveNotifications && trackingNativeRuntime?.suspendTrackingOwner)
+      await trackingNativeRuntime.suspendTrackingOwner();
+    else {
+      await trackingNativeRuntime?.clearTrackingOwner?.();
+      await SecureStore.deleteItemAsync(contextKey);
+    }
+  });
+}
+
+export async function purgeDeletedOwnerTracking(
+  ownerId: string
+): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  const native = trackingNativeRuntime;
+  if (!native?.purgeTrackingOwnerData)
+    throw new Error('tracking_native_upgrade_required');
+  return serializeNative(async () => {
+    const raw = await SecureStore.getItemAsync(contextKey);
+    const context = raw ? (JSON.parse(raw) as { ownerId?: string }) : null;
+    const ownerDigest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      ownerId
+    );
+    await native.purgeTrackingOwnerData!(ownerDigest);
+    if (
+      context?.ownerId === ownerId &&
+      (await SecureStore.getItemAsync(contextKey)) === raw
+    ) {
+      await SecureStore.deleteItemAsync(contextKey);
+      if ((await SecureStore.getItemAsync(contextKey)) !== null)
+        throw new Error('tracking owner context remains');
+    }
+  });
+}
+export async function restoreTrackingBackground(
+  ownerId: string
+): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
+  const generation = ++nativeGeneration;
+  restorationBlocked = true;
+  return serializeNative(async () => {
+    try {
+      const raw = await SecureStore.getItemAsync(contextKey);
+      let stored: { ownerId: string; generation: string } | null = null;
+      if (raw !== null) {
+        const value: unknown = JSON.parse(raw);
+        if (!value || typeof value !== 'object' || Array.isArray(value))
+          throw new Error();
+        const candidate = value as Record<string, unknown>;
+        if (
+          Object.keys(candidate).sort().join(',') !== 'generation,ownerId' ||
+          typeof candidate.ownerId !== 'string' ||
+          candidate.ownerId.length < 1 ||
+          candidate.ownerId.length > 256 ||
+          typeof candidate.generation !== 'string' ||
+          candidate.generation.length < 16 ||
+          candidate.generation.length > 80
+        )
+          throw new Error();
+        stored = candidate as { ownerId: string; generation: string };
+      }
+      if (generation !== nativeGeneration) throw new Error();
+      // Cold SDK restoration is not an explicit account switch or sign-out.
+      // A different retained owner must stay dormant without losing its data.
+      if (stored && stored.ownerId !== ownerId) throw new Error();
+      if (Platform.OS === 'android') {
+        if (!trackingNativeRuntime?.restoreTrackingOwner) throw new Error();
+        const ownerDigest = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          ownerId
+        );
+        if (generation !== nativeGeneration) throw new Error();
+        const outcome = await trackingNativeRuntime.restoreTrackingOwner(
+          ownerDigest,
+          stored?.ownerId === ownerId ? stored.generation : null
+        );
+        if (!['PRESERVED', 'EMPTY'].includes(outcome)) throw new Error();
+      }
+      if (generation !== nativeGeneration) throw new Error();
+      restorationBlocked = false;
+    } catch {
+      // An ambiguous restoration must not fall back to destructive sign-out.
+      // Keep durable notifications and make native intake dormant instead.
+      await trackingNativeRuntime?.suspendTrackingOwner?.();
+      throw new Error('tracking_restore_unavailable');
+    }
+  });
+}
+
+registerRuntimeIdentityReset((context) => {
+  if (isBenchmarkReadOnly()) return;
+  invalidateTrackingConsent();
+  if (context && 'restoringOwnerId' in context)
+    return restoreTrackingBackground(context.restoringOwnerId);
+  restorationBlocked = true;
+  if (context?.kind === 'restore-unavailable' || context?.kind === 'signed-out-preserve') {
+    nativeGeneration++;
+    return serializeNative(async () => {
+      if (Platform.OS !== 'android') return;
+      if (!trackingNativeRuntime?.suspendTrackingOwner)
+        throw new Error('tracking_restore_unavailable');
+      await trackingNativeRuntime.suspendTrackingOwner();
+    });
+  }
+  return disableTrackingBackground();
+});
+registerRuntimeUserDataReset(() => {
+  if (isBenchmarkReadOnly()) return;
+  invalidateTrackingConsent();
+  restorationBlocked = true;
+  return disableTrackingBackground();
+});
+
+export async function runTrackingBackground(input: {
+  ownerDigest?: string;
+  generation?: string;
+}): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
+  if (restorationBlocked) return;
+  const generation = nativeGeneration;
+  const current = () => !restorationBlocked && generation === nativeGeneration;
+  const runtime = resolveClientRuntime();
+  if (runtime.mode !== 'live') return;
+  const raw = await SecureStore.getItemAsync(contextKey);
+  if (!raw || !current()) return;
+  const context = JSON.parse(raw) as { ownerId: string; generation: string };
+  const digest = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    context.ownerId
+  );
+  if (input.generation !== context.generation || input.ownerDigest !== digest)
+    return;
+  try {
+    const identity = await captureLiveClerkIdentity();
+    if (identity.userId !== context.ownerId) return;
+  } catch {
+    if (!current()) return;
+    const { getClerkInstance } = await import('@clerk/expo');
+    const clerk = getClerkInstance({
+      publishableKey: runtime.clerkPublishableKey!,
+      tokenCache: clerkSessionCache
+    });
+    if (!clerk.loaded) await clerk.load({ standardBrowser: false });
+    if (
+      clerk.session?.user?.id !== context.ownerId ||
+      !(await clerk.session?.getToken({ skipCache: true }))
+    )
+      return;
+    if (
+      (await SecureStore.getItemAsync(contextKey)) !== raw ||
+      !current() ||
+      (useAppShellStore.getState().session?.userId &&
+        useAppShellStore.getState().session?.userId !== context.ownerId)
+    )
+      return;
+    const interactive = async (): Promise<never> => {
+      throw new Error('tracking_interactive_auth_unavailable');
+    };
+    registerLiveClerkBridge({
+      async getSession() {
+        const session = clerk.session;
+        if (!session || session.user.id !== context.ownerId) return null;
+        return {
+          id: session.id,
+          userId: session.user.id,
+          method: 'google',
+          issuedAt: session.lastActiveAt.getTime(),
+          expiresAt: session.expireAt.getTime()
+        };
+      },
+      getToken: (options) =>
+        clerk.session?.getToken(options) ?? Promise.resolve(null),
+      startPhone: interactive,
+      verifyPhone: interactive,
+      resendPhone: interactive,
+      signInWithGoogle: interactive,
+      reverifyConflict: interactive,
+      signOut: interactive
+    });
+    await configureDatabaseOwner(context.ownerId);
+    if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
+      return;
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: context.ownerId,
+        method: 'google',
+        issuedAt: clerk.session.lastActiveAt.getTime(),
+        expiresAt: clerk.session.expireAt.getTime(),
+        restoration: 'restored'
+      }
+    });
+  }
+  if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
+    return;
+  const { syncAutomaticTracking } =
+    // The coordinator is bundled locally; import() can refetch it in Expo DEV.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('./automatic-tracking-coordinator') as typeof import('./automatic-tracking-coordinator');
+  if (!current()) return;
+  const result = await syncAutomaticTracking();
+  if (['processing', 'queued', 'error'].includes(result.status))
+    throw new Error('tracking_background_retry');
+}
+export function registerTrackingHeadlessTask(): void {
+  if (isBenchmarkReadOnly()) return;
+  AppRegistry.registerHeadlessTask('MasarifiTracking', () => async (input) => {
+    try {
+      await runTrackingBackground(input);
+      await trackingNativeRuntime?.finishTrackingWork?.(input.workId, true);
+    } catch {
+      await trackingNativeRuntime?.finishTrackingWork?.(input.workId, false);
+    }
+  });
+}

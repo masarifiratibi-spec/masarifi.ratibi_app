@@ -20,10 +20,7 @@ import type {
   ReportSnapshot,
   ReportScheduleDraft
 } from '@/domain/reports';
-import type {
-  AttemptPage,
-  ReportsService
-} from '@/services/contracts/reports-service';
+import type { ReportsService } from '@/services/contracts/reports-service';
 import type { CoreFinanceService } from '@/services/contracts/core-finance-service';
 import { reportsServiceCapability } from '@/services/contracts/reports-service';
 import type { CapabilityProviderHandle } from '@/services/contracts/capability-contract';
@@ -190,8 +187,9 @@ export function createMockReportsService(
       return preview;
     },
     async requestOutput(input, operationId) {
-      let snapshot: ReportSnapshot | undefined = [...previews.values()][0]
-        ?.snapshot;
+      let snapshot: ReportSnapshot | null | undefined = [
+        ...previews.values()
+      ][0]?.snapshot;
       let retryOfAttemptId: string | null = null;
       const kind = input.kind;
       if (input.kind !== 'scheduled' && input.kind !== 'retry') {
@@ -230,10 +228,6 @@ export function createMockReportsService(
         value,
         affectedScopes: ['reports.attempts', `reports.attempt.${value.id}`]
       };
-    },
-    async listAttempts(input): Promise<AttemptPage> {
-      const items = await repository.listAttempts(input);
-      return { items, nextCursor: null, total: items.length };
     },
     async getAttempt(id) {
       return repository.requireAttempt(id);

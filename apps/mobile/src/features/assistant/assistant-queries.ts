@@ -1,142 +1,488 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient
+} from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { assistantService } from '@/services/assistant-service';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
+import { useAppShellStore } from '@/state/app-shell';
+import { withReadContext } from '@/services/live/read-context';
+import { HttpError } from '@/services/live/http-client';
+
+const ownedReadKey = (key: readonly unknown[], ownerId?: string | null) =>
+  ownerId ? ([...key, { ownerId }] as const) : key;
 
 export type AssistantConversationQuery = {
   cursor?: string;
   pageSize?: number;
-  status?: 'active' | 'deleted';
+  status?: 'active' | 'archived' | 'deleted';
 };
 
 export const assistantKeys = {
   consent: () => ['assistant', 'consent'] as const,
   availability: () => ['assistant', 'availability'] as const,
   insights: () => ['assistant', 'insights'] as const,
-  conversations: (input: AssistantConversationQuery = {}) => ['assistant', 'conversations', input] as const,
-  conversation: (id: string, cursor?: string) => cursor ? ['assistant', 'conversation', id, cursor] as const : ['assistant', 'conversation', id] as const,
-  response: (id: string) => ['assistant', 'response', id] as const,
-  actionPreview: (id: string) => ['assistant', 'actionPreview', id] as const,
-  context: () => ['assistant', 'context', 'current'] as const
+  conversations: (
+    input: AssistantConversationQuery = {},
+    ownerId?: string | null
+  ) => ownedReadKey(['assistant', 'conversations', input], ownerId),
+  conversation: (id: string, cursor?: string, ownerId?: string | null) =>
+    ownedReadKey(
+      cursor
+        ? (['assistant', 'conversation', id, cursor] as const)
+        : (['assistant', 'conversation', id] as const),
+      ownerId
+    ),
+  response: (id: string, ownerId?: string | null) =>
+    ownedReadKey(['assistant', 'response', id], ownerId),
+  actionPreview: (id: string, ownerId?: string | null) =>
+    ownedReadKey(['assistant', 'actionPreview', id], ownerId),
+  context: () => ['assistant', 'context', 'current'] as const,
+  questionOperation: () => ['assistant', 'questionOperation'] as const
 };
 
 export function useAssistantConsent() {
-  return useQuery({ queryKey: assistantKeys.consent(), queryFn: () => assistantService.getConsent() });
+  return useQuery({
+    queryKey: assistantKeys.consent(),
+    queryFn: () => assistantService.getConsent()
+  });
 }
 
 export function useAssistantAvailability() {
-  return useQuery({ queryKey: assistantKeys.availability(), queryFn: () => assistantService.getAvailability() });
+  return useQuery({
+    queryKey: assistantKeys.availability(),
+    queryFn: () => assistantService.getAvailability()
+  });
 }
 
-export function useAssistantConversations(input: AssistantConversationQuery = {}) {
+function useAssistantForeground() {
+  const [foreground, setForeground] = useState(
+    () => !['background', 'inactive'].includes(AppState.currentState)
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) =>
+      setForeground(state === 'active')
+    );
+    return () => subscription.remove();
+  }, []);
+  return foreground;
+}
+
+export function useAssistantQuestionOperation() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const client = useQueryClient();
+  const foreground = useAssistantForeground();
+  const polling = useRef({ operationId: '', updateCount: 0 });
+  return useQuery({
+    queryKey: assistantKeys.questionOperation(),
+    enabled: foreground,
+    staleTime: 0,
+    retry: false,
+    queryFn: async () => {
+      const operation =
+        (await assistantService.readQuestionOperation?.()) ?? null;
+      if (operation?.phase !== 'accepted' || !operation.conversationId)
+        return operation;
+      const conversationId = operation.conversationId;
+      // Reconcile accepted work through reads; unknown acceptance still requires explicit recovery.
+      await client.fetchQuery({
+        queryKey: assistantKeys.conversation(
+          conversationId,
+          undefined,
+          ownerId
+        ),
+        queryFn: () => assistantService.getConversation(conversationId),
+        staleTime: 0,
+        retry: false
+      });
+      return (await assistantService.readQuestionOperation?.()) ?? null;
+    },
+    refetchInterval: (query) => {
+      const operation = query.state.data;
+      if (
+        query.state.error ||
+        operation?.phase !== 'accepted' ||
+        Date.now() - (operation.createdAt ?? 0) >= 5 * 60000
+      )
+        return false;
+      if (polling.current.operationId !== operation.operationId)
+        polling.current = {
+          operationId: operation.operationId,
+          updateCount: query.state.dataUpdateCount
+        };
+      return Math.min(
+        8000,
+        2000 *
+          2 **
+            Math.min(
+              Math.max(
+                0,
+                query.state.dataUpdateCount - polling.current.updateCount
+              ),
+              2
+            )
+      );
+    }
+  });
+}
+
+export function useResumeAssistantQuestion() {
+  return useAssistantMutation(async () => {
+    if (!assistantService.resumeQuestion)
+      throw new Error('assistant_unavailable');
+    return assistantService.resumeQuestion();
+  });
+}
+
+export function useRetryAssistantQuestion() {
+  return useAssistantMutation(async () => {
+    if (!assistantService.retryQuestionOperation)
+      throw new Error('assistant_unavailable');
+    return assistantService.retryQuestionOperation();
+  });
+}
+
+export function useAssistantConversations(
+  input: AssistantConversationQuery = {}
+) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const { cursor: _cursor, ...query } = input;
   return useInfiniteQuery({
-    queryKey: assistantKeys.conversations(query),
+    queryKey: assistantKeys.conversations(query, ownerId),
     initialPageParam: input.cursor,
-    queryFn: ({ pageParam }) => assistantService.listConversations({ ...query, cursor: pageParam }),
+    queryFn: ({ pageParam }) =>
+      assistantService.listConversations({ ...query, cursor: pageParam }),
     getNextPageParam: (page) => page.nextCursor ?? undefined
   });
 }
 
 export function useAssistantConversation(id: string, cursor?: string) {
-  return useQuery({ queryKey: assistantKeys.conversation(id, cursor), queryFn: () => assistantService.getConversation(id, cursor), enabled: Boolean(id) });
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const foreground = useAssistantForeground();
+  const polling = useRef({ key: '', startedAt: 0, updateCount: 0 });
+  return useQuery({
+    queryKey: assistantKeys.conversation(id, cursor, ownerId),
+    queryFn: () => assistantService.getConversation(id, cursor),
+    enabled: Boolean(id) && foreground,
+    retry: false,
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      const pending = query.state.data?.pendingMessageIds ?? [];
+      if (!pending.length) {
+        polling.current.key = '';
+        return false;
+      }
+      const key = JSON.stringify([id, cursor, ...pending.slice().sort()]);
+      if (polling.current.key !== key)
+        polling.current = {
+          key,
+          startedAt: Date.now(),
+          updateCount: query.state.dataUpdateCount
+        };
+      if (Date.now() - polling.current.startedAt >= 5 * 60000) return false;
+      return Math.min(
+        8000,
+        2000 *
+          2 **
+            Math.min(
+              Math.max(
+                0,
+                query.state.dataUpdateCount - polling.current.updateCount
+              ),
+              2
+            )
+      );
+    }
+  });
 }
 
 export function useAssistantResponse(id: string) {
-  return useQuery({ queryKey: assistantKeys.response(id), queryFn: () => assistantService.getResponse(id), enabled: Boolean(id), staleTime: Infinity });
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return useQuery({
+    queryKey: assistantKeys.response(id, ownerId),
+    queryFn: () => assistantService.getResponse(id),
+    enabled: Boolean(id),
+    staleTime: Infinity
+  });
 }
 
 export function useAssistantActionPreview(id: string) {
-  return useQuery({ queryKey: assistantKeys.actionPreview(id), queryFn: () => assistantService.getActionPreview(id), enabled: Boolean(id) });
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return useQuery({
+    queryKey: assistantKeys.actionPreview(id, ownerId),
+    queryFn: ({ signal }) =>
+      withReadContext({ signal }, async () => {
+        const assertOwner = () => {
+          if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+            throw new HttpError('session_expired', 401);
+        };
+        assertOwner();
+        const preview = await assistantService.getActionPreview(id);
+        assertOwner();
+        return preview;
+      }),
+    enabled: Boolean(id)
+  });
 }
 
 export function useSetAssistantConsent() {
-  return useAssistantMutation(({ enabled, expectedVersion, operationId }: { enabled: boolean; expectedVersion: number; operationId: string }) =>
-    assistantService.setConsent(enabled, expectedVersion, operationId)
+  return useAssistantMutation(
+    ({
+      enabled,
+      expectedVersion,
+      operationId
+    }: {
+      enabled: boolean;
+      expectedVersion: number;
+      operationId: string;
+    }) => assistantService.setConsent(enabled, expectedVersion, operationId)
   );
 }
 
 export function useAskAssistant() {
-  return useAssistantMutation(({ conversationId, question, operationId, intent }: { conversationId: string; question: string; operationId: string; intent?: AssistantQuestionIntent }) =>
-    intent
-      ? assistantService.ask(conversationId, question, operationId, intent)
-      : assistantService.ask(conversationId, question, operationId)
+  return useAssistantMutation(
+    ({
+      conversationId,
+      question,
+      operationId,
+      intent
+    }: {
+      conversationId: string;
+      question: string;
+      operationId: string;
+      intent?: AssistantQuestionIntent;
+    }) =>
+      intent
+        ? assistantService.ask(conversationId, question, operationId, intent)
+        : assistantService.ask(conversationId, question, operationId)
   );
 }
 
 export function useAssistantInsights() {
-  return useQuery({ queryKey: assistantKeys.insights(), queryFn: () => assistantService.listInsights() });
+  const consent = useAssistantConsent();
+  return useQuery({
+    queryKey: assistantKeys.insights(),
+    queryFn: () => assistantService.listInsights(),
+    enabled: consent.data?.status === 'enabled'
+  });
 }
 
 export function useCreateAssistantConversation() {
-  return useAssistantMutation(({ question, operationId, intent }: { question: string; operationId: string; intent?: AssistantQuestionIntent }) =>
-    assistantService.createConversation({ question, intent }, operationId)
+  return useAssistantMutation(
+    ({
+      question,
+      operationId,
+      intent
+    }: {
+      question: string;
+      operationId: string;
+      intent?: AssistantQuestionIntent;
+    }) =>
+      assistantService.createConversation({ question, intent }, operationId),
+    'background'
   );
 }
 
 export function useRenameAssistantConversation() {
-  return useAssistantMutation(({ id, title, expectedVersion, operationId }: { id: string; title: string; expectedVersion: number; operationId: string }) =>
-    assistantService.renameConversation(id, title, expectedVersion, operationId)
+  return useAssistantMutation(
+    ({
+      id,
+      title,
+      expectedVersion,
+      operationId
+    }: {
+      id: string;
+      title: string;
+      expectedVersion: number;
+      operationId: string;
+    }) =>
+      assistantService.renameConversation(
+        id,
+        title,
+        expectedVersion,
+        operationId
+      )
   );
 }
 
 export function useDeleteAssistantConversation() {
-  return useAssistantMutation(({ id, expectedVersion, operationId }: { id: string; expectedVersion: number; operationId: string }) =>
-    assistantService.deleteConversation(id, expectedVersion, operationId)
+  return useAssistantMutation(
+    ({
+      id,
+      expectedVersion,
+      operationId
+    }: {
+      id: string;
+      expectedVersion: number;
+      operationId: string;
+    }) => assistantService.deleteConversation(id, expectedVersion, operationId)
   );
 }
 
 export function useAssistantFeedback() {
-  return useAssistantMutation(({ responseId, feedback, operationId }: { responseId: string; feedback: 'helpful' | 'not_helpful' | 'reported'; operationId: string }) =>
-    assistantService.setResponseFeedback(responseId, feedback, operationId)
+  return useAssistantMutation(
+    ({
+      responseId,
+      feedback,
+      operationId
+    }: {
+      responseId: string;
+      feedback: 'helpful' | 'not_helpful' | 'reported';
+      operationId: string;
+    }) =>
+      assistantService.setResponseFeedback(responseId, feedback, operationId)
   );
 }
 
 export function useUpdateAssistantActionPreview() {
-  return useAssistantMutation(async ({ previewId, input, expectedVersion }: { previewId: string; input: unknown; expectedVersion: number }) => ({
-    value: await assistantService.updateActionPreview(previewId, input as never, expectedVersion),
-    affectedScopes: [`assistant.actionPreview.${previewId}`]
-  })
+  return useAssistantMutation(
+    async ({
+      previewId,
+      input,
+      expectedVersion
+    }: {
+      previewId: string;
+      input: unknown;
+      expectedVersion: number;
+    }) => ({
+      value: await assistantService.updateActionPreview(
+        previewId,
+        input as never,
+        expectedVersion
+      ),
+      affectedScopes: [`assistant.actionPreview.${previewId}`]
+    })
   );
 }
 
 export function useConfirmAssistantAction() {
-  return useAssistantMutation(({ previewId, expectedVersion, operationId }: { previewId: string; expectedVersion: number; operationId: string }) =>
-    assistantService.confirmAction(previewId, expectedVersion, operationId)
+  return useAssistantMutation(
+    ({
+      previewId,
+      expectedVersion,
+      operationId
+    }: {
+      previewId: string;
+      expectedVersion: number;
+      operationId: string;
+    }) =>
+      assistantService.confirmAction(previewId, expectedVersion, operationId)
   );
 }
 
 export function useCancelAssistantAction() {
-  return useAssistantMutation(({ previewId, expectedVersion, operationId }: { previewId: string; expectedVersion: number; operationId: string }) =>
-    assistantService.cancelAction(previewId, expectedVersion, operationId)
+  return useAssistantMutation(
+    ({
+      previewId,
+      expectedVersion,
+      operationId
+    }: {
+      previewId: string;
+      expectedVersion: number;
+      operationId: string;
+    }) => assistantService.cancelAction(previewId, expectedVersion, operationId)
   );
 }
 
 function useAssistantMutation<TVariables, TValue>(
-  mutationFn: (variables: TVariables) => Promise<{ value: TValue; affectedScopes: readonly string[] }>
+  mutationFn: (
+    variables: TVariables
+  ) => Promise<{ value: TValue; affectedScopes: readonly string[] }>,
+  refreshMode: 'complete' | 'background' = 'complete'
 ) {
   const client = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: (result) => invalidateAssistantScopes(client, result.affectedScopes)
+    onSuccess: (result) => {
+      const refresh = invalidateAssistantScopes(client, result.affectedScopes);
+      // Creation is already accepted; optional landing reads must not delay opening the conversation.
+      if (
+        refreshMode === 'complete' ||
+        result.affectedScopes.includes('financial.live')
+      )
+        return refresh;
+      void refresh;
+    },
+    onError: (error) => {
+      const scopes = (error as { affectedScopes?: readonly string[] })
+        .affectedScopes;
+      if (scopes?.length) return invalidateAssistantScopes(client, scopes);
+    },
+    onSettled: () => {
+      const refresh = client.invalidateQueries({
+        queryKey: assistantKeys.questionOperation()
+      });
+      if (refreshMode === 'complete') return refresh;
+      void refresh;
+    }
   });
 }
 
 export function assistantScopeToKey(scope: string): readonly unknown[] | null {
+  if (scope === 'assistant.insights') return assistantKeys.insights();
   if (scope === 'assistant.consent') return assistantKeys.consent();
   if (scope === 'assistant.availability') return assistantKeys.availability();
-  if (scope === 'assistant.conversations') return ['assistant', 'conversations'];
+  if (scope === 'assistant.conversations')
+    return ['assistant', 'conversations'];
   if (scope === 'assistant.context') return assistantKeys.context();
-  if (scope.startsWith('assistant.actionPreview.') && scope.length > 'assistant.actionPreview.'.length)
-    return assistantKeys.actionPreview(scope.slice('assistant.actionPreview.'.length));
-  if (scope.startsWith('assistant.conversation.') && scope.length > 'assistant.conversation.'.length)
-    return assistantKeys.conversation(scope.slice('assistant.conversation.'.length));
+  if (
+    scope.startsWith('assistant.actionPreview.') &&
+    scope.length > 'assistant.actionPreview.'.length
+  )
+    return assistantKeys.actionPreview(
+      scope.slice('assistant.actionPreview.'.length)
+    );
+  if (
+    scope.startsWith('assistant.conversation.') &&
+    scope.length > 'assistant.conversation.'.length
+  )
+    return assistantKeys.conversation(
+      scope.slice('assistant.conversation.'.length)
+    );
   return null;
 }
 
-export async function invalidateAssistantScopes(client: QueryClient, scopes: readonly string[]) {
-  await Promise.all(scopes.map((scope) => {
-    const key = assistantScopeToKey(scope);
-    return key ? client.invalidateQueries({ queryKey: key }) : Promise.resolve();
-  }));
+export async function invalidateAssistantScopes(
+  client: QueryClient,
+  scopes: readonly string[]
+) {
+  if (scopes.includes('financial.live')) {
+    const keys = [
+      ['core-finance'],
+      ['planning'],
+      ['reports', 'live'],
+      ['reports', 'preview'],
+      ['reports', 'breakdown'],
+      ['reports', 'net-worth'],
+      ['reports', 'history'],
+      ['tracking']
+    ];
+    await Promise.all(
+      keys.map((queryKey) => client.cancelQueries({ queryKey }))
+    );
+    // Shared snapshots must become stale before dependent views refetch.
+    await Promise.all(
+      keys.map((queryKey) =>
+        client.invalidateQueries({ queryKey, refetchType: 'none' })
+      )
+    );
+    await Promise.all(
+      keys.map((queryKey) =>
+        client.refetchQueries({ queryKey, type: 'active' })
+      )
+    );
+  }
+  await Promise.all(
+    scopes.map((scope) => {
+      const key = assistantScopeToKey(scope);
+      return key
+        ? client.invalidateQueries({ queryKey: key })
+        : Promise.resolve();
+    })
+  );
 }

@@ -6,6 +6,7 @@ import { FoundationProviders } from '@/state/FoundationProviders';
 import { currentLocale } from '@/localization/i18n';
 import { directionForLocale } from '@/domain/foundation';
 import { usePreferenceStore } from '@/state/preferences';
+import { VoiceCaptureProvider } from '@/features/voice/VoiceCaptureRuntime';
 
 type QuerySeed = readonly [readonly unknown[], unknown];
 
@@ -39,7 +40,9 @@ export function renderWithQueryData(
     queryClient.setQueryData(queryKey, queryValue)
   );
   return render(
-    <FoundationProviders client={queryClient}>{ui}</FoundationProviders>,
+    <FoundationProviders client={queryClient}>
+      <VoiceCaptureProvider>{ui}</VoiceCaptureProvider>
+    </FoundationProviders>,
     options
   );
 }

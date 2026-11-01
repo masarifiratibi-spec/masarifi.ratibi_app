@@ -5,12 +5,14 @@ import {
   completeSelectionSession,
   getSelectionSession
 } from '@/design-system/components/selection/selection-session';
-import { CurrencySelectionScreen } from '@/features/settings/CurrencySelectionScreen';
 
 export default function CurrencySettingsRoute() {
   const { sessionId = '' } = useLocalSearchParams<{ sessionId?: string }>();
   const session = sessionId ? getSelectionSession<string>(sessionId) : undefined;
 
+  const { CurrencySelectionScreen } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/settings/CurrencySelectionScreen') as typeof import('@/features/settings/CurrencySelectionScreen');
   return (
     <CurrencySelectionScreen
       selectedCurrencyCode={session?.selectedId ?? undefined}

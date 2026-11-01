@@ -1,19 +1,81 @@
+import { useAppShellStore } from '@/state/app-shell';
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-
 import type { OnboardingProgress } from '@/domain/app-shell';
-import type { UserProfile } from '@/domain/settings';
+import { userProfileSchema, type UserProfile } from '@/domain/settings';
 import { createAuthService } from '@/features/auth/auth-flow';
-import { requestJson } from './http-client';
+import { HttpError, requestJson } from './http-client';
+import * as httpClient from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
 import { createLiveAssistantApiService } from './assistant-api-service';
 import { createLiveVoiceApiService } from './voice-api-service';
+import * as phoneNotifications from '@/services/platform/phone-notification-service';
+import { usePreferenceStore } from '@/state/preferences';
 import {
+  captureLiveAssistantClerkIdentity,
+  captureLiveClerkIdentity,
+  captureLiveClerkOwner,
+  captureLiveReadClerkIdentity,
+  getLiveClerkToken,
   createLiveAuthService,
   createLiveIdentityService,
   registerLiveClerkBridge
 } from './auth-service';
+const mockDatabases = new Map<string, ReturnType<typeof mockMakeDatabase>>();
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+function mockMakeDatabase() {
+  const { DatabaseSync } = jest.requireActual('node:sqlite');
+  const native = new DatabaseSync(':memory:');
+  native.exec(
+    'CREATE TABLE voice_operation_journal(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
+  );
+  native.exec(
+    'CREATE TABLE voice_batch_operations(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,payload TEXT NOT NULL)'
+  );
+  return {
+    native,
+    getFirstAsync: async (sql: string, ...args: string[]) =>
+      native.prepare(sql).get(...args) ?? null,
+    getAllAsync: async (sql: string, ...args: (string | number)[]) =>
+      native.prepare(sql).all(...args),
+    runAsync: async (sql: string, ...args: (string | number)[]) =>
+      native.prepare(sql).run(...args)
+  };
+}
+jest.mock('@/storage/database', () => ({
+  openDatabase: async (ownerId: string) => {
+    if (!mockDatabases.has(ownerId))
+      mockDatabases.set(ownerId, mockMakeDatabase());
+    return mockDatabases.get(ownerId);
+  },
+  runExclusiveDatabaseTransaction: async (
+    db: ReturnType<typeof mockMakeDatabase>,
+    operation: (db: unknown) => Promise<void>
+  ) => {
+    db.native.exec('BEGIN IMMEDIATE');
+    try {
+      await operation(db);
+      db.native.exec('COMMIT');
+    } catch (error) {
+      db.native.exec('ROLLBACK');
+      throw error;
+    }
+  }
+}));
+
+afterAll(() => {
+  for (const db of mockDatabases.values()) db.native.close();
+});
+
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => jest.requireActual<typeof import('node:crypto')>('node:crypto').randomUUID()
+}));
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => false)
+}));
 
 const liveSession = {
   id: 'sess_live_123456',
@@ -36,6 +98,414 @@ function clerkBridge(overrides: Record<string, unknown> = {}) {
     ...overrides
   };
 }
+
+describe('DEV authenticated sign-out', () => {
+  const deviceRegistration = {
+    deviceFingerprint: 'owned-installation-fingerprint',
+    platform: 'android' as const,
+    appVersion: '1.0.0'
+  };
+  beforeEach(() => {
+    jest
+      .requireMock('@/config/mobile-automation')
+      .isMobileAutomationEnabled.mockReturnValue(true);
+    jest
+      .spyOn(phoneNotifications, 'getDeviceRegistration')
+      .mockResolvedValue(deviceRegistration);
+    usePreferenceStore.setState({
+      returnRemindersEnabled: true,
+      returnRemindersOwnerId: liveSession.userId
+    });
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest
+      .requireMock('@/config/mobile-automation')
+      .isMobileAutomationEnabled.mockReturnValue(false);
+  });
+
+  test('revokes the owned DEV installation before closing Clerk and leaves the next owner opted out', async () => {
+    const bridge = clerkBridge();
+    const request = jest.fn(async () => {
+      expect(bridge.signOut).not.toHaveBeenCalled();
+      expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+      return {};
+    });
+    await createLiveAuthService(bridge, request).signOut('local');
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tracking/device/installations/sign-out',
+      { method: 'POST', body: { deviceRegistration } }
+    );
+    expect(bridge.signOut).toHaveBeenCalledWith({
+      scope: 'current',
+      sessionId: liveSession.id
+    });
+    expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+  });
+
+  test('retains the Clerk credential for retry when the server revoke is offline', async () => {
+    const bridge = clerkBridge();
+    const request = jest.fn(async () => {
+      throw new HttpError('provider_unavailable', 503);
+    });
+    await expect(
+      createLiveAuthService(bridge, request).signOut('local')
+    ).rejects.toMatchObject({ code: 'provider_unavailable' });
+    expect(bridge.signOut).not.toHaveBeenCalled();
+    expect(usePreferenceStore.getState().returnRemindersEnabled).toBe(false);
+  });
+
+  test('does not close a replacement owner when the old revoke response arrives', async () => {
+    let current = liveSession;
+    const bridge = clerkBridge({ getSession: jest.fn(async () => current) });
+    const request = jest.fn(async () => {
+      current = { ...liveSession, userId: 'owner-b', id: 'session-b' };
+      return {};
+    });
+    await expect(
+      createLiveAuthService(bridge, request).signOut('local')
+    ).rejects.toMatchObject({ code: 'session_expired' });
+    expect(bridge.signOut).not.toHaveBeenCalled();
+  });
+
+  test('does not revoke a replacement session after delayed device lookup', async () => {
+    let current = liveSession;
+    const bridge = clerkBridge({ getSession: jest.fn(async () => current) });
+    jest
+      .mocked(phoneNotifications.getDeviceRegistration)
+      .mockImplementationOnce(async () => {
+        current = { ...liveSession, id: 'replacement-session' };
+        return deviceRegistration;
+      });
+    const request = jest.fn(async () => ({}));
+    await expect(
+      createLiveAuthService(bridge, request).signOut('local')
+    ).rejects.toMatchObject({ code: 'session_expired' });
+    expect(request).not.toHaveBeenCalled();
+    expect(bridge.signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe('Voice read authentication', () => {
+  const sessionId = '55555555-5555-4555-8555-555555555555';
+  const cancelled = {
+    sessionId,
+    batchId: null,
+    status: 'cancelled',
+    transactionIds: [],
+    addedCount: 0,
+    ledgerVersion: 0
+  };
+  const response = (value: unknown) =>
+    ({ ok: true, status: 200, json: async () => value }) as Response;
+
+  test('uses SDK cached authentication for recovery GETs and fresh authentication for cancellation POSTs', async () => {
+    const bridge = clerkBridge({
+      getToken: jest.fn(async ({ skipCache }: { skipCache: boolean }) =>
+        skipCache ? 'fresh-write-token' : 'cached-read-token'
+      )
+    });
+    registerLiveClerkBridge(bridge);
+    const request = jest.fn(async (_url, init?: RequestInit) =>
+      response(init?.method === 'GET' ? { items: [] } : cancelled)
+    );
+    const service = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    });
+    await service.recoverBatches!();
+    await service.cancelBatch!(sessionId);
+    expect(
+      request.mock.calls.map(([, init]) => ({
+        method: init?.method,
+        authorization: (init?.headers as Record<string, string>).authorization
+      }))
+    ).toEqual([
+      { method: 'GET', authorization: 'Bearer cached-read-token' },
+      { method: 'POST', authorization: 'Bearer fresh-write-token' }
+    ]);
+    expect(bridge.getToken.mock.calls).toEqual([
+      [{ skipCache: false }],
+      [{ skipCache: true }]
+    ]);
+  });
+
+  test('coalesces concurrent Voice recovery token lookups through the existing read helper', async () => {
+    let release!: (token: string) => void;
+    const pending = new Promise<string>((resolve) => {
+      release = resolve;
+    });
+    const bridge = clerkBridge({
+      getToken: jest.fn(() => pending)
+    });
+    registerLiveClerkBridge(bridge);
+    const request = jest.fn(async () => response({ items: [] }));
+    const first = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    }).recoverBatches!();
+    const second = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    }).recoverBatches!();
+    for (let step = 0; step < 30; step++) await Promise.resolve();
+    release('read-token');
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(bridge.getToken).toHaveBeenCalledTimes(1);
+    expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  });
+
+  test.each(['owner', 'session'])(
+    'does not dispatch a recovery token resolved after a %s switch',
+    async (switchKind) => {
+      let current = liveSession;
+      registerLiveClerkBridge(
+        clerkBridge({
+          getSession: async () => current,
+          getToken: async () => {
+            current = {
+              ...liveSession,
+              id: 'different-session',
+              ...(switchKind === 'owner' ? { userId: 'different-owner' } : {})
+            };
+            return 'late-token';
+          }
+        })
+      );
+      const request = jest.fn(async () => response({ items: [] }));
+      const service = createLiveVoiceApiService({
+        baseUrl: 'https://inert.invalid',
+        request
+      });
+      await expect(service.recoverBatches!()).rejects.toBeDefined();
+      expect(request).not.toHaveBeenCalled();
+    }
+  );
+
+  test('rejects a late recovery response after the active owner changes', async () => {
+    let current = liveSession;
+    registerLiveClerkBridge(clerkBridge({ getSession: async () => current }));
+    const request = jest.fn(async () => {
+      current = {
+        ...liveSession,
+        id: 'different-session',
+        userId: 'different-owner'
+      };
+      return response({ items: [] });
+    });
+    const service = createLiveVoiceApiService({
+      baseUrl: 'https://inert.invalid',
+      request
+    });
+    await expect(service.recoverBatches!()).rejects.toMatchObject({
+      code: 'operation_cancelled'
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+});
+
+test('hydrates owner-bound local work without contacting the token service', async () => {
+  const bridge = clerkBridge({
+    getToken: jest.fn(async () => {
+      throw new Error('network unavailable');
+    })
+  });
+  registerLiveClerkBridge(bridge);
+  const owner = await captureLiveClerkOwner();
+  expect(owner.userId).toBe('user_live_123456');
+  await expect(owner.assertCurrent()).resolves.toBeUndefined();
+  expect(bridge.getToken).not.toHaveBeenCalled();
+  registerLiveClerkBridge(
+    clerkBridge({
+      getSession: jest.fn(async () => ({
+        ...liveSession,
+        userId: 'another_owner'
+      }))
+    })
+  );
+  await expect(owner.assertCurrent()).rejects.toMatchObject({
+    code: 'session_expired'
+  });
+});
+
+test('preserves cached reads across a bridge refresh for the same active session', async () => {
+  let release!: (token: string) => void;
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const bridge = clerkBridge({
+    getToken: jest.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          release = resolve;
+          entered();
+        })
+    )
+  });
+  registerLiveClerkBridge(bridge);
+  const pending = captureLiveReadClerkIdentity();
+  await started;
+  registerLiveClerkBridge(clerkBridge());
+  release('original-token');
+  await expect(pending).resolves.toMatchObject({
+    userId: 'user_live_123456',
+    token: 'original-token'
+  });
+});
+
+test.each([
+  getLiveClerkToken,
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+])(
+  'bounds a stalled Clerk token lookup and allows recovery without accepting its late result',
+  async (capture) => {
+    jest.useFakeTimers();
+    let release!: (token: string) => void;
+    const getToken = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            release = resolve;
+          })
+      )
+      .mockResolvedValue('recovered-token');
+    registerLiveClerkBridge(clerkBridge({ getToken }));
+    const pending = capture().then(
+      (value) => ({ value }),
+      (error) => ({ error })
+    );
+    try {
+      await jest.advanceTimersByTimeAsync(10_000);
+      const observed = await Promise.race([
+        pending,
+        Promise.resolve({ stillPending: true })
+      ]);
+      expect(observed).toEqual({
+        error: expect.objectContaining({
+          code: 'provider_unavailable',
+          status: 503,
+          failureSource: 'timeout'
+        })
+      });
+      const recovered = await capture();
+      expect(typeof recovered === 'string' ? recovered : recovered.token).toBe(
+        'recovered-token'
+      );
+      expect(getToken).toHaveBeenCalledTimes(2);
+    } finally {
+      release('late-original-token');
+      await pending;
+      jest.useRealTimers();
+    }
+  }
+);
+
+test('shares pending cached read authentication while keeping mutations freshly authenticated', async () => {
+  let release!: (token: string) => void;
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const getToken = jest
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          release = resolve;
+          entered();
+        })
+    )
+    .mockResolvedValue('fresh-mutation-token');
+  registerLiveClerkBridge(clerkBridge({ getToken }));
+  const first = captureLiveReadClerkIdentity();
+  const second = captureLiveReadClerkIdentity();
+  await started;
+  release('cached-read-token');
+  await expect(first).resolves.toMatchObject({
+    token: 'cached-read-token',
+    userId: 'user_live_123456'
+  });
+  await expect(second).resolves.toMatchObject({ token: 'cached-read-token' });
+  expect(getToken).toHaveBeenCalledTimes(1);
+  expect(getToken).toHaveBeenNthCalledWith(1, { skipCache: false });
+  await expect(captureLiveClerkIdentity()).resolves.toMatchObject({
+    token: 'fresh-mutation-token'
+  });
+  expect(getToken).toHaveBeenNthCalledWith(2, { skipCache: true });
+});
+
+test.each([
+  getLiveClerkToken,
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+])(
+  'classifies a documented Clerk transport failure before HTTP dispatch',
+  async (capture) => {
+    registerLiveClerkBridge(
+      clerkBridge({
+        getToken: jest.fn(async () => {
+          throw Object.assign(new Error('SDK transport failed'), {
+            code: 'network_error'
+          });
+        })
+      })
+    );
+    await expect(capture()).rejects.toMatchObject({
+      code: 'provider_unavailable',
+      status: 503,
+      failureSource: 'network'
+    });
+  }
+);
+
+test('does not turn an invalid Clerk configuration into an offline notice', async () => {
+  const failure = Object.assign(new Error('Invalid SDK configuration'), {
+    code: 'invalid_publishable_key'
+  });
+  registerLiveClerkBridge(
+    clerkBridge({
+      getToken: jest.fn(async () => {
+        throw failure;
+      })
+    })
+  );
+  await expect(getLiveClerkToken()).rejects.toBe(failure);
+});
+
+test('reads the startup profile with valid cached tokens instead of forcing network refreshes', async () => {
+  const bridge = clerkBridge();
+  registerLiveClerkBridge(bridge);
+  jest
+    .spyOn(httpClient, 'requestJson')
+    .mockResolvedValueOnce({
+      id: liveSession.userId,
+      displayName: 'Network name',
+      primaryEmailMasked: null,
+      phoneMasked: null,
+      locale: 'ar',
+      timezone: 'Asia/Riyadh',
+      status: 'active',
+      version: 1
+    })
+    .mockResolvedValueOnce({
+      defaultCurrency: 'SAR',
+      language: 'ar',
+      theme: 'system',
+      calendar: 'gregorian',
+      weekStart: 6,
+      privacySettings: {},
+      version: 1
+    });
+  const service = createLiveIdentityService({
+    getOwnerId: () => liveSession.userId
+  });
+  await expect(service.getProfile()).resolves.toMatchObject({
+    name: 'Network name',
+    currency: 'SAR'
+  });
+  expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  expect(bridge.getToken).not.toHaveBeenCalledWith({ skipCache: true });
+});
 
 describe('live Clerk authentication', () => {
   test('ships the Expo runtime packages required by Clerk Google SSO', () => {
@@ -311,7 +781,7 @@ describe('live owner identity mappings', () => {
       name: 'Authoritative name',
       phone: '+966***55',
       googleAccount: 'au***@example.test',
-      email: 'au***@example.test',
+      email: null,
       currency: 'SAR',
       timeZone: 'Asia/Riyadh',
       version: 7
@@ -419,35 +889,97 @@ describe('live owner identity mappings', () => {
       affectedScopes: ['settings.privacy-request.data_export']
     });
     await expect(
-      service.requestPrivacyAction('account_deletion', 'deletion-operation-123')
+      service.requestPrivacyAction('account_deletion', 'delete-op')
     ).resolves.toEqual({
       value: {
         id: 'deletion-123',
-        operationId: 'deletion-operation-123',
+        operationId: 'delete-op',
         kind: 'account_deletion',
         status: 'pending',
         requestedAt: Date.parse('2026-09-12T11:00:00.000Z'),
         updatedAt: Date.parse('2026-09-12T11:00:00.000Z'),
-        safeFailure: null
+        safeFailure: null,
+        serverStatus: 'processing',
+        coolingOffEndsAt: Date.parse('2026-09-13T11:00:00.000Z'),
+        completedAt: null,
+        retainedCategories: [],
+        version: 1
       },
       affectedScopes: ['settings.privacy-request.account_deletion']
     });
-    expect(request).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/me/privacy/exports',
+    expect(request).toHaveBeenNthCalledWith(1, '/api/v1/me/privacy/exports', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'export-operation-123' },
+      body: {}
+    });
+    expect(request).toHaveBeenNthCalledWith(2, '/api/v1/me/deletion-requests', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'delete-op' },
+      body: { confirmation: 'DELETE_MY_ACCOUNT' }
+    });
+  });
+
+  test.each([
+    ['verified', 'review', null],
+    ['completed', 'accepted', '2026-09-13T12:00:00.000Z']
+  ])(
+    'keeps deletion %s distinct from completion',
+    async (serverStatus, status, completedAt) => {
+      const service = createLiveIdentityService({
+        request: async () => ({
+          id: 'deletion-123',
+          status: serverStatus,
+          requestedAt: '2026-09-12T11:00:00.000Z',
+          coolingOffEndsAt: '2026-09-13T11:00:00.000Z',
+          completedAt,
+          retainedCategories: ['ledger'],
+          version: 2
+        })
+      });
+      await expect(
+        service.requestPrivacyAction('account_deletion', 'delete-op')
+      ).resolves.toMatchObject({
+        value: {
+          status,
+          serverStatus,
+          coolingOffEndsAt: Date.parse('2026-09-13T11:00:00.000Z'),
+          completedAt: completedAt ? Date.parse(completedAt) : null,
+          retainedCategories: ['ledger'],
+          version: 2
+        }
+      });
+    }
+  );
+
+  test('refreshes and cancels the owned deletion request through existing endpoints', async () => {
+    const request = jest
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'deletion-123',
+        status: 'verified',
+        requestedAt: '2026-09-12T11:00:00.000Z',
+        coolingOffEndsAt: '2026-09-13T11:00:00.000Z',
+        completedAt: null,
+        retainedCategories: [],
+        version: 2
+      })
+      .mockResolvedValueOnce(null);
+    const service = createLiveIdentityService({ request });
+    await expect(
+      service.getAccountDeletion('deletion-123')
+    ).resolves.toMatchObject({ serverStatus: 'verified', version: 2 });
+    await expect(
+      service.cancelAccountDeletion('deletion-123', 'cancel-op')
+    ).resolves.toEqual({
+      value: null,
+      affectedScopes: ['settings.privacy-request.account_deletion']
+    });
+    expect(request).toHaveBeenLastCalledWith(
+      '/api/v1/me/deletion-requests/deletion-123',
       {
-        method: 'POST',
-        headers: { 'Idempotency-Key': 'export-operation-123' },
-        body: {}
-      }
-    );
-    expect(request).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/me/deletion-requests',
-      {
-        method: 'POST',
-        headers: { 'Idempotency-Key': 'deletion-operation-123' },
-        body: { confirmation: 'DELETE_MY_ACCOUNT' }
+        method: 'DELETE',
+        headers: { 'Idempotency-Key': 'cancel-op' },
+        emptyValue: null
       }
     );
   });
@@ -477,7 +1009,7 @@ describe('live owner identity mappings', () => {
     ['data_export', 'expired', 'failed', 'expired'],
     ['data_export', 'failed', 'failed', 'representative_failure'],
     ['account_deletion', 'requested', 'review', null],
-    ['account_deletion', 'verified', 'accepted', null],
+    ['account_deletion', 'verified', 'review', null],
     ['account_deletion', 'processing', 'pending', null],
     ['account_deletion', 'completed', 'accepted', null],
     ['account_deletion', 'cancelled', 'cancelled', null],
@@ -522,7 +1054,16 @@ describe('live owner identity mappings', () => {
           status,
           requestedAt: Date.parse(requestedAt),
           updatedAt: Date.parse(requestedAt),
-          safeFailure
+          safeFailure,
+          ...(kind === 'account_deletion'
+            ? {
+                serverStatus,
+                coolingOffEndsAt: Date.parse('2026-09-13T12:00:00.000Z'),
+                completedAt: null,
+                retainedCategories: [],
+                version: 1
+              }
+            : {})
         },
         affectedScopes: [`settings.privacy-request.${kind}`]
       });
@@ -531,6 +1072,114 @@ describe('live owner identity mappings', () => {
 });
 
 describe('live profile setup', () => {
+  test.each(
+    (['getProfile', 'getProfileSetup', 'saveProfileSetup'] as const).flatMap(
+      (operation) =>
+        [null, 'contact@example.test'].map((email) => ({ operation, email }))
+    )
+  )(
+    '$operation persists masked Google identity while preserving contact email $email',
+    async ({ operation, email }) => {
+      const local = userProfileSchema.parse({
+        name: null,
+        avatar: 'default',
+        phone: null,
+        googleAccount: null,
+        email,
+        country: 'SA',
+        currency: 'SAR',
+        timeZone: 'Asia/Riyadh',
+        completion: [],
+        version: 1
+      });
+      const saveLocalProfile = jest.fn(async (value: UserProfile) => {
+        userProfileSchema.parse(value);
+      });
+      const service = createLiveIdentityService({
+        loadLocalProfile: async () => local,
+        saveLocalProfile,
+        request: async (path) =>
+          path === '/api/v1/me'
+            ? profile
+            : path.endsWith('/preferences')
+              ? {
+                  ...preferences,
+                  defaultCurrency: 'SAR',
+                  currencySelectionRequired: false
+                }
+              : onboarding
+      });
+      if (operation === 'saveProfileSetup') {
+        await service.saveProfileSetup(
+          { name: 'Owner', currency: 'SAR' },
+          { profile: local, preferences, onboarding, complete: false },
+          'masked-contact'
+        );
+      } else {
+        await service[operation]();
+      }
+      expect(saveLocalProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ googleAccount: 'a***@example.test', email }),
+        undefined
+      );
+    }
+  );
+
+  test('stops the remaining profile setup writes when the owner changes during the first request', async () => {
+    let owner = liveSession.userId;
+    let finish!: (value: unknown) => void;
+    const delayed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const writes: string[] = [];
+    const service = createLiveIdentityService({
+      getOwnerId: () => owner,
+      request: async (path, options) => {
+        if (options?.method) {
+          writes.push(path);
+          if (path === '/api/v1/me') return delayed;
+        }
+        return path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding;
+      }
+    });
+    const snapshot = await service.getProfileSetup();
+    const pending = service.saveProfileSetup(
+      { name: 'Old owner edit', currency: 'SAR' },
+      snapshot,
+      'owner-switch-test'
+    );
+    owner = 'user_live_replacement';
+    finish({ ...profile, displayName: 'Old owner edit' });
+    await expect(pending).rejects.toMatchObject({ code: 'session_expired' });
+    expect(writes).toEqual(['/api/v1/me']);
+  });
+  test('rejects a late profile response after an owner switch before writing local profile data', async () => {
+    let owner = liveSession.userId;
+    let finish!: (value: unknown) => void;
+    const delayed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const saveLocalProfile = jest.fn();
+    const service = createLiveIdentityService({
+      getOwnerId: () => owner,
+      saveLocalProfile,
+      request: async (path) =>
+        path === '/api/v1/me'
+          ? delayed
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding
+    });
+    const pending = service.getProfileSetup();
+    owner = 'user_live_replacement';
+    finish(profile);
+    await expect(pending).rejects.toMatchObject({ code: 'session_expired' });
+    expect(saveLocalProfile).not.toHaveBeenCalled();
+  });
   const profile = {
     id: liveSession.userId,
     displayName: null,
@@ -556,6 +1205,18 @@ describe('live profile setup', () => {
     completedAt: null,
     version: 4
   };
+  const storedProfile = userProfileSchema.parse({
+    name: 'Saved owner',
+    avatar: 'default',
+    phone: null,
+    googleAccount: 'a***@example.test',
+    email: null,
+    country: 'SA',
+    currency: 'SAR',
+    timeZone: 'Asia/Riyadh',
+    completion: [],
+    version: 2
+  });
 
   test('derives account completion from remote welcome and defaults unsupported currency to SAR', async () => {
     const request = jest.fn(async (path: string) => {
@@ -574,6 +1235,300 @@ describe('live profile setup', () => {
     });
   });
 
+  test('waits for new-owner provisioning before reading dependent setup records', async () => {
+    let provisioned = false;
+    const request = async (path: string) => {
+      if (path === '/api/v1/me') {
+        await Promise.resolve();
+        provisioned = true;
+        return profile;
+      }
+      if (!provisioned) throw new Error('PROFILE_INACTIVE');
+      if (path === '/api/v1/me/preferences') return preferences;
+      if (path === '/api/v1/me/onboarding') return onboarding;
+      throw new Error(`unexpected path ${path}`);
+    };
+    await expect(
+      createLiveIdentityService({
+        request,
+        getOwnerId: () => liveSession.userId,
+        loadLocalProfile: async () => null
+      }).getProfileSetup()
+    ).resolves.toMatchObject({
+      complete: false,
+      onboarding: { completedSteps: [] }
+    });
+  });
+
+  test('overlaps independent setup reads for an owner with a saved profile without publishing unverified data', async () => {
+    let finishProfile!: (value: typeof profile) => void;
+    const delayedProfile = new Promise<typeof profile>((resolve) => {
+      finishProfile = resolve;
+    });
+    const paths: string[] = [];
+    const saveLocalProfile = jest.fn();
+    const service = createLiveIdentityService({
+      getOwnerId: () => liveSession.userId,
+      loadLocalProfile: async () => storedProfile,
+      saveLocalProfile,
+      request: async (path) => {
+        paths.push(path);
+        return path === '/api/v1/me'
+          ? delayedProfile
+          : path.endsWith('/preferences')
+            ? preferences
+            : onboarding;
+      }
+    });
+    const pending = service.getProfileSetup();
+    try {
+      for (let index = 0; index < 20; index++) await Promise.resolve();
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          '/api/v1/me',
+          '/api/v1/me/preferences',
+          '/api/v1/me/onboarding'
+        ])
+      );
+      expect(saveLocalProfile).not.toHaveBeenCalled();
+    } finally {
+      finishProfile(profile);
+    }
+    await expect(pending).resolves.toMatchObject({
+      profile: { version: 2 },
+      complete: false
+    });
+  });
+
+  test.each(['forbidden', 'provider_unavailable'] as const)(
+    'does not publish a saved profile when concurrent server validation returns %s',
+    async (code) => {
+      const failure = new HttpError(code, code === 'forbidden' ? 403 : 503);
+      const saveLocalProfile = jest.fn();
+      const service = createLiveIdentityService({
+        getOwnerId: () => liveSession.userId,
+        loadLocalProfile: async () => storedProfile,
+        saveLocalProfile,
+        request: async (path) => {
+          if (path === '/api/v1/me') throw failure;
+          return path.endsWith('/preferences') ? preferences : onboarding;
+        }
+      });
+      await expect(service.getProfileSetup()).rejects.toBe(failure);
+      expect(saveLocalProfile).not.toHaveBeenCalled();
+    }
+  );
+
+  test('reopens legacy completed welcome when the server requires currency selection', async () => {
+    const service = createLiveIdentityService({
+      request: async (path) =>
+        path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? {
+                ...preferences,
+                defaultCurrency: 'SAR',
+                currencySelectionRequired: true
+              }
+            : {
+                ...onboarding,
+                step: 'tracking_intro',
+                completedSteps: ['welcome']
+              }
+    });
+    await expect(service.getProfileSetup()).resolves.toMatchObject({
+      complete: false,
+      preferences: { currencySelectionRequired: true }
+    });
+  });
+
+  test('keeps completed welcome incomplete when an old API omits currency provenance', async () => {
+    const service = createLiveIdentityService({
+      request: async (path) =>
+        path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? { ...preferences, defaultCurrency: 'SAR' }
+            : {
+                ...onboarding,
+                step: 'complete',
+                completedSteps: ['welcome', 'complete'],
+                completedAt: '2026-10-10T00:00:00.000Z'
+              }
+    });
+    await expect(service.getProfileSetup()).resolves.toMatchObject({
+      complete: false
+    });
+  });
+
+  test('preserves completed welcome when the negotiated server proves configured currency', async () => {
+    const service = createLiveIdentityService({
+      request: async (path) =>
+        path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? {
+                ...preferences,
+                defaultCurrency: 'SAR',
+                currencySelectionRequired: false
+              }
+            : {
+                ...onboarding,
+                step: 'tracking_intro',
+                completedSteps: ['welcome']
+              }
+    });
+    await expect(service.getProfileSetup()).resolves.toMatchObject({
+      complete: true
+    });
+  });
+
+  test('rejects missing server currency confirmation before completing welcome or saving local setup', async () => {
+    const writes: string[] = [];
+    const localSaves: UserProfile[] = [];
+    const service = createLiveIdentityService({
+      saveLocalProfile: async (value) => {
+        localSaves.push(value);
+      },
+      request: async (path, options) => {
+        if (options?.method) writes.push(path);
+        return path === '/api/v1/me'
+          ? { ...profile, displayName: 'New customer' }
+          : path.endsWith('/preferences')
+            ? { ...preferences, defaultCurrency: 'AED' }
+            : {
+                ...onboarding,
+                step: 'tracking_intro',
+                completedSteps: ['welcome']
+              };
+      }
+    });
+    const snapshot = await service.getProfileSetup();
+    localSaves.length = 0;
+    await expect(
+      service.saveProfileSetup(
+        { name: 'New customer', currency: 'AED' },
+        snapshot,
+        'legacy-no-proof'
+      )
+    ).rejects.toMatchObject({ code: 'contract_mismatch' });
+    expect(writes).toEqual(['/api/v1/me', '/api/v1/me/preferences']);
+    expect(localSaves).toEqual([]);
+  });
+
+  test('opts into currency onboarding status when the preference server preserves legacy clients', async () => {
+    const service = createLiveIdentityService({
+      request: async (path, options) => {
+        if (path === '/api/v1/me') return profile;
+        if (path.endsWith('/preferences')) {
+          const current =
+            (options?.headers as Record<string, string> | undefined)?.Accept ===
+            'application/json; currency-onboarding=1';
+          return {
+            ...preferences,
+            defaultCurrency: 'SAR',
+            ...(current ? { currencySelectionRequired: true } : {})
+          };
+        }
+        return {
+          ...onboarding,
+          step: 'tracking_intro',
+          completedSteps: ['welcome']
+        };
+      }
+    });
+    await expect(service.getProfileSetup()).resolves.toMatchObject({
+      complete: false,
+      preferences: { currencySelectionRequired: true }
+    });
+  });
+
+  test('keeps onboarding incomplete when a selected currency is unavailable on the server', async () => {
+    const service = createLiveIdentityService({
+      request: async (path, options) =>
+        path === '/api/v1/me'
+          ? profile
+          : path.endsWith('/preferences')
+            ? {
+                ...preferences,
+                defaultCurrency: options?.method ? 'AED' : 'SAR',
+                currencySelectionRequired: true
+              }
+            : onboarding
+    });
+    const snapshot = await service.getProfileSetup();
+    await expect(
+      service.saveProfileSetup(
+        { name: 'New customer', currency: 'AED' },
+        snapshot,
+        'disabled-currency'
+      )
+    ).rejects.toMatchObject({ code: 'validation_error' });
+  });
+
+  test('completes profile setup through the HTTP transport with currency negotiation', async () => {
+    const writes: string[] = [];
+    const saveLocalProfile = jest.fn();
+    const transport = jest.fn(
+      async (url: string | URL | Request, init?: RequestInit) => {
+        const path = new URL(String(url)).pathname;
+        const writing = init?.method === 'PUT' || init?.method === 'PATCH';
+        if (writing) writes.push(path);
+        let value: unknown;
+        if (path === '/api/v1/me') value = profile;
+        else if (path === '/api/v1/me/preferences') {
+          value = {
+            ...preferences,
+            ...(new Headers(init?.headers)
+              .get('accept')
+              ?.includes('currency-onboarding=1')
+              ? { currencySelectionRequired: !writing }
+              : {})
+          };
+        } else if (path === '/api/v1/me/onboarding') {
+          value = writing
+            ? {
+                ...onboarding,
+                step: 'tracking_intro',
+                completedSteps: ['welcome']
+              }
+            : onboarding;
+        } else throw new Error('unexpected fixture request');
+        return new Response(JSON.stringify(value), { status: 200 });
+      }
+    );
+    const service = createLiveIdentityService({
+      saveLocalProfile,
+      request: (path, options) =>
+        requestJson(path, z.unknown(), {
+          ...options,
+          baseUrl: 'https://inert.invalid',
+          token: 'fixture-token',
+          request: transport
+        })
+    });
+    const snapshot = await service.getProfileSetup();
+    saveLocalProfile.mockClear();
+    await expect(
+      service.saveProfileSetup(
+        { name: 'Fixture customer', currency: 'SAR' },
+        snapshot,
+        'profile-transport-test'
+      )
+    ).resolves.toMatchObject({
+      value: {
+        complete: true,
+        preferences: { currencySelectionRequired: false }
+      }
+    });
+    expect(writes).toEqual([
+      '/api/v1/me',
+      '/api/v1/me/preferences',
+      '/api/v1/me/onboarding'
+    ]);
+    expect(saveLocalProfile).toHaveBeenCalledTimes(1);
+  });
+
   test('saves name and currency before marking welcome complete', async () => {
     const calls: { path: string; options: Record<string, unknown> }[] = [];
     const request = jest.fn(
@@ -588,7 +1543,12 @@ describe('live profile setup', () => {
         if (path === '/api/v1/me')
           return { ...profile, displayName: 'Adel Mohamed', version: 3 };
         if (path === '/api/v1/me/preferences')
-          return { ...preferences, defaultCurrency: 'AED', version: 4 };
+          return {
+            ...preferences,
+            defaultCurrency: 'AED',
+            version: 4,
+            currencySelectionRequired: false
+          };
         if (path === '/api/v1/me/onboarding')
           return {
             step: 'tracking_intro',
@@ -635,6 +1595,7 @@ describe('live profile setup', () => {
       headers: { 'Idempotency-Key': 'profile-setup-123-preferences' },
       body: {
         defaultCurrency: 'AED',
+        currencySelectionConfirmed: true,
         language: 'ar',
         theme: 'system',
         calendar: 'gregorian',
@@ -656,21 +1617,23 @@ describe('live profile setup', () => {
   });
 
   test('preserves profile completion when later tracking onboarding is saved', async () => {
-    const request = jest.fn(async (_path: string, options?: { body?: unknown }) => {
-      if (!options)
+    const request = jest.fn(
+      async (_path: string, options?: { body?: unknown }) => {
+        if (!options)
+          return {
+            step: 'tracking_intro',
+            completedSteps: ['welcome'],
+            completedAt: null,
+            version: 8
+          };
         return {
-          step: 'tracking_intro',
-          completedSteps: ['welcome'],
+          step: 'permission_education',
+          completedSteps: ['welcome', 'tracking_intro'],
           completedAt: null,
-          version: 8
+          version: 9
         };
-      return {
-        step: 'permission_education',
-        completedSteps: ['welcome', 'tracking_intro'],
-        completedAt: null,
-        version: 9
-      };
-    });
+      }
+    );
     const service = createLiveIdentityService({ request });
     await service.loadProgress();
     await service.saveProgress({
@@ -694,4 +1657,400 @@ describe('live profile setup', () => {
       })
     );
   });
+});
+
+describe('assistant Clerk token capture', () => {
+  test('coalesces concurrent same-session token requests and uses the SDK valid-token cache', async () => {
+    let release!: (token: string) => void;
+    const pending = new Promise<string>((resolve) => {
+      release = resolve;
+    });
+    const bridge = clerkBridge({ getToken: jest.fn(() => pending) });
+    registerLiveClerkBridge(bridge);
+    const first = captureLiveAssistantClerkIdentity();
+    const second = captureLiveAssistantClerkIdentity();
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    release('assistant-token');
+    const identities = await Promise.all([first, second]);
+    expect(identities.map(({ userId, token }) => ({ userId, token }))).toEqual([
+      { userId: liveSession.userId, token: 'assistant-token' },
+      { userId: liveSession.userId, token: 'assistant-token' }
+    ]);
+    expect(bridge.getToken).toHaveBeenCalledTimes(1);
+    expect(bridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+    await captureLiveAssistantClerkIdentity();
+    expect(bridge.getToken).toHaveBeenCalledTimes(2);
+    await captureLiveClerkIdentity();
+    expect(bridge.getToken).toHaveBeenLastCalledWith({ skipCache: true });
+  });
+
+  test('rejects a token that resolves after an account switch and gives the new owner a separate flight', async () => {
+    let current = liveSession;
+    let release!: (token: string) => void;
+    const bridge = clerkBridge({
+      getSession: jest.fn(async () => current),
+      getToken: jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((resolve) => {
+              release = resolve;
+            })
+        )
+        .mockResolvedValue('owner-b-token')
+    });
+    registerLiveClerkBridge(bridge);
+    const first = captureLiveAssistantClerkIdentity().then(
+      () => 'unexpected-success',
+      (error: { code: string }) => error.code
+    );
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    current = { ...liveSession, id: 'session-b', userId: 'owner-b' };
+    await expect(captureLiveAssistantClerkIdentity()).resolves.toMatchObject({
+      userId: 'owner-b',
+      token: 'owner-b-token'
+    });
+    release('late-owner-a-token');
+    expect(await first).toBe('session_expired');
+  });
+
+  test('rejects a late token when the bridge is replaced even with identical session IDs', async () => {
+    let release!: (token: string) => void;
+    registerLiveClerkBridge(
+      clerkBridge({
+        getToken: jest.fn(
+          () =>
+            new Promise<string>((resolve) => {
+              release = resolve;
+            })
+        )
+      })
+    );
+    const first = captureLiveAssistantClerkIdentity().then(
+      () => 'unexpected-success',
+      (error: { code: string }) => error.code
+    );
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    registerLiveClerkBridge(clerkBridge());
+    release('late-token');
+    expect(await first).toBe('session_expired');
+  });
+
+  test('clears rejected flights so the same owner can recover', async () => {
+    const bridge = clerkBridge({
+      getToken: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue('recovered')
+    });
+    registerLiveClerkBridge(bridge);
+    await expect(captureLiveAssistantClerkIdentity()).rejects.toThrow(
+      'offline'
+    );
+    await expect(captureLiveAssistantClerkIdentity()).resolves.toMatchObject({
+      token: 'recovered'
+    });
+  });
+
+  test('rejects a captured identity after sign-out', async () => {
+    let signedIn = true;
+    registerLiveClerkBridge(
+      clerkBridge({
+        getSession: jest.fn(async () => (signedIn ? liveSession : null))
+      })
+    );
+    const captured = await captureLiveAssistantClerkIdentity();
+    signedIn = false;
+    await expect(captured.assertCurrent()).rejects.toMatchObject({
+      code: 'session_expired'
+    });
+    await expect(captureLiveAssistantClerkIdentity()).rejects.toMatchObject({
+      code: 'session_expired'
+    });
+  });
+});
+
+test('a stalled assistant token flight does not pin later recovery attempts', async () => {
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(1000);
+  let release!: (token: string) => void;
+  try {
+    const bridge = clerkBridge({
+      getToken: jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((resolve) => {
+              release = resolve;
+            })
+        )
+        .mockResolvedValue('recovered-token')
+    });
+    registerLiveClerkBridge(bridge);
+    const original = captureLiveAssistantClerkIdentity();
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    clock.mockReturnValue(16000);
+    const recovery = captureLiveAssistantClerkIdentity();
+    for (let step = 0; step < 10; step++) await Promise.resolve();
+    release('old-flight-token');
+    await original;
+    await expect(recovery).resolves.toMatchObject({ token: 'recovered-token' });
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test.each([false, true])(
+  'deletion never dispatches for an owner switched before or during token resolution (%s)',
+  async (duringToken) => {
+    const originalFetch = global.fetch;
+    const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+    process.env.EXPO_PUBLIC_API_URL = 'https://inert.invalid';
+    const request = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        id: 'deletion-fenced',
+        status: 'verified',
+        requestedAt: '2026-10-16T00:00:00.000Z',
+        coolingOffEndsAt: '2026-10-19T00:00:00.000Z',
+        completedAt: null,
+        retainedCategories: [],
+        version: 1
+      })
+    });
+    global.fetch = request;
+    let current = duringToken
+      ? liveSession
+      : { ...liveSession, userId: 'user_other_owner', id: 'sess_other' };
+    registerLiveClerkBridge(
+      clerkBridge({
+        getSession: async () => current,
+        getToken: async () => {
+          current = {
+            ...liveSession,
+            userId: 'user_other_owner',
+            id: 'sess_other'
+          };
+          return 'other-owner-token';
+        }
+      })
+    );
+    try {
+      const service = createLiveIdentityService({
+        getOwnerId: () => liveSession.userId
+      });
+      await expect(
+        service.requestPrivacyAction(
+          'account_deletion',
+          'owner-fenced-operation'
+        )
+      ).rejects.toMatchObject({ code: 'session_expired' });
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = originalFetch;
+      if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+      else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+    }
+  }
+);
+
+it('maps owner security events and pagination without carrying metadata into UI state', async () => {
+  const request = jest.fn(async (_path: string) => ({
+    items: [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        eventType: 'privacy.export_ready',
+        severity: 'info',
+        occurredAt: '2026-10-24T00:00:00.000Z',
+        safeMetadata: { token: 'never-render-this' }
+      }
+    ],
+    nextCursor: 'next-page'
+  }));
+  const service = createLiveIdentityService({ request });
+  const page = await service.listSecurityEvents('previous-page');
+  expect(request.mock.calls[0][0]).toContain('cursor=previous-page');
+  expect(page.nextCursor).toBe('next-page');
+  expect(page.items[0]).toMatchObject({ eventType: 'privacy.export_ready' });
+  expect(JSON.stringify(page)).not.toContain('never-render-this');
+});
+
+it('reads a ready export with a validated HTTPS signed download link', async () => {
+  const value = {
+    id: 'export-owner',
+    status: 'ready',
+    scope: ['identity@1'],
+    requestedAt: '2026-10-24T00:00:00.000Z',
+    expiresAt: '2026-10-25T00:00:00.000Z',
+    version: 2,
+    basename: 'masarifi-privacy-export.zip',
+    mediaType: 'application/zip',
+    downloadUrl: 'https://storage.example.test/signed',
+    downloadUrlExpiresAt: '2026-10-24T01:00:00.000Z'
+  };
+  const request = jest.fn(async () => value);
+  const service = createLiveIdentityService({ request });
+  await expect(service.getPrivacyExport(value.id)).resolves.toEqual(value);
+  request.mockResolvedValueOnce({
+    ...value,
+    downloadUrl: 'http://unsafe.example.test/signed'
+  });
+  await expect(service.getPrivacyExport(value.id)).rejects.toMatchObject({
+    code: 'contract_mismatch'
+  });
+});
+
+
+test.each([
+  ['read', captureLiveReadClerkIdentity],
+  ['assistant', captureLiveAssistantClerkIdentity]
+] as const)(
+  '%s cached-only reads stay offline while Clerk has not restored its session, without losing local authorization',
+  async (_kind, capture) => {
+    const previousSession = useAppShellStore.getState().session;
+    const previousLock = useAppShellStore.getState().privacyLock;
+    const bridge = clerkBridge({ getSession: jest.fn(async () => null) });
+    registerLiveClerkBridge(bridge);
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: liveSession.userId,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'local'
+      },
+      privacyLock: {
+        enabled: true,
+        autoLockDuration: 'immediate',
+        appLockStatus: 'unlocked'
+      }
+    });
+    try {
+      await expect(capture()).rejects.toMatchObject({
+        code: 'provider_unavailable',
+        status: 503
+      });
+      expect(bridge.getToken).not.toHaveBeenCalled();
+    } finally {
+      useAppShellStore.setState({
+        session: previousSession,
+        privacyLock: previousLock
+      });
+    }
+  }
+);
+
+test.each([
+  ['read', captureLiveReadClerkIdentity],
+  ['assistant', captureLiveAssistantClerkIdentity]
+] as const)(
+  '%s cached-only read fallback cannot pass a locked privacy gate',
+  async (_kind, capture) => {
+    const previousSession = useAppShellStore.getState().session;
+    const previousLock = useAppShellStore.getState().privacyLock;
+    registerLiveClerkBridge(
+      clerkBridge({ getSession: jest.fn(async () => null) })
+    );
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: liveSession.userId,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'local'
+      },
+      privacyLock: {
+        enabled: true,
+        autoLockDuration: 'immediate',
+        appLockStatus: 'locked'
+      }
+    });
+    try {
+      await expect(capture()).rejects.toMatchObject({
+        code: 'session_expired',
+        status: 401
+      });
+    } finally {
+      useAppShellStore.setState({
+        session: previousSession,
+        privacyLock: previousLock
+      });
+    }
+  }
+);
+
+test.each([
+  ['read', captureLiveReadClerkIdentity],
+  ['assistant', captureLiveAssistantClerkIdentity]
+] as const)(
+  '%s credentials cannot cross from a different Clerk owner into the displayed owner scope',
+  async (_kind, capture) => {
+    const previousSession = useAppShellStore.getState().session;
+    const bridge = clerkBridge({
+      getSession: jest.fn(async () => ({ ...liveSession, userId: 'owner-b' }))
+    });
+    registerLiveClerkBridge(bridge);
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: liveSession.userId,
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 9999999999999,
+        restoration: 'restored'
+      }
+    });
+    try {
+      await expect(capture()).rejects.toMatchObject({
+        code: 'session_expired',
+        status: 401
+      });
+      expect(bridge.getToken).not.toHaveBeenCalled();
+    } finally {
+      useAppShellStore.setState({ session: previousSession });
+    }
+  }
+);
+
+test('cached-only DEV access cannot provide a remote financial credential', async () => {
+  const previousSession = useAppShellStore.getState().session;
+  const previousLock = useAppShellStore.getState().privacyLock;
+  const bridge = clerkBridge();
+  registerLiveClerkBridge(bridge);
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: liveSession.userId,
+      method: 'google',
+      issuedAt: 1,
+      expiresAt: 9999999999999,
+      restoration: 'local'
+    },
+    privacyLock: {
+      enabled: true,
+      autoLockDuration: 'immediate',
+      appLockStatus: 'unlocked'
+    }
+  });
+  try {
+    await expect(captureLiveClerkOwner()).resolves.toMatchObject({
+      userId: liveSession.userId
+    });
+    await expect(getLiveClerkToken()).rejects.toMatchObject({
+      code: 'provider_unavailable',
+      status: 503
+    });
+    await expect(captureLiveClerkIdentity()).rejects.toMatchObject({
+      code: 'provider_unavailable',
+      status: 503
+    });
+    expect(bridge.getToken).not.toHaveBeenCalled();
+  } finally {
+    useAppShellStore.setState({
+      session: previousSession,
+      privacyLock: previousLock
+    });
+  }
 });

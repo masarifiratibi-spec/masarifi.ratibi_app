@@ -31,6 +31,7 @@ import { ClamAvAttachmentScanner, DeterministicAttachmentScanner } from './suppo
 import { SupportStorage } from './support.storage';
 
 export type EngagementJob =
+  | 'tracking.confirmation.prepare'
   | 'source.consume'
   | 'notification.dispatch'
   | 'notification.expire'
@@ -84,6 +85,7 @@ export class EngagementWorker implements OnModuleDestroy {
   }
 
   runJob(job: string): Promise<number> {
+    if (job === 'tracking.confirmation.prepare') return this.prepareTrackingConfirmations();
     if (job === 'notification.reminders.evaluate') return this.evaluateReminders();
     if (!(ENGAGEMENT_JOBS as readonly string[]).includes(job))
       return Promise.reject(new Error('ENGAGEMENT_JOB_UNKNOWN'));
@@ -93,6 +95,18 @@ export class EngagementWorker implements OnModuleDestroy {
     if (job === 'notification.campaign.expand') return this.expandCampaigns();
     if (job === 'support-attachment.scan') return this.scanAttachments();
     return this.cleanupAttachments();
+  }
+
+  async processVoiceConfirmations(epoch: string): Promise<void> {
+    // This is invoked by the dedicated operating Voice lifecycle, never its broad scheduler.
+    const sources = await this.repository.claimVoiceSourceEvents(epoch, 1);
+    for (const source of sources) await this.ingest(source);
+    const deliveries = await this.repository.claimVoiceNotificationDeliveries(
+      epoch,
+      this.workerId,
+      1,
+    );
+    for (const delivery of deliveries) await this.deliver(delivery);
   }
 
   private async evaluateReminders(): Promise<number> {
@@ -136,6 +150,14 @@ export class EngagementWorker implements OnModuleDestroy {
       performance.now() - startedAt,
     );
     this.observability?.backlog('source.consume', sources.length);
+    return sources.length;
+  }
+
+  private async prepareTrackingConfirmations(): Promise<number> {
+    const sources = await this.repository.claimTrackingSourceEvents(
+      this.config.getRequired('MASARIFI_NOTIFICATION_BATCH_SIZE'),
+    );
+    for (const source of sources) await this.ingest(source);
     return sources.length;
   }
 
@@ -433,6 +455,7 @@ export class EngagementWorker implements OnModuleDestroy {
       title: claim.title,
       body: claim.body_safe,
       route: typeof claim.data.route === 'string' ? claim.data.route : 'notification_detail',
+      automaticCapture: claim.data.automaticCapture === true,
     };
   }
 

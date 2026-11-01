@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-25T15:52:00.4335808Z",
+  "source": "Direct human approval in root chat, relayed by trusted parent task",
+  "humanResponse": "Approve local fixture only",
+  "scope": "Retry unchanged reviewed local startup, synthetic PostgreSQL17 tests and verified owned shutdown only",
+  "bundleSha256": "9227C7BF66C34112D8E63958450F8E206EBE39EC462CEE767F0C108B71D8D77D",
+  "closureSha256": "53BDFE9EB004DEF16A1D8CC079B9B84DA8A97080E0A59B7E95DA703D6CCE38F1",
+  "independentStaticReview": "APPROVE_STATIC in fixture-static-review-final.json",
+  "stagingApproval": false,
+  "hostedConnectionsApproved": false,
+  "policyBypassApproved": false,
+  "repeatAutomaticRejection": "Stop action, preserve rejection; no alternative route or escalation"
+}

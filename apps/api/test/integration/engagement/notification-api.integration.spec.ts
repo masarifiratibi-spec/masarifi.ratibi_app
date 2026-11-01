@@ -96,7 +96,7 @@ test('translates preference fields only at the legacy database function boundary
   let databaseBody: unknown;
   const client = {
     query: jest.fn((sql: string, values?: unknown[]) => {
-      if (sql.includes('claim_idempotency_key'))
+      if (sql.includes('claim_engagement_key'))
         return Promise.resolve({ rows: [{ outcome: 'new' }] });
       if (sql.includes('execute_engagement_command')) {
         databaseBody = JSON.parse(String(values?.[3]));
@@ -145,3 +145,45 @@ test('translates preference fields only at the legacy database function boundary
     expectedVersion: 1,
   });
 });
+
+test.each([
+  [30, 99_999],
+  [601, 0],
+  [30, undefined],
+])(
+  'governed engagement checks login age %s independently of second-factor age %s',
+  async (factorAgeSeconds, mfaAgeSeconds) => {
+    const query = jest.fn((sql: string, values?: unknown[]) => {
+      void values;
+      return Promise.resolve({
+        rows: sql.includes('claim_engagement_key')
+          ? [{ outcome: 'new' }]
+          : sql.includes('execute_engagement_command')
+            ? [{ value: { version: 2 } }]
+            : [],
+      });
+    });
+    const repository = new EngagementRepository(
+      {
+        withClient: (run: (client: { query: typeof query }) => Promise<unknown>) => run({ query }),
+      } as unknown as PoolService,
+      { getRequired: () => 10 } as unknown as PlatformConfigService,
+    );
+    await repository.execute(
+      { userId: 'fixture-admin', sessionId: 'fixture-session', factorAgeSeconds, mfaAgeSeconds },
+      {
+        operation: 'adminActOnContent',
+        params: { contentId: '10000000-0000-4000-8000-000000000001' },
+        body: { action: 'publish', expectedVersion: 1, reason: 'Reviewed fixture content' },
+        idempotencyKey: 'fixture-content-publish',
+        requestId: 'fixture-request',
+      },
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('execute_engagement_command'),
+      expect.arrayContaining([factorAgeSeconds]),
+    );
+    const values = query.mock.calls.find(([sql]) => sql.includes('execute_engagement_command'));
+    expect(values?.[1]?.[4]).toBe(factorAgeSeconds);
+  },
+);

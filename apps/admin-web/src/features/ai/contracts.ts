@@ -84,7 +84,7 @@ export const aiListQuerySchema = z
     providerId: safeAiIdSchema.optional(),
     modelId: safeAiIdSchema.optional(),
     plan: z.enum(["free", "basic", "premium"]).optional(),
-    status: z.string().max(40).optional(),
+    status: z.string().trim().max(40).optional(),
     severity: z.enum(["info", "low", "medium", "high", "critical"]).optional(),
     dateFrom: z
       .string()
@@ -123,7 +123,7 @@ export const aiOverviewQuerySchema = z
     providerId: safeAiIdSchema.optional(),
     modelId: safeAiIdSchema.optional(),
     plan: z.enum(["free", "basic", "premium"]).optional(),
-    status: z.string().max(40).optional(),
+    status: z.string().trim().max(40).optional(),
     scenario: safeScenarioSchema.optional(),
   })
   .strict();
@@ -247,8 +247,9 @@ export const aiOverviewSchema = z
     query: aiOverviewQuerySchema,
     metrics: z.array(aiMetricSchema).max(30),
     totalOriginalRequests: z.number().int().nonnegative(),
-    totalAttempts: z.number().int().nonnegative(),
-    fallbackAttempts: z.number().int().nonnegative(),
+    totalAttempts: z.number().int().nonnegative().nullable(),
+    fallbackAttempts: z.number().int().nonnegative().nullable(),
+    collectionStartedAt: z.iso.datetime({ offset: true }).optional(),
     costByCurrency: z.array(moneyEstimateSchema).max(10),
     featureDistribution: z.array(chartPointSchema).max(20),
     providerDistribution: z.array(chartPointSchema).max(20),
@@ -263,7 +264,10 @@ export const aiOverviewSchema = z
   })
   .strict()
   .superRefine((overview, context) => {
-    if (overview.totalAttempts < overview.totalOriginalRequests) {
+    if (
+      overview.totalAttempts !== null &&
+      overview.totalAttempts < overview.totalOriginalRequests
+    ) {
       context.addIssue({
         code: "custom",
         message: "attempts cannot be less than original requests",

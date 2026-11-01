@@ -7,6 +7,139 @@ const config = {
 };
 
 describe('private voice object boundary', () => {
+  it.each([
+    { code: 'NoSuchKey' },
+    { code: 'NoSuchKey', statusCode: '404', error: 'not_found', message: 'Object not found' },
+  ])(
+    'accepts precise NoSuchKey 400 when retrying an already deleted voice object',
+    async (body) => {
+      // Samsung Staging acceptance, 2026-10-04: real Storage missing-object response.
+      const storage = new AiStorage(
+        config as never,
+        jest.fn(() => Promise.resolve(Response.json(body, { status: 400 }))),
+      );
+      await expect(storage.delete(key)).resolves.toBeUndefined();
+    },
+  );
+
+  it.each(['not JSON', 'null', JSON.stringify({ code: 'NoSuchKey', padding: 'x'.repeat(4096) })])(
+    'rejects malformed or oversized missing-object evidence',
+    async (body) => {
+      const storage = new AiStorage(
+        config as never,
+        jest.fn(() => Promise.resolve(new Response(body, { status: 400 }))),
+      );
+      await expect(storage.delete(key)).rejects.toThrow('VOICE_STORAGE_UNAVAILABLE');
+    },
+  );
+
+  it('bounds stalled missing-object evidence and cancels its reader', async () => {
+    jest.useFakeTimers();
+    try {
+      const cancel = jest.fn();
+      const storage = new AiStorage(
+        config as never,
+        jest.fn(() =>
+          Promise.resolve(new Response(new ReadableStream({ cancel }), { status: 400 })),
+        ),
+      );
+      const result = expect(storage.delete(key)).rejects.toThrow('VOICE_STORAGE_UNAVAILABLE');
+      await jest.advanceTimersByTimeAsync(10_001);
+      await result;
+      expect(cancel).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it.each([
+    [400, { code: 'InvalidRequest' }],
+    [400, { code: 'NoSuchBucket', statusCode: '404' }],
+    [400, { code: 'NoSuchKey', statusCode: '403' }],
+    [401, { code: 'NoSuchKey' }],
+    [403, { code: 'NoSuchKey' }],
+    [500, { code: 'NoSuchKey' }],
+  ])(
+    'keeps Storage failure %i recoverable instead of acknowledging deletion',
+    async (status, body) => {
+      const storage = new AiStorage(
+        config as never,
+        jest.fn(() => Promise.resolve(Response.json(body, { status }))),
+      );
+      await expect(storage.delete(key)).rejects.toThrow('VOICE_STORAGE_UNAVAILABLE');
+    },
+  );
+
+  it('does not treat a missing download as successful media', async () => {
+    const storage = new AiStorage(
+      config as never,
+      jest.fn(() =>
+        Promise.resolve(Response.json({ code: 'NoSuchKey', statusCode: '404' }, { status: 400 })),
+      ),
+    );
+    await expect(storage.download(key, 44)).rejects.toThrow('VOICE_STORAGE_UNAVAILABLE');
+  });
+
+  it('bounds a stalled download body and cancels its reader', async () => {
+    jest.useFakeTimers();
+    const cancel = jest.fn();
+    const storage = new AiStorage(
+      config as never,
+      jest.fn(() =>
+        Promise.resolve(
+          new Response(new ReadableStream({ cancel }), { headers: { 'content-length': '44' } }),
+        ),
+      ),
+    );
+    const result = expect(storage.download(key, 44)).rejects.toThrow('VOICE_STORAGE_UNAVAILABLE');
+    await jest.advanceTimersByTimeAsync(10_001);
+    await result;
+    expect(cancel).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+  it.each([
+    ['expected_size', 0, new Response(Buffer.alloc(44))],
+    ['header_missing', 44, new Response(Buffer.alloc(44))],
+    [
+      'declared_length',
+      44,
+      new Response(Buffer.alloc(44), { headers: { 'content-length': '43' } }),
+    ],
+    ['response_body', 44, new Response(null, { headers: { 'content-length': '44' } })],
+    [
+      'stream_overflow',
+      44,
+      new Response(Buffer.alloc(45), { headers: { 'content-length': '44' } }),
+    ],
+    ['stream_length', 44, new Response(Buffer.alloc(43), { headers: { 'content-length': '44' } })],
+  ] as const)(
+    'identifies only the fixed %s rejection stage without changing its public failure',
+    async (stage, expectedBytes, response) => {
+      const storage = new AiStorage(
+        config as never,
+        jest.fn(() => Promise.resolve(response)),
+      );
+      await expect(storage.download(key, expectedBytes)).rejects.toMatchObject({
+        message: 'VOICE_MEDIA_INVALID',
+        cause: stage,
+      });
+    },
+  );
+
+  it('preserves the Storage API prefix for the relative signed upload URL returned by Supabase', async () => {
+    const token = 'signed-token-fixture';
+    const path = `/object/upload/sign/voice-temp/${key}?token=${token}`;
+    const storage = new AiStorage(
+      config as never,
+      jest.fn(() => Promise.resolve(new Response(JSON.stringify({ url: path, token })))),
+    );
+    await expect(storage.signedUpload(key, 300, 'audio/wav')).resolves.toMatchObject({
+      url: `https://storage.example.test/storage/v1${path}`,
+      token,
+      headers: { 'content-type': 'audio/wav' },
+    });
+  });
+
   it('signs, streams an exact-size object, and permits idempotent purge without exposing the credential', async () => {
     const audio = Buffer.alloc(44);
     audio.write('RIFF');

@@ -13,7 +13,7 @@ describe('Phase 09 Admin AI contract', () => {
   });
   afterAll(() => app.close());
 
-  it('registers governed routes with recent MFA on provider-changing operations', () => {
+  it('registers governed routes with recent Clerk login on provider-changing operations', () => {
     const runtime = generateOpenApi(app);
     expect(runtime.paths['/api/v1/admin/ai/routes/{routeId}']?.patch?.operationId).toBe(
       'updateAiRoute',
@@ -26,7 +26,7 @@ describe('Phase 09 Admin AI contract', () => {
       Reflect.getMetadata(key, target),
     );
     expect(metadata).toContainEqual(
-      expect.objectContaining({ permission: 'ai.routes.manage', recentMfa: true }),
+      expect.objectContaining({ permission: 'ai.routes.manage', recentAuth: true }),
     );
   });
 });

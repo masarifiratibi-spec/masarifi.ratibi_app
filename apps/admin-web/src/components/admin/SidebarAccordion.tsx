@@ -7,11 +7,17 @@ import {
   CircleDollarSign,
   Database,
   FileInput,
+  Globe,
   HeartPulse,
   LayoutDashboard,
   Settings,
   ShieldCheck,
   Users,
+  Headphones,
+  Ticket,
+  Tags,
+  MessageSquare,
+  BrainCircuit,
   type LucideIcon,
 } from "lucide-react";
 import { useId, useState } from "react";
@@ -30,11 +36,17 @@ const icons: Record<string, LucideIcon> = {
   database: Database,
   "shield-check": ShieldCheck,
   settings: Settings,
+  globe: Globe,
+  headphones: Headphones,
+  ticket: Ticket,
+  tags: Tags,
+  "message-square": MessageSquare,
+  "brain-circuit": BrainCircuit,
 };
 
 function SidebarIcon({ iconKey }: { iconKey: string }) {
   const Icon = icons[iconKey] ?? Activity;
-  return <Icon size={18} />;
+  return <Icon size={18} aria-hidden="true" focusable="false" />;
 }
 
 function SidebarLeaf({

@@ -56,12 +56,9 @@ const onboarding: OnboardingProgress = {
 };
 
 const lock: PrivacyLockPreference = {
-  pinConfigured: true,
-  biometricStatus: 'disabled',
-  autoLockDuration: 'immediate',
-  invalidAttempts: 0,
-  lockedUntil: null,
-  appLockStatus: 'locked'
+    enabled: true,
+    autoLockDuration: 'immediate',
+    appLockStatus: 'locked'
 };
 
 beforeEach(() => {
@@ -70,9 +67,8 @@ beforeEach(() => {
   useAppShellStore.getState().reset();
   usePreferenceStore.setState({ ...buildPreferences({}), hydrated: true });
   secureGet.mockImplementation(async (key) =>
-    key === 'masarifi.appShell.session'
-      ? JSON.stringify(session)
-      : JSON.stringify(lock)
+    key === 'masarifi.appShell.session' ? JSON.stringify(session)
+      : key === 'masarifi.appShell.privacyLock' || key === 'masarifi.appShell.nativePrivacyLock.v1' ? JSON.stringify(lock) : null
   );
   asyncGet.mockImplementation(async (key) => {
     if (key === 'masarifi.appShell.onboarding')
@@ -109,6 +105,23 @@ describe('useAppShellStore', () => {
       expect.stringContaining('completed')
     );
     expect(seedDemo).toHaveBeenCalledWith({ locale: 'ar', now: 100 });
+  });
+
+  it('restores the demo biometric lock as locked after a cold start', async () => {
+    process.env.EXPO_PUBLIC_DEMO_MODE = '1';
+    secureGet.mockImplementation(async (key) =>
+      key === 'masarifi.appShell.privacyLock'
+        ? JSON.stringify({ ...lock, appLockStatus: 'unlocked' })
+        : null
+    );
+    asyncGet.mockResolvedValue(null);
+
+    await useAppShellStore.getState().hydrate(100);
+
+    expect(useAppShellStore.getState().privacyLock).toMatchObject({
+    enabled: true,
+    appLockStatus: 'locked'
+});
   });
 
   it('hydrates a persisted English preference before demo startup', async () => {
@@ -158,6 +171,45 @@ describe('useAppShellStore', () => {
     });
   });
 
+  it('keeps a biometric-only lock usable without inventing a PIN', async () => {
+    await useAppShellStore.getState().hydrate(15);
+
+    expect(useAppShellStore.getState()).toMatchObject({
+      privacyLock: {
+    enabled: true,
+    appLockStatus: 'locked'
+}
+    });
+  });
+
+  it('locks an enabled biometric preference again after a cold start', async () => {
+    secureGet.mockImplementation(async (key) =>
+      key === 'masarifi.appShell.session'
+        ? JSON.stringify(session)
+        : JSON.stringify({
+    ...lock,
+    appLockStatus: 'unlocked',
+    enabled: true
+})
+    );
+
+    await useAppShellStore.getState().hydrate(15);
+
+    expect(useAppShellStore.getState().privacyLock?.appLockStatus).toBe(
+      'locked'
+    );
+  });
+
+  it('does not persist an already locked biometric preference again', async () => {
+    useAppShellStore.setState({ privacyLock: lock });
+    secureSet.mockClear();
+
+    await useAppShellStore.getState().lockNow();
+
+    expect(useAppShellStore.getState().privacyLock).toBe(lock);
+    expect(secureSet).not.toHaveBeenCalled();
+  });
+
   it('marks an expired persisted session before protected routes can render', async () => {
     await useAppShellStore.getState().hydrate(21);
 
@@ -188,11 +240,9 @@ describe('useAppShellStore', () => {
     });
     await useAppShellStore.getState().setPendingDestination('/(tabs)/home');
     await useAppShellStore.getState().setPrivacyLock(lock);
-    await useAppShellStore.getState().configurePrivacyLock('pin:123456', 30);
-    await useAppShellStore.getState().recordFailedUnlock(40);
     await useAppShellStore.getState().lockNow();
     await useAppShellStore.getState().unlock();
-    await useAppShellStore.getState().resetPrivacyLock();
+    await useAppShellStore.getState().setPrivacyLock({ ...lock, appLockStatus: 'unlocked', enabled: false });
     await useAppShellStore.getState().signOut();
 
     expect(secureSet).toHaveBeenCalledWith(
@@ -210,42 +260,13 @@ describe('useAppShellStore', () => {
       '/(tabs)/home'
     );
     expect(secureSet).toHaveBeenCalledWith(
-      'masarifi.appShell.privacyLock',
+      'masarifi.appShell.nativePrivacyLock.v1',
       JSON.stringify(lock)
     );
-    expect(secureSet).toHaveBeenCalledWith(
-      'masarifi.appShell.pinCredential',
-      JSON.stringify('pin:123456')
-    );
-    expect(secureDelete).toHaveBeenCalledWith(
+    expect(secureDelete).not.toHaveBeenCalledWith(
       'masarifi.appShell.pinCredential'
     );
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
-  });
-
-  it('preserves lock preferences when replacing a legacy pin credential', async () => {
-    const preferredLock: PrivacyLockPreference = {
-      ...lock,
-      biometricStatus: 'enabled',
-      autoLockDuration: 'fifteen_minutes'
-    };
-    useAppShellStore.setState({
-      privacyLock: preferredLock,
-      pinCredential: 'pin:123456'
-    });
-
-    await useAppShellStore
-      .getState()
-      .configurePrivacyLock('pbkdf2-sha256:upgraded', 30);
-
-    expect(useAppShellStore.getState()).toMatchObject({
-      privacyLock: preferredLock,
-      pinCredential: 'pbkdf2-sha256:upgraded'
-    });
-    expect(secureSet).toHaveBeenCalledWith(
-      'masarifi.appShell.privacyLock',
-      JSON.stringify(preferredLock)
-    );
   });
 
   it('does not duplicate locale or theme preference state', () => {
@@ -258,8 +279,7 @@ describe('useAppShellStore', () => {
   it('clears authentication without invoking the destructive data-reset seam', async () => {
     useAppShellStore.setState({
       session,
-      privacyLock: lock,
-      pinCredential: 'pin:123456'
+      privacyLock: lock
     });
     resetUserData.mockRejectedValueOnce(new Error('database unavailable'));
 
@@ -270,13 +290,14 @@ describe('useAppShellStore', () => {
     expect(useAppShellStore.getState()).toMatchObject({
       session: { status: 'signed_out' },
       privacyLock: null,
-      pinCredential: null
     });
     expect(secureDelete).toHaveBeenCalledWith('masarifi.appShell.session');
     expect(secureDelete).not.toHaveBeenCalledWith(
       'masarifi.appShell.privacyLock'
     );
-    expect(secureDelete).not.toHaveBeenCalledWith('masarifi.appShell.pinCredential');
+    expect(secureDelete).not.toHaveBeenCalledWith(
+      'masarifi.appShell.pinCredential'
+    );
     expect(resetUserData).not.toHaveBeenCalled();
   });
 
@@ -287,7 +308,6 @@ describe('useAppShellStore', () => {
       pendingDestination: '/reports',
       privacyLock: lock,
       profilePromptDismissed: true,
-      pinCredential: 'pin:123456'
     });
 
     resetRuntimeUserData();
@@ -298,7 +318,20 @@ describe('useAppShellStore', () => {
       pendingDestination: null,
       privacyLock: null,
       profilePromptDismissed: false,
-      pinCredential: null
     });
   });
+});
+
+
+test('a delayed native background lock does not overwrite the next owner preference', async () => {
+  const nextSession = { ...session, userId: 'owner-b' };
+  const nextLock = { enabled: false, autoLockDuration: 'five_minutes', appLockStatus: 'unlocked' } as const;
+  let finish!: () => void;
+  secureSet.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+  useAppShellStore.setState({ session, privacyLock: { ...lock, appLockStatus: 'unlocked' } });
+  const locking = useAppShellStore.getState().lockNow();
+  useAppShellStore.setState({ session: nextSession, privacyLock: nextLock });
+  finish();
+  await locking;
+  expect(useAppShellStore.getState().privacyLock).toEqual(nextLock);
 });

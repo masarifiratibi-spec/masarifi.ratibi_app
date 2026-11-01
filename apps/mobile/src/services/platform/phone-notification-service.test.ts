@@ -1,6 +1,7 @@
 import {
   createPhoneNotificationService,
   getPushDeviceRegistration,
+  getDeviceRegistration
 } from './phone-notification-service';
 import { changeLocale } from '@/localization/i18n';
 import { Platform } from 'react-native';
@@ -8,15 +9,17 @@ import { Platform } from 'react-native';
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
-    expoConfig: { version: '0.0.1', extra: { eas: { projectId: 'project-1' } } },
-  },
+    expoConfig: { version: '0.0.1', extra: { eas: { projectId: 'project-1' } } }
+  }
 }));
 
-jest.mock('expo-crypto', () => ({ randomUUID: () => 'device-fingerprint-000000000001' }));
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => 'device-fingerprint-000000000001'
+}));
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
-  setItemAsync: jest.fn(),
+  setItemAsync: jest.fn()
 }));
 
 jest.mock('expo-notifications', () => ({
@@ -142,6 +145,7 @@ describe('phone notification platform service', () => {
       expect.any(Object)
     );
     expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith({
+      identifier: 'notification-1',
       content: {
         title: 'Safe title',
         body: 'Safe body',
@@ -199,7 +203,7 @@ describe('phone notification platform service', () => {
   it('returns a persistent installation fingerprint with the Expo push token', async () => {
     mockSecureStore.getItemAsync.mockResolvedValueOnce(null);
     mockNotifications.getExpoPushTokenAsync.mockResolvedValueOnce({
-      data: 'ExponentPushToken[device-registration]',
+      data: 'ExponentPushToken[device-registration]'
     });
 
     await expect(getPushDeviceRegistration()).resolves.toEqual({
@@ -207,15 +211,47 @@ describe('phone notification platform service', () => {
       platform: Platform.OS,
       appVersion: '0.0.1',
       pushToken: 'ExponentPushToken[device-registration]',
-      pushProvider: 'expo',
+      pushProvider: 'expo'
     });
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       'masarifi.notification-device-fingerprint.v1',
-      'device-fingerprint-000000000001',
+      'device-fingerprint-000000000001'
     );
     expect(mockNotifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
-      projectId: 'project-1',
+      projectId: 'project-1'
     });
+  });
+  it('provides the same installation identity for sync without push or permission APIs', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValueOnce(
+      'existing-installation-fingerprint'
+    );
+    await expect(getDeviceRegistration()).resolves.toEqual({
+      deviceFingerprint: 'existing-installation-fingerprint',
+      platform: Platform.OS,
+      appVersion: '0.0.1'
+    });
+    expect(mockSecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(mockNotifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(mockNotifications.getPermissionsAsync).not.toHaveBeenCalled();
+    expect(mockNotifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('maps validated guest resume taps without a server notification id', async () => {
+    mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({
+      actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER,
+      notification: { request: { content: { data: { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73' } } } }
+    });
+    await expect(createPhoneNotificationService().getLastResponse()).resolves.toEqual({ kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', action: 'view' });
+  });
+
+  it.each([
+    { kind: 'onboarding_resume', cycleId: '../accounts/previous-owner' },
+    { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', notificationId: 'previous-owner' },
+    { kind: 'unknown', notificationId: 'previous-owner' },
+    { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', route: '/accounts/previous-owner' }
+  ])('rejects untrusted mixed or arbitrary resume payload %j', async (data) => {
+    mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({ actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER, notification: { request: { content: { data } } } });
+    await expect(createPhoneNotificationService().getLastResponse()).resolves.toBeNull();
   });
 });
 

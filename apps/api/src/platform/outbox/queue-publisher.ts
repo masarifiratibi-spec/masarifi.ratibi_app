@@ -10,7 +10,7 @@ export class QueuePublisher {
   async publish(envelope: EventEnvelope, timeoutMs = 1_000): Promise<void> {
     try {
       await this.database.query(
-        'select pgmq.send($1, $2::jsonb, $3)',
+        'select pgmq.send($1::text, $2::jsonb, $3::integer)',
         ['platform-events', JSON.stringify(envelope), 0],
         timeoutMs,
       );

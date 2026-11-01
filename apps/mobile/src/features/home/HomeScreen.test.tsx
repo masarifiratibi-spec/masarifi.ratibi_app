@@ -1,11 +1,22 @@
 import React from 'react';
-import { AppState, PixelRatio, type AppStateStatus } from 'react-native';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import {
+  AppState,
+  PixelRatio,
+  StyleSheet,
+  type AppStateStatus
+} from 'react-native';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
 import { lightThemeColors, radius } from '@/design-system/tokens';
-import type { HomeSummary } from '@/domain/core-finance';
+import type { Category, HomeSummary } from '@/domain/core-finance';
 import { changeLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { voiceAnalyzerService } from '@/services/mocks/voice-analyzer-service';
@@ -16,10 +27,60 @@ import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useVoiceCaptureStore } from '@/state/voice-capture';
 import {
   fixtureAccounts,
+  fixtureCategories,
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
-import { HomeScreen } from './HomeScreen';
+import { HomeScreen as ActualHomeScreen } from './HomeScreen';
+import * as financialFormatting from '@/utils/format-financial-value';
+
+function HomeScreen(props: React.ComponentProps<typeof ActualHomeScreen>) {
+  const todayActivity =
+    props.todayActivity ??
+    (props.summary?.recentTransactions ?? [])
+      .filter(({ type }) => type === 'expense' || type === 'income')
+      .map((transaction) => ({
+        transaction,
+        group: transaction.type as 'expense' | 'income',
+        sign:
+          transaction.type === 'income'
+            ? ('positive' as const)
+            : ('negative' as const)
+      }));
+  return <ActualHomeScreen {...props} todayActivity={todayActivity} />;
+}
+
+it.each(['ar', 'en'] as const)(
+  'shows every supplied committed daily row in %s instead of using the truncated monthly summary',
+  (locale) => {
+    changeLocale(locale);
+    const todayActivity = [
+      'manual',
+      'voice',
+      'automatic',
+      'platform_assisted'
+    ].flatMap((source, index) =>
+      (['expense', 'income'] as const).map((group, kind) => ({
+        transaction: makeTransaction(100 + index * 2 + kind, {
+          title: `Today ${index} ${group}`,
+          source: source as
+            'manual' | 'voice' | 'automatic' | 'platform_assisted',
+          type: group
+        }),
+        group,
+        sign: group === 'income' ? ('positive' as const) : ('negative' as const)
+      }))
+    );
+    renderWithProviders(
+      <HomeScreen summary={summary} todayActivity={todayActivity} />
+    );
+    for (const { transaction } of todayActivity)
+      expect(
+        screen.getByTestId(`home-transaction-row-${transaction.id}`)
+      ).toBeTruthy();
+    expect(screen.queryByText('Al Nakheel Restaurant')).toBeNull();
+  }
+);
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/features/transactions/AccountPicker', () => ({
@@ -32,8 +93,8 @@ jest.mock('@/services/platform/voice-recorder-service', () => ({
     openSettings: jest.fn(),
     start: jest.fn(),
     stop: jest.fn(),
-    cancel: jest.fn(),
-    remove: jest.fn()
+    cancel: jest.fn(async () => undefined),
+    remove: jest.fn(async () => undefined)
   }
 }));
 jest.mock('@/features/settings/settings-queries', () => ({
@@ -65,13 +126,145 @@ const summary: HomeSummary = {
   dataState: 'ready'
 };
 
+it('reuses unchanged screen inputs while updating a new summary and privacy state', () => {
+  changeLocale('en');
+  const format = jest.spyOn(financialFormatting, 'formatFinancialDisplayValue');
+  function Parent() {
+    const [count, setCount] = React.useState(0);
+    const [snapshot, setSnapshot] = React.useState(summary);
+    return (
+      <>
+        <StyledText onPress={() => setCount(count + 1)}>
+          Parent {count}
+        </StyledText>
+        <StyledText
+          onPress={() => setSnapshot({ ...summary, totalBalanceMinor: 9900 })}
+        >
+          New snapshot
+        </StyledText>
+        <ActualHomeScreen summary={snapshot} />
+      </>
+    );
+  }
+  renderWithProviders(<Parent />);
+  format.mockClear();
+  fireEvent.press(screen.getByText('Parent 0'));
+  expect(format).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByText('New snapshot'));
+  expect(screen.getAllByText('99.00 SAR').length).toBeGreaterThan(0);
+  act(() => usePreferenceStore.setState({ hideBalances: true }));
+  expect(screen.queryByText('99.00 SAR')).toBeNull();
+  expect(screen.getAllByText('•••• SAR').length).toBeGreaterThan(0);
+});
+
+it.each([
+  ['ar', 'سجّل أول معاملة بصوتك.'],
+  ['en', 'Record your first transaction by voice.']
+] as const)(
+  'keeps the approved first-use Home free of the voice invitation and its extra history read in %s',
+  async (locale, invitation) => {
+    changeLocale(locale);
+    const history = jest
+      .spyOn(coreFinanceService, 'listTransactions')
+      .mockResolvedValue({ items: [], nextCursor: null });
+    const emptySummary = {
+      ...summary,
+      recentTransactions: [],
+      dataState: 'empty' as const
+    };
+    const view = renderWithProviders(<HomeScreen summary={emptySummary} />);
+    try {
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.queryByText(invitation)).toBeNull();
+      expect(screen.getByText(translate('coreFinance.home.todayEmpty'))).toBeTruthy();
+      expect(history).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      history.mockRestore();
+    }
+  }
+);
+
+it('does not show the first-transaction invitation for an empty period when older history exists', async () => {
+  changeLocale('en');
+  const history = jest
+    .spyOn(coreFinanceService, 'listTransactions')
+    .mockResolvedValue({
+      items: [
+        makeTransaction(72, {
+          occurredAt: Date.UTC(2025, 0, 1),
+          source: 'automatic'
+        })
+      ],
+      nextCursor: null
+    });
+  const view = renderWithProviders(
+    <HomeScreen summary={{ ...summary, recentTransactions: [] }} />
+  );
+  try {
+    await act(async () => { await Promise.resolve(); });
+    expect(history).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText('Record your first transaction by voice.')
+    ).toBeNull();
+  } finally {
+    view.unmount();
+    history.mockRestore();
+  }
+});
+
+it.each([
+  ['ar', 'expense', 'العناية بالحيوانات'],
+  ['en', 'expense', 'Pet care'],
+  ['ar', 'income', 'عمل مستقل'],
+  ['en', 'income', 'Freelance work']
+] as const)(
+  'shows the actual custom %s %s category on Home',
+  (locale, type, expectedLabel) => {
+    changeLocale(locale);
+    const category: Category = {
+      ...fixtureCategories[0],
+      id: '91000000-0000-4000-8000-000000000001',
+      kind: 'custom',
+      financialType: type,
+      labelAr: type === 'expense' ? 'العناية بالحيوانات' : 'عمل مستقل',
+      labelEn: type === 'expense' ? 'Pet care' : 'Freelance work'
+    };
+    const transaction = makeTransaction(100, {
+      categoryId: category.id,
+      title: 'Custom category transaction',
+      type
+    });
+    renderWithProviders(
+      <HomeScreen
+        categories={[fixtureCategories[0], category]}
+        summary={summary}
+        todayActivity={[
+          {
+            transaction,
+            group: type,
+            sign: type === 'income' ? 'positive' : 'negative'
+          }
+        ]}
+      />
+    );
+
+    expect(screen.getByText(expectedLabel)).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(`Custom category transaction, ${expectedLabel},`)
+      })
+    ).toBeTruthy();
+  }
+);
+
 beforeEach(() => {
   jest.clearAllMocks();
   usePreferenceStore.setState({ hideBalances: false, reducedMotion: false });
   useVoiceCaptureStore.getState().reset();
   jest
     .mocked(voiceRecorderService.getPermission)
-    .mockImplementation(() => new Promise(() => undefined));
+    .mockResolvedValue('not_requested');
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -107,15 +300,17 @@ it('opens Reports and More from fixed physical shell actions', () => {
   });
 });
 
-it('opens the Home period flow and updates the filled month pill', () => {
+it('opens the Home period flow at a UTC/Riyadh month rollover', () => {
   changeLocale('en');
+  usePreferenceStore.setState({ timeZone: 'Asia/Riyadh', monthStartDay: 1 });
+  jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-30T21:04:00Z'));
   renderWithProviders(<HomeScreen summary={summary} />);
 
-  const current = new Date();
+  const current = new Date(Date.now());
   const currentLabel = new Intl.DateTimeFormat('en', {
     month: 'long',
     year: 'numeric',
-    timeZone: 'UTC'
+    timeZone: usePreferenceStore.getState().timeZone
   }).format(current);
   fireEvent.press(screen.getByLabelText(currentLabel));
   expect(screen.getByText('Choose Date Range')).toBeTruthy();
@@ -174,7 +369,9 @@ it('keeps the financial hierarchy visible when there are no accounts', () => {
   expect(screen.getByTestId('home-horizon')).toBeTruthy();
   expect(screen.getByTestId('home-account-card')).toBeTruthy();
   expect(screen.getByTestId('home-action-tray')).toBeTruthy();
-  expect(screen.getByText(translate('coreFinance.ledger.empty'))).toBeTruthy();
+  expect(
+    screen.getByText(translate('coreFinance.home.todayEmpty'))
+  ).toBeTruthy();
 });
 
 it('masks all Home amounts when Hide Balances is enabled', () => {
@@ -193,7 +390,7 @@ it('opens a recent transaction directly in edit mode', () => {
   expect(screen.getByText('Al Nakheel Restaurant')).toBeTruthy();
 
   fireEvent.press(screen.getByText('Al Nakheel Restaurant'));
-  expect(router.push).toHaveBeenCalledWith('/transactions/transaction-2/edit');
+  expect(router.push).toHaveBeenCalledWith('/transactions/transaction-2');
 });
 
 it('shows recent expenses before income and excludes transfers from both sections', () => {
@@ -215,10 +412,10 @@ it('shows recent expenses before income and excludes transfers from both section
     />
   );
 
-  const headings = screen.getAllByText(/Recent expenses|Recent income/);
+  const headings = screen.getAllByText(/Today's expenses|Today's income/);
   expect(headings.map((heading) => heading.props.children)).toEqual([
-    'Recent expenses',
-    'Recent income'
+    "Today's expenses",
+    "Today's income"
   ]);
   expect(screen.getByText('Coffee shop')).toBeTruthy();
   expect(screen.getByText('August salary')).toBeTruthy();
@@ -237,7 +434,7 @@ it('shows recent expenses before income and excludes transfers from both section
   ).toBeTruthy();
 });
 
-it('renders every recent transaction as an independent card without dividers', () => {
+it('shares one surface between recent rows without removing their individual actions', () => {
   jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);
   changeLocale('en');
   renderWithProviders(
@@ -253,17 +450,90 @@ it('renders every recent transaction as an independent card without dividers', (
   );
 
   expect(screen.getByTestId('home-transaction-list-expense')).toHaveStyle({
-    gap: 8
+    borderRadius: radius.group,
+    borderWidth: 1,
+    overflow: 'hidden'
   });
   for (const id of ['transaction-2', 'transaction-3']) {
     expect(screen.getByTestId(`home-transaction-row-${id}`)).toHaveStyle({
-      borderRadius: radius.card,
-      borderWidth: 1,
+      borderRadius: 0,
+      borderWidth: 0,
       height: 84,
       minHeight: 84
     });
+    fireEvent.press(screen.getByTestId(`home-transaction-row-${id}`));
+    expect(router.push).toHaveBeenLastCalledWith(`/transactions/${id}`);
   }
 });
+
+it.each([
+  ['en', 1],
+  ['en', 2],
+  ['ar', 1],
+  ['ar', 2]
+] as const)(
+  'keeps large Today groups reachable in %s without mounting every row at %s font scale',
+  (locale, fontScale) => {
+    jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(fontScale);
+    changeLocale(locale);
+    const todayActivity = Array.from({ length: 120 }, (_, index) => ({
+      transaction: makeTransaction(index + 1000, {
+        title: `Daily expense ${index + 1}`,
+        type: 'expense'
+      }),
+      group: 'expense' as const,
+      sign: 'negative' as const
+    }));
+    renderWithProviders(
+      <HomeScreen summary={summary} todayActivity={todayActivity} />
+    );
+
+    expect(screen.getAllByTestId(/^home-transaction-row-/).length).toBeLessThan(
+      40
+    );
+    expect(screen.getByText('Daily expense 1')).toBeTruthy();
+    expect(screen.queryByText('Daily expense 120')).toBeNull();
+    const scroll = screen.getByTestId('home-scroll');
+    fireEvent(scroll, 'layout', { nativeEvent: { layout: { height: 600 } } });
+    // Notices and the hero can move the activity group far down the Home content.
+    for (const [testID, y] of [
+      ['home-horizon', 100],
+      ['home-activity-sheet', 2000],
+      ['home-expense-section', 1500],
+      ['home-transaction-list-expense', 400]
+    ] as const)
+      fireEvent(screen.getByTestId(testID), 'layout', {
+        nativeEvent: { layout: { y } }
+      });
+    fireEvent.scroll(scroll, {
+      nativeEvent: {
+        contentOffset: { y: 4000 + (fontScale === 1 ? 5000 : 10000) }
+      }
+    });
+    expect(screen.getByText('Daily expense 60')).toBeTruthy();
+    // A long group retains its natural height; scrolling its parent reaches the tail.
+    fireEvent.scroll(scroll, {
+      nativeEvent: {
+        contentOffset: { y: 4000 + (fontScale === 1 ? 10000 : 20000) }
+      }
+    });
+    expect(screen.getByText('Daily expense 120')).toBeTruthy();
+    expect(screen.getAllByTestId(/^home-transaction-row-/).length).toBeLessThan(
+      40
+    );
+    fireEvent.press(screen.getByText('Daily expense 120'));
+    expect(router.push).toHaveBeenLastCalledWith(
+      '/transactions/transaction-1119'
+    );
+    expect(screen.getByTestId('home-transaction-list-expense')).toHaveStyle({
+      borderRadius: radius.group,
+      borderWidth: 1,
+      overflow: 'hidden'
+    });
+    fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { y: 4000 } } });
+    expect(screen.getByText('Daily expense 1')).toBeTruthy();
+  }
+);
 
 it.each([
   ['ar', 'rtl', 'الخدمات'],
@@ -315,8 +585,8 @@ it('omits an activity section when it has no matching transactions', () => {
     />
   );
 
-  expect(screen.getByText('Recent expenses')).toBeTruthy();
-  expect(screen.queryByText('Recent income')).toBeNull();
+  expect(screen.getByText("Today's expenses")).toBeTruthy();
+  expect(screen.queryByText("Today's income")).toBeNull();
 });
 
 it('uses existing quick-action routes and opens Accounts as a modal', () => {
@@ -355,9 +625,6 @@ it('starts voice recording inline without navigating away from Home', async () =
     await waitFor(() =>
       expect(voiceRecorderService.requestPermission).toHaveBeenCalledTimes(1)
     );
-    expect(voiceRecorderService.start).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId('home-quick-action-voice'));
-
     expect(
       await screen.findByTestId('home-inline-voice-recording')
     ).toBeTruthy();
@@ -377,12 +644,17 @@ it('starts voice recording inline without navigating away from Home', async () =
 it('starts recording on the first tap after a granted-permission foreground resume', async () => {
   const appStateListeners = new Set<(state: AppStateStatus) => void>();
   let resolvePermission!: (permission: 'granted') => void;
-  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
-    appStateListeners.add(listener);
-    return { remove: () => appStateListeners.delete(listener) } as never;
-  });
+  jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation((_type, listener) => {
+      appStateListeners.add(listener);
+      return { remove: () => appStateListeners.delete(listener) } as never;
+    });
   jest.mocked(voiceRecorderService.getPermission).mockImplementation(
-    () => new Promise((resolve) => { resolvePermission = resolve; })
+    () =>
+      new Promise((resolve) => {
+        resolvePermission = resolve;
+      })
   );
   jest.mocked(voiceRecorderService.start).mockResolvedValue({
     id: 'recording-after-resume',
@@ -493,9 +765,12 @@ it('shows unclear audio after the empty default result without creating a transa
   jest.useFakeTimers();
   try {
     changeLocale('en');
-    jest
-      .mocked(voiceRecorderService.stop)
-      .mockResolvedValue('private://voice-audio');
+    jest.mocked(voiceRecorderService.stop).mockResolvedValue({
+      uri: 'private://voice-audio',
+      durationMs: 3000,
+      contentType: 'audio/m4a',
+      recordedAt: Date.now()
+    });
     jest.mocked(voiceRecorderService.remove).mockResolvedValue();
     const createTransactions = jest.spyOn(
       coreFinanceService,
@@ -540,71 +815,82 @@ it('shows unclear audio after the empty default result without creating a transa
 it.each([
   ['en', 'Record Again'],
   ['ar', 'إعادة التسجيل']
-] as const)('clears unclear audio and starts recording from the %s action', async (locale, label) => {
-  changeLocale(locale);
-  jest.mocked(voiceRecorderService.getPermission).mockResolvedValue('granted');
-  jest.mocked(voiceRecorderService.start).mockResolvedValue({
-    id: 'recording-after-unclear-audio',
-    startedAt: Date.now()
-  });
-  useVoiceCaptureStore.getState().patch({
-    permission: 'granted',
-    state: 'failed',
-    errorCode: 'no_speech',
-    durationMs: 3_000,
-    transcript: fixtureTranscript('no_speech')
-  });
-  renderWithProviders(<HomeScreen summary={summary} />);
+] as const)(
+  'clears unclear audio and starts recording from the %s action',
+  async (locale, label) => {
+    changeLocale(locale);
+    jest
+      .mocked(voiceRecorderService.getPermission)
+      .mockResolvedValue('granted');
+    jest.mocked(voiceRecorderService.start).mockResolvedValue({
+      id: 'recording-after-unclear-audio',
+      startedAt: Date.now()
+    });
+    useVoiceCaptureStore.getState().patch({
+      permission: 'granted',
+      state: 'failed',
+      errorCode: 'no_speech',
+      durationMs: 3_000,
+      transcript: fixtureTranscript('no_speech')
+    });
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  fireEvent.press(screen.getByLabelText(label));
+    fireEvent.press(screen.getByLabelText(label));
 
-  await waitFor(() =>
-    expect(useVoiceCaptureStore.getState()).toMatchObject({
-      state: 'recording',
-      recordingId: 'recording-after-unclear-audio',
-      audioReference: null,
-      durationMs: 0,
-      transcript: null,
-      group: null,
-      errorCode: null
-    })
-  );
-  expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
-  expect(screen.getByTestId('home-inline-voice-recording')).toBeTruthy();
-  expect(voiceRecorderService.start).toHaveBeenCalledTimes(1);
-  expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
-});
+    await waitFor(() =>
+      expect(useVoiceCaptureStore.getState()).toMatchObject({
+        state: 'recording',
+        recordingId: 'recording-after-unclear-audio',
+        audioReference: null,
+        durationMs: 0,
+        transcript: null,
+        group: null,
+        errorCode: null
+      })
+    );
+    expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
+    expect(screen.getByTestId('home-inline-voice-recording')).toBeTruthy();
+    expect(voiceRecorderService.start).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
+  }
+);
 
 it.each([
   ['en', 'Cancel'],
   ['ar', 'إلغاء']
-] as const)('dismisses unclear audio and stays on Home from the %s action', async (locale, label) => {
-  changeLocale(locale);
-  useVoiceCaptureStore.getState().patch({
-    permission: 'granted',
-    state: 'failed',
-    errorCode: 'background_noise'
-  });
-  renderWithProviders(<HomeScreen summary={summary} />);
+] as const)(
+  'dismisses unclear audio and stays on Home from the %s action',
+  async (locale, label) => {
+    changeLocale(locale);
+    useVoiceCaptureStore.getState().patch({
+      permission: 'granted',
+      state: 'failed',
+      errorCode: 'background_noise'
+    });
+    renderWithProviders(<HomeScreen summary={summary} />);
 
-  fireEvent.press(screen.getByLabelText(label));
+    fireEvent.press(screen.getByLabelText(label));
 
-  await waitFor(() =>
-    expect(useVoiceCaptureStore.getState().state).toBe('idle')
-  );
-  expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
-  expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
-});
+    await waitFor(() =>
+      expect(useVoiceCaptureStore.getState().state).toBe('ready')
+    );
+    expect(screen.queryByTestId('home-voice-unclear-overlay')).toBeNull();
+    expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
+  }
+);
 
-it('stops inline recording and shows the valid result for review on Home', async () => {
+it('stops inline recording, shows review and permits cancellation without saving on Home', async () => {
   changeLocale('en');
   let resolveTranscript!: (value: ReturnType<typeof fixtureTranscript>) => void;
   jest
     .mocked(voiceRecorderService.getPermission)
     .mockImplementation(() => new Promise(() => undefined));
-  jest
-    .mocked(voiceRecorderService.stop)
-    .mockResolvedValue('private://voice-audio');
+  jest.mocked(voiceRecorderService.stop).mockResolvedValue({
+    uri: 'private://voice-audio',
+    durationMs: 3000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
   jest.mocked(voiceRecorderService.remove).mockResolvedValue();
   jest.spyOn(voiceAnalyzerService, 'transcribe').mockImplementation(
     () =>
@@ -644,13 +930,28 @@ it('stops inline recording and shows the valid result for review on Home', async
   expect(createTransactions).not.toHaveBeenCalled();
   expect(router.push).not.toHaveBeenCalledWith('/(tabs)/voice');
   expect(screen.queryByTestId('home-voice-processing-inline')).toBeNull();
+
+  fireEvent.press(screen.getByTestId('home-voice-review-cancel'));
+  await waitFor(() =>
+    expect(useVoiceCaptureStore.getState()).toMatchObject({
+      state: 'ready',
+      group: null,
+      transcript: null,
+      audioReference: null
+    })
+  );
+  expect(screen.queryByTestId(/^voice-review-card-/)).toBeNull();
+  expect(createTransactions).not.toHaveBeenCalled();
 });
 
 it('keeps multiple analyzed transactions as separate review cards on Home', async () => {
   changeLocale('en');
-  jest
-    .mocked(voiceRecorderService.stop)
-    .mockResolvedValue('private://voice-audio');
+  jest.mocked(voiceRecorderService.stop).mockResolvedValue({
+    uri: 'private://voice-audio',
+    durationMs: 3000,
+    contentType: 'audio/m4a',
+    recordedAt: Date.now()
+  });
   jest.mocked(voiceRecorderService.remove).mockResolvedValue();
   jest
     .spyOn(voiceAnalyzerService, 'transcribe')
@@ -784,31 +1085,48 @@ it('keeps secondary planning and shortcut content off Home', () => {
 });
 
 it.each([
-  ['ar', 'row-reverse'],
-  ['en', 'row']
+  ['ar', 'rtl'],
+  ['en', 'ltr']
 ] as const)(
-  'keeps Home transaction cards fixed at 200%% text in %s',
-  (locale, flexDirection) => {
+  'reflows full Home title, category and account labels at 200%% text in %s',
+  (locale, direction) => {
     jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(2);
     changeLocale(locale);
-    usePreferenceStore.setState({
-      locale,
-      direction: locale === 'ar' ? 'rtl' : 'ltr'
-    });
-
-    renderWithProviders(<HomeScreen summary={summary} />);
-
+    usePreferenceStore.setState({ locale, direction });
+    const title =
+      locale === 'ar'
+        ? 'مشتريات منزلية طويلة التفاصيل تستحق أن تظهر كاملة دون اختصار'
+        : 'Long household purchase description that must remain completely readable';
+    const accountName =
+      locale === 'ar'
+        ? 'حساب المصروفات اليومية الطويل الاسم بالكامل'
+        : 'Daily household spending account with a long complete name';
+    renderWithProviders(
+      <HomeScreen
+        accounts={fixtureAccounts.map((account) => ({
+          ...account,
+          name: accountName
+        }))}
+        summary={{
+          ...summary,
+          recentTransactions: [
+            { ...summary.recentTransactions[0], title },
+            summary.recentTransactions[1]
+          ]
+        }}
+      />
+    );
+    const row = screen.getByTestId('home-transaction-row-transaction-2');
+    expect(row).toHaveStyle({ alignItems: 'stretch', flexDirection: 'column' });
+    expect(StyleSheet.flatten(row.props.style).height).toBeUndefined();
+    expect(within(row).getByText(title).props.numberOfLines).toBeUndefined();
     expect(
-      screen.getByTestId('home-transaction-row-transaction-2')
-    ).toHaveStyle({
-      alignItems: 'center',
-      flexDirection,
-      height: 84,
-      minHeight: 84
-    });
-    expect(
-      screen.getByText('Al Nakheel Restaurant').props.numberOfLines
-    ).toBe(1);
+      within(row).getByText(translate('coreFinance.category.shopping')).props
+        .numberOfLines
+    ).toBeUndefined();
+    const accountLabel = within(row).getByText(accountName);
+    expect(accountLabel.props.numberOfLines).toBeUndefined();
+    expect(accountLabel).toHaveStyle({ flexShrink: 1 });
     expect(
       screen.getByTestId('home-period-label').props.numberOfLines
     ).toBeUndefined();
@@ -940,7 +1258,7 @@ describe('selected account scope', () => {
       />
     );
 
-    expect(screen.getByText('No activity in this account yet')).toBeTruthy();
+    expect(screen.getByText('No transactions today')).toBeTruthy();
   });
 
   it('updates immediately when switching between accounts', () => {

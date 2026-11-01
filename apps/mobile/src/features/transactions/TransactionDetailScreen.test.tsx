@@ -57,8 +57,8 @@ it('shows financial fields, source, status, and eligible actions', () => {
   expect(screen.queryByText(item.accountId)).toBeNull();
   expect(screen.getByText('•••• SAR')).toBeTruthy();
   expect(
-    screen.getByText(translate('support.report.transaction'))
-  ).toBeTruthy();
+    screen.queryByText(translate('support.report.transaction'))
+  ).toBeNull();
   expect(screen.queryByText('support.report.transaction')).toBeNull();
   expect(
     screen.getByLabelText(translate('coreFinance.transaction.details'))
@@ -107,7 +107,7 @@ it('restores the undo window from a persisted deleted transaction', () => {
   ).toBeNull();
 });
 
-it('opens the linked refund flow for an eligible expense', () => {
+it('opens a linked refund for an eligible automatic expense', () => {
   const item = {
     ...fixtureTransactions[0],
     id: 'eligible-expense',
@@ -115,6 +115,7 @@ it('opens the linked refund flow for an eligible expense', () => {
     status: 'posted' as const,
     reviewStatus: 'none' as const,
     syncStatus: 'pending' as const,
+    source: 'automatic' as const,
     originalTransactionId: null
   };
   renderWithQueryData(<TransactionDetailScreen id={item.id} />, [
@@ -124,31 +125,28 @@ it('opens the linked refund flow for an eligible expense', () => {
     [coreFinanceKeys.categories(true), fixtureCategories]
   ]);
 
-  fireEvent.press(screen.getByLabelText(translate('coreFinance.type.refund')));
-  expect(router.push).toHaveBeenCalledWith(
-    `/(tabs)/add?type=refund&originalTransactionId=${item.id}`
-  );
-});
-
-it('hides the refund action when the expense is fully refunded', () => {
-  const item = {
-    ...fixtureTransactions[0],
-    id: 'fully-refunded-expense',
-    type: 'expense' as const,
-    status: 'posted' as const,
-    reviewStatus: 'none' as const,
-    syncStatus: 'synced' as const
-  };
-  renderWithQueryData(<TransactionDetailScreen id={item.id} />, [
-    [coreFinanceKeys.transaction(item.id), item],
-    [coreFinanceKeys.refundable(item.id), 0],
-    [coreFinanceKeys.accounts(true), fixtureAccounts],
-    [coreFinanceKeys.categories(true), fixtureCategories]
-  ]);
-
   expect(
-    screen.queryByLabelText(translate('coreFinance.type.refund'))
-  ).toBeNull();
+    screen
+      .getAllByRole('button')
+      .map((button) => button.props.accessibilityLabel)
+  ).toEqual([
+    translate('coreFinance.transaction.edit'),
+    translate('coreFinance.type.refund'),
+    translate('coreFinance.transaction.delete')
+  ]);
+  fireEvent.press(
+    screen.getByLabelText(translate('coreFinance.transaction.edit'))
+  );
+  expect(router.push).toHaveBeenCalledWith(`/transactions/${item.id}/edit`);
+  fireEvent.press(screen.getByLabelText(translate('coreFinance.type.refund')));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/(tabs)/add',
+    params: {
+      type: 'refund',
+      originalTransactionId: item.id,
+      accountId: item.accountId
+    }
+  });
 });
 
 it('opens the original transaction from a refund relationship row', () => {
@@ -174,29 +172,4 @@ it('opens the original transaction from a refund relationship row', () => {
   expect(router.push).toHaveBeenCalledWith(
     `/transactions/${item.originalTransactionId}`
   );
-});
-
-it.each([
-  ['non-expense', { type: 'income' as const }],
-  ['non-posted', { status: 'deleted' as const, deletedAt: Date.now() }],
-  ['review-required', { reviewStatus: 'required' as const }],
-  ['conflicted', { syncStatus: 'conflict' as const }]
-])('hides the refund action for a %s transaction', (_case, override) => {
-  const item = {
-    ...fixtureTransactions[0],
-    type: 'expense' as const,
-    status: 'posted' as const,
-    reviewStatus: 'none' as const,
-    syncStatus: 'synced' as const,
-    ...override
-  };
-  renderWithQueryData(<TransactionDetailScreen id={item.id} />, [
-    [coreFinanceKeys.transaction(item.id), item],
-    [coreFinanceKeys.accounts(true), fixtureAccounts],
-    [coreFinanceKeys.categories(true), fixtureCategories]
-  ]);
-
-  expect(
-    screen.queryByLabelText(translate('coreFinance.type.refund'))
-  ).toBeNull();
 });

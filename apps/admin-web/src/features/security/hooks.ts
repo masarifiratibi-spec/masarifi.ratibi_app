@@ -12,6 +12,7 @@ interface SecurityPageData {
     page: number;
     pageSize: 25 | 50 | 100;
     totalItems: number;
+    totalItemsRelation?: "exact" | "lower-bound";
     totalPages: number;
   };
   region: {

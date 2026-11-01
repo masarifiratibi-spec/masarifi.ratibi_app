@@ -143,7 +143,7 @@ export function buildAiOverview(platform: PlatformScope): AiOverviewData {
   if (platform === "all") return aiOverviewFixture;
   const factor = platform === "ios" ? 0.46 : platform === "android" ? 0.52 : 0.02;
   const requests = Math.round(aiOverviewFixture.totalOriginalRequests * factor);
-  const attempts = Math.round(aiOverviewFixture.totalAttempts * factor);
+  const attempts = Math.round((aiOverviewFixture.totalAttempts ?? 0) * factor);
   return {
     ...aiOverviewFixture,
     query: { ...aiOverviewFixture.query, platform },
@@ -154,7 +154,7 @@ export function buildAiOverview(platform: PlatformScope): AiOverviewData {
     })),
     totalOriginalRequests: requests,
     totalAttempts: attempts,
-    fallbackAttempts: Math.round(aiOverviewFixture.fallbackAttempts * factor),
+    fallbackAttempts: Math.round((aiOverviewFixture.fallbackAttempts ?? 0) * factor),
   };
 }
 

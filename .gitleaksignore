@@ -1,4 +1,23 @@
 # Known non-secret detector fixtures in Mobile quality-boundary tests.
+
+# Historical Staging api.env SHA-256 checksum; verified file hash, not a credential value.
+1ee3ef3bf50fd97d8c1a573f606d0b8ad8458e6c:scripts/voice-manual-canary/canary-host.cjs:generic-api-key:15
+
+# Historical fictional Clerk publishable identifier in a background-runtime test; no valid Clerk payload.
+13933505dbf00bd37673d310d6a0099089f5eb75:apps/mobile/src/services/tracking-background-runtime.test.ts:generic-api-key:93
+
+# Nonsecret container IDs, image digests and Git revisions in deployment evidence.
+9c0aa80e7854d2061e253dcd1ecf29c0663248f4:docs/recovery/CURRENT-RECOVERY-STATUS-AND-HANDOFF.md:generic-api-key:96
+20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:4
+20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:5
+20096b3ba4533aa90c9f4e63e260e601787dae8a:scripts/staging-voice/diagnostic-canary/canary-control.py:generic-api-key:8
+15488cd7bace161d5093bd44ad8b47491dafb053:docs/evidence/2026-10-11-local-delivery-readiness/staging-client-acceptance-review-packet.json:generic-api-key:126
+
+# Public, verified backend commit SHA and OCI image digest, not authentication keys.
+# Renamed API_SOURCE/API_IMAGE to VERIFIED_SOURCE_SHA/VERIFIED_IMAGE_DIGEST subsequently.
+0dbed67e14aab9d69b7cbbd09fc5a0176a0af27f:scripts/staging-voice/redmi-controls.cjs:generic-api-key:8
+0dbed67e14aab9d69b7cbbd09fc5a0176a0af27f:scripts/staging-voice/redmi-controls.cjs:generic-api-key:9
+
 93c3ad80343e71e46d1471eeb444f1fe0c4e4fc8:apps/mobile/scripts/check-frontend-quality-boundaries.test.mjs:stripe-access-token:22
 93c3ad80343e71e46d1471eeb444f1fe0c4e4fc8:apps/mobile/scripts/check-frontend-quality-secrets.test.mjs:generic-api-key:10
 
@@ -44,3 +63,82 @@ c65efc62cdcdab0c25ccf2ca0801b505243df371:apps/api/specs/003-admin-rbac-security/
 
 # Firebase-generated Android client key; public mobile identifier, not an FCM service-account secret.
 384f7c77a738a7bc6cab32af132f510ede38174c:apps/mobile/google-services.json:gcp-api-key:18
+
+# Historical fictional idempotency fixture; shortened to delete-op in the next commit.
+17a70ff2ec2a7091f78e1a750a5b7a651ff11713:apps/mobile/src/services/live/auth-service.test.ts:generic-api-key:442
+
+# Historical SHA-256 of api.env used to verify environment preservation; not a credential.
+1ee3ef3bf50fd97d8c1a573f606d0b8ad8458e6c:scripts/voice-manual-canary/canary-host.cjs:generic-api-key:15
+
+# Historical source commit SHA for the separate DEV authentication callback; verified Git commit, not a credential.
+d6cb730c576e44bcd2bbdec2d16a289b64c76c06:docs/superpowers/plans/2026-10-16-native-dev-deletion-acceptance.md:generic-api-key:44
+
+# Firebase-generated benchmark Android client key; matches the public ordinary client config, not a service-account secret.
+37cf7d04b07c18eceac7d6b52e3dee29b6563233:apps/mobile/google-services.benchmark.json:gcp-api-key:23
+
+# Full-parent history also exposes T07 image SHA-256 provenance tags at the integration merge.
+4d4a677b756468aa0d0600486dee28e1579b0ccc:docs/handoffs/T07-staging-qualified-checkpoint-2026-10-29-2235.md:generic-api-key:23
+4d4a677b756468aa0d0600486dee28e1579b0ccc:docs/handoffs/Masarifi-full-remediation-conversation-transfer-2026-10-30.md:generic-api-key:129
+
+# Report prose about authentication and immutable replay; no credential assignment or value.
+42f56aaa1213151d1511347875b8d7e2798703e3:docs/evidence/2026-10-24-report-closure/candidate-verification.md:generic-api-key:115
+
+# Historical broker API container ID and environment-file SHA-256 integrity pins, mirrored by its test.
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/host_broker.py:generic-api-key:22
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/host_broker.py:generic-api-key:43
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/host_broker_test.py:generic-api-key:107
+
+# Fictional configFixture Clerk-secret placeholder: Stripe test-mode prefix and explicit fixture marker; config.test.cjs only.
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/config-fixture.cjs:stripe-access-token:26
+
+# Generated Android public Firebase client keys match the reviewed public benchmark key exactly.
+c7532a27fae4475f4714701009e58dfaf87210fc:apps/mobile/google-services.dev.json:gcp-api-key:23
+d3ea16a0279ba69ce2de05a74abdf20267fe1e05:apps/mobile/google-services.dev.json:gcp-api-key:23
+4508ff46409c22bd10c8e15eaae5ea07a3b29609:apps/mobile/google-services.json:gcp-api-key:18
+
+# Integration merge repeats reviewed nonsecret Git revisions and container/environment SHA-256 integrity pins.
+c7532a27fae4475f4714701009e58dfaf87210fc:docs/evidence/2026-10-11-local-delivery-readiness/staging-client-acceptance-review-packet.json:generic-api-key:126
+c7532a27fae4475f4714701009e58dfaf87210fc:docs/recovery/CURRENT-RECOVERY-STATUS-AND-HANDOFF.md:generic-api-key:96
+c7532a27fae4475f4714701009e58dfaf87210fc:docs/superpowers/plans/2026-10-16-native-dev-deletion-acceptance.md:generic-api-key:44
+c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-canary/canary-control.py:generic-api-key:8
+c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:4
+c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:5
+
+# Full-parent historical merges repeat the reviewed Phase 07 idempotencyKey test fixtures byte-for-byte.
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/integration/planning/planning.savings.integration.spec.ts:generic-api-key:59
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.salary.spec.ts:generic-api-key:156
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:100
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:182
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:219
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:69
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:93
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:118
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:136
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/integration/planning/planning.savings.integration.spec.ts:generic-api-key:59
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.salary.spec.ts:generic-api-key:156
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:100
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:182
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:219
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:69
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:93
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:118
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:136
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/integration/planning/planning.savings.integration.spec.ts:generic-api-key:59
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.salary.spec.ts:generic-api-key:156
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:69
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:93
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:118
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:136
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:100
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:182
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:219
+
+# Historical merge repeats the fictional deletion Idempotency-Key in a mocked auth request assertion; exact match to reviewed fixture.
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/mobile/src/services/live/auth-service.test.ts:generic-api-key:449
+
+# Historical merge repeats detector fixtures written into temporary frontend source trees; exact matches to reviewed quality tests.
+7883bfa835254d694170e3ae2f7473b5551f9c44:apps/mobile/scripts/check-frontend-quality-boundaries.test.mjs:stripe-access-token:22
+7883bfa835254d694170e3ae2f7473b5551f9c44:apps/mobile/scripts/check-frontend-quality-secrets.test.mjs:generic-api-key:10
+
+# Historical merge repeats the same Firebase Android public client key as the reviewed ordinary/dev/benchmark configs; no private-key fields.
+ecfba4d7de40555c122bd3b5e53e7e7fd71f6294:apps/mobile/google-services.json:gcp-api-key:18

@@ -1,0 +1,194 @@
+import React from 'react';
+import { fireEvent, screen } from '@testing-library/react-native';
+import { renderWithProviders } from '@/test-utils/render';
+import { changeLocale, translateDynamic } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
+import type { AssistantResponse } from '@/domain/assistant';
+import { AssistantMessageBubble } from './AssistantMessageBubble';
+import { spendingPresentationFixture } from '@/test-utils/assistant-spending-presentation-fixture';
+import { ThemeContext } from '@/state/theme-context';
+import { StyledText } from '@/components/StyledText';
+import { resolveTheme } from '@/design-system/theme';
+
+function answer(content: string): AssistantResponse {
+  return {
+    id: 'formatted-answer',
+    conversationId: 'formatting-chat',
+    question: 'مصروفاتي؟',
+    responseType: 'direct',
+    blocks: [{ label: 'fact', key: content, values: {} }],
+    period: 'current_state',
+    dataAsOf: 1,
+    snapshot: {
+      sources: [],
+      values: [],
+      completeness: {
+        confirmed: 1,
+        reviewRequired: 0,
+        conflicts: 0,
+        reasons: []
+      },
+      reportReference: null
+    },
+    limitations: [],
+    proposedActionIds: [],
+    feedback: null,
+    createdAt: 1
+  };
+}
+
+beforeEach(() => {
+  changeLocale('ar');
+  usePreferenceStore.setState({ hideBalances: false });
+});
+
+it('replaces model action text with the guarded inline review without duplicate review controls', () => {
+  const response = {...answer('Premature model success'),proposedActionIds:['preview-1']};
+  const renderAction = jest.fn((_id: string, _fallback: React.ReactNode) => <StyledText>Actual transaction review</StyledText>);
+  renderWithProviders(<AssistantMessageBubble response={response} renderAction={renderAction} onFeedback={jest.fn()} />);
+  expect(screen.getByText('Actual transaction review')).toBeTruthy();
+  expect(screen.queryByText('Premature model success')).toBeNull();
+  expect(screen.queryByText(translateDynamic('assistant.proposal.review'))).toBeNull();
+  expect(renderAction.mock.calls[0]?.[0]).toBe('preview-1');
+});
+
+it('answers directly without automatic sections even when legacy card metadata is present', () => {
+  const response = Object.assign(answer('صرفت 133.50 ريال في أكتوبر.'), {
+    spendingSummary: spendingPresentationFixture
+  });
+  renderWithProviders(<AssistantMessageBubble response={response} />);
+  expect(screen.getByText('صرفت 133.50 ريال في أكتوبر.')).toHaveStyle({
+    fontSize: 15
+  });
+  expect(screen.getByText('133.50')).toHaveStyle({ fontSize: 17 });
+  expect(screen.queryByTestId('assistant-summary-amount-0')).toBeNull();
+  expect(
+    screen.queryByText(/2,400|300.00|وش نلاحظ|خطوة للتوفير|هدف توفير/)
+  ).toBeNull();
+  expect(screen.queryByText('تفاصيل أكثر')).toBeNull();
+});
+
+it('masks the complete direct answer and restores it only after local reveal', () => {
+  usePreferenceStore.setState({ hideBalances: true });
+  renderWithProviders(
+    <AssistantMessageBubble
+      response={Object.assign(answer('صرفت 133.50 ريال.'), {
+        spendingSummary: spendingPresentationFixture
+      })}
+    />
+  );
+  expect(screen.queryByText(/133.50|2,400|300.00|المطاعم|200.00/)).toBeNull();
+  fireEvent.press(
+    screen.getByText(translateDynamic('assistant.action.revealFinancial'))
+  );
+  expect(screen.getByText('صرفت 133.50 ريال.')).toBeTruthy();
+  expect(usePreferenceStore.getState().hideBalances).toBe(true);
+});
+
+it('keeps huge signed amounts exact without adding comparisons or saving advice', () => {
+  const amount = '-900,719,925,474,099,312.345 KWD';
+  const summary = {
+    ...spendingPresentationFixture,
+    locale: 'en' as const,
+    cards: [
+      {
+        ...spendingPresentationFixture.cards[0]!,
+        amount,
+        comparison: null,
+        explanation: null,
+        saving: { text: 'Review Restaurants transactions.', target: null }
+      }
+    ]
+  };
+  renderWithProviders(
+    <AssistantMessageBubble
+      response={Object.assign(answer(`Spending: ${amount}.`), {
+        spendingSummary: summary
+      })}
+    />
+  );
+  const value = screen.getByText('-900,719,925,474,099,312.345');
+  expect(screen.getByText(`Spending: ${amount}.`)).toBeTruthy();
+  expect(value).toHaveStyle({ fontSize: 17 });
+  expect(value.props.numberOfLines).toBeUndefined();
+  expect(value.props.adjustsFontSizeToFit).toBeUndefined();
+  expect(screen.queryByText('A saving step')).toBeNull();
+  expect(screen.queryByText(/Conditional saving target/)).toBeNull();
+});
+
+it.each(['light', 'dark'] as const)(
+  'keeps the financial amount readable in %s theme',
+  (mode) => {
+    const theme = resolveTheme(mode);
+    renderWithProviders(
+      <ThemeContext.Provider value={{ theme }}>
+        <AssistantMessageBubble
+          response={Object.assign(answer('Spending: 133.50 SAR.'), {
+            spendingSummary: spendingPresentationFixture
+          })}
+        />
+      </ThemeContext.Provider>
+    );
+    expect(screen.getByText('Spending: 133.50 SAR.')).toHaveStyle({
+      color: theme.colors.content.primary
+    });
+  }
+);
+
+it('preserves requested comparison lines and Arabic digits without appending extra advice', () => {
+  const text = 'أكتوبر: ١٣٣٫٥٠ ريال\nسبتمبر: ٣٫٧٥ ريال\nالزيادة: ١٢٩٫٧٥ ريال';
+  renderWithProviders(<AssistantMessageBubble response={answer(text)} />);
+  expect(screen.getByText(text)).toBeTruthy();
+  expect(screen.getByText('١٣٣٫٥٠')).toHaveStyle({ fontSize: 17 });
+  expect(screen.queryByText(/خطوة للتوفير|وش نلاحظ/)).toBeNull();
+});
+
+it('renders the 19 October model object markers as plain financial text', () => {
+  renderWithProviders(
+    <AssistantMessageBubble
+      response={answer(
+        'From \uFFFC2026-10-01, expenses were \uFFFC867.24 SAR.'
+      )}
+    />
+  );
+  expect(
+    screen.getByText('From 2026-10-01, expenses were 867.24 SAR.')
+  ).toBeTruthy();
+});
+
+it('renders model bold emphasis while preserving signed amounts, currencies and punctuation', () => {
+  renderWithProviders(
+    <AssistantMessageBubble
+      response={answer(
+        'آخر معاملة **3.00 SAR**؛ صافي التدفق **-1,234.56 SAR** (١٢٪).'
+      )}
+    />
+  );
+  expect(
+    screen.getByText('آخر معاملة 3.00 SAR؛ صافي التدفق -1,234.56 SAR (١٢٪).')
+  ).toBeTruthy();
+  expect(screen.getByText('3.00 SAR')).toHaveStyle({ fontWeight: '700' });
+  expect(screen.getByText('-1,234.56 SAR')).toHaveStyle({ fontWeight: '700' });
+  expect(screen.queryByText(/\*\*/)).toBeNull();
+});
+
+it('retains unmatched markup, arithmetic and link-like content as inert exact text', () => {
+  const text =
+    '2 * 3 = 6؛ **غير مكتمل؛ [رصيد](https://example.com) <b>5 SAR</b>';
+  renderWithProviders(<AssistantMessageBubble response={answer(text)} />);
+  expect(screen.getByText(text)).toBeTruthy();
+  expect(screen.queryAllByRole('link')).toHaveLength(0);
+});
+
+it('masks formatted financial prose until local reveal', () => {
+  usePreferenceStore.setState({ hideBalances: true });
+  renderWithProviders(
+    <AssistantMessageBubble response={answer('مدخراتك **900.00 SAR**')} />
+  );
+  expect(screen.queryByText(/900\.00/)).toBeNull();
+  fireEvent.press(
+    screen.getByText(translateDynamic('assistant.action.revealFinancial'))
+  );
+  expect(screen.getByText('مدخراتك 900.00 SAR')).toBeTruthy();
+  expect(usePreferenceStore.getState().hideBalances).toBe(true);
+});

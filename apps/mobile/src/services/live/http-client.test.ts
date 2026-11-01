@@ -1,10 +1,13 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import { z } from 'zod';
 import {
   HttpError,
   configureMobileApiTokenProvider,
+  configureRecentAuthHandler,
   requestJson,
   sanitizeHttpLog
 } from './http-client';
+jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
 
 const schema = z.object({ state: z.enum(['ready']) }).strict();
 const response = (status: number, value?: unknown): Response =>
@@ -15,6 +18,270 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it('blocks benchmark mutations before token acquisition, transport and recent authentication', async () => {
+    const restoreEnvironment = installBenchmarkEnvironment();
+    const request = jest.fn();
+    const token = jest.fn(async () => 'token');
+    const recent = jest.fn(async () => 'fresh');
+    configureMobileApiTokenProvider(token);
+    configureRecentAuthHandler(recent);
+    try {
+      for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+        await expect(requestJson('/api/v1/me', schema, { method, request })).rejects.toThrow('benchmark_read_only');
+      expect(token).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+      expect(recent).not.toHaveBeenCalled();
+      request.mockResolvedValue(response(200, { state: 'ready' }));
+      for (const method of ['GET', 'HEAD'])
+        await expect(requestJson('/api/v1/me', schema, { method, request, baseUrl: 'https://inert.invalid' })).resolves.toEqual({ state: 'ready' });
+      expect(request).toHaveBeenCalledTimes(2);
+    } finally { restoreEnvironment(); configureRecentAuthHandler(); }
+  });
+  it('reverifies once and retries the same mutation identity with a fresh credential', async () => {
+    const request = jest
+      .fn()
+      .mockResolvedValueOnce(response(403, { code: 'RECENT_AUTH_REQUIRED' }))
+      .mockResolvedValueOnce(response(200, { state: 'ready' }));
+    configureRecentAuthHandler(async () => 'fresh-token');
+    try {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'old-token',
+          method: 'POST',
+          headers: { 'Idempotency-Key': 'same-operation' },
+          body: { amountMinor: 5000 },
+          request
+        })
+      ).resolves.toEqual({ state: 'ready' });
+      const [first, second] = request.mock.calls.map(
+        (call) => call[1] as RequestInit
+      );
+      expect(second.body).toBe(first.body);
+      expect(second.headers).toMatchObject({
+        Authorization: 'Bearer fresh-token',
+        'Idempotency-Key': 'same-operation'
+      });
+    } finally {
+      configureRecentAuthHandler();
+    }
+  });
+  it('does not replay a cancelled or repeatedly rejected step-up', async () => {
+    const request = jest.fn(async () =>
+      response(403, { code: 'RECENT_AUTH_REQUIRED' })
+    );
+    configureRecentAuthHandler(async () => null);
+    try {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'token',
+          request
+        })
+      ).rejects.toMatchObject({ code: 'recent_auth_required' });
+      expect(request).toHaveBeenCalledTimes(1);
+      configureRecentAuthHandler(async () => 'fresh-token');
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'token',
+          request
+        })
+      ).rejects.toMatchObject({ code: 'recent_auth_required' });
+      expect(request).toHaveBeenCalledTimes(3);
+    } finally {
+      configureRecentAuthHandler();
+    }
+  });
+  it.each(['network', 'timeout', 'server', 'auth'] as const)(
+    'preserves %s provenance for honest startup recovery',
+    async (kind) => {
+      const request = jest.fn(async () => {
+        if (kind === 'timeout') return new Promise<Response>(() => {});
+        if (kind === 'network') throw new TypeError('Failed to fetch');
+        return response(kind === 'auth' ? 401 : 503, {
+          code: kind === 'auth' ? 'UNAUTHORIZED' : 'SERVICE_UNAVAILABLE'
+        });
+      });
+      const failure = await requestJson('/api/v1/me', schema, {
+        baseUrl: 'https://inert.invalid',
+        token: 'token',
+        request,
+        timeoutMs: 5
+      }).catch((error: unknown) => error);
+      expect(failure).toMatchObject({
+        code: kind === 'auth' ? 'session_expired' : 'provider_unavailable'
+      });
+      expect(
+        (failure as HttpError & { failureSource?: string }).failureSource
+      ).toBe(kind === 'network' || kind === 'timeout' ? kind : undefined);
+    }
+  );
+  it.each<HeadersInit>([
+    { Accept: 'application/json; currency-onboarding=1' },
+    { accept: 'application/json; currency-onboarding=1' },
+    [['Accept', 'application/json; currency-onboarding=1']] as [
+      string,
+      string
+    ][]
+  ])(
+    'preserves negotiated Accept through the authenticated transport',
+    async (headers) => {
+      const request = jest
+        .fn()
+        .mockResolvedValue(response(200, { state: 'ready' }));
+      await requestJson('/api/v1/me/preferences', schema, {
+        baseUrl: 'https://inert.invalid',
+        token: 'real-owner-token',
+        request,
+        headers
+      });
+      const sent = new Headers(request.mock.calls[0][1].headers);
+      expect(sent.get('accept')).toBe(
+        'application/json; currency-onboarding=1'
+      );
+      expect(sent.get('authorization')).toBe('Bearer real-owner-token');
+    }
+  );
+
+  it.each(['server', 'cancelled', 'timeout', 'network'] as const)(
+    'distinguishes %s failures from an actual HTTP 503 without logging protected data',
+    async (kind) => {
+      const log = jest
+        .spyOn(console, 'info')
+        .mockImplementation(() => undefined);
+      const controller = new AbortController();
+      if (kind === 'cancelled') controller.abort();
+      const request = jest.fn(async () => {
+        if (kind === 'server')
+          return response(503, {
+            code: 'LEDGER_UNAVAILABLE',
+            requestId: 'safe-request-503',
+            message: 'private balance'
+          });
+        if (kind === 'timeout') return new Promise<Response>(() => {});
+        throw new TypeError('private network information');
+      });
+      try {
+        await expect(
+          requestJson('/api/v1/transactions?account=private-owner', schema, {
+            baseUrl: 'https://inert.invalid',
+            token: 'private-token',
+            request,
+            signal: controller.signal,
+            timeoutMs: 5
+          })
+        ).rejects.toMatchObject({ status: 503, code: 'provider_unavailable' });
+        expect(log).toHaveBeenCalledWith(
+          '[mobile:http-failure]',
+          expect.objectContaining({
+            failureSource: kind === 'server' ? 'http_response' : kind,
+            httpStatus: kind === 'server' ? 503 : null,
+            endpointGroup: 'ledger',
+            method: 'GET',
+            status: 503,
+            elapsedMs: expect.any(Number)
+          })
+        );
+        expect(JSON.stringify(log.mock.calls)).not.toMatch(
+          /private-owner|private-token|private balance|private network/
+        );
+        expect(request).toHaveBeenCalledTimes(kind === 'cancelled' ? 0 : 1);
+      } finally {
+        log.mockRestore();
+      }
+    }
+  );
+  it('preserves a definite ledger rejection when debug logging fails', async () => {
+    const log = jest.spyOn(console, 'info').mockImplementation(() => {
+      throw new Error('diagnostic sink unavailable');
+    });
+    try {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'fixture',
+          request: async () =>
+            response(400, {
+              code: 'VALIDATION_FAILED',
+              requestId: 'request-400'
+            })
+        })
+      ).rejects.toMatchObject({
+        code: 'validation_error',
+        status: 400,
+        domainCode: 'VALIDATION_FAILED',
+        requestId: 'request-400'
+      });
+    } finally {
+      log.mockRestore();
+    }
+  });
+  it('retains safe correlation for an unknown server code without treating it as a definite rejection', async () => {
+    await expect(
+      requestJson('/api/v1/transactions', schema, {
+        baseUrl: 'https://api.example',
+        token: 'fixture',
+        request: async () =>
+          response(400, {
+            code: 'FUTURE_VALIDATION_CODE',
+            requestId: '22222222-2222-4222-8222-222222222222',
+            message: 'private contents'
+          })
+      })
+    ).rejects.toMatchObject({
+      code: 'contract_mismatch',
+      status: 400,
+      domainCode: 'FUTURE_VALIDATION_CODE',
+      requestId: '22222222-2222-4222-8222-222222222222'
+    });
+  });
+  it.each([
+    ['AMOUNT_OUT_OF_RANGE', 400, 'validation_error'],
+    ['AMOUNT_BELOW_REFUNDED', 409, 'conflict'],
+    ['TRACKING_ACCOUNT_BLOCKED', 409, 'conflict']
+  ])(
+    'preserves the definite %s rejection and its request correlation',
+    async (domainCode, status, code) => {
+      await expect(
+        requestJson('/api/v1/transactions', schema, {
+          baseUrl: 'https://api.example',
+          token: 'fixture',
+          request: async () =>
+            response(status as number, {
+              code: domainCode,
+              requestId: 'request-finance-1',
+              message: 'private note'
+            })
+        })
+      ).rejects.toMatchObject({
+        code,
+        status,
+        domainCode,
+        requestId: 'request-finance-1'
+      });
+    }
+  );
+  it('retains only allowlisted domain/status/request metadata for actionable finance feedback', async () => {
+    await expect(
+      requestJson('/api/v1/transactions', schema, {
+        baseUrl: 'https://api.example',
+        token: 'fixture',
+        request: jest.fn().mockResolvedValue(
+          response(409, {
+            code: 'ACCOUNT_NOT_POSTABLE',
+            requestId: 'request-fixture-1',
+            message: 'private contents'
+          })
+        )
+      })
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      status: 409,
+      domainCode: 'ACCOUNT_NOT_POSTABLE',
+      requestId: 'request-fixture-1'
+    });
+  });
   beforeEach(() =>
     configureMobileApiTokenProvider(async () => 'clerk-session')
   );
@@ -42,6 +309,7 @@ describe('Mobile strict HTTP client', () => {
       'https://api.example/api/v1/me',
       expect.objectContaining({
         headers: expect.objectContaining({
+          accept: 'application/json',
           Authorization: 'Bearer clerk-session',
           'Idempotency-Key': 'profile-1',
           'If-Match': '"7"'
@@ -90,7 +358,9 @@ describe('Mobile strict HTTP client', () => {
     ['IDEMPOTENCY_IN_PROGRESS', 'conflict'],
     ['INVALID_CURRENCY', 'validation_error'],
     ['PROFILE_INACTIVE', 'forbidden'],
-    ['REFERENCE_UNAVAILABLE', 'provider_unavailable']
+    ['REFERENCE_UNAVAILABLE', 'provider_unavailable'],
+    ['PROVIDER_UNAVAILABLE', 'provider_unavailable'],
+    ['PROFILE_SYNC_UNAVAILABLE', 'provider_unavailable']
   ] as const)('maps the BE004 %s error', async (serverCode, clientCode) => {
     await expect(
       requestJson('/reference', schema, {
@@ -180,6 +450,25 @@ describe('Mobile strict HTTP client', () => {
     ).rejects.toMatchObject({ code: 'provider_unavailable' });
   });
 
+  it('terminates a hung token acquisition instead of leaving bootstrap pending', async () => {
+    jest.useFakeTimers();
+    configureMobileApiTokenProvider(() => new Promise(() => {}));
+    let failure: unknown;
+    const request = requestJson('/api/v1/me', schema, {
+      baseUrl: 'https://api.example',
+      timeoutMs: 10
+    }).catch((error: unknown) => {
+      failure = error;
+    });
+    await jest.advanceTimersByTimeAsync(10);
+    try {
+      expect(failure).toMatchObject({ code: 'provider_unavailable' });
+      await request;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('redacts request paths, tokens, payloads, and errors from logs', () => {
     expect(
       sanitizeHttpLog({
@@ -197,4 +486,36 @@ describe('Mobile strict HTTP client', () => {
       status: 500
     });
   });
+});
+
+it('counts shared-client benchmark fetch attempts without logging credentials or raw paths', async () => {
+  const restore = installBenchmarkEnvironment();
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const request = jest.fn(async () => response(200, { state: 'ready' }));
+  try {
+    await requestJson(
+      '/api/v1/savings-goals/OWNER_MARKER?title=TITLE_MARKER',
+      schema,
+      { token: 'TOKEN_MARKER', baseUrl: 'https://URL_MARKER.invalid', request }
+    );
+    const events = log.mock.calls
+      .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+      .map(([, value]) => JSON.parse(value));
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'transport',
+        group: 'planning',
+        method: 'GET',
+        status: 200,
+        payloadBytes: null,
+        outcome: 'response'
+      })
+    ]);
+    expect(JSON.stringify(events)).not.toMatch(
+      /TOKEN_MARKER|OWNER_MARKER|TITLE_MARKER|URL_MARKER/
+    );
+  } finally {
+    log.mockRestore();
+    restore();
+  }
 });

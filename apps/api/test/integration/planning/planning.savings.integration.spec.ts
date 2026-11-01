@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { PlanningRepository } from '../../../src/planning/planning.repository';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { planningOwnerQuery } from './planning.integration-harness';
 
 describeLiveDatabase('savings planning live invariants', () => {
   const pool = createLivePool();
@@ -93,13 +94,13 @@ describeLiveDatabase('savings planning live invariants', () => {
       requestId: 'savings-live-overdraft',
     };
     await expect(
-      pool.query('select private.record_savings_movement($1,$2::jsonb)', [
+      planningOwnerQuery(pool, owner, 'select private.record_savings_movement($1,$2::jsonb)', [
         owner,
         JSON.stringify(body),
       ]),
     ).rejects.toThrow(/PLANNING_PROGRESS_INSUFFICIENT/);
     await expect(
-      pool.query('select private.record_savings_movement($1,$2::jsonb)', [
+      planningOwnerQuery(pool, other, 'select private.record_savings_movement($1,$2::jsonb)', [
         other,
         JSON.stringify(body),
       ]),
@@ -123,7 +124,7 @@ describeLiveDatabase('savings planning live invariants', () => {
     ).rows[0]?.id as string;
     const calls = await Promise.allSettled(
       [randomUUID(), randomUUID()].map((operation) =>
-        pool.query('select private.reverse_savings_movement($1,$2,$3,$4)', [
+        planningOwnerQuery(pool, owner, 'select private.reverse_savings_movement($1,$2,$3,$4)', [
           owner,
           movement,
           3,
@@ -147,9 +148,14 @@ describeLiveDatabase('savings planning live invariants', () => {
       requestId: 'savings-live-target',
     };
     await expect(
-      pool.query('select private.save_savings_goal($1,$2::jsonb)', [owner, JSON.stringify(base)]),
+      planningOwnerQuery(pool, owner, 'select private.save_savings_goal($1,$2::jsonb)', [
+        owner,
+        JSON.stringify(base),
+      ]),
     ).rejects.toThrow(/SAVINGS_TARGET_DECISION_REQUIRED/);
-    const completed = await pool.query<{ result: Record<string, unknown> }>(
+    const completed = await planningOwnerQuery<{ result: Record<string, unknown> }>(
+      pool,
+      owner,
       'select private.save_savings_goal($1,$2::jsonb) result',
       [owner, JSON.stringify({ ...base, patch: { targetMinor: '500', status: 'completed' } })],
     );

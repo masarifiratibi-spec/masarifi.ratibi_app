@@ -1,6 +1,8 @@
 import { createMockAuthService } from '@/services/mocks/auth-service';
 import { buildPreferences } from '@/domain/foundation';
 import type { ProfileSetupSnapshot } from '@/domain/settings';
+import type { AuthenticationSession } from '@/domain/app-shell';
+import type { AuthService } from '@/services/contracts/app-shell-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { registerRuntimeIdentityReset } from '@/storage/runtime-user-data-reset';
@@ -12,11 +14,15 @@ import {
   signOutAppShellSession
 } from './session-controller';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { HttpError } from '@/services/live/http-client';
 
 jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(),
-  getItemAsync: jest.fn(),
+  getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn()
+}));
+jest.mock('@/config/mobile-automation', () => ({
+  isMobileAutomationEnabled: jest.fn(() => false)
 }));
 jest.mock('@/storage/local-data-reset', () => ({
   resetLocalUserData: jest.fn(async (operationId: string) => ({
@@ -70,6 +76,7 @@ const mockSavePreferences = jest.mocked(savePreferences);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   process.env.EXPO_PUBLIC_DEMO_MODE = '1';
   mockLoadPreferences.mockResolvedValue(
     buildPreferences({ baseCurrencyCode: 'SAR' })
@@ -82,10 +89,162 @@ beforeEach(() => {
 });
 
 afterAll(() => {
+  delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   delete process.env.EXPO_PUBLIC_DEMO_MODE;
 });
 
 describe('session-controller', () => {
+  it('keeps the already authorized same-owner local shell readable while profile revalidation is pending', async () => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    const remote = await auth.restoreSession();
+    useAppShellStore.setState({
+      session: { ...remote, restoration: 'local' },
+      profileSetupStatus: 'complete',
+      profileSetupSnapshot: aedProfileSetup
+    });
+    let requested!: () => void;
+    const started = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    let finish!: (value: ProfileSetupSnapshot) => void;
+    const restoration = restoreAppShellSession(auth, () => true, {
+      getProfileSetup: () => {
+        requested();
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      }
+    });
+    try {
+      await started;
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+      expect(useAppShellStore.getState().profileSetupSnapshot).toBe(
+        aedProfileSetup
+      );
+    } finally {
+      finish(aedProfileSetup);
+      await restoration;
+    }
+  });
+  it.each(['server', 'network'] as const)(
+    'keeps a complete local shell after a %s refresh failure without treating it as freshly synchronized',
+    async (kind) => {
+      const auth = createMockAuthService();
+      await auth.signInWithGoogle();
+      const remote = await auth.restoreSession();
+      const local = { ...remote, restoration: 'local' as const };
+      useAppShellStore.setState({
+        session: local,
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: aedProfileSetup
+      });
+      const failure = new HttpError('provider_unavailable', 503);
+      if (kind === 'network')
+        Object.assign(failure, { failureSource: 'network' });
+      await restoreAppShellSession(auth, () => true, {
+        getProfileSetup: async () => {
+          throw failure;
+        }
+      });
+      expect(useAppShellStore.getState()).toMatchObject({
+        session: local,
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: aedProfileSetup
+      });
+      expect(useAppShellStore.getState().session?.restoration).toBe('local');
+    }
+  );
+  it('withdraws local-shell access when revalidation authoritatively denies the owner', async () => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    useAppShellStore.setState({
+      session: { ...(await auth.restoreSession()), restoration: 'local' },
+      profileSetupStatus: 'complete',
+      profileSetupSnapshot: aedProfileSetup
+    });
+    await restoreAppShellSession(auth, () => true, {
+      getProfileSetup: async () => {
+        throw new HttpError('forbidden', 403);
+      }
+    });
+    expect(useAppShellStore.getState().profileSetupStatus).toBe('error');
+  });
+  it.each(['network', 'timeout', 'server'] as const)(
+    'keeps a recoverable %s profile failure separate from expired authentication',
+    async (kind) => {
+      const auth = createMockAuthService();
+      await auth.signInWithGoogle();
+      const failure = new HttpError('provider_unavailable', 503);
+      if (kind !== 'server') Object.assign(failure, { failureSource: kind });
+      await restoreAppShellSession(auth, () => true, {
+        getProfileSetup: async () => {
+          throw failure;
+        }
+      });
+      expect(useAppShellStore.getState().profileSetupStatus).toBe(
+        kind === 'server' ? 'error' : 'unavailable'
+      );
+      expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+      await restoreAppShellSession(auth, () => true, {
+        getProfileSetup: async () => aedProfileSetup
+      });
+      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+    }
+  );
+  it('requires Google authentication again when profile bootstrap rejects the account token', async () => {
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    await restoreAppShellSession(auth, () => true, {
+      getProfileSetup: async () => {
+        throw new HttpError('session_expired', 401);
+      }
+    });
+    expect(useAppShellStore.getState().session?.status).toBe('expired');
+  });
+  it('retains owner-scoped state when active session metadata changes during Retry', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const previous = { ...authenticatedSession, userId: 'user_live_retry' };
+    useAppShellStore.setState({
+      hydrated: true,
+      session: previous,
+      profilePromptDismissed: true
+    });
+    const reset = jest.fn();
+    const unregister = registerRuntimeIdentityReset(reset);
+    try {
+      await restoreAppShellSession(
+        {
+          restoreSession: async () => ({
+            ...previous,
+            issuedAt: 42,
+            expiresAt: 4_000_000_000_000
+          })
+        } as AuthService,
+        () => true,
+        { getProfileSetup: async () => aedProfileSetup }
+      );
+      expect(useAppShellStore.getState().profilePromptDismissed).toBe(true);
+      expect(reset).not.toHaveBeenCalled();
+    } finally {
+      unregister();
+    }
+  });
+  it('hands live Google completion to the provider without resetting private owner state', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    useAppShellStore.setState({
+      hydrated: true,
+      pendingDestination: '/reports'
+    });
+    await expect(
+      completeAuthenticatedSession({
+        ...authenticatedSession,
+        userId: 'user_live_google'
+      })
+    ).resolves.toBe('/');
+    expect(useAppShellStore.getState().pendingDestination).toBe('/reports');
+    expect(useAppShellStore.getState().session).toBeNull();
+  });
   it('loads server profile setup after restoring an authenticated session', async () => {
     const auth = createMockAuthService({ now: () => 1_000 });
     await auth.signInWithGoogle();
@@ -136,6 +295,35 @@ describe('session-controller', () => {
     });
   });
 
+  it('keeps local identity data when Clerk restores the same session after Google sign-in', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const session: AuthenticationSession = {
+      status: 'authenticated',
+      userId: 'user_live_123',
+      method: 'google',
+      issuedAt: 4_000_000_000_000,
+      expiresAt: 4_000_003_600_000,
+      restoration: 'restored'
+    };
+    useAppShellStore.setState({
+      hydrated: true,
+      session,
+      profileSetupStatus: 'unknown'
+    });
+    const resetIdentity = jest.fn();
+    const unregister = registerRuntimeIdentityReset(resetIdentity);
+    const auth = {
+      restoreSession: jest.fn(async () => session)
+    } as unknown as AuthService;
+
+    await restoreAppShellSession(auth, () => true, {
+      getProfileSetup: jest.fn(async () => aedProfileSetup)
+    });
+
+    expect(resetIdentity).not.toHaveBeenCalled();
+    unregister();
+  });
+
   it('restores the server profile currency into local preferences', async () => {
     const auth = createMockAuthService({ now: () => 1_000 });
     await auth.signInWithGoogle();
@@ -151,9 +339,7 @@ describe('session-controller', () => {
     mockLoadPreferences.mockReturnValueOnce(
       new Promise((resolve) => {
         finishHydration = () =>
-          resolve(
-            buildPreferences({ locale: 'en', baseCurrencyCode: 'SAR' })
-          );
+          resolve(buildPreferences({ locale: 'en', baseCurrencyCode: 'SAR' }));
       })
     );
     usePreferenceStore.setState({
@@ -185,19 +371,19 @@ describe('session-controller', () => {
     });
   });
 
-  it('waits for an active preference normalization before saving server currency', async () => {
+  it('waits for active preference hydration before saving server currency', async () => {
     let finishNormalization!: () => void;
     let normalizationStarted!: () => void;
     const started = new Promise<void>((resolve) => {
       normalizationStarted = resolve;
     });
-    mockLoadPreferences.mockResolvedValueOnce(
-      buildPreferences({ theme: 'dark', baseCurrencyCode: 'SAR' })
-    );
-    mockSavePreferences.mockImplementationOnce(
+    mockLoadPreferences.mockImplementationOnce(
       () =>
-        new Promise<void>((resolve) => {
-          finishNormalization = resolve;
+        new Promise((resolve) => {
+          finishNormalization = () =>
+            resolve(
+              buildPreferences({ theme: 'dark', baseCurrencyCode: 'SAR' })
+            );
           normalizationStarted();
         })
     );
@@ -226,7 +412,7 @@ describe('session-controller', () => {
     await profileRequest;
     await Promise.resolve();
 
-    expect(mockSavePreferences).toHaveBeenCalledTimes(1);
+    expect(mockSavePreferences).not.toHaveBeenCalled();
     expect(restored).toBe(false);
     finishNormalization();
     await Promise.all([hydration, restoration]);
@@ -274,11 +460,32 @@ describe('session-controller', () => {
     const providerFailure = new Error('provider unavailable');
     jest.spyOn(auth, 'signOut').mockRejectedValueOnce(providerFailure);
 
-    await expect(signOutAppShellSession(auth, 'all')).rejects.toBe(providerFailure);
+    await expect(signOutAppShellSession(auth, 'all')).rejects.toBe(
+      providerFailure
+    );
 
     expect(useAppShellStore.getState().session?.status).toBe('signed_out');
     expect(resetIdentity).toHaveBeenCalledTimes(1);
     unregister();
+  });
+
+  it('retains the DEV shell and credential for retry when server withdrawal fails offline', async () => {
+    const gate = jest.requireMock('@/config/mobile-automation')
+      .isMobileAutomationEnabled as jest.Mock;
+    const auth = createMockAuthService();
+    await auth.signInWithGoogle();
+    await restoreAppShellSession(auth);
+    const owner = useAppShellStore.getState().session?.userId;
+    const failure = new HttpError('provider_unavailable', 503);
+    jest.spyOn(auth, 'signOut').mockRejectedValueOnce(failure);
+    gate.mockReturnValue(true);
+    try {
+      await expect(signOutAppShellSession(auth, 'local')).rejects.toBe(failure);
+      expect(useAppShellStore.getState().session?.userId).toBe(owner);
+      expect(useAppShellStore.getState().session?.status).toBe('authenticated');
+    } finally {
+      gate.mockReturnValue(false);
+    }
   });
 
   it('starts the correct onboarding path after authentication', async () => {

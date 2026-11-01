@@ -11,6 +11,7 @@ import type {
 } from '@/services/contracts/assistant-notifications-service';
 import type { NotificationPermissionState } from '@/domain/notifications';
 import { translateDynamic } from '@/localization/i18n';
+import { z } from 'zod';
 
 const ExpoNotifications =
   (Notifications as unknown as { default?: typeof Notifications }).default ??
@@ -19,13 +20,32 @@ const ExpoLinking =
   (Linking as unknown as { default?: typeof Linking }).default ?? Linking;
 const deviceFingerprintKey = 'masarifi.notification-device-fingerprint.v1';
 
-export type PushDeviceRegistration = {
+export type DeviceRegistration = {
   deviceFingerprint: string;
   platform: 'android' | 'ios';
   appVersion: string;
+};
+
+export type PushDeviceRegistration = DeviceRegistration & {
   pushToken: string;
   pushProvider: 'expo';
 };
+
+// Sync identity does not require notification permission or a push provider.
+export async function getDeviceRegistration(): Promise<DeviceRegistration | null> {
+  const appVersion = Constants.expoConfig?.version;
+  if (
+    (Platform.OS !== 'android' && Platform.OS !== 'ios') ||
+    typeof appVersion !== 'string'
+  )
+    return null;
+  let deviceFingerprint = await SecureStore.getItemAsync(deviceFingerprintKey);
+  if (!deviceFingerprint || deviceFingerprint.length < 16) {
+    deviceFingerprint = randomUUID();
+    await SecureStore.setItemAsync(deviceFingerprintKey, deviceFingerprint);
+  }
+  return { deviceFingerprint, platform: Platform.OS, appVersion };
+}
 
 export async function getPushDeviceRegistration(): Promise<PushDeviceRegistration | null> {
   if (
@@ -35,21 +55,19 @@ export async function getPushDeviceRegistration(): Promise<PushDeviceRegistratio
     return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   const appVersion = Constants.expoConfig?.version;
-  if (typeof projectId !== 'string' || typeof appVersion !== 'string') return null;
+  if (typeof projectId !== 'string' || typeof appVersion !== 'string')
+    return null;
   try {
-    let deviceFingerprint = await SecureStore.getItemAsync(deviceFingerprintKey);
-    if (!deviceFingerprint || deviceFingerprint.length < 16) {
-      deviceFingerprint = randomUUID();
-      await SecureStore.setItemAsync(deviceFingerprintKey, deviceFingerprint);
-    }
-    const pushToken = (await ExpoNotifications.getExpoPushTokenAsync({ projectId })).data;
+    const registration = await getDeviceRegistration();
+    if (!registration) return null;
+    const pushToken = (
+      await ExpoNotifications.getExpoPushTokenAsync({ projectId })
+    ).data;
     if (typeof pushToken !== 'string' || pushToken.length < 16) return null;
     return {
-      deviceFingerprint,
-      platform: Platform.OS,
-      appVersion,
+      ...registration,
       pushToken,
-      pushProvider: 'expo',
+      pushProvider: 'expo'
     };
   } catch {
     return null;
@@ -133,6 +151,7 @@ export function createPhoneNotificationService(): PhoneNotificationService {
       }
       try {
         const identifier = await ExpoNotifications.scheduleNotificationAsync({
+          identifier: input.notificationId,
           content: {
             title: input.title,
             body: input.body,
@@ -219,10 +238,14 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
       request?: { content?: { data?: Record<string, unknown> } };
     };
   };
-  const notificationId =
-    value.notification?.request?.content?.data?.notificationId;
+  const data = value.notification?.request?.content?.data;
   const action = mapAction(value.actionIdentifier);
   if (!action) return null;
+  if (data?.kind !== undefined) {
+    const local = z.object({ kind: z.literal('onboarding_resume'), cycleId: z.string().uuid() }).strict().safeParse(data);
+    return action === 'view' && local.success ? { ...local.data, action } : null;
+  }
+  const notificationId = data?.notificationId;
   if (typeof notificationId !== 'string') return null;
   return {
     notificationId,

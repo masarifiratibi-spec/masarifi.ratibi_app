@@ -1,12 +1,21 @@
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react-native';
-import { PixelRatio } from 'react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
+import { AppState, PixelRatio, type AppStateStatus } from 'react-native';
+import * as ExpoLocalization from 'expo-localization';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import { AssistantConversationView } from './AssistantConversationView';
 import type { AssistantResponse } from '@/domain/assistant';
 
 describe('AssistantConversationView', () => {
+  it('uses the existing status area for a submission failure and retains the typed question', async () => {
+    const onSendMessage = jest.fn(async () => false);
+    renderWithProviders(<AssistantConversationView conversationId="conversation-1" responses={[]} onSendMessage={onSendMessage} error="Safe failure" />);
+    expect(screen.getByText('Safe failure')).toBeTruthy();
+    fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'Retained question');
+    await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
+    expect(screen.getByTestId('assistant-composer-input').props.value).toBe('Retained question');
+  });
   beforeEach(() => {
     changeLocale('ar');
   });
@@ -37,8 +46,27 @@ describe('AssistantConversationView', () => {
     createdAt: Date.now()
   };
 
-  it('renders banner, user question bubble, AI response bubble, insight card, and composer', () => {
-    const onSendMessage = jest.fn();
+  it('refreshes both message clocks from the device hour preference after foregrounding', () => {
+    changeLocale('en');
+    const calendar = { calendar: ExpoLocalization.CalendarIdentifier.GREGORY, timeZone: 'UTC', firstWeekday: 1, uses24hourClock: true };
+    const calendars = jest.spyOn(ExpoLocalization, 'getCalendars').mockReturnValue([calendar]);
+    const lifecycle = jest.spyOn(AppState, 'addEventListener');
+    const timestamp = new Date(2026, 7, 9, 15, 5).getTime();
+    renderWithProviders(<AssistantConversationView conversationId="clock-check"
+      responses={[{...mockResponse, conversationId: 'clock-check', createdAt: timestamp, requestCreatedAt: timestamp}]}
+      onSendMessage={jest.fn()} />);
+    expect(screen.getAllByText('15:05')).toHaveLength(2);
+    calendars.mockReturnValue([{...calendar, uses24hourClock: false}]);
+    act(() => {
+      for (const [event, listener] of lifecycle.mock.calls) {
+        if (event === 'change') (listener as (state: AppStateStatus) => void)('active');
+      }
+    });
+    expect(screen.getAllByText('03:05 PM')).toHaveLength(2);
+  });
+
+  it('renders the question and direct answer without an automatic insight card', async () => {
+    const onSendMessage = jest.fn(async () => true);
 
     renderWithProviders(
       <AssistantConversationView
@@ -51,7 +79,7 @@ describe('AssistantConversationView', () => {
     expect(screen.getByTestId('assistant-header-banner')).toBeTruthy();
     expect(screen.getAllByText('كم أنفقت هذا الشهر؟').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(translate('assistant.answer.direct'))).toBeTruthy();
-    expect(screen.getByTestId('financial-insight-card')).toBeTruthy();
+    expect(screen.queryByTestId('financial-insight-card')).toBeNull();
     expect(screen.getByTestId('assistant-composer')).toBeTruthy();
 
     // Type in composer and send
@@ -59,7 +87,7 @@ describe('AssistantConversationView', () => {
       screen.getByTestId('assistant-composer-input'),
       'ما هي خطة الادخار؟'
     );
-    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
     expect(onSendMessage).toHaveBeenCalledWith('ما هي خطة الادخار؟');
   });
 

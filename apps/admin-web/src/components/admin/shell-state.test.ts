@@ -183,11 +183,14 @@ describe("Spec 010 governance and settings route permissions", () => {
     ["/admin/admin-team", "admin-team.read"],
     ["/admin/admin-team/invite", "admin-team.invite"],
     ["/admin/admin-team/ADM-DEMO-SECURITY-02", "admin-team.read"],
+    ["/admin/admin-team/user_3JwdImHtXigJuIjvw5TUP1IPjpf", "admin-team.read"],
     ["/admin/roles", "roles.read"],
     ["/admin/roles/new", "roles.manage"],
     ["/admin/roles/permissions", "permissions.read"],
     ["/admin/roles/ROLE-DEMO-SUPPORT", "roles.read"],
     ["/admin/roles/ROLE-DEMO-CUSTOM-01/edit", "roles.manage"],
+    ["/admin/roles/135399db-63d5-4236-94b4-9c48b3dad642", "roles.read"],
+    ["/admin/roles/135399db-63d5-4236-94b4-9c48b3dad642/edit", "roles.manage"],
     ["/admin/settings", "settings.general.read"],
     ["/admin/settings/mobile", "settings.mobile.read"],
     ["/admin/settings/feature-flags", "settings.flags.read"],
@@ -230,10 +233,10 @@ describe("Spec 006 AI route permissions", () => {
 
 describe("Spec 007 communications route permissions", () => {
   test.each([
-    ["/admin/support", "support.tickets.read"],
+    ["/admin/support", "support.overview.read"],
     ["/admin/support/tickets", "support.tickets.read"],
-    ["/admin/support/tickets/TKT-1001", "support.tickets.read"],
-    ["/admin/support/categories", "support.categories.manage"],
+    ["/admin/support/tickets/TKT-1001", "support.tickets.detail.read"],
+    ["/admin/support/categories", "support.categories.read"],
     ["/admin/feedback", "feedback.read"],
     ["/admin/feedback/FDB-1001", "feedback.read"],
     ["/admin/feedback/abuse", "feedback.abuse.manage"],

@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { useAppShellStore } from '@/state/app-shell';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
@@ -16,38 +19,32 @@ import { useSaveSettingsProfile, useSettingsProfile } from './settings-queries';
 import { colorTokens } from '@/design-system/tokens';
 
 export function ProfilePhoneScreen() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <ProfilePhoneContent key={ownerId} />;
+}
+
+function ProfilePhoneContent() {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
 
   const profile = useSettingsProfile();
   const save = useSaveSettingsProfile();
 
-  const [countryCode, setCountryCode] = useState('+966');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [edits, setEdits] = useState<{
+    countryCode?: string;
+    phoneNumber?: string;
+  }>({});
+  const saved = splitPhone(profile.data?.phone);
+  const countryCode = edits.countryCode ?? saved.countryCode;
+  const phoneNumber = edits.phoneNumber ?? saved.phoneNumber;
+  const setCountryCode = (value: string) =>
+    setEdits((current) => ({ ...saved, ...current, countryCode: value }));
+  const setPhoneNumber = (value: string) =>
+    setEdits((current) => ({ ...saved, ...current, phoneNumber: value }));
   const [errorText, setErrorText] = useState<string | null>(null);
+  const saveBlocked = save.isPending || profile.isError || profile.isFetching;
 
-  useEffect(() => {
-    if (!profile.data?.phone) return;
-    const existing = profile.data.phone;
-    if (existing.startsWith('+')) {
-      const knownCodes = ['+966', '+971', '+965', '+974', '+973', '+968', '+962', '+961', '+20', '+1', '+44'];
-      const matchedCode = knownCodes.find((c) => existing.startsWith(c));
-      if (matchedCode) {
-        setCountryCode(matchedCode);
-        setPhoneNumber(existing.slice(matchedCode.length).trim());
-        return;
-      }
-      const genericMatch = existing.match(/^(\+\d{1,3})(.*)$/);
-      if (genericMatch) {
-        setCountryCode(genericMatch[1]);
-        setPhoneNumber(genericMatch[2].trim());
-        return;
-      }
-    }
-    setPhoneNumber(existing);
-  }, [profile.data?.phone]);
-
-  if (profile.isLoading) {
+  if (profile.isLoading && !hasReadableSnapshot(profile)) {
     return (
       <StateView
         state="loading"
@@ -56,7 +53,7 @@ export function ProfilePhoneScreen() {
     );
   }
 
-  if (profile.isError || !profile.data) {
+  if (!hasReadableSnapshot(profile) || !profile.data) {
     return (
       <StateView
         state="error"
@@ -66,6 +63,7 @@ export function ProfilePhoneScreen() {
   }
 
   const handleSave = () => {
+    if (saveBlocked) return;
     const rawDigits = phoneNumber.replace(/\D/g, '');
     if (rawDigits.length < 7) {
       setErrorText('appShell.error.unknown');
@@ -108,7 +106,7 @@ export function ProfilePhoneScreen() {
           <DesignIcon
             name="phone"
             label="Phone"
-            color={colorTokens.raw["1F7A5A"]}
+            color={colorTokens.raw['1F7A5A']}
             size="xl"
             decorative
           />
@@ -121,6 +119,7 @@ export function ProfilePhoneScreen() {
         </StyledText>
       </View>
 
+      <FinancialRefreshStatus query={profile} />
       {/* Current Phone Card */}
       <View
         style={[
@@ -166,11 +165,40 @@ export function ProfilePhoneScreen() {
         <ActionButton
           label={translateDynamic('settings.profile.phone.save')}
           loading={save.isPending}
+          disabled={saveBlocked}
           onPress={handleSave}
         />
       </View>
     </ScrollView>
   );
+}
+
+function splitPhone(existing?: string | null) {
+  const fallback = { countryCode: '+966', phoneNumber: existing ?? '' };
+  if (!existing?.startsWith('+')) return fallback;
+  const knownCodes = [
+    '+966',
+    '+971',
+    '+965',
+    '+974',
+    '+973',
+    '+968',
+    '+962',
+    '+961',
+    '+20',
+    '+1',
+    '+44'
+  ];
+  const matched = knownCodes.find((code) => existing.startsWith(code));
+  if (matched)
+    return {
+      countryCode: matched,
+      phoneNumber: existing.slice(matched.length).trim()
+    };
+  const generic = existing.match(/^(\+\d{1,3})(.*)$/);
+  return generic
+    ? { countryCode: generic[1], phoneNumber: generic[2].trim() }
+    : fallback;
 }
 
 const styles = StyleSheet.create({
@@ -188,7 +216,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colorTokens.raw["EBF5EC"],
+    backgroundColor: colorTokens.raw['EBF5EC'],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs
@@ -196,11 +224,11 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colorTokens.raw["10231F"]
+    color: colorTokens.raw['10231F']
   },
   heroSubtitle: {
     fontSize: 13,
-    color: colorTokens.raw["707870"],
+    color: colorTokens.raw['707870'],
     textAlign: 'center',
     paddingHorizontal: spacing.lg
   },
@@ -211,12 +239,12 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   cardLabel: {
-    color: colorTokens.raw["707870"],
+    color: colorTokens.raw['707870'],
     fontSize: 12
   },
   currentPhoneValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: colorTokens.raw["10231F"]
+    color: colorTokens.raw['10231F']
   }
 });

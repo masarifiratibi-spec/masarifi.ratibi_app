@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { accountTypes, transactionSources } from '../domain/core-finance';
-import { createDefaultCategories } from '../domain/core-finance-seeds';
+import { createDefaultCategories } from '../domain/default-categories';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 import { SyncRepository, type SyncDomain } from './sync-repository';
 
@@ -68,9 +68,11 @@ export class CoreFinanceSyncAdapter {
     items: Record<string, unknown>[],
     cursor: string,
     hasMore: boolean
-  ): Promise<void> {
+  ): Promise<boolean> {
     const database = await this.db();
+    let accepted = false;
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
+      if (domain === 'transactions' && await new SyncRepository(transaction).hasPending(domain)) return;
       if (domain === 'categories')
         await this.primeCategoryMappings(transaction, items);
       for (const item of items) {
@@ -93,7 +95,9 @@ export class CoreFinanceSyncAdapter {
       }
       if (!hasMore)
         await this.sync.saveCursor(transaction, domain, cursor, null);
+      accepted = true;
     });
+    return accepted;
   }
 
   async applyDelta(
@@ -101,9 +105,11 @@ export class CoreFinanceSyncAdapter {
     changes: ServerChange[],
     cursor: string,
     lastMutationId: string | null
-  ): Promise<void> {
+  ): Promise<boolean> {
     const database = await this.db();
+    let accepted = false;
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
+      if (domain === 'transactions' && await new SyncRepository(transaction).hasPending(domain)) return;
       if (domain === 'categories')
         await this.primeCategoryMappings(
           transaction,
@@ -143,7 +149,9 @@ export class CoreFinanceSyncAdapter {
           );
       }
       await this.sync.saveCursor(transaction, domain, cursor, lastMutationId);
+      accepted = true;
     });
+    return accepted;
   }
 
   async storeConflict(conflict: ServerConflict): Promise<void> {
@@ -358,9 +366,9 @@ export class CoreFinanceSyncAdapter {
     await transaction.runAsync(
       `UPDATE sync_mutation_queue SET status='conflict',last_error_code='SYNC_SERVER_CONFLICT',
          next_attempt_at=NULL,updated_at=?
-       WHERE resource_id=? AND status IN ('pending','sending')`,
+       WHERE (resource_id=? OR resource_id IN (SELECT server_id FROM sync_id_mappings WHERE domain='transactions' AND local_id=?)) AND status IN ('pending','sending')`,
       Date.now(),
-      localId
+      localId, localId
     );
   }
 
@@ -437,8 +445,8 @@ export class CoreFinanceSyncAdapter {
     return Boolean(
       await transaction.getFirstAsync(
         `SELECT 1 present FROM sync_mutation_queue
-         WHERE resource_id=? AND status IN ('pending','sending','conflict') LIMIT 1`,
-        resourceId
+         WHERE (resource_id=? OR resource_id IN (SELECT server_id FROM sync_id_mappings WHERE domain='transactions' AND local_id=?)) AND status IN ('pending','sending','conflict') LIMIT 1`,
+        resourceId, resourceId
       )
     );
   }
@@ -663,7 +671,10 @@ export class CoreFinanceSyncAdapter {
     const transactionSource =
       kind === 'opening'
         ? ('adjustment' as const)
-        : this.member(rawSource, transactionSources);
+        : this.member(
+            rawSource === 'tracking-import' ? 'automatic' : rawSource,
+            transactionSources
+          );
     const openingPostingAmount =
       kind === 'opening'
         ? this.safeInteger(

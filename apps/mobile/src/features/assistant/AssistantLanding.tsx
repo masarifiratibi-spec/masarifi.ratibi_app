@@ -20,29 +20,44 @@ import type { AssistantQuestionIntent } from '@/services/contracts/assistant-not
 import type { AssistantFinancialInsight } from '@/services/contracts/assistant-notifications-service';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { formatMinorAmount } from '@/utils/format-financial-value';
+import { ActionButton } from '@/design-system/components/ActionButton';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
+import { useAssistantFinancialVisibility } from './useAssistantFinancialVisibility';
+import { useAssistantDraft } from './useAssistantDraft';
+import { AssistantDraftStatus } from './AssistantDraftStatus';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 
 export interface AssistantLandingProps {
-  onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void;
+  initialQuestion?: string;
+  onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void | Promise<boolean>;
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
   insight?: AssistantFinancialInsight;
   conversations?: readonly { id: string; title: string }[];
   onSelectConversation?: (id: string) => void;
   loading?: boolean;
+  consentLoading?: boolean;
   error?: string | null;
   onBack?: () => void;
 }
 
 export function AssistantLanding({
+  initialQuestion,
   onAskQuestion,
   consent,
   onEnableConsent,
   insight,
   loading = false,
+  consentLoading = false,
   error = null,
   onBack
 }: AssistantLandingProps) {
   const direction = usePreferenceStore((state) => state.direction);
+  const scope = initialQuestion ? `report:${bytesToHex(sha256(utf8ToBytes(initialQuestion)))}` : 'landing';
+  const draft = useAssistantDraft(scope, initialQuestion);
+  const hasUnsentQuestion = Boolean(draft.text.trim());
+  const { hidden, reveal } = useAssistantFinancialVisibility(insight?.id ?? 'no-insight');
 
   const handleBack = () => {
     if (onBack) {
@@ -54,12 +69,30 @@ export function AssistantLanding({
     }
   };
 
+  const { requestClose } = useDraftNavigationGuard({
+    dirty: hasUnsentQuestion,
+    discard: () => draft.discard(),
+    close: handleBack,
+    copy: {
+      title: translate('assistant.unsent.title'),
+      message: translate('assistant.unsent.message'),
+      keep: translate('assistant.unsent.keep'),
+      discard: translate('assistant.unsent.discard')
+    }
+  });
+
+  const handleAskQuestion = async (question: string, intent?: AssistantQuestionIntent) => {
+    const revision = question === draft.text.trim() ? draft.revision : null;
+    const accepted = intent === undefined ? await onAskQuestion(question) : await onAskQuestion(question, intent);
+    if (accepted === true && revision) await draft.discard(revision);
+  };
+
   return (
     <View testID="assistant-landing" style={styles.root}>
       {/* 1. Header with back navigation and title */}
       <AppBar
         title={translate('assistant.hero.title')}
-        onBack={handleBack}
+        onBack={requestClose}
         direction={direction}
       />
 
@@ -74,13 +107,16 @@ export function AssistantLanding({
           <AssistantHero />
 
           {/* 3. Main Question Input Card */}
-          <AssistantAskCard onAskQuestion={onAskQuestion} loading={loading} />
+          <AssistantAskCard text={draft.text} onChangeText={draft.change}
+            onAskQuestion={question => { void handleAskQuestion(question).catch(() => undefined); }}
+            loading={loading || draft.loading} />
+          <AssistantDraftStatus draft={draft} />
 
           {/* 4. Personalization Card */}
           <AssistantConsentCard
             consent={consent}
             onEnableConsent={onEnableConsent}
-            loading={loading}
+            loading={consentLoading}
           />
 
           {/* Error message if any */}
@@ -92,16 +128,17 @@ export function AssistantLanding({
 
           {/* 5. Quick Suggestions 2x2 Grid */}
           <AssistantSuggestedQuestions
-            onSelectQuestion={onAskQuestion}
-            disabled={loading}
+            onSelectQuestion={(question, intent) => { void handleAskQuestion(question, intent).catch(() => undefined); }}
+            disabled={loading || draft.loading}
           />
 
           {insight ? (
             <SurfaceCard testID="assistant-proactive-insight" style={styles.insightCard}>
-              <StyledText variant="title">{insight.budgetName}</StyledText>
+              <StyledText variant="title">{hidden ? '••••' : insight.budgetName}</StyledText>
               <StyledText>
-                {formatMinorAmount(insight.spentMinor, insight.currency, currentLocale()).replace('\u00a0', ' ')}
+                {hidden ? `•••• ${insight.currency}` : formatMinorAmount(insight.spentMinor, insight.currency, currentLocale()).replace('\u00a0', ' ')}
               </StyledText>
+              {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
             </SurfaceCard>
           ) : null}
         </View>

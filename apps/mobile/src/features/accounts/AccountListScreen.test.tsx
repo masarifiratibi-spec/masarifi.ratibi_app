@@ -1,14 +1,29 @@
 import React from 'react';
-import { PixelRatio } from 'react-native';
+import { PixelRatio, SectionList, StyleSheet } from 'react-native';
 import { fireEvent, screen } from '@testing-library/react-native';
 
-import { colorTokens, lightThemeColors } from '@/design-system/tokens';
+import { colorTokens, darkThemeColors, lightThemeColors } from '@/design-system/tokens';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 import { changeLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
 import { AccountListScreen } from './AccountListScreen';
+
+it('uses the dark page surface around account cards and section headings', () => {
+  usePreferenceStore.setState({ theme: 'dark' });
+  const view = renderWithQueryData(<AccountListScreen />, [
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.accountBalances(true), []]
+  ]);
+  try {
+    expect(StyleSheet.flatten(view.UNSAFE_getByType(SectionList).props.contentContainerStyle).backgroundColor)
+      .toBe(darkThemeColors.surfaces.page);
+  } finally {
+    view.unmount();
+    usePreferenceStore.setState({ theme: 'system' });
+  }
+});
 
 it('renders active, archived, duplicate, and add-account states', () => {
   const accounts = [

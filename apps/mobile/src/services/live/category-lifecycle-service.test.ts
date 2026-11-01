@@ -2,6 +2,11 @@ import { createLiveCategoryLifecycleService } from './category-lifecycle-service
 import { createDefaultCategories } from '@/domain/core-finance-seeds';
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+
+
 const mockCategoryPayloads = new Map<string, string>();
 const mockOtherOwnerPayloads = new Map<string, string>();
 const mockDatabaseFor = (payloads: Map<string, string>) => ({
@@ -87,6 +92,110 @@ const mergedCategory = {
   createdAt: '2026-09-01T00:00:00.000Z',
   updatedAt: '2026-09-08T00:00:00.000Z'
 };
+
+it.each(['create', 'update'] as const)('reuses owner-validated parent mappings during a category %s', async operation => {
+  const parent = { ...mergedCategory, status: 'active', active: true, mergedIntoId: null };
+  const child = { ...parent, id: '10000000-0000-4000-8000-000000000003', parentId: parent.id };
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(async (_url, init) => response(init?.method === 'GET' ? { items: [parent], nextCursor: null } : child));
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  await service.listCategories(true);
+  const input = { labelAr: 'فرعي', labelEn: 'Child', financialType: 'expense' as const, parentId: parent.id };
+  const result = operation === 'create' ? await service.createCategory(input) : await service.updateCategory(child.id, input, 8);
+  expect(result.parentId).toBe(parent.id);
+  expect(request.mock.calls.map(([, init]) => init?.method)).toEqual(['GET', operation === 'create' ? 'POST' : 'PATCH']);
+  expect(JSON.parse(String(request.mock.calls[1][1]?.body)).parentId).toBe(parent.id);
+});
+
+it('shares concurrent category preparation and retries a failed attempt', async () => {
+  const request = jest.fn(async () => response({ items: [], nextCursor: null }));
+  request.mockRejectedValueOnce(new TypeError('connection unavailable'));
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  const failed = await Promise.allSettled([service.prepareCategoryIds(), service.prepareCategoryIds()]);
+  expect(failed.map(({ status }) => status)).toEqual(['rejected', 'rejected']);
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(mockBridge.getToken).toHaveBeenCalledWith({ skipCache: false });
+  await Promise.all([service.prepareCategoryIds(), service.prepareCategoryIds()]);
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+it('prepares fresh category IDs after an owner switch without reusing old mappings', async () => {
+  const request = jest.fn(async () => response({ items: [{ ...mergedCategory, scope: 'system', systemKey: 'food' }], nextCursor: null }));
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  await service.prepareCategoryIds();
+  expect(service.serverCategoryId('food')).toBe(mergedCategory.id);
+  mockSession = { ...mockSession, id: 'session-b', userId: 'user_owner-b' };
+  mockActiveDatabase = mockOtherOwnerDatabase;
+  request.mockImplementation(async () => response({ items: [], nextCursor: null }));
+  await service.prepareCategoryIds();
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(() => service.serverCategoryId('food')).toThrow();
+});
+
+it('starts the new owner preparation while an old owner request is still pending', async () => {
+  let finishOldRequest!: (response: Response) => void;
+  let oldRequestStarted!: () => void;
+  const started = new Promise<void>((resolve) => { oldRequestStarted = resolve; });
+  const request = jest.fn(async () => response({ items: [], nextCursor: null }));
+  request.mockImplementationOnce(() => {
+    oldRequestStarted();
+    return new Promise<Response>((resolve) => { finishOldRequest = resolve; });
+  });
+  const service = createLiveCategoryLifecycleService({ baseUrl: 'https://api.test', request });
+  const oldPreparation = service.prepareCategoryIds().catch((error: unknown) => error);
+  await started;
+  mockSession = { ...mockSession, id: 'session-b', userId: 'user_owner-b' };
+  mockActiveDatabase = mockOtherOwnerDatabase;
+  const newPreparation = service.prepareCategoryIds();
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(request).toHaveBeenCalledTimes(2);
+    await newPreparation;
+  } finally {
+    finishOldRequest(response({ items: [{ ...mergedCategory, scope: 'system', systemKey: 'food' }], nextCursor: null }));
+    await Promise.allSettled([newPreparation, oldPreparation]);
+  }
+  expect(await oldPreparation).toMatchObject({ code: 'session_expired' });
+  expect(() => service.serverCategoryId('food')).toThrow();
+});
+
+it('maps the existing Shopping database category for manual expense submission without creating a category', async () => {
+  const id = '04000000-0000-4000-8000-000000000006';
+  const request = jest.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+    response({
+      items: [
+        {
+          ...mergedCategory,
+          id,
+          scope: 'system',
+          systemKey: 'shopping',
+          labelAr: 'التسوق',
+          labelEn: 'Shopping',
+          status: 'active',
+          active: true,
+          mergedIntoId: null
+        }
+      ],
+      nextCursor: null
+    })
+  );
+  const service = createLiveCategoryLifecycleService({
+    baseUrl: 'https://api.test',
+    request
+  });
+  const categories = await service.listCategories();
+  expect(categories).toContainEqual(
+    expect.objectContaining({
+      id: 'shopping',
+      financialType: 'expense',
+      status: 'active'
+    })
+  );
+  await service.prepareCategoryIds();
+  expect(service.serverCategoryId('shopping')).toBe(id);
+  expect(service.localCategoryId(id)).toBe('shopping');
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request.mock.calls[0]?.[1]).toMatchObject({ method: 'GET' });
+});
 
 describe.each(['usage', 'archive', 'restore', 'merge'] as const)(
   '%s remote category operation',

@@ -8,9 +8,7 @@ const key = Buffer.alloc(32, 1).toString('base64url');
 
 describe('SyncService delta and acknowledgement', () => {
   const config = {
-    getRequired: jest.fn((name: string) =>
-      name === 'MASARIFI_PUSH_TOKEN_HASH_KEY' ? key : 524_288,
-    ),
+    getRequired: jest.fn((name: string) => (name === 'MASARIFI_SYNC_CURSOR_KEY' ? key : 524_288)),
   } as never;
 
   it('returns a bounded keyset page and monotonic acknowledgement', async () => {
@@ -105,9 +103,7 @@ describe('SyncService delta and acknowledgement', () => {
         }),
       } as never,
       {
-        getRequired: jest.fn((name: string) =>
-          name === 'MASARIFI_PUSH_TOKEN_HASH_KEY' ? key : 128,
-        ),
+        getRequired: jest.fn((name: string) => (name === 'MASARIFI_SYNC_CURSOR_KEY' ? key : 128)),
       } as never,
     );
     await expect(

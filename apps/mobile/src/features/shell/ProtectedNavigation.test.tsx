@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import React from 'react';
 import { act, render, waitFor } from '@testing-library/react-native';
 
@@ -13,7 +14,13 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 
 const mockRouterPush = jest.fn();
-const mockStack = jest.fn(() => null);
+const mockStack = jest.fn(
+  ({
+    screenLayout
+  }: {
+    screenLayout?: (props: { children: React.ReactNode }) => React.ReactNode;
+  }) => (screenLayout ? screenLayout({ children: null }) : null)
+);
 const mockRegisterCategories = jest.fn();
 const mockGetLastResponse = jest.fn();
 const mockSubscribeToResponses = jest.fn();
@@ -27,7 +34,7 @@ const mockPrivacyGate = jest.fn(
 );
 
 jest.mock('expo-router', () => ({
-  Stack: () => mockStack(),
+  Stack: (props: Parameters<typeof mockStack>[0]) => mockStack(props),
   Redirect: (props: { href: string }) => mockRedirect(props),
   router: { push: mockRouterPush },
   usePathname: () => mockPathname
@@ -37,11 +44,19 @@ jest.mock('@/design-system/typography', () => ({
   FontGate: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
-jest.mock('@/state/FoundationProviders', () => ({
-  FoundationProviders: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  )
-}));
+jest.mock('@/state/FoundationProviders', () => {
+  const { QueryClient, QueryClientProvider } = jest.requireActual(
+    '@tanstack/react-query'
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } }
+  });
+  return {
+    FoundationProviders: ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+  };
+});
 
 jest.mock('@/state/AppShellProvider', () => ({
   AppShellProvider: ({ children }: { children: React.ReactNode }) => (
@@ -49,9 +64,19 @@ jest.mock('@/state/AppShellProvider', () => ({
   )
 }));
 
+jest.mock('@/services/live/clerk-provider', () => ({
+  useLiveClerkSessionKey: () => 'navigation-test-session',
+  MobileIdentityProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  )
+}));
+
 jest.mock('@/features/security/AppPrivacyGate', () => ({
-  AppPrivacyGate: (props: { children: React.ReactNode; locked?: boolean }) =>
-    mockPrivacyGate(props)
+  AppPrivacyGate: (props: {
+    children: React.ReactNode;
+    immediate?: boolean;
+    locked?: boolean;
+  }) => mockPrivacyGate(props)
 }));
 
 jest.mock('@/services/platform/phone-notification-service', () => ({
@@ -71,6 +96,75 @@ jest.mock('@/services/mocks/assistant-notifications-service', () => ({
 }));
 
 describe('protected navigation', () => {
+  it('waits for preference hydration before admitting a protected destination', () => {
+    usePreferenceStore.setState({ hydrated: false });
+    render(<RootLayout />);
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/' });
+  });
+
+  it.each([
+    [authenticatedSession, true],
+    [signedOutSession, false],
+    [expiredSession, false]
+  ])(
+    'incomplete lock opt-out cannot admit notification actions (%s)',
+    async (session, allowed) => {
+      process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
+      process.env.EXPO_PUBLIC_API_URL =
+        'https://api.staging.masarifiratibi.com';
+      useAppShellStore.setState({ session, privacyLock: lockedPrivacy });
+      mockGetLastResponse.mockResolvedValueOnce({
+        notificationId: 'staging-undo',
+        action: 'undo'
+      });
+      mockRevalidateAction.mockResolvedValue({
+        status: 'available',
+        target: { kind: 'transaction', transactionId: 'tx-1' },
+        action: 'undo'
+      });
+      try {
+        render(<RootLayout />);
+        if (allowed) {
+          await waitFor(() => expect(mockRedirect).toHaveBeenCalledWith({ href: '/security/unlock' }));
+          expect(mockExecuteAction).not.toHaveBeenCalled();
+        }
+        else {
+          await waitFor(() =>
+            expect(mockGetLastResponse).toHaveBeenCalled()
+          );
+          expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+          expect(mockResolveTarget).not.toHaveBeenCalled();
+          expect(mockExecuteAction).not.toHaveBeenCalled();
+        }
+        if (allowed) expect(mockRouterPush).toHaveBeenCalledWith('/security/unlock');
+        else expect(mockRouterPush).not.toHaveBeenCalledWith('/security/unlock');
+      } finally {
+        delete process.env.EXPO_PUBLIC_APP_LOCK_ENABLED;
+        delete process.env.EXPO_PUBLIC_API_URL;
+      }
+    }
+  );
+  it('retains native lock enforcement when the opt-out lacks the required DEV runtime identity', () => {
+    process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    mockPathname = '/security/settings';
+    useAppShellStore.setState({ privacyLock: lockedPrivacy });
+    try {
+      render(<RootLayout />);
+      expect(mockRedirect).toHaveBeenCalledWith({ href: '/security/unlock' });
+      expect(mockPrivacyGate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          immediate: true,
+          locked: true,
+          lockAfterMs: null
+        })
+      );
+      expect(useAppShellStore.getState().privacyLock).toEqual(lockedPrivacy);
+    } finally {
+      delete process.env.EXPO_PUBLIC_APP_LOCK_ENABLED;
+      delete process.env.EXPO_PUBLIC_API_URL;
+    }
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     mockPathname = '/home';
@@ -176,16 +270,14 @@ describe('protected navigation', () => {
     );
   });
 
-  it('keeps forgotten-PIN recovery reachable while the app is locked', () => {
-    mockPathname = '/security/pin/forgot';
+  it('does not keep the privacy mask active on the lock recovery route', () => {
+    mockPathname = '/security/unlock';
     useAppShellStore.setState({ privacyLock: lockedPrivacy });
 
     render(<RootLayout />);
 
-    expect(mockRedirect).not.toHaveBeenCalled();
-    expect(mockStack).toHaveBeenCalled();
-    expect(mockPrivacyGate).toHaveBeenLastCalledWith(
-      expect.objectContaining({ locked: false })
+    expect(mockPrivacyGate).toHaveBeenCalledWith(
+      expect.objectContaining({ immediate: false, locked: false })
     );
   });
 
@@ -355,8 +447,10 @@ describe('protected navigation', () => {
     render(<RootLayout />);
 
     await waitFor(() =>
-      expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
+      expect(mockGetLastResponse).toHaveBeenCalled()
     );
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+    expect(mockResolveTarget).not.toHaveBeenCalled();
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
 
@@ -375,14 +469,16 @@ describe('protected navigation', () => {
     render(<RootLayout />);
 
     await waitFor(() =>
-      expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
+      expect(mockGetLastResponse).toHaveBeenCalled()
     );
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+    expect(mockResolveTarget).not.toHaveBeenCalled();
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
 
   it('does not execute protected responses while temporarily locked', async () => {
     useAppShellStore.setState({
-      privacyLock: { ...lockedPrivacy, appLockStatus: 'temporarily_locked' },
+      privacyLock: { ...lockedPrivacy, appLockStatus: 'locked' },
       setPendingDestination: jest.fn(async () => undefined)
     });
     mockGetLastResponse.mockResolvedValueOnce({
@@ -607,3 +703,57 @@ function RootLayout() {
   const Component = require('@app/_layout').default;
   return <Component />;
 }
+
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
+it('records the first usable PIN route after cold root hydration, restoration and profile loading resolve', () => {
+  const restore = installBenchmarkEnvironment();
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  useAppShellStore.setState({
+    hydrated: false,
+    session: { ...authenticatedSession, status: 'restoring' },
+    profileSetupStatus: 'loading',
+    onboarding: null,
+    privacyLock: null,
+    pendingDestination: null
+  });
+  usePreferenceStore.setState({
+    firstLaunchOnboardingCompleted: true,
+    hydrated: false
+  });
+  mockPathname = '/';
+  try {
+    const view = render(<RootLayout />);
+    const events = () =>
+      log.mock.calls
+        .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+        .map(([, value]) => JSON.parse(value as string))
+        .filter((event) => event.kind === 'protected_route');
+    expect(events()).toEqual([]);
+    act(() => usePreferenceStore.setState({ hydrated: true }));
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ hydrated: true }));
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ session: authenticatedSession }));
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ profileSetupStatus: 'complete' }));
+    // The entry screen still has to commit its Home/PIN navigation.
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ privacyLock: lockedPrivacy }));
+    expect(mockRedirect).toHaveBeenLastCalledWith({ href: '/security/unlock' });
+    expect(events()).toEqual([]);
+    mockPathname = '/security/unlock';
+    view.rerender(<RootLayout />);
+    expect(events()).toEqual([
+      { kind: 'protected_route', category: 'unlock', atMs: expect.any(Number) }
+    ]);
+    act(() => useAppShellStore.setState({ privacyLock: null }));
+    mockPathname = '/home';
+    view.rerender(<RootLayout />);
+    expect(events()).toHaveLength(1);
+  } finally {
+    log.mockRestore();
+    restore();
+  }
+});

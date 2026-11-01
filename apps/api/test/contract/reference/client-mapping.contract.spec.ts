@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { defaultCategorySeeds } from '../../../../mobile/src/domain/default-categories';
 
 import { supportedCurrencies } from '../../../../mobile/src/domain/currencies';
 
@@ -19,11 +18,7 @@ describe('Phase 04 client mapping', () => {
       'JOD',
       'JPY',
     ]);
-    const seedSource = readFileSync(
-      resolve(__dirname, '../../../../mobile/src/domain/core-finance-seeds.ts'),
-      'utf8',
-    );
-    const keys = [...seedSource.matchAll(/^ {2}\[\s*'([^']+)'/gm)].map((match) => match[1]);
+    const keys = defaultCategorySeeds.map(([key]) => key);
     expect(keys).toHaveLength(19);
     expect(keys).toContain('salary');
   });

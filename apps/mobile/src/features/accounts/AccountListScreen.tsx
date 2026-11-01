@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   PixelRatio,
   Pressable,
@@ -124,7 +126,10 @@ export function AccountListScreen() {
       />
     );
   }
-  if (accounts.isError || balances.isError) {
+  if (
+    (accounts.isError && !hasReadableSnapshot(accounts)) ||
+    (balances.isError && !hasReadableSnapshot(balances))
+  ) {
     return (
       <StateView
         state="error"
@@ -139,16 +144,26 @@ export function AccountListScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.colors.surfaces.page }]}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.account.id}
         contentContainerStyle={[
           styles.content,
-          { backgroundColor: colorTokens.raw.F3F5F3 }
+          { backgroundColor: theme.colors.surfaces.page }
         ]}
         ListHeaderComponent={
           <>
+            <FinancialRefreshStatus
+              query={{
+                dataUpdatedAt: Math.min(
+                  accounts.dataUpdatedAt,
+                  balances.dataUpdatedAt
+                ),
+                isFetching: accounts.isFetching || balances.isFetching,
+                isError: accounts.isError || balances.isError
+              }}
+            />
             <View style={styles.fullBleed}>
               <BrandedScreenHeader
                 compact

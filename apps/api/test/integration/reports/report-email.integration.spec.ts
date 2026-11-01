@@ -69,17 +69,13 @@ function repositoryFor(result: (value: ReportWorkOutcome) => void, workClaim = c
 }
 
 describe('report email worker', () => {
-  it('signs at send time and records one SMTP acceptance on replay', async () => {
+  it('attaches the requested PDF and records one SMTP acceptance on replay', async () => {
     let outcome: ReportWorkOutcome | undefined;
     const repository = repositoryFor((value) => {
       outcome = value;
     });
     const storage = {
-      sign: jest
-        .fn()
-        .mockResolvedValue(
-          'https://project.supabase.co/storage/v1/object/sign/report-exports/reports/key?token=opaque',
-        ),
+      readPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4\nSynthetic\n%%EOF')),
     };
     const smtp = {
       send: jest.fn().mockResolvedValue({
@@ -96,7 +92,17 @@ describe('report email worker', () => {
     );
     await worker.runOnce();
     await worker.runOnce();
-    expect(storage.sign).toHaveBeenCalledTimes(1);
+    expect(storage.readPdf).toHaveBeenCalledWith(
+      claim.id,
+      claim.userId,
+      claim.storageRef,
+      1_000_000,
+    );
+    expect(smtp.send).toHaveBeenCalledWith(
+      claim.id,
+      claim.recipient,
+      Buffer.from('%PDF-1.4\nSynthetic\n%%EOF'),
+    );
     expect(smtp.send).toHaveBeenCalledTimes(1);
     expect(outcome).toMatchObject({
       status: 'delivered',
@@ -117,11 +123,7 @@ describe('report email worker', () => {
         outcome = value;
       });
       const storage = {
-        sign: jest
-          .fn()
-          .mockResolvedValue(
-            'https://project.supabase.co/storage/v1/object/sign/report-exports/reports/key?token=opaque',
-          ),
+        readPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4\nSynthetic\n%%EOF')),
       };
       const smtp = { send: jest.fn().mockRejectedValue(failure) };
       await new ReportsWorker(

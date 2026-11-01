@@ -15,6 +15,7 @@ jest.mock('@/storage/database', () => ({
   ) => action(database),
   openDatabase: async () => ({
     getAllAsync: async () => [],
+    getFirstAsync: async () => null,
     execAsync: async () => undefined,
     runAsync: async () => undefined
   })

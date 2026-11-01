@@ -2,6 +2,7 @@ import type { TrackingImportSubmission } from '@/domain/automatic-tracking';
 import { SmsImportQueue } from './sms-import-queue';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
 import { runExclusiveDatabaseTransaction } from './database';
+import { defaultSnapshot } from '@masarifi/transaction-parser';
 
 let mockDatabase: StatefulSqlite;
 jest.mock('./database', () => ({
@@ -15,6 +16,61 @@ jest.mock('./database', () => ({
 }));
 beforeEach(() => {
   mockDatabase = new StatefulSqlite(['sms_import_queue']);
+});
+it('round trips the recognized source-currency capability through a queued offline restart', async () => {
+  const storage = memoryStorage();
+  const queue = new SmsImportQueue(storage);
+  await queue.saveRules('owner-1', {
+    keywords: [],
+    senders: [],
+    accountingPolicy: 'default_account_nominal_v1',
+    sourceAdmissionPolicy: 'financial_content_v1',
+    currencyAccountPolicy: 'source_currency_v1'
+  } as Parameters<SmsImportQueue['saveRules']>[1]);
+  expect(
+    (await new SmsImportQueue(storage).load('owner-1')).rules
+  ).toMatchObject({ currencyAccountPolicy: 'source_currency_v1' });
+});
+
+it('rejects an unknown source-currency capability without replacing last-known-good rules', async () => {
+  const queue = new SmsImportQueue(memoryStorage());
+  await queue.saveRules('owner-1', { keywords: [], senders: [] });
+  await expect(
+    queue.saveRules('owner-1', {
+      keywords: [],
+      senders: [],
+      currencyAccountPolicy: 'source_currency_v2'
+    } as unknown as Parameters<SmsImportQueue['saveRules']>[1])
+  ).rejects.toThrow();
+  expect((await queue.load('owner-1')).rules).toEqual({
+    keywords: [],
+    senders: []
+  });
+});
+it('round trips a device content policy and its boundary without converting retained work', async () => {
+  const queue = new SmsImportQueue(memoryStorage());
+  await queue.enqueue('owner-1', {
+    idempotencyKey: 'old',
+    submission,
+    cursor: 42,
+    fingerprints: ['old-key']
+  });
+  const retained = (await queue.load('owner-1')).pending;
+  await queue.saveRules('owner-1', {
+    keywords: [],
+    senders: [],
+    sourceAdmissionPolicy: 'financial_content_v1',
+    policyActivatedAt: 1000,
+    policySmsActivationId: '42'
+  } as Parameters<SmsImportQueue['saveRules']>[1]);
+  const saved = await queue.load('owner-1');
+  expect(saved.rules).toMatchObject({
+    sourceAdmissionPolicy: 'financial_content_v1',
+    policyActivatedAt: 1000,
+    policySmsActivationId: '42'
+  });
+  expect(saved.pending).toEqual(retained);
+  expect(saved.cursor).toBe(42);
 });
 const legacyKey = 'masarifi.tracking.smsImportQueue.v1';
 const legacy = () => ({
@@ -60,6 +116,154 @@ const submission: TrackingImportSubmission = {
 };
 
 describe('SMS import queue', () => {
+  it('persists activation boundaries without removing older pending captures', async () => {
+    const queue = new SmsImportQueue(memoryStorage());
+    await queue.enqueue('owner-1', {
+      idempotencyKey: 'legacy',
+      submission,
+      cursor: 42,
+      fingerprints: ['seen']
+    });
+    const state = await queue.setActivation('owner-1', {
+      smsActivatedAt: 1000,
+      notificationActivatedAt: 2000
+    });
+    expect(state.pending[0]?.idempotencyKey).toBe('legacy');
+    expect((await queue.load('owner-1')).activation).toEqual({
+      smsActivatedAt: 1000,
+      notificationActivatedAt: 2000
+    });
+  });
+  it('retains undecodable evidence privately without adding it to financial submissions', async () => {
+    const queue = new SmsImportQueue(memoryStorage());
+    await queue.retainDiagnostics('owner-1', [
+      {
+        sourceItemKey: 'unparsed',
+        sourceChannel: 'android_sms',
+        receivedAt: 1000,
+        sourceText: 'تم دفع مبلغ غير واضح',
+        reasonCodes: ['amount_missing']
+      }
+    ]);
+    const restored = await queue.load('owner-1');
+    expect(restored.diagnostics?.[0]?.sourceText).toBe('تم دفع مبلغ غير واضح');
+    expect(restored.pending).toEqual([]);
+  });
+  it.each(['cash_card', 'cash_account'] as const)(
+    'retains %s bindings and pending work through configuration refresh',
+    async (role) => {
+      const queue = new SmsImportQueue(memoryStorage());
+      await queue.enqueue('owner-1', {
+        idempotencyKey: 'pending',
+        submission,
+        cursor: 42,
+        fingerprints: ['seen']
+      });
+      await queue.saveRules('owner-1', {
+        keywords: [],
+        senders: [],
+        bindings: [
+          {
+            provider: 'bank',
+            role,
+            suffix: '4242',
+            accountId: '10000000-0000-4000-8000-000000000001'
+          }
+        ]
+      });
+      const restored = await queue.load('owner-1');
+      expect(restored.rules.bindings?.[0]?.role).toBe(role);
+      expect(restored.pending[0]?.idempotencyKey).toBe('pending');
+      expect(restored.cursor).toBe(42);
+    }
+  );
+  it('refreshes obsolete cached safety rules without losing pending events or duplicate checkpoints', async () => {
+    const stored = {
+      ...legacy(),
+      rules: {
+        ...legacy().rules,
+        snapshot: {
+          ...defaultSnapshot,
+          rules: defaultSnapshot.rules.filter(
+            (rule) => rule.ruleKey !== 'lifecycle.pending'
+          )
+        }
+      }
+    };
+    await mockDatabase.runAsync(
+      'INSERT INTO sms_import_queue (id, payload) VALUES (?, ?)',
+      'singleton',
+      JSON.stringify(stored)
+    );
+    const queue = new SmsImportQueue(memoryStorage());
+    const recovered = await queue.load('owner-1');
+    expect(recovered).toMatchObject({
+      pending: stored.pending,
+      cursor: stored.cursor,
+      fingerprints: stored.fingerprints,
+      mode: 'review_all',
+      rules: { requiresRefresh: true }
+    });
+    expect(recovered.rules.snapshot).toBeUndefined();
+    expect(
+      JSON.parse(String(mockDatabase.read('sms_import_queue')[0]?.payload))
+    ).toEqual(stored);
+    await queue.saveRules('owner-1', {
+      keywords: [],
+      senders: [],
+      snapshot: defaultSnapshot
+    });
+    const refreshed = await new SmsImportQueue(memoryStorage()).load('owner-1');
+    expect(refreshed.pending).toHaveLength(1);
+    expect(refreshed.cursor).toBe(42);
+    expect(refreshed.fingerprints).toEqual(['sha256:one']);
+    expect(refreshed.rules.snapshot).toEqual(defaultSnapshot);
+    expect(refreshed.rules.requiresRefresh).toBeUndefined();
+  });
+
+  it('retains minimized original-reference proof across an offline restart', async () => {
+    const storage = memoryStorage();
+    const originalProviderReferenceDigest = 'a'.repeat(64);
+    await new SmsImportQueue(storage).enqueue('owner-1', {
+      idempotencyKey: 'refund:one',
+      cursor: 42,
+      fingerprints: ['refund:one'],
+      submission: {
+        ...submission,
+        events: [
+          {
+            ...submission.events[0]!,
+            kind: 'refund',
+            originalProviderReferenceDigest
+          }
+        ]
+      }
+    });
+    expect(
+      (await new SmsImportQueue(storage).load('owner-1')).pending[0]?.submission
+        .events[0]
+    ).toMatchObject({ originalProviderReferenceDigest });
+  });
+  it('retains both owned transfer account identities after offline persistence and restart', async () => {
+    const destinationAccountId = '10000000-0000-4000-8000-000000000002';
+    const storage = memoryStorage();
+    await new SmsImportQueue(storage).enqueue('owner-1', {
+      idempotencyKey: 'transfer:one',
+      cursor: 42,
+      fingerprints: ['transfer:one'],
+      submission: {
+        ...submission,
+        events: [
+          { ...submission.events[0]!, kind: 'transfer', destinationAccountId }
+        ]
+      }
+    });
+    const restored = await new SmsImportQueue(storage).load('owner-1');
+    expect(restored.pending[0]?.submission.events[0]).toMatchObject({
+      accountId: submission.events[0]?.accountId,
+      destinationAccountId
+    });
+  });
   it('persists a bounded minimized queue before advancing its cursor', async () => {
     const storage = memoryStorage();
     const queue = new SmsImportQueue(storage);
@@ -158,14 +362,21 @@ describe('SMS import queue', () => {
     const queue = new SmsImportQueue(storage);
     await queue.saveRules('owner-1', {
       keywords: [{ value: 'paid', enabled: true }],
-      senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }]
+      senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }],
+      configurationRevision: 'c'.repeat(64)
     });
 
     await expect(queue.load('owner-1')).resolves.toMatchObject({
       rules: {
         keywords: [{ value: 'paid', enabled: true }],
-        senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }]
+        senders: [{ normalizedSender: 'bank', enabled: true, trusted: true }],
+        configurationRevision: 'c'.repeat(64)
       }
+    });
+    await expect(
+      new SmsImportQueue(storage).load('owner-1')
+    ).resolves.toMatchObject({
+      rules: { configurationRevision: 'c'.repeat(64) }
     });
     await expect(queue.load('owner-2')).resolves.toMatchObject({
       ownerId: 'owner-2',
@@ -206,6 +417,21 @@ describe('SMS import queue', () => {
     expect(await new SmsImportQueue(storage).load('owner-1')).toEqual(state);
   });
 
+  it('preserves distinct legacy pending work alongside an existing encrypted pending entry', async () => {
+    const storage = memoryStorage();
+    const queue = new SmsImportQueue(storage);
+    await queue.enqueue('owner-1', {
+      idempotencyKey:'sms:encrypted',
+      submission:{...submission,events:submission.events.map(event=>({...event,sourceItemKey:'sha256:encrypted'}))},
+      cursor:42,
+      fingerprints:['sha256:encrypted']
+    });
+    storage.values.set(legacyKey,JSON.stringify(legacy()));
+    const merged = await queue.load('owner-1');
+    expect(merged.pending.map(entry=>entry.idempotencyKey).sort()).toEqual(['sms:encrypted',legacy().pending[0]!.idempotencyKey].sort());
+    expect(storage.values.has(legacyKey)).toBe(false);
+  });
+
   it('retains legacy data on failed encrypted commit and retries cleanup without overwriting encrypted state', async () => {
     const storage = memoryStorage();
     storage.values.set(legacyKey, JSON.stringify(legacy()));
@@ -220,6 +446,23 @@ describe('SMS import queue', () => {
     storage.values.set(legacyKey, JSON.stringify(legacy()));
     expect((await queue.load('owner-1')).pending).toEqual([]);
     expect(storage.values.has(legacyKey)).toBe(false);
+  });
+
+  it('retains both copies when one idempotency key has conflicting financial data', async () => {
+    const storage = memoryStorage();
+    const queue = new SmsImportQueue(storage);
+    await queue.enqueue('owner-1', {
+      idempotencyKey:legacy().pending[0]!.idempotencyKey,
+      submission:{...submission,events:submission.events.map(event=>({...event,amountMinor:-2500}))},
+      cursor:42,
+      fingerprints:['sha256:one']
+    });
+    const before = mockDatabase.read('sms_import_queue');
+    const raw = JSON.stringify(legacy());
+    storage.values.set(legacyKey,raw);
+    await expect(queue.load('owner-1')).rejects.toThrow('legacy queue conflict');
+    expect(mockDatabase.read('sms_import_queue')).toEqual(before);
+    expect(storage.values.get(legacyKey)).toBe(raw);
   });
 
   it.each([

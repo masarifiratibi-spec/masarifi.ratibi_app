@@ -3,13 +3,22 @@ import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
+import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { PoolService } from '../platform/database/pool.service';
 import { permissionManifestHash } from './permission-manifest';
 import { buildSecurityEventPayload, type SecurityEventType } from './security.events';
 import type { SecurityOperation } from './security.service';
 
-type Operation = SecurityOperation & { body: Record<string, unknown> };
+type Operation = SecurityOperation & {
+  body: Record<string, unknown>;
+  prepareProviderBody?: () => Record<string, unknown>;
+};
+
+export interface ProviderMutation {
+  outcome: 'new' | 'completed';
+  value: unknown;
+}
 
 function invalid(): never {
   throw Object.assign(new Error('INPUT_INVALID'), { code: '22023' });
@@ -175,8 +184,100 @@ export class SecurityRepository {
       if (input.permission)
         await client.query('select private.assert_admin_permission($1)', [input.permission]);
       else await client.query('select private.assert_active_profile($1)', [input.principal.userId]);
-      return this.executeInTransaction(client, input);
+      return input.idempotencyKey
+        ? this.executeIdempotently(client, input)
+        : this.executeInTransaction(client, input);
     });
+  }
+
+  async executeProviderMutation(
+    input: Operation,
+    prepareBody: () => Record<string, unknown>,
+  ): Promise<ProviderMutation> {
+    return this.execute({
+      ...input,
+      prepareProviderBody: prepareBody,
+    }) as Promise<ProviderMutation>;
+  }
+
+  async finishProviderMutation(
+    input: SecurityOperation,
+    status: 'completed' | 'failed',
+    value: unknown,
+  ): Promise<void> {
+    await this.withPrincipalTransaction(input.principal, async (client) => {
+      await client.query('select private.finish_security_provider_outcome($1,$2,$3,$4,$5::jsonb)', [
+        input.principal.userId,
+        `security.${input.operation.toLowerCase()}`,
+        hashIdempotencyKey(requiredText(input.idempotencyKey)),
+        status,
+        JSON.stringify(value),
+      ]);
+    });
+  }
+
+  private async executeIdempotently(client: PoolClient, input: Operation): Promise<unknown> {
+    const scope = `security.${input.operation.toLowerCase()}`;
+    const keyHash = hashIdempotencyKey(requiredText(input.idempotencyKey));
+    const requestHash =
+      input.commandHash ??
+      hashNormalizedCommand({ operation: input.operation, body: input.body, params: input.params });
+    const claim = (
+      await client.query<{
+        outcome: string;
+        response_body: { value: unknown };
+        lease_token: string;
+      }>('select * from private.claim_security_idempotency($1,$2,$3,$4,$5::interval)', [
+        input.principal.userId,
+        scope,
+        keyHash,
+        requestHash,
+        '2 minutes',
+      ])
+    ).rows[0];
+    if (!claim) throw new Error('SECURITY_REPLAY_UNAVAILABLE');
+    if (claim.outcome === 'hash_mismatch')
+      throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), { code: 'IDEMPOTENCY_KEY_REUSED' });
+    if (claim.outcome === 'in_progress')
+      throw Object.assign(new Error('IDEMPOTENCY_IN_PROGRESS'), {
+        code: 'IDEMPOTENCY_IN_PROGRESS',
+      });
+    if (claim.outcome === 'replay') {
+      if (!input.prepareProviderBody) return claim.response_body.value;
+      const receipt = (
+        await client.query<{ status: string; result: unknown }>(
+          'select * from private.read_security_provider_outcome($1,$2,$3)',
+          [input.principal.userId, scope, keyHash],
+        )
+      ).rows[0];
+      if (receipt?.status !== 'completed')
+        throw Object.assign(new Error('PROVIDER_UNAVAILABLE'), { code: 'PROVIDER_UNAVAILABLE' });
+      return { outcome: 'completed', value: receipt.result };
+    }
+    const value = await this.executeInTransaction(
+      client,
+      input.prepareProviderBody ? { ...input, body: input.prepareProviderBody() } : input,
+    );
+    await client.query(
+      'select private.complete_security_idempotency($1,$2,$3,$4,$5,$6,$7::jsonb,$8)',
+      [
+        input.principal.userId,
+        scope,
+        keyHash,
+        requestHash,
+        claim.lease_token,
+        200,
+        JSON.stringify({ value: value ?? null }),
+        null,
+      ],
+    );
+    if (!input.prepareProviderBody) return value;
+    await client.query('select private.start_security_provider_outcome($1,$2,$3)', [
+      input.principal.userId,
+      scope,
+      keyHash,
+    ]);
+    return { outcome: 'new', value };
   }
 
   async revokeUndeliveredInvitation(
@@ -222,6 +323,46 @@ export class SecurityRepository {
     });
   }
 
+  async getDeletionRequestForWorker(userId: string, deletionId: string): Promise<unknown> {
+    return this.withWorkerTransaction((client) =>
+      this.one(
+        client,
+        `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",
+        completed_at as "completedAt",error_code as "errorCode",retention_result as "retainedCategories",version::int
+        from private.account_deletion_requests where id=$1 and user_id=$2`,
+        [deletionId, userId],
+      ),
+    );
+  }
+
+  async getDeletionCompletion(
+    operationId: string,
+    tokenHash: string,
+    networkHash: string,
+  ): Promise<{ rateLimited: boolean; value: unknown }> {
+    return this.withWorkerTransaction(async (client) => {
+      await client.query(
+        "delete from private.deletion_completion_rate_buckets where bucket_at<clock_timestamp()-interval '5 minutes'",
+      );
+      const rate = await client.query<{ attempts: number }>(
+        `insert into private.deletion_completion_rate_buckets(network_hash,bucket_at,attempts)
+         values($1,date_trunc('minute',clock_timestamp()),1)
+         on conflict(network_hash,bucket_at) do update set attempts=least(deletion_completion_rate_buckets.attempts+1,61)
+         returning attempts`,
+        [networkHash],
+      );
+      if ((rate.rows[0]?.attempts ?? 61) > 60) return { rateLimited: true, value: null };
+      const result = await client.query<Record<string, unknown>>(
+        `select d.id,d.status,d.cooling_off_ends_at as "coolingOffEndsAt",d.completed_at as "completedAt",d.error_code as "errorCode",d.version::int
+         from private.account_deletion_receipts r join private.account_deletion_requests d
+           on d.id=r.request_id and d.user_id=r.user_id
+         where r.operation_id=$1 and r.token_hash=$2 and r.expires_at>clock_timestamp()`,
+        [operationId, tokenHash],
+      );
+      return { rateLimited: false, value: result.rows[0] ?? null };
+    });
+  }
+
   async consumeRateLimit(
     principal: ClerkPrincipal,
     category: string,
@@ -250,7 +391,7 @@ export class SecurityRepository {
       if (count >= limit) return false;
       await client.query(
         `insert into public.security_events(user_id,event_type,severity,ip_hash,metadata)
-        values($1,'security.request_attempt','info',$3,jsonb_build_object('category',$2))`,
+        values($1,'security.request_attempt','info',$3,jsonb_build_object('category',$2::text))`,
         [principal.userId, category, ipHash],
       );
       return true;
@@ -378,7 +519,7 @@ export class SecurityRepository {
             optionalEnum(input.query.severity, ['info', 'low', 'medium', 'high', 'critical']),
             input.operation === 'listAdminSecurityEvents'
               ? optionalText(input.query.userId, 128)
-              : null,
+              : input.principal.userId,
             cursor?.occurredAt ?? null,
             cursor?.id ?? null,
           ],
@@ -401,7 +542,7 @@ export class SecurityRepository {
         return this.list(
           client,
           `select id,actor_id as actor,actor_type as "actorType",action,resource_type as "resourceType",resource_id as "resourceId",
-        request_id as "requestId",occurred_at as "occurredAt",metadata as "safeMetadata" from audit.audit_events
+        request_id as "requestId",occurred_at as "occurredAt",coalesce(metadata->>'result','success') as result,metadata as "safeMetadata" from audit.audit_events
         where ($1::text is null or actor_id=$1) and ($2::text is null or action=$2) and ($3::text is null or resource_type=$3)
           and ($4::text is null or coalesce(metadata->>'result','success')=$4) and ($5::text is null or coalesce(metadata->>'severity','info')=$5)
           and ($6::timestamptz is null or occurred_at>=$6) and ($7::timestamptz is null or occurred_at<$7)
@@ -422,7 +563,7 @@ export class SecurityRepository {
         return this.one(
           client,
           `select id,actor_id as actor,actor_type as "actorType",action,resource_type as "resourceType",resource_id as "resourceId",
-        request_id as "requestId",occurred_at as "occurredAt",metadata as "safeMetadata" from audit.audit_events where id=$1`,
+        request_id as "requestId",occurred_at as "occurredAt",coalesce(metadata->>'result','success') as result,metadata as "safeMetadata" from audit.audit_events where id=$1`,
           [requiredText(input.params.eventId)],
         );
       case 'listSecurityIncidents':
@@ -485,7 +626,7 @@ export class SecurityRepository {
         return this.list(
           client,
           `select id,status,scope,requested_at as "requestedAt",expires_at as "expiresAt",version::int
-        from private.privacy_export_requests where ($1::text is null or status=$1) and ($2::timestamptz is null or requested_at>=$2) and ($3::timestamptz is null or requested_at<$3)
+        from private.privacy_export_requests where ($1::text is null or status=$1) and ($2::timestamptz is null or requested_at>=$2) and ($3::timestamptz is null or requested_at<$3) and ($4::uuid is null or id=$4)
         order by requested_at desc,id desc`,
           limit,
           offset,
@@ -500,6 +641,7 @@ export class SecurityRepository {
             ]),
             optionalInstant(input.query.from),
             optionalInstant(input.query.to),
+            optionalText(input.query.id, 36),
           ],
         );
       case 'getMyPrivacyExport':
@@ -514,7 +656,7 @@ export class SecurityRepository {
           client,
           `select d.id,d.status,d.requested_at as "requestedAt",d.cooling_off_ends_at as "coolingOffEndsAt",d.completed_at as "completedAt",d.version::int
         from private.account_deletion_requests d where ($1::text is null or d.status=$1) and ($2::boolean is null or exists(select 1 from private.retention_holds h
-          where h.resource_id=d.user_id and h.starts_at<=clock_timestamp() and (h.ends_at is null or h.ends_at>clock_timestamp()))=$2)
+          where h.resource_id=d.user_id and h.starts_at<=clock_timestamp() and (h.ends_at is null or h.ends_at>clock_timestamp()))=$2) and ($3::uuid is null or d.id=$3)
         order by d.requested_at desc,d.id desc`,
           limit,
           offset,
@@ -528,6 +670,7 @@ export class SecurityRepository {
               'failed',
             ]),
             optionalBoolean(input.query.hold),
+            optionalText(input.query.id, 36),
           ],
         );
       case 'getMyDeletionRequest':
@@ -541,10 +684,14 @@ export class SecurityRepository {
         return this.list(
           client,
           `select id,resource_type as "resourceType",retention_days as "retentionDays",deletion_mode as "deletionMode",legal_basis as "legalBasis",enabled,version::int
-        from private.retention_policies where ($1::text is null or resource_type=$1) and ($2::boolean is null or enabled=$2) order by resource_type`,
+        from private.retention_policies where ($1::text is null or resource_type=$1) and ($2::boolean is null or enabled=$2) and ($3::uuid is null or id=$3) order by resource_type`,
           limit,
           offset,
-          [optionalText(input.query.resource, 64), optionalEnabledStatus(input.query.status)],
+          [
+            optionalText(input.query.resource, 64),
+            optionalEnabledStatus(input.query.status),
+            optionalText(input.query.id, 36),
+          ],
         );
       default:
         return this.mutate(client, input);
@@ -580,6 +727,7 @@ export class SecurityRepository {
         break;
       case 'createAdminInvitation': {
         resourceType = 'admin_invitation';
+        await this.assertMayTargetRole(client, principal.userId, requiredText(body.roleId));
         const row = await this.one<{ id: string }>(
           client,
           `insert into public.admin_invitations(email,role_id,token_hash,invited_by,expires_at,department)
@@ -672,6 +820,7 @@ export class SecurityRepository {
       case 'assignAdminRole': {
         if (requiredText(body.userId, 128) === principal.userId) invalid();
         resourceType = 'admin_assignment';
+        await this.assertMayTargetRole(client, principal.userId, requiredText(body.roleId));
         await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
           `role:${requiredText(body.roleId)}`,
         ]);
@@ -698,6 +847,7 @@ export class SecurityRepository {
       case 'revokeAdminRole':
         resourceType = 'admin_assignment';
         resourceId = requiredText(params.assignmentId);
+        await this.assertMayTargetAssignment(client, principal.userId, resourceId);
         result = await this.one(
           client,
           `update public.admin_role_assignments set revoked_at=clock_timestamp()
@@ -789,11 +939,15 @@ export class SecurityRepository {
         resourceId = requiredText(params.requestId);
         await this.one(
           client,
-          `update private.support_access_requests set status='revoked',decided_at=coalesce(decided_at,clock_timestamp()) where id=$1 and status='approved' and version=$2 returning id`,
+          `select id from private.support_access_requests where id=$1 and status='approved' and version=$2 for update`,
           [resourceId, requiredInteger(body.expectedVersion)],
         );
         await client.query(
           'update private.support_access_grants set revoked_at=clock_timestamp() where request_id=$1 and revoked_at is null',
+          [resourceId],
+        );
+        await client.query(
+          "update private.support_access_requests set status='revoked',decided_at=coalesce(decided_at,clock_timestamp()) where id=$1",
           [resourceId],
         );
         result = await this.supportRequest(client, resourceId);
@@ -929,8 +1083,50 @@ export class SecurityRepository {
       }
       case 'createMyDeletionRequest': {
         if (body.confirmation !== 'DELETE_MY_ACCOUNT') invalid();
-        const hours = requiredInteger(body.coolingOffHours ?? 24, 1, 720);
-        const inserted = await client.query(
+        const hours = requiredInteger(body.coolingOffHours ?? 24, 0, 2_160);
+        const tokenHash = body.completionTokenHash;
+        const operationId = input.idempotencyKey;
+        if (hours === 0 || tokenHash !== undefined) {
+          if (
+            typeof tokenHash !== 'string' ||
+            !/^[0-9a-f]{64}$/.test(tokenHash) ||
+            typeof operationId !== 'string' ||
+            !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(operationId)
+          )
+            invalid();
+          await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
+            `${principal.userId}:deletion:${operationId}`,
+          ]);
+          const replay = await client.query<{ request_id: string; token_hash: string }>(
+            'select request_id,token_hash from private.account_deletion_receipts where user_id=$1 and operation_id=$2',
+            [principal.userId, operationId],
+          );
+          if (replay.rows[0] && replay.rows[0].token_hash !== tokenHash)
+            throw Object.assign(new Error('IDEMPOTENCY_KEY_REUSED'), {
+              code: 'IDEMPOTENCY_KEY_REUSED',
+            });
+          if (hours === 0) {
+            // Keep a receipt replay bound to its original request while removing an inherited delay.
+            await client.query(
+              `update private.account_deletion_requests
+               set status='verified',verified_at=clock_timestamp(),cooling_off_ends_at=clock_timestamp()
+               where user_id=$1 and ($2::uuid is null or id=$2)
+                 and status in ('requested','verified')
+                 and (status='requested' or cooling_off_ends_at>clock_timestamp())`,
+              [principal.userId, replay.rows[0]?.request_id ?? null],
+            );
+          }
+          if (replay.rows[0]) {
+            return this.one(
+              client,
+              `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",
+               completed_at as "completedAt",error_code as "errorCode",retention_result as "retainedCategories",version::int
+               from private.account_deletion_requests where id=$1 and user_id=$2`,
+              [replay.rows[0].request_id, principal.userId],
+            );
+          }
+        }
+        const inserted = await client.query<Record<string, unknown> & { id: string }>(
           `insert into private.account_deletion_requests(user_id,status,verified_at,cooling_off_ends_at) values($1,'verified',clock_timestamp(),clock_timestamp()+make_interval(hours=>$2))
           on conflict(user_id) where status in ('requested','verified','processing') do nothing returning id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",completed_at as "completedAt",version::int`,
           [principal.userId, hours],
@@ -943,13 +1139,23 @@ export class SecurityRepository {
             userId: principal.userId,
             occurredAt: new Date().toISOString(),
           });
-          return inserted.rows[0];
         }
-        return this.one(
-          client,
-          `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",completed_at as "completedAt",version::int from private.account_deletion_requests where user_id=$1 and status in ('requested','verified','processing')`,
-          [principal.userId],
-        );
+        const result =
+          inserted.rows[0] ??
+          (await this.one(
+            client,
+            `select id,status,requested_at as "requestedAt",cooling_off_ends_at as "coolingOffEndsAt",completed_at as "completedAt",version::int from private.account_deletion_requests where user_id=$1 and status in ('requested','verified','processing')`,
+            [principal.userId],
+          ));
+        if (tokenHash !== undefined) {
+          const deletionId = (result as { id: string }).id;
+          await client.query(
+            `insert into private.account_deletion_receipts(user_id,operation_id,request_id,token_hash,expires_at)
+             values($1,$2,$3,$4,clock_timestamp()+make_interval(hours=>$5)+interval '24 hours')`,
+            [principal.userId, operationId, deletionId, tokenHash, hours],
+          );
+        }
+        return result;
       }
       case 'cancelMyDeletionRequest':
         await this.one(
@@ -1113,6 +1319,36 @@ export class SecurityRepository {
     const row = (await client.query<T>(sql, [...values])).rows[0];
     if (!row) throw Object.assign(new Error('NOT_FOUND'), { code: 'P0002' });
     return row;
+  }
+
+  private async assertMayTargetRole(
+    client: PoolClient,
+    actorId: string,
+    roleId: string,
+  ): Promise<void> {
+    const role = await this.one<{ targetIsSuper: boolean; actorIsSuper: boolean }>(
+      client,
+      `select private.is_super_admin_role($1) as "targetIsSuper",
+        private.is_active_super_admin($2) as "actorIsSuper"`,
+      [roleId, actorId],
+    );
+    if (role.targetIsSuper && !role.actorIsSuper)
+      throw Object.assign(new Error('SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN'), {
+        code: 'SUPER_ADMIN_TARGET_REQUIRES_SUPER_ADMIN',
+      });
+  }
+
+  private async assertMayTargetAssignment(
+    client: PoolClient,
+    actorId: string,
+    assignmentId: string,
+  ): Promise<void> {
+    const assignment = await this.one<{ roleId: string }>(
+      client,
+      'select role_id as "roleId" from public.admin_role_assignments where id=$1',
+      [assignmentId],
+    );
+    await this.assertMayTargetRole(client, actorId, assignment.roleId);
   }
 
   private async replacePermissions(

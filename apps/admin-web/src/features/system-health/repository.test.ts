@@ -156,7 +156,7 @@ describe("BE013 exact live operations mapping", () => {
     expect(overview).toMatchObject({ partial: true, services: [{ id: "database", latency: { value: 17 } }] });
     expect(overview.services).toHaveLength(1);
     await expect(systemHealthRepository.getApiMonitoring({ range: "24h", platform: "all" }))
-      .resolves.toMatchObject({ latency: { value: 77, summary: "breached" } });
+      .resolves.toMatchObject({ latency: { value: null, completeness: "unavailable" }, series: [], freshness: { state: "unknown" } });
   });
 
   test("does not infer storage evidence or freshness from the first recovery row", async () => {
@@ -174,7 +174,7 @@ describe("BE013 exact live operations mapping", () => {
       .resolves.toMatchObject({ cleanupState: "unavailable", freshness: { observedAt: null, staleAt: null, state: "unknown" } });
   });
 
-  test("traverses provider cursors for exact totals without synthetic success or freshness", async () => {
+  test("loads one bounded provider page and reaches the next cursor", async () => {
     let calls = 0;
     mockServer.use(
       http.get("/api/v1/admin/system-health/providers", ({ request }) => {
@@ -188,8 +188,22 @@ describe("BE013 exact live operations mapping", () => {
     );
 
     const page = await systemHealthRepository.listProviderHealth({ category: "all", status: "all", platform: "all", page: 1, pageSize: 25 });
+    expect(calls).toBe(1);
+    expect(page.items).toHaveLength(1);
+    const next = await systemHealthRepository.listProviderHealth({ category: "all", status: "all", platform: "all", page: 2, pageSize: 25 });
+    expect(next.items[0].id).toBe("storage");
     expect(calls).toBe(2);
-    expect(page).toMatchObject({ total: 2, partial: false, freshness: { state: "unknown", observedAt: null } });
     expect(page.items[0]).toMatchObject({ id: "database", lastSuccessAt: null });
+  });
+  test("marks stale provider observations unknown and serializes operational filters as up", async () => {
+    let status: string | null = null;
+    mockServer.use(http.get("/api/v1/admin/system-health/providers", ({ request }) => {
+      status = new URL(request.url).searchParams.get("status");
+      return HttpResponse.json({ items: [{ provider: "database", status: "up", latencyMs: 7, checkedAt: "2020-01-01T00:00:00Z" }], nextCursor: null });
+    }));
+    const page = await systemHealthRepository.listProviderHealth({ category: "all", status: "operational", platform: "all", page: 1 });
+    expect(status).toBe("up");
+    expect(page.items[0]).toMatchObject({ status: "unknown", freshness: { state: "stale" } });
+    expect(page.partial).toBe(true);
   });
 });

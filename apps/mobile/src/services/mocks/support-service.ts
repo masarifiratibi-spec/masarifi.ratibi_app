@@ -2,6 +2,7 @@ import {
   canRateTicket,
   supportArticleSchema,
   supportDraftSchema,
+  supportSubmissionContentSchema,
   supportOperationSchema,
   supportTicketSchema,
   type SupportArticle,
@@ -89,6 +90,7 @@ export function createMockSupportService({
       return articles.filter((article) => (!category || article.category === category) && article.searchTerms.some((item) => normalize(item).includes(term)));
     },
     listTickets: (cursor?: string) => repository.listTickets(cursor),
+    async listFeedback() { throw new Error('support.state.unavailable'); },
     getTicket: (id: string) => repository.getTicket(id),
     saveDraft,
     loadDraft: (id: string) => repository.loadDraft(id),
@@ -172,6 +174,7 @@ function kindFor(mode: SupportDraft['mode']): SupportOperation['kind'] {
 async function requireDraft(repository: Repository, id: string): Promise<SupportDraft> {
   const draft = await repository.loadDraft(id);
   if (!draft) throw new SupportServiceError('not_found');
+  supportSubmissionContentSchema.parse(draft);
   return draft;
 }
 

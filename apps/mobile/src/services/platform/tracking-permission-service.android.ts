@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking, PermissionsAndroid } from 'react-native';
 
 import type { TrackingPermissionService } from '@/services/contracts/app-shell-service';
-import { permissionState } from '@/services/mocks/tracking-permission-service';
+import { permissionState } from './permission-state';
 
 const permissionHistoryKey = 'masarifi.appShell.smsPermissionStatus';
 
@@ -47,4 +47,3 @@ export function createAndroidTrackingPermissionService(): TrackingPermissionServ
 
 export const createTrackingPermissionService =
   createAndroidTrackingPermissionService;
-

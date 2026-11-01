@@ -1,0 +1,44 @@
+{
+  "task": "T10",
+  "batch": "B4",
+  "at": "2026-10-29T09:32:54.101Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B4-support-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B4-support-2026-10-29/B4-REVIEWED-RESULT.json",
+    "sha256": "f8b0e51b8cc0cc6d508c87c9fddbcac804d55552e4f131411dc0fc99864db827"
+  },
+  "currentSupplements": [
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B4-support-2026-10-29/ADMIN-SUPPORT-SUPPLEMENT.json",
+      "sha256": "3790aa190ac93921c19d89fb6953a18268f9925e14a0912503388fd8cd322a0f"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B4-support-2026-10-29/READONLY-DEVICE-SUPPLEMENT.json",
+      "sha256": "df02a08ff25546a6f521c1f458690a782f3ca489655a576fcdbd251cfb0b6565"
+    }
+  ],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T10/evidence.json",
+    "sha256": "79f85cf238e431d2cd4ec77ae8ab0c31a1efe695495dc86295e2a20d8faa9a3e"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Actualstatuses/mobile→Admin→mobile recovery forauthorizedsyntheticticket",
+    "Explicitcommunicationauthority foranysend",
+    "Unsentdraft/normalroute/restart evidence asapplicable",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": [],
+  "latestSupplement": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B4-support-2026-10-29/READONLY-DEVICE-SUPPLEMENT.json",
+    "sha256": "df02a08ff25546a6f521c1f458690a782f3ca489655a576fcdbd251cfb0b6565"
+  }
+}

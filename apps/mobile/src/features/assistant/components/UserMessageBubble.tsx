@@ -5,20 +5,26 @@ import { StyledText } from '@/components/StyledText';
 import { usePreferenceStore } from '@/state/preferences';
 import { spacing } from '@/design-system/tokens';
 import { colorTokens } from '@/design-system/tokens';
+import { translateDynamic as t } from '@/localization/i18n';
+import { ActionButton } from '@/design-system/components/ActionButton';
+import { useAssistantFinancialVisibility } from '../useAssistantFinancialVisibility';
 
 export interface UserMessageBubbleProps {
   message: string;
   timestamp?: string;
   testID?: string;
+  status?: string;
 }
 
 export function UserMessageBubble({
   message,
   timestamp,
+  status,
   testID = 'user-message-bubble'
 }: UserMessageBubbleProps) {
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const {hidden, reveal} = useAssistantFinancialVisibility(`${message}:${timestamp}`);
 
   return (
     <View
@@ -45,8 +51,9 @@ export function UserMessageBubble({
             }
           ]}
         >
-          {message}
+          {hidden ? '••••' : message}
         </StyledText>
+        {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
 
         <View
           style={[
@@ -57,7 +64,7 @@ export function UserMessageBubble({
           {timestamp && (
             <StyledText style={styles.timestamp}>{timestamp}</StyledText>
           )}
-          <Text style={styles.checkmarks}>✓✓</Text>
+          {status === undefined || status === 'completed' ? <Text style={styles.checkmarks}>✓✓</Text> : <StyledText accessibilityLiveRegion="polite" style={styles.timestamp}>{t(`assistant.messageStatus.${status === 'queued' || status === 'processing' ? 'pending' : status === 'failed' || status === 'cancelled' ? 'failed' : 'unknown'}`)}</StyledText>}
         </View>
       </View>
     </View>

@@ -1,6 +1,12 @@
 import React from 'react';
 import { Alert, AppState, Text } from 'react-native';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor
+} from '@testing-library/react-native';
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 
@@ -10,17 +16,31 @@ import { translate } from '@/localization/i18n';
 import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { renderWithProviders } from '@/test-utils/render';
-import { authenticatedSession, lockedPrivacy } from '@/test-utils/app-shell-fixtures';
+import {
+  authenticatedSession,
+  lockedPrivacy,
+} from '@/test-utils/app-shell-fixtures';
 import { AppPrivacyGate } from './AppPrivacyGate';
 import { UnlockScreen } from './UnlockScreen';
-import { createPinCredential, resetLock } from './privacy-lock';
+import * as demoMode from '@/config/demo-mode';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn() }
+}));
 jest.mock('expo-local-authentication', () => ({
   authenticateAsync: jest.fn(),
+  cancelAuthenticate: jest.fn(),
   hasHardwareAsync: jest.fn(),
+  getEnrolledLevelAsync: jest.fn(),
+  SecurityLevel: { SECRET: 1 },
   isEnrolledAsync: jest.fn(),
   supportedAuthenticationTypesAsync: jest.fn()
+}));
+jest.mock('@/features/auth/auth-flow', () => ({
+  authService: {
+    metadata: { availability: 'available' },
+    signInWithGoogle: jest.fn()
+  }
 }));
 jest.mock('@/storage/local-data-reset', () => ({
   resetLocalUserData: jest.fn(async (operationId: string) => ({
@@ -28,14 +48,15 @@ jest.mock('@/storage/local-data-reset', () => ({
     operationId
   }))
 }));
-jest.mock('@/features/settings/settings-queries', () => ({
-  usePrivacyRequest: jest.fn()
+const mockRequestAccountDeletion = jest.fn();
+jest.mock('@/services/mocks/subscription-settings-service', () => ({
+  ...jest.requireActual('@/services/mocks/subscription-settings-service'),
+  settingsService: jest
+    .requireActual('@/services/live/auth-service')
+    .createLiveIdentityService({
+      request: (...args: unknown[]) => mockRequestAccountDeletion(...args)
+    })
 }));
-
-const requestAccountDeletion = jest.fn();
-const { usePrivacyRequest } = jest.requireMock(
-  '@/features/settings/settings-queries'
-) as { usePrivacyRequest: jest.Mock };
 
 const hasHardware = jest.mocked(LocalAuthentication.hasHardwareAsync);
 const isEnrolled = jest.mocked(LocalAuthentication.isEnrolledAsync);
@@ -45,54 +66,89 @@ const supportedTypes = jest.mocked(
 
 beforeEach(() => {
   jest.clearAllMocks();
-  usePrivacyRequest.mockReturnValue({
-    isPending: false,
-    mutate: requestAccountDeletion
-  });
+  jest.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(3);
+  mockRequestAccountDeletion.mockReset();
   useAppShellStore.getState().reset();
 });
 
 describe('security journey', () => {
-  it('offers forgotten-PIN recovery from the locked screen', () => {
+  it('opens the existing Privacy screen without starting an export or deletion', () => {
+    renderWithProviders(<SecuritySettingsRoute />);
+    fireEvent.press(screen.getByRole('button', { name: translate('settings.privacy.title') }));
+    expect(router.push).toHaveBeenCalledWith('/profile/privacy');
+    expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
+  });
+  it('opens Security Events from settings outside fixture mode', () => {
+    const fixtureMode = jest.spyOn(demoMode, 'isFixtureModeEnabled').mockReturnValue(false);
+    try {
+      renderWithProviders(<SecuritySettingsRoute />);
+      fireEvent.press(screen.getByText(translate('appShell.security.events')));
+      expect(router.push).toHaveBeenCalledWith('/security/events');
+    } finally {
+      fixtureMode.mockRestore();
+    }
+  });
+  it.each([false, true])('visible Security Back uses existing history or More fallback (history=%s)', async hasHistory => {
+    jest.mocked(router.canGoBack).mockReturnValue(hasHistory);
+    renderWithProviders(<SecuritySettingsRoute />);
+    fireEvent.press(screen.getByRole('button', { name: translate('common.back') }));
+    if (hasHistory) { expect(router.back).toHaveBeenCalledTimes(1); expect(router.replace).not.toHaveBeenCalled(); }
+    else { expect(router.replace).toHaveBeenCalledWith('/(tabs)/more'); expect(router.back).not.toHaveBeenCalled(); }
+  });
+  it('coalesces Face authentication across an unlock-route remount and preserves the Clerk session', async () => {
+    let finish!: (
+      result: Awaited<ReturnType<typeof LocalAuthentication.authenticateAsync>>
+    ) => void;
+    jest.mocked(LocalAuthentication.authenticateAsync).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+    );
     useAppShellStore.setState({
       hydrated: true,
       session: authenticatedSession,
-      privacyLock: lockedPrivacy,
-      pinCredential: 'pin:123456'
+      privacyLock: { ...lockedPrivacy, enabled: true }
     });
 
+    const first = renderWithProviders(<UnlockRoute />);
+    await waitFor(() =>
+      expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1)
+    );
+    first.unmount();
     renderWithProviders(<UnlockRoute />);
 
-    fireEvent.press(screen.getByLabelText(translate('appShell.security.forgotPin')));
-    expect(router.push).toHaveBeenCalledWith('/security/pin/forgot');
+    expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ success: true }));
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.appLockStatus).toBe(
+        'unlocked'
+      )
+    );
+    expect(useAppShellStore.getState().session).toEqual(authenticatedSession);
+    expect(router.replace).toHaveBeenCalledTimes(1);
   });
 
-  it('covers PIN, biometrics, background mask, expiry precedence, reset, and sign-out', async () => {
-    const credential = await createPinCredential('123456', '123456');
-    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
-    if (!credential.hash) return;
-
-    await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
-    expect(useAppShellStore.getState().privacyLock).toMatchObject({
-      appLockStatus: 'locked'
-    });
-
+  it('covers biometric unlock, background masking, expiry precedence, and reset', async () => {
     const onUnlock = jest.fn(() => useAppShellStore.getState().unlock());
     render(
       <UnlockScreen
-        biometricService={createMockBiometricService('supported', 'authenticated')}
-        expectedHash={credential.hash}
+        biometricService={createMockBiometricService(
+          'supported',
+          'authenticated'
+        )}
         onUnlock={onUnlock}
       />
     );
-    fireEvent.press(screen.getByLabelText('فتح بالبصمة'));
-    expect(await screen.findByText('تم الفتح بالبصمة')).toBeOnTheScreen();
+    await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('فتح التطبيق')).toBeNull();
 
     let listener: ((state: string) => void) | null = null;
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
-      listener = callback as (state: string) => void;
-      return { remove: jest.fn() };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
     render(
       <AppPrivacyGate immediate>
         <Text>Protected</Text>
@@ -103,96 +159,127 @@ describe('security journey', () => {
     });
     expect(screen.getByText('المحتوى محمي')).toBeOnTheScreen();
 
-    render(<UnlockScreen expectedHash={credential.hash} sessionExpired />);
+    render(
+      <UnlockScreen
+        biometricService={createMockBiometricService()}
+        sessionExpired
+      />
+    );
     expect(screen.getByText('سجل الدخول للمتابعة')).toBeOnTheScreen();
 
-    await useAppShellStore.getState().resetPrivacyLock();
-    expect(useAppShellStore.getState().privacyLock).toBeNull();
-    await useAppShellStore.getState().setPrivacyLock(resetLock(1));
-    await useAppShellStore.getState().signOut();
-    expect(useAppShellStore.getState().session?.status).toBe('signed_out');
-    expect(useAppShellStore.getState().privacyLock).toBeNull();
+    await useAppShellStore.getState().setPrivacyLock({ ...lockedPrivacy, appLockStatus: 'unlocked', enabled: false });
+    expect(useAppShellStore.getState().privacyLock?.enabled).toBe(false);
   });
 
-  it('confirms account deletion without navigating to privacy settings', async () => {
+  it('keeps security navigation without a duplicate account deletion action', async () => {
     hasHardware.mockResolvedValue(false);
+    useAppShellStore.setState({ session: authenticatedSession });
+    mockRequestAccountDeletion.mockResolvedValue({
+      id: 'deletion-security',
+      status: 'verified',
+      requestedAt: '2026-10-16T00:00:00.000Z',
+      coolingOffEndsAt: '2099-10-16T00:00:00.000Z',
+      completedAt: null,
+      retainedCategories: [],
+      version: 1
+    });
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     renderWithProviders(<SecuritySettingsRoute />);
-    await act(async () => {});
+    expect(screen.queryByRole('button', { name: 'حذف الحساب' })).toBeNull();
 
-    expect(screen.getByText(translate('appShell.security.pin.create'))).toBeTruthy();
-    expect(screen.getByText(translate('appShell.security.biometric.requiresPin'))).toBeTruthy();
-    expect(screen.getByText(translate('appShell.security.hideBalances'))).toBeTruthy();
+    expect(
+      screen.getByText(translate('appShell.security.nativeLock'))
+    ).toBeTruthy();
+    expect(
+      screen.getByText(translate('appShell.security.hideBalances'))
+    ).toBeTruthy();
 
     fireEvent.press(screen.getByText(translate('appShell.security.sessions')));
-    fireEvent.press(screen.getByText('حذف الحساب'));
 
     expect(router.push).toHaveBeenCalledWith('/security/sessions');
-    expect(alert).toHaveBeenCalledWith(
-      'حذف الحساب',
-      'هل أنت متأكد من حذف الحساب؟',
-      expect.any(Array)
-    );
-
-    const actions = alert.mock.calls[0]?.[2] ?? [];
-    actions[1]?.onPress?.();
-    expect(requestAccountDeletion).toHaveBeenCalledWith({
-      kind: 'account_deletion',
-      operationId: expect.stringMatching(/^security-account-deletion-/)
-    });
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalledWith('/profile/privacy');
     alert.mockRestore();
   });
 
-  it('labels the biometric row with the enrolled kind and blocks it without a PIN', async () => {
+  it('enables native App Lock only after a successful OS check', async () => {
     hasHardware.mockResolvedValue(true);
     isEnrolled.mockResolvedValue(true);
     supportedTypes.mockResolvedValue([2]);
+    jest.mocked(LocalAuthentication.authenticateAsync).mockResolvedValue({
+      success: true
+    });
+    useAppShellStore.setState({
+      hydrated: true, session: authenticatedSession,
+      privacyLock: {
+    ...lockedPrivacy,
+    appLockStatus: 'unlocked',
+    enabled: false
+}
+    });
 
     renderWithProviders(<SecuritySettingsRoute />);
 
-    expect(
-      await screen.findByText(translate('appShell.security.biometric.face'))
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText(translate('appShell.security.biometric.requiresPin'))
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByLabelText(
-        `${translate('appShell.security.biometric.face')}, ${translate('appShell.security.biometric.requiresPin')}`
+    await screen.findByLabelText(
+      `${translate('appShell.security.nativeLock')}, ${translate('appShell.security.nativeLockSubtitle')}`
+    );
+    await waitFor(() => expect(screen.getByLabelText(`${translate('appShell.security.nativeLock')}, ${translate('appShell.security.nativeLockSubtitle')}`)).toHaveAccessibilityState({ disabled: false, checked: false }));
+    fireEvent.press(screen.getByLabelText(`${translate('appShell.security.nativeLock')}, ${translate('appShell.security.nativeLockSubtitle')}`));
+    await waitFor(() => expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.enabled).toBe(
+        true
       )
-    ).toBeDisabled();
+    );
   });
 
-  it('toggles biometrics on and off once a PIN is configured', async () => {
+  it('shows navigation and updates the auto-lock duration', async () => {
     hasHardware.mockResolvedValue(true);
     isEnrolled.mockResolvedValue(true);
     supportedTypes.mockResolvedValue([1]);
-
-    const credential = await createPinCredential('123456', '123456');
-    expect(credential.hash).toMatch(/^pbkdf2-sha256:/);
-    if (!credential.hash) return;
-    await useAppShellStore.getState().configurePrivacyLock(credential.hash, 1);
+    useAppShellStore.setState({ privacyLock: lockedPrivacy });
 
     renderWithProviders(<SecuritySettingsRoute />);
 
-    const rowLabel = `${translate('appShell.security.biometric.fingerprint')}, ${translate('appShell.security.biometric.subtitle')}`;
-    await waitFor(() => {
-      expect(screen.getByLabelText(rowLabel)).toBeEnabled();
-    });
+    expect(
+      screen.getByLabelText(translate('appShell.navigation.back'))
+    ).toBeTruthy();
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    fireEvent.press(
+      screen.getByLabelText(
+        `${translate('appShell.security.autoLock.title')}, ${translate('appShell.security.autoLock.immediate')}`
+      )
+    );
+    const choices = alert.mock.calls[0]?.[2] ?? [];
+    choices
+      .find(
+        (choice) =>
+          choice.text === translate('appShell.security.autoLock.five_minutes')
+      )
+      ?.onPress?.();
 
-    fireEvent.press(screen.getByLabelText(rowLabel));
-    await waitFor(() => {
-      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
-        'enabled'
-      );
-    });
-
-    fireEvent.press(screen.getByLabelText(rowLabel));
-    await waitFor(() => {
-      expect(useAppShellStore.getState().privacyLock?.biometricStatus).toBe(
-        'disabled'
-      );
-    });
+    await waitFor(() =>
+      expect(useAppShellStore.getState().privacyLock?.autoLockDuration).toBe(
+        'five_minutes'
+      )
+    );
+    alert.mockRestore();
   });
+});
+
+
+it('an old auto-lock dialog cannot change the next owner preference', async () => {
+  const firstLock = { ...lockedPrivacy, appLockStatus: 'unlocked' as const };
+  const nextLock = { enabled: false, autoLockDuration: 'five_minutes' as const, appLockStatus: 'unlocked' as const };
+  useAppShellStore.setState({ hydrated: true, session: authenticatedSession, privacyLock: firstLock });
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  try {
+    renderWithProviders(<SecuritySettingsRoute />);
+    fireEvent.press(screen.getByLabelText(`${translate('appShell.security.autoLock.title')}, ${translate('appShell.security.autoLock.immediate')}`));
+    const oldChoices = alert.mock.calls[0]?.[2] ?? [];
+    await act(async () => { useAppShellStore.setState({ session: { ...authenticatedSession, userId: 'next-owner' }, privacyLock: nextLock }); });
+    await act(async () => { oldChoices.find(x => x.text === translate('appShell.security.autoLock.one_minute'))?.onPress?.(); });
+    expect(useAppShellStore.getState().privacyLock).toEqual(nextLock);
+  } finally { alert.mockRestore(); }
 });

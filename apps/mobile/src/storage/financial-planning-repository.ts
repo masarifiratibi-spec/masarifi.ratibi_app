@@ -132,7 +132,7 @@ export class FinancialPlanningRepository {
     });
   }
 
-  async hydrate(): Promise<void> {
+  async hydrate(options: { preserveDrafts?: boolean } = {}): Promise<void> {
     const database = await openDatabase();
     const [
       salaryProfiles,
@@ -163,7 +163,7 @@ export class FinancialPlanningRepository {
       readPayloads<PaymentMatch>(database, 'planning_payment_matches'),
       readPayloads<SavingsGoal>(database, 'planning_savings_goals'),
       readPayloads<GoalMovement>(database, 'planning_goal_movements'),
-      readPlanningDrafts(database),
+      options.preserveDrafts ? Promise.resolve([]) : readPlanningDrafts(database),
       readPayloads<PlanningConflict>(database, 'planning_sync_conflicts'),
       readOperationPayloads(database),
       database.getAllAsync<{ id: string }>(
@@ -338,15 +338,16 @@ export class FinancialPlanningRepository {
         });
       }
     } else {
-      await this.persistAll();
+      await this.persistAll(options);
     }
   }
 
-  async persistAll(): Promise<void> {
+  async persistAll({ preserveDrafts = false }: { preserveDrafts?: boolean } = {}): Promise<void> {
     const database = await openDatabase();
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
       await transaction.execAsync(
-        "DELETE FROM planning_sync_conflicts; DELETE FROM planning_payment_matches; DELETE FROM planning_goal_movements; DELETE FROM planning_savings_goals; DELETE FROM planning_obligation_payments; DELETE FROM planning_obligation_schedule_items; DELETE FROM planning_obligations; DELETE FROM planning_category_budgets; DELETE FROM planning_budgets; DELETE FROM planning_salary_receipts; DELETE FROM planning_salary_profiles; DELETE FROM planning_drafts WHERE kind != 'report_schedule';"
+        "DELETE FROM planning_sync_conflicts; DELETE FROM planning_payment_matches; DELETE FROM planning_goal_movements; DELETE FROM planning_savings_goals; DELETE FROM planning_obligation_payments; DELETE FROM planning_obligation_schedule_items; DELETE FROM planning_obligations; DELETE FROM planning_category_budgets; DELETE FROM planning_budgets; DELETE FROM planning_salary_receipts; DELETE FROM planning_salary_profiles;" +
+        (preserveDrafts ? '' : " DELETE FROM planning_drafts WHERE kind != 'report_schedule';")
       );
       await Promise.all([
         ...this.salaryProfiles.map((item) =>
@@ -394,7 +395,7 @@ export class FinancialPlanningRepository {
         ...this.goalMovements.map((item) =>
           persistPayload(transaction, 'planning_goal_movements', item.id, item)
         ),
-        ...this.drafts.map((item) =>
+        ...(preserveDrafts ? [] : this.drafts).map((item) =>
           persistPayload(transaction, 'planning_drafts', item.id, item)
         ),
         ...this.conflicts.map((item) =>
@@ -487,6 +488,7 @@ export class FinancialPlanningRepository {
     const next = {
       ...this.salaryReceipts[index],
       status: 'undone' as const,
+      receivedDate: null,
       version: this.salaryReceipts[index].version + 1,
       updatedAt: Date.now()
     };
@@ -878,6 +880,12 @@ export class FinancialPlanningRepository {
   loadDraft(id: string): PlanningDraft | null {
     const draft = this.drafts.find((item) => item.id === id);
     return draft ? copy(draft) : null;
+  }
+
+  listDrafts(kind: PlanningDraft['kind']): PlanningDraft[] {
+    if (kind === 'report_schedule') throw new FinancialPlanningError('validation');
+    return copy(this.drafts.filter(draft => draft.kind === kind && ['editing', 'valid'].includes(draft.status))
+      .sort((a, b) => b.updatedAt - a.updatedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).slice(0, 64));
   }
 
   discardDraft(id: string): void {

@@ -27,7 +27,7 @@ export interface SecurityRouteDefinition {
   operation: string;
   status: number;
   permission?: string;
-  recentMfa?: boolean;
+  recentAuth?: boolean;
 }
 
 export const SECURITY_ROUTES: readonly SecurityRouteDefinition[] = Object.freeze(
@@ -223,14 +223,14 @@ export const SECURITY_ROUTES: readonly SecurityRouteDefinition[] = Object.freeze
       true,
     ],
   ].map(
-    ([method, path, operation, status, permission, recentMfa]) =>
+    ([method, path, operation, status, permission, recentAuth]) =>
       ({
         method,
         path,
         operation,
         status,
         permission,
-        recentMfa,
+        recentAuth,
       }) as SecurityRouteDefinition,
   ),
 );
@@ -309,7 +309,7 @@ for (const route of SECURITY_ROUTES) {
   );
   ApiBearerAuth('ClerkBearer')(SecurityController.prototype, route.operation, descriptor);
   if (route.permission) {
-    adminPermission(route.permission, { recentMfa: route.recentMfa })(
+    adminPermission(route.permission, { recentAuth: route.recentAuth })(
       SecurityController.prototype,
       route.operation,
       descriptor,

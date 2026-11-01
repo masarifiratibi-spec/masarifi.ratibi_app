@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Masarifi",
-    "slug": "masarifi-mobile",
+    "name": "Masarifi Ratibi",
+    "slug": "masarifiratibi",
     "version": "0.0.1",
     "orientation": "portrait",
     "scheme": "masarifi",
@@ -25,13 +25,19 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#055457"
+        "backgroundColor": "#00584F"
       },
       "permissions": [
         "android.permission.READ_SMS",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.masarifi.mobile"
+      "package": "com.masarifi.mobile",
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -39,9 +45,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/with-native-stability-fixes.cjs",
+      "./plugins/with-release-safety.cjs",
       "expo-router",
       "expo-font",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#00584F"
+        }
+      ],
       [
         "expo-local-authentication",
         {
@@ -49,14 +63,26 @@
         }
       ],
       "expo-asset",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
       [
         "expo-sqlite",
         {
           "useSQLCipher": true
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-dev-client",
+        {
+          "addGeneratedScheme": false
+        }
+      ]
     ],
     "experiments": {
       "tsconfigPaths": true
@@ -66,16 +92,13 @@
         "origin": false
       },
       "eas": {
-        "projectId": "a6cc51cf-3b15-4a78-8ef1-927fdd265824"
+        "projectId": "c8cc3dd3-a7e9-4737-ac4d-32f076107600"
       },
       "clientPolicy": {
-        "modes": [
-          "live",
-          "demo",
-          "test"
-        ],
+        "modes": ["live", "demo", "test"],
         "billingAvailable": false
       }
-    }
+    },
+    "owner": "masarifiratibi"
   }
 }

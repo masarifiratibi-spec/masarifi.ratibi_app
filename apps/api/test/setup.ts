@@ -50,3 +50,5 @@ afterEach(() => {
   jest.restoreAllMocks();
   jest.useRealTimers();
 });
+
+process.env.MASARIFI_SYNC_CURSOR_KEY ??= Buffer.alloc(32, 4).toString('base64url');

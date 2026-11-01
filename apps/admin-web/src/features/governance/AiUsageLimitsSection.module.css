@@ -1,0 +1,91 @@
+.page { display: grid; gap: 20px; min-width: 0; }
+.page :global(.page-header) { margin-bottom: 0; align-items: flex-start; }
+.page :global(.page-header h1) { font-size: 26px; }
+.page :global(.card) { min-width: 0; padding: 20px; }
+.page p { margin: 0; }
+.page .direct { color: var(--text-secondary); font-size: var(--type-ui); }
+.page .notice { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--surface-muted); overflow-wrap: anywhere; }
+.selector { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: center; }
+.page .userForm { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 10px; }
+.page .userForm label { min-width: 0; flex: 1; font-size: var(--type-ui); font-weight: 600; gap: 6px; }
+.userForm input { width: 100%; font-size: var(--type-compact); }
+.userForm button { flex: none; }
+.selectedUser { min-width: 0; font-size: var(--type-meta); color: var(--text-muted); }
+.selectedUser > p + p { margin-top: 6px; }
+.selectedUser strong { display: block; color: var(--text-secondary); font-weight: 600; }
+.selectedUser bdi { display: block; overflow-wrap: anywhere; color: var(--text-secondary); }
+.featureGrid, .overrideGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.featureHeading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.featureHeading > div { display: flex; align-items: center; gap: 8px; }
+.featureHeading svg { flex: none; color: var(--text-secondary); }
+.feature :global(.badge) { font-size: var(--type-meta); }
+:global([data-theme="dark"]) .feature :global(.badge-success) { color: var(--text); }
+.featureHeading h2, .overrides h3 { margin: 0; font-size: var(--type-section); font-weight: 700; }
+.page .meta, .editorFooter { font-size: var(--type-meta); color: var(--text-muted); }
+.feature > .meta { margin-top: 6px; }
+.quotaNumbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.quotaNumbers dt { color: var(--text-secondary); font-size: var(--type-meta); }
+.quotaNumbers dd { margin: 4px 0 0; color: var(--text); font-size: 28px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.usageDetails { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 0; }
+.usageDetails div { min-width: 0; }
+.usageDetails dt { margin-bottom: 3px; color: var(--text-muted); font-size: var(--type-meta); }
+.usageDetails dd { margin: 0; font-size: var(--type-ui); color: var(--text-secondary); }
+.time { display: inline; font-size: var(--type-meta); overflow-wrap: anywhere; }
+.editDetails { border-top: 1px solid var(--border); margin-top: 16px; }
+.editDetails > summary { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-top: 12px; cursor: pointer; color: var(--teal); font-size: var(--type-ui); font-weight: 600; list-style: none; }
+.editDetails > summary::-webkit-details-marker { display: none; }
+.editDetails[open] > summary svg { transform: rotate(180deg); }
+.page .editor { display: block; margin-top: 16px; padding: 0; min-width: 0; }
+.editDetails .editor + .editor { padding-top: 16px; border-top: 1px solid var(--border); }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.page .fields label { display: grid; gap: 6px; min-width: 0; flex: none; font-size: var(--type-meta); font-weight: 600; color: var(--text-secondary); }
+.fields .reason { grid-column: 1 / -1; }
+.fields input, .fields select { width: 100%; }
+.page .fields textarea { min-height: 64px; font-size: var(--type-meta); line-height: 1.5; padding: 8px 12px; resize: vertical; }
+.fields textarea::placeholder { color: var(--text-muted); opacity: 1; }
+.editorFooter { display: flex; gap: 12px; justify-content: space-between; align-items: center; margin-top: 10px; }
+.editorFooter button { min-width: 80px; }
+.page button:disabled { opacity: .55; }
+.budgetGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.projectCost { margin: 0 0 12px; }
+.projectCost dt { font-size: var(--type-meta); color: var(--text-secondary); }
+.projectCost dd { margin: 4px 0 0; font-size: 26px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.projectCost small { font-size: var(--type-ui); font-weight: 500; }
+.costBreakdown { margin: 0 0 12px; display: grid; gap: 4px; }
+.costBreakdown > div { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; font-size: var(--type-meta); }
+.costBreakdown dt { color: var(--text-secondary); }
+.costBreakdown dd { margin: 0; }
+.budgetGrid .editor { margin-top: 0; }
+.overrideGrid > div { min-width: 0; }
+.overrideGrid > div + div { border-inline-start: 1px solid var(--border); padding-inline-start: 20px; }
+.overrideGrid h3 { margin-bottom: 6px; }
+.history { min-width: 0; }
+.auditTable { overflow: auto; }
+.page .auditTable table { display: table; width: 100%; table-layout: fixed; }
+.auditTable th:first-child { width: 21%; }
+.auditTable th:last-child { width: 32%; }
+.page .auditTable td { vertical-align: top; white-space: normal; font-size: var(--type-meta); overflow-wrap: anywhere; }
+.auditTable p { margin-top: 4px; color: var(--text-secondary); }
+.settingKey { display: block; margin-bottom: 4px; font-weight: 600; overflow-wrap: anywhere; }
+.auditTable summary { color: var(--teal); cursor: pointer; }
+.auditValues { display: grid; gap: 4px; margin-top: 8px; }
+.auditValues pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); font-size: var(--type-meta); }
+@media (max-width: 1000px) {
+  .selector { grid-template-columns: 1fr; gap: 10px; }
+  .featureGrid, .overrideGrid { gap: 16px; }
+  .quotaNumbers { gap: 8px; }
+}
+@media (max-width: 720px) {
+  .page { gap: 16px; }
+  .featureGrid, .overrideGrid, .budgetGrid { grid-template-columns: 1fr; }
+  .page :global(.card) { padding: 16px; }
+  .page .userForm button, .page .editorFooter button { width: auto; }
+  .page .userForm label, .page .fields label { width: auto; }
+  .overrideGrid > div + div { border-inline-start: 0; border-top: 1px solid var(--border); padding-inline-start: 0; padding-top: 16px; }
+  .page .auditTable table { min-width: 640px; }
+}
+@media (max-width: 420px) {
+  .fields, .usageDetails { grid-template-columns: 1fr; }
+  .quotaNumbers dd { font-size: 24px; }
+  .featureHeading { gap: 8px; }
+}

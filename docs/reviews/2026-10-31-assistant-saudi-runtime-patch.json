@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "authority": "direct_user_request_2026-10-31_continue_verification_and_deployment",
+  "sourceCommit": "5d4fea219de5f32a2d0fa87f2d6a0f096ca87d18",
+  "scope": "assistant Arabic language policy and direct notices only",
+  "apiImage": "sha256:d607e1ecc9ca689e3173b754ddea9d72ee2e41e7f38b58575b174856ae25f7fb",
+  "workerImage": "sha256:90f18ac87a1adbf18ba3602edfc764a6384cac77e7b6773e183610f005d82f7a",
+  "agentBeforeSha256": "db6f792e92f83c3cbe19607746acec9e9d6307be8a6d932eaee88fad5b021695",
+  "domainBeforeSha256": "f7a53b96d9cbc74b0fa894bdd39de4445b06f1294844173081c462d66a0a55c5",
+  "runtimePromptBeforeSha256": "f28c2c9aa5c581f848753ef0c4dcb041530504a1b905a79d71842f0eae225ba0",
+  "agentPatches": [
+    {
+      "before": "Understand the user's actual question and answer naturally in their language (Egyptian Arabic when they use it), directly and concisely.",
+      "after": "Understand the user's actual question and answer directly and concisely in the intended language. Use neutral, natural Saudi/Gulf Arabic for all Arabic conversational prose: greetings, explanations, follow-ups, suggestions, clarifications and missing-source notices. Understand Arabic input in any dialect, including Egyptian, without copying its dialect into your reply. Prefer brief everyday wording such as وش، تبي، هالشهر، الحين without exaggeration or forced slang; keep financial terminology precise. Keep English when selected or explicitly requested, including an English request written in Arabic. Never rewrite supplied fact values, merchant names or quoted text to change dialect. Missing records, incomplete coverage and a source that failed to load are different: describe only the condition supported by the data, never turn a load failure into no data or zero.",
+      "beforeSha256": "794a9372c942cc6fa3076b48cd52f9d4300d97ec0d646b8cc52d95612fc0a6fe",
+      "afterSha256": "a2e5c9b50b3ace8e8b92e47af03e881129ca80bfc2f5d76c424d5dc2aed51578"
+    }
+  ],
+  "domainPatches": [
+    {
+      "before": "آسف، أنا متخصص في تحليل مصروفاتك ودخلك وميزانيتك داخل مصاريفي. اسألني عن بياناتك المالية.",
+      "after": "أنا متخصص في مصاريفك ودخلك وميزانيتك داخل مصاريفي. وش ودّك تعرف عن بياناتك المالية؟",
+      "beforeSha256": "df411f6f1d796de97c59a8a4b84f32d39bc4dd517cff76bf427cd9fab451a3ce",
+      "afterSha256": "a29f13f31ae7e682bb4db500aacd886413cd67edf1bc9b524d21d962ab5029f4"
+    },
+    {
+      "before": "أهلاً بيك! أنا مساعدك لتحليل مصروفاتك ودخلك وبياناتك المالية. تحب تعرف إيه عنها؟",
+      "after": "حيّاك! وش ودّك نراجع في مصاريفك؟",
+      "beforeSha256": "0521561ef4358f848c59e5c6a1e3751128c8297bf1ef97c702073b1a9898b3ed",
+      "afterSha256": "bafc8760066b05b274c65e6281331eb2fcca350f26fed91f441c0d0f8422428d"
+    },
+    {
+      "before": "ازيك|إزيك|اهلا|أهلا|السلام عليكم",
+      "after": "ازيك|إزيك|اهلا|أهلا|هلا(?: والله)?|حياك(?: الله)?|كيف الحال|السلام عليكم",
+      "beforeSha256": "54919acfa04e99b3cd098ae342912668d13d26317531aa560e78356d43eec781",
+      "afterSha256": "a83a1d8127993ba3303fec08982dcfbdb5e026e67187a43b06fc68d817e960ad"
+    }
+  ],
+  "changedFiles": {
+    "api": [
+      "dist/src/ai/assistant-domain-policy.js"
+    ],
+    "worker": [
+      "dist/src/ai/assistant-agent.js",
+      "dist/src/ai/assistant-domain-policy.js"
+    ]
+  },
+  "sqlChanges": 0,
+  "mailWorkerChanges": 0,
+  "providerRequests": 0,
+  "oldWindowReuse": false
+}

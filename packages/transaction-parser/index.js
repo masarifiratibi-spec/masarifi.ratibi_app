@@ -1,0 +1,263 @@
+'use strict';
+
+const defaultSnapshot = require('./default-rules.json');
+const evidenceCorpus = require('./corpus.json');
+const ENGINE_VERSION = '2.0.0';
+const DIRECTIONS = ['outgoing', 'incoming', 'internal', 'unknown'];
+const STATUSES = ['completed', 'pending', 'failed', 'declined', 'cancelled', 'administrative', 'unknown'];
+const DISPOSITIONS = ['capture_candidate', 'review', 'ignore'];
+const SUBTYPES = ['administrative', 'reversal', 'refund', 'salary', 'pos_purchase', 'online_purchase', 'card_purchase', 'bill_payment', 'withdrawal', 'transfer_sent', 'transfer_received', 'generic_debit', 'purchase', 'payment', 'fee', 'deposit', 'generic_credit'];
+
+function normalizeFinancialText(value) {
+  return value.normalize('NFKC').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/٫/g, '.').replace(/٬/g, ',')
+    .replace(/[\u064b-\u065f\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim();
+}
+function boundedStrings(value, max = 64) {
+  return Array.isArray(value) && value.length <= max && value.every(s => typeof s === 'string' && s.length > 0 && s.length <= 160);
+}
+function validateRuleSnapshot(value) {
+  const fail = () => { throw new Error('TRACKING_RULE_SNAPSHOT_INVALID'); };
+  if (!value || value.schemaVersion !== 2 || value.engineVersion !== ENGINE_VERSION || value.aiEnabled !== false ||
+    typeof value.releaseId !== 'string' || value.releaseId.length > 100 || !Number.isSafeInteger(value.releaseNo) || value.releaseNo < 1 ||
+    !Array.isArray(value.rules) || value.rules.length > 256 || !Array.isArray(value.currencies) || value.currencies.length > 32) fail();
+  const keys = new Set();
+  for (const rule of value.rules) {
+    if (!rule || typeof rule.ruleKey !== 'string' || !/^[a-z0-9._-]{1,100}$/.test(rule.ruleKey) || keys.has(rule.ruleKey) ||
+      !['action', 'status', 'exclusion'].includes(rule.family) || typeof rule.enabled !== 'boolean' || !Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 10000 ||
+      !boundedStrings(rule.any) || rule.any.length === 0 || ['all', 'not', 'countries', 'locales', 'providers', 'channels'].some(k => rule[k] !== undefined && !boundedStrings(rule[k])) ||
+      !rule.effects || Object.keys(rule.effects).some(k => !['direction', 'subtype', 'status', 'disposition'].includes(k))) fail();
+    if (rule.effects.direction && !DIRECTIONS.includes(rule.effects.direction) || rule.effects.status && !STATUSES.includes(rule.effects.status) ||
+      rule.effects.disposition && !DISPOSITIONS.includes(rule.effects.disposition) || rule.effects.subtype && !SUBTYPES.includes(rule.effects.subtype)) fail();
+    keys.add(rule.ruleKey);
+  }
+  const codes = new Set();
+  if(value.discoveryContexts !== undefined && !boundedStrings(value.discoveryContexts)) fail();
+  for (const currency of value.currencies) {
+    if (!currency || !/^[A-Z]{3}$/.test(currency.code) || codes.has(currency.code) || !Number.isInteger(currency.scale) || currency.scale < 0 || currency.scale > 3 || typeof currency.supported !== 'boolean' || !boundedStrings(currency.aliases, 16) || !currency.aliases.length) fail();
+    codes.add(currency.code);
+  }
+  if(value.providers && (!Array.isArray(value.providers) || value.providers.length>100 || value.providers.some(p=>!p || typeof p.providerKey!=='string' || p.providerKey.length>80 || !/^[A-Z]{2}$/.test(p.country) || !boundedStrings(p.senders) || !boundedStrings(p.packages)))) fail();
+  // Lifecycle/exclusion safety is a publishing invariant, even when action wording is customized.
+  for(const required of defaultSnapshot.rules.filter(r=>r.family!=='action')) {
+    const configured=value.rules.find(r=>r.ruleKey===required.ruleKey);
+    if(!configured?.enabled || !required.any.every(phrase=>configured.any.includes(phrase)) ||
+      ['family','priority','all','not','countries','locales','providers','channels','effects'].some(key => canonicalJson(configured[key]) !== canonicalJson(required[key]))) fail();
+  }
+  return value;
+}
+function canonicalJson(value) {
+  if(value === undefined) return 'undefined';
+  if(Array.isArray(value)) return '['+value.map(canonicalJson).join(',')+']';
+  if(value && typeof value==='object') return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonicalJson(value[key])).join(',')+'}';
+  return JSON.stringify(value);
+}
+const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function phraseMatches(text, phrase) {
+  const pattern = normalizeFinancialText(phrase).toLowerCase().split(' ').map(word =>
+    /\p{Script=Arabic}/u.test(word)
+      ? `(?:[وف])?(?:بال|كال|لل|ال|ب|ك|ل)?${escape(word)}(?:ك|كم|كما|كن|نا|ها|هم|هن|ه|ا)?`
+      : escape(word)).join(' ');
+  return new RegExp(`(?<![\\p{L}])${pattern}(?![\\p{L}])`, 'u').test(text);
+}
+function applies(rule, input, text) {
+  return rule.enabled && [['countries', input.country], ['locales', input.locale], ['providers', input.sender], ['channels', input.channel]]
+    .every(([key, v]) => !rule[key]?.length || v && rule[key].some(s => s.toLowerCase() === v.toLowerCase())) &&
+    rule.any.some(p => phraseMatches(text, p)) && (rule.all || []).every(p => phraseMatches(text, p)) && !(rule.not || []).some(p => phraseMatches(text, p));
+}
+function minorUnits(raw, scale) {
+  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(raw)) return null;
+  const [whole, fraction = ''] = raw.replace(/,/g, '').split('.');
+  if (fraction.length > scale) return null;
+  const value = Number(whole + fraction.padEnd(scale, '0'));
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+const currencySpellingAliases = {
+  SAR: ['ريال سعودى', 'SR', 'ريالاً', 'ريالا'],
+  KWD: ['KD'], BHD: ['BD'], OMR: ['RO'],
+  JOD: ['دينار أردني', 'دينار اردني', 'دينار', 'دينارا'],
+  AED: ['درهم اماراتي', 'درهم إماراتى', 'درهم اماراتى', 'دراهم إماراتية', 'دراهم اماراتية', 'Dhs', 'درهماً', 'درهما'],
+  EGP: ['جنيه مصرى', 'جنية', 'جنية مصري', 'جنية مصرى', 'L.E.', 'جم'],
+};
+function effectiveCurrencies(currencies) {
+  const values = [...currencies];
+  if (values.length < 32 && !values.some(currency => currency.code === 'YER'))
+    values.push({code:'YER',scale:2,supported:false,aliases:['YER','ريال يمني']});
+  return values.map(currency => ({...currency,
+    // Preserve configured aliases first and the shared/native schema's bounded vocabulary.
+    aliases:[...new Set([...currency.aliases,...(currencySpellingAliases[currency.code] || [])])].slice(0,16)
+  }));
+}
+function moneyCandidates(text, snapshot, verifiedAccountCurrency) {
+  const aliases = effectiveCurrencies(snapshot.currencies).flatMap(c => c.aliases.map(a => ({alias: normalizeFinancialText(a), currency: c}))).sort((a,b) => b.alias.length-a.alias.length);
+  const byAlias = new Map(aliases.map(a => [a.alias.toLowerCase(), a.currency]));
+  const token = aliases.map(a => escape(a.alias)).join('|');
+  const number = '[0-9][0-9,]*(?:\\.[0-9]+)?';
+  const pattern = new RegExp(`(?<![\\p{L}])(?:(${token})\\s*(${number})|(${number})\\s*(${token}))(?![\\p{L}])`, 'giu');
+  const candidates = [];
+  for (const m of text.matchAll(pattern)) {
+    const alias = (m[1] || m[4]).toLowerCase();
+    const riyal = ['ريال','ريالا'].includes(alias), dinar = ['دينار','دينارا'].includes(alias);
+    const family = riyal ? ['SAR','QAR','OMR','YER','IRR'] : ['KWD','BHD','JOD','IQD','DZD','TND','LYD'];
+    const currency = riyal || dinar
+      ? family.includes(verifiedAccountCurrency) ? effectiveCurrencies(snapshot.currencies).find(c => c.code === verifiedAccountCurrency) : null
+      : byAlias.get(alias);
+    const before = text.slice(Math.max(0,m.index-60),m.index).toLowerCase();
+    const after = text.slice(m.index+m[0].length,m.index+m[0].length+32).toLowerCase();
+    // Roles are structural boundaries, not a preference for one currency over another.
+    const role = /(?:avl\.?\s*(?:cr\.?\s*)?(?:bal(?:ance)?|limit)|available\s+(?:balance|credit(?:\s+limit)?)|credit\s+limit|balance|الرصيد|رصيد|الحد\s+الائتماني|حد\s+الائتمان)[^.;:،,]*[: ]*$/.test(before) ? 'balance' :
+      /(?:fee|fees|charge|commission|رسوم|عمولة)\s*[: ]*$/.test(before) ? 'fee' :
+      /(?:equivalent|exchange rate|converted|ما يعادل)\s*[: ]*$/.test(before) || /^\s*(?:equivalent|ما يعادل)/.test(after) ? 'fx' : 'transaction';
+    const raw = m[2] || m[3];
+    candidates.push({ role, raw, ambiguous: !currency, amountMinor: currency ? minorUnits(raw,currency.scale) : null,
+      currency:currency?.code ?? null, supported:currency?.supported ?? false });
+  }
+  return candidates;
+}
+function extractTime(text, input) {
+  const zone = {SA:'Asia/Riyadh',AE:'Asia/Dubai',EG:'Africa/Cairo'}[input.country] ?? input.timeZone;
+  const build = (year,month,day,hour,minute,second='00') => {
+    if (!zone || +month < 1 || +month > 12 || +day < 1 || +day > 31 || +hour > 23 || +minute > 59 || +second > 59) return null;
+    const target=Date.UTC(+year,+month-1,+day,+hour,+minute,+second);
+    const format=new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+    const localTime=instant=>{
+      const fields=Object.fromEntries(format.formatToParts(new Date(instant)).map(p=>[p.type,p.value]));
+      return Date.UTC(+fields.year,+fields.month-1,+fields.day,+fields.hour,+fields.minute,+fields.second);
+    };
+    // Try all offsets near the local day. DST gaps and repeated times are
+    // unresolved instead of silently shifting the financial timestamp.
+    const offsets=new Set([-86400000,0,86400000].map(delta=>localTime(target+delta)-(target+delta)));
+    const matches=[...offsets].map(offset=>target-offset).filter(instant=>localTime(instant)===target);
+    const normalized=new Date(target);
+    if(normalized.getUTCDate()!==+day || normalized.getUTCMonth()+1!==+month || matches.length!==1) return null;
+    return new Date(matches[0]).toISOString();
+  };
+  let m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?\b/);
+  if (m) return {occurredAt:build(m[1],m[2],m[3],m[4]??'00',m[5]??'00',m[6]), timeProvenance:'embedded'};
+  m = text.match(/\b(\d{1,2})([-/])(\d{1,2})\2(20\d{2}|\d{2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\b/);
+  if (m) {
+    // Short years are anchored to the receipt century; day/month order still needs proof.
+    const year=m[4].length===4 ? +m[4] : Number.isFinite(input.receivedAt) ? Math.floor(new Date(input.receivedAt).getUTCFullYear()/100)*100+(+m[4]) : null;
+    const dayFirst=+m[1]>12 || m[1]===m[3], monthFirst=+m[3]>12;
+    return {occurredAt:year!==null && (dayFirst || monthFirst) ? build(year,dayFirst?m[3]:m[1],dayFirst?m[1]:m[3],m[5]??'00',m[6]??'00',m[7]) : null,
+      timeProvenance:dayFirst || monthFirst ? 'embedded' : 'ambiguous'};
+  }
+  m = text.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(20\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (m) {
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    let hour = +m[4]; if (m[7]) {if(hour < 1 || hour > 12) return {occurredAt:null,timeProvenance:'ambiguous'}; hour = hour%12+(m[7].toUpperCase()==='PM'?12:0);}
+    return {occurredAt:build(m[3],months.indexOf(m[1].toLowerCase())+1,m[2],hour,m[5],m[6]),timeProvenance:'embedded'};
+  }
+  if (/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/.test(text)) return {occurredAt:null,timeProvenance:'ambiguous'};
+  return {occurredAt: Number.isFinite(input.receivedAt) ? new Date(input.receivedAt).toISOString() : null,timeProvenance:'received'};
+}
+function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
+  validateRuleSnapshot(snapshot);
+  const text = normalizeFinancialText(input.text.slice(0,8000)), lower = text.toLowerCase();
+  const matched = snapshot.rules.filter(r => applies(r,input,lower)).sort((a,b) => b.priority-a.priority || a.ruleKey.localeCompare(b.ruleKey));
+  // Published database wording can extend the safety vocabulary. The baseline
+  // constrains safety effects/precedence; it is not the runtime phrase catalog.
+  const protectedKeys=new Set(defaultSnapshot.rules.filter(r=>r.family!=='action').map(r=>r.ruleKey));
+  const protectedMatches=matched.filter(r=>protectedKeys.has(r.ruleKey));
+  const exclusion = protectedMatches.find(r => r.family==='exclusion') ?? matched.find(r => r.family==='exclusion');
+  const action = matched.find(r => r.family==='action');
+  const lifecycle = protectedMatches.find(r => r.family==='status') ?? matched.find(r => r.family==='status');
+  const result = {direction:'unknown',subtype:'unknown',status:'unknown',disposition:'review',amountMinor:null,currency:null,merchant:null,instruments:[],providerReference:null,
+    ...extractTime(text,input),reasonCodes:[],appliedRuleKeys:matched.map(r=>r.ruleKey),releaseId:snapshot.releaseId,engineVersion:ENGINE_VERSION};
+  if (action) Object.assign(result,action.effects);
+  if (action && matched.some(r=>r.family==='action' && r.effects.direction && r.effects.direction!==action.effects.direction)) result.reasonCodes.push('conflicting_direction');
+  if (lifecycle) Object.assign(result,lifecycle.effects);
+  if (new RegExp(securityCodePattern, 'iu').test(lower)) {
+    result.status='administrative'; result.disposition='ignore';
+    result.reasonCodes.push('administrative_or_excluded'); return result;
+  }
+  if (exclusion) { Object.assign(result,exclusion.effects); result.reasonCodes.push('administrative_or_excluded'); return result; }
+  const candidates = moneyCandidates(text,snapshot,input.verifiedAccountCurrency);
+  if(result.subtype!=='fee' && candidates.some(c=>c.role==='fee' && (c.amountMinor!==null || c.ambiguous && minorUnits(c.raw,3)!==null))) result.reasonCodes.push('fee_components_required');
+  const amounts = candidates.filter(c=>c.role==='transaction' || result.subtype==='fee' && c.role==='fee');
+  if (amounts.length === 1) {result.amountMinor=amounts[0].amountMinor; result.currency=amounts[0].currency;
+    if(amounts[0].ambiguous) result.reasonCodes.push('currency_ambiguous');
+    else if(!amounts[0].supported) result.reasonCodes.push('unsupported_currency');}
+  else result.reasonCodes.push(amounts.length ? 'amount_conflict':'amount_missing');
+  if (result.amountMinor===null) result.reasonCodes.push('amount_invalid');
+  for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
+    const label = (m[1]||m[2]).toLowerCase(), suffix=m[3].replace(/[^0-9]/g,'');
+    const prefix=lower.slice(0,m.index).trimEnd();
+    const side=['transfer_sent','transfer_received','withdrawal'].includes(result.subtype)
+      ? /(?:\bfrom|من)$/u.test(prefix) ? 'source' : /(?:\bto|إلى|الى|الي)$/u.test(prefix) ? 'destination' : undefined
+      : undefined;
+    result.instruments.push({role:/card|بطاقة|ending/.test(label)?'card':'account',suffix,...(side?{side}:{})});
+  }
+  const merchant = text.match(/(?:\bat\b|\bby\b|لدي|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\b(?:card|account)\s*[:#-]?\s*[xX*•]*\d|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];
+  result.merchant=merchant ? merchant.replace(/(?:[.;،]\s*|\s+)(?:never share|do not share|don't share|لا تشارك|لا تفصح)[\s\S]*$/iu,'').replace(/[.,\s]+$/,'').slice(0,160) : null;
+  const originalReference=text.match(/(?:original(?: transaction)? reference|مرجع العملية الأصلية|مرجع العملية الاصلية)\s*[:#]?\s*([A-Za-z0-9-]{6,80})/iu);
+  if(originalReference && ['refund','reversal'].includes(result.subtype)) result.originalProviderReference=originalReference[1];
+  const referenceText=originalReference ? text.slice(0,originalReference.index)+text.slice(originalReference.index+originalReference[0].length) : text;
+  result.providerReference = referenceText.match(/(?<![\p{L}\p{N}])(?:reference(?: number)?|ref\.?|الرقم المرجعي(?: للمعاملة هو)?)(?![\p{L}])\s*[:#]?\s*(?!number\b)([A-Za-z0-9-]{6,80})(?![A-Za-z0-9-])/iu)?.[1] || null;
+  if (!action) result.reasonCodes.push('action_unknown');
+  if (result.subtype==='generic_credit' && (!result.instruments.some(h=>h.role==='account') || result.instruments.some(h=>h.role==='card'))) result.reasonCodes.push('credit_origin_required');
+  if (['transfer_sent','transfer_received'].includes(result.subtype)) result.reasonCodes.push('transfer_counterparty_required');
+  if (result.subtype==='withdrawal') result.reasonCodes.push('cash_destination_required');
+  if (['refund','reversal'].includes(result.subtype)) result.reasonCodes.push('original_transaction_required');
+  if (result.timeProvenance === 'ambiguous' || result.timeProvenance === 'embedded' && !result.occurredAt) result.reasonCodes.push('date_ambiguous');
+  if (!lifecycle && action && !result.reasonCodes.length) result.disposition='capture_candidate';
+  if (new RegExp(marketingPattern,'iu').test(lower)) result.disposition='ignore';
+  return result;
+}
+function validateClassification(value) {
+  const fail = () => {throw new Error('TRACKING_CLASSIFICATION_INVALID');};
+  if (!value || Object.keys(value).some(k=>!['direction','subtype','status','disposition','amountMinor','currency','merchant','instruments','occurredAt','timeProvenance','reasonCodes','appliedRuleKeys','releaseId','engineVersion'].includes(k)) ||
+    !DIRECTIONS.includes(value.direction) || !STATUSES.includes(value.status) || !DISPOSITIONS.includes(value.disposition) || !['unknown',...SUBTYPES].includes(value.subtype) ||
+    value.engineVersion !== ENGINE_VERSION || typeof value.releaseId !== 'string' || value.releaseId.length>100 ||
+    !(value.amountMinor===null || Number.isSafeInteger(value.amountMinor) && value.amountMinor>0) || !(value.currency===null || /^[A-Z]{3}$/.test(value.currency)) ||
+    !(value.merchant===null || typeof value.merchant==='string' && value.merchant.length<=160) || !boundedStrings(value.reasonCodes,32) || !boundedStrings(value.appliedRuleKeys,64) ||
+    !['embedded','received','ambiguous'].includes(value.timeProvenance) || !(value.occurredAt===null || typeof value.occurredAt==='string' && Number.isFinite(Date.parse(value.occurredAt)) && /Z$/.test(value.occurredAt)) ||
+    !Array.isArray(value.instruments) || value.instruments.length>8 || value.instruments.some(h=>!h || Object.keys(h).some(k=>!['role','suffix','side'].includes(k)) || !['card','account'].includes(h.role) || !/^\d{4,12}$/.test(h.suffix) || h.side!==undefined && !['source','destination'].includes(h.side))) fail();
+  if(value.disposition==='capture_candidate' && (value.status!=='completed' || value.direction==='unknown' || value.amountMinor===null || value.currency===null || value.reasonCodes.length)) fail();
+  return value;
+}
+function effectiveFinancialSnapshot(snapshot, overrides = []) {
+  validateRuleSnapshot(snapshot);
+  const disabled = new Set(overrides.filter(r=>r.enabled===false).map(r=>normalizeFinancialText(r.value).toLowerCase()));
+  return {...snapshot, currencies:effectiveCurrencies(snapshot.currencies), rules:snapshot.rules.map(rule=>({...rule,
+    any:rule.family==='action' ? rule.any.filter(phrase=>!disabled.has(normalizeFinancialText(phrase).toLowerCase())) : rule.any
+  })).filter(rule=>rule.any.length)};
+}
+function customFinancialEvidence(overrides) {
+  return overrides.filter(r=>r.enabled && r.origin==='custom' && typeof r.id==='string' &&
+    typeof r.value==='string' && r.value.trim().length>0 && r.value.length<=160).slice(0,256)
+    .map(r=>({ruleKey:`custom.${r.id.replace(/[^a-z0-9._-]/gi,'_').slice(0,80)}`,phrase:normalizeFinancialText(r.value).toLowerCase()}));
+}
+// This pattern is structural marketing syntax shared with the classifier;
+// published exclusions supply the editable phrase vocabulary.
+const marketingPattern = '\\b(?:offer|promo|discount)\\b|(?<![\\p{L}])عرض(?![\\p{L}])|خصم\\s*\\d+\\s*%';
+const securityCodePattern = '\\b(?:use|enter|verification|security|one[ -]time)\\s+(?:the\\s+)?(?:code|password)\\b[^\\n]{0,40}[0-9]{4,8}\\b';
+function compileFinancialDiscoveryPolicy(snapshot, overrides = []) {
+  const effective=effectiveFinancialSnapshot(snapshot,overrides);
+  return {version:1,releaseId:effective.releaseId,engineVersion:ENGINE_VERSION,
+    rules:effective.rules.map(rule=>({...rule,any:rule.any.map(p=>normalizeFinancialText(p).toLowerCase()),
+      all:(rule.all||[]).map(p=>normalizeFinancialText(p).toLowerCase()),not:(rule.not||[]).map(p=>normalizeFinancialText(p).toLowerCase())})),
+    currencies:effective.currencies,contexts:(effective.discoveryContexts||[]).map(p=>normalizeFinancialText(p).toLowerCase()),
+    custom:customFinancialEvidence(overrides),providers:effective.providers||[],marketingPattern,securityCodePattern};
+}
+function discoverFinancialMessage(input, snapshot = defaultSnapshot, overrides = []) {
+  const effective=effectiveFinancialSnapshot(snapshot,overrides);
+  const classification=classifyFinancialMessage(input,effective);
+  const text=normalizeFinancialText(input.text.slice(0,8000)).toLowerCase();
+  const matched=effective.rules.filter(rule=>applies(rule,input,text));
+  const custom=customFinancialEvidence(overrides).filter(rule=>phraseMatches(text,rule.phrase));
+  const customRuleKeys=custom.map(rule=>rule.ruleKey);
+  classification.appliedRuleKeys=[...new Set([...classification.appliedRuleKeys,...customRuleKeys])].slice(0,64);
+  const monetaryEvidence=moneyCandidates(text,effective,input.verifiedAccountCurrency).some(c=>(c.amountMinor!==null || c.ambiguous && minorUnits(c.raw,3)!==null) &&
+    (c.role==='transaction' || classification.subtype==='fee' && c.role==='fee'));
+  const financialEvidence=matched.some(rule=>rule.family==='action') || custom.length>0 &&
+    (effective.discoveryContexts||[]).some(phrase=>phraseMatches(text,phrase));
+  // Discovery grants retention, never source trust, completion or posting authority.
+  const strong=classification.disposition!=='ignore' && monetaryEvidence && Boolean(financialEvidence);
+  return {strong,classification,customRuleKeys};
+}
+module.exports = {canonicalJson, classifyFinancialMessage,normalizeFinancialText,validateRuleSnapshot,validateClassification,defaultSnapshot,evidenceCorpus,
+  effectiveFinancialSnapshot,compileFinancialDiscoveryPolicy,discoverFinancialMessage};
+
+Object.assign(module.exports, require('./nominal-tracking')(module.exports));

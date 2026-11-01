@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { HttpException, Injectable, type OnModuleDestroy } from '@nestjs/common';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { LedgerService } from '../ledger/ledger.service';
@@ -13,6 +13,7 @@ import {
 import { TrackingRepository, type ImportClaim } from './tracking.repository';
 import { executeParserDefinition } from './tracking.parser';
 import { TrackingStorage } from './tracking.storage';
+import { captureEffectsAgree } from './tracking-capture-agreement';
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -181,10 +182,67 @@ export class TrackingWorker implements OnModuleDestroy {
           factorAgeSeconds: null,
           mfaAgeSeconds: null,
         };
-        const key = `tracking:${await this.repository.getImportSourceIdentityHash(
-          principal,
-          String(item.id),
-        )}`;
+        if (command.accountingPolicy === 'default_account_nominal_v1') {
+          try {
+            this.ledger.assertTrackingRecentAuth(
+              principal,
+              String(command.currency),
+              Math.abs(Number(command.amountMinor)),
+            );
+          } catch (error) {
+            const response = error instanceof HttpException ? error.getResponse() : null;
+            if (
+              !response ||
+              typeof response !== 'object' ||
+              Reflect.get(response, 'code') !== 'RECENT_AUTH_REQUIRED'
+            )
+              throw error;
+            await this.repository.deferImportItem(
+              String(item.id),
+              claim.claim_token,
+              'recent_auth_required',
+            );
+            continue;
+          }
+          await this.repository.commitNominalCapture(String(item.id), claim.claim_token);
+          continue;
+        }
+        const reservation = command.transport
+          ? await this.repository.reserveCapture(String(item.id), claim.claim_token)
+          : null;
+        const key = `tracking:${
+          reservation
+            ? String(reservation.identityHash)
+            : await this.repository.getImportSourceIdentityHash(principal, String(item.id))
+        }`;
+        if (typeof reservation?.transactionId === 'string') {
+          const saved = record(
+            record(
+              await this.ledger.getTransaction(
+                principal,
+                reservation.transactionId,
+                stableUuid(key),
+              ),
+            ).transaction,
+          );
+          if (!captureEffectsAgree(saved, command)) {
+            await this.repository.deferImportItem(
+              String(item.id),
+              claim.claim_token,
+              'duplicate_candidate',
+            );
+            continue;
+          }
+          await this.repository.acceptImportItem(
+            String(item.id),
+            claim.claim_token,
+            null,
+            reservation.transactionId,
+          );
+          continue;
+        }
+        if (reservation && reservation.primaryItemId !== String(item.id))
+          throw new Error('IMPORT_CAPTURE_IN_PROGRESS');
         try {
           const common = {
             principal,
@@ -192,43 +250,78 @@ export class TrackingWorker implements OnModuleDestroy {
             requestId: stableUuid(key),
           };
           const response = record(
-            command.kind === 'transfer'
-              ? await this.ledger.transfer({
-                  ...common,
-                  body: {
-                    sourceAccountId: command.accountId,
-                    destinationAccountId: command.destinationAccountId,
-                    amountMinor: Math.abs(Number(command.amountMinor)),
-                    currency: command.currency,
-                    feeMinor: 0,
-                    occurredAt: command.occurredAt,
-                    title: command.title ?? command.merchant ?? 'Imported transaction',
-                    note: command.note ?? null,
-                  },
-                })
-              : await this.ledger.createTransaction({
-                  ...common,
-                  body: {
-                    kind: command.kind,
-                    amountMinor: Math.abs(Number(command.amountMinor)),
-                    currency: command.currency,
-                    accountId: command.accountId,
-                    categoryId: command.categoryId ?? null,
-                    title: command.title ?? command.merchant ?? 'Imported transaction',
-                    merchant: command.merchant ?? null,
-                    paymentMethod: command.paymentMethod ?? null,
-                    note: command.note ?? null,
-                    occurredAt: command.occurredAt,
-                    source: 'tracking-import',
-                    externalRef: key,
-                  },
-                }),
+            command.kind === 'refund' || command.kind === 'reversal'
+              ? await (record(command.classification ?? {}).subtype === 'reversal' ||
+                command.kind === 'reversal'
+                  ? this.ledger.reverseTransaction({
+                      ...common,
+                      trackingCaptureId: String(item.id),
+                      transactionId: String(command.originalTransactionId),
+                      body: {
+                        expectedVersion: command.originalTransactionVersion,
+                        occurredAt: command.occurredAt,
+                        reason: 'Automatic tracking reversal',
+                      },
+                    })
+                  : this.ledger.refundTransaction({
+                      ...common,
+                      trackingCaptureId: String(item.id),
+                      transactionId: String(command.originalTransactionId),
+                      body: {
+                        expectedVersion: command.originalTransactionVersion,
+                        amountMinor: Math.abs(Number(command.amountMinor)),
+                        accountId: command.accountId,
+                        occurredAt: command.occurredAt,
+                        reason: 'Automatic tracking refund',
+                      },
+                    }))
+              : command.kind === 'transfer'
+                ? await this.ledger.transfer({
+                    ...common,
+                    body: {
+                      sourceAccountId:
+                        record(command.classification ?? {}).direction === 'incoming'
+                          ? command.destinationAccountId
+                          : command.accountId,
+                      destinationAccountId:
+                        record(command.classification ?? {}).direction === 'incoming'
+                          ? command.accountId
+                          : command.destinationAccountId,
+                      amountMinor: Math.abs(Number(command.amountMinor)),
+                      currency: command.currency,
+                      feeMinor: 0,
+                      source: 'tracking-import',
+                      externalRef: key,
+                      occurredAt: command.occurredAt,
+                      title: command.title ?? command.merchant ?? 'Imported transaction',
+                      note: command.note ?? null,
+                    },
+                  })
+                : await this.ledger.createTransaction({
+                    ...common,
+                    body: {
+                      kind: command.kind === 'fee' ? 'expense' : command.kind,
+                      amountMinor: Math.abs(Number(command.amountMinor)),
+                      currency: command.currency,
+                      accountId: command.accountId,
+                      categoryId: command.categoryId ?? null,
+                      title: command.title ?? command.merchant ?? 'Imported transaction',
+                      merchant: command.merchant ?? null,
+                      paymentMethod: command.paymentMethod ?? null,
+                      note: command.note ?? null,
+                      occurredAt: command.occurredAt,
+                      source: 'tracking-import',
+                      externalRef: key,
+                    },
+                  }),
           );
           const transaction = record(record(response.transaction).transaction);
           await this.repository.acceptImportItem(
             String(item.id),
             claim.claim_token,
-            typeof response.operationId === 'string' ? response.operationId : stableUuid(key),
+            typeof response.operationId === 'string'
+              ? response.operationId
+              : stableUuid(`${principal.userId}:${key}`),
             String(transaction.id),
           );
         } catch (error) {
@@ -258,7 +351,12 @@ export class TrackingWorker implements OnModuleDestroy {
           );
         }
       }
-      await this.repository.completeImport(claim.id, claim.claim_token, 'succeeded', null);
+      await this.repository.completeImport(
+        claim.id,
+        claim.claim_token,
+        Number(finalized.deferredCount) > 0 ? 'failed' : 'succeeded',
+        Number(finalized.deferredCount) > 0 ? 'TRACKING_CAPTURE_DEFERRED' : null,
+      );
     } catch (error) {
       const code =
         (error instanceof Error ? error.message : 'IMPORT_PROCESSING_FAILED').match(

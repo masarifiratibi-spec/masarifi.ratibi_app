@@ -5,15 +5,16 @@ import { useState } from "react";
 import { MetricCard, PageHeader, RegionState } from "@/components/admin/ui";
 import { getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import type {
   CommunicationDetail,
   CommunicationOverview,
   CommunicationPage,
   CommunicationRecord,
 } from "./contracts";
+import { feedbackStateSchema } from "./contracts";
 import {
   useAbuseReports,
-  useAudiencePreview,
   useCampaignAction,
   useCampaignDetail,
   useCampaigns,
@@ -27,10 +28,7 @@ import {
   useNotificationOverview,
   useSupportCategories,
   useSupportOverview,
-  useSupportTicketDetail,
-  useSupportTickets,
   useTemplates,
-  useTicketAction,
   useTransactionalTemplates,
 } from "./hooks";
 import {
@@ -38,6 +36,10 @@ import {
   type OperationalFilterState,
 } from "./shared/OperationalFilters";
 import { SafeText } from "./shared/SafeText";
+import {
+  SupportTicketList,
+  SupportTicketConversation,
+} from "./SupportTicketViews";
 
 type QueryLike<T> = {
   data?: T;
@@ -226,7 +228,13 @@ function RecordTable({
               <span>{getStatusLabel(locale, item.state)}</span>
             </div>
             <strong>
-              <SafeText text={item.title} />
+              {detailBase ? (
+                <Link href={`${detailBase}/${item.id}`}>
+                  <SafeText text={item.title} />
+                </Link>
+              ) : (
+                <SafeText text={item.title} />
+              )}
             </strong>
             {item.subtitle && (
               <p>
@@ -246,9 +254,11 @@ function RecordTable({
 function Detail({
   item,
   action,
+  children,
 }: {
   item: CommunicationDetail;
   action?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const { locale } = useLocale();
   const c = copy[locale];
@@ -299,6 +309,7 @@ function Detail({
           </p>
         ))}
       </section>
+      {children}
     </div>
   );
 }
@@ -358,14 +369,40 @@ export function SupportOverviewRoute() {
   const query = useSupportOverview({});
   const { locale } = useLocale();
   const c = copy[locale];
+  const metricLabels: Record<string, string> =
+    locale === "ar"
+      ? {
+          total: "كل التذاكر",
+          unassigned: "غير مكلّفة",
+          open: "مفتوحة",
+          waiting_support: "بانتظار الدعم",
+          waiting_customer: "بانتظار العميل",
+          resolved: "محلولة",
+          closed: "مغلقة",
+        }
+      : {
+          total: "All tickets",
+          unassigned: "Unassigned",
+          open: "Open",
+          waiting_support: "Waiting for support",
+          waiting_customer: "Waiting for customer",
+          resolved: "Resolved",
+          closed: "Closed",
+        };
   return (
     <div className="page">
       <PageState query={query} permission="support.overview.read">
         {(data) => (
           <>
             <PageHeader
-              title={data.title}
-              description={data.description}
+              title={
+                locale === "ar" ? "نظرة عامة على الدعم" : "Support overview"
+              }
+              description={
+                locale === "ar"
+                  ? "عبء العمل الحالي من جميع التذاكر المحفوظة."
+                  : "Current workload across all stored tickets."
+              }
               actions={
                 <Link className="button" href="/admin/support/tickets">
                   {c.openTickets}
@@ -378,7 +415,7 @@ export function SupportOverviewRoute() {
                   <MetricCard
                     key={metric.key}
                     metric={{
-                      label: metric.label,
+                      label: metricLabels[metric.key] ?? metric.label,
                       value: String(metric.value),
                       context: metric.denominator,
                     }}
@@ -386,10 +423,12 @@ export function SupportOverviewRoute() {
                 ),
               )}
             </div>
-            <RecordTable
-              items={data.items}
-              detailBase="/admin/support/tickets"
-            />
+            {data.items.length > 0 && (
+              <RecordTable
+                items={data.items}
+                detailBase="/admin/support/tickets"
+              />
+            )}
           </>
         )}
       </PageState>
@@ -398,60 +437,11 @@ export function SupportOverviewRoute() {
 }
 
 export function SupportTicketsRoute() {
-  const query = useSupportTickets({ page: 1, pageSize: "25" });
-  const { locale } = useLocale();
-  const pageQuery = {
-    ...query,
-    data: query.data
-      ? {
-          ...query.data,
-          items: query.data.tickets,
-          region: { availability: "available" as const },
-        }
-      : undefined,
-  };
-  return (
-    <ListShell
-      title={copy[locale].supportTickets}
-      description={copy[locale].supportTicketsDescription}
-      query={pageQuery}
-      permission="support.tickets.read"
-      detailBase="/admin/support/tickets"
-    />
-  );
+  return <SupportTicketList />;
 }
 
 export function SupportTicketDetailRoute({ ticketId }: { ticketId: string }) {
-  const query = useSupportTicketDetail(ticketId);
-  const mutation = useTicketAction();
-  const { locale } = useLocale();
-  return (
-    <PageState query={query} permission="support.tickets.read">
-      {(item) => (
-        <Detail
-          item={item}
-          action={
-            <button
-              className="button primary"
-              disabled={mutation.isPending}
-              onClick={() =>
-                mutation.mutate({
-                  ticketId,
-                  action: {
-                    action: "resolve",
-                    expectedVersion: item.revision,
-                    reason: "Resolved by support administrator",
-                  },
-                })
-              }
-            >
-              {locale === "ar" ? "حل التذكرة" : "Resolve"}
-            </button>
-          }
-        />
-      )}
-    </PageState>
-  );
+  return <SupportTicketConversation ticketId={ticketId} />;
 }
 
 export function SupportCategoriesRoute() {
@@ -465,57 +455,163 @@ export function SupportCategoriesRoute() {
           : "Manage routing categories and retirement replacements."
       }
       query={useSupportCategories({})}
-      permission="support.categories.manage"
-      detailBase="/admin/support/categories"
+      permission="support.categories.read"
     />
   );
 }
 
 export function FeedbackRoute() {
   const { locale } = useLocale();
+  const [filters, setFilters] = useState<OperationalFilterState>({
+    search: "",
+    status: "",
+  });
+  const query = useFeedback({ search: filters.search, status: filters.status });
   return (
-    <ListShell
-      title={locale === "ar" ? "نظرة عامة على الملاحظات" : "Feedback overview"}
-      description={
-        locale === "ar"
-          ? "تصنيف الملاحظات وربطها بسجلات تشغيلية آمنة."
-          : "Classify feedback and link it to safe operational records."
-      }
-      query={useFeedback({})}
-      permission="feedback.read"
-      detailBase="/admin/feedback"
-    />
+    <div className="page">
+      <PageHeader
+        title={
+          locale === "ar" ? "نظرة عامة على الملاحظات" : "Feedback overview"
+        }
+        description={
+          locale === "ar"
+            ? "تصنيف الملاحظات وربطها بسجلات تشغيلية آمنة."
+            : "Classify feedback and link it to safe operational records."
+        }
+      />
+      <OperationalFilters
+        filters={filters}
+        labels={{
+          search: locale === "ar" ? "بحث" : "Search",
+          status: copy[locale].state,
+        }}
+        statusOptions={["", ...feedbackStateSchema.options]}
+        onChange={setFilters}
+      />
+      <PageState query={query} permission="feedback.read">
+        {(page) => (
+          <RecordTable items={page.items} detailBase="/admin/feedback" />
+        )}
+      </PageState>
+    </div>
   );
 }
+
+const feedbackActions = [
+  { value: "review", state: "reviewing" },
+  { value: "plan", state: "planned" },
+  { value: "resolve", state: "resolved" },
+  { value: "close", state: "closed" },
+] as const;
 
 export function FeedbackDetailRoute({ feedbackId }: { feedbackId: string }) {
   const query = useFeedbackDetail(feedbackId);
   const mutation = useFeedbackAction();
   const { locale } = useLocale();
+  const can = useCurrentPermission();
+  const [action, setAction] =
+    useState<(typeof feedbackActions)[number]["value"]>("review");
+  const [reason, setReason] = useState("");
+  const pending = mutation.isPending || query.isFetching;
+  const failed =
+    mutation.isError ||
+    (mutation.data && !["success", "accepted"].includes(mutation.data.outcome));
   return (
     <PageState query={query} permission="feedback.read">
       {(item) => (
-        <Detail
-          item={item}
-          action={
-            <button
-              className="button primary"
-              disabled={mutation.isPending}
-              onClick={() =>
+        <Detail item={item}>
+          {can("feedback.manage") ? (
+            <form
+              className="table-card support-action"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (
+                  pending ||
+                  !can("feedback.manage") ||
+                  reason.trim().length < 10 ||
+                  reason.trim().length > 500
+                )
+                  return;
                 mutation.mutate({
                   resourceId: feedbackId,
                   action: {
-                    action: "review",
+                    action,
                     expectedVersion: item.revision,
-                    reason: "Accepted for product review",
+                    reason: reason.trim(),
                   },
-                })
-              }
+                });
+              }}
             >
-              {locale === "ar" ? "مراجعة الملاحظة" : "Review feedback"}
-            </button>
-          }
-        />
+              <label>
+                {copy[locale].state}
+                <select
+                  value={action}
+                  disabled={pending}
+                  onChange={(event) => {
+                    const selected = feedbackActions.find(
+                      (option) => option.value === event.target.value,
+                    );
+                    if (selected) setAction(selected.value);
+                    mutation.reset();
+                  }}
+                >
+                  {feedbackActions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {getStatusLabel(locale, option.state)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {locale === "ar"
+                  ? "سبب الإجراء لسجل التدقيق"
+                  : "Reason for the audit log"}
+                <textarea
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  minLength={10}
+                  maxLength={500}
+                  required
+                  disabled={pending}
+                />
+              </label>
+              <button
+                className="button primary"
+                type="submit"
+                disabled={
+                  pending ||
+                  reason.trim().length < 10 ||
+                  reason.trim().length > 500
+                }
+              >
+                {locale === "ar" ? "تطبيق الإجراء" : "Apply action"}
+              </button>
+              {failed ? (
+                <div role="alert">
+                  <p>
+                    {locale === "ar"
+                      ? "تعذر تطبيق الإجراء. حدّث الملاحظة ثم حاول مجددًا."
+                      : "Unable to apply the action. Refresh the feedback before retrying."}
+                  </p>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => {
+                      mutation.reset();
+                      void query.refetch();
+                    }}
+                  >
+                    {locale === "ar" ? "تحديث الملاحظة" : "Refresh feedback"}
+                  </button>
+                </div>
+              ) : mutation.isSuccess ? (
+                <p role="status">
+                  {locale === "ar" ? "تم تطبيق الإجراء." : "Action applied."}
+                </p>
+              ) : null}
+            </form>
+          ) : null}
+        </Detail>
       )}
     </PageState>
   );
@@ -734,36 +830,20 @@ export function CampaignDetailRoute({ campaignId }: { campaignId: string }) {
 }
 
 export function CampaignNewRoute() {
-  const preview = useAudiencePreview({
-    channel: "push",
-    platform: "all",
-    locale: "both",
-  });
   const { locale } = useLocale();
-  const c = copy[locale];
   return (
     <div className="page">
       <PageHeader
-        title={c.newCampaign}
-        description={c.campaignNewDescription}
+        title={copy[locale].newCampaign}
+        description={
+          locale === "ar"
+            ? "إنشاء الحملات المتقدمة مؤجل ضمن الخطة الحالية."
+            : "Advanced campaign creation is deferred in the current plan."
+        }
       />
-      <PageState query={preview} permission="notifications.audience.preview">
-        {(data) => (
-          <section className="table-card" aria-label={c.audiencePreview}>
-            <h2>{c.audiencePreview}</h2>
-            <p>
-              {c.eligible}: {data.eligibleCount}; {c.optedOut}:{" "}
-              {data.optedOutCount}; excluded: {data.excludedCount}
-            </p>
-            <Link
-              className="button primary"
-              href="/admin/notifications/campaigns/CMP-1001"
-            >
-              {c.reviewCampaign}
-            </Link>
-          </section>
-        )}
-      </PageState>
+      <button className="button" disabled>
+        {locale === "ar" ? "غير متاح بعد" : "Not available yet"}
+      </button>
     </div>
   );
 }

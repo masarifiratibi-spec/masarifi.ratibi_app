@@ -1,7 +1,8 @@
 import { HttpException } from '@nestjs/common';
+import { normalizeCreateTransaction } from '../ledger/ledger.dto';
 
 import { assertSafeAiInput, hasForbiddenKey } from './ai.schemas';
-import { ASSISTANT_INTENTS, type AssistantIntent } from './ai-routing';
+import { ASSISTANT_INTENTS, type AssistantContextScope, type AssistantIntent } from './ai-routing';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const CONTENT_TYPES = new Set([
@@ -12,6 +13,17 @@ const CONTENT_TYPES = new Set([
   'audio/wav',
   'audio/webm',
 ]);
+
+/** New clients explicitly request the additive projection; legacy receipts stay exact. */
+export function wantsVoiceEventResults(accept?: string): boolean {
+  return (accept ?? '')
+    .split(',')
+    .some(
+      (media) =>
+        /^\s*application\/json\s*(?:;|$)/i.test(media) &&
+        /;\s*voice-event-results\s*=\s*(?:1|"1")\s*(?:;|$)/i.test(media),
+    );
+}
 const SCOPES = new Set([
   'accounts_summary',
   'recent_transactions',
@@ -81,6 +93,46 @@ export function createVoice(input: unknown) {
   };
 }
 
+export function createVoiceV2(input: unknown) {
+  const value = record(input);
+  exact(value, [
+    'locale',
+    'durationMs',
+    'contentType',
+    'sizeBytes',
+    'contentHash',
+    'recordedAt',
+    'timezoneOffsetMinutes',
+    'accountId',
+  ]);
+  const media = createVoice({
+    locale: value.locale,
+    durationMs: value.durationMs,
+    contentType: value.contentType,
+    sizeBytes: value.sizeBytes,
+  });
+  const recordedAt = typeof value.recordedAt === 'string' ? Date.parse(value.recordedAt) : NaN;
+  if (
+    media.durationMs > 60_000 ||
+    typeof value.contentHash !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(value.contentHash) ||
+    !Number.isFinite(recordedAt) ||
+    new Date(recordedAt).toISOString() !== value.recordedAt ||
+    recordedAt > Date.now() + 300_000 ||
+    recordedAt < Date.now() - 86_400_000 ||
+    !Number.isInteger(value.timezoneOffsetMinutes) ||
+    Math.abs(Number(value.timezoneOffsetMinutes)) > 840
+  )
+    bad();
+  return {
+    ...media,
+    contentHash: value.contentHash,
+    recordedAt: value.recordedAt,
+    timezoneOffsetMinutes: Number(value.timezoneOffsetMinutes),
+    ...(value.accountId !== undefined ? { accountId: uuid(value.accountId) } : {}),
+  };
+}
+
 export function processVoice(input: unknown) {
   const value = record(input);
   exact(value, ['uploadCompleted', 'expectedVersion', 'contentHash']);
@@ -139,6 +191,71 @@ export function actionDecision(input: unknown, editable: boolean) {
     if (Object.keys(editedFields).length === 0 || hasForbiddenKey(editedFields)) bad();
   }
   return { expectedVersion: positiveVersion(value.expectedVersion), reason, editedFields };
+}
+
+export function voiceDecision(input: unknown, operationId: string, now = new Date()) {
+  const value = record(input);
+  exact(value, [
+    'expectedVersion',
+    'editedFields',
+    'reason',
+    'occurredAt',
+    'timezoneOffsetMinutes',
+  ]);
+  const { occurredAt, timezoneOffsetMinutes, ...decisionBody } = value;
+  const decision = actionDecision(decisionBody, true);
+  const patch = decision.editedFields;
+  if (
+    !patch ||
+    Object.keys(patch).length !== 7 ||
+    typeof occurredAt !== 'string' ||
+    !Number.isInteger(timezoneOffsetMinutes) ||
+    Number(timezoneOffsetMinutes) < -840 ||
+    Number(timezoneOffsetMinutes) > 840 ||
+    typeof patch.date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/u.test(patch.date) ||
+    Number.isNaN(Date.parse(patch.date + 'T00:00:00Z')) ||
+    new Date(patch.date + 'T00:00:00Z').toISOString().slice(0, 10) !== patch.date ||
+    typeof patch.amountMinor !== 'string' ||
+    !/^-?[1-9][0-9]{0,15}$/u.test(patch.amountMinor)
+  )
+    bad();
+  const amount = Number(patch.amountMinor);
+  if (amount > 0 && patch.categoryId == null) bad();
+  let command;
+  try {
+    command = normalizeCreateTransaction(
+      {
+        kind: amount < 0 ? 'income' : 'expense',
+        amountMinor: Math.abs(amount),
+        currency: patch.currency,
+        accountId: patch.accountId,
+        categoryId: patch.categoryId,
+        merchant: patch.merchant,
+        note: patch.note,
+        title: patch.merchant ?? 'Voice transaction',
+        paymentMethod: null,
+        occurredAt,
+        source: 'voice',
+        externalRef: 'voice:' + uuid(operationId),
+      },
+      now,
+    );
+  } catch {
+    bad();
+  }
+  if (
+    new Date(Date.parse(command.occurredAt) - Number(timezoneOffsetMinutes) * 60_000)
+      .toISOString()
+      .slice(0, 10) !== patch.date
+  )
+    bad();
+  return {
+    ...decision,
+    editedFields: { ...patch, merchant: command.merchant, note: command.note },
+    command,
+    timezoneOffsetMinutes: Number(timezoneOffsetMinutes),
+  };
 }
 
 export function consent(input: unknown) {
@@ -201,7 +318,9 @@ export function assistantMessage(input: unknown) {
     bad();
   return {
     content,
-    intent: intent as AssistantIntent | undefined,
+    contextScope: normalizedScope as AssistantContextScope[],
+    contextScopeProvided: value.contextScope !== undefined,
+    ...(intent === undefined ? {} : { intent: intent as AssistantIntent }),
     responseMode: value.responseMode as 'async' | 'stream',
   };
 }
@@ -252,4 +371,62 @@ export function adminCreate(input: unknown, allowed: readonly string[]) {
   const reason = assertSafeAiInput(text(value.reason, ''), 2_000);
   if (reason.length < 10) bad();
   return { ...value, reason };
+}
+
+export function adminPage(input: unknown, resource: string) {
+  const value = record(input);
+  const supported: Record<string, string[]> = {
+    overview: ['platform', 'period', 'search', 'feature', 'providerId', 'modelId', 'status'],
+    providers: ['search', 'status'],
+    models: ['search', 'status', 'providerId'],
+    routes: ['search', 'status', 'feature'],
+    prompts: ['search', 'status', 'feature', 'dateFrom', 'dateTo'],
+    usage: [
+      'search',
+      'status',
+      'feature',
+      'platform',
+      'providerId',
+      'modelId',
+      'dateFrom',
+      'dateTo',
+    ],
+    failures: [
+      'search',
+      'status',
+      'feature',
+      'platform',
+      'providerId',
+      'modelId',
+      'dateFrom',
+      'dateTo',
+    ],
+    'response-reports': ['search', 'status', 'dateFrom', 'dateTo'],
+    'safety-rules': ['search', 'status', 'feature', 'dateFrom', 'dateTo'],
+  };
+  if (!supported[resource]) bad();
+  exact(value, ['cursor', 'limit', ...supported[resource]]);
+  const pagination = page({ cursor: value.cursor, limit: value.limit });
+  const filters: Record<string, string> = {};
+  for (const key of supported[resource].sort()) {
+    if (value[key] === undefined || value[key] === '') continue;
+    let filter = text(value[key], '').trim();
+    if (filter.length > 120) bad();
+    if (key === 'platform' && !['all', 'ios', 'android', 'unknown'].includes(filter)) bad();
+    if (key === 'period' && !['7d', '30d', '90d'].includes(filter)) bad();
+    if (key === 'providerId' || key === 'modelId') {
+      uuid(filter);
+      filter = filter.toLowerCase();
+    }
+    if (
+      (key === 'dateFrom' || key === 'dateTo') &&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(filter) ||
+        !Number.isFinite(Date.parse(filter)) ||
+        new Date(filter).toISOString().slice(0, 10) !== filter)
+    )
+      bad();
+    if (filter && !(key === 'platform' && filter === 'all')) filters[key] = filter;
+  }
+  if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) bad();
+  return { ...pagination, filters };
 }

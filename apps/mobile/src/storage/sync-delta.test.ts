@@ -81,6 +81,102 @@ class SyncSqlite {
 }
 
 describe('transactional Mobile delta apply', () => {
+  it.each(['bootstrap', 'delta'] as const)(
+    'persists Tracking through real SQLite %s without changing manual or Voice sources',
+    async (mode) => {
+      const database = new SyncSqlite();
+      database.exec('PRAGMA foreign_keys=ON;');
+      for (const migration of mobileMigrations()) database.exec(migration);
+      const adapter = new CoreFinanceSyncAdapter(database as never),
+        timestamp = '2026-10-14T20:00:00Z';
+      try {
+        await adapter.applyBootstrap(
+          'accounts',
+          [
+            {
+              id: 'account-one',
+              version: 1,
+              name: 'Cash',
+              type: 'cash',
+              currency_code: 'SAR',
+              status: 'active',
+              created_at: timestamp,
+              updated_at: timestamp
+            }
+          ],
+          'accounts-cursor',
+          false
+        );
+        const items = ['tracking-import', 'manual', 'voice'].map(
+          (source, index) => ({
+            id: 'source-' + index,
+            version: 1,
+            kind: 'expense',
+            amount_minor: 100,
+            currency_code: 'SAR',
+            title: 'Saved expense',
+            source,
+            status: 'confirmed',
+            postings: [
+              {
+                posting_role: 'source',
+                account_id: 'account-one',
+                amount_minor: -100
+              }
+            ],
+            occurred_at: timestamp,
+            created_at: timestamp,
+            updated_at: timestamp
+          })
+        );
+        if (mode === 'bootstrap')
+          await adapter.applyBootstrap(
+            'transactions',
+            items,
+            'transaction-cursor',
+            false
+          );
+        else {
+          const changes = items.map((snapshot) => ({
+            resourceId: snapshot.id,
+            operation: 'upsert' as const,
+            version: 1,
+            snapshot,
+            deletedAt: null
+          }));
+          await adapter.applyDelta(
+            'transactions',
+            changes,
+            'transaction-cursor',
+            null
+          );
+          await adapter.applyDelta(
+            'transactions',
+            changes,
+            'transaction-cursor',
+            null
+          );
+        }
+        const rows = await database.getAllAsync<{ payload: string }>(
+          'SELECT payload FROM finance_transactions ORDER BY id'
+        );
+        expect(rows.map((row) => JSON.parse(row.payload))).toEqual(
+          ['automatic', 'manual', 'voice'].map((source) =>
+            expect.objectContaining({
+              source,
+              type: 'expense',
+              amountMinor: 100,
+              status: 'posted',
+              syncStatus: 'synced'
+            })
+          )
+        );
+        expect(items[0]!.source).toBe('tracking-import');
+      } finally {
+        database.close();
+      }
+    }
+  );
   it('persists a live child whose remote parent was not previously cached', async () => {
     registerLiveClerkBridge({
       getSession: async () => ({

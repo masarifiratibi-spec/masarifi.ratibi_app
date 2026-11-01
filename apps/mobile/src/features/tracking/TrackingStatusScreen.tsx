@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AppState,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,124 +20,272 @@ import { Toggle } from '@/design-system/components/forms/SelectionControls';
 import { DesignIcon } from '@/design-system/icons';
 import {
   useAutomaticTrackingSyncState,
-  useTrackingStatus
+  useTrackingStatus,
+  useKeywordRules
 } from './useAutomaticTracking';
-import { translate, translateDynamic } from '@/localization/i18n';
+import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { automaticTrackingService } from '@/services/automatic-tracking-service';
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
+import {
+  trackingSourcePreferences,
+  type TrackingSourceState
+} from '@/services/tracking-source-preferences';
+import {
+  automaticTrackingKeys,
+  automaticTrackingReadKey
+} from '@/state/automatic-tracking-view-state';
+import { useAppShellStore } from '@/state/app-shell';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import type { KeywordRule } from '@/domain/app-shell';
+import type {
+  TrackingMode,
+  TrackingStatusSnapshot
+} from '@/domain/automatic-tracking';
+import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 import {
   syncAutomaticTracking,
+  resyncAutomaticTracking,
   type AutomaticTrackingSyncState
 } from '@/services/automatic-tracking-coordinator';
 
 export function TrackingStatusScreen() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <TrackingStatusContent key={ownerId} />;
+}
+
+function TrackingStatusContent() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const statusKey = automaticTrackingReadKey(
+    automaticTrackingKeys.status,
+    ownerId
+  );
+  const keywordsKey = automaticTrackingReadKey(
+    automaticTrackingKeys.keywords(),
+    ownerId
+  );
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
   const query = useTrackingStatus();
+  const keywords = useKeywordRules();
+  const queryClient = useQueryClient();
   const syncState = useAutomaticTrackingSyncState();
   const refetchTrackingStatus = query.refetch;
   const permissionService = useMemo(createTrackingPermissionService, []);
 
-  const [updating, setUpdating] = useState(false);
+  const [isUpdating, setUpdating] = useState(false);
+  const updating = isUpdating || query.isError || query.isFetching;
+  const [sourceChange, setSourceChange] = useState<{
+    source: 'sms' | 'notification';
+    enabled: boolean;
+  } | null>(null);
   const [actionFailed, setActionFailed] = useState(false);
-  const [keywordRules, setKeywordRules] = useState<KeywordRule[]>([]);
+  const keywordRules = keywords.data ?? [];
+  const keywordLoadState = hasReadableSnapshot(keywords)
+    ? 'ready'
+    : keywords.isLoading
+      ? 'loading'
+      : 'error';
+  const awaitingNotificationAccess = useRef(false);
+  const loadKeywords = keywords.refetch;
 
-  useEffect(() => {
-    void automaticTrackingService.listKeywordRules().then(setKeywordRules);
-  }, []);
+  function setKeywordRules(rules: KeywordRule[]) {
+    // The callback only publishes a server-confirmed save/conflict result. Manual
+    // updates are not persisted as reads; evict the superseded disk projection.
+    queryClient.setQueryData(keywordsKey, rules);
+    void queryClient.invalidateQueries({
+      queryKey: keywordsKey,
+      exact: true,
+      refetchType: 'none'
+    });
+  }
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void refetchTrackingStatus();
-        void automaticTrackingService.listKeywordRules().then(setKeywordRules);
+        void (async () => {
+          if (awaitingNotificationAccess.current) {
+            awaitingNotificationAccess.current = false;
+            if (
+              (await bankNotificationService.getAccessState()) === 'granted'
+            ) {
+              const current = await automaticTrackingService.getStatus();
+              await enableTrackingSource('notification', current.mode);
+            }
+          }
+          await resyncAutomaticTracking();
+          await refetchTrackingStatus();
+        })().catch(() => setActionFailed(true));
+        void loadKeywords();
       }
     });
     return () => subscription.remove();
-  }, [refetchTrackingStatus]);
+  }, [refetchTrackingStatus, loadKeywords]);
 
   async function handleKeywordsChange(newRules: KeywordRule[]) {
+    if (
+      updating ||
+      keywords.isError ||
+      keywords.isFetching ||
+      keywordLoadState !== 'ready'
+    )
+      return;
     const previousRules = keywordRules;
-    setKeywordRules(newRules);
+    setActionFailed(false);
+    setUpdating(true);
     try {
-      const savedRules =
-        await automaticTrackingService.saveKeywordRules(newRules);
-      setKeywordRules(savedRules.value);
+      await trackingKeywordConfiguration.save(
+        newRules,
+        previousRules,
+        (rules) => {
+          setKeywordRules(rules);
+        }
+      );
     } catch {
-      setKeywordRules(previousRules);
       setActionFailed(true);
+    } finally {
+      setUpdating(false);
     }
   }
 
   async function restoreKeywords() {
-    setActionFailed(false);
-    try {
-      const restored = await automaticTrackingService.restoreDefaultKeywords();
-      setKeywordRules(restored.value);
-    } catch {
-      setActionFailed(true);
-    }
-  }
-
-  async function recoverPermission(status: string | null) {
-    setActionFailed(false);
-    try {
-      if (status === 'revoked' || status === 'permanently_denied') {
-        await permissionService.openSettings();
-      } else {
-        router.push({
-          pathname: '/tracking/permission',
-          params: {
-            mode:
-              query.data?.mode === 'review_all'
-                ? 'review_all'
-                : 'automatic_clear'
-          }
-        });
-      }
-    } catch {
-      setActionFailed(true);
-    }
-  }
-
-  async function openNotificationAccess() {
-    setActionFailed(false);
-    try {
-      await bankNotificationService.openSettings();
-    } catch {
-      setActionFailed(true);
-    }
-  }
-
-  async function handleToggle(nextValue: boolean) {
-    if (updating) return;
+    if (updating || keywords.isError || keywords.isFetching) return;
     setActionFailed(false);
     setUpdating(true);
     try {
+      await trackingKeywordConfiguration.restore(setKeywordRules);
+    } catch {
+      setActionFailed(true);
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  async function recoverPermission() {
+    if (updating) return;
+    setActionFailed(false);
+    try {
+      router.push({
+        pathname: '/tracking/permission',
+        params: {
+          mode:
+            query.data?.mode === 'review_all' ? 'review_all' : 'automatic_clear'
+        }
+      });
+    } catch {
+      setActionFailed(true);
+    }
+  }
+
+  async function toggleSmsTracking(nextValue: boolean) {
+    if (updating) return;
+    setActionFailed(false);
+    setUpdating(true);
+    setSourceChange({ source: 'sms', enabled: nextValue });
+    try {
+      let sources: TrackingSourceState;
+      let mode = query.data?.mode;
       if (nextValue) {
-        if (query.data?.permissionStatus !== 'granted') {
-          router.push({
-            pathname: '/tracking/permission',
-            params: { mode: 'automatic_clear' }
-          });
+        const permissionStatus =
+          query.data?.smsPermissionStatus ?? query.data?.permissionStatus;
+        if (permissionStatus !== 'granted') {
+          await recoverPermission();
           return;
         }
-        await automaticTrackingService.setMode('automatic_clear');
+        sources = await enableTrackingSource('sms', mode);
+        if (mode === 'paused') mode = 'automatic_clear';
       } else {
-        await automaticTrackingService.setMode('paused');
+        sources = await trackingSourcePreferences.set('sms', false);
+        if (!sources.notificationEnabled) {
+          await automaticTrackingService.setMode('paused');
+          mode = 'paused';
+        }
       }
+      await showSavedSources(sources, mode);
+    } catch {
+      setActionFailed(true);
+    } finally {
+      setUpdating(false);
+      setSourceChange(null);
+    }
+  }
+
+  async function showSavedSources(
+    sources: TrackingSourceState,
+    mode: TrackingMode | undefined
+  ) {
+    // A previous status request must not overwrite the preference just saved.
+    await queryClient.cancelQueries({ queryKey: statusKey, exact: true });
+    queryClient.setQueryData<TrackingStatusSnapshot>(
+      statusKey,
+      (current) =>
+        current && {
+          ...current,
+          mode: mode ?? current.mode,
+          smsTrackingEnabled: sources.smsEnabled,
+          notificationTrackingEnabled: sources.notificationEnabled
+        }
+    );
+    // Capture and server reconciliation can take time; they do not hold the switches locked.
+    void resyncAutomaticTracking()
+      .then(() => refetchTrackingStatus())
+      .catch(() => setActionFailed(true));
+  }
+
+  async function toggleTrackingMode(nextValue: boolean) {
+    if (updating) return;
+    setUpdating(true);
+    setActionFailed(false);
+    try {
+      await automaticTrackingService.setMode(
+        nextValue ? 'automatic_clear' : 'paused'
+      );
+      await resyncAutomaticTracking();
       await query.refetch();
     } catch {
       setActionFailed(true);
     } finally {
       setUpdating(false);
+    }
+  }
+
+  async function toggleNotificationTracking(nextValue: boolean) {
+    if (updating) return;
+    setActionFailed(false);
+    setUpdating(true);
+    setSourceChange({ source: 'notification', enabled: nextValue });
+    try {
+      let sources: TrackingSourceState;
+      let mode = query.data?.mode;
+      if (nextValue) {
+        const access = await bankNotificationService.getAccessState();
+        if (access !== 'granted') {
+          awaitingNotificationAccess.current = true;
+          await bankNotificationService.openSettings();
+          return;
+        }
+        sources = await enableTrackingSource('notification', mode);
+        if (mode === 'paused') mode = 'automatic_clear';
+      } else {
+        await bankNotificationService.setCaptureEnabled(false);
+        sources = await trackingSourcePreferences.set('notification', false);
+        if (!sources.smsEnabled) {
+          await automaticTrackingService.setMode('paused');
+          mode = 'paused';
+        }
+      }
+      await showSavedSources(sources, mode);
+    } catch {
+      setActionFailed(true);
+    } finally {
+      setUpdating(false);
+      setSourceChange(null);
     }
   }
 
@@ -147,13 +297,13 @@ export function TrackingStatusScreen() {
     }
   };
 
-  if (query.isLoading) {
+  if (query.isLoading && !hasReadableSnapshot(query)) {
     return (
       <StateView state="loading" title={translate('tracking.state.loading')} />
     );
   }
 
-  if (query.isError || !query.data) {
+  if (!hasReadableSnapshot(query) || !query.data) {
     return (
       <StateView
         state="error"
@@ -177,6 +327,15 @@ export function TrackingStatusScreen() {
   );
   const smsPermission = status.smsPermissionStatus ?? status.permissionStatus;
   const notificationAccess = status.notificationAccessStatus ?? 'denied';
+  const smsEnabled =
+    isEnabled &&
+    smsPermission === 'granted' &&
+    status.smsTrackingEnabled !== false;
+  const notificationEnabled =
+    isEnabled &&
+    notificationAccess === 'granted' &&
+    (status.notificationTrackingEnabled ?? true);
+  const isAndroid = status.platform === 'android';
 
   return (
     <View testID="tracking-status-screen" style={[styles.root, { direction }]}>
@@ -191,99 +350,130 @@ export function TrackingStatusScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <FinancialRefreshStatus query={query} />
         {/* 2. Tracking Status Card */}
         <SurfaceCard style={styles.card}>
-          {/* Status Row: START = Status text (Right in RTL, Left in LTR), END = Switch (Left in RTL, Right in LTR) */}
-          <View
-            testID="tracking-status-row"
-            style={[
-              styles.statusRow,
-              styles.physicalLtr,
-              { flexDirection: isRtl ? 'row-reverse' : 'row' }
-            ]}
-          >
+          {!isAndroid ? (
             <View
-              testID="tracking-status-text"
+              testID="tracking-status-row"
               style={[
-                styles.statusTextGroup,
-                { alignItems: isRtl ? 'flex-end' : 'flex-start' }
+                styles.statusRow,
+                styles.physicalLtr,
+                { flexDirection: isRtl ? 'row-reverse' : 'row' }
               ]}
             >
-              <StyledText
-                variant="caption"
+              <View
+                testID="tracking-status-text"
                 style={[
-                  styles.statusLabel,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
+                  styles.statusTextGroup,
+                  { alignItems: isRtl ? 'flex-end' : 'flex-start' }
                 ]}
               >
-                {translate('tracking.status.label')}
-              </StyledText>
-              <StyledText
-                variant="title"
-                style={[
-                  styles.statusValue,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
-                ]}
-              >
-                {permissionUnavailable
-                  ? translate('tracking.status.unavailable')
-                  : isEnabled
-                    ? translate('tracking.status.enabled')
-                    : translate('tracking.status.disabled')}
-              </StyledText>
+                <StyledText
+                  variant="caption"
+                  style={[
+                    styles.statusLabel,
+                    {
+                      textAlign: isRtl ? 'right' : 'left',
+                      writingDirection: direction
+                    }
+                  ]}
+                >
+                  {translate('tracking.status.label')}
+                </StyledText>
+                <StyledText
+                  variant="title"
+                  style={[
+                    styles.statusValue,
+                    {
+                      textAlign: isRtl ? 'right' : 'left',
+                      writingDirection: direction
+                    }
+                  ]}
+                >
+                  {permissionUnavailable
+                    ? translate('tracking.status.unavailable')
+                    : isEnabled
+                      ? translate('tracking.status.enabled')
+                      : translate('tracking.status.disabled')}
+                </StyledText>
+              </View>
+
+              <View style={styles.toggleWrapper}>
+                <Toggle
+                  testID="tracking-mode-switch"
+                  value={isEnabled}
+                  onValueChange={(value) => void toggleTrackingMode(value)}
+                  disabled={updating || permissionUnavailable}
+                  accessibilityLabel={translate('tracking.status.label')}
+                />
+              </View>
             </View>
-
-            <View style={styles.toggleWrapper}>
-              <Toggle
-                testID="tracking-mode-switch"
-                value={isEnabled}
-                onValueChange={(val) => void handleToggle(val)}
-                disabled={updating || permissionUnavailable}
-                accessibilityLabel={translate('tracking.status.mode')}
-              />
-            </View>
-          </View>
-
-          <TrackingDemoNotice />
-          <TrackingSyncPanel
-            state={syncState}
-            onRetry={() => void syncAutomaticTracking()}
-          />
-
-          {status.platform === 'android' ? (
+          ) : (
             <View style={styles.sourceList}>
-              <TrackingSourceRow
-                testID="tracking-bank-notifications-source"
-                label={translate('tracking.source.bankNotifications')}
-                status={notificationAccess}
-                disabled={notificationAccess === 'unavailable'}
-                onPress={() => void openNotificationAccess()}
+              <TrackingSourceToggleRow
+                testID="tracking-sms-switch"
+                isRtl={isRtl}
+                label={translate('tracking.source.smsTracking')}
+                description={translate(
+                  sourceChange?.source === 'sms'
+                    ? sourceChange.enabled
+                      ? 'tracking.source.enabling'
+                      : 'tracking.source.disabling'
+                    : 'tracking.source.smsTrackingDescription'
+                )}
+                value={smsEnabled}
+                disabled={updating || smsPermission === 'unavailable'}
+                onValueChange={(value) => void toggleSmsTracking(value)}
               />
-              <TrackingSourceRow
-                testID="tracking-sms-source"
-                label={translate('tracking.source.financialSms')}
-                status={smsPermission ?? 'unavailable'}
-                disabled={smsPermission === 'unavailable'}
-                onPress={() => void recoverPermission(smsPermission)}
+              <View style={styles.sourceDivider} />
+              <TrackingSourceToggleRow
+                testID="tracking-notification-switch"
+                isRtl={isRtl}
+                label={translate('tracking.source.notificationTracking')}
+                description={translate(
+                  sourceChange?.source === 'notification'
+                    ? sourceChange.enabled
+                      ? 'tracking.source.enabling'
+                      : 'tracking.source.disabling'
+                    : 'tracking.source.notificationTrackingDescription'
+                )}
+                value={notificationEnabled}
+                disabled={updating || notificationAccess === 'unavailable'}
+                onValueChange={(value) =>
+                  void toggleNotificationTracking(value)
+                }
+              />
+            </View>
+          )}
+
+          {Platform.OS === 'android' && (smsEnabled || notificationEnabled) ? (
+            <View style={{ gap: 8 }}>
+              <StyledText>tracking.background.oemGuidance</StyledText>
+              <ActionButton
+                label="appShell.permission.openSettings"
+                variant="secondary"
+                onPress={() => void permissionService.openSettings()}
               />
             </View>
           ) : null}
+          <TrackingDemoNotice />
+          <TrackingSyncPanel
+            state={syncState}
+            onRetry={() => {
+              if (!updating) void syncAutomaticTracking();
+            }}
+          />
 
           {/* Actionable Permission Warning: START = Warning Icon, MIDDLE = Warning Text, END = Chevron */}
           {!hasPermission && (
             <Pressable
               testID="tracking-permission-warning-banner"
-              disabled={permissionUnavailable}
+              disabled={updating || permissionUnavailable}
               onPress={
                 permissionUnavailable
                   ? undefined
-                  : () => void recoverPermission(status.permissionStatus)
+                  : () => void recoverPermission()
               }
               style={({ pressed }) => [
                 styles.warningBanner,
@@ -293,7 +483,9 @@ export function TrackingStatusScreen() {
               ]}
               accessibilityRole="button"
               accessibilityLabel={permissionMessage}
-              accessibilityState={{ disabled: permissionUnavailable }}
+              accessibilityState={{
+                disabled: updating || permissionUnavailable
+              }}
             >
               {/* START: Warning Icon */}
               <View style={styles.warningIconBadge}>
@@ -428,52 +620,47 @@ export function TrackingStatusScreen() {
                 {translate('tracking.howItWorks.background')}
               </StyledText>
             </View>
-
-            {/* Manufacturer / Battery optimization guidance */}
-            {!permissionUnavailable ? (
-              <Pressable
-                onPress={() => void recoverPermission(status.permissionStatus)}
-                style={({ pressed }) => [
-                  styles.explanationItem,
-                  styles.physicalLtr,
-                  { flexDirection: isRtl ? 'row-reverse' : 'row' },
-                  pressed && styles.bannerPressed
-                ]}
-              >
-                <View style={styles.warningCircle}>
-                  <DesignIcon
-                    name="warning"
-                    size="sm"
-                    color={colorTokens.status.warning}
-                    direction={direction}
-                    decorative
-                  />
-                </View>
-                <StyledText
-                  style={[
-                    styles.explanationItemText,
-                    styles.manufacturerWarningText,
-                    {
-                      textAlign: isRtl ? 'right' : 'left',
-                      writingDirection: direction
-                    }
-                  ]}
-                >
-                  {translate('tracking.howItWorks.deviceWarning')}
-                </StyledText>
-              </Pressable>
-            ) : null}
           </View>
         </SurfaceCard>
 
         {/* 4. Keyword Management Card */}
-        <SurfaceCard style={styles.card}>
-          <TrackingKeywordChips
-            rules={keywordRules}
-            onChange={(rules) => void handleKeywordsChange(rules)}
-            onRestore={() => void restoreKeywords()}
-            disabled={updating || permissionUnavailable}
-          />
+        <SurfaceCard
+          testID="tracking-keywords-card"
+          style={[styles.card, styles.keywordCard]}
+        >
+          <FinancialRefreshStatus query={keywords} />
+          {keywordLoadState === 'ready' ? (
+            <TrackingKeywordChips
+              rules={keywordRules}
+              onChange={(rules) => void handleKeywordsChange(rules)}
+              onRestore={() => void restoreKeywords()}
+              disabled={
+                updating ||
+                keywords.isError ||
+                keywords.isFetching ||
+                permissionUnavailable
+              }
+            />
+          ) : (
+            <StateView
+              state={keywordLoadState === 'loading' ? 'loading' : 'error'}
+              title={translate(
+                keywordLoadState === 'loading'
+                  ? 'tracking.state.loading'
+                  : 'tracking.state.error'
+              )}
+              actionLabel={
+                keywordLoadState === 'error'
+                  ? translate('coreFinance.action.retry')
+                  : undefined
+              }
+              onAction={
+                keywordLoadState === 'error'
+                  ? () => void loadKeywords()
+                  : undefined
+              }
+            />
+          )}
         </SurfaceCard>
 
         {/* Error notification if action fails */}
@@ -489,31 +676,93 @@ export function TrackingStatusScreen() {
   );
 }
 
-function TrackingSourceRow({
+async function enableTrackingSource(
+  source: 'sms' | 'notification',
+  mode: TrackingMode | undefined
+) {
+  // Both switches appear off while paused; activating one must not revive the hidden other preference.
+  if (mode === 'paused') {
+    if (source === 'sms')
+      await bankNotificationService.setCaptureEnabled(false);
+    await trackingSourcePreferences.set(
+      source === 'sms' ? 'notification' : 'sms',
+      false
+    );
+  }
+  if (source === 'notification')
+    await bankNotificationService.setCaptureEnabled(true);
+  const sources = await trackingSourcePreferences.set(source, true);
+  if (mode === 'paused')
+    await automaticTrackingService.setMode('automatic_clear');
+  return sources;
+}
+
+function TrackingSourceToggleRow({
   testID,
+  isRtl,
   label,
-  status,
+  description,
+  value,
   disabled,
-  onPress
+  onValueChange
 }: {
   testID: string;
+  isRtl: boolean;
   label: string;
-  status: string;
+  description: string;
+  value: boolean;
   disabled: boolean;
-  onPress: () => void;
+  onValueChange: (value: boolean) => void;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={styles.sourceRow}
-      testID={testID}
+    <View
+      testID={`${testID}-row`}
+      style={[
+        styles.sourceRow,
+        styles.physicalLtr,
+        { flexDirection: isRtl ? 'row-reverse' : 'row' }
+      ]}
     >
-      <StyledText>{label}</StyledText>
-      <StyledText>{translateDynamic(`tracking.permission.${status}`)}</StyledText>
-    </Pressable>
+      <View
+        testID={`${testID}-text`}
+        style={[
+          styles.sourceText,
+          { alignItems: isRtl ? 'flex-end' : 'flex-start' }
+        ]}
+      >
+        <StyledText
+          variant="title"
+          style={[
+            styles.sourceTitle,
+            {
+              textAlign: isRtl ? 'right' : 'left',
+              writingDirection: isRtl ? 'rtl' : 'ltr'
+            }
+          ]}
+        >
+          {label}
+        </StyledText>
+        <StyledText
+          variant="caption"
+          style={[
+            styles.sourceDescription,
+            {
+              textAlign: isRtl ? 'right' : 'left',
+              writingDirection: isRtl ? 'rtl' : 'ltr'
+            }
+          ]}
+        >
+          {description}
+        </StyledText>
+      </View>
+      <Toggle
+        accessibilityLabel={label}
+        disabled={disabled}
+        onValueChange={onValueChange}
+        testID={testID}
+        value={value}
+      />
+    </View>
   );
 }
 
@@ -527,7 +776,14 @@ export function TrackingSyncPanel({
   if (state.status === 'idle') return null;
   if (state.status === 'scanning' || state.status === 'processing')
     return (
-      <StateView state="loading" title={translate('tracking.state.loading')} />
+      <StateView
+        state="loading"
+        title={translate(
+          state.status === 'scanning'
+            ? 'tracking.sync.scanning'
+            : 'tracking.sync.processing'
+        )}
+      />
     );
   if (state.status === 'queued')
     return (
@@ -539,10 +795,7 @@ export function TrackingSyncPanel({
         onAction={onRetry}
       />
     );
-  if (state.status === 'imported')
-    return (
-      <StateView state="success" title={translate('tracking.status.enabled')} />
-    );
+  if (state.status === 'imported') return null;
   if (state.status === 'review' && state.reviewId)
     return (
       <StateView
@@ -575,7 +828,7 @@ export function TrackingSyncPanel({
   return (
     <StateView
       state="error"
-      title={translate('tracking.state.error')}
+      title={translate('tracking.sync.error')}
       actionLabel={translate('coreFinance.action.retry')}
       onAction={onRetry}
     />
@@ -636,6 +889,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg
   },
+  keywordCard: {
+    marginHorizontal: -4,
+    padding: 18
+  },
   statusRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -645,11 +902,27 @@ const styles = StyleSheet.create({
   sourceList: {
     gap: spacing.sm
   },
+  sourceDivider: {
+    backgroundColor: colorTokens.sand['300'],
+    height: 1
+  },
   sourceRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: spacing.md,
     justifyContent: 'space-between',
-    minHeight: 44
+    minHeight: 64
+  },
+  sourceText: {
+    flex: 1,
+    gap: spacing.xs
+  },
+  sourceTitle: {
+    fontSize: 18,
+    fontWeight: '700'
+  },
+  sourceDescription: {
+    color: colorTokens.ink['500']
   },
   toggleWrapper: {
     alignItems: 'center',
@@ -661,13 +934,14 @@ const styles = StyleSheet.create({
     gap: 2
   },
   statusLabel: {
-    color: colorTokens.ink['500'],
-    fontSize: 13
+    color: colorTokens.ink['900'],
+    fontSize: 18,
+    fontWeight: '700'
   },
   statusValue: {
-    color: colorTokens.ink['900'],
-    fontSize: 22,
-    fontWeight: '700'
+    color: colorTokens.ink['500'],
+    fontSize: 13,
+    fontWeight: '600'
   },
   warningBanner: {
     alignItems: 'center',
@@ -713,25 +987,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 38
   },
-  warningCircle: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['200'],
-    borderColor: colorTokens.status.warning,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38
-  },
   explanationItemText: {
     color: colorTokens.ink['700'],
     flex: 1,
     fontSize: 13.5,
     lineHeight: 20
-  },
-  manufacturerWarningText: {
-    color: colorTokens.status.warning,
-    textDecorationLine: 'underline'
   },
   errorBanner: {
     backgroundColor: colorTokens.financial.expenseSurface,

@@ -54,8 +54,17 @@ it('renders system hierarchy, favorites, search, and add action', () => {
 
   fireEvent.press(screen.getByText(fixtureCategories[0].labelAr));
   expect(router.push).toHaveBeenCalledWith(
-    `/categories/${fixtureCategories[0].id}?edit=1`
+    `/categories/${fixtureCategories[0].id}`
   );
+});
+
+it('opens custom category details so merge and archive remain reachable', () => {
+  renderWithQueryData(<CategoryListScreen />, [
+    [coreFinanceKeys.categories(true), [customCategory]],
+    [coreFinanceKeys.transactions(), { items: [], nextCursor: null, total: 0 }]
+  ]);
+  fireEvent.press(screen.getByText(customCategory.labelAr));
+  expect(router.push).toHaveBeenCalledWith(`/categories/${customCategory.id}`);
 });
 
 it('makes the category form a modal region', () => {

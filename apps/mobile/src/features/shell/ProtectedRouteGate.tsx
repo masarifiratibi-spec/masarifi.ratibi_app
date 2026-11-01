@@ -1,17 +1,27 @@
-import React, { type ReactNode, useEffect, useRef } from 'react';
+import React, { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
 import { Redirect, router, usePathname } from 'expo-router';
 
 import { resolveProtectedAccessGate } from './resolve-entry-route';
 import { sanitizeReturnRoute } from './navigation-context';
 import { useAppShellStore } from '@/state/app-shell';
-import { usePreferenceStore } from '@/state/preferences';
+import {
+  usePreferenceStore,
+  effectiveReturnRemindersEnabled
+} from '@/state/preferences';
+import { useLiveClerkSessionKey } from '@/services/live/clerk-provider';
 import { createNotificationResponseController } from '@/features/notifications/notification-response-controller';
 import { notificationService } from '@/services/engagement-service';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
+import { isAppLockEnabled, isBenchmarkReadOnly } from '@/config/client-runtime';
+import { isMobileAutomationEnabled } from '@/config/mobile-automation';
+import { consumeGuestOnboardingReminder } from '@/services/platform/guest-onboarding-reminder';
+import { DevReminderRuntime } from '@/features/notifications/DevReminderRuntime';
+import { recordFirstProtectedRoute } from '@/services/platform/benchmark-observability';
 
 export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAppShellStore((state) => state.hydrated);
+  const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
   const session = useAppShellStore((state) => state.session);
   const onboarding = useAppShellStore((state) => state.onboarding);
   const pendingDestination = useAppShellStore(
@@ -28,7 +38,7 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
     (state) => state.setPendingDestination
   );
   const gate = resolveProtectedAccessGate({
-    hydrated,
+    hydrated: hydrated && preferencesHydrated,
     firstLaunchOnboardingCompleted,
     profileSetupStatus,
     session,
@@ -63,10 +73,12 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   ]);
 
   if (legalRoute) return <>{children}</>;
+  if (!gate && (pathname === '/auth-pending' || pathname === '/welcome')) {
+    return <Redirect href="/" />;
+  }
 
   const isLockRecovery =
-    gate === '/security/unlock' &&
-    (pathname === '/security/unlock' || pathname === '/security/pin/forgot');
+    gate === '/security/unlock' && pathname === '/security/unlock';
   const isProfileSetupCurrencyPicker =
     gate === '/(onboarding)/profile-setup' && pathname === '/settings/currency';
   if (
@@ -77,10 +89,46 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   ) {
     return <Redirect href={gate} />;
   }
+  if (
+    !gate &&
+    !isAppLockEnabled() &&
+    pathname === '/security/unlock'
+  ) {
+    return <Redirect href="/security/settings" />;
+  }
   if (!gate && pathname === '/security/unlock') {
     return <Redirect href="/(tabs)/home" />;
   }
-  return <>{children}</>;
+  const canMeasureProtectedRoute =
+    hydrated &&
+    preferencesHydrated &&
+    gate !== '/' &&
+    !['/', '/index', '/auth-pending', '/welcome'].includes(pathname);
+  return (
+    <>
+      {canMeasureProtectedRoute ? (
+        <ProtectedRouteMeasurement
+          category={
+            pathname === '/security/unlock'
+              ? 'unlock'
+              : pathname === '/home'
+                ? 'home'
+                : 'other'
+          }
+        />
+      ) : null}
+      {children}
+    </>
+  );
+}
+
+function ProtectedRouteMeasurement({
+  category
+}: {
+  category: 'unlock' | 'home' | 'other';
+}) {
+  useLayoutEffect(() => recordFirstProtectedRoute(category), [category]);
+  return null;
 }
 
 export function NotificationResponseRuntime() {
@@ -88,28 +136,56 @@ export function NotificationResponseRuntime() {
   const session = useAppShellStore((state) => state.session);
   const privacyLock = useAppShellStore((state) => state.privacyLock);
   const pendingUnlocks = useRef(new Set<(unlocked: boolean) => void>());
+  const clerkSessionKey = useLiveClerkSessionKey();
+  const remoteReady = useRef(false);
+  remoteReady.current =
+    isCurrentAuthenticatedSession({ hydrated, session }) &&
+    Boolean(clerkSessionKey);
+  const pendingRemote = useRef(new Set<(ready: boolean) => void>());
+  useEffect(() => {
+    if (remoteReady.current)
+      resolvePendingUnlocks(pendingRemote.current, true);
+  }, [hydrated, session, clerkSessionKey]);
 
   useEffect(() => {
     if (!isCurrentAuthenticatedSession({ hydrated, session })) {
       resolvePendingUnlocks(pendingUnlocks.current, false);
-    } else if (privacyLock?.appLockStatus === 'unlocked') {
+    } else if (
+      !isAppLockEnabled() ||
+      (privacyLock?.enabled && privacyLock.appLockStatus === 'unlocked')
+    ) {
       resolvePendingUnlocks(pendingUnlocks.current, true);
-    } else if (privacyLock === null) {
+    } else if (!privacyLock?.enabled) {
       resolvePendingUnlocks(pendingUnlocks.current, false);
     }
   }, [hydrated, privacyLock, session]);
 
   useEffect(() => {
+    if (isBenchmarkReadOnly()) return;
     const unlocks = pendingUnlocks.current;
+    const remoteWaiters = pendingRemote.current;
     void phoneNotificationService.registerCategories().catch(() => undefined);
     const controller = createNotificationResponseController({
       notificationService,
       phoneService: phoneNotificationService,
       navigate: (destination) => router.push(destination),
+      waitForRemoteReady: async () =>
+        remoteReady.current ||
+        new Promise<boolean>((resolve) => {
+          remoteWaiters.add(resolve);
+        }),
+      resumeOnboarding: async (cycleId) => {
+        if (!isMobileAutomationEnabled()) return;
+        await usePreferenceStore.getState().hydrate();
+        const state = usePreferenceStore.getState();
+        if (!effectiveReturnRemindersEnabled(null, state)) return;
+        if (await consumeGuestOnboardingReminder(cycleId)) router.replace('/');
+      },
       unlock: async () => {
         const state = useAppShellStore.getState();
         if (!isCurrentAuthenticatedSession(state)) return false;
-        if (!state.privacyLock) return true;
+        if (!isAppLockEnabled()) return true;
+        if (!state.privacyLock?.enabled) return true;
         if (state.privacyLock.appLockStatus === 'unlocked') return true;
         const waitForVerifiedUnlock = new Promise<boolean>((resolve) => {
           unlocks.add(resolve);
@@ -124,11 +200,12 @@ export function NotificationResponseRuntime() {
     void controller.start();
     return () => {
       resolvePendingUnlocks(unlocks, false);
+      resolvePendingUnlocks(remoteWaiters, false);
       controller.stop();
     };
   }, []);
 
-  return null;
+  return <DevReminderRuntime />;
 }
 
 function isCurrentAuthenticatedSession({

@@ -51,7 +51,7 @@ export class SyncService {
     const input = normalizeBootstrapQuery(query);
     await this.authorize(principal, deviceId);
     const scope = { userId: principal.userId, deviceId };
-    const key = this.config.getRequired('MASARIFI_PUSH_TOKEN_HASH_KEY');
+    const key = this.config.getRequired('MASARIFI_SYNC_CURSOR_KEY');
     const domain = input.domains[0];
     if (!domain) throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
     const continuation =
@@ -105,7 +105,7 @@ export class SyncService {
     const input = normalizeDeltaQuery(query);
     await this.authorize(principal, deviceId);
     const scope = { userId: principal.userId, deviceId };
-    const key = this.config.getRequired('MASARIFI_PUSH_TOKEN_HASH_KEY');
+    const key = this.config.getRequired('MASARIFI_SYNC_CURSOR_KEY');
     const cursor = decodeSyncCursor(input.cursor, input.domain, scope, key);
     const limit = Math.min(input.limit, this.config.getRequired('MASARIFI_SYNC_DELTA_LIMIT'));
     const page = await this.repository.delta(principal, input.domain, cursor.position, limit);
@@ -156,7 +156,7 @@ export class SyncService {
     const input = normalizeAckRequest(body);
     await this.authorize(principal, deviceId);
     const scope = { userId: principal.userId, deviceId };
-    const key = this.config.getRequired('MASARIFI_PUSH_TOKEN_HASH_KEY');
+    const key = this.config.getRequired('MASARIFI_SYNC_CURSOR_KEY');
     const cursor = decodeSyncCursor(input.cursor, input.domain, scope, key);
     const result = await this.expected(() =>
       this.repository.acknowledge(

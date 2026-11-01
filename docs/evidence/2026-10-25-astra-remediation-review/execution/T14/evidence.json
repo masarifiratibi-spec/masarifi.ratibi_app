@@ -1,0 +1,40 @@
+{
+  "task": "T14",
+  "batch": "B7",
+  "at": "2026-10-29T09:32:54.184Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B7-presentation-drafts-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B7-presentation-drafts-2026-10-29/B7-REVIEWED-RESULT.json",
+    "sha256": "8a8affd9ed3252a92812ad5a0e49bf0336b5fcfe4e84bd8d2ec51fa760965be1"
+  },
+  "currentSupplements": [
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B7-presentation-drafts-2026-10-29/FINAL-LOCALE-FONT-SUPPLEMENT.json",
+      "sha256": "ea58cd51ceed244ce1517ace5623c60b43ea71cb1b0f845c05ad0a90aaae3502"
+    }
+  ],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T14/evidence.json",
+    "sha256": "5abe96872539f3ad535fa481077fe5b51d0fca2bacc938a14a779c8d730e8b57"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Agreededit/composer/planning/support navigation/background/lock/restart recovery",
+    "Ownerisolation without actuallogout/clearing preservedowner",
+    "Fullkeyboard/picker/durabledraft devicecriteria",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": [],
+  "latestSupplement": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B7-presentation-drafts-2026-10-29/FINAL-LOCALE-FONT-SUPPLEMENT.json",
+    "sha256": "ea58cd51ceed244ce1517ace5623c60b43ea71cb1b0f845c05ad0a90aaae3502"
+  }
+}

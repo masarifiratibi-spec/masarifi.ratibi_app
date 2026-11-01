@@ -1,8 +1,17 @@
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import React, { useEffect, useMemo, useState } from 'react';
-import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  PixelRatio,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from 'react-native';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
+import { ActionButton } from '@/design-system/components/ActionButton';
 import { FinancialHorizonSurface } from '@/design-system/components/financial/FinancialHorizonSurface';
 import { DesignIcon } from '@/design-system/icons';
 import { minTouchTarget, radius, spacing } from '@/design-system/tokens';
@@ -14,36 +23,41 @@ import type {
 import {
   useAccounts,
   useCategories,
-  useHomeSummary
+  useHomeBalanceSummary
 } from '@/features/core-finance/core-finance-queries';
 import { DateRangeSheet } from '@/features/filters/DateRangeSheet';
 import {
   formatPeriodLabel,
   currentFinancialCyclePeriod,
-  periodFilters,
   type DatePeriod
 } from '@/features/filters/date-period';
 import { PrimaryShellHeader } from '@/features/shell/PrimaryShellHeader';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import {
-  applyAccountScope,
-  useCoreFinanceViewState
-} from '@/state/core-finance-view-state';
+import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { useTheme } from '@/state/theme-context';
 import { HomeSummary } from './HomeSummary';
+import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
+import { useHomeTodayActivity } from './useHomeTodayActivity';
+import { useHomeReadRecovery } from './useHomeReadRecovery';
+import { HomeActivityScrollView } from './HomeActivityViewport';
+import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
 
-export function HomeScreen({
+export const HomeScreen = React.memo(function HomeScreen({
   accounts,
   categories,
   summary,
+  todayActivity = [],
   notice
 }: {
   accounts?: Account[];
   categories?: Category[];
   summary?: HomeSummaryValue;
+  todayActivity?: HomeTodayActivity[];
   notice?: React.ReactNode;
 }) {
+  // Memoized navigation renders must not suppress native text/layout changes.
+  useWindowDimensions();
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
   const [period, setPeriod] = useState<DatePeriod>(() =>
@@ -63,6 +77,7 @@ export function HomeScreen({
           notice={summary.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={summary}
+          todayActivity={todayActivity}
         />
       </HomeLayout>
     );
@@ -75,7 +90,7 @@ export function HomeScreen({
       onPeriodChange={setPeriod}
     />
   );
-}
+});
 
 function QueriedHomeScreen({
   notice,
@@ -92,17 +107,30 @@ function QueriedHomeScreen({
   const reconcileSelectedAccount = useCoreFinanceViewState(
     (state) => state.reconcileSelectedAccount
   );
-  const scopedFilters = useMemo(
-    () => applyAccountScope(periodFilters(period), selectedAccountId),
-    [period, selectedAccountId]
-  );
   const baseCurrencyCode = usePreferenceStore(
     (state) => state.baseCurrencyCode
   );
-  const query = useHomeSummary(baseCurrencyCode, scopedFilters);
+  const query = useHomeBalanceSummary(baseCurrencyCode, selectedAccountId);
+  const activity = useHomeTodayActivity(selectedAccountId);
+  useHomeReadRecovery(query, activity);
   const accounts = useAccounts(true);
   const categories = useCategories();
   const homeSummary = query.data;
+  const empty = homeSummary?.dataState === 'empty';
+  const initialReadsReady =
+    empty ||
+    [query, activity, accounts, categories].every(
+      (read) => read.data !== undefined || read.isError
+    );
+  useInitialHomeReadiness(
+    'home',
+    query.isError && !homeSummary
+      ? 'failed'
+      : initialReadsReady
+        ? 'ready'
+        : 'pending'
+  );
+  useInitialHomeReadiness('notice', !notice || empty ? 'ready' : null);
   const activeAccountIds = useMemo(
     () =>
       ((accounts.data ?? []) as Account[])
@@ -122,12 +150,21 @@ function QueriedHomeScreen({
 
   return (
     <HomeLayout period={period} onPeriodChange={onPeriodChange}>
+      {query.isError ? <FinancialRefreshStatus query={query} /> : null}
+      {query.isError && homeSummary ? (
+        <ActionButton
+          label={translate('coreFinance.action.retry')}
+          onPress={() => void query.refetch()}
+          variant="quiet"
+          disabled={query.isFetching}
+        />
+      ) : null}
       {query.isLoading ? (
         <StateView
           state="loading"
           title={translate('coreFinance.state.loading')}
         />
-      ) : query.isError ? (
+      ) : query.isError && !homeSummary ? (
         <StateView
           state="error"
           title={translate('coreFinance.state.error')}
@@ -141,6 +178,38 @@ function QueriedHomeScreen({
           notice={homeSummary.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={homeSummary}
+          todayActivity={activity.data ?? []}
+          activityStatus={
+            activity.data !== undefined && activity.isError ? (
+              <View>
+                <FinancialRefreshStatus query={activity} />
+                <ActionButton
+                  label={translate('coreFinance.action.retry')}
+                  onPress={() => void activity.refetch()}
+                  disabled={activity.isFetching}
+                  variant="quiet"
+                />
+              </View>
+            ) : activity.data === undefined &&
+              (activity.isPending || activity.isError) ? (
+              <StateView
+                state={activity.isError ? 'error' : 'loading'}
+                title={translate(
+                  activity.isError
+                    ? 'coreFinance.state.error'
+                    : 'coreFinance.state.loading'
+                )}
+                actionLabel={
+                  activity.isError
+                    ? translate('coreFinance.action.retry')
+                    : undefined
+                }
+                onAction={
+                  activity.isError ? () => void activity.refetch() : undefined
+                }
+              />
+            ) : undefined
+          }
         />
       ) : null}
     </HomeLayout>
@@ -158,7 +227,7 @@ function HomeLayout({
 }) {
   const theme = useTheme();
   return (
-    <ScrollView
+    <HomeActivityScrollView
       style={{ backgroundColor: theme.colors.surfaces.page }}
       contentContainerStyle={styles.stack}
     >
@@ -166,17 +235,18 @@ function HomeLayout({
         <HomeHeader period={period} onPeriodChange={onPeriodChange} />
         {children}
       </FinancialHorizonSurface>
-    </ScrollView>
+    </HomeActivityScrollView>
   );
 }
 
-function HomeHeader({
+const HomeHeader = React.memo(function HomeHeader({
   period,
   onPeriodChange
 }: {
   period: DatePeriod;
   onPeriodChange: (period: DatePeriod) => void;
 }) {
+  useWindowDimensions();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
@@ -230,7 +300,7 @@ function HomeHeader({
       </PrimaryShellHeader>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   stack: { flexGrow: 1 },

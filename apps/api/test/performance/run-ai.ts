@@ -56,6 +56,20 @@ async function main(): Promise<void> {
       )
     )
       throw new Error('AI_PERFORMANCE_UNBOUNDED_PLAN');
+    // ai.sql rolls back its million-row plan fixtures. Remove their dead tuples
+    // before timing admission, rather than depending on autovacuum scheduling.
+    // Keep the plans above and every latency/error threshold unchanged.
+    for (const table of [
+      'private.ai_usage_events',
+      'private.ai_failure_events',
+      'public.voice_sessions',
+    ]) {
+      await run(
+        'psql',
+        ['--no-psqlrc', '--set', 'ON_ERROR_STOP=1', '--command', `vacuum (analyze) ${table}`],
+        environment,
+      );
+    }
     await run(
       'k6',
       [

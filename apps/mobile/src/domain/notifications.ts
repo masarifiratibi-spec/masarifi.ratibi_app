@@ -5,6 +5,8 @@ export type SafeFailureCategory = z.infer<typeof safeFailureSchema>;
 export const notificationCategorySchema = z.enum(['transaction', 'income', 'obligation', 'budget', 'salary', 'savings', 'report', 'assistant', 'security', 'system', 'app_inactivity', 'financial_activity']);
 export type NotificationCategory = z.infer<typeof notificationCategorySchema>;
 export const notificationTargetSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('onboarding') }),
+  z.object({ kind: z.literal('add_transaction') }),
   z.object({ kind: z.literal('home') }),
   z.object({ kind: z.literal('tracking') }),
   z.object({ kind: z.literal('account'), accountId: z.string().min(1) }),

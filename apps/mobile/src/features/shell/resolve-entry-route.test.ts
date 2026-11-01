@@ -7,6 +7,8 @@ import type {
   PrivacyLockPreference
 } from '@/domain/app-shell';
 
+jest.mock('expo', () => ({ ...jest.requireActual('expo'), requireOptionalNativeModule: () => ({ applicationId: 'com.masarifi.mobile.dev' }) }));
+
 const authenticatedSession: AuthenticationSession = {
   status: 'authenticated',
   userId: 'user-live-1',
@@ -17,12 +19,9 @@ const authenticatedSession: AuthenticationSession = {
 };
 
 const unlocked: PrivacyLockPreference = {
-  pinConfigured: true,
-  biometricStatus: 'disabled',
-  autoLockDuration: 'immediate',
-  invalidAttempts: 0,
-  lockedUntil: null,
-  appLockStatus: 'unlocked'
+    enabled: true,
+    autoLockDuration: 'immediate',
+    appLockStatus: 'unlocked'
 };
 
 const base = {
@@ -37,6 +36,67 @@ const base = {
 };
 
 describe('resolveEntryRoute', () => {
+  test('waits for authoritative first-time restoration without redirecting to sign-in', () => {
+    expect(
+      resolveEntryRoute({
+        ...base,
+        session: {
+          ...authenticatedSession,
+          status: 'restoring',
+          restoration: 'pending'
+        }
+      })
+    ).toBe('/index');
+  });
+  test('permits an expired cached owner only through a configured local lock', () => {
+    const localSession = {
+      ...authenticatedSession,
+      restoration: 'local' as const
+    };
+    expect(
+      resolveEntryRoute({
+        ...base,
+        session: localSession,
+        now: 100,
+        privacyLock: { ...unlocked, appLockStatus: 'locked' }
+      })
+    ).toBe('/security/unlock');
+    expect(
+      resolveEntryRoute({ ...base, session: localSession, now: 100 })
+    ).toBe('/(tabs)/home');
+    expect(
+      resolveEntryRoute({
+        ...base,
+        session: localSession,
+        now: 100,
+        privacyLock: null
+      })
+    ).toBe('/(public)/auth-pending');
+  });
+  test('disabled Staging lock permits only a valid authenticated session without changing stored lock state', () => {
+    const previousEnvironment = { ...process.env };
+    process.env.NODE_ENV = 'development';
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    process.env.EXPO_PUBLIC_APP_VARIANT = 'staging-development';
+    process.env.EXPO_PUBLIC_APP_LOCK_ENABLED = 'false';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
+    const locked = { ...unlocked, appLockStatus: 'locked' as const };
+    try {
+      expect(resolveEntryRoute({ ...base, privacyLock: locked })).toBe(
+        '/(tabs)/home'
+      );
+      expect(
+        resolveEntryRoute({ ...base, privacyLock: locked, session: null })
+      ).toBe('/(public)/auth-pending');
+      expect(resolveEntryRoute({ ...base, privacyLock: locked, now: 21 })).toBe(
+        '/(public)/auth-pending'
+      );
+      expect(locked.appLockStatus).toBe('locked');
+      expect(resolveEntryRoute({ ...base, privacyLock: locked, session: { ...authenticatedSession, restoration: 'local' }, now: 100 })).toBe('/(tabs)/home');
+    } finally {
+      process.env = previousEnvironment;
+    }
+  });
   test('waits for hydration before evaluating any account state', () => {
     expect(resolveEntryRoute({ ...base, hydrated: false })).toBe('/index');
   });
@@ -70,7 +130,7 @@ describe('resolveEntryRoute', () => {
     }
   );
 
-  test.each(['incomplete', 'error'] as const)(
+  test.each(['incomplete'] as const)(
     'routes authenticated %s profile setup to the recoverable form',
     (profileSetupStatus) => {
       expect(resolveEntryRoute({ ...base, profileSetupStatus })).toBe(
@@ -78,6 +138,15 @@ describe('resolveEntryRoute', () => {
       );
     }
   );
+
+  test('routes a profile bootstrap failure to entry Retry instead of the profile form', () => {
+    expect(resolveEntryRoute({ ...base, profileSetupStatus: 'error' })).toBe(
+      '/index'
+    );
+    expect(
+      resolveProtectedAccessGate({ ...base, profileSetupStatus: 'error' })
+    ).toBe('/');
+  });
 
   test('lets a completed account bypass local first-launch state after reinstall', () => {
     expect(
@@ -112,9 +181,9 @@ describe('resolveEntryRoute', () => {
   });
 
   test('returns safe pending destinations only for completed accounts', () => {
-    expect(
-      resolveEntryRoute({ ...base, pendingDestination: '/reports' })
-    ).toBe('/reports');
+    expect(resolveEntryRoute({ ...base, pendingDestination: '/reports' })).toBe(
+      '/reports'
+    );
     expect(
       resolveEntryRoute({
         ...base,
@@ -131,8 +200,17 @@ describe('resolveEntryRoute', () => {
         profileSetupStatus: 'incomplete'
       })
     ).toBe('/(onboarding)/profile-setup');
-    expect(
-      resolveProtectedAccessGate({ ...base, hydrated: false })
-    ).toBe('/');
+    expect(resolveProtectedAccessGate({ ...base, hydrated: false })).toBe('/');
   });
+});
+
+
+test('identified DEV cached owner opens its preserved local data without an App Lock prompt', () => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { NODE_ENV: 'development', EXPO_PUBLIC_CLIENT_MODE: 'live', EXPO_PUBLIC_APP_VARIANT: 'staging-development', EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com' });
+  try {
+    expect(resolveEntryRoute({ ...base, privacyLock: { enabled: true, autoLockDuration: 'immediate', appLockStatus: 'locked' }, session: { ...authenticatedSession, restoration: 'local' }, now: 100 })).toBe('/(tabs)/home');
+    expect(resolveEntryRoute({ ...base, session: null })).toBe('/(public)/auth-pending');
+    expect(resolveEntryRoute({ ...base, now: 100 })).toBe('/(public)/auth-pending');
+  } finally { process.env = previous; }
 });

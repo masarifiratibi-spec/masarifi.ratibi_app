@@ -122,6 +122,33 @@ describeLiveDatabase('sync bootstrap, delta ordering, and checkpoints', () => {
     expect(domain?.items.some((item) => item.id === otherAccountId)).toBe(false);
   });
 
+  it('continues to fence suspended owners and rolls back rejected snapshot reads', async () => {
+    const setStatus = (status: string) =>
+      pool.withClient(async (client) => {
+        await client.query('begin');
+        try {
+          await client.query('set local role masarifi_migration');
+          await client.query('update public.profiles set status=$2 where id=$1', [ownerId, status]);
+          await client.query('commit');
+        } catch (error) {
+          await client.query('rollback');
+          throw error;
+        }
+      });
+    await setStatus('suspended');
+    try {
+      await expect(repository.bootstrap(principal, ['accounts'], null, 500, null)).rejects.toThrow(
+        'PROFILE_INACTIVE',
+      );
+      await expect(repository.delta(principal, 'accounts', 0n, 500)).rejects.toThrow(
+        'PROFILE_INACTIVE',
+      );
+    } finally {
+      await setStatus('active');
+    }
+    expect((await repository.delta(principal, 'accounts', 500n, 500)).current).toBe(502n);
+  });
+
   it('uses ordered keyset pages and stores only monotonic owner/device acknowledgements', async () => {
     const first = await repository.delta(principal, 'accounts', 0n, 500);
     expect(first.changes).toHaveLength(501);

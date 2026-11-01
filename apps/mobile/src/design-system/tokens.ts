@@ -18,6 +18,23 @@ import type { TextStyle } from 'react-native';
 // Teal is the primary interaction family. Bronze is a restrained premium accent,
 // never a second primary.
 export const colorTokens = {
+  auth: {
+    surface: '#F7F4EF',
+    content: '#103F37',
+    secondary: '#63645F'
+  },
+  onboarding: {
+    start: '#2D7264'
+  },
+  google: {
+    surface: '#FFFFFF',
+    content: '#1F1F1F',
+    border: '#747775',
+    blue: '#4285F4',
+    green: '#34A853',
+    yellow: '#FBBC05',
+    red: '#EA4335'
+  },
   teal: {
     50: '#F2F8F6',
     100: '#DBECE7',
@@ -86,7 +103,7 @@ export const colorTokens = {
     income: '#0D684A',
     expense: '#B3261E',
     incomeSurface: '#BFEBD9',
-    expenseSurface: '#FBC8C3',
+    expenseSurface: '#FBCCC7',
     incomeOnHero: '#DDF8EF',
     expenseOnHero: '#FF8F87',
     transfer: '#376E86',
@@ -95,6 +112,10 @@ export const colorTokens = {
     debt: '#8B5A44',
     positive: '#0D684A',
     negative: '#B3261E'
+  },
+  obligationDetail: {
+    hero: '#007C5B',
+    heroDark: '#184D3B'
   },
   obligationForm: {
     payableSurface: '#FDF3F2',
@@ -494,7 +515,7 @@ export const lightThemeColors: ThemeColors = {
   content: {
     primary: colorTokens.ink['900'],
     secondary: colorTokens.ink['700'],
-    muted: colorTokens.ink['500'],
+    muted: colorTokens.ink['700'],
     inverse: colorTokens.surface.white,
     onFinancialHero: colorTokens.surface.white,
     link: colorTokens.teal['900'],
@@ -584,8 +605,8 @@ export const darkThemeColors: ThemeColors = {
   warning: colorTokens.status.warning,
   danger: colorTokens.status.danger,
   info: colorTokens.status.info,
-  financialPositive: colorTokens.financial.positive,
-  financialNegative: colorTokens.financial.negative,
+  financialPositive: colorTokens.financial.incomeOnHero,
+  financialNegative: colorTokens.financial.expenseOnHero,
   surfaces: {
     page: colorTokens.dark.background,
     grouped: colorTokens.dark.surfaceMuted,
@@ -631,8 +652,8 @@ export const darkThemeColors: ThemeColors = {
     readOnly: colorTokens.status.neutral
   },
   financial: {
-    income: colorTokens.financial.income,
-    expense: colorTokens.financial.expense,
+    income: colorTokens.financial.incomeOnHero,
+    expense: colorTokens.financial.expenseOnHero,
     incomeSurface: colorTokens.teal['900'],
     expenseSurface: colorTokens.dark.surfaceMuted,
     incomeOnHero: colorTokens.financial.incomeOnHero,
@@ -675,6 +696,30 @@ export const darkThemeColors: ThemeColors = {
 };
 
 // ─── Spacing / radii / typography ────────────────────────────────────────────
+
+// Startup also renders before the theme provider and local fonts are ready.
+export const startupLoading = {
+  light: {
+    background: colorTokens.neutral.warmSurface,
+    text: colorTokens.ink['900'],
+    message: colorTokens.ink['700'],
+    indicator: colorTokens.teal['700'],
+    track: colorTokens.teal['100']
+  },
+  dark: {
+    background: colorTokens.ink['900'],
+    text: colorTokens.dark.text,
+    message: colorTokens.dark.textMuted,
+    indicator: colorTokens.teal['300'],
+    track: colorTokens.teal['800']
+  },
+  fontFamily: { ar: 'MasarifiArabic-400', en: 'MasarifiLatin-400' },
+  logoSize: 104,
+  logoRadius: 24,
+  indicatorSize: 28,
+  indicatorWidth: 2,
+  rotationDuration: 1150
+} as const;
 
 export const spacing = {
   xs: 4,
@@ -739,7 +784,7 @@ export const iconSize = {
 } as const;
 
 export const controlHeight = {
-  sm: 44,
+  sm: 48,
   md: 48,
   lg: 56
 } as const;
@@ -750,7 +795,7 @@ export const viewport = {
 } as const;
 
 // Minimum touch target per Constitution Principle III and UI Contract §8.
-export const minTouchTarget = 44;
+export const minTouchTarget = 48;
 
 export const typography = {
   caption: { fontSize: 12, lineHeight: 16, fontWeight: '400' },

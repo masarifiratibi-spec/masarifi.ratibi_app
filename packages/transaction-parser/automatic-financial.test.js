@@ -1,0 +1,106 @@
+'use strict';
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const {classifyFinancialMessage: classify, defaultSnapshot, discoverFinancialMessage} = require('./index');
+const parse = text => classify({text,country:'EG',receivedAt:Date.parse('2026-10-09T10:00:00Z')});
+
+test('Egyptian Arabic, English and mixed completed bank credits retain income classification without a blanket review',()=>{
+  for(const text of ['EGP 5 deposited to account XX4242','تم إيداع ٥٫٠٠ جنيه في حساب XX4242','تم credited مبلغ ۵٫۰۰ ج.م إلى account XX4242']) {
+    assert.equal(parse(text).currency,'EGP',text);
+    assert.equal(parse(text).amountMinor,500,text);
+    assert.equal(parse(text).direction,'incoming',text);
+    assert.equal(parse(text).disposition,'capture_candidate',text);
+  }
+});
+test('credit-card funding and unidentified credits have a specific accounting exception',()=>{
+  for(const text of ['Card XX4242 credited EGP 5','credited EGP 5']) {
+    assert.ok(parse(text).reasonCodes.includes('credit_origin_required'),text);
+    assert.equal(parse(text).disposition,'review');
+  }
+});
+test('linked operations state their missing accounting identity',()=>{
+  for(const [text,reason] of [['Cash withdrawal EGP 5','cash_destination_required'],['Transfer to SAMPLE EGP 5','transfer_counterparty_required'],['Transfer from SAMPLE EGP 5','transfer_counterparty_required'],['Refund EGP 5','original_transaction_required'],['Reversal EGP 5','original_transaction_required']]) {
+    assert.ok(parse(text).reasonCodes.includes(reason),text);
+    assert.ok(!parse(text).reasonCodes.includes('accounting_review_required'),text);
+    assert.equal(parse(text).disposition,'review');
+  }
+});
+test('transfer endpoints retain explicit source and destination evidence without assuming ownership',()=>{
+  assert.deepEqual(parse('تحويل صادر ٥ جنيه من حساب XX1111 إلى حساب XX2222').instruments,
+    [{role:'account',suffix:'1111',side:'source'},{role:'account',suffix:'2222',side:'destination'}]);
+  assert.equal(parse('تحويل صادر ٥ جنيه من حساب XX1111 إلى حساب XX2222').disposition,'review');
+});
+test('refund reference evidence distinguishes the original purchase from the new refund identity',()=>{
+  const both=parse('Refund EGP 5 card XX4242 reference NEW123456 original reference OLD123456');
+  assert.equal(both.providerReference,'NEW123456');
+  assert.equal(both.originalProviderReference,'OLD123456');
+  const only=parse('Reversal EGP 5 card XX4242 original reference OLD123456');
+  assert.equal(only.providerReference,null);
+  assert.equal(only.originalProviderReference,'OLD123456');
+  assert.ok(only.reasonCodes.includes('original_transaction_required'));
+});
+
+test('incomplete reference labels do not invent a provider identity',()=>{
+  for(const suffix of ['reference','reference number','ref','ref.','preferred654321']) {
+    const text=`Paid SAR0.01 at APK TEST ${suffix}`;
+    assert.equal(parse(text).providerReference,null,text);
+  }
+});
+
+test('complete reference labels preserve their separate provider codes',()=>{
+  for(const label of ['reference','reference number','ref','ref.','ref#','الرقم المرجعي']) {
+    const text=`Paid SAR0.01 at APK TEST ${label} QA2310DD4FA1`;
+    assert.equal(parse(text).providerReference,'QA2310DD4FA1',text);
+  }
+});
+test('a separate fee cannot silently disappear from an ordinary purchase posting',()=>{
+  const result=parse('Purchase EGP 5 card XX4242 fee EGP 0.50');
+  assert.equal(result.amountMinor,500);
+  assert.equal(result.disposition,'review');
+  assert.ok(result.reasonCodes.includes('fee_components_required'));
+});
+test('future and requested payments remain pending before action classification',()=>{
+  for(const text of ['Payment request EGP 5','Scheduled payment EGP 5','سيتم تحويل ٥ جنيه','طلب دفع بمبلغ ٥ جنيه']) {
+    assert.equal(parse(text).status,'pending',text);
+    assert.equal(parse(text).disposition,'review',text);
+  }
+});
+test('governed contexts make custom bilingual financial discovery useful without inventing direction',()=>{
+  for(const text of ['MyBank alert transaction EGP 5','إشعار بنكي معاملة ٥ جنيه']) {
+    const found=discoverFinancialMessage({text},defaultSnapshot,[{id:'custom-signal',value:text.startsWith('MyBank')?'MyBank alert':'إشعار بنكي',origin:'custom',enabled:true}]);
+    assert.equal(found.strong,true,text);
+    assert.equal(found.classification.direction,'unknown');
+    assert.equal(found.classification.status,'unknown');
+  }
+});
+test('generic pound wording does not override the qualified British currency alias',()=>{
+  assert.equal(parse('Payment 5 جنيه استرليني').currency,'GBP');
+  assert.equal(parse('Payment EGP 5').currency,'EGP');
+});
+test('Egyptian embedded time uses the actual Cairo offset for winter and summer',()=>{
+  assert.equal(parse('Purchase EGP 5 on 2026-01-29 10:00').occurredAt,'2026-01-29T08:00:00.000Z');
+  assert.equal(parse('Purchase EGP 5 on 2026-07-29 10:00').occurredAt,'2026-07-29T07:00:00.000Z');
+});
+
+test('unambiguous short bank dates retain their local calendar day',()=>{
+  for(const date of ['22-10-26','22/10/2026','2026-10-22']) {
+    const result=classify({text:`Purchase SAR 5 on ${date}`,country:'SA',receivedAt:Date.parse('2026-10-22T11:08:16Z')});
+    assert.equal(result.occurredAt,'2026-10-21T21:00:00.000Z',date);
+    assert.equal(result.timeProvenance,'embedded',date);
+    assert.ok(!result.reasonCodes.includes('date_ambiguous'),date);
+  }
+});
+
+test('ambiguous and impossible bank dates stay in review instead of becoming receipt time',()=>{
+  for(const date of ['03-04-26','31-02-26','2026-02-30']) {
+    const result=classify({text:`Purchase SAR 5 on ${date}`,country:'SA',receivedAt:Date.parse('2026-10-22T11:08:16Z')});
+    assert.equal(result.occurredAt,null,date);
+    assert.ok(result.reasonCodes.includes('date_ambiguous'),date);
+  }
+});
+
+test('an unknown SMS sender uses the capture timezone while a known provider retains its own zone',()=>{
+  const input={text:'Purchase SAR 5 on 22-10-26',timeZone:'Asia/Dubai',receivedAt:Date.parse('2026-10-22T11:08:16Z')};
+  assert.equal(classify(input).occurredAt,'2026-10-21T20:00:00.000Z');
+  assert.equal(classify({...input,country:'SA'}).occurredAt,'2026-10-21T21:00:00.000Z');
+});

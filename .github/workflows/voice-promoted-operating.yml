@@ -1,0 +1,98 @@
+name: Promoted Voice Operating Qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/voice-promoted-operating-2026-10-13]
+    # Deployment-only edits have their own focused Linux/systemd qualification.
+    # Keep the exact controller/database qualification reusable when its sources
+    # have not changed.
+    paths:
+      - scripts/staging-voice/operating-db.cjs
+      - scripts/staging-voice/operating-db.test.cjs
+      - scripts/staging-voice/qualify-operating-db.cjs
+      - scripts/staging-voice/operating-ingress.py
+      - scripts/staging-voice/operating-ingress.test.py
+      - scripts/staging-voice/operating-lifecycle.py
+      - scripts/staging-voice/operating-lifecycle.test.py
+      - scripts/staging-voice/promoted-operating.py
+      - scripts/staging-voice/promoted-operating.test.py
+      - scripts/staging-voice/fixtures/voice-progress-apk-compatibility.json
+      - scripts/staging-voice/customer-operating-cohort.py
+      - scripts/staging-voice/diagnostic-canary/canary-host.py
+      - scripts/staging-voice/diagnostic-canary/canary-control.py
+permissions:
+  contents: read
+jobs:
+  disposable-operating:
+    if: github.repository == 'masarifiratibi-spec/masarifi.ratibi_app' && github.ref == 'refs/heads/codex/voice-promoted-operating-2026-10-13'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      CROSS_FEATURE_DISPOSABLE_DATABASE_NAME: postgres
+      MASARIFI_LIVE_DATABASE_TESTS: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
+      - name: Qualify only the changed topology, persistent lifecycle and host guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee "$RUNNER_TEMP/promoted-operating-python.log") 2>&1
+          for test in operating-ingress operating-lifecycle promoted-operating; do
+            python3 "scripts/staging-voice/$test.test.py"
+            python3 -O "scripts/staging-voice/$test.test.py"
+          done
+      - run: node --test scripts/staging-voice/operating-db.test.cjs
+      - run: npm --prefix apps/api ci --ignore-scripts --no-audit --no-fund
+      - run: npm --prefix apps/api run supabase:start
+      - run: npm --prefix apps/api run db:reset
+      - name: Qualify operating SQL and balance/idempotency against disposable PostgreSQL
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/staging-voice/qualify-operating-db.cjs | tee "$RUNNER_TEMP/promoted-operating-database.json"
+      - name: Retain exact source and limits
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          paths=[pathlib.Path('scripts/staging-voice')/name for name in
+                 ['operating-ingress.py','operating-ingress.test.py','operating-lifecycle.py',
+                  'operating-lifecycle.test.py','promoted-operating.py','promoted-operating.test.py',
+                  'operating-db.cjs','operating-db.test.cjs','qualify-operating-db.cjs',
+                  'fixtures/voice-progress-apk-compatibility.json',
+                  'customer-operating-cohort.py','diagnostic-canary/canary-host.py',
+                  'diagnostic-canary/canary-control.py']]
+          paths.append(pathlib.Path('.github/workflows/voice-promoted-operating.yml'))
+          missing=[str(p) for p in paths if not p.is_file()]
+          evidence=[pathlib.Path(os.environ['RUNNER_TEMP'])/name for name in
+                    ['promoted-operating-python.log','promoted-operating-database.json']]
+          receipt={'sourceSha':os.environ['GITHUB_SHA'],'runId':int(os.environ['GITHUB_RUN_ID']),
+                   'workflowName':os.environ['GITHUB_WORKFLOW'],'disposableOnly':True,
+                   'stagingDeployment':False,'physicalDeviceOperations':False,
+                   'missingFiles':missing,
+                   'evidenceFiles':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in evidence if p.is_file()},
+                   'files':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.is_file()}}
+          pathlib.Path(os.environ['RUNNER_TEMP'],'promoted-operating-source.json').write_text(json.dumps(receipt,sort_keys=True))
+          if missing:raise SystemExit('REQUIRED_QUALIFICATION_SOURCE_MISSING')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: promoted-operating-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/promoted-operating-python.log
+            ${{ runner.temp }}/promoted-operating-database.json
+            ${{ runner.temp }}/promoted-operating-source.json
+          if-no-files-found: error
+      - run: npm --prefix apps/api run supabase:stop
+        if: always()

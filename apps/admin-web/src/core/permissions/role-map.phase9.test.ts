@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { ADMIN_ROLES, PERMISSION_KEYS } from "./permissions";
-import { hasPermission } from "./role-map";
+import { hasPermission, toClientPermission } from "./role-map";
 
 const PHASE9_PERMISSIONS = [
   "admin-team.read",
@@ -87,6 +87,11 @@ describe("Spec 010 role matrix", () => {
     expect(hasPermission("security-administrator", "access.roles.read")).toBe(true);
     expect(hasPermission("security-administrator", "access.roles.write")).toBe(false);
     expect(hasPermission("support-agent", "access.assignments.write")).toBe(false);
+  });
+
+  test("normalizes live canonical permissions for client route guards", () => {
+    expect(toClientPermission("access.roles.read")).toBe("roles.read");
+    expect(toClientPermission("admin-team.read")).toBe("admin-team.read");
   });
 
   test("keeps backend-only operations permissions super-admin-only", () => {
