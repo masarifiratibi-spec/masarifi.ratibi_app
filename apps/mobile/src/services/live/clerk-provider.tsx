@@ -21,7 +21,10 @@ import React, {
   type ReactNode
 } from 'react';
 
-import { resolveClientRuntime } from '@/config/client-runtime';
+import {
+  isBenchmarkReadOnly,
+  resolveClientRuntime
+} from '@/config/client-runtime';
 import {
   measurePerformance,
   recordPerformanceTiming
@@ -35,6 +38,7 @@ import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { classifyPhoneVerificationError } from './clerk-errors';
 import { RecentAuthDialog } from '@/features/security/RecentAuthDialog';
 import { resolveClerkDisplayName } from './clerk-name';
+import { startBenchmarkGoogleSignIn } from './benchmark-google-sign-in';
 import {
   LiveIdentityStatusContext,
   type IdentityStatus
@@ -340,15 +344,18 @@ function ClerkBridgeInstaller({
       onStatus('sso');
       recordDevelopmentAuthDiagnostic('sso_start');
       try {
-        const result = await latest.current.startSSOFlow({
-          strategy: 'oauth_google',
-          redirectUrl:
-            Constants.expoConfig?.scheme === 'masarifi-dev' ||
-            Constants.expoConfig?.scheme === 'masarifi-benchmark' ||
-            Constants.expoConfig?.scheme === 'masarifi-dev-privacy'
-              ? `${Constants.expoConfig.scheme}://sso-callback`
-              : 'masarifi://sso-callback'
-        });
+        const result: Awaited<ReturnType<typeof latest.current.startSSOFlow>> =
+          await (isBenchmarkReadOnly()
+            ? startBenchmarkGoogleSignIn()
+            : latest.current.startSSOFlow({
+                strategy: 'oauth_google',
+                redirectUrl:
+                  Constants.expoConfig?.scheme === 'masarifi-dev' ||
+                  Constants.expoConfig?.scheme === 'masarifi-benchmark' ||
+                  Constants.expoConfig?.scheme === 'masarifi-dev-privacy'
+                    ? `${Constants.expoConfig.scheme}://sso-callback`
+                    : 'masarifi://sso-callback'
+              }));
         recordDevelopmentAuthDiagnostic('sso_result', {
           code: `auth_session_${result.authSessionResult?.type ?? 'missing'}`
         });
@@ -379,10 +386,11 @@ function ClerkBridgeInstaller({
         return session;
       } catch (error) {
         recordDevelopmentAuthDiagnostic('sso_failure', error);
-        if (!(
+        if (
           error instanceof Error && error.message === 'googleAuth.incomplete'
-        ))
-          onStatus('error');
+        )
+          onStatus('incomplete');
+        else onStatus('error');
         throw error;
       } finally {
         ssoPending.current = false;

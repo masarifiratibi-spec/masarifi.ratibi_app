@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
 
 import {
   MobileIdentityProvider,
@@ -32,6 +33,11 @@ const mockRegisterLiveClerkBridge = jest.fn();
 const mockStartSSOFlow = jest.fn();
 const mockProviderInitialize = jest.fn();
 const mockProviderMounted = { current: false };
+const mockIsBenchmarkReadOnly = jest.fn(() => false);
+
+jest.mock('expo-web-browser', () => ({
+  ...jest.requireActual('expo-web-browser'), openAuthSessionAsync: jest.fn()
+}));
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -71,6 +77,7 @@ jest.mock('@clerk/expo/experimental', () => ({
   useSSO: () => ({ startSSOFlow: mockStartSSOFlow })
 }));
 jest.mock('@/config/client-runtime', () => ({
+  isBenchmarkReadOnly: () => mockIsBenchmarkReadOnly(),
   resolveClientRuntime: () => ({
     clerkPublishableKey: 'pk_test_staging',
     mode: 'live'
@@ -90,6 +97,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockProviderInitialize.mockReset();
   mockProviderMounted.current = false;
+  mockIsBenchmarkReadOnly.mockReturnValue(false);
   authState = {
     getToken: jest.fn(),
     isLoaded: true,
@@ -214,8 +222,7 @@ it.each(['new', 'existing'] as const)(
 it.each([
   ['masarifi', 'masarifi://sso-callback'],
   ['masarifi-dev', 'masarifi-dev://sso-callback'],
-  ['masarifi-dev-privacy', 'masarifi-dev-privacy://sso-callback'],
-  ['masarifi-benchmark', 'masarifi-benchmark://sso-callback']
+  ['masarifi-dev-privacy', 'masarifi-dev-privacy://sso-callback']
 ])('returns Google authentication to the installed %s app', async (scheme, redirectUrl) => {
   const config = Constants.expoConfig!;
   const previousScheme = config.scheme;
@@ -233,6 +240,144 @@ it.each([
   } finally {
     config.scheme = previousScheme;
   }
+});
+
+describe('benchmark sign-in only boundary', () => {
+  const owner = 'user_fixtureOwner';
+  let previousOwner: string | undefined;
+  let previousScheme: NonNullable<typeof Constants.expoConfig>['scheme'];
+  beforeEach(() => {
+    mockIsBenchmarkReadOnly.mockReturnValue(true);
+    previousOwner = process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID;
+    process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID = owner;
+    previousScheme = Constants.expoConfig!.scheme;
+    Constants.expoConfig!.scheme = 'masarifi-benchmark';
+  });
+  afterEach(() => {
+    Constants.expoConfig!.scheme = previousScheme;
+    if (previousOwner === undefined)
+      delete process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID;
+    else process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID = previousOwner;
+  });
+
+  function sdkFixture(verificationStatus = 'verified', sessionOwner = owner) {
+    const signIn = {
+      create: jest.fn(async () => ({
+        firstFactorVerification: {
+          externalVerificationRedirectURL: new URL(
+            'https://clerk.fixture.test/oauth'
+          )
+        }
+      })),
+      reload: jest.fn(async () => ({
+        status: 'complete',
+        createdSessionId: 'session-existing',
+        firstFactorVerification: { status: verificationStatus, error: null }
+      }))
+    };
+    const session = {
+      id: 'session-existing',
+      status: 'active',
+      user: { id: sessionOwner },
+      lastActiveAt: new Date(1000),
+      expireAt: new Date(4_000_000_000_000)
+    };
+    const clerk = {
+      status: 'ready',
+      client: { signIn, sessions: [session] },
+      session: null as typeof session | null,
+      user: null as { id: string } | null,
+      setActive: jest.fn(async () => {
+        clerk.session = session;
+        clerk.user = session.user;
+      })
+    };
+    const readSignUp = jest.fn(() => {
+      throw new Error('Signup must never be read');
+    });
+    Object.defineProperty(clerk.client, 'signUp', { get: readSignUp });
+    jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
+    jest.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue({
+      type: 'success',
+      url: 'masarifi-benchmark://sso-callback?rotating_token_nonce=fixture-nonce'
+    });
+    // A generic SDK flow is deliberately capable of reporting an activated session.
+    mockStartSSOFlow.mockResolvedValue({
+      createdSessionId: 'session-existing',
+      authSessionResult: { type: 'success' }
+    });
+    render(
+      <MobileIdentityProvider>
+        <StatusProbe />
+      </MobileIdentityProvider>
+    );
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(
+      -1
+    )![0] as LiveClerkBridge;
+    return { bridge, clerk, signIn, readSignUp };
+  }
+
+  it('uses only the public sign-in path before returning the actual SDK owner', async () => {
+    const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    try {
+      const f = sdkFixture();
+      await act(async () => {
+        await expect(f.bridge.signInWithGoogle()).resolves.toMatchObject({
+          id: 'session-existing',
+          userId: owner
+        });
+      });
+      expect(screen.getByText('ready')).toBeOnTheScreen();
+      expect(mockStartSSOFlow).not.toHaveBeenCalled();
+      expect(f.readSignUp).not.toHaveBeenCalled();
+      expect(authState.getToken).not.toHaveBeenCalled();
+      expect(f.signIn.reload).toHaveBeenCalledWith({
+        rotatingTokenNonce: 'fixture-nonce'
+      });
+      expect(JSON.stringify(log.mock.calls)).not.toMatch(
+        /fixture-nonce|user_fixtureOwner|sso-callback/
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it.each(['transferable', 'wrong owner'])(
+    '%s never activates or publishes an owner/token',
+    async (scenario) => {
+      const f = sdkFixture(
+        scenario === 'transferable' ? 'transferable' : 'verified',
+        scenario === 'wrong owner' ? 'user_otherOwner' : owner
+      );
+      await act(async () => {
+        await expect(f.bridge.signInWithGoogle()).rejects.toThrow();
+      });
+      expect(f.clerk.setActive).not.toHaveBeenCalled();
+      expect(await f.bridge.getSession()).toBeNull();
+      expect(f.readSignUp).not.toHaveBeenCalled();
+      expect(mockStartSSOFlow).not.toHaveBeenCalled();
+      expect(authState.getToken).not.toHaveBeenCalled();
+    }
+  );
+
+  it('preserves cancellation and incomplete identity statuses', async () => {
+    const f = sdkFixture('transferable');
+    jest
+      .mocked(WebBrowser.openAuthSessionAsync)
+      .mockResolvedValueOnce({ type: WebBrowser.WebBrowserResultType.CANCEL });
+    await act(async () => {
+      await expect(f.bridge.signInWithGoogle()).resolves.toBeNull();
+    });
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+    await act(async () => {
+      await expect(f.bridge.signInWithGoogle()).rejects.toThrow(
+        'googleAuth.incomplete'
+      );
+    });
+    expect(screen.getByText('incomplete')).toBeOnTheScreen();
+    expect(f.clerk.setActive).not.toHaveBeenCalled();
+    expect(mockStartSSOFlow).not.toHaveBeenCalled();
+  });
 });
 
 it('does not misclassify incomplete Google registration as cancellation', async () => {
