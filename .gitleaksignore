@@ -75,3 +75,31 @@ d6cb730c576e44bcd2bbdec2d16a289b64c76c06:docs/superpowers/plans/2026-10-16-nativ
 
 # Firebase-generated benchmark Android client key; matches the public ordinary client config, not a service-account secret.
 37cf7d04b07c18eceac7d6b52e3dee29b6563233:apps/mobile/google-services.benchmark.json:gcp-api-key:23
+
+# Full-parent history also exposes T07 image SHA-256 provenance tags at the integration merge.
+4d4a677b756468aa0d0600486dee28e1579b0ccc:docs/handoffs/T07-staging-qualified-checkpoint-2026-10-29-2235.md:generic-api-key:23
+4d4a677b756468aa0d0600486dee28e1579b0ccc:docs/handoffs/Masarifi-full-remediation-conversation-transfer-2026-10-30.md:generic-api-key:129
+
+# Report prose about authentication and immutable replay; no credential assignment or value.
+42f56aaa1213151d1511347875b8d7e2798703e3:docs/evidence/2026-10-24-report-closure/candidate-verification.md:generic-api-key:115
+
+# Historical broker API container ID and environment-file SHA-256 integrity pins, mirrored by its test.
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/host_broker.py:generic-api-key:22
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/host_broker.py:generic-api-key:43
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/host_broker_test.py:generic-api-key:107
+
+# Fictional configFixture Clerk-secret placeholder: Stripe test-mode prefix and explicit fixture marker; config.test.cjs only.
+4d4a677b756468aa0d0600486dee28e1579b0ccc:scripts/qa/t03-session-consumer/config-fixture.cjs:stripe-access-token:26
+
+# Generated Android public Firebase client keys match the reviewed public benchmark key exactly.
+c7532a27fae4475f4714701009e58dfaf87210fc:apps/mobile/google-services.dev.json:gcp-api-key:23
+d3ea16a0279ba69ce2de05a74abdf20267fe1e05:apps/mobile/google-services.dev.json:gcp-api-key:23
+4508ff46409c22bd10c8e15eaae5ea07a3b29609:apps/mobile/google-services.json:gcp-api-key:18
+
+# Integration merge repeats reviewed nonsecret Git revisions and container/environment SHA-256 integrity pins.
+c7532a27fae4475f4714701009e58dfaf87210fc:docs/evidence/2026-10-11-local-delivery-readiness/staging-client-acceptance-review-packet.json:generic-api-key:126
+c7532a27fae4475f4714701009e58dfaf87210fc:docs/recovery/CURRENT-RECOVERY-STATUS-AND-HANDOFF.md:generic-api-key:96
+c7532a27fae4475f4714701009e58dfaf87210fc:docs/superpowers/plans/2026-10-16-native-dev-deletion-acceptance.md:generic-api-key:44
+c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-canary/canary-control.py:generic-api-key:8
+c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:4
+c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:5

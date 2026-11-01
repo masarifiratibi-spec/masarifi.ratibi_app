@@ -45,6 +45,22 @@ jobs:
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.24.3"
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Verify complete candidate history scan
+        if: ${{ !cancelled() }}
+        run: node --test scripts/integration/complete-secret-scan.test.cjs
+      - name: Scan the actual event candidate and every parent
+        if: ${{ !cancelled() }}
+        run: node scripts/integration/complete-secret-scan.cjs "$RUNNER_TEMP/gitleaks-complete-candidate.json"
+      - name: Preserve redacted complete candidate findings
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gitleaks-complete-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/gitleaks-complete-candidate.json
+          if-no-files-found: error
+          retention-days: 14
 
   sentinel-redaction:
     runs-on: ubuntu-24.04
