@@ -215,19 +215,18 @@ describeLiveDatabase('governed independent AI usage limits', () => {
       expect(await reserve(c, 'voice_transcription')).toMatchObject({ allowed: true, limit: 3 });
     });
   });
-  it('enforces a monthly limit independently of the rolling daily window', async () => {
+  it('enforces a monthly limit while capacity remains in the rolling daily window', async () => {
     await scenario(async (c) => {
       await update(c, 'ai.chat.rolling_limit', 10);
       await update(c, 'ai.chat.monthly_limit', 1);
       expect(await reserve(c, 'financial_assistant')).toMatchObject({ allowed: true });
-      await c.query('reset role');
-      await c.query(
-        "update private.ai_usage_events set created_at=clock_timestamp()-interval '25 hours' where user_id=$1",
-        [owner],
-      );
       expect(await reserve(c, 'financial_assistant')).toMatchObject({
         allowed: false,
         reason: 'AI_MONTHLY_QUOTA_EXCEEDED',
+        used: 1,
+        remaining: 9,
+        monthlyUsed: 1,
+        monthlyRemaining: 0,
       });
       expect(await reserve(c, 'voice_transcription')).toMatchObject({ allowed: true });
     });
