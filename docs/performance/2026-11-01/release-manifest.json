@@ -114,7 +114,7 @@
   },
   "adminObservationStartedAt": "2026-11-01T21:08:45.348383+00:00",
   "fullCanonicalReleaseObservationStarted": false,
-  "adminObservationDueAt": "2026-11-02T21:08:45.348383+00:00",
+  "adminObservationDueAt": "2026-11-02T22:01:42.804184+00:00",
   "previousAdminRetainAtLeastUntil": "2026-11-08T21:08:45.348383+00:00",
   "runtimeImageCheck": {
     "node": "v24.20.0",
@@ -123,5 +123,17 @@
     "applicationModulesExecuted": false
   },
   "currentBranchApplicationTreesEqualQualifiedCandidate": true,
-  "canonicalBackendImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5"
+  "canonicalBackendImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+  "adminObservationResumedAfterApprovedHostRestartAt": "2026-11-01T22:01:42.804184+00:00",
+  "serverHealthFollowUp": {
+    "report": "../2026-11-02/server-health-report.md",
+    "evidence": "../2026-11-02/server-resource-evidence.json",
+    "observedAtUtc": "2026-11-01T22:03:57.227572+00:00",
+    "oneHostRebootExplicitlyApproved": true,
+    "rootFstabSha256": "827290e9fb0b7f224de681adb69189f2e8c336f78f38460cf42fc3b03a4e7db1",
+    "continuousDiscardDisabled": true,
+    "periodicTrimTimerActive": true,
+    "originalDiscardDeviceLimitsRestored": true,
+    "memoryLeakProven": false
+  }
 }
