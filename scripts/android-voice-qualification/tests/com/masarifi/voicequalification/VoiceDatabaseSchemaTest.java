@@ -18,7 +18,7 @@ public final class VoiceDatabaseSchemaTest {
         catch (ClassNotFoundException missing) { throw new AssertionError("full schema validation is not implemented",missing); }
         rowType = Class.forName("com.masarifi.voicequalification.VoiceDatabaseSchema$SchemaObject");
         Path root = Path.of(arguments[0]);
-        for (int version=1;version<=15;version++) {
+        for (int version=1;version<=16;version++) {
             for (String prefix : new String[]{"prefix-","marked-","metadata-"}) {
                 List<Object> rows = rows(root.resolve(prefix+version+".rows"));
                 List<Long> versions = versions(version);
@@ -31,10 +31,34 @@ public final class VoiceDatabaseSchemaTest {
                 reject(missing,versions);
             }
         }
-        // A reviewed fixture source is not permission to widen the private reader.
+        // Exact current objects cannot borrow an older history or a future version.
         for (String prefix : new String[]{"prefix-","marked-","metadata-"}) {
-            reject(rows(root.resolve(prefix+"16.rows")),versions(16));
             reject(rows(root.resolve(prefix+"16.rows")),versions(15));
+            reject(rows(root.resolve(prefix+"16.rows")),versions(17));
+            reject(rows(root.resolve(prefix+"15.rows")),versions(16));
+            List<Object> current = rows(root.resolve(prefix+"16.rows"));
+            for (String missingType : new String[]{"table","index"}) {
+                List<Object> missing = new ArrayList<>();
+                for (Object object : current)
+                    if (!text(object,"table").equals("query_read_cache") || !text(object,"type").equals(missingType)) missing.add(object);
+                reject(missing,versions(16));
+            }
+            for (String replacement : new String[]{"PRIMARY KEY(query_key)","PRIMARY KEY(locale, query_key)","UNIQUE(query_key, locale)"}) {
+                List<Object> changed = new ArrayList<>();
+                for (Object object : current) {
+                    String sql = text(object,"sql");
+                    changed.add(sql != null && text(object,"name").equals("query_read_cache") ?
+                            row("table","query_read_cache","query_read_cache",sql.replace("PRIMARY KEY(query_key, locale)",replacement)) : object);
+                }
+                reject(changed,versions(16));
+            }
+            for (String type : new String[]{"index","view","trigger"}) {
+                List<Object> changed = new ArrayList<>(current);
+                changed.add(row(type,"unexpected_cache_object","query_read_cache","synthetic SQL"));
+                reject(changed,versions(16));
+            }
+            List<Long> missingHistory = versions(16);missingHistory.remove(3);reject(current,missingHistory);
+            List<Long> duplicateHistory = versions(16);duplicateHistory.set(3,3L);reject(current,duplicateHistory);
         }
         List<Object> latest = rows(root.resolve("prefix-15.rows"));
         // Null/type/identity/SQL bounds and partial optional objects must fail closed.

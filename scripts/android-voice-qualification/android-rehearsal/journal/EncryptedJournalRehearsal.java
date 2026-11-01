@@ -154,7 +154,7 @@ public final class EncryptedJournalRehearsal extends Instrumentation {
                         cases++;
                     }
                 }
-                require(cases>=30);receipt.putInt("launchAdmissionVersion",3);receipt.putInt("launchAdmissionCases",launchAdmissionCases);receipt.putInt("admissionCases",admissionCases);receipt.putInt("cases",cases);receipt.putInt("qualificationStageCases",qualificationStageCases);receipt.putInt("workSummaryCases",workSummaryCases);receipt.putString("fixtureFingerprint",hex(aggregate.digest()));
+                require(cases==69 && qualificationStageCases==27 && workSummaryCases==42 && admissionCases==42 && launchAdmissionCases==42);receipt.putInt("launchAdmissionVersion",3);receipt.putInt("launchAdmissionCases",launchAdmissionCases);receipt.putInt("admissionCases",admissionCases);receipt.putInt("cases",cases);receipt.putInt("qualificationStageCases",qualificationStageCases);receipt.putInt("workSummaryCases",workSummaryCases);receipt.putString("fixtureFingerprint",hex(aggregate.digest()));
                 receipt.putString("verdict","PASS_DISPOSABLE_ENCRYPTED_JOURNALS");
             } else throw new IllegalStateException("MODE");
             finish(-1,receipt);

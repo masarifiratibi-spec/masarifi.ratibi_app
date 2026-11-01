@@ -93,8 +93,8 @@ def validate_upgrade_provenance(runtime,artifact):
         runs=encrypted.get(phase,[])
         gate(isinstance(runs,list) and len(runs)==1)
         run=runs[0]
-        gate(run.get("verdict")=="PASS_DISPOSABLE_ENCRYPTED_JOURNALS" and run.get("cases")=="58" and
-             run.get("readerStageCases")=="25" and run.get("qualificationStageCases")=="20" and run.get("workSummaryCases")=="38" and run.get("admissionCases")=="38" and run.get("launchAdmissionCases")=="38" and run.get("launchAdmissionVersion")=="3" and
+        gate(run.get("verdict")=="PASS_DISPOSABLE_ENCRYPTED_JOURNALS" and run.get("cases")=="69" and
+             run.get("readerStageCases")=="25" and run.get("qualificationStageCases")=="27" and run.get("workSummaryCases")=="42" and run.get("admissionCases")=="42" and run.get("launchAdmissionCases")=="42" and run.get("launchAdmissionVersion")=="3" and
              run.get("packageState")=="3" and run.get("applicationEnabled")=="false" and
              run.get("fixtureFingerprint")==baseline[0]["fixtureFingerprint"])
 
@@ -113,7 +113,7 @@ def validate_runtime(runtime):
         observed=encrypted.get(phase,[])
         gate(isinstance(observed,list) and len(observed)==count)
         runs.extend(observed)
-    gate(all(run.get("verdict")=="PASS_DISPOSABLE_ENCRYPTED_JOURNALS" and run.get("cases")=="58" and run.get("readerStageCases")=="25" and run.get("qualificationStageCases")=="20" and run.get("workSummaryCases")=="38" and run.get("admissionCases")=="38" and run.get("launchAdmissionCases")=="38" and run.get("launchAdmissionVersion")=="3" and re.fullmatch("[0-9a-f]{64}",run.get("fixtureFingerprint","")) for run in runs))
+    gate(all(run.get("verdict")=="PASS_DISPOSABLE_ENCRYPTED_JOURNALS" and run.get("cases")=="69" and run.get("readerStageCases")=="25" and run.get("qualificationStageCases")=="27" and run.get("workSummaryCases")=="42" and run.get("admissionCases")=="42" and run.get("launchAdmissionCases")=="42" and run.get("launchAdmissionVersion")=="3" and re.fullmatch("[0-9a-f]{64}",run.get("fixtureFingerprint","")) for run in runs))
     gate(len(set(run["fixtureFingerprint"] for run in runs))==1)
     validate_upgrade(runtime.get("disabledReplacement"))
 

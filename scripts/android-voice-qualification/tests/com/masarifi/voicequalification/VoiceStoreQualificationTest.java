@@ -29,6 +29,7 @@ public final class VoiceStoreQualificationTest {
         try { binder=Class.forName("com.masarifi.voicequalification.VoiceStoreQualification"); }
         catch (ClassNotFoundException missing) { throw new AssertionError("whole-store journal qualification is not implemented"); }
         schemas=Path.of(args[0]);
+        schemaAdmission();
         trackingAdmission();
         workSummaries();
         rollbackJournals();
@@ -85,6 +86,27 @@ public final class VoiceStoreQualificationTest {
         missing=fixture();missing.throwLinkage=true;reject(missing,"OWNER_DATABASE_OPEN");
         missing=fixture();missing.throwClose=true;reject(missing,"OWNER_RESOURCES_CLOSE");
         System.out.println("PASS: "+checks+" whole-store synthetic journal checks; no device/private key accessed");
+    }
+
+    private static void schemaAdmission() throws Exception {
+        for(int version:new int[]{15,16}) {
+            var value=fixture();value.rows.put(1,Fixture.mobile(false,version));value.captureAdmission=true;
+            value.admission=new LocalAdmissionCollector("d".repeat(64),1000,121000,true);
+            value.rows.get(1).put(SnapshotReader.Query.SYNC_MUTATIONS,List.<Object[]>of(new Object[]{"operation","transactions","pending"}));
+            value.rows.get(1).put(SnapshotReader.Query.SMS_IMPORT,List.<Object[]>of(new Object[]{"singleton","{}"}));
+            value.rows.get(1).put(SnapshotReader.Query.SYNC_STATE,List.<Object[]>of(new Object[]{"transactions","cursor",null,123L}));
+            run(value);
+            check(value.admission.receipt().get("admissionSchemaCurrent").equals(Boolean.toString(version==16)),"only schema16 is current");
+            check(value.admission.receipt().get("admissionFinancePending").equals("1"),"finance collected for old and current schemas");
+            check(value.admission.receipt().get("admissionTrackingRows").equals("1"),"SMS collected for old and current schemas");
+            value.rows.get(1).put(SnapshotReader.Query.SYNC_STATE,List.<Object[]>of(new Object[]{"transactions","cursor",null,"invalid"}));
+            value.admission=new LocalAdmissionCollector("d".repeat(64),1000,121000,true);
+            reject(value,"MOBILE_SCHEMA");
+        }
+        var mixed=fixture();mixed.owner(B,2);mixed.rows.put(2,Fixture.mobile(false,15));mixed.captureAdmission=true;
+        mixed.admission=new LocalAdmissionCollector("d".repeat(64),1000,121000,true);run(mixed);
+        check(mixed.admission.receipt().get("admissionSchemaCurrent").equals("false"),"mixed old/current owner schemas block admission");
+        check(mixed.admission.receipt().get("admissionLocalStatus").equals("BLOCKED"),"empty old owner still blocks launch");
     }
 
     private static void trackingAdmission() throws Exception {
@@ -234,8 +256,11 @@ public final class VoiceStoreQualificationTest {
             };
         }; }
         static Map<SnapshotReader.Query,List<Object[]>> mobile(boolean marker) throws Exception {
-            var data=new HashMap<SnapshotReader.Query,List<Object[]>>();data.put(SnapshotReader.Query.SCHEMA,schema(marker?"marked-15":"prefix-15"));
-            var history=new ArrayList<Object[]>();for(long i=1;i<=15;i++)history.add(new Object[]{i});data.put(SnapshotReader.Query.MIGRATIONS,history);
+            return mobile(marker,16);
+        }
+        static Map<SnapshotReader.Query,List<Object[]>> mobile(boolean marker,int version) throws Exception {
+            var data=new HashMap<SnapshotReader.Query,List<Object[]>>();data.put(SnapshotReader.Query.SCHEMA,schema((marker?"marked-":"prefix-")+version));
+            var history=new ArrayList<Object[]>();for(long i=1;i<=version;i++)history.add(new Object[]{i});data.put(SnapshotReader.Query.MIGRATIONS,history);
             data.put(SnapshotReader.Query.USER_VERSION,List.<Object[]>of(new Object[]{0L}));data.put(SnapshotReader.Query.BATCH,List.of());data.put(SnapshotReader.Query.SINGLETON,List.of());data.put(SnapshotReader.Query.MARKER,List.of());
             data.put(SnapshotReader.Query.SYNC_MUTATIONS,List.of());data.put(SnapshotReader.Query.SMS_IMPORT,List.of());data.put(SnapshotReader.Query.SYNC_STATE,List.of());return data;
         }

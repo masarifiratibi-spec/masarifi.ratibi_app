@@ -166,7 +166,7 @@ public final class VoiceStoreQualification {
             if(owner==null)admission.legacyPresent();
             else {
                 admission.owner(owner,coverage.version(),false);
-                if(coverage.version()==15) {
+                if(coverage.batch()) {
                     each(reader,SnapshotReader.Query.SYNC_MUTATIONS,3,row -> {
                         text(row[0]);text(row[1]);admission.finance(text(row[2]));
                     });

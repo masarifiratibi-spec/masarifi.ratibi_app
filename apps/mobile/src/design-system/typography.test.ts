@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { act, render } from '@testing-library/react-native';
+import { translate } from '@/localization/i18n';
 
 import {
   FONT_ASSETS,
@@ -95,8 +96,8 @@ describe('SPEC-002 typography', () => {
     expect(screen.queryByText('Visible product text')).toBeNull();
     expect(screen.getByTestId('font-loading')).toBeTruthy();
     expect(screen.getByRole('progressbar')).toBeTruthy();
-    expect(screen.getByRole('progressbar').props.accessibilityLabel).toContain(
-      'مصاريفي وراتبي'
+    expect(screen.getByRole('progressbar').props.accessibilityLabel).toBe(
+      translate('appShell.startup.preparing')
     );
     await act(async () => {});
   });

@@ -177,7 +177,7 @@ it('keeps onboarding free of legal controls and opens the existing sign-in scree
   expect(screen.queryByRole('button', { name: 'سياسة الخصوصية' })).toBeNull();
   expect(router.replace).not.toHaveBeenCalled();
   expect(start).toBeEnabled();
-  expect(start).toHaveStyle({ backgroundColor: '#2D7264' });
+  expect(start).toHaveStyle({ backgroundColor: colorTokens.onboarding.start });
   await act(async () => {
     fireEvent.press(start);
   });

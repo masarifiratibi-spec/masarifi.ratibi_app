@@ -36,12 +36,18 @@ public final class NativeWholeStoreTest {
                     var snapshot=VoiceStoreSnapshot.captureForAdmission(root)) {
                     require(snapshot.summary().equals(legacySnapshot.summary()),"PUBLIC_FINGERPRINT_CHANGED");
                     try {
+                        var admission=new LocalAdmissionCollector("b".repeat(64),1800000000000L,1800000120000L);
                         var result=VoiceStoreQualification.qualify(snapshot,alias -> "missing".equals(expected.get("keyMode"))?null:
-                                new SecretKeySpec(new byte[32],"AES"),NativeSnapshotReader::open);
+                                new SecretKeySpec(new byte[32],"AES"),NativeSnapshotReader::open,admission);
                         require(result.verdict().equals(wanted),"NATIVE_WHOLE_STORE_VERDICT");
                         for(String field:new String[]{"pending","terminal","audioOwned","confirmationOwned"})
                             require(((Integer)result.getClass().getDeclaredMethod(field).invoke(result)).longValue()==StrictJson.integer(expected.get(field)),"NATIVE_WHOLE_STORE_COUNTS");
                         require(result.workSummary().equals(expected.get("workSummary")),"WORK_SUMMARY_MISMATCH");
+                        require(expected.get("admission") instanceof Map<?,?>,"V2_ORACLE_REQUIRED");
+                        Map<?,?> expectedAdmission=(Map<?,?>)expected.get("admission");
+                        require(admission.receipt().size()==13 && expectedAdmission.size()==10,"V2_FIELDS");
+                        for(var field:expectedAdmission.entrySet())
+                            require(field.getValue().equals(admission.receipt().get((String)field.getKey())),"V2_ORACLE_MISMATCH");
                         if(Boolean.TRUE.equals(expected.get("wal")))require(result.committedFrames()>0,"COMMITTED_WAL_NOT_COVERED");
                         require(!result.toString().contains("11111111")&&!result.toString().contains("private"),"PRIVATE_RECEIPT");
                         var launch=new LocalAdmissionCollector("a".repeat(64),1800000000000L,1800000120000L,true);
@@ -64,8 +70,8 @@ public final class NativeWholeStoreTest {
                 checks++;
             }
         }
-        require(checks>=30,"INCOMPLETE_NATIVE_CASES");
-        require(launchChecks==38,"INCOMPLETE_V3_CASES");
+        require(checks==69,"INCOMPLETE_NATIVE_CASES");
+        require(launchChecks==42,"INCOMPLETE_V3_CASES");
         System.out.println("PASS: "+checks+" actual RAM-only SQLCipher/JNI whole-store cases; "+launchChecks+" v3 admission cases; synthetic keys only");
     }
     private static String entry(String name,String value){return "<string name='"+name+"'>"+value.replace("&","&amp;").replace("<","&lt;")+"</string>";}

@@ -30,7 +30,7 @@ public final class LocalAdmissionCollectorTest {
         reject(()->queues.finance("PRIVATE_UNKNOWN"));reject(()->queues.tracking("bad","{}"));reject(()->queues.tracking("singleton","["));
         reject(()->new LocalAdmissionCollector(NONCE,NOW,NOW));reject(()->new LocalAdmissionCollector(NONCE,NOW,NOW+600001));
         reject(()->new LocalAdmissionCollector("bad",NOW,END));reject(()->fresh().batch(OWNER,true,false,-1));
-        var binding=fresh();binding.owner(OWNER,15,false);
+        var binding=fresh();binding.owner(OWNER,16,false);
         Map<String,String> receipt=binding.receipt();check(!receipt.containsKey("admissionOwnerBindings") && !receipt.containsKey("admissionSessionBindings"));check(!receipt.toString().contains(OWNER));check(!receipt.toString().contains("00000000-0000"));
         check(receipt.get("admissionVerdict").equals("BLOCKED_EXTERNAL_ASSURANCES_REQUIRED"));
         check(fresh().receipt().get("admissionLocalStatus").equals("BLOCKED"));
@@ -59,6 +59,14 @@ public final class LocalAdmissionCollectorTest {
         check(malformed.receipt().get("admissionLocalStatus").equals("BLOCKED"));
         check(!malformed.receipt().toString().contains("PRIVATE_SENTINEL"));
         var old=fresh();old.owner(OWNER,14,true);check(old.receipt().get("admissionLocalStatus").equals("BLOCKED"));
+        for(int version:new int[]{15,17}) {
+            var obsolete=fresh();obsolete.owner(OWNER,version,false);obsolete.completeTracking(null);
+            check(obsolete.receipt().get("admissionSchemaCurrent").equals("false"));
+            check(obsolete.receipt().get("admissionLocalStatus").equals("BLOCKED"));
+        }
+        var mixed=fresh();mixed.owner(OWNER,16,false);mixed.owner("c".repeat(64),15,false);mixed.completeTracking(null);
+        check(mixed.receipt().get("admissionSchemaCurrent").equals("false"));
+        check(mixed.receipt().get("admissionLocalStatus").equals("BLOCKED"));
         System.out.println("Local admission cases: "+cases);
     }
 }

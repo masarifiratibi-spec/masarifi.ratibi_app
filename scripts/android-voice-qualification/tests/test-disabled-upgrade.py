@@ -18,8 +18,8 @@ class UpgradeGuards(unittest.TestCase):
         spec=importlib.util.spec_from_file_location('builder2',Path(__file__).resolve().parents[1]/'android-probe/build-probe.py')
         builder=importlib.util.module_from_spec(spec);spec.loader.exec_module(builder)
         import copy
-        phase={'verdict':'PASS_DISPOSABLE_ENCRYPTED_JOURNALS','fixtureFingerprint':'c'*64,'cases':'58',
-               'readerStageCases':'25','qualificationStageCases':'20','workSummaryCases':'38','admissionCases':'38','launchAdmissionCases':'38','launchAdmissionVersion':'3','packageState':'3','applicationEnabled':'false'}
+        phase={'verdict':'PASS_DISPOSABLE_ENCRYPTED_JOURNALS','fixtureFingerprint':'c'*64,'cases':'69',
+               'readerStageCases':'25','qualificationStageCases':'27','workSummaryCases':'42','admissionCases':'42','launchAdmissionCases':'42','launchAdmissionVersion':'3','packageState':'3','applicationEnabled':'false'}
         runtime={'disabledReplacement':{'beforeApkSha256':'a'*64,'afterApkSha256':'b'*64},
                  'encryptedJournals':{'runs':[dict(phase)],'preReplacementRuns':[dict(phase)],'postReplacementRuns':[dict(phase)]}}
         artifact={'target':{'sha256':'a'*64},'replacement':{'sha256':'b'*64}}

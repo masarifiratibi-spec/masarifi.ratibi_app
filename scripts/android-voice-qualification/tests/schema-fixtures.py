@@ -9,8 +9,9 @@ import sqlite3
 import struct
 import subprocess
 
-# Prefixes1–15 remain exact; schema16 is retained as an unsupported-reader negative.
-SOURCE_SHA = "efc06762b0ff45e7e1b20cd1ca27dcd951e106229b4563c8003271d285ec4ef4"
+# Prefixes1–15 remain exact; schema16 adds the reviewed read-cache table/index.
+# Reviewed a33137ea owner-release preservation change; migration/schema templates unchanged.
+SOURCE_SHA = "c95fd840499ea6292f4332bf8d81643474bc64dc8fec8cd6a5fd191201c74872"
 SOURCE_PATH = "apps/mobile/src/storage/database.ts"
 
 def pinned_source():
@@ -76,7 +77,7 @@ def main():
             connection.execute("CREATE TABLE android_metadata (locale TEXT)")
             metadata = connection.execute("SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name").fetchall()
             retain_rows(arguments.output / ("metadata-"+str(version)),metadata,range(1,version+1))
-            if version == 15:
+            if version == 16:
                 catalog["migrationMarker"] = [row for row in marked if row[2] == "_masarifi_migration_state"]
     for metadata in (False,True):
         path = arguments.output / ("async-meta.db" if metadata else "async.db")
@@ -91,6 +92,6 @@ def main():
     if arguments.classes:
         subprocess.run([arguments.java,"-cp",arguments.classes,
                         "com.masarifi.voicequalification.VoiceDatabaseSchemaTest",str(arguments.output)],check=True)
-    print(json.dumps({"result":"SYNTHETIC_SCHEMAS_RETAINED","directory":str(arguments.output),"prefixes":16,"readerSupportedThrough":15,"unsupportedCurrentSchema":16}))
+    print(json.dumps({"result":"SYNTHETIC_SCHEMAS_RETAINED","directory":str(arguments.output),"prefixes":16,"readerSupportedThrough":16}))
 
 if __name__ == "__main__": main()

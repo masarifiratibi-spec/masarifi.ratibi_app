@@ -9,7 +9,7 @@ public final class LaunchCleanupAdmissionTest {
     private static void check(boolean condition) {cases++;if(!condition)throw new AssertionError("launch admission "+cases);}
     private static LocalAdmissionCollector launch() {
         var admission=new LocalAdmissionCollector("a".repeat(64),1800000000000L,1800000120000L,true);
-        admission.owner("b".repeat(64),15,false);
+        admission.owner("b".repeat(64),16,false);
         return admission;
     }
     private static SecureStoreKeyIndex index(String name) {

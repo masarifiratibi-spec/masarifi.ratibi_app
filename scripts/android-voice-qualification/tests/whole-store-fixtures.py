@@ -4,6 +4,7 @@ Only a fresh synthetic output is accepted. No private application directory,
 real owner/key or device is an input. Retain every fixture and its expected result.
 """
 import argparse
+from contextlib import closing
 import importlib.util
 import json
 from pathlib import Path
@@ -59,7 +60,7 @@ def main():
         cases.append((root, expected))
         return root, expected
 
-    def database(root, owner=A, statements=(), version=15, wal=False, legacy=False, marked=False):
+    def database(root, owner=A, statements=(), version=16, wal=False, legacy=False, marked=False):
         path = root / "input/files/SQLite" / ("masarifi.db" if legacy else "masarifi-" + owner[:24] + ".db")
         writer = sqlite3.connect(path) if legacy else cipher.CipherConnection(library, path)
         def execute(sql):
@@ -98,8 +99,20 @@ def main():
     # A recognized older schema is still valid Voice evidence, but cannot be
     # called current for launch admission. Keep both stores genuinely empty.
     root, want = case("empty-two-owners", owners=(A, B)); database(root); database(root, B, version=14)
-    root, want = case("unsupported-current-schema16", "INDETERMINATE"); database(root, version=16)
+    root, want = case("future-schema17", "INDETERMINATE"); database(root, statements=["INSERT INTO schema_migrations VALUES(17,0)"])
     want["qualificationStage"] = "MOBILE_SCHEMA"
+    cache_sql = "INSERT INTO query_read_cache VALUES('dashboard','ar',16,'{\"publicFixture\":true}',123)"
+    root, want = case("empty-current-schema16"); database(root)
+    root, want = case("cache-populated-schema16"); database(root, statements=[cache_sql])
+    root, want = case("mixed-schema15-schema16", owners=(A, B)); database(root); database(root, B, version=15)
+    for name, statements in (
+            ("cache-missing-table", ["DROP TABLE query_read_cache"]),
+            ("cache-altered-pk", ["DROP TABLE query_read_cache", "CREATE TABLE query_read_cache(query_key TEXT PRIMARY KEY NOT NULL, locale TEXT NOT NULL, schema_version INTEGER NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL)"]),
+            ("cache-extra-index", ["CREATE INDEX unexpected_cache_index ON query_read_cache(updated_at)"]),
+            ("cache-spoofed-history15", ["DELETE FROM schema_migrations WHERE version=16"]),
+            ("cache-extra-trigger", ["CREATE TRIGGER unexpected_cache_trigger AFTER INSERT ON query_read_cache BEGIN DELETE FROM query_read_cache WHERE updated_at<0; END"])):
+        root, want = case(name, "INDETERMINATE"); database(root, statements=statements)
+        want["qualificationStage"] = "MOBILE_SCHEMA"
     for phase in ("captured", "created", "uploaded", "processing", "cancel_requested", "completed", "cancelled", "failed"):
         terminal = phase in ("completed", "cancelled", "failed")
         root, want = case("batch-" + phase, "CLEAR" if terminal else "BLOCKED", pending=int(not terminal), terminal=int(terminal))
@@ -115,12 +128,21 @@ def main():
         return ("INSERT INTO sync_mutation_queue(operation_id,domain,resource_type,operation,payload,status,created_at,updated_at) "
                 "VALUES(" + quote(identifier) + ",'transactions','transaction','create','{}'," + quote(status) + ",0,0)")
 
+    root, want = case("older-schema15-queues")
+    database(root, version=15, statements=[finance_sql("older-pending", "pending"),
+             "INSERT INTO sms_import_queue VALUES('singleton','{}')",
+             "INSERT INTO sync_state VALUES('transactions','older-cursor',NULL,123)"])
+    for version in (15, 16):
+        root, want = case("invalid-sync-state" + str(version), "INDETERMINATE")
+        database(root, version=version, statements=["INSERT INTO sync_state VALUES('transactions','cursor',NULL,'invalid')"])
+        want["qualificationStage"] = "MOBILE_SCHEMA"
+
     root, want = case("second-owner-committed-wal", "BLOCKED", pending=1, owners=(A, B))
     database(root, statements=[finance_sql("first-pending", "pending")])
     database(root, B, [batch_sql(batch("processing")),
                       *[finance_sql("second-" + status, status) for status in ("sending", "applied", "conflict", "rejected")],
                       "INSERT INTO sms_import_queue VALUES('singleton','{\"version\":1,\"pending\":[]}')",
-                      "INSERT INTO sync_state VALUES('transactions','public-fixture-cursor',NULL,123)"], wal=True)
+                      "INSERT INTO sync_state VALUES('transactions','public-fixture-cursor',NULL,123)", cache_sql], wal=True)
     want["wal"] = True
     root, want = case("legacy-committed-wal", "BLOCKED", pending=1, claim=A)
     database(root, marked=True); database(root, statements=[batch_sql(batch("processing"))], wal=True, legacy=True); want["wal"] = True
@@ -146,13 +168,13 @@ def main():
     root, want = case("uppercase-legacy-claim", "INDETERMINATE", claim=A, key="uppercase-claim"); database(root, marked=True); database(root, legacy=True)
     root, want = case("async-only-missing-owner", "INDETERMINATE", owners=())
     (root / "input/databases").mkdir()
-    with sqlite3.connect(root / "input/databases/RKStorage") as writer:
+    with closing(sqlite3.connect(root / "input/databases/RKStorage")) as writer, writer:
         writer.executescript("CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=1;")
     for malformed in (False, True):
         root, want = case("legacy-key-malformed" if malformed else "legacy-rk-pending", "INDETERMINATE" if malformed else "BLOCKED", pending=0 if malformed else 1)
         database(root)
         (root / "input/databases").mkdir()
-        with sqlite3.connect(root / "input/databases/RKStorage") as writer:
+        with closing(sqlite3.connect(root / "input/databases/RKStorage")) as writer, writer:
             writer.executescript("CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=1;")
             payload = dict(sessionId=ID, sessionVersion=1, recordedAt=0, timezoneOffsetMinutes=0, createdAt=0)
             writer.execute("INSERT INTO catalystLocalStorage VALUES(?,?)", ("masarifi.voice.pending" if malformed else "masarifi.voice.pending." + B[:24], json.dumps(payload)))
@@ -168,9 +190,8 @@ def main():
                 if store == "async":
                     (root / "input/databases").mkdir()
                     path = root / "input/databases/RKStorage"
-                    with sqlite3.connect(path) as setup:
+                    with closing(sqlite3.connect(path)) as setup, setup:
                         setup.executescript("CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=1;")
-                    setup.close()
                 else:
                     path = root / "input/files/SQLite" / ("masarifi.db" if store == "legacy" else "masarifi-" + A[:24] + ".db")
                 writer = cipher.CipherConnection(library, path) if store == "owner" else sqlite3.connect(path, isolation_level=None)
@@ -194,9 +215,8 @@ def main():
         want["qualificationStage"] = "ASYNC_ROLLBACK_CHECK"
         database(root); (root / "input/databases").mkdir()
         path = root / "input/databases/RKStorage"
-        with sqlite3.connect(path) as setup:
+        with closing(sqlite3.connect(path)) as setup, setup:
             setup.executescript("CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=1;")
-        setup.close()
         journal = Path(str(path) + "-journal")
         if kind == "crash":
             # A disposable child exits without COMMIT/close after forcing cache spills.
@@ -209,7 +229,7 @@ def main():
 
     def work_summary(name):
         # Independent expected shapes for the public fixtures above.
-        if name in ('empty-two-owners','legacy-empty-bound'): return ''
+        if name in ('empty-two-owners','legacy-empty-bound','empty-current-schema16','cache-populated-schema16','mixed-schema15-schema16','older-schema15-queues'): return ''
         if name.startswith('batch-'): return 'OWNER_BATCH:'+name[6:]+':'+str(int(name[6:]=='created'))+':0:0=1'
         if name.startswith('singleton-'):
             phase=name[10:]
@@ -241,10 +261,9 @@ def main():
         if root.name not in tracking_inputs: continue
         source_payload, native_xml, _, _ = tracking_inputs[root.name]
         (root / "input/databases").mkdir()
-        with sqlite3.connect(root / "input/databases/RKStorage") as tracking_store:
+        with closing(sqlite3.connect(root / "input/databases/RKStorage")) as tracking_store, tracking_store:
             tracking_store.executescript("CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=1;")
             tracking_store.execute("INSERT INTO catalystLocalStorage VALUES(?,?)", ("masarifi.tracking.sources.v1", source_payload))
-        tracking_store.close()
         if native_xml is not None:
             (root / "input/shared_prefs").mkdir(exist_ok=True)
             (root / "input/shared_prefs/masarifi_tracking_owner_v2.xml").write_text(native_xml, encoding="utf-8")
@@ -257,13 +276,13 @@ def main():
                           "rollback-async-truncate-pending", "rollback-async-persist-pending",
                           "rollback-legacy-truncate-clear", "rollback-legacy-truncate-pending",
                           "rollback-legacy-persist-clear", "rollback-legacy-persist-pending"}
-        older_schema = name == "empty-two-owners"
-        queued = name == "second-owner-committed-wal"
+        older_schema = name in {"empty-two-owners", "mixed-schema15-schema16", "older-schema15-queues"}
+        queued = name in {"second-owner-committed-wal", "older-schema15-queues"}
         sources, native = tracking_inputs[name][2:] if name in tracking_inputs else ("INACTIVE", "INACTIVE")
         return dict(admissionVersion="2", admissionVerdict="BLOCKED_EXTERNAL_ASSURANCES_REQUIRED",
                     admissionLocalStatus="BLOCKED" if prunable or legacy or older_schema or queued or sources != "INACTIVE" or native != "INACTIVE" else "OBSERVED_NO_LOCAL_BLOCKER",
                     admissionPrunableBatches="1" if prunable else "0",
-                    admissionFinancePending="2" if queued else "0", admissionTrackingRows="1" if queued else "0",
+                    admissionFinancePending="2" if name == "second-owner-committed-wal" else "1" if queued else "0", admissionTrackingRows="1" if queued else "0",
                     admissionSchemaCurrent="false" if older_schema else "true",
                     admissionLegacyCleanup="true" if legacy else "false",
                     admissionTrackingSources=sources, admissionNativeIntake=native)
@@ -282,10 +301,9 @@ def main():
     for root, _ in cases:
         if root.name == legacy_sms_case:
             (root / "input/databases").mkdir()
-            with sqlite3.connect(root / "input/databases/RKStorage") as store:
+            with closing(sqlite3.connect(root / "input/databases/RKStorage")) as store, store:
                 store.executescript("CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=1;")
                 store.execute("INSERT INTO catalystLocalStorage VALUES(?,?)", ("masarifi.tracking.smsImportQueue.v1", "malformed-public-payload"))
-            store.close()
 
     def launch_expected(name):
         value = admission_expected(name)

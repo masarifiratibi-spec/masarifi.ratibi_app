@@ -10,7 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Full sqlite_master coverage, derived from exact91213b4/7967007 migrations.
+/** Full sqlite_master coverage, derived from reviewed source-pinned migrations.
  * Recognition alone does not establish journal emptiness or owner/key coverage. */
 public final class VoiceDatabaseSchema {
     public record SchemaObject(String type,String name,String table,String sql) {}
@@ -37,7 +37,8 @@ public final class VoiceDatabaseSchema {
         "48cc3aef4485b34373d62f6e884b34c599c65201636e1dba4a0588c79edab125",
         "ea12785792ba64c65e1a9cf04ab1a7eb8562f469ed4217140436c9f396e47a23",
         "7ff145f8513c0ded95a64742def0c1fad20304125f52f3ba101b3f04bad27fad",
-        "202e7519631c026bf75e8ca1479dc40097b405b44d483ed92e393f335919b274"
+        "202e7519631c026bf75e8ca1479dc40097b405b44d483ed92e393f335919b274",
+        "55f9106206256b251f42f3dbe1e0a02cc8c4433dd29c98d3a0e59292e76487a3"
     };
 
     static Coverage mobile(List<SchemaObject> objects,List<Long> versions) {
@@ -56,7 +57,7 @@ public final class VoiceDatabaseSchema {
         return new Coverage(1,false,false,true,false);
     }
     private static int prefixVersion(List<Long> versions) {
-        if (versions == null || versions.isEmpty() || versions.size()>15) throw failure("SCHEMA_MIGRATIONS");
+        if (versions == null || versions.isEmpty() || versions.size()>16) throw failure("SCHEMA_MIGRATIONS");
         for (int index=0;index<versions.size();index++)
             if (versions.get(index) == null || versions.get(index) != index+1L) throw failure("SCHEMA_MIGRATIONS");
         return versions.size();

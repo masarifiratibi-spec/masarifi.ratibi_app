@@ -125,7 +125,7 @@ def main():
             raise RuntimeError("PINNED_ANDROID35_RUNTIME_STUB_REQUIRED")
         if not all((arguments.journal_fixtures, arguments.journal_native, arguments.journal_abi)):
             raise RuntimeError("COMPLETE_JOURNAL_BUILD_INPUTS_REQUIRED")
-        if len(list(arguments.journal_fixtures.glob("*/fixture.json"))) < 30:
+        if len(list(arguments.journal_fixtures.glob("*/fixture.json"))) != 69:
             raise RuntimeError("FULL_SYNTHETIC_JOURNAL_FIXTURES_REQUIRED")
         native = json.loads((arguments.journal_native / "build-receipt.json").read_text(encoding="utf-8"))
         if native["abi"] != arguments.journal_abi:

@@ -32,7 +32,7 @@ final class LocalAdmissionCollector {
     void owner(String owner,int schemaVersion,boolean cleanupPending) {
         require(owner!=null && owner.matches("[0-9a-f]{64}"));
         require(!batches.containsKey(owner) && batches.size()<1024);
-        batches.put(owner,new long[2]);schemaCurrent &= schemaVersion==15;legacyCleanup |= cleanupPending;
+        batches.put(owner,new long[2]);schemaCurrent &= schemaVersion==16;legacyCleanup |= cleanupPending;
     }
     void legacyPresent(){legacyCleanup=true;}
     void batch(String owner,boolean terminal,boolean audioOwned,long recordedAt) {
