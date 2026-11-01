@@ -2,7 +2,8 @@ import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import {
   benchmarkFetch,
   recordBenchmarkEvent,
-  recordFirstProtectedRoute
+  recordFirstProtectedRoute,
+  recordPreferencesStorageOutcome
 } from './benchmark-observability';
 
 jest.mock('expo', () =>
@@ -17,6 +18,202 @@ const events = () =>
   log.mock.calls
     .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
     .map(([, value]) => JSON.parse(value));
+
+it('keeps ordinary preference outcomes silent', () => {
+  recordPreferencesStorageOutcome('write', 'failure', { code: 'ERR_ENCRYPT' });
+  recordPreferencesStorageOutcome('read', 'success');
+  expect(events()).toEqual([]);
+});
+
+it.each([
+  ['ERR_WRITE', 'write'],
+  ['ERR_ENCRYPT', 'encrypt'],
+  ['ERR_DECRYPT', 'decrypt'],
+  ['ERR_KEY_STORE', 'keystore'],
+  ['ERR_UNAVAILABLE', 'native_unavailable'],
+  ['ERR_MODULE_NOT_FOUND', 'native_unavailable'],
+  ['ERR_METHOD_NOT_FOUND', 'native_function_missing'],
+  ['ERR_NULL_KEY', 'argument'],
+  ['ERR_INVALID_ARGS_NUMBER', 'argument'],
+  ['ERR_NULL_ARGUMENT', 'argument'],
+  ['ERR_INCOMPATIBLE_ARG_TYPE', 'argument'],
+  ['ERR_DYNAMIC_CAST', 'argument'],
+  ['ERR_MISSING_TYPE_CONVERTER', 'argument'],
+  ['ERR_INVALID_EXPECTED_TYPE', 'argument'],
+  ['TOKEN_MARKER', 'unknown']
+])('classifies %s without serializing the error', (code, errorClass) => {
+  const restore = installBenchmarkEnvironment();
+  try {
+    recordPreferencesStorageOutcome('write', 'failure', {
+      code,
+      message: 'TOKEN_MARKER OWNER_MARKER https://URL_MARKER.invalid',
+      name: 'PRIVATE_NAME',
+      stack: 'PRIVATE_STACK',
+      value: 'PRIVATE_PREFERENCES',
+      key: 'PRIVATE_KEY'
+    });
+    expect(events()).toEqual([
+      {
+        kind: 'preferences',
+        operation: 'write',
+        outcome: 'failure',
+        errorClass,
+        atMs: expect.any(Number)
+      }
+    ]);
+    expect(JSON.stringify(events())).not.toMatch(/MARKER|PRIVATE/);
+  } finally {
+    restore();
+  }
+});
+
+it('distinguishes JavaScript type errors and records successful reads', () => {
+  const restore = installBenchmarkEnvironment();
+  try {
+    recordPreferencesStorageOutcome(
+      'read',
+      'failure',
+      new TypeError('PRIVATE')
+    );
+    recordPreferencesStorageOutcome('read', 'success');
+    expect(events()).toEqual([
+      {
+        kind: 'preferences',
+        operation: 'read',
+        outcome: 'failure',
+        errorClass: 'type',
+        atMs: expect.any(Number)
+      },
+      {
+        kind: 'preferences',
+        operation: 'read',
+        outcome: 'success',
+        errorClass: 'none',
+        atMs: expect.any(Number)
+      }
+    ]);
+  } finally {
+    restore();
+  }
+});
+
+it.each([
+  ['An error occurred when writing to key', 'write'],
+  ['Could not encrypt the value for key', 'encrypt'],
+  ['Could not decrypt the value for key', 'decrypt'],
+  ['An error occurred when accessing the keystore', 'keystore'],
+  [
+    'ExpoSecureStore.setValueWithKeyAsync is not a function',
+    'native_function_missing'
+  ],
+  [
+    'ExpoSecureStore.getValueWithKeyAsync is not a function',
+    'native_function_missing'
+  ],
+  ['An error occurred when saving PRIVATE', 'unknown']
+])(
+  'classifies only the allowlisted upstream fragment %s after Release code transformation',
+  (fragment, errorClass) => {
+    const restore = installBenchmarkEnvironment();
+    try {
+      const error = Object.assign(
+        new Error(
+          `Call to function rejected. ${fragment}: PRIVATE_VALUE PRIVATE_KEY PRIVATE_OWNER https://PRIVATE_URL.invalid`
+        ),
+        { code: 'ERR_S' }
+      );
+      recordPreferencesStorageOutcome('write', 'failure', error);
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation: 'write',
+          outcome: 'failure',
+          errorClass,
+          atMs: expect.any(Number)
+        }
+      ]);
+      expect(JSON.stringify(events())).not.toMatch(
+        /PRIVATE|ERR_S|Call to|SecureStore|An error occurred|Could not/
+      );
+    } finally {
+      restore();
+    }
+  }
+);
+
+it.each(['code', 'message'])(
+  'contains a throwing error %s accessor inside diagnostics',
+  (field) => {
+    const restore = installBenchmarkEnvironment();
+    try {
+      const error = Object.defineProperty({}, field, {
+        get: () => {
+          throw Error('PRIVATE');
+        }
+      });
+      expect(() =>
+        recordPreferencesStorageOutcome('read', 'failure', error)
+      ).not.toThrow();
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation: 'read',
+          outcome: 'failure',
+          errorClass: 'unknown',
+          atMs: expect.any(Number)
+        }
+      ]);
+    } finally {
+      restore();
+    }
+  }
+);
+
+it('rejects invalid preference enums and strips private event extras', () => {
+  const restore = installBenchmarkEnvironment();
+  try {
+    const valid = {
+      kind: 'preferences',
+      operation: 'write',
+      outcome: 'failure',
+      errorClass: 'unknown'
+    } as const;
+    recordBenchmarkEvent({ ...valid, value: 'PRIVATE' } as never);
+    recordBenchmarkEvent({ ...valid, operation: 'PRIVATE' } as never);
+    recordBenchmarkEvent({ ...valid, outcome: 'PRIVATE' } as never);
+    recordBenchmarkEvent({ ...valid, errorClass: 'PRIVATE' } as never);
+    recordBenchmarkEvent({ ...valid, outcome: 'success' } as never);
+    recordBenchmarkEvent({ ...valid, errorClass: 'none' } as never);
+    expect(events()).toEqual([{ ...valid, atMs: expect.any(Number) }]);
+  } finally {
+    restore();
+  }
+});
+
+it('shares the 400 event cap between preference diagnostics and other metrics', () => {
+  jest.isolateModules(() => {
+    const isolated = jest.requireActual<
+      typeof import('./benchmark-observability')
+    >('./benchmark-observability');
+    const restore = installBenchmarkEnvironment();
+    try {
+      for (let i = 0; i < 399; i++)
+        isolated.recordBenchmarkEvent({ kind: 'home', outcome: 'ready' });
+      isolated.recordPreferencesStorageOutcome('write', 'failure', {
+        code: 'ERR_WRITE'
+      });
+      isolated.recordPreferencesStorageOutcome('read', 'success');
+      isolated.recordBenchmarkEvent({ kind: 'home', outcome: 'ready' });
+      expect(events()).toHaveLength(400);
+      expect(events()[399]).toMatchObject({
+        kind: 'preferences',
+        errorClass: 'write'
+      });
+    } finally {
+      restore();
+    }
+  });
+});
 
 it('keeps ordinary timing, transport and route paths silent', async () => {
   recordBenchmarkEvent({ kind: 'home', outcome: 'ready' });

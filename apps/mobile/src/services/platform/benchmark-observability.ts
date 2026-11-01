@@ -28,10 +28,30 @@ export type PerformanceStage = (typeof performanceStages)[number];
 type HomeOutcome = 'ready' | 'failed' | 'left_route';
 type RouteCategory = 'unlock' | 'home' | 'other';
 type EndpointGroup = 'ledger' | 'reports' | 'planning' | 'identity' | 'other';
+const preferencesErrorClasses = [
+  'none',
+  'native_unavailable',
+  'native_function_missing',
+  'write',
+  'encrypt',
+  'decrypt',
+  'keystore',
+  'argument',
+  'type',
+  'unknown'
+] as const;
+type PreferencesErrorClass = (typeof preferencesErrorClasses)[number];
+type PreferencesOperation = 'read' | 'write';
 type BenchmarkEvent =
   | { kind: 'timing'; stage: PerformanceStage; elapsedMs: number }
   | { kind: 'home'; outcome: HomeOutcome }
   | { kind: 'protected_route'; category: RouteCategory }
+  | {
+      kind: 'preferences';
+      operation: PreferencesOperation;
+      outcome: 'success' | 'failure';
+      errorClass: PreferencesErrorClass;
+    }
   | {
       kind: 'transport';
       group: EndpointGroup;
@@ -76,6 +96,21 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
         if (!['unlock', 'home', 'other'].includes(event.category)) return;
         metadata = { kind: 'protected_route', category: event.category };
         break;
+      case 'preferences':
+        if (
+          !['read', 'write'].includes(event.operation) ||
+          !['success', 'failure'].includes(event.outcome) ||
+          !preferencesErrorClasses.includes(event.errorClass) ||
+          (event.outcome === 'success') !== (event.errorClass === 'none')
+        )
+          return;
+        metadata = {
+          kind: 'preferences',
+          operation: event.operation,
+          outcome: event.outcome,
+          errorClass: event.errorClass
+        };
+        break;
       case 'transport':
         if (
           !['ledger', 'reports', 'planning', 'identity', 'other'].includes(
@@ -110,6 +145,86 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
     console.info('BENCHMARK_METRIC', JSON.stringify({ ...metadata, atMs }));
   } catch {
     // Telemetry must never affect application outcomes, even if its sink fails.
+  }
+}
+
+/** Fixed upstream fragments survive R8 class merging; the text never enters telemetry. */
+function preferencesMessageErrorClass(error: unknown): PreferencesErrorClass {
+  const message =
+    error && typeof error === 'object' && 'message' in error
+      ? error.message
+      : undefined;
+  if (typeof message === 'string') {
+    if (message.includes('An error occurred when writing to key'))
+      return 'write';
+    if (message.includes('Could not encrypt the value for key'))
+      return 'encrypt';
+    if (message.includes('Could not decrypt the value for key'))
+      return 'decrypt';
+    if (message.includes('An error occurred when accessing the keystore'))
+      return 'keystore';
+    if (
+      message.includes('is not a function') &&
+      (message.includes('setValueWithKeyAsync') ||
+        message.includes('getValueWithKeyAsync'))
+    )
+      return 'native_function_missing';
+  }
+  return error instanceof TypeError ? 'type' : 'unknown';
+}
+
+/** Exact dependency whitelist only; never retain or emit error text, names or stacks. */
+function preferencesErrorClass(error: unknown): PreferencesErrorClass {
+  try {
+    const code =
+      error && typeof error === 'object' && 'code' in error
+        ? error.code
+        : undefined;
+    switch (code) {
+      case 'ERR_UNAVAILABLE':
+      case 'ERR_MODULE_NOT_FOUND':
+        return 'native_unavailable';
+      case 'ERR_METHOD_NOT_FOUND':
+        return 'native_function_missing';
+      case 'ERR_WRITE':
+        return 'write';
+      case 'ERR_ENCRYPT':
+        return 'encrypt';
+      case 'ERR_DECRYPT':
+        return 'decrypt';
+      case 'ERR_KEY_STORE':
+        return 'keystore';
+      case 'ERR_NULL_KEY':
+      case 'ERR_INVALID_ARGS_NUMBER':
+      case 'ERR_NULL_ARGUMENT':
+      case 'ERR_INCOMPATIBLE_ARG_TYPE':
+      case 'ERR_DYNAMIC_CAST':
+      case 'ERR_MISSING_TYPE_CONVERTER':
+      case 'ERR_INVALID_EXPECTED_TYPE':
+        return 'argument';
+      default:
+        return preferencesMessageErrorClass(error);
+    }
+  } catch {
+    return 'unknown';
+  }
+}
+
+export function recordPreferencesStorageOutcome(
+  operation: PreferencesOperation,
+  outcome: 'success' | 'failure',
+  error?: unknown
+): void {
+  try {
+    if (!isBenchmarkReadOnly() || eventCount >= 400) return;
+    recordBenchmarkEvent({
+      kind: 'preferences',
+      operation,
+      outcome,
+      errorClass: outcome === 'success' ? 'none' : preferencesErrorClass(error)
+    });
+  } catch {
+    // Diagnostics cannot replace a storage result or rejection.
   }
 }
 

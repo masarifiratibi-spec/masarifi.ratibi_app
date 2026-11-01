@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { z } from 'zod';
+import { recordPreferencesStorageOutcome } from '@/services/platform/benchmark-observability';
 
 import {
   buildPreferences,
@@ -105,7 +106,13 @@ export async function savePreferences(
   if (Platform.OS === 'web') {
     await AsyncStorage.setItem(STORAGE_KEY, serialized);
   } else {
-    await SecureStore.setItemAsync(STORAGE_KEY, serialized);
+    try {
+      await SecureStore.setItemAsync(STORAGE_KEY, serialized);
+      recordPreferencesStorageOutcome('write', 'success');
+    } catch (error) {
+      recordPreferencesStorageOutcome('write', 'failure', error);
+      throw error;
+    }
   }
 }
 
@@ -115,10 +122,16 @@ export function clearPersistedPreferences(): Promise<void> {
     : SecureStore.deleteItemAsync(STORAGE_KEY);
 }
 
-function readPersistedPreferences(): Promise<string | null> {
-  return Platform.OS === 'web'
-    ? AsyncStorage.getItem(STORAGE_KEY)
-    : SecureStore.getItemAsync(STORAGE_KEY);
+async function readPersistedPreferences(): Promise<string | null> {
+  if (Platform.OS === 'web') return AsyncStorage.getItem(STORAGE_KEY);
+  try {
+    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    recordPreferencesStorageOutcome('read', 'success');
+    return raw;
+  } catch (error) {
+    recordPreferencesStorageOutcome('read', 'failure', error);
+    throw error;
+  }
 }
 
 function deserialize(raw: string): UserPreferences {

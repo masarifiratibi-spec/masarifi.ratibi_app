@@ -72,3 +72,6 @@ c65efc62cdcdab0c25ccf2ca0801b505243df371:apps/api/specs/003-admin-rbac-security/
 
 # Historical source commit SHA for the separate DEV authentication callback; verified Git commit, not a credential.
 d6cb730c576e44bcd2bbdec2d16a289b64c76c06:docs/superpowers/plans/2026-10-16-native-dev-deletion-acceptance.md:generic-api-key:44
+
+# Firebase-generated benchmark Android client key; matches the public ordinary client config, not a service-account secret.
+37cf7d04b07c18eceac7d6b52e3dee29b6563233:apps/mobile/google-services.benchmark.json:gcp-api-key:23
