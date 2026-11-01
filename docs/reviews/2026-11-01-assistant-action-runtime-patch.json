@@ -6,7 +6,7 @@
   "targets": {
     "api": {
       "name": "masarifi-assistant-reports-api-ledger-scope-20261023-t04-r18-8937ba09",
-      "image": "sha256:f6c799f60f2b81cba49e78b1e53162968f9df7cb81734d65ab620b3e82a62595",
+      "image": "sha256:f6c799f60f2b81cba49e78b1e53162968f9df7eb81734d65ab620b3e82a62595",
       "idPrefix": "bbb500a92f28",
       "files": [
         {
