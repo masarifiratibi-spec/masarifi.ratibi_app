@@ -1,6 +1,6 @@
 # Server cleanup execution — 1–2 November 2026 (Riyadh)
 
-**Obsolete-artifact cleanup executed. Full backend consolidation and production readiness remain NOT READY.** Cleanup-completion snapshot: 2026-11-02T00:23:50+03:00. Later resource measurements and the approved host-maintenance correction are in the [2 November health follow-up](../2026-11-02/server-health-report.md). Application code is qualified at `721a943b72837d3f43a4e4b61bc3ab4cd83738d8` on `codex/voice-promoted-operating-2026-10-13`; later branch commits change CI/reporting only, with identical apps/packages/schema/Docker trees.
+**Obsolete-artifact cleanup executed. Full backend consolidation and production readiness remain NOT READY.** Cleanup-completion snapshot: 2026-11-02T00:23:50+03:00. Later resource measurements and the approved host-maintenance correction are in the [2 November health follow-up](../2026-11-02/server-health-report.md). Application code is qualified at `721a943b72837d3f43a4e4b61bc3ab4cd83738d8` on `codex/voice-promoted-operating-2026-10-13`. A subsequent [database-index candidate](../2026-11-02/supabase-optimization-report.md) changes the Supabase tree and is not applied live or branch-wide qualified; API/Admin/packages/Docker trees remain equal.
 
 | Measurement | Before cleanup | Latest observed |
 | --- | ---: | ---: |

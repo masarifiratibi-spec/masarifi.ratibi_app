@@ -122,7 +122,7 @@
     "networkCalls": false,
     "applicationModulesExecuted": false
   },
-  "currentBranchApplicationTreesEqualQualifiedCandidate": true,
+  "currentBranchApplicationTreesEqualQualifiedCandidate": false,
   "canonicalBackendImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
   "adminObservationResumedAfterApprovedHostRestartAt": "2026-11-01T22:01:42.804184+00:00",
   "serverHealthFollowUp": {
@@ -135,5 +135,14 @@
     "periodicTrimTimerActive": true,
     "originalDiscardDeviceLimitsRestored": true,
     "memoryLeakProven": false
+  },
+  "currentBranchApiAdminPackageAndDockerTreesEqualQualifiedCandidate": true,
+  "pendingDatabaseOptimization": {
+    "sourceMigration": "supabase/migrations/20261101223723_outbox_voice_confirmation_lookup_index.sql",
+    "sha256": "f3cfc33fb1f267572bf7d1eaee67cc544f24583b0998b07c3c1b3784dea0edbb",
+    "liveApplied": false,
+    "lastLiveReconciliationAtUtc": "2026-11-01T23:01:34.816878+00:00",
+    "report": "../2026-11-02/supabase-optimization-report.md",
+    "fullBranchQualificationPassed": false
   }
 }
