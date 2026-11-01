@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -20,6 +21,7 @@ import {
 } from '@/features/auth/session-controller';
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import { createMockAuthService } from '@/services/mocks/auth-service';
+jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -59,6 +61,18 @@ const rules = {
   senders: [{ normalizedSender: 'com.bank.app', trusted: true, enabled: true }]
 };
 const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+test('benchmark restoration and tracking activation leave native capture and storage dormant', async () => {
+  const restoreEnvironment = installBenchmarkEnvironment();
+  try {
+    await resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' });
+    await configureTrackingBackground('owner-a', rules);
+    await scheduleTrackingFollowUp('owner-a');
+    expect(MasarifiSmsInbox?.restoreTrackingOwner).not.toHaveBeenCalled();
+    expect(MasarifiSmsInbox?.configureTrackingOwner).not.toHaveBeenCalled();
+    expect(MasarifiSmsInbox?.scheduleTrackingFollowUp).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith('masarifi.tracking.background-context.v2', expect.anything());
+  } finally { restoreEnvironment(); }
+});
 test('preserved sign-out suspends native intake without clearing retained owner notifications', async () => {
   mockNativeNotifications = ['retained'];
   await resetRuntimeIdentityData({kind:'signed-out-preserve'});

@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { privacyExportStatusSchema } from '@/domain/settings';
 import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { z } from 'zod';
@@ -1057,6 +1058,7 @@ async function defaultIdentityRequest(
   } = {},
   expectedOwnerId?: string | null
 ): Promise<unknown> {
+  assertBenchmarkRead(options.method);
   const read = (options.method ?? 'GET').toUpperCase() === 'GET';
   const actor = await (read
     ? captureLiveReadClerkIdentity()

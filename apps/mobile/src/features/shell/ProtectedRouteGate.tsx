@@ -12,7 +12,7 @@ import { useLiveClerkSessionKey } from '@/services/live/clerk-provider';
 import { createNotificationResponseController } from '@/features/notifications/notification-response-controller';
 import { notificationService } from '@/services/engagement-service';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
-import { isAppLockEnabled } from '@/config/client-runtime';
+import { isAppLockEnabled, isBenchmarkReadOnly } from '@/config/client-runtime';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 import { consumeGuestOnboardingReminder } from '@/services/platform/guest-onboarding-reminder';
 import { DevReminderRuntime } from '@/features/notifications/DevReminderRuntime';
@@ -131,6 +131,7 @@ export function NotificationResponseRuntime() {
   }, [hydrated, privacyLock, session]);
 
   useEffect(() => {
+    if (isBenchmarkReadOnly()) return;
     const unlocks = pendingUnlocks.current;
     const remoteWaiters = pendingRemote.current;
     void phoneNotificationService.registerCategories().catch(() => undefined);

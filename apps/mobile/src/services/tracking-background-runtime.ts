@@ -5,7 +5,7 @@ import type { TokenCache } from '@clerk/expo';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
-import { resolveClientRuntime } from '@/config/client-runtime';
+import { resolveClientRuntime, isBenchmarkReadOnly } from '@/config/client-runtime';
 import { configureDatabaseOwner } from '@/storage/database';
 import {
   registerRuntimeIdentityReset,
@@ -40,6 +40,7 @@ function serializeNative(change: () => Promise<void>): Promise<void> {
   return operation;
 }
 export async function scheduleTrackingFollowUp(ownerId: string): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
   const runtime = resolveClientRuntime();
   const native = trackingNativeRuntime;
   if (
@@ -91,6 +92,7 @@ export async function configureTrackingBackground(
   mode?: string,
   expectedEpoch = trackingConsentEpoch()
 ): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
   const expectedGeneration = nativeGeneration;
   return serializeNative(async () => {
     const current = () =>
@@ -242,6 +244,7 @@ export async function purgeDeletedOwnerTracking(
 export async function restoreTrackingBackground(
   ownerId: string
 ): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
   const generation = ++nativeGeneration;
   restorationBlocked = true;
   return serializeNative(async () => {
@@ -294,6 +297,7 @@ export async function restoreTrackingBackground(
 }
 
 registerRuntimeIdentityReset((context) => {
+  if (isBenchmarkReadOnly()) return;
   invalidateTrackingConsent();
   if (context && 'restoringOwnerId' in context)
     return restoreTrackingBackground(context.restoringOwnerId);
@@ -310,6 +314,7 @@ registerRuntimeIdentityReset((context) => {
   return disableTrackingBackground();
 });
 registerRuntimeUserDataReset(() => {
+  if (isBenchmarkReadOnly()) return;
   invalidateTrackingConsent();
   restorationBlocked = true;
   return disableTrackingBackground();
@@ -319,6 +324,7 @@ export async function runTrackingBackground(input: {
   ownerDigest?: string;
   generation?: string;
 }): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
   if (restorationBlocked) return;
   const generation = nativeGeneration;
   const current = () => !restorationBlocked && generation === nativeGeneration;
@@ -406,6 +412,7 @@ export async function runTrackingBackground(input: {
     throw new Error('tracking_background_retry');
 }
 export function registerTrackingHeadlessTask(): void {
+  if (isBenchmarkReadOnly()) return;
   AppRegistry.registerHeadlessTask('MasarifiTracking', () => async (input) => {
     try {
       await runTrackingBackground(input);

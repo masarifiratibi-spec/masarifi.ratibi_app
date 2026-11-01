@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -189,11 +190,10 @@ export function createVoiceBatchApi(options: {
   const sleep =
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  const binding = async (captureId?: string) => ({
-    owner: await options.owner(),
-    epoch,
-    captureId
-  });
+  const binding = async (captureId?: string) => {
+    assertBenchmarkRead('POST');
+    return { owner: await options.owner(), epoch, captureId };
+  };
   const check = async (b: { owner: string; epoch: number }) => {
     const currentOwner = await options.owner();
     if (b.epoch !== epoch || b.owner !== currentOwner)
@@ -229,6 +229,7 @@ export function createVoiceBatchApi(options: {
     key?: string,
     audio?: ArrayBuffer
   ): Promise<unknown> => {
+    assertBenchmarkRead(method);
     const requestId = randomUUID();
     const started = performance.now();
     const sessionId = path.match(/\/voice\/sessions\/([0-9a-f-]{36})\//i)?.[1];

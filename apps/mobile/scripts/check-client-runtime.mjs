@@ -1,5 +1,6 @@
 import { URL } from 'node:url';
 import { Buffer } from 'node:buffer';
+import benchmarkPolicy from './benchmark-build-policy.cjs';
 
 const clerkKeyPattern = /^pk_(?:live|test)_[A-Za-z0-9_-]{10,}$/;
 const publicSecretPattern = /^EXPO_PUBLIC_.*(?:API_KEY|SECRET|SERVICE_ROLE)/;
@@ -10,6 +11,7 @@ export function validateClientBuildEnvironment(environment = process.env) {
   );
   if (exposed)
     throw new Error(`forbidden public secret variable: ${exposed[0]}`);
+  if (benchmarkPolicy.validateBenchmarkBuildEnvironment(environment)) return;
   const privacyVariant = 'staging-development-privacy';
   const privacyApi = 'https://api.staging.masarifiratibi.com/dev-privacy';
   if (

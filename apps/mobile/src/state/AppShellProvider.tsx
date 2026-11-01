@@ -14,6 +14,7 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   isDevPrivacyDeletionEnabled,
+  isBenchmarkReadOnly,
   resolveClientMode
 } from '@/config/client-runtime';
 import { prepareDevDeletionBootstrap } from '@/services/dev-account-deletion';
@@ -114,6 +115,7 @@ export function AppShellProvider({
 
   const registerPushDevice = useCallback(
     (refresh = false) => {
+      if (isBenchmarkReadOnly()) return;
       if (!liveClerkSessionKey || mode !== 'live') return;
       if (pushRegistrationFlight.current?.sessionKey === liveClerkSessionKey)
         return;
@@ -178,6 +180,10 @@ export function AppShellProvider({
           )
             void authService.touchActivity().catch(() => undefined);
           registerPushDevice();
+          if (isBenchmarkReadOnly()) {
+            void refreshPlatformOperations().catch(() => undefined);
+            return;
+          }
           void recordMobileForeground().catch(() => undefined);
           void synchronizeLiveCoreFinance().catch(() => undefined);
           void refreshPlatformOperations().catch(() => undefined);
@@ -284,6 +290,10 @@ export function AppShellProvider({
       ) {
         void authService.touchActivity().catch(() => undefined);
         registerPushDevice(true);
+        if (isBenchmarkReadOnly()) {
+          void refreshPlatformOperations().catch(() => undefined);
+          return;
+        }
         void recordMobileForeground().catch(() => undefined);
         void synchronizeLiveCoreFinance().catch(() => undefined);
         void refreshPlatformOperations().catch(() => undefined);

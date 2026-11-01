@@ -1,3 +1,4 @@
+import { assertBenchmarkRead, isBenchmarkReadOnly } from '@/config/client-runtime';
 import {
   createNotificationPreferences,
   notificationCategorySchema,
@@ -104,6 +105,7 @@ export function createEngagementApi({
     isCurrent: () => boolean | Promise<boolean> = () => true,
     signal?: AbortSignal
   ): Promise<Json> => {
+    assertBenchmarkRead(method);
     if (!baseUrl || !path.startsWith('/api/v1/'))
       throw new EngagementApiError('unavailable');
     const identity =
@@ -368,6 +370,7 @@ export async function ensureLivePushDeviceRegistration(
     pushRegistration?: () => Promise<PushDeviceRegistration | null>;
   } = {}
 ) {
+  if (isBenchmarkReadOnly()) return 'unavailable' as const;
   const {
     phone = phoneNotificationService,
     pushRegistration = getPushDeviceRegistration,

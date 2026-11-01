@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import Constants from 'expo-constants';
 
 export type SyncDomain = 'accounts' | 'categories' | 'transactions';
@@ -95,6 +96,7 @@ export class SyncHttpService {
     body?: Record<string, unknown>,
     idempotencyKey?: string
   ): Promise<Record<string, unknown>> {
+    assertBenchmarkRead(method);
     const encoded = body ? JSON.stringify(body) : undefined;
     if (encoded && new TextEncoder().encode(encoded).byteLength > 524_288)
       throw new SyncServiceError('SYNC_PAYLOAD_TOO_LARGE', 413);

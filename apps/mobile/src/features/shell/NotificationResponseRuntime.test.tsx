@@ -7,6 +7,8 @@ import { buildPreferences } from '@/domain/foundation';
 import { notificationService } from '@/services/engagement-service';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
 import { router } from 'expo-router';
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
+jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
 let mockClerkKey: string | undefined;
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -56,6 +58,18 @@ beforeEach(() => {
     privacyLock: null
   });
   usePreferenceStore.setState({ ...buildPreferences({}), hydrated: true });
+});
+it('keeps benchmark notification categories, cold responses and subscriptions dormant', async () => {
+  const restoreEnvironment = installBenchmarkEnvironment();
+  try {
+    const view = render(<NotificationResponseRuntime />);
+    await act(async () => { await Promise.resolve(); });
+    expect(phoneNotificationService.registerCategories).not.toHaveBeenCalled();
+    expect(phoneNotificationService.getLastResponse).not.toHaveBeenCalled();
+    expect(phoneNotificationService.subscribeToResponses).not.toHaveBeenCalled();
+    expect(notificationService.resolveTarget).not.toHaveBeenCalled();
+    view.unmount();
+  } finally { restoreEnvironment(); }
 });
 it('replays a cold remote tap after both shell restoration and delayed Clerk startup', async () => {
   const view = render(<NotificationResponseRuntime />);

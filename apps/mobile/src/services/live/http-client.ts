@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { assertBenchmarkRead } from '@/config/client-runtime';
 
 export type HttpErrorCode =
   | 'validation_error'
@@ -127,6 +128,7 @@ export async function requestJson<T>(
   schema: z.ZodType<T>,
   options: RequestOptions<T> = {}
 ): Promise<T> {
+  assertBenchmarkRead(options.method);
   try {
     return await performRequestJson(path, schema, options);
   } catch (error) {

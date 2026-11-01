@@ -1,3 +1,4 @@
+import { isBenchmarkReadOnly } from '@/config/client-runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -167,6 +168,7 @@ export function useVoiceBatches(owner: string | null) {
   );
   const recover = useCallback(async () => {
     if (
+      isBenchmarkReadOnly() ||
       !ownerRef.current ||
       recovering.current === generation.current ||
       !voiceAnalyzerService.recoverBatches
@@ -211,6 +213,7 @@ export function useVoiceBatches(owner: string | null) {
     }
   }, [publish, refreshFinance]);
   useEffect(() => {
+    if (isBenchmarkReadOnly()) return;
     mounted.current = true;
     setResults([]);
     setPendingIds([]);

@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { execFileSync } = require("node:child_process");
 const { resolve } = require("node:path");
+const { benchmarkProfile } = require('../../apps/mobile/scripts/benchmark-build-policy.cjs');
 const root = resolve(__dirname, "../..");
 // C0 is the user-verified closure baseline, including the accepted display name.
 const baseline = "7e3bbef0cdccc2ee5509dd332f4e32236af01b90";
@@ -49,9 +50,11 @@ function validateIdentity(actual, expected) {
   }
   assert.deepEqual(
     Object.keys(actual.eas.build).sort(),
-    Object.keys(expected.eas.build).sort(),
+    [...Object.keys(expected.eas.build), ...(actual.eas.build.benchmark ? ['benchmark'] : [])].sort(),
     "No unreviewed build profiles",
   );
+  if (actual.eas.build.benchmark)
+    assert.deepEqual(actual.eas.build.benchmark, benchmarkProfile, 'Only the approved read-only benchmark profile is allowed');
   const production = actual.eas.build.production;
   assert.equal(production.environment, "production");
   assert.equal(production.node, "24.16.0");

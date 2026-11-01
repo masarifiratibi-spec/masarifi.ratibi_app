@@ -1,4 +1,5 @@
 import * as TaskManager from 'expo-task-manager';
+import { isBenchmarkReadOnly } from '@/config/client-runtime';
 import type { NotificationTaskPayload } from './platform/tracking-notification-task';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -7,9 +8,10 @@ import { captureLiveClerkIdentity } from './live/auth-service';
 import { presentTrackingConfirmation } from './tracking-save-confirmation';
 
 export const trackingPushTask = 'masarifi-tracking-confirmation-v2';
-TaskManager.defineTask<NotificationTaskPayload>(
+if (!isBenchmarkReadOnly()) TaskManager.defineTask<NotificationTaskPayload>(
   trackingPushTask,
   async ({ data, error }) => {
+    if (isBenchmarkReadOnly()) return;
     if (error || !data || 'actionIdentifier' in data) return;
     const raw = data.data.dataString;
     const payload =

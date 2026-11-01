@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
 import { z } from 'zod';
 
@@ -182,6 +183,7 @@ export function createLiveCategoryLifecycleService({
       owner?: CategoryOwner;
     } = {}
   ) => {
+    assertBenchmarkRead(method);
     const operationId = options.operationId ?? randomUUID();
     const identity =
       options.owner?.identity ??
@@ -316,6 +318,7 @@ export function createLiveCategoryLifecycleService({
       input: CategoryInput,
       operationId = randomUUID()
     ): Promise<VersionedCategory> {
+      assertBenchmarkRead('POST');
       const value = categoryInputSchema.parse(input);
       const owner = await captureOwner();
       if (value.parentId !== null) await service.prepareCategoryIds();
@@ -345,6 +348,7 @@ export function createLiveCategoryLifecycleService({
       expectedVersion: number,
       operationId = randomUUID()
     ): Promise<VersionedCategory> {
+      assertBenchmarkRead('POST');
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)
         throw new HttpError('validation_error', 400);
       const value = categoryInputSchema.parse(input);
@@ -390,6 +394,7 @@ export function createLiveCategoryLifecycleService({
       preview: CategoryUsagePreview,
       operationId = randomUUID()
     ) {
+      assertBenchmarkRead('POST');
       const encoded = encodeURIComponent(serverId(id));
       if (status === 'archived')
         await send(
@@ -413,6 +418,7 @@ export function createLiveCategoryLifecycleService({
       preview: CategoryUsagePreview,
       operationId = randomUUID()
     ) {
+      assertBenchmarkRead('POST');
       const merged = await send(
         'POST',
         `/api/v1/categories/${encodeURIComponent(serverId(sourceId))}/merge`,

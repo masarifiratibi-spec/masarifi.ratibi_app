@@ -1,6 +1,30 @@
 const { URL } = globalThis;
+const {
+  validateBenchmarkBuildEnvironment
+} = require('./scripts/benchmark-build-policy.cjs');
 
 module.exports = ({ config }) => {
+  if (validateBenchmarkBuildEnvironment(process.env)) {
+    return {
+      ...config,
+      ...(process.env.MASARIFI_RELEASE_VERSION_NAME
+        ? { version: process.env.MASARIFI_RELEASE_VERSION_NAME }
+        : {}),
+      name: 'Masarifi Benchmark',
+      scheme: 'masarifi-benchmark',
+      plugins: config.plugins.map((plugin) =>
+        (Array.isArray(plugin) ? plugin[0] : plugin) === 'expo-dev-client'
+          ? ['expo-dev-client', { addGeneratedScheme: false }]
+          : plugin
+      ),
+      ios: { ...config.ios, bundleIdentifier: 'com.masarifi.mobile.benchmark' },
+      android: {
+        ...config.android,
+        package: 'com.masarifi.mobile.benchmark',
+        googleServicesFile: './google-services.benchmark.json'
+      }
+    };
+  }
   const variant = process.env.MASARIFI_APP_VARIANT;
   const privacy = variant === 'staging-development-privacy';
   const privacyApi = 'https://api.staging.masarifiratibi.com/dev-privacy';

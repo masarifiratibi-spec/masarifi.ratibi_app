@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import Constants from 'expo-constants';
 import { z } from 'zod';
 import { optionalSpendingPresentationSchema } from '@/domain/assistant-presentation';
@@ -450,6 +451,7 @@ export function createLiveAssistantApiService(
     expectedOwner?: string,
     timeoutMs?: number
   ): Promise<unknown> => {
+    assertBenchmarkRead(method);
     if (!baseUrl) throw new AssistantApiError('assistant_disabled');
     const actor = await identity();
     if (expectedOwner && actor.userId !== expectedOwner)
@@ -1036,6 +1038,7 @@ export function createLiveAssistantApiService(
         : null;
     },
     async retryQuestionOperation() {
+      assertBenchmarkRead('POST');
       const actor = await identity();
       const saved = await journal.read(actor.userId, 'question');
       await actor.assertCurrent();
@@ -1076,6 +1079,7 @@ export function createLiveAssistantApiService(
       );
     },
     async resumeQuestion() {
+      assertBenchmarkRead('POST');
       const actor = await identity();
       const operation = await journal.read(actor.userId, 'question');
       if (!operation?.conversationId)
@@ -1186,6 +1190,7 @@ export function createLiveAssistantApiService(
       }));
     },
     async setConsent(enabled, expectedVersion, operationId) {
+      assertBenchmarkRead('POST');
       const row = await send(
         enabled ? 'PUT' : 'DELETE',
         enabled
@@ -1220,6 +1225,7 @@ export function createLiveAssistantApiService(
       return { items, nextCursor: result.nextCursor, total: items.length };
     },
     async createConversation(input, operationId) {
+      assertBenchmarkRead('POST');
       const actor = await identity();
       const operation = await journal.reserve(
         actor.userId,
@@ -1411,6 +1417,7 @@ export function createLiveAssistantApiService(
       return (await findCold('response', id)) as AssistantResponse;
     },
     async ask(conversationId, question, operationId, intent) {
+      assertBenchmarkRead('POST');
       return mutation(
         await ask(conversationId, question, operationId, intent),
         [
@@ -1421,6 +1428,7 @@ export function createLiveAssistantApiService(
       );
     },
     async renameConversation(id, title, expectedVersion, operationId) {
+      assertBenchmarkRead('POST');
       return mutation(
         mapConversation(
           await send(
@@ -1434,6 +1442,7 @@ export function createLiveAssistantApiService(
       );
     },
     async deleteConversation(id, expectedVersion, operationId) {
+      assertBenchmarkRead('POST');
       await send(
         'DELETE',
         `/api/v1/assistant/conversations/${encodeURIComponent(id)}?expectedVersion=${String(expectedVersion)}`,
@@ -1446,6 +1455,7 @@ export function createLiveAssistantApiService(
       ]);
     },
     async setResponseFeedback(responseId, feedback, operationId) {
+      assertBenchmarkRead('POST');
       const current = await this.getResponse(responseId);
       await send(
         'PUT',
@@ -1562,9 +1572,11 @@ export function createLiveAssistantApiService(
       };
     },
     async updateActionPreview() {
+      assertBenchmarkRead('POST');
       throw new AssistantApiError('assistant_disabled');
     },
     async confirmAction(id, expectedVersion, operationId) {
+      assertBenchmarkRead('POST');
       const actor = await identity();
       const reviewed = reviewedDisclosures.get(`${actor.userId}:${id}`);
       const current = await this.getActionPreview(id);
@@ -1644,6 +1656,7 @@ export function createLiveAssistantApiService(
       return mutation(next, scopes);
     },
     async cancelAction(id, expectedVersion, operationId) {
+      assertBenchmarkRead('POST');
       const actor = await identity();
       const current = await this.getActionPreview(id);
       await actor.assertCurrent();

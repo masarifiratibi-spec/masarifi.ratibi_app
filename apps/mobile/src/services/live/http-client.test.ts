@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import { z } from 'zod';
 import {
   HttpError,
@@ -6,6 +7,7 @@ import {
   requestJson,
   sanitizeHttpLog
 } from './http-client';
+jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
 
 const schema = z.object({ state: z.enum(['ready']) }).strict();
 const response = (status: number, value?: unknown): Response =>
@@ -16,6 +18,25 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it('blocks benchmark mutations before token acquisition, transport and recent authentication', async () => {
+    const restoreEnvironment = installBenchmarkEnvironment();
+    const request = jest.fn();
+    const token = jest.fn(async () => 'token');
+    const recent = jest.fn(async () => 'fresh');
+    configureMobileApiTokenProvider(token);
+    configureRecentAuthHandler(recent);
+    try {
+      for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+        await expect(requestJson('/api/v1/me', schema, { method, request })).rejects.toThrow('benchmark_read_only');
+      expect(token).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+      expect(recent).not.toHaveBeenCalled();
+      request.mockResolvedValue(response(200, { state: 'ready' }));
+      for (const method of ['GET', 'HEAD'])
+        await expect(requestJson('/api/v1/me', schema, { method, request, baseUrl: 'https://inert.invalid' })).resolves.toEqual({ state: 'ready' });
+      expect(request).toHaveBeenCalledTimes(2);
+    } finally { restoreEnvironment(); configureRecentAuthHandler(); }
+  });
   it('reverifies once and retries the same mutation identity with a fresh credential', async () => {
     const request = jest
       .fn()

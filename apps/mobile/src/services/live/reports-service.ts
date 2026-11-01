@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { requestRecentAuthentication } from './http-client';
 import { captureLiveClerkOwner } from './auth-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -109,6 +110,7 @@ export function createLiveReportsService(
       reverified?: boolean;
     }
   ): Promise<unknown> => {
+    assertBenchmarkRead(method);
     const { body, key, signal } = requestContext;
     if (!baseUrl) throw new ReportsApiError('reports_unavailable');
     let response: Response;

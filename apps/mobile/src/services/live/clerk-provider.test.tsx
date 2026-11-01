@@ -214,7 +214,8 @@ it.each(['new', 'existing'] as const)(
 it.each([
   ['masarifi', 'masarifi://sso-callback'],
   ['masarifi-dev', 'masarifi-dev://sso-callback'],
-  ['masarifi-dev-privacy', 'masarifi-dev-privacy://sso-callback']
+  ['masarifi-dev-privacy', 'masarifi-dev-privacy://sso-callback'],
+  ['masarifi-benchmark', 'masarifi-benchmark://sso-callback']
 ])('returns Google authentication to the installed %s app', async (scheme, redirectUrl) => {
   const config = Constants.expoConfig!;
   const previousScheme = config.scheme;

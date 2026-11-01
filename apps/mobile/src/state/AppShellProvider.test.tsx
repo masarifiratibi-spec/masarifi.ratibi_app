@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import React from 'react';
 import { AppState, Linking, Text, type AppStateStatus } from 'react-native';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
@@ -12,6 +13,7 @@ import { usePreferenceStore } from './preferences';
 import { HttpError } from '@/services/live/http-client';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
+jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
 
 const mockRestoreAppShellSession = jest.fn(
   async (..._args: unknown[]) => undefined
@@ -20,6 +22,8 @@ const mockSynchronizeLiveCoreFinance = jest.fn(async () => undefined);
 const mockRefreshPlatformOperations = jest.fn(async () => undefined);
 const mockSyncAutomaticTracking = jest.fn(async () => undefined);
 const mockTouchActivity = jest.fn(async () => undefined);
+const mockRecordMobileForeground = jest.fn(async () => undefined);
+jest.mock('@/services/live/mobile-activity', () => ({ recordMobileForeground: () => mockRecordMobileForeground() }));
 const mockRestoreSession = jest.fn();
 const mockEnsureLivePushDeviceRegistration = jest.fn(
   async (..._args: unknown[]) => 'granted'
@@ -64,6 +68,28 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('AppShellProvider', () => {
+  it('restores benchmark profile and platform reads without startup or foreground writers', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const restoreEnvironment = installBenchmarkEnvironment();
+    mockLiveClerkSessionKey = 'benchmark-owner';
+    let receiveState!: (state: AppStateStatus) => void;
+    const previousListener = jest.mocked(AppState.addEventListener).getMockImplementation()!;
+    const listener = jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, handler) => {
+      receiveState = handler;
+      return { remove: jest.fn() };
+    });
+    try {
+      render(<AppShellProvider><Text>benchmark read</Text></AppShellProvider>);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      await act(async () => { receiveState('active'); });
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
+      expect(mockRefreshPlatformOperations).toHaveBeenCalledTimes(2);
+      expect(mockSynchronizeLiveCoreFinance).not.toHaveBeenCalled();
+      expect(mockSyncAutomaticTracking).not.toHaveBeenCalled();
+      expect(mockEnsureLivePushDeviceRegistration).not.toHaveBeenCalled();
+      expect(mockRecordMobileForeground).not.toHaveBeenCalled();
+    } finally { restoreEnvironment(); listener.mockImplementation(previousListener); }
+  });
   beforeEach(() => {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
     mockLiveClerkSessionKey = undefined;

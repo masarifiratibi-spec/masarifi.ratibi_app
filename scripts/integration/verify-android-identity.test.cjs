@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { validateIdentity } = require("./verify-android-identity.cjs");
+const { benchmarkProfile } = require('../../apps/mobile/scripts/benchmark-build-policy.cjs');
 function fixture() {
   const baseline = {
     app: {
@@ -45,6 +46,19 @@ test("allows release safety configuration while preserving registered identities
     "android.permission.SYSTEM_ALERT_WINDOW",
   ];
   validateIdentity(candidate, baseline);
+});
+test('allows only the exact approved benchmark profile addition', () => {
+  const { baseline, candidate } = fixture();
+  candidate.eas.build.benchmark = structuredClone(benchmarkProfile);
+  validateIdentity(candidate, baseline);
+  candidate.eas.build.benchmark.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY = 'false';
+  assert.throws(() => validateIdentity(candidate, baseline));
+});
+test('rejects arbitrary extra profiles even with an approved benchmark present', () => {
+  const { baseline, candidate } = fixture();
+  candidate.eas.build.benchmark = structuredClone(benchmarkProfile);
+  candidate.eas.build.unreviewed = {};
+  assert.throws(() => validateIdentity(candidate, baseline));
 });
 for (const [name, change] of Object.entries({
   package: (x) => (x.app.expo.android.package = "com.other.app"),

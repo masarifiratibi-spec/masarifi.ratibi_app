@@ -344,6 +344,7 @@ function ClerkBridgeInstaller({
           strategy: 'oauth_google',
           redirectUrl:
             Constants.expoConfig?.scheme === 'masarifi-dev' ||
+            Constants.expoConfig?.scheme === 'masarifi-benchmark' ||
             Constants.expoConfig?.scheme === 'masarifi-dev-privacy'
               ? `${Constants.expoConfig.scheme}://sso-callback`
               : 'masarifi://sso-callback'

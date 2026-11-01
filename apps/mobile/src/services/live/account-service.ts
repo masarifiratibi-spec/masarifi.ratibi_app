@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { z } from 'zod';
 
 import {
@@ -201,6 +202,7 @@ export function createLiveAccountService({
       signal?: AbortSignal;
     } = {}
   ) => {
+    assertBenchmarkRead(method);
     if (method !== 'GET' && !options.operationId?.trim())
       throw new HttpError('validation_error', 400);
     const identity =
@@ -297,6 +299,7 @@ export function createLiveAccountService({
     async calculateCreditCardPayoff(
       input: z.input<typeof payoffInputSchema>
     ): Promise<z.output<typeof payoffResponseSchema>> {
+      assertBenchmarkRead('POST');
       const body = payoffInputSchema.parse(input);
       const identity = await captureLiveClerkIdentity();
       await identity.assertCurrent();
@@ -318,6 +321,7 @@ export function createLiveAccountService({
       input: AccountInput,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       const { currencyCode, institution, openedAt, ...fields } =
         accountInputSchema.parse(input);
       const result = await send(
@@ -352,6 +356,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)
         throw new HttpError('validation_error', 400);
       const parsed = accountInputSchema.parse(input);
@@ -382,6 +387,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<void> {
+      assertBenchmarkRead('POST');
       await send(
         'DELETE',
         `/api/v1/accounts/${encodeURIComponent(id)}?expectedVersion=${String(expectedVersion)}`,
@@ -394,6 +400,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       return accountFromApi(
         await send(
           'POST',
@@ -409,6 +416,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       return accountFromApi(
         await send(
           'POST',

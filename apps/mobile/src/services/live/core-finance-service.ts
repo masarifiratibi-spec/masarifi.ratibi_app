@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
 import { AppState } from 'react-native';
 import { z } from 'zod';
@@ -317,6 +318,7 @@ export function createLiveLedgerService({
     signal?: AbortSignal,
     capturedIdentity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>
   ): Promise<T> => {
+    assertBenchmarkRead(method);
     if (method !== 'GET' && !operationId?.trim())
       throw new HttpError('validation_error', 400);
     const identity =
@@ -663,6 +665,7 @@ export function createLiveLedgerService({
       return Math.max(0, original.amountMinor - refunded);
     },
     async createTransaction(input, operationId, source, preparedVersion) {
+      assertBenchmarkRead('POST');
       const value = transactionInputSchema.parse(input);
       if (value.type === 'transfer') {
         const result = await mutate(
@@ -741,6 +744,7 @@ export function createLiveLedgerService({
       return mutationResult(await mappedTransaction(detailTransaction(result.transaction), creatingOwner));
     },
     async createCardPayoff(input, operationId) {
+      assertBenchmarkRead('POST');
       const transfer: TransactionInput = {
         type: 'transfer',
         amountMinor: input.amountMinor,
@@ -762,6 +766,7 @@ export function createLiveLedgerService({
       return mutationResult({ ...value, transferPurpose: 'card_payoff' });
     },
     async createTransactionsAtomically(inputs, operationId, source) {
+      assertBenchmarkRead('POST');
       const { repository: drafts } = await ensureLocalReady();
       const replay = drafts.batchOperationResult(operationId);
       if (replay)
@@ -842,6 +847,7 @@ export function createLiveLedgerService({
       };
     },
     async updateTransaction(id, input) {
+      assertBenchmarkRead('POST');
       const next = transactionInputSchema.parse(input);
       const initiatingUserId = useAppShellStore.getState().session?.userId;
       const owner = await captureLiveClerkOwner();
@@ -1009,15 +1015,18 @@ export function createLiveLedgerService({
       }
     },
     async saveDraft(draft: TransactionDraft) {
+      assertBenchmarkRead('POST');
       return writeTransactionDraft(await captureLiveClerkOwner(), draft);
     },
     async loadDraft(id: string) {
       return readTransactionDraft(await captureLiveClerkOwner(), id);
     },
     async discardDraft(id: string) {
+      assertBenchmarkRead('POST');
       return deleteTransactionDraft(await captureLiveClerkOwner(), id);
     },
     async deleteTransaction(id): Promise<DeleteResult> {
+      assertBenchmarkRead('POST');
       const owner = await captureLiveClerkOwner();
       const ids = await transactionIds(id, owner);
       id = ids.localId;
@@ -1047,6 +1056,7 @@ export function createLiveLedgerService({
       return { ...mutationResult(value), undoExpiresAt: value.undoExpiresAt! };
     },
     async undoDelete(id) {
+      assertBenchmarkRead('POST');
       const owner = await captureLiveClerkOwner();
       const ids = await transactionIds(id, owner);
       const result = await mutate(
@@ -1087,6 +1097,7 @@ export function createLiveLedgerService({
       }
     },
     async resolveConflict(id, resolution) {
+      assertBenchmarkRead('POST');
       if (resolution === 'keep_both') throw new CoreFinanceError('validation');
       const remote = await remoteConflict(id, baseUrl, request, current);
       const serverResolution =
@@ -1144,6 +1155,8 @@ export function createLiveCoreFinanceSync({
 } = {}) {
   return {
     async synchronize() {
+      // Sync replays mutations and acknowledges cursors; it is not a read bootstrap.
+      assertBenchmarkRead('POST');
       const owner = await (identity ?? captureLiveReadClerkIdentity)();
       await owner.assertCurrent();
       let writeOwner:

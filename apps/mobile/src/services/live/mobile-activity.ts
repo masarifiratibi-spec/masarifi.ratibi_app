@@ -1,3 +1,4 @@
+import { isBenchmarkReadOnly } from '@/config/client-runtime';
 import { Platform } from 'react-native';
 import { z } from 'zod';
 import { captureLiveClerkIdentity } from './auth-service';
@@ -10,6 +11,7 @@ export async function recordMobileForeground(
   platform = Platform.OS,
   now = Date.now()
 ): Promise<void> {
+  if (isBenchmarkReadOnly()) return;
   if (platform !== 'ios' && platform !== 'android') return;
   const identity = await captureLiveClerkIdentity();
   if (

@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { AppState, Platform } from 'react-native';
 import { useAppShellStore } from '@/state/app-shell';
 import {
@@ -217,6 +218,7 @@ export function createLiveAutomaticTrackingService({
       signal?: AbortSignal;
     } = {}
   ): Promise<unknown> => {
+    assertBenchmarkRead(method);
     assertIntent?.();
     const identity =
       expectedOwnerId === undefined
@@ -620,6 +622,7 @@ export function createLiveAutomaticTrackingService({
     getStatus: status,
     refreshStatus: status,
     async setMode(mode) {
+      assertBenchmarkRead('PUT');
       const owner = captureCommandOwner();
       const current = resource(await get('/api/v1/tracking/preferences'));
       await sendCommand(owner, 'PUT', '/api/v1/tracking/preferences', {

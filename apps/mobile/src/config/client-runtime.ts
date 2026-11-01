@@ -21,9 +21,58 @@ const bundledEnvironment = (): RuntimeEnvironment => ({
   EXPO_PUBLIC_DEMO_MODE: process.env.EXPO_PUBLIC_DEMO_MODE,
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   EXPO_PUBLIC_APP_VARIANT: process.env.EXPO_PUBLIC_APP_VARIANT,
+  EXPO_PUBLIC_BENCHMARK_READ_ONLY: process.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY,
+  EXPO_PUBLIC_RELEASE_CHANNEL: process.env.EXPO_PUBLIC_RELEASE_CHANNEL,
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
     process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 });
+
+export function isBenchmarkReadOnly(
+  environment?: RuntimeEnvironment,
+  applicationId?: string | null
+): boolean {
+  if (
+    !environment &&
+    process.env.EXPO_PUBLIC_APP_VARIANT !== 'staging-benchmark' &&
+    process.env.EXPO_PUBLIC_RELEASE_CHANNEL !== 'benchmark' &&
+    process.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY === undefined &&
+    applicationId !== 'com.masarifi.mobile.benchmark'
+  )
+    return false;
+  environment ??= bundledEnvironment();
+  const selected =
+    environment.EXPO_PUBLIC_APP_VARIANT === 'staging-benchmark' ||
+    environment.EXPO_PUBLIC_RELEASE_CHANNEL === 'benchmark' ||
+    environment.EXPO_PUBLIC_BENCHMARK_READ_ONLY !== undefined ||
+    applicationId === 'com.masarifi.mobile.benchmark';
+  // Ordinary apps never consult native modules or change transport behavior.
+  if (!selected) return false;
+  if (
+    environment.EXPO_PUBLIC_APP_VARIANT !== 'staging-benchmark' ||
+    environment.EXPO_PUBLIC_BENCHMARK_READ_ONLY !== 'true' ||
+    environment.EXPO_PUBLIC_RELEASE_CHANNEL !== 'benchmark' ||
+    environment.EXPO_PUBLIC_CLIENT_MODE !== 'live' ||
+    environment.EXPO_PUBLIC_API_URL !==
+      'https://api.staging.masarifiratibi.com' ||
+    (applicationId === undefined
+      ? requireOptionalNativeModule<{ applicationId: string | null }>(
+          'ExpoApplication'
+        )?.applicationId
+      : applicationId) !== 'com.masarifi.mobile.benchmark'
+  )
+    throw new Error('Invalid benchmark runtime identity');
+  return true;
+}
+
+export function assertBenchmarkRead(method: string | undefined): void {
+  if (
+    isBenchmarkReadOnly() &&
+    method !== undefined &&
+    method !== 'GET' &&
+    method !== 'HEAD'
+  )
+    throw new Error('benchmark_read_only');
+}
 
 export function isDevPrivacyDeletionEnabled(): boolean {
   return devPrivacyDeletionApiUrl() !== null;
@@ -58,7 +107,10 @@ export function isAppLockEnabled(
   runtime = {
     development: typeof __DEV__ !== 'undefined' && __DEV__,
     nodeEnvironment: process.env.NODE_ENV,
-    applicationId: requireOptionalNativeModule<{ applicationId: string | null }>('ExpoApplication')?.applicationId ?? null
+    applicationId:
+      requireOptionalNativeModule<{ applicationId: string | null }>(
+        'ExpoApplication'
+      )?.applicationId ?? null
   }
 ): boolean {
   return !(
@@ -99,6 +151,7 @@ export function resolveClientRuntime(
   environment: RuntimeEnvironment = bundledEnvironment(),
   nodeEnvironment = process.env.NODE_ENV
 ): ClientRuntime {
+  isBenchmarkReadOnly(environment);
   const exposedSecret = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)
   );

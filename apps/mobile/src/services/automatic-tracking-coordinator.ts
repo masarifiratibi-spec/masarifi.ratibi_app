@@ -6,7 +6,7 @@ import {
   scheduleTrackingFollowUp
 } from './tracking-background-runtime';
 
-import { resolveClientMode } from '@/config/client-runtime';
+import { resolveClientMode, isBenchmarkReadOnly } from '@/config/client-runtime';
 import type {
   KeywordRuleSummary,
   SenderRule,
@@ -137,6 +137,7 @@ export function createAutomaticTrackingCoordinator(
   const execute = async (
     requireFreshConfiguration = false
   ): Promise<AutomaticTrackingSyncState> => {
+    if (isBenchmarkReadOnly()) return update('idle');
     let phase = 'queue';
     const session = dependencies.session();
     if (

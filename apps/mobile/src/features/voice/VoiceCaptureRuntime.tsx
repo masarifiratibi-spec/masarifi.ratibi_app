@@ -1,3 +1,4 @@
+import { isBenchmarkReadOnly } from '@/config/client-runtime';
 import { useVoiceBatches } from './useVoiceBatches';
 import { randomUUID } from 'expo-crypto';
 import { recordVoiceTiming } from '@/services/platform/voice-timing';
@@ -483,6 +484,7 @@ function useOwnedVoiceCapture() {
 
   useEffect(() => {
     if (
+      isBenchmarkReadOnly() ||
       restoration === 'local' ||
       recoveryAttempted.current ||
       !['idle', 'ready', 'permission_required'].includes(session.state) ||
@@ -687,6 +689,7 @@ function useOwnedVoiceCapture() {
   );
 
   useEffect(() => {
+    if (isBenchmarkReadOnly()) return;
     const subscription = AppState.addEventListener('change', (state) => {
       foreground.current = state === 'active';
       const current = useVoiceCaptureStore.getState();
@@ -733,6 +736,7 @@ function useOwnedVoiceCapture() {
   }, [cancelRecording, syncPermission]);
 
   useEffect(() => {
+    if (isBenchmarkReadOnly()) return;
     mounted.current = true;
     const clearOwnedWork = async () => {
       revision.current += 1;

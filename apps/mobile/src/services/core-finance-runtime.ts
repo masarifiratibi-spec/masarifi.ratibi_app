@@ -1,4 +1,5 @@
 import { randomUUID } from 'expo-crypto';
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import {
   accountInputSchema,
   categoryInputSchema,
@@ -999,14 +1000,18 @@ export function createLiveCoreFinanceService(
     target as unknown as CapabilityProviderHandle<CoreFinanceService>,
     {
       get(provider, property) {
+        const mutation = !localMethods.has(String(property)) ||
+          ['saveDraft', 'discardDraft'].includes(String(property));
         if (!available && property !== 'metadata')
           return async () => {
+            if (mutation || property === 'calculateCreditCardPayoff') assertBenchmarkRead('POST');
             throw new CoreFinanceError('offline');
           };
         if (property in provider) {
           const value = Reflect.get(provider, property);
           if (typeof value !== 'function') return value;
           const invoke = async (...args: unknown[]) => {
+            if (property === 'calculateCreditCardPayoff') assertBenchmarkRead('POST');
             try {
               if (
                 property !== 'updateTransaction' &&
@@ -1050,8 +1055,11 @@ export function createLiveCoreFinanceService(
               throw coreFinanceError(error);
             }
           };
-          return !localMethods.has(String(property)) || property === 'saveDraft' || property === 'discardDraft'
-            ? (...args: unknown[]) => withTransactionDraftWrite(() => invoke(...args))
+          return mutation
+            ? async (...args: unknown[]) => {
+                assertBenchmarkRead('POST');
+                return withTransactionDraftWrite(() => invoke(...args));
+              }
             : invoke;
         }
         return async () => {

@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { Platform } from 'react-native';
 import { z } from 'zod';
 
@@ -1191,6 +1192,7 @@ export function createLiveFinancialPlanningService({
       timeoutMs?: number;
     } = {}
   ) => {
+    assertBenchmarkRead(method);
     if (
       method !== 'GET' &&
       (!options.operationId?.trim() || options.operationId.length > 128)
@@ -1595,6 +1597,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async saveSalaryProfile(input, operationId) {
+      assertBenchmarkRead('POST');
       const current = (
         await allPages('/api/v1/salary-profiles', salarySchema)
       ).find((item) => item.status === 'active');
@@ -1632,6 +1635,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async confirmSalaryReceipt(input, operationId) {
+      assertBenchmarkRead('POST');
       const timeZone = input.timeZone ?? usePreferenceStore.getState().timeZone;
       const occurrences = await allPages(
         `/api/v1/salary-profiles/${input.salaryProfileId}/receipts`,
@@ -1681,6 +1685,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async undoSalaryReceipt(receiptId, operationId, timeZone) {
+      assertBenchmarkRead('POST');
       const profiles = await allPages('/api/v1/salary-profiles', salarySchema);
       const wire = profiles.find((item) => item.status === 'active');
       if (!wire) throw new FinancialPlanningError('not_found');
@@ -1753,6 +1758,7 @@ export function createLiveFinancialPlanningService({
     getBudgetById: readBudgetDetail,
 
     async createBudgetDraftFromPrevious(periodKey) {
+      assertBenchmarkRead('POST');
       const month = new Date(`${periodKey}-01T00:00:00.000Z`);
       month.setUTCMonth(month.getUTCMonth() - 1);
       const previous = await service.getBudget(month.toISOString().slice(0, 7));
@@ -1778,6 +1784,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async saveBudget(input: BudgetInput, operationId: string) {
+      assertBenchmarkRead('POST');
       const identity = await captureLiveClerkIdentity();
       if (input.categories?.length) await categoryIds?.prepare();
       await identity.assertCurrent();
@@ -1908,6 +1915,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async confirmBudgetMove(previewId, operationId) {
+      assertBenchmarkRead('POST');
       const identity = await captureLiveClerkIdentity();
       const preview = previews.get(previewId);
       if (!preview || preview.kind !== 'budget')
@@ -1946,6 +1954,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async setBudgetStatus(id, expectedVersion, status, operationId) {
+      assertBenchmarkRead('POST');
       const response = await send(
         'PATCH',
         `/api/v1/budgets/${id}`,
@@ -1961,6 +1970,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async deleteBudget(id, expectedVersion, operationId) {
+      assertBenchmarkRead('POST');
       const response = await send(
         'DELETE',
         `/api/v1/budgets/${id}`,
@@ -2126,6 +2136,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async createObligation(input, operationId) {
+      assertBenchmarkRead('POST');
       const response = await send(
         'POST',
         '/api/v1/obligations',
@@ -2142,6 +2153,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async updateObligation(id, expectedVersion, input, operationId) {
+      assertBenchmarkRead('POST');
       const patch = Object.fromEntries(
         Object.entries(obligationInput(input)).filter(
           ([key]) => key !== 'currencyCode'
@@ -2165,6 +2177,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async setObligationStatus(id, expectedVersion, status, operationId) {
+      assertBenchmarkRead('POST');
       const response =
         status === 'archived'
           ? await send(
@@ -2248,6 +2261,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async confirmObligationPayment(previewId, allocation, operationId) {
+      assertBenchmarkRead('POST');
       const stored = previews.get(previewId);
       if (!stored || stored.kind !== 'payment')
         throw new FinancialPlanningError('stale_preview');
@@ -2371,6 +2385,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async reverseObligationPayment(paymentId, operationId) {
+      assertBenchmarkRead('POST');
       const reference = payments.get(paymentId);
       if (!reference) return unsupported();
       const response = await send(
@@ -2425,6 +2440,7 @@ export function createLiveFinancialPlanningService({
       return unsupported();
     },
     async confirmEarlySettlement() {
+      assertBenchmarkRead('POST');
       return unsupported();
     },
 
@@ -2455,6 +2471,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async resolvePaymentMatch(input, operationId) {
+      assertBenchmarkRead('POST');
       const current = await send(
         'GET',
         `/api/v1/payment-matches/${input.matchId}`,
@@ -2549,6 +2566,7 @@ export function createLiveFinancialPlanningService({
     getGoal: readGoal,
 
     async createGoal(input, operationId) {
+      assertBenchmarkRead('POST');
       const response = await send(
         'POST',
         '/api/v1/savings-goals',
@@ -2565,6 +2583,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async updateGoal(id, expectedVersion, input, operationId) {
+      assertBenchmarkRead('POST');
       const body = goalInput(input);
       const {
         openingTrackedMinor: _opening,
@@ -2586,6 +2605,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async setGoalStatus(id, expectedVersion, status, operationId) {
+      assertBenchmarkRead('POST');
       const response =
         status === 'archived'
           ? await send(
@@ -2627,6 +2647,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async confirmGoalMovement(previewId, operationId) {
+      assertBenchmarkRead('POST');
       const preview = previews.get(previewId);
       if (
         !preview ||
@@ -2676,6 +2697,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async reverseGoalMovement(movementId, operationId) {
+      assertBenchmarkRead('POST');
       const reference = movements.get(movementId);
       if (!reference) return unsupported();
       const response = await send(
@@ -2697,6 +2719,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async saveDraft(draft) {
+      assertBenchmarkRead('POST');
       if (!persistent) return repository.saveDraft(draft);
       const owner = await captureLiveClerkOwner();
       return measurePerformance('storage.draft.write', () =>
@@ -2718,6 +2741,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async discardDraft(id) {
+      assertBenchmarkRead('POST');
       if (!persistent) return repository.discardDraft(id);
       return deletePlanningDraft(await captureLiveClerkOwner(), id);
     },
@@ -2728,6 +2752,7 @@ export function createLiveFinancialPlanningService({
     },
 
     async resolveConflict(id, resolution) {
+      assertBenchmarkRead('POST');
       await ensureLocal();
       const value = repository.resolveConflict(id, resolution);
       await persistLocal();

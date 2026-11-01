@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { recordVoiceDiagnostic } from '@/services/platform/voice-diagnostics';
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import { createVoiceBatchApi } from './voice-batch-api-service';
@@ -251,6 +252,8 @@ export function createLiveVoiceApiService(
     controllers.forEach((controller) => controller.abort());
   };
   const bind = async (): Promise<Binding> => {
+    // Voice analysis/recovery is outside the benchmark read sample.
+    assertBenchmarkRead('POST');
     const revision = providerRevision;
     const operationEpoch = epoch;
     const ownerId = await owner();
@@ -280,6 +283,7 @@ export function createLiveVoiceApiService(
     key?: string,
     audio?: ArrayBuffer
   ): Promise<unknown> => {
+    assertBenchmarkRead(method);
     if (!baseUrl) throw new VoiceCaptureError('analysis_unavailable');
     const controller = new AbortController();
     controllers.add(controller);
