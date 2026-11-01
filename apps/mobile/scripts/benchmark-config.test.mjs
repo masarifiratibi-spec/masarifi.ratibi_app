@@ -14,6 +14,7 @@ const environment = () => ({
   ...eas.build.benchmark?.env,
   NODE_ENV: 'production',
   EAS_BUILD_PROFILE: 'benchmark',
+  EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_benchmarkOwner',
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from('clerk.staging.masarifiratibi.com$').toString('base64url')}`
 });
 function withEnvironment(values, operation) {
@@ -71,6 +72,10 @@ test('benchmark requires indivisible markers, exact API and Staging live Clerk i
   const good = environment();
   assert.doesNotThrow(() => validateClientBuildEnvironment(good));
   for (const patch of [
+    { EXPO_PUBLIC_BENCHMARK_OWNER_ID: undefined },
+    { EXPO_PUBLIC_BENCHMARK_OWNER_ID: '' },
+    { EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'another-provider-user' },
+    { EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_owner/escape' },
     { MASARIFI_APP_VARIANT: undefined },
     { EXPO_PUBLIC_APP_VARIANT: undefined },
     { EAS_BUILD_PROFILE: 'preview' },

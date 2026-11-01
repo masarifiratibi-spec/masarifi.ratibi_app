@@ -1,4 +1,7 @@
-import { assertBenchmarkRead } from '@/config/client-runtime';
+import {
+  assertBenchmarkRead,
+  isBenchmarkReadOnly
+} from '@/config/client-runtime';
 import { privacyExportStatusSchema } from '@/domain/settings';
 import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { z } from 'zod';
@@ -76,6 +79,36 @@ export interface LiveClerkBridge {
     scope: 'current' | 'all';
     sessionId?: string;
   }): Promise<void>;
+}
+
+const benchmarkBridges = new WeakMap<LiveClerkBridge, LiveClerkBridge>();
+
+function assertBenchmarkSessionOwner(
+  session: { userId: string | null } | null
+): void {
+  if (
+    isBenchmarkReadOnly() &&
+    session &&
+    session.userId !== process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID
+  )
+    throw new HttpError('forbidden', 403, 'BENCHMARK_OWNER_NOT_ADMITTED');
+}
+
+function admitBenchmarkBridge(bridge: LiveClerkBridge): LiveClerkBridge {
+  if (!isBenchmarkReadOnly()) return bridge;
+  const previous = benchmarkBridges.get(bridge);
+  if (previous) return previous;
+  const admitted: LiveClerkBridge = {
+    ...bridge,
+    async getSession() {
+      const session = await bridge.getSession();
+      assertBenchmarkSessionOwner(session);
+      return session;
+    }
+  };
+  benchmarkBridges.set(bridge, admitted);
+  benchmarkBridges.set(admitted, admitted);
+  return admitted;
 }
 
 type IdentityRequest = (
@@ -321,6 +354,7 @@ async function assertLogoutAdmission(ownerId: string, admitted = false): Promise
 }
 
 export function registerLiveClerkBridge(bridge: LiveClerkBridge): void {
+  bridge = admitBenchmarkBridge(bridge);
   registeredBridge = bridge;
   configureMobileApiTokenProvider(getLiveClerkToken);
   configureAssistantApiTokenProvider(getLiveClerkToken);
@@ -349,6 +383,8 @@ async function requestClerkToken(
   logoutCleanup?: LogoutDisposition
 ) {
   const logoutOwner = await bridge.getSession();
+  if (isBenchmarkReadOnly() && !logoutOwner)
+    throw new HttpError('session_expired', 401);
   if (logoutCleanup) await assertPreparedLogout(bridge, logoutCleanup);
   else if (logoutOwner) await assertLogoutAdmission(logoutOwner.userId);
   if (useAppShellStore.getState().session?.restoration === 'local')
@@ -432,6 +468,7 @@ export async function captureLiveClerkOwner() {
   const local = useAppShellStore.getState();
   if (local.session?.restoration === 'local') {
     const session = local.session;
+    assertBenchmarkSessionOwner(session);
     if (session.userId) await assertLogoutAdmission(session.userId);
     const assertCurrent = async () => {
       if (session.userId) await assertLogoutAdmission(session.userId, true);
@@ -602,6 +639,7 @@ export function createLiveAuthService(
   bridge: LiveClerkBridge,
   request: IdentityRequest = defaultIdentityRequest
 ): CapabilityProviderHandle<AuthService> {
+  bridge = admitBenchmarkBridge(bridge);
   return {
     metadata: {
       id: 'clerk-auth',
@@ -611,7 +649,12 @@ export function createLiveAuthService(
       availability: 'available'
     },
     startPhone: (input) => bridge.startPhone(input),
-    verifyPhone: (input) => bridge.verifyPhone(input),
+    async verifyPhone(input) {
+      const result = await bridge.verifyPhone(input);
+      if (result.status === 'authenticated')
+        assertBenchmarkSessionOwner(result.session);
+      return result;
+    },
     resendPhone: (sessionId) => bridge.resendPhone(sessionId),
     async signInWithGoogle() {
       const session = await bridge.signInWithGoogle();
@@ -1094,6 +1137,7 @@ async function parsedRequest<T>(
 }
 
 function authenticated(session: ClerkSession): AuthenticationSession {
+  assertBenchmarkSessionOwner(session);
   if (
     syntheticId.test(session.id) ||
     syntheticId.test(session.userId) ||

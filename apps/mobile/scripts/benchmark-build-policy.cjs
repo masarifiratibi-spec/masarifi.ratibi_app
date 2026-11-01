@@ -41,6 +41,12 @@ function validateBenchmarkBuildEnvironment(environment) {
     throw new Error(
       'Benchmark requires its exact profile, variants, Staging API and read-only flags'
     );
+  if (
+    !/^user_[A-Za-z0-9]+$/.test(
+      environment.EXPO_PUBLIC_BENCHMARK_OWNER_ID ?? ''
+    )
+  )
+    throw new Error('Benchmark requires its preflight-approved Clerk owner ID');
   const key = environment.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
   const host = 'clerk.staging.masarifiratibi.com';
   if (

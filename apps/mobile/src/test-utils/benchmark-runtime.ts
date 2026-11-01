@@ -3,7 +3,8 @@ export const benchmarkEnvironment = {
   EXPO_PUBLIC_BENCHMARK_READ_ONLY: 'true',
   EXPO_PUBLIC_CLIENT_MODE: 'live',
   EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
-  EXPO_PUBLIC_RELEASE_CHANNEL: 'benchmark'
+  EXPO_PUBLIC_RELEASE_CHANNEL: 'benchmark',
+  EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_benchmarkOwner'
 };
 
 export function installBenchmarkEnvironment() {

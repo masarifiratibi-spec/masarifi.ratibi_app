@@ -22,6 +22,7 @@ const bundledEnvironment = (): RuntimeEnvironment => ({
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   EXPO_PUBLIC_APP_VARIANT: process.env.EXPO_PUBLIC_APP_VARIANT,
   EXPO_PUBLIC_BENCHMARK_READ_ONLY: process.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY,
+  EXPO_PUBLIC_BENCHMARK_OWNER_ID: process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID,
   EXPO_PUBLIC_RELEASE_CHANNEL: process.env.EXPO_PUBLIC_RELEASE_CHANNEL,
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
     process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
@@ -52,6 +53,9 @@ export function isBenchmarkReadOnly(
     environment.EXPO_PUBLIC_BENCHMARK_READ_ONLY !== 'true' ||
     environment.EXPO_PUBLIC_RELEASE_CHANNEL !== 'benchmark' ||
     environment.EXPO_PUBLIC_CLIENT_MODE !== 'live' ||
+    !/^user_[A-Za-z0-9]+$/.test(
+      environment.EXPO_PUBLIC_BENCHMARK_OWNER_ID ?? ''
+    ) ||
     environment.EXPO_PUBLIC_API_URL !==
       'https://api.staging.masarifiratibi.com' ||
     (applicationId === undefined
