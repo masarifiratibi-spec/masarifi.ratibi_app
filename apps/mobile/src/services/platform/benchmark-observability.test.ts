@@ -20,9 +20,17 @@ const events = () =>
     .map(([, value]) => JSON.parse(value));
 
 it('keeps ordinary preference outcomes silent', () => {
-  recordPreferencesStorageOutcome('write', 'failure', { code: 'ERR_ENCRYPT' });
+  const inspect = jest.fn(() => {
+    throw Error('PRIVATE');
+  });
+  const error = Object.defineProperties(
+    {},
+    { code: { get: inspect }, message: { get: inspect } }
+  );
+  recordPreferencesStorageOutcome('write', 'failure', error);
   recordPreferencesStorageOutcome('read', 'success');
   expect(events()).toEqual([]);
+  expect(inspect).not.toHaveBeenCalled();
 });
 
 it.each([
@@ -58,6 +66,9 @@ it.each([
         operation: 'write',
         outcome: 'failure',
         errorClass,
+        rejectionShape: 'code_message',
+        boundary: 'unrecognized',
+        argumentOrdinal: 'none',
         atMs: expect.any(Number)
       }
     ]);
@@ -82,6 +93,9 @@ it('distinguishes JavaScript type errors and records successful reads', () => {
         operation: 'read',
         outcome: 'failure',
         errorClass: 'type',
+        rejectionShape: 'message_only',
+        boundary: 'unrecognized',
+        argumentOrdinal: 'none',
         atMs: expect.any(Number)
       },
       {
@@ -129,6 +143,9 @@ it.each([
           operation: 'write',
           outcome: 'failure',
           errorClass,
+          rejectionShape: 'code_message',
+          boundary: 'unrecognized',
+          argumentOrdinal: 'none',
           atMs: expect.any(Number)
         }
       ]);
@@ -160,6 +177,9 @@ it.each(['code', 'message'])(
           operation: 'read',
           outcome: 'failure',
           errorClass: 'unknown',
+          rejectionShape: 'unreadable',
+          boundary: 'unrecognized',
+          argumentOrdinal: 'none',
           atMs: expect.any(Number)
         }
       ]);
@@ -176,7 +196,10 @@ it('rejects invalid preference enums and strips private event extras', () => {
       kind: 'preferences',
       operation: 'write',
       outcome: 'failure',
-      errorClass: 'unknown'
+      errorClass: 'unknown',
+      rejectionShape: 'code_message',
+      boundary: 'unrecognized',
+      argumentOrdinal: 'none'
     } as const;
     recordBenchmarkEvent({ ...valid, value: 'PRIVATE' } as never);
     recordBenchmarkEvent({ ...valid, operation: 'PRIVATE' } as never);
@@ -184,7 +207,246 @@ it('rejects invalid preference enums and strips private event extras', () => {
     recordBenchmarkEvent({ ...valid, errorClass: 'PRIVATE' } as never);
     recordBenchmarkEvent({ ...valid, outcome: 'success' } as never);
     recordBenchmarkEvent({ ...valid, errorClass: 'none' } as never);
+    recordBenchmarkEvent({
+      ...valid,
+      outcome: 'success',
+      errorClass: 'none'
+    } as never);
+    recordBenchmarkEvent({ ...valid, rejectionShape: 'PRIVATE' } as never);
+    recordBenchmarkEvent({ ...valid, boundary: 'PRIVATE' } as never);
+    recordBenchmarkEvent({ ...valid, argumentOrdinal: 'PRIVATE' } as never);
+    recordBenchmarkEvent({
+      ...valid,
+      errorClass: 'jsi_argument_conversion'
+    } as never);
+    recordBenchmarkEvent({ ...valid, boundary: 'jsi_conversion' } as never);
+    recordBenchmarkEvent({
+      ...valid,
+      errorClass: 'kotlin_argument_conversion'
+    } as never);
+    recordBenchmarkEvent({
+      ...valid,
+      rejectionShape: 'primitive',
+      errorClass: 'encrypt'
+    } as never);
+    recordBenchmarkEvent({
+      ...valid,
+      rejectionShape: 'unreadable',
+      boundary: 'kotlin_read_wrapper'
+    } as never);
     expect(events()).toEqual([{ ...valid, atMs: expect.any(Number) }]);
+  } finally {
+    restore();
+  }
+});
+
+it.each([
+  [
+    '[getValueWithKeyAsync] Cannot convert ',
+    'jsi_argument_conversion',
+    'jsi_conversion',
+    'none'
+  ],
+  [
+    '[setValueWithKeyAsync] Cannot convert ',
+    'jsi_argument_conversion',
+    'jsi_conversion',
+    'none'
+  ],
+  [
+    "Call to function 'ExpoSecureStore.getValueWithKeyAsync' has been rejected. The 2nd argument cannot be cast to type PRIVATE",
+    'kotlin_argument_conversion',
+    'kotlin_read_wrapper',
+    'second'
+  ],
+  [
+    "Call to function 'ExpoSecureStore.setValueWithKeyAsync' has been rejected. The 3rd argument cannot be cast to type PRIVATE",
+    'kotlin_argument_conversion',
+    'kotlin_write_wrapper',
+    'third'
+  ],
+  [
+    'The 1st argument cannot be cast to type PRIVATE',
+    'kotlin_argument_conversion',
+    'unrecognized',
+    'first'
+  ],
+  [
+    "The 2nd argument cannot be cast to type PRIVATE. Cannot create a record of the type: 'PRIVATE'",
+    'record_conversion',
+    'unrecognized',
+    'second'
+  ],
+  [
+    "Cannot find type converter for 'PRIVATE'",
+    'converter_unavailable',
+    'unrecognized',
+    'none'
+  ],
+  [
+    "Cannot obtain ExpectedType form 'PRIVATE'",
+    'converter_unavailable',
+    'unrecognized',
+    'none'
+  ],
+  ['The react context has been lost', 'context_lost', 'unrecognized', 'none'],
+  ['The app context has been lost', 'context_lost', 'unrecognized', 'none'],
+  [
+    "Call to function 'ExpoSecureStore.getValueWithKeyAsync' has been rejected. PRIVATE",
+    'native_unexpected',
+    'kotlin_read_wrapper',
+    'none'
+  ],
+  [
+    "Call to function 'ExpoSecureStore.setValueWithKeyAsync' has been rejected. PRIVATE",
+    'native_unexpected',
+    'kotlin_write_wrapper',
+    'none'
+  ],
+  ['PRIVATE', 'native_unexpected', 'unrecognized', 'none'],
+  [
+    'The 4th argument cannot be cast to type PRIVATE',
+    'native_unexpected',
+    'unrecognized',
+    'none'
+  ],
+  ['[PRIVATE] Cannot convert ', 'native_unexpected', 'unrecognized', 'none']
+])(
+  'classifies the fixed native marker %s without exposing its payload',
+  (marker, errorClass, boundary, argumentOrdinal) => {
+    const restore = installBenchmarkEnvironment();
+    try {
+      recordPreferencesStorageOutcome('read', 'failure', {
+        code: 'ERR_UNEXPECTED',
+        message: `${marker}'PRIVATE_VALUE PRIVATE_KEY PRIVATE_OWNER https://PRIVATE_URL.invalid`,
+        get name() {
+          throw Error('PRIVATE_NAME');
+        },
+        get stack() {
+          throw Error('PRIVATE_STACK');
+        },
+        get cause() {
+          throw Error('PRIVATE_CAUSE');
+        }
+      });
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation: 'read',
+          outcome: 'failure',
+          errorClass,
+          rejectionShape: 'code_message',
+          boundary,
+          argumentOrdinal,
+          atMs: expect.any(Number)
+        }
+      ]);
+      expect(JSON.stringify(events())).not.toMatch(
+        /PRIVATE|ERR_UNEXPECTED|ExpoSecureStore|Cannot convert|argument cannot/
+      );
+    } finally {
+      restore();
+    }
+  }
+);
+
+it.each([
+  [undefined, 'primitive'],
+  [null, 'primitive'],
+  ['PRIVATE', 'primitive'],
+  [7, 'primitive'],
+  [{}, 'other_object'],
+  [{ code: 'PRIVATE' }, 'other_object'],
+  [{ message: 'PRIVATE' }, 'message_only'],
+  [{ code: 7, message: 'PRIVATE' }, 'message_only'],
+  [{ code: 'PRIVATE', message: 'PRIVATE' }, 'code_message']
+])(
+  'reports only the fixed envelope shape for rejection %#',
+  (error, rejectionShape) => {
+    const restore = installBenchmarkEnvironment();
+    try {
+      recordPreferencesStorageOutcome('read', 'failure', error);
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation: 'read',
+          outcome: 'failure',
+          errorClass: 'unknown',
+          rejectionShape,
+          boundary: 'unrecognized',
+          argumentOrdinal: 'none',
+          atMs: expect.any(Number)
+        }
+      ]);
+      expect(JSON.stringify(events())).not.toContain('PRIVATE');
+    } finally {
+      restore();
+    }
+  }
+);
+
+it.each([
+  ['An error occurred when writing to key'],
+  ['The react context has been lost'],
+  ["Call to function 'ExpoSecureStore.getValueWithKeyAsync' has been rejected."]
+])('ignores the marker %s beyond the 4096 character scan limit', (marker) => {
+  const restore = installBenchmarkEnvironment();
+  try {
+    recordPreferencesStorageOutcome('read', 'failure', {
+      message: `${'x'.repeat(4096)}${marker}`
+    });
+    expect(events()[0]).toMatchObject({
+      errorClass: 'unknown',
+      rejectionShape: 'message_only',
+      boundary: 'unrecognized',
+      argumentOrdinal: 'none'
+    });
+  } finally {
+    restore();
+  }
+});
+
+it('reads only code and message once without enumerating the native rejection', () => {
+  const restore = installBenchmarkEnvironment();
+  const reads: string[] = [];
+  try {
+    const error = new Proxy(
+      {
+        code: 'ERR_UNEXPECTED',
+        message: 'The react context has been lost PRIVATE'
+      },
+      {
+        get(target, property) {
+          if (property !== 'code' && property !== 'message')
+            throw Error('PRIVATE_PROPERTY');
+          reads.push(property);
+          return target[property];
+        },
+        ownKeys() {
+          throw Error('PRIVATE_ENUMERATION');
+        }
+      }
+    );
+    recordPreferencesStorageOutcome('read', 'failure', error);
+    expect(events()[0]).toMatchObject({
+      errorClass: 'context_lost',
+      rejectionShape: 'code_message'
+    });
+    expect(reads).toEqual(['code', 'message']);
+    expect(JSON.stringify(events())).not.toContain('PRIVATE');
+  } finally {
+    restore();
+  }
+});
+
+it('recognizes a marker ending exactly at the scan limit', () => {
+  const restore = installBenchmarkEnvironment();
+  try {
+    const marker = 'The react context has been lost';
+    recordPreferencesStorageOutcome('read', 'failure', {
+      message: `${'x'.repeat(4096 - marker.length)}${marker}`
+    });
+    expect(events()[0]).toMatchObject({ errorClass: 'context_lost' });
   } finally {
     restore();
   }
@@ -204,7 +466,16 @@ it('shares the 400 event cap between preference diagnostics and other metrics', 
       });
       isolated.recordPreferencesStorageOutcome('read', 'success');
       isolated.recordBenchmarkEvent({ kind: 'home', outcome: 'ready' });
+      const inspect = jest.fn(() => {
+        throw Error('PRIVATE');
+      });
+      isolated.recordPreferencesStorageOutcome(
+        'read',
+        'failure',
+        Object.defineProperty({}, 'message', { get: inspect })
+      );
       expect(events()).toHaveLength(400);
+      expect(inspect).not.toHaveBeenCalled();
       expect(events()[399]).toMatchObject({
         kind: 'preferences',
         errorClass: 'write'

@@ -230,6 +230,9 @@ describe('benchmark preference storage diagnostics', () => {
           operation,
           outcome: 'failure',
           errorClass: 'encrypt',
+          rejectionShape: 'code_message',
+          boundary: 'unrecognized',
+          argumentOrdinal: 'none',
           atMs: expect.any(Number)
         }
       ]);
@@ -264,4 +267,65 @@ describe('benchmark preference storage diagnostics', () => {
     getItemAsync.mockRejectedValueOnce(error);
     await expect(loadPreferences()).rejects.toBe(error);
   });
+
+  it.each(['read', 'write'] as const)(
+    'preserves %s rejection identity while exposing only its conversion stage',
+    async (operation) => {
+      const method =
+        operation === 'read' ? 'getValueWithKeyAsync' : 'setValueWithKeyAsync';
+      const error = {
+        code: 'ERR_UNEXPECTED',
+        message: `Call to function 'ExpoSecureStore.${method}' has been rejected. The 2nd argument cannot be cast to type PRIVATE_VALUE PRIVATE_KEY https://PRIVATE_URL.invalid`
+      };
+      if (operation === 'read') getItemAsync.mockRejectedValueOnce(error);
+      else jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(error);
+      await expect(
+        operation === 'read'
+          ? loadPreferences()
+          : savePreferences(buildPreferences({}))
+      ).rejects.toBe(error);
+      expect(events()).toEqual([
+        {
+          kind: 'preferences',
+          operation,
+          outcome: 'failure',
+          errorClass: 'kotlin_argument_conversion',
+          rejectionShape: 'code_message',
+          boundary:
+            operation === 'read'
+              ? 'kotlin_read_wrapper'
+              : 'kotlin_write_wrapper',
+          argumentOrdinal: 'second',
+          atMs: expect.any(Number)
+        }
+      ]);
+      expect(JSON.stringify(events())).not.toMatch(
+        /PRIVATE|ERR_UNEXPECTED|ExpoSecureStore|cannot be cast/
+      );
+    }
+  );
+
+  it.each([
+    [null, 'primitive'],
+    ['PRIVATE', 'primitive'],
+    [
+      Object.defineProperty({}, 'message', {
+        get: () => {
+          throw Error('PRIVATE_GETTER');
+        }
+      }),
+      'unreadable'
+    ]
+  ])(
+    'preserves a nonstandard native rejection by identity %#',
+    async (error, rejectionShape) => {
+      getItemAsync.mockRejectedValueOnce(error);
+      await expect(loadPreferences()).rejects.toBe(error);
+      expect(events()[0]).toMatchObject({
+        errorClass: 'unknown',
+        rejectionShape
+      });
+      expect(JSON.stringify(events())).not.toContain('PRIVATE');
+    }
+  );
 });

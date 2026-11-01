@@ -29,7 +29,6 @@ type HomeOutcome = 'ready' | 'failed' | 'left_route';
 type RouteCategory = 'unlock' | 'home' | 'other';
 type EndpointGroup = 'ledger' | 'reports' | 'planning' | 'identity' | 'other';
 const preferencesErrorClasses = [
-  'none',
   'native_unavailable',
   'native_function_missing',
   'write',
@@ -37,21 +36,49 @@ const preferencesErrorClasses = [
   'decrypt',
   'keystore',
   'argument',
+  'jsi_argument_conversion',
+  'kotlin_argument_conversion',
+  'record_conversion',
+  'converter_unavailable',
+  'context_lost',
+  'native_unexpected',
   'type',
   'unknown'
 ] as const;
 type PreferencesErrorClass = (typeof preferencesErrorClasses)[number];
 type PreferencesOperation = 'read' | 'write';
+const rejectionShapes = [
+  'code_message',
+  'message_only',
+  'other_object',
+  'primitive',
+  'unreadable'
+] as const;
+const preferencesBoundaries = [
+  'kotlin_read_wrapper',
+  'kotlin_write_wrapper',
+  'jsi_conversion',
+  'unrecognized'
+] as const;
+const argumentOrdinals = ['none', 'first', 'second', 'third'] as const;
+type PreferencesFailure = {
+  errorClass: PreferencesErrorClass;
+  rejectionShape: (typeof rejectionShapes)[number];
+  boundary: (typeof preferencesBoundaries)[number];
+  argumentOrdinal: (typeof argumentOrdinals)[number];
+};
+type PreferencesEvent = {
+  kind: 'preferences';
+  operation: PreferencesOperation;
+} & (
+  | { outcome: 'success'; errorClass: 'none' }
+  | ({ outcome: 'failure' } & PreferencesFailure)
+);
 type BenchmarkEvent =
   | { kind: 'timing'; stage: PerformanceStage; elapsedMs: number }
   | { kind: 'home'; outcome: HomeOutcome }
   | { kind: 'protected_route'; category: RouteCategory }
-  | {
-      kind: 'preferences';
-      operation: PreferencesOperation;
-      outcome: 'success' | 'failure';
-      errorClass: PreferencesErrorClass;
-    }
+  | PreferencesEvent
   | {
       kind: 'transport';
       group: EndpointGroup;
@@ -97,19 +124,35 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
         metadata = { kind: 'protected_route', category: event.category };
         break;
       case 'preferences':
-        if (
-          !['read', 'write'].includes(event.operation) ||
-          !['success', 'failure'].includes(event.outcome) ||
-          !preferencesErrorClasses.includes(event.errorClass) ||
-          (event.outcome === 'success') !== (event.errorClass === 'none')
-        )
-          return;
-        metadata = {
-          kind: 'preferences',
-          operation: event.operation,
-          outcome: event.outcome,
-          errorClass: event.errorClass
-        };
+        if (!['read', 'write'].includes(event.operation)) return;
+        if (event.outcome === 'success') {
+          if (
+            event.errorClass !== 'none' ||
+            'rejectionShape' in event ||
+            'boundary' in event ||
+            'argumentOrdinal' in event
+          )
+            return;
+          metadata = {
+            kind: 'preferences',
+            operation: event.operation,
+            outcome: 'success',
+            errorClass: 'none'
+          };
+        } else if (
+          event.outcome === 'failure' &&
+          validPreferencesFailure(event)
+        ) {
+          metadata = {
+            kind: 'preferences',
+            operation: event.operation,
+            outcome: 'failure',
+            errorClass: event.errorClass,
+            rejectionShape: event.rejectionShape,
+            boundary: event.boundary,
+            argumentOrdinal: event.argumentOrdinal
+          };
+        } else return;
         break;
       case 'transport':
         if (
@@ -148,65 +191,166 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
   }
 }
 
-/** Fixed upstream fragments survive R8 class merging; the text never enters telemetry. */
-function preferencesMessageErrorClass(error: unknown): PreferencesErrorClass {
-  const message =
-    error && typeof error === 'object' && 'message' in error
-      ? error.message
-      : undefined;
-  if (typeof message === 'string') {
-    if (message.includes('An error occurred when writing to key'))
-      return 'write';
-    if (message.includes('Could not encrypt the value for key'))
-      return 'encrypt';
-    if (message.includes('Could not decrypt the value for key'))
-      return 'decrypt';
-    if (message.includes('An error occurred when accessing the keystore'))
-      return 'keystore';
-    if (
-      message.includes('is not a function') &&
-      (message.includes('setValueWithKeyAsync') ||
-        message.includes('getValueWithKeyAsync'))
-    )
-      return 'native_function_missing';
+function validPreferencesFailure(event: PreferencesFailure): boolean {
+  if (
+    !preferencesErrorClasses.includes(event.errorClass) ||
+    !rejectionShapes.includes(event.rejectionShape) ||
+    !preferencesBoundaries.includes(event.boundary) ||
+    !argumentOrdinals.includes(event.argumentOrdinal)
+  )
+    return false;
+  if (['primitive', 'unreadable'].includes(event.rejectionShape)) {
+    return (
+      event.errorClass === 'unknown' &&
+      event.boundary === 'unrecognized' &&
+      event.argumentOrdinal === 'none'
+    );
   }
-  return error instanceof TypeError ? 'type' : 'unknown';
+  return (
+    (event.errorClass === 'jsi_argument_conversion') ===
+      (event.boundary === 'jsi_conversion') &&
+    (event.errorClass !== 'kotlin_argument_conversion' ||
+      event.argumentOrdinal !== 'none')
+  );
 }
 
-/** Exact dependency whitelist only; never retain or emit error text, names or stacks. */
-function preferencesErrorClass(error: unknown): PreferencesErrorClass {
+function preferencesBoundary(message: string): PreferencesFailure['boundary'] {
+  if (
+    message.includes("[getValueWithKeyAsync] Cannot convert '") ||
+    message.includes("[setValueWithKeyAsync] Cannot convert '")
+  )
+    return 'jsi_conversion';
+  if (
+    message.includes(
+      "Call to function 'ExpoSecureStore.getValueWithKeyAsync' has been rejected."
+    )
+  )
+    return 'kotlin_read_wrapper';
+  if (
+    message.includes(
+      "Call to function 'ExpoSecureStore.setValueWithKeyAsync' has been rejected."
+    )
+  )
+    return 'kotlin_write_wrapper';
+  return 'unrecognized';
+}
+
+function preferencesArgumentOrdinal(
+  message: string
+): PreferencesFailure['argumentOrdinal'] {
+  const ordinal = /The (1st|2nd|3rd) argument cannot be cast to type /u.exec(
+    message
+  )?.[1];
+  if (ordinal === '1st') return 'first';
+  if (ordinal === '2nd') return 'second';
+  if (ordinal === '3rd') return 'third';
+  return 'none';
+}
+
+/** Fixed upstream fragments survive R8 merging; raw text never enters telemetry. */
+function preferencesMessageErrorClass(
+  message: string,
+  details: PreferencesFailure
+): PreferencesFailure['errorClass'] | null {
+  if (details.boundary === 'jsi_conversion') return 'jsi_argument_conversion';
+  if (
+    message.includes("Cannot find type converter for '") ||
+    message.includes("Cannot obtain ExpectedType form '")
+  )
+    return 'converter_unavailable';
+  if (message.includes("Cannot create a record of the type: '"))
+    return 'record_conversion';
+  if (
+    message.includes('The react context has been lost') ||
+    message.includes('The app context has been lost')
+  )
+    return 'context_lost';
+  if (details.argumentOrdinal !== 'none') return 'kotlin_argument_conversion';
+  if (message.includes('An error occurred when writing to key')) return 'write';
+  if (message.includes('Could not encrypt the value for key')) return 'encrypt';
+  if (message.includes('Could not decrypt the value for key')) return 'decrypt';
+  if (message.includes('An error occurred when accessing the keystore'))
+    return 'keystore';
+  if (
+    message.includes('is not a function') &&
+    (message.includes('setValueWithKeyAsync') ||
+      message.includes('getValueWithKeyAsync'))
+  )
+    return 'native_function_missing';
+  return null;
+}
+
+function preferencesCodeErrorClass(
+  code: unknown
+): PreferencesFailure['errorClass'] | null {
+  switch (code) {
+    case 'ERR_UNAVAILABLE':
+    case 'ERR_MODULE_NOT_FOUND':
+      return 'native_unavailable';
+    case 'ERR_METHOD_NOT_FOUND':
+      return 'native_function_missing';
+    case 'ERR_WRITE':
+      return 'write';
+    case 'ERR_ENCRYPT':
+      return 'encrypt';
+    case 'ERR_DECRYPT':
+      return 'decrypt';
+    case 'ERR_KEY_STORE':
+      return 'keystore';
+    case 'ERR_NULL_KEY':
+    case 'ERR_INVALID_ARGS_NUMBER':
+    case 'ERR_NULL_ARGUMENT':
+    case 'ERR_INCOMPATIBLE_ARG_TYPE':
+    case 'ERR_DYNAMIC_CAST':
+    case 'ERR_MISSING_TYPE_CONVERTER':
+    case 'ERR_INVALID_EXPECTED_TYPE':
+      return 'argument';
+    case 'ERR_UNEXPECTED':
+      return 'native_unexpected';
+    default:
+      return null;
+  }
+}
+
+/** Inspect only fixed properties, with a bounded scan; return reconstructed enums only. */
+function preferencesFailure(error: unknown): PreferencesFailure {
+  const details: PreferencesFailure = {
+    errorClass: 'unknown',
+    rejectionShape: 'primitive',
+    boundary: 'unrecognized',
+    argumentOrdinal: 'none'
+  };
+  if (
+    error === null ||
+    (typeof error !== 'object' && typeof error !== 'function')
+  )
+    return details;
   try {
-    const code =
-      error && typeof error === 'object' && 'code' in error
-        ? error.code
-        : undefined;
-    switch (code) {
-      case 'ERR_UNAVAILABLE':
-      case 'ERR_MODULE_NOT_FOUND':
-        return 'native_unavailable';
-      case 'ERR_METHOD_NOT_FOUND':
-        return 'native_function_missing';
-      case 'ERR_WRITE':
-        return 'write';
-      case 'ERR_ENCRYPT':
-        return 'encrypt';
-      case 'ERR_DECRYPT':
-        return 'decrypt';
-      case 'ERR_KEY_STORE':
-        return 'keystore';
-      case 'ERR_NULL_KEY':
-      case 'ERR_INVALID_ARGS_NUMBER':
-      case 'ERR_NULL_ARGUMENT':
-      case 'ERR_INCOMPATIBLE_ARG_TYPE':
-      case 'ERR_DYNAMIC_CAST':
-      case 'ERR_MISSING_TYPE_CONVERTER':
-      case 'ERR_INVALID_EXPECTED_TYPE':
-        return 'argument';
-      default:
-        return preferencesMessageErrorClass(error);
-    }
+    const rejection = error as { code?: unknown; message?: unknown };
+    const code = rejection.code;
+    const rawMessage = rejection.message;
+    details.rejectionShape =
+      typeof rawMessage === 'string'
+        ? typeof code === 'string'
+          ? 'code_message'
+          : 'message_only'
+        : 'other_object';
+    const message =
+      typeof rawMessage === 'string' ? rawMessage.slice(0, 4096) : '';
+    details.boundary = preferencesBoundary(message);
+    details.argumentOrdinal = preferencesArgumentOrdinal(message);
+    details.errorClass =
+      preferencesMessageErrorClass(message, details) ??
+      preferencesCodeErrorClass(code) ??
+      (error instanceof TypeError ? 'type' : 'unknown');
+    return details;
   } catch {
-    return 'unknown';
+    return {
+      errorClass: 'unknown',
+      rejectionShape: 'unreadable',
+      boundary: 'unrecognized',
+      argumentOrdinal: 'none'
+    };
   }
 }
 
@@ -217,12 +361,21 @@ export function recordPreferencesStorageOutcome(
 ): void {
   try {
     if (!isBenchmarkReadOnly() || eventCount >= 400) return;
-    recordBenchmarkEvent({
-      kind: 'preferences',
-      operation,
-      outcome,
-      errorClass: outcome === 'success' ? 'none' : preferencesErrorClass(error)
-    });
+    recordBenchmarkEvent(
+      outcome === 'success'
+        ? {
+            kind: 'preferences',
+            operation,
+            outcome: 'success',
+            errorClass: 'none'
+          }
+        : {
+            kind: 'preferences',
+            operation,
+            outcome: 'failure',
+            ...preferencesFailure(error)
+          }
+    );
   } catch {
     // Diagnostics cannot replace a storage result or rejection.
   }
