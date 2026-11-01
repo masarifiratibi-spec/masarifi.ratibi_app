@@ -17,6 +17,19 @@ on:
         default: https://api.staging.masarifiratibi.com
         type: string
 
+  workflow_call:
+    # Only manual callers forwarding these identical event input fields are supported.
+    inputs:
+      source_sha:
+        required: true
+        type: string
+      admin_publishable_key:
+        required: true
+        type: string
+      api_base_url:
+        required: true
+        type: string
+
 permissions:
   contents: read
 
@@ -37,7 +50,12 @@ jobs:
           python3 - <<'PY'
           import json, os, re
           from urllib.parse import urlsplit
+          # Reusable workflows inherit the caller event; reject nonmanual callers.
+          assert os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch", "MANUAL_CALLER_REQUIRED"
           inputs = json.load(open(os.environ["GITHUB_EVENT_PATH"]))["inputs"]
+          assert isinstance(inputs, dict), "MANUAL_INPUTS_REQUIRED"
+          assert all(isinstance(inputs.get(name), str) for name in
+                     ["source_sha", "admin_publishable_key", "api_base_url"]), "MANUAL_INPUTS_REQUIRED"
           source = inputs["source_sha"]
           key = inputs["admin_publishable_key"]
           api = inputs["api_base_url"]

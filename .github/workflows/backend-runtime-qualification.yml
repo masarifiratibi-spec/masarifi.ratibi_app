@@ -2,6 +2,22 @@ name: Backend Runtime Qualification
 
 on:
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact Admin source commit SHA (optional Admin artifact route)
+        required: false
+        default: ""
+        type: string
+      admin_publishable_key:
+        description: Current public Clerk pk_live client key (never a secret key)
+        required: false
+        default: ""
+        type: string
+      api_base_url:
+        description: Current HTTPS API base URL
+        required: false
+        default: https://api.staging.masarifiratibi.com
+        type: string
   push:
     branches: [codex/voice-auto-save-restoration-2026-10-11]
     paths:
@@ -139,3 +155,13 @@ jobs:
             runtime-*.log
             backend-image-digest.txt
           if-no-files-found: error
+
+  admin-canonical-artifact:
+    if: github.event_name == 'workflow_dispatch' && inputs.admin_publishable_key != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/admin-canonical-artifact.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+      admin_publishable_key: ${{ inputs.admin_publishable_key }}
+      api_base_url: ${{ inputs.api_base_url }}
