@@ -103,3 +103,42 @@ c7532a27fae4475f4714701009e58dfaf87210fc:docs/superpowers/plans/2026-10-16-nativ
 c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-canary/canary-control.py:generic-api-key:8
 c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:4
 c7532a27fae4475f4714701009e58dfaf87210fc:scripts/staging-voice/diagnostic-off/diagnostic-host.py:generic-api-key:5
+
+# Full-parent historical merges repeat the reviewed Phase 07 idempotencyKey test fixtures byte-for-byte.
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/integration/planning/planning.savings.integration.spec.ts:generic-api-key:59
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.salary.spec.ts:generic-api-key:156
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:100
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:182
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:219
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:69
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:93
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:118
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:136
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/integration/planning/planning.savings.integration.spec.ts:generic-api-key:59
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.salary.spec.ts:generic-api-key:156
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:100
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:182
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:219
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:69
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:93
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:118
+94f766b7bd7a6f981f5eb70212d66cd63c376420:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:136
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/integration/planning/planning.savings.integration.spec.ts:generic-api-key:59
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.salary.spec.ts:generic-api-key:156
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:69
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:93
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:118
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.savings.spec.ts:generic-api-key:136
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:100
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:182
+ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.obligation.spec.ts:generic-api-key:219
+
+# Historical merge repeats the fictional deletion Idempotency-Key in a mocked auth request assertion; exact match to reviewed fixture.
+9b9209a0ab3548298d02297b810a769e96ca9409:apps/mobile/src/services/live/auth-service.test.ts:generic-api-key:449
+
+# Historical merge repeats detector fixtures written into temporary frontend source trees; exact matches to reviewed quality tests.
+7883bfa835254d694170e3ae2f7473b5551f9c44:apps/mobile/scripts/check-frontend-quality-boundaries.test.mjs:stripe-access-token:22
+7883bfa835254d694170e3ae2f7473b5551f9c44:apps/mobile/scripts/check-frontend-quality-secrets.test.mjs:generic-api-key:10
+
+# Historical merge repeats the same Firebase Android public client key as the reviewed ordinary/dev/benchmark configs; no private-key fields.
+ecfba4d7de40555c122bd3b5e53e7e7fd71f6294:apps/mobile/google-services.json:gcp-api-key:18
