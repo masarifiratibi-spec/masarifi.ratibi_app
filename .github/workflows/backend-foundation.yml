@@ -197,6 +197,10 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64 --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
+      - name: Verify minified Expo Record annotation references
+        run: |
+          node --test scripts/check-record-reflection.test.mjs
+          node scripts/check-record-reflection.mjs android/app/build/outputs/mapping/release/mapping.txt
       - name: Verify compiled identity and all intended native architectures
         shell: bash
         run: |
