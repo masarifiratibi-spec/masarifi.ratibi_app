@@ -873,7 +873,15 @@ export class AiWorker implements OnModuleDestroy {
     const readOnlyAdvice =
       input.intent === 'financial_advice' || input.intent === 'general_finance';
     const completion = await this.gateway.complete({
-      route,
+      route: {
+        ...route,
+        prompt: {
+          ...route.prompt,
+          template:
+            route.prompt.template +
+            '\nUse concise, natural Saudi/Gulf Arabic for Arabic prose. Respond in English when requested. Answer only the current question; give explanations or saving advice only when asked. Preserve amounts, currencies, dates, names and action payloads exactly. Describe an action as a preview until the user confirms it.',
+        },
+      },
       userContent: encodeAssistantProviderPayload(input, inputLimit(route)),
       schema: readOnlyAdvice ? ASSISTANT_ADVICE_OUTPUT_SCHEMA : ASSISTANT_OUTPUT_SCHEMA,
       parse: readOnlyAdvice ? parseAssistantAdviceWorkerOutput : parseAssistantWorkerOutput,

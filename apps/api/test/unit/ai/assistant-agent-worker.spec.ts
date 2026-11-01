@@ -2,8 +2,23 @@ import { AssistantAgentWorker } from '../../../src/ai/assistant-agent.worker';
 import type { AssistantAgentClaim } from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery, AssistantDataResult } from '../../../src/ai/assistant-agent-data';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import * as health from '../../../src/ai/ai-worker-health';
 
 const owner = 'owner-a';
+
+it('reports agent health through its shared observer instead of overwriting the shared health file', async () => {
+  const publish = jest.spyOn(health, 'publishAiWorkerHealth').mockReturnValue(true);
+  const f = fixture();
+  f.jobs.claim.mockResolvedValue(null);
+  const observe = jest.fn();
+  f.worker.observeHealth(observe);
+  await f.worker.runOnce();
+  expect(observe).toHaveBeenLastCalledWith('ready');
+  expect(publish).not.toHaveBeenCalled();
+  await f.worker.stop();
+  expect(observe).toHaveBeenLastCalledWith('stopped');
+  publish.mockRestore();
+});
 const claim: AssistantAgentClaim = {
   id: 'job-a',
   userId: owner,

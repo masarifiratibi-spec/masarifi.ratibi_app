@@ -7,7 +7,7 @@ import { AiRepository } from './ai.repository';
 import { AssistantAgentData } from './assistant-agent-data';
 import { AssistantAgentRepository } from './assistant-agent.repository';
 import { AssistantAgent, type AssistantAgentClaim } from './assistant-agent';
-import { publishAiWorkerHealth } from './ai-worker-health';
+import { publishAiWorkerHealth, type AiWorkerHealthState } from './ai-worker-health';
 import { isTransientVoiceError } from './voice-transient-error';
 
 interface PendingAssistantFailure {
@@ -23,6 +23,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
   private controller?: AbortController;
   private pendingFailure?: PendingAssistantFailure;
   private readonly logger = new PlatformLogger();
+  private healthObserver?: (state: AiWorkerHealthState) => void;
 
   constructor(
     private readonly jobs: AssistantAgentRepository,
@@ -30,6 +31,16 @@ export class AssistantAgentWorker implements OnModuleDestroy {
     private readonly routes: AiRepository,
     private readonly config: PlatformConfigService,
   ) {}
+
+  observeHealth(observer: (state: AiWorkerHealthState) => void): void {
+    this.healthObserver = observer;
+    this.reportHealth('starting');
+  }
+
+  private reportHealth(state: AiWorkerHealthState): void {
+    if (this.healthObserver) this.healthObserver(state);
+    else publishAiWorkerHealth(state);
+  }
 
   start(): void {
     if (this.timer) return;
@@ -54,7 +65,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
     try {
       if (this.pendingFailure) {
         await this.recordFailure(this.pendingFailure);
-        publishAiWorkerHealth('ready');
+        this.reportHealth('ready');
         return;
       }
       const publicAgent = this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED');
@@ -62,7 +73,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         ? null
         : this.config.getRequired('MASARIFI_ASSISTANT_AGENT_OWNER_ID');
       const claim = owner === null ? await this.jobs.claimNext() : await this.jobs.claim(owner);
-      publishAiWorkerHealth('ready');
+      this.reportHealth('ready');
       if (!claim) return;
       const started = Date.now();
       try {
@@ -124,7 +135,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         await this.recordFailure({ claim, code, retry });
       }
     } catch (error) {
-      publishAiWorkerHealth('failed');
+      this.reportHealth('failed');
       this.logger.error('ASSISTANT_AGENT_POLL_FAILED', workerErrorFields(error));
     } finally {
       clearTimeout(deadline);
@@ -149,7 +160,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
     this.timer = undefined;
     this.controller?.abort();
     while (this.running) await new Promise((resolve) => setTimeout(resolve, 10));
-    publishAiWorkerHealth('stopped');
+    this.reportHealth('stopped');
   }
   async onModuleDestroy() {
     await this.stop();

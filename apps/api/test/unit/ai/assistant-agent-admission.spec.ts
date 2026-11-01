@@ -19,6 +19,7 @@ function service(enabled = true, publicAgent = false) {
   const writes: Record<string, unknown>[] = [];
   const notices: Record<string, unknown>[] = [];
   const checks: string[] = [];
+  const resolve = jest.fn().mockResolvedValue({ answer: 'fixed', context: {}, evidence: [] });
   const repository = {
     workloadAvailable: () => {
       checks.push('availability');
@@ -52,10 +53,10 @@ function service(enabled = true, publicAgent = false) {
     {} as never,
     {} as never,
     {} as never,
-    { resolve: () => Promise.resolve({ answer: 'fixed', context: {}, evidence: [] }) } as never,
+    { resolve } as never,
     config as never,
   );
-  return { instance, writes, notices, checks };
+  return { instance, writes, notices, checks, resolve };
 }
 
 it.each([
@@ -64,6 +65,10 @@ it.each([
   'عايزك تفهمني اخر مصروفاتي',
   'And where did that money go?',
   'What do you mean by that?',
+  'وش تفاصيل المعاملة اللي اسمها أضف مصروف؟',
+  'Show transactions at Add transaction shop',
+  'كيف أسجل مصروف؟',
+  'create transaction script in Python',
 ])('uses semantic data access for an ordinary user asking %s', async (content) => {
   const { instance, writes, notices } = service(false, true);
   await instance.createMessage(
@@ -88,6 +93,61 @@ it('keeps explicit action previews outside the read-only semantic agent', async 
   expect(writes).toEqual([]);
   expect(notices).toHaveLength(1);
 });
+
+it('preserves an explicit action UI intent when its record text resembles a programming request', async () => {
+  const { instance, writes, resolve } = service(false, true);
+  resolve.mockResolvedValue({ answer: null, context: { authoritative: true }, evidence: [] });
+  await instance.createMessage(
+    owner,
+    conversation,
+    {
+      content: 'create expense app subscription',
+      intent: 'create_transaction',
+      responseMode: 'async',
+    },
+    'explicit-action-ui-compatibility-001',
+  );
+  expect(writes).toEqual([
+    expect.objectContaining({ intent: 'create_transaction', context: { authoritative: true } }),
+  ]);
+});
+
+it.each(
+  [
+    ['أضف مصروف 1 ريال', 'create_transaction'],
+    ['عدل المعاملة الأخيرة', 'update_transaction'],
+    ['عدل الميزانية', 'update_budget'],
+    ['create saving goal', 'create_savings_goal'],
+    ['record payment for obligation', 'record_obligation_payment'],
+    ['اعتمد مراجعة التتبع', 'resolve_tracking_review'],
+  ].flatMap(([content, intent]) => [
+    { content, intent, development: false },
+    { content, intent, development: true },
+  ]),
+)(
+  'routes a plain-text $intent request through the existing reviewed action flow (DEV=$development)',
+  async ({ content, intent, development }) => {
+    const { instance, writes, notices, resolve } = service(true, true);
+    resolve.mockResolvedValue({ answer: null, context: { authoritative: true }, evidence: [] });
+    await send(
+      instance,
+      { ...owner, userId: 'ordinary-owner' },
+      conversation,
+      { content, responseMode: 'async' },
+      'plain-text-financial-action-test-001',
+      development,
+    );
+    expect(notices).toEqual([]);
+    expect(resolve).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'ordinary-owner' }),
+      intent,
+      content,
+      'plain-text-financial-action-test-001',
+      expect.any(Array),
+    );
+    expect(writes).toEqual([expect.objectContaining({ intent, context: { authoritative: true } })]);
+  },
+);
 
 it.each([
   'اعرض آخر ثلاث معاملات مؤكدة فقط.',

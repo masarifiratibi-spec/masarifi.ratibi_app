@@ -645,10 +645,12 @@ export class AiService {
   ) {
     const input = assistantMessage(body);
     const conversationIdValue = uuid(conversationId);
-    // Read questions use model-selected, claim-fenced tools. Explicit action UI
-    // requests retain the existing preview/confirmation flow.
+    // Only a direct command or explicit UI intent can enter the reviewed action flow.
+    const initialRoute = routeAssistantMessage({
+      content: input.content,
+      intentHint: input.intent,
+    });
     const explicitAction =
-      input.intent &&
       [
         'create_transaction',
         'update_transaction',
@@ -656,7 +658,12 @@ export class AiService {
         'create_savings_goal',
         'record_obligation_payment',
         'resolve_tracking_review',
-      ].includes(input.intent);
+      ].includes(initialRoute.intent) &&
+      (input.intent !== undefined ||
+        (!directAssistantScopeNotice(input.content) &&
+          /^(?:(?:please|فضلا|من فضلك)\s+)?(?:add|create|update|record|resolve|أضف|اضف|سجل|عدل|غير|خلي|خلى|أنشئ|انشئ|اعتمد|حل)(?:\s|$)/iu.test(
+            input.content.normalize('NFKC').replace(/\p{M}/gu, '').trim(),
+          )));
     if (
       this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED') &&
       this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
@@ -689,7 +696,7 @@ export class AiService {
         ),
       );
     }
-    let route = routeAssistantMessage({ content: input.content, intentHint: input.intent });
+    let route = initialRoute;
     let history: Array<{ role: 'user' | 'assistant'; content: string; intent: string | null }> = [];
     const followUp = /^(?:what about|and |how about|وماذا عن|طيب|طب|وماذا|والشهر)/iu.test(
       input.content.trim(),

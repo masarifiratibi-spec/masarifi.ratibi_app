@@ -6,13 +6,15 @@ import { DatabaseModule } from './platform/database/database.module';
 import { AssistantAgentData } from './ai/assistant-agent-data';
 import { AssistantAgentRepository } from './ai/assistant-agent.repository';
 import { AssistantAgentWorker } from './ai/assistant-agent.worker';
-import { AiRepository } from './ai/ai.repository';
+import { AiWorkerModule } from './ai/ai.module';
+import { AiWorker } from './ai/ai.worker';
+import { publishAiWorkerHealth, type AiWorkerHealthState } from './ai/ai-worker-health';
 import { PlatformLogger } from './platform/observability/platform-logger';
 import { workerErrorFields } from './platform/observability/worker-error';
 
 @Module({
-  imports: [PlatformConfigModule, DatabaseModule],
-  providers: [AssistantAgentData, AssistantAgentRepository, AssistantAgentWorker, AiRepository],
+  imports: [PlatformConfigModule, DatabaseModule, AiWorkerModule],
+  providers: [AssistantAgentData, AssistantAgentRepository, AssistantAgentWorker],
 })
 class AssistantAgentWorkerModule {}
 
@@ -23,10 +25,31 @@ export async function bootstrapAssistantAgentWorker() {
   });
   app.useLogger(new PlatformLogger());
   const worker = app.get(AssistantAgentWorker);
+  const actions = app.get(AiWorker);
+  const states: Record<'agent' | 'actions', AiWorkerHealthState> = {
+    agent: 'starting',
+    actions: 'starting',
+  };
+  const observe = (name: keyof typeof states) => (state: AiWorkerHealthState) => {
+    states[name] = state;
+    const values = Object.values(states);
+    const combined = values.includes('failed')
+      ? 'failed'
+      : values.includes('stopped')
+        ? 'stopped'
+        : values.every((value) => value === 'ready')
+          ? 'ready'
+          : 'starting';
+    if (!publishAiWorkerHealth(combined))
+      new PlatformLogger().error('AI_WORKER_HEALTH_UNAVAILABLE', { context: 'AssistantWorker' });
+  };
+  worker.observeHealth(observe('agent'));
+  actions.observeHealth(observe('actions'));
   process.once('SIGTERM', () => {
-    void worker.stop().then(() => app.close());
+    void Promise.all([worker.stop(), actions.stop()]).then(() => app.close());
   });
   worker.start();
+  actions.start();
   return app;
 }
 if (require.main === module)
