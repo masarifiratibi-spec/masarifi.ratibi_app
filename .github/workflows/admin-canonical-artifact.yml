@@ -1,0 +1,188 @@
+name: Canonical Admin artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact 40-character source commit SHA
+        required: true
+        type: string
+      admin_publishable_key:
+        description: Current public Clerk pk_live client key (never a secret key)
+        required: true
+        type: string
+      api_base_url:
+        description: Current HTTPS API base URL
+        required: true
+        default: https://api.staging.masarifiratibi.com
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_CLIENT_MODE: live
+      NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT: staging
+      NEXT_PUBLIC_ENABLE_MOCKS: "false"
+      CLERK_SECRET_KEY: sk_live_replace_with_server_key
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Validate inputs without exposing client configuration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from urllib.parse import urlsplit
+          inputs = json.load(open(os.environ["GITHUB_EVENT_PATH"]))["inputs"]
+          source = inputs["source_sha"]
+          key = inputs["admin_publishable_key"]
+          api = inputs["api_base_url"]
+          assert re.fullmatch(r"[0-9a-fA-F]{40}", source), "SOURCE_SHA_INVALID"
+          assert re.fullmatch(r"pk_live_[A-Za-z0-9_-]{10,}", key), "PUBLIC_KEY_INVALID"
+          try:
+              url = urlsplit(api)
+              valid = (url.scheme == "https" and url.hostname and not url.username
+                       and not url.password and not url.query and not url.fragment
+                       and not any(c.isspace() for c in api)
+                       and (url.port is None or 0 < url.port < 65536))
+          except ValueError:
+              valid = False
+          assert valid, "API_BASE_URL_INVALID"
+          # Read event inputs before exporting them so runner env logs are masked too.
+          print("::add-mask::" + key)
+          print("::add-mask::" + api)
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write("SOURCE_SHA=" + source.lower() + "\n")
+              output.write("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=" + key + "\n")
+              output.write("NEXT_PUBLIC_API_URL=" + api + "\n")
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact checkout
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          assert actual == os.environ["SOURCE_SHA"], "SOURCE_CHECKOUT_MISMATCH"
+          PY
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+          cache: npm
+          cache-dependency-path: apps/admin-web/package-lock.json
+      - name: Install pinned toolchain and dependencies
+        working-directory: apps/admin-web
+        run: |
+          test "$(node --version)" = v24.16.0
+          npm install --global npm@11.17.0 --ignore-scripts
+          test "$(npm --version)" = 11.17.0
+          npm ci --include=dev --ignore-scripts --no-audit --no-fund
+      - name: Typecheck and build without backend or provider actions
+        working-directory: apps/admin-web
+        run: |
+          npm run typecheck
+          npm run build
+      - name: Package complete runtime and identity evidence
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, posixpath, subprocess, tarfile
+          root = pathlib.Path.cwd()
+          app = root / "apps/admin-web"
+          output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "admin-canonical-artifact"
+          output.mkdir()
+          source = os.environ["SOURCE_SHA"]
+          api_files = ["apps/api/src/reports/reports.admin.ts",
+                       "apps/api/src/reports/reports.admin-types.ts"]
+          def git(*args):
+              return subprocess.check_output(["git", *args])
+          def sha(data):
+              return hashlib.sha256(data).hexdigest()
+          def file_sha(path):
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(block)
+              return digest.hexdigest()
+          assert git("rev-parse", "HEAD").decode().strip() == source
+          lock = app / "package-lock.json"
+          assert sha(git("show", "HEAD:apps/admin-web/package-lock.json")) == file_sha(lock), "LOCK_CHANGED"
+          build_id = (app / ".next/BUILD_ID").read_text().strip()
+          assert build_id, "BUILD_ID_MISSING"
+          manifest = {
+              "sourceSha": source,
+              "adminGitTree": git("rev-parse", "HEAD:apps/admin-web").decode().strip(),
+              "sourceArchiveSha256": sha(git("archive", "--format=tar", "HEAD", "apps/admin-web", *api_files)),
+              "sourceArchivePaths": ["apps/admin-web", *api_files],
+              "lockSha256": file_sha(lock),
+              "node": subprocess.check_output(["node", "--version"], text=True).strip(),
+              "npm": subprocess.check_output(["npm", "--version"], text=True).strip(),
+              "buildId": build_id,
+              "publicConfigurationSha256": {
+                  key: sha(os.environ[key].encode()) for key in [
+                      "NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+                      "NEXT_PUBLIC_CLIENT_MODE", "NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT",
+                      "NEXT_PUBLIC_ENABLE_MOCKS"]},
+              "runtimeSecretsIncluded": False,
+          }
+          assert manifest["node"] == "v24.16.0" and manifest["npm"] == "11.17.0"
+          (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          excluded = {".git", ".cache", ".npm", ".npm-cache", ".build-tools",
+                      "__pycache__", "coverage", "test-results", "test-reports",
+                      "playwright-report", ".openai", ".wrangler"}
+          def omit(name):
+              parts = pathlib.PurePosixPath(name).parts
+              return (any(part.startswith(".env") or part.endswith(".env") or part in excluded for part in parts)
+                      or any(parts[i:i+2] == (".next", "cache") for i in range(len(parts)-1))
+                      or name.endswith((".log", ".tsbuildinfo")))
+          def checked(member):
+              assert not omit(member.name), "EXCLUDED_ARCHIVE_MEMBER"
+              assert not member.name.startswith("/") and ".." not in pathlib.PurePosixPath(member.name).parts
+              assert member.isfile() or member.isdir() or member.issym(), "UNSUPPORTED_ARCHIVE_MEMBER"
+              if member.issym():
+                  target = posixpath.normpath(posixpath.join(posixpath.dirname(member.name), member.linkname))
+                  assert not member.linkname.startswith("/") and target.startswith("apps/admin-web/"), "EXTERNAL_RUNTIME_SYMLINK"
+                  assert not omit(target), "EXCLUDED_SYMLINK_TARGET"
+              return member
+          archive = output / ("masarifi-admin-" + source + ".tar.gz")
+          with tarfile.open(archive, "w:gz", compresslevel=1) as tar:
+              for current, directories, files in os.walk(app, followlinks=False):
+                  relative = pathlib.Path(current).relative_to(root).as_posix()
+                  directories[:] = sorted(d for d in directories if not omit(relative + "/" + d))
+                  tar.add(current, arcname=relative, recursive=False, filter=checked)
+                  for name in directories:
+                      path = pathlib.Path(current) / name
+                      if path.is_symlink():
+                          tar.add(path, arcname=relative + "/" + name, recursive=False, filter=checked)
+                  for name in sorted(files):
+                      relative_file = relative + "/" + name
+                      if not omit(relative_file):
+                          tar.add(pathlib.Path(current) / name, arcname=relative_file, recursive=False, filter=checked)
+              for name in api_files:
+                  tar.add(root / name, arcname=name, recursive=False, filter=checked)
+          required = {"apps/admin-web/.next/BUILD_ID", "apps/admin-web/.next/required-server-files.json",
+                      "apps/admin-web/node_modules/next/package.json", "apps/admin-web/package.json",
+                      "apps/admin-web/package-lock.json", "apps/admin-web/next.config.ts",
+                      "apps/admin-web/tsconfig.json", "apps/admin-web/next-env.d.ts",
+                      "apps/admin-web/src/core/config/runtime.ts", "apps/admin-web/src/core/config/server-runtime.ts",
+                      *api_files}
+          with tarfile.open(archive, "r:gz") as tar:
+              members = tar.getmembers()
+              assert all(not omit(member.name) for member in members), "ENV_OR_CACHE_IN_ARCHIVE"
+              assert required <= {member.name for member in members}, "RUNTIME_FILES_MISSING"
+          (output / "SHA256SUMS").write_text("".join(
+              file_sha(path) + "  " + path.name + "\n" for path in [archive, output / "manifest.json"]))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: admin-canonical-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/admin-canonical-artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
