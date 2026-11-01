@@ -1,41 +1,27 @@
-# Production readiness — 1 November 2026
+# Production readiness — cleanup execution update, 2026-11-02 Riyadh
 
-Decision: **NOT READY**. Implementation continues on `codex/voice-promoted-operating-2026-10-13`; current source `815a029ccb562164be60447ecd1e69017b222507` is pushed. No merge into main, release tag, production traffic activation or store publication occurred.
+Decision: **NOT READY**. Cleanup and a scoped Staging Admin release have executed. Full canonical backend/worker migration, authenticated acceptance, production activation and store publication remain incomplete. Work remains on `codex/voice-promoted-operating-2026-10-13`; no main merge or release tag was created.
 
-## Gate register
+| Gate | Current evidence |
+| --- | --- |
+| Exact application qualification | PASS at 721a943b: complete [manual Backend Foundation run](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41343497487), including application/database/mobile/Android/Admin/five browser projects/full-history secrets/image contracts and configured security scan; production signing skipped |
+| Current branch application identity | Apps/packages/schema/Docker trees equal qualified 721a943b; later commits are CI/reporting changes |
+| Disk headroom | PASS snapshot: 75.18 GB available, 27% used; exact removals in cleanup ledger |
+| Memory headroom | 3.84 GB available in a point sample; defined representative-load qualification remains pending |
+| Retired duplicate workloads | Six old Admin processes and 11 unreferenced APIs retired; required14 APIs still200, all 11 workers preserved |
+| Canonical backend artifact | PASS build/pull/digest/source/nonroot identity; eight compiled entrypoints verified without network/application bootstrap; not serving backend traffic |
+| Canonical Admin artifact/runtime | PASS exact source/lock/archive/config identity, private canary, same qualified runtime digest, HTTPS root/deletion-shell/static checks; latest Staging Admin promoted |
+| Admin rollback | Previous runtime encrypted/recovered byte-for-byte and retained locally; automatic ingress rollback verified; full cold-artifact/backend five-minute RTO remains unqualified |
+| Restore contract | Earlier isolated DB192-count/15-total and 30 Storage byte/metadata witnesses remain valid; portable-key/full application/config/image restore qualification incomplete |
+| Authenticated owner isolation/business reads | NOT REQUALIFIED in this server-cleanup scope; unchanged public inputs alone do not establish acceptance |
+| Hosted schema/RPC/backports and worker leases | NOT RECONCILED; preserve current roles/admission/owner scopes and pending operations |
+| One canonical API/worker release | INCOMPLETE:14 existing APIs and 11 workers remain protected pending capability and data correctness gates |
+| Observation | Admin-only 24-hour window began 2026-11-01T21:08:45.348383+00:00; full canonical release observation has not begun |
+| Benchmark authentication/app timings | Exact815a029c independent APK remains installed; zero accepted authenticated startup/API samples, no measured speedup pair |
+| Production identity/signing/observability/write flows | NOT QUALIFIED; financial writes, registration/deletion replay, paid AI and delivery remain outside selected acceptance |
 
-| Gate | Status | Evidence / remaining condition |
-| --- | --- | --- |
-| Identifiable same-branch source | PASS | Exact pushed candidate and independently verified APK/source archive |
-| Deployment inventory | PARTIAL | 24/24 routes mapped, 25 API/11 worker roles; provenance, consumer ownership and removal eligibility unresolved |
-| Schema16/encrypted-store/WAL | PASS in current Private Journal workflow | Exact815a029c workflow succeeded; no live migration/encryption weakening |
-| Required automated candidate jobs | PASS for815a029c | Staging/Private Journal and Backend database, application, mobile, Android, Admin, five Admin E2E, redaction, complete-history secrets and image jobs succeeded; production signed-release evidence job skipped |
-| SSH | PASS | Approved single-source UFW rule; existing key and strict known-host verification succeeded |
-| Database admission | FAIL / intermittent | Management SQL, bounded verify-full psql and dashboard schema queries time out; actual occupancy unavailable |
-| Restore contract | PARTIAL | Full logical DB restore and192-count/15-total witnesses;30 Storage byte/metadata comparisons; API/application, images/config/Admin/N-1 and portable-key recovery incomplete |
-| Independent benchmark app | INSTALLED; native persistence PASS | Both original apps/data preserved, exact APK/certificate verified, source-install permission revoked |
-| Existing-owner Google roundtrip | NOT RUN | Safe existing-account-only helper installed; fresh owner/default-account admission required before click |
-| Arabic/English Release app/API baseline | BLOCKED | Zero accepted authenticated samples;20-run scenarios and usable/data readiness still required |
-| Measured optimization | PENDING | Native functional and qualification fixes verified; no comparable speedup pair |
-| Disk/memory resource targets | FAIL / unqualified | Pre-Storage-pull13.14GB available/88% disk used;21.5% memory available in one sample; no consolidation |
-| Canonical backend/Admin/worker release | BLOCKED | Recovery, headroom, capability, migration-history reconciliation and exact candidate qualification first |
-| Gradual cutover and≤5minute rollback | NOT RUN | No public route or background claim changes |
-| 24-hour observation /≥7day off-host N-1 | NOT STARTED | No canonical cutover |
-| Production identity/security/observability | NOT QUALIFIED | Requires production-specific acceptance and owner-isolation evidence |
-| Writes/deletion/registration/AI/delivery | BLOCKED by selected scope | Separate production acceptance remains required |
+The [off-host Admin build](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41347012074) used the existing public Clerk/API configuration and a fictional build-only server placeholder; the actual secret remained on the VPS. Build Node 24.16.0/npm 11.17.0 and measured runtime Node 24.20.0 are recorded separately. A failed owned 1 GiB build was isolated, logged and removed before the off-host artifact was staged; no production process OOM is attributed to it.
 
-## Exact candidate CI
+Supabase troubleshooting is deferred by the user. The last inherited readiness 503 predates the 11-API retirement; current DB admission is neither declared fixed nor remeasured here. No pool/session/limit/database setting, migration or original encryption material was changed. Liveness 200 and reclaimed disk do not qualify business reads or production.
 
-[Backend Foundation](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41334968226), [Voice Private Journal](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41334968260) and [Staging Client Regression](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41334968204) identify the current candidate. All required automated jobs succeeded on this exact code candidate. The production signed-release-evidence job was skipped and does not qualify production signing. The secrets job now includes the actual complete candidate-history scan and passed.
-
-The Release SecureStore conversion failure was proven and repaired with a targeted R8 annotation rule plus artifact guard. Actual same-phone encrypted read/write/cold persistence passed without resets. Existing-account-only Google authentication prevents generic SSO auto-registration, with155 focused tests and independent review, but its native roundtrip is pending.
-
-## Controlled rollback to qualify
-
-Preserve a verified previous source/backend digest/Admin/config/schema manifest. Retain each previous Nginx target/config. Transition one route group with read-only checks and observe errors/latency/memory. Drain or stop an old consumer before enabling its replacement; preserve identities, leases, retries and idempotency. Reverse immediately for incorrect reads, auth/isolation failure, duplicate processing or sustained comparable p95 regression>20%. Rehearse artifact/config restoration within5minutes without replaying applied migrations or downgrading the database. This rehearsal has not run.
-
-## Next release decision
-
-Resolve current admission with measured attribution, renew the existing-owner predicate and finish controlled baseline. Complete recovery, qualify explicit cleanup candidates, recover headroom, then build one immutable release covering all existing routes and workloads. Only after exact-source CI, correctness/performance, restore, rollback and observation gates pass may reviewed work merge into main and receive a tag. See [manifest](release-manifest.json), [incident](current-database-incident.md), [baseline](baseline-report.md), [optimization](optimization-report.md), [cleanup](cleanup-report.md) and [recovery](recovery-report.md).
-
-Latest post-Storage-tool-pull OS snapshot: available disk11,702,063,104 bytes,89% used; available memory1,795,878,912 of8,321,167,360 bytes (about21.6%). Earlier values above are explicitly dated/pre-pull snapshots, not current reclaimed capacity.
+The next gate is route/feature-policy, authenticated owner/data and worker-admission reconciliation for the canonical backend, followed by gradual traffic/consumer transitions, rollback qualification and observation. Keep all currently required services and the recoverable previous release until those gates pass. See [cleanup](cleanup-report.md), [inventory](deployment-inventory.md), [manifest](release-manifest.json), [baseline](baseline-report.md), [optimization](optimization-report.md) and [recovery](recovery-report.md).

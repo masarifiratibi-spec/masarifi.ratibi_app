@@ -22,7 +22,7 @@ The first exploratory query searched structured attributes only and missed messa
 
 ## What is established and what remains unknown
 
-Connection-capacity and statement-timeout failures are real observed signals. Their cause is not yet established. The original deployment contains25 HTTP API roles and11 background roles, so aggregate connection budgets need review; the service count alone does not prove which process exhausted connections.
+Connection-capacity and statement-timeout failures are real observed signals. Their cause is not yet established. The original deployment contains25 HTTP API roles and 11 background roles, so aggregate connection budgets need review; the service count alone does not prove which process exhausted connections.
 
 Do not solve this by dropping connections, restarting the database, increasing limits blindly, disabling isolation, or retiring a worker with unverified ownership. Collect current connection limits/activity, pool mode and configured per-role pool budgets; identify long/idle transactions and role/application attribution without exporting statement values. Compare failed-admission timing with service and queue behavior. Preserve pending work and idempotency.
 
@@ -60,7 +60,7 @@ A separate fixed-window aggregate of the same62 Supavisor too-many-clients event
 
 Strict SSH was restored with the explicitly approved single-source UFW exception and the existing key/known-host verification. No application service, route, database setting or pooler mode was changed.
 
-Current container configuration shows25 API roles and11 workers. Main `MASARIFI_DATABASE_POOL_MAX` values sum to218 for APIs and87 for workers:305 configured slots, not305 observed connections. All36 main URLs use session pooling on5432 and fall into two opaque user/database/endpoint groups. Four APIs configure privacy URLs and one worker configures a command URL; configuration alone does not prove all secondary pools are enabled. The earlier uniform10-per-process model is superseded by these current numeric overrides. `docker top` initially required a PID column; a later comm-name filter returned zero for the sampled API, which is not a verified Node-process count and is excluded from capacity calculations.
+Current container configuration shows25 API roles and 11 workers. Main `MASARIFI_DATABASE_POOL_MAX` values sum to218 for APIs and87 for workers:305 configured slots, not305 observed connections. All36 main URLs use session pooling on5432 and fall into two opaque user/database/endpoint groups. Four APIs configure privacy URLs and one worker configures a command URL; configuration alone does not prove all secondary pools are enabled. The earlier uniform10-per-process model is superseded by these current numeric overrides. `docker top` initially required a PID column; a later comm-name filter returned zero for the sampled API, which is not a verified Node-process count and is excluded from capacity calculations.
 
 The logged-in Supabase Database Settings page shows Nano compute, connection pool size15 per user/database and fixed maximum200 client connections. These differ from PostgreSQL max_connections, which has not been retrieved successfully. The dashboard also fails schema/table queries with connection timeout. A fresh management aggregate query timed out; a separate bounded psql probe using the existing migration identity, existing CA and verify-full also reached its18-second process deadline. No occupancy or idle-transaction rows were accepted.
 
@@ -77,3 +77,7 @@ A separate short-lived official PostgreSQL client container then made a direct o
 One corrected container-network-namespace socket census at21:43 Riyadh found four ESTAB TCP sockets to5432 and101 TIME-WAIT entries across the sampled namespaces. These are sequential namespace observations, not an atomic provider session count. TIME-WAIT is closed-connection kernel state; it must not be counted as live database sessions. The earlier host-only/no-all-state observations were incomplete and are excluded from attribution. This sample cannot explain all server-side occupied slots or prove which workload caused exhaustion.
 
 At21:43–21:44 Riyadh a single private origin3001 readiness read returned503 with database=down and queue=down in1.008808 seconds (N=1). Its queue indicator performs only catalog reads. A fresh exact-owner/default-account preflight again timed out; Google remained unclicked. This is a failing diagnostic, not an authenticated API baseline or a successful latency target.
+
+## Server-cleanup scope update
+
+The user deferred direct Supabase connection investigation. Subsequent server cleanup retired 11 unreferenced HTTP API processes, reducing 25 → 14, and preserved every worker. Earlier configured-pool totals, session observations and admission errors above are historical. No fresh occupancy or authenticated business-read measurement was accepted after that change; do not infer either ongoing failure or resolution from liveness 200. One early origin readiness GET may have probed DB/queue and was not repeated. No database/pooler/session/limit/configuration or migration change was made in cleanup scope.

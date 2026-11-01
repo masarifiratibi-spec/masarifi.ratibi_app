@@ -36,4 +36,4 @@ Targets remain unqualified: authenticated cold p95≤3s, warm≤1.5s, cached tra
 
 No concurrency test ran against existing services. Only an isolated qualified candidate may receive ≤5 virtual users for3minutes, aborting for sustained CPU>85%, available memory<1GB, new OOM/restarts or failed reads>1%. Writes, registration/deletion replay, ingestion, paid AI and message delivery remain outside this read-only scope. `/me` can touch last_seen_at and can provision a missing default account; predicate admission is mandatory.
 
-Latest post-Storage-tool-pull OS snapshot: available disk11,702,063,104 bytes,89% used; available memory1,795,878,912 of8,321,167,360 bytes (about21.6%). Earlier values above are explicitly dated/pre-pull snapshots, not current reclaimed capacity.
+Historical pre-cleanup, post-tool-pull OS sample: available disk11,702,063,104 bytes,89% used; available memory1,795,878,912 of8,321,167,360 bytes (about21.6%). Earlier values above are explicitly dated/pre-pull snapshots, not current reclaimed capacity.

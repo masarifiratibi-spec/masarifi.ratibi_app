@@ -2,6 +2,10 @@
 
 Read-only evidence captured 2026-11-01T14:14:22.656808+00:00. No objects were stopped, deleted, reloaded, pruned or migrated. No server files were written.
 
+## Executed cleanup update — 2026-11-02 Riyadh
+
+The detailed tables/JSON below preserve the original14:14UTC inventory. They are historical and do not describe current running status. The [current sanitized snapshot](current-server-state.json) and [completed cleanup ledger](cleanup-removed-items.csv) supersede their disposition counts:14 required APIs,11 workers,1 canonical Admin and1 scanner are active;41 containers/35 referenced images remain including retained rollback/recovery objects. All original209 stopped application containers were removed. Staging Admin now uses127.0.0.1:3040 on exact 721a943b code; all API routes/conditional alternatives and private voice ingress→3000 are preserved. Latest backend/Admin candidate digest is in the [manifest](release-manifest.json); protected backend/worker traffic has not yet been migrated to it.
+
 ## Outcome
 
 Inventoried 246 containers (37 running), 89 images, 198 loaded system services (13 application services), 15 timers, 16 existing cron files, 47 listening sockets and 257 measured deployment folders. Separate `du` calls measured 67 release children and 14 Admin release children without parent/child deduplication.
