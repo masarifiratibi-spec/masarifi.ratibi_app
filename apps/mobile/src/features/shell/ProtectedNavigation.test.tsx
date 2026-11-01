@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import React from 'react';
 import { act, render, waitFor } from '@testing-library/react-native';
 
@@ -702,3 +703,57 @@ function RootLayout() {
   const Component = require('@app/_layout').default;
   return <Component />;
 }
+
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
+it('records the first usable PIN route after cold root hydration, restoration and profile loading resolve', () => {
+  const restore = installBenchmarkEnvironment();
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  useAppShellStore.setState({
+    hydrated: false,
+    session: { ...authenticatedSession, status: 'restoring' },
+    profileSetupStatus: 'loading',
+    onboarding: null,
+    privacyLock: null,
+    pendingDestination: null
+  });
+  usePreferenceStore.setState({
+    firstLaunchOnboardingCompleted: true,
+    hydrated: false
+  });
+  mockPathname = '/';
+  try {
+    const view = render(<RootLayout />);
+    const events = () =>
+      log.mock.calls
+        .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+        .map(([, value]) => JSON.parse(value as string))
+        .filter((event) => event.kind === 'protected_route');
+    expect(events()).toEqual([]);
+    act(() => usePreferenceStore.setState({ hydrated: true }));
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ hydrated: true }));
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ session: authenticatedSession }));
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ profileSetupStatus: 'complete' }));
+    // The entry screen still has to commit its Home/PIN navigation.
+    expect(events()).toEqual([]);
+    act(() => useAppShellStore.setState({ privacyLock: lockedPrivacy }));
+    expect(mockRedirect).toHaveBeenLastCalledWith({ href: '/security/unlock' });
+    expect(events()).toEqual([]);
+    mockPathname = '/security/unlock';
+    view.rerender(<RootLayout />);
+    expect(events()).toEqual([
+      { kind: 'protected_route', category: 'unlock', atMs: expect.any(Number) }
+    ]);
+    act(() => useAppShellStore.setState({ privacyLock: null }));
+    mockPathname = '/home';
+    view.rerender(<RootLayout />);
+    expect(events()).toHaveLength(1);
+  } finally {
+    log.mockRestore();
+    restore();
+  }
+});

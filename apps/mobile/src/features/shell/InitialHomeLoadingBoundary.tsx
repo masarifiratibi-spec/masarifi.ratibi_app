@@ -3,7 +3,8 @@ import React, {
   useCallback,
   useContext,
   useLayoutEffect,
-  useReducer
+  useReducer,
+  useRef
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
@@ -11,6 +12,7 @@ import {
   useStartupReady
 } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { usePreferenceStore } from '@/state/preferences';
+import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 
 type Part = 'home' | 'header' | 'notice';
 type Readiness = 'pending' | 'ready' | 'failed';
@@ -56,16 +58,38 @@ export function InitialHomeLoadingBoundary({
     layout: false,
     released: !isHome
   });
+  const released = useRef(state.released);
+  released.current = state.released;
+  const releaseOutcome = useRef<'failed' | 'left_route' | null>(
+    isHome ? null : 'left_route'
+  );
+  const recorded = useRef(false);
   const report = useCallback(
-    (part: Part, readiness: Readiness) => dispatch({ part, state: readiness }),
+    (part: Part, readiness: Readiness) => {
+      if (!released.current && readiness === 'failed')
+        releaseOutcome.current ??= 'failed';
+      dispatch({ part, state: readiness });
+    },
     []
   );
   const locale = usePreferenceStore((state) => state.locale);
   const themePreference = usePreferenceStore((state) => state.theme);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   useLayoutEffect(() => {
-    if (!isHome) dispatch({ part: 'leave', state: 'ready' });
+    if (!isHome) {
+      if (!released.current) releaseOutcome.current ??= 'left_route';
+      dispatch({ part: 'leave', state: 'ready' });
+    }
   }, [isHome]);
+  useLayoutEffect(() => {
+    if (!state.released || recorded.current) return;
+    const outcome =
+      releaseOutcome.current ??
+      (state.home && state.header && state.notice && state.layout ? 'ready' : null);
+    if (!outcome) return;
+    recorded.current = true;
+    recordBenchmarkEvent({ kind: 'home', outcome });
+  }, [state]);
   const waiting = isHome && !state.released;
   useStartupReady(!waiting);
   return (

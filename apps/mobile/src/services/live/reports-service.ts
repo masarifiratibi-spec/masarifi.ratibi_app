@@ -1,3 +1,4 @@
+import { benchmarkFetch } from '../platform/benchmark-observability';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { requestRecentAuthentication } from './http-client';
 import { captureLiveClerkOwner } from './auth-service';
@@ -132,7 +133,7 @@ export function createLiveReportsService(
       await identity?.assertCurrent();
       if (signal?.aborted) throw new ReportsApiError('offline');
       response = await measurePerformance('reports.read', () =>
-        request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
+        benchmarkFetch(request, `${baseUrl.replace(/\/$/u, '')}${path}`, {
           method,
           signal,
           headers: {

@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import {
   measurePerformance,
   readPerformanceTimings,
@@ -33,5 +34,29 @@ it('exposes bounded chronological spans without retaining action payloads', () =
     expect(readPerformanceSpans()).toHaveLength(200);
   } finally {
     clock.mockRestore();
+  }
+});
+
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
+it('exposes benchmark stage duration and process-relative event time', () => {
+  const restore =
+    installBenchmarkEnvironment();
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const clock = jest.spyOn(performance, 'now').mockReturnValue(100);
+  try {
+    recordPerformanceTiming('startup.fonts', 25);
+    expect(
+      log.mock.calls
+        .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+        .map(([, json]) => JSON.parse(json as string))
+    ).toEqual([
+      { kind: 'timing', stage: 'startup.fonts', elapsedMs: 25, atMs: 100 }
+    ]);
+  } finally {
+    clock.mockRestore();
+    log.mockRestore();
+    restore();
   }
 });

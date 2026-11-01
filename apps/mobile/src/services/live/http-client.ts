@@ -1,3 +1,4 @@
+import { benchmarkFetch } from '../platform/benchmark-observability';
 import type { z } from 'zod';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 
@@ -198,7 +199,7 @@ async function performRequestJson<T>(
       if (!baseUrl || !path.startsWith('/'))
         throw new HttpError('contract_mismatch', 500);
       diagnostic.stage = 'transport';
-      const response = await request(`${baseUrl}${path}`, {
+      const response = await benchmarkFetch(request, `${baseUrl}${path}`, {
         method: options.method,
         headers,
         body:

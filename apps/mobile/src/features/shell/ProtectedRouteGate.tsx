@@ -1,4 +1,4 @@
-import React, { type ReactNode, useEffect, useRef } from 'react';
+import React, { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
 import { Redirect, router, usePathname } from 'expo-router';
 
 import { resolveProtectedAccessGate } from './resolve-entry-route';
@@ -16,6 +16,7 @@ import { isAppLockEnabled, isBenchmarkReadOnly } from '@/config/client-runtime';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 import { consumeGuestOnboardingReminder } from '@/services/platform/guest-onboarding-reminder';
 import { DevReminderRuntime } from '@/features/notifications/DevReminderRuntime';
+import { recordFirstProtectedRoute } from '@/services/platform/benchmark-observability';
 
 export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -98,7 +99,36 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   if (!gate && pathname === '/security/unlock') {
     return <Redirect href="/(tabs)/home" />;
   }
-  return <>{children}</>;
+  const canMeasureProtectedRoute =
+    hydrated &&
+    preferencesHydrated &&
+    gate !== '/' &&
+    !['/', '/index', '/auth-pending', '/welcome'].includes(pathname);
+  return (
+    <>
+      {canMeasureProtectedRoute ? (
+        <ProtectedRouteMeasurement
+          category={
+            pathname === '/security/unlock'
+              ? 'unlock'
+              : pathname === '/home'
+                ? 'home'
+                : 'other'
+          }
+        />
+      ) : null}
+      {children}
+    </>
+  );
+}
+
+function ProtectedRouteMeasurement({
+  category
+}: {
+  category: 'unlock' | 'home' | 'other';
+}) {
+  useLayoutEffect(() => recordFirstProtectedRoute(category), [category]);
+  return null;
 }
 
 export function NotificationResponseRuntime() {

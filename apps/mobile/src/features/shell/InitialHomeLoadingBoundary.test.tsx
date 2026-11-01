@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import React from 'react';
 import { Text } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
@@ -101,4 +102,68 @@ it('does not bring the cover back after leaving the first Home', () => {
     </InitialHomeLoadingBoundary>
   );
   expect(screen.queryByTestId('startup-loading')).toBeNull();
+});
+
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
+it.each(['ready', 'failed', 'left_route'] as const)(
+  'records only the genuine post-layout Home release outcome: %s',
+  (outcome) => {
+    const restore =
+      installBenchmarkEnvironment();
+    const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    try {
+      const view = render(
+        <InitialHomeLoadingBoundary isHome>
+          <Page home="pending" />
+        </InitialHomeLoadingBoundary>
+      );
+      const events = () =>
+        log.mock.calls
+          .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+          .map(([, value]) => JSON.parse(value as string))
+          .filter((event) => event.kind === 'home');
+      expect(events()).toEqual([]);
+      view.rerender(
+        <InitialHomeLoadingBoundary isHome={outcome !== 'left_route'}>
+          <Page home={outcome === 'failed' ? 'failed' : 'ready'} />
+        </InitialHomeLoadingBoundary>
+      );
+      if (outcome === 'ready') {
+        expect(events()).toEqual([]);
+        layoutPage();
+      }
+      expect(events()).toEqual([
+        { kind: 'home', outcome, atMs: expect.any(Number) }
+      ]);
+      layoutPage();
+      view.rerender(
+        <InitialHomeLoadingBoundary isHome>
+          <Page />
+        </InitialHomeLoadingBoundary>
+      );
+      expect(events()).toHaveLength(1);
+    } finally {
+      log.mockRestore();
+      restore();
+    }
+  }
+);
+
+it('emits no benchmark readiness in an ordinary runtime', () => {
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  try {
+    render(
+      <InitialHomeLoadingBoundary isHome>
+        <Page />
+      </InitialHomeLoadingBoundary>
+    );
+    layoutPage();
+    expect(
+      log.mock.calls.filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+    ).toEqual([]);
+  } finally {
+    log.mockRestore();
+  }
 });

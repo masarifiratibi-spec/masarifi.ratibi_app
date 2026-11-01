@@ -1,26 +1,8 @@
-export type PerformanceStage =
-  | 'planning.auth'
-  | 'planning.read'
-  | 'reports.auth'
-  | 'reports.read'
-  | 'startup.fonts'
-  | 'startup.restore'
-  | 'startup.profile'
-  | 'startup.identity'
-  | 'identity.cache.read'
-  | 'identity.token.read'
-  | 'identity.token.fresh'
-  | 'identity.profile.remote'
-  | 'identity.preferences'
-  | 'identity.onboarding'
-  | 'identity.local.read'
-  | 'identity.local.write'
-  | 'ledger.categories'
-  | 'ledger.read'
-  | 'ledger.today'
-  | 'storage.draft.read'
-  | 'storage.draft.write'
-  | 'sync.core';
+import {
+  recordBenchmarkEvent,
+  type PerformanceStage
+} from './benchmark-observability';
+export type { PerformanceStage } from './benchmark-observability';
 
 const timings: Partial<Record<PerformanceStage, number[]>> = {};
 type PerformanceSpan = { stage: PerformanceStage; startedAt: number; endedAt: number };
@@ -33,6 +15,7 @@ export function recordPerformanceTiming(
   if (!Number.isFinite(milliseconds) || milliseconds < 0) return;
   const elapsed = Math.round(milliseconds);
   const endedAt = performance.now();
+  recordBenchmarkEvent({ kind: 'timing', stage, elapsedMs: milliseconds });
   spans.push({ stage, startedAt: endedAt - milliseconds, endedAt });
   if (spans.length > 200) spans.shift();
   timings[stage] = [...(timings[stage] ?? []).slice(-49), elapsed];

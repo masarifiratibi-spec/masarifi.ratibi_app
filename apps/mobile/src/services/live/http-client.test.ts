@@ -487,3 +487,35 @@ describe('Mobile strict HTTP client', () => {
     });
   });
 });
+
+it('counts shared-client benchmark fetch attempts without logging credentials or raw paths', async () => {
+  const restore = installBenchmarkEnvironment();
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const request = jest.fn(async () => response(200, { state: 'ready' }));
+  try {
+    await requestJson(
+      '/api/v1/savings-goals/OWNER_MARKER?title=TITLE_MARKER',
+      schema,
+      { token: 'TOKEN_MARKER', baseUrl: 'https://URL_MARKER.invalid', request }
+    );
+    const events = log.mock.calls
+      .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+      .map(([, value]) => JSON.parse(value));
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'transport',
+        group: 'planning',
+        method: 'GET',
+        status: 200,
+        payloadBytes: null,
+        outcome: 'response'
+      })
+    ]);
+    expect(JSON.stringify(events)).not.toMatch(
+      /TOKEN_MARKER|OWNER_MARKER|TITLE_MARKER|URL_MARKER/
+    );
+  } finally {
+    log.mockRestore();
+    restore();
+  }
+});

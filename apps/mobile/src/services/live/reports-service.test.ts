@@ -1,3 +1,4 @@
+import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import * as recentAuthentication from './http-client';
 import { createLiveReportsService, ReportsApiError } from './reports-service';
 import { ReportsRepository } from '@/storage/reports-repository';
@@ -596,3 +597,44 @@ it.each([true, false])(
     }
   }
 );
+
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
+it('records direct benchmark report transport once while preserving response and excluding private markers', async () => {
+  const restore =
+    installBenchmarkEnvironment();
+  const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+  const request = jest.fn(async () => json(summary()));
+  try {
+    const live = createLiveReportsService({
+      baseUrl: 'https://URL_MARKER.invalid',
+      token: async () => 'TOKEN_MARKER',
+      request
+    });
+    await expect(
+      live.getReport({ ...input, accountIds: ['OWNER_MARKER'] })
+    ).resolves.toHaveProperty('summary');
+    const events = log.mock.calls
+      .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
+      .map(([, value]) => JSON.parse(value as string))
+      .filter((event) => event.kind === 'transport');
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'transport',
+        group: 'reports',
+        method: 'GET',
+        status: 200,
+        payloadBytes: null,
+        outcome: 'response'
+      })
+    ]);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(events)).not.toMatch(
+      /TOKEN_MARKER|OWNER_MARKER|TITLE_MARKER|URL_MARKER/
+    );
+  } finally {
+    log.mockRestore();
+    restore();
+  }
+});
