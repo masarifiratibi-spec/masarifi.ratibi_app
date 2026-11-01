@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires -- Expo loads app configuration as CommonJS. */
 const { URL } = globalThis;
 const {
   validateBenchmarkBuildEnvironment

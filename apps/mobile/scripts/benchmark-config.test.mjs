@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import test from 'node:test';
+import { URL } from 'node:url';
 import { validateClientBuildEnvironment } from './check-client-runtime.mjs';
 
+const { structuredClone } = globalThis;
 const require = createRequire(import.meta.url);
 const configure = require('../app.config.js');
 const app = JSON.parse(
