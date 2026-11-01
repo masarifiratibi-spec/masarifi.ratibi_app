@@ -18,6 +18,11 @@ import type { TextStyle } from 'react-native';
 // Teal is the primary interaction family. Bronze is a restrained premium accent,
 // never a second primary.
 export const colorTokens = {
+  auth: {
+    surface: '#F7F4EF',
+    content: '#103F37',
+    secondary: '#63645F'
+  },
   onboarding: {
     start: '#2D7264'
   },

@@ -32,10 +32,10 @@ test.each([
       )
     ).toBeNull();
     expect(
-      screen.getByRole('image', {
+      screen.queryByRole('image', {
         name: locale === 'ar' ? 'مصاريفي وراتبي' : 'Masarifi & Ratibi'
       })
-    ).toBeOnTheScreen();
+    ).toBeNull();
   }
 );
 
@@ -64,7 +64,7 @@ test.each(['ar', 'en'] as const)(
     ).toBeNull();
     expect(
       screen.getByText(
-        locale === 'ar' ? 'حيّاك في مصاريفي وراتبي' : 'Welcome to Masarifi & Ratibi'
+        locale === 'ar' ? 'حيّاك في\nمصاريفي وراتبي' : 'Welcome to\nMasarifi & Ratibi'
       )
     ).toBeOnTheScreen();
     expect(screen.getByTestId('sign-in-documents')).toBeOnTheScreen();

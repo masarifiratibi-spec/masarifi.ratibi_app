@@ -35,6 +35,7 @@ interface PreferenceState extends UserPreferences {
   returnRemindersPausedOwnerId: string | null;
   hydrate: () => Promise<void>;
   completeFirstLaunchOnboarding: () => Promise<void>;
+  restartFirstLaunchOnboarding: () => Promise<void>;
   setLocale: (locale: Locale) => Promise<boolean>;
   setTheme: (theme: ThemePreference) => void;
   toggleHideBalances: () => void;
@@ -134,6 +135,12 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
 
   completeFirstLaunchOnboarding: async () => {
     const next = { ...get(), firstLaunchOnboardingCompleted: true };
+    await persist(next);
+    set(next);
+  },
+
+  restartFirstLaunchOnboarding: async () => {
+    const next = { ...get(), firstLaunchOnboardingCompleted: false };
     await persist(next);
     set(next);
   },

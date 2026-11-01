@@ -286,12 +286,10 @@ const en = {
   'googleAuth.brand': 'Masarifi & Ratibi',
   'googleAuth.incomplete':
     'Google registration needs additional account information. Please try another Google account or contact support.',
-  'googleAuth.welcome': 'Welcome to Masarifi & Ratibi',
-  'googleAuth.supporting':
-    'Your finances, together in one place. Continue with your Google account to get started.',
+  'googleAuth.welcome': 'Welcome to\nMasarifi & Ratibi',
+  'googleAuth.supporting': 'Your finances, together in one place.\nContinue with Google to get started.',
   'googleAuth.continue': 'Continue with Google',
-  'googleAuth.footer':
-    'Use the same Google account to return to your finances.',
+  'googleAuth.footer': 'Use the same Google account to return to your finances.',
   'appShell.security.stagingDisabled':
     'App Lock prompts are disabled in this development build.',
   // App shell

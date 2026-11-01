@@ -31,6 +31,7 @@ import {
   type LiveClerkBridge
 } from '@/services/live/auth-service';
 import { useAppShellStore } from '@/state/app-shell';
+import { usePreferenceStore } from '@/state/preferences';
 import {
   getDevDeletionSnapshots,
   prepareDevDeletionBootstrap,
@@ -670,6 +671,52 @@ test('keeps processing behind one loading message beyond the initial polling win
     });
     expect(screen.queryByRole('progressbar')).toBeNull();
     expect(http.mock.calls.filter(([, init]) => init.method === 'POST')).toHaveLength(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('checks valid processing receipts within five seconds and restarts onboarding only after confirmed cleanup', async () => {
+  jest.useFakeTimers();
+  await usePreferenceStore.getState().completeFirstLaunchOnboarding();
+  seedDeletedOwner(OWNER);
+  const pending = { ...fullRequest, status: 'processing', completedAt: null };
+  http.mockResolvedValueOnce(response(pending, 202)).mockResolvedValue(
+    response({ ...completedReceipt, status: 'processing', completedAt: null })
+  );
+  try {
+    await submitDevAccountDeletion(OWNER);
+    for (let attempt = 0; attempt < 7; attempt++) {
+      await jest.advanceTimersByTimeAsync(5_000);
+      await reconcileDevAccountDeletions();
+    }
+    expect(http).toHaveBeenCalledTimes(8);
+    expect(usePreferenceStore.getState().firstLaunchOnboardingCompleted).toBe(true);
+    http.mockResolvedValueOnce(response(completedReceipt));
+    await jest.advanceTimersByTimeAsync(5_000);
+    await reconcileDevAccountDeletions();
+    expect(snapshot()?.phase).toBe('completed');
+    expect(usePreferenceStore.getState().firstLaunchOnboardingCompleted).toBe(false);
+    expect(http.mock.calls.filter(([, init]) => init.method === 'POST')).toHaveLength(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('honors Retry-After on a valid processing receipt even for a forced refresh', async () => {
+  jest.useFakeTimers();
+  const pending = { ...fullRequest, status: 'processing', completedAt: null };
+  http.mockResolvedValueOnce(response(pending, 202, { 'Retry-After': '15' }));
+  try {
+    await submitDevAccountDeletion(OWNER);
+    await jest.advanceTimersByTimeAsync(5_000);
+    await reconcileDevAccountDeletions({ force: true });
+    expect(http).toHaveBeenCalledTimes(1);
+    http.mockResolvedValueOnce(response(completedReceipt));
+    await jest.advanceTimersByTimeAsync(10_000);
+    await reconcileDevAccountDeletions();
+    expect(snapshot()?.phase).toBe('completed');
+    expect(http).toHaveBeenCalledTimes(2);
   } finally {
     jest.useRealTimers();
   }

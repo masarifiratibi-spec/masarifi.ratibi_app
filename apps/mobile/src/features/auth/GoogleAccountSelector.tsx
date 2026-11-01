@@ -1,5 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle
+} from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -21,6 +27,9 @@ interface GoogleAccountSelectorProps {
   loading?: boolean;
   disabled?: boolean;
   lifecycleMessage?: MessageKey;
+  buttonStyle?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
+  messageStyle?: StyleProp<TextStyle>;
 }
 
 export function GoogleAccountSelector({
@@ -30,7 +39,10 @@ export function GoogleAccountSelector({
   label,
   loading = false,
   disabled = false,
-  lifecycleMessage
+  lifecycleMessage,
+  buttonStyle,
+  labelStyle,
+  messageStyle
 }: GoogleAccountSelectorProps) {
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
@@ -96,7 +108,11 @@ export function GoogleAccountSelector({
   return (
     <View style={styles.stack}>
       {lifecycleMessage || messageKey ? (
-        <StyledText accessibilityRole="alert" accessibilityLiveRegion="polite">
+        <StyledText
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          style={messageStyle}
+        >
           {translate(lifecycleMessage ?? messageKey!)}
         </StyledText>
       ) : null}
@@ -104,11 +120,14 @@ export function GoogleAccountSelector({
         label={label ?? translate('appShell.auth.google.choose')}
         icon={<GoogleBrandIcon />}
         variant="secondary"
-        style={{
-          backgroundColor: colorTokens.google.surface,
-          borderColor: colorTokens.google.border
-        }}
-        labelStyle={{ color: colorTokens.google.content }}
+        style={[
+          {
+            backgroundColor: colorTokens.google.surface,
+            borderColor: colorTokens.google.border
+          },
+          buttonStyle
+        ]}
+        labelStyle={[{ color: colorTokens.google.content }, labelStyle]}
         loading={pending || loading}
         disabled={disabled}
         onPress={submit}

@@ -165,6 +165,20 @@ it('does not complete first launch when persistence fails', async () => {
   );
 });
 
+it('restarts first launch after deletion while preserving language and theme', async () => {
+  usePreferenceStore.setState({ firstLaunchOnboardingCompleted: true, locale: 'en', direction: 'ltr', theme: 'dark' });
+  await usePreferenceStore.getState().restartFirstLaunchOnboarding();
+  expect(usePreferenceStore.getState()).toMatchObject({ firstLaunchOnboardingCompleted: false, locale: 'en', direction: 'ltr', theme: 'dark' });
+  expect(mockSavePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ firstLaunchOnboardingCompleted: false, locale: 'en', theme: 'dark' }));
+});
+
+it('keeps onboarding restart retryable when preference persistence fails', async () => {
+  usePreferenceStore.setState({ firstLaunchOnboardingCompleted: true });
+  mockSavePreferences.mockRejectedValueOnce(new Error('storage unavailable'));
+  await expect(usePreferenceStore.getState().restartFirstLaunchOnboarding()).rejects.toThrow('storage unavailable');
+  expect(usePreferenceStore.getState().firstLaunchOnboardingCompleted).toBe(true);
+});
+
 it('keeps the current locale when demo relocalization fails', async () => {
   process.env.EXPO_PUBLIC_DEMO_MODE = '1';
   synchronizeDemoLocale.mockRejectedValueOnce(

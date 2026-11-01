@@ -5,6 +5,7 @@ import {
   devPrivacyDeletionApiUrl
 } from '@/config/client-runtime';
 import { useAppShellStore } from '@/state/app-shell';
+import { usePreferenceStore } from '@/state/preferences';
 import {
   loadDeletionCompletion,
   pendingDeletionOwners,
@@ -206,10 +207,10 @@ async function deletionRequest<T>(
     body?: unknown;
     headers?: Record<string, string>;
   }
-): Promise<T> {
+): Promise<{ value: T; retryAfterAt: number }> {
   let retryAfterMs = 0;
   try {
-    return await requestJson(path, schema, {
+    const value = await requestJson(path, schema, {
       ...options,
       baseUrl: requireRuntime(),
       request: async (url, init) => {
@@ -218,6 +219,7 @@ async function deletionRequest<T>(
         return response;
       }
     });
+    return { value, retryAfterAt: retryAfterMs ? Date.now() + retryAfterMs : 0 };
   } catch (failure) {
     throw new DeletionTransportFailure(
       failure instanceof HttpError
@@ -249,6 +251,8 @@ async function finishLocalErasure(
     }
     await eraseDeletedAccountLocalData(journal.ownerId);
     if (signOutFailure) throw signOutFailure;
+    if (!useAppShellStore.getState().session?.userId)
+      await usePreferenceStore.getState().restartFirstLaunchOnboarding();
     await removeAccountDeletionJournal(journal.ownerId);
     await saveDeletionCompletion({
       ...journal,
@@ -267,7 +271,8 @@ async function finishLocalErasure(
 
 async function acceptReceipt(
   journal: DeletionCompletionJournal,
-  receipt: CompletionReceipt
+  receipt: CompletionReceipt,
+  retryAfterAt: number
 ): Promise<void> {
   if (!receiptSchema.safeParse(receipt).success)
     throw new HttpError('contract_mismatch', 502);
@@ -291,8 +296,12 @@ async function acceptReceipt(
     ...journal,
     requestId: receipt.id,
     attempts,
+    retryAfterAt,
     nextAttemptAt:
-      Date.now() + backoff[Math.min(attempts - 1, backoff.length - 1)]
+      Math.max(
+        Date.now() + Math.min(5_000, backoff[Math.min(attempts - 1, backoff.length - 1)]),
+        retryAfterAt
+      )
   };
   await saveDeletionCompletion(next);
   const failed = receipt.status === 'failed' || receipt.status === 'cancelled';
@@ -414,12 +423,12 @@ async function recoverJournal(
     return;
   }
   try {
-    const receipt = await deletionRequest(
+    const { value: receipt, retryAfterAt } = await deletionRequest(
       `/api/v1/privacy/deletion-completions/${encodeURIComponent(journal.operationId)}`,
       receiptSchema,
       { token: journal.completionToken!, method: 'GET' }
     );
-    await acceptReceipt(journal, receipt);
+    await acceptReceipt(journal, receipt, retryAfterAt);
   } catch (failure) {
     await recordFailure(journal, failure);
   }
@@ -453,7 +462,7 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
       assertShellOwner(ownerId);
       publish(ownerId, 'deleting');
       dispatched = true;
-      const request = await deletionRequest(
+      const { value: request, retryAfterAt } = await deletionRequest(
         '/api/v1/me/deletion-requests',
         deletionRequestSchema,
         {
@@ -472,7 +481,7 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
         completedAt: request.completedAt,
         errorCode: null,
         version: request.version
-      });
+      }, retryAfterAt);
     } catch (failure) {
       if (!dispatched) {
         await saveDeletionCompletion({ ...journal, phase: 'prepared' });

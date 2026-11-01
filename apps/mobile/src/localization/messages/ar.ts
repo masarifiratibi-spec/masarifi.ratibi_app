@@ -256,9 +256,8 @@ const ar: MessageCatalog = {
   'googleAuth.brand': 'مصاريفي وراتبي',
   'googleAuth.incomplete':
     'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
-  'googleAuth.welcome': 'حيّاك في مصاريفي وراتبي',
-  'googleAuth.supporting':
-    'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
+  'googleAuth.welcome': 'حيّاك في\nمصاريفي وراتبي',
+  'googleAuth.supporting': 'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
   'googleAuth.continue': 'المتابعة باستخدام Google',
   'googleAuth.footer': 'ارجع بنفس حساب Google،\nوتلقى بياناتك مثل ما تركتها.',
   'appShell.security.stagingDisabled':

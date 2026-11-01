@@ -1,5 +1,7 @@
 # هاند أوف: استكمال حذف الحساب وتسريع العملية
 
+**تحديث نهائي في1نوفمبر، بعد14:11السعودية: الطلب نفسه اكتمل، الهاتف نُظف وسجّل الخروج، والأونبوردنج والتسجيل بنفسGoogle وصلا لحساب جديد فارغ. لا تعِد الحذف أو تطبيق الإصلاحات. التفاصيل النهائية في آخر الملف وفي `docs/evidence/2026-11-01-account-deletion-progress.md`. الفقرات الأصلية أدناه سجل تاريخي لحالة التعطل.**
+
 آخر تحقق:1 نوفمبر2026،13:37 بتوقيت السعودية. المستخدم طلب هذا الملف لفتح شات جديد؛ لا تنشئ شاتًا تلقائيًا.
 
 ## الأولوية الملزمة من المستخدم
@@ -75,4 +77,36 @@ Supabase connector المستخدم: `link_6ad7016d2bb4819180129c11ac49e220`. ا
 - `read-deletion-runtime.cjs status` يقرأ حالة الواجهة. `receipt` يطلب GET باستخدام capability داخل الجهاز ثم `read` في استدعاء تالٍ يعرض status/error/timestamp فقط. لا تستعمل `resume-current-deletion.cjs`؛ intent الخاص به مستهلك وPOST رُفض بالفعل.
 - لا ZIP، لا نسخ بيانات خام أو مفاتيح إلى Git، ولا تكرار بطاقة/فئات/معاملات/دعم أو نوافذ مزود قديمة.
 
-**المهمة غير مكتملة:** الحذف الحقيقي، سرعة اكتماله، تنظيف الهاتف، ثم الأونبوردنج والتسجيل الجديد. ابدأ من هذا التعطل لا من إعادة بناء الواجهة.
+**حالة التسليم الأصلي قبل المتابعة:** لم يكن الحذف والتنظيف والأونبوردنج والتسجيل قد اكتملوا آنذاك؛ التحديثات التالية تستبدل تلك الحالة.
+
+## متابعة الشات الجديد — 1 نوفمبر، 14:01 السعودية
+
+- أُصلح SSH بعد إثبات `UFW BLOCK` لعنوان خروج الجهاز الحالي؛ المستخدم وافق صراحة على قاعدة واحدة لهذا العنوان فقط إلى عنوان السيرفر والمنفذ22. المفتاح والمستخدم والتحقق الصارم من المضيف لم تتغير. SSH يعمل الآن؛ لا تعِد إضافة القاعدة.
+- هوية خدمة3027 الفعلية: container `1b48baf2daabf981a6dff4e4c4e9ce7282c19ca1cf8d85e8e7a3b58a0e5af0ce`، image `sha256:abb6e9137a52c309e78e0069895a1a855e6af78c48ceb05364808816b8037576`، release `2764f849137ddf1cef468dff3fd150e942d5c26e`، بدأت2026-10-21T14:45:27.428418375Z، restart0. Node داخلها `/nodejs/bin/node`.
+- استؤنف نفس الطلب مرة واحدة عبر الخدمة الموجودة في10:49:15.381UTC، وعاد10:49:18.700UTC بعد3319ms بحالةprocessing. لا يوجد طلبPOST أو operation جديد.
+- السبب الجديد المثبت من سجلات قاعدة البيانات: `ERASURE_PAYLOAD_REMAINS`، detail `private.mobile_activity_buckets`؛ الجدول يحتوي89 صفًا للمالك، ولم يدخل قائمة الحذف التي سبقت إنشاءه. لا تحذف الصفوف يدويًا.
+- migration `20261101105635_mobile_activity_owner_erasure.sql` مطبّقة بالفعل؛ سجلها بنفس النسخة. تضيف هذا الجدول فقط إلى قائمة الدالة الموجودة، دون تغيير owner/ACL أو فحوص القفل والاحتفاظ والتحقق النهائي. لا تعِد تطبيقها.
+- اختبار PostgreSQL17 محلي أعاد الخطأ قبل الإصلاح، ثم4 حالات نجحت بعده (نجاح مع عزل المالك والتكرار الآمن؛ رفض غياب القفل؛ المالك الآخر؛ حجز الاحتفاظ). TypeScript وscoped lint نجحا. cluster15491 أوقف مجددًا.
+- القفل الطبيعي للمحاولة السابقة يجعل الاستئناف التالي متاحًا بعد11:04:19UTC /14:04:19السعودية؛ لا تعدّل updated_at. السكربت الخاص `account-restart-live/resume-exact-request-20261101.cjs` يتحقق من هوية الخدمة والمالك والطلب والعملية والأهلية قبل الاستدعاء، ولا يغيّر المواعيد.
+- الـAPK مطابق للبصمة الأصلية وMetro12652 نفسه. الهاتف ما زالpending؛ firstLaunchOnboardingCompleted=true، وقاعدة المالك المحلية باقية لحين إيصالcompleted. لم يحدث تنظيف يدوي أو تسجيل جديد. آخر لقطة `deletion-worker-failed-1049.png`.
+
+## النتيجة النهائية — لا تكرر التنفيذ
+
+- نفس الطلب والعملية اكتملتا: `completed_at=2026-11-01T11:04:40.265762Z`، version7، error=null. آخر استئناف حقيقي بدأ11:04:36.429UTC وانتهى بعد3912ms. لا تحديث SQL للحالة ولا طلب حذف جديد.
+- الحساب القديم tombstone محذوف وبياناته الشخصية مطموسة. المعاملات والحسابات ونشاط الهاتف صفر، وفحص جميع جداولuser_id ضمن فحص البقايا أعاد صفر جداول تحتوي بياناته.
+- زمن الطلب من إنشائه إلى اكتمال الخادم62دقيقة24.240ثانية، ويشمل التعطل السابق والإصلاح. الهاتف كانpending حتى قراءة11:04:57.493UTC، وأُثبت اكتماله وتنظيفه وخروجه في11:05:15.521UTC. لا تصف3.9ثوانٍ كقياس كامل من التأكيد حتى تنظيف الهاتف.
+- قُصر انتظار إيصالprocessing الصحيح إلى5ثوانٍ مع احترامRetry-After حتى على الرد الناجح. بقي backoff أخطاء النقل والحجز15دقيقة وحدود الخادم كما كانت. هذه سرعة متابعة مثبتة بالاختبار، ولم تُختبر بحذف حساب حي آخر.
+- أُصلح first-use داخل مسار إكمال الحذف الناجح فقط، دون تغيير اللغة أو الثيم أو مساس بمالك آخر نشط. لأن هذا الطلب سبق تحميل الإصلاح، استُعيدت بدايته مرة واحدة بعد التحقق منcompleted على الخادم وfence مكتمل ولاjournal ولامالك نشط؛ لا تعِد هذا السكربت الآن.
+- الأونبوردنج ظهر فعليًا وزر«ابدأ الحين» فتح الدخول. Google أعاد إنشاء مالك جديد مختلف؛ مقارنةhash البريد أكدت أنه نفسGoogle دون كشف البريد. إعداد الملف ظهر ثم اكتمل قبل الملاحظة التالية؛ لم تُلتقط ضغطة إكماله بدقة. الصفحة النهائية الرئيسية فارغة:0معاملات، حساب نقدي أولي واحد برصيد0، ولاطلب حذف جديد.
+- قاعدة المالك القديم `masarifi-cf8bf8b051f58c923f0b4634.db` زالت عبر التنظيف الأصلي، وقاعدة المالك الجديد مختلفة. اللقطة النهائية `account-restart-live/new-owner-home-final-01.png`، والأونبوردنج `recovered-onboarding-after-completed-01.png`.
+-69اختبار موبايل/3suites، و4اختباراتPostgreSQL17، وTypeScript وscoped lint نجحت. قاعدة الاختبار المحلية أوقفت. نفس الفرع والهاتف والـAPK وMetro12652. التعديلات المحلية لم تُدفع؛ migration الجديدة مطبقة بالفعل. لاAI ولا معاملات أمثلة ولااختبار حذف آخر.
+
+## Subsequent approved login redesign
+
+The user's final choice is the sandstone-and-emerald architectural sign-in reference with the app logo removed. Implemented in `GoogleAuthScreen.tsx` with a standalone background at `apps/mobile/assets/auth/saudi-courtyard.png`. Google sign-in, legal links and lifecycle behavior remain intact. Do not restore the earlier minimalist white concept or regenerate design variants.
+
+The account remains authenticated: visual QA used isolated rendering of the actual component, not a logout on the phone. Same branch, APK and Metro12652 preserved. Two auth suites /12 tests, mobile TypeScript and scoped ESLint passed. Evidence and the known unrelated foundation-check finding: `docs/evidence/2026-11-01-login-architecture.md`. No commit or push; preserve the earlier deletion work in the current worktree.
+
+Follow-up: the user requested native screenshots and Arabic/English alignment. The phone was already on sign-in at the start of that follow-up; no auth action was used to reach it. Fixed Android RTL double mirroring using automatic text alignment plus the existing platform-aware direction helper. Native Arabic and English captures are `native-login-ar-aligned.png` and `native-login-en-aligned.png` in the private preview directory. Arabic is right-aligned, English left-aligned; language restored to Arabic. One app reload from the same Metro, no reinstall/data clear/sign-in/sign-out. Fresh 12 auth tests, TypeScript, scoped ESLint and layout detector passed. Same branch/device/APK/Metro12652 preserved; do not repeat deletion or registration.
+
+Publication is now explicitly authorized by the user on the same branch and `ratibi` remote. The earlier statements that changes were uncommitted/unpushed describe the original validation stage; consult Git history for the publication state. Fresh publication checks: 4 mobile suites /65 tests, mobile/API TypeScript and scoped ESLint passed. The checksum manifest now includes both existing 1 November repair migrations and verification passes. Do not reapply either migration or rerun live account deletion/registration as part of publication.
