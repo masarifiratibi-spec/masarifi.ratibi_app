@@ -5,8 +5,8 @@ Approved specification: the user's 1 November 2026 plan in this conversation.
 ## Fixed decisions
 
 - Work in `D:/Masarifi-integration-2026-10-10` on `codex/voice-promoted-operating-2026-10-13`, starting at `f957cb3d`.
-- Existing VPS, strict SSH identity/host verification; no firewall or credential changes.
-- Preserve both installed apps and data. Initial Metro12652 was found absent (PID reused by Playwright); the user explicitly authorized restoration on8081. Verified replacement Metro PID31340; preserve it and the unrelated Playwright process. New Release benchmark identity: `com.masarifi.mobile.benchmark` on the same Redmi, Staging auth, existing account, read-only actions.
+- Existing VPS and strict SSH identity/host verification. Preserve credentials and firewall rules except the explicitly approved source-only SSH exceptions. The current109.82.202.232→187.77.81.97 TCP22 exception was approved and verified; no general port opening or other rule change is authorized.
+- Preserve both installed apps and data. Initial Metro12652 was found absent (PID reused by Playwright); the user explicitly authorized restoration on8081. After an external interruption, Windows reserved8081; user approved temporary19081. Current verified Expo Metro PID17540 on19081, phone8081→host19081 plus19081→host19081; preserve the identified Metro and unrelated reused PIDs. Release benchmark JavaScript is bundled. New Release benchmark identity: `com.masarifi.mobile.benchmark` on the same Redmi, Staging auth, existing account, read-only actions.
 - No financial writes, deletion/registration replay, paid AI, email or notification delivery tests.
 - No cleanup/cutover before current recoverability and isolated restore are proved. No blanket prune, manual Docker-internal deletion, volume deletion or cache dropping.
 - One canonical immutable release across necessary process roles. Preserve compatible N-1 artifacts and state; move routes/claims gradually. Observe 24 hours before final retirement, retain off-host rollback for seven days.
@@ -15,7 +15,7 @@ Approved specification: the user's 1 November 2026 plan in this conversation.
 ## Task checklist and completion contracts
 
 - [ ] 1. Inventory every route, container, image, service, schedule, mount and release reference; classify active/dependency/rollback/unused/unresolved.
-- [ ] 2. Reproduce and fix frontend-quality and encrypted-store/WAL CI failures without weakening source/encryption checks; required checks pass on candidate.
+- [x] 2. Reproduce and fix frontend-quality and encrypted-store/WAL CI failures without weakening source/encryption checks; required automated checks passed on code candidate815a029c. Production signed-release evidence remains a separate, skipped gate.
 - [ ] 3. Verify current encrypted off-host DB, Storage, configuration, secrets and artifact recovery; complete isolated restore with reconciliation.
 - [ ] 4. Build/install independent benchmark Release with its own Firebase/OAuth identity; preserve both installed apps; authenticate existing owner read-only.
 - [ ] 5. Measure Arabic/English cold/warm startup (20 runs/scenario), core-screen readiness, requests/retries/payloads, frame/memory data; record sample counts and limitations.
